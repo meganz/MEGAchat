@@ -2,6 +2,7 @@
 #include "promise.h"
 #include <stdio.h>
 #include "asyncTest.h"
+#include "guiCallMarshaller.h"
 
 using namespace promise;
 
