@@ -20,15 +20,27 @@ namespace mega
 struct Message
 {
 	enum _magic: unsigned long {MEGAMSG_MAGIC = 0x3e9a3591};
-/** Message types, based on these the message is dispatched to different handlers */
-	enum Type {MMSG_FCALL = 1, MMSG_CURLIO = 2, MMSG_XMPPIO = 3};
+	typedef void(*HandlerFunc)(void*);
+/** Not required by the messaging mechanism itself, but might be useful
+ * when the same handler is called with different kinds of messages
+ */
 	int type;
+/** Handler C function that the message will be sent to, when received by the GUI thread
+ * Dispatching messages by directly specifying the handler function allows
+ * to dispatch the same kind of message to the correct module(shared object/main app)
+ * so that access/memory management on the message is always performed by the module
+ * that created the message.
+ */
+	HandlerFunc handler;
 	const unsigned long magic;
-	Message(int aType):type(aType), magic(MEGAMSG_MAGIC){}
-	static inline void verifyMagic(Message* msg)
+	Message(HandlerFunc	aHandler, int aType=0)
+		:handler(aHandler), type(aType), magic(MEGAMSG_MAGIC){}
+	static inline void verify(Message* msg)
 	{
 		if (msg->magic != MEGAMSG_MAGIC)
 			throw std::runtime_error("Message does not have the correct magic value");
+		if (!handler)
+			throw std::runtime_error("Message has a NULL handler");
 	}
 };
 
@@ -38,25 +50,31 @@ struct Message
 */
 struct FuncCallMessage: public Message
 {
-	typedef std::function<void()> Func;
-	Func func;
-	FuncCallMessage(Func&& aFunc)
-	:Message(Message::MMSG_FCALL), func(aFunc)
+	typedef std::function<void()> Lambda;
+	Lambda lambda;
+	FuncCallMessage(Message::HandlerFunc aHandler, Lambda&& aLambda, int aType = 0)
+		:Message(aHandler, aType), lambda(std::forward<Lambda>(aLambda))
 	{}
+
+	static inline doCall(Message* msg)
+	{
+		std::unique_ptr<FuncCallMessage> fcallMsg(static_cast<FuncCallMessage*>(msg));
+		fcallMsg->lambda();
+	}
 };
 
-/** Must be provided by the SDK user.
+/** Must be provided by the user.
 * Wraps an opaque void*, poiting to a mega message, into a
 * platform inter-thread message/signal and posts it to the GUI
 * message loop. This function is called by various threads
 */
 void postMessageToGui(void* msg);
 
-/** Utility function that uses the messaging infrastructure to marshal a call
+/** Utility function that uses the messaging infrastructure to marshal a (lambda) function call
  * to the GUI thread */
-void marshalCall(std::function<void()>&& call)
+static inline void marshalCall(Message::Handler handler, std::function<void()>&& call, int type=0)
 {
-	FuncCallMessage* msg = new FuncCallMessage(std::forward<std::function<void()> >(call));
+	FuncCallMessage* msg = new FuncCallMessage(handler, std::forward<std::function<void()> >(call), type);
 	postMessageToGui((void*)msg); //platform-specific, user-defined
 }
 
@@ -68,21 +86,8 @@ void marshalCall(std::function<void()>&& call)
 void processMessage(void* voidPtr)
 {
 	Message* msg = static_cast<Message*>(voidPtr);
-	Message::verifyMagic(msg);
-	switch (msg->type)
-	{
-		case Message::MMSG_FCALL:
-			static_cast<FuncCallMessage*>(msg)->func();
-			return;
-		case Message::MMSG_XMPPIO:
-			//karere::handleXmppIo(static_cast<FuncCallMessage*>(msg));
-			return;
-		case Message::MMSG_CURLIO:
-			//implement when CURL is used
-			return;
-		default:
-			return;
-	}
+	Message::verify(msg);
+	msg->handler(msg);
 }
 
 }
