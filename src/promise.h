@@ -280,6 +280,11 @@ public:
 	{
 		resolve(val);
 	}
+	Promise(T&& val):mSharedObj(new SharedObj)
+	{
+		resolve(std::forward<T>(val));
+	}
+
 	Promise(const Error& err):mSharedObj(new SharedObj)
 	{
 		reject(err);
@@ -397,7 +402,9 @@ public:
 	}
 	inline bool hasCallbacks()
 	{		return (mSharedObj->mCbs!=NULL);	}
-	void resolve(const T& val)
+	//V can be const& or &&
+	template <typename V>
+	void resolve(V val)
 	{
 		if (mSharedObj->mResolved)
 			throw std::runtime_error("Already resolved/rejected");
