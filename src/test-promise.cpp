@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "asyncTest.h"
 #include "guiCallMarshaller.h"
+#include "webrtcAdapter.h"
 
 using namespace promise;
 
@@ -13,6 +14,7 @@ Promise<int> retPromise()
 
 int main()
 {
+	rtcModule::init(NULL);
   {
 	Async async({{"then1",{{"order",1}}}, {"then2",{}}, {"fail2",{{"timeout",10000}}}});
 	auto p = Promise<int>();
