@@ -1,6 +1,9 @@
 #ifndef GUICALLMARSHALLER_H
 #define GUICALLMARSHALLER_H
+#include <stdexcept>
 #include <utility>
+#include <functional>
+#include <memory>
 
 namespace mega
 {
@@ -20,7 +23,7 @@ namespace mega
 struct Message
 {
 	enum _magic: unsigned long {MEGAMSG_MAGIC = 0x3e9a3591};
-	typedef void(*HandlerFunc)(void*);
+	typedef void(*HandlerFunc)(Message*);
 /** Not required by the messaging mechanism itself, but might be useful
  * when the same handler is called with different kinds of messages
  */
@@ -35,9 +38,9 @@ struct Message
 	const unsigned long magic;
 	Message(HandlerFunc	aHandler, int aType=0)
 		:handler(aHandler), type(aType), magic(MEGAMSG_MAGIC){}
-	static inline void verify(Message* msg)
+	inline void verify()
 	{
-		if (msg->magic != MEGAMSG_MAGIC)
+		if (magic != MEGAMSG_MAGIC)
 			throw std::runtime_error("Message does not have the correct magic value");
 		if (!handler)
 			throw std::runtime_error("Message has a NULL handler");
@@ -56,7 +59,7 @@ struct FuncCallMessage: public Message
 		:Message(aHandler, aType), lambda(std::forward<Lambda>(aLambda))
 	{}
 
-	static inline doCall(Message* msg)
+	static inline void doCall(Message* msg)
 	{
 		std::unique_ptr<FuncCallMessage> fcallMsg(static_cast<FuncCallMessage*>(msg));
 		fcallMsg->lambda();
@@ -72,7 +75,7 @@ void postMessageToGui(void* msg);
 
 /** Utility function that uses the messaging infrastructure to marshal a (lambda) function call
  * to the GUI thread */
-static inline void marshalCall(Message::Handler handler, std::function<void()>&& call, int type=0)
+static inline void marshalCall(Message::HandlerFunc handler, std::function<void()>&& call, int type=0)
 {
 	FuncCallMessage* msg = new FuncCallMessage(handler, std::forward<std::function<void()> >(call), type);
 	postMessageToGui((void*)msg); //platform-specific, user-defined
@@ -83,10 +86,10 @@ static inline void marshalCall(Message::Handler handler, std::function<void()>&&
 * It passes a received by the GUI thread to the MegaSDK for processing.
 * \warning Must be called only from the GUI thread
 */
-void processMessage(void* voidPtr)
+static inline void processMessage(void* voidPtr)
 {
 	Message* msg = static_cast<Message*>(voidPtr);
-	Message::verify(msg);
+	msg->verify();
 	msg->handler(msg);
 }
 
