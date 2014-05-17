@@ -233,7 +233,6 @@ protected:
 talk_base::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
 		webrtc::MediaStreamInterface* other, const std::string& label);
 
-typedef std::vector<cricket::Device> DeviceList;
 struct DeviceManager: public
 		std::shared_ptr<cricket::DeviceManagerInterface>
 {
@@ -251,7 +250,15 @@ struct DeviceManager: public
 	:Base(other){}
 };
 
-void getInputDevices(DeviceList& audio, DeviceList& video, DeviceManager devMgr);
+typedef std::vector<cricket::Device> DeviceList;
+
+struct InputDevices
+{
+	DeviceList audio;
+	DeviceList video;
+};
+
+std::shared_ptr<InputDevices> getInputDevices(DeviceManager devMgr);
 struct GetUserMediaOptions
 {
 	cricket::Device* audio;

@@ -63,13 +63,14 @@ talk_base::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
 	return result;
 }
 
-void getInputDevices(DeviceList& audio, DeviceList& video,
-		DeviceManager devMgr)
+std::shared_ptr<InputDevices> getInputDevices(DeviceManager devMgr)
 {
-	 if (!devMgr->GetVideoCaptureDevices(&video))
+	std::shared_ptr<InputDevices> result(new InputDevices);
+	 if (!devMgr->GetVideoCaptureDevices(&(result->video)))
 		 throw std::runtime_error("Can't enumerate video devices");
-	 if (!devMgr->GetAudioInputDevices(&audio))
+	 if (!devMgr->GetAudioInputDevices(&(result->audio)))
 		 throw std::runtime_error("Can't enumerate audio devices");
+	 return result;
 }
 
 talk_base::scoped_refptr<webrtc::MediaStreamInterface> getUserMedia(

@@ -15,6 +15,13 @@ Promise<int> retPromise()
 int main()
 {
 	rtcModule::init(NULL);
+	auto devices = rtcModule::getInputDevices(rtcModule::DeviceManager());
+	for (auto& dev: devices->audio)
+		printf("Audio: %s\n", dev.name.c_str());
+
+	for (auto& dev: devices->video)
+		printf("Video: %s\n", dev.name.c_str());
+
   {
 	Async async({{"then1",{{"order",1}}}, {"then2",{}}, {"fail2",{{"timeout",10000}}}});
 	auto p = Promise<int>();
@@ -90,5 +97,6 @@ int main()
 
 	int code = async.run();
 	printf("Finished: %s\n", Async::completeCodeToString(code));
+	getchar();
   }
 }
