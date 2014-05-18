@@ -187,10 +187,7 @@ set(LDFLAGS
 )
 
 set(SYSLIBS
-    gthread-2.0 rt gtk-x11-2.0 gdk-x11-2.0 atk-1.0 gio-2.0
-    pangoft2-1.0 pangocairo-1.0 gdk_pixbuf-2.0 cairo pango-1.0
-    freetype fontconfig gobject-2.0 glib-2.0 X11 Xcomposite
-    Xext Xrender nss3 nssutil3 smime3 plds4 plc4 nspr4 -ldl
+    nss3 nssutil3 smime3 plds4 plc4 nspr4 -ldl
     crypto expat m
 )
 
