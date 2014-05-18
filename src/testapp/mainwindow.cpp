@@ -1,20 +1,42 @@
+#include "webrtcAdapter.h" //must be before any Qt headers because Qt defines an 'emit' macro which conicides with a method name in webrtc, resulting in compile error
+
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "qmessagebox.h"
 #include <QThread>
 #include <string>
+#include "videoRenderer_Qt.h"
 
 extern MainWindow* mainWin;
+talk_base::scoped_refptr<webrtc::MediaStreamInterface> localStream;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    rtcModule::init(NULL);
+}
+
+void MainWindow::buttonPushed()
+{
+    rtcModule::DeviceManager devMgr;
+    auto devices = rtcModule::getInputDevices(devMgr);
+    for (auto& dev: devices->audio)
+        printf("Audio: %s\n", dev.name.c_str());
+    for (auto& dev: devices->video)
+        printf("Video: %s\n", dev.name.c_str());
+    rtcModule::GetUserMediaOptions options;
+    options.audio = &(devices->audio[0]);
+    options.video = &(devices->video[0]);
+    localStream = rtcModule::getUserMedia(options, devMgr, "localStream");
+    printf("video track count: %lu\n", localStream->GetVideoTracks().size());
+    ui->localVidPlayer->attach(localStream->GetVideoTracks()[0], true);
 }
 
 MainWindow::~MainWindow()
 {
+    rtcModule::cleanup();
     delete ui;
 }
 
@@ -31,7 +53,7 @@ struct MyThread: public QThread
           Q_ARG(void*, (void*)"this is a test message"));
     }
 };
-
+/*
 void MainWindow::buttonPushed()
 {
     QMessageBox::information(this, "",
@@ -39,3 +61,4 @@ void MainWindow::buttonPushed()
     MyThread thread;
     thread.run();
 }
+*/
