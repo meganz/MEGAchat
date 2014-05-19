@@ -49,20 +49,24 @@ static inline void marshalCall(std::function<void()>&& lambda)
 	mega::marshalCall(::rtcModule::funcCallMarshalHandler,
 		std::forward<std::function<void()> >(lambda));
 }
+typedef talk_base::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
+typedef talk_base::scoped_refptr<webrtc::SessionDescriptionInterface> tspSdp;
+typedef std::shared_ptr<webrtc::SessionDescriptionInterface> sspSdp;
+
 
 class SdpCreateCallbacks: public webrtc::CreateSessionDescriptionObserver
 {
 public:
   // The implementation of the CreateSessionDescriptionObserver takes
   // the ownership of the |desc|.
-	typedef promise::Promise<std::shared_ptr<webrtc::SessionDescriptionInterface> > PromiseType;
+	typedef promise::Promise<sspSdp> PromiseType;
 	SdpCreateCallbacks(const PromiseType& promise)
 		:mPromise(promise){}
 	virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc)
 	{
 		::rtcModule::marshalCall([this, desc]()
 		{
-			mPromise.resolve(std::shared_ptr<webrtc::SessionDescriptionInterface>(desc));
+			mPromise.resolve(sspSdp(desc));
 			delete this;
 		});
 	}
@@ -122,8 +126,7 @@ protected:
 
 template <class C>
 class myPeerConnection: public
-		talk_base::scoped_refptr<webrtc::PeerConnectionInterface>,
-		webrtc::PeerConnectionObserver
+		talk_base::scoped_refptr<webrtc::PeerConnectionInterface>
 {
 protected:
 	struct Observer;
@@ -183,13 +186,13 @@ protected:
 	  { marshalCall([this](){mPeerConn.onError();}); }
 	  virtual void OnAddStream(webrtc::MediaStreamInterface* stream)
 	  {
-		  talk_base::scoped_refptr<webrtc::MediaStreamInterface> spStream(stream);
+		  tspMediaStream spStream(stream);
 		  marshalCall([this, spStream] {mPeerConn.onAddStream(spStream);} );
 	  }
 	  virtual void OnRemoveStream(webrtc::MediaStreamInterface* stream)
 	  {
-		  talk_base::scoped_refptr<webrtc::MediaStreamInterface> spStream(stream);
-		  marshalCall([this, spStream] {mPeerConn.OnRemoveStream(spStream);} );
+		  tspMediaStream spStream(stream);
+		  marshalCall([this, spStream] {mPeerConn.onRemoveStream(spStream);} );
 	  }
 	  virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
 	  {
@@ -207,7 +210,7 @@ protected:
 
 		 marshalCall([this, strCand](){ mPeerConn.onIceCandidate(*strCand); });
 	 }
-	 virtual void OnInceComplete()
+	 virtual void OnIceComplete()
 	 {
 		 marshalCall([this]() { mPeerConn.onIceComplete(); });
 	 }
