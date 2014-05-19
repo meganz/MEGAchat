@@ -73,38 +73,30 @@ std::shared_ptr<InputDevices> getInputDevices(DeviceManager devMgr)
 	 return result;
 }
 
-talk_base::scoped_refptr<webrtc::MediaStreamInterface> getUserMedia(
-	const GetUserMediaOptions& options, DeviceManager devMgr, const std::string& label)
+talk_base::scoped_refptr<webrtc::VideoTrackInterface>
+	getUserVideo(const MediaGetOptions& options, DeviceManager& devMgr)
 {
-	talk_base::scoped_refptr<webrtc::MediaStreamInterface> stream(
-		gWebrtcContext->CreateLocalMediaStream(label));
-	if (!stream.get())
-		throw std::runtime_error("Error creating local media stream object");
-	if (options.video)
-	{
-		cricket::VideoCapturer* capturer =
-			devMgr->CreateVideoCapturer(*(options.video));
-		if (capturer)
-		{
-			talk_base::scoped_refptr<webrtc::VideoTrackInterface> vtrack(
-			  gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()),
-				gWebrtcContext->CreateVideoSource(capturer, &(options.videoConstraints))));
-			if (vtrack.get())
-				stream->AddTrack(vtrack);
-			else
-				throw std::runtime_error("Could not create video track from video capturer");
-		}
-	}
-	if (options.audio)
-	{
-		talk_base::scoped_refptr<webrtc::AudioTrackInterface> atrack(
-			gWebrtcContext->CreateAudioTrack("a"+std::to_string(generateId()),
-				gWebrtcContext->CreateAudioSource(&(options.audioConstraints))));
-		if (atrack.get())
-			stream->AddTrack(atrack);
-		else
-			throw std::runtime_error("Could not create audio track");
-	}
-	return stream;
+	cricket::VideoCapturer* capturer =
+			devMgr->CreateVideoCapturer(*(options.device));
+	if (!capturer)
+		throw std::runtime_error("Could not create video capturer");
+
+	talk_base::scoped_refptr<webrtc::VideoTrackInterface> vtrack(
+	  gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()),
+		 gWebrtcContext->CreateVideoSource(capturer, &(options.constraints))));
+	if (!vtrack.get())
+		throw std::runtime_error("Could not create video track from video capturer");
+	return vtrack;
+}
+
+talk_base::scoped_refptr<webrtc::AudioTrackInterface>
+  getUserAudio(const MediaGetOptions& options, DeviceManager& devMgr)
+{
+	talk_base::scoped_refptr<webrtc::AudioTrackInterface> atrack(
+	  gWebrtcContext->CreateAudioTrack("a"+std::to_string(generateId()),
+		 gWebrtcContext->CreateAudioSource(&(options.constraints))));
+	if (!atrack.get())
+		throw std::runtime_error("Could not create audio track");
+	return atrack;
 }
 }

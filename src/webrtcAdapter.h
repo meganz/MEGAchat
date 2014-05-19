@@ -259,17 +259,19 @@ struct InputDevices
 };
 
 std::shared_ptr<InputDevices> getInputDevices(DeviceManager devMgr);
-struct GetUserMediaOptions
+struct MediaGetOptions
 {
-	cricket::Device* audio;
-	cricket::Device* video;
-	webrtc::FakeConstraints audioConstraints;
-	webrtc::FakeConstraints videoConstraints;
+	cricket::Device* device;
+	webrtc::FakeConstraints constraints;
+	MediaGetOptions(cricket::Device* aDevice)
+	:device(aDevice){}
 };
 
-talk_base::scoped_refptr<webrtc::MediaStreamInterface> getUserMedia(
-	const GetUserMediaOptions& options,
-	DeviceManager devMgr, const std::string& label);
+talk_base::scoped_refptr<webrtc::AudioTrackInterface>
+	getUserAudio(const MediaGetOptions& options, DeviceManager& devMgr);
+
+talk_base::scoped_refptr<webrtc::VideoTrackInterface>
+	getUserVideo(const MediaGetOptions& options, DeviceManager& devMgr);
 
 }
 

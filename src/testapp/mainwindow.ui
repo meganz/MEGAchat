@@ -6,61 +6,68 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>359</width>
+    <width>369</width>
     <height>364</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
+  <property name="locale">
+   <locale language="English" country="UnitedStates"/>
+  </property>
   <widget class="QWidget" name="centralWidget">
-   <widget class="QPushButton" name="button">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>80</width>
-      <height>31</height>
-     </rect>
+   <layout class="QGridLayout" name="gridLayout">
+    <property name="margin">
+     <number>1</number>
     </property>
-    <property name="sizePolicy">
-     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-      <horstretch>0</horstretch>
-      <verstretch>0</verstretch>
-     </sizepolicy>
-    </property>
-    <property name="text">
-     <string>Push</string>
-    </property>
-   </widget>
-   <widget class="VideoRendererQt" name="localRenderer" native="true">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>40</y>
-      <width>320</width>
-      <height>240</height>
-     </rect>
-    </property>
-    <property name="sizePolicy">
-     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-      <horstretch>100</horstretch>
-      <verstretch>100</verstretch>
-     </sizepolicy>
-    </property>
-    <property name="minimumSize">
-     <size>
-      <width>320</width>
-      <height>10</height>
-     </size>
-    </property>
-    <property name="maximumSize">
-     <size>
-      <width>1024</width>
-      <height>768</height>
-     </size>
-    </property>
-   </widget>
+    <item row="0" column="0">
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <property name="sizeConstraint">
+         <enum>QLayout::SetNoConstraint</enum>
+        </property>
+        <item>
+         <widget class="QPushButton" name="button">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Push</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="VideoRendererQt" name="localRenderer" native="true">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>100</horstretch>
+          <verstretch>100</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>320</width>
+          <height>10</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>1024</width>
+          <height>768</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
@@ -81,12 +88,12 @@
    <slot>buttonPushed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>39</x>
-     <y>54</y>
+     <x>184</x>
+     <y>14</y>
     </hint>
     <hint type="destinationlabel">
-     <x>199</x>
-     <y>149</y>
+     <x>184</x>
+     <y>181</y>
     </hint>
    </hints>
   </connection>

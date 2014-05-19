@@ -28,12 +28,9 @@ void MainWindow::buttonPushed()
         printf("Audio: %s\n", dev.name.c_str());
     for (auto& dev: devices->video)
         printf("Video: %s\n", dev.name.c_str());
-    rtcModule::GetUserMediaOptions options;
-    options.audio = &(devices->audio[0]);
-    options.video = &(devices->video[0]);
-    localStream = rtcModule::getUserMedia(options, devMgr, "localStream");
-    printf("video track count: %lu\n", localStream->GetVideoTracks().size());
-    localPlayer.reset(new rtcModule::StreamPlayer(NULL, localStream->GetVideoTracks()[0], ui->localRenderer));
+    rtcModule::MediaGetOptions options(&(devices->video[0]));
+    auto localVideo = rtcModule::getUserVideo(options, devMgr);
+    localPlayer.reset(new rtcModule::StreamPlayer(NULL, localVideo, ui->localRenderer));
     localPlayer->start();
 }
 
