@@ -6,9 +6,11 @@
 #include <QThread>
 #include <string>
 #include "videoRenderer_Qt.h"
+#include <streamPlayer.h>
 
 extern MainWindow* mainWin;
 talk_base::scoped_refptr<webrtc::MediaStreamInterface> localStream;
+std::unique_ptr<rtcModule::StreamPlayer> localPlayer;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -31,7 +33,8 @@ void MainWindow::buttonPushed()
     options.video = &(devices->video[0]);
     localStream = rtcModule::getUserMedia(options, devMgr, "localStream");
     printf("video track count: %lu\n", localStream->GetVideoTracks().size());
-    ui->localVidPlayer->attach(localStream->GetVideoTracks()[0], true);
+    localPlayer.reset(new rtcModule::StreamPlayer(NULL, localStream->GetVideoTracks()[0], ui->localRenderer));
+    localPlayer->start();
 }
 
 MainWindow::~MainWindow()

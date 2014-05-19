@@ -2,6 +2,14 @@
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>359</width>
+    <height>364</height>
+   </rect>
+  </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
@@ -25,11 +33,11 @@
      <string>Push</string>
     </property>
    </widget>
-   <widget class="VideoRendererQt" name="localVidPlayer" native="true">
+   <widget class="VideoRendererQt" name="localRenderer" native="true">
     <property name="geometry">
      <rect>
-      <x>100</x>
-      <y>100</y>
+      <x>10</x>
+      <y>40</y>
       <width>320</width>
       <height>240</height>
      </rect>
@@ -54,7 +62,6 @@
     </property>
    </widget>
   </widget>
-  <widget class="QStatusBar" name="statusBar"/>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
