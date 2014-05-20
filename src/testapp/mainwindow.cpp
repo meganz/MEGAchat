@@ -1,4 +1,6 @@
 #include "webrtcAdapter.h" //must be before any Qt headers because Qt defines an 'emit' macro which conicides with a method name in webrtc, resulting in compile error
+#include <talk/app/webrtc/test/fakeconstraints.h>
+#include <streamPlayer.h>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -6,11 +8,53 @@
 #include <QThread>
 #include <string>
 #include "videoRenderer_Qt.h"
-#include <streamPlayer.h>
+
+#undef emit
 
 extern MainWindow* mainWin;
 talk_base::scoped_refptr<webrtc::MediaStreamInterface> localStream;
 std::unique_ptr<rtcModule::StreamPlayer> localPlayer;
+
+class PcHandler
+{
+ public:
+    void onError()
+    {
+        printf("onError\n");
+    }
+    void onAddStream(talk_base::scoped_refptr<webrtc::MediaStreamInterface> stream)
+    {
+        printf("onAddStream\n");
+    }
+    void onRemoveStream(talk_base::scoped_refptr<webrtc::MediaStreamInterface> spStream)
+    {
+        printf("onRemoveStream\n");
+    }
+    void onIceCandidate(const std::string& candidate)
+    {
+        printf("onIceCandidate\n");
+    }
+    void onIceComplete()
+    {
+        printf("onIceComplete\n");
+    }
+    void onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
+    {
+        printf("onSignalingChange\n");
+    }
+    void onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
+    {
+        printf("onIceConnectionChange\n");
+    }
+    void onRenegotiationNeeded()
+    {
+        printf("onRenegotiationNeeded\n");
+    }
+};
+PcHandler handler;
+
+std::shared_ptr<rtcModule::myPeerConnection<PcHandler> > pc1;
+std::shared_ptr<rtcModule::myPeerConnection<PcHandler> > pc2;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -30,8 +74,51 @@ void MainWindow::buttonPushed()
         printf("Video: %s\n", dev.name.c_str());
     rtcModule::MediaGetOptions options(&(devices->video[0]));
     auto localVideo = rtcModule::getUserVideo(options, devMgr);
-    localPlayer.reset(new rtcModule::StreamPlayer(NULL, localVideo, ui->localRenderer));
+    auto localAudio = rtcModule::getUserAudio(rtcModule::MediaGetOptions(&(devices->audio[0])), devMgr);
+    localPlayer.reset(new rtcModule::StreamPlayer(localAudio, localVideo, ui->localRenderer));
     localPlayer->start();
+    webrtc::PeerConnectionInterface::IceServers servers;
+    webrtc::PeerConnectionInterface::IceServer server;
+    server.uri = "stun:stun.l.google.com:19302";
+    servers.push_back(server);
+    webrtc::FakeConstraints pcmc;
+    pcmc.AddOptional(::webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
+    pc1.reset(new rtcModule::myPeerConnection<PcHandler>(servers, handler, NULL));
+    pc2.reset(new rtcModule::myPeerConnection<PcHandler>(servers, handler, NULL));
+    localStream = rtcModule::gWebrtcContext->CreateLocalMediaStream("localStream");
+    if(!localStream.get())
+        throw std::runtime_error("Could not create local stream");
+    localStream->AddTrack(localAudio);
+    localStream->AddTrack(localVideo);
+    pc1->get()->AddStream(localStream, NULL);
+    pc2->get()->AddStream(localStream, NULL);
+  //  return;
+    pc1->createOffer(NULL)
+    .then([](webrtc::SessionDescriptionInterface* sdp)
+    {
+        printf("createdOffer\n");
+        return pc1->setLocalDescription(sdp);
+    })
+    .then([](rtcModule::sspSdpText sdpText)
+    {
+        printf("setLocalDesc\n");
+        return pc2->setRemoteDescription(rtcModule::parseSdp(sdpText));
+    })
+    .then([](rtcModule::sspSdpText sdp)
+    {
+        printf("setRemoteDesc\n");
+        return pc2->createAnswer(NULL);
+    })
+    .then([](webrtc::SessionDescriptionInterface* sdp)
+    {
+        printf("created Answer\n");
+        return pc1->setRemoteDescription(sdp);
+    })
+    .then([](rtcModule::sspSdpText sdp)
+    {
+        printf("set remote desc\n");
+        return 0;
+    });
 }
 
 MainWindow::~MainWindow()
@@ -40,9 +127,9 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::slotKarereEvent(void* msg)
+void MainWindow::megaMessageSlot(void* msg)
 {
-    QMessageBox::information(this, "", ("signal received, thread = "+std::to_string(QThread::currentThreadId())+"\nvalue = "+(const char*)msg).c_str());
+    mega::processMessage(msg);
 }
 struct MyThread: public QThread
 {

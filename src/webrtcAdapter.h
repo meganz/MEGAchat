@@ -8,6 +8,8 @@
 #include <talk/app/webrtc/audiotrack.h>
 #include <talk/app/webrtc/videotrack.h>
 #include <talk/app/webrtc/test/fakeconstraints.h>
+#include <talk/app/webrtc/jsepsessiondescription.h>
+#include <talk/app/webrtc/jsep.h>
 #include "guiCallMarshaller.h"
 #include "promise.h"
 
@@ -51,7 +53,7 @@ static inline void marshalCall(std::function<void()>&& lambda)
 }
 typedef talk_base::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
 typedef talk_base::scoped_refptr<webrtc::SessionDescriptionInterface> tspSdp;
-typedef std::shared_ptr<webrtc::SessionDescriptionInterface> sspSdp;
+typedef std::unique_ptr<webrtc::SessionDescriptionInterface> supSdp;
 
 
 class SdpCreateCallbacks: public webrtc::CreateSessionDescriptionObserver
@@ -59,15 +61,15 @@ class SdpCreateCallbacks: public webrtc::CreateSessionDescriptionObserver
 public:
   // The implementation of the CreateSessionDescriptionObserver takes
   // the ownership of the |desc|.
-	typedef promise::Promise<sspSdp> PromiseType;
+    typedef promise::Promise<webrtc::SessionDescriptionInterface*> PromiseType;
 	SdpCreateCallbacks(const PromiseType& promise)
 		:mPromise(promise){}
 	virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc)
-	{
-		::rtcModule::marshalCall([this, desc]()
+    {
+        ::rtcModule::marshalCall([this, desc]() mutable
 		{
-			mPromise.resolve(sspSdp(desc));
-			delete this;
+            mPromise.resolve(desc);
+            Release();
 		});
 	}
 	virtual void OnFailure(const std::string& error)
@@ -75,7 +77,7 @@ public:
 		::rtcModule::marshalCall([this, error]()
 		{
 		   mPromise.reject(error);
-		   delete this;
+           Release();
 		});
 	}
 protected:
@@ -85,14 +87,27 @@ protected:
 class SdpSetCallbacks: public webrtc::SetSessionDescriptionObserver
 {
 public:
-	typedef promise::Promise<int> PromiseType;
-	SdpSetCallbacks(const PromiseType& promise):mPromise(promise){}
+    struct SdpText
+    {
+        std::string sdp;
+        std::string type;
+        SdpText(webrtc::SessionDescriptionInterface* desc)
+        {
+            type = desc->type();
+            desc->ToString(&sdp);
+        }
+    };
+    typedef promise::Promise<std::shared_ptr<SdpText> > PromiseType;
+    SdpSetCallbacks(const PromiseType& promise, webrtc::SessionDescriptionInterface* sdp)
+    :mPromise(promise), mSdpText(new SdpText(sdp))
+    {}
+
 	virtual void OnSuccess()
 	{
 		 ::rtcModule::marshalCall([this]()
 		 {
-			 mPromise.resolve(0);
-			 delete this;
+             mPromise.resolve(mSdpText);
+             Release();
 		 });
 	}
 	virtual void OnFailure(const std::string& error)
@@ -100,12 +115,15 @@ public:
 		::rtcModule::marshalCall([this, error]()
 		{
 			 mPromise.reject(error);
-			 delete this;
+             Release();
 		});
 	}
 protected:
 	PromiseType mPromise;
+    std::shared_ptr<SdpText> mSdpText;
 };
+
+typedef std::shared_ptr<SdpSetCallbacks::SdpText> sspSdpText;
 
 struct StatsCallbacks: public webrtc::StatsObserver
 {
@@ -129,45 +147,106 @@ class myPeerConnection: public
 		talk_base::scoped_refptr<webrtc::PeerConnectionInterface>
 {
 protected:
-	struct Observer;
+
+//PeerConnectionObserver implementation
+  struct Observer: public webrtc::PeerConnectionObserver
+  {
+      Observer(C& handler):mHandler(handler){}
+      virtual void OnError()
+      { marshalCall([this](){mHandler.onError();}); }
+      virtual void OnAddStream(webrtc::MediaStreamInterface* stream)
+      {
+          tspMediaStream spStream(stream);
+          marshalCall([this, spStream] {mHandler.onAddStream(spStream);} );
+      }
+      virtual void OnRemoveStream(webrtc::MediaStreamInterface* stream)
+      {
+          tspMediaStream spStream(stream);
+          marshalCall([this, spStream] {mHandler.onRemoveStream(spStream);} );
+      }
+      virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
+      {
+         std::string sdp;
+         if (!candidate->ToString(&sdp))
+         {
+             printf("ERROR: Failed to serialize candidate\n");
+             return;
+         }
+         std::shared_ptr<std::string> strCand(new std::string);
+         (*strCand)
+          .append("candidate: ").append(sdp).append("\r\n")
+          .append("sdpMid: ").append(candidate->sdp_mid()).append("\r\n")
+          .append("sdpMLineIndex: ").append(std::to_string(candidate->sdp_mline_index())).append("\r\n");
+
+         marshalCall([this, strCand](){ mHandler.onIceCandidate(*strCand); });
+     }
+     virtual void OnIceComplete()
+     {
+         marshalCall([this]() { mHandler.onIceComplete(); });
+     }
+     virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
+     {
+         marshalCall([this, newState]() { mHandler.onSignalingChange(newState); });
+     }
+     virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
+     {
+         marshalCall([this, newState]() { mHandler.onIceConnectionChange(newState);	});
+     }
+     virtual void OnRenegotiationNeeded()
+     {
+         marshalCall([this]() { mHandler.onRenegotiationNeeded();});
+     }
+    protected:
+        C& mHandler;
+        //own callback interface, always called by the GUI thread
+    };
 	typedef talk_base::scoped_refptr<webrtc::PeerConnectionInterface> Base;
 	std::shared_ptr<Observer> mObserver;
 public:
 	myPeerConnection(const webrtc::PeerConnectionInterface::IceServers& servers,
-	 webrtc::MediaConstraintsInterface* options=NULL)
-		:mObserver(new Observer(*this))
+     C& handler, webrtc::MediaConstraintsInterface* options)
+        :mObserver(new Observer(handler))
 	{
 
 		if (gLocalIdentity.isValid())
 		{
 //TODO: give dtls identity to webrtc
 		}
-		Base(gWebrtcContext->CreatePeerConnection(
+        Base::operator=(gWebrtcContext->CreatePeerConnection(
 			servers, options, NULL, NULL /*DTLS stuff*/, mObserver.get()));
 	}
 
   SdpCreateCallbacks::PromiseType createOffer(const webrtc::MediaConstraintsInterface* constraints)
   {
 	  SdpCreateCallbacks::PromiseType promise;
-	  get()->CreateOffer(new talk_base::RefCountedObject<SdpCreateCallbacks>(promise), constraints);
+      auto observer = new talk_base::RefCountedObject<SdpCreateCallbacks>(promise);
+      observer->AddRef();
+      get()->CreateOffer(observer, constraints);
 	  return promise;
   }
   SdpCreateCallbacks::PromiseType createAnswer(const webrtc::MediaConstraintsInterface* constraints)
   {
 	  SdpCreateCallbacks::PromiseType promise;
-	  get()->CreateAnswer(new talk_base::RefCountedObject<SdpCreateCallbacks>(promise), constraints);
+      auto observer = new talk_base::RefCountedObject<SdpCreateCallbacks>(promise);
+      observer->AddRef();
+      get()->CreateAnswer(observer, constraints);
 	  return promise;
   }
+  /** Takes ownership of \c desc */
   SdpSetCallbacks::PromiseType setLocalDescription(webrtc::SessionDescriptionInterface* desc)
   {
 	  SdpSetCallbacks::PromiseType promise;
-	  get()->SetLocalDescription(new talk_base::RefCountedObject<SdpSetCallbacks>(promise), desc);
+      auto observer = new talk_base::RefCountedObject<SdpSetCallbacks>(promise, desc);
+      observer->AddRef();
+      get()->SetLocalDescription(observer, desc);
 	  return promise;
   }
   SdpSetCallbacks::PromiseType setRemoteDescription(webrtc::SessionDescriptionInterface* desc)
   {
 	  SdpSetCallbacks::PromiseType promise;
-	  get()->SetRemoteDescription(new talk_base::RefCountedObject<SdpSetCallbacks>(promise), desc);
+      auto observer = new talk_base::RefCountedObject<SdpSetCallbacks>(promise, desc);
+      observer->AddRef();
+      get()->SetRemoteDescription(observer, desc);
 	  return promise;
   }
   StatsCallbacks::PromiseType getStats(
@@ -177,60 +256,6 @@ public:
 	  get()->GetStats(new talk_base::RefCountedObject<StatsCallbacks>(promise), track, level);
 	  return promise;
   }
-protected:
-//PeerConnectionObserver implementation
-  struct Observer: public webrtc::PeerConnectionObserver
-  {
-	  Observer(C& peerConn):mPeerConn(peerConn){}
-	  virtual void OnError()
-	  { marshalCall([this](){mPeerConn.onError();}); }
-	  virtual void OnAddStream(webrtc::MediaStreamInterface* stream)
-	  {
-		  tspMediaStream spStream(stream);
-		  marshalCall([this, spStream] {mPeerConn.onAddStream(spStream);} );
-	  }
-	  virtual void OnRemoveStream(webrtc::MediaStreamInterface* stream)
-	  {
-		  tspMediaStream spStream(stream);
-		  marshalCall([this, spStream] {mPeerConn.onRemoveStream(spStream);} );
-	  }
-	  virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
-	  {
-		 std::string sdp;
-		 if (!candidate->ToString(&sdp))
-		 {
-			 printf("ERROR: Failed to serialize candidate\n");
-			 return;
-		 }
-		 std::shared_ptr<std::string> strCand = new std::string;
-		 (*strCand)
-		  .append("candidate: ").append(sdp).append("\r\n")
-		  .append("sdpMid: ").append(candidate->sdp_mid()).append("\r\n")
-		  .append("sdpMLineIndex: ").append(std::to_string(candidate->sdp_mline_index())).append("\r\n");
-
-		 marshalCall([this, strCand](){ mPeerConn.onIceCandidate(*strCand); });
-	 }
-	 virtual void OnIceComplete()
-	 {
-		 marshalCall([this]() { mPeerConn.onIceComplete(); });
-	 }
-	 virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
-	 {
-		 marshalCall([this, newState]() { mPeerConn.onSignalingChange(newState); });
-	 }
-	 virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
-	 {
-		 marshalCall([this, newState]() { mPeerConn.onIceConnectionChange(newState);	});
-	 }
-	 virtual void OnRenegotiationNeeded()
-	 {
-		 marshalCall([this]() { mPeerConn.onRenegotiationNeeded();});
-	 }
-  protected:
-	C& mPeerConn;
-//own callback interface, always called by the GUI thread
-
-  };
 };
 
 talk_base::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
@@ -276,5 +301,16 @@ talk_base::scoped_refptr<webrtc::AudioTrackInterface>
 talk_base::scoped_refptr<webrtc::VideoTrackInterface>
 	getUserVideo(const MediaGetOptions& options, DeviceManager& devMgr);
 
+inline webrtc::JsepSessionDescription* parseSdp(const sspSdpText& sdpText)
+{
+    webrtc::JsepSessionDescription* sdp =
+        new webrtc::JsepSessionDescription(sdpText->type);
+    webrtc::SdpParseError error;
+    if (!sdp->Initialize(sdpText->sdp, &error))
+    {
+        delete sdp;
+        throw std::runtime_error(error.line+":"+error.description);
+    }
+    return sdp;
 }
-
+}

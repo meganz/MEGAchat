@@ -15,9 +15,8 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 public slots:
-    void slotKarereEvent(void* msg);
     void buttonPushed();
-
+    void megaMessageSlot(void* msg);
 private:
     Ui::MainWindow *ui;
 };
