@@ -414,7 +414,7 @@ public:
 			doResolve(val);
 		else
 		{
-			mSharedObj->mResult = val;
+			mSharedObj->mResult = std::move(val);
 			mSharedObj->mPending = true;
 		}
 	}
