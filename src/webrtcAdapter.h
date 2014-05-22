@@ -77,7 +77,7 @@ public:
 	{
         marshalCall([this, error]()
 		{
-		   mPromise.reject(error);
+           mPromise.reject(error, 1, 0x71c);
            Release();
 		});
 	}
@@ -155,7 +155,7 @@ public:
 	{
         marshalCall([this, error]()
 		{
-			 mPromise.reject(error);
+             mPromise.reject(error, 1, 0x71c);
              Release();
 		});
 	}
@@ -247,6 +247,8 @@ public:
 		}
         Base::operator=(gWebrtcContext->CreatePeerConnection(
 			servers, options, NULL, NULL /*DTLS stuff*/, mObserver.get()));
+        if (!get())
+            throw std::runtime_error("Failed to create a PeerConnection object");
 	}
 
   SdpCreateCallbacks::PromiseType createOffer(const webrtc::MediaConstraintsInterface* constraints)
