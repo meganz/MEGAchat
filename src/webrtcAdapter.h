@@ -84,19 +84,59 @@ protected:
 	PromiseType mPromise;
 };
 
+struct SdpText
+{
+    std::string sdp;
+    std::string type;
+    SdpText(webrtc::SessionDescriptionInterface* desc)
+    {
+        type = desc->type();
+        desc->ToString(&sdp);
+    }
+    SdpText(const std::string& aSdp, const std::string& aType)
+    :sdp(aSdp), type(aType)
+    {}
+    inline webrtc::JsepSessionDescription* createObject()
+    {
+        webrtc::JsepSessionDescription* jsepSdp =
+            new webrtc::JsepSessionDescription(type);
+        webrtc::SdpParseError error;
+        if (!jsepSdp->Initialize(sdp, &error))
+        {
+            delete jsepSdp;
+            throw std::runtime_error("Error parsing SDP: line "+error.line+"\nError: "+error.description);
+        }
+        return jsepSdp;
+    }
+};
+struct IceCandText
+{
+    std::string candidate;
+    std::string sdpMid;
+    int sdpMLineIndex;
+    IceCandText(const webrtc::IceCandidateInterface* cand)
+    {
+        if (!cand->ToString(&candidate))
+        {
+            printf("ERROR: Failed to serialize candidate\n");
+            return;
+        }
+         sdpMid = cand->sdp_mid();
+         sdpMLineIndex = cand->sdp_mline_index();
+    }
+    inline webrtc::JsepIceCandidate* createObject()
+    {
+        auto cand = new webrtc::JsepIceCandidate(sdpMid, sdpMLineIndex);
+        webrtc::SdpParseError err;
+        if (!cand->Initialize(candidate, &err))
+            throw std::runtime_error("Error parsing ICE candidate: line "+err.line+"\nError: "+err.description);
+        return cand;
+    }
+};
+
 class SdpSetCallbacks: public webrtc::SetSessionDescriptionObserver
 {
 public:
-    struct SdpText
-    {
-        std::string sdp;
-        std::string type;
-        SdpText(webrtc::SessionDescriptionInterface* desc)
-        {
-            type = desc->type();
-            desc->ToString(&sdp);
-        }
-    };
     typedef promise::Promise<std::shared_ptr<SdpText> > PromiseType;
     SdpSetCallbacks(const PromiseType& promise, webrtc::SessionDescriptionInterface* sdp)
     :mPromise(promise), mSdpText(new SdpText(sdp))
@@ -123,7 +163,7 @@ protected:
     std::shared_ptr<SdpText> mSdpText;
 };
 
-typedef std::shared_ptr<SdpSetCallbacks::SdpText> sspSdpText;
+typedef std::shared_ptr<SdpText> sspSdpText;
 
 struct StatsCallbacks: public webrtc::StatsObserver
 {
@@ -166,36 +206,28 @@ protected:
       }
       virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
       {
-         std::string sdp;
-         if (!candidate->ToString(&sdp))
-         {
-             printf("ERROR: Failed to serialize candidate\n");
-             return;
-         }
-         std::shared_ptr<std::string> strCand(new std::string);
-         (*strCand)
-          .append("candidate: ").append(sdp).append("\r\n")
-          .append("sdpMid: ").append(candidate->sdp_mid()).append("\r\n")
-          .append("sdpMLineIndex: ").append(std::to_string(candidate->sdp_mline_index())).append("\r\n");
-
-         marshalCall([this, strCand](){ mHandler.onIceCandidate(*strCand); });
-     }
-     virtual void OnIceComplete()
-     {
-         marshalCall([this]() { mHandler.onIceComplete(); });
-     }
-     virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
-     {
-         marshalCall([this, newState]() { mHandler.onSignalingChange(newState); });
-     }
-     virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
-     {
-         marshalCall([this, newState]() { mHandler.onIceConnectionChange(newState);	});
-     }
-     virtual void OnRenegotiationNeeded()
-     {
-         marshalCall([this]() { mHandler.onRenegotiationNeeded();});
-     }
+        std::shared_ptr<IceCandText> spCand(new IceCandText(candidate));
+        marshalCall([this, spCand]()
+        {
+            mHandler.onIceCandidate(spCand);
+        });
+      }
+      virtual void OnIceComplete()
+      {
+          marshalCall([this]() { mHandler.onIceComplete(); });
+      }
+      virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
+      {
+          marshalCall([this, newState]() { mHandler.onSignalingChange(newState); });
+      }
+      virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
+      {
+          marshalCall([this, newState]() { mHandler.onIceConnectionChange(newState);	});
+      }
+      virtual void OnRenegotiationNeeded()
+      {
+          marshalCall([this]() { mHandler.onRenegotiationNeeded();});
+      }
     protected:
         C& mHandler;
         //own callback interface, always called by the GUI thread
@@ -301,16 +333,4 @@ talk_base::scoped_refptr<webrtc::AudioTrackInterface>
 talk_base::scoped_refptr<webrtc::VideoTrackInterface>
 	getUserVideo(const MediaGetOptions& options, DeviceManager& devMgr);
 
-inline webrtc::JsepSessionDescription* parseSdp(const sspSdpText& sdpText)
-{
-    webrtc::JsepSessionDescription* sdp =
-        new webrtc::JsepSessionDescription(sdpText->type);
-    webrtc::SdpParseError error;
-    if (!sdp->Initialize(sdpText->sdp, &error))
-    {
-        delete sdp;
-        throw std::runtime_error(error.line+":"+error.description);
-    }
-    return sdp;
-}
 }
