@@ -7,7 +7,7 @@
 VideoRendererQt::VideoRendererQt(QWidget *parent)
     :QWidget(parent), mFrame(new QImage(size(), QImage::Format_ARGB32))
 {
-    mFrame->fill(0);
+    mFrame->fill(0xff000000);
 }
 
 void VideoRendererQt::updateImageSlot()

@@ -13,8 +13,8 @@ protected:
     IVideoRenderer* mRenderer;
     bool mPlaying;
 public:
-    StreamPlayer(webrtc::AudioTrackInterface* audio, webrtc::VideoTrackInterface* video,
-        IVideoRenderer* renderer)
+    StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio,
+    webrtc::VideoTrackInterface* video)
      :mAudio(audio), mVideo(video), mRenderer(renderer), mPlaying(false)
     {}
     void start()
@@ -55,7 +55,7 @@ public:
         mAudio = NULL;
     }
 
-    void AttachVideo(webrtc::VideoTrackInterface* video)
+    void attachVideo(webrtc::VideoTrackInterface* video)
     {
         assert(video != NULL);
         detachVideo();
@@ -82,7 +82,6 @@ public:
 
     void RenderFrame(const cricket::VideoFrame* frame)
     {
-    //    QImage* bmp = new QImage(frame->GetWidth(), frame->GetHeight(), QImage::Format_ARGB32);
         int width = frame->GetWidth();
         int height = frame->GetHeight();
         int bufSize = width*height*4;
@@ -92,6 +91,6 @@ public:
         mRenderer->frameComplete(userData);
     }
 };
-};
+}
 
 #endif // STREAMPLAYER_H
