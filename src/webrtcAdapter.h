@@ -56,6 +56,10 @@ typedef talk_base::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
 typedef talk_base::scoped_refptr<webrtc::SessionDescriptionInterface> tspSdp;
 typedef std::unique_ptr<webrtc::SessionDescriptionInterface> supSdp;
 
+/** The error type code that will be set when promises returned by this lib are rejected */
+enum {kRejectType = 0x17c};
+/** The specific error codes of rejected promises */
+enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
 
 class SdpCreateCallbacks: public webrtc::CreateSessionDescriptionObserver
 {
@@ -77,7 +81,7 @@ public:
 	{
         marshalCall([this, error]()
 		{
-           mPromise.reject(error, 1, 0x71c);
+           mPromise.reject(promise::Error(error, kCreateSdpFailed, kRejectType));
            Release();
 		});
 	}
@@ -155,7 +159,7 @@ public:
 	{
         marshalCall([this, error]()
 		{
-             mPromise.reject(error, 1, 0x71c);
+             mPromise.reject(promise::Error(error, kSetSdpDescriptionFailed, kRejectType));
              Release();
 		});
 	}
