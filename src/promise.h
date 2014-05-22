@@ -468,9 +468,9 @@ public:
 			msg = "";
 		reject(Error(msg));
 	}
-	inline void reject(int code, int type, void* data)
+	inline void reject(int code, int type)
 	{
-		reject(Error("", code, type, data));
+		reject(Error("", code, type));
 	}
 protected:
 	void doReject(const Error& err)
