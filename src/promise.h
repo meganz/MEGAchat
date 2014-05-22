@@ -316,7 +316,7 @@ protected:
 		}
 		catch(std::exception& e)
 		{
-			next.reject(e.what());
+			next.reject(Error(e.what(), 0, 1));
 			return;
 		}
 		catch(Error& e)
@@ -326,12 +326,12 @@ protected:
 		}
 		catch(const char* e)
 		{
-		   next.reject(e);
+		   next.reject(Error(e, 0, 1));
 		   return;
 		}
 		catch(...)
 		{
-			next.reject("(unknown exception type)");
+			next.reject(Error("(unknown exception type)", 0, 1));
 			return;
 		}
 		if (!promise.hasCallbacks())
