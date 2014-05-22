@@ -10,10 +10,11 @@
 #include <talk/app/webrtc/test/fakeconstraints.h>
 #include <talk/app/webrtc/jsepsessiondescription.h>
 #include <talk/app/webrtc/jsep.h>
+#include <karereCommon.h>
 #include "guiCallMarshaller.h"
 #include "promise.h"
 
-namespace rtcModule
+namespace MEGA_RTCADAPTER_NS
 {
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 
@@ -40,7 +41,7 @@ unsigned long generateId();
 /** Globally initializes the library */
 /** The library's local handler for all function call marshal messages.
  * This handler is given for all marshal requests done from this
- * library(via rtcModule::marshalCall()
+ * library(via MEGA_RTCADAPTER_NS::marshalCall()
  * The code of this function must always be in the same dynamic library that
  * marshals requests, i.e. we need this local handler for this library
  * This function can't be inlined
@@ -48,7 +49,7 @@ unsigned long generateId();
 void funcCallMarshalHandler(mega::Message* msg);
 static inline void marshalCall(std::function<void()>&& lambda)
 {
-	mega::marshalCall(::rtcModule::funcCallMarshalHandler,
+    mega::marshalCall(::MEGA_RTCADAPTER_NS::funcCallMarshalHandler,
 		std::forward<std::function<void()> >(lambda));
 }
 typedef talk_base::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
@@ -66,7 +67,7 @@ public:
 		:mPromise(promise){}
 	virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc)
     {
-        ::rtcModule::marshalCall([this, desc]() mutable
+        marshalCall([this, desc]() mutable
 		{
             mPromise.resolve(desc);
             Release();
@@ -74,7 +75,7 @@ public:
 	}
 	virtual void OnFailure(const std::string& error)
 	{
-		::rtcModule::marshalCall([this, error]()
+        marshalCall([this, error]()
 		{
 		   mPromise.reject(error);
            Release();
@@ -144,7 +145,7 @@ public:
 
 	virtual void OnSuccess()
 	{
-		 ::rtcModule::marshalCall([this]()
+         marshalCall([this]()
 		 {
              mPromise.resolve(mSdpText);
              Release();
@@ -152,7 +153,7 @@ public:
 	}
 	virtual void OnFailure(const std::string& error)
 	{
-		::rtcModule::marshalCall([this, error]()
+        marshalCall([this, error]()
 		{
 			 mPromise.reject(error);
              Release();

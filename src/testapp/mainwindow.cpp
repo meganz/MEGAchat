@@ -17,7 +17,7 @@
 
 extern MainWindow* mainWin;
 talk_base::scoped_refptr<webrtc::MediaStreamInterface> localStream;
-std::unique_ptr<rtcModule::StreamPlayer> localPlayer;
+std::unique_ptr<rtc::StreamPlayer> localPlayer;
 class Session;
 
 std::shared_ptr<Session> s1;
@@ -26,13 +26,13 @@ std::shared_ptr<Session> s2;
 class Session
 {
  public:
-    rtcModule::myPeerConnection<Session> pc;
-    rtcModule::StreamPlayer player;
+    rtc::myPeerConnection<Session> pc;
+    rtc::StreamPlayer player;
     std::string id;
     Session(const std::string& aId, const webrtc::PeerConnectionInterface::IceServers& servers,
       IVideoRenderer* renderer, webrtc::MediaConstraintsInterface* options=NULL)
     :pc(servers, *this, options), player(renderer, NULL, NULL), id(aId),
-    onAddStream([this](rtcModule::tspMediaStream stream) mutable
+    onAddStream([this](rtc::tspMediaStream stream) mutable
     {
         const auto& vts = stream->GetVideoTracks();
         if (vts.size() > 0)
@@ -46,11 +46,11 @@ class Session
     {
         printf("%s: onError\n", id.c_str());
     }),
-    onRemoveStream([this](rtcModule::tspMediaStream stream)
+    onRemoveStream([this](rtc::tspMediaStream stream)
     {
         printf("%s: onRemoveStream\n", id.c_str());
     }),
-    onIceCandidate([this](std::shared_ptr<rtcModule::IceCandText> candidate)
+    onIceCandidate([this](std::shared_ptr<rtc::IceCandText> candidate)
     {
         printf("%s: onIceCandidate\n", id.c_str());
     }),
@@ -73,9 +73,9 @@ class Session
     {}
 
     std::function<void()> onError;
-    std::function<void(rtcModule::tspMediaStream stream)> onAddStream;
-    std::function<void(rtcModule::tspMediaStream stream)> onRemoveStream;
-    std::function<void(std::shared_ptr<rtcModule::IceCandText> candidate)>
+    std::function<void(rtc::tspMediaStream stream)> onAddStream;
+    std::function<void(rtc::tspMediaStream stream)> onRemoveStream;
+    std::function<void(std::shared_ptr<rtc::IceCandText> candidate)>
     onIceCandidate;
     std::function<void()> onIceComplete;
     std::function<void(webrtc::PeerConnectionInterface::SignalingState newState)>
@@ -91,23 +91,23 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    rtcModule::init(NULL);
+    rtc::init(NULL);
 }
 
 void MainWindow::buttonPushed()
 {
-    rtcModule::DeviceManager devMgr;
-    auto devices = rtcModule::getInputDevices(devMgr);
+    rtc::DeviceManager devMgr;
+    auto devices = rtc::getInputDevices(devMgr);
     for (auto& dev: devices->audio)
         printf("Audio: %s\n", dev.name.c_str());
     for (auto& dev: devices->video)
         printf("Video: %s\n", dev.name.c_str());
     if (devices->video.empty() || devices->audio.empty())
         throw std::runtime_error("No audio and/or video input present");
-    rtcModule::MediaGetOptions options(&(devices->video[0]));
-    auto localVideo = rtcModule::getUserVideo(options, devMgr);
-    auto localAudio = rtcModule::getUserAudio(rtcModule::MediaGetOptions(&(devices->audio[0])), devMgr);
-    localPlayer.reset(new rtcModule::StreamPlayer(ui->localRenderer, localAudio, localVideo));
+    rtc::MediaGetOptions options(&(devices->video[0]));
+    auto localVideo = rtc::getUserVideo(options, devMgr);
+    auto localAudio = rtc::getUserAudio(rtc::MediaGetOptions(&(devices->audio[0])), devMgr);
+    localPlayer.reset(new rtc::StreamPlayer(ui->localRenderer, localAudio, localVideo));
   //  localPlayer->start();
     webrtc::PeerConnectionInterface::IceServers servers;
     webrtc::PeerConnectionInterface::IceServer server;
@@ -117,19 +117,19 @@ void MainWindow::buttonPushed()
     pcmc.AddOptional(::webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
     s1.reset(new Session("s1", servers, ui->remoteRenderer1, &pcmc));
     s2.reset(new Session("s2", servers, ui->remoteRenderer2, &pcmc));
-    localStream = rtcModule::gWebrtcContext->CreateLocalMediaStream("localStream");
+    localStream = rtc::gWebrtcContext->CreateLocalMediaStream("localStream");
     if(!localStream.get())
         throw std::runtime_error("Could not create local stream");
     THROW_IF_FALSE((localStream->AddTrack(localAudio)));
     THROW_IF_FALSE((localStream->AddTrack(localVideo)));
     THROW_IF_FALSE((s1->pc.get()->AddStream(localStream, NULL)));
     THROW_IF_FALSE((s2->pc.get()->AddStream(localStream, NULL)));
-    s1->onIceCandidate = [s1](std::shared_ptr<rtcModule::IceCandText> cand)
+    s1->onIceCandidate = [s1](std::shared_ptr<rtc::IceCandText> cand)
     {
         THROW_IF_FALSE((s2.get()->pc->AddIceCandidate(cand->createObject())));
         printf("s1: onIceCandidate\n%s\n", cand->candidate.c_str());
     };
-    s2->onIceCandidate = [s2](std::shared_ptr<rtcModule::IceCandText> cand)
+    s2->onIceCandidate = [s2](std::shared_ptr<rtc::IceCandText> cand)
     {
         THROW_IF_FALSE((s1.get()->pc->AddIceCandidate(cand->createObject())));
         printf("%s: onInceCandidate\n", s2->id.c_str());
@@ -141,12 +141,12 @@ void MainWindow::buttonPushed()
         printf("s1: createdOffer\n");
         return s1->pc.setLocalDescription(sdp);
     })
-    .then([](rtcModule::sspSdpText sdpText)
+    .then([](rtc::sspSdpText sdpText)
     {
         printf("s1: setLocalDesc\n");
         return s2->pc.setRemoteDescription(sdpText->createObject());
     })
-    .then([](rtcModule::sspSdpText sdp)
+    .then([](rtc::sspSdpText sdp)
     {
         printf("s2: setRemoteDesc\n");
         return s2->pc.createAnswer(NULL);
@@ -165,7 +165,7 @@ void MainWindow::buttonPushed()
 
 MainWindow::~MainWindow()
 {
-    rtcModule::cleanup();
+    rtc::cleanup();
     delete ui;
 }
 

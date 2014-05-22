@@ -1,7 +1,7 @@
 #include "guiCallMarshaller.h"
 #include "webrtcAdapter.h"
 
-namespace rtcModule
+namespace MEGA_RTCADAPTER_NS
 {
 
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/

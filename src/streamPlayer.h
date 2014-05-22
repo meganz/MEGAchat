@@ -2,7 +2,9 @@
 #define STREAMPLAYER_H
 #include <talk/app/webrtc/mediastreaminterface.h>
 #include <IVideoRenderer.h>
-namespace rtcModule
+#include <karereCommon.h>
+
+namespace MEGA_RTCADAPTER_NS
 {
 
 class StreamPlayer: public webrtc::VideoRendererInterface
