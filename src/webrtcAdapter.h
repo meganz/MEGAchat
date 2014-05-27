@@ -142,16 +142,16 @@ struct IceCandText
 class SdpSetCallbacks: public webrtc::SetSessionDescriptionObserver
 {
 public:
-    typedef promise::Promise<std::shared_ptr<SdpText> > PromiseType;
-    SdpSetCallbacks(const PromiseType& promise, webrtc::SessionDescriptionInterface* sdp)
-    :mPromise(promise), mSdpText(new SdpText(sdp))
+    typedef promise::Promise<int> PromiseType;
+    SdpSetCallbacks(const PromiseType& promise)
+    :mPromise(promise)
     {}
 
 	virtual void OnSuccess()
 	{
          marshalCall([this]()
 		 {
-             mPromise.resolve(mSdpText);
+             mPromise.resolve(0);
              Release();
 		 });
 	}
@@ -165,7 +165,6 @@ public:
 	}
 protected:
 	PromiseType mPromise;
-    std::shared_ptr<SdpText> mSdpText;
 };
 
 typedef std::shared_ptr<SdpText> sspSdpText;
@@ -275,7 +274,7 @@ public:
   SdpSetCallbacks::PromiseType setLocalDescription(webrtc::SessionDescriptionInterface* desc)
   {
 	  SdpSetCallbacks::PromiseType promise;
-      auto observer = new talk_base::RefCountedObject<SdpSetCallbacks>(promise, desc);
+      auto observer = new talk_base::RefCountedObject<SdpSetCallbacks>(promise);
       observer->AddRef();
       get()->SetLocalDescription(observer, desc);
 	  return promise;
@@ -283,7 +282,7 @@ public:
   SdpSetCallbacks::PromiseType setRemoteDescription(webrtc::SessionDescriptionInterface* desc)
   {
 	  SdpSetCallbacks::PromiseType promise;
-      auto observer = new talk_base::RefCountedObject<SdpSetCallbacks>(promise, desc);
+      auto observer = new talk_base::RefCountedObject<SdpSetCallbacks>(promise);
       observer->AddRef();
       get()->SetRemoteDescription(observer, desc);
 	  return promise;

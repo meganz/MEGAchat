@@ -139,14 +139,19 @@ void MainWindow::buttonPushed()
     .then([](webrtc::SessionDescriptionInterface* sdp)
     {
         printf("s1: createdOffer\n");
-        return s1->pc.setLocalDescription(sdp);
+        rtc::sspSdpText sdpText(new rtc::SdpText(sdp));
+        return s1->pc.setLocalDescription(sdp)
+        .then([sdpText](int)
+        {
+            return sdpText;
+        });
     })
     .then([](rtc::sspSdpText sdpText)
     {
         printf("s1: setLocalDesc\n");
         return s2->pc.setRemoteDescription(sdpText->createObject());
     })
-    .then([](rtc::sspSdpText sdp)
+    .then([](int)
     {
         printf("s2: setRemoteDesc\n");
         return s2->pc.createAnswer(NULL);
