@@ -66,6 +66,11 @@ public:
 	const char* what() const {return get()->mMsg.c_str();}
 	int type() const {return get()->mType;}
 	int code() const {return get()->mCode;}
+	std::string toString() const
+	{
+		return "Error: '"+get()->mMsg+"'\nType: "+
+		std::to_string(get()->mType)+" Code: "+std::to_string(get()->mCode);
+	}
 };
 
 class PromiseBase
@@ -161,13 +166,14 @@ struct _Empty{};
 template<typename T, int L=4>
 class Promise: public PromiseBase
 {
-protected:
+public:
 	enum ResolvedState
 	{
 		PROMISE_RESOLV_NOT = 0,
 		PROMISE_RESOLV_SUCCESS = 1,
 		PROMISE_RESOLV_FAIL = 2
 	};
+protected:
 	typedef std::function<void(const T&)> SuccessCb;
 	typedef	std::function<void(const Error&)> FailCb;
 	struct SharedObj
@@ -296,11 +302,12 @@ public:
 	}
 
 	virtual ~Promise() { decRef(); }
+	int done() const
+	{return (mSharedObj?(mSharedObj->mResolved):PROMISE_RESOLV_NOT);}
 protected:
 	virtual PromiseBase* clone() const
-	{
-		return new Promise<T>(*this);
-	}
+	{	return new Promise<T>(*this);	}
+
 	template <typename In, typename Out>
 	std::function<void(const In&)>* createChainedCb(
 		const std::function<Promise<Out>(const In&)>& cb,
