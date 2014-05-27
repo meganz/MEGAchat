@@ -368,13 +368,23 @@ public:
 	{
 		typedef typename ValueTypeFromCbRet<decltype(cb(mSharedObj->mResult))>::Type Out;
 		Promise<Out> next;
+		if (mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
+		{
+			next.reject(mSharedObj->mError);
+			return next;
+		}
+
 		std::unique_ptr<std::function<void(const T&)> > resolveCb(
 				createChainedCb<T, Out>(std::forward<F>(cb), next));
 
-		if (mSharedObj->mResolved == PROMISE_RESOLV_NOT)
-			thenCbs().push(resolveCb, new Promise<Out>(next));
-		else if(mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
+		if (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
 			(*resolveCb)(mSharedObj->mResult);
+		else
+		{
+			assert((mSharedObj->mResolved == PROMISE_RESOLV_NOT));
+			thenCbs().push(resolveCb, new Promise<Out>(next));
+		}
+
 		return next;
     }
 /** Adds a handler to be executed in case the promise is rejected
@@ -391,13 +401,22 @@ public:
 	auto fail(F&& eb)->Promise<T>
 	{
 		Promise<T> next;
+		if (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
+		{
+			next.resolve(mSharedObj->mResult);
+			return next;
+		}
 		std::unique_ptr<std::function<void(const Error&)> > failCb(
 			createChainedCb<Error, T>(eb, next));
 
-		if (mSharedObj->mResolved == PROMISE_RESOLV_NOT)
-			failCbs().push(failCb, new Promise<T>(next));
-		else if(mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
+		if(mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
 			(*failCb)(mSharedObj->mError);
+		else
+		{
+			assert((mSharedObj->mResolved == PROMISE_RESOLV_NOT));
+			failCbs().push(failCb, new Promise<T>(next));
+		}
+
 		return next;
 	}
 	inline bool hasCallbacks()
