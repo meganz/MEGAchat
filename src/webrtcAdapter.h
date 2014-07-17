@@ -10,7 +10,7 @@
 #include <talk/app/webrtc/test/fakeconstraints.h>
 #include <talk/app/webrtc/jsepsessiondescription.h>
 #include <talk/app/webrtc/jsep.h>
-#include <karereCommon.h>
+#include "karereCommon.h"
 #include "guiCallMarshaller.h"
 #include "promise.h"
 
@@ -239,6 +239,7 @@ protected:
 	typedef talk_base::scoped_refptr<webrtc::PeerConnectionInterface> Base;
 	std::shared_ptr<Observer> mObserver;
 public:
+    myPeerConnection():Base(){}
 	myPeerConnection(const webrtc::PeerConnectionInterface::IceServers& servers,
      C& handler, webrtc::MediaConstraintsInterface* options)
         :mObserver(new Observer(handler))
@@ -253,7 +254,7 @@ public:
         if (!get())
             throw std::runtime_error("Failed to create a PeerConnection object");
 	}
-
+    using Base::operator=;
   SdpCreateCallbacks::PromiseType createOffer(const webrtc::MediaConstraintsInterface* constraints)
   {
 	  SdpCreateCallbacks::PromiseType promise;
