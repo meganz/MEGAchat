@@ -14,41 +14,41 @@ namespace karere
 typedef std::map<std::string, std::string> StringMap;
 
 //time function
-typedef int64_t ts;
+typedef int64_t Ts;
 
 #ifdef _WIN32
 //We need to have these static vars extern in order to have the functions static inlined
-extern xmpp_ts _stropheLastTimeValue;
-extern xmpp_ts _stropheTimeBase;
+extern Ts _gLastTimeValue;
+extern Ts _gTimeBase;
 
-static inline xmpp_ts time_stamp()
+static inline Ts timestampMs()
 {
-    xmpp_ts now = timeGetTime();
-    if (now < _stropheLastTimeValue)
-        _stropheTimeBase+=0xFFFFFFFF;
-    _stropheLastTimeValue = now;
-    now += _stropheTimeBase;
+    Ts now = timeGetTime();
+    if (now < _gLastTimeValue)
+        _gTimeBase+=0xFFFFFFFF;
+    _gLastTimeValue = now;
+    now += _gTimeBase;
     return now;
 }
 #elif defined(_POSIX_MONOTONIC_CLOCK)
-static inline xmpp_ts time_stamp()
+static inline Ts timestampMs()
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (xmpp_ts)ts.tv_sec*1000 + (xmpp_ts)ts.tv_nsec / 1000000;
+    return (Ts)ts.tv_sec*1000 + (Ts)ts.tv_nsec / 1000000;
 }
 #elif defined (__MACH__)
-void _strophe_init_mac_timefunc();
-static inline xmpp_ts time_stamp()
+void _init_mac_timefunc();
+static inline Ts timestampMs()
 {
-    return (double)mach_absolute_time() * _stropheTimeConversionFactor;
+    return (double)mach_absolute_time() * _gTimeConversionFactor;
 }
 #else
-static inline xmpp_ts time_stamp()
+static inline Ts timestampMs()
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return (xmpp_ts)tv.tv_sec * 1000 + (xmpp_ts)tv.tv_usec / 1000;
+    return (Ts)tv.tv_sec * 1000 + (Ts)tv.tv_usec / 1000;
 }
 #endif
 
