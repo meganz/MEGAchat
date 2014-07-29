@@ -12,7 +12,7 @@ set(SRCS
 )
 
 
-list(APPEND CMAKE_CXX_FLAG -std=c++11)
+list(APPEND CMAKE_CXX_FLAGS -std=c++11)
 add_subdirectory(../../webrtc-build/mybuild webrtc)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
