@@ -4,6 +4,7 @@
 using namespace std;
 using namespace promise;
 using namespace strophe;
+using namespace sdpUtil;
 namespace karere
 {
 namespace rtcModule
