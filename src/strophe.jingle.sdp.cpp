@@ -17,8 +17,9 @@ struct MLine
     string toSdp();
 };
 
-ParsedSdp::ParsedSdp(const string& strSdp)
+void ParsedSdp::parse(const string& strSdp)
 {
+    media.clear();
     raw = strSdp;
     for (size_t i=raw.size()-1; i>0; i--)
     {
@@ -182,7 +183,7 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
             }
         } // end of description
 
-        auto transport = content.c("transport", {{"xmlns": "urn:xmpp:jingle:transports:ice-udp:1"});
+        auto transport = content.c("transport", {{"xmlns": "urn:xmpp:jingle:transports:ice-udp:1"}});
         // XEP-0320
         auto fingerprints = find_lines(m, "a=fingerprint:", session);
         for (line: *fingerprints)
@@ -284,8 +285,9 @@ string ParsedSdp::rtcpFbFromJingle(Stanza elem, const string& payloadtype)
 };
 
 // construct an SDP from a jingle stanza
-ParsedSdp::ParsedSdp(Stanza jingle)
+void ParsedSdp::parse(Stanza jingle)
 {
+    media.clear();
     raw =
         "v=0\r\n"
         "o=- 1923518516 2 IN IP4 0.0.0.0\r\n"  // FIXME
@@ -327,7 +329,7 @@ ParsedSdp::ParsedSdp(Stanza jingle)
     */
     for (m: media)
         raw.append(m);
-};
+}
 
 MLine::MLine(Stanza content)
 {
@@ -473,7 +475,7 @@ string ParsedSdp::jingle2media(Stanza content)
     return media;
 };
 
-static unique_ptr<StringMap> ParsedSdp::iceparams(const string& mediadesc, const string& sessiondesc)
+static unique_ptr<StringMap> iceparams(const string& mediadesc, const string& sessiondesc)
 {
     unique_ptr<StringMap> data(new StringMap);
     string ufrag = find_line(mediadesc, "a=ice-ufrag:", sessiondesc);
@@ -508,7 +510,7 @@ string MLine::toSdp()
     return ret;
 }
 
-unique_ptr<StringMap> ParsedSdp::parse_rtpmap(const string& line)
+unique_ptr<StringMap> parse_rtpmap(const string& line)
 {
     vector<string> parts;
     split(line.substr(9), " ", parts);
@@ -522,7 +524,7 @@ unique_ptr<StringMap> ParsedSdp::parse_rtpmap(const string& line)
     data["channels"] = (parts2.size() >= 3) ? parts2[2] : "1";
     return ret;
 }
-string ParsedSdp::build_rtpmap(Stanza el)
+string build_rtpmap(Stanza el)
 {
     string line = "a=rtpmap:" + el.attr("id") + " " + el.attr("name") + "/" + el.attr("clockrate");
     const char* channels = el.attr("channels", true);
@@ -531,7 +533,7 @@ string ParsedSdp::build_rtpmap(Stanza el)
     return line;
 }
 
-unique_ptr<StringMap> ParsedSdp::parse_crypto(const string& line)
+unique_ptr<StringMap> parse_crypto(const string& line)
 {
    vector<string> parts;
    split(line.substring(9), " ", parts);
@@ -551,7 +553,7 @@ unique_ptr<StringMap> ParsedSdp::parse_crypto(const string& line)
    }
    return ret;
 }
-string ParsedSdp::parse_fingerprint(const string& line, StringMap& attrs)
+string parse_fingerprint(const string& line, StringMap& attrs)
 { // RFC 4572
    vector<string> parts;
    split(line.substring(14), " ", parts);
@@ -562,7 +564,7 @@ string ParsedSdp::parse_fingerprint(const string& line, StringMap& attrs)
 // TODO assert that fingerprint satisfies 2UHEX *(":" 2UHEX) ?
    return parts[1];
 }
-unique_ptr<vector<pair<string, string> > > ParsedSdp::parse_fmtp(const string& line)
+unique_ptr<vector<pair<string, string> > > parse_fmtp(const string& line)
 {
    vector<string> parts;
    line = afterFirst(line, " ");
@@ -594,7 +596,7 @@ unique_ptr<vector<pair<string, string> > > ParsedSdp::parse_fmtp(const string& l
     return ret;
 }
 
-unique_ptr<StringMap> ParsedSdp::parse_extmap(const string& line)
+unique_ptr<StringMap> parse_extmap(const string& line)
 {
    vector<string> parts;
    split(line.substr(9), " ", parts);
@@ -627,7 +629,7 @@ string tillEol(const string text, size_t& pos)
     }
 }
 
-string ParsedSdp::find_line(const string& haystack, const string& needle, size_t& start)
+string find_line(const string& haystack, const string& needle, size_t& start)
 {
     string ret;
     if (haystack.substr(start, needle.size()) == needle)
@@ -644,19 +646,19 @@ string ParsedSdp::find_line(const string& haystack, const string& needle, size_t
      else
         return "";
 }
-string ParsedSdp::find_line(const string& haystack, const string& needle)
+string find_line(const string& haystack, const string& needle)
 {
      size_t start = 0;
      return find_line(haystack, needle, start);
 }
 
-string ParsedSdp::find_line(const string& haystack, const string& needle, const string& session)
+string find_line(const string& haystack, const string& needle, const string& session)
 {
     string ret = find_line(haystack, needle);
     if (ret.empty())
             return find_line(sessionpart, needle);
 }
-unique_ptr<vector<string> > ParsedSdp::find_lines(const string haystack, const string needle)
+unique_ptr<vector<string> > find_lines(const string haystack, const string needle)
 {
    size_t start = 0;
    unique_ptr<vector<string> > ret(new vector<string>);
@@ -676,7 +678,7 @@ unique_ptr<vector<string> > ParsedSdp::find_lines(const string haystack, const s
       return ret;
 }
 
-unique_ptr<vector<string> > ParsedSdp::find_lines(const string haystack, const string needle, const string& sessionpart)
+unique_ptr<vector<string> > find_lines(const string haystack, const string needle, const string& sessionpart)
 {
     auto lines = find_lines(haystack, needle);
     if (!lines.empty())
@@ -685,7 +687,7 @@ unique_ptr<vector<string> > ParsedSdp::find_lines(const string haystack, const s
 // search session part
     return find_lines(sessionart, needle);
 }
-unique_ptr<StringMap> ParsedSdp::candidateToJingle(const string& line)
+unique_ptr<StringMap> candidateToJingle(const string& line)
 {
 // a=candidate:2979166662 1 udp 2113937151 192.168.2.100 57698 typ host generation 0
 //      <candidate component=... foundation=... generation=... id=... ip=... network=... port=... priority=... protocol=... type=.../>
@@ -726,7 +728,7 @@ unique_ptr<StringMap> ParsedSdp::candidateToJingle(const string& line)
     candidate["id"] = to_string(++id); // not applicable to SDP -- FIXME: should be unique, not just random
     return ret;
 }
-string ParsedSdp::candidateFromJingle(Stanza cand)
+string candidateFromJingle(Stanza cand)
 {
     string line = "a=candidate:";
     line.append(cand.attr("foundation")).append(" ")

@@ -3,10 +3,10 @@ project(karere)
 include (utils.cmake)
 
 set(SRCS
-	strophe.jingle.session.cpp
+    strophe.jingle.session.cpp
 #    strophe.jingle.cpp
-	webrtcAdapter.cpp
-#    strophe.jingle.sdp.cpp
+    webrtcAdapter.cpp
+    strophe.jingle.sdp.cpp
 #    rtcSession.cpp
 #  	test-promise.cpp
 )

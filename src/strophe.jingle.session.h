@@ -55,8 +55,8 @@ protected:
 	AvFlags mRemoteMutedState;
 	rtc::tspMediaStream mLocalStream;
 	rtc::tspMediaStream mRemoteStream;
-	std::shared_ptr<SdpUtil::ParsedSdp> mLocalSdp;
-	std::shared_ptr<sdpUtil::ParsedSdp> mRemoteSdp;
+    sdpUtil::ParsedSdp mLocalSdp;
+    sdpUtil::ParsedSdp mRemoteSdp;
 	int mStartTime = 0;
 	int mEndTime = 0;
 	MediaConstraints mMediaConstraints;

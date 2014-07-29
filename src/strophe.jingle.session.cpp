@@ -1,4 +1,5 @@
 #include "strophe.jingle.session.h"
+#include "strophe.jingle.sdp.h"
 //#include "strophe.jingle.h"
 
 using namespace std;
@@ -105,36 +106,37 @@ void JingleSession::terminate(const string& reason)
     }
 }
 
-Promise<Stanza> JingleSession::sendIceCandidate(std::shared_ptr<rtc::IceCandText> candidate)
+Promise<Stanza> JingleSession::sendIceCandidate(
+                               std::shared_ptr<rtc::IceCandText> candidate)
 {
 	if (!mPeerConn.get()) //peerconnection may have been closed already
 		return 0;
 
-	auto transportAttrs = SdpUtil::iceparams(mLocalSdp.media[candidate->sdpMLineIndex], mLocalSdp->session);
-	auto candAttrs = SdpUtil::candidateToJingle(candidate->candidate);
-//TODO: put the xmlns in iceparams() function
-	transportAttrs.emplace_back("xmlns", "urn:xmpp:jingle:transports:ice-udp:1");
+    auto transportAttrs = sdpUtil::iceparams(mLocalSdp.media[candidate->sdpMLineIndex], mLocalSdp->session);
+    (*transportAttrs)["xmlns"] = "urn:xmpp:jingle:transports:ice-udp:1";
+    auto candAttrs = sdpUtil::candidateToJingle(candidate->candidate);
 
 // map to transport-info
 	auto cand = createJingleIq(mPeerJid, "transport-info");
-	auto fpNode = cand
+    auto transport = cand
 	  .c("content", {
 		  {"creator", jCreator()},
-		  {"name", candidate.sdpMid}
+          {"name", candidate->sdpMid}
 	  })
 	  .c("transport", transportAttrs)
 	  .c("candidate", candAttrs)
 	  .parent();
 // add fingerprint
-	if (SdpUtil::find_line(mLocalSdp.media[candidate.sdpMLineIndex], "a=fingerprint:", mLoclSdp.session))
-	{
+    if (candidate->sdpMLineIndex >= mLocalSdp.media.size())
+        throw runtime_error("sendIceCandidate: sdpMLineIndex is out of range");
+
+    string fpline = sdpUtil::find_line(mLocalSdp.media[candidate->sdpMLineIndex], "a=fingerprint:", mLocalSdp.session);
+    if (!fpline.empty())
+    {
 		map<string, string> fpData;
-		SdpUtil::parse_fingerprint(fpData,
-			SdpUtil::find_line(mLocalSdp.media[candidate.sdpMLineIndex], "a=fingerprint:", mLocalSdp.session));
-		fpData["required"] = "true";
-		fpNode = fpNode.c("fingerprint").t(fpData["fingerprint"]).parent();
-		fpData.erase("fingerprint");
-		fpNode.attrs(fpData);
+        string fp = sdpUtil::parse_fingerprint(fpline, fpData);
+        fpData["required"] = "true";
+        transport.c("fingerprint", fpData).t(fp);
 	}
 	return sendIq(cand, "transportinfo");
 }
@@ -144,8 +146,10 @@ Promise<Stanza> JingleSession::sendOffer()
 	return mPeerConn.createOffer(NULL)
 	.then([this](webrtc::SessionDescriptionInterface* sdp)
 	{
-		mLocalSdp.reset(new SdpUtil::ParsedSdp(sdp));
-		auto cands = SDPUtil.find_lines(mLocalSdp.raw, "a=candidate:");
+        string strSdp;
+        KR_THROW_IF_FALSE(sdp->ToString(strSdp));
+        mLocalSdp.parse(strSdp);
+        auto cands = sdpUtil.find_lines(mLocalSdp.raw, "a=candidate:");
 		for (auto c: cands)
 		{
 			auto cand = SdpUtil::parse_icecandidate(*c);
@@ -160,7 +164,7 @@ Promise<Stanza> JingleSession::sendOffer()
 	.then([this](sspSdpText)
 	{
 		auto init = createJingleIq(mPeerJid, "session-initiate");
-		mLocalSdp->toJingle(init, jCreator());
+        mLocalSdp.toJingle(init, jCreator());
 		addFingerprintHmac(init);
 		return sendIq(init, "offer");
 	});
@@ -168,9 +172,9 @@ Promise<Stanza> JingleSession::sendOffer()
 
 Promise<int> setRemoteDescription(XMPP::Stanza* elem, const string& desctype)
 {
-	if (mRemoteSdp.get())
+    if (!mRemoteSdp.raw.empty())
 		throw runtime_error("setRemoteDescription() from stanza: already have remote description");
-	mRemoteSdp.reset(new SdpUtils::ParsedSdp(elem));
+    mRemoteSdp.parse(elem);
 	unique_ptr<webrtc::JsepSessionDescription> jsepSdp(
 		new webrtc::JsepSessionDescription(desctype));
 	webrtc::SdpParseError error;
@@ -194,7 +198,7 @@ void JingleSession::addIceCandidates(strophe::Stanza transportInfo)
 		// TODO: check ice-pwd and ice-ufrag?
 		content.child("transport").forEachChild("candidate")([this](strophe::Stanza& jcand)
 		{
-			string line = SdpUtil::candidateFromJingle(jcand);
+            string line = sdpUtil::candidateFromJingle(jcand);
 			unique_ptr<webrtc::JsepIceCandidate> cand(
 			  new webrtc::JsepIceCandidate(mid, 0));
 			webrtc::SdpParseError err;
@@ -206,13 +210,13 @@ void JingleSession::addIceCandidates(strophe::Stanza transportInfo)
 	});
 }
 
-int JingleSession::getMlineIndex(unique_ptr<ParsedSdp>& sdp, string& name)
+int JingleSession::getMlineIndex(const sdpUtil::ParsedSdp& sdp, string& name)
 {
-	for (int i = 0; i < sdp->media.size(); i++)
+    for (int i = 0; i < sdp.media.size(); i++)
 	{
 		auto& media = sdp->media[i];
-		if (SdpUtil::find_line(media, "a=mid:" + name) ||
-			media.find("m=" + name) == 0)
+        if (sdpUtil::find_line(media, "a=mid:" + name) ||
+            (media.find("m=" + name) == 0))
 			return i;
         }
 	return -1;
@@ -225,13 +229,15 @@ Promise<int> JingleSession::sendAnswer()
 //ICE candidates may start being generated before we had a chance to send
 //the sdp, so the peer will receive ICE candidates before the answer
 	return mPeerConn.createAnswer(&mMediaConstraints)
-	.then([this](webrtc::SessionDescriptionInterface* sdp)
+    .then([this](webrtc::SessionDescriptionInterface* sdp) mutable
 	{
 		checkActive("created SDP answer");
-		mLocalSdp.reset(new SdpUtil::ParsedSdp(sdp));
+        string strSdp;
+        KR_THROW_IF_FALSE(sdp->ToString(strSdp));
+        mLocalSdp.parse(strSdp);
     //this.localSDP.mangle();
 		auto accept = createJingleIq(mPeerJid, "session-accept");
-		mLocalSdp->toJingle(accept, jCreator());
+        mLocalSdp.toJingle(accept, jCreator());
 		addFingerprintHmac(accept);
 		auto sendPromise = sendIq(accept, "answer");
 		return when(sendPromise, mPeerConn.setLocalDescription(sdp));
@@ -303,7 +309,7 @@ void JingleSession::addFingerprintHmac(strophe::Stanza jiq)
 		throw std::runtime_error("addFingerprintHmac: No peer nonce has been received");
 	set<string> fps;
 	auto j = jiq.child("jingle");
-	j.forEachChild("content", [fps&](strophe::Stanza& content)
+    j.forEachChild("content", [fps&](strophe::Stanza& content) mutable
 	{
 	   content.forEachChild("transport", [fps&](strophe::Stanza& transport)
 	   {
