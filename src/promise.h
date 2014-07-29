@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _PROMISE_H
+#define _PROMISE_H
 #include <functional>
 #include <stdexcept>
 #include <vector>
@@ -598,3 +599,4 @@ inline Promise<int> when(Args... inputs)
 	return state->output;
 }
 }//end namespace promise
+#endif
