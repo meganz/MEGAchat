@@ -4,11 +4,8 @@
 #include "promise.h"
 #include "karereCommon.h"
 #include "webrtcAdapter.h"
-
-namespace strophe {
-	class Connection;
-	class Stanza;
-}
+#include "strophe.jingle.sdp.h"
+#include <mstrophepp.h>
 
 namespace karere {
 namespace rtcModule {
@@ -81,7 +78,7 @@ public:
 	void initiate(bool isInitiator);
 	promise::Promise<int> accept();
     promise::Promise<int> sendOffer();
-	void terminate(); //TODO: maybe not needed
+    void terminate(const std::string& reason); //TODO: maybe not needed
 	inline bool isActive()
 	{
          return ((mPeerConn.get() != NULL)
@@ -100,7 +97,7 @@ public:
 	{
         return (mIsInitiator?"initiator":"responder");
 	}
-	void sendIceCandidate(std::shared_ptr<rtc::IceCandText> candidate);
+    promise::Promise<strophe::Stanza> sendIceCandidate(std::shared_ptr<rtc::IceCandText> candidate);
     promise::Promise<int> setRemoteDescription(strophe::Stanza& stanza, const std::string& desctype);
     void addIceCandidate(strophe::Stanza& stanza);
 	promise::Promise<int> sendAnswer();

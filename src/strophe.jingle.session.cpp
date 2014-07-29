@@ -1,6 +1,7 @@
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.sdp.h"
 //#include "strophe.jingle.h"
+#include "karereCommon.h"
 
 using namespace std;
 using namespace promise;
@@ -83,9 +84,9 @@ void JingleSession::onRemoveStream(rtc::tspMediaStream stream)
 void JingleSession::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
 {
     if (newState == webrtc::PeerConnectionInterface::kIceConnectionConnected)
-		mStartTime = getTimeMs();
+        mStartTime = timestampMs();
     else if (newState == webrtc::PeerConnectionInterface::kIceConnectionDisconnected)
-		mEndTime = getTimeMs();
+        mEndTime = timestampMs();
 //TODO: maybe forward to mJingle.eventHandler
 }
 

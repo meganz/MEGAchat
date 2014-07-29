@@ -3,6 +3,8 @@
 
 #include <map>
 #include <string>
+#include <time.h>
+#include <sys/time.h>
 
 //defines the name of the webrtc adapter layer namespace
 #define MEGA_RTCADAPTER_NS rtc
