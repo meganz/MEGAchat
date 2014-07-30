@@ -4,11 +4,9 @@
 #include "promise.h"
 #include "karereCommon.h"
 #include "webrtcAdapter.h"
-
-namespace strophe {
-	class Connection;
-	class Stanza;
-}
+#include <talk/app/webrtc/test/fakeconstraints.h>
+#include "strophe.jingle.sdp.h"
+#include <mstrophepp.h>
 
 namespace karere {
 namespace rtcModule {
@@ -59,11 +57,13 @@ protected:
     sdpUtil::ParsedSdp mRemoteSdp;
 	int mStartTime = 0;
 	int mEndTime = 0;
-	MediaConstraints mMediaConstraints;
-	bool mLastIceCandidate = false;
-    void reportError(const ::karere::StringMap& info, const std::string& msg);
-    void addFingerprintHmac(strophe::Stanza& jingle);
+    webrtc::FakeConstraints mMediaConstraints;
+    std::string mPeerNonce;
+    bool mLastIceCandidate = false;
+    void reportError(const std::string& msg, const char* where);
+    void addFingerprintHmac(strophe::Stanza jingle);
 //PeerConnection callback interface
+public:
 	void onError() {KR_LOG_ERROR("session %s: peerconnection called onError()", mSid.c_str());}
 	void onAddStream(rtc::tspMediaStream stream);
 	void onRemoveStream(rtc::tspMediaStream stream);
@@ -72,16 +72,18 @@ protected:
 	void onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState){}
 	void onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState);
 	void onRenegotiationNeeded() {}
+    strophe::Stanza createJingleIq(const std::string& to, const char* action);
+    int getMlineIndex(const sdpUtil::ParsedSdp& sdp, std::string& name);
 //==
-public:
+
 	JingleSession(Jingle& jingle, const	std::string& myJid,
 		const std::string& peerJid,	const std::string& sid,
         strophe::Connection& connection, rtc::tspMediaStream sessLocalStream,
         const AvFlags& mutedState);
 	void initiate(bool isInitiator);
-	promise::Promise<int> accept();
-    promise::Promise<int> sendOffer();
-	void terminate(); //TODO: maybe not needed
+    promise::Promise<strophe::Stanza> accept();
+    promise::Promise<strophe::Stanza> sendOffer();
+    void terminate(const std::string& reason); //TODO: maybe not needed
 	inline bool isActive()
 	{
          return ((mPeerConn.get() != NULL)
@@ -100,16 +102,17 @@ public:
 	{
         return (mIsInitiator?"initiator":"responder");
 	}
-	void sendIceCandidate(std::shared_ptr<rtc::IceCandText> candidate);
-    promise::Promise<int> setRemoteDescription(strophe::Stanza& stanza, const std::string& desctype);
-    void addIceCandidate(strophe::Stanza& stanza);
+    promise::Promise<strophe::Stanza> sendIceCandidate(std::shared_ptr<rtc::IceCandText> candidate);
+    promise::Promise<int> setRemoteDescription(strophe::Stanza stanza, const std::string& desctype);
+    void addIceCandidate(strophe::Stanza stanza);
+    void addIceCandidates(strophe::Stanza transportInfo);
 	promise::Promise<int> sendAnswer();
-	void sendTerminate(const std::string& reason, const std::string& text);
+    promise::Promise<strophe::Stanza> sendTerminate(const std::string& reason, const std::string& text);
 	promise::Promise<int> sendIq(const karere::StringMap& attrs, const std::string& desc);
-	void sendMute(bool muted, const std::string& what);
-	void syncMutedState();
-	void sendMutedState();
-    void muteUnmute(bool state, const AvFlags& what);
+    promise::Promise<strophe::Stanza> sendMute(bool muted, const std::string& what);
+    void syncMutedState();
+    promise::Promise<int> sendMutedState();
+    promise::Promise<int> muteUnmute(bool state, const AvFlags& what);
     promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const char* type="set");
 };
 }
