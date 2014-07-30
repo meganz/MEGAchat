@@ -4,10 +4,7 @@
 #include "promise.h"
 #include "karereCommon.h"
 #include "webrtcAdapter.h"
-<<<<<<< HEAD
 #include <talk/app/webrtc/test/fakeconstraints.h>
-=======
->>>>>>> 660f6eb55ccad6709067f8c4731f94e9f10a4c34
 #include "strophe.jingle.sdp.h"
 #include <mstrophepp.h>
 
@@ -84,13 +81,8 @@ public:
         strophe::Connection& connection, rtc::tspMediaStream sessLocalStream,
         const AvFlags& mutedState);
 	void initiate(bool isInitiator);
-<<<<<<< HEAD
     promise::Promise<strophe::Stanza> accept();
     promise::Promise<strophe::Stanza> sendOffer();
-=======
-	promise::Promise<int> accept();
-    promise::Promise<int> sendOffer();
->>>>>>> 660f6eb55ccad6709067f8c4731f94e9f10a4c34
     void terminate(const std::string& reason); //TODO: maybe not needed
 	inline bool isActive()
 	{
@@ -111,14 +103,9 @@ public:
         return (mIsInitiator?"initiator":"responder");
 	}
     promise::Promise<strophe::Stanza> sendIceCandidate(std::shared_ptr<rtc::IceCandText> candidate);
-<<<<<<< HEAD
     promise::Promise<int> setRemoteDescription(strophe::Stanza stanza, const std::string& desctype);
     void addIceCandidate(strophe::Stanza stanza);
     void addIceCandidates(strophe::Stanza transportInfo);
-=======
-    promise::Promise<int> setRemoteDescription(strophe::Stanza& stanza, const std::string& desctype);
-    void addIceCandidate(strophe::Stanza& stanza);
->>>>>>> 660f6eb55ccad6709067f8c4731f94e9f10a4c34
 	promise::Promise<int> sendAnswer();
     promise::Promise<strophe::Stanza> sendTerminate(const std::string& reason, const std::string& text);
 	promise::Promise<int> sendIq(const karere::StringMap& attrs, const std::string& desc);
