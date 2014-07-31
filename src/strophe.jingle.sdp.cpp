@@ -1,21 +1,23 @@
+#include <algorithm>
+#include <atomic>
+#include <mstrophepp.h>
+#include "strophe.jingle.sdp.h"
+#include "karereCommon.h"
+
 // SDP STUFF
 namespace sdpUtil
 {
+using namespace std;
+using namespace strophe;
+
 enum {SPLITF_NO_FIRST = 1};
-static void split(const string& str, const string& sep, vector<string>& ret, unsigned flags = 0, unsigned max=0xffffffff);
+static void split(const string& str, const char* sep, vector<string>& ret, unsigned flags = 0, unsigned max=0xffffffff);
 static shared_ptr<vector<string> > split(const string& str, const char* sep, unsigned flags = 0, unsigned max=0xffffffff);
 static string beforeFirst(const string& str, const char* sep);
-static string afterFirst(const string str, const char* sep);
+static string afterFirst(const string& str, const char* sep);
 static size_t strArrIndexOf(const vector<string>& arr, const string& str);
-struct MLine
-{
-    string media;
-    string port;
-    string proto;
-    vector<string> fmt;
-    MLine(const string& line);
-    string toSdp();
-};
+static bool hasLine(const string& str, const char* needle);
+static bool hasLine(const string& str, const char* needle, const string& sessionpart);
 
 void ParsedSdp::parse(const string& strSdp)
 {
@@ -46,9 +48,9 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
     unique_ptr<vector<string> > lines;
     // new bundle plan
     if (!(lines = find_lines(session, "a=group:"))->empty())
-        for (size_t i = 0; i < lines->size(); i++)
+        for (auto& line: *lines)
         {
-            auto parts = split(lines[i], " ");
+            auto parts = split(line, " ");
             if (parts->size() < 2)
                 throw runtime_error("Not enough parts of a=group line");
             string semantics = parts->front().substr(8);
@@ -77,14 +79,14 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
     if (!strBundle.empty())
         split(strBundle, " ", bundle, SPLITF_NO_FIRST);
 
-    for (m: media)
+    for (auto& m: media)
     {
         MLine mline(m);
         if ((mline.media != "audio") && (mline.media != "video"))
             continue;
         string ssrc;
         if (!(ssrc = find_line(m, "a=ssrc:")).empty())
-            ssrc = ssrc.substring(7).beforeFirst(" "); // take the first
+            ssrc = beforeFirst(ssrc.substr(7), " "); // take the first
 
         Stanza content = elem.c("content", {{"creator", creator}, {"name", mline.media}});
         string mid;
@@ -97,7 +99,7 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
             // old BUNDLE plan, to be removed
             if ((idx = strArrIndexOf(bundle, mid)) != string::npos)
             {
-                content.c("bundle", {{"xmlns": "http://estos.de/ns/bundle"}});
+                content.c("bundle", {{"xmlns", "http://estos.de/ns/bundle"}});
                 bundle.erase(bundle.begin()+idx);
             }
         }
@@ -108,7 +110,7 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
                  {{"xmlns", "urn:xmpp:jingle:apps:rtp:1"},
                   {"media", mline.media}
                  });
-            if (ssrc)
+            if (!ssrc.empty())
                 desc.setAttr("ssrc", ssrc.c_str());
 
             for (auto fmt: mline.fmt)
@@ -120,7 +122,7 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
                 if (!(strFmtp = find_line(m, "a=fmtp:" + fmt)).empty())
                 {
                     auto namevals = parse_fmtp(strFmtp);
-                    for (nv: *namevals)
+                    for (auto& nv: *namevals)
                     {
                         if (!nv.first.empty())
                             payload.c("parameter", {{"name", nv.first}, {"value", nv.second}});
@@ -175,7 +177,7 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
 
             // XEP-0294
             auto extmaps = find_lines(m, "a=extmap:");
-            for (em: *extmaps)
+            for (auto& em: *extmaps)
             {
                 auto extmap = parse_extmap(em);
                 desc.c("rtp-hdrext", *extmap);
@@ -183,10 +185,10 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
             }
         } // end of description
 
-        auto transport = content.c("transport", {{"xmlns": "urn:xmpp:jingle:transports:ice-udp:1"}});
+        auto transport = content.c("transport", {{"xmlns", "urn:xmpp:jingle:transports:ice-udp:1"}});
         // XEP-0320
         auto fingerprints = find_lines(m, "a=fingerprint:", session);
-        for (line: *fingerprints)
+        for (auto& line: *fingerprints)
         {
             StringMap fpattrs;
             string fp = parse_fingerprint(line, fpattrs);
@@ -195,15 +197,15 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
             if (!setup.empty())
                 fpattrs["setup"] = setup.substr(8);
             transport.c("fingerprint", fpattrs).t(fp);
-        });
+        }
         auto ice = iceparams(m, session);
         if (!ice->empty())
         {
             transport.setAttrs(*ice);
             // XEP-0176
-            auto lines = find_lines(m, "a=candidate:", this.session); // add any a=candidate lines
+            auto lines = find_lines(m, "a=candidate:", session); // add any a=candidate lines
             if (!lines->empty())
-                for (line: *lines)
+                for (auto& line: *lines)
                 {
                     auto cand = candidateToJingle(line);
                     transport.c("candidate", *cand);
@@ -213,7 +215,7 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
         if (mline.port == "0")
             // estos hack to reject an m-line
             elem.setAttr("senders", "rejected");
-        else if (hasLine(m, "a=sendrecv", session))
+          else if (hasLine(m, "a=sendrecv", session))
             elem.setAttr("senders", "both");
           else if (hasLine(m, "a=sendonly", session))
             elem.setAttr("senders", "initiator");
@@ -243,7 +245,7 @@ void rtcpFbToJingle(const string& sdp, Stanza elem, const string& payloadtype)
         }
         else
         {
-            StringMap attrs = {{"xmlns": "urn:xmpp:jingle:apps:rtp:rtcp-fb:0"}, {"type", type}};
+            StringMap attrs = {{"xmlns", "urn:xmpp:jingle:apps:rtp:rtcp-fb:0"}, {"type", type}};
             if (parts.size() >= 3)
                 attrs["subtype"] = parts[2];
             elem.c("rtcp-fb", attrs);
@@ -256,7 +258,7 @@ string ParsedSdp::rtcpFbFromJingle(Stanza elem, const string& payloadtype)
     //elem is <payload-type> or <description> element
     string media;
     //TODO: should be only one, abort loop when found
-    elem.forEachChild("rtcp-fb-trr-int", [media&](Stanza child) mutable
+    elem.forEachChild("rtcp-fb-trr-int", [&media](Stanza child)
     {
          const char* ns = child.attr("xmlns", true);
          if (!ns || strcmp(ns, "urn:xmpp:jingle:apps:rtp:rtcp-fb:0"))
@@ -268,10 +270,10 @@ string ParsedSdp::rtcpFbFromJingle(Stanza elem, const string& payloadtype)
          else
             media += '0';
          media += "\r\n";
-    }
-    elem.forEachChild("rtcp-fb", [media&](Stanza child)
+    });
+    elem.forEachChild("rtcp-fb", [&media, &payloadtype](Stanza child)
     {
-        const char& ns = child.attr("xmlns", true);
+        const char* ns = child.attr("xmlns", true);
         if (!ns || strcmp(ns, "urn:xmpp:jingle:apps:rtp:rtcp-fb:0"))
             return;
         media.append("a=rtcp-fb:").append(payloadtype).append(" ")
@@ -296,10 +298,11 @@ void ParsedSdp::parse(Stanza jingle)
 // http://tools.ietf.org/html/draft-ietf-mmusic-sdp-bundle-negotiation-04#section-8
 
 
-    jingle.forEachChildByAttr("group", "xmlns", "urn:xmpp:jingle:apps:grouping:0", [](Stanza group)
+    jingle.forEachChildByAttr("group", "xmlns", "urn:xmpp:jingle:apps:grouping:0",
+    [this](Stanza group)
     {
         string contents;
-        group.forEachChild("content", [contents&](Stanza content)
+        group.forEachChild("content", [&contents](Stanza content)
         {
             contents.append(content.attr("name"))+=" ";
         });
@@ -327,7 +330,7 @@ void ParsedSdp::parse(Stanza jingle)
         this.session += "a=msid-semantic: WMS " + msid.mslabel + "\r\n";
     }
     */
-    for (m: media)
+    for (auto& m: media)
         raw.append(m);
 }
 
@@ -342,12 +345,12 @@ MLine::MLine(Stanza content)
 
     Stanza transport = content.child("transport");
     if (desc.child("encryption", true) ||
-       ((transport && transport.child("fingerprint")))
+       ((transport && transport.child("fingerprint"))))
         proto = "RTP/SAVPF";
     else
         proto = "RTP/AVPF";
 
-    desc.forEachChild("payload-type", [fmt&](Stanza child)
+    desc.forEachChild("payload-type", [this](Stanza child)
     {
        fmt.push_back(child.attr("id"));
     });
@@ -357,25 +360,24 @@ MLine::MLine(Stanza content)
 string ParsedSdp::jingle2media(Stanza content)
 {
     Stanza desc = content.child("description");
-    const char* ssrc = desc.attr("ssrc");
     MLine mline(content);
     string media = mline.toSdp();
     media.append("\r\n")
          .append("c=IN IP4 0.0.0.0\r\n")
          .append("a=rtcp:1 IN IP4 0.0.0.0\r\n");
 
-    transport = content.childByAttr("transport", "xmlns", "urn:xmpp:jingle:transports:ice-udp:1", true);
+    auto transport = content.childByAttr("transport", "xmlns", "urn:xmpp:jingle:transports:ice-udp:1", true);
     if (transport)
     {
         const char* ufrag = transport.attr("ufrag", true);
         if (ufrag)
-            media.append("a=ice-ufrag:").append(frag).append("\r\n");
+            media.append("a=ice-ufrag:").append(ufrag).append("\r\n");
 
         const char* pwd = transport.attr("pwd", true);
         if (pwd)
             media.append("a=ice-pwd:").append(pwd).append("\r\n");
     }
-    transport.forEachChild("fingerprint", [media&](Stanza child) mutable
+    transport.forEachChild("fingerprint", [&media](Stanza child)
     {
       // FIXME: check namespace at some point
         media.append("a=fingerprint:").append(child.attr("hash"))
@@ -383,7 +385,7 @@ string ParsedSdp::jingle2media(Stanza content)
         const char* setup = child.attr("setup", true);
         if (setup)
              media.append("a=setup:").append(setup).append("\r\n");
-    }
+    });
     string senders = content.attr("senders");
     if (senders == "initiator")
         media += "a=sendonly\r\n";
@@ -405,7 +407,7 @@ string ParsedSdp::jingle2media(Stanza content)
     Stanza enc = desc.child("encryption");
     if (enc)
     {
-       enc.forEachChild("crypto", [media&](Stanza crypto) mutable
+       enc.forEachChild("crypto", [&media](Stanza crypto)
        {
            media.append("a=crypto:").append(crypto.attr("tag"))
                 .append(" ").append(crypto.attr("crypto-suite"))
@@ -416,20 +418,20 @@ string ParsedSdp::jingle2media(Stanza content)
            media += "\r\n";
        });
     }
-    desc.forEachChild("payload-type", [media&](Stanza payload)
+    desc.forEachChild("payload-type", [&media, this](Stanza payload)
     {
         media.append(build_rtpmap(payload)).append("\r\n");
-        if (child.child("parameter"))
+        if (payload.child("parameter"))
         {
             media.append("a=fmtp:").append(payload.attr("id")).append(" ");
             bool hasParam = false;
-            payload.forEachChild("parameter", [media&, hasParam&](Stanza param) mutable
+            payload.forEachChild("parameter", [&media, &hasParam, this](Stanza param)
             {
                hasParam = true;
                const char* name = param.attr("name", true);
                if (name)
                   media.append(name)+= '=';
-               media.append(param.attr('value'))+=';';
+               media.append(param.attr("value"))+=';';
             });
             if (hasParam)
                 media.resize(media.size()-1);
@@ -444,38 +446,39 @@ string ParsedSdp::jingle2media(Stanza content)
 
     // xep-0294
     desc.forEachChildByAttr("rtp-hdrext", "xmlns",
-      "urn:xmpp:jingle:apps:rtp:rtp-hdrext:0", [media&](Stanza hdrext) mutable
+      "urn:xmpp:jingle:apps:rtp:rtp-hdrext:0", [&media](Stanza hdrext)
     {
         media.append("a=extmap:").append(hdrext.attr("id"))
              .append(" ").append(hdrext.attr("uri")).append("\r\n");
     });
 
-    content.forEachChildByAttr("transport", "xmlns", "urn:xmpp:jingle:transports:ice-udp:1", [media&](Stanza transport) mutable
+    content.forEachChildByAttr("transport", "xmlns", "urn:xmpp:jingle:transports:ice-udp:1", [&media](Stanza transport)
     {
-      transport.forEachChild("candidate", [media&](Stanza cand) mutable
+      transport.forEachChild("candidate", [&media](Stanza cand)
       {
         media += candidateFromJingle(cand);
       });
     });
-    bool has
+
     desc.forEachChildByAttr("source", "xmlns", "urn:xmpp:jingle:apps:rtp:ssma:0",
-    [media&](Stanza source) mutable
+    [&media](Stanza source)
     {
         const char* ssrc = source.attr("ssrc");
-        source.forEachChild("parameter", [media&]{Stanza par)
+        const char* name = source.attr("name");
+        const char* val = source.attr("value", true);
+        source.forEachChild("parameter", [&media, ssrc, name, val](Stanza par)
         {
-            media.append("a=ssrc:").append(ssrc).append(" ").append(source.attr("name"));
-            const char* val = source.attr("value", true);
+            media.append("a=ssrc:").append(ssrc).append(" ").append(name);
             if (val)
-               media.append(':').append(val);
+               media.append(":").append(val);
             media += "\r\n";
         });
     });
 
     return media;
-};
+}
 
-static unique_ptr<StringMap> iceparams(const string& mediadesc, const string& sessiondesc)
+unique_ptr<StringMap> iceparams(const string& mediadesc, const string& sessiondesc)
 {
     unique_ptr<StringMap> data(new StringMap);
     string ufrag = find_line(mediadesc, "a=ice-ufrag:", sessiondesc);
@@ -488,13 +491,13 @@ static unique_ptr<StringMap> iceparams(const string& mediadesc, const string& se
     return data;
 }
 
-void MLine::MLine(const string& line)
+MLine::MLine(const string& line)
 {
-    split(line.substring(2), " ", fmt);
+    split(line.substr(2), " ", fmt);
 
-    data.media = fmt[0];
-    data.port = fmt[1];
-    data.proto = fmt[2];
+    media = fmt[0];
+    port = fmt[1];
+    proto = fmt[2];
     fmt.erase(fmt.begin(), fmt.begin()+3);
 }
 
@@ -503,7 +506,7 @@ string MLine::toSdp()
     string ret;
     ret.append("m=").append(media).append(" ").append(port)
        .append(" ").append(proto).append(" ");
-    for (f: fmt)
+    for (auto& f: fmt)
         ret.append(f)+=" ";
     if (!fmt.empty())
         fmt.resize(ret.size()-1);
@@ -514,10 +517,10 @@ unique_ptr<StringMap> parse_rtpmap(const string& line)
 {
     vector<string> parts;
     split(line.substr(9), " ", parts);
-    unique_ptr<StringMap> ret(StringMap);
+    unique_ptr<StringMap> ret(new StringMap);
     StringMap& data = *ret;
     data["id"] = parts[0];
-    StringMap parts2;
+    vector<string> parts2;
     split(parts[1], "/", parts2);
     data["name"] = parts2[0];
     data["clockrate"] = parts2[1];
@@ -526,7 +529,9 @@ unique_ptr<StringMap> parse_rtpmap(const string& line)
 }
 string build_rtpmap(Stanza el)
 {
-    string line = "a=rtpmap:" + el.attr("id") + " " + el.attr("name") + "/" + el.attr("clockrate");
+    string line = "a=rtpmap:";
+    line.append(el.attr("id")).append(" ").append(el.attr("name"))
+        .append("/").append(el.attr("clockrate"));
     const char* channels = el.attr("channels", true);
     if (channels && strcmp(channels, "1"))
         line.append("/").append(channels);
@@ -536,7 +541,7 @@ string build_rtpmap(Stanza el)
 unique_ptr<StringMap> parse_crypto(const string& line)
 {
    vector<string> parts;
-   split(line.substring(9), " ", parts);
+   split(line.substr(9), " ", parts);
    unique_ptr<StringMap> ret(new StringMap);
    StringMap& data = *ret;
 
@@ -556,7 +561,7 @@ unique_ptr<StringMap> parse_crypto(const string& line)
 string parse_fingerprint(const string& line, StringMap& attrs)
 { // RFC 4572
    vector<string> parts;
-   split(line.substring(14), " ", parts);
+   split(line.substr(14), " ", parts);
    attrs.clear();
    attrs["hash"] = parts[0];
    attrs["xmlns"] = "urn:xmpp:tmp:jingle:apps:dtls:0";
@@ -564,11 +569,11 @@ string parse_fingerprint(const string& line, StringMap& attrs)
 // TODO assert that fingerprint satisfies 2UHEX *(":" 2UHEX) ?
    return parts[1];
 }
-unique_ptr<vector<pair<string, string> > > parse_fmtp(const string& line)
+unique_ptr<vector<pair<string, string> > > parse_fmtp(string line)
 {
    vector<string> parts;
    line = afterFirst(line, " ");
-   unique_ptr<vector<pair<string, string> > ret(new vector<pair<stirng, string> >);
+   unique_ptr<vector<pair<string, string> > > ret(new vector<pair<string, string> >);
    split(line, ";", parts);
    for (auto part: parts)
    {
@@ -584,9 +589,9 @@ unique_ptr<vector<pair<string, string> > > parse_fmtp(const string& line)
           if (key.empty())
              continue;
           size_t keystart = 0;
-          while (key[keystart] == " ")
+          while (key[keystart] == ' ')
              keystart++;
-          key = key.substring(keystart);
+          key = key.substr(keystart);
           if (!value.empty())
             ret->emplace_back(key, value);
            else
@@ -627,6 +632,7 @@ string tillEol(const string text, size_t& pos)
             return text.substr(start, pos-start);
        return text.substr(pos);
     }
+    return text.substr(start);
 }
 
 string find_line(const string& haystack, const string& needle, size_t& start)
@@ -652,12 +658,32 @@ string find_line(const string& haystack, const string& needle)
      return find_line(haystack, needle, start);
 }
 
-string find_line(const string& haystack, const string& needle, const string& session)
+string find_line(const string& haystack, const string& needle, const string& sessionpart)
 {
     string ret = find_line(haystack, needle);
-    if (ret.empty())
-            return find_line(sessionpart, needle);
+    if (!ret.empty())
+        return ret;
+    return find_line(sessionpart, needle);
 }
+bool hasLine(const string& str, const char* needle)
+{
+     size_t len = strlen(needle);
+     if (!strncmp(str.c_str(), needle, len))
+         return true;
+     string nlneedle;
+     nlneedle.reserve(len+2);
+     nlneedle = "\r\n";
+     nlneedle.append(needle, len);
+     return (strstr(str.c_str(), nlneedle.c_str()) != NULL);
+}
+
+bool hasLine(const string& str, const char* needle, const string& sessionpart)
+{
+    if (hasLine(str, needle))
+         return true;
+    return hasLine(sessionpart, needle);
+}
+
 unique_ptr<vector<string> > find_lines(const string haystack, const string needle)
 {
    size_t start = 0;
@@ -675,25 +701,27 @@ unique_ptr<vector<string> > find_lines(const string haystack, const string needl
       }
       else
          lines.push_back(line);
-      return ret;
+   }
+   return ret;
 }
 
 unique_ptr<vector<string> > find_lines(const string haystack, const string needle, const string& sessionpart)
 {
     auto lines = find_lines(haystack, needle);
-    if (!lines.empty())
+    if (!lines->empty())
         return lines;
 
 // search session part
-    return find_lines(sessionart, needle);
+    return find_lines(sessionpart, needle);
 }
-unique_ptr<StringMap> candidateToJingle(const string& line)
+
+unique_ptr<StringMap> candidateToJingle(string line)
 {
 // a=candidate:2979166662 1 udp 2113937151 192.168.2.100 57698 typ host generation 0
 //      <candidate component=... foundation=... generation=... id=... ip=... network=... port=... priority=... protocol=... type=.../>
-    if (line.substr(0, 12) != 'a=candidate:')
+    if (line.substr(0, 12) != "a=candidate:")
         throw runtime_error("candidateToJingle called with a line that is not a candidate line");
-    if (line.substring(line.size() - 2) == "\r\n") // chomp it
+    if (line.substr(line.size() - 2) == "\r\n") // chomp it
             line.resize(line.size()-2);
     unique_ptr<StringMap> ret(new StringMap);
     StringMap& candidate = *ret;
@@ -724,7 +752,7 @@ unique_ptr<StringMap> candidateToJingle(const string& line)
             KR_LOG_WARNING("candidateToJingle: not translating '%s' = '%s'", elems[i].c_str(), elems[i + 1].c_str());
     }
     candidate["network"] = "1";
-    static atomic<unsigned> id = 0;
+    static atomic<unsigned> id(0);
     candidate["id"] = to_string(++id); // not applicable to SDP -- FIXME: should be unique, not just random
     return ret;
 }
@@ -754,9 +782,9 @@ string candidateFromJingle(Stanza cand)
     line+= gen?gen:"0";
     line+= "\r\n";
     return line;
-};
+}
 
-void split(const string& str, const char* sep, vector<string>& ret, unsigned flags, unsigned max)
+static void split(const string& str, const char* sep, vector<string>& ret, unsigned flags, unsigned max)
 {
     size_t seplen = strlen(sep);
     const char* start = strstr(str.c_str(), sep);
@@ -792,8 +820,8 @@ void split(const string& str, const char* sep, vector<string>& ret, unsigned fla
 shared_ptr<vector<string> > split(const string& str, const char* sep, unsigned flags, unsigned max)
 {
     vector<string>* ret = new vector<string>();
-    split(str, sep, ret, flags, max);
-    return ret;
+    split(str, sep, *ret, flags, max);
+    return shared_ptr<vector<string> >(ret);
 }
 
 string beforeFirst(const string& str, const char* sep)
@@ -804,18 +832,18 @@ string beforeFirst(const string& str, const char* sep)
     else
         return "";
 }
-string afterFirst(const string str, const char* sep)
+string afterFirst(const string& str, const char* sep)
 {
    const char* pos = strstr(str.c_str(), sep);
    if (pos)
-      return str.substr(pos+1);
+      return str.substr(pos-str.c_str()+1);
    else
       return string();
 }
 
 size_t strArrIndexOf(const vector<string>& arr, const string& str)
 {
-    for (auto i: arr)
+    for (size_t i=0; i<arr.size(); i++)
         if (arr[i] == str)
             return i;
     return string::npos;

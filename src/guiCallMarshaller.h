@@ -37,7 +37,7 @@ struct Message
 	HandlerFunc handler;
 	const unsigned long magic;
 	Message(HandlerFunc	aHandler, int aType=0)
-		:handler(aHandler), type(aType), magic(MEGAMSG_MAGIC){}
+        :type(aType), handler(aHandler), magic(MEGAMSG_MAGIC){}
 	inline void verify()
 	{
 		if (magic != MEGAMSG_MAGIC)

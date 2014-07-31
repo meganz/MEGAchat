@@ -4,8 +4,15 @@
 #include <map>
 #include <string>
 #include <time.h>
-#include <sys/time.h>
-
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <windows.h> //we must never include windows.h before winsock2.h
+    #ifdef WIN32_LEAN_AND_MEAN
+        #include <mmsystem.h>
+    #endif
+#else
+    #include <sys/time.h>
+#endif
 //defines the name of the webrtc adapter layer namespace
 #define MEGA_RTCADAPTER_NS rtc
 //defines the name of the karere webrtc+jingle module namespace
