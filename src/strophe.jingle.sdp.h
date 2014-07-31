@@ -59,5 +59,4 @@ std::unique_ptr<StringMap> iceparams(const std::string& mediadesc, const std::st
 std::unique_ptr<StringMap> candidateToJingle(std::string line);
 std::string candidateFromJingle(strophe::Stanza cand);
 std::string parse_fingerprint(const std::string& line, StringMap& attrs);
-
 }
