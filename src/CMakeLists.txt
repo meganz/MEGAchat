@@ -14,7 +14,9 @@ set(SRCS
 #  	test-promise.cpp
 )
 
-
+if (WIN32)
+    set(SYSLIBS winmm)
+endif()
 list(APPEND CMAKE_CXX_FLAGS "-std=c++11 -Wall -Wno-unused-local-typedefs")
 add_subdirectory(${optWebrtcPath} webrtc)
 add_subdirectory(${optStrophePath} strophe)
@@ -23,5 +25,5 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR} ${optStrophePath})
 
 add_executable(karere ${SRCS})
 target_link_targets(karere webrtc_my)
-target_link_libraries(karere winmm)
+target_link_libraries(karere ${SYSLIBS})
 
