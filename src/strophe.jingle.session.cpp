@@ -38,50 +38,50 @@ JingleSession::JingleSession(Jingle& jingle, const string& myJid, const string& 
 
 void JingleSession::initiate(bool isInitiator)
 {
-	if (mState != SESSTATE_NULL)
-		throw runtime_error("Attempt to initiate on session " + mSid +
+    if (mState != SESSTATE_NULL)
+        throw runtime_error("Attempt to initiate on session " + mSid +
                   "in state " + to_string(mState));
 
-	mIsInitiator = isInitiator;
-	mState = SESSTATE_PENDING;
-	if (isInitiator)
-	{
-		mInitiator = mMyJid;
-		mResponder = mPeerJid;
-	}
-	else
-	{
-		mInitiator = mPeerJid;
-		mResponder = mMyJid;
-	}
-    
+    mIsInitiator = isInitiator;
+    mState = SESSTATE_PENDING;
+    if (isInitiator)
+    {
+        mInitiator = mMyJid;
+        mResponder = mPeerJid;
+    }
+    else
+    {
+        mInitiator = mPeerJid;
+        mResponder = mMyJid;
+    }
+
    //TODO: Add constraints
-	webrtc::FakeConstraints pcmc;
+    webrtc::FakeConstraints pcmc;
     pcmc.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
     rtc::myPeerConnection<JingleSession> peerconn(mJingle.iceServers, *this, &pcmc);
     mPeerConn = peerconn;
 
-	KR_THROW_IF_FALSE((mPeerConn->AddStream(mLocalStream, NULL)));
+    KR_THROW_IF_FALSE((mPeerConn->AddStream(mLocalStream, NULL)));
 }
 //PeerConnection events
 void JingleSession::onAddStream(rtc::tspMediaStream stream)
 {
-	mRemoteStream = stream;
+    mRemoteStream = stream;
     mJingle.eventHandler.onRemoteStreamAdded(stream);
 }
 void JingleSession::onIceCandidate(std::shared_ptr<rtc::IceCandText> candidate)
 {
-	sendIceCandidate(candidate);
+    sendIceCandidate(candidate);
 }
 void JingleSession::onRemoveStream(rtc::tspMediaStream stream)
 {
     if (stream != mRemoteStream) //we can't throw here because we are in a callback
-	{
-		KR_LOG_ERROR("onRemoveStream: Stream is not the remote stream that we have");
-		return;
-	}
-	mRemoteStream = NULL;
-	mJingle.eventHandler.onRemoteStreamRemoved(stream);
+    {
+        KR_LOG_ERROR("onRemoveStream: Stream is not the remote stream that we have");
+        return;
+    }
+    mRemoteStream = NULL;
+    mJingle.eventHandler.onRemoteStreamRemoved(stream);
 }
 void JingleSession::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
 {
@@ -94,25 +94,25 @@ void JingleSession::onIceConnectionChange(webrtc::PeerConnectionInterface::IceCo
 
 void JingleSession::onIceComplete()
 {
-	KR_LOG_DEBUG("onIceComplete");
+    KR_LOG_DEBUG("onIceComplete");
 }
 
 //end of event handlers
 
 void JingleSession::terminate(const string& reason)
 {
-	mState = SESSTATE_ENDED;
-	if (mPeerConn.get())
+    mState = SESSTATE_ENDED;
+    if (mPeerConn.get())
     {
-		mPeerConn->Close();
-		mPeerConn = NULL;
+        mPeerConn->Close();
+        mPeerConn = NULL;
     }
 }
 
 Promise<Stanza> JingleSession::sendIceCandidate(
                                std::shared_ptr<rtc::IceCandText> candidate)
 {
-	if (!mPeerConn.get()) //peerconnection may have been closed already
+    if (!mPeerConn.get()) //peerconnection may have been closed already
         return Error("peerconnection is closed");
 
     auto transportAttrs = sdpUtil::iceparams(mLocalSdp.media[candidate->sdpMLineIndex], mLocalSdp.session);
@@ -120,15 +120,15 @@ Promise<Stanza> JingleSession::sendIceCandidate(
     auto candAttrs = sdpUtil::candidateToJingle(candidate->candidate);
 
 // map to transport-info
-	auto cand = createJingleIq(mPeerJid, "transport-info");
+    auto cand = createJingleIq(mPeerJid, "transport-info");
     auto transport = cand
-	  .c("content", {
-		  {"creator", jCreator()},
+      .c("content", {
+          {"creator", jCreator()},
           {"name", candidate->sdpMid}
-	  })
+      })
       .c("transport", *transportAttrs)
       .c("candidate", *candAttrs)
-	  .parent();
+      .parent();
 // add fingerprint
     if (candidate->sdpMLineIndex >= (int)mLocalSdp.media.size())
         throw runtime_error("sendIceCandidate: sdpMLineIndex is out of range");
@@ -136,136 +136,136 @@ Promise<Stanza> JingleSession::sendIceCandidate(
     string fpline = sdpUtil::find_line(mLocalSdp.media[candidate->sdpMLineIndex], "a=fingerprint:", mLocalSdp.session);
     if (!fpline.empty())
     {
-		map<string, string> fpData;
+        map<string, string> fpData;
         string fp = sdpUtil::parse_fingerprint(fpline, fpData);
         fpData["required"] = "true";
         transport.c("fingerprint", fpData).t(fp);
-	}
-	return sendIq(cand, "transportinfo");
+    }
+    return sendIq(cand, "transportinfo");
 }
 
 Promise<Stanza> JingleSession::sendOffer()
 {
     return mPeerConn.createOffer(&mMediaConstraints)
-	.then([this](webrtc::SessionDescriptionInterface* sdp)
-	{
+    .then([this](webrtc::SessionDescriptionInterface* sdp)
+    {
         string strSdp;
         KR_THROW_IF_FALSE(sdp->ToString(&strSdp));
         mLocalSdp.parse(strSdp);
-		return mPeerConn.setLocalDescription(sdp);
-	})
+        return mPeerConn.setLocalDescription(sdp);
+    })
     .then([this](int)
-	{
-		auto init = createJingleIq(mPeerJid, "session-initiate");
+    {
+        auto init = createJingleIq(mPeerJid, "session-initiate");
         mLocalSdp.toJingle(init, jCreator());
-		addFingerprintHmac(init);
-		return sendIq(init, "offer");
-	});
+        addFingerprintHmac(init);
+        return sendIq(init, "offer");
+    });
 }
 
 Promise<int> JingleSession::setRemoteDescription(Stanza elem, const string& desctype)
 {
     if (!mRemoteSdp.raw.empty())
-		throw runtime_error("setRemoteDescription() from stanza: already have remote description");
+        throw runtime_error("setRemoteDescription() from stanza: already have remote description");
     mRemoteSdp.parse(elem);
-	unique_ptr<webrtc::JsepSessionDescription> jsepSdp(
-		new webrtc::JsepSessionDescription(desctype));
-	webrtc::SdpParseError error;
-	if (!jsepSdp->Initialize(mRemoteSdp.raw, &error))
-		throw std::runtime_error("Error parsing SDP: line "+error.line+"\nError: "+error.description);
-     
-	return mPeerConn.setRemoteDescription(jsepSdp.release());
+    unique_ptr<webrtc::JsepSessionDescription> jsepSdp(
+        new webrtc::JsepSessionDescription(desctype));
+    webrtc::SdpParseError error;
+    if (!jsepSdp->Initialize(mRemoteSdp.raw, &error))
+        throw std::runtime_error("Error parsing SDP: line "+error.line+"\nError: "+error.description);
+
+    return mPeerConn.setRemoteDescription(jsepSdp.release());
 }
 
 void JingleSession::addIceCandidates(Stanza transportInfo)
 {
-	if (!isActive())
+    if (!isActive())
         return;
     // operate on each content element
     transportInfo.forEachChild("content", [this](Stanza content)
-	{
-		string mid = content.attr("name");
-		// would love to deactivate this, but firefox still requires it
+    {
+        string mid = content.attr("name");
+        // would love to deactivate this, but firefox still requires it
 //		int mLineIdx = getMlineIndex(mRemoteSdp, mid);
 //TODO: Make sure only sdpMid is enough (setting mLineIndex to 0)
-		// TODO: check ice-pwd and ice-ufrag?
+        // TODO: check ice-pwd and ice-ufrag?
         content.child("transport").forEachChild("candidate", [this, &mid](Stanza jcand)
-		{
+        {
             string line = sdpUtil::candidateFromJingle(jcand);
-			unique_ptr<webrtc::JsepIceCandidate> cand(
-			  new webrtc::JsepIceCandidate(mid, 0));
-			webrtc::SdpParseError err;
-			if (!cand->Initialize(line, &err))
-				throw runtime_error("Error parsing ICE candidate:\nline "+err.line+" Error:" +err.description);
+            unique_ptr<webrtc::JsepIceCandidate> cand(
+              new webrtc::JsepIceCandidate(mid, 0));
+            webrtc::SdpParseError err;
+            if (!cand->Initialize(line, &err))
+                throw runtime_error("Error parsing ICE candidate:\nline "+err.line+" Error:" +err.description);
 
-			mPeerConn->AddIceCandidate(cand.release());
+            mPeerConn->AddIceCandidate(cand.release());
         });
-	});
+    });
 }
 
 int JingleSession::getMlineIndex(const sdpUtil::ParsedSdp& sdp, string& name)
 {
     for (size_t i = 0; i < sdp.media.size(); i++)
-	{
+    {
         auto& media = sdp.media[i];
         if (!sdpUtil::find_line(media, "a=mid:" + name).empty() ||
             (media.find("m=" + name) == 0))
-			return i;
+            return i;
         }
-	return -1;
+    return -1;
 }
 
 Promise<int> JingleSession::sendAnswer()
 {
-	checkActive("sendAnswer");
+    checkActive("sendAnswer");
 //must first send the sdp, and then setLocalDescription because
 //ICE candidates may start being generated before we had a chance to send
 //the sdp, so the peer will receive ICE candidates before the answer
-	return mPeerConn.createAnswer(&mMediaConstraints)
+    return mPeerConn.createAnswer(&mMediaConstraints)
     .then([this](webrtc::SessionDescriptionInterface* sdp) mutable
-	{
-		checkActive("created SDP answer");
+    {
+        checkActive("created SDP answer");
         string strSdp;
         KR_THROW_IF_FALSE(sdp->ToString(&strSdp));
         mLocalSdp.parse(strSdp);
     //this.localSDP.mangle();
-		auto accept = createJingleIq(mPeerJid, "session-accept");
+        auto accept = createJingleIq(mPeerJid, "session-accept");
         mLocalSdp.toJingle(accept, jCreator());
-		addFingerprintHmac(accept);
-		auto sendPromise = sendIq(accept, "answer");
-		return when(sendPromise, mPeerConn.setLocalDescription(sdp));
-	});
+        addFingerprintHmac(accept);
+        auto sendPromise = sendIq(accept, "answer");
+        return when(sendPromise, mPeerConn.setLocalDescription(sdp));
+    });
 }
 
 
 Promise<Stanza> JingleSession::sendTerminate(const string& reason, const string& text)
 {
-	auto term =	createJingleIq(mPeerJid, "session-terminate");
+    auto term =	createJingleIq(mPeerJid, "session-terminate");
     auto rsn = term.c("reason").c(reason.empty()?"unknown":reason.c_str()).parent();
-	if (!text.empty())
+    if (!text.empty())
         rsn.c("text").t(text);
     return mConnection.sendIqQuery(term, "set");
 }
 
 Promise<Stanza> JingleSession::sendMute(bool muted, const string& what)
 {
-	auto info = createJingleIq(mPeerJid, "session-info");
-	info.c(muted ? "mute" : "unmute", {
-	  {"xmlns", "urn:xmpp:jingle:apps:rtp:info:1"},
-	  {"name", what.c_str()}
-	});
+    auto info = createJingleIq(mPeerJid, "session-info");
+    info.c(muted ? "mute" : "unmute", {
+      {"xmlns", "urn:xmpp:jingle:apps:rtp:info:1"},
+      {"name", what.c_str()}
+    });
     return mConnection.sendIqQuery(info, "set");
 }
 
 void JingleSession::syncMutedState()
 {
-	if (!mLocalStream.get())
+    if (!mLocalStream.get())
         return;
-	auto ats = mLocalStream->GetAudioTracks();
-	for (auto& at: ats)
+    auto ats = mLocalStream->GetAudioTracks();
+    for (auto& at: ats)
         at->set_enabled(!mLocalMutedState.audio);
-	auto vts = mLocalStream->GetVideoTracks();
-	for (auto& vt: vts)
+    auto vts = mLocalStream->GetVideoTracks();
+    for (auto& vt: vts)
         vt->set_enabled(!mLocalMutedState.video);
 }
 
@@ -291,30 +291,30 @@ Promise<int> JingleSession::muteUnmute(bool state, const AvFlags& what)
 
 void JingleSession::reportError(const string& e, const char* where)
 {
-	mJingle.eventHandler.onInternalError(e, where);
+    mJingle.eventHandler.onInternalError(e, where);
 }
 
 void JingleSession::addFingerprintHmac(strophe::Stanza jiq)
 {
     if (mPeerNonce.empty())
-		throw std::runtime_error("addFingerprintHmac: No peer nonce has been received");
-	set<string> fps;
-	auto j = jiq.child("jingle");
+        throw std::runtime_error("addFingerprintHmac: No peer nonce has been received");
+    set<string> fps;
+    auto j = jiq.child("jingle");
     j.forEachChild("content", [&fps](Stanza content)
-	{
+    {
        content.forEachChild("transport", [&fps](Stanza transport)
-	   {
-			auto fpnode = transport.child("fingerprint");
-			fps.insert(fpnode.attr("hash")+string(" ")+fpnode.text());
-	   });
+       {
+            auto fpnode = transport.child("fingerprint");
+            fps.insert(fpnode.attr("hash")+string(" ")+fpnode.text());
+       });
     });
-	string strFps;
-	for(auto& strFp: fps)
-	{
-	  strFps+=strFp;
-	  strFps+=';';
-	}
-	strFps.resize(strFps.size()-1); //truncate last ';'
+    string strFps;
+    for(auto& strFp: fps)
+    {
+      strFps+=strFp;
+      strFps+=';';
+    }
+    strFps.resize(strFps.size()-1); //truncate last ';'
     string fprmac = mJingle.generateHmac(strFps, mPeerNonce);
     j.setAttr("fprmac", fprmac.c_str());
 }
@@ -322,18 +322,18 @@ void JingleSession::addFingerprintHmac(strophe::Stanza jiq)
 Stanza JingleSession::createJingleIq(const string& to, const char* action)
 {
     Stanza s(xmpp_conn_get_context(mConnection));
-	s.init("iq", {
-	  {"type", "set"},
-	  {"to", to.c_str()}
-	});
+    s.init("iq", {
+      {"type", "set"},
+      {"to", to.c_str()}
+    });
 
-	s.c("jingle",{
-	  {"xmlns", "urn:xmpp:jingle:1"},
+    s.c("jingle",{
+      {"xmlns", "urn:xmpp:jingle:1"},
       {"action", action},
-	  {"initiator", mInitiator.c_str()},
+      {"initiator", mInitiator.c_str()},
       {"sid", mSid.c_str()}
-	});
-	return s;
+    });
+    return s;
 }
 
 Promise<Stanza> JingleSession::sendIq(Stanza iq, const char* type)
