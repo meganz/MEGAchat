@@ -665,6 +665,7 @@ string find_line(const string& haystack, const string& needle, const string& ses
         return ret;
     return find_line(sessionpart, needle);
 }
+
 bool hasLine(const string& str, const char* needle)
 {
      size_t len = strlen(needle);
