@@ -10,6 +10,7 @@ set(SRCS
     webrtcAdapter.cpp
     strophe.jingle.sdp.cpp
     karereCommon.cpp
+    strophe.jingle.cpp
 #    rtcSession.cpp
 #  	test-promise.cpp
 )

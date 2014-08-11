@@ -11,21 +11,6 @@ namespace karere
 {
 namespace rtcModule
 {
-//temp definition of Jingle class
-struct JingleEventHandler
-{
-    void onRemoteStreamAdded(rtc::tspMediaStream stream);
-    void onRemoteStreamRemoved(rtc::tspMediaStream stream);
-    void onInternalError(const string& error, const char* where);
-};
-
-class Jingle
-{
-public:
-    webrtc::PeerConnectionInterface::IceServers iceServers;
-    JingleEventHandler eventHandler;
-    string generateHmac(const string& data, const string& key);
-};
 
 JingleSession::JingleSession(Jingle& jingle, const string& myJid, const string& peerjid,
  const string& sid, Connection& connection,
@@ -67,7 +52,7 @@ void JingleSession::initiate(bool isInitiator)
 void JingleSession::onAddStream(rtc::tspMediaStream stream)
 {
     mRemoteStream = stream;
-    mJingle.eventHandler.onRemoteStreamAdded(stream);
+    mJingle.onRemoteStreamAdded(*this, stream);
 }
 void JingleSession::onIceCandidate(std::shared_ptr<rtc::IceCandText> candidate)
 {
@@ -81,7 +66,7 @@ void JingleSession::onRemoveStream(rtc::tspMediaStream stream)
         return;
     }
     mRemoteStream = NULL;
-    mJingle.eventHandler.onRemoteStreamRemoved(stream);
+    mJingle.onRemoteStreamRemoved(*this, stream);
 }
 void JingleSession::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
 {
@@ -89,12 +74,13 @@ void JingleSession::onIceConnectionChange(webrtc::PeerConnectionInterface::IceCo
         mStartTime = timestampMs();
     else if (newState == webrtc::PeerConnectionInterface::kIceConnectionDisconnected)
         mEndTime = timestampMs();
-//TODO: maybe forward to mJingle.eventHandler
+//TODO: maybe forward to mJingle
 }
 
 void JingleSession::onIceComplete()
 {
     KR_LOG_DEBUG("onIceComplete");
+    mJingle.onIceComplete(*this);
 }
 
 //end of event handlers
@@ -291,7 +277,7 @@ Promise<int> JingleSession::muteUnmute(bool state, const AvFlags& what)
 
 void JingleSession::reportError(const string& e, const char* where)
 {
-    mJingle.eventHandler.onInternalError(e, where);
+    mJingle.onInternalError(*this, e, where);
 }
 
 void JingleSession::addFingerprintHmac(strophe::Stanza jiq)

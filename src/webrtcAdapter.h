@@ -22,19 +22,19 @@ extern talk_base::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
  gWebrtcContext;
 struct Identity
 {
-	std::string derCert;
-	std::string derPrivateKey;
-	inline void clear()
-	{
-		derCert.clear();
-		derPrivateKey.clear();
-	}
-	inline bool isValid() {return !derCert.empty();}
+    std::string derCert;
+    std::string derPrivateKey;
+    inline void clear()
+    {
+        derCert.clear();
+        derPrivateKey.clear();
+    }
+    inline bool isValid() {return !derCert.empty();}
 };
 /** Local DTLS SRTP identity */
 extern Identity gLocalIdentity;
 
-void init(const Identity* identity);
+bool init(const Identity* identity);
 void cleanup();
 
 unsigned long generateId();
@@ -50,7 +50,7 @@ void funcCallMarshalHandler(mega::Message* msg);
 static inline void marshalCall(std::function<void()>&& lambda)
 {
     mega::marshalCall(::MEGA_RTCADAPTER_NS::funcCallMarshalHandler,
-		std::forward<std::function<void()> >(lambda));
+        std::forward<std::function<void()> >(lambda));
 }
 typedef talk_base::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
 typedef talk_base::scoped_refptr<webrtc::SessionDescriptionInterface> tspSdp;
@@ -67,26 +67,26 @@ public:
   // The implementation of the CreateSessionDescriptionObserver takes
   // the ownership of the |desc|.
     typedef promise::Promise<webrtc::SessionDescriptionInterface*> PromiseType;
-	SdpCreateCallbacks(const PromiseType& promise)
-		:mPromise(promise){}
-	virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc)
+    SdpCreateCallbacks(const PromiseType& promise)
+        :mPromise(promise){}
+    virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc)
     {
         marshalCall([this, desc]() mutable
-		{
+        {
             mPromise.resolve(desc);
             Release();
-		});
-	}
-	virtual void OnFailure(const std::string& error)
-	{
+        });
+    }
+    virtual void OnFailure(const std::string& error)
+    {
         marshalCall([this, error]()
-		{
+        {
            mPromise.reject(promise::Error(error, kCreateSdpFailed, kRejectType));
            Release();
-		});
-	}
+        });
+    }
 protected:
-	PromiseType mPromise;
+    PromiseType mPromise;
 };
 
 struct SdpText
@@ -147,48 +147,48 @@ public:
     :mPromise(promise)
     {}
 
-	virtual void OnSuccess()
-	{
+    virtual void OnSuccess()
+    {
          marshalCall([this]()
-		 {
+         {
              mPromise.resolve(0);
              Release();
-		 });
-	}
-	virtual void OnFailure(const std::string& error)
-	{
+         });
+    }
+    virtual void OnFailure(const std::string& error)
+    {
         marshalCall([this, error]()
-		{
+        {
              mPromise.reject(promise::Error(error, kSetSdpDescriptionFailed, kRejectType));
              Release();
-		});
-	}
+        });
+    }
 protected:
-	PromiseType mPromise;
+    PromiseType mPromise;
 };
 
 typedef std::shared_ptr<SdpText> sspSdpText;
 
 struct StatsCallbacks: public webrtc::StatsObserver
 {
-	typedef promise::Promise<std::shared_ptr<std::vector<webrtc::StatsReport> > > PromiseType;
-	StatsCallbacks(const PromiseType& promise):mPromise(promise){}
-	virtual void OnComplete(const std::vector<webrtc::StatsReport>& reports)
-	{
-		PromiseType::Type stats(new std::vector<webrtc::StatsReport>(reports)); //this is a std::shared_ptr
-		marshalCall([this, stats]()
-		{
-			mPromise.resolve(stats);
-			delete this;
-		});
-	}
+    typedef promise::Promise<std::shared_ptr<std::vector<webrtc::StatsReport> > > PromiseType;
+    StatsCallbacks(const PromiseType& promise):mPromise(promise){}
+    virtual void OnComplete(const std::vector<webrtc::StatsReport>& reports)
+    {
+        PromiseType::Type stats(new std::vector<webrtc::StatsReport>(reports)); //this is a std::shared_ptr
+        marshalCall([this, stats]()
+        {
+            mPromise.resolve(stats);
+            delete this;
+        });
+    }
 protected:
-	PromiseType mPromise;
+    PromiseType mPromise;
 };
 
 template <class C>
 class myPeerConnection: public
-		talk_base::scoped_refptr<webrtc::PeerConnectionInterface>
+        talk_base::scoped_refptr<webrtc::PeerConnectionInterface>
 {
 protected:
 
@@ -236,108 +236,108 @@ protected:
         C& mHandler;
         //own callback interface, always called by the GUI thread
     };
-	typedef talk_base::scoped_refptr<webrtc::PeerConnectionInterface> Base;
-	std::shared_ptr<Observer> mObserver;
+    typedef talk_base::scoped_refptr<webrtc::PeerConnectionInterface> Base;
+    std::shared_ptr<Observer> mObserver;
 public:
     myPeerConnection():Base(){}
-	myPeerConnection(const webrtc::PeerConnectionInterface::IceServers& servers,
+    myPeerConnection(const webrtc::PeerConnectionInterface::IceServers& servers,
      C& handler, webrtc::MediaConstraintsInterface* options)
         :mObserver(new Observer(handler))
-	{
+    {
 
-		if (gLocalIdentity.isValid())
-		{
+        if (gLocalIdentity.isValid())
+        {
 //TODO: give dtls identity to webrtc
-		}
+        }
         Base::operator=(gWebrtcContext->CreatePeerConnection(
-			servers, options, NULL, NULL /*DTLS stuff*/, mObserver.get()));
+            servers, options, NULL, NULL /*DTLS stuff*/, mObserver.get()));
         if (!get())
             throw std::runtime_error("Failed to create a PeerConnection object");
-	}
+    }
     using Base::operator=;
   SdpCreateCallbacks::PromiseType createOffer(const webrtc::MediaConstraintsInterface* constraints)
   {
-	  SdpCreateCallbacks::PromiseType promise;
+      SdpCreateCallbacks::PromiseType promise;
       auto observer = new talk_base::RefCountedObject<SdpCreateCallbacks>(promise);
       observer->AddRef();
       get()->CreateOffer(observer, constraints);
-	  return promise;
+      return promise;
   }
   SdpCreateCallbacks::PromiseType createAnswer(const webrtc::MediaConstraintsInterface* constraints)
   {
-	  SdpCreateCallbacks::PromiseType promise;
+      SdpCreateCallbacks::PromiseType promise;
       auto observer = new talk_base::RefCountedObject<SdpCreateCallbacks>(promise);
       observer->AddRef();
       get()->CreateAnswer(observer, constraints);
-	  return promise;
+      return promise;
   }
   /** Takes ownership of \c desc */
   SdpSetCallbacks::PromiseType setLocalDescription(webrtc::SessionDescriptionInterface* desc)
   {
-	  SdpSetCallbacks::PromiseType promise;
+      SdpSetCallbacks::PromiseType promise;
       auto observer = new talk_base::RefCountedObject<SdpSetCallbacks>(promise);
       observer->AddRef();
       get()->SetLocalDescription(observer, desc);
-	  return promise;
+      return promise;
   }
   SdpSetCallbacks::PromiseType setRemoteDescription(webrtc::SessionDescriptionInterface* desc)
   {
-	  SdpSetCallbacks::PromiseType promise;
+      SdpSetCallbacks::PromiseType promise;
       auto observer = new talk_base::RefCountedObject<SdpSetCallbacks>(promise);
       observer->AddRef();
       get()->SetRemoteDescription(observer, desc);
-	  return promise;
+      return promise;
   }
   StatsCallbacks::PromiseType getStats(
-	webrtc::MediaStreamTrackInterface* track, webrtc::PeerConnectionInterface::StatsOutputLevel level)
+    webrtc::MediaStreamTrackInterface* track, webrtc::PeerConnectionInterface::StatsOutputLevel level)
   {
-	  StatsCallbacks::PromiseType promise;
-	  get()->GetStats(new talk_base::RefCountedObject<StatsCallbacks>(promise), track, level);
-	  return promise;
+      StatsCallbacks::PromiseType promise;
+      get()->GetStats(new talk_base::RefCountedObject<StatsCallbacks>(promise), track, level);
+      return promise;
   }
 };
 
 talk_base::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
-		webrtc::MediaStreamInterface* other, const std::string& label);
+        webrtc::MediaStreamInterface* other, const std::string& label);
 
 struct DeviceManager: public
-		std::shared_ptr<cricket::DeviceManagerInterface>
+        std::shared_ptr<cricket::DeviceManagerInterface>
 {
-	typedef std::shared_ptr<cricket::DeviceManagerInterface> Base;
-	DeviceManager()
-		:Base(cricket::DeviceManagerFactory::Create())
-	{
-		if (!get()->Init())
-		{
-			reset();
-			throw std::runtime_error("Can't create device manager");
-		}
-	}
-	DeviceManager(const DeviceManager& other)
-	:Base(other){}
+    typedef std::shared_ptr<cricket::DeviceManagerInterface> Base;
+    DeviceManager()
+        :Base(cricket::DeviceManagerFactory::Create())
+    {
+        if (!get()->Init())
+        {
+            reset();
+            throw std::runtime_error("Can't create device manager");
+        }
+    }
+    DeviceManager(const DeviceManager& other)
+    :Base(other){}
 };
 
 typedef std::vector<cricket::Device> DeviceList;
 
 struct InputDevices
 {
-	DeviceList audio;
-	DeviceList video;
+    DeviceList audio;
+    DeviceList video;
 };
 
 std::shared_ptr<InputDevices> getInputDevices(DeviceManager devMgr);
 struct MediaGetOptions
 {
-	cricket::Device* device;
-	webrtc::FakeConstraints constraints;
-	MediaGetOptions(cricket::Device* aDevice)
-	:device(aDevice){}
+    cricket::Device* device;
+    webrtc::FakeConstraints constraints;
+    MediaGetOptions(cricket::Device* aDevice)
+    :device(aDevice){}
 };
 
 talk_base::scoped_refptr<webrtc::AudioTrackInterface>
-	getUserAudio(const MediaGetOptions& options, DeviceManager& devMgr);
+    getUserAudio(const MediaGetOptions& options, DeviceManager& devMgr);
 
 talk_base::scoped_refptr<webrtc::VideoTrackInterface>
-	getUserVideo(const MediaGetOptions& options, DeviceManager& devMgr);
+    getUserVideo(const MediaGetOptions& options, DeviceManager& devMgr);
 
 }
