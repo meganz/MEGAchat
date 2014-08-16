@@ -83,6 +83,8 @@ public:
     void initiate(bool isInitiator);
     promise::Promise<strophe::Stanza> accept();
     promise::Promise<strophe::Stanza> sendOffer();
+    void getRemoteMutedState(avFlags& av) const {av = mRemoteMutedState;}
+    void setRemoteMutedState(const AvFlags& av) {mRemoteMutedState = av;}
     void terminate(const std::string& reason); //TODO: maybe not needed
     inline bool isActive()
     {

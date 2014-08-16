@@ -153,10 +153,10 @@ public:
     {
         return static_cast<Jingle*>(userdata)->onIncomingCallMsg(stanza);
     }
-    bool onJingle(Stanza iq)
-    {
-     try
-     {
+bool onJingle(Stanza iq)
+{
+   try
+   {
         Stanza jingle = iq.child("child");
         const char* sid = jingle.attr("sid");
         auto sess = mSessions[sid];
@@ -231,7 +231,11 @@ public:
                 KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
                 try
                 {
-                    onCallTerminated(NULL, "security", "fingerprint verification failed", jingle.attr("sid"), peerjid.c_str(), false);
+                    NoSessionInfo info;
+                    info.peer = peerjid.c_str();
+                    info.sid = jingle.attr("sid");
+                    info.isInitiator = false;
+                    onCallTerminated(NULL, "security", "fingerprint verification failed", &info);
                 }
                 catch(...){}
                 return true;
@@ -241,130 +245,164 @@ public:
                ans->options.localStream, ans->options.muted, NULL, ans.peerFprMacKey);
 
             sess.inputQueue.reset(new list<Stanza>);
-            var ret = self.onCallIncoming.call(self.eventHandler, sess);
-            if (ret != true) {
-                self.terminate(sess, ret.reason, ret.text);
-                delete sess.inputQueue;
+            string reason, text;
+            bool cont = onCallIncoming(sess, reason, text);
+            if (!cont)
+            {
+                terminate(sess, reason, text);
+                sess.inputQueue.reset();
                 return true;
             }
 
             sess.initiate(false);
 
             // configure session
-            sess.setRemoteDescription($(iq).find('>jingle'), 'offer',
-             function() {
-                sess.sendAnswer(function() {
-                    sess.accept(function() {
-                        sess.sendMutedState();
-                        self.onCallAnswered.call(self.eventHandler, {peer: peerjid});
+            sess.setRemoteDescription(jingle, "offer").then([this, &sess](int)
+            {
+                return sess.sendAnswer();
+            })
+            .then([this, &self](int)
+            {
+                  return sess.sendMutedState();
+            })
+            .then([this, &sess, &peerjid])
+            {
+                onCallAnswered(peerjid.c_str());
 //now handle all packets queued up while we were waiting for user's accept of the call
-                        self.processAndDeleteInputQueue(sess);
-                    });
-                });
-             },
-             function(e) {
-                    delete sess.inputQueue;
-                    self.terminate(sess, obj.reason, obj.text);
-                    return true;
-             }
-            );
-            break;
+                processAndDeleteInputQueue(sess);
+            })
+            .fail([this, &sess](Error& e)
+             {
+                  sess.inputQueue.reset();
+                  terminate(sess, "error", e.msg());
+             });
         }
-        case 'session-accept': {
-            debugLog("received ACCEPT from", sess.peerjid);
-            var self = this;
+        else if (strcmp(action, "session-accept") == 0)
+        {
 // Verify SRTP fingerprint
-            if (!sess.ownNonce)
-                throw new Error("No session.ownNonce present, there is a bug");
-            var j = $(iq).find('>jingle');
-            if (self.generateHmac(self.getFingerprintsFromJingle(j), sess.ownNonce) !== j.attr('fprmac')) {
-                console.warn('Fingerprint verification failed, possible forge attempt, dropping call!');
-                self.terminateBySid(sess.sid, 'security', 'fingerprint verification failed');
+            if (sess.ownNonce.empty())
+                throw runtime_error("No session.ownNonce present, there is a bug");
+
+            if (generateHmac(getFingerprintsFromJingle(jingle), sess.ownNonce) !== jingle.attr("fprmac"))
+            {
+                KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
+                terminateBySid(sess.sid, "security", "fingerprint verification failed");
                 return true;
             }
 // We are likely to start receiving ice candidates before setRemoteDescription()
 // has completed, esp on Firefox, so we want to queue these and feed them only
 // after setRemoteDescription() completes
-            sess.inputQueue = [];
-            sess.setRemoteDescription($(iq).find('>jingle'), 'answer',
-              function(){sess.accept(
-                function() {
-                    if (sess.inputQueue)
-                        self.processAndDeleteInputQueue(sess);
-                })
-              });
-            break;
-        }
-        case 'session-terminate':
-            console.log('terminating...');
-            debugLog("received TERMINATE from", sess.peerjid);
-            var reason = null, text = null;
-            if ($(iq).find('>jingle>reason').length)
+            sess.inputQueue.reset(new list);
+            sess.setRemoteDescription(jingle, "answer", [this, &sess]()
             {
-                reason = $(iq).find('>jingle>reason>:first')[0].tagName;
-                if (reason === 'hangup')
-                    reason = 'peer-hangup';
-                text = $(iq).find('>jingle>reason>text').text();
+                return sess.sendAnswer();
+            })
+            .then([this, &sess]()
+            {
+                if (sess.inputQueue)
+                   processAndDeleteInputQueue(sess);
+            });
+        }
+        else if (strcmp(action, "session-terminate") == 0)
+        {
+            const char* reason = NULL;
+            shared_ptr<AutoText> text;
+            try
+            {
+                Stanza rsnNode = jingle.child("reason").firstChild();
+                reason = rsnNode.name();
+                if (strcmp(reason, "hangup") == 0)
+                    reason = "peer-hangup";
+                text = rsnNode.child("text").innerText();
             }
-            this.terminate(sess, reason||'peer-hangup', text);
-            break;
-        case 'transport-info':
-            debugLog("received ICE candidate from", sess.peerjid);
-            sess.addIceCandidate($(iq).find('>jingle>content'));
-            break;
-        case 'session-info':
-            debugLog("received INFO from", sess.peerjid);
-            var affected;
-            if ($(iq).find('>jingle>ringing[xmlns="urn:xmpp:jingle:apps:rtp:info:1"]').length) {
-                this.onRinging.call(this.eventHandler, sess);
-            } else if ($(iq).find('>jingle>mute[xmlns="urn:xmpp:jingle:apps:rtp:info:1"]').length) {
-                affected = $(iq).find('>jingle>mute[xmlns="urn:xmpp:jingle:apps:rtp:info:1"]').attr('name');
-                var flags = new MuteInfo(affected);
-                sess.remoteMutedState.set(flags.audio, flags.video);
-                this.onMuted.call(this.eventHandler, sess, flags);
-            } else if ($(iq).find('>jingle>unmute[xmlns="urn:xmpp:jingle:apps:rtp:info:1"]').length) {
-                affected = $(iq).find('>jingle>unmute[xmlns="urn:xmpp:jingle:apps:rtp:info:1"]').attr('name');
-                var flags = new MuteInfo(affected);
-                sess.remoteMutedState.set(flags.audio?false:null, flags.video?false:null);
-                this.onUnmuted.call(this.eventHandler, sess, flags);
+            catch(...){}
+            terminate(sess, reason?reason:"peer-hangup", text.get()?text->c_str():NULL);
+        }
+        else if (strcmp(action, "transport-info") == 0)
+        {
+            sess.addIceCandidate(jingle.child("content"));
+        }
+        else if (strcmp(action, "session-info") == 0)
+        {
+            const char* affected = NULL;
+            Stanza info;
+            if (info = jingle.childByAttr("ringing", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1", true))
+                onRinging(sess);
+            else if (info = jingle.childByAttr("mute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1", true))
+            {
+                affected = info.attr("name");
+                AvFlags& av;
+                av.audio = (strcmp(affected, "voice") == 0);
+                av.video = (strcmp(affected, "video") == 0);
+                AvFlags current;
+                sess.getRemoteMutedState(current);
+                current.audio |= av.audio;
+                current.video |= av.video;
+                sess.setRemoteMutedState(current);
+                onMuted(sess, av);
             }
-            break;
-        default:
-            console.warn('Jingle action "'+ action+'" not implemented');
-            break;
-        } //end switch
-     } catch(e) {
-        console.error('Exception in onJingle handler:', e);
-        this.onInternalError.call(this.eventHandler, {sess:sess, type: 'jingle'}, e);
-     }
-     return true;
-    },
-    /* Incoming call request with a message stanza of type 'megaCall' */
-    onIncomingCallMsg: function(callmsg) {
-      var self = this;
-      var handledElsewhere = false;
-      var elsewhereHandler = null;
-      var cancelHandler = null;
-
-      try {
-        var from = $(callmsg).attr('from');
-        var bareJid = Strophe.getBareJidFromJid(from);
-        var tsReceived = Date.now();
-
+            else if (info = jingle.childByAttr("unmute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1"))
+            {
+                affected = info.attr("name");
+                AvFlags av;
+                av.audio = (strcmp(affected, "voice") == 0);
+                av.video = (strcmp(affected, "video") == 0);
+                AvFlags current;
+                sess.getRemoteMutedState(current);
+                if (av.audio)
+                    current.audio = false;
+                if (av.video)
+                    current.video = false;
+                sess.setRemoteMutedState(current);
+                onUnmuted(sess, av);
+            }
+        }
+        else
+            KR_LOG_WARNING('Jingle action '%s' not implemented', action);
+   }
+   catch(exception& e)
+   {
+        const char* msg = e.what();
+        if (!msg)
+            msg = "(no message)";
+        KR_LOG_ERROR("Exception in onJingle handler: '%s'", msg);
+        onInternalError(msg, "onJingle");
+   }
+   return true;
+}
+/* Incoming call request with a message stanza of type 'megaCall' */
+void onIncomingCallMsg(Stanza callmsg)
+{
+    const char* from = callmsg.attr("from");
+    string bareJid = getBareJidFromJid(from);
+    Ts tsReceived = timestampMs();
+    struct State
+    {
+        bool handledElsewhere = false;
+        xmpp_handler elsewhereHandlerId = NULL;
+//        function<bool(Connection&, Stanza, int)> elsewhereHandler;
+        xmpp_handler cancelHandlerId = NULL;
+//        function<bool(Connection&, Stanza, int)> cancelHandler;
+    };
+    shared_ptr<State> state(new State);
+    try
+    {
     // Add a 'handled-elsewhere' handler that will invalidate the call request if a notification
     // is received that another resource answered/declined the call
-        elsewhereHandler = self.connection.addHandler(function(msg) {
-            if (!cancelHandler)
-                return;
-            elsewhereHandler = null;
-            self.connection.deleteHandler(cancelHandler);
-            cancelHandler = null;
-
-            var by = $(msg).attr('by');
-            if (by != self.connection.jid)
-                self.onCallCanceled.call(self.eventHandler, $(msg).attr('from'),
-                 {event: 'handled-elsewhere', by: by, accepted:($(msg).attr('accepted')==='1')});
-        }, null, 'message', 'megaNotifyCallHandled', null, from, {matchBare:true});
+     conn.addHandler([this, state]
+      (Connection& conn, Stanza stanza, int)
+     {
+          if (!state->cancelHandlerId)
+              return false;
+          state->elsewhereHandler = NULL;
+          xmpp_handler_delete(mConn, cancelHandlerId);
+          cancelHandler = cancelHandlerId = NULL;
+            Stanza msg(stanza);
+            const char* by = msg.attr("by");
+            if (strcmp(by, xmpp_conn_get_bound_jid(mConn)))
+               onCallCanceled(msg.attr("from"), "handled-elsewhere", by,
+                  strcmp(msg.attr("accepted"), "1") == 0);
+    }, "message", NULL, "megaNotifyCallHandled", from, {matchBare:true});
 
     // Add a 'cancel' handler that will ivalidate the call request if the caller sends a cancel message
         cancelHandler = self.connection.addHandler(function(msg) {
