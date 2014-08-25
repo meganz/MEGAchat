@@ -1,6 +1,6 @@
 #pragma once
-#include <talk/base/common.h>
-#include <talk/base/scoped_ref_ptr.h>
+#include <webrtc/base/common.h>
+#include <webrtc/base/scoped_ref_ptr.h>
 #include <talk/app/webrtc/peerconnectioninterface.h>
 #include <talk/app/webrtc/jsep.h>
 #include <talk/app/webrtc/peerconnectionfactory.h>
@@ -18,7 +18,7 @@ namespace MEGA_RTCADAPTER_NS
 {
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 
-extern talk_base::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
+extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
  gWebrtcContext;
 struct Identity
 {
@@ -52,8 +52,8 @@ static inline void marshalCall(std::function<void()>&& lambda)
     mega::marshalCall(::MEGA_RTCADAPTER_NS::funcCallMarshalHandler,
         std::forward<std::function<void()> >(lambda));
 }
-typedef talk_base::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
-typedef talk_base::scoped_refptr<webrtc::SessionDescriptionInterface> tspSdp;
+typedef rtc::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
+typedef rtc::scoped_refptr<webrtc::SessionDescriptionInterface> tspSdp;
 typedef std::unique_ptr<webrtc::SessionDescriptionInterface> supSdp;
 
 /** The error type code that will be set when promises returned by this lib are rejected */
@@ -188,7 +188,7 @@ protected:
 
 template <class C>
 class myPeerConnection: public
-        talk_base::scoped_refptr<webrtc::PeerConnectionInterface>
+        rtc::scoped_refptr<webrtc::PeerConnectionInterface>
 {
 protected:
 
@@ -236,7 +236,7 @@ protected:
         C& mHandler;
         //own callback interface, always called by the GUI thread
     };
-    typedef talk_base::scoped_refptr<webrtc::PeerConnectionInterface> Base;
+    typedef rtc::scoped_refptr<webrtc::PeerConnectionInterface> Base;
     std::shared_ptr<Observer> mObserver;
 public:
     myPeerConnection():Base(){}
@@ -258,7 +258,7 @@ public:
   SdpCreateCallbacks::PromiseType createOffer(const webrtc::MediaConstraintsInterface* constraints)
   {
       SdpCreateCallbacks::PromiseType promise;
-      auto observer = new talk_base::RefCountedObject<SdpCreateCallbacks>(promise);
+      auto observer = new rtc::RefCountedObject<SdpCreateCallbacks>(promise);
       observer->AddRef();
       get()->CreateOffer(observer, constraints);
       return promise;
@@ -266,7 +266,7 @@ public:
   SdpCreateCallbacks::PromiseType createAnswer(const webrtc::MediaConstraintsInterface* constraints)
   {
       SdpCreateCallbacks::PromiseType promise;
-      auto observer = new talk_base::RefCountedObject<SdpCreateCallbacks>(promise);
+      auto observer = new rtc::RefCountedObject<SdpCreateCallbacks>(promise);
       observer->AddRef();
       get()->CreateAnswer(observer, constraints);
       return promise;
@@ -275,7 +275,7 @@ public:
   SdpSetCallbacks::PromiseType setLocalDescription(webrtc::SessionDescriptionInterface* desc)
   {
       SdpSetCallbacks::PromiseType promise;
-      auto observer = new talk_base::RefCountedObject<SdpSetCallbacks>(promise);
+      auto observer = new rtc::RefCountedObject<SdpSetCallbacks>(promise);
       observer->AddRef();
       get()->SetLocalDescription(observer, desc);
       return promise;
@@ -283,7 +283,7 @@ public:
   SdpSetCallbacks::PromiseType setRemoteDescription(webrtc::SessionDescriptionInterface* desc)
   {
       SdpSetCallbacks::PromiseType promise;
-      auto observer = new talk_base::RefCountedObject<SdpSetCallbacks>(promise);
+      auto observer = new rtc::RefCountedObject<SdpSetCallbacks>(promise);
       observer->AddRef();
       get()->SetRemoteDescription(observer, desc);
       return promise;
@@ -292,12 +292,12 @@ public:
     webrtc::MediaStreamTrackInterface* track, webrtc::PeerConnectionInterface::StatsOutputLevel level)
   {
       StatsCallbacks::PromiseType promise;
-      get()->GetStats(new talk_base::RefCountedObject<StatsCallbacks>(promise), track, level);
+      get()->GetStats(new rtc::RefCountedObject<StatsCallbacks>(promise), track, level);
       return promise;
   }
 };
 
-talk_base::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
+rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
         webrtc::MediaStreamInterface* other, const std::string& label);
 
 struct DeviceManager: public
@@ -334,10 +334,10 @@ struct MediaGetOptions
     :device(aDevice){}
 };
 
-talk_base::scoped_refptr<webrtc::AudioTrackInterface>
+rtc::scoped_refptr<webrtc::AudioTrackInterface>
     getUserAudio(const MediaGetOptions& options, DeviceManager& devMgr);
 
-talk_base::scoped_refptr<webrtc::VideoTrackInterface>
+rtc::scoped_refptr<webrtc::VideoTrackInterface>
     getUserVideo(const MediaGetOptions& options, DeviceManager& devMgr);
 
 }

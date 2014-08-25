@@ -1,4 +1,4 @@
-#include "webrtcAdapter.h" //must be before any Qt headers because Qt defines an 'emit' macro which conicides with a method name in webrtc, resulting in compile error
+#include <webrtcAdapter.h> //must be before any Qt headers because Qt defines an 'emit' macro which conicides with a method name in webrtc, resulting in compile error
 #include <talk/app/webrtc/test/fakeconstraints.h>
 #include <streamPlayer.h>
 
@@ -16,7 +16,7 @@
     }
 
 extern MainWindow* mainWin;
-talk_base::scoped_refptr<webrtc::MediaStreamInterface> localStream;
+rtc::scoped_refptr<webrtc::MediaStreamInterface> localStream;
 std::unique_ptr<rtc::StreamPlayer> localPlayer;
 class Session;
 

@@ -5,7 +5,7 @@ namespace rtc
 {
 
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
-talk_base::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
+rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
  gWebrtcContext;
 
 /** Local DTLS Identity */
@@ -44,10 +44,10 @@ void funcCallMarshalHandler(mega::Message* msg)
     mega::FuncCallMessage::doCall(msg);
 }
 
-talk_base::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
+rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
         webrtc::MediaStreamInterface* other, const std::string& label)
 {
-    talk_base::scoped_refptr<webrtc::MediaStreamInterface> result(
+    rtc::scoped_refptr<webrtc::MediaStreamInterface> result(
             webrtc::MediaStream::Create(label));
     auto audioTracks = other->GetAudioTracks();
     for (auto at: audioTracks)
@@ -74,7 +74,7 @@ std::shared_ptr<InputDevices> getInputDevices(DeviceManager devMgr)
      return result;
 }
 
-talk_base::scoped_refptr<webrtc::VideoTrackInterface>
+rtc::scoped_refptr<webrtc::VideoTrackInterface>
     getUserVideo(const MediaGetOptions& options, DeviceManager& devMgr)
 {
     cricket::VideoCapturer* capturer =
@@ -82,7 +82,7 @@ talk_base::scoped_refptr<webrtc::VideoTrackInterface>
     if (!capturer)
         throw std::runtime_error("Could not create video capturer");
 
-    talk_base::scoped_refptr<webrtc::VideoTrackInterface> vtrack(
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> vtrack(
       gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()),
          gWebrtcContext->CreateVideoSource(capturer, &(options.constraints))));
     if (!vtrack.get())
@@ -90,10 +90,10 @@ talk_base::scoped_refptr<webrtc::VideoTrackInterface>
     return vtrack;
 }
 
-talk_base::scoped_refptr<webrtc::AudioTrackInterface>
+rtc::scoped_refptr<webrtc::AudioTrackInterface>
   getUserAudio(const MediaGetOptions& options, DeviceManager& devMgr)
 {
-    talk_base::scoped_refptr<webrtc::AudioTrackInterface> atrack(
+    rtc::scoped_refptr<webrtc::AudioTrackInterface> atrack(
       gWebrtcContext->CreateAudioTrack("a"+std::to_string(generateId()),
          gWebrtcContext->CreateAudioSource(&(options.constraints))));
     if (!atrack.get())

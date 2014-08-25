@@ -1,4 +1,4 @@
-#include "talk/base/ssladapter.h"
+#include "webrtc/base/ssladapter.h"
 
 #include <QtGui/QApplication>
 #include "mainwindow.h"
@@ -16,7 +16,7 @@ namespace mega
 
 int main(int argc, char *argv[])
 {
-    talk_base::InitializeSSL();
+    rtc::InitializeSSL();
     QApplication a(argc, argv);
     mainWin = new MainWindow;
     mainWin->show();

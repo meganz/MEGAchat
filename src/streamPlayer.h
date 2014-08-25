@@ -10,8 +10,8 @@ namespace MEGA_RTCADAPTER_NS
 class StreamPlayer: public webrtc::VideoRendererInterface
 {
 protected:
-    talk_base::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
-    talk_base::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
+    rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
     IVideoRenderer* mRenderer;
     bool mPlaying;
 public:
