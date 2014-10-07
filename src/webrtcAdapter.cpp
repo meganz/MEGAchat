@@ -1,6 +1,6 @@
 #include "guiCallMarshaller.h"
 #include "webrtcAdapter.h"
-
+#include <webrtc/base/ssladapter.h>
 namespace rtc
 {
 
@@ -28,6 +28,7 @@ void cleanup()
 {
     if (!gWebrtcContext.get())
         return;
+    rtc::CleanupSSL();
     gWebrtcContext = NULL;
 }
 

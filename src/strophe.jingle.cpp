@@ -389,37 +389,41 @@ void onIncomingCallMsg(Stanza callmsg)
     {
     // Add a 'handled-elsewhere' handler that will invalidate the call request if a notification
     // is received that another resource answered/declined the call
-     conn.addHandler([this, state]
-      (Connection& conn, Stanza stanza, int)
-     {
-          if (!state->cancelHandlerId)
-              return false;
-          state->elsewhereHandler = NULL;
-          xmpp_handler_delete(mConn, cancelHandlerId);
-          cancelHandler = cancelHandlerId = NULL;
+        state->elsewhereHandlerId = conn.addHandler([this, state]
+         (Connection& conn, Stanza stanza, int)
+         {
+            if (!state->cancelHandlerId)
+                return false;
+            state->elsewhereHandlerId = NULL;
+            xmpp_handler_delete(mConn, cancelHandlerId);
+            cancelHandler = cancelHandlerId = NULL;
             Stanza msg(stanza);
             const char* by = msg.attr("by");
             if (strcmp(by, xmpp_conn_get_bound_jid(mConn)))
                onCallCanceled(msg.attr("from"), "handled-elsewhere", by,
                   strcmp(msg.attr("accepted"), "1") == 0);
-    }, "message", NULL, "megaNotifyCallHandled", from, {matchBare:true});
+         }, NULL, "message", "megaNotifyCallHandled", from, NULL, STROPHE_MATCH_BARE_JID);
 
     // Add a 'cancel' handler that will ivalidate the call request if the caller sends a cancel message
-        cancelHandler = self.connection.addHandler(function(msg) {
-            if (!elsewhereHandler)
-                return;
-            cancelHandler = null;
-            self.connection.deleteHandler(elsewhereHandler);
-            elsewhereHandler = null;
+        state->cancelHandlerId = conn.addHandler([this, state]
+         (Connection& conn, Stanza stanza, int)
+         {
+            if (!state->elsewhereHandlerId)
+                return false;
+            state->cancelHandlerId = NULL;
+            xmpp_handler_delete(mConn, state->elsewhereHandlerId);
+            state->elsewhereHandlerId = NULL;
 
-            self.onCallCanceled.call(self.eventHandler, $(msg).attr('from'), {event: 'canceled'});
-        }, null, 'message', 'megaCallCancel', null, from, {matchBare:true});
+            onCallCanceled(from, "canceled", NULL, false);
+            return false;
+        }, NULL, "message", "megaCallCancel", from, NULL, STROPHE_MATCH_BARE_JID);
 
-        setTimeout(function() {
-            if (!cancelHandler) //cancel message was received and handler was removed
+        mega::setTimeout([this, state]()
+         {
+            if (!state->cancelHandlerId) //cancel message was received and handler was removed
                 return;
     // Call was not handled elsewhere, but may have been answered/rejected by us
-            self.connection.deleteHandler(elsewhereHandler);
+            xmpp_handler_delete(mConn, state->elsewhereHandlerId);
             elsewhereHandler = null;
             self.connection.deleteHandler(cancelHandler);
             cancelHandler = null;

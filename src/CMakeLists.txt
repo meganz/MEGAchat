@@ -5,8 +5,8 @@ FIND_PACKAGE(Qt4 REQUIRED)
 set (optWebrtcCmakeBuild "../../webrtc-buildsys" CACHE PATH "Path to CMakeLists.txt file that puts together webrtc libs")
 set (optStrophePath "../../strophe-native" CACHE PATH "Path to our custom strophe (mstrophe) lib")
 set (SRCS
-#    strophe.jingle.session.cpp
-#    strophe.jingle.cpp
+    strophe.jingle.session.cpp
+    strophe.jingle.cpp
      webrtcAdapter.cpp
      videoRenderer_Qt.cpp
 #    strophe.jingle.sdp.cpp

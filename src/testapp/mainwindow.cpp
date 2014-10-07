@@ -124,12 +124,12 @@ void MainWindow::buttonPushed()
     THROW_IF_FALSE((localStream->AddTrack(localVideo)));
     THROW_IF_FALSE((s1->pc.get()->AddStream(localStream, NULL)));
     THROW_IF_FALSE((s2->pc.get()->AddStream(localStream, NULL)));
-    s1->onIceCandidate = [s1](std::shared_ptr<rtc::IceCandText> cand)
+    s1->onIceCandidate = [](std::shared_ptr<rtc::IceCandText> cand)
     {
         THROW_IF_FALSE((s2.get()->pc->AddIceCandidate(cand->createObject())));
         printf("s1: onIceCandidate\n%s\n", cand->candidate.c_str());
     };
-    s2->onIceCandidate = [s2](std::shared_ptr<rtc::IceCandText> cand)
+    s2->onIceCandidate = [](std::shared_ptr<rtc::IceCandText> cand)
     {
         THROW_IF_FALSE((s1.get()->pc->AddIceCandidate(cand->createObject())));
         printf("%s: onInceCandidate\n", s2->id.c_str());
