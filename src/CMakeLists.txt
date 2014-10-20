@@ -6,6 +6,7 @@ set (optWebrtcCmakeBuild "../../webrtc-buildsys" CACHE PATH "Path to CMakeLists.
 set (optStrophePath "../../strophe-native" CACHE PATH "Path to our custom strophe (mstrophe) lib")
 set (SRCS
     strophe.jingle.session.cpp
+    strophe.disco.cpp
     strophe.jingle.cpp
      webrtcAdapter.cpp
      videoRenderer_Qt.cpp

@@ -11,8 +11,10 @@
 namespace karere {
 namespace rtcModule {
 
-    class Jingle;
-    class JingleEventHandler; //can't nest it into Jingle
+class Jingle;
+class JingleEventHandler; //can't nest it into Jingle
+
+class FileTransferHandler;
 
 class JingleSession: public webrtc::PeerConnectionObserver
 {
@@ -24,11 +26,6 @@ public:
         SESSTATE_ERROR = 3,
         SESSTATE_PENDING = 4
     };
-    struct AvFlags
-    {
-        bool audio = false;
-        bool video = false;
-    };
     struct MediaConstraints
     {
         bool audio = false;
@@ -38,7 +35,7 @@ public:
     };
 
 protected:
-    rtc::myPeerConnection<JingleSession> mPeerConn;
+    artc::myPeerConnection<JingleSession> mPeerConn;
     std::string mMyJid;
     std::string mPeerJid;
     std::string mSid;
@@ -48,11 +45,12 @@ protected:
     std::string mResponder;
     bool mIsInitiator;
     State mState = SESSTATE_NULL;
-
+    std::shared_ptr<StringMap> mProps;
+    FileTransferHandler* mFtHandler;
     AvFlags mLocalMutedState;
     AvFlags mRemoteMutedState;
-    rtc::tspMediaStream mLocalStream;
-    rtc::tspMediaStream mRemoteStream;
+    artc::tspMediaStream mLocalStream;
+    artc::tspMediaStream mRemoteStream;
     sdpUtil::ParsedSdp mLocalSdp;
     sdpUtil::ParsedSdp mRemoteSdp;
     int mStartTime = 0;
@@ -65,9 +63,9 @@ protected:
 //PeerConnection callback interface
 public:
     void onError() {KR_LOG_ERROR("session %s: peerconnection called onError()", mSid.c_str());}
-    void onAddStream(rtc::tspMediaStream stream);
-    void onRemoveStream(rtc::tspMediaStream stream);
-    void onIceCandidate(std::shared_ptr<rtc::IceCandText> candidate);
+    void onAddStream(artc::tspMediaStream stream);
+    void onRemoveStream(artc::tspMediaStream stream);
+    void onIceCandidate(std::shared_ptr<artc::IceCandText> candidate);
     void onIceComplete();
     void onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState){}
     void onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState);
@@ -78,8 +76,8 @@ public:
 
     JingleSession(Jingle& jingle, const	std::string& myJid,
         const std::string& peerJid,	const std::string& sid,
-        strophe::Connection& connection, rtc::tspMediaStream sessLocalStream,
-        const AvFlags& mutedState);
+        strophe::Connection& connection, artc::tspMediaStream sessLocalStream,
+        const AvFlags& mutedState, std::shared_ptr<StringMap> props, FileTransferHandler* ftHandler=NULL);
     void initiate(bool isInitiator);
     promise::Promise<strophe::Stanza> accept();
     promise::Promise<strophe::Stanza> sendOffer();
@@ -104,7 +102,7 @@ public:
     {
         return (mIsInitiator?"initiator":"responder");
     }
-    promise::Promise<strophe::Stanza> sendIceCandidate(std::shared_ptr<rtc::IceCandText> candidate);
+    promise::Promise<strophe::Stanza> sendIceCandidate(std::shared_ptr<artc::IceCandText> candidate);
     promise::Promise<int> setRemoteDescription(strophe::Stanza stanza, const std::string& desctype);
     void addIceCandidate(strophe::Stanza stanza);
     void addIceCandidates(strophe::Stanza transportInfo);

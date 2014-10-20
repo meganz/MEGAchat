@@ -1,6 +1,6 @@
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.sdp.h"
-//#include "strophe.jingle.h"
+#include "strophe.jingle.h"
 #include "karereCommon.h"
 
 using namespace std;
@@ -14,9 +14,11 @@ namespace rtcModule
 
 JingleSession::JingleSession(Jingle& jingle, const string& myJid, const string& peerjid,
  const string& sid, Connection& connection,
- rtc::tspMediaStream sessLocalStream, const AvFlags& mutedState)
+ artc::tspMediaStream sessLocalStream, const AvFlags& mutedState, shared_ptr<StringMap> props,
+ FileTransferHandler* ftHandler)
     :mMyJid(myJid), mPeerJid(peerjid), mSid(sid), mConnection(connection),
-      mJingle(jingle), mLocalMutedState(mutedState), mLocalStream(sessLocalStream)
+      mJingle(jingle), mLocalMutedState(mutedState), mLocalStream(sessLocalStream),
+      mProps(props), mFtHandler(ftHandler)
 {
     syncMutedState();
 }
@@ -43,22 +45,22 @@ void JingleSession::initiate(bool isInitiator)
    //TODO: Add constraints
     webrtc::FakeConstraints pcmc;
     pcmc.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
-    rtc::myPeerConnection<JingleSession> peerconn(mJingle.iceServers, *this, &pcmc);
+    artc::myPeerConnection<JingleSession> peerconn(*mJingle.mIceServers, *this, &pcmc);
     mPeerConn = peerconn;
 
     KR_THROW_IF_FALSE((mPeerConn->AddStream(mLocalStream, NULL)));
 }
 //PeerConnection events
-void JingleSession::onAddStream(rtc::tspMediaStream stream)
+void JingleSession::onAddStream(artc::tspMediaStream stream)
 {
     mRemoteStream = stream;
     mJingle.onRemoteStreamAdded(*this, stream);
 }
-void JingleSession::onIceCandidate(std::shared_ptr<rtc::IceCandText> candidate)
+void JingleSession::onIceCandidate(std::shared_ptr<artc::IceCandText> candidate)
 {
     sendIceCandidate(candidate);
 }
-void JingleSession::onRemoveStream(rtc::tspMediaStream stream)
+void JingleSession::onRemoveStream(artc::tspMediaStream stream)
 {
     if (stream != mRemoteStream) //we can't throw here because we are in a callback
     {
@@ -96,7 +98,7 @@ void JingleSession::terminate(const string& reason)
 }
 
 Promise<Stanza> JingleSession::sendIceCandidate(
-                               std::shared_ptr<rtc::IceCandText> candidate)
+                               std::shared_ptr<artc::IceCandText> candidate)
 {
     if (!mPeerConn.get()) //peerconnection may have been closed already
         return Error("peerconnection is closed");
@@ -277,7 +279,7 @@ Promise<int> JingleSession::muteUnmute(bool state, const AvFlags& what)
 
 void JingleSession::reportError(const string& e, const char* where)
 {
-    mJingle.onInternalError(*this, e, where);
+    mJingle.onInternalError(e, where);
 }
 
 void JingleSession::addFingerprintHmac(strophe::Stanza jiq)

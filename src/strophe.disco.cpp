@@ -1,137 +1,176 @@
-(function(Strophe,$) {
-	var DiscoNode = function(disco,cfg) {
-		this.disco = disco;
-		$.extend(this, cfg);
-	};
+#include <set>
+#include <stdexcept>
+#include <mstrophepp.h>
+#include "strophe.disco.h"
 
-	DiscoNode.prototype.parseRequest = function(iq) {
-		if (iq.tree) { return $(Strophe.serialize(iq.tree()));  }
-		return $(iq);
-	};
+namespace disco
+{
+using namespace std;
 
-	DiscoNode.prototype.fromTo= function(iq) {
-		var to = iq.attr('from'), id = iq.attr('id'), res;
-		return $iq({to: to, type: 'result', id: id});
-	};
+Node::Node(DiscoPlugin& disco, const char* identityName)
+:mDisco(disco)
+{
+    if (identityName)
+    {
+        mIdentities.reset(new IdentitySet);
+        mIdentities->emplace(identityName);
+    }
+}
 
-	DiscoNode.prototype.addFirstChild = function(req,res) {
-		var child = req.find('> *:eq(0)'), childAttr = {};
-		if (child.length === 0) { return ; }
-		if (child.attr('xmlns')) { childAttr.xmlns = child.attr('xmlns'); }
-		if (child.attr('node')) { childAttr.node = child.attr('node'); } 
-		if ($.isEmptyObject(childAttr)) { res.c(child[0].tagName); }
-		else { res.c(child[0].tagName, childAttr); }
-	};
+bool Node::setIdentity(const std::string& name, const std::string& type, const std::string& category)
+{
+    checkCreateIdentity();
+    auto ret = mIdentities->emplace(name, type, category);
+    if (!ret.second) //update existing
+    {
+        auto& identity = *ret.first; //identity is const (set iterators are const), but type and category are mutable
+        identity.type = type;
+        identity.category = category;
+        return false;
+    }
+    else
+        return true;
+}
+Node* Node::addNode(const char* node, const char* name, const char* jid)
+{
+        DP_THROW_IF_NULL(node);
+        DP_THROW_IF_NULL(name);
 
-	DiscoNode.prototype.reply = function(iq) {
-		var req = this.parseRequest(iq);
-		var res = this.fromTo(req);
-		this.addFirstChild(req,res);
-		this.addContent(req,res);
-		return res;
-	};
+        std::shared_ptr<Node> nodeInst(new Node(mDisco));
+        auto res = mNodes->emplace(node, nodeInst);
+        if (!res.second)
+            throw std::runtime_error("Node with that name already exists");
+        nodeInst->node = node;
+        nodeInst->name = name;
+        nodeInst->jid = jid?jid:rootJid();
 
-	/// DISCO_INFO 
-	DiscoInfoNode = function() { DiscoNode.apply(this,arguments); };
-	DiscoInfoNode.prototype = new DiscoNode();
-	DiscoInfoNode.prototype.addContent = function(req,res) {
-		var nodes = this.features || this.disco.features;
-		var identity = this.identity || this.disco.identity;
-		res.c('identity', identity).up();
-		$.each(nodes, function(node){
-			res.c('feature', { 'var' : node}).up();
-		});
-	};
-
-	/// DISCO_ITEMS
-	DiscoItemsNode = function() { DiscoNode.apply(this,arguments); };
-	DiscoItemsNode.prototype = new DiscoNode();
-	DiscoItemsNode.prototype.addContent = function(req,res) {
-		var items = this.items || this.disco.items;
-		$.each(items, function(i,item){
-			if(!item.jid) { item.jid = this.disco._conn.jid; }
-			res.c('item', item).up(); 
-		}.bind(this));
-		
-	};
-
-	/// NODE_NOT_FOUND
-	DiscoNodeNotFound = function() { DiscoNode.apply(this,arguments); };
-	DiscoNodeNotFound.prototype = new DiscoNode();
-	DiscoNodeNotFound.prototype.addContent = function(req,res) {
-		res.c('error', { type: 'cancel'});
-		res.c('item-not-found', { xmlns: 'urn:ietf:params:xml:ns:xmpp-stanzas' });
-	};
+        return nodeInst.get();
+}
+bool Node::addFeature(const std::string& feature)
+{
+    DP_THROW_IF_EMPTY(feature);
+    return mFeatures->emplace(feature).second;
+}
 
 
-	function noop(stanza) {
-		if (console) { console.log(stanza); }
-	}
-	Strophe.Disco = {
-		DiscoNode: DiscoNode,
-		DiscoInfoNode: DiscoInfoNode,
-		DiscoNodeNotFound: DiscoNodeNotFound,
-		noop: noop
-	};
-})(Strophe, jQuery);
+Node::QueryResponse Node::responseFromQuery(strophe::Stanza req)
+{
+    QueryResponse res(req);
+    auto iq = res.iq.init("iq", {
+                              {"to", req.attr("from")},
+                              {"id", req.attr("id")},
+                              {"type", "result"}
+                          });
+    auto query = iq.child("query");
+    res.query = res.iq.c("query");
 
-(function(Strophe,$) {
-	var INFO = Strophe.NS.DISCO_INFO;
-	var ITEMS = Strophe.NS.DISCO_ITEMS;
+    const char* attr = query.attrOrNull("xmlns");
+    if (attr)
+        res.query.setAttr("xmlns", attr);
+    if (attr = query.attrOrNull("node"))
+        res.query.setAttr("node", attr);
 
-	var DiscoNode = Strophe.Disco.DiscoNode;
-	var DiscoInfoNode = Strophe.Disco.DiscoInfoNode;
-	var DiscoNodeNotFound = Strophe.Disco.DiscoNodeNotFound;
-	var noop = Strophe.Disco.noop;
+    return res;
+}
 
-	function request(conn, type, args) {
-		var to = args[0], node = args[1], cb = args[2], err = args[3], 
-			q = { xmlns: type };
-		if(typeof node === 'function') { err = cb; cb = node; node = undefined; }
-		if(node) { q.node = node; }
-		var	iq = $iq({to: to, 'type': 'get'}).c('query',q);
-		conn.sendIQ(iq, cb || noop, err || noop);
-	}
+strophe::Stanza Node::replyInfo(strophe::Stanza req)
+{
+    auto res = responseFromQuery(req);
+    auto& resQuery = res.query;
+    FeatureSet& features = mFeatures?*mFeatures:*mDisco.mFeatures;
+    IdentitySet& identities = mIdentities?*mIdentities:*mDisco.mIdentities;
+    for (auto& identity: identities)
+    {
+        auto s = resQuery.c("identity");
+        s.setAttr("name", identity.name.c_str());
+        if (!identity.type.empty())
+            s.setAttr("type", identity.type.c_str());
+        if (!identity.category.empty())
+            s.setAttr("category", identity.category.c_str());
+    }
+    for (auto& feature: features)
+        resQuery.c("feature").setAttr("var", feature.c_str());
+    return res.iq;
+}
+strophe::Stanza Node::replyItems(strophe::Stanza req, const char* node)
+{
+    if (!node)
+        node = req.child("query").attrOrNull("node");
+    if (!node)
+        return replyOwnItems(req);
 
-	function reply(iq) {
-		var node = $('query',iq).attr('node') || $('query',iq).attr('xmlns');
-		var nodeImpl = this.features[node] || new DiscoNodeNotFound(); 
-		if($.isPlainObject(nodeImpl)) {
-			var xmlns = $('query',iq).attr('xmlns');
-			var ctr = xmlns === INFO ? DiscoInfoNode : DiscoItemsNode;
-			nodeImpl = new ctr(this,nodeImpl);
-		}
-		this._conn.send(nodeImpl.reply(iq));
-		return true;
-	}
+    std::string subnodeName;
+    const char* pos = strchr(node, '/');
+    if (!pos)
+        subnodeName = node;
+    else
+        subnodeName.assign(node, pos-node);
+    auto nodeIt = mNodes->find(subnodeName);
+    if (nodeIt == mNodes->end())
+        return replyNodeNotFound(req);
+    else
+        return nodeIt->second->replyItems(req, pos+1);
+}
+strophe::Stanza Node::replyOwnItems(strophe::Stanza req)
+{
+    auto res = responseFromQuery(req);
+    for (auto& nodeIt: *mNodes)
+    {
+        auto& node = *nodeIt.second;
+        auto item = res.query.c("item");
+        item.setAttr("jid", (!node.jid.empty())?node.jid.c_str():mDisco.rootJid());
+        if (!node.name.empty())
+            item.setAttr("name", node.name.c_str());
+        if (!node.node.empty())
+            item.setAttr("node", node.node.c_str());
+    }
+    return res.iq;
+}
 
-	var disco = {
-		_conn: null,
-		init: function(conn) {
-			this.jid = conn.jid;
-			this.features = {};
-			this.identity = { name: 'strophe' };
-			this.features[INFO] = new DiscoInfoNode(this);
-			this.features[ITEMS] = new DiscoItemsNode(this);
-			this._conn = conn;
-		},
-		statusChanged: function(status) {
-			if (status === Strophe.Status.CONNECTED) {
-				this._conn.addHandler(reply.bind(this), INFO, 'iq', 'get');
-				this._conn.addHandler(reply.bind(this), ITEMS, 'iq', 'get');
-			}
-		},
-		info: function(to, node, callback) {
-			request(this._conn, INFO, arguments);
-		},
-		items: function(to, node, callback) {
-			request(this._conn, ITEMS, arguments);
-		},
-		addNode: function(node, args) {
-			if(this.features[node]) { throw node + ' exists'; }
-			this.features[node] = args;
-		}
+strophe::Stanza Node::replyNodeNotFound(strophe::Stanza req)
+{
+    auto res = responseFromQuery(req);
+    res.query.c("error").setAttr("type", "cancel")
+            .c("item-not-found").setAttr("xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas");
+    return res.iq;
+}
 
-	};
-	Strophe.addConnectionPlugin('disco', disco);
-})(Strophe,jQuery);
+
+DiscoPlugin::DiscoPlugin(strophe::Connection& aConn, const char* identity)
+:Plugin(aConn), Node(*this, identity?identity:"Karere")
+{}
+void DiscoPlugin::onConnState(const xmpp_conn_event_t status,
+            const int error, xmpp_stream_error_t * const stream_error)
+{
+    if (status == XMPP_CONN_CONNECT)
+    {
+        mConn.addHandler([this](strophe::Connection conn, strophe::Stanza stanza, void* userdata)
+        {
+            xmpp_send(mConn, replyInfo(stanza));
+            return 1;
+        }, XMPP_NS_DISCO_INFO, "iq", "get");
+        mConn.addHandler([this](strophe::Connection conn, strophe::Stanza stanza, void* userData)
+        {
+            xmpp_send(mConn, replyItems(stanza));
+            return 1;
+        }, XMPP_NS_DISCO_ITEMS, "iq", "get");
+    }
+}
+
+promise::Promise<strophe::Stanza>
+DiscoPlugin::request(const char* to, const char* ns, const char* node)
+{
+    DP_THROW_IF_NULL(to);
+    DP_THROW_IF_NULL(ns);
+    strophe::Stanza iq(mConn);
+    iq.setName("iq")
+            .setAttr("to", to)
+            .setAttr("from", mConn.jid());
+    auto query = iq.c("query");
+    query.setAttr("xmlns", ns);
+    if (node)
+        query.setAttr("node", node);
+
+    return mConn.sendIqQuery(iq, "get", "disco");
+}
+}

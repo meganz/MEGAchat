@@ -14,16 +14,25 @@
     #include <sys/time.h>
 #endif
 //defines the name of the webrtc adapter layer namespace
-#define MEGA_RTCADAPTER_NS rtc
+#define MEGA_RTCADAPTER_NS artc
 //defines the name of the karere webrtc+jingle module namespace
 #define KARERE_RTCMODULE_NS rtcModule
+#define KR_CHECK_NULLARG(name) if (!(name)) throw std::runtime_error(__FUNCTION__": Assertion failed: Argument '" #name "' is NULL")
 
 namespace karere
 {
 typedef std::map<std::string, std::string> StringMap;
 
+//audio&video enabled flags used in many places
+struct AvFlags
+{
+    bool audio = false;
+    bool video = false;
+};
+
 //time function
 typedef int64_t Ts;
+
 
 #ifdef _WIN32
 //We need to have these static vars extern in order to have the functions static inlined

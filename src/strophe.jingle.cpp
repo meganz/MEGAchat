@@ -4,134 +4,79 @@
 #include <map>
 #include <memory>
 #include "webrtcAdapter.h"
+#include "strophe.jingle.session.h"
+#include "strophe.jingle.h"
+#include "strophe.disco.h"
+#include <mstrophepp.h>
 
-namespace strophe
-{
-    class Stanza;
-    class Connection;
-}
+using namespace std;
+
 namespace karere
 {
-struct JingleEventHandler
+namespace rtcModule
 {
+
+AvFlags peerMediaToObj(const char* strPeerMedia);
+
+void Jingle::onInternalError(const string& msg, const char* where)
+{
+    KR_LOG_ERROR("Internal error at %s: %s", where, msg.c_str());
 };
-
-class Jingle: strophe::Plugin
-{
-protected:
-/** Contains all info about a not-yet-established session, when onCallTerminated is fired and there is no session yet */
-    struct NoSessionInfo
-    {
-        const char* sid = NULL;
-        const char* peer = NULL;
-        bool isInitiator=false;
-    };
-/** Contains all info about an incoming call that has been accepted at the message level and needs to be autoaccepted at the jingle level */
-    struct AutoAcceptInfo
-    {
-
-    };
-
-    std::map<std::string, std::shared_ptr<JingleSession> > mSessions;
-    std::map<std::string, std::shared_ptr<JingleSession> > mJid2Session;
-    webrtc::FaceConstraints mMediaConstraints;
-/** Timeout after which if an iq response is not received, an error is generated */
-    int mJingleTimeout = 50000;
-/** The period, during which an accepted call request will be valid
-* and the actual call answered. The period starts at the time the
-* request is received from the network */
-    int mJingleAutoAcceptTimeout = 15000;
-/** The period within which an outgoing call can be answered by peer */
-    int callAnswerTimeout = 50000;
-    std::map<std::string, std::shared_ptr<AutoAcceptInfo> >mAcceptCallsFrom;
-    webrtc::PeerConnectionInterface::IceServers mIceServers;
-    std::shared_ptr<rtc::InputDevices> mInputDevices;
-public:
-    enum {DISABLE_MIC = 1, DISABLE_CAM = 2, HAS_MIC = 4, HAS_CAM = 8};
-    int mediaFlags = 0;
-//event handler interface
-    virtual void onRemoteStreamAdded(JingleSession& sess, rtc::tspMediaStream stream){}
-    virtual void onRemoteStreamRemoved(JingleSession& sess, rtc::tspMediaStream stream){}
-    virtual void onJingleError(JingleSession& sess, const std::string& err, strophe::Stanza stanza, strophe::Stanza orig){}
-    virtual void onJingleTimeout(JingleSession& sess, const std::string& err, strophe::Stanza orig){}
-//    virtual void onIceConnStateChange(JingleSession& sess, event){}
-    virtual void onIceComplete(JingleSession& sess, event){}
-//    virtual void onNoStunCandidates(JingleSession& sess){}
-
-//rtcHandler callback interface, called by the connection.jingle object
-    virtual void onIncomingCallRequest(const char* from,
-     bool(*reqStillValid)(), void(*ansFunc)(bool)){}
-    virtual void onCallCanceled(const char* peer, const char* event,
-     const char* by, bool accepted){}
-    virtual void onCallRequestTimeout(const char* peer) {}
-    virtual void onCallAnswered(const char* peer) {}
-    virtual void onCallTerminated(JingleSession* sess, const char* reason,
-      const char* text, const NoSessionInfo* info=NULL){}
-    virtual void onCallIncoming(JingleSession& sess){return true;}
-    virtual void onRinging(JingleSession& sess){}
-    virtual void onMuted(JingleSession& sess, const AvFlags& affected){}
-    virtual void onUnmuted(JingleSession& sess, const AvFlags& affected){}
-    virtual void onInternalError(const char& msg, const char* where)
-    {
-        KR_LOG_ERROR("Internal error at %s: %s", where, msg.c_str());
-    };
 //==
 
-    string generateHmac(const string& data, const string& key);
-    Jingle(strophe::Connection& conn, const string& iceServers)
-        :Plugin(mConn)
-    {
-        mConn.add
+string generateHmac(const string& data, const string& key){return "";} //TODO: Implement
+Jingle::Jingle(strophe::Connection& conn, const string& iceServers)
+:Plugin(conn)
+{
+    if (!iceServers.empty())
         setIceServers(iceServers);
-        mMediaConstraints.setMandatoryReceiveAudio(true);
-        mMediaConstraints.setMandatoryReceiveVideo(true);
-        rtc::init(NULL);
-        rtc::DeviceManager devMgr;
-        mInputDevices = rtc::getInputDevices(devMgr);
-        registerDiscoCaps();
-    }
-    void addAudioCaps(DiscoPlugin& disco)
+    mMediaConstraints.SetMandatoryReceiveAudio(true);
+    mMediaConstraints.SetMandatoryReceiveVideo(true);
+    artc::init(NULL);
+    artc::DeviceManager devMgr;
+    mInputDevices = artc::getInputDevices(devMgr);
+    registerDiscoCaps();
+}
+void Jingle::addAudioCaps(DiscoPlugin& disco)
+{
+    disco.addNode("urn:xmpp:jingle:apps:rtp:audio", {});
+}
+void Jingle::addVideoCaps(DiscoPlugin& disco)
+{
+    disco.addNode("urn:xmpp:jingle:apps:rtp:video", {});
+}
+void Jingle::registerDiscoCaps()
+{
+    auto plDisco = mConn.pluginPtr<DiscoPlugin>("disco");
+    if (!plDisco)
     {
-        disco.addNode("urn:xmpp:jingle:apps:rtp:audio", {});
+        KR_LOG_WARNING("Disco plugin not found, not registering disco caps");
+        return;
     }
-    function addVideoCaps(DiscoPlugin& disco)
-    {
-        disco.addNode("urn:xmpp:jingle:apps:rtp:video", {});
-    }
-    void registerDiscoCaps()
-    {
-        auto plDisco = mConn.pluginPtr<DiscoPlugin>("disco");
-        if (!plDisco)
-        {
-            KR_LOG_WARNING("Disco plugin not found, not registering disco caps");
-            return;
-        }
-        DiscoPlugin& disco = *plDisco;
-        // http://xmpp.org/extensions/xep-0167.html#support
-        // http://xmpp.org/extensions/xep-0176.html#support
-        disco.addNode("urn:xmpp:jingle:1", {});
-        disco.addNode("urn:xmpp:jingle:apps:rtp:1", {});
-        disco.addNode("urn:xmpp:jingle:transports:ice-udp:1", {});
+    DiscoPlugin& disco = *plDisco;
+    // http://xmpp.org/extensions/xep-0167.html#support
+    // http://xmpp.org/extensions/xep-0176.html#support
+    disco.addNode("urn:xmpp:jingle:1", {});
+    disco.addNode("urn:xmpp:jingle:apps:rtp:1", {});
+    disco.addNode("urn:xmpp:jingle:transports:ice-udp:1", {});
 
-        disco.addNode("urn:ietf:rfc:5761", {}); // rtcp-mux
-        //this.connection.disco.addNode('urn:ietf:rfc:5888', {}); // a=group, e.g. bundle
-        //this.connection.disco.addNode('urn:ietf:rfc:5576', {}); // a=ssrc
-//        if (localStorage.megaDisableMediaInputs === undefined)
-//            RTC.queryMediaInputPermissions();
-        bool hasAudio = !mInputDevices->audio.empty() && !(mediaFlags & DISABLE_MIC);
-        bool hasVideo = !mInputDevices->video.empty() && !(mediaFlags & DISABLE_CAM);
-        if (hasAudio)
-            addAudioCaps();
-        if (hasVideo)
-            addVideoCaps();
-    }
-    void onConnState(const xmpp_conn_event_t status,
-                const int error, xmpp_stream_error_t * const stream_error)
+    disco.addNode("urn:ietf:rfc:5761", {}); // rtcp-mux
+    //this.connection.disco.addNode('urn:ietf:rfc:5888', {}); // a=group, e.g. bundle
+    //this.connection.disco.addNode('urn:ietf:rfc:5576', {}); // a=ssrc
+    bool hasAudio = !mInputDevices->audio.empty() && !(mediaFlags & DISABLE_MIC);
+    bool hasVideo = !mInputDevices->video.empty() && !(mediaFlags & DISABLE_CAM);
+    if (hasAudio)
+        addAudioCaps();
+    if (hasVideo)
+        addVideoCaps();
+}
+void Jingle::onConnState(const xmpp_conn_event_t status,
+    const int error, xmpp_stream_error_t * const stream_error)
+{
+    try
     {
-      try
-      {
         Jingle* self = (Jingle*)userdata;
-        if (status === XMPP_CONN_CONNECT)
+        if (status == XMPP_CONN_CONNECT)
         {
 //         typedef int (*xmpp_handler)(xmpp_conn_t * const conn,
 //           xmpp_stanza_t * const stanza, void * const userdata);
@@ -139,21 +84,21 @@ public:
             xmpp_handler_add(mConn, _static_onIncomingCallMsg, NULL, "message", "megaCall", userdata);
         }
         self->onConnectionEvent(status, error, stream_error);
-      }
-      catch(exception& e)
-      {
-          KR_LOG_ERROR("Exception in connection state handler: %s", e.what());
-      }
     }
-    static int _static_onJingle(xmpp_conn_t* const conn, xmpp_stanza_t* stanza, void* userdata)
+    catch(exception& e)
     {
-        return static_cast<Jingle*>(userdata)->onJingle(stanza);
+        KR_LOG_ERROR("Exception in connection state handler: %s", e.what());
     }
-    static int _static_onIncomingCallMsg(xmpp_conn_t* const conn, xmpp_stanza_t* stanza, void* userdata)
-    {
-        return static_cast<Jingle*>(userdata)->onIncomingCallMsg(stanza);
-    }
-bool onJingle(Stanza iq)
+}
+static int Jingle::_static_onJingle(xmpp_conn_t* const conn, xmpp_stanza_t* stanza, void* userdata)
+{
+    return static_cast<Jingle*>(userdata)->onJingle(stanza);
+}
+static int Jingle::_static_onIncomingCallMsg(xmpp_conn_t* const conn, xmpp_stanza_t* stanza, void* userdata)
+{
+    return static_cast<Jingle*>(userdata)->onIncomingCallMsg(stanza);
+}
+bool Jingle::onJingle(Stanza iq)
 {
    try
    {
@@ -222,7 +167,7 @@ bool onJingle(Stanza iq)
             if (!ansIter == mAcceptCallsFrom.end())
                 return true; //ignore silently - maybe there is no user on this client and some other client(resource) already accepted the call
             shared_ptr<AutoAcceptInfo> ans = ansIter->second;
-            mAutoAcceptCallsFrom.erase(ansIter);
+            mAutoAcceptCalls.erase(ansIter);
 // Verify SRTP fingerprint
             if (ans->ownNonce.empty())
                 throw runtime_error("No ans.ownNonce present, there is a bug");
@@ -331,7 +276,7 @@ bool onJingle(Stanza iq)
             else if (info = jingle.childByAttr("mute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1", true))
             {
                 affected = info.attr("name");
-                AvFlags& av;
+                AvFlags av;
                 av.audio = (strcmp(affected, "voice") == 0);
                 av.video = (strcmp(affected, "video") == 0);
                 AvFlags current;
@@ -358,7 +303,7 @@ bool onJingle(Stanza iq)
             }
         }
         else
-            KR_LOG_WARNING('Jingle action '%s' not implemented', action);
+            KR_LOG_WARNING("Jingle action '%s' not implemented", action);
    }
    catch(exception& e)
    {
@@ -371,9 +316,17 @@ bool onJingle(Stanza iq)
    return true;
 }
 /* Incoming call request with a message stanza of type 'megaCall' */
-void onIncomingCallMsg(Stanza callmsg)
+void Jingle::onIncomingCallMsg(Stanza callmsg)
 {
     const char* from = callmsg.attr("from");
+    if (!from)
+        throw runtime_error("No 'from' attribute in megaCall message");
+    const char* sid = callmsg.attr("sid");
+    if (!sid)
+        throw runtime_error("No 'sid' attribute in megaCall message");
+    if (mAcceptCallsFrom.find(sid) != mAcceptCallsFrom.end())
+        throw runtime_error("Auto accept for call with sid '"+string(sid)+"' already exists");
+
     string bareJid = getBareJidFromJid(from);
     Ts tsReceived = timestampMs();
     struct State
@@ -400,8 +353,9 @@ void onIncomingCallMsg(Stanza callmsg)
             Stanza msg(stanza);
             const char* by = msg.attr("by");
             if (strcmp(by, xmpp_conn_get_bound_jid(mConn)))
-               onCallCanceled(msg.attr("from"), "handled-elsewhere", by,
+               onCallCanceled(from, "handled-elsewhere", by,
                   strcmp(msg.attr("accepted"), "1") == 0);
+            return false;
          }, NULL, "message", "megaNotifyCallHandled", from, NULL, STROPHE_MATCH_BARE_JID);
 
     // Add a 'cancel' handler that will ivalidate the call request if the caller sends a cancel message
@@ -424,276 +378,286 @@ void onIncomingCallMsg(Stanza callmsg)
                 return;
     // Call was not handled elsewhere, but may have been answered/rejected by us
             xmpp_handler_delete(mConn, state->elsewhereHandlerId);
-            elsewhereHandler = null;
-            self.connection.deleteHandler(cancelHandler);
-            cancelHandler = null;
+            state->elsewhereHandlerId = NULL;
+            xmpp_handler_delete(mConn, state->cancelHandlerId);
+            state->cancelHandlerId = NULL;
 
-            self.onCallCanceled.call(self.eventHandler, from, {event:'timeout'});
-        }, self.callAnswerTimeout+10000);
+            onCallCanceled(from, "timeout", NULL, false);
+        }, callAnswerTimeout+10000);
 
 //tsTillUser measures the time since the req was received till the user answers it
 //After the timeout either the handlers will be removed (by the timer above) and the user
 //will get onCallCanceled, or if the user answers at that moment, they will get
 //a call-not-valid-anymore condition
-        var tsTillUser = Date.now() + self.callAnswerTimeout+10000;
-        var reqStillValid = function() {
-            return ((tsTillUser > Date.now()) && (cancelHandler != null));
+        Ts tsTillUser = timestampMs() + callAnswerTimeout+10000;
+        auto reqStillValid = [&tsTillUser, &state]() {
+            return ((timestampMs() < tsTillUser) && state->cancelHandlerId);
         };
 // Notify about incoming call
-        self.onIncomingCallRequest.call(self.eventHandler, from, reqStillValid,
-          function(accept, obj) {
+        onIncomingCallRequest(from, reqStillValid,
+          [&, this](accept, obj)
+        {
 // If dialog was displayed for too long, the peer timed out waiting for response,
 // or user was at another client and that other client answred.
 // When the user returns at this client he may see the expired dialog asking to accept call,
 // and will answer it, but we have to ignore it because it's no longer valid
             if (!reqStillValid()) // Call was cancelled, or request timed out and handler was removed
                 return false;//the callback returning false signals to the calling user code that the call request is not valid anymore
-            if (accept) {
-                var ownNonce = self.generateNonce();
-                var peerNonce = self.decryptMessage($(callmsg).attr('nonce'));
-                if (!peerNonce)
-                    throw new Error("Encrypted nonce missing from call request");
+            if (accept)
+            {
+                string ownNonce = generateNonce();
+                string peerNonce = decryptMessage(callmsg.attr("nonce"));
+                if (peerNonce.empty())
+                    throw std::runtime_error("Encrypted nonce missing from call request");
 // tsTillJingle measures the time since we sent megaCallAnswer till we receive jingle-initiate
-                var tsTillJingle = Date.now()+self.jingleAutoAcceptTimeout;
-                self.acceptCallsFrom[from] = {
-                    tsReceived: tsReceived,
-                    tsTill: tsTillJingle,
-                    options: obj.options,
-                    peerNonce: peerNonce,
-                    ownNonce: ownNonce
-                };
+                Ts tsTillJingle = timestampMs()+mJingleAutoAcceptTimeout;
+                AutoAcceptCallInfo info& = acceptCallsFrom[sid];
+
+                info.tsReceived = tsReceived;
+                info.tsTill = tsTillJingle;
+                info.options = obj.options; //shared_ptr
+                info["peerNonce"] = peerNonce;
+                info["ownNonce"] = ownNonce;
+
 // This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
-                setTimeout(function() { //invalidate auto-answer after a timeout
-                    var call = self.acceptCallsFrom[from];
-                    if (!call || (call.tsTill != tsTillJingle))
+                setTimeout([this, from, &tsTillJingle]()
+                { //invalidate auto-answer after a timeout
+                    auto callIt = acceptCallsFrom.find(from);
+                    if (callIt == acceptCallsFrom.end())
                         return; //entry was removed or updated by a new call request
-                    self.cancelAutoAnswerEntry(from, 'initiate-timeout', 'timed out waiting for caller to start call');
-                }, self.jingleAutoAcceptTimeout);
+                    auto call = callIt->second;
+                    if (call->tsTill != tsTillJingle)
+                        return; //entry was updated by a new call request
+                    cancelAutoAnswerEntry(from, "initiate-timeout", "timed out waiting for caller to start call");
+                }, mJingleAutoAcceptTimeout);
 
-                self.connection.send($msg({
-                    to: from,
-                    type: 'megaCallAnswer',
-                    nonce: self.encryptMessageForJid(ownNonce, bareJid)
-                }));
-            }
-            else {
-// We don't want to answer calls from that user, and this includes a potential previous
-// request - we want to cancel that too
-                delete self.acceptCallsFrom[bareJid];
-                var msg = $msg({to: from, type: 'megaCallDecline', reason: obj.reason?obj.reason:'unknown'});
-                if (obj.text)
-                    msg.c('body').t(obj.text);
-                self.connection.send(msg);
-            }
-            return true;
-        });
-      } catch(e) {
-            console.error('Exception in onIncomingCallRequest handler:', e);
-            self.onInternalError.call(self.eventHandler, {type:'jingle'} , e);
-      }
-      return true;
-    },
-    cancelAutoAnswerEntry: function(from, reason, text) {
-        delete this.acceptCallsFrom[from];
-        this.onCallTerminated.call(this.eventHandler, {fake: true, peerjid: from, isInitiator: false},
-            reason, text);
-    },
-    cancelAllAutoAnswerEntries: function(reason, text) {
-        var save = this.acceptCallsFrom;
-        this.acceptCallsFrom = {};
-        for (var k in save)
-            this.onCallTerminated.call(this.eventHandler, {fake: true, peerjid: k, isInitiator: false},
-                reason, text);
-    },
-    purgeOldAcceptCalls: function() {
-        var self = this;
-        var now = Date.now();
-        for (var k in self.acceptCallsFrom) {
-            var call = self.acceptCallsFrom[k];
-            if (call.tsTill < now)
-                this.cancelAutoAnswerEntry(k, 'initiate-timeout', 'timed out waiting for caller to start call');
-        }
-    },
-    processAndDeleteInputQueue: function(sess) {
-        var queue = sess.inputQueue;
-        delete sess.inputQueue;
-        for (var i=0; i<queue.length; i++)
-            this.onJingle(queue[i]);
-    },
-    initiate: function (peerjid, myjid, sessStream, mutedState, sessProps) { // initiate a new jinglesession to peerjid
-        var sess = this.createSession(myjid, peerjid,
-            Math.random().toString(36).substr(2, 12), // random string
-            sessStream, mutedState, sessProps);
-        // configure session
-        sess.media_constraints = this.media_constraints;
-        sess.pc_constraints = this.pc_constraints;
-        sess.ice_config = this.ice_config;
-
-        sess.initiate(true);
-        sess.sendOffer(function() {sess.sendMutedState()});
-        return sess;
-    },
-    createSession: function(me, peerjid, sid, sessStream, mutedState, sessProps) {
-        var sess = new JingleSession(me, peerjid, sid, this.connection, sessStream, mutedState);
-        this.sessions[sess.sid] = sess;
-        this.jid2session[sess.peerjid] = sess;
-        if (sessProps) {
-            for (var k in sessProps)
-                if (sessProps.hasOwnProperty(k)) {
-                    if (sess[k] === undefined)
-                        sess[k] = sessProps[k];
-                      else
-                        console.warn('Jingle.initiate: a property in sessProps overlaps with an existing property of the create session object - not setting');
-                }
-        }
-
-        return sess;
-    },
-    terminateAll: function(reason, text, nosend)
-    {
-    //terminate all existing sessions
-        for (sid in this.sessions)
-            this.terminate(this.sessions[sid], reason, text, nosend);
-    },
-    terminateBySid: function(sid, reason, text, nosend)
-    {
-        return this.terminate(this.sessions[sid], reason, text, nosend);
-    },
-    terminate: function(sess, reason, text, nosend)
-    {
-        if ((!sess) || (!this.sessions[sess.sid]))
-            return false; //throw new Error("Unknown session: " + sid);
-        if (sess.state != 'ended')
-        {
-            if (!nosend)
-                sess.sendTerminate(reason||'term', text);
-            sess.terminate();
-        }
-        delete this.jid2session[sess.peerjid];
-        delete this.sessions[sess.sid];
-        try {
-            this.onCallTerminated.call(this.eventHandler, sess, reason||'term', text);
-        } catch(e) {
-            console.error('Jingle.onCallTerminated() threw an exception:', e.stack);
-        }
-
-        return true;
-    },
-    terminateByJid: function (jid)
-    {
-        var sess = this.jid2session[jid];
-        if (!sess)
-            return false;
-        return this.terminate(sess, null, null);
-    },
-    sessionIsValid: function(sess)
-    {
-        return (this.sessions[sess.sid] != undefined);
-    },
-    getFingerprintsFromJingle: function(j) {
-        var fpNodes = j.find('>content>transport>fingerprint');
-        if (fpNodes.length < 1)
-            throw new Error("Could not extract SRTP fingerprint from jingle packet");
-        var fps = [];
-        for (var i=0; i<fpNodes.length; i++) {
-            var node = fpNodes[i];
-            fps.push(node.getAttribute('hash')+' '+node.textContent);
-        }
-        fps.sort();
-        return fps.join(';');
-    },
-    getStunAndTurnCredentials: function () {
-        // get stun and turn configuration from server via xep-0215
-        // uses time-limited credentials as described in
-        // http://tools.ietf.org/html/draft-uberti-behave-turn-rest-00
-        //
-        // see https://code.google.com/p/prosody-modules/source/browse/mod_turncredentials/mod_turncredentials.lua
-        // for a prosody module which implements this
-        //
-        // currently, this doesn't work with updateIce and therefore credentials with a long
-        // validity have to be fetched before creating the peerconnection
-        // TODO: implement refresh via updateIce as described in
-        //      https://code.google.com/p/webrtc/issues/detail?id=1650
-        this.connection.send(
-            $iq({type: 'get', to: this.connection.domain})
-                .c('services', {xmlns: 'urn:xmpp:extdisco:1'}).c('service', {host: 'turn.' + this.connection.domain}),
-            function (res) {
-                var iceservers = [];
-                $(res).find('>services>service').each(function (idx, el) {
-                    el = $(el);
-                    var dict = {};
-                    switch (el.attr('type')) {
-                    case 'stun':
-                        dict.url = 'stun:' + el.attr('host');
-                        if (el.attr('port')) {
-                            dict.url += ':' + el.attr('port');
-                        }
-                        iceservers.push(dict);
-                        break;
-                    case 'turn':
-                        dict.url = 'turn:';
-                        if (el.attr('username')) { // https://code.google.com/p/webrtc/issues/detail?id=1508
-                            if (navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./) && parseInt(navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)[2], 10) < 28) {
-                                dict.url += el.attr('username') + '@';
-                            } else {
-                                dict.username = el.attr('username'); // only works in M28
-                            }
-                        }
-                        dict.url += el.attr('host');
-                        if (el.attr('port') && el.attr('port') != '3478') {
-                            dict.url += ':' + el.attr('port');
-                        }
-                        if (el.attr('transport') && el.attr('transport') != 'udp') {
-                            dict.url += '?transport=' + el.attr('transport');
-                        }
-                        if (el.attr('password')) {
-                            dict.credential = el.attr('password');
-                        }
-                        iceservers.push(dict);
-                        break;
-                    }
+                Stanza ans(mConn);
+                ans.init("message",
+                {
+                    {"to", from},
+                    {"type", "megaCallAnswer"},
+                    {"nonce", encryptMessageForJid(ownNonce, bareJid)}
                 });
-                this.ice_config.iceServers = iceservers;
-            },
-            function (err) {
-                console.warn('getting turn credentials failed', err);
-                console.warn('is mod_turncredentials or similar installed?');
-            }
-        );
-        // implement push?
- },
- jsonStringifyOneLevel: function(obj) {
-    var str = '{';
-    for (var k in obj) {
-        if (!obj.hasOwnProperty(k))
-            continue;
-        str+=(k+':');
-        var prop = obj[k];
-        switch(typeof prop) {
-          case 'string': str+=('"'+prop+'"'); break;
-          case 'number': str+=prop; break;
-          case 'function': str+='(func)'; break;
-          case 'object':
-            if (prop instanceof Array)
-                str+='(array)';
-            else
-                str+='(object)';
-            break;
-          default: str+='(unk)'; break;
-        }
-        str+=', ';
+                xmpp_send(mConn, ans);
+         }
+         else //answer == false
+         {
+                Stanza declMsg(mConn);
+                declMsg.init("message",
+                {
+                    {"to", from},
+                    {"type", "megaCallDecline"},
+                    {"reason", obj.reason.empty()?"unknown":obj.reason}
+                });
+                if (!obj.text.empty())
+                    declMsg.c("body", {}).t(obj.text);
+                xmpp_send(declMsg);
+         }
+            return true;
+        }); //end answer func
     }
-    if (str.length > 1)
-        str = str.substr(0, str.length-2)+'}';
-    return str;
- }
-};
-
-function MuteInfo(affected) {
-    if (affected.match(/voice/i))
-        this.audio = true;
-    if (affected.match(/video/i))
-        this.video = true;
+    catch(exception& e)
+    {
+        KR_LOG_ERROR("Exception in onIncomingCallRequest handler: %s", e.what());
+        onInternalError(e.what(), "onCallIncoming");
+    }
+    return true;
+}
+bool Jingle::cancelAutoAcceptEntry(const char* sid, const char* reason, const char* text, char type)
+{
+    auto it = mAutoAcceptCalls.find(sid);
+    if (it == mAutoAcceptCalls.end())
+        return false;
+    return cancelAutoAnswerEntry(it, reason, text, type);
 }
 
-Strophe.addConnectionPlugin('jingle', JinglePlugin);
+bool Jingle::cancelAutoAnswerEntry(AutoAcceptMap::iterator it, const char* reason, const char* text, char type)
+{
+    auto& item = it->second;
+    if (item.fileTransferHandler)
+    {
+        if (type && (type != 'f'))
+            return false;
+        item.fileTransferHandler->remove(reason, text);
+        mAutoAcceptCalls.erase(sid);
+    }
+    else
+    {
+        mAutoAcceptCalls.erase(sid);
+        NoSessionInfo info;
+        info.sid = sid;
+        info.peer = item.from;
+        info.isInitiator = false;
+        onCallTerminated(NULL, reason, text, &info);
+    }
+    return true;
+}
+void Jingle::cancelAllAutoAcceptEntries(const char* reason, const char* text)
+{
+    for (auto it=mAutoAcceptCalls.begin(); it!=mAutoAcceptCalls.end();)
+    {
+        auto itSave = it;
+        it++;
+        cancelAutoAnswerEntry(itSave->first, reason, text);
+    }
+    mAutoAcceptCalls.clear();
+}
+void Jingle::purgeOldAcceptCalls()
+{
+    Ts now = timestampMs();
+    for (auto it=mAutoAcceptCalls.begin(); it!=mAutoAcceptCalls.end();)
+    {
+        auto itSave = it;
+        it++;
+        auto& call = itSave->second;
+        if (call.tsTill < now)
+            cancelAutoAnswerEntry(itSave->first, "initiate-timeout", "Timed out waiting for caller to start call");
+    }
+}
+void Jingle::processAndDeleteInputQueue(JingleSession& sess)
+{
+    unique_ptr<StanzaQueue> queue(sess.inputQueue);
+    sess.inputQueue = NULL;
+    for (auto stanza: *queue)
+        onJingle(stanza);
+}
+
+JingleSession* Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
+  artc::tspMediaStream sessStream, const AvFlags& mutedState, shared_ptr<StringMap> sessProps,
+  FileTrasnferHandler* ftHandler)
+{ // initiate a new jinglesession to peerjid
+    JingleSession* sess = createSession(myjid, peerjid, sid, sessStream, mutedState,
+      sessProps);
+    // configure session
+    sess.mediaConstraints = this.mediaConstraints;
+    sess.pcConstraints = this.pcConstraints;
+
+    sess.initiate(true);
+    sess.sendOffer().then([sess]()
+    {
+        sess.sendMutedState()
+    });
+    return sess;
+}
+JingleSession* Jingle::createSession(const char* me, const char* peerjid,
+    const char* sid, myrtc::tspMediaStream, const AvFlags& mutedState,
+    shared_ptr<StringMap> sessProps)
+{
+    KR_CHECK_NULLARG(me);
+    KR_CHECK_NULLARG(peerjid);
+    KR_CHECK_NULLARG(sid);
+    JingleSession* sess = new JingleSession(*this, me, peerjid, sid, mConn, sessStream,
+        mutedState, sessProps);
+    mSessions[sid] = sess;
+    return sess;
+}
+void Jingle::terminateAll(const char* reason, const char* text, bool nosend)
+{
+//terminate all existing sessions
+    for (auto it: mSessions)
+        terminate(it->second, reason, text, nosend);
+}
+bool Jingle::terminateBySid(const char* sid, const char* reason, const char* text,
+    bool nosend)
+{
+    return terminate(mSessions[sid], reason, text, nosend);
+}
+bool Jingle::terminate(JingleSession* sess, const char* reason, const char* text,
+    bool nosend)
+{
+    if ((!sess) || (mSessions.find(sess->sid) == mSession.end()))
+    {
+        KR_LOG_WANING("Jingle::terminate: Unknown session: %s", sess.sid.c_str());
+        return false;
+    }
+    if (!reason)
+        reason = "term";
+    unique_ptr<JingleSession> autodel(sess);
+    if (sess->state != SESSTATE_ENDED)
+    {
+        if (!nosend)
+            sess->sendTerminate(reason, text);
+        sess->terminate();
+    }
+    mSessions.erase(sess->sid);
+    if (sess->fileTransferHandler)
+        sess->fileTransferHandler->remove(reason, text);
+    else
+        try
+        {
+            onCallTerminated(sess, reason, text);
+        }
+        catch(e)
+        {
+            KR_LOG_ERROR("Jingle::onCallTerminated() threw an exception: %s", e.what());
+        }
+
+    return true;
+}
+Promise<Stanza> Jingle::sendTerminateNoSession(const char* sid, const char* to, const char* reason,
+    const char* text)
+{
+    Stanza term(mConn);
+    auto last = term.init("iq", {{"to", to}})
+      .c("jingle",
+        {
+             {"xmlns", "urn:xmpp:jingle:1"},
+             {"action", "session-terminate"},
+             {"sid", sid}
+        })
+      .c("reason")
+      .c(reason);
+    if (text)
+        last.parent().c("text").t(text);
+    return mConn.sendIqQuery(term, "set");
+}
+
+bool Jingle::sessionIsValid(JingleSession* sess)
+{
+    return (mSessions.find(sess->sid) != mSessions.end());
+}
+
+string Jingle::getFingerprintsFromJingle(Stanza j)
+{
+    vector<Stanza> nodes;
+    j.forEachChild("content", [this](Stanza content)
+    {
+        child.forEachChild("transport", [this](Stanza transport)
+        {
+            transport.forEachChild("fingerprint", [this](Stanza fingerprint)
+            {
+                nodes.push_back(fingerprint);
+            });
+        });
+    });
+    if (nodes.size() < 1)
+        throw runtime_error("Could not extract SRTP fingerprint from jingle packet");
+    vector<string> fps;
+    for (Stanza node: nodes)
+    {
+        fps.push_back(string(node.attr("hash"))+" "+node.text());
+    }
+    std::sort(fps);
+    string result(256);
+    for (auto& item: fps)
+        result.append(item)+=';';
+    if (result.size() > 0)
+        result.resize(result.size()-1);
+    return result;
+}
+
+AvFlags peerMediaToObj(const char* strPeerMedia)
+{
+    AvFlags ret;
+    for (; *strPeerMedia; strPeerMedia++)
+    {
+        char ch = *strPeerMedia;
+        if (ch == 'a')
+            res.audio = true;
+        else if (ch == 'v')
+            res.video = true;
+    }
+    return ret;
+}
+
+}
