@@ -17,7 +17,11 @@
 #define MEGA_RTCADAPTER_NS artc
 //defines the name of the karere webrtc+jingle module namespace
 #define KARERE_RTCMODULE_NS rtcModule
-#define KR_CHECK_NULLARG(name) if (!(name)) throw std::runtime_error(__FUNCTION__": Assertion failed: Argument '" #name "' is NULL")
+#define KR_CHECK_NULLARG(name) \
+    do { \
+      if (!(name))\
+        throw std::runtime_error(std::string(__FUNCTION__)+": Assertion failed: Argument '"+#name+"' is NULL"); \
+    } while(0)
 
 namespace karere
 {

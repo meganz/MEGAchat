@@ -14,9 +14,14 @@ namespace rtcModule {
 class Jingle;
 class JingleEventHandler; //can't nest it into Jingle
 
-class FileTransferHandler;
+class FileTransferHandler
+{
+public:
+    void remove(const char*, const char*){}
+};
 
-class JingleSession: public webrtc::PeerConnectionObserver
+typedef std::vector<strophe::Stanza> StanzaQueue;
+class JingleSession: public StringMap
 {
 public:
     enum State {
@@ -36,7 +41,7 @@ public:
 
 protected:
     artc::myPeerConnection<JingleSession> mPeerConn;
-    std::string mMyJid;
+    std::string mOwnJid;
     std::string mPeerJid;
     std::string mSid;
     strophe::Connection& mConnection;
@@ -45,8 +50,7 @@ protected:
     std::string mResponder;
     bool mIsInitiator;
     State mState = SESSTATE_NULL;
-    std::shared_ptr<StringMap> mProps;
-    FileTransferHandler* mFtHandler;
+    std::unique_ptr<FileTransferHandler> mFtHandler;
     AvFlags mLocalMutedState;
     AvFlags mRemoteMutedState;
     artc::tspMediaStream mLocalStream;
@@ -60,8 +64,9 @@ protected:
     bool mLastIceCandidate = false;
     void reportError(const std::string& msg, const char* where);
     void addFingerprintHmac(strophe::Stanza jingle);
-//PeerConnection callback interface
 public:
+    std::unique_ptr<StanzaQueue> inputQueue;
+//PeerConnection callback interface
     void onError() {KR_LOG_ERROR("session %s: peerconnection called onError()", mSid.c_str());}
     void onAddStream(artc::tspMediaStream stream);
     void onRemoveStream(artc::tspMediaStream stream);
@@ -77,13 +82,13 @@ public:
     JingleSession(Jingle& jingle, const	std::string& myJid,
         const std::string& peerJid,	const std::string& sid,
         strophe::Connection& connection, artc::tspMediaStream sessLocalStream,
-        const AvFlags& mutedState, std::shared_ptr<StringMap> props, FileTransferHandler* ftHandler=NULL);
+        const AvFlags& mutedState, const StringMap& props, FileTransferHandler* ftHandler=NULL);
     void initiate(bool isInitiator);
     promise::Promise<strophe::Stanza> accept();
     promise::Promise<strophe::Stanza> sendOffer();
     void getRemoteMutedState(AvFlags& av) const {av = mRemoteMutedState;}
     void setRemoteMutedState(const AvFlags& av) {mRemoteMutedState = av;}
-    void terminate(const std::string& reason); //TODO: maybe not needed
+    void terminate(const char* reason, const char* text=NULL); //TODO: maybe can be integrated in another place
     inline bool isActive()
     {
          return ((mPeerConn.get() != NULL)
@@ -102,6 +107,11 @@ public:
     {
         return (mIsInitiator?"initiator":"responder");
     }
+    State state() const {return mState;}
+    const std::string& jid() const {return mOwnJid;}
+    const std::string& peerJid() const {return mPeerJid;}
+    const std::string& sid() const {return mSid;}
+    FileTransferHandler* ftHandler() const {return mFtHandler.get();}
     promise::Promise<strophe::Stanza> sendIceCandidate(std::shared_ptr<artc::IceCandText> candidate);
     promise::Promise<int> setRemoteDescription(strophe::Stanza stanza, const std::string& desctype);
     void addIceCandidate(strophe::Stanza stanza);

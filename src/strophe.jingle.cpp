@@ -3,6 +3,7 @@
 #include <string>
 #include <map>
 #include <memory>
+
 #include "webrtcAdapter.h"
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.h"
@@ -10,11 +11,15 @@
 #include <mstrophepp.h>
 
 using namespace std;
+using namespace promise;
+using namespace std::placeholders;
 
 namespace karere
 {
 namespace rtcModule
 {
+using namespace std;
+using namespace strophe;
 
 AvFlags peerMediaToObj(const char* strPeerMedia);
 
@@ -25,35 +30,37 @@ void Jingle::onInternalError(const string& msg, const char* where)
 //==
 
 string generateHmac(const string& data, const string& key){return "";} //TODO: Implement
-Jingle::Jingle(strophe::Connection& conn, const string& iceServers)
-:Plugin(conn)
+Jingle::Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const string& iceServers)
+:Plugin(conn), mCrypto(crypto)
 {
     if (!iceServers.empty())
         setIceServers(iceServers);
     mMediaConstraints.SetMandatoryReceiveAudio(true);
     mMediaConstraints.SetMandatoryReceiveVideo(true);
+    mMediaConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
+
     artc::init(NULL);
     artc::DeviceManager devMgr;
     mInputDevices = artc::getInputDevices(devMgr);
     registerDiscoCaps();
 }
-void Jingle::addAudioCaps(DiscoPlugin& disco)
+void Jingle::addAudioCaps(::disco::DiscoPlugin& dp)
 {
-    disco.addNode("urn:xmpp:jingle:apps:rtp:audio", {});
+    dp.addFeature("urn:xmpp:jingle:apps:rtp:audio");
 }
-void Jingle::addVideoCaps(DiscoPlugin& disco)
+void Jingle::addVideoCaps(disco::DiscoPlugin& disco)
 {
-    disco.addNode("urn:xmpp:jingle:apps:rtp:video", {});
+    disco.addFeature("urn:xmpp:jingle:apps:rtp:video");
 }
 void Jingle::registerDiscoCaps()
 {
-    auto plDisco = mConn.pluginPtr<DiscoPlugin>("disco");
+    auto plDisco = mConn.pluginPtr<disco::DiscoPlugin>("disco");
     if (!plDisco)
     {
         KR_LOG_WARNING("Disco plugin not found, not registering disco caps");
         return;
     }
-    DiscoPlugin& disco = *plDisco;
+    disco::DiscoPlugin& disco = *plDisco;
     // http://xmpp.org/extensions/xep-0167.html#support
     // http://xmpp.org/extensions/xep-0176.html#support
     disco.addNode("urn:xmpp:jingle:1", {});
@@ -66,31 +73,46 @@ void Jingle::registerDiscoCaps()
     bool hasAudio = !mInputDevices->audio.empty() && !(mediaFlags & DISABLE_MIC);
     bool hasVideo = !mInputDevices->video.empty() && !(mediaFlags & DISABLE_CAM);
     if (hasAudio)
-        addAudioCaps();
+        addAudioCaps(disco);
     if (hasVideo)
-        addVideoCaps();
+        addVideoCaps(disco);
 }
 void Jingle::onConnState(const xmpp_conn_event_t status,
     const int error, xmpp_stream_error_t * const stream_error)
 {
     try
     {
-        Jingle* self = (Jingle*)userdata;
         if (status == XMPP_CONN_CONNECT)
         {
 //         typedef int (*xmpp_handler)(xmpp_conn_t * const conn,
 //           xmpp_stanza_t * const stanza, void * const userdata);
-            xmpp_handler_add(mConn, _static_onJingle, "urn:xmpp:jingle:1", "iq", "set", userdata);
-            xmpp_handler_add(mConn, _static_onIncomingCallMsg, NULL, "message", "megaCall", userdata);
+            mConn.addHandler(std::bind(&Jingle::onJingle, this, _2), "urn:xmpp:jingle:1", "iq", "set");
+            mConn.addHandler(std::bind(&Jingle::onIncomingCallMsg, this, _2), NULL, "message", "megaCall");
+            onConnectionEvent(status, "");
         }
-        self->onConnectionEvent(status, error, stream_error);
+        else if (status == XMPP_CONN_FAIL)
+        {
+            string msg("error code: "+to_string(error));
+            if (stream_error)
+            {
+                if (stream_error->stanza)
+                    msg.append(", Stanza:\n").append(strophe::Stanza(stream_error->stanza).recursiveText()->c_str());
+                else if (stream_error->type)
+                    msg.append(", Type: ").append(to_string(stream_error->type));
+            }
+            KR_LOG_DEBUG("XMPP disconnected: %s", msg.c_str());
+            onConnectionEvent(status, msg);
+        }
+        else
+            onConnectionEvent(status, "");
     }
     catch(exception& e)
     {
         KR_LOG_ERROR("Exception in connection state handler: %s", e.what());
     }
 }
-static int Jingle::_static_onJingle(xmpp_conn_t* const conn, xmpp_stanza_t* stanza, void* userdata)
+/*
+int Jingle::_static_onJingle(xmpp_conn_t* const conn, xmpp_stanza_t* stanza, void* userdata)
 {
     return static_cast<Jingle*>(userdata)->onJingle(stanza);
 }
@@ -98,6 +120,7 @@ static int Jingle::_static_onIncomingCallMsg(xmpp_conn_t* const conn, xmpp_stanz
 {
     return static_cast<Jingle*>(userdata)->onIncomingCallMsg(stanza);
 }
+*/
 bool Jingle::onJingle(Stanza iq)
 {
    try
@@ -105,7 +128,7 @@ bool Jingle::onJingle(Stanza iq)
         Stanza jingle = iq.child("child");
         const char* sid = jingle.attr("sid");
         auto sess = mSessions[sid];
-        if (sess.get() && sess->inputQueue.get())
+        if (sess && sess->inputQueue.get())
         {
             sess->inputQueue->push_back(iq);
             return true;
@@ -124,14 +147,14 @@ bool Jingle::onJingle(Stanza iq)
         if (strcmp(action, "session-initiate"))
         {
 
-            if (!sess.get())
+            if (!sess)
                 error = true;
             // compare from to sess.peerjid (bare jid comparison for later compat with message-mode)
             // local jid is not checked
-            else if (getBareJidFromJid(iq.attr("from")) != getBareJidFromJid(sess->peerjid))
+            else if (getBareJidFromJid(iq.attr("from")) != getBareJidFromJid(sess->peerJid()))
             {
                 error = true;
-                KR_LOG_WARNING("onJingle: JID mismatch for session '%s': ('%s' != '%s')", iq.attr("from"), sess->peerjid.c_str());
+                KR_LOG_WARNING("onJingle: JID mismatch for session '%s': ('%s' != '%s')", sess->sid().c_str(), iq.attr("from"), sess->peerJid().c_str());
             }
             if (error)
             {
@@ -141,14 +164,15 @@ bool Jingle::onJingle(Stanza iq)
                    .c("unknown-session", {{"xmlns", "urn:xmpp:jingle:errors:1"}});
             }
         }
-        else if (sess.get()) //action == session-initiate
+        else if (sess) //action == session-initiate
         {
+            error = true;
             // existing session with same session id
             // this might be out-of-order if the sess.peerjid is the same as from
             ack.setAttr("type", "error");
             ack.c("error", {{"type", "cancel"}})
                .c("service-unavailable", {{"xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas"}}).parent();
-            KR_LOG_WARNING("onJingle: Duplicate session id '%s'", sid);
+            KR_LOG_WARNING("onJingle: session-initiate for existing session [id='%s']", sid);
         }
         if (error)
         {
@@ -161,23 +185,25 @@ bool Jingle::onJingle(Stanza iq)
         {
             const char* peerjid = iq.attr("from");
             string barePeerJid = getBareJidFromJid(peerjid);
-            KR_LOG_DEBUG("received INITIATE from %s", peerjid.c_str());
+            KR_LOG_DEBUG("received INITIATE from %s", peerjid);
             purgeOldAcceptCalls(); //they are purged by timers, but just in case
-            auto ansIter = mAcceptCallsFrom.find(peerjid);
-            if (!ansIter == mAcceptCallsFrom.end())
+            auto ansIter = mAutoAcceptCalls.find(peerjid);
+            if (ansIter == mAutoAcceptCalls.end())
                 return true; //ignore silently - maybe there is no user on this client and some other client(resource) already accepted the call
-            shared_ptr<AutoAcceptInfo> ans = ansIter->second;
+            shared_ptr<AutoAcceptCallInfo> spAns(ansIter->second);
             mAutoAcceptCalls.erase(ansIter);
+            AutoAcceptCallInfo& ans = *spAns;
 // Verify SRTP fingerprint
-            if (ans->ownNonce.empty())
+            const string& ownNonce = ans["ownNonce"];
+            if (ownNonce.empty())
                 throw runtime_error("No ans.ownNonce present, there is a bug");
-            if (generateHmac(getFingerprintsFromJingle(jingle), ans->ownNonce) != jingle.attr("fprmac"))
+            if (generateHmac(getFingerprintsFromJingle(jingle), ownNonce) != jingle.attr("fprmac"))
             {
                 KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
                 try
                 {
-                    NoSessionInfo info;
-                    info.peer = peerjid.c_str();
+                    FakeSessionInfo info;
+                    info.peer = peerjid;
                     info.sid = jingle.attr("sid");
                     info.isInitiator = false;
                     onCallTerminated(NULL, "security", "fingerprint verification failed", &info);
@@ -186,93 +212,98 @@ bool Jingle::onJingle(Stanza iq)
                 return true;
             }
 //===
-            auto sess = createSession(iq.attr("to"), peerjid, sid,
-               ans->options.localStream, ans->options.muted, NULL, ans.peerFprMacKey);
+            sess = createSession(iq.attr("to"), peerjid, sid,
+               ans.options->localStream, ans.options->muted, ans);
 
-            sess.inputQueue.reset(new list<Stanza>);
+            sess->inputQueue.reset(new vector<Stanza>);
             string reason, text;
-            bool cont = onCallIncoming(sess, reason, text);
+            bool cont = onCallIncoming(*sess, reason, text);
             if (!cont)
             {
-                terminate(sess, reason, text);
-                sess.inputQueue.reset();
+                terminate(sess, reason.c_str(), text.c_str());
+                sess->inputQueue.reset();
                 return true;
             }
 
-            sess.initiate(false);
+            sess->initiate(false);
 
             // configure session
-            sess.setRemoteDescription(jingle, "offer").then([this, &sess](int)
+            sess->setRemoteDescription(jingle, "offer").then([this, sess](int)
             {
-                return sess.sendAnswer();
+                return sess->sendAnswer();
             })
-            .then([this, &self](int)
+            .then([this, sess](int)
             {
-                  return sess.sendMutedState();
+                  return sess->sendMutedState();
             })
-            .then([this, &sess, &peerjid])
+            .then([this, sess, peerjid](int)
             {
-                onCallAnswered(peerjid.c_str());
+                onCallAnswered(peerjid);
 //now handle all packets queued up while we were waiting for user's accept of the call
-                processAndDeleteInputQueue(sess);
+                processAndDeleteInputQueue(*sess);
+                return 0;
             })
-            .fail([this, &sess](Error& e)
+            .fail([this, sess](const promise::Error& e)
              {
-                  sess.inputQueue.reset();
-                  terminate(sess, "error", e.msg());
+                  sess->inputQueue.reset();
+                  terminate(sess, "error", e.msg().c_str());
+                  return 0;
              });
         }
         else if (strcmp(action, "session-accept") == 0)
         {
 // Verify SRTP fingerprint
-            if (sess.ownNonce.empty())
+            const string& ownNonce = (*sess)["ownNonce"];
+            if (ownNonce.empty())
                 throw runtime_error("No session.ownNonce present, there is a bug");
 
-            if (generateHmac(getFingerprintsFromJingle(jingle), sess.ownNonce) !== jingle.attr("fprmac"))
+            if (generateHmac(getFingerprintsFromJingle(jingle), ownNonce) != jingle.attr("fprmac"))
             {
                 KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
-                terminateBySid(sess.sid, "security", "fingerprint verification failed");
+                terminateBySid(sess->sid().c_str(), "security", "fingerprint verification failed");
                 return true;
             }
 // We are likely to start receiving ice candidates before setRemoteDescription()
 // has completed, esp on Firefox, so we want to queue these and feed them only
 // after setRemoteDescription() completes
-            sess.inputQueue.reset(new list);
-            sess.setRemoteDescription(jingle, "answer", [this, &sess]()
+            sess->inputQueue.reset(new vector<Stanza>);
+            sess->setRemoteDescription(jingle, "answer")
+            .then([this, sess](int)
             {
-                return sess.sendAnswer();
+                return sess->sendAnswer();
             })
-            .then([this, &sess]()
+            .then([this, sess](int)
             {
-                if (sess.inputQueue)
-                   processAndDeleteInputQueue(sess);
+                if (sess->inputQueue)
+                   processAndDeleteInputQueue(*sess);
+                return 0;
             });
         }
         else if (strcmp(action, "session-terminate") == 0)
         {
             const char* reason = NULL;
-            shared_ptr<AutoText> text;
+            shared_ptr<Stanza::AutoText> text;
             try
             {
                 Stanza rsnNode = jingle.child("reason").firstChild();
                 reason = rsnNode.name();
                 if (strcmp(reason, "hangup") == 0)
                     reason = "peer-hangup";
-                text = rsnNode.child("text").innerText();
+                text = rsnNode.child("text").recursiveText();
             }
             catch(...){}
             terminate(sess, reason?reason:"peer-hangup", text.get()?text->c_str():NULL);
         }
         else if (strcmp(action, "transport-info") == 0)
         {
-            sess.addIceCandidate(jingle.child("content"));
+            sess->addIceCandidate(jingle.child("content"));
         }
         else if (strcmp(action, "session-info") == 0)
         {
             const char* affected = NULL;
             Stanza info;
             if (info = jingle.childByAttr("ringing", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1", true))
-                onRinging(sess);
+                onRinging(*sess);
             else if (info = jingle.childByAttr("mute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1", true))
             {
                 affected = info.attr("name");
@@ -280,11 +311,11 @@ bool Jingle::onJingle(Stanza iq)
                 av.audio = (strcmp(affected, "voice") == 0);
                 av.video = (strcmp(affected, "video") == 0);
                 AvFlags current;
-                sess.getRemoteMutedState(current);
+                sess->getRemoteMutedState(current);
                 current.audio |= av.audio;
                 current.video |= av.video;
-                sess.setRemoteMutedState(current);
-                onMuted(sess, av);
+                sess->setRemoteMutedState(current);
+                onMuted(*sess, av);
             }
             else if (info = jingle.childByAttr("unmute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1"))
             {
@@ -293,13 +324,13 @@ bool Jingle::onJingle(Stanza iq)
                 av.audio = (strcmp(affected, "voice") == 0);
                 av.video = (strcmp(affected, "video") == 0);
                 AvFlags current;
-                sess.getRemoteMutedState(current);
+                sess->getRemoteMutedState(current);
                 if (av.audio)
                     current.audio = false;
                 if (av.video)
                     current.video = false;
-                sess.setRemoteMutedState(current);
-                onUnmuted(sess, av);
+                sess->setRemoteMutedState(current);
+                onUnmuted(*sess, av);
             }
         }
         else
@@ -316,7 +347,7 @@ bool Jingle::onJingle(Stanza iq)
    return true;
 }
 /* Incoming call request with a message stanza of type 'megaCall' */
-void Jingle::onIncomingCallMsg(Stanza callmsg)
+bool Jingle::onIncomingCallMsg(Stanza callmsg)
 {
     const char* from = callmsg.attr("from");
     if (!from)
@@ -324,7 +355,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
     const char* sid = callmsg.attr("sid");
     if (!sid)
         throw runtime_error("No 'sid' attribute in megaCall message");
-    if (mAcceptCallsFrom.find(sid) != mAcceptCallsFrom.end())
+    if (mAutoAcceptCalls.find(sid) != mAutoAcceptCalls.end())
         throw runtime_error("Auto accept for call with sid '"+string(sid)+"' already exists");
 
     string bareJid = getBareJidFromJid(from);
@@ -342,24 +373,24 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
     {
     // Add a 'handled-elsewhere' handler that will invalidate the call request if a notification
     // is received that another resource answered/declined the call
-        state->elsewhereHandlerId = conn.addHandler([this, state]
+        state->elsewhereHandlerId = mConn.addHandler([this, state, from]
          (Connection& conn, Stanza stanza, int)
          {
             if (!state->cancelHandlerId)
                 return false;
             state->elsewhereHandlerId = NULL;
-            xmpp_handler_delete(mConn, cancelHandlerId);
-            cancelHandler = cancelHandlerId = NULL;
+            xmpp_handler_delete(mConn, state->cancelHandlerId);
+            state->cancelHandlerId = NULL;
             Stanza msg(stanza);
             const char* by = msg.attr("by");
             if (strcmp(by, xmpp_conn_get_bound_jid(mConn)))
                onCallCanceled(from, "handled-elsewhere", by,
                   strcmp(msg.attr("accepted"), "1") == 0);
             return false;
-         }, NULL, "message", "megaNotifyCallHandled", from, NULL, STROPHE_MATCH_BARE_JID);
+         }, NULL, "message", "megaNotifyCallHandled", from, NULL, STROPHE_MATCH_BAREJID);
 
     // Add a 'cancel' handler that will ivalidate the call request if the caller sends a cancel message
-        state->cancelHandlerId = conn.addHandler([this, state]
+        state->cancelHandlerId = mConn.addHandler([this, state, from]
          (Connection& conn, Stanza stanza, int)
          {
             if (!state->elsewhereHandlerId)
@@ -370,9 +401,9 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
 
             onCallCanceled(from, "canceled", NULL, false);
             return false;
-        }, NULL, "message", "megaCallCancel", from, NULL, STROPHE_MATCH_BARE_JID);
+        }, NULL, "message", "megaCallCancel", from, NULL, STROPHE_MATCH_BAREJID);
 
-        mega::setTimeout([this, state]()
+        mega::setTimeout([this, state, from]()
          {
             if (!state->cancelHandlerId) //cancel message was received and handler was removed
                 return;
@@ -395,7 +426,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         };
 // Notify about incoming call
         onIncomingCallRequest(from, reqStillValid,
-          [&, this](accept, obj)
+          [&, this](bool accept, shared_ptr<AnswerOptions> options, const string& reason, const string& text)
         {
 // If dialog was displayed for too long, the peer timed out waiting for response,
 // or user was at another client and that other client answred.
@@ -405,40 +436,51 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 return false;//the callback returning false signals to the calling user code that the call request is not valid anymore
             if (accept)
             {
-                string ownNonce = generateNonce();
-                string peerNonce = decryptMessage(callmsg.attr("nonce"));
-                if (peerNonce.empty())
-                    throw std::runtime_error("Encrypted nonce missing from call request");
+                string ownFprMacKey = mCrypto->generateNonce();
+                string peerFprMacKey = mCrypto->decryptMessage(callmsg.attr("fprmackey"));
+                if (peerFprMacKey.empty())
+                    throw std::runtime_error("Faield to verify peer's fprmackey from call request");
 // tsTillJingle measures the time since we sent megaCallAnswer till we receive jingle-initiate
                 Ts tsTillJingle = timestampMs()+mJingleAutoAcceptTimeout;
-                AutoAcceptCallInfo info& = acceptCallsFrom[sid];
+                AutoAcceptCallInfo& info = *mAutoAcceptCalls[sid];
 
+                info["from"] = from;
                 info.tsReceived = tsReceived;
-                info.tsTill = tsTillJingle;
-                info.options = obj.options; //shared_ptr
-                info["peerNonce"] = peerNonce;
-                info["ownNonce"] = ownNonce;
+                info.tsTillJingle = tsTillJingle;
+                info.options = options; //shared_ptr
+                info["peerFprMacKey"] = peerFprMacKey;
+                info["ownFprMacKey"] = ownFprMacKey;
 
 // This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
-                setTimeout([this, from, &tsTillJingle]()
+                setTimeout([this, sid, &tsTillJingle]()
                 { //invalidate auto-answer after a timeout
-                    auto callIt = acceptCallsFrom.find(from);
-                    if (callIt == acceptCallsFrom.end())
+                    AutoAcceptMap::iterator callIt = mAutoAcceptCalls.find(sid);
+                    if (callIt == mAutoAcceptCalls.end())
                         return; //entry was removed or updated by a new call request
-                    auto call = callIt->second;
-                    if (call->tsTill != tsTillJingle)
-                        return; //entry was updated by a new call request
-                    cancelAutoAnswerEntry(from, "initiate-timeout", "timed out waiting for caller to start call");
+                    auto& call = callIt->second;
+                    if (call->tsTillJingle != tsTillJingle)
+                        KR_LOG_WARNING("autoaccept timeout: tsTillJingle does not match the one that was set");
+                    cancelAutoAcceptEntry(callIt, "initiate-timeout", "timed out waiting for caller to start call", 0);
                 }, mJingleAutoAcceptTimeout);
 
-                Stanza ans(mConn);
-                ans.init("message",
+                mCrypto->preloadCryptoForJid(bareJid)
+                 .then([this, sid, from, bareJid](int)
                 {
-                    {"to", from},
-                    {"type", "megaCallAnswer"},
-                    {"nonce", encryptMessageForJid(ownNonce, bareJid)}
+                    Stanza ans(mConn);
+                    ans.init("message",
+                    {
+                        {"sid", sid},
+                        {"to", from},
+                        {"type", "megaCallAnswer"},
+                        {"fprmackey", mCrypto->encryptMessageForJid(mOwnFprMacKey, bareJid)},
+                        {"anonid", mOwnAnonId}
+                    });
+                    xmpp_send(mConn, ans);
+                })
+                .fail([this, bareJid](const Error& err)
+                {
+                    KR_LOG_ERROR("Failed to preload crypto key for jid '%s'. Won't answer call", bareJid.c_str());
                 });
-                xmpp_send(mConn, ans);
          }
          else //answer == false
          {
@@ -447,13 +489,13 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 {
                     {"to", from},
                     {"type", "megaCallDecline"},
-                    {"reason", obj.reason.empty()?"unknown":obj.reason}
+                    {"reason", reason.empty()?"unknown":reason}
                 });
-                if (!obj.text.empty())
-                    declMsg.c("body", {}).t(obj.text);
-                xmpp_send(declMsg);
+                if (!text.empty())
+                    declMsg.c("body", {}).t(text);
+                xmpp_send(mConn, declMsg);
          }
-            return true;
+         return true;
         }); //end answer func
     }
     catch(exception& e)
@@ -463,30 +505,34 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
     }
     return true;
 }
-bool Jingle::cancelAutoAcceptEntry(const char* sid, const char* reason, const char* text, char type)
+bool Jingle::cancelAutoAcceptEntry(const char* sid, const char* reason, const char* text,
+                                   char type)
 {
     auto it = mAutoAcceptCalls.find(sid);
     if (it == mAutoAcceptCalls.end())
         return false;
-    return cancelAutoAnswerEntry(it, reason, text, type);
+    return cancelAutoAcceptEntry(it, reason, text, type);
 }
 
-bool Jingle::cancelAutoAnswerEntry(AutoAcceptMap::iterator it, const char* reason, const char* text, char type)
+bool Jingle::cancelAutoAcceptEntry(AutoAcceptMap::iterator it, const char* reason,
+                                   const char* text, char type)
 {
-    auto& item = it->second;
-    if (item.fileTransferHandler)
+    auto& item = *(it->second);
+    if (item.ftHandler)
     {
         if (type && (type != 'f'))
             return false;
-        item.fileTransferHandler->remove(reason, text);
-        mAutoAcceptCalls.erase(sid);
+        item.ftHandler->remove(reason, text);
+        mAutoAcceptCalls.erase(it);
     }
     else
     {
-        mAutoAcceptCalls.erase(sid);
-        NoSessionInfo info;
-        info.sid = sid;
-        info.peer = item.from;
+        string sid = it->first;
+        string from = (*it->second)["from"];
+        mAutoAcceptCalls.erase(it);
+        FakeSessionInfo info;
+        info.sid = sid.c_str();
+        info.peer = from.c_str();
         info.isInitiator = false;
         onCallTerminated(NULL, reason, text, &info);
     }
@@ -498,7 +544,7 @@ void Jingle::cancelAllAutoAcceptEntries(const char* reason, const char* text)
     {
         auto itSave = it;
         it++;
-        cancelAutoAnswerEntry(itSave->first, reason, text);
+        cancelAutoAcceptEntry(itSave, reason, text, 0);
     }
     mAutoAcceptCalls.clear();
 }
@@ -509,53 +555,56 @@ void Jingle::purgeOldAcceptCalls()
     {
         auto itSave = it;
         it++;
-        auto& call = itSave->second;
-        if (call.tsTill < now)
-            cancelAutoAnswerEntry(itSave->first, "initiate-timeout", "Timed out waiting for caller to start call");
+        auto& call = *itSave->second;
+        if (call.tsTillJingle < now)
+            cancelAutoAcceptEntry(itSave, "initiate-timeout", "Timed out waiting for caller to start call");
     }
 }
 void Jingle::processAndDeleteInputQueue(JingleSession& sess)
 {
-    unique_ptr<StanzaQueue> queue(sess.inputQueue);
-    sess.inputQueue = NULL;
-    for (auto stanza: *queue)
+    unique_ptr<StanzaQueue> queue(sess.inputQueue.release());
+    for (auto& stanza: *queue)
         onJingle(stanza);
 }
 
-JingleSession* Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
+Promise<shared_ptr<JingleSession> >
+Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
   artc::tspMediaStream sessStream, const AvFlags& mutedState, shared_ptr<StringMap> sessProps,
-  FileTrasnferHandler* ftHandler)
+  FileTransferHandler* ftHandler)
 { // initiate a new jinglesession to peerjid
     JingleSession* sess = createSession(myjid, peerjid, sid, sessStream, mutedState,
-      sessProps);
+      *sessProps, ftHandler);
     // configure session
-    sess.mediaConstraints = this.mediaConstraints;
-    sess.pcConstraints = this.pcConstraints;
 
-    sess.initiate(true);
-    sess.sendOffer().then([sess]()
-    {
-        sess.sendMutedState()
-    });
-    return sess;
+    sess->initiate(true);
+    return sess->sendOffer()
+      .then([sess](Stanza)
+      {
+        return sess->sendMutedState();
+      })
+      .then([sess](int)
+      {
+        return shared_ptr<JingleSession>(sess);
+      });
 }
+
 JingleSession* Jingle::createSession(const char* me, const char* peerjid,
-    const char* sid, myrtc::tspMediaStream, const AvFlags& mutedState,
-    shared_ptr<StringMap> sessProps)
+    const char* sid, artc::tspMediaStream sessStream, const AvFlags& mutedState,
+    const StringMap& sessProps, FileTransferHandler *ftHandler)
 {
     KR_CHECK_NULLARG(me);
     KR_CHECK_NULLARG(peerjid);
     KR_CHECK_NULLARG(sid);
     JingleSession* sess = new JingleSession(*this, me, peerjid, sid, mConn, sessStream,
-        mutedState, sessProps);
+        mutedState, sessProps, ftHandler);
     mSessions[sid] = sess;
     return sess;
 }
 void Jingle::terminateAll(const char* reason, const char* text, bool nosend)
 {
 //terminate all existing sessions
-    for (auto it: mSessions)
-        terminate(it->second, reason, text, nosend);
+    for (auto& item: mSessions)
+        terminate(item.second, reason, text, nosend);
 }
 bool Jingle::terminateBySid(const char* sid, const char* reason, const char* text,
     bool nosend)
@@ -565,33 +614,37 @@ bool Jingle::terminateBySid(const char* sid, const char* reason, const char* tex
 bool Jingle::terminate(JingleSession* sess, const char* reason, const char* text,
     bool nosend)
 {
-    if ((!sess) || (mSessions.find(sess->sid) == mSession.end()))
+    if (!sess)
     {
-        KR_LOG_WANING("Jingle::terminate: Unknown session: %s", sess.sid.c_str());
+        KR_LOG_WARNING("terminate: requestedto terminat a NULL session");
+        return false;
+    }
+    auto sessIt = mSessions.find(sess->sid());
+    if (sessIt == mSessions.end())
+    {
+        KR_LOG_WARNING("Jingle::terminate: Unknown session: %s", sess->sid().c_str());
         return false;
     }
     if (!reason)
         reason = "term";
     unique_ptr<JingleSession> autodel(sess);
-    if (sess->state != SESSTATE_ENDED)
+    bool isFt = !!sess->ftHandler();
+    if (sess->state() != JingleSession::SESSTATE_ENDED)
     {
         if (!nosend)
             sess->sendTerminate(reason, text);
-        sess->terminate();
+        sess->terminate(reason, text); //handles ftHandler, updates mState
     }
-    mSessions.erase(sess->sid);
-    if (sess->fileTransferHandler)
-        sess->fileTransferHandler->remove(reason, text);
-    else
+    mSessions.erase(sessIt);
+    if (!isFt)
         try
         {
             onCallTerminated(sess, reason, text);
         }
-        catch(e)
+        catch(exception& e)
         {
             KR_LOG_ERROR("Jingle::onCallTerminated() threw an exception: %s", e.what());
         }
-
     return true;
 }
 Promise<Stanza> Jingle::sendTerminateNoSession(const char* sid, const char* to, const char* reason,
@@ -612,19 +665,19 @@ Promise<Stanza> Jingle::sendTerminateNoSession(const char* sid, const char* to, 
     return mConn.sendIqQuery(term, "set");
 }
 
-bool Jingle::sessionIsValid(JingleSession* sess)
+bool Jingle::sessionIsValid(const JingleSession& sess)
 {
-    return (mSessions.find(sess->sid) != mSessions.end());
+    return (mSessions.find(sess.sid()) != mSessions.end());
 }
 
 string Jingle::getFingerprintsFromJingle(Stanza j)
 {
     vector<Stanza> nodes;
-    j.forEachChild("content", [this](Stanza content)
+    j.forEachChild("content", [this, &nodes](Stanza content)
     {
-        child.forEachChild("transport", [this](Stanza transport)
+        content.forEachChild("transport", [this, &nodes](Stanza transport)
         {
-            transport.forEachChild("fingerprint", [this](Stanza fingerprint)
+            transport.forEachChild("fingerprint", [this, &nodes](Stanza fingerprint)
             {
                 nodes.push_back(fingerprint);
             });
@@ -637,8 +690,9 @@ string Jingle::getFingerprintsFromJingle(Stanza j)
     {
         fps.push_back(string(node.attr("hash"))+" "+node.text());
     }
-    std::sort(fps);
-    string result(256);
+    std::sort(fps.begin(), fps.end());
+    string result;
+    result.reserve(256);
     for (auto& item: fps)
         result.append(item)+=';';
     if (result.size() > 0)
@@ -653,11 +707,12 @@ AvFlags peerMediaToObj(const char* strPeerMedia)
     {
         char ch = *strPeerMedia;
         if (ch == 'a')
-            res.audio = true;
+            ret.audio = true;
         else if (ch == 'v')
-            res.video = true;
+            ret.video = true;
     }
     return ret;
 }
 
+}
 }

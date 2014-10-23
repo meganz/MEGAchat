@@ -14,11 +14,11 @@ namespace rtcModule
 
 JingleSession::JingleSession(Jingle& jingle, const string& myJid, const string& peerjid,
  const string& sid, Connection& connection,
- artc::tspMediaStream sessLocalStream, const AvFlags& mutedState, shared_ptr<StringMap> props,
+ artc::tspMediaStream sessLocalStream, const AvFlags& mutedState, const StringMap& props,
  FileTransferHandler* ftHandler)
-    :mMyJid(myJid), mPeerJid(peerjid), mSid(sid), mConnection(connection),
+    :StringMap(props), mOwnJid(myJid), mPeerJid(peerjid), mSid(sid), mConnection(connection),
       mJingle(jingle), mLocalMutedState(mutedState), mLocalStream(sessLocalStream),
-      mProps(props), mFtHandler(ftHandler)
+      mFtHandler(ftHandler)
 {
     syncMutedState();
 }
@@ -33,19 +33,16 @@ void JingleSession::initiate(bool isInitiator)
     mState = SESSTATE_PENDING;
     if (isInitiator)
     {
-        mInitiator = mMyJid;
-        mResponder = mPeerJid;
+        mInitiator = jid();
+        mResponder = peerJid();
     }
     else
     {
-        mInitiator = mPeerJid;
-        mResponder = mMyJid;
+        mInitiator = peerJid();
+        mResponder = jid();
     }
-
-   //TODO: Add constraints
-    webrtc::FakeConstraints pcmc;
-    pcmc.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
-    artc::myPeerConnection<JingleSession> peerconn(*mJingle.mIceServers, *this, &pcmc);
+    //TODO: make it more elegant to initialize mPeerConn
+    artc::myPeerConnection<JingleSession> peerconn(*mJingle.mIceServers, *this, &mJingle.mMediaConstraints);
     mPeerConn = peerconn;
 
     KR_THROW_IF_FALSE((mPeerConn->AddStream(mLocalStream, NULL)));
@@ -87,8 +84,11 @@ void JingleSession::onIceComplete()
 
 //end of event handlers
 
-void JingleSession::terminate(const string& reason)
+void JingleSession::terminate(const char* reason, const char* text)
 {
+    if (mFtHandler)
+        mFtHandler->remove(reason, text);
+
     mState = SESSTATE_ENDED;
     if (mPeerConn.get())
     {
