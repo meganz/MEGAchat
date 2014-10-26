@@ -302,24 +302,27 @@ rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
 
 typedef std::vector<cricket::Device> DeviceList;
 
-struct InputDevices
-{
-    DeviceList audio;
-    DeviceList video;
-};
-
 struct MediaGetOptions
 {
-    cricket::Device* device;
+    const cricket::Device& device;
     webrtc::FakeConstraints constraints;
-    MediaGetOptions(cricket::Device* aDevice)
+    MediaGetOptions(const cricket::Device& aDevice)
     :device(aDevice){}
 };
 
-struct DeviceManager: public
+class DeviceManager: public
         std::shared_ptr<cricket::DeviceManagerInterface>
 {
+public:
+    struct InputDevices
+    {
+        DeviceList audio;
+        DeviceList video;
+    };
+protected:
     typedef std::shared_ptr<cricket::DeviceManagerInterface> Base;
+    InputDevices mInputDevices;
+public:
     DeviceManager()
         :Base(cricket::DeviceManagerFactory::Create())
     {
@@ -328,16 +331,16 @@ struct DeviceManager: public
             reset();
             throw std::runtime_error("Can't create device manager");
         }
+        enumInputDevices();
     }
     DeviceManager(const DeviceManager& other)
     :Base(other){}
-
-    std::shared_ptr<InputDevices> getInputDevices();
+    const InputDevices& inputDevices() const {return mInputDevices;}
+    void enumInputDevices();
     rtc::scoped_refptr<webrtc::AudioTrackInterface>
         getUserAudio(const MediaGetOptions& options);
     rtc::scoped_refptr<webrtc::VideoTrackInterface>
         getUserVideo(const MediaGetOptions& options);
-
 };
 
 }

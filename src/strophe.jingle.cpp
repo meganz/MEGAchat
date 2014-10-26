@@ -38,9 +38,6 @@ Jingle::Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const string
     mMediaConstraints.SetMandatoryReceiveVideo(true);
     mMediaConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
 
-    artc::init(NULL);
-    artc::DeviceManager devMgr;
-    mInputDevices = devMgr.getInputDevices();
     registerDiscoCaps();
 }
 void Jingle::addAudioCaps(::disco::DiscoPlugin& dp)
@@ -69,8 +66,9 @@ void Jingle::registerDiscoCaps()
     disco.addNode("urn:ietf:rfc:5761", {}); // rtcp-mux
     //this.connection.disco.addNode('urn:ietf:rfc:5888', {}); // a=group, e.g. bundle
     //this.connection.disco.addNode('urn:ietf:rfc:5576', {}); // a=ssrc
-    bool hasAudio = !mInputDevices->audio.empty() && !(mediaFlags & DISABLE_MIC);
-    bool hasVideo = !mInputDevices->video.empty() && !(mediaFlags & DISABLE_CAM);
+    auto& devices = deviceManager.inputDevices();
+    bool hasAudio = !devices.audio.empty() && !(mediaFlags & DISABLE_MIC);
+    bool hasVideo = !devices.video.empty() && !(mediaFlags & DISABLE_CAM);
     if (hasAudio)
         addAudioCaps(disco);
     if (hasVideo)
