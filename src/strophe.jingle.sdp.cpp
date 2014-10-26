@@ -18,6 +18,7 @@ static string afterFirst(const string& str, const char* sep);
 static size_t strArrIndexOf(const vector<string>& arr, const string& str);
 static bool hasLine(const string& str, const char* needle);
 static bool hasLine(const string& str, const char* needle, const string& sessionpart);
+static void rtcpFbToJingle(const std::string& sdp, strophe::Stanza elem, const std::string& payloadtype);
 
 void ParsedSdp::parse(const string& strSdp)
 {
@@ -225,7 +226,7 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
             elem.setAttr("senders", "none");
     }
     return elem;
-};
+}
 
 void rtcpFbToJingle(const string& sdp, Stanza elem, const string& payloadtype)
 { // XEP-0293
@@ -260,11 +261,11 @@ string ParsedSdp::rtcpFbFromJingle(Stanza elem, const string& payloadtype)
     //TODO: should be only one, abort loop when found
     elem.forEachChild("rtcp-fb-trr-int", [&media](Stanza child)
     {
-         const char* ns = child.attr("xmlns", true);
+         const char* ns = child.attrOrNull("xmlns");
          if (!ns || strcmp(ns, "urn:xmpp:jingle:apps:rtp:rtcp-fb:0"))
             return;
          media += "a=rtcp-fb:* trr-int ";
-         const char* value = child.attr("value", true);
+         const char* value = child.attrOrNull("value");
          if (value)
             media += value;
          else
@@ -273,12 +274,12 @@ string ParsedSdp::rtcpFbFromJingle(Stanza elem, const string& payloadtype)
     });
     elem.forEachChild("rtcp-fb", [&media, &payloadtype](Stanza child)
     {
-        const char* ns = child.attr("xmlns", true);
+        const char* ns = child.attrOrNull("xmlns");
         if (!ns || strcmp(ns, "urn:xmpp:jingle:apps:rtp:rtcp-fb:0"))
             return;
         media.append("a=rtcp-fb:").append(payloadtype).append(" ")
              .append(child.attr("type"));
-        const char* subtype = child.attr("subtype", true);
+        const char* subtype = child.attrOrNull("subtype");
         if (subtype)
             media.append(" ").append(subtype);
         media.append("\r\n");
@@ -309,7 +310,7 @@ void ParsedSdp::parse(Stanza jingle)
         if (!contents.empty())
         {
             contents.resize(contents.size()-1); //remove last space
-            const char* groupname = group.attr("semantics", true);
+            const char* groupname = group.attrOrNull("semantics");
             if (!groupname)
                 groupname = group.attr("type");
             raw.append("a=group:").append(groupname).append(" ")
@@ -369,11 +370,11 @@ string ParsedSdp::jingle2media(Stanza content)
     auto transport = content.childByAttr("transport", "xmlns", "urn:xmpp:jingle:transports:ice-udp:1", true);
     if (transport)
     {
-        const char* ufrag = transport.attr("ufrag", true);
+        const char* ufrag = transport.attrOrNull("ufrag");
         if (ufrag)
             media.append("a=ice-ufrag:").append(ufrag).append("\r\n");
 
-        const char* pwd = transport.attr("pwd", true);
+        const char* pwd = transport.attrOrNull("pwd");
         if (pwd)
             media.append("a=ice-pwd:").append(pwd).append("\r\n");
     }
@@ -382,7 +383,7 @@ string ParsedSdp::jingle2media(Stanza content)
       // FIXME: check namespace at some point
         media.append("a=fingerprint:").append(child.attr("hash"))
              .append(child.text()).append("\r\n");
-        const char* setup = child.attr("setup", true);
+        const char* setup = child.attrOrNull("setup");
         if (setup)
              media.append("a=setup:").append(setup).append("\r\n");
     });
@@ -428,7 +429,7 @@ string ParsedSdp::jingle2media(Stanza content)
             payload.forEachChild("parameter", [&media, &hasParam, this](Stanza param)
             {
                hasParam = true;
-               const char* name = param.attr("name", true);
+               const char* name = param.attrOrNull("name");
                if (name)
                   media.append(name)+= '=';
                media.append(param.attr("value"))+=';';
@@ -465,7 +466,7 @@ string ParsedSdp::jingle2media(Stanza content)
     {
         const char* ssrc = source.attr("ssrc");
         const char* name = source.attr("name");
-        const char* val = source.attr("value", true);
+        const char* val = source.attrOrNull("value");
         source.forEachChild("parameter", [&media, ssrc, name, val](Stanza par)
         {
             media.append("a=ssrc:").append(ssrc).append(" ").append(name);
@@ -532,7 +533,7 @@ string build_rtpmap(Stanza el)
     string line = "a=rtpmap:";
     line.append(el.attr("id")).append(" ").append(el.attr("name"))
         .append("/").append(el.attr("clockrate"));
-    const char* channels = el.attr("channels", true);
+    const char* channels = el.attrOrNull("channels");
     if (channels && strcmp(channels, "1"))
         line.append("/").append(channels);
     return line;
@@ -770,8 +771,8 @@ string candidateFromJingle(Stanza cand)
     string type = cand.attr("type");
     if ((type == "srflx") || (type == "prflx") || (type == "relay"))
     {
-        auto reladdr = cand.attr("rel-addr", true);
-        auto relport = cand.attr("rel-port", true);
+        auto reladdr = cand.attrOrNull("rel-addr");
+        auto relport = cand.attrOrNull("rel-port");
         if (reladdr && relport)
         {
              line.append("raddr ").append(reladdr).append(" ")
