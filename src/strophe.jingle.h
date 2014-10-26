@@ -32,6 +32,7 @@ public:
     virtual std::string encryptMessageForJid(const std::string& msg, const std::string& jid) = 0;
     virtual promise::Promise<int> preloadCryptoForJid(const std::string& jid) = 0;
     virtual std::string scrambleJid(const std::string& jid) = 0;
+    virtual std::string generateFprMacKey() = 0;
     virtual ~ICryptoFunctions() {}
 };
 

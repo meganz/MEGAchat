@@ -436,7 +436,7 @@ bool Jingle::onIncomingCallMsg(Stanza callmsg)
                 return false;//the callback returning false signals to the calling user code that the call request is not valid anymore
             if (accept)
             {
-                string ownFprMacKey = mCrypto->generateNonce();
+                string ownFprMacKey = mCrypto->generateFprMacKey();
                 string peerFprMacKey = mCrypto->decryptMessage(callmsg.attr("fprmackey"));
                 if (peerFprMacKey.empty())
                     throw std::runtime_error("Faield to verify peer's fprmackey from call request");
@@ -476,10 +476,12 @@ bool Jingle::onIncomingCallMsg(Stanza callmsg)
                         {"anonid", mOwnAnonId}
                     });
                     xmpp_send(mConn, ans);
+                    return 0;
                 })
                 .fail([this, bareJid](const Error& err)
                 {
                     KR_LOG_ERROR("Failed to preload crypto key for jid '%s'. Won't answer call", bareJid.c_str());
+                    return 0;
                 });
          }
          else //answer == false
