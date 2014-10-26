@@ -97,7 +97,7 @@ MainWindow::MainWindow(QWidget *parent) :
 void MainWindow::buttonPushed()
 {
     artc::DeviceManager devMgr;
-    auto devices = artc::getInputDevices(devMgr);
+    auto devices = devMgr.getInputDevices();
     for (auto& dev: devices->audio)
         printf("Audio: %s\n", dev.name.c_str());
     for (auto& dev: devices->video)
@@ -105,8 +105,8 @@ void MainWindow::buttonPushed()
     if (devices->video.empty() || devices->audio.empty())
         throw std::runtime_error("No audio and/or video input present");
     artc::MediaGetOptions options(&(devices->video[0]));
-    auto localVideo = artc::getUserVideo(options, devMgr);
-    auto localAudio = artc::getUserAudio(artc::MediaGetOptions(&(devices->audio[0])), devMgr);
+    auto localVideo = devMgr.getUserVideo(options);
+    auto localAudio = devMgr.getUserAudio(artc::MediaGetOptions(&(devices->audio[0])));
     localPlayer.reset(new artc::StreamPlayer(ui->localRenderer, localAudio, localVideo));
   //  localPlayer->start();
     webrtc::PeerConnectionInterface::IceServers servers;

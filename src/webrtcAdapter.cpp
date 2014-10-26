@@ -65,21 +65,21 @@ rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
     return result;
 }
 
-std::shared_ptr<InputDevices> getInputDevices(DeviceManager devMgr)
+std::shared_ptr<InputDevices> DeviceManager::getInputDevices()
 {
     std::shared_ptr<InputDevices> result(new InputDevices);
-     if (!devMgr->GetVideoCaptureDevices(&(result->video)))
+     if (!get()->GetVideoCaptureDevices(&(result->video)))
          throw std::runtime_error("Can't enumerate video devices");
-     if (!devMgr->GetAudioInputDevices(&(result->audio)))
+     if (!get()->GetAudioInputDevices(&(result->audio)))
          throw std::runtime_error("Can't enumerate audio devices");
      return result;
 }
 
 rtc::scoped_refptr<webrtc::VideoTrackInterface>
-    getUserVideo(const MediaGetOptions& options, DeviceManager& devMgr)
+    DeviceManager::getUserVideo(const MediaGetOptions& options)
 {
     cricket::VideoCapturer* capturer =
-            devMgr->CreateVideoCapturer(*(options.device));
+            get()->CreateVideoCapturer(*(options.device));
     if (!capturer)
         throw std::runtime_error("Could not create video capturer");
 
@@ -92,7 +92,7 @@ rtc::scoped_refptr<webrtc::VideoTrackInterface>
 }
 
 rtc::scoped_refptr<webrtc::AudioTrackInterface>
-  getUserAudio(const MediaGetOptions& options, DeviceManager& devMgr)
+  DeviceManager::getUserAudio(const MediaGetOptions& options)
 {
     rtc::scoped_refptr<webrtc::AudioTrackInterface> atrack(
       gWebrtcContext->CreateAudioTrack("a"+std::to_string(generateId()),
