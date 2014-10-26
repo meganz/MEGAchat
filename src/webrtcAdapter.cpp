@@ -1,7 +1,7 @@
-#include "guiCallMarshaller.h"
+#include "base/guiCallMarshaller.h"
 #include "webrtcAdapter.h"
 #include <webrtc/base/ssladapter.h>
-namespace rtc
+namespace artc
 {
 
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/

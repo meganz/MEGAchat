@@ -38,7 +38,6 @@ public:
 // add contents to a jingle element
     strophe::Stanza toJingle(strophe::Stanza elem, const char* creator);
 protected:
-    void rtcpFbToJingle(const std::string& sdp, strophe::Stanza elem, const std::string& payloadtype);
     std::string rtcpFbFromJingle(strophe::Stanza elem, const std::string& payloadtype);
 // translate a jingle content element into an an SDP media part
     std::string jingle2media(strophe::Stanza content);

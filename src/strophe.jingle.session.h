@@ -60,10 +60,9 @@ protected:
     int mStartTime = 0;
     int mEndTime = 0;
     webrtc::FakeConstraints mMediaConstraints;
-    std::string mPeerNonce;
-    bool mLastIceCandidate = false;
+//    bool mLastIceCandidate = false;
     void reportError(const std::string& msg, const char* where);
-    void addFingerprintHmac(strophe::Stanza jingle);
+    void addFingerprintMac(strophe::Stanza jingle);
 public:
     std::unique_ptr<StanzaQueue> inputQueue;
 //PeerConnection callback interface
@@ -114,7 +113,7 @@ public:
     FileTransferHandler* ftHandler() const {return mFtHandler.get();}
     promise::Promise<strophe::Stanza> sendIceCandidate(std::shared_ptr<artc::IceCandText> candidate);
     promise::Promise<int> setRemoteDescription(strophe::Stanza stanza, const std::string& desctype);
-    void addIceCandidate(strophe::Stanza stanza);
+//    void addIceCandidate(strophe::Stanza stanza);
     void addIceCandidates(strophe::Stanza transportInfo);
     promise::Promise<int> sendAnswer();
     promise::Promise<strophe::Stanza> sendTerminate(const std::string& reason, const std::string& text);

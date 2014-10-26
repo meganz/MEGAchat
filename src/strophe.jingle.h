@@ -75,7 +75,7 @@ public:
     std::shared_ptr<webrtc::PeerConnectionInterface::IceServers> mIceServers;
     webrtc::FakeConstraints mMediaConstraints;
     std::shared_ptr<artc::InputDevices> mInputDevices;
-
+    ICryptoFunctions& crypto() const {return *mCrypto;}
 //event handler interface
     virtual void onConnectionEvent(int state, const std::string& msg){}
     virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream){}

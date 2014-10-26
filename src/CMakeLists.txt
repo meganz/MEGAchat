@@ -10,7 +10,7 @@ set (SRCS
     strophe.jingle.cpp
      webrtcAdapter.cpp
      videoRenderer_Qt.cpp
-#    strophe.jingle.sdp.cpp
+    strophe.jingle.sdp.cpp
 #    rtcSession.cpp
 #    test-promise.cpp
      testapp/mainwindow.cpp

@@ -11,8 +11,8 @@
 #include <talk/app/webrtc/jsepsessiondescription.h>
 #include <talk/app/webrtc/jsep.h>
 #include "karereCommon.h"
-#include "guiCallMarshaller.h"
-#include "promise.h"
+#include "base/guiCallMarshaller.h"
+#include "base/promise.h"
 
 namespace MEGA_RTCADAPTER_NS
 {

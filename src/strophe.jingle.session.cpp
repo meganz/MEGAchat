@@ -146,7 +146,7 @@ Promise<Stanza> JingleSession::sendOffer()
     {
         auto init = createJingleIq(mPeerJid, "session-initiate");
         mLocalSdp.toJingle(init, jCreator());
-        addFingerprintHmac(init);
+        addFingerprintMac(init);
         return sendIq(init, "offer");
     });
 }
@@ -219,7 +219,7 @@ Promise<int> JingleSession::sendAnswer()
     //this.localSDP.mangle();
         auto accept = createJingleIq(mPeerJid, "session-accept");
         mLocalSdp.toJingle(accept, jCreator());
-        addFingerprintHmac(accept);
+        addFingerprintMac(accept);
         auto sendPromise = sendIq(accept, "answer");
         return when(sendPromise, mPeerConn.setLocalDescription(sdp));
     });
@@ -282,10 +282,10 @@ void JingleSession::reportError(const string& e, const char* where)
     mJingle.onInternalError(e, where);
 }
 
-void JingleSession::addFingerprintHmac(strophe::Stanza jiq)
+void JingleSession::addFingerprintMac(strophe::Stanza jiq)
 {
-    if (mPeerNonce.empty())
-        throw std::runtime_error("addFingerprintHmac: No peer nonce has been received");
+    if (at("peerFprMacKey").empty())
+        throw std::runtime_error("addFingerprintMac: No peer fprMacKey has been received");
     set<string> fps;
     auto j = jiq.child("jingle");
     j.forEachChild("content", [&fps](Stanza content)
@@ -303,7 +303,7 @@ void JingleSession::addFingerprintHmac(strophe::Stanza jiq)
       strFps+=';';
     }
     strFps.resize(strFps.size()-1); //truncate last ';'
-    string fprmac = mJingle.generateHmac(strFps, mPeerNonce);
+    string fprmac = mJingle.crypto().generateMac(strFps, (*this)["peerFprMacKey"]);
     j.setAttr("fprmac", fprmac.c_str());
 }
 

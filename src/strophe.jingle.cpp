@@ -3,7 +3,7 @@
 #include <string>
 #include <map>
 #include <memory>
-
+#include "base/services.h"
 #include "webrtcAdapter.h"
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.h"
@@ -26,10 +26,9 @@ AvFlags peerMediaToObj(const char* strPeerMedia);
 void Jingle::onInternalError(const string& msg, const char* where)
 {
     KR_LOG_ERROR("Internal error at %s: %s", where, msg.c_str());
-};
+}
 //==
 
-string generateHmac(const string& data, const string& key){return "";} //TODO: Implement
 Jingle::Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const string& iceServers)
 :Plugin(conn), mCrypto(crypto)
 {
@@ -194,10 +193,10 @@ bool Jingle::onJingle(Stanza iq)
             mAutoAcceptCalls.erase(ansIter);
             AutoAcceptCallInfo& ans = *spAns;
 // Verify SRTP fingerprint
-            const string& ownNonce = ans["ownNonce"];
-            if (ownNonce.empty())
-                throw runtime_error("No ans.ownNonce present, there is a bug");
-            if (generateHmac(getFingerprintsFromJingle(jingle), ownNonce) != jingle.attr("fprmac"))
+            const string& ownFprMacKey = ans["ownFprMacKey"];
+            if (ownFprMacKey.empty())
+                throw runtime_error("No ans.ownFrpMacKey present, there is a bug");
+            if (mCrypto->generateMac(getFingerprintsFromJingle(jingle), ownFprMacKey) != jingle.attr("fprmac"))
             {
                 KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
                 try
@@ -253,11 +252,11 @@ bool Jingle::onJingle(Stanza iq)
         else if (strcmp(action, "session-accept") == 0)
         {
 // Verify SRTP fingerprint
-            const string& ownNonce = (*sess)["ownNonce"];
-            if (ownNonce.empty())
-                throw runtime_error("No session.ownNonce present, there is a bug");
+            const string& ownFprMacKey = (*sess)["ownFprMacKey"];
+            if (ownFprMacKey.empty())
+                throw runtime_error("No session.ownFprMacKey present, there is a bug");
 
-            if (generateHmac(getFingerprintsFromJingle(jingle), ownNonce) != jingle.attr("fprmac"))
+            if (mCrypto->generateMac(getFingerprintsFromJingle(jingle), ownFprMacKey) != jingle.attr("fprmac"))
             {
                 KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
                 terminateBySid(sess->sid().c_str(), "security", "fingerprint verification failed");
@@ -296,7 +295,7 @@ bool Jingle::onJingle(Stanza iq)
         }
         else if (strcmp(action, "transport-info") == 0)
         {
-            sess->addIceCandidate(jingle.child("content"));
+            sess->addIceCandidates(jingle);
         }
         else if (strcmp(action, "session-info") == 0)
         {
@@ -452,7 +451,7 @@ bool Jingle::onIncomingCallMsg(Stanza callmsg)
                 info["ownFprMacKey"] = ownFprMacKey;
 
 // This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
-                setTimeout([this, sid, &tsTillJingle]()
+                mega::setTimeout([this, sid, &tsTillJingle]()
                 { //invalidate auto-answer after a timeout
                     AutoAcceptMap::iterator callIt = mAutoAcceptCalls.find(sid);
                     if (callIt == mAutoAcceptCalls.end())
