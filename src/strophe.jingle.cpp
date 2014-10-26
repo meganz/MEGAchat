@@ -40,7 +40,7 @@ Jingle::Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const string
 
     artc::init(NULL);
     artc::DeviceManager devMgr;
-    mInputDevices = artc::getInputDevices(devMgr);
+    mInputDevices = devMgr.getInputDevices();
     registerDiscoCaps();
 }
 void Jingle::addAudioCaps(::disco::DiscoPlugin& dp)
