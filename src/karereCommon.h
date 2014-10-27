@@ -80,8 +80,9 @@ static inline Ts timestampMs()
 #define KR_LOG_DEBUG(fmtString,...) KR_LOG("debug: " fmtString, ##__VA_ARGS__)
 #define KR_LOG_WARNING(fmtString,...) KR_LOG("WARNING: " fmtString, ##__VA_ARGS__)
 #define KR_LOG_ERROR(fmtString,...) KR_LOG("ERROR: " fmtString, ##__VA_ARGS__)
-#define KR_THROW_IF_FALSE(statement) \
- if (!(statement)) {\
-    throw std::runtime_error(std::string("Karere: ")+#statement+" failed (returned false)\nAt file "+__FILE__+":"+std::to_string(__LINE__)); \
- }
+#define KR_THROW_IF_FALSE(statement) do {\
+    if (!(statement)) {\
+        throw std::runtime_error(std::string("Karere: ")+#statement+" failed (returned false)\nAt file "+__FILE__+":"+std::to_string(__LINE__)); \
+     } \
+ } while(0)
 #endif // KARERECOMMON_H
