@@ -341,6 +341,11 @@ public:
         getUserAudio(const MediaGetOptions& options);
     rtc::scoped_refptr<webrtc::VideoTrackInterface>
         getUserVideo(const MediaGetOptions& options);
+    rtc::scoped_refptr<webrtc::AudioTrackInterface>
+        cloneAudioTrack(webrtc::AudioTrackInterface* src);
+    rtc::scoped_refptr<webrtc::VideoTrackInterface>
+        cloneVideoTrack(webrtc::VideoTrackInterface* src);
+
 };
 
 }
