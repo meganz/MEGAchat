@@ -83,9 +83,10 @@ void Jingle::onConnState(const xmpp_conn_event_t status,
         {
 //         typedef int (*xmpp_handler)(xmpp_conn_t * const conn,
 //           xmpp_stanza_t * const stanza, void * const userdata);
-            mConn.addHandler(std::bind(&Jingle::onJingle, this, _2), "urn:xmpp:jingle:1", "iq", "set");
-            mConn.addHandler(std::bind(&Jingle::onIncomingCallMsg, this, _2), NULL, "message", "megaCall");
-            onConnectionEvent(status, "");
+            mConn.addHandler(std::bind(&Jingle::onJingle, this, _1),
+                             "urn:xmpp:jingle:1", "iq", "set");
+            mConn.addHandler(std::bind(&Jingle::onIncomingCallMsg, this, _1),
+                             NULL, "message", "megaCall");
         }
         else if (status == XMPP_CONN_FAIL)
         {
@@ -98,10 +99,7 @@ void Jingle::onConnState(const xmpp_conn_event_t status,
                     msg.append(", Type: ").append(to_string(stream_error->type));
             }
             KR_LOG_DEBUG("XMPP disconnected: %s", msg.c_str());
-            onConnectionEvent(status, msg);
         }
-        else
-            onConnectionEvent(status, "");
     }
     catch(exception& e)
     {
@@ -371,7 +369,7 @@ bool Jingle::onIncomingCallMsg(Stanza callmsg)
     // Add a 'handled-elsewhere' handler that will invalidate the call request if a notification
     // is received that another resource answered/declined the call
         state->elsewhereHandlerId = mConn.addHandler([this, state, from]
-         (Connection& conn, Stanza stanza, int)
+         (Stanza stanza, int)
          {
             if (!state->cancelHandlerId)
                 return false;
@@ -388,7 +386,7 @@ bool Jingle::onIncomingCallMsg(Stanza callmsg)
 
     // Add a 'cancel' handler that will ivalidate the call request if the caller sends a cancel message
         state->cancelHandlerId = mConn.addHandler([this, state, from]
-         (Connection& conn, Stanza stanza, int)
+         (Stanza stanza, int)
          {
             if (!state->elsewhereHandlerId)
                 return false;
