@@ -102,7 +102,6 @@ public:
     virtual void onUnmuted(JingleSession& sess, const AvFlags& affected){}
     virtual void onInternalError(const std::string& msg, const char* where);
 //==
-    std::string generateHmac(const std::string& data, const std::string& key);
     Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const std::string& iceServers="");
     void addAudioCaps(disco::DiscoPlugin& disco);
     void addVideoCaps(disco::DiscoPlugin& disco);
@@ -115,9 +114,9 @@ public:
     static int _static_onIncomingCallMsg(xmpp_conn_t* const conn,
         xmpp_stanza_t* stanza, void* userdata);
 */
-    bool onJingle(strophe::Stanza iq);
+    void onJingle(strophe::Stanza iq);
     /* Incoming call request with a message stanza of type 'megaCall' */
-    bool onIncomingCallMsg(strophe::Stanza callmsg);
+    void onIncomingCallMsg(strophe::Stanza callmsg);
     bool cancelAutoAcceptEntry(const char* sid, const char* reason,
         const char* text, char type=0);
     bool cancelAutoAcceptEntry(AutoAcceptMap::iterator it, const char* reason,
@@ -141,6 +140,7 @@ public:
         const char* to, const char* reason, const char* text);
     bool sessionIsValid(const karere::rtcModule::JingleSession &sess);
     std::string getFingerprintsFromJingle(strophe::Stanza j);
+    bool verifyMac(const std::string& msg, const std::string& key, const std::string& actualMac);
 };
 }
 }

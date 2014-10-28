@@ -144,15 +144,13 @@ void DiscoPlugin::onConnState(const xmpp_conn_event_t status,
 {
     if (status == XMPP_CONN_CONNECT)
     {
-        mConn.addHandler([this](strophe::Stanza stanza, void* userdata)
+        mConn.addHandler([this](strophe::Stanza stanza, void* userdata, bool& keep)
         {
             xmpp_send(mConn, replyInfo(stanza));
-            return 1;
         }, XMPP_NS_DISCO_INFO, "iq", "get");
-        mConn.addHandler([this](strophe::Stanza stanza, void* userData)
+        mConn.addHandler([this](strophe::Stanza stanza, void* userData, bool& keep)
         {
             xmpp_send(mConn, replyItems(stanza));
-            return 1;
         }, XMPP_NS_DISCO_ITEMS, "iq", "get");
     }
 }

@@ -86,7 +86,7 @@ void Jingle::onConnState(const xmpp_conn_event_t status,
             mConn.addHandler(std::bind(&Jingle::onJingle, this, _1),
                              "urn:xmpp:jingle:1", "iq", "set");
             mConn.addHandler(std::bind(&Jingle::onIncomingCallMsg, this, _1),
-                             NULL, "message", "megaCall");
+                             nullptr, "message", "megaCall");
         }
         else if (status == XMPP_CONN_FAIL)
         {
@@ -116,7 +116,7 @@ static int Jingle::_static_onIncomingCallMsg(xmpp_conn_t* const conn, xmpp_stanz
     return static_cast<Jingle*>(userdata)->onIncomingCallMsg(stanza);
 }
 */
-bool Jingle::onJingle(Stanza iq)
+void Jingle::onJingle(Stanza iq)
 {
    try
    {
@@ -126,7 +126,7 @@ bool Jingle::onJingle(Stanza iq)
         if (sess && sess->inputQueue.get())
         {
             sess->inputQueue->push_back(iq);
-            return true;
+            return;
         }
         const char* action = jingle.attr("action");
         // send ack first
@@ -172,7 +172,7 @@ bool Jingle::onJingle(Stanza iq)
         if (error)
         {
             xmpp_send(mConn, ack);
-            return true;
+            return;
         }
 
         // see http://xmpp.org/extensions/xep-0166.html#concepts-session
@@ -184,7 +184,7 @@ bool Jingle::onJingle(Stanza iq)
             purgeOldAcceptCalls(); //they are purged by timers, but just in case
             auto ansIter = mAutoAcceptCalls.find(peerjid);
             if (ansIter == mAutoAcceptCalls.end())
-                return true; //ignore silently - maybe there is no user on this client and some other client(resource) already accepted the call
+                return; //ignore silently - maybe there is no user on this client and some other client(resource) already accepted the call
             shared_ptr<AutoAcceptCallInfo> spAns(ansIter->second);
             mAutoAcceptCalls.erase(ansIter);
             AutoAcceptCallInfo& ans = *spAns;
@@ -192,7 +192,7 @@ bool Jingle::onJingle(Stanza iq)
             const string& ownFprMacKey = ans["ownFprMacKey"];
             if (ownFprMacKey.empty())
                 throw runtime_error("No ans.ownFrpMacKey present, there is a bug");
-            if (mCrypto->generateMac(getFingerprintsFromJingle(jingle), ownFprMacKey) != jingle.attr("fprmac"))
+            if (!verifyMac(getFingerprintsFromJingle(jingle), ownFprMacKey, jingle.attr("fprmac")))
             {
                 KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
                 try
@@ -204,7 +204,7 @@ bool Jingle::onJingle(Stanza iq)
                     onCallTerminated(NULL, "security", "fingerprint verification failed", &info);
                 }
                 catch(...){}
-                return true;
+                return;
             }
 //===
             sess = createSession(iq.attr("to"), peerjid, sid,
@@ -217,7 +217,7 @@ bool Jingle::onJingle(Stanza iq)
             {
                 terminate(sess, reason.c_str(), text.c_str());
                 sess->inputQueue.reset();
-                return true;
+                return;
             }
 
             sess->initiate(false);
@@ -252,11 +252,11 @@ bool Jingle::onJingle(Stanza iq)
             if (ownFprMacKey.empty())
                 throw runtime_error("No session.ownFprMacKey present, there is a bug");
 
-            if (mCrypto->generateMac(getFingerprintsFromJingle(jingle), ownFprMacKey) != jingle.attr("fprmac"))
+            if (!verifyMac(getFingerprintsFromJingle(jingle), ownFprMacKey, jingle.attr("fprmac")))
             {
                 KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
                 terminateBySid(sess->sid().c_str(), "security", "fingerprint verification failed");
-                return true;
+                return;
             }
 // We are likely to start receiving ice candidates before setRemoteDescription()
 // has completed, esp on Firefox, so we want to queue these and feed them only
@@ -339,10 +339,9 @@ bool Jingle::onJingle(Stanza iq)
         KR_LOG_ERROR("Exception in onJingle handler: '%s'", msg);
         onInternalError(msg, "onJingle");
    }
-   return true;
 }
 /* Incoming call request with a message stanza of type 'megaCall' */
-bool Jingle::onIncomingCallMsg(Stanza callmsg)
+void Jingle::onIncomingCallMsg(Stanza callmsg)
 {
     const char* from = callmsg.attr("from");
     if (!from)
@@ -369,10 +368,11 @@ bool Jingle::onIncomingCallMsg(Stanza callmsg)
     // Add a 'handled-elsewhere' handler that will invalidate the call request if a notification
     // is received that another resource answered/declined the call
         state->elsewhereHandlerId = mConn.addHandler([this, state, from]
-         (Stanza stanza, int)
+         (Stanza stanza, void*, bool& keep)
          {
+            keep = false;
             if (!state->cancelHandlerId)
-                return false;
+                return;
             state->elsewhereHandlerId = NULL;
             xmpp_handler_delete(mConn, state->cancelHandlerId);
             state->cancelHandlerId = NULL;
@@ -381,22 +381,23 @@ bool Jingle::onIncomingCallMsg(Stanza callmsg)
             if (strcmp(by, xmpp_conn_get_bound_jid(mConn)))
                onCallCanceled(from, "handled-elsewhere", by,
                   strcmp(msg.attr("accepted"), "1") == 0);
-            return false;
-         }, NULL, "message", "megaNotifyCallHandled", from, NULL, STROPHE_MATCH_BAREJID);
+         },
+         NULL, "message", "megaNotifyCallHandled", from, nullptr, STROPHE_MATCH_BAREJID);
 
     // Add a 'cancel' handler that will ivalidate the call request if the caller sends a cancel message
         state->cancelHandlerId = mConn.addHandler([this, state, from]
-         (Stanza stanza, int)
+         (Stanza stanza, void*, bool& keep)
          {
+            keep = false;
             if (!state->elsewhereHandlerId)
-                return false;
+                return;
             state->cancelHandlerId = NULL;
             xmpp_handler_delete(mConn, state->elsewhereHandlerId);
             state->elsewhereHandlerId = NULL;
 
             onCallCanceled(from, "canceled", NULL, false);
-            return false;
-        }, NULL, "message", "megaCallCancel", from, NULL, STROPHE_MATCH_BAREJID);
+        },
+        NULL, "message", "megaCallCancel", from, nullptr, STROPHE_MATCH_BAREJID);
 
         mega::setTimeout([this, state, from]()
          {
@@ -409,14 +410,16 @@ bool Jingle::onIncomingCallMsg(Stanza callmsg)
             state->cancelHandlerId = NULL;
 
             onCallCanceled(from, "timeout", NULL, false);
-        }, callAnswerTimeout+10000);
+        },
+        callAnswerTimeout+10000);
 
 //tsTillUser measures the time since the req was received till the user answers it
 //After the timeout either the handlers will be removed (by the timer above) and the user
 //will get onCallCanceled, or if the user answers at that moment, they will get
 //a call-not-valid-anymore condition
         Ts tsTillUser = timestampMs() + callAnswerTimeout+10000;
-        auto reqStillValid = [&tsTillUser, &state]() {
+        auto reqStillValid = [&tsTillUser, &state]()
+        {
             return ((timestampMs() < tsTillUser) && state->cancelHandlerId);
         };
 // Notify about incoming call
@@ -500,8 +503,8 @@ bool Jingle::onIncomingCallMsg(Stanza callmsg)
         KR_LOG_ERROR("Exception in onIncomingCallRequest handler: %s", e.what());
         onInternalError(e.what(), "onCallIncoming");
     }
-    return true;
 }
+
 bool Jingle::cancelAutoAcceptEntry(const char* sid, const char* reason, const char* text,
                                    char type)
 {
@@ -695,6 +698,30 @@ string Jingle::getFingerprintsFromJingle(Stanza j)
     if (result.size() > 0)
         result.resize(result.size()-1);
     return result;
+}
+
+bool Jingle::verifyMac(const std::string& msg, const std::string& key, const std::string& actualMac)
+{
+    if (actualMac.empty())
+        return false;
+    string expectedMac;
+    try
+    {
+        expectedMac = crypto().generateMac(msg, key);
+    }
+    catch(...)
+    {
+        return false;
+    }
+    // constant-time compare
+    auto aLen = actualMac.size();
+    auto eLen = expectedMac.size();
+    auto len = (aLen<eLen)?aLen:eLen;
+    bool match = (aLen == eLen);
+    for (size_t i=0; i < len; i++)
+        match &= (expectedMac[i] == actualMac[i]);
+
+    return match;
 }
 
 AvFlags peerMediaToObj(const char* strPeerMedia)
