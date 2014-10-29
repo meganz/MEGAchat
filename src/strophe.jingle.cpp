@@ -440,7 +440,9 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                     throw std::runtime_error("Faield to verify peer's fprmackey from call request");
 // tsTillJingle measures the time since we sent megaCallAnswer till we receive jingle-initiate
                 Ts tsTillJingle = timestampMs()+mJingleAutoAcceptTimeout;
-                AutoAcceptCallInfo& info = *mAutoAcceptCalls[sid];
+                auto pInfo = new AutoAcceptCallInfo;
+                mAutoAcceptCalls.emplace(sid, shared_ptr<AutoAcceptCallInfo>(pInfo));
+                AutoAcceptCallInfo& info = *pInfo;
 
                 info["from"] = from;
                 info.tsReceived = tsReceived;
