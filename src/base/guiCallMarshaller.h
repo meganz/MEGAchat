@@ -22,48 +22,68 @@ namespace mega
 */
 struct Message
 {
-	enum _magic: unsigned long {MEGAMSG_MAGIC = 0x3e9a3591};
-	typedef void(*HandlerFunc)(Message*);
-/** Not required by the messaging mechanism itself, but might be useful
- * when the same handler is called with different kinds of messages
+    enum _magic: unsigned long {kMegaMsgMagic = 0x3e9a3591};
+
+/** Constants that denote the type of the message so that the processMessages()
+ *  dispatcher can cast and handle them accordingly
  */
-	int type;
-/** Handler C function that the message will be sent to, when received by the GUI thread
- * Dispatching messages by directly specifying the handler function allows
- * to dispatch the same kind of message to the correct module(shared object/main app)
- * so that access/memory management on the message is always performed by the module
- * that created the message.
- */
-	HandlerFunc handler;
+    enum {kMsgFuncCall = 1 << 0, kMsgWithHandler = 1 << 1};
+/** The message type field */
+    const unsigned char type;
 	const unsigned long magic;
-	Message(HandlerFunc	aHandler, int aType=0)
-        :type(aType), handler(aHandler), magic(MEGAMSG_MAGIC){}
+    Message(unsigned char aType)
+        :type(aType), magic(kMegaMsgMagic){}
 	inline void verify()
 	{
-		if (magic != MEGAMSG_MAGIC)
+#ifndef NDEBUG
+        if (magic != kMegaMsgMagic)
 			throw std::runtime_error("Message does not have the correct magic value");
-		if (!handler)
-			throw std::runtime_error("Message has a NULL handler");
-	}
+#endif
+    }
+    virtual ~Message()
+    {
+#ifndef NDEBUG
+        magic = 0;
+#endif
+    }
+};
+
+/** This types of messages contain the message handler function pointer within themselves
+ * Their type has bit 30 set, so that the handler can recognized and process them properly
+ */
+struct MessageWithHandler: public Message
+{
+    /** Handler C function that the message will be sent to, when received by the GUI thread
+     * Dispatching messages by directly specifying the handler function allows
+     * to dispatch the same kind of message to the correct module(shared object/main app)
+     * so that access/memory management on the message is always performed by the module
+     * that created the message.
+     */
+    typedef void(*HandlerFunc)(Message*);
+    HandlerFunc handler;
+    MessageWithHandler(HandlerFunc aHandler)
+            :Message(Message::kMsgWithHandler), handler(aHandler){}
+};
+
+struct AbstractFuncCallMessage: public Message
+{
+    AbstractFuncCallMessage(): Message(Message::kMsgFuncCall){}
+    virtual void doCall() = 0;
+    virtual ~AbstractFuncCallMessage() {}
 };
 
 /**
-* Creates a message that posts a lambda (i.e. std::function<void()>) object
-* to the GUI thread.
+* Message that posts a function to be called by the GUI thread.
+* The function can be a c-style function, a lambda or a std::function object
 */
-struct FuncCallMessage: public Message
+template <class F>
+struct FuncCallMessage: public AbstractFuncCallMessage
 {
-	typedef std::function<void()> Lambda;
-	Lambda lambda;
-	FuncCallMessage(Message::HandlerFunc aHandler, Lambda&& aLambda, int aType = 0)
-		:Message(aHandler, aType), lambda(std::forward<Lambda>(aLambda))
+    F mFunc;
+    FuncCallMessage(F&& aFunc)
+        :AbstractFuncCallMessage(), mFunc(std::forward<F>(aFunc))
 	{}
-
-	static inline void doCall(Message* msg)
-	{
-		std::unique_ptr<FuncCallMessage> fcallMsg(static_cast<FuncCallMessage*>(msg));
-		fcallMsg->lambda();
-	}
+    virtual void doCall()	{ mFunc(); }
 };
 
 /** Must be provided by the user.
@@ -73,11 +93,14 @@ struct FuncCallMessage: public Message
 */
 void postMessageToGui(void* msg);
 
-/** Utility function that uses the messaging infrastructure to marshal a (lambda) function call
- * to the GUI thread */
-static inline void marshalCall(Message::HandlerFunc handler, std::function<void()>&& call, int type=0)
+/** Utility end-user function that uses the messaging infrastructure to marshal a function call
+ * to the GUI thread. Can be used also to call a function asynchronously, similar to
+ * setTimeout(..., 0) in javascript
+*/
+template <class F>
+static inline void marshalCall(F&& func)
 {
-	FuncCallMessage* msg = new FuncCallMessage(handler, std::forward<std::function<void()> >(call), type);
+    FuncCallMessage<F>* msg = new FuncCallMessage<F>(std::forward<F>(func));
 	postMessageToGui((void*)msg); //platform-specific, user-defined
 }
 
@@ -88,9 +111,15 @@ static inline void marshalCall(Message::HandlerFunc handler, std::function<void(
 */
 static inline void processMessage(void* voidPtr)
 {
-	Message* msg = static_cast<Message*>(voidPtr);
+    std::unique_ptr<Message> msg(static_cast<Message*>(voidPtr));
 	msg->verify();
-	msg->handler(msg);
+    const unsigned char type = msg->type;
+    if (type == Message::kMsgFuncCall)
+        (static_cast<AbstractFuncCallMessage*>(msg.get()))->doCall();
+    else if (type == Message::kMsgWithHandler)
+        (static_cast<MessageWithHandler*>(msg.get()))->handler(msg.get());
+    else
+        fprintf(stderr, "Unknown message type: %X", type);
 }
 
 }
