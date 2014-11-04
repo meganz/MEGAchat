@@ -34,11 +34,13 @@ struct Identity
 /** Local DTLS SRTP identity */
 extern Identity gLocalIdentity;
 
+/** Globally initializes the library */
 bool init(const Identity* identity);
+/** De-initializes and cleans up the library and webrtc stack */
 void cleanup();
 
 unsigned long generateId();
-/** Globally initializes the library */
+
 /** The library's local handler for all function call marshal messages.
  * This handler is given for all marshal requests done from this
  * library(via MEGA_RTCADAPTER_NS::marshalCall()
@@ -46,12 +48,6 @@ unsigned long generateId();
  * marshals requests, i.e. we need this local handler for this library
  * This function can't be inlined
  */
-void funcCallMarshalHandler(mega::Message* msg);
-static inline void marshalCall(std::function<void()>&& lambda)
-{
-    mega::marshalCall(::MEGA_RTCADAPTER_NS::funcCallMarshalHandler,
-        std::forward<std::function<void()> >(lambda));
-}
 typedef rtc::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
 typedef rtc::scoped_refptr<webrtc::SessionDescriptionInterface> tspSdp;
 typedef std::unique_ptr<webrtc::SessionDescriptionInterface> supSdp;
@@ -71,7 +67,7 @@ public:
         :mPromise(promise){}
     virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc)
     {
-        marshalCall([this, desc]() mutable
+        mega::marshalCall([this, desc]() mutable
         {
             mPromise.resolve(desc);
             Release();
@@ -79,7 +75,7 @@ public:
     }
     virtual void OnFailure(const std::string& error)
     {
-        marshalCall([this, error]()
+        mega::marshalCall([this, error]()
         {
            mPromise.reject(promise::Error(error, kCreateSdpFailed, kRejectType));
            Release();
@@ -149,7 +145,7 @@ public:
 
     virtual void OnSuccess()
     {
-         marshalCall([this]()
+         mega::marshalCall([this]()
          {
              mPromise.resolve(0);
              Release();
@@ -157,7 +153,7 @@ public:
     }
     virtual void OnFailure(const std::string& error)
     {
-        marshalCall([this, error]()
+        mega::marshalCall([this, error]()
         {
              mPromise.reject(promise::Error(error, kSetSdpDescriptionFailed, kRejectType));
              Release();
@@ -176,7 +172,7 @@ struct StatsCallbacks: public webrtc::StatsObserver
     virtual void OnComplete(const std::vector<webrtc::StatsReport>& reports)
     {
         PromiseType::Type stats(new std::vector<webrtc::StatsReport>(reports)); //this is a std::shared_ptr
-        marshalCall([this, stats]()
+        mega::marshalCall([this, stats]()
         {
             mPromise.resolve(stats);
             delete this;
@@ -197,40 +193,42 @@ protected:
   {
       Observer(C& handler):mHandler(handler){}
       virtual void OnError()
-      { marshalCall([this](){mHandler.onError();}); }
+      {
+          mega::marshalCall([this](){mHandler.onError();});
+      }
       virtual void OnAddStream(webrtc::MediaStreamInterface* stream)
       {
           tspMediaStream spStream(stream);
-          marshalCall([this, spStream] {mHandler.onAddStream(spStream);} );
+          mega::marshalCall([this, spStream] {mHandler.onAddStream(spStream);} );
       }
       virtual void OnRemoveStream(webrtc::MediaStreamInterface* stream)
       {
           tspMediaStream spStream(stream);
-          marshalCall([this, spStream] {mHandler.onRemoveStream(spStream);} );
+          mega::marshalCall([this, spStream] {mHandler.onRemoveStream(spStream);} );
       }
       virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
       {
         std::shared_ptr<IceCandText> spCand(new IceCandText(candidate));
-        marshalCall([this, spCand]()
+        mega::marshalCall([this, spCand]()
         {
             mHandler.onIceCandidate(spCand);
         });
       }
       virtual void OnIceComplete()
       {
-          marshalCall([this]() { mHandler.onIceComplete(); });
+          mega::marshalCall([this]() { mHandler.onIceComplete(); });
       }
       virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
       {
-          marshalCall([this, newState]() { mHandler.onSignalingChange(newState); });
+          mega::marshalCall([this, newState]() { mHandler.onSignalingChange(newState); });
       }
       virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
       {
-          marshalCall([this, newState]() { mHandler.onIceConnectionChange(newState);	});
+          mega::marshalCall([this, newState]() { mHandler.onIceConnectionChange(newState);	});
       }
       virtual void OnRenegotiationNeeded()
       {
-          marshalCall([this]() { mHandler.onRenegotiationNeeded();});
+          mega::marshalCall([this]() { mHandler.onRenegotiationNeeded();});
       }
     protected:
         C& mHandler;

@@ -40,11 +40,6 @@ unsigned long generateId()
     return ++id;
 }
 
-void funcCallMarshalHandler(mega::Message* msg)
-{
-    mega::FuncCallMessage::doCall(msg);
-}
-
 rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
         webrtc::MediaStreamInterface* other, const std::string& label)
 {
