@@ -24,6 +24,5 @@ void cancelInterval(void* handle)
     //TODO: Implement
 }
 
-
 }
 #endif

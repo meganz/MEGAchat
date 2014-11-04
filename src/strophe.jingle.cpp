@@ -450,7 +450,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 info.options = options; //shared_ptr
                 info["peerFprMacKey"] = peerFprMacKey;
                 info["ownFprMacKey"] = ownFprMacKey;
-
+//TODO: Handle file transfer
 // This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
                 mega::setTimeout([this, sid, &tsTillJingle]()
                 { //invalidate auto-answer after a timeout
@@ -637,7 +637,6 @@ bool Jingle::terminate(JingleSession* sess, const char* reason, const char* text
             sess->sendTerminate(reason, text);
         sess->terminate(reason, text); //handles ftHandler, updates mState
     }
-    mSessions.erase(sessIt);
     if (!isFt)
         try
         {
@@ -647,8 +646,17 @@ bool Jingle::terminate(JingleSession* sess, const char* reason, const char* text
         {
             KR_LOG_ERROR("Jingle::onCallTerminated() threw an exception: %s", e.what());
         }
+
+// Delete session acynchronously to simplify calling terminate() from loops
+// It's not safe to pass an interator to the async deletion as it may be invelidated meanwhile.
+    string sid = sess->sid(); //in c++ 14 we can capture sess->sid() directly, avoiding the copy
+    mega::marshalCall([this, sid]()
+    {
+        mSessions.erase(sid);
+    });
     return true;
 }
+
 Promise<Stanza> Jingle::sendTerminateNoSession(const char* sid, const char* to, const char* reason,
     const char* text)
 {
