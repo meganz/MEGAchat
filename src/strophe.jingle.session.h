@@ -5,6 +5,7 @@
 #include "karereCommon.h"
 #include "webrtcAdapter.h"
 #include <talk/app/webrtc/test/fakeconstraints.h>
+#include "streamPlayer.h"
 #include "strophe.jingle.sdp.h"
 #include <mstrophepp.h>
 
@@ -19,9 +20,33 @@ class FileTransferHandler
 public:
     void remove(const char*, const char*){}
 };
+//Dummy stats recorder. TODO: Implement
+class StatsRecorder
+{
+public:
+    bool isRelay() const {return false;}
+};
 
 typedef std::vector<strophe::Stanza> StanzaQueue;
-class JingleSession: public StringMap
+//This is the interface of the session object exposed to the application via events etc
+//TODO: Move to public interface header
+struct IJingleSession
+{
+    typedef void(*DeleteFunc)(void*);
+
+    virtual const char* getSid() const = 0;
+    virtual const char* getJid() const = 0;
+    virtual const char* getPeerJid() const = 0;
+    virtual bool isCaller() const = 0;
+/** Returns whether the session's udnerlying media connection is relayed via a TURN server or not
+ * @return -1 if unknown, 1 if true, 0 if false
+ */
+    virtual int isRelayed() const = 0;
+    virtual void setUserData(void*, DeleteFunc delFunc) = 0;
+    virtual void* getUserData() const = 0;
+};
+
+class JingleSession: public IJingleSession, public StringMap
 {
 public:
     enum State {
@@ -60,11 +85,16 @@ protected:
     int mStartTime = 0;
     int mEndTime = 0;
     webrtc::FakeConstraints mMediaConstraints;
+    std::unique_ptr<StatsRecorder> mStatsRecorder;
+    void* mUserData = nullptr;
+    DeleteFunc mUserDataDelFunc = nullptr;
 //    bool mLastIceCandidate = false;
     void reportError(const std::string& msg, const char* where);
     void addFingerprintMac(strophe::Stanza jingle);
 public:
     std::unique_ptr<StanzaQueue> inputQueue;
+    std::shared_ptr<artc::StreamPlayer> remotePlayer;
+
 //PeerConnection callback interface
     void onError() {KR_LOG_ERROR("session %s: peerconnection called onError()", mSid.c_str());}
     void onAddStream(artc::tspMediaStream stream);
@@ -76,13 +106,39 @@ public:
     void onRenegotiationNeeded() {}
     strophe::Stanza createJingleIq(const std::string& to, const char* action);
     int getMlineIndex(const sdpUtil::ParsedSdp& sdp, std::string& name);
-//==
-
+//IJingleSession public interface
+    virtual const char* getSid() const {return mSid.c_str();}
+    virtual const char* getJid() const {return mOwnJid.c_str();}
+    virtual const char* getPeerJid() const {return mPeerJid.c_str();}
+    virtual bool isCaller() const {return mIsInitiator;}
+    virtual int isRelayed() const
+    {
+        if (!mStatsRecorder)
+            return -1;
+        return mStatsRecorder->isRelay()?1:0;
+    }
+    virtual void setUserData(void* userData, DeleteFunc delFunc)
+    {
+        delUserData();
+        mUserData = userData;
+        mUserDataDelFunc = delFunc;
+    }
+    virtual void* getUserData() const {return mUserData;}
+//===
     JingleSession(Jingle& jingle, const	std::string& myJid,
         const std::string& peerJid,	const std::string& sid,
         strophe::Connection& connection, artc::tspMediaStream sessLocalStream,
         const AvFlags& mutedState, const StringMap& props, FileTransferHandler* ftHandler=NULL);
     void initiate(bool isInitiator);
+    ~JingleSession()
+    {
+        delUserData();
+    }
+    void delUserData()
+    {
+        if(mUserData && mUserDataDelFunc)
+            mUserDataDelFunc(mUserData);
+    }
     promise::Promise<strophe::Stanza> accept();
     promise::Promise<strophe::Stanza> sendOffer();
     void getRemoteMutedState(AvFlags& av) const {av = mRemoteMutedState;}
