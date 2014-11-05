@@ -223,17 +223,17 @@ void Jingle::onJingle(Stanza iq)
             sess->initiate(false);
 
             // configure session
-            sess->setRemoteDescription(jingle, "offer").then([this, sess](int)
+            sess->setRemoteDescription(jingle, "offer").then([sess](int)
             {
                 return sess->sendAnswer();
             })
-            .then([this, sess](int)
+            .then([sess](int)
             {
                   return sess->sendMutedState();
             })
-            .then([this, sess, peerjid](int)
+            .then([this, sess](int)
             {
-                onCallAnswered(peerjid);
+                onCallAnswered(*sess);
 //now handle all packets queued up while we were waiting for user's accept of the call
                 processAndDeleteInputQueue(*sess);
                 return 0;
@@ -418,19 +418,22 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
 //will get onCallCanceled, or if the user answers at that moment, they will get
 //a call-not-valid-anymore condition
         Ts tsTillUser = timestampMs() + callAnswerTimeout+10000;
-        auto reqStillValid = [&tsTillUser, &state]()
-        {
-            return ((timestampMs() < tsTillUser) && state->cancelHandlerId);
-        };
+        shared_ptr<function<bool()> > reqStillValid(new function<bool()>(
+         [&tsTillUser, &state]()
+         {
+              return ((timestampMs() < tsTillUser) && state->cancelHandlerId);
+         }));
+        shared_ptr<set<string> > files; //TODO: implement file transfers
+        AvFlags peerMedia; //TODO: Implement peerMedia parsing
 // Notify about incoming call
-        onIncomingCallRequest(from, reqStillValid,
-          [&, this](bool accept, shared_ptr<AnswerOptions> options, const string& reason, const string& text)
-        {
+        shared_ptr<CallAnswerFunc> ansFunc(new CallAnswerFunc(
+         [&, this](bool accept, shared_ptr<AnswerOptions> options, const char* reason, const char* text)
+         {
 // If dialog was displayed for too long, the peer timed out waiting for response,
 // or user was at another client and that other client answred.
 // When the user returns at this client he may see the expired dialog asking to accept call,
 // and will answer it, but we have to ignore it because it's no longer valid
-            if (!reqStillValid()) // Call was cancelled, or request timed out and handler was removed
+            if (!(*reqStillValid)()) // Call was cancelled, or request timed out and handler was removed
                 return false;//the callback returning false signals to the calling user code that the call request is not valid anymore
             if (accept)
             {
@@ -491,14 +494,16 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 {
                     {"to", from},
                     {"type", "megaCallDecline"},
-                    {"reason", reason.empty()?"unknown":reason}
+                    {"reason", reason?"unknown":reason}
                 });
-                if (!text.empty())
+                if (text)
                     declMsg.c("body", {}).t(text);
                 xmpp_send(mConn, declMsg);
          }
          return true;
-        }); //end answer func
+        })); //end answer func
+
+        onIncomingCallRequest(from, ansFunc, reqStillValid, peerMedia, files);
     }
     catch(exception& e)
     {
@@ -637,6 +642,7 @@ bool Jingle::terminate(JingleSession* sess, const char* reason, const char* text
             sess->sendTerminate(reason, text);
         sess->terminate(reason, text); //handles ftHandler, updates mState
     }
+    mSessions.erase(sessIt);
     if (!isFt)
         try
         {
@@ -646,17 +652,8 @@ bool Jingle::terminate(JingleSession* sess, const char* reason, const char* text
         {
             KR_LOG_ERROR("Jingle::onCallTerminated() threw an exception: %s", e.what());
         }
-
-// Delete session acynchronously to simplify calling terminate() from loops
-// It's not safe to pass an interator to the async deletion as it may be invelidated meanwhile.
-    string sid = sess->sid(); //in c++ 14 we can capture sess->sid() directly, avoiding the copy
-    mega::marshalCall([this, sid]()
-    {
-        mSessions.erase(sid);
-    });
     return true;
 }
-
 Promise<Stanza> Jingle::sendTerminateNoSession(const char* sid, const char* to, const char* reason,
     const char* text)
 {
