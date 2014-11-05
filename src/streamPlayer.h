@@ -14,7 +14,9 @@ protected:
     rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
     IVideoRenderer* mRenderer;
     bool mPlaying;
+    bool mMediaStartSignalled = false;
 public:
+    std::function<void()> onMediaStart;
     StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio,
     webrtc::VideoTrackInterface* video)
      :mAudio(audio), mVideo(video), mRenderer(renderer), mPlaying(false)
@@ -23,6 +25,7 @@ public:
     {
         if (mPlaying)
             return;
+        mMediaStartSignalled = false;
         if (mVideo.get())
             mVideo->AddRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
         if (mAudio.get())
@@ -84,6 +87,12 @@ public:
 
     void RenderFrame(const cricket::VideoFrame* frame)
     {
+        if (!mMediaStartSignalled)
+        {
+            mMediaStartSignalled = true;
+            if (onMediaStart)
+                onMediaStart();
+        }
         int width = frame->GetWidth();
         int height = frame->GetHeight();
         int bufSize = width*height*4;
