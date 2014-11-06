@@ -329,7 +329,7 @@ Promise<Stanza> JingleSession::sendIq(Stanza iq, const string& origin)
     return mConnection.sendIqQuery(iq)
         .fail([this, iq, origin](const promise::Error& err)
         {
-            mJingle.onJingleError(this, origin, err.msg().c_str(), iq);
+            mJingle.onJingleError(this, origin, err.msg(), iq);
             return err;
         });
 }

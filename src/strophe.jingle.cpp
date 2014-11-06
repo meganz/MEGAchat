@@ -712,7 +712,7 @@ Promise<Stanza> Jingle::sendIq(Stanza iq, const string& origin)
     return mConn.sendIqQuery(iq)
         .fail([this, origin, iq](const promise::Error& err)
         {
-            onJingleError(nullptr, origin, err.msg().c_str(), iq);
+            onJingleError(nullptr, origin, err.msg(), iq);
             return err;
         });
 }
