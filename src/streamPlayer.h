@@ -3,8 +3,10 @@
 #include <talk/app/webrtc/mediastreaminterface.h>
 #include <IVideoRenderer.h>
 #include <karereCommon.h>
+#include "base/guiCallMarshaller.h"
+#include <mutex>
 
-namespace MEGA_RTCADAPTER_NS
+namespace artc
 {
 
 class StreamPlayer: public webrtc::VideoRendererInterface
@@ -15,12 +17,19 @@ protected:
     IVideoRenderer* mRenderer;
     bool mPlaying;
     bool mMediaStartSignalled = false;
+    std::function<void()> mOnMediaStart;
+    std::mutex mMutex; //guards onMediaStart and other stuff that is accessed from webrtc threads
 public:
-    std::function<void()> onMediaStart;
     StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio,
     webrtc::VideoTrackInterface* video)
      :mAudio(audio), mVideo(video), mRenderer(renderer), mPlaying(false)
     {}
+    template <class F>
+    void setOnMediaStart(F&& callback)
+    {
+        std::unique_lock<std::mutex> locker(mMutex);
+        mOnMediaStart = callback;
+    }
     void start()
     {
         if (mPlaying)
@@ -90,8 +99,15 @@ public:
         if (!mMediaStartSignalled)
         {
             mMediaStartSignalled = true;
-            if (onMediaStart)
-                onMediaStart();
+            std::unique_lock<std::mutex> locker(mMutex);
+            if (mOnMediaStart)
+            {
+                auto callback = mOnMediaStart;
+                mega::marshalCall([callback]()
+                {
+                    callback();
+                });
+            }
         }
         int width = frame->GetWidth();
         int height = frame->GetHeight();
