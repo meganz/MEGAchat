@@ -4,6 +4,7 @@
 #include <IVideoRenderer.h>
 #include <karereCommon.h>
 #include "base/guiCallMarshaller.h"
+#include "webrtcAdapter.h"
 #include <mutex>
 
 namespace artc
@@ -15,15 +16,35 @@ protected:
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
     IVideoRenderer* mRenderer;
-    bool mPlaying;
+    bool mPlaying = false;
     bool mMediaStartSignalled = false;
     std::function<void()> mOnMediaStart;
     std::mutex mMutex; //guards onMediaStart and other stuff that is accessed from webrtc threads
 public:
-    StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio,
-    webrtc::VideoTrackInterface* video)
-     :mAudio(audio), mVideo(video), mRenderer(renderer), mPlaying(false)
+    StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio=nullptr,
+    webrtc::VideoTrackInterface* video=nullptr)
+     :mAudio(audio), mVideo(video), mRenderer(renderer)
     {}
+    StreamPlayer(IVideoRenderer *renderer, tspMediaStream stream)
+        :mRenderer(renderer)
+    {
+        connectToStream(stream);
+    }
+    void connectToStream(tspMediaStream stream)
+    {
+        if (!stream)
+            return;
+
+        detachAudio();
+        detachVideo();
+        auto ats = stream->GetAudioTracks();
+        auto vts = stream->GetVideoTracks();
+        if (ats.size() > 0)
+            mAudio = ats[0];
+        if (vts.size() > 0)
+            mVideo = vts[0];
+    }
+
     template <class F>
     void setOnMediaStart(F&& callback)
     {
