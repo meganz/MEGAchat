@@ -94,7 +94,7 @@ void Jingle::onConnState(const xmpp_conn_event_t status,
             if (stream_error)
             {
                 if (stream_error->stanza)
-                    msg.append(", Stanza:\n").append(strophe::Stanza(stream_error->stanza).recursiveText()->c_str());
+                    msg.append(", Stanza:\n").append(strophe::Stanza(stream_error->stanza).dump().c_str());
                 else if (stream_error->type)
                     msg.append(", Type: ").append(to_string(stream_error->type));
             }
@@ -277,7 +277,7 @@ void Jingle::onJingle(Stanza iq)
         else if (strcmp(action, "session-terminate") == 0)
         {
             const char* reason = NULL;
-            shared_ptr<Stanza::AutoText> text;
+            Stanza::AutoText text;
             try
             {
                 Stanza rsnNode = jingle.child("reason").firstChild();
@@ -287,7 +287,7 @@ void Jingle::onJingle(Stanza iq)
                 text = rsnNode.child("text").recursiveText();
             }
             catch(...){}
-            terminate(sess, reason?reason:"peer-hangup", text.get()?text->c_str():NULL);
+            terminate(sess, reason?reason:"peer-hangup", text?text.c_str():NULL);
         }
         else if (strcmp(action, "transport-info") == 0)
         {
@@ -669,7 +669,7 @@ Promise<Stanza> Jingle::sendTerminateNoSession(const char* sid, const char* to, 
       .c(reason);
     if (text)
         last.parent().c("text").t(text);
-    return mConn.sendIqQuery(term, "set");
+    return sendIq(term, "term-no-sess");
 }
 
 bool Jingle::sessionIsValid(const JingleSession& sess)
@@ -705,6 +705,16 @@ string Jingle::getFingerprintsFromJingle(Stanza j)
     if (result.size() > 0)
         result.resize(result.size()-1);
     return result;
+}
+
+Promise<Stanza> Jingle::sendIq(Stanza iq, const string& origin)
+{
+    return mConn.sendIqQuery(iq)
+        .fail([this, origin, iq](const promise::Error& err)
+        {
+            onJingleError(nullptr, origin, err.msg().c_str(), iq);
+            return err;
+        });
 }
 
 bool Jingle::verifyMac(const std::string& msg, const std::string& key, const std::string& actualMac)

@@ -173,12 +173,11 @@ public:
     void addIceCandidates(strophe::Stanza transportInfo);
     promise::Promise<int> sendAnswer();
     promise::Promise<strophe::Stanza> sendTerminate(const std::string& reason, const std::string& text);
-    promise::Promise<int> sendIq(const karere::StringMap& attrs, const std::string& desc);
     promise::Promise<strophe::Stanza> sendMute(bool muted, const std::string& what);
     void syncMutedState();
     promise::Promise<int> sendMutedState();
     promise::Promise<int> muteUnmute(bool state, const AvFlags& what);
-    promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const char* type="set");
+    promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string &origin);
 };
 }
 }

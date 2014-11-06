@@ -84,7 +84,8 @@ public:
     virtual void onConnectionEvent(int state, const std::string& msg){}
     virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream){}
     virtual void onRemoteStreamRemoved(JingleSession& sess, artc::tspMediaStream stream){}
-    virtual void onJingleError(JingleSession& sess, const std::string& err, strophe::Stanza stanza, strophe::Stanza orig){}
+    virtual void onJingleError(JingleSession* sess, const std::string& origin,
+        const std::string& stanza, strophe::Stanza orig){} //TODO: implement stanza object in promise errors
     virtual void onJingleTimeout(JingleSession& sess, const std::string& err, strophe::Stanza orig){}
 //    virtual void onIceConnStateChange(JingleSession& sess, event){}
     virtual void onIceComplete(JingleSession& sess){}
@@ -142,6 +143,7 @@ public:
         bool nosend=false);
     promise::Promise<strophe::Stanza> sendTerminateNoSession(const char* sid,
         const char* to, const char* reason, const char* text);
+    promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string& origin);
     bool sessionIsValid(const karere::rtcModule::JingleSession &sess);
     std::string getFingerprintsFromJingle(strophe::Stanza j);
     bool verifyMac(const std::string& msg, const std::string& key, const std::string& actualMac);

@@ -232,7 +232,7 @@ Promise<Stanza> JingleSession::sendTerminate(const string& reason, const string&
     auto rsn = term.c("reason").c(reason.empty()?"unknown":reason.c_str()).parent();
     if (!text.empty())
         rsn.c("text").t(text);
-    return mConnection.sendIqQuery(term, "set");
+    return sendIq(term, "set");
 }
 
 Promise<Stanza> JingleSession::sendMute(bool muted, const string& what)
@@ -242,7 +242,7 @@ Promise<Stanza> JingleSession::sendMute(bool muted, const string& what)
       {"xmlns", "urn:xmpp:jingle:apps:rtp:info:1"},
       {"name", what.c_str()}
     });
-    return mConnection.sendIqQuery(info, "set");
+    return sendIq(info, "set");
 }
 
 void JingleSession::syncMutedState()
@@ -324,9 +324,15 @@ Stanza JingleSession::createJingleIq(const string& to, const char* action)
     return s;
 }
 
-Promise<Stanza> JingleSession::sendIq(Stanza iq, const char* type)
+Promise<Stanza> JingleSession::sendIq(Stanza iq, const string& origin)
 {
-    return mConnection.sendIqQuery(iq, type, NULL);
+    return mConnection.sendIqQuery(iq)
+        .fail([this, iq, origin](const promise::Error& err)
+        {
+            mJingle.onJingleError(this, origin, err.msg().c_str(), iq);
+            return err;
+        });
 }
+
 }
 }

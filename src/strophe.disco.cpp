@@ -169,6 +169,6 @@ DiscoPlugin::request(const char* to, const char* ns, const char* node)
     if (node)
         query.setAttr("node", node);
 
-    return mConn.sendIqQuery(iq, "get", "disco");
+    return mConn.sendIqQuery(iq, "disco");
 }
 }
