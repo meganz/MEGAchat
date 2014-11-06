@@ -899,69 +899,48 @@ void onMediaRecv(playerElem, sess, stream) {
     this._unrefLocalStream();
  },
 
- waitForRemoteMedia: function(playerElem, sess) {
-    if (!this.jingle.sessionIsValid(sess))
-        return;
-    var self = this;
-    if (playerElem[0].currentTime > 0) {
-        this.onMediaRecv(playerElem, sess, sess.remoteStream);
-        RTC.attachMediaStream(playerElem, sess.remoteStream); // FIXME: why do i have to do this for FF?
-       // console.log('waitForremotevideo', sess.peerconnection.iceConnectionState, sess.peerconnection.signalingState);
-    }
-    else
-        setTimeout(function () { self.waitForRemoteMedia(playerElem, sess); }, 200);
- },
-//onRemoteStreamAdded -> waitForRemoteMedia (waits till time>0) -> onMediaRecv() -> addVideo()
- onRemoteStreamAdded: function(sess, event) {
-    if ($(document).find('#remotevideo_'+sess.sid).length !== 0) {
-        console.warn('Ignoring duplicate onRemoteStreamAdded for session', sess.sid); // FF 20
+void onMediaStart(const string& sid)
+{
+    auto it = mSessions.find(sid);
+    if (it == mSessions.end())
+    {
+        KR_LOG_DEBUG("Received onMediaStart for a non-existent sessions");
         return;
     }
-/**
-    @event "remote-sdp-recv"
-    @type {object}
-    @property {string} peer The full JID of the peer
-    @property {MediaStream} stream The remote media stream
-    @property {SessWrapper} sess The call session
-*/
-    this.trigger('remote-sdp-recv', {peer: sess.peerjid, stream: event.stream, sess: new SessWrapper(sess)});
-    var elemClass;
-    var videoTracks = event.stream.getVideoTracks();
-    if (!videoTracks || (videoTracks.length < 1))
-        elemClass = 'rmtViewport rmtNoVideo';
-    else
-        elemClass = 'rmtViewport rmtVideo';
+    artc::StreamPlayer* player = (it->second->remotePlayer.get());
+    if (!player)
+    {
+        KR_LOG_DEBUG("Received onMediaStart for a session witn NULL remote player");
+        return;
+    }
+    onMediaRecv(*it->second);
+}
+//onRemoteStreamAdded -> onMediaStart() event from player -> onMediaRecv() -> addVideo()
+virtual onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream)
+{
+    if (sess.remotePlayer)
+    {
+        KR_LOG_WARNING("onRemoteStreamAdded: Session '%s' already has a remote player, ignoring event", sess.sid().c_str());
+        return;
+    }
+    RTCM_EVENT(onRemoteSdpRecv, &sess);
 
-    this._attachRemoteStreamHandlers(event.stream);
-    // after remote stream has been added, wait for ice to become connected
-    // old code for compat with FF22 beta
-    var elem = $("<video autoplay='autoplay' class='"+elemClass+"' id='remotevideo_" + sess.sid+"' />");
-    RTC.attachMediaStream(elem, event.stream);
-    this.waitForRemoteMedia(elem, sess); //also attaches media stream once time > 0
-
-//     does not yet work for remote streams -- https://code.google.com/p/webrtc/issues/detail?id=861
-//    var options = { interval:500 };
-//    var speechEvents = hark(data.stream, options);
-
-//    speechEvents.on('volume_change', function (volume, treshold) {
-//      console.log('volume for ' + sid, volume, treshold);
-//    });
+//    this._attachRemoteStreamHandlers(event.stream);
+    auto ats = stream->GetAudioTracks();
+    auto vts = stream->GetVideoTracks();
+    sess->remotePlayer.reset(new artc::StreamPlayer(getRemoteVideoRenderer(sess));
+    sess->remotePlayer.setOnMediaStart(std::bind(&RtcHandler::onMediaStart, this, sess.sid());
+    sess->remotePlayer.attachToStream(stream);
  },
 
- onRemoteStreamRemoved: function(event) {
- },
-
- noStunCandidates: function() {
- },
-
- onJingleError: function(sess, err, stanza, orig) {
-    if (err.source == 'transportinfo')
-        err.source = 'transport-info (i.e. webrtc ice candidate)';
-    if (!orig)
-        orig = "(unknown)";
-
-    if (err.isTimeout) {
-        console.error('Timeout getting response to "'+err.source+'" packet, session:'+sess.sid+', orig-packet:\n', orig);
+ //void onRemoteStreamRemoved() - not interested to handle here
+virtual void onJingleError(JingleSession& sess, const std::string& err, char type,
+                           const std::string& origin, strophe::Stanza stanza, strophe::Stanza orig)
+{
+    if (type == 't')
+    {
+        KR_LOG_ERROR("Timeout getting response to '%s' packet, session: '%s'\nerror-packet:\n%s\norig-packet:\n%s\n",
+                     origin.c_str(), sess.sid().c_str(), stanza.);
  /**
     @event "jingle-timeout"
     @type {object}
