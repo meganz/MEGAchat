@@ -21,6 +21,7 @@ protected:
     std::function<void()> mOnMediaStart;
     std::mutex mMutex; //guards onMediaStart and other stuff that is accessed from webrtc threads
 public:
+    IVideoRenderer* videoRenderer() const {return mRenderer;}
     StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio=nullptr,
     webrtc::VideoTrackInterface* video=nullptr)
      :mAudio(audio), mVideo(video), mRenderer(renderer)
@@ -30,6 +31,11 @@ public:
     {
         connectToStream(stream);
     }
+    ~StreamPlayer()
+    {
+        preDestroy();
+    }
+
     void connectToStream(tspMediaStream stream)
     {
         if (!stream)
@@ -74,8 +80,8 @@ public:
 
     void attachAudio(webrtc::AudioTrackInterface* audio)
     {
-        if (mAudio.get())
-            detachAudio();
+        assert(audio);
+        detachAudio();
         mAudio = audio;
         if (mPlaying)
             {}//TODO: start audio playback
@@ -92,7 +98,7 @@ public:
 
     void attachVideo(webrtc::VideoTrackInterface* video)
     {
-        assert(video != NULL);
+        assert(video);
         detachVideo();
         mVideo = video;
         mRenderer->onStreamAttach();
@@ -109,6 +115,15 @@ public:
         mRenderer->onStreamDetach();
         mVideo = NULL;
     }
+    IVideoRenderer* preDestroy()
+    {
+        stop();
+        detachAudio();
+        detachVideo();
+        IVideoRenderer* ret = mRenderer;
+        mRenderer = nullptr;
+        return ret;
+    }
 //VideoRendererInterface implementation
     virtual void SetSize(int width, int height)
     {
@@ -117,6 +132,8 @@ public:
 
     void RenderFrame(const cricket::VideoFrame* frame)
     {
+        if (!mRenderer)
+            return; //maybe about to be destroyed
         if (!mMediaStartSignalled)
         {
             mMediaStartSignalled = true;
