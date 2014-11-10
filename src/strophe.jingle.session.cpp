@@ -69,10 +69,6 @@ void JingleSession::onRemoveStream(artc::tspMediaStream stream)
 }
 void JingleSession::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
 {
-    if (newState == webrtc::PeerConnectionInterface::kIceConnectionConnected)
-        mStartTime = timestampMs();
-    else if (newState == webrtc::PeerConnectionInterface::kIceConnectionDisconnected)
-        mEndTime = timestampMs();
 //TODO: maybe forward to mJingle
 }
 

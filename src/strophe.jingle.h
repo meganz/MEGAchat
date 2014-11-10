@@ -44,11 +44,23 @@ class Jingle: strophe::Plugin
 {
 protected:
 /** Contains all info about a not-yet-established session, when onCallTerminated is fired and there is no session yet */
-    struct FakeSessionInfo
+    struct FakeSessionInfo: IJingleSession
     {
-        const char* sid = NULL;
-        const char* peer = NULL;
-        bool isInitiator=false;
+        const std::string mSid;
+        const std::string mPeer;
+        const std::string mJid;
+        bool mIsInitiator;
+        FakeSessionInfo(const std::string& aSid, const std::string& aPeer,
+                        const std::string& aMyJid, bool aInitiator)
+            :mSid(aSid), mPeer(aPeer), mJid(aMyJid), mIsInitiator(aInitiator){}
+        virtual bool isRealSession() const {return false;}
+        virtual const char* getSid() const {return mSid.c_str();}
+        virtual const char* getJid() const {return mJid.c_str();}
+        virtual const char* getPeerJid() const {return mPeer.c_str();}
+        virtual bool isCaller() const {return mIsInitiator;}
+        virtual int isRelayed() const {return false;}
+        virtual void setUserData(void*, DeleteFunc delFunc) {}
+        virtual void* getUserData() const {return nullptr;}
     };
 /** Contains all info about an incoming call that has been accepted at the message level and needs to be autoaccepted at the jingle level */
     struct AutoAcceptCallInfo: public StringMap
@@ -85,7 +97,7 @@ public:
     virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream){}
     virtual void onRemoteStreamRemoved(JingleSession& sess, artc::tspMediaStream stream){}
     virtual void onJingleError(JingleSession* sess, const std::string& origin,
-        const std::string& stanza, strophe::Stanza orig){} //TODO: implement stanza object in promise errors
+        const std::string& stanza, strophe::Stanza orig, char type='s'){} //TODO: implement stanza object in promise errors
     virtual void onJingleTimeout(JingleSession& sess, const std::string& err, strophe::Stanza orig){}
 //    virtual void onIceConnStateChange(JingleSession& sess, event){}
     virtual void onIceComplete(JingleSession& sess){}

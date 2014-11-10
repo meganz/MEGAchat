@@ -197,10 +197,7 @@ void Jingle::onJingle(Stanza iq)
                 KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
                 try
                 {
-                    FakeSessionInfo info;
-                    info.peer = peerjid;
-                    info.sid = jingle.attr("sid");
-                    info.isInitiator = false;
+                    FakeSessionInfo info(jingle.attr("sid"), peerjid, mConn.jid(), false);
                     onCallTerminated(NULL, "security", "fingerprint verification failed", &info);
                 }
                 catch(...){}
@@ -305,11 +302,9 @@ void Jingle::onJingle(Stanza iq)
                 AvFlags av;
                 av.audio = (strcmp(affected, "voice") == 0);
                 av.video = (strcmp(affected, "video") == 0);
-                AvFlags current;
-                sess->getRemoteMutedState(current);
-                current.audio |= av.audio;
-                current.video |= av.video;
-                sess->setRemoteMutedState(current);
+                AvFlags& muted = sess->mRemoteMutedState;
+                muted.audio |= av.audio;
+                muted.video |= av.video;
                 onMuted(*sess, av);
             }
             else if (info = jingle.childByAttr("unmute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1"))
@@ -318,13 +313,11 @@ void Jingle::onJingle(Stanza iq)
                 AvFlags av;
                 av.audio = (strcmp(affected, "voice") == 0);
                 av.video = (strcmp(affected, "video") == 0);
-                AvFlags current;
-                sess->getRemoteMutedState(current);
+                auto& muted = sess->mRemoteMutedState;
                 if (av.audio)
-                    current.audio = false;
+                    muted.audio = false;
                 if (av.video)
-                    current.video = false;
-                sess->setRemoteMutedState(current);
+                    muted.video = false;
                 onUnmuted(*sess, av);
             }
         }
@@ -343,73 +336,70 @@ void Jingle::onJingle(Stanza iq)
 /* Incoming call request with a message stanza of type 'megaCall' */
 void Jingle::onIncomingCallMsg(Stanza callmsg)
 {
-    const char* from = callmsg.attr("from");
-    if (!from)
-        throw runtime_error("No 'from' attribute in megaCall message");
-    const char* sid = callmsg.attr("sid");
-    if (!sid)
-        throw runtime_error("No 'sid' attribute in megaCall message");
-    if (mAutoAcceptCalls.find(sid) != mAutoAcceptCalls.end())
-        throw runtime_error("Auto accept for call with sid '"+string(sid)+"' already exists");
-
-    string bareJid = getBareJidFromJid(from);
-    Ts tsReceived = timestampMs();
     struct State
     {
         bool handledElsewhere = false;
-        xmpp_handler elsewhereHandlerId = NULL;
-//        function<bool(Connection&, Stanza, int)> elsewhereHandler;
-        xmpp_handler cancelHandlerId = NULL;
-//        function<bool(Connection&, Stanza, int)> cancelHandler;
+        xmpp_handler elsewhereHandlerId = nullptr;
+        xmpp_handler cancelHandlerId = nullptr;
+        string sid;
+        string from;
+        Ts tsReceived = -1;
+        string bareJid;
     };
     shared_ptr<State> state(new State);
+
+    state->from = callmsg.attr("from");
+    state->sid = callmsg.attr("sid");
+    if (mAutoAcceptCalls.find(state->sid) != mAutoAcceptCalls.end())
+        throw runtime_error("Auto accept for call with sid '"+string(state->sid)+"' already exists");
+    state->bareJid = getBareJidFromJid(state->from);
+    state->tsReceived = timestampMs();
     try
     {
     // Add a 'handled-elsewhere' handler that will invalidate the call request if a notification
     // is received that another resource answered/declined the call
-        state->elsewhereHandlerId = mConn.addHandler([this, state, from]
-         (Stanza stanza, void*, bool& keep)
+        state->elsewhereHandlerId = mConn.addHandler([this, state]
+         (Stanza msg, void*, bool& keep)
          {
             keep = false;
             if (!state->cancelHandlerId)
                 return;
-            state->elsewhereHandlerId = NULL;
-            xmpp_handler_delete(mConn, state->cancelHandlerId);
-            state->cancelHandlerId = NULL;
-            Stanza msg(stanza);
+            state->elsewhereHandlerId = nullptr;
+            mConn.removeHandler(state->cancelHandlerId);
+            state->cancelHandlerId = nullptr;
             const char* by = msg.attr("by");
-            if (strcmp(by, xmpp_conn_get_bound_jid(mConn)))
-               onCallCanceled(from, "handled-elsewhere", by,
+            if (strcmp(by, mConn.jid()))
+               onCallCanceled(state->from.c_str(), "handled-elsewhere", by,
                   strcmp(msg.attr("accepted"), "1") == 0);
          },
-         NULL, "message", "megaNotifyCallHandled", from, nullptr, STROPHE_MATCH_BAREJID);
+         NULL, "message", "megaNotifyCallHandled", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
     // Add a 'cancel' handler that will ivalidate the call request if the caller sends a cancel message
-        state->cancelHandlerId = mConn.addHandler([this, state, from]
+        state->cancelHandlerId = mConn.addHandler([this, state]
          (Stanza stanza, void*, bool& keep)
          {
             keep = false;
             if (!state->elsewhereHandlerId)
                 return;
-            state->cancelHandlerId = NULL;
-            xmpp_handler_delete(mConn, state->elsewhereHandlerId);
-            state->elsewhereHandlerId = NULL;
+            state->cancelHandlerId = nullptr;
+            mConn.removeHandler(state->elsewhereHandlerId);
+            state->elsewhereHandlerId = nullptr;
 
-            onCallCanceled(from, "canceled", NULL, false);
+            onCallCanceled(state->from.c_str(), "canceled", nullptr, false);
         },
-        NULL, "message", "megaCallCancel", from, nullptr, STROPHE_MATCH_BAREJID);
+        NULL, "message", "megaCallCancel", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
-        mega::setTimeout([this, state, from]()
+        mega::setTimeout([this, state]()
          {
             if (!state->cancelHandlerId) //cancel message was received and handler was removed
                 return;
     // Call was not handled elsewhere, but may have been answered/rejected by us
-            xmpp_handler_delete(mConn, state->elsewhereHandlerId);
-            state->elsewhereHandlerId = NULL;
-            xmpp_handler_delete(mConn, state->cancelHandlerId);
-            state->cancelHandlerId = NULL;
+            mConn.removeHandler(state->elsewhereHandlerId);
+            state->elsewhereHandlerId = nullptr;
+            mConn.removeHandler(state->cancelHandlerId);
+            state->cancelHandlerId = nullptr;
 
-            onCallCanceled(from, "timeout", NULL, false);
+            onCallCanceled(state->from.c_str(), "timeout", NULL, false);
         },
         callAnswerTimeout+10000);
 
@@ -417,17 +407,18 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
 //After the timeout either the handlers will be removed (by the timer above) and the user
 //will get onCallCanceled, or if the user answers at that moment, they will get
 //a call-not-valid-anymore condition
-        Ts tsTillUser = timestampMs() + callAnswerTimeout+10000;
+
         shared_ptr<function<bool()> > reqStillValid(new function<bool()>(
-         [&tsTillUser, &state]()
+         [this, state]()
          {
+              Ts tsTillUser = state->tsReceived + callAnswerTimeout+10000;
               return ((timestampMs() < tsTillUser) && state->cancelHandlerId);
          }));
         shared_ptr<set<string> > files; //TODO: implement file transfers
         AvFlags peerMedia; //TODO: Implement peerMedia parsing
 // Notify about incoming call
         shared_ptr<CallAnswerFunc> ansFunc(new CallAnswerFunc(
-         [&, this](bool accept, shared_ptr<AnswerOptions> options, const char* reason, const char* text)
+         [this, state, callmsg, reqStillValid](bool accept, shared_ptr<AnswerOptions> options, const char* reason, const char* text)
          {
 // If dialog was displayed for too long, the peer timed out waiting for response,
 // or user was at another client and that other client answred.
@@ -444,20 +435,21 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
 // tsTillJingle measures the time since we sent megaCallAnswer till we receive jingle-initiate
                 Ts tsTillJingle = timestampMs()+mJingleAutoAcceptTimeout;
                 auto pInfo = new AutoAcceptCallInfo;
-                mAutoAcceptCalls.emplace(sid, shared_ptr<AutoAcceptCallInfo>(pInfo));
+                mAutoAcceptCalls.emplace(state->sid, shared_ptr<AutoAcceptCallInfo>(pInfo));
                 AutoAcceptCallInfo& info = *pInfo;
 
-                info["from"] = from;
-                info.tsReceived = tsReceived;
+                info["from"] = state->from;
+                info.tsReceived = state->tsReceived;
                 info.tsTillJingle = tsTillJingle;
                 info.options = options; //shared_ptr
                 info["peerFprMacKey"] = peerFprMacKey;
                 info["ownFprMacKey"] = ownFprMacKey;
+                info["peerAnonId"] = callmsg.attr("anonid");
 //TODO: Handle file transfer
 // This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
-                mega::setTimeout([this, sid, &tsTillJingle]()
+                mega::setTimeout([this, state, tsTillJingle]()
                 { //invalidate auto-answer after a timeout
-                    AutoAcceptMap::iterator callIt = mAutoAcceptCalls.find(sid);
+                    AutoAcceptMap::iterator callIt = mAutoAcceptCalls.find(state->sid);
                     if (callIt == mAutoAcceptCalls.end())
                         return; //entry was removed or updated by a new call request
                     auto& call = callIt->second;
@@ -466,24 +458,24 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                     cancelAutoAcceptEntry(callIt, "initiate-timeout", "timed out waiting for caller to start call", 0);
                 }, mJingleAutoAcceptTimeout);
 
-                mCrypto->preloadCryptoForJid(bareJid)
-                 .then([this, sid, from, bareJid](int)
+                mCrypto->preloadCryptoForJid(state->bareJid.c_str())
+                 .then([this, state](int)
                 {
                     Stanza ans(mConn);
                     ans.init("message",
                     {
-                        {"sid", sid},
-                        {"to", from},
+                        {"sid", state->sid.c_str()},
+                        {"to", state->from.c_str()},
                         {"type", "megaCallAnswer"},
-                        {"fprmackey", mCrypto->encryptMessageForJid(mOwnFprMacKey, bareJid)},
+                        {"fprmackey", mCrypto->encryptMessageForJid(mOwnFprMacKey, state->bareJid)},
                         {"anonid", mOwnAnonId}
                     });
-                    xmpp_send(mConn, ans);
+                    mConn.send(ans);
                     return 0;
                 })
-                .fail([this, bareJid](const Error& err)
+                .fail([this, state](const Error& err)
                 {
-                    KR_LOG_ERROR("Failed to preload crypto key for jid '%s'. Won't answer call", bareJid.c_str());
+                    KR_LOG_ERROR("Failed to preload crypto key for jid '%s'. Won't answer call", state->bareJid.c_str());
                     return 0;
                 });
          }
@@ -492,18 +484,18 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 Stanza declMsg(mConn);
                 declMsg.init("message",
                 {
-                    {"to", from},
+                    {"to", state->from.c_str()},
                     {"type", "megaCallDecline"},
                     {"reason", reason?"unknown":reason}
                 });
                 if (text)
                     declMsg.c("body", {}).t(text);
-                xmpp_send(mConn, declMsg);
+                mConn.send(declMsg);
          }
          return true;
         })); //end answer func
 
-        onIncomingCallRequest(from, ansFunc, reqStillValid, peerMedia, files);
+        onIncomingCallRequest(state->from.c_str(), ansFunc, reqStillValid, peerMedia, files);
     }
     catch(exception& e)
     {
@@ -537,10 +529,7 @@ bool Jingle::cancelAutoAcceptEntry(AutoAcceptMap::iterator it, const char* reaso
         string sid = it->first;
         string from = (*it->second)["from"];
         mAutoAcceptCalls.erase(it);
-        FakeSessionInfo info;
-        info.sid = sid.c_str();
-        info.peer = from.c_str();
-        info.isInitiator = false;
+        FakeSessionInfo info(sid, from, mConn.jid(), false);
         onCallTerminated(NULL, reason, text, &info);
     }
     return true;

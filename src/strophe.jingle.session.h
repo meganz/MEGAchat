@@ -44,6 +44,7 @@ struct IJingleSession
     virtual int isRelayed() const = 0;
     virtual void setUserData(void*, DeleteFunc delFunc) = 0;
     virtual void* getUserData() const = 0;
+    virtual bool isRealSession() const {return true;}
 };
 
 class JingleSession: public IJingleSession, public StringMap
@@ -76,16 +77,11 @@ protected:
     bool mIsInitiator;
     State mState = SESSTATE_NULL;
     std::unique_ptr<FileTransferHandler> mFtHandler;
-    AvFlags mLocalMutedState;
-    AvFlags mRemoteMutedState;
     artc::tspMediaStream mLocalStream;
     artc::tspMediaStream mRemoteStream;
     sdpUtil::ParsedSdp mLocalSdp;
     sdpUtil::ParsedSdp mRemoteSdp;
-    int mStartTime = 0;
-    int mEndTime = 0;
     webrtc::FakeConstraints mMediaConstraints;
-    std::unique_ptr<StatsRecorder> mStatsRecorder;
     void* mUserData = nullptr;
     DeleteFunc mUserDataDelFunc = nullptr;
 //    bool mLastIceCandidate = false;
@@ -94,6 +90,10 @@ protected:
 public:
     std::unique_ptr<StanzaQueue> inputQueue;
     std::shared_ptr<artc::StreamPlayer> remotePlayer;
+    AvFlags mRemoteMutedState;
+    AvFlags mLocalMutedState;
+    Ts tsMediaStart = 0;
+    std::unique_ptr<StatsRecorder> mStatsRecorder;
 
 //PeerConnection callback interface
     void onError() {KR_LOG_ERROR("session %s: peerconnection called onError()", mSid.c_str());}
@@ -141,8 +141,8 @@ public:
     }
     promise::Promise<strophe::Stanza> accept();
     promise::Promise<strophe::Stanza> sendOffer();
-    void getRemoteMutedState(AvFlags& av) const {av = mRemoteMutedState;}
-    void setRemoteMutedState(const AvFlags& av) {mRemoteMutedState = av;}
+    artc::tspMediaStream& getLocalStream() {return mLocalStream;}
+    artc::tspMediaStream& getRemoteStream() {return mRemoteStream;}
     void terminate(const char* reason, const char* text=NULL); //TODO: maybe can be integrated in another place
     inline bool isActive()
     {
