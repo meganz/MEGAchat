@@ -30,7 +30,7 @@ struct Message
     enum {kMsgFuncCall = 1 << 0, kMsgWithHandler = 1 << 1};
 /** The message type field */
     const unsigned char type;
-	const unsigned long magic;
+    unsigned long magic;
     Message(unsigned char aType)
         :type(aType), magic(kMegaMsgMagic){}
 	inline void verify()
