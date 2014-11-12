@@ -204,7 +204,7 @@ void Jingle::onJingle(Stanza iq)
             }
 //===
             sess = createSession(iq.attr("to"), peerjid, sid,
-               ans.options->localStream, ans.options->muted, ans);
+               ans.options->localStream, ans.options->av, ans);
 
             sess->inputQueue.reset(new vector<Stanza>);
             string reason, text;
@@ -563,10 +563,10 @@ void Jingle::processAndDeleteInputQueue(JingleSession& sess)
 
 Promise<shared_ptr<JingleSession> >
 Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
-  artc::tspMediaStream sessStream, const AvFlags& mutedState, shared_ptr<StringMap> sessProps,
+  artc::tspMediaStream sessStream, const AvFlags& avState, shared_ptr<StringMap> sessProps,
   FileTransferHandler* ftHandler)
 { // initiate a new jinglesession to peerjid
-    JingleSession* sess = createSession(myjid, peerjid, sid, sessStream, mutedState,
+    JingleSession* sess = createSession(myjid, peerjid, sid, sessStream, avState,
       *sessProps, ftHandler);
     // configure session
 
@@ -583,14 +583,14 @@ Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
 }
 
 JingleSession* Jingle::createSession(const char* me, const char* peerjid,
-    const char* sid, artc::tspMediaStream sessStream, const AvFlags& mutedState,
+    const char* sid, artc::tspMediaStream sessStream, const AvFlags& avState,
     const StringMap& sessProps, FileTransferHandler *ftHandler)
 {
     KR_CHECK_NULLARG(me);
     KR_CHECK_NULLARG(peerjid);
     KR_CHECK_NULLARG(sid);
     JingleSession* sess = new JingleSession(*this, me, peerjid, sid, mConn, sessStream,
-        mutedState, sessProps, ftHandler);
+        avState, sessProps, ftHandler);
     mSessions[sid] = sess;
     return sess;
 }

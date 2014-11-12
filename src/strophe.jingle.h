@@ -23,7 +23,7 @@ class FileTransferHandler;
 struct AnswerOptions
 {
     artc::tspMediaStream localStream;
-    AvFlags muted;
+    AvFlags av;
 };
 typedef std::function<bool(bool, std::shared_ptr<AnswerOptions>, const char* reason,
    const char* text)> CallAnswerFunc;
