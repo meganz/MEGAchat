@@ -179,7 +179,6 @@ void Jingle::onJingle(Stanza iq)
         if (strcmp(action, "session-initiate") == 0)
         {
             const char* peerjid = iq.attr("from");
-            string barePeerJid = getBareJidFromJid(peerjid);
             KR_LOG_DEBUG("received INITIATE from %s", peerjid);
             purgeOldAcceptCalls(); //they are purged by timers, but just in case
             auto ansIter = mAutoAcceptCalls.find(peerjid);
@@ -197,7 +196,7 @@ void Jingle::onJingle(Stanza iq)
                 KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
                 try
                 {
-                    FakeSessionInfo info(jingle.attr("sid"), peerjid, mConn.jid(), false);
+                    FakeSessionInfo info(jingle.attr("sid"), peerjid, mConn.jid(), false, ans["peerAnonId"]);
                     onCallTerminated(NULL, "security", "fingerprint verification failed", &info);
                 }
                 catch(...){}
@@ -526,10 +525,9 @@ bool Jingle::cancelAutoAcceptEntry(AutoAcceptMap::iterator it, const char* reaso
     }
     else
     {
-        string sid = it->first;
-        string from = (*it->second)["from"];
+        AutoAcceptCallInfo& ans = *(it->second);
+        FakeSessionInfo info(it->first, ans["from"], mConn.jid(), false, ans["peerAnonId"]);
         mAutoAcceptCalls.erase(it);
-        FakeSessionInfo info(sid, from, mConn.jid(), false);
         onCallTerminated(NULL, reason, text, &info);
     }
     return true;

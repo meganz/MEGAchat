@@ -50,13 +50,15 @@ protected:
         const std::string mPeer;
         const std::string mJid;
         bool mIsInitiator;
+        std::string mPeerAnonId;
         FakeSessionInfo(const std::string& aSid, const std::string& aPeer,
-                        const std::string& aMyJid, bool aInitiator)
+            const std::string& aMyJid, bool aInitiator, const std::string& peerAnonId)
             :mSid(aSid), mPeer(aPeer), mJid(aMyJid), mIsInitiator(aInitiator){}
         virtual bool isRealSession() const {return false;}
         virtual const char* getSid() const {return mSid.c_str();}
         virtual const char* getJid() const {return mJid.c_str();}
         virtual const char* getPeerJid() const {return mPeer.c_str();}
+        virtual const char* getPeerAnonId() const {return mPeerAnonId.c_str();}
         virtual bool isCaller() const {return mIsInitiator;}
         virtual int isRelayed() const {return false;}
         virtual void setUserData(void*, DeleteFunc delFunc) {}
