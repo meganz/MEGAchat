@@ -91,8 +91,8 @@ protected:
 public:
     std::unique_ptr<StanzaQueue> inputQueue;
     std::shared_ptr<artc::StreamPlayer> remotePlayer;
-    AvFlags mRemoteMutedState;
-    AvFlags mLocalMutedState;
+    AvFlags mRemoteAvState;
+    AvFlags mLocalAvState;
     Ts tsMediaStart = 0;
     std::unique_ptr<StatsRecorder> mStatsRecorder;
 
@@ -130,7 +130,7 @@ public:
     JingleSession(Jingle& jingle, const	std::string& myJid,
         const std::string& peerJid,	const std::string& sid,
         strophe::Connection& connection, artc::tspMediaStream sessLocalStream,
-        const AvFlags& mutedState, const StringMap& props, FileTransferHandler* ftHandler=NULL);
+        const AvFlags& avState, const StringMap& props, FileTransferHandler* ftHandler=NULL);
     void initiate(bool isInitiator);
     ~JingleSession()
     {
@@ -176,8 +176,8 @@ public:
     promise::Promise<int> sendAnswer();
     promise::Promise<strophe::Stanza> sendTerminate(const std::string& reason, const std::string& text);
     promise::Promise<strophe::Stanza> sendMute(bool muted, const std::string& what);
-    void syncMutedState();
-    promise::Promise<int> sendMutedState();
+    void syncAvState();
+    promise::Promise<int> sendAvState();
     promise::Promise<int> muteUnmute(bool state, const AvFlags& what);
     promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string &origin);
 };

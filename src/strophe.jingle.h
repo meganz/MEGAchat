@@ -145,10 +145,10 @@ public:
     void processAndDeleteInputQueue(JingleSession& sess);
     promise::Promise<std::shared_ptr<JingleSession> >
       initiate(const char* sid, const char* peerjid, const char* myjid,
-        artc::tspMediaStream sessStream, const AvFlags& mutedState,
+        artc::tspMediaStream sessStream, const AvFlags& avState,
         std::shared_ptr<StringMap> sessProps, FileTransferHandler* ftHandler=NULL);
     JingleSession* createSession(const char* me, const char* peerjid,
-        const char* sid, artc::tspMediaStream, const AvFlags& mutedState,
+        const char* sid, artc::tspMediaStream, const AvFlags& avState,
         const StringMap& sessProps, FileTransferHandler* ftHandler=NULL);
     void terminateAll(const char* reason, const char* text, bool nosend=false);
     bool terminateBySid(const char* sid, const char* reason, const char* text,

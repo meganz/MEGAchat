@@ -225,7 +225,7 @@ void Jingle::onJingle(Stanza iq)
             })
             .then([sess](int)
             {
-                  return sess->sendMutedState();
+                  return sess->sendAvState();
             })
             .then([this, sess](int)
             {
@@ -301,9 +301,11 @@ void Jingle::onJingle(Stanza iq)
                 AvFlags av;
                 av.audio = (strcmp(affected, "voice") == 0);
                 av.video = (strcmp(affected, "video") == 0);
-                AvFlags& muted = sess->mRemoteMutedState;
-                muted.audio |= av.audio;
-                muted.video |= av.video;
+                AvFlags& current = sess->mRemoteAvState;
+                if (av.audio)
+                    current.audio = false;
+                if (av.video)
+                    current.video = false;
                 onMuted(*sess, av);
             }
             else if (info = jingle.childByAttr("unmute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1"))
@@ -312,11 +314,9 @@ void Jingle::onJingle(Stanza iq)
                 AvFlags av;
                 av.audio = (strcmp(affected, "voice") == 0);
                 av.video = (strcmp(affected, "video") == 0);
-                auto& muted = sess->mRemoteMutedState;
-                if (av.audio)
-                    muted.audio = false;
-                if (av.video)
-                    muted.video = false;
+                auto& current = sess->mRemoteAvState;
+                current.audio |= av.audio;
+                current.video |= av.video;
                 onUnmuted(*sess, av);
             }
         }
@@ -574,7 +574,7 @@ Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
     return sess->sendOffer()
       .then([sess](Stanza)
       {
-        return sess->sendMutedState();
+        return sess->sendAvState();
       })
       .then([sess](int)
       {

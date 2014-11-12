@@ -14,13 +14,13 @@ namespace rtcModule
 
 JingleSession::JingleSession(Jingle& jingle, const string& myJid, const string& peerjid,
  const string& sid, Connection& connection,
- artc::tspMediaStream sessLocalStream, const AvFlags& mutedState, const StringMap& props,
+ artc::tspMediaStream sessLocalStream, const AvFlags& avState, const StringMap& props,
  FileTransferHandler* ftHandler)
     :StringMap(props), mOwnJid(myJid), mPeerJid(peerjid), mSid(sid), mConnection(connection),
-      mJingle(jingle), mLocalMutedState(mutedState), mLocalStream(sessLocalStream),
+      mJingle(jingle), mLocalAvState(avState), mLocalStream(sessLocalStream),
       mFtHandler(ftHandler)
 {
-    syncMutedState();
+    syncAvState();
 }
 
 void JingleSession::initiate(bool isInitiator)
@@ -241,36 +241,36 @@ Promise<Stanza> JingleSession::sendMute(bool muted, const string& what)
     return sendIq(info, "set");
 }
 
-void JingleSession::syncMutedState()
+void JingleSession::syncAvState()
 {
     if (!mLocalStream.get())
         return;
     auto ats = mLocalStream->GetAudioTracks();
     for (auto& at: ats)
-        at->set_enabled(!mLocalMutedState.audio);
+        at->set_enabled(mLocalAvState.audio);
     auto vts = mLocalStream->GetVideoTracks();
     for (auto& vt: vts)
-        vt->set_enabled(!mLocalMutedState.video);
+        vt->set_enabled(mLocalAvState.video);
 }
 
-Promise<int> JingleSession::sendMutedState()
+Promise<int> JingleSession::sendAvState()
 {
-    return when(mLocalMutedState.audio?sendMute(true, "voice"):Promise<Stanza>(Stanza()),
-                mLocalMutedState.video?sendMute(true, "video"):Promise<Stanza>(Stanza())
-           );
+    return promise::when(
+                mLocalAvState.audio?Promise<Stanza>(Stanza()):sendMute(true, "voice"),
+                mLocalAvState.video?Promise<Stanza>(Stanza()):sendMute(true, "video"));
 }
 
 Promise<int> JingleSession::muteUnmute(bool state, const AvFlags& what)
 {
 //First do the actual muting, and only then send the signalling
     if (what.audio)
-        mLocalMutedState.audio = state;
+        mLocalAvState.audio = !state;
     if (what.video)
-        mLocalMutedState.video = state;
-    syncMutedState();
-    return when(what.audio?sendMute(state, "voice"):Promise<Stanza>(Stanza()),
-                what.video?sendMute(state, "video"):Promise<Stanza>(Stanza())
-    );
+        mLocalAvState.video = !state;
+    syncAvState();
+    return promise::when(
+                what.audio?sendMute(state, "voice"):Promise<Stanza>(Stanza()),
+                what.video?sendMute(state, "video"):Promise<Stanza>(Stanza()));
 }
 
 void JingleSession::reportError(const string& e, const char* where)
