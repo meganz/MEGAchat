@@ -299,8 +299,9 @@ void JingleSession::addFingerprintMac(strophe::Stanza jiq)
       strFps+=';';
     }
     strFps.resize(strFps.size()-1); //truncate last ';'
-    string fprmac = mJingle.crypto().generateMac(strFps, (*this)["peerFprMacKey"]);
-    j.setAttr("fprmac", fprmac.c_str());
+    unique_ptr<ICryptoFunctions::IString> fprmac(mJingle.crypto().generateMac(
+        strFps.c_str(), (*this)["peerFprMacKey"].c_str()));
+    j.setAttr("fprmac", fprmac->c_str());
 }
 
 Stanza JingleSession::createJingleIq(const string& to, const char* action)

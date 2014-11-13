@@ -427,8 +427,8 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 return false;//the callback returning false signals to the calling user code that the call request is not valid anymore
             if (accept)
             {
-                string ownFprMacKey = mCrypto->generateFprMacKey();
-                string peerFprMacKey = mCrypto->decryptMessage(callmsg.attr("fprmackey"));
+                VString ownFprMacKey(mCrypto->generateFprMacKey());
+                VString peerFprMacKey = mCrypto->decryptMessage(callmsg.attr("fprmackey"));
                 if (peerFprMacKey.empty())
                     throw std::runtime_error("Faield to verify peer's fprmackey from call request");
 // tsTillJingle measures the time since we sent megaCallAnswer till we receive jingle-initiate
@@ -441,8 +441,8 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 info.tsReceived = state->tsReceived;
                 info.tsTillJingle = tsTillJingle;
                 info.options = options; //shared_ptr
-                info["peerFprMacKey"] = peerFprMacKey;
-                info["ownFprMacKey"] = ownFprMacKey;
+                info["peerFprMacKey"] = peerFprMacKey.c_str();
+                info["ownFprMacKey"] = ownFprMacKey.c_str();
                 info["peerAnonId"] = callmsg.attr("anonid");
 //TODO: Handle file transfer
 // This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
@@ -457,25 +457,32 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                     cancelAutoAcceptEntry(callIt, "initiate-timeout", "timed out waiting for caller to start call", 0);
                 }, mJingleAutoAcceptTimeout);
 
-                mCrypto->preloadCryptoForJid(state->bareJid.c_str())
-                 .then([this, state](int)
+                auto answerFunc = new function<void(char*)>([this, state](const char* errMsg)
                 {
+                    if (errMsg)
+                    {
+                        onInternalError("Failed to preload crypto key. Won't answer call", "preloadCryptoForJid");
+                        return;
+                    }
+
                     Stanza ans(mConn);
                     ans.init("message",
                     {
                         {"sid", state->sid.c_str()},
                         {"to", state->from.c_str()},
                         {"type", "megaCallAnswer"},
-                        {"fprmackey", mCrypto->encryptMessageForJid(mOwnFprMacKey, state->bareJid)},
+                        {"fprmackey", VString(
+                            mCrypto->encryptMessageForJid(mOwnFprMacKey.c_str(),
+                            state->bareJid.c_str())).c_str()},
                         {"anonid", mOwnAnonId}
                     });
                     mConn.send(ans);
-                    return 0;
-                })
-                .fail([this, state](const Error& err)
+                });
+                mCrypto->preloadCryptoForJid(state->bareJid.c_str(), answerFunc,
+                  [](void* userp, const char* errMsg)
                 {
-                    KR_LOG_ERROR("Failed to preload crypto key for jid '%s'. Won't answer call", state->bareJid.c_str());
-                    return 0;
+                    unique_ptr<function<void(const char*)> > fcall(static_cast<function<void(const char*)>*>(userp));
+                    (*fcall)(errMsg);
                 });
          }
          else //answer == false
@@ -711,7 +718,7 @@ bool Jingle::verifyMac(const std::string& msg, const std::string& key, const std
     string expectedMac;
     try
     {
-        expectedMac = crypto().generateMac(msg, key);
+        expectedMac = VString(crypto().generateMac(msg.c_str(), key.c_str())).c_str();
     }
     catch(...)
     {

@@ -4,7 +4,7 @@
 #include <map>
 #include <memory>
 #include "webrtcAdapter.h"
-//#include "strophe.jingle.session.h"
+#include "strophe.jingle.session.h"
 #include <mstrophepp.h>
 
 namespace disco
@@ -31,20 +31,37 @@ typedef std::function<bool(bool, std::shared_ptr<AnswerOptions>, const char* rea
 class ICryptoFunctions
 {
 public:
-    virtual std::string generateMac(const std::string& data, const std::string& key) = 0;
-    virtual std::string decryptMessage(const std::string& msg) = 0;
-    virtual std::string encryptMessageForJid(const std::string& msg, const std::string& jid) = 0;
-    virtual promise::Promise<int> preloadCryptoForJid(const std::string& jid) = 0;
-    virtual std::string scrambleJid(const std::string& jid) = 0;
-    virtual std::string generateFprMacKey() = 0;
+    class IString
+    {
+    public:
+        virtual ~IString(){}
+        virtual const char* c_str() const = 0;
+        virtual bool empty() const = 0;
+    };
+
+    virtual IString* generateMac(const char* data, const char* key) = 0;
+    virtual IString* decryptMessage(const char* msg) = 0;
+    virtual IString* encryptMessageForJid(const char* msg, const char* jid) = 0;
+    virtual void preloadCryptoForJid(const char* jid, void* userp,
+        void(*cb)(void* userp, const char* errMsg)) = 0;
+    virtual IString* scrambleJid(const char* jid) = 0;
+    virtual IString* generateFprMacKey() = 0;
     virtual ~ICryptoFunctions() {}
+};
+//Convenience type to accomodate returned IString objects from ICryptoFunctions api
+struct VString: public std::unique_ptr<ICryptoFunctions::IString>
+{
+    typedef std::unique_ptr<ICryptoFunctions::IString> Base;
+    VString(ICryptoFunctions::IString* obj): Base(obj){}
+    bool empty() {return get()->empty();}
+    const char* c_str() const {return get()->c_str();}
 };
 
 class Jingle: strophe::Plugin
 {
 protected:
 /** Contains all info about a not-yet-established session, when onCallTerminated is fired and there is no session yet */
-    struct FakeSessionInfo: IJingleSession
+    struct FakeSessionInfo: public IJingleSession
     {
         const std::string mSid;
         const std::string mPeer;

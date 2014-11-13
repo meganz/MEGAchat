@@ -15,6 +15,7 @@ set (SRCS
 #    test-promise.cpp
      testapp/mainwindow.cpp
      testapp/main.cpp
+     DummyCrypto.cpp
 )
 
 set(QT_FORMS testapp/mainwindow.ui)
