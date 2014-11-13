@@ -175,7 +175,7 @@ void myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool allowEmpty=f
                               deviceManager.cloneVideoTrack(mLocalTracks.video)));
 
         if (!alreadyHadStream)
-            onLocalStreamReady(); //creates local player but does not link it to stream
+            createLocalPlayer(); //creates local player but does not link it to stream
         refLocalStream(av.video); //links player to stream
         okCb(stream);
     }
@@ -197,7 +197,7 @@ void onConnState(const xmpp_conn_event_t status,
         case XMPP_CONN_DISCONNECT:
         {
             terminateAll('disconnected', null, true); //TODO: Maybe move to Jingle?
-            freeLocalStreamIfUnused();
+            //freeLocalStreamIfUnused();
             break;
         }
         case XMPP_CONN_CONNECT:
@@ -272,7 +272,7 @@ int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const
       }
       if (state->state == kCallCanceledByUs)
       {//call was canceled before we got user media
-          freeLocalStreamIfUnused();
+          //freeLocalStreamIfUnused();
           return;
       }
       state->state = kGotUserMediaWaitingPeer;
@@ -324,7 +324,7 @@ int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const
 
               JingleSession* sess = initiate(state->sic().c_str(), fullPeerJid,
                   myJid?myJid:mConn.jid(), sessStream,
-                  sessStream?avFlagsToMutedState(av, sessStream):AvFlags(), {
+                  state->av, {
                       {"ownFprMacKey", state->ownFprMacKey.c_str()},
                       {"peerFprMacKey", peerFprMacKey},
                       {"peerAnonId", peerAnonId}
@@ -336,7 +336,7 @@ int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const
         }
         catch(runtime_error& e)
         {
-          freeLocalStreamIfUnused();
+          unrefLocalStream(state->av.video);
           KR_LOG_ERROR("Exception in call answer handler:\n%s\nIgnoring call", e.what());
         }
       }, NULL, "message", "megaCallAnswer", NULL, targetJid, STROPHE_MATCH_BAREJID);
@@ -358,7 +358,7 @@ int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const
           state->ansHandler = nullptr;
           state->declineHandler = nullptr;
           state->sessStream = nullptr;
-          freeLocalStreamIfUnused();
+          unrefLocalStream(state->av.video);
 
           string text;
           Stanza body = stanza.child("body", true);
@@ -391,8 +391,13 @@ int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const
       },
       nullptr, "message", "megaCallDecline", nullptr, targetJid, STROPHE_MATCH_BAREJID);
 
-      crypto().preloadCryptoForJid([this, state, av]()
+      auto sendCall = new function<void(const char*)>([this, state, av](const char* errMsg)
       {
+          if (errMsg)
+          {
+              onInternalError(errMsg, "preloadCryptoForJid");
+              return;
+          }
           Stanza msg(mConn);
           msg.setName("message")
              .setAttr("to", state->targetJid.c_str())
@@ -421,30 +426,38 @@ int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const
  */
           msg.setAttr("media", avFlagsToString(av).c_str());
           xmpp_send(mConn, msg);
-      }, targetJid);
 
-      if (!files)
-          setTimeout([this, state]()
-          {
-              mCallRequests.erase(state->sid);
-              if (state->state != 1)
-                  return;
+          if (!files)
+              setTimeout([this, state]()
+              {
+                  mCallRequests.erase(state->sid);
+                  if (state->state != 1)
+                      return;
 
-              state->state = kPeerAnsweredOrTimedout;
-              mConn.deleteHandler(state->ansHandler);
-              state->ansHandler = nullptr;
-              mConn.deleteHandler(state->declineHandler);
-              state->declineHandler = nullptr;
-              state->sessStream = nullptr;
-              freeLocalStreamIfUnused();
-              Stanza cancelMsg(mConn);
-              cancelMsg.setName("message")
+                  state->state = kPeerAnsweredOrTimedout;
+                  mConn.deleteHandler(state->ansHandler);
+                  state->ansHandler = nullptr;
+                  mConn.deleteHandler(state->declineHandler);
+                  state->declineHandler = nullptr;
+                  state->sessStream = nullptr;
+                  unrefLocalStream(state->av.video);
+                  Stanza cancelMsg(mConn);
+                  cancelMsg.setName("message")
                       .setAttr("type", "megaCallCancel")
                       .setAttr("to", getBareJidFromJid(state->targetJid.c_str()));
-              xmpp_send(mConn, cancelMsg);
-              RTCM_EVENT(onCallAnswerTimeout, state->targetJid.c_str());
-          },
-          callAnswerTimeout);
+                  xmpp_send(mConn, cancelMsg);
+                  RTCM_EVENT(onCallAnswerTimeout, state->targetJid.c_str());
+              },
+              callAnswerTimeout);
+      });
+      crypto().preloadCryptoForJid(strophe::getBareJidFromJid(state->targetJid.c_str(),
+          static_cast<void*>(sendCall), [](void* userp, const char* errMsg)
+          {
+              unique_ptr<function<void(const char*)> >
+                      sendCallFunc(static_cast<function<void(const char*)> >(userp));
+              (*sendCallFunc)(errMsg);
+          });
+
   }; //end initiateCallback()
   if (state->av.audio || state->av.video) //same as av, but we use state->av to make sure it's set up correctly
       myGetUserMedia(state->av, initiateCallback, nullptr, true);
@@ -484,10 +497,11 @@ int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const
       }
       KR_LOG_WARNING("RtcSession: BUG: cancel() called when state has an unexpected value of", state->state);
       return false;
-  };
+  });
   strncpy(sidOut, state->sid.c_str(), RTCM_SESSIONID_LEN);
   return 0;
 }
+
 template <class CB>
 void enumCallsForHangup(CB cb, const char* reason, const char* text)
 {
@@ -651,9 +665,9 @@ void muteUnmute(bool state, const AvFlags& what, const char* jid)
     if (what.video && (!jid || (affected >= mSessions.size())))
     {
         if (state)
-            disableLocalVid();
+            disableLocalVideo();
         else
-            enableLocalVid();
+            enableLocalVideo();
     }
 }
 
@@ -678,9 +692,16 @@ void onPresenceUnavailable(Stanza pres)
 void createLocalPlayer()
 {
 // This is called by myGetUserMedia when the the local stream is obtained (was not open before)
-    if (mLocalVid)
+    if (mLocalVideo)
         throw new Error("Local stream just obtained, but localVid was not NULL");
-    mLocalVid = new artc::StreamPlayer(onLocalStreamObtained(), nullptr, nullptr);
+    IVideoRenderer* renderer = NULL;
+    RTCM_EVENT(onLocalStreamObtained, &renderer);
+    if (!renderer)
+    {
+        onInternalError("User event handler did not return a video renderer interface", "onLocalStreamObtained");
+        return;
+    }
+    mLocalVideo = new artc::StreamPlayer(renderer, nullptr, nullptr);
 //    RTCM_EVENT(onLocalStreamObtained); //TODO: Maybe provide some interface to the player, but must be virtual because it crosses the module boundary
 //    maybeCreateVolMon();
 }
@@ -731,7 +752,7 @@ struct AnswerCallController: public IAnswerCall
             {
                 AnswerOptions* opts = new AnswerOptions;
                 opts->localStream = sessStream;
-                opts->muted = avFlagsToMutedState(answerAv, sessStream); //TODO: Are these reverse?
+                opts->av = avFlagsOfStream(sessStream, answerAv);
                 (*ansFunc)(true, opts, nullptr, nullptr);
             },
             [ansFunc](const string& err)
@@ -817,114 +838,33 @@ void onMediaStart(const string& sid)
 void onCallTerminated(JingleSession* sess, const char* reason, const char* text,
                       FakeSessionInfo* noSess)
 {
- try {
  //WARNING: sess may be a dummy object, only with peerjid property, in case something went
  //wrong before the actual session was created, e.g. if SRTP fingerprint verification failed
+   if (sess)
+   {
+       removeRemoteVideo(*sess);
+       unrefLocalStream(!sess->mLocalMutedState.video);
 
-   /**
-   Call was terminated, either by remote peer or by us
-    @event "call-ended"
-    @type {object}
-    @property {string} peer The remote peer's full JID
-    @property {SessWrapper} sess The session of the call
-    @property {string} [reason] The reason for termination of the call
-    @property {string} [text]
-        The verbose reason or error message for termination of the call
-    @property {object} [stats]
-        The statistics gathered during the call, if stats were enabled
-    @property {object} [basicStats]
-        In case statistics are not available on that browser, or were not enabled,
-        this property is set and contains minimum info about the call that can be
-        used by a stats server
-    @property {string} basicStats.callId
-        The callId that the statistics engine would provide
-    @property {number} basicStats.callDur
-        The duration of actual media in seconds (ms rounded via Math.ceil()) that
-        the stats engine would have provided
-   */
-    if (sess)
-    {
-        if (sess && sess->statsRecorder)
-        {
-            auto stats = sess->statsRecorder->terminate(makeCallId(sess));
-            stats->isCaller = sess->mIsInitiator?1:0;
-            stats->termRsn = reason?reason:"(unknown)";
-            assert(!mStatsUrl.empty());
+       assert(sess->statsRecorder);
+       auto stats = sess->statsRecorder->terminate(makeCallId(sess));
+       stats->isCaller = sess->mIsInitiator?1:0;
+       stats->termRsn = reason?reason:"(unknown)";
+       assert(!mStatsUrl.empty());
 //           jQuery.ajax(this.statsUrl, {
 //                type: 'POST',
 //                data: JSON.stringify(obj.stats||obj.basicStats)
 //        });
-            RTCM_EVENT(onCallEnded, sess, stats.get());
-        }
-        else //no stats
-        {
-            IJingleSession* bsess = sess?sess:noSess;
-            BasicStats bstats(bsess->isCaller(), reason?reason:"(unknown)",
-                              RTCM_STATCLIENT_NAME, makeCallId(bsess->));
-
-
-            if (sess->tsMediaStart)
-            {
-                bstats.ts = sess->tsMediaStart;
-                bstats.dur = timestampMs()-sess.tsMediaStart;
-            }
-            else
-            {
-                bstats.ts = -1;
-                bstats.dur = -1;
-            }
-            RTCM_EVENT(onCallEnded, sess, &bstats);
-        }
-    }
-    else //no session
-    {
-        FakeSessionInfo fsesselse { //no stats, but will still provide callId and duration
-        var bstats = obj.basicStats = {
-            isCaller: sess.isInitiator?1:0,
-            termRsn: reason,
-            bws: stats_getBrowserVersion()
-        };
-
-        if (sess.fake) {
-            sess.me = this.jid; //just in case someone wants to access the own jid of the fake session
-            if (!sess.peerAnonId)
-                sess.peerAnonId = "_unknown";
-        }
-        bstats.cid = this._makeCallId(sess);
-        if (sess.tsMediaStart) {
-            bstats.ts = Math.round(sess.tsMediaStart/1000);
-            bstats.dur = Math.ceil((Date.now()-sess.tsMediaStart)/1000);
-        }
-    }
-    if (this.statsUrl)
-       jQuery.ajax(this.statsUrl, {
-            type: 'POST',
-            data: JSON.stringify(obj.stats||obj.basicStats)
-    });
-    this.trigger('call-ended', obj);
-    if (!sess.fake) { //non-fake session
-        if (sess.localStream)
-            sess.localStream.stop();
-        this.removeVideo(sess);
-    }
-    this._freeLocalStreamIfUnused();
- } catch(e) {
-    console.error("onTerminate() handler threw an exception:\n", e.stack?e.stack:e);
+       RTCM_EVENT(onCallEnded, sess, stats.get());
+   }
+   else //no sess
+   {
+       BasicStats bstats(noSess, reason);
+       RTCM_EVENT(onCallEnded, usess, &bstats);
+   }
  }
- },
-
- _freeLocalStreamIfUnused: function() {
-     var sessions = this.jingle.sessions;
-    for (var sess in sessions)
-        if (sessions[sess].localStream) //in use
-            return;
-
-//last call ended
-    this._unrefLocalStream();
- },
 
 //onRemoteStreamAdded -> onMediaStart() event from player -> onMediaRecv() -> addVideo()
-virtual onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream)
+virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream)
 {
     if (sess.remotePlayer)
     {
@@ -938,9 +878,9 @@ virtual onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream)
     if (rendererRet && !*rendererRet)
         KR_LOG_ERROR("onRemoteSdpRecv: No video renderer provided by application");
     sess->remotePlayer.reset(new artc::StreamPlayer(renderer));
-    sess->remotePlayer.setOnMediaStart(std::bind(&RtcHandler::onMediaStart, this, sess.sid());
+    sess->remotePlayer.setOnMediaStart(std::bind(&RtcHandler::onMediaStart, this, sess.sid()));
     sess->remotePlayer.attachToStream(stream);
- },
+}
 
 //void onRemoteStreamRemoved() - not interested to handle here
 
@@ -1048,7 +988,7 @@ IJingleSession* getSessionBySid(const char* sid)
 
 /**
   Updates the ICE servers that will be used in the next call.
-  @param {array} iceServers An array of ice server objects - same as the iceServers parameter in
+  @param iceServers An array of ice server objects - same as the iceServers parameter in
           the RtcSession constructor
 */
 /** url:xxx, user:xxx, pass:xxx; url:xxx, user:xxx... */
@@ -1097,152 +1037,131 @@ void refLocalStream(bool sendsVideo)
     if (sendsVideo)
     {
         mLocalVidRefCount++;
-        enableLocalVid();
+        enableLocalVideo();
     }
 }
-void unrefLocalStream()
+void unrefLocalStream(bool sendsVideo)
 {
-    int cnt = --mLocalStreamRefCount;
-    if (cnt > 0)
-        return;
+    mLocalStreamRefCount--;
+    if (sendsVideo)
+        mLocalVidRefCount--;
 
-    if (!hasLocalStream())
+    if ((mLocalStreamRefCount <= 0) && (mLocalVidRefCount > 0))
     {
-        KR_LOG_WARNING("unrefLocalStream: BUG: localStream is already NULL. refcount = %d", cnt);
-        return;
+        onInternalError("BUG: local stream refcount dropped to zero, but local video refcount is > 0", "unrefLocalStream");
+        mLocalVidRefCount = 0; //quick fix, should never happen
     }
-    freeLocalStream();
+    if (mLocalVidRefCount <= 0)
+        disableLocalVideo();
+
+    if (mLocalStreamRefCount <= 0)
+        freeLocalStream();
 }
+
 void freeLocalStream()
 {
-    mLocalStreamRefCount = 0;
     if (!hasLocalStream())
+    {
+        KR_LOG_WARNING("freeLocalStream: local stream is null");
         return;
-    disableLocalVid(); //detaches local stream from local video player
-/**
-    Local stream is about to be closed and local video player to be destroyed
-    @event local-video-destroy
-    @type {object}
-    @property {DOM} player The local video player, which is about to be destroyed
-*/
-    RTCM_EVENT(localPlayerRemove, {player: RtcSession.gLocalVid});
-    RtcSession.gLocalVid = null;
-    RtcSession.gLocalStream.stop();
-    RtcSession.gLocalStream = null;
- },
-
- trigger: function(name, obj) {
-    if (this.logEvent)
-        this.logEvent(name, obj);
-    try {
-        $(this).trigger(name, [obj]);
-    } catch(e) {
-        console.warn("Exception thrown from user event handler '"+name+"':\n"+e.stack?e.stack:e);
     }
- },
+    if (mLocalStreamRefCount > 0)
+    {
+        onInternalError("BUG: localStream refcount is > 0 ("+to_string(mLocalStreamRefCount)+")").c_str(), "freeLocalStream");
+        return;
+    }
+    if (mLocalStreamRefCount < 0)
+    {
+        KR_LOG_WARNING("freeLocalStream: local stream refcount is negative: %d", mLocalStreamRefCount);
+        mLocalStreamRefCount = 0; //in case it was negative for some reason
+    }
+    if (mLocalVideoRefCount != 0)
+    {
+        onInternalError("freeLocalStream: about to free local stream, but local video refcount is not 0");
+        disableLocalVideo(); //detaches local stream from local video player
+    }
+    mLocalTracks.audio = nullptr;
+    mLocalTracks.video = nullptr;
+}
  /**
     Releases any global resources referenced by this instance, such as the reference
     to the local stream and video. This should be called especially if multiple instances
     of RtcSession are used in a single JS context
  */
- destroy: function() {
-    this.hangup();
-    this._freeLocalStream();
- },
+ ~RtcHandler()
+{
+    hangupAll("app-terminate");
+    if (mLocalTracks.audio || mLocalTracks.video || mLocalVideo)
+    {
+        KR_LOG_ERROR("BUG: Local stream or local player was not freed");
+    }
+}
 
 /** Returns whether the call or file transfer with the given
     sessionId is being relaid via a TURN server or not.
-      @param {string} sid The session id of the call
-      @returns {integer} 1 if the call/transfer is being relayed, 0 if not, 'undefined' if the
-        status is unknown (not established yet or browser does not provide stats interface)
+      @param sid The session id of the call
+      @returns 1 if the call/transfer is being relayed, 0 if not, negative error code if
+ there was an error or the status is unknown (not established yet or no statistics available)
 */
- isRelay: function(sid) {
-     var sess = this.jingle.sessions[sid];
-     if (!sess || ! sess.statsRecorder)
-         return undefined;
-     return sess.statsRecorder.isRelay();
- },
-
- _requiredLocalStream: function(channels) {
-    if (channels.video)
-        return RtcSession.gLocalAudioVideoStream;
-      else
-        return RtcSession.gLocalAudioOnlyStream;
-  }
+int isRelay(const char* sid)
+{
+    if (!sess)
+        return RTCM_EINVAL;
+    auto it = mSessions.find(sid);
+    if (it == mSessions.end())
+        return RTCM_ENOTFOUND;
+    if (!it->second->statsRecorder)
+        return RTCM_EUNKNOWN;
+     return it->second->statsRecorder->isRelay();
 }
 
 
-RtcSession._maybeCreateVolMon = function() {
-    if (RtcSession.gVolMon)
-        return true;
-    if (!RtcSession.gVolMonCallback || (typeof hark !== "function"))
-        return false;
-
-    RtcSession.gVolMon = hark(RtcSession.gLocalStream, { interval: 400 });
-    RtcSession.gVolMon.on('volume_change',
-         function (volume, treshold)
-         {
-         //console.log('volume', volume, treshold);
-            var level;
-            if (volume > -35)
-                level = 100;
-             else if (volume > -60)
-                level = (volume + 100) * 100 / 25 - 160;
-            else
-                level = 0;
-            RtcSession.gVolMonCallback(level);
-        });
-    return true;
-}
-
-RtcSession.avFlagsToMutedState =  function(flags, stream) {
+AvFlags avFlagsOfStream(artc::tspMediaStream& stream, const AvFlags& flags)
+{
+    AvFlags ret;
     if (!stream)
-        return {audio:true, video:true};
-    var mutedState = new MutedState;
-    var muteAudio = (!flags.audio && (stream.getAudioTracks().length > 0));
-    var muteVideo = (!flags.video && (stream.getVideoTracks().length > 0));
-    mutedState.set(muteAudio, muteVideo);
-    return mutedState;
+    {
+        ret.audio = false;
+        ret.video = false;
+    }
+    else
+    {
+        ret.audio = (flags.audio && (!stream.getAudioTracks().empty()));
+        ret.video = (flags.video && (!stream.getVideoTracks().empty()));
+    }
+    return ret;
 }
 
-RtcSession.xmlUnescape = function(text) {
-    return text.replace(/\&amp;/g, '&')
-               .replace(/\&lt;/g, '<')
-               .replace(/\&gt;/g, '>')
-               .replace(/\&apos;/g, "'")
-               .replace(/\&quot;/g, '"');
-}
 
-RtcSession._disableLocalVid = function(rtc) {
-    if (!this._localVidEnabled)
+void disableLocalVid()
+{
+    if (!mLocalVideoEnabled)
         return;
+     if (!mLocalVideo)
+     {
+         onInternalError("mLocalVideoEnabled is true, but there is no local player");
+         return;
+     }
 // All references to local video are muted, disable local video display
-// We need sess only to have where an object to trigger the event on
-    RTC.attachMediaStream($(this.gLocalVid), null);
-/**
-    Local camera playback has been disabled because all calls have muted their video
-    @event local-video-disabled
-    @type {object}
-    @property {DOM} player - the local camera video HTML element
-*/
-    this._localVidEnabled = false;
-    rtc.trigger('local-video-disabled', {player: this.gLocalVid});
-
+    mLocalVideo.detachVideo();
+    mLocalVideoEnabled = false;
+    RTCM_EVENT(onLocalVideoDisabled);
 }
 
-RtcSession._enableLocalVid = function(rtc) {
-    if(this._localVidEnabled)
+void enableLocalVideo()
+{
+    if(mLocalVideoEnabled)
         return;
-    RTC.attachMediaStream($(this.gLocalVid), this.gLocalStream);
-/**
-    Local video playback has been re-enabled because at least one call started sending video
-    @event local-video-enabled
-    @type {object}
-    @property {DOM} player The local video player HTML element
-*/
-    rtc.trigger('local-video-enabled', {player: this.gLocalVid});
-    this.gLocalVid.play();
-    this._localVidEnabled = true;
+    if (!mLocalVideo)
+    {
+        onInternalError("Can't enable video, there is no local player", "enableLocalVideo");
+        return;
+    }
+    if (mLocalStreamPair.video)
+        mLocalVideo.attachVideo(mLocalStreamPair.video);
+    RTCM_EVENT(onLocalVideoEnabled);
+    mLocalVideoEnabled = true;
+    mLocalVideo.play();
 }
 
 /**
@@ -1250,151 +1169,27 @@ RtcSession._enableLocalVid = function(rtc) {
  that is independent of whether the
  caller or callee generates it. Used only for sending stats
 */
-RtcSession.prototype._makeCallId = function(sess) {
-    if (sess.isInitiator)
-        return this.ownAnonId+':'+sess.peerAnonId+':'+sess.sid;
+string makeCallId(IJingleSession* sess)
+{
+    assert(sess);
+    if (sess->isCaller())
+        return mOwnAnonId+":"+sess->getPeerAnonId()+":"+sess->getSid();
       else
-        return sess.peerAnonId+':'+this.ownAnonId+':'+sess.sid;
-}
-/**
- Anonymizes a JID
-*/
-RtcSession._anonJid = function(jid) {
-    return MD5.hexdigest(Strophe.getBareJidFromJid(jid)+"webrtc stats collection");
+        return sess->getPeerAnonId()+":"+mOwnAnonId+":"+sess->getSid();
 }
 
-/**
-    Session object
-    This is an internal object, but the following properties are useful for the library user.
-    @constructor
-*/
-function SessWrapper(sess) {
-    this._sess = sess;
-}
-
-SessWrapper.prototype = {
-
-/**
-    The remote peer's full JID
-    @returns {string}
-*/
-peerJid: function(){
-    return this._sess.peerjid;
-},
-
-/**
-    Our own JID
-    @returns {string}
-*/
-jid:function() {
-return this._sess.jid;
-},
-
-/**
-  The stream object of the stream received from the peer
-    @returns {MediaStream}
-*/
-remoteStream: function() {
-    return this._sess.remoteStream;
-},
-
-/**
-    The Jingle session ID of this session
-    @returns {string}
-*/
-sid: function() {
-    return this._sess.sid;
-},
-
-/**
-    True if we are the caller, false if we answered the call
-    @returns {boolean}
-*/
-isCaller: function() {
-    return this._sess.isInitiator;
-},
-
-/**
-    True if this is a dummy session object and there was no established session before
-    the call ended, or the session was closed before emitting the event.
-    The object's peerJid() and isCaller() methods are guaranteed to return
-    a meaningful value, sid() may or may not return a session id. The other
-    getters will return <i>undefined</i>.
-    This type of dummy session is passed only to the call-ended
-    event handler, and this happens when an error occurred. The reason and text
-    event properties carry more info about the error
-*/
-isFake: function() {
-    return (this._sess.isFake === true);
-},
-
-/** Returns whether a call or file transfer is being relayed through a TURN server or not.
-      @returns {integer} If the status in unknown (not established yet or no stats
-         provided by browser, e.g. Firefox), the return value is 'undefined', otherwise
-         it is 0 if call is direct and 1 if call is relayed
-*/
-isRelay: function() {
-    var statsRec = this._sess.statsRecorder;
-    if (!statsRec)
-        return undefined;
-    else
-        return statsRec.isRelay();
-}
-}
-function getStreamAv(stream) {
+AvFlags getStreamAv(artc::tspMediaStream& stream)
+{
+    AvFlags result;
     if (!stream)
-        return {audio:false, video: false};
-
-    var result = {};
-    result.audio = (stream.getAudioTracks().length > 0);
-    result.video = (stream.getVideoTracks().length > 0);
-    return result;
-}
-
-RtcSession.xorEnc = function(str, key) {
-  var int2hex = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
-
-  var result = "";
-  var j = 0;
-  var len = str.length;
-  var keylen = key.length;
-  for (var i = 0; i < len; ++i) {
-      var code = str.charCodeAt(i) ^ key.charCodeAt(j++);
-      if (j >= keylen)
-          j = 0;
-      result+=int2hex[code>>4];
-      result+=int2hex[code&0x0f];
-  }
-  return result;
-}
-
-RtcSession.xorDec = function(str, key) {
-    var result = "";
-    var len = str.length;
-    var j = 0;
-    if (len & 1)
-        throw new Error("Not a proper hex string");
-    var keylen = key.length;
-    for (var i=0; i<len; i+=2) {
-        var code = (RtcSession.hexDigitToInt(str.charAt(i)) << 4)|
-            RtcSession.hexDigitToInt(str.charAt(i+1));
-        code ^= key.charCodeAt(j++);
-        if (j >= keylen)
-            j = 0;
-        result+=String.fromCharCode(code);
+    {
+        result.audio = result.video = false;
+    }
+    else
+    {
+        result.audio = !stream.getAudioTracks().empty();
+        result.video = !stream.getVideoTracks().empty();
     }
     return result;
 }
-
-RtcSession.hexDigitToInt = function(digit) {
-    var code = digit.charCodeAt(0);
-    if (code > 47 && code < 58)
-        return code-48;
-    else if (code > 96 && code < 103)
-        return code-97+10;
-    else if (code > 64 && code < 71)
-        return code-65+10;
-    else
-        throw new Error("Non-hex char");
-};
 
