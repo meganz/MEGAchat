@@ -8,6 +8,7 @@
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.h"
 #include "strophe.disco.h"
+#include "StringUtils.h"
 #include <mstrophepp.h>
 
 using namespace std;
@@ -29,11 +30,10 @@ void Jingle::onInternalError(const string& msg, const char* where)
 }
 //==
 
-Jingle::Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const string& iceServers)
+Jingle::Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const char* iceServers)
 :Plugin(conn), mCrypto(crypto)
 {
-    if (!iceServers.empty())
-        setIceServers(iceServers);
+    setIceServers(iceServers);
     mMediaConstraints.SetMandatoryReceiveAudio(true);
     mMediaConstraints.SetMandatoryReceiveVideo(true);
     mMediaConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
@@ -733,6 +733,41 @@ bool Jingle::verifyMac(const std::string& msg, const std::string& key, const std
         match &= (expectedMac[i] == actualMac[i]);
 
     return match;
+}
+
+int Jingle::setIceServers(const char* iceServers)
+{
+    if (!iceServers || !iceServers[0])
+    {
+        mIceServers.reset();
+        return 0;
+    }
+    webrtc::PeerConnectionInterface::IceServers servers;
+
+    vector<string> strServers;
+    tokenize(iceServers, ";", strServers);
+    for (string& strServer: strServers)
+    {
+        map<string, string> props;
+        parseNameValues(strServer.c_str(), ",", '=', props);
+        webrtc::PeerConnectionInterface::IceServer server;
+
+        for (auto& p: props)
+        {
+            const string& name = p.first;
+            if (name == "url")
+                server.uri = p.second;
+            else if (name == "user")
+                server.username = p.second;
+            else if (name == "pass")
+                server.password = p.second;
+            else
+                KR_LOG_WARNING("setIceServers: Unknown server property '%s'", p.second.c_str());
+        }
+        servers.push_back(server);
+    }
+    mIceServers->swap(servers);
+    return (int)(mIceServers->size());
 }
 
 AvFlags peerMediaToObj(const char* strPeerMedia)

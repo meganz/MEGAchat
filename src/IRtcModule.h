@@ -53,7 +53,7 @@ Initiates a media call to the specified peer
 virtual int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const char* files[]=NULL,
                       const char* myJid=NULL);
 virtual bool hangupBySid(const char* sid, char callType, const char* reason, const char* text);
-virtual bool hangupByPeer(const char* peerJid, char callType, const char* reason, const char* text)
+virtual bool hangupByPeer(const char* peerJid, char callType, const char* reason, const char* text);
 virtual int hangupAll(const char* reason, const char* text);
 /**
     Mutes/unmutes audio/video

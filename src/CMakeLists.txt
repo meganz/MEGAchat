@@ -16,6 +16,7 @@ set (SRCS
      testapp/mainwindow.cpp
      testapp/main.cpp
      DummyCrypto.cpp
+     rtcModule.cpp
 )
 
 set(QT_FORMS testapp/mainwindow.ui)

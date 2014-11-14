@@ -133,5 +133,5 @@ static inline std::string xmlUnescape(const std::string& text)
     result = replaceOccurrences(result, "&apos;", "'");
     return replaceOccurrences(result, "&quot;", "\"");
 }
-
+}
 #endif // KARERE_STRING_UTILS_H
