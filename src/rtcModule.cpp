@@ -66,7 +66,7 @@ class RtcHandler: public Jingle
 protected:
     typedef Jingle Base;
     AvTrackBundle mLocalTracks;
-    std::shared_ptr<artc::StreamPlayer> mLocalVid;
+    std::shared_ptr<artc::StreamPlayer> mLocalVideo;
     IEventHandler* mEventHandler;
     std::map<std::string, std::shared_ptr<CallRequest> > mCallRequests;
 public:
@@ -74,8 +74,6 @@ public:
                ICryptoFunctions* crypto, const std::string& iceServers)
         :Jingle(conn, crypto, servers), mEventHandler(handler)
     {
- //   if (RTC.browser == 'firefox')
- //       this.jingle.media_constraints.mandatory.MozDontOfferDataChannel = true;
     }
 protected:
 bool hasLocalStream()
