@@ -115,6 +115,18 @@ public:
         mRenderer->onStreamDetach();
         mVideo = NULL;
     }
+    void attachToStream(artc::tspMediaStream& stream)
+    {
+        detachAudio();
+        auto ats = stream->GetAudioTracks();
+        if (!ats.empty())
+            attachAudio(ats[0]);
+        detachVideo();
+        auto vts = stream->GetVideoTracks();
+        if (!vts.empty())
+            attachVideo(vts[0]);
+    }
+
     IVideoRenderer* preDestroy()
     {
         stop();
