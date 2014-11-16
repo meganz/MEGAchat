@@ -50,8 +50,6 @@
             <verstretch>1</verstretch>
            </sizepolicy>
           </property>
-          <zorder>localRenderer</zorder>
-          <zorder>localRenderer</zorder>
          </widget>
         </item>
         <item>
