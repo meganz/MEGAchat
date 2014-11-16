@@ -19,13 +19,7 @@ struct AvTrackBundle
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video;
 };
-//Public interfaces
-//TODO: move to public header
-/** Interface of object passed to onIncomingCallRequest. This interface contains methods
- *  to get info about the call request, has a method to answer or reject the call.
- */
 
-//===
 /** Before being answered/rejected, initiated calls (via startMediaCall) are put in a map
  * to allow hangup() to operate seamlessly on calls in all states.These states are:
  *  - requested by us but not yet answered(mCallRequests map)
@@ -49,6 +43,7 @@ protected:
     std::shared_ptr<artc::StreamPlayer> mLocalVideo;
     int mLocalStreamRefCount = 0;
     int mLocalVideoRefCount = 0;
+    bool mLocalVideoEnabled = false;
     IEventHandler* mEventHandler;
     std::map<std::string, std::shared_ptr<CallRequest> > mCallRequests;
     artc::DeviceManager mDeviceManager;
@@ -60,8 +55,8 @@ public:
 //IRtcModule interface
     virtual int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const char* files[]=NULL,
                       const char* myJid=NULL);
-    virtual bool hangupBySid(const char* sid, char callType, const char* reason, const char* text);
-    virtual bool hangupByPeer(const char* peerJid, char callType, const char* reason, const char* text);
+    virtual int hangupBySid(const char* sid, char callType, const char* reason, const char* text);
+    virtual int hangupByPeer(const char* peerJid, char callType, const char* reason, const char* text);
     virtual int hangupAll(const char* reason, const char* text);
     virtual int muteUnmute(bool state, const AvFlags& what, const char* jid);
     virtual int getSentAvBySid(const char* sid, AvFlags& av);
@@ -72,7 +67,6 @@ public:
     virtual IJingleSession* getSessionBySid(const char* sid);
     virtual int updateIceServers(const char* iceServers);
     virtual int isRelay(const char* sid);
-protected:
     //=== Implementation methods
     bool hasLocalStream() { return (mLocalTracks.audio || mLocalTracks.video); }
     void logInputDevices();
@@ -115,6 +109,7 @@ protected:
     AvFlags avFlagsOfStream(artc::tspMediaStream& stream, const AvFlags& flags);
     void disableLocalVideo();
     void enableLocalVideo();
+    void removeRemoteVideo(JingleSession& sess);
     /**
        Creates a unique string identifying the call,
        that is independent of whether the

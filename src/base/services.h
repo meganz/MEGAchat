@@ -5,21 +5,21 @@ namespace mega
 {
 
 template <class CB>
-void* setTimeout(CB callback, int time)
+static inline void* setTimeout(CB callback, int time)
 {
     //TODO: Implement
 }
-void cancelTimeout(void* handle)
+static inline void cancelTimeout(void* handle)
 {
     //TODO: implement
 }
 
 template <class CB>
-void* setInterval(CB callback, int time)
+static void* setInterval(CB callback, int time)
 {
     //TODO: Implement
 }
-void cancelInterval(void* handle)
+static inline void cancelInterval(void* handle)
 {
     //TODO: Implement
 }

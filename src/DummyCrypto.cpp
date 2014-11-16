@@ -1,4 +1,8 @@
 #include "DummyCrypto.h"
+#include <stdexcept>
+#include <assert.h>
+#include <memory>
+
 using namespace std;
 
 typedef karere::rtcModule::ICryptoFunctions::IString IString;
@@ -12,7 +16,7 @@ char hexDigitToInt(char code)
         return code-65+10;
     else
         throw std::runtime_error("Non-hex char");
-};
+}
 
 
 string xorEnc(const string& str, const string& key)
@@ -52,7 +56,7 @@ string xorDec(const string& str, const string& key)
     return result;
 }
 
-string generateRandomString(int len)
+string makeRandomString(int len)
 {
     if (len < 1)
         return "";
@@ -104,7 +108,11 @@ IString* DummyCrypto::scrambleJid(const char* jid)
 }
 IString* DummyCrypto::generateFprMacKey()
 {
-    return new StringImpl(generateRandomString(16));
+    return new StringImpl(makeRandomString(16));
 }
 
+IString* DummyCrypto::generateRandomString(size_t size)
+{
+    return new StringImpl(makeRandomString(size));
+}
 

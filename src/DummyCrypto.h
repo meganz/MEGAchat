@@ -1,6 +1,8 @@
 #ifndef DUMMYCRYPTO_H
 #define DUMMYCRYPTO_H
-#include "strophe.jingle.h" //TODO: change once the interface is in a standalone header
+#include "ICryptoFunctions.h"
+#include <string>
+#include <set>
 
 class DummyCrypto: public karere::rtcModule::ICryptoFunctions
 {
@@ -10,9 +12,8 @@ protected:
 public:
     class StringImpl: public IString
     {
-    protected:
-        std::string mString;
     public:
+        std::string mString;
         StringImpl(std::string&& str): mString(str){}
         virtual ~StringImpl(){}
         virtual const char* c_str() const {return mString.c_str();}
@@ -28,6 +29,7 @@ public:
         void(*cb)(void* userp, const char* errMsg));
     virtual IString* scrambleJid(const char* jid);
     virtual IString* generateFprMacKey();
+    virtual IString* generateRandomString(size_t size);
     virtual ~DummyCrypto() {}
 };
 

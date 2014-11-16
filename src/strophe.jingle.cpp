@@ -203,15 +203,15 @@ void Jingle::onJingle(Stanza iq)
                 return;
             }
 //===
-            sess = createSession(iq.attr("to"), peerjid, sid,
-               ans.options->localStream, ans.options->av, ans);
+            sess.reset(createSession(iq.attr("to"), peerjid, sid,
+               ans.options->localStream, ans.options->av, ans));
 
             sess->inputQueue.reset(new vector<Stanza>);
             string reason, text;
             bool cont = onCallIncoming(*sess, reason, text);
             if (!cont)
             {
-                terminate(sess, reason.c_str(), text.c_str());
+                terminate(sess.get(), reason.c_str(), text.c_str());
                 sess->inputQueue.reset();
                 return;
             }
@@ -234,10 +234,10 @@ void Jingle::onJingle(Stanza iq)
                 processAndDeleteInputQueue(*sess);
                 return 0;
             })
-            .fail([this, sess](const promise::Error& e)
+            .fail([this, sess](const promise::Error& e) mutable
              {
                   sess->inputQueue.reset();
-                  terminate(sess, "error", e.msg().c_str());
+                  terminate(sess.get(), "error", e.msg().c_str());
                   return 0;
              });
         }
@@ -283,7 +283,7 @@ void Jingle::onJingle(Stanza iq)
                 text = rsnNode.child("text").recursiveText();
             }
             catch(...){}
-            terminate(sess, reason?reason:"peer-hangup", text?text.c_str():NULL);
+            terminate(sess.get(), reason?reason:"peer-hangup", text?text.c_str():NULL);
         }
         else if (strcmp(action, "transport-info") == 0)
         {
@@ -570,11 +570,11 @@ void Jingle::processAndDeleteInputQueue(JingleSession& sess)
 
 Promise<shared_ptr<JingleSession> >
 Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
-  artc::tspMediaStream sessStream, const AvFlags& avState, shared_ptr<StringMap> sessProps,
+  artc::tspMediaStream sessStream, const AvFlags& avState, StringMap&& sessProps,
   FileTransferHandler* ftHandler)
 { // initiate a new jinglesession to peerjid
     JingleSession* sess = createSession(myjid, peerjid, sid, sessStream, avState,
-      *sessProps, ftHandler);
+      std::forward<StringMap>(sessProps), ftHandler);
     // configure session
 
     sess->initiate(true);
@@ -598,26 +598,29 @@ JingleSession* Jingle::createSession(const char* me, const char* peerjid,
     KR_CHECK_NULLARG(sid);
     JingleSession* sess = new JingleSession(*this, me, peerjid, sid, mConn, sessStream,
         avState, sessProps, ftHandler);
-    mSessions[sid] = sess;
+    mSessions[sid].reset(sess);
     return sess;
 }
 void Jingle::terminateAll(const char* reason, const char* text, bool nosend)
 {
 //terminate all existing sessions
-    for (auto& item: mSessions)
-        terminate(item.second, reason, text, nosend);
+    for (auto it = mSessions.begin(); it!=mSessions.end();)
+    {
+        auto erased = it++;
+        terminate(erased->second.get(), reason, text, nosend);
+    }
 }
 bool Jingle::terminateBySid(const char* sid, const char* reason, const char* text,
     bool nosend)
 {
-    return terminate(mSessions[sid], reason, text, nosend);
+    return terminate(mSessions[sid].get(), reason, text, nosend);
 }
 bool Jingle::terminate(JingleSession* sess, const char* reason, const char* text,
     bool nosend)
 {
     if (!sess)
     {
-        KR_LOG_WARNING("terminate: requestedto terminat a NULL session");
+        KR_LOG_WARNING("terminate: requested to terminate a NULL session");
         return false;
     }
     auto sessIt = mSessions.find(sess->sid());
@@ -628,7 +631,6 @@ bool Jingle::terminate(JingleSession* sess, const char* reason, const char* text
     }
     if (!reason)
         reason = "term";
-    unique_ptr<JingleSession> autodel(sess);
     bool isFt = !!sess->ftHandler();
     if (sess->state() != JingleSession::SESSTATE_ENDED)
     {

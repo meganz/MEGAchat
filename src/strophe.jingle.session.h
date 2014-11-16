@@ -1,19 +1,22 @@
 #ifndef STROPHE_JINGLE_SESSION_H
 #define STROPHE_JINGLE_SESSION_H
 #include <memory>
+#include <mstrophepp.h>
 #include "promise.h"
 #include "karereCommon.h"
 #include "webrtcAdapter.h"
 #include <talk/app/webrtc/test/fakeconstraints.h>
 #include "streamPlayer.h"
 #include "strophe.jingle.sdp.h"
-#include <mstrophepp.h>
+#include "IJingleSession.h"
+#include "IRtcModule.h" //needed for StatOptions only
 
 namespace karere {
 namespace rtcModule {
 
 class Jingle;
 class JingleEventHandler; //can't nest it into Jingle
+class JingleSession;
 
 class FileTransferHandler
 {
@@ -21,32 +24,41 @@ public:
     void remove(const char*, const char*){}
 };
 //Dummy stats recorder. TODO: Implement
-class StatsRecorder
+class RtcStats
 {
 public:
+    bool isCaller;
+    std::string termRsn;
+    RtcStats(JingleSession& sess, const StatOptions& options){}
+//        :isCaller(sess.isInitiator()){}
+};
+
+class BasicStats
+{
+public:
+    std::string termRsn;
+    bool isCaller;
+    BasicStats(IJingleSession& sess, const char* aTermRsn)
+        :isCaller(sess.isCaller()), termRsn(aTermRsn?aTermRsn:""){}
+};
+
+class StatsRecorder
+{
+protected:
+    JingleSession& mSession;
+    StatOptions mOptions;
+public:
+    StatsRecorder(JingleSession& sess, const StatOptions& options)
+        :mSession(sess), mOptions(options){}
     bool isRelay() const {return false;}
+    void start() {}
+    std::shared_ptr<RtcStats> terminate(std::string&& callId)
+    {
+        return std::shared_ptr<RtcStats>(new RtcStats(mSession, mOptions));
+    }
 };
 
 typedef std::vector<strophe::Stanza> StanzaQueue;
-//This is the interface of the session object exposed to the application via events etc
-//TODO: Move to public interface header
-struct IJingleSession
-{
-    typedef void(*DeleteFunc)(void*);
-
-    virtual const char* getSid() const = 0;
-    virtual const char* getJid() const = 0;
-    virtual const char* getPeerJid() const = 0;
-    virtual bool isCaller() const = 0;
-    virtual const char* getPeerAnonId() const = 0;
-/** Returns whether the session's udnerlying media connection is relayed via a TURN server or not
- * @return -1 if unknown, 1 if true, 0 if false
- */
-    virtual int isRelayed() const = 0;
-    virtual void setUserData(void*, DeleteFunc delFunc) = 0;
-    virtual void* getUserData() const = 0;
-    virtual bool isRealSession() const {return true;}
-};
 
 class JingleSession: public IJingleSession, public StringMap
 {
@@ -71,7 +83,7 @@ protected:
     std::string mOwnJid;
     std::string mPeerJid;
     std::string mSid;
-    strophe::Connection& mConnection;
+    ::strophe::Connection& mConnection;
     Jingle& mJingle;
     std::string mInitiator;
     std::string mResponder;
@@ -168,6 +180,7 @@ public:
     const std::string& jid() const {return mOwnJid;}
     const std::string& peerJid() const {return mPeerJid;}
     const std::string& sid() const {return mSid;}
+    bool isInitiator() const {return mIsInitiator;}
     FileTransferHandler* ftHandler() const {return mFtHandler.get();}
     promise::Promise<strophe::Stanza> sendIceCandidate(std::shared_ptr<artc::IceCandText> candidate);
     promise::Promise<int> setRemoteDescription(strophe::Stanza stanza, const std::string& desctype);

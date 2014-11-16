@@ -1,10 +1,13 @@
+#ifndef STROPHE_JINGLE_H
+#define STROPHE_JINGLE_H
 
 /* This code is based on strophe.jingle.js by ESTOS */
 #include <string>
 #include <map>
 #include <memory>
 #include "webrtcAdapter.h"
-#include "strophe.jingle.session.h"
+#include "IJingleSession.h"
+#include "ICryptoFunctions.h"
 #include <mstrophepp.h>
 
 namespace disco
@@ -28,26 +31,6 @@ struct AnswerOptions
 typedef std::function<bool(bool, std::shared_ptr<AnswerOptions>, const char* reason,
    const char* text)> CallAnswerFunc;
 
-class ICryptoFunctions
-{
-public:
-    class IString
-    {
-    public:
-        virtual ~IString(){}
-        virtual const char* c_str() const = 0;
-        virtual bool empty() const = 0;
-    };
-
-    virtual IString* generateMac(const char* data, const char* key) = 0;
-    virtual IString* decryptMessage(const char* msg) = 0;
-    virtual IString* encryptMessageForJid(const char* msg, const char* jid) = 0;
-    virtual void preloadCryptoForJid(const char* jid, void* userp,
-        void(*cb)(void* userp, const char* errMsg)) = 0;
-    virtual IString* scrambleJid(const char* jid) = 0;
-    virtual IString* generateFprMacKey() = 0;
-    virtual ~ICryptoFunctions() {}
-};
 //Convenience type to accomodate returned IString objects from ICryptoFunctions api
 struct VString: public std::unique_ptr<ICryptoFunctions::IString>
 {
@@ -57,7 +40,7 @@ struct VString: public std::unique_ptr<ICryptoFunctions::IString>
     const char* c_str() const {return get()->c_str();}
 };
 
-class Jingle: strophe::Plugin
+class Jingle: public strophe::Plugin
 {
 protected:
 /** Contains all info about a not-yet-established session, when onCallTerminated is fired and there is no session yet */
@@ -90,7 +73,7 @@ protected:
         std::shared_ptr<FileTransferHandler> ftHandler;
     };
     typedef std::map<std::string, std::shared_ptr<AutoAcceptCallInfo> > AutoAcceptMap;
-    std::map<std::string, JingleSession*> mSessions;
+    std::map<std::string, std::shared_ptr<JingleSession> > mSessions;
 /** Timeout after which if an iq response is not received, an error is generated */
     int mJingleTimeout = 50000;
 /** The period, during which an accepted call request will be valid
@@ -164,14 +147,14 @@ public:
     promise::Promise<std::shared_ptr<JingleSession> >
       initiate(const char* sid, const char* peerjid, const char* myjid,
         artc::tspMediaStream sessStream, const AvFlags& avState,
-        std::shared_ptr<StringMap> sessProps, FileTransferHandler* ftHandler=NULL);
+        StringMap&& sessProps, FileTransferHandler* ftHandler=NULL);
     JingleSession* createSession(const char* me, const char* peerjid,
         const char* sid, artc::tspMediaStream, const AvFlags& avState,
         const StringMap& sessProps, FileTransferHandler* ftHandler=NULL);
     void terminateAll(const char* reason, const char* text, bool nosend=false);
     bool terminateBySid(const char* sid, const char* reason, const char* text,
         bool nosend=false);
-    bool terminate(JingleSession* sess, const char* reason, const char* text,
+    bool terminate(karere::rtcModule::JingleSession *sess, const char* reason, const char* text,
         bool nosend=false);
     promise::Promise<strophe::Stanza> sendTerminateNoSession(const char* sid,
         const char* to, const char* reason, const char* text);
@@ -182,3 +165,4 @@ public:
 };
 }
 }
+#endif
