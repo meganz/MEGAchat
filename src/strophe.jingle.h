@@ -122,11 +122,13 @@ public:
     virtual void onInternalError(const std::string& msg, const char* where);
 //==
     Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const char* iceServers="");
-    void addAudioCaps(disco::DiscoPlugin& disco);
-    void addVideoCaps(disco::DiscoPlugin& disco);
+    virtual void discoAddFeature(const char* feature) = 0;
+    void addAudioCaps();
+    void addVideoCaps();
     void registerDiscoCaps();
 /** url:xxx, user:xxx, pass:xxx; url:xxx, user:xxx... */
     int setIceServers(const char* iceServers);
+ //plugin connection state handler
     void onConnState(const xmpp_conn_event_t status,
         const int error, xmpp_stream_error_t * const stream_error);
 /*    int _static_onJingle(xmpp_conn_t* const conn,

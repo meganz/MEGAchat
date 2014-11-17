@@ -21,7 +21,7 @@ namespace rtcModule
 string avFlagsToString(const AvFlags& av);
 AvFlags avFlagsOfStream(artc::tspMediaStream& stream, const AvFlags& flags);
 
-RtcModule::RtcModule(strophe::Connection& conn, IEventHandler* handler,
+RtcModule::RtcModule(strophe::Connection&& conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers)
 :Jingle(conn, crypto, iceServers), mEventHandler(handler)
 {}

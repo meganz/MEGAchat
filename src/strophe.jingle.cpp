@@ -40,39 +40,32 @@ Jingle::Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const char* 
 
     registerDiscoCaps();
 }
-void Jingle::addAudioCaps(::disco::DiscoPlugin& dp)
+void Jingle::addAudioCaps()
 {
-    dp.addFeature("urn:xmpp:jingle:apps:rtp:audio");
+    discoAddFeature("urn:xmpp:jingle:apps:rtp:audio");
 }
-void Jingle::addVideoCaps(disco::DiscoPlugin& disco)
+void Jingle::addVideoCaps()
 {
-    disco.addFeature("urn:xmpp:jingle:apps:rtp:video");
+    discoAddFeature("urn:xmpp:jingle:apps:rtp:video");
 }
 void Jingle::registerDiscoCaps()
 {
-    auto plDisco = mConn.pluginPtr<disco::DiscoPlugin>("disco");
-    if (!plDisco)
-    {
-        KR_LOG_WARNING("Disco plugin not found, not registering disco caps");
-        return;
-    }
-    disco::DiscoPlugin& disco = *plDisco;
     // http://xmpp.org/extensions/xep-0167.html#support
     // http://xmpp.org/extensions/xep-0176.html#support
-    disco.addNode("urn:xmpp:jingle:1", {});
-    disco.addNode("urn:xmpp:jingle:apps:rtp:1", {});
-    disco.addNode("urn:xmpp:jingle:transports:ice-udp:1", {});
+    discoAddFeature("urn:xmpp:jingle:1");
+    discoAddFeature("urn:xmpp:jingle:apps:rtp:1");
+    discoAddFeature("urn:xmpp:jingle:transports:ice-udp:1");
+    discoAddFeature("urn:ietf:rfc:5761"); // rtcp-mux
 
-    disco.addNode("urn:ietf:rfc:5761", {}); // rtcp-mux
     //this.connection.disco.addNode('urn:ietf:rfc:5888', {}); // a=group, e.g. bundle
     //this.connection.disco.addNode('urn:ietf:rfc:5576', {}); // a=ssrc
     auto& devices = deviceManager.inputDevices();
     bool hasAudio = !devices.audio.empty() && !(mediaFlags & DISABLE_MIC);
     bool hasVideo = !devices.video.empty() && !(mediaFlags & DISABLE_CAM);
     if (hasAudio)
-        addAudioCaps(disco);
+        addAudioCaps();
     if (hasVideo)
-        addVideoCaps(disco);
+        addVideoCaps();
 }
 void Jingle::onConnState(const xmpp_conn_event_t status,
     const int error, xmpp_stream_error_t * const stream_error)

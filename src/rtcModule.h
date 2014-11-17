@@ -48,7 +48,7 @@ protected:
     std::map<std::string, std::shared_ptr<CallRequest> > mCallRequests;
     artc::DeviceManager mDeviceManager;
 public:
-    RtcModule(strophe::Connection& conn, IEventHandler* handler,
+    RtcModule(strophe::Connection&& conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers);
     ~RtcModule();
 
@@ -98,7 +98,10 @@ public:
 
     void onJingleError(JingleSession* sess, const std::string& origin,
                        const std::string& stanza, strophe::Stanza orig, char type);
-
+    virtual void discoAddFeature(const char* feature)
+    {
+        mEventHandler->addDiscoFeature(feature);
+    }
     void refLocalStream(bool sendsVideo);
     void unrefLocalStream(bool sendsVideo);
     void freeLocalStream();

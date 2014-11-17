@@ -40,6 +40,7 @@ protected:
  *  All events from the Rtc module are sent to the application via this interface */
 struct IEventHandler
 {
+    virtual void addDiscoFeature(const char* feature) {}
 //TODO: Define
 };
 struct StatOptions
@@ -54,31 +55,30 @@ struct StatOptions
 class IRtcModule
 {
 public:
-/**
-Initiates a media call to the specified peer
-@param targetJid
+    /**
+    Initiates a media call to the specified peer
+    @param targetJid
     The JID of the callee. Can be a full jid (including resource),
     or a bare JID (without resource), in which case the call request will be broadcast
     using a special <message> packet. For more details on the call broadcast mechanism,
     see the Wiki
-@param av Whether to send local video/audio. Ignored if \c files is not NULL
-@param myJid
+    @param av Whether to send local video/audio. Ignored if \c files is not NULL
+    @param myJid
     Necessary only if doing MUC, because the user's JID in the
     room is different than her normal JID. If NULL,
     the user's 'normal' JID will be used
-@param sidOut - a pointer to a string buffer that will receive the session id of the
+    @param sidOut - a pointer to a string buffer that will receive the session id of the
     call that is initiated. The size if the buffer must be at least RTCM_SESSIONID_SIZE+1 bytes
-@param files Array of null-terminated strings specifying the files that are to be sent,
+    @param files Array of null-terminated strings specifying the files that are to be sent,
     in case this is a data call. NULL if a media call is to be initiated.
-@returns 0 on success, a negative RTCM error code in failure
-*/
-
-virtual int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const char* files[]=NULL,
+    @returns 0 on success, a negative RTCM error code in failure
+    */
+    virtual int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const char* files[]=NULL,
                       const char* myJid=NULL) = 0;
-virtual int hangupBySid(const char* sid, char callType, const char* reason, const char* text) = 0;
-virtual int hangupByPeer(const char* peerJid, char callType, const char* reason, const char* text) = 0;
-virtual int hangupAll(const char* reason, const char* text) = 0;
-/**
+    virtual int hangupBySid(const char* sid, char callType, const char* reason, const char* text) = 0;
+    virtual int hangupByPeer(const char* peerJid, char callType, const char* reason, const char* text) = 0;
+    virtual int hangupAll(const char* reason, const char* text) = 0;
+    /**
     Mutes/unmutes audio/video
     @param state
         Specifies whether to mute or unmute:
@@ -89,35 +89,38 @@ virtual int hangupAll(const char* reason, const char* text) = 0;
         If not NULL, specifies that the mute operation will apply only
         to the call to the given JID. If not specified,
         the (un)mute will be applied to all ongoing calls.
- */
-virtual int muteUnmute(bool state, const AvFlags& what, const char* jid) = 0;
-virtual int getSentAvBySid(const char* sid, AvFlags& av) = 0;
-virtual int getSentAvByJid(const char* jid, AvFlags& av) = 0;
-/**
+    */
+    virtual int muteUnmute(bool state, const AvFlags& what, const char* jid) = 0;
+    virtual int getSentAvBySid(const char* sid, AvFlags& av) = 0;
+    virtual int getSentAvByJid(const char* jid, AvFlags& av) = 0;
+    /**
     Get info whether remote audio and video are being received at the moment in a call to the specified JID
     @param fullJid The full peer JID to identify the call
     @param av Returns the audio/video flags
     @returns 0 on success or an RTCM error code on fail
- */
-virtual int getReceivedAvBySid(const char* sid, AvFlags& av) = 0;
-/** Similar to \cgetSentAvByJid, but the call is identified by the full jis of the peer */
-virtual int getReceivedAvByJid(const char* jid, AvFlags& av) = 0;
-virtual IJingleSession* getSessionByJid(const char* fullJid, char type='m') = 0;
-virtual IJingleSession* getSessionBySid(const char* sid) = 0;
-/**
-  Updates the ICE servers that will be used in the next call.
-  @param iceServers An array of ice server objects - same as the iceServers parameter in
+    */
+    virtual int getReceivedAvBySid(const char* sid, AvFlags& av) = 0;
+    /** Similar to \cgetSentAvByJid, but the call is identified by the full jis of the peer */
+    virtual int getReceivedAvByJid(const char* jid, AvFlags& av) = 0;
+    virtual IJingleSession* getSessionByJid(const char* fullJid, char type='m') = 0;
+    virtual IJingleSession* getSessionBySid(const char* sid) = 0;
+    /**
+    Updates the ICE servers that will be used in the next call.
+    @param iceServers An array of ice server objects - same as the iceServers parameter in
           the RtcSession constructor
-*/
-/** url:xxx, user:xxx, pass:xxx; url:xxx, user:xxx... */
-virtual int updateIceServers(const char* iceServers) = 0;
-/** Returns whether the call or file transfer with the given
+    */
+    /** url:xxx, user:xxx, pass:xxx; url:xxx, user:xxx... */
+    virtual int updateIceServers(const char* iceServers) = 0;
+    /** Returns whether the call or file transfer with the given
     sessionId is being relaid via a TURN server or not.
       @param sid The session id of the call
       @returns 1 if the call/transfer is being relayed, 0 if not, negative RTCM error code if
- there was an error or the status is unknown (not established yet or no statistics available)
-*/
-virtual int isRelay(const char* sid) = 0;
+     there was an error or the status is unknown (not established yet or no statistics available)
+    */
+    virtual int isRelay(const char* sid) = 0;
+    virtual void destroy() { delete this;}
+protected:
+    virtual ~IRtcModule(){}
 };
 
 }
