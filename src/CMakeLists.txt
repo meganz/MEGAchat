@@ -11,6 +11,7 @@ set (SRCS
     strophe.jingle.sdp.cpp
     DummyCrypto.cpp
     rtcModule.cpp
+    lib.cpp
 )
 
 list(APPEND CMAKE_CXX_FLAGS -std=c++11)
@@ -18,7 +19,7 @@ add_subdirectory("${optWebrtcCmakeBuild}" webrtc)
 add_subdirectory("${optStrophePath}" strophe)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${optStrophePath} ${optStrophePath}/include)
-
+add_definitions(-DRTCM_BUILDING -fvisibility=hidden)
 add_library(rtcModule SHARED ${SRCS})
 target_link_targets(rtcModule webrtc_my)
 target_link_libraries(rtcModule strophe pthread)
