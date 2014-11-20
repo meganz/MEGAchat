@@ -22,9 +22,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.76532076"
-     inkscape:cx="527.27501"
-     inkscape:cy="383.21757"
+     inkscape:zoom="0.70710678"
+     inkscape:cx="505.24585"
+     inkscape:cy="392.07434"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -968,11 +968,12 @@
        inkscape:connector-curvature="0"
        transform="translate(0,308.2677)" />
     <path
-       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#TriangleOutM-7-2-1-0)"
-       d="m 867.61007,203.14483 -28.74611,0 0,352.79325 -82.31843,0"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#TriangleOutM-7-2-1-0)"
+       d="m 869.61007,203.14483 -30.74611,0 0,352.79325 -82.31843,0"
        id="path38546"
        inkscape:connector-curvature="0"
-       transform="translate(0,308.2677)" />
+       transform="translate(0,308.2677)"
+       sodipodi:nodetypes="cccc" />
     <g
        id="g38121-6"
        transform="translate(666.12271,-269.0796)">
@@ -1104,5 +1105,29 @@
              id="tspan39898"> Timers</tspan></text>
       </g>
     </g>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-start:url(#TriangleInM-05-1-9-1);marker-end:url(#TriangleOutM-7-2-1-0)"
+       d="m 867.15555,151.539 -253.38686,0 0,-63.63961 C 425.20219,88.528147 240.64468,87.607566 52.083261,86.485176 l 0,257.386864"
+       id="path40526"
+       inkscape:connector-curvature="0"
+       transform="translate(0,308.2677)"
+       sodipodi:nodetypes="ccccc" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Sans"
+       x="93.338089"
+       y="389.09601"
+       id="text41360"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan41362"
+         x="93.338089"
+         y="389.09601"
+         style="font-size:14px;font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Sans;-inkscape-font-specification:Sans Italic">IRtcModule, ICryptoFunctions,</tspan><tspan
+         sodipodi:role="line"
+         x="93.338089"
+         y="406.59601"
+         style="font-size:14px;font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Sans;-inkscape-font-specification:Sans Italic"
+         id="tspan41366"> IEventHandler interfaces</tspan></text>
   </g>
 </svg>
