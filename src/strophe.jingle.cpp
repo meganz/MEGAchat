@@ -15,12 +15,11 @@ using namespace std;
 using namespace promise;
 using namespace std::placeholders;
 
-namespace karere
-{
 namespace rtcModule
 {
 using namespace std;
 using namespace strophe;
+using namespace karere;
 
 AvFlags peerMediaToObj(const char* strPeerMedia);
 
@@ -30,15 +29,13 @@ void Jingle::onInternalError(const string& msg, const char* where)
 }
 //==
 
-Jingle::Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const char* iceServers)
-:Plugin(conn), mCrypto(crypto)
+Jingle::Jingle(xmpp_conn_t* conn, ICryptoFunctions* crypto, const char* iceServers)
+:mConn(conn), mCrypto(crypto)
 {
     setIceServers(iceServers);
     mMediaConstraints.SetMandatoryReceiveAudio(true);
     mMediaConstraints.SetMandatoryReceiveVideo(true);
     mMediaConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
-
-    registerDiscoCaps();
 }
 void Jingle::addAudioCaps()
 {
@@ -74,6 +71,7 @@ void Jingle::onConnState(const xmpp_conn_event_t status,
     {
         if (status == XMPP_CONN_CONNECT)
         {
+            registerDiscoCaps();
 //         typedef int (*xmpp_handler)(xmpp_conn_t * const conn,
 //           xmpp_stanza_t * const stanza, void * const userdata);
             mConn.addHandler(std::bind(&Jingle::onJingle, this, _1),
@@ -779,5 +777,4 @@ AvFlags peerMediaToObj(const char* strPeerMedia)
     return ret;
 }
 
-}
 }

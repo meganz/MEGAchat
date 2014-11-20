@@ -3,6 +3,9 @@
 #include "ICryptoFunctions.h"
 #include <string>
 #include <set>
+namespace karere {
+namespace rtcModule {
+
 
 class DummyCrypto: public karere::rtcModule::ICryptoFunctions
 {
@@ -33,5 +36,7 @@ public:
     virtual ~DummyCrypto() {}
 };
 
+}
+}
 
 #endif

@@ -21,14 +21,18 @@
 #include <QtGui/QApplication>
 #include "mainwindow.h"
 #include "../base/guiCallMarshaller.h"
+#include "../IRtcModule.h"
+#include "../lib.h"
+#include "../DummyCrypto.h"
+#include "../strophe.disco.h"
 
-using namespace std;
 using namespace std;
 using namespace promise;
 
 MainWindow* mainWin = NULL;
-
-
+karere::rtcModule::IRtcModule* rtc = NULL;
+unique_ptr<karere::rtcModule::ICryptoFunctions> crypto;
+unique_ptr<karere::rtcModule::IEventHandler> handler;
 AppDelegate appDelegate;
 bool processMessage(void* arg, int what);
 void terminateApp();
@@ -46,6 +50,22 @@ using namespace strophe;
 struct event_base *base = NULL;
 bool term = 0;
 shared_ptr<thread> watcherThread;
+class RtcEventHandler: public karere::rtcModule::IEventHandler
+{
+protected:
+    strophe::Connection& mConn;
+    disco::DiscoPlugin& mDisco;
+public:
+
+    RtcEventHandler(strophe::Connection& conn)
+        :mConn(conn), mDisco(conn.plugin<disco::DiscoPlugin>("disco"))
+    {}
+    virtual void addDiscoFeature(const char* feature)
+    {
+        mDisco.addFeature(feature);
+    }
+};
+
 void sigintHandler(int)
 {
     printf("SIGINT Received\n");
@@ -161,16 +181,23 @@ int main(int argc, char **argv)
 
     /* create a connection */
     gConn.reset(new strophe::Connection(ctx));
-    Connection& conn = *gConn;
+    Connection& conn = *(gConn.get());
     /* setup authentication information */
     xmpp_conn_set_jid(conn, argv[1]);
     xmpp_conn_set_pass(conn, argv[2]);
+    conn.registerPlugin("disco", new disco::DiscoPlugin(conn, "Karere"));
+    handler.reset(new RtcEventHandler(conn));
+
+    /* create rtcModule */
+    crypto.reset(new karere::rtcModule::DummyCrypto(argv[1]));
+    rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
+    conn.registerPlugin("rtcmodule", rtc);
     /* initiate connection */
     conn.connect(NULL, 0)
     .then([&](int)
     {
         printf("==========Connect promise resolved\n");
-        xmpp_timed_handler_add(conn, ping, 1000, &conn);
+        xmpp_timed_handler_add(conn, ping, 100000, &conn);
         conn.addHandler(message_handler, NULL, "message", NULL, NULL, &conn);
     /* Send initial <presence/> so that we appear online to contacts */
         Stanza pres(conn);
@@ -200,7 +227,6 @@ int main(int argc, char **argv)
         printf("eventloop exited\n");
         term = 1;
     }));
-
     return a.exec();
 }
 

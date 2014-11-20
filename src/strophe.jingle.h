@@ -16,8 +16,6 @@ namespace disco
 }
 
 
-namespace karere
-{
 namespace rtcModule
 {
 class JingleSession;
@@ -40,7 +38,7 @@ struct VString: public std::unique_ptr<ICryptoFunctions::IString>
     const char* c_str() const {return get()->c_str();}
 };
 
-class Jingle: public strophe::Plugin
+class Jingle
 {
 protected:
 /** Contains all info about a not-yet-established session, when onCallTerminated is fired and there is no session yet */
@@ -65,14 +63,15 @@ protected:
         virtual void* getUserData() const {return nullptr;}
     };
 /** Contains all info about an incoming call that has been accepted at the message level and needs to be autoaccepted at the jingle level */
-    struct AutoAcceptCallInfo: public StringMap
+    struct AutoAcceptCallInfo: public karere::StringMap
     {
-        Ts tsReceived;
-        Ts tsTillJingle;
+        karere::Ts tsReceived;
+        karere::Ts tsTillJingle;
         std::shared_ptr<AnswerOptions> options;
         std::shared_ptr<FileTransferHandler> ftHandler;
     };
     typedef std::map<std::string, std::shared_ptr<AutoAcceptCallInfo> > AutoAcceptMap;
+    strophe::Connection mConn;
     std::map<std::string, std::shared_ptr<JingleSession> > mSessions;
 /** Timeout after which if an iq response is not received, an error is generated */
     int mJingleTimeout = 50000;
@@ -121,8 +120,8 @@ public:
     virtual void onUnmuted(JingleSession& sess, const AvFlags& affected){}
     virtual void onInternalError(const std::string& msg, const char* where);
 //==
-    Jingle(strophe::Connection& conn, ICryptoFunctions* crypto, const char* iceServers="");
-    virtual void discoAddFeature(const char* feature) = 0;
+    Jingle(xmpp_conn_t* conn, ICryptoFunctions* crypto, const char* iceServers="");
+    virtual void discoAddFeature(const char* feature) = 0;//{printf("jingle::discoaddfeature  called\n");} //= 0;
     void addAudioCaps();
     void addVideoCaps();
     void registerDiscoCaps();
@@ -149,22 +148,22 @@ public:
     promise::Promise<std::shared_ptr<JingleSession> >
       initiate(const char* sid, const char* peerjid, const char* myjid,
         artc::tspMediaStream sessStream, const AvFlags& avState,
-        StringMap&& sessProps, FileTransferHandler* ftHandler=NULL);
+        karere::StringMap&& sessProps, FileTransferHandler* ftHandler=NULL);
     JingleSession* createSession(const char* me, const char* peerjid,
         const char* sid, artc::tspMediaStream, const AvFlags& avState,
-        const StringMap& sessProps, FileTransferHandler* ftHandler=NULL);
+        const karere::StringMap& sessProps, FileTransferHandler* ftHandler=NULL);
     void terminateAll(const char* reason, const char* text, bool nosend=false);
     bool terminateBySid(const char* sid, const char* reason, const char* text,
         bool nosend=false);
-    bool terminate(karere::rtcModule::JingleSession *sess, const char* reason, const char* text,
+    bool terminate(JingleSession *sess, const char* reason, const char* text,
         bool nosend=false);
     promise::Promise<strophe::Stanza> sendTerminateNoSession(const char* sid,
         const char* to, const char* reason, const char* text);
     promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string& origin);
-    bool sessionIsValid(const karere::rtcModule::JingleSession &sess);
+    bool sessionIsValid(const JingleSession &sess);
     std::string getFingerprintsFromJingle(strophe::Stanza j);
     bool verifyMac(const std::string& msg, const std::string& key, const std::string& actualMac);
 };
 }
-}
+
 #endif

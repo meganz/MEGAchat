@@ -13,6 +13,7 @@ set (SRCS
      ../videoRenderer_Qt.cpp
      mainwindow.cpp
      main.cpp
+     ../strophe.disco.cpp
      ../DummyCrypto.cpp
 )
 
@@ -44,5 +45,5 @@ ${QT_LIBRARIES}
 pthread
 ${LIBEVENT_LIB}
 event_pthreads
-m)
+)
 

@@ -35,7 +35,8 @@ Node* Node::addNode(const char* node, const char* name, const char* jid)
 {
         DP_THROW_IF_NULL(node);
         DP_THROW_IF_NULL(name);
-
+        if (!mNodes)
+            mNodes.reset(new NodeMap);
         std::shared_ptr<Node> nodeInst(new Node(mDisco));
         auto res = mNodes->emplace(node, nodeInst);
         if (!res.second)
@@ -49,25 +50,26 @@ Node* Node::addNode(const char* node, const char* name, const char* jid)
 bool Node::addFeature(const std::string& feature)
 {
     DP_THROW_IF_EMPTY(feature);
+    if (!mFeatures)
+        mFeatures.reset(new FeatureSet);
     return mFeatures->emplace(feature).second;
 }
 
 
-Node::QueryResponse Node::responseFromQuery(strophe::Stanza req)
+Node::ResponseIq Node::responseFromQuery(strophe::Stanza req)
 {
-    QueryResponse res(req);
-    auto iq = res.iq.init("iq", {
-                              {"to", req.attr("from")},
-                              {"id", req.attr("id")},
-                              {"type", "result"}
-                          });
-    auto query = iq.child("query");
-    res.query = res.iq.c("query");
+    ResponseIq res(mDisco.mConn);
+    res.setName("iq")
+       .setAttr("to", req.attr("from"))
+       .setAttr("id", req.attr("id"))
+       .setAttr("type", "result");
+    res.query = res.c("query");
+    auto reqQuery = req.child("query");
 
-    const char* attr = query.attrOrNull("xmlns");
+    const char* attr = reqQuery.attrOrNull("xmlns");
     if (attr)
         res.query.setAttr("xmlns", attr);
-    if (attr = query.attrOrNull("node"))
+    if (attr = reqQuery.attrOrNull("node"))
         res.query.setAttr("node", attr);
 
     return res;
@@ -90,10 +92,13 @@ strophe::Stanza Node::replyInfo(strophe::Stanza req)
     }
     for (auto& feature: features)
         resQuery.c("feature").setAttr("var", feature.c_str());
-    return res.iq;
+    return res;
 }
 strophe::Stanza Node::replyItems(strophe::Stanza req, const char* node)
 {
+    if (!mNodes)
+        return replyNodeNotFound(req);
+
     if (!node)
         node = req.child("query").attrOrNull("node");
     if (!node)
@@ -111,9 +116,14 @@ strophe::Stanza Node::replyItems(strophe::Stanza req, const char* node)
     else
         return nodeIt->second->replyItems(req, pos+1);
 }
+
 strophe::Stanza Node::replyOwnItems(strophe::Stanza req)
 {
+
     auto res = responseFromQuery(req);
+    if (!mNodes)
+        return res;
+
     for (auto& nodeIt: *mNodes)
     {
         auto& node = *nodeIt.second;
@@ -124,7 +134,7 @@ strophe::Stanza Node::replyOwnItems(strophe::Stanza req)
         if (!node.node.empty())
             item.setAttr("node", node.node.c_str());
     }
-    return res.iq;
+    return res;
 }
 
 strophe::Stanza Node::replyNodeNotFound(strophe::Stanza req)
@@ -132,13 +142,27 @@ strophe::Stanza Node::replyNodeNotFound(strophe::Stanza req)
     auto res = responseFromQuery(req);
     res.query.c("error").setAttr("type", "cancel")
             .c("item-not-found").setAttr("xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas");
-    return res.iq;
+    return res;
 }
 
+template <typename P>
+static inline P* throwIfNull(P* ptr, const char* msg)
+{
+    if (!ptr)
+    {
+        if (!msg)
+            msg = "unexpected NULL value";
+        throw runtime_error(msg);
+    }
+    return ptr;
+}
 
 DiscoPlugin::DiscoPlugin(strophe::Connection& aConn, const char* identity)
-:Plugin(aConn), Node(*this, identity?identity:"Karere")
-{}
+:Plugin(aConn), Node(*this, throwIfNull(identity, "No identity specified"))
+{
+    assert(mIdentities.get());
+    mFeatures.reset(new FeatureSet);
+}
 void DiscoPlugin::onConnState(const xmpp_conn_event_t status,
             const int error, xmpp_stream_error_t * const stream_error)
 {

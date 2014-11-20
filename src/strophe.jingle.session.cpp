@@ -7,8 +7,7 @@ using namespace std;
 using namespace promise;
 using namespace strophe;
 using namespace sdpUtil;
-namespace karere
-{
+
 namespace rtcModule
 {
 
@@ -331,5 +330,4 @@ Promise<Stanza> JingleSession::sendIq(Stanza iq, const string& origin)
         });
 }
 
-}
 }

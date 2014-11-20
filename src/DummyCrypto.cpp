@@ -4,6 +4,9 @@
 #include <memory>
 
 using namespace std;
+namespace karere {
+namespace rtcModule {
+
 
 typedef karere::rtcModule::ICryptoFunctions::IString IString;
 char hexDigitToInt(char code)
@@ -116,3 +119,5 @@ IString* DummyCrypto::generateRandomString(size_t size)
     return new StringImpl(makeRandomString(size));
 }
 
+}
+}

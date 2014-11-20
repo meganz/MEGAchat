@@ -1,11 +1,9 @@
 #ifndef IRTC_MODULE_H
 #define IRTC_MODULE_H
 
-#include "strophe.jingle.h"
-#include "streamPlayer.h"
+#include "IJingleSession.h"
+#include "mstrophepp.h"
 
-namespace karere
-{
 namespace rtcModule
 {
 /** RtcModule API Error codes */
@@ -52,7 +50,7 @@ struct StatOptions
 
 //===
 /** Interface of the RtcModule */
-class IRtcModule
+class IRtcModule: public virtual strophe::IPlugin
 {
 public:
     /**
@@ -73,8 +71,8 @@ public:
     in case this is a data call. NULL if a media call is to be initiated.
     @returns 0 on success, a negative RTCM error code in failure
     */
-    virtual int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const char* files[]=NULL,
-                      const char* myJid=NULL) = 0;
+    virtual int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av,
+        const char* files[]=nullptr, const char* myJid=nullptr) = 0;
     virtual int hangupBySid(const char* sid, char callType, const char* reason, const char* text) = 0;
     virtual int hangupByPeer(const char* peerJid, char callType, const char* reason, const char* text) = 0;
     virtual int hangupAll(const char* reason, const char* text) = 0;
@@ -118,12 +116,12 @@ public:
      there was an error or the status is unknown (not established yet or no statistics available)
     */
     virtual int isRelay(const char* sid) = 0;
-    virtual void destroy() { delete this;}
+ //   virtual void destroy() { delete this;}
 protected:
-    virtual ~IRtcModule(){}
+//    virtual ~IRtcModule(){}
 };
 
 }
-}
+
 #endif
 

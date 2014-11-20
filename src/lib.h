@@ -1,6 +1,9 @@
 #ifndef RTCM_SOLIB_H
 #define RTCM_SOLIB_H
 
+#include "IRtcModule.h"
+#include "ICryptoFunctions.h"
+
 #ifdef _WIN32
     #define RTCM_EXPORT __declspec(dllexport)
     #define RTCM_IMPORT __declspec(dllimport)
@@ -14,5 +17,11 @@
 #else
   #define RTCM_IMPEXP RTCM_IMPORT
 #endif
-
+extern "C"
+{
+RTCM_EXPORT rtcModule::IRtcModule*
+    createRtcModule(xmpp_conn_t* conn, rtcModule::IEventHandler* handler,
+        rtcModule::ICryptoFunctions* crypto,
+        const char* iceServers);
+}
 #endif // LIB_H

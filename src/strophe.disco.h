@@ -47,15 +47,15 @@ protected:
     std::unique_ptr<IdentitySet> mIdentities;
 //subondes
     std::unique_ptr<NodeMap> mNodes;
-    struct QueryResponse
+    //Just a response iq Stanza with a nested 'query' stanza, and a reference to
+    //the nested one, to avoid lookups
+    struct ResponseIq: public strophe::Stanza
     {
-        strophe::Stanza iq;
         strophe::Stanza query;
-        template <class CtxSrc>
-        QueryResponse(CtxSrc aCtxSrc): iq(aCtxSrc){}
+        ResponseIq(strophe::Connection& conn): strophe::Stanza(conn){}
     };
 
-    QueryResponse responseFromQuery(strophe::Stanza req);
+    ResponseIq responseFromQuery(strophe::Stanza req);
     strophe::Stanza replyInfo(strophe::Stanza req);
     strophe::Stanza replyItems(strophe::Stanza req, const char* node=NULL);
     strophe::Stanza replyOwnItems(strophe::Stanza req);

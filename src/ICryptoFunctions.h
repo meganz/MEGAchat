@@ -2,8 +2,6 @@
 #define ICRYPTOFUNCTIONS_H
 #include <stddef.h> //size_t
 
-namespace karere
-{
 namespace rtcModule
 {
 class ICryptoFunctions
@@ -28,5 +26,5 @@ public:
     virtual ~ICryptoFunctions() {}
 };
 }
-}
+
 #endif // ICRYPTOFUNCTIONS_H

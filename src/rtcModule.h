@@ -5,8 +5,6 @@
 #include "strophe.jingle.h"
 #include "streamPlayer.h"
 
-namespace karere
-{
 namespace rtcModule
 {
 /** This is the class that implements the user-accessible API to webrtc.
@@ -35,7 +33,7 @@ struct CallRequest
         : targetJid(aTargetJid), isFileTransfer(aIsFt), cancel(cancelFunc){}
 };
 
-class RtcModule: public IRtcModule, public Jingle
+class RtcModule: public Jingle, public IRtcModule
 {
 protected:
     typedef Jingle Base;
@@ -48,7 +46,7 @@ protected:
     std::map<std::string, std::shared_ptr<CallRequest> > mCallRequests;
     artc::DeviceManager mDeviceManager;
 public:
-    RtcModule(strophe::Connection&& conn, IEventHandler* handler,
+    RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers);
     ~RtcModule();
 
@@ -100,6 +98,7 @@ public:
                        const std::string& stanza, strophe::Stanza orig, char type);
     virtual void discoAddFeature(const char* feature)
     {
+        printf("======================= rtcmodule::discoAddFeature called\n");
         mEventHandler->addDiscoFeature(feature);
     }
     void refLocalStream(bool sendsVideo);
@@ -123,6 +122,5 @@ public:
     template <class F>
     int getAvByJid(const char* jid, AvFlags& av, F&& func);
 };
-}
 }
 #endif

@@ -16,7 +16,7 @@
     #include <sys/time.h>
 #endif
 //defines the name of the webrtc adapter layer namespace
-#define MEGA_RTCADAPTER_NS artc
+//#define MEGA_RTCADAPTER_NS artc
 //defines the name of the karere webrtc+jingle module namespace
 #define KARERE_RTCMODULE_NS rtcModule
 #define KR_CHECK_NULLARG(name) \
@@ -29,12 +29,6 @@ namespace karere
 {
 typedef std::map<std::string, std::string> StringMap;
 
-//audio&video enabled flags used in many places
-struct AvFlags
-{
-    bool audio = false;
-    bool video = false;
-};
 
 //time function
 typedef int64_t Ts;

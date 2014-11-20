@@ -13,15 +13,13 @@ using namespace strophe;
 using namespace mega;
 using namespace placeholders;
 
-namespace karere
-{
 namespace rtcModule
 {
 //===
 string avFlagsToString(const AvFlags& av);
 AvFlags avFlagsOfStream(artc::tspMediaStream& stream, const AvFlags& flags);
 
-RtcModule::RtcModule(strophe::Connection&& conn, IEventHandler* handler,
+RtcModule::RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers)
 :Jingle(conn, crypto, iceServers), mEventHandler(handler)
 {}
@@ -1096,6 +1094,6 @@ string avFlagsToString(const AvFlags &av)
     if (result.empty())
         result+='_';
     return result;
-}
-} //end namespaces
+
+} //end namespace
 }

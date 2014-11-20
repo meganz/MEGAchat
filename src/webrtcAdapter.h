@@ -14,7 +14,7 @@
 #include "base/guiCallMarshaller.h"
 #include "base/promise.h"
 
-namespace MEGA_RTCADAPTER_NS
+namespace artc
 {
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 

@@ -11,8 +11,8 @@
 #include "IJingleSession.h"
 #include "IRtcModule.h" //needed for StatOptions only
 
-namespace karere {
-namespace rtcModule {
+namespace rtcModule
+{
 
 class Jingle;
 class JingleEventHandler; //can't nest it into Jingle
@@ -60,7 +60,7 @@ public:
 
 typedef std::vector<strophe::Stanza> StanzaQueue;
 
-class JingleSession: public IJingleSession, public StringMap
+class JingleSession: public IJingleSession, public karere::StringMap
 {
 public:
     enum State {
@@ -105,7 +105,7 @@ public:
     std::shared_ptr<artc::StreamPlayer> remotePlayer;
     AvFlags mRemoteAvState;
     AvFlags mLocalAvState;
-    Ts tsMediaStart = 0;
+    karere::Ts tsMediaStart = 0;
     std::unique_ptr<StatsRecorder> mStatsRecorder;
 
 //PeerConnection callback interface
@@ -142,7 +142,7 @@ public:
     JingleSession(Jingle& jingle, const	std::string& myJid,
         const std::string& peerJid,	const std::string& sid,
         strophe::Connection& connection, artc::tspMediaStream sessLocalStream,
-        const AvFlags& avState, const StringMap& props, FileTransferHandler* ftHandler=NULL);
+        const AvFlags& avState, const karere::StringMap& props, FileTransferHandler* ftHandler=NULL);
     void initiate(bool isInitiator);
     ~JingleSession()
     {
@@ -194,7 +194,6 @@ public:
     promise::Promise<int> muteUnmute(bool state, const AvFlags& what);
     promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string &origin);
 };
-}
 }
 
 #endif // STROPHE_JINGLE_SESSION_H
