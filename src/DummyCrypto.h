@@ -3,11 +3,10 @@
 #include "ICryptoFunctions.h"
 #include <string>
 #include <set>
-namespace karere {
+
 namespace rtcModule {
 
-
-class DummyCrypto: public karere::rtcModule::ICryptoFunctions
+class DummyCrypto: public rtcModule::ICryptoFunctions
 {
 protected:
     std::string mOwnJid;
@@ -37,6 +36,6 @@ public:
 };
 
 }
-}
+
 
 #endif

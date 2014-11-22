@@ -24,7 +24,7 @@ QT4_WRAP_UI(QT_GEN_FORMS_HEADERS ${QT_FORMS})
 #QT4_ADD_RESOURCES(helloworld_RESOURCES_RCC ${helloworld_RESOURCES})
 
 INCLUDE(${QT_USE_FILE})
-ADD_DEFINITIONS(${QT_DEFINITIONS} -D_DEBUG)
+ADD_DEFINITIONS(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden)
 
 add_definitions(-std=c++11)
 include_directories(
@@ -46,4 +46,5 @@ pthread
 ${LIBEVENT_LIB}
 event_pthreads
 )
+
 

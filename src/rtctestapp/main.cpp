@@ -25,32 +25,30 @@
 #include "../lib.h"
 #include "../DummyCrypto.h"
 #include "../strophe.disco.h"
+#include "../base/services.h"
 
 using namespace std;
 using namespace promise;
 
 MainWindow* mainWin = NULL;
-karere::rtcModule::IRtcModule* rtc = NULL;
-unique_ptr<karere::rtcModule::ICryptoFunctions> crypto;
-unique_ptr<karere::rtcModule::IEventHandler> handler;
+rtcModule::IRtcModule* rtc = NULL;
+unique_ptr<rtcModule::ICryptoFunctions> crypto;
+unique_ptr<rtcModule::IEventHandler> handler;
 AppDelegate appDelegate;
 bool processMessage(void* arg, int what);
 void terminateApp();
 
-namespace mega
+void megaPostMessageToGui(void* msg)
 {
-    void postMessageToGui(void* msg)
-    {
-        QMetaObject::invokeMethod(mainWin,
-            "megaMessageSlot", Qt::QueuedConnection, Q_ARG(void*, msg));
-    }
+    QMetaObject::invokeMethod(mainWin,
+        "megaMessageSlot", Qt::QueuedConnection, Q_ARG(void*, msg));
 }
 
 using namespace strophe;
 struct event_base *base = NULL;
 bool term = 0;
 shared_ptr<thread> watcherThread;
-class RtcEventHandler: public karere::rtcModule::IEventHandler
+class RtcEventHandler: public rtcModule::IEventHandler
 {
 protected:
     strophe::Connection& mConn;
@@ -69,7 +67,7 @@ public:
 void sigintHandler(int)
 {
     printf("SIGINT Received\n");
-    mega::marshalCall([]() {processMessage(nullptr, -2);});
+    mega::marshallCall([]() {processMessage(nullptr, -2);});
 }
 
 auto message_handler = [](Stanza s, void* userdata, bool& keep)
@@ -99,7 +97,7 @@ auto message_handler = [](Stanza s, void* userdata, bool& keep)
 void eventcb(void* arg, int what)
 {
     printf("posted a message: %s\n", xmpp_events_to_str(what));
-    mega::marshalCall([arg, what]() {processMessage(arg, what);});
+    mega::marshallCall([arg, what]() {processMessage(arg, what);});
 }
 
 bool processMessage(void* arg, int what)
@@ -189,7 +187,7 @@ int main(int argc, char **argv)
     handler.reset(new RtcEventHandler(conn));
 
     /* create rtcModule */
-    crypto.reset(new karere::rtcModule::DummyCrypto(argv[1]));
+    crypto.reset(new rtcModule::DummyCrypto(argv[1]));
     rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
     conn.registerPlugin("rtcmodule", rtc);
     /* initiate connection */
@@ -233,7 +231,7 @@ int main(int argc, char **argv)
 void AppDelegate::onAppTerminate()
 {
     printf("onAppTerminate\n");
-    mega::marshalCall([]() {processMessage(nullptr, -2);});
+    mega::marshallCall([]() {processMessage(nullptr, -2);});
 }
 
 void terminateApp()

@@ -293,7 +293,7 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
           {
               const char* txt = body.textOrNull();
               if (txt)
-                  text = xmlUnescape(txt);
+                  text = karere::xmlUnescape(txt);
           }
           const char* fullPeerJid = stanza.attr("from");
 
@@ -751,7 +751,7 @@ void RtcModule::onMediaStart(const string& sid)
         sess.mStatsRecorder.reset(new StatsRecorder(sess, statOptions));
         sess.mStatsRecorder->start();
     }
-    sess.tsMediaStart = timestampMs();
+    sess.tsMediaStart = karere::timestampMs();
 }
 
 void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const char* text,

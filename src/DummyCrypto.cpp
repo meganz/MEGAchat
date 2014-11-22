@@ -4,11 +4,10 @@
 #include <memory>
 
 using namespace std;
-namespace karere {
+
 namespace rtcModule {
 
-
-typedef karere::rtcModule::ICryptoFunctions::IString IString;
+typedef rtcModule::ICryptoFunctions::IString IString;
 char hexDigitToInt(char code)
 {
     if ((code > 47) && (code < 58))
@@ -119,5 +118,4 @@ IString* DummyCrypto::generateRandomString(size_t size)
     return new StringImpl(makeRandomString(size));
 }
 
-}
 }

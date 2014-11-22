@@ -1,7 +1,7 @@
 #include "rtcModule.h"
 #include "lib.h"
 
-using namespace karere::rtcModule;
+using namespace rtcModule;
 
 extern "C"
 {

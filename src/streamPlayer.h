@@ -153,7 +153,7 @@ public:
             if (mOnMediaStart)
             {
                 auto callback = mOnMediaStart;
-                mega::marshalCall([callback]()
+                mega::marshallCall([callback]()
                 {
                     callback();
                 });

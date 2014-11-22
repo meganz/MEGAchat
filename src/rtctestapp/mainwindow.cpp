@@ -14,7 +14,7 @@
     }
 
 extern MainWindow* mainWin;
-extern karere::rtcModule::IRtcModule* rtc;
+extern rtcModule::IRtcModule* rtc;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -25,15 +25,15 @@ MainWindow::MainWindow(QWidget *parent) :
 
 void MainWindow::megaMessageSlot(void* msg)
 {
-    mega::processMessage(msg);
+    megaProcessMessage(msg);
 }
 
 void MainWindow::buttonPushed()
 {
-    karere::rtcModule::AvFlags av;
+    rtcModule::AvFlags av;
     av.audio = true;
     av.video = true;
-    char sid[karere::rtcModule::RTCM_SESSIONID_LEN+2];
+    char sid[rtcModule::RTCM_SESSIONID_LEN+2];
     rtc->startMediaCall(sid, "alex1@j100.server.lu", av, nullptr);
 }
 
