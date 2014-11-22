@@ -15,6 +15,7 @@ set (SRCS
      main.cpp
      ../strophe.disco.cpp
      ../DummyCrypto.cpp
+     ../base/services.cpp
 )
 
 set(QT_FORMS mainwindow.ui)
@@ -24,9 +25,10 @@ QT4_WRAP_UI(QT_GEN_FORMS_HEADERS ${QT_FORMS})
 #QT4_ADD_RESOURCES(helloworld_RESOURCES_RCC ${helloworld_RESOURCES})
 
 INCLUDE(${QT_USE_FILE})
-ADD_DEFINITIONS(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden)
+add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden)
 
-add_definitions(-std=c++11)
+list(APPEND CMAKE_CXX_FLAGS -std=c++11)
+
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/..

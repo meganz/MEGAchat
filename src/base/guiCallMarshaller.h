@@ -2,11 +2,16 @@
 #define GUICALLMARSHALLER_H
 
 /* This is a plain C header */
+#ifdef __cplusplus
+  #define MEGA_GCM_EXTERNC extern "C"
+#else
+  #define MEGA_GCM_EXTERNC
+#endif
 
 #ifdef _WIN32
-#define MEGA_GCM_EXPORT __declspec(dllexport)
+#define MEGA_GCM_EXPORT MEGA_GCM_EXTERNC __declspec(dllexport)
 #else
-#define MEGA_GCM_EXPORT __attribute__ ((visibility ("default")))
+#define MEGA_GCM_EXPORT MEGA_GCM_EXTERNC __attribute__ ((visibility ("default")))
 #endif
 
 struct megaMessage;

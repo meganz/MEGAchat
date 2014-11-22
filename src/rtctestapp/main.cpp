@@ -5,16 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-#include <queue>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
 #include <mstrophe.h>
 #include <mstrophe-libevent.h>
-
-#include <event2/event.h>
-#include <event2/thread.h>
 #include <mstrophepp.h>
+#include <event2/event.h>
 
 //#include "webrtc/base/ssladapter.h"
 
@@ -38,16 +32,15 @@ AppDelegate appDelegate;
 bool processMessage(void* arg, int what);
 void terminateApp();
 
-void megaPostMessageToGui(void* msg)
+MEGA_GCM_EXPORT void megaPostMessageToGui(void* msg)
 {
+    printf("megaPostMessageToGui called\n");
     QMetaObject::invokeMethod(mainWin,
         "megaMessageSlot", Qt::QueuedConnection, Q_ARG(void*, msg));
 }
 
 using namespace strophe;
-struct event_base *base = NULL;
-bool term = 0;
-shared_ptr<thread> watcherThread;
+
 class RtcEventHandler: public rtcModule::IEventHandler
 {
 protected:
@@ -103,12 +96,7 @@ void eventcb(void* arg, int what)
 bool processMessage(void* arg, int what)
 {
     printf("received a message: %s\n", xmpp_events_to_str(what));
-    if (what == -2) //terminate
-    {
-        terminateApp();
-        return false;
-    }
-    else if (what == -1) //timer
+    if (what == -1) //timer
         xmpp_on_timer_event((xmpp_evloop_api_t*)(arg), 1);
     else if (what >= 0)
         xmpp_on_conn_io_event((xmpp_conn_t*)(arg), what);
@@ -138,9 +126,6 @@ int ping(xmpp_conn_t * const pconn, void * const userdata)
    return 1;
 }
 
-void keepalive_timer_cb(evutil_socket_t fd, short what, void *arg)
-{}
-
 xmpp_ctx_t *ctx = NULL;
 shared_ptr<Connection> gConn;
 int main(int argc, char **argv)
@@ -153,22 +138,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "Usage: bot <jid> <pass>\n\n");
         return 1;
     }
-
-#ifdef _WIN32
-    WSADATA wsadata;
-    WSAStartup(MAKEWORD(2,2), &wsadata);
-    evthread_use_windows_threads();
-#else
-    evthread_use_pthreads();
-#endif
-    base = event_base_new();
-    evthread_make_base_notifiable(base);
-    struct event* keepalive = evtimer_new(base, keepalive_timer_cb, NULL);
-    struct timeval tv;
-    tv.tv_sec = 123456;//0x7FFFFFFF;
-    tv.tv_usec = 0;
-    evtimer_add(keepalive, &tv);
-    xmpp_evloop_api_t* evloop = xmpp_libevent_evloop_new(base, eventcb);
+    services_init(megaPostMessageToGui);
+    xmpp_evloop_api_t* evloop = xmpp_libevent_evloop_new(
+                services_getLibeventLoop(), eventcb);
   //  evloop->reset_waitflags = 0;
     /* init library */
     xmpp_initialize();
@@ -195,7 +167,7 @@ int main(int argc, char **argv)
     .then([&](int)
     {
         printf("==========Connect promise resolved\n");
-        xmpp_timed_handler_add(conn, ping, 100000, &conn);
+        xmpp_timed_handler_add(conn, ping, 1000, &conn);
         conn.addHandler(message_handler, NULL, "message", NULL, NULL, &conn);
     /* Send initial <presence/> so that we appear online to contacts */
         Stanza pres(conn);
@@ -216,29 +188,13 @@ int main(int argc, char **argv)
     mainWin = new MainWindow;
     mainWin->show();
     QObject::connect( qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()) );
-    watcherThread.reset(new std::thread([]() mutable
-    {
-        /* enter the event loop -
-        our connect handler will trigger an exit */
-        printf("Watcher thread started\n");
-        event_base_loop(base, 0);//EVLOOP_NO_EXIT_ON_EMPTY
-        printf("eventloop exited\n");
-        term = 1;
-    }));
     return a.exec();
 }
 
 void AppDelegate::onAppTerminate()
 {
     printf("onAppTerminate\n");
-    mega::marshallCall([]() {processMessage(nullptr, -2);});
-}
-
-void terminateApp()
-{
-    event_base_loopexit(base, NULL);
-    printf("joining thread\n");
-    watcherThread->join();
+    services_shutdown();
     gConn.reset();
     /* release our connection and context */
     xmpp_ctx_free(ctx);
