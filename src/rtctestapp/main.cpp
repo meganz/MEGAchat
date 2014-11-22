@@ -34,7 +34,6 @@ void terminateApp();
 
 MEGA_GCM_EXPORT void megaPostMessageToGui(void* msg)
 {
-    printf("megaPostMessageToGui called\n");
     QMetaObject::invokeMethod(mainWin,
         "megaMessageSlot", Qt::QueuedConnection, Q_ARG(void*, msg));
 }

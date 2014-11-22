@@ -25,7 +25,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
 void MainWindow::megaMessageSlot(void* msg)
 {
-    printf("calling megaProcessMessage\n");
     megaProcessMessage(msg);
 }
 
