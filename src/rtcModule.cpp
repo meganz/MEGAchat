@@ -3,9 +3,9 @@
 #include "base/services.h"
 #include "strophe.jingle.session.h"
 
-#define RTCM_EVENT(name,...) \
-    printf("Event: %s\n", #name);
-//    mEventHandler->name(#__VA_ARGS__)
+#define RTCM_EVENT(name,...)            \
+    printf("Event: %s\n", #name);       \
+    mEventHandler->name(__VA_ARGS__)
 
 using namespace std;
 using namespace promise;
@@ -102,7 +102,7 @@ void RtcModule::myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool a
             else
             {
                 lmfCalled = true;
-                bool cont = false;
+                int cont = 0;
                 RTCM_EVENT(onLocalMediaFail, msg.c_str(), &cont);
                 if (!cont)
                     return errCb(msg);
@@ -255,9 +255,9 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
                   })
                  // TODO: files
                  // files?ftManager.createUploadHandler(sid, fullPeerJid, fileArr):NULL);
-              .then([this](const std::shared_ptr<JingleSession>& sess)
+              .then([this, state](const std::shared_ptr<JingleSession>& sess)
               {
-                  RTCM_EVENT(onCallInit, sess, !!state->files);
+                  RTCM_EVENT(onCallInit, sess.get(), !!state->files);
                   return 0;
               });
         }
@@ -313,7 +313,7 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
               state->sid.c_str(),
               stanza.attrOrNull("reason"),
               text.empty()?nullptr:text.c_str(),
-              !!files, //isDataCall
+              !!state->files //isDataCall
           );
       },
       nullptr, "message", "megaCallDecline", state->targetJid.c_str(), nullptr, STROPHE_MATCH_BAREJID);
@@ -700,7 +700,7 @@ void RtcModule::onIncomingCallRequest(const char* from, shared_ptr<CallAnswerFun
 }
 void RtcModule::onCallAnswered(JingleSession& sess)
 {
-    RTCM_EVENT(onCallAnswered, sess);
+    RTCM_EVENT(onCallAnswered, &sess);
 }
 
 void RtcModule::removeRemotePlayer(JingleSession& sess)
@@ -720,7 +720,7 @@ void RtcModule::removeRemotePlayer(JingleSession& sess)
         return;
     }
     sess.remotePlayer->stop();
-    RTCM_EVENT(remotePlayerRemove, sess, remotePlayer->preDestroy());
+    RTCM_EVENT(remotePlayerRemove, &sess, sess.remotePlayer->preDestroy());
     sess.remotePlayer.reset();
 }
 //Called by the remote media player when the first frame is about to be rendered, analogous to
@@ -776,7 +776,7 @@ void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const 
    else //no sess
    {
        BasicStats bstats(*noSess, reason);
-       RTCM_EVENT(onCallEnded, usess, &bstats);
+       RTCM_EVENT(onCallEnded, noSess, &bstats);
    }
  }
 

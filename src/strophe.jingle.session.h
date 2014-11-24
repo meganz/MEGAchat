@@ -24,7 +24,7 @@ public:
     void remove(const char*, const char*){}
 };
 //Dummy stats recorder. TODO: Implement
-class RtcStats
+class RtcStats: public IRtcStats
 {
 public:
     bool isCaller;
@@ -33,7 +33,7 @@ public:
 //        :isCaller(sess.isInitiator()){}
 };
 
-class BasicStats
+class BasicStats: public IRtcStats
 {
 public:
     std::string termRsn;

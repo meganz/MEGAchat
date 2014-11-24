@@ -2,6 +2,7 @@
 #define IRTC_MODULE_H
 
 #include "IJingleSession.h"
+#include "IVideoRenderer.h"
 #include "mstrophepp.h"
 
 namespace rtcModule
@@ -34,18 +35,34 @@ protected:
     virtual ~IAnswerCall() {} //deleted via destoy() only to use our memory manager
 };
 
-/** Public event handler callback interface.
- *  All events from the Rtc module are sent to the application via this interface */
-struct IEventHandler
-{
-    virtual void addDiscoFeature(const char* feature) {}
-//TODO: Define
-};
 struct StatOptions
 {
     bool enableStats = true;
     int scanPeriod = -1;
     int maxSamplePeriod = -1;
+};
+struct IRtcStats {};
+/** Public event handler callback interface.
+ *  All events from the Rtc module are sent to the application via this interface */
+struct IEventHandler
+{
+    virtual void addDiscoFeature(const char* feature) {}
+    virtual void onLocalMediaFail(const char* errMsg, int* cont=NULL) {}
+    virtual void onCallInit(IJingleSession* sess, int isDataCall) {}
+    virtual void oncallDeclined(const char* peer, const char* sid, const char* reason,
+        const char* text, int isDataCall){}
+    virtual void onCallAnswerTimeout(const char* peer) {}
+    virtual void onLocalStreamObtained(IVideoRenderer** rendererRet) {}
+    virtual void onCallIncomingRequest(IAnswerCall* ansCtrl) {}
+    virtual void onCallAnswered(IJingleSession* sess) {}
+    virtual void remotePlayerRemove(IJingleSession* sess, IVideoRenderer* videoRenderer) {}
+    virtual void onMediaRecv(IJingleSession* sess, StatOptions* statOptions) {}
+    virtual void onCallEnded(IJingleSession* sess, IRtcStats* stats) {}
+    virtual void onRemoteSdpRecv(IJingleSession* sess, IVideoRenderer** rendererRet) {}
+    virtual void onJingleError(IJingleSession* sess, const char* origin, const char* stanza,
+                   const char* origXml, char type) {}
+    virtual void onLocalVideoDisabled() {}
+    virtual void onLocalVideoEnabled() {}
 };
 
 //===
