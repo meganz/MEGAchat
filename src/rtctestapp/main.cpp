@@ -30,7 +30,6 @@ unique_ptr<rtcModule::ICryptoFunctions> crypto;
 unique_ptr<rtcModule::IEventHandler> handler;
 AppDelegate appDelegate;
 bool processMessage(void* arg, int what);
-void terminateApp();
 
 MEGA_GCM_EXPORT void megaPostMessageToGui(void* msg)
 {
@@ -59,7 +58,8 @@ public:
 void sigintHandler(int)
 {
     printf("SIGINT Received\n");
-    mega::marshallCall([]() {processMessage(nullptr, -2);});
+    fflush(stdout);
+    mega::marshallCall([]{mainWin->close();});
 }
 
 auto message_handler = [](Stanza s, void* userdata, bool& keep)
@@ -137,9 +137,14 @@ int main(int argc, char **argv)
         fprintf(stderr, "Usage: bot <jid> <pass>\n\n");
         return 1;
     }
+    QApplication a(argc, argv);
+    mainWin = new MainWindow;
+    mainWin->show();
+    QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
+
     services_init(megaPostMessageToGui);
     xmpp_evloop_api_t* evloop = xmpp_libevent_evloop_new(
-                services_getLibeventLoop(), eventcb);
+                services_getEventLoop(), eventcb);
   //  evloop->reset_waitflags = 0;
     /* init library */
     xmpp_initialize();
@@ -159,14 +164,14 @@ int main(int argc, char **argv)
 
     /* create rtcModule */
     crypto.reset(new rtcModule::DummyCrypto(argv[1]));
-    rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
-    conn.registerPlugin("rtcmodule", rtc);
+//    rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
+//    conn.registerPlugin("rtcmodule", rtc);
     /* initiate connection */
     conn.connect(NULL, 0)
     .then([&](int)
     {
         printf("==========Connect promise resolved\n");
-        xmpp_timed_handler_add(conn, ping, 1000, &conn);
+        xmpp_timed_handler_add(conn, ping, 100000, &conn);
         conn.addHandler(message_handler, NULL, "message", NULL, NULL, &conn);
     /* Send initial <presence/> so that we appear online to contacts */
         Stanza pres(conn);
@@ -179,14 +184,19 @@ int main(int argc, char **argv)
         printf("==========Connect promise failed\n");
         return error;
     });
-  //  signal(SIGINT, sigintHandler);
+    signal(SIGINT, sigintHandler);
 
 
 //    rtc::InitializeSSL();
-    QApplication a(argc, argv);
-    mainWin = new MainWindow;
-    mainWin->show();
-    QObject::connect( qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()) );
+    int ctr = 0;
+    auto timer = mega::setTimeout([&ctr](){printf("onTimer\n"); ctr++;}, 2000);
+
+    mega::setInterval([timer]()
+    {
+        auto ret = mega::cancelInterval(timer);
+        printf("cancel: %d\n", ret);
+    }, 1999);
+
     return a.exec();
 }
 

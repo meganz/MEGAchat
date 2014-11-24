@@ -35,8 +35,20 @@ struct event;
 
 
 MEGAIO_IMPEXP int services_init(void(*postFunc)(void*));
-MEGAIO_IMPEXP struct event_base* services_getLibeventLoop();
+MEGAIO_IMPEXP struct event_base* services_getEventLoop();
 MEGAIO_IMPEXP int services_shutdown();
 
+//Handle store
+
+typedef unsigned int megaHandle; //invalid handle value is 0
+
+enum
+{
+    MEGA_HTYPE_TIMER = 1
+};
+
+MEGAIO_IMPEXP void* services_hstore_get_handle(unsigned short type, megaHandle handle);
+MEGAIO_IMPEXP megaHandle services_hstore_add_handle(unsigned short type, void* ptr);
+MEGAIO_IMPEXP int services_hstore_remove_handle(unsigned short type, megaHandle handle);
 
 #endif
