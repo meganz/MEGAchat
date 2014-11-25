@@ -17,8 +17,8 @@ add_subdirectory(base)
 add_subdirectory("${optWebrtcCmakeBuild}" webrtc)
 
 list(APPEND CMAKE_CXX_FLAGS -std=c++11)
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${STROPHE_INCLUDES})
 add_definitions(-DRTCM_BUILDING -fvisibility=hidden)
 
 # The below line should be uncommented if dlls can't link to dynamic symbols exported
@@ -26,7 +26,12 @@ add_definitions(-DRTCM_BUILDING -fvisibility=hidden)
 #
 # add_definitions(-DMEGA_GCM_CLIENT_INIT_API=rtcModule)
 
-add_library(rtcModule SHARED ${SRCS})
+if(optRtcModuleBuildShared)
+    add_library(rtcModule SHARED ${SRCS})
+else()
+    add_library(rtcModule ${SRCS})
+endif()
+
 target_link_targets(rtcModule webrtc_my services)
 target_link_libraries(rtcModule pthread)
 
