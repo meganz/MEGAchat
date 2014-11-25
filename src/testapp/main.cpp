@@ -2,16 +2,14 @@
 
 #include <QtGui/QApplication>
 #include "mainwindow.h"
+#include "../base/gcmpp.h"
 
 MainWindow* mainWin = NULL;
 
-namespace mega
+MEGA_GCM_EXPORT void megaPostMessageToGui(void* msg)
 {
-    void postMessageToGui(void* msg)
-    {
         QMetaObject::invokeMethod(mainWin,
             "megaMessageSlot", Qt::QueuedConnection, Q_ARG(void*, msg));
-    }
 }
 
 int main(int argc, char *argv[])

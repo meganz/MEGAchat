@@ -3,11 +3,11 @@
 #include <streamPlayer.h>
 
 #include "mainwindow.h"
-#include "ui_mainwindow.h"
+#include <ui_mainwindow.h>
 #include "qmessagebox.h"
 #include <QThread>
 #include <string>
-#include "videoRenderer_Qt.h"
+#include <videoRenderer_Qt.h>
 
 #undef emit
 #define THROW_IF_FALSE(statement) \
@@ -176,7 +176,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::megaMessageSlot(void* msg)
 {
-    mega::processMessage(msg);
+    megaProcessMessage(msg);
 }
 struct MyThread: public QThread
 {
