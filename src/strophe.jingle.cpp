@@ -563,7 +563,8 @@ Promise<shared_ptr<JingleSession> >
 Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
   artc::tspMediaStream sessStream, const AvFlags& avState, StringMap&& sessProps,
   FileTransferHandler* ftHandler)
-{ // initiate a new jinglesession to peerjid
+{
+    // initiate a new jinglesession to peerjid
     JingleSession* sess = createSession(myjid, peerjid, sid, sessStream, avState,
       std::forward<StringMap>(sessProps), ftHandler);
     // configure session
@@ -732,7 +733,7 @@ int Jingle::setIceServers(const char* iceServers)
 {
     if (!iceServers || !iceServers[0])
     {
-        mIceServers.reset();
+        mIceServers.reset(new webrtc::PeerConnectionInterface::IceServers);
         return 0;
     }
     webrtc::PeerConnectionInterface::IceServers servers;
