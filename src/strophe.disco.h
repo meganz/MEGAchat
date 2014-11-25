@@ -1,3 +1,6 @@
+#ifndef STROPHE_DISCO_PLUGIN_H
+#define STROPHE_DISCO_PLUGIN_H
+
 #include <mstrophepp.h>
 #include <set>
 #include <memory>
@@ -104,3 +107,5 @@ inline const char* Node::rootJid() const
     return mDisco.mConn.jid();
 }
 } //end namespace disco
+
+#endif
