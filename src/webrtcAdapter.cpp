@@ -10,10 +10,15 @@ rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
 
 /** Local DTLS Identity */
 Identity gLocalIdentity;
+static bool gIsInitialized = false;
+
 bool init(const Identity* identity)
 {
-    if (gWebrtcContext.get())
+    if (gIsInitialized)
         return false;
+
+    gIsInitialized = true;
+    rtc::InitializeSSL();
     if (identity)
         gLocalIdentity = *identity;
     else
@@ -26,10 +31,10 @@ bool init(const Identity* identity)
 
 void cleanup()
 {
-    if (!gWebrtcContext.get())
+    if (!gIsInitialized)
         return;
-    rtc::CleanupSSL();
     gWebrtcContext = NULL;
+    rtc::CleanupSSL();
 }
 
 
