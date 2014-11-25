@@ -22,7 +22,9 @@ AvFlags avFlagsOfStream(artc::tspMediaStream& stream, const AvFlags& flags);
 RtcModule::RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers)
 :Jingle(conn, crypto, iceServers), mEventHandler(handler)
-{}
+{
+    mOwnAnonId = crypto->scrambleJid(mConn.jid())->c_str();
+}
 
 void RtcModule::logInputDevices()
 {
@@ -258,6 +260,11 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
               .then([this, state](const std::shared_ptr<JingleSession>& sess)
               {
                   RTCM_EVENT(onCallInit, sess.get(), !!state->files);
+                  return 0;
+              })
+              .fail([](const Error& err)
+              {
+                  KR_LOG_ERROR("Error initiating session: %s", err.toString().c_str());
                   return 0;
               });
         }
