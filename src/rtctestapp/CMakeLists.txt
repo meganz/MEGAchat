@@ -26,21 +26,21 @@ add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden)
 
 #list(APPEND CMAKE_CXX_FLAGS -std=c++11)
 
-add_subdirectory(../base services)
-
+add_subdirectory(.. rtcModule)
+get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
 include_directories(
     ..
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
+    ${STROPHE_INCLUDES}
 )
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 add_executable(rtctestapp ${SRCS} ${QT_GEN_MOC_SRCS} ${QT_GEN_FORMS_HEADERS})
 
-target_link_targets(rtctestapp services)
-
-target_link_Libraries(rtctestapp
+target_link_libraries(rtctestapp
     ${QT_LIBRARIES}
-    ${CMAKE_CURRENT_BINARY_DIR}/../librtcModule.so
+    rtcModule
 )
 
 
