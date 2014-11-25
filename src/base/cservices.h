@@ -35,7 +35,7 @@ struct event;
 
 
 MEGAIO_IMPEXP int services_init(void(*postFunc)(void*));
-MEGAIO_IMPEXP struct event_base* services_getEventLoop();
+MEGAIO_IMPEXP struct event_base* services_get_event_loop();
 MEGAIO_IMPEXP int services_shutdown();
 
 //Handle store
@@ -50,5 +50,9 @@ enum
 MEGAIO_IMPEXP void* services_hstore_get_handle(unsigned short type, megaHandle handle);
 MEGAIO_IMPEXP megaHandle services_hstore_add_handle(unsigned short type, void* ptr);
 MEGAIO_IMPEXP int services_hstore_remove_handle(unsigned short type, megaHandle handle);
+
+#ifndef SVC_DISABLE_STROPHE
+    #include "cservices-strophe.h"
+#endif
 
 #endif

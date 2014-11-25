@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-#include <mstrophe.h>
-#include <mstrophe-libevent.h>
 #include <mstrophepp.h>
 #include <event2/event.h>
 
@@ -86,21 +84,6 @@ auto message_handler = [](Stanza s, void* userdata, bool& keep)
     conn.send(reply);
 };
 
-void eventcb(void* arg, int what)
-{
-    printf("posted a message: %s\n", xmpp_events_to_str(what));
-    mega::marshallCall([arg, what]() {processMessage(arg, what);});
-}
-
-bool processMessage(void* arg, int what)
-{
-    printf("received a message: %s\n", xmpp_events_to_str(what));
-    if (what == -1) //timer
-        xmpp_on_timer_event((xmpp_evloop_api_t*)(arg), 1);
-    else if (what >= 0)
-        xmpp_on_conn_io_event((xmpp_conn_t*)(arg), what);
-    return true;
-}
 int ping(xmpp_conn_t * const pconn, void * const userdata)
 {
    printf("TIMED HANDLER CALLED\n");
@@ -129,8 +112,6 @@ xmpp_ctx_t *ctx = NULL;
 shared_ptr<Connection> gConn;
 int main(int argc, char **argv)
 {
-    xmpp_log_t *log;
-
     /* take a jid and password on the command line */
     if (argc != 3)
     {
@@ -143,18 +124,9 @@ int main(int argc, char **argv)
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 
     services_init(megaPostMessageToGui);
-    xmpp_evloop_api_t* evloop = xmpp_libevent_evloop_new(
-                services_getEventLoop(), eventcb);
-  //  evloop->reset_waitflags = 0;
-    /* init library */
-    xmpp_initialize();
-
-    /* create a context */
-    log = xmpp_get_default_logger(XMPP_LEVEL_DEBUG); /* pass NULL instead to silence output */
-    ctx = xmpp_ctx_new(NULL, evloop, log);
 
     /* create a connection */
-    gConn.reset(new strophe::Connection(ctx));
+    gConn.reset(new strophe::Connection(services_strophe_get_ctx()));
     Connection& conn = *(gConn.get());
     /* setup authentication information */
     xmpp_conn_set_jid(conn, argv[1]);
@@ -205,8 +177,4 @@ void AppDelegate::onAppTerminate()
     printf("onAppTerminate\n");
     services_shutdown();
     gConn.reset();
-    /* release our connection and context */
-    xmpp_ctx_free(ctx);
-    /* final shutdown of the library */
-    xmpp_shutdown();
 }

@@ -11,7 +11,7 @@ std::unique_ptr<std::thread> libeventThread;
 
 static void keepalive_timer_cb(evutil_socket_t fd, short what, void *arg){}
 
-MEGAIO_EXPORT event_base* services_getEventLoop()
+MEGAIO_EXPORT event_base* services_get_event_loop()
 {
     return eventloop;
 }
@@ -38,6 +38,7 @@ MEGAIO_EXPORT int services_init(void(*postFunc)(void *))
     tv.tv_usec = 0;
     evtimer_add(keepalive, &tv);
 
+    services_strophe_init(SVC_STROPHE_LOG);
     libeventThread.reset(new std::thread([]() mutable
     {
         /* enter the event loop */

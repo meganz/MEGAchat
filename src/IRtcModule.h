@@ -3,7 +3,7 @@
 
 #include "IJingleSession.h"
 #include "IVideoRenderer.h"
-#include "mstrophepp.h"
+#include "mstrophepp.h" //only needed for IPlugin
 
 namespace rtcModule
 {
@@ -47,7 +47,7 @@ struct IRtcStats {};
 struct IEventHandler
 {
     virtual void addDiscoFeature(const char* feature) {}
-    virtual void onLocalMediaFail(const char* errMsg, int* cont=NULL) {}
+    virtual void onLocalMediaFail(const char* errMsg, int* cont=nullptr) {}
     virtual void onCallInit(IJingleSession* sess, int isDataCall) {}
     virtual void oncallDeclined(const char* peer, const char* sid, const char* reason,
         const char* text, int isDataCall){}

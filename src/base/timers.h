@@ -59,7 +59,7 @@ inline megaHandle setTimer(CB&& callback, unsigned time)
               std::unique_ptr<Msg> msg(static_cast<Msg*>(arg));
               msg->cb();
           });
-    pMsg->timerEvent = event_new(services_getEventLoop(), -1, persist,
+    pMsg->timerEvent = event_new(services_get_event_loop(), -1, persist,
       [](evutil_socket_t fd, short what, void* evarg)
       {
             megaPostMessageToGui(evarg);
