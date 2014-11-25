@@ -11,12 +11,12 @@ set(SRCS
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/..")
 find_package(LibEvent REQUIRED)
+add_subdirectory(${optStrophePath} strophe)
+get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
 
 set(INCLUDES
  ${LIBEVENT_INCLUDE_DIR}
- ${optStrophePath}
- ${optStrophePath}/build/include
- ${LIBEVENT_INCLUDE_DIR}
+ ${STROPHE_INCLUDES}
 )
 include_directories(${INCLUDES})
 
@@ -25,7 +25,7 @@ list(APPEND CMAKE_CXX_FLAGS -std=c++11)
 
 add_library(services SHARED ${SRCS})
 target_link_libraries(services
-  ${optStrophePath}/build/libstrophe.so
+  strophe
   ${LIBEVENT_LIB}
   event_pthreads
 )

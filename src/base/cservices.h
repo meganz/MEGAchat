@@ -33,8 +33,16 @@ struct event;
   #define MEGAIO_IMPEXP MEGAIO_EXTERNC
 #endif
 
+/** Options bitmask for log flags */
+enum {SVC_OPTIONS_LOGFLAGS = 0x000000ff};
 
-MEGAIO_IMPEXP int services_init(void(*postFunc)(void*));
+/** Initialize and start the services engine
+ @param postFunc The function that posts a void* to the application's message loop
+ @param options Misc flags. The LS byte is reserved for logging bits
+ (SVC_OPTIONS_LOGFLAGS mask). Currently supported flags:
+     SVC_STROPHE_LOG: enabled logging of sent and received strophe stanzas.
+*/
+MEGAIO_IMPEXP int services_init(void(*postFunc)(void*), unsigned options);
 MEGAIO_IMPEXP struct event_base* services_get_event_loop();
 MEGAIO_IMPEXP int services_shutdown();
 

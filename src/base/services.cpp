@@ -16,7 +16,7 @@ MEGAIO_EXPORT event_base* services_get_event_loop()
     return eventloop;
 }
 
-MEGAIO_EXPORT int services_init(void(*postFunc)(void *))
+MEGAIO_EXPORT int services_init(void(*postFunc)(void *), unsigned options)
 {
 /*
     int ret = megaGcmInit_services(postFunc);
@@ -37,8 +37,9 @@ MEGAIO_EXPORT int services_init(void(*postFunc)(void *))
     tv.tv_sec = 123456;//0x7FFFFFFF;
     tv.tv_usec = 0;
     evtimer_add(keepalive, &tv);
-
-    services_strophe_init(SVC_STROPHE_LOG);
+#ifndef SVC_DISABLE_STROPHE
+    services_strophe_init(options & SVC_OPTIONS_LOGFLAGS);
+#endif
     libeventThread.reset(new std::thread([]() mutable
     {
         /* enter the event loop */
