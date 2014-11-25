@@ -37,21 +37,6 @@ MEGA_GCM_EXPORT void megaPostMessageToGui(void* msg)
 
 using namespace strophe;
 
-class RtcEventHandler: public rtcModule::IEventHandler
-{
-protected:
-    strophe::Connection& mConn;
-    disco::DiscoPlugin& mDisco;
-public:
-
-    RtcEventHandler(strophe::Connection& conn)
-        :mConn(conn), mDisco(conn.plugin<disco::DiscoPlugin>("disco"))
-    {}
-    virtual void addDiscoFeature(const char* feature)
-    {
-        mDisco.addFeature(feature);
-    }
-};
 
 void sigintHandler(int)
 {
@@ -86,18 +71,15 @@ auto message_handler = [](Stanza s, void* userdata, bool& keep)
 
 int ping(xmpp_conn_t * const pconn, void * const userdata)
 {
-   printf("TIMED HANDLER CALLED\n");
    strophe::Connection& conn = *static_cast<strophe::Connection*>(userdata);
    Stanza ping(conn);
    ping.setName("iq")
        .setAttr("type", "get")
        .setAttr("from", conn.jid())
        .c("ping", {{"xmlns", "urn:xmpp:ping"}});
-   printf("sending ping\n");
    conn.sendIqQuery(ping, "set")
    .then([](Stanza pong)
    {
-         printf("pong received\n");
          return 0;
    })
    .fail([](const promise::Error& err)
@@ -109,7 +91,6 @@ int ping(xmpp_conn_t * const pconn, void * const userdata)
 }
 
 xmpp_ctx_t *ctx = NULL;
-shared_ptr<Connection> gConn;
 int main(int argc, char **argv)
 {
     /* take a jid and password on the command line */
@@ -123,21 +104,21 @@ int main(int argc, char **argv)
     mainWin->show();
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 
-    services_init(megaPostMessageToGui);
+    services_init(megaPostMessageToGui, SVC_STROPHE_LOG);
 
     /* create a connection */
-    gConn.reset(new strophe::Connection(services_strophe_get_ctx()));
-    Connection& conn = *(gConn.get());
+    mainWin->mConn.reset(new strophe::Connection(services_strophe_get_ctx()));
+    Connection& conn = *(mainWin->mConn.get());
     /* setup authentication information */
     xmpp_conn_set_jid(conn, argv[1]);
     xmpp_conn_set_pass(conn, argv[2]);
     conn.registerPlugin("disco", new disco::DiscoPlugin(conn, "Karere"));
-    handler.reset(new RtcEventHandler(conn));
+    handler.reset(new RtcEventHandler(mainWin));
 
     /* create rtcModule */
     crypto.reset(new rtcModule::DummyCrypto(argv[1]));
-//    rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
-//    conn.registerPlugin("rtcmodule", rtc);
+    rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
+    conn.registerPlugin("rtcmodule", rtc);
     /* initiate connection */
     conn.connect(NULL, 0)
     .then([&](int)
@@ -176,5 +157,5 @@ void AppDelegate::onAppTerminate()
 {
     printf("onAppTerminate\n");
     services_shutdown();
-    gConn.reset();
+    mainWin->mConn.reset();
 }
