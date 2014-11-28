@@ -49,7 +49,7 @@ string xorDec(const string& str, const string& key)
     size_t keylen = key.size();
     for (size_t i=0; i<len; i+=2)
     {
-        char code = hexDigitToInt(str[i] << 4)|hexDigitToInt(str[i+1]);
+        char code = (hexDigitToInt(str[i]) << 4)|hexDigitToInt(str[i+1]);
         code ^= key[j++];
         if (j >= keylen)
             j = 0;

@@ -149,7 +149,7 @@ public:
       initiate(const char* sid, const char* peerjid, const char* myjid,
         artc::tspMediaStream sessStream, const AvFlags& avState,
         karere::StringMap&& sessProps, FileTransferHandler* ftHandler=NULL);
-    JingleSession* createSession(const char* me, const char* peerjid,
+    std::shared_ptr<JingleSession> createSession(const char* me, const char* peerjid,
         const char* sid, artc::tspMediaStream, const AvFlags& avState,
         const karere::StringMap& sessProps, FileTransferHandler* ftHandler=NULL);
     void terminateAll(const char* reason, const char* text, bool nosend=false);

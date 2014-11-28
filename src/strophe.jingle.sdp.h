@@ -13,6 +13,7 @@ namespace strophe
 namespace sdpUtil
 {
 typedef std::map<std::string, std::string> StringMap;
+typedef std::vector<std::string> LineGroup;
 
 struct MLine
 {
@@ -28,34 +29,43 @@ struct MLine
 class ParsedSdp
 {
 public:
-    std::vector<std::string> media;
-    std::string session;
+    /** Each media element is a group of lines related to one 'm=' block in the SDP */
+    std::vector<LineGroup> media;
+    /** This is the group of lines that is before the first 'm=' group of lines */
+    LineGroup session;
     std::string raw;
 //construct from SDP
     void parse(const std::string& strSdp);
 // construct from a jingle stanza
     void parse(strophe::Stanza jingle);
+//checks if there is an 'm=<name>:' line
+    bool hasMlineWithName(const char* name);
 // add contents to a jingle element
     strophe::Stanza toJingle(strophe::Stanza elem, const char* creator);
 protected:
-    std::string rtcpFbFromJingle(strophe::Stanza elem, const std::string& payloadtype);
+    void rtcpFbFromJingle(strophe::Stanza elem, const std::string& payloadtype, LineGroup& media);
 // translate a jingle content element into an an SDP media part
-    std::string jingle2media(strophe::Stanza content);
+    std::unique_ptr<LineGroup> jingle2media(strophe::Stanza content);
 };
 
-std::unique_ptr<StringMap> parse_rtpmap(const std::string& line);
+std::unique_ptr<StringMap> parse_rtpmap(const std::string& line, const std::string& id);
 std::string build_rtpmap(strophe::Stanza el);
 std::unique_ptr<StringMap> parse_crypto(const std::string& line);
-std::unique_ptr<std::vector<std::pair<std::string, std::string> > >parse_fmtp(std::string line);
+std::unique_ptr<std::vector<std::pair<std::string, std::string> > >
+    parse_fmtp(const std::string& line);
 std::unique_ptr<StringMap> parse_extmap(const std::string& line);
-std::string tillEol(const std::string text, size_t& pos);
-std::string find_line(const std::string& haystack, const std::string& needle, size_t& start);
-std::string find_line(const std::string& haystack, const std::string& needle);
-std::string find_line(const std::string& haystack, const std::string& needle, const std::string& session);
-std::unique_ptr<std::vector<std::string> > find_lines(const std::string haystack, const std::string needle);
-std::unique_ptr<std::vector<std::string> > find_lines(const std::string haystack, const std::string needle, const std::string& sessionpart);
-std::unique_ptr<StringMap> iceparams(const std::string& mediadesc, const std::string& sessiondesc);
-std::unique_ptr<StringMap> candidateToJingle(std::string line);
+template <int flags = 0> std::string
+find_line(const LineGroup& haystack, const std::string& needle, size_t& start);
+template <int flags = 0> std::string
+find_line(const LineGroup& haystack, const std::string& needle);
+template <int flags = 0> std::string
+find_line(const LineGroup& haystack, const std::string& needle, const LineGroup& session);
+template <int flags = 0> std::unique_ptr<LineGroup>
+find_lines(const LineGroup& haystack, const std::string& needle);
+template <int flags = 0> std::unique_ptr<LineGroup>
+find_lines(const LineGroup& haystack, const std::string& needle, const LineGroup& sessionpart);
+std::unique_ptr<StringMap> iceparams(const LineGroup& mediadesc, const LineGroup& sessiondesc);
+std::unique_ptr<StringMap> candidateToJingle(const std::string& line);
 std::string candidateFromJingle(strophe::Stanza cand);
 std::string parse_fingerprint(const std::string& line, StringMap& attrs);
 }

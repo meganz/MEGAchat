@@ -54,7 +54,7 @@ auto message_handler = [](Stanza s, void* userdata, bool& keep)
     Stanza body(rawBody);
     if (!strcmp(s.attr("type"), "error")) return 1;
 
-    auto intext = body.recursiveText();
+    auto intext = body.text();
 
     printf("Incoming message from %s: %s\n", s.attr("from"), intext.c_str());
 
@@ -118,6 +118,7 @@ int main(int argc, char **argv)
     /* create rtcModule */
     crypto.reset(new rtcModule::DummyCrypto(argv[1]));
     rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
+    rtc->updateIceServers("url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret");
     conn.registerPlugin("rtcmodule", rtc);
     /* initiate connection */
     conn.connect(NULL, 0)

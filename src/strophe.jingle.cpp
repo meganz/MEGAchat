@@ -111,9 +111,13 @@ void Jingle::onJingle(Stanza iq)
 {
    try
    {
-        Stanza jingle = iq.child("child");
+        Stanza jingle = iq.child("jingle");
         const char* sid = jingle.attr("sid");
-        auto sess = mSessions[sid];
+        auto sit = mSessions.find(sid);
+        shared_ptr<JingleSession> sess((sit == mSessions.end())
+            ? nullptr
+            : sit->second);
+
         if (sess && sess->inputQueue.get())
         {
             sess->inputQueue->push_back(iq);
@@ -128,7 +132,7 @@ void Jingle::onJingle(Stanza iq)
             {"id", iq.attr("id")}
         });
         bool error = false;
-        KR_LOG_DEBUG("onJingle '%s' from '%s'", action, iq.attr("from"));
+        KR_LOG_COLOR(33;1, "onJingle '%s' from '%s'", action, iq.attr("from"));
 
         if (strcmp(action, "session-initiate"))
         {
@@ -194,10 +198,10 @@ void Jingle::onJingle(Stanza iq)
                 return;
             }
 //===
-            sess.reset(createSession(iq.attr("to"), peerjid, sid,
-               ans.options->localStream, ans.options->av, ans));
+            sess = createSession(iq.attr("to"), peerjid, sid,
+               ans.options->localStream, ans.options->av, ans);
 
-            sess->inputQueue.reset(new vector<Stanza>);
+            sess->inputQueue.reset(new StanzaQueue());
             string reason, text;
             bool cont = onCallIncoming(*sess, reason, text);
             if (!cont)
@@ -248,12 +252,8 @@ void Jingle::onJingle(Stanza iq)
 // We are likely to start receiving ice candidates before setRemoteDescription()
 // has completed, esp on Firefox, so we want to queue these and feed them only
 // after setRemoteDescription() completes
-            sess->inputQueue.reset(new vector<Stanza>);
+            sess->inputQueue.reset(new StanzaQueue());
             sess->setRemoteDescription(jingle, "answer")
-            .then([this, sess](int)
-            {
-                return sess->sendAnswer();
-            })
             .then([this, sess](int)
             {
                 if (sess->inputQueue)
@@ -271,7 +271,7 @@ void Jingle::onJingle(Stanza iq)
                 reason = rsnNode.name();
                 if (strcmp(reason, "hangup") == 0)
                     reason = "peer-hangup";
-                text = rsnNode.child("text").recursiveText();
+                text = rsnNode.child("text").text();
             }
             catch(...){}
             terminate(sess.get(), reason?reason:"peer-hangup", text?text.c_str():NULL);
@@ -558,16 +558,15 @@ void Jingle::processAndDeleteInputQueue(JingleSession& sess)
     for (auto& stanza: *queue)
         onJingle(stanza);
 }
-
+//called by startMediaCall() in rtcModule.cpp
 Promise<shared_ptr<JingleSession> >
 Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
   artc::tspMediaStream sessStream, const AvFlags& avState, StringMap&& sessProps,
   FileTransferHandler* ftHandler)
 {
-    // initiate a new jinglesession to peerjid
-    JingleSession* sess = createSession(myjid, peerjid, sid, sessStream, avState,
+// create and initiate a new jinglesession to peerjid
+    auto sess = createSession(myjid, peerjid, sid, sessStream, avState,
       std::forward<StringMap>(sessProps), ftHandler);
-    // configure session
 
     sess->initiate(true);
     return sess->sendOffer()
@@ -577,20 +576,20 @@ Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
       })
       .then([sess](int)
       {
-        return shared_ptr<JingleSession>(sess);
+        return sess;
       });
 }
 
-JingleSession* Jingle::createSession(const char* me, const char* peerjid,
+shared_ptr<JingleSession> Jingle::createSession(const char* me, const char* peerjid,
     const char* sid, artc::tspMediaStream sessStream, const AvFlags& avState,
     const StringMap& sessProps, FileTransferHandler *ftHandler)
 {
     KR_CHECK_NULLARG(me);
     KR_CHECK_NULLARG(peerjid);
     KR_CHECK_NULLARG(sid);
-    JingleSession* sess = new JingleSession(*this, me, peerjid, sid, mConn, sessStream,
-        avState, sessProps, ftHandler);
-    mSessions[sid].reset(sess);
+    shared_ptr<JingleSession> sess(new JingleSession(*this, me, peerjid, sid, mConn, sessStream,
+        avState, sessProps, ftHandler));
+    mSessions.emplace(sid, sess);
     return sess;
 }
 void Jingle::terminateAll(const char* reason, const char* text, bool nosend)
@@ -683,7 +682,7 @@ string Jingle::getFingerprintsFromJingle(Stanza j)
     vector<string> fps;
     for (Stanza node: nodes)
     {
-        fps.push_back(string(node.attr("hash"))+" "+node.text());
+        fps.push_back(string(node.attr("hash"))+" "+node.text().c_str());
     }
     std::sort(fps.begin(), fps.end());
     string result;

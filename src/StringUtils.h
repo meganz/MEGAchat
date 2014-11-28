@@ -61,6 +61,21 @@ inline static size_t trim(const std::string& str, size_t tstart, size_t tend,
     size_t end = str.find_last_not_of(" \t", tend); //guaranteed to be in range because we have a non-whitespace char at start
     return end - start + 1;
 }
+
+static inline std::string trim(const std::string& str, const char* trimChars=" \t")
+{
+    size_t start = str.find_first_not_of(trimChars);
+    if (start == std::string::npos)
+        return "";
+    size_t end = str.find_last_not_of(trimChars);
+    if (end == std::string::npos)
+        throw std::runtime_error("BUG: find_last_not_of(<whitespace>) returned npos for a supposedly non-empty string");
+    if ((start == 0) && end == str.length())
+        return str;
+    else
+        return str.substr(start, end-start+1);
+}
+
 static size_t findFirstOf(const std::string& str, const char* chars, size_t start, size_t end)
 {
     for (size_t i=start; i<end; i++)
@@ -132,6 +147,43 @@ static inline std::string xmlUnescape(const std::string& text)
     result = replaceOccurrences(result, "&gt;", ">");
     result = replaceOccurrences(result, "&apos;", "'");
     return replaceOccurrences(result, "&quot;", "\"");
+}
+
+static inline std::string beforeFirst(const std::string& str, const char* sep)
+{
+    const char* pos = strstr(str.c_str(), sep);
+    if (pos)
+        return str.substr(0, pos-str.c_str());
+    else
+        return "";
+}
+
+static inline std::string afterFirst(const std::string& str, const char* sep)
+{
+   const char* pos = strstr(str.c_str(), sep);
+   if (pos)
+      return str.substr(pos-str.c_str()+1);
+   else
+      return std::string();
+}
+
+template <class A>
+static inline size_t strArrIndexOf(const A& arr, const std::string& str)
+{
+    for (size_t i=0; i<arr.size(); i++)
+        if (arr[i] == str)
+            return i;
+    return std::string::npos;
+}
+
+static inline bool startsWith(const std::string& str, const std::string& with)
+{
+    if (with.empty())
+        throw std::runtime_error("startsWith: 'with'' is an empty string");
+    if (str.empty() || (str.size() < with.size()))
+        return false;
+
+    return (strncmp(str.c_str(), with.c_str(), with.size()) == 0);
 }
 }
 #endif // KARERE_STRING_UTILS_H

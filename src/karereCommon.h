@@ -5,7 +5,7 @@
 #include <string>
 #include <time.h>
 #include <string.h>
-
+#include <base/cservices.h> //needed for isatty_xxx
 #ifdef _WIN32
     #include <winsock2.h>
     #include <windows.h> //we must never include windows.h before winsock2.h
@@ -70,12 +70,37 @@ static inline Ts timestampMs()
 }
 #endif
 
+extern int isatty_stdout;
+extern int isatty_stderr;
+
+static inline const char* colorOn(const char* escape)
+{
+    return isatty_stdout?escape:"";
+}
+static inline const char* colorOff()
+{
+    return isatty_stdout?"\e[0m":"";
+}
 }
 
 #define KR_LOG(fmtString,...) printf(fmtString "\n", ##__VA_ARGS__)
+#define KR_LOG_COLOR(color, fmtString,...) printf("\e[" #color "m" fmtString "\e[0m\n", ##__VA_ARGS__)
+
 #define KR_LOG_DEBUG(fmtString,...) KR_LOG("debug: " fmtString, ##__VA_ARGS__)
-#define KR_LOG_WARNING(fmtString,...) KR_LOG("WARNING: " fmtString, ##__VA_ARGS__)
-#define KR_LOG_ERROR(fmtString,...) KR_LOG("ERROR: " fmtString, ##__VA_ARGS__)
+#define KR_LOG_WARNING(fmtString,...)    do { \
+   if (karere::isatty_stdout) \
+      KR_LOG_COLOR(33, "WARNING: " fmtString, ##__VA_ARGS__); \
+    else \
+      KR_LOG("WARNING: " fmtString, ##__VA_ARGS__); \
+    } while (0)
+
+#define KR_LOG_ERROR(fmtString,...) do { \
+    if (karere::isatty_stdout) \
+      KR_LOG_COLOR(31, "ERROR: " fmtString, ##__VA_ARGS__); \
+    else \
+      KR_LOG("ERROR: " fmtString, ##__VA_ARGS__); \
+      } while(0)
+
 #define KR_THROW_IF_FALSE(statement) do {\
     if (!(statement)) {\
         throw std::runtime_error(std::string("Karere: ")+#statement+" failed (returned false)\nAt file "+__FILE__+":"+std::to_string(__LINE__)); \

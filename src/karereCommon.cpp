@@ -1,6 +1,11 @@
 #include "karereCommon.h"
+#include <unistd.h>
+
 namespace karere
 {
+int isatty_stdout = isatty(1);
+int isatty_stderr = isatty(2);
+
 #ifdef _WIN32
 //needed to compensate for the wrap of the 32bit millisec value (every ~49 days)
     Ts _gLastTimeValue = 0;

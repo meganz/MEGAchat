@@ -2,6 +2,7 @@
 #include "strophe.jingle.sdp.h"
 #include "strophe.jingle.h"
 #include "karereCommon.h"
+#include "StringUtils.h"
 
 using namespace std;
 using namespace promise;
@@ -104,7 +105,7 @@ Promise<Stanza> JingleSession::sendIceCandidate(
 
 // map to transport-info
     auto cand = createJingleIq(mPeerJid, "transport-info");
-    auto transport = cand
+    auto transport = cand.second
       .c("content", {
           {"creator", jCreator()},
           {"name", candidate->sdpMid}
@@ -124,12 +125,12 @@ Promise<Stanza> JingleSession::sendIceCandidate(
         fpData["required"] = "true";
         transport.c("fingerprint", fpData).t(fp);
     }
-    return sendIq(cand, "transportinfo");
+    return sendIq(cand.first, "transportinfo");
 }
 
 Promise<Stanza> JingleSession::sendOffer()
 {
-    return mPeerConn.createOffer(&mMediaConstraints)
+    return mPeerConn.createOffer(nullptr)//&mMediaConstraints)
     .then([this](webrtc::SessionDescriptionInterface* sdp)
     {
         string strSdp;
@@ -140,9 +141,9 @@ Promise<Stanza> JingleSession::sendOffer()
     .then([this](int)
     {
         auto init = createJingleIq(mPeerJid, "session-initiate");
-        mLocalSdp.toJingle(init, jCreator());
-        addFingerprintMac(init);
-        return sendIq(init, "offer");
+        mLocalSdp.toJingle(init.second, jCreator());
+        addFingerprintMac(init.second);
+        return sendIq(init.first, "offer");
     });
 }
 
@@ -155,7 +156,7 @@ Promise<int> JingleSession::setRemoteDescription(Stanza elem, const string& desc
         new webrtc::JsepSessionDescription(desctype));
     webrtc::SdpParseError error;
     if (!jsepSdp->Initialize(mRemoteSdp.raw, &error))
-        throw std::runtime_error("Error parsing SDP: line "+error.line+"\nError: "+error.description);
+        throw std::runtime_error("Error parsing SDP: line='"+error.line+"'\nError: "+error.description);
 
     return mPeerConn.setRemoteDescription(jsepSdp.release());
 }
@@ -192,9 +193,9 @@ int JingleSession::getMlineIndex(const sdpUtil::ParsedSdp& sdp, string& name)
     {
         auto& media = sdp.media[i];
         if (!sdpUtil::find_line(media, "a=mid:" + name).empty() ||
-            (media.find("m=" + name) == 0))
+            (karere::startsWith(media[0], "m=" + name)))
             return i;
-        }
+    }
     return -1;
 }
 
@@ -213,9 +214,9 @@ Promise<int> JingleSession::sendAnswer()
         mLocalSdp.parse(strSdp);
     //this.localSDP.mangle();
         auto accept = createJingleIq(mPeerJid, "session-accept");
-        mLocalSdp.toJingle(accept, jCreator());
-        addFingerprintMac(accept);
-        auto sendPromise = sendIq(accept, "answer");
+        mLocalSdp.toJingle(accept.second, jCreator());
+        addFingerprintMac(accept.second);
+        auto sendPromise = sendIq(accept.first, "answer");
         return when(sendPromise, mPeerConn.setLocalDescription(sdp));
     });
 }
@@ -224,20 +225,20 @@ Promise<int> JingleSession::sendAnswer()
 Promise<Stanza> JingleSession::sendTerminate(const string& reason, const string& text)
 {
     auto term =	createJingleIq(mPeerJid, "session-terminate");
-    auto rsn = term.c("reason").c(reason.empty()?"unknown":reason.c_str()).parent();
+    auto rsn = term.second.c("reason").c(reason.empty()?"unknown":reason.c_str()).parent();
     if (!text.empty())
         rsn.c("text").t(text);
-    return sendIq(term, "set");
+    return sendIq(term.first, "set");
 }
 
 Promise<Stanza> JingleSession::sendMute(bool muted, const string& what)
 {
     auto info = createJingleIq(mPeerJid, "session-info");
-    info.c(muted ? "mute" : "unmute", {
+    info.second.c(muted ? "mute" : "unmute", {
       {"xmlns", "urn:xmpp:jingle:apps:rtp:info:1"},
       {"name", what.c_str()}
     });
-    return sendIq(info, "set");
+    return sendIq(info.first, "set");
 }
 
 void JingleSession::syncAvState()
@@ -277,18 +278,19 @@ void JingleSession::reportError(const string& e, const char* where)
     mJingle.onInternalError(e, where);
 }
 
-void JingleSession::addFingerprintMac(strophe::Stanza jiq)
+void JingleSession::addFingerprintMac(strophe::Stanza j)
 {
     if (at("peerFprMacKey").empty())
         throw std::runtime_error("addFingerprintMac: No peer fprMacKey has been received");
-    set<string> fps;
-    auto j = jiq.child("jingle");
+    multiset<string> fps;
+    printf("j = %s\n", j.dump().c_str());
     j.forEachChild("content", [&fps](Stanza content)
     {
        content.forEachChild("transport", [&fps](Stanza transport)
        {
             auto fpnode = transport.child("fingerprint");
-            fps.insert(fpnode.attr("hash")+string(" ")+fpnode.text());
+            printf("fpnode = %s\n", fpnode.dump().c_str());
+            fps.insert(fpnode.attr("hash")+string(" ")+fpnode.text().c_str());
        });
     });
     string strFps;
@@ -297,27 +299,25 @@ void JingleSession::addFingerprintMac(strophe::Stanza jiq)
       strFps+=strFp;
       strFps+=';';
     }
-    strFps.resize(strFps.size()-1); //truncate last ';'
+    if (!strFps.empty())
+        strFps.resize(strFps.size()-1); //truncate last ';'
     unique_ptr<ICryptoFunctions::IString> fprmac(mJingle.crypto().generateMac(
         strFps.c_str(), (*this)["peerFprMacKey"].c_str()));
     j.setAttr("fprmac", fprmac->c_str());
 }
 
-Stanza JingleSession::createJingleIq(const string& to, const char* action)
+pair<Stanza, Stanza> JingleSession::createJingleIq(const string& to, const char* action)
 {
-    Stanza s(xmpp_conn_get_context(mConnection));
-    s.init("iq", {
-      {"type", "set"},
-      {"to", to.c_str()}
-    });
-
-    s.c("jingle",{
-      {"xmlns", "urn:xmpp:jingle:1"},
-      {"action", action},
-      {"initiator", mInitiator.c_str()},
-      {"sid", mSid.c_str()}
-    });
-    return s;
+    Stanza root(xmpp_conn_get_context(mConnection));
+    return make_pair(root, root.setName("iq")
+        .setAttr("type", "set")
+        .setAttr("to", to.c_str())
+        .c("jingle")
+            .setAttr("xmlns", "urn:xmpp:jingle:1")
+            .setAttr("action", action)
+            .setAttr("initiator", mInitiator.c_str())
+            .setAttr("sid", mSid.c_str())
+    );
 }
 
 Promise<Stanza> JingleSession::sendIq(Stanza iq, const string& origin)

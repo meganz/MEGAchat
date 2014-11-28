@@ -7,6 +7,8 @@
 #include <mstrophepp.h>
 #include "../strophe.disco.h"
 #include <ui_mainwindow.h>
+#include "karereCommon.h"
+#include "IJingleSession.h"
 
 namespace Ui {
 class MainWindow;
@@ -50,6 +52,12 @@ public:
     {
         *renderer = mMainWindow->ui->localRenderer;
     }
+    virtual void onRemoteSdpRecv(rtcModule::IJingleSession* sess, IVideoRenderer** rendererRet)
+    {
+        KR_LOG_COLOR(31, "custom onRemoteSdpRecv");
+        *rendererRet = mMainWindow->ui->remoteRenderer1;
+    }
+
 };
 
 #endif // MAINWINDOW_H

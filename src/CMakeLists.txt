@@ -10,6 +10,7 @@ set (SRCS
     strophe.jingle.sdp.cpp
     rtcModule.cpp
     base/guiCallMarshaller.c
+    karereCommon.cpp
     lib.cpp
 )
 

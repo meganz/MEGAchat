@@ -4,7 +4,7 @@
 #include "strophe.jingle.session.h"
 
 #define RTCM_EVENT(name,...)            \
-    printf("Event: %s\n", #name);       \
+    printf("\e[32mEvent: %s\e[0m\n", #name);       \
     mEventHandler->name(__VA_ARGS__)
 
 using namespace std;
@@ -914,7 +914,7 @@ IJingleSession* RtcModule::getSessionBySid(const char* sid)
   @param iceServers An array of ice server objects - same as the iceServers parameter in
           the RtcSession constructor
 */
-/** url:xxx, user:xxx, pass:xxx; url:xxx, user:xxx... */
+/** url=xxx, user=xxx, pass=xxx; url=xxx, user=xxx... */
 int RtcModule::updateIceServers(const char* servers)
 {
     bool has = false;
