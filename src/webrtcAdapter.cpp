@@ -73,52 +73,53 @@ void DeviceManager::enumInputDevices()
          throw std::runtime_error("Can't enumerate audio devices");
 }
 
-rtc::scoped_refptr<webrtc::VideoTrackInterface>
-    DeviceManager::getUserVideo(const MediaGetOptions& options)
+std::shared_ptr<InputVideoDevice>
+DeviceManager::getUserVideo(const MediaGetOptions& options)
 {
-    cricket::VideoCapturer* capturer =
-            get()->CreateVideoCapturer(options.device);
-    if (!capturer)
+    std::shared_ptr<artc::InputVideoDevice> video(new artc::InputVideoDevice);
+    video->mCapturer.reset(get()->CreateVideoCapturer(options.device));
+    if (!video->mCapturer)
         throw std::runtime_error("Could not create video capturer");
 
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> vtrack(
+    video->mTrack =
       gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()),
-         gWebrtcContext->CreateVideoSource(capturer, &(options.constraints))));
-    if (!vtrack.get())
+         gWebrtcContext->CreateVideoSource(video->mCapturer.get(), &(options.constraints)));
+    if (!video->mTrack.get())
         throw std::runtime_error("Could not create video track from video capturer");
-    return vtrack;
+    return video;
 }
 
 rtc::scoped_refptr<webrtc::VideoTrackInterface>
-    DeviceManager::cloneVideoTrack(webrtc::VideoTrackInterface* src)
+InputVideoDevice::cloneTrack()
 {
     rtc::scoped_refptr<webrtc::VideoTrackInterface> vtrack(
         gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()),
-             src->GetSource()));
+        mTrack->GetSource()));
     if (!vtrack.get())
         throw std::runtime_error("Could not create video track from video capturer");
     return vtrack;
 }
 
-rtc::scoped_refptr<webrtc::AudioTrackInterface>
+std::shared_ptr<InputAudioDevice>
     DeviceManager::getUserAudio(const MediaGetOptions& options)
+{
+    shared_ptr<InputAudioDevice> audio(new InputAudioDevice);
+    audio->mTrack =
+         gWebrtcContext->CreateAudioTrack("a"+std::to_string(generateId()),
+         gWebrtcContext->CreateAudioSource(&(options.constraints)));
+    if (!audio->mTrack.get())
+        throw std::runtime_error("Could not create audio track");
+    return audio;
+}
+
+rtc::scoped_refptr<webrtc::AudioTrackInterface> InputAudioDevice::cloneTrack()
 {
     rtc::scoped_refptr<webrtc::AudioTrackInterface> atrack(
       gWebrtcContext->CreateAudioTrack("a"+std::to_string(generateId()),
-         gWebrtcContext->CreateAudioSource(&(options.constraints))));
+         mTrack->GetSource()));
     if (!atrack.get())
         throw std::runtime_error("Could not create audio track");
     return atrack;
 }
 
-rtc::scoped_refptr<webrtc::AudioTrackInterface>
-    DeviceManager::cloneAudioTrack(webrtc::AudioTrackInterface* src)
-{
-    rtc::scoped_refptr<webrtc::AudioTrackInterface> atrack(
-      gWebrtcContext->CreateAudioTrack("a"+std::to_string(generateId()),
-         src->GetSource()));
-    if (!atrack.get())
-        throw std::runtime_error("Could not create audio track");
-    return atrack;
-}
 }

@@ -10,7 +10,7 @@
 #include <talk/app/webrtc/test/fakeconstraints.h>
 #include <talk/app/webrtc/jsepsessiondescription.h>
 #include <talk/app/webrtc/jsep.h>
-#include "karereCommon.h"
+//#include "karereCommon.h"
 #include "base/gcmpp.h"
 #include "base/promise.h"
 
@@ -301,8 +301,31 @@ struct MediaGetOptions
     :device(aDevice){}
 };
 
-class DeviceManager: public
-        std::shared_ptr<cricket::DeviceManagerInterface>
+class DeviceManager;
+
+class InputVideoDevice
+{
+protected:
+    std::shared_ptr<cricket::VideoCapturer> mCapturer;
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> mTrack;
+public:
+    const std::shared_ptr<cricket::VideoCapturer> capturer() const {return mCapturer;}
+    const rtc::scoped_refptr<webrtc::VideoTrackInterface>& track() const {return mTrack;}
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> cloneTrack();
+    friend class DeviceManager;
+};
+
+class InputAudioDevice
+{
+protected:
+    rtc::scoped_refptr<webrtc::AudioTrackInterface> mTrack;
+public:
+    const rtc::scoped_refptr<webrtc::AudioTrackInterface>& track() const {return mTrack;}
+    rtc::scoped_refptr<webrtc::AudioTrackInterface> cloneTrack();
+    friend class DeviceManager;
+};
+
+class DeviceManager: public std::shared_ptr<cricket::DeviceManagerInterface>
 {
 public:
     struct InputDevices
@@ -328,15 +351,10 @@ public:
     :Base(other){}
     const InputDevices& inputDevices() const {return mInputDevices;}
     void enumInputDevices();
-    rtc::scoped_refptr<webrtc::AudioTrackInterface>
+    std::shared_ptr<InputAudioDevice>
         getUserAudio(const MediaGetOptions& options);
-    rtc::scoped_refptr<webrtc::VideoTrackInterface>
+    std::shared_ptr<InputVideoDevice>
         getUserVideo(const MediaGetOptions& options);
-    rtc::scoped_refptr<webrtc::AudioTrackInterface>
-        cloneAudioTrack(webrtc::AudioTrackInterface* src);
-    rtc::scoped_refptr<webrtc::VideoTrackInterface>
-        cloneVideoTrack(webrtc::VideoTrackInterface* src);
-
 };
 
 }
