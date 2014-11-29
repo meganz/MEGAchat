@@ -77,14 +77,20 @@ std::shared_ptr<InputVideoDevice>
 DeviceManager::getUserVideo(const MediaGetOptions& options)
 {
     std::shared_ptr<artc::InputVideoDevice> video(new artc::InputVideoDevice);
-    video->mCapturer.reset(get()->CreateVideoCapturer(options.device));
-    if (!video->mCapturer)
+
+    std::unique_ptr<cricket::VideoCapturer> capturer(
+        get()->CreateVideoCapturer(options.device));
+    if (!capturer)
         throw std::runtime_error("Could not create video capturer");
 
+    auto source =
+        gWebrtcContext->CreateVideoSource(capturer.release(), &(options.constraints));
+    if (!source.get())
+        throw std::runtime_error("Could not create a video source");
+
     video->mTrack =
-      gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()),
-         gWebrtcContext->CreateVideoSource(video->mCapturer.get(), &(options.constraints)));
-    if (!video->mTrack.get())
+      gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()), source);
+    if (!video->mTrack)
         throw std::runtime_error("Could not create video track from video capturer");
     return video;
 }
@@ -98,6 +104,11 @@ InputVideoDevice::cloneTrack()
     if (!vtrack.get())
         throw std::runtime_error("Could not create video track from video capturer");
     return vtrack;
+}
+
+InputVideoDevice::~InputVideoDevice()
+{
+    mTrack->GetSource()->GetVideoCapturer()->Stop();
 }
 
 std::shared_ptr<InputAudioDevice>

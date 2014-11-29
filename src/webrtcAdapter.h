@@ -306,12 +306,11 @@ class DeviceManager;
 class InputVideoDevice
 {
 protected:
-    std::shared_ptr<cricket::VideoCapturer> mCapturer;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> mTrack;
 public:
-    const std::shared_ptr<cricket::VideoCapturer> capturer() const {return mCapturer;}
     const rtc::scoped_refptr<webrtc::VideoTrackInterface>& track() const {return mTrack;}
     rtc::scoped_refptr<webrtc::VideoTrackInterface> cloneTrack();
+    ~InputVideoDevice();
     friend class DeviceManager;
 };
 
