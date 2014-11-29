@@ -66,6 +66,7 @@ public:
             mVideo->AddRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
         if (mAudio.get())
         {}//TODO: start audio playback
+        mPlaying = true;
     }
 
     void stop()
@@ -76,6 +77,7 @@ public:
             mVideo->RemoveRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
         if (mAudio.get())
         {}//TODO: Stop audio playback
+        mPlaying = false;
     }
 
     void attachAudio(webrtc::AudioTrackInterface* audio)
