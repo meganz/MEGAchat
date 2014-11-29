@@ -125,7 +125,7 @@ int main(int argc, char **argv)
     /* create rtcModule */
     crypto.reset(new rtcModule::DummyCrypto(argv[1]));
     rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
-    //rtc->updateIceServers("url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret");
+    rtc->updateIceServers("url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret");
     conn.registerPlugin("rtcmodule", rtc);
     /* initiate connection */
     conn.connect(NULL, 0)

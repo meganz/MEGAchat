@@ -405,7 +405,15 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
     std::forward_as_tuple(new CallRequest(state->targetJid, !!state->files,
     [this, state]() //call request cancel function
     {
-      mCallRequests.erase(state->sid);
+      shared_ptr<CallRequest> keepalive;
+      auto it = mCallRequests.find(state->sid);
+      if (it == mCallRequests.end())
+          KR_LOG_WARNING("Call request cancel(): Could not find ourself in mCallRequests map");
+      else
+      {
+          keepalive = it->second;
+          mCallRequests.erase(it);
+      }
       if (state->state == kPeerAnsweredOrTimedout)
           return false;
       if (state->state == kGotUserMediaWaitingPeer)
