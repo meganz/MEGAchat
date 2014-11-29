@@ -54,8 +54,17 @@ public:
     }
     virtual void onRemoteSdpRecv(rtcModule::IJingleSession* sess, IVideoRenderer** rendererRet)
     {
-        KR_LOG_COLOR(31, "custom onRemoteSdpRecv");
         *rendererRet = mMainWindow->ui->remoteRenderer;
+    }
+    virtual void onCallIncomingRequest(rtcModule::IAnswerCall* ctrl)
+    {
+        extern bool inCall;
+        int ret = ctrl->answer(true, rtcModule::AvFlags(true, true), nullptr, nullptr);
+        if (ret == 0)
+        {
+            inCall = true;
+            mMainWindow->ui->button->setText("Hangup");
+        }
     }
 
 };

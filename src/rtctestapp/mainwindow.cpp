@@ -28,10 +28,9 @@ void MainWindow::megaMessageSlot(void* msg)
 {
     megaProcessMessage(msg);
 }
-
+extern bool inCall;
 void MainWindow::buttonPushed()
 {
-    static bool inCall = false;
     if (inCall)
     {
         rtc->hangupAll("hangup", nullptr);

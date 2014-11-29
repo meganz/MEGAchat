@@ -483,7 +483,7 @@ unique_ptr<LineGroup> ParsedSdp::jingle2media(Stanza content)
     {
       transport.forEachChild("candidate", [&media](Stanza cand)
       {
-        media.push_back(candidateFromJingle(cand));
+        media.push_back(candidateFromJingle(cand, true));
       });
     });
 
@@ -790,9 +790,9 @@ unique_ptr<StringMap> candidateToJingle(const string &line)
     candidate["id"] = to_string(++id); // not applicable to SDP -- FIXME: should be unique, not just random
     return ret;
 }
-string candidateFromJingle(Stanza cand)
+string candidateFromJingle(Stanza cand, bool isInSdp)
 {
-    string line = "candidate:";
+    string line = isInSdp? "a=candidate:" : "candidate:";
     line.append(cand.attr("foundation")).append(" ")
         .append(cand.attr("component")).append(" ")
         .append(cand.attr("protocol")) //.toUpperCase(); // chrome M23 doesn't like this
@@ -812,7 +812,7 @@ string candidateFromJingle(Stanza cand)
         }
     }
     line+= "generation ";
-    auto gen = cand.attr("generation");
+    auto gen = cand.attrOrNull("generation");
     line+= gen?gen:"0";
     return line;
 }

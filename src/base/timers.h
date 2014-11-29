@@ -18,8 +18,8 @@ struct TimerMsg: public megaMessage
     DestroyFunc destroy;
     megaHandle handle;
     TimerMsg(megaMessageFunc aFunc, DestroyFunc aDestroy)
-        : megaMessage(aFunc), destroy(aDestroy),
-          handle(services_hstore_add_handle(MEGA_HTYPE_TIMER, this))
+    :megaMessage(aFunc), destroy(aDestroy),
+      handle(services_hstore_add_handle(MEGA_HTYPE_TIMER, this))
     {}
    ~TimerMsg()
     {

@@ -67,6 +67,6 @@ template <int flags = 0> std::unique_ptr<LineGroup>
 find_lines(const LineGroup& haystack, const std::string& needle, const LineGroup& sessionpart);
 std::unique_ptr<StringMap> iceparams(const LineGroup& mediadesc, const LineGroup& sessiondesc);
 std::unique_ptr<StringMap> candidateToJingle(const std::string& line);
-std::string candidateFromJingle(strophe::Stanza cand);
+std::string candidateFromJingle(strophe::Stanza cand, bool isInSdp = false);
 std::string parse_fingerprint(const std::string& line, StringMap& attrs);
 }

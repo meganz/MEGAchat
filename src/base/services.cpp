@@ -103,7 +103,14 @@ MEGAIO_EXPORT megaHandle services_hstore_add_handle(unsigned short type, void* h
 MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle handle)
 {
     auto it = gHandleStore.find(handle);
-    if ((it == gHandleStore.end()) || (it->second.type != type))
+    if (it == gHandleStore.end())
+    {
+#ifndef NDEBUG
+        fprintf(stderr, "ERROR: services_hstore_remove_handle: Handle not found (id=%u, type=%d)\n", handle, type);
+#endif
+        return 0;
+    }
+    if (it->second.type != type)
     {
         fprintf(stderr, "ERROR: services_hstore_remove_handle: Handle found, but requested type %d does not match actual type %d\n", it->second.type, type);
         fflush(stderr);

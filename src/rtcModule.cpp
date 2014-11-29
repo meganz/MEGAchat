@@ -769,14 +769,21 @@ void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const 
        removeRemoteVideo(*sess);
        unrefLocalStream(sess->mLocalAvState.video);
 
-       assert(sess->mStatsRecorder);
-       auto stats = sess->mStatsRecorder->terminate(makeCallId(sess));
-       stats->termRsn = reason?reason:"(unknown)";
+       if(sess->mStatsRecorder) //stats are created only if onRemoteSdp occurs
+       {
+           auto stats = sess->mStatsRecorder->terminate(makeCallId(sess));
+           stats->termRsn = reason?reason:"(unknown)";
 //           jQuery.ajax(this.statsUrl, {
 //                type: 'POST',
 //                data: JSON.stringify(obj.stats||obj.basicStats)
 //        });
-       RTCM_EVENT(onCallEnded, sess, stats.get());
+           RTCM_EVENT(onCallEnded, sess, stats.get());
+       }
+       else
+       {
+           BasicStats bstats(*sess, reason);
+           RTCM_EVENT(onCallEnded, sess, &bstats);
+       }
    }
    else //no sess
    {

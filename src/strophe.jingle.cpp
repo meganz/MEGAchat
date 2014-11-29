@@ -72,12 +72,14 @@ void Jingle::onConnState(const xmpp_conn_event_t status,
         if (status == XMPP_CONN_CONNECT)
         {
             registerDiscoCaps();
-//         typedef int (*xmpp_handler)(xmpp_conn_t * const conn,
-//           xmpp_stanza_t * const stanza, void * const userdata);
             mConn.addHandler(std::bind(&Jingle::onJingle, this, _1),
                              "urn:xmpp:jingle:1", "iq", "set");
-            mConn.addHandler(std::bind(&Jingle::onIncomingCallMsg, this, _1),
-                             nullptr, "message", "megaCall");
+//            mConn.addHandler(std::bind(&Jingle::onIncomingCallMsg, this, _1),
+            mConn.addHandler([this](Stanza stanza, void* user, bool& keep)
+            {
+                onIncomingCallMsg(stanza);
+            },
+            nullptr, "message", "megaCall");
         }
         else if (status == XMPP_CONN_FAIL)
         {
@@ -185,9 +187,12 @@ void Jingle::onJingle(Stanza iq)
             const char* peerjid = iq.attr("from");
             KR_LOG_DEBUG("received INITIATE from %s", peerjid);
             purgeOldAcceptCalls(); //they are purged by timers, but just in case
-            auto ansIter = mAutoAcceptCalls.find(peerjid);
+            auto ansIter = mAutoAcceptCalls.find(sid);
             if (ansIter == mAutoAcceptCalls.end())
+            {
+                KR_LOG_DEBUG("session-initiate received, but there is no autoaccept entry for this sid");
                 return; //ignore silently - maybe there is no user on this client and some other client(resource) already accepted the call
+            }
             shared_ptr<AutoAcceptCallInfo> spAns(ansIter->second);
             mAutoAcceptCalls.erase(ansIter);
             AutoAcceptCallInfo& ans = *spAns;
@@ -335,6 +340,8 @@ void Jingle::onJingle(Stanza iq)
 /* Incoming call request with a message stanza of type 'megaCall' */
 void Jingle::onIncomingCallMsg(Stanza callmsg)
 {
+    KR_LOG_COLOR(34;1, "megaCall handler called");
+
     struct State
     {
         bool handledElsewhere = false;
@@ -344,6 +351,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         string from;
         Ts tsReceived = -1;
         string bareJid;
+        string ownFprMacKey;
     };
     shared_ptr<State> state(new State);
 
@@ -427,7 +435,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 return false;//the callback returning false signals to the calling user code that the call request is not valid anymore
             if (accept)
             {
-                VString ownFprMacKey(mCrypto->generateFprMacKey());
+                state->ownFprMacKey = VString(mCrypto->generateFprMacKey()).c_str();
                 VString peerFprMacKey = mCrypto->decryptMessage(callmsg.attr("fprmackey"));
                 if (peerFprMacKey.empty())
                     throw std::runtime_error("Faield to verify peer's fprmackey from call request");
@@ -442,7 +450,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 info.tsTillJingle = tsTillJingle;
                 info.options = options; //shared_ptr
                 info["peerFprMacKey"] = peerFprMacKey.c_str();
-                info["ownFprMacKey"] = ownFprMacKey.c_str();
+                info["ownFprMacKey"] = state->ownFprMacKey.c_str();
                 info["peerAnonId"] = callmsg.attr("anonid");
 //TODO: Handle file transfer
 // This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
@@ -450,7 +458,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 { //invalidate auto-answer after a timeout
                     AutoAcceptMap::iterator callIt = mAutoAcceptCalls.find(state->sid);
                     if (callIt == mAutoAcceptCalls.end())
-                        return; //entry was removed or updated by a new call request
+                        return; //entry was removed meanwhile
                     auto& call = callIt->second;
                     if (call->tsTillJingle != tsTillJingle)
                         KR_LOG_WARNING("autoaccept timeout: tsTillJingle does not match the one that was set");
@@ -472,7 +480,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                         {"to", state->from.c_str()},
                         {"type", "megaCallAnswer"},
                         {"fprmackey", VString(
-                            mCrypto->encryptMessageForJid(mOwnFprMacKey.c_str(),
+                            mCrypto->encryptMessageForJid(state->ownFprMacKey.c_str(),
                             state->bareJid.c_str())).c_str()},
                         {"anonid", mOwnAnonId}
                     });
@@ -557,8 +565,11 @@ void Jingle::purgeOldAcceptCalls()
         auto itSave = it;
         it++;
         auto& call = *itSave->second;
-        if (call.tsTillJingle < now)
+        if (now > call.tsTillJingle)
+        {
+            KR_LOG_DEBUG("Deleting expired auto-accept entry for session %s", itSave->first.c_str());
             cancelAutoAcceptEntry(itSave, "initiate-timeout", "Timed out waiting for caller to start call");
+        }
     }
 }
 void Jingle::processAndDeleteInputQueue(JingleSession& sess)

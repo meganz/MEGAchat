@@ -93,6 +93,8 @@ int ping(xmpp_conn_t * const pconn, void * const userdata)
 const char* jid = NULL;
 const char* pass = NULL;
 const char* peer = NULL;
+bool inCall = false;
+
 int main(int argc, char **argv)
 {
     /* take a jid and password on the command line */
@@ -123,7 +125,7 @@ int main(int argc, char **argv)
     /* create rtcModule */
     crypto.reset(new rtcModule::DummyCrypto(argv[1]));
     rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
-    rtc->updateIceServers("url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret");
+    //rtc->updateIceServers("url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret");
     conn.registerPlugin("rtcmodule", rtc);
     /* initiate connection */
     conn.connect(NULL, 0)
@@ -144,18 +146,6 @@ int main(int argc, char **argv)
         return error;
     });
     signal(SIGINT, sigintHandler);
-
-
-//    rtc::InitializeSSL();
-    int ctr = 0;
-    auto timer = mega::setTimeout([&ctr](){printf("onTimer\n"); ctr++;}, 2000);
-
-    mega::setInterval([timer]()
-    {
-        auto ret = mega::cancelInterval(timer);
-        printf("cancel: %d\n", ret);
-    }, 1999);
-
     return a.exec();
 }
 

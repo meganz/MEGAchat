@@ -84,7 +84,6 @@ protected:
     int callAnswerTimeout = 50000;
     AutoAcceptMap mAutoAcceptCalls;
     std::unique_ptr<ICryptoFunctions> mCrypto;
-    std::string mOwnFprMacKey;
     std::string mOwnAnonId;
 public:
     enum {DISABLE_MIC = 1, DISABLE_CAM = 2, HAS_MIC = 4, HAS_CAM = 8};
