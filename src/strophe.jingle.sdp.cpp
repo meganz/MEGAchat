@@ -56,14 +56,14 @@ void ParsedSdp::parse(const string& strSdp)
         throw runtime_error("SDP parse: No m-lines found");
 }
 
-bool ParsedSdp::hasMlineWithName(const char* name)
+int ParsedSdp::getMlineIndex(const string& mid)
 {
     string start = "m=";
-    start.append(name)+=':';
-    for (auto& m: media)
-        if (startsWith(m[0], start))
-            return true;
-    return false;
+    start.append(mid);
+    for (size_t i=0; i<media.size(); i++)
+        if (startsWith(media[i][0], start))
+            return (int)i;
+    return -1;
 }
 
 // add content's to a jingle element
@@ -235,15 +235,15 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
 
         if (mline.port == "0")
             // estos hack to reject an m-line
-            elem.setAttr("senders", "rejected");
+            content.setAttr("senders", "rejected");
           else if (hasLine(m, "a=sendrecv", session))
-            elem.setAttr("senders", "both");
+            content.setAttr("senders", "both");
           else if (hasLine(m, "a=sendonly", session))
-            elem.setAttr("senders", "initiator");
+            content.setAttr("senders", "initiator");
           else if (hasLine(m, "a=recvonly", session))
-            elem.setAttr("senders", "responder");
+            content.setAttr("senders", "responder");
          else if (!hasLine(m, "a=inactive", session))
-            elem.setAttr("senders", "none");
+            content.setAttr("senders", "none");
     }
     return elem;
 }
@@ -792,7 +792,7 @@ unique_ptr<StringMap> candidateToJingle(const string &line)
 }
 string candidateFromJingle(Stanza cand)
 {
-    string line = "a=candidate:";
+    string line = "candidate:";
     line.append(cand.attr("foundation")).append(" ")
         .append(cand.attr("component")).append(" ")
         .append(cand.attr("protocol")) //.toUpperCase(); // chrome M23 doesn't like this

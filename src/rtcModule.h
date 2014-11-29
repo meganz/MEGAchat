@@ -12,11 +12,6 @@ namespace rtcModule
  * it is built as a shared object and its API is exposed via virtual interfaces.
  * This means that any public API is implemented via virtual methods in this class
 */
-struct AvTrackBundle
-{
-    rtc::scoped_refptr<webrtc::AudioTrackInterface> audio;
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> video;
-};
 
 /** Before being answered/rejected, initiated calls (via startMediaCall) are put in a map
  * to allow hangup() to operate seamlessly on calls in all states.These states are:
@@ -37,8 +32,9 @@ class RtcModule: public Jingle, public IRtcModule
 {
 protected:
     typedef Jingle Base;
-    AvTrackBundle mLocalTracks;
-    std::shared_ptr<artc::StreamPlayer> mLocalVideo;
+    std::shared_ptr<artc::InputAudioDevice> mAudioInput;
+    std::shared_ptr<artc::InputVideoDevice> mVideoInput;
+    std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
     int mLocalStreamRefCount = 0;
     int mLocalVideoRefCount = 0;
     bool mLocalVideoEnabled = false;
@@ -48,7 +44,7 @@ protected:
 public:
     RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers);
-    ~RtcModule();
+    virtual ~RtcModule();
 
 //IRtcModule interface
     virtual int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const char* files[]=NULL,
@@ -65,8 +61,9 @@ public:
     virtual IJingleSession* getSessionBySid(const char* sid);
     virtual int updateIceServers(const char* iceServers);
     virtual int isRelay(const char* sid);
+    virtual void destroy() {delete this;}
     //=== Implementation methods
-    bool hasLocalStream() { return (mLocalTracks.audio || mLocalTracks.video); }
+    bool hasLocalStream() { return (mAudioInput || mVideoInput); }
     void logInputDevices();
     std::string getLocalAudioAndVideo();
     template <class OkCb, class ErrCb>
@@ -87,8 +84,8 @@ public:
      *  analogous to onMediaRecv in the js version
      */
     void onMediaStart(const std::string& sid);
-    void onCallTerminated(JingleSession* sess, const char* reason, const char* text,
-                          FakeSessionInfo* noSess);
+    virtual void onCallTerminated(JingleSession* sess, const char* reason, const char* text,
+                                  FakeSessionInfo* noSess);
 
     //onRemoteStreamAdded -> onMediaStart() event from player -> onMediaRecv() -> addVideo()
     virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream);

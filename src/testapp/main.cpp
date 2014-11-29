@@ -1,4 +1,4 @@
-#include "webrtc/base/ssladapter.h"
+#include "../webrtcAdapter.h"
 
 #include <QtGui/QApplication>
 #include "mainwindow.h"
@@ -14,7 +14,6 @@ MEGA_GCM_EXPORT void megaPostMessageToGui(void* msg)
 
 int main(int argc, char *argv[])
 {
-    rtc::InitializeSSL();
     QApplication a(argc, argv);
     mainWin = new MainWindow;
     mainWin->show();

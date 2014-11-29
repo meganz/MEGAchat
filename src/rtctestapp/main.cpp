@@ -90,15 +90,20 @@ int ping(xmpp_conn_t * const pconn, void * const userdata)
    return 1;
 }
 
-xmpp_ctx_t *ctx = NULL;
+const char* jid = NULL;
+const char* pass = NULL;
+const char* peer = NULL;
 int main(int argc, char **argv)
 {
     /* take a jid and password on the command line */
-    if (argc != 3)
+    if (argc != 4)
     {
-        fprintf(stderr, "Usage: bot <jid> <pass>\n\n");
+        fprintf(stderr, "Usage: rtctestapp <jid> <pass> <peerjid>\n\n");
         return 1;
     }
+    jid = argv[1];
+    pass = argv[2];
+    peer = argv[3];
     QApplication a(argc, argv);
     mainWin = new MainWindow;
     mainWin->show();
@@ -110,8 +115,8 @@ int main(int argc, char **argv)
     mainWin->mConn.reset(new strophe::Connection(services_strophe_get_ctx()));
     Connection& conn = *(mainWin->mConn.get());
     /* setup authentication information */
-    xmpp_conn_set_jid(conn, argv[1]);
-    xmpp_conn_set_pass(conn, argv[2]);
+    xmpp_conn_set_jid(conn, jid);
+    xmpp_conn_set_pass(conn, pass);
     conn.registerPlugin("disco", new disco::DiscoPlugin(conn, "Karere"));
     handler.reset(new RtcEventHandler(mainWin));
 
@@ -157,6 +162,8 @@ int main(int argc, char **argv)
 void AppDelegate::onAppTerminate()
 {
     printf("onAppTerminate\n");
+    rtc->destroy();
+    rtcCleanup();
     services_shutdown();
     mainWin->mConn.reset();
 }

@@ -45,7 +45,7 @@ string RtcModule::getLocalAudioAndVideo()
     if (devices.video.size() > 0)
       try
         {
-             mLocalTracks.video = deviceManager.getUserVideo(
+             mVideoInput = deviceManager.getUserVideo(
                           artc::MediaGetOptions(devices.video[0]));
         }
         catch(exception& e)
@@ -57,7 +57,7 @@ string RtcModule::getLocalAudioAndVideo()
     if (devices.audio.size() > 0)
         try
         {
-            mLocalTracks.audio = deviceManager.getUserAudio(
+            mAudioInput = deviceManager.getUserAudio(
                           artc::MediaGetOptions(devices.audio[0]));
         }
         catch(exception& e)
@@ -111,12 +111,10 @@ void RtcModule::myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool a
             }
         }
 
-        if (mLocalTracks.audio)
-            KR_THROW_IF_FALSE(stream->AddTrack(
-                              deviceManager.cloneAudioTrack(mLocalTracks.audio.get())));
-        if (mLocalTracks.video)
-            KR_THROW_IF_FALSE(stream->AddTrack(
-                              deviceManager.cloneVideoTrack(mLocalTracks.video.get())));
+        if (mAudioInput)
+            KR_THROW_IF_FALSE(stream->AddTrack(mAudioInput->cloneTrack()));
+        if (mVideoInput)
+            KR_THROW_IF_FALSE(stream->AddTrack(mVideoInput->cloneTrack()));
 
         if (!alreadyHadStream)
             createLocalPlayer(); //creates local player but does not link it to stream
@@ -615,7 +613,7 @@ void RtcModule::onPresenceUnavailable(Stanza pres)
 void RtcModule::createLocalPlayer()
 {
 // This is called by myGetUserMedia when the the local stream is obtained (was not open before)
-    if (mLocalVideo)
+    if (mLocalPlayer)
         throw new Error("Local stream just obtained, but localVid was not NULL");
     IVideoRenderer* renderer = NULL;
     RTCM_EVENT(onLocalStreamObtained, &renderer);
@@ -624,7 +622,7 @@ void RtcModule::createLocalPlayer()
         onInternalError("User event handler did not return a video renderer interface", "onLocalStreamObtained");
         return;
     }
-    mLocalVideo.reset(new artc::StreamPlayer(renderer, nullptr, nullptr));
+    mLocalPlayer.reset(new artc::StreamPlayer(renderer, nullptr, nullptr));
 //    RTCM_EVENT(onLocalStreamObtained); //TODO: Maybe provide some interface to the player, but must be virtual because it crosses the module boundary
 //    maybeCreateVolMon();
 }
@@ -762,7 +760,7 @@ void RtcModule::onMediaStart(const string& sid)
 }
 
 void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const char* text,
-                      FakeSessionInfo* noSess)
+                                 FakeSessionInfo *noSess)
 {
  //WARNING: sess may be a dummy object, only with peerjid property, in case something went
  //wrong before the actual session was created, e.g. if SRTP fingerprint verification failed
@@ -804,6 +802,7 @@ void RtcModule::onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream st
     sess.remotePlayer.reset(new artc::StreamPlayer(renderer));
     sess.remotePlayer->setOnMediaStart(std::bind(&RtcModule::onMediaStart, this, sess.sid()));
     sess.remotePlayer->attachToStream(stream);
+    sess.remotePlayer->start();
 }
 
 //void onRemoteStreamRemoved() - not interested to handle here
@@ -979,8 +978,9 @@ void RtcModule::freeLocalStream()
         onInternalError("About to free local stream, but local video refcount is not 0", "freeLocalStream");
         disableLocalVideo(); //detaches local stream from local video player
     }
-    mLocalTracks.audio = nullptr;
-    mLocalTracks.video = nullptr;
+    mLocalPlayer.reset();
+    mAudioInput.reset();
+    mVideoInput.reset();
 }
  /**
     Releases any global resources referenced by this instance, such as the reference
@@ -990,7 +990,7 @@ void RtcModule::freeLocalStream()
  RtcModule::~RtcModule()
 {
     hangupAll("app-terminate", nullptr);
-    if (mLocalTracks.audio || mLocalTracks.video || mLocalVideo)
+    if (mAudioInput || mVideoInput || mLocalPlayer)
     {
         onInternalError("BUG: Local stream or local player was not freed", "RtcModule::~RtcModule");
     }
@@ -1030,13 +1030,13 @@ void RtcModule::disableLocalVideo()
 {
     if (!mLocalVideoEnabled)
         return;
-     if (!mLocalVideo)
+     if (!mLocalPlayer)
      {
          onInternalError("mLocalVideoEnabled is true, but there is no local player", "disableLocalVideo");
          return;
      }
 // All references to local video are muted, disable local video display
-    mLocalVideo->detachVideo();
+    mLocalPlayer->detachVideo();
     mLocalVideoEnabled = false;
     RTCM_EVENT(onLocalVideoDisabled);
 }
@@ -1045,16 +1045,16 @@ void RtcModule::enableLocalVideo()
 {
     if(mLocalVideoEnabled)
         return;
-    if (!mLocalVideo)
+    if (!mLocalPlayer)
     {
         onInternalError("Can't enable video, there is no local player", "enableLocalVideo");
         return;
     }
-    if (mLocalTracks.video)
-        mLocalVideo->attachVideo(mLocalTracks.video);
+    if (mVideoInput)
+        mLocalPlayer->attachVideo(mVideoInput->track());
     RTCM_EVENT(onLocalVideoEnabled);
     mLocalVideoEnabled = true;
-    mLocalVideo->start();
+    mLocalPlayer->start();
 }
 
 void RtcModule::removeRemoteVideo(JingleSession& sess)

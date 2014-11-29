@@ -7,7 +7,7 @@
 VideoRendererQt::VideoRendererQt(QWidget *parent)
     :QWidget(parent), mFrame(new QImage(size(), QImage::Format_ARGB32))
 {
-    mFrame->fill(0xff000000);
+    clearViewport();
 }
 
 void VideoRendererQt::updateImageSlot()
@@ -39,4 +39,13 @@ void VideoRendererQt::frameComplete(void* userData)
     }
     QMetaObject::invokeMethod(this,
       "updateImageSlot", Qt::QueuedConnection);
+}
+void VideoRendererQt::clearViewport()
+{
+    mFrame->fill(0xff000000);
+    repaint();
+}
+void VideoRendererQt::onStreamDetach()
+{
+    clearViewport();
 }

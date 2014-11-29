@@ -38,7 +38,7 @@ class BasicStats: public IRtcStats
 public:
     std::string termRsn;
     bool isCaller;
-    BasicStats(IJingleSession& sess, const char* aTermRsn)
+    BasicStats(const IJingleSession& sess, const char* aTermRsn)
         :isCaller(sess.isCaller()), termRsn(aTermRsn?aTermRsn:""){}
 };
 
@@ -94,7 +94,6 @@ protected:
     artc::tspMediaStream mRemoteStream;
     sdpUtil::ParsedSdp mLocalSdp;
     sdpUtil::ParsedSdp mRemoteSdp;
-    webrtc::FakeConstraints mMediaConstraints;
     void* mUserData = nullptr;
     DeleteFunc mUserDataDelFunc = nullptr;
 //    bool mLastIceCandidate = false;
@@ -189,7 +188,7 @@ public:
 //    void addIceCandidate(strophe::Stanza stanza);
     void addIceCandidates(strophe::Stanza transportInfo);
     promise::Promise<int> sendAnswer();
-    promise::Promise<strophe::Stanza> sendTerminate(const std::string& reason, const std::string& text);
+    promise::Promise<strophe::Stanza> sendTerminate(const char *reason, const char *text);
     promise::Promise<strophe::Stanza> sendMute(bool muted, const std::string& what);
     void syncAvState();
     promise::Promise<int> sendAvState();

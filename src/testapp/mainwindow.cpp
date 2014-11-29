@@ -90,8 +90,8 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+    artc::init(nullptr);
     ui->setupUi(this);
-    artc::init(NULL);
 }
 
 void MainWindow::buttonPushed()
@@ -120,8 +120,8 @@ void MainWindow::buttonPushed()
     localStream = artc::gWebrtcContext->CreateLocalMediaStream("localStream");
     if(!localStream.get())
         throw std::runtime_error("Could not create local stream");
-    THROW_IF_FALSE((localStream->AddTrack(devMgr.cloneAudioTrack(localAudio.get()))));
-    THROW_IF_FALSE((localStream->AddTrack(devMgr.cloneVideoTrack(localVideo.get()))));
+    THROW_IF_FALSE((localStream->AddTrack(localAudio)));
+    THROW_IF_FALSE((localStream->AddTrack(localVideo)));
     THROW_IF_FALSE((s1->pc.get()->AddStream(localStream, NULL)));
     THROW_IF_FALSE((s2->pc.get()->AddStream(localStream, NULL)));
     s1->onIceCandidate = [](std::shared_ptr<artc::IceCandText> cand)

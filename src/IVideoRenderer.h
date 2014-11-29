@@ -8,6 +8,7 @@ public:
     virtual void frameComplete(void* userData) = 0;
     virtual void onStreamAttach() {}
     virtual void onStreamDetach() {}
+    virtual void clearViewport() {}
     virtual ~IVideoRenderer() {}
 };
 

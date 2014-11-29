@@ -39,7 +39,8 @@ public:
 // construct from a jingle stanza
     void parse(strophe::Stanza jingle);
 //checks if there is an 'm=<name>:' line
-    bool hasMlineWithName(const char* name);
+    //bool hasMlineWithName(const char* name);
+    int getMlineIndex(const std::string& mid);
 // add contents to a jingle element
     strophe::Stanza toJingle(strophe::Stanza elem, const char* creator);
 protected:

@@ -133,7 +133,7 @@ public:
      there was an error or the status is unknown (not established yet or no statistics available)
     */
     virtual int isRelay(const char* sid) = 0;
- //   virtual void destroy() { delete this;}
+    virtual void destroy() = 0;
 protected:
 //    virtual ~IRtcModule(){}
 };

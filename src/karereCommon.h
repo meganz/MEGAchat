@@ -96,7 +96,7 @@ static inline const char* colorOff()
 
 #define KR_LOG_ERROR(fmtString,...) do { \
     if (karere::isatty_stdout) \
-      KR_LOG_COLOR(31, "ERROR: " fmtString, ##__VA_ARGS__); \
+      KR_LOG_COLOR(31;1, "ERROR: " fmtString, ##__VA_ARGS__); \
     else \
       KR_LOG("ERROR: " fmtString, ##__VA_ARGS__); \
       } while(0)

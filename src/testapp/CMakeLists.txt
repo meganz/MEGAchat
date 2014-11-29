@@ -10,7 +10,6 @@ set (SRCS
      ../videoRenderer_Qt.cpp
      mainwindow.cpp
      main.cpp
-     karereCommon.cpp
 )
 
 set(QT_FORMS mainwindow.ui)

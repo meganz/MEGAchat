@@ -20,4 +20,17 @@ extern "C"
          return nullptr;
      }
  }
+ RTCM_EXPORT int rtcCleanup()
+ {
+     try
+     {
+         artc::cleanup();
+     }
+     catch(std::exception& e)
+     {
+         KR_LOG_ERROR("RtcMoudle cleanup error: %s", e.what());
+         return 1;
+     }
+     return 0;
+ }
 }

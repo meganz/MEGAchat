@@ -126,13 +126,13 @@ void Jingle::onJingle(Stanza iq)
         const char* action = jingle.attr("action");
         // send ack first
         Stanza ack(mConn);
-        ack.init("iq", {
-            {"type", "result"},
-            {"to", iq.attr("from")},
-            {"id", iq.attr("id")}
-        });
+        ack.setName("iq") //type will be set before sending, depending on the error flag
+           .setAttr("from", mConn.jid())
+           .setAttr("to", iq.attr("from"))
+           .setAttr("id", iq.attr("id"));
+
         bool error = false;
-        KR_LOG_COLOR(33;1, "onJingle '%s' from '%s'", action, iq.attr("from"));
+        KR_LOG_COLOR(34, "onJingle '%s' from '%s'", action, iq.attr("from"));
 
         if (strcmp(action, "session-initiate"))
         {
@@ -148,10 +148,12 @@ void Jingle::onJingle(Stanza iq)
             }
             if (error)
             {
-                ack.setAttr("type", "error");
-                ack.c("error", {{"type", "cancel"}})
-                   .c("item-not-found", {{"xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas"}}).parent()
-                   .c("unknown-session", {{"xmlns", "urn:xmpp:jingle:errors:1"}});
+                ack.c("error").setAttr("type", "cancel")
+                   .c("item-not-found")
+                        .setAttr("xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas")
+                        .parent()
+                   .c("unknown-session")
+                        .setAttr("xmlns", "urn:xmpp:jingle:errors:1");
             }
         }
         else if (sess) //action == session-initiate
@@ -159,15 +161,22 @@ void Jingle::onJingle(Stanza iq)
             error = true;
             // existing session with same session id
             // this might be out-of-order if the sess.peerjid is the same as from
-            ack.setAttr("type", "error");
-            ack.c("error", {{"type", "cancel"}})
-               .c("service-unavailable", {{"xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas"}}).parent();
+            ack.c("error").setAttr("type", "cancel")
+               .c("service-unavailable")
+                    .setAttr("xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas");
             KR_LOG_WARNING("onJingle: session-initiate for existing session [id='%s']", sid);
         }
+
         if (error)
         {
-            xmpp_send(mConn, ack);
+            ack.setAttr("type", "result");
+            mConn.send(ack);
             return;
+        }
+        else
+        {
+            ack.setAttr("type", "result");
+            mConn.send(ack);
         }
 
         // see http://xmpp.org/extensions/xep-0166.html#concepts-session
@@ -629,6 +638,7 @@ bool Jingle::terminate(JingleSession* sess, const char* reason, const char* text
             sess->sendTerminate(reason, text);
         sess->terminate(reason, text); //handles ftHandler, updates mState
     }
+    auto sessKeepalive = sessIt->second; //prevent the erase() below from destroying the session until we exit this function
     mSessions.erase(sessIt);
     if (!isFt)
         try

@@ -55,7 +55,7 @@ public:
     virtual void onRemoteSdpRecv(rtcModule::IJingleSession* sess, IVideoRenderer** rendererRet)
     {
         KR_LOG_COLOR(31, "custom onRemoteSdpRecv");
-        *rendererRet = mMainWindow->ui->remoteRenderer1;
+        *rendererRet = mMainWindow->ui->remoteRenderer;
     }
 
 };

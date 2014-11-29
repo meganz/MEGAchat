@@ -19,9 +19,11 @@
 #endif
 extern "C"
 {
-RTCM_EXPORT rtcModule::IRtcModule*
+RTCM_IMPEXP rtcModule::IRtcModule*
     createRtcModule(xmpp_conn_t* conn, rtcModule::IEventHandler* handler,
         rtcModule::ICryptoFunctions* crypto,
         const char* iceServers);
+RTCM_IMPEXP int rtcCleanup();
+
 }
 #endif // LIB_H
