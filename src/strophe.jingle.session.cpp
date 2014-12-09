@@ -197,18 +197,6 @@ void JingleSession::addIceCandidates(Stanza transportInfo)
     });
 }
 
-int JingleSession::getMlineIndex(const sdpUtil::ParsedSdp& sdp, string& name)
-{
-    for (size_t i = 0; i < sdp.media.size(); i++)
-    {
-        auto& media = sdp.media[i];
-        if (!sdpUtil::find_line(media, "a=mid:" + name).empty() ||
-            (karere::startsWith(media[0], "m=" + name)))
-            return i;
-    }
-    return -1;
-}
-
 Promise<int> JingleSession::sendAnswer()
 {
     checkActive("sendAnswer");

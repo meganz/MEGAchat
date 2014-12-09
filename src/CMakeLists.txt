@@ -9,7 +9,6 @@ set (SRCS
     webrtcAdapter.cpp
     strophe.jingle.sdp.cpp
     rtcModule.cpp
-    base/guiCallMarshaller.c
     karereCommon.cpp
     lib.cpp
 )

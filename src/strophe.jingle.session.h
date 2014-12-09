@@ -119,7 +119,6 @@ public:
     //first is the root (iq) stanza, second is the jingle child of the iq element
     std::pair<strophe::Stanza, strophe::Stanza>
     createJingleIq(const std::string& to, const char* action);
-    int getMlineIndex(const sdpUtil::ParsedSdp& sdp, std::string& name);
 //IJingleSession public interface
     virtual const char* getSid() const {return mSid.c_str();}
     virtual const char* getJid() const {return mOwnJid.c_str();}
