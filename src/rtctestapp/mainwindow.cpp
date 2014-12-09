@@ -15,7 +15,7 @@
 
 extern MainWindow* mainWin;
 extern rtcModule::IRtcModule* rtc;
-extern char* peer;
+extern std::string peer;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -24,18 +24,12 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 }
 
-void MainWindow::megaMessageSlot(void* msg)
-{
-    megaProcessMessage(msg);
-}
 extern bool inCall;
 void MainWindow::buttonPushed()
 {
     if (inCall)
     {
         rtc->hangupAll("hangup", nullptr);
-        inCall = false;
-        ui->button->setText("Call");
     }
     else
     {
@@ -43,7 +37,7 @@ void MainWindow::buttonPushed()
         av.audio = true;
         av.video = true;
         char sid[rtcModule::RTCM_SESSIONID_LEN+2];
-        rtc->startMediaCall(sid, peer, av, nullptr);
+        rtc->startMediaCall(sid, peer.c_str(), av, nullptr);
         inCall = true;
         ui->button->setText("Hangup");
     }

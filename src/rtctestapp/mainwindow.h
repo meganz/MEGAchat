@@ -25,15 +25,10 @@ public:
     Ui::MainWindow *ui;
 public slots:
     void buttonPushed();
-    void megaMessageSlot(void* msg);
+//    void megaMessageSlot(void* msg);
 };
 
-class AppDelegate: public QObject
-{
-    Q_OBJECT
-public slots:
-    void onAppTerminate();
-};
+extern bool inCall;
 
 class RtcEventHandler: public rtcModule::IEventHandler
 {
@@ -58,13 +53,17 @@ public:
     }
     virtual void onCallIncomingRequest(rtcModule::IAnswerCall* ctrl)
     {
-        extern bool inCall;
         int ret = ctrl->answer(true, rtcModule::AvFlags(true, true), nullptr, nullptr);
         if (ret == 0)
         {
             inCall = true;
             mMainWindow->ui->button->setText("Hangup");
         }
+    }
+    virtual void onCallEnded(rtcModule::IJingleSession *sess, rtcModule::IRtcStats *stats)
+    {
+        inCall = false;
+        mMainWindow->ui->button->setText("Call");
     }
 
 };

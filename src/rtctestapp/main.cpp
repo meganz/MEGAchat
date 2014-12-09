@@ -26,13 +26,37 @@ MainWindow* mainWin = NULL;
 rtcModule::IRtcModule* rtc = NULL;
 unique_ptr<rtcModule::ICryptoFunctions> crypto;
 unique_ptr<rtcModule::IEventHandler> handler;
+
+struct GcmEvent: public QEvent
+{
+    static const QEvent::Type type;
+    void* ptr;
+    GcmEvent(void* aPtr): QEvent(type), ptr(aPtr){}
+};
+const QEvent::Type GcmEvent::type = (QEvent::Type)QEvent::registerEventType();
+
+class AppDelegate: public QObject
+{
+    Q_OBJECT
+public slots:
+    void onAppTerminate();
+public:
+    virtual bool event(QEvent* event)
+    {
+        if (event->type() != GcmEvent::type)
+            return false;
+
+        megaProcessMessage(static_cast<GcmEvent*>(event)->ptr);
+        return true;
+    }
+};
+
 AppDelegate appDelegate;
-bool processMessage(void* arg, int what);
 
 MEGA_GCM_EXPORT void megaPostMessageToGui(void* msg)
 {
-    QMetaObject::invokeMethod(mainWin,
-        "megaMessageSlot", Qt::QueuedConnection, Q_ARG(void*, msg));
+    QEvent* event = new GcmEvent(msg);
+    QApplication::postEvent(&appDelegate, event);
 }
 
 using namespace strophe;
@@ -90,22 +114,23 @@ int ping(xmpp_conn_t * const pconn, void * const userdata)
    return 1;
 }
 
-const char* jid = NULL;
+string jid;
 const char* pass = NULL;
-const char* peer = NULL;
+string peer;
 bool inCall = false;
 
 int main(int argc, char **argv)
 {
     /* take a jid and password on the command line */
-    if (argc != 4)
+    if (argc != 3)
     {
-        fprintf(stderr, "Usage: rtctestapp <jid> <pass> <peerjid>\n\n");
+        fprintf(stderr, "Usage: rtctestapp <user> <peer>\n\n");
         return 1;
     }
-    jid = argv[1];
-    pass = argv[2];
-    peer = argv[3];
+    const string serverpart = "@j100.server.lu";
+    jid = argv[1]+serverpart;
+    pass = "testpass";
+    peer = argv[2]+serverpart;
     QApplication a(argc, argv);
     mainWin = new MainWindow;
     mainWin->show();
@@ -117,13 +142,13 @@ int main(int argc, char **argv)
     mainWin->mConn.reset(new strophe::Connection(services_strophe_get_ctx()));
     Connection& conn = *(mainWin->mConn.get());
     /* setup authentication information */
-    xmpp_conn_set_jid(conn, jid);
+    xmpp_conn_set_jid(conn, jid.c_str());
     xmpp_conn_set_pass(conn, pass);
     conn.registerPlugin("disco", new disco::DiscoPlugin(conn, "Karere"));
     handler.reset(new RtcEventHandler(mainWin));
 
     /* create rtcModule */
-    crypto.reset(new rtcModule::DummyCrypto(argv[1]));
+    crypto.reset(new rtcModule::DummyCrypto(jid.c_str()));
     rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
     rtc->updateIceServers("url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret");
     conn.registerPlugin("rtcmodule", rtc);
@@ -157,3 +182,4 @@ void AppDelegate::onAppTerminate()
     services_shutdown();
     mainWin->mConn.reset();
 }
+#include <main.moc>
