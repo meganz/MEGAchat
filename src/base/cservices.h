@@ -32,6 +32,16 @@ struct event;
   #define MEGAIO_IMPORT MEGAIO_EXTERNC
   #define MEGAIO_IMPEXP MEGAIO_EXTERNC
 #endif
+//Logging macros used by the services code
+#define SVCS_LOG(fmtString,...) printf("Services: " fmtString "\n", ##__VA_ARGS__)
+#define SVCS_LOG_ERROR(fmtString,...) SVCS_LOG("[E]" fmtString, ##__VA_ARGS__)
+#define SVCS_LOG_WARNING(fmtString,...) SVCS_LOG("[W]" fmtString, ##__VA_ARGS__)
+#define SVCS_LOG_INFO(fmtString,...) SVCS_LOG("[I]" fmtString, ##__VA_ARGS__)
+#ifndef NDEBUG
+    #define SVCS_LOG_DEBUG(fmtString,...) SVCS_LOG("[D]" fmtString, ##__VA_ARGS__)
+#else
+    #define SVC_LOG_DEBUG(fmtString,...)
+#endif
 
 /** Options bitmask for log flags */
 enum {SVC_OPTIONS_LOGFLAGS = 0x000000ff};
@@ -52,15 +62,26 @@ typedef unsigned int megaHandle; //invalid handle value is 0
 
 enum
 {
-    MEGA_HTYPE_TIMER = 1
+    MEGA_HTYPE_TIMER = 1,
+    MEGA_HTYPE_DNSREQ = 2
+};
+
+enum
+{
+    SVCF_NO_MARSHALL = 1
 };
 
 MEGAIO_IMPEXP void* services_hstore_get_handle(unsigned short type, megaHandle handle);
 MEGAIO_IMPEXP megaHandle services_hstore_add_handle(unsigned short type, void* ptr);
 MEGAIO_IMPEXP int services_hstore_remove_handle(unsigned short type, megaHandle handle);
 
+//select features to include
 #ifndef SVC_DISABLE_STROPHE
     #include "cservices-strophe.h"
+#endif
+
+#ifndef SVC_DISABLE_DNS
+    #include "cservices-dns.h"
 #endif
 
 #endif

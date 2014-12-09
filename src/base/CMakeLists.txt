@@ -7,6 +7,7 @@ set (optStrophePath "~/strophe-native" CACHE PATH "Path to our custom strophe (m
 set(SRCS
   services.cpp
   services-strophe.cpp
+  services-dns.cpp
 )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/..")
