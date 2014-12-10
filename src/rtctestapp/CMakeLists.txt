@@ -11,8 +11,9 @@ set (SRCS
      main.cpp
      ../strophe.disco.cpp
      ../DummyCrypto.cpp
-     ../base/services.cpp
-     ../base/services-strophe.cpp
+     ../base/cservices.cpp
+     ../base/cservices-strophe.cpp
+     ../base/cservices-dns.cpp
 )
 
 set(QT_FORMS mainwindow.ui)

@@ -1,5 +1,6 @@
 #ifndef CSERVICESDNS_H
 #define CSERVICESDNS_H
+//This header is not standalone. It is included by cservices.h
 //This is a plain C header
 #include "cservices.h"
 #include "event2/dns.h"
@@ -30,8 +31,19 @@ enum
  /** There were no answers and no error condition in the DNS packet. */
     SVCDNS_ENODATA = DNS_ERR_NODATA
 };
+enum
+{
+    SVCF_DNS_UDP_ADDR = SVCF_LAST << 1
+};
 
-typedef void(*svcdns_callback)(struct addrinfo* addrs, void* userp);
+typedef void(*svcdns_callback)(struct addrinfo* addrs, void* userp, int* disown_addrinfo);
 typedef void(*svcdns_errback)(int errcode, const char* errmsg, void* userp);
+MEGAIO_IMPEXP int services_dns_init(int options);
+MEGAIO_IMPEXP megaHandle services_dns_lookup(const char* name, const char* service,
+    unsigned flags, svcdns_callback cb, svcdns_errback errb, void* userp);
 
+MEGAIO_IMPEXP int services_dns_cancel_lookup(megaHandle handle);
+MEGAIO_IMPEXP void services_dns_free_addrinfo(struct addrinfo* addr);
+MEGAIO_IMPEXP const char* services_dns_inet_ntop(int af, const void* src,
+    char* dst, socklen_t size);
 #endif // CSERVICESDNS_H

@@ -66,9 +66,16 @@ enum
     MEGA_HTYPE_DNSREQ = 2
 };
 
+/** Any common flags used for more than one service */
 enum
 {
-    SVCF_NO_MARSHALL = 1
+/** Speficies that callbacks can be called by any thread,
+* bypassing the Gui call marshalling mechanism. Normally for services-internal use
+* only. \attention USE WITH CAUTION AND ONLY IF YOU KNOW WHAT YOU ARE DOING! */
+    SVCF_NO_MARSHALL = 1,
+/** Flags in bit positions higher than this can overlap across services.
+ *  This should not be a problem if they are used only in the context of one service */
+    SVCF_LAST = 1
 };
 
 MEGAIO_IMPEXP void* services_hstore_get_handle(unsigned short type, megaHandle handle);

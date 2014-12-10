@@ -6,6 +6,7 @@
 #include "videoRenderer_Qt.h"
 #include "../base/guiCallMarshaller.h"
 #include "../IRtcModule.h"
+#include "../base/services-dns.hpp"
 
 #undef emit
 #define THROW_IF_FALSE(statement) \
@@ -41,6 +42,20 @@ void MainWindow::buttonPushed()
         inCall = true;
         ui->button->setText("Hangup");
     }
+    mega::dnsLookup("dir.bg")
+    .then([](std::shared_ptr<mega::DnsResult> result)
+    {
+        if (!result->ip4Addrs().empty())
+            printf("ipv4: %s\n", result->ip4Addrs()[0].toString());
+        else
+            printf("No address returned\n");
+        return nullptr;
+    })
+    .fail([](const promise::Error& err)
+    {
+        printf("DNS lookup error: %s\n", err.msg().c_str());
+        return nullptr;//mega::DnsLookupPromise(std::shared_ptr<mega::DnsResult>(nullptr));
+    });
 }
 
 MainWindow::~MainWindow()

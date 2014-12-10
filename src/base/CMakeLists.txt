@@ -5,9 +5,9 @@ include(../utils.cmake)
 set (optStrophePath "~/strophe-native" CACHE PATH "Path to our custom strophe (mstrophe) lib")
 
 set(SRCS
-  services.cpp
-  services-strophe.cpp
-  services-dns.cpp
+  cservices.cpp
+  cservices-strophe.cpp
+  cservices-dns.cpp
 )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/..")
