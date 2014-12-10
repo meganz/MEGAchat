@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <event2/event.h>
 #include <event2/thread.h>
+#include <assert.h>
 
 struct event_base* services_eventloop = NULL;
 GcmPostFunc services_megaPostMessageToGui = NULL;
@@ -34,9 +35,13 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
     tv.tv_sec = 123456;//0x7FFFFFFF;
     tv.tv_usec = 0;
     evtimer_add(keepalive, &tv);
-#ifndef SVC_DISABLE_STROPHE
-    services_strophe_init(options & SVC_OPTIONS_LOGFLAGS);
+#ifndef SVC_DISABLE_DNS
+    services_dns_init(options);
 #endif
+#ifndef SVC_DISABLE_STROPHE
+    services_strophe_init(options);
+#endif
+
     libeventThread.reset(new std::thread([]() mutable
     {
         /* enter the event loop */
@@ -59,9 +64,9 @@ MEGAIO_EXPORT int services_shutdown()
 
 struct HandleItem
 {
-    void* ptr;
     unsigned short type;
-    HandleItem(unsigned short aType, void* aPtr):ptr(aPtr), type(aType){}
+    void* ptr;
+    HandleItem(unsigned short aType, void* aPtr):type(aType), ptr(aPtr){}
     bool operator==(const HandleItem& other) const
     {
         return ((type == other.type) && (ptr == other.ptr));
@@ -79,7 +84,7 @@ MEGAIO_EXPORT void* services_hstore_get_handle(unsigned short type, megaHandle h
     return it->second.ptr;
 }
 
-MEGAIO_EXPORT megaHandle services_hstore_add_handle(unsigned short type, void* handle)
+MEGAIO_EXPORT megaHandle services_hstore_add_handle(unsigned short type, void* ptr)
 {
 #ifndef NDEBUG
     megaHandle old = gHandleCtr;
@@ -92,9 +97,12 @@ MEGAIO_EXPORT megaHandle services_hstore_add_handle(unsigned short type, void* h
         fflush(stderr);
         abort();
     }
+    bool inserted =
 #endif
-    return gHandleStore.emplace(std::piecewise_construct,
-        std::forward_as_tuple(id), std::forward_as_tuple(type, handle)).second;
+    gHandleStore.emplace(std::piecewise_construct,
+        std::forward_as_tuple(id), std::forward_as_tuple(type, ptr)).second;
+    assert(inserted);
+    return id;
 }
 
 MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle handle)
@@ -109,7 +117,7 @@ MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle 
     }
     if (it->second.type != type)
     {
-        fprintf(stderr, "ERROR: services_hstore_remove_handle: Handle found, but requested type %d does not match actual type %d\n", it->second.type, type);
+        fprintf(stderr, "ERROR: services_hstore_remove_handle: Handle found, but requested type %u does not match actual type %u\n", type, it->second.type);
         fflush(stderr);
         return 0;
     }
