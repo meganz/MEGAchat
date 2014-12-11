@@ -12,7 +12,7 @@
 
 #include <QtGui/QApplication>
 #include "mainwindow.h"
-#include "../base/guiCallMarshaller.h"
+#include "../base/gcm.h"
 #include "../IRtcModule.h"
 #include "../lib.h"
 #include "../DummyCrypto.h"

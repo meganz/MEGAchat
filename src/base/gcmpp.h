@@ -3,7 +3,7 @@
 
 /* C++11 bindings to the GUI call marashaller mechanism */
 
-#include "guiCallMarshaller.h"
+#include "gcm.h"
 #include <memory>
 #include <assert.h>
 

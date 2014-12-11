@@ -1,4 +1,3 @@
-#include "base/guiCallMarshaller.h"
 #include "webrtcAdapter.h"
 #include <webrtc/base/ssladapter.h>
 namespace artc

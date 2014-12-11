@@ -1,9 +1,8 @@
 #ifndef _MEGA_BASE_TIMERS_INCLUDED
 #define _MEGA_BASE_TIMERS_INCLUDED
 
-#include "guiCallMarshaller.h"
 #include "cservices.h"
-#include "gcmpp.h" //TODO: Maybe include it directly in code thet uses it
+#include "gcmpp.h"
 #include <event2/event.h>
 #include <memory>
 #include <assert.h>
