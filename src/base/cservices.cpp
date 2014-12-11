@@ -6,16 +6,28 @@
 #include <event2/event.h>
 #include <event2/thread.h>
 #include <assert.h>
+#include "cservices-thread.h"
 
 struct event_base* services_eventloop = NULL;
 GcmPostFunc services_megaPostMessageToGui = NULL;
-std::unique_ptr<std::thread> libeventThread;
+t_svc_thread_handle libeventThread; //can't initialzie with pthreads - there is no reserved invalid value
+t_svc_thread_id libeventThreadId;
+bool hasLibeventThread = false;
 
 static void keepalive_timer_cb(evutil_socket_t fd, short what, void *arg){}
 
 MEGAIO_EXPORT event_base* services_get_event_loop()
 {
     return services_eventloop;
+}
+
+SVC_THREAD_FUNCDECL(libeventThreadFunc)
+{
+    /* enter the event loop */
+    printf("libevent thread started, entering eventloop\n");
+    event_base_loop(services_eventloop, 0);//EVLOOP_NO_EXIT_ON_EMPTY
+    printf("libevent loop terminated\n");
+
 }
 
 MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
@@ -42,21 +54,16 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
     services_strophe_init(options);
 #endif
 
-    libeventThread.reset(new std::thread([]() mutable
-    {
-        /* enter the event loop */
-        printf("libevent thread started, entering eventloop\n");
-        event_base_loop(services_eventloop, 0);//EVLOOP_NO_EXIT_ON_EMPTY
-        printf("libevent loop terminated\n");
-    }));
+    hasLibeventThread = svc_thread_start(
+                NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
 }
 
 MEGAIO_EXPORT int services_shutdown()
 {
     event_base_loopexit(services_eventloop, NULL);
     printf("Terminating libevent thread...");
-    libeventThread->join();
-    libeventThread.reset();
+    svc_thread_join(libeventThread);
+    hasLibeventThread = false;
     printf("done\n");
 }
 
