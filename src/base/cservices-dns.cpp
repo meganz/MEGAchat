@@ -16,6 +16,10 @@ static_assert(std::is_same<evutil_addrinfo, addrinfo>::value, "evutil_addrinfo i
 
 extern struct event_base* services_eventloop;
 struct evdns_base* dnsbase = NULL;
+static inline int toSvcErrCode(int code)
+{
+    return code; //we have 1:1 matching of libevent to SVC error codes
+}
 
 struct DnsRequest: public megaMessage
 {
@@ -24,85 +28,47 @@ struct DnsRequest: public megaMessage
     void* userp;
     unsigned flags;
     int errcode;
-    bool canceled;
-    megaHandle handle;
     evutil_addrinfo* addr;
     DnsRequest(svcdns_callback aCb, svcdns_errback aErrb, void* aUserp, unsigned aFlags)
-        :megaMessage(NULL), cb(aCb), errb(aErrb), userp(aUserp), flags(aFlags),
-          addr(NULL), errcode(0), handle(0), canceled(false) {}
+        :megaMessage(gcmFunc), cb(aCb), errb(aErrb), userp(aUserp), flags(aFlags),
+          addr(NULL), errcode(0){}
     ~DnsRequest()
     {
-        if (handle)
-            services_hstore_remove_handle(MEGA_HTYPE_DNSREQ, handle);
         if (addr)
             evutil_freeaddrinfo(addr);
     }
+protected:
+    static void gcmFunc(megaMessage* msg)
+    {
+        DnsRequest* self = (DnsRequest*)msg;
+        if (self->errcode)
+        {
+            self->errb(toSvcErrCode(self->errcode), evutil_gai_strerror(self->errcode), self->userp);
+        }
+        else
+        {
+            int disown_addrinfo = 0;
+            self->cb(self->addr, self->userp, &disown_addrinfo);
+            if (disown_addrinfo)
+                self->addr = NULL;
+        }
+    }
 };
-static inline int toSvcErrCode(int code)
-{
-    return code; //we have 1:1 matching of libevent to SVC error codes
-}
 
-static void msgCallErrback(megaMessage* msg)
-{
-    unique_ptr<DnsRequest> ud((DnsRequest*)msg);
-    ud->errb(toSvcErrCode(ud->errcode), evutil_gai_strerror(ud->errcode), ud->userp);
-};
-
-static void msgCallCallback(megaMessage* msg)
-{
-    unique_ptr<DnsRequest> ud((DnsRequest*)msg);
-    int disown_addrinfo = 0;
-    ud->cb(ud->addr, ud->userp, &disown_addrinfo);
-    if (disown_addrinfo)
-        ud->addr = NULL;
-}
-
-static inline void callErrback(DnsRequest* req, int errcode)
-{
-    if (req->flags & SVCF_NO_MARSHALL)
-    {
-        unique_ptr<DnsRequest> autodel(req);
-        req->errb(toSvcErrCode(errcode), evutil_gai_strerror(errcode), req->userp);
-    }
-    else
-    {
-        req->errcode = errcode;
-        req->func = msgCallErrback;
-        megaPostMessageToGui(req);
-    }
-}
-
-static inline void callCallback(DnsRequest* req, evutil_addrinfo* addr)
-{
-    if (req->flags & SVCF_NO_MARSHALL)
-    {
-        unique_ptr<DnsRequest> autodel(req);
-        int disown_addrinfo = 0;
-        req->cb(addr, req->userp, &disown_addrinfo);
-        if (disown_addrinfo)
-            req->addr = NULL;
-    }
-    else
-    {
-        req->addr = addr;
-        req->func = msgCallCallback;
-        megaPostMessageToGui(req);
-    }
-}
-
-void svcdnsCallback(int errcode, evutil_addrinfo* addr, void* userp)
+static void svcdnsInternalCallback(int errcode, evutil_addrinfo* addr, void* userp)
 {
     DnsRequest* req = (DnsRequest*)userp;
-    if (req->canceled)
+    req->errcode = errcode;
+    req->addr = addr;
+    if (req->flags & SVCF_NO_MARSHALL)
     {
-        delete req;
-        return;
+        unique_ptr<DnsRequest> autodel(req);
+        req->func(req);
     }
-    if (errcode)
-        callErrback(req, errcode);
     else
-        callCallback(req, addr);
+    {
+        megaPostMessageToGui(req);
+    }
 }
 
 MEGAIO_EXPORT int services_dns_init(int options)
@@ -119,7 +85,7 @@ MEGAIO_EXPORT int services_dns_init(int options)
     }
 }
 
-MEGAIO_EXPORT megaHandle services_dns_lookup(const char* name, const char* service,
+MEGAIO_EXPORT void services_dns_lookup(const char* name, const char* service,
     unsigned flags, svcdns_callback cb, svcdns_errback errb, void* userp)
 {
     evutil_addrinfo hints;
@@ -139,23 +105,7 @@ MEGAIO_EXPORT megaHandle services_dns_lookup(const char* name, const char* servi
         hints.ai_protocol = IPPROTO_TCP;
     }
     DnsRequest* req = new DnsRequest(cb, errb, userp, flags);
-    evdns_getaddrinfo_request* gai =
-        evdns_getaddrinfo(dnsbase, name, service, &hints, svcdnsCallback, req);
-    if (gai == NULL)
-    {
-        callErrback(req, DNS_ERR_UNKNOWN);
-        return 0;
-    }
-    return (req->handle = services_hstore_add_handle(MEGA_HTYPE_DNSREQ, req));
-}
-
-MEGAIO_EXPORT int services_dns_cancel_lookup(megaHandle handle)
-{
-    DnsRequest* req = (DnsRequest*)services_hstore_get_handle(MEGA_HTYPE_DNSREQ, handle);
-    if (!req)
-        return 0;
-    req->canceled = true;
-    return 1;
+    evdns_getaddrinfo(dnsbase, name, service, &hints, svcdnsInternalCallback, req);
 }
 
 MEGAIO_EXPORT void services_dns_free_addrinfo(addrinfo* ai)
