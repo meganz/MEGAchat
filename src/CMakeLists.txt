@@ -19,7 +19,11 @@ add_subdirectory("${optWebrtcCmakeBuild}" webrtc)
 list(APPEND CMAKE_CXX_FLAGS -std=c++11)
 get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${STROPHE_INCLUDES})
+
 add_definitions(-DRTCM_BUILDING -fvisibility=hidden)
+
+#-Wno-unused-local-typedefs suppresses a lot of warning form webrtc headers from COMPILE_ASSERT: see https://code.google.com/p/chromium/issues/detail?id=227506
+add_definitions(-Wno-unused-local-typedefs)
 
 # The below line should be uncommented if dlls can't link to dynamic symbols exported
 # by the main app executable
