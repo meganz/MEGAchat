@@ -26,6 +26,8 @@ public:
     {
         if (mAspectRatio)
             return (w*mAspectRatio)/10;
+        else
+            return -1;
     }
 //IVideoRenderer interface
     virtual unsigned char* getImageBuffer(int size, int width, int height, void** userData);

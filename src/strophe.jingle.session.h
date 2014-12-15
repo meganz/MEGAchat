@@ -36,8 +36,8 @@ public:
 class BasicStats: public IRtcStats
 {
 public:
-    std::string termRsn;
     bool isCaller;
+    std::string termRsn;
     BasicStats(const IJingleSession& sess, const char* aTermRsn)
         :isCaller(sess.isCaller()), termRsn(aTermRsn?aTermRsn:""){}
 };
@@ -77,23 +77,27 @@ public:
         int width = 0;
         int height = 0;
     };
-
 protected:
-    artc::myPeerConnection<JingleSession> mPeerConn;
+    typedef karere::StringMap Base;
+    Jingle& mJingle;
+    std::string mSid;
     std::string mOwnJid;
     std::string mPeerJid;
-    std::string mSid;
+public:
+    AvFlags mRemoteAvState;
+    AvFlags mLocalAvState;
+protected:
+    artc::myPeerConnection<JingleSession> mPeerConn;
     ::strophe::Connection& mConnection;
-    Jingle& mJingle;
     std::string mInitiator;
     std::string mResponder;
     bool mIsInitiator;
     State mState = SESSTATE_NULL;
-    std::unique_ptr<FileTransferHandler> mFtHandler;
     artc::tspMediaStream mLocalStream;
     artc::tspMediaStream mRemoteStream;
     sdpUtil::ParsedSdp mLocalSdp;
     sdpUtil::ParsedSdp mRemoteSdp;
+    std::unique_ptr<FileTransferHandler> mFtHandler;
     void* mUserData = nullptr;
     DeleteFunc mUserDataDelFunc = nullptr;
 //    bool mLastIceCandidate = false;
@@ -102,8 +106,6 @@ protected:
 public:
     std::unique_ptr<StanzaQueue> inputQueue;
     std::shared_ptr<artc::StreamPlayer> remotePlayer;
-    AvFlags mRemoteAvState;
-    AvFlags mLocalAvState;
     karere::Ts tsMediaStart = 0;
     std::unique_ptr<StatsRecorder> mStatsRecorder;
 

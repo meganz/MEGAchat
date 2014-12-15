@@ -572,7 +572,7 @@ int RtcModule::hangupAll(const char* reason, const char* text)
 
 int RtcModule::muteUnmute(bool state, const AvFlags& what, const char* jid)
 {
-    int affected = 0;
+    size_t affected = 0;
     if (jid)
     {
         bool isBareJid = !!strchr(jid, '/');

@@ -42,8 +42,8 @@ void MainWindow::buttonPushed()
         inCall = true;
         ui->button->setText("Hangup");
     }
-    mega::dnsLookup("google.com")
-    .then([](std::shared_ptr<mega::DnsResult> result)
+    mega::dnsLookup("google.com", 0)
+    .then([](std::shared_ptr<mega::AddrInfo> result)
     {
         printf("Canonical name: %s\n", result->canonName().c_str());
         auto& ip4s = result->ip4addrs();

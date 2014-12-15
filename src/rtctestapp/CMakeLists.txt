@@ -21,7 +21,7 @@ QT4_WRAP_UI(QT_GEN_FORMS_HEADERS ${QT_FORMS})
 #QT4_ADD_RESOURCES(helloworld_RESOURCES_RCC ${helloworld_RESOURCES})
 
 INCLUDE(${QT_USE_FILE})
-add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden)
+add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden -Wall)
 
 #list(APPEND CMAKE_CXX_FLAGS -std=c++11)
 

@@ -74,9 +74,9 @@ auto message_handler = [](Stanza s, void* userdata, bool& keep)
     strophe::Connection& conn = *static_cast<strophe::Connection*>(userdata);
     xmpp_stanza_t* rawBody = s.rawChild("body");
     if (!rawBody)
-        return 1;
+        return;
     Stanza body(rawBody);
-    if (!strcmp(s.attr("type"), "error")) return 1;
+    if (!strcmp(s.attr("type"), "error")) return;
 
     auto intext = body.text();
 

@@ -16,8 +16,8 @@ JingleSession::JingleSession(Jingle& jingle, const string& myJid, const string& 
  const string& sid, Connection& connection,
  artc::tspMediaStream sessLocalStream, const AvFlags& avState, const StringMap& props,
  FileTransferHandler* ftHandler)
-    :StringMap(props), mOwnJid(myJid), mPeerJid(peerjid), mSid(sid), mConnection(connection),
-      mJingle(jingle), mLocalAvState(avState), mLocalStream(sessLocalStream),
+    :Base(props), mJingle(jingle), mSid(sid), mOwnJid(myJid), mPeerJid(peerjid),
+      mLocalAvState(avState), mConnection(connection), mLocalStream(sessLocalStream),
       mFtHandler(ftHandler)
 {
     syncAvState();

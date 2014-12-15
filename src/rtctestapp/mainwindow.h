@@ -33,8 +33,8 @@ extern bool inCall;
 class RtcEventHandler: public rtcModule::IEventHandler
 {
 protected:
-    disco::DiscoPlugin& mDisco;
     MainWindow* mMainWindow;
+    disco::DiscoPlugin& mDisco;
 public:
     RtcEventHandler(MainWindow* mainWindow)
         :mMainWindow(mainWindow), mDisco(mainWindow->mConn->plugin<disco::DiscoPlugin>("disco"))
