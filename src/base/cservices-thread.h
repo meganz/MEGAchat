@@ -12,7 +12,7 @@ static inline int svc_thread_start(void* args, t_svc_thread_handle* thread,
     return (*handle != 0);
 }
 #define SVC_THREAD_FUNCDECL(func) unsigned __stdcall func(PVOID args)
-typedef int t_svc_thread_funcret;
+typedef unsigned t_svc_thread_funcret;
 static inline void svc_thread_join(t_svc_thread_handle thread)
 {
     WaitForSingleObject(thread, INFINITE);

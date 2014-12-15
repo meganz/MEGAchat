@@ -27,6 +27,7 @@ SVC_THREAD_FUNCDECL(libeventThreadFunc)
     printf("libevent thread started, entering eventloop\n");
     event_base_loop(services_eventloop, 0);//EVLOOP_NO_EXIT_ON_EMPTY
     printf("libevent loop terminated\n");
+    return (t_svc_thread_funcret)0;
 
 }
 
@@ -56,6 +57,7 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
 
     hasLibeventThread = svc_thread_start(
                 NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
+    return 0;
 }
 
 MEGAIO_EXPORT int services_shutdown()
@@ -65,6 +67,7 @@ MEGAIO_EXPORT int services_shutdown()
     svc_thread_join(libeventThread);
     hasLibeventThread = false;
     printf("done\n");
+    return 0;
 }
 
 //Handle store

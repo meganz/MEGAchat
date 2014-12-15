@@ -42,6 +42,9 @@ struct event;
 #else
     #define SVC_LOG_DEBUG(fmtString,...)
 #endif
+//helper macros
+#define _MEGA_STRLITERAL(x) _MEGA_STRLITERAL2(x)
+#define _MEGA_STRLITERAL2(x) #x
 
 /** Options bitmask for log flags */
 enum {SVC_OPTIONS_LOGFLAGS = 0x000000ff};
@@ -89,6 +92,10 @@ MEGAIO_IMPEXP int services_hstore_remove_handle(unsigned short type, megaHandle 
 
 #ifndef SVC_DISABLE_DNS
     #include "cservices-dns.h"
+#endif
+
+#ifndef SVC_DISABLE_HTTP
+    #include "cservices-http.h"
 #endif
 
 #endif
