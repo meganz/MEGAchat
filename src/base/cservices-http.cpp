@@ -1,221 +1,191 @@
 #include "cservices.h"
-#include "services-dns.hpp"
 #include <curl/curl.h>
 #include <event2/event.h>
+#include <assert.h>
+#include "gcmpp.h"
+
 
 #define always_assert(cond) \
     if (!(cond)) SVC_LOG_ERROR("HTTP: Assertion failed: '%s' at file %s, line %d", #cond, __FILE__, __LINE__)
 
-namespace mega
-{
+event* gTimerEvent = NULL;
+CURLM* gCurlMultiHandle = NULL;
+int gNumRunning = 0;
 
-namespace http //deserves its own namespace
-{
+static void le2_onEvent(int fd, short events, void* userp);
+static inline void checkCompleted();
 
-const char* url_find_host_end(const char* p);
-MEGAIO_EXPORT t_string_bounds services_http_url_get_host(const char* url);
-
-class Buffer
+void CurlConn_init(CurlConnection* conn, int sockfd)
 {
-protected:
-    char* mBuf = nullptr;
-    size_t mBufSize = 0;
-    size_t mDataSize = 0;
-public:
-    char* buf() const { return mBuf; }
-    ~HttpBuffer() { if (mBuf) free(mBuf); }
-    size_t size() const {return size;}
-    size_t dataSize() const {return mDataSize;}
-    void ensureAppendSize(size_t size)
+    conn->socket = sockfd;
+    conn->curEvents = 0;
+    conn->read = event_new(services_get_event_loop(), sockfd, EV_READ, le2_onEvent, conn);
+    conn->write = event_new(services_get_event_loop(), sockfd, EV_WRITE, le2_onEvent, conn);
+}
+
+static inline void CurlConn_finalize(CurlConnection* conn)
+{
+    event_del(conn->read);
+    event_del(conn->write);
+    conn->socket = -1;
+    conn->curEvents = 0;
+    event_free(conn->read);
+    event_free(conn->write);
+    conn->read = NULL;
+    conn->write = NULL;
+}
+
+static inline short curlToLe2Events(int what)
+{
+    short ret = (what & CURL_POLL_IN)?EV_READ:0;
+    if (what & CURL_POLL_OUT)
+        ret |= EV_WRITE;
+    return ret;
+}
+
+static inline int le2ToCurlEvents(short events)
+{
+    int ret = (events & EV_READ)?CURL_CSELECT_IN:0;
+    if (events & EV_WRITE)
+        ret|=CURL_CSELECT_OUT;
+    return ret;
+}
+
+static inline void CurlConn_subscribeToEvents(CurlConnection* conn, int what)
+{
+    int events = curlToLe2Events(what);
+    int changed = events ^ conn->curEvents;
+    conn->curEvents = events;
+    if (changed & EV_READ) //change requested on read subscription
     {
-        if (mBuf)
-        {
-            size += mDataSize;
-            if (size > mSize)
-                mBuf = ::realloc(mBuf, size);
-            else
-                return;
-        }
+        if (events & EV_READ)
+            event_add(conn->read, nullptr);
         else
+            event_del(conn->read);
+    }
+    if (changed & EV_WRITE)
+    {
+        if (events & EV_WRITE)
+            event_add(conn->write, nullptr);
+        else
+            event_del(conn->write);
+    }
+}
+static void le2_onEvent(int fd, short events, void* userp)
+{
+    events = le2ToCurlEvents(events);
+    CurlConnection* conn = (CurlConnection*)userp;
+    assert(conn);
+
+    int oldNumRunning = gNumRunning;
+    int ret = curl_multi_socket_action(gCurlMultiHandle, fd, events, &gNumRunning);
+    if (ret != CURLM_OK)
+    {
+        SVCS_LOG_ERROR("le2_onEvent: curl_multi_socket_action() returned error %d", ret);
+        return;
+    }
+    checkCompleted();
+}
+
+static void le2_onTimer(int fd, short kind, void *userp)
+{
+    int oldNumRunning = gNumRunning;
+    int ret = curl_multi_socket_action(gCurlMultiHandle,
+        CURL_SOCKET_TIMEOUT, 0, &gNumRunning);
+    if (ret != CURLM_OK)
+    {
+        SVCS_LOG_ERROR("le2_onTimer: curl_multi_socket_action() returned error %d", ret);
+        return;
+    }
+    checkCompleted();
+}
+
+static void checkCompleted()
+{
+    CURLMsg* msg;
+    int msgsLeft;
+    while ((msg = curl_multi_info_read(gCurlMultiHandle, &msgsLeft)))
+    {
+        if (msg->msg == CURLMSG_DONE)
         {
-            mBuf = malloc(size);
+            auto easy = msg->easy_handle;
+            auto res = msg->data.result;
+            CurlConnection* conn;
+            curl_easy_getinfo(easy, CURLINFO_PRIVATE, &conn);
+            curl_multi_remove_handle(gCurlMultiHandle, easy);
+            mega::marshallCall([conn, res](){conn->connOnComplete(conn, res);});
         }
-        mSize = size;
     }
-    const char* append(size_t writeSize)
+}
+
+static int curlcb_subscribe_to_events(CURL *e, curl_socket_t fd, int what, void *cbp, void *sockp)
+{
+    CurlConnection* conn = (CurlConnection*)sockp;
+//    const char *whatstr[]={ "none", "IN", "OUT", "INOUT", "REMOVE" };
+    if (what == CURL_POLL_REMOVE)
     {
-        ensureAppendSize(writeSize);
-        const char* appendPtr = mBuf+mDataSize;
-        mDataSize+=writeSize;
-    }
-    void clearData() { mDataSize = 0;}
-    void shrinkToFitData(size_t maxReserve)
-    {
-        if (!mBuf)
-            return;
-        size_t maxSize = mDataSize+maxReserve;
-        if (mSize > maxSize)
+        if (conn)
         {
-            mBuf = realloc(mBuf, maxSize);
-            mSize = maxSize;
+            CurlConn_finalize(conn);
+            curl_multi_assign(gCurlMultiHandle, fd, NULL);
         }
     }
-};
-//common base
-template <class T>
-class WriteAdapterBase
-{
-protected:
-    T& mSink;
-public:
-    WriteAdapter(T& target): mSink(target){}
-    T& sink() const {return mSink;}
-};
-
-template <>
-class WriteAdapter<std::string>: public WriteAdapterBase<std::string>
-{
-public:
-    using WriteAdapterBase::WriteAdapterBase;
-    void reserve(size_t size) {mSink.reserve(size);}
-    void append(const char* data, size_t len) { mSink.append(data, len); }
-};
-
-class Client;
-
-//polymorphic base
-class ResponseBase
-{
-protected:
-    Client& mClient;
-public:
-    ResponseBase(Client& client): mClient(client){}
-    Client& client() const {return mClient;}
-    virtual ~ResponseBase(){}
-};
-
-template <class T>
-class Response: public ResponseBase
-{
-    WriteAdapter<T> mWriter;
-public:
-    Response(Client& client, T& sink, size_t initialSize)
-        :ResponseBase(client), mWriter(sink)
+    else
     {
-        if(initialSize > 0)
-            mWriter.reserve(initialSize);
-    }
-};
-
-template <class T>
-class ResponseWithOwnData: public Response<T>
-{
-public:
-    std::shared_ptr<T> data;
-    ResponseWithOwnData(Client &client, size_t initialSize)
-        :Response<T>(client, *(new T), initialSize)
-    {
-//base class is always initialized first, so we need to create the mData object before we
-//reach to initializing mData, and then get the pointer to it back from the base class
-//we could avoid these things by multiply inheriting first from T and next from Response<T>
-//but then we would have to do more exotic polymorphic casting from ResponseBase,
-//because Response<T> will not be the first class in the inheritance chain, so the
-//pointer to ResponseBase would have to be offset-adjusted to cast it to ResponseWithOwnData
-//using dynamic_cast.
-        mData.reset(&(mWriter.sink()));
-    }
-};
-
-#define _curleopt(opt, val) \
-    do {                                                      \
-    CURLcode ret = curl_easy_setopt(mCurl, opt, val);         \
-    if (ret != CURLE_OK)                                      \
-        throw std::runtime_error(std::string("curl_easy_setopt(")+ #opt +") at file "+ __FILE__+ ":"+std::to_string(__LINE__)); \
-    } while(0)
-
-class HttpClient
-{
-protected:
-    CURL* mCurl;
-    int mMaxRetryWaitTime = 30;
-    int mMaxRetryCount = 10;
-    bool busy = false;
-    curl_slist* mCustomHeaders = nullptr;
-    std::unique_ptr<ResponseBase> mResponse;
-    void* mReader = nullptr;
-    HttpClient()
-    :curl(curl_easy_init())
-    {
-        if (!curl)
-            throw runtime_error("Could not create a CURL easy handle");
-        it ret = curl_multi_add_handle(gCurlMultiHandle, curl);
-        if (ret != CURLE_OK)
-            throw runtime_error("Could not add CURL easy handle to multi handle");
-        _curleopt(CURLOPT_PRIVATE, this);
-        _curleopt(CURLOPT_USERAGENT, gHttpUserAgent.c_str());
-        _curleopt(CURLOPT_FOLLOWLOCATION, 1L);
-        _curleopt(CURLOPT_AUTOREFERER, 1L);
-        _curleopt(CURLOPT_MAXREDIRS, 5L);
-        _curleopt(CURLOPT_CONNECTTIMEOUT, 30L);
-        _curleopt(CURLOPT_TIMEOUT, 20L);
-        _curleopt(CURLOPT_ACCEPT_ENCODING, ""); //enable compression
-        _curleopt(CURLOPT_COOKIEFILE, "");
-        _curleopt(CURLOPT_COOKIESESSION, 1L);
-    }
-    template <class R>
-    void getTo(const std::string& url, R& response)
-    {
-        _curleopt(CURLOPT_HTTPGET, 1);
-        _curleopt(CURLOPT_WRITEDATA, this);
-        auto writefunc = [](char *ptr, size_t size, size_t nmemb, void *userp)
+        if (!conn)
         {
-            size_t len = size*nmemb;
-            static_cast<R*>(userp)->append((const char*)ptr, len);
-            return len;
-        };
-        _curleopt(CURLOPT_WRITEFUNCTION, writefunc);
-    }
-    template <class CB>
-    void resolveUrlDomain(const char* url, const CB& cb)
-    {
-        auto bounds = services_http_url_get_host(url.c_str());
-        auto type = services_dns_host_type(bounds.start, bounds.end);
-        if (type == SVC_DNS_HOST_DOMAIN)
-        {
-            string domain(bounds.start, bounds.end-bounds.start);
-            dnsLookup(domain.c_str(), gIpMode,
-            [this, cb](int errCode, const char* errMsg, std::shared_ptr<AddrInfo>& addrs)
+            int ret = curl_easy_getinfo(e, CURLINFO_PRIVATE, &conn);
+            if (!ret || !conn)
             {
-                if (errCode)
-                {
-                    cb(errCode, nullptr);
-                    return;
-                }
-
-                if (cbgIpMode == SVCF_DNS_IPV4)
-                {
-                   if (addrs->ip4addrs().empty())
-                       cb(SVCDNS_ENOTEXIST, nullptr);
-                }
-
-
+                SVCS_LOG_ERROR("curlcb_subscribe_to_events: Assertion failed: Error getting CurlConnection pointer from curl easy handle: %d", ret);
+                abort();
             }
-
-        _curleopt(CURLOPT_URL, url.c_str());
-
-        busy = true;
-        curl_multi_add_handle(gCurlMultiHandle, mCurl);
+            CurlConn_init(conn, fd);
+            curl_multi_assign(gCurlMultiHandle, fd, conn);
+        }
+        CurlConn_subscribeToEvents(conn, what);
     }
-
-{
-    return new svc_http_request(cb, errb);
-}
-    void addHeader(const char* nameVal)
-{
-    mCustomHeaderscurl_slist hdr = curl_slist_append(NULL, nameVal);
-    curl_easy_setopt(mCurl, CURLOPT_)
+    return 0;
 }
 
+static int curlcb_subscribe_to_timer(CURLM *multi, long timeout_ms, void* userp)
+{
+    if (timeout_ms < 0)
+        return 0;
+
+    struct timeval timeout;
+    timeout.tv_sec = timeout_ms/1000;
+    timeout.tv_usec = (timeout_ms%1000)*1000;
+    evtimer_add(gTimerEvent, &timeout);
+    return 0;
+}
+
+
+MEGAIO_EXPORT int services_http_init(unsigned options)
+{
+    if (gCurlMultiHandle)
+        return -1;
+    gCurlMultiHandle = curl_multi_init();
+    curl_multi_setopt(gCurlMultiHandle, CURLMOPT_SOCKETFUNCTION, curlcb_subscribe_to_events);
+    curl_multi_setopt(gCurlMultiHandle, CURLMOPT_SOCKETDATA, NULL);
+    curl_multi_setopt(gCurlMultiHandle, CURLMOPT_TIMERFUNCTION, curlcb_subscribe_to_timer);
+    curl_multi_setopt(gCurlMultiHandle, CURLMOPT_TIMERDATA, NULL);
+    gTimerEvent = evtimer_new(services_get_event_loop(), le2_onTimer, NULL);
+}
+
+MEGAIO_EXPORT int services_http_shutdown()
+{
+    if (!gCurlMultiHandle)
+        return -1;
+    event_del(gTimerEvent);
+    event_free(gTimerEvent);
+    gTimerEvent = NULL;
+    curl_multi_cleanup(gCurlMultiHandle);
+    gCurlMultiHandle = NULL;
+    return 0;
+}
+
+static const char* url_find_host_end(const char* p);
 t_string_bounds services_http_url_get_host(const char* url)
 {
     const char* p = url;
@@ -270,8 +240,3 @@ const char* url_find_host_end(const char* p)
     }
     return p; //the terminating null
 }
-
-struct Transfer
-{
-
-};

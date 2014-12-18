@@ -54,7 +54,9 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
 #ifndef SVC_DISABLE_STROPHE
     services_strophe_init(options);
 #endif
-
+#ifndef SVC_DISABLE_HTTP
+    services_http_init(options);
+#endif
     hasLibeventThread = svc_thread_start(
                 NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
     return 0;
@@ -62,6 +64,9 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
 
 MEGAIO_EXPORT int services_shutdown()
 {
+#ifndef SVC_DISABLE_HTTP
+    services_http_shutdown();
+#endif
     event_base_loopexit(services_eventloop, NULL);
     printf("Terminating libevent thread...");
     svc_thread_join(libeventThread);

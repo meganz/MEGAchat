@@ -1,6 +1,6 @@
 #ifndef ADDRINFO_HPP
 #define ADDRINFO_HPP
-#include "cservices-dns.h"
+#include "cservices.h"
 
 namespace mega
 {
@@ -15,7 +15,7 @@ public:
     ~IpAddr()
     {
         if(mBuf)
-            free(mBuf);
+            ::free(mBuf);
     }
     const Raw& raw() const {return mAddr;}
     const char* toString() const

@@ -1,13 +1,13 @@
 #ifndef SERVICES_DNS_HPP
 #define SERVICES_DNS_HPP
 //This header is the C++11 layer on top of cservices-dns.h
-#include "cservices-dns.h"
+#include "cservices.h"
 #include "addrinfo.hpp"
 #include "promise.h"
 
 namespace mega
 {
-enum {kDnsPromiseError = 0x3e9ad115}; //should resemble 'megadns'
+enum {ERRTYPE_DNS = 0x3e9ad115}; //should resemble 'megadns'
 
 template <class CB>
 struct DnsReqMsg: public megaMessage
@@ -79,7 +79,7 @@ dnsLookup(const char* name, unsigned flags, const char* service=nullptr)
         if (!errcode)
             pms.resolve(std::forward<std::shared_ptr<AddrInfo> >(addrs));
         else
-            pms.reject(promise::Error(nullptr, errcode, kDnsPromiseError));
+            pms.reject(promise::Error(nullptr, errcode, ERRTYPE_DNS));
     }, service);
     return pms;
 }
