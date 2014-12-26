@@ -7,6 +7,10 @@
 #include "../base/gcm.h"
 #include "../IRtcModule.h"
 #include "../base/services-dns.hpp"
+#include "../base/services-http.hpp"
+#include <iostream>
+#include <mega/json.h>
+#include <mega/utils.h>
 
 #undef emit
 #define THROW_IF_FALSE(statement) \
@@ -18,16 +22,50 @@ extern MainWindow* mainWin;
 extern rtcModule::IRtcModule* rtc;
 extern std::string peer;
 
+using namespace std;
+using namespace mega;
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
 }
+mega::http::Client* client = nullptr;
 
 extern bool inCall;
 void MainWindow::buttonPushed()
 {
+/*    if (!client)
+        client = new mega::http::Client;
+    client->get<std::string>("http://www.osnews.com/")
+    .then([](std::shared_ptr<std::string> data)
+    {
+        cout << "response:" <<endl<<*data<<endl;
+        return nullptr;
+    })
+    .fail([](const promise::Error& err)
+    {
+        return nullptr;
+    });
+
+return;
+*/
+    mega::JSON json;
+    json.begin("{\"url\":\"http://example.com:1234/?udp=1\", \"user\":\"testuser\", \"pass\":\"testpass\"}");
+    json.enterobject();
+    mega::nameid name;
+    while ((name = json.getnameid()) != EOO)
+    {
+        if (name == MAKENAMEID3('u', 'r', 'l'))
+            printf("url = %s\n", json.getvalue());
+        else if (name == MAKENAMEID4('u','s','e','r'))
+            printf("user = %s\n", json.getvalue());
+        else if (name == MAKENAMEID4('p','a','s','s'))
+            printf("pass = %s\n", json.getvalue());
+        else
+            printf("UNKNOWN nameid\n");
+    }
     if (inCall)
     {
         rtc->hangupAll("hangup", nullptr);
@@ -42,6 +80,8 @@ void MainWindow::buttonPushed()
         inCall = true;
         ui->button->setText("Hangup");
     }
+
+    /*
     mega::dnsLookup("google.com", 0)
     .then([](std::shared_ptr<mega::AddrInfo> result)
     {
@@ -60,6 +100,7 @@ void MainWindow::buttonPushed()
         printf("DNS lookup error: %s\n", err.msg().c_str());
         return nullptr;
     });
+    */
 }
 
 MainWindow::~MainWindow()

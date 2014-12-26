@@ -23,7 +23,7 @@ RtcModule::RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers)
 :Jingle(conn, crypto, iceServers), mEventHandler(handler)
 {
-    mOwnAnonId = crypto->scrambleJid(mConn.jid())->c_str();
+    mOwnAnonId = VString(crypto->scrambleJid(InputString(mConn.jid())));
 }
 
 void RtcModule::logInputDevices()
@@ -323,11 +323,11 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
       },
       nullptr, "message", "megaCallDecline", state->targetJid.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
-      auto sendCall = new function<void(const char*)>([this, state](const char* errMsg)
+      auto sendCall = new function<void(const InputString&)>([this, state](const InputString& errMsg)
       {
           if (errMsg)
           {
-              onInternalError(errMsg, "preloadCryptoForJid");
+              onInternalError(errMsg.c_str(), "preloadCryptoForJid");
               return;
           }
           Stanza msg(mConn);
@@ -383,11 +383,11 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
               },
               callAnswerTimeout);
       });
-      crypto().preloadCryptoForJid(strophe::getBareJidFromJid(state->targetJid).c_str(),
-          static_cast<void*>(sendCall), [](void* userp, const char* errMsg)
+      crypto().preloadCryptoForJid(InputString(strophe::getBareJidFromJid(state->targetJid)),
+          static_cast<void*>(sendCall), [](void* userp, const InputString& errMsg)
           {
-              unique_ptr<function<void(const char*)> >
-                      sendCallFunc(static_cast<function<void(const char*)>* >(userp));
+              unique_ptr<function<void(const InputString&)> >
+                      sendCallFunc(static_cast<function<void(const InputString&)>* >(userp));
               (*sendCallFunc)(errMsg);
           });
 

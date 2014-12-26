@@ -7,7 +7,7 @@ using namespace std;
 
 namespace rtcModule {
 
-typedef rtcModule::ICryptoFunctions::IString IString;
+typedef rtcModule::IString IString;
 char hexDigitToInt(char code)
 {
     if ((code > 47) && (code < 58))
@@ -21,16 +21,14 @@ char hexDigitToInt(char code)
 }
 
 
-string xorEnc(const string& str, const string& key)
+string xorEnc(const char* msg, size_t msglen, const char* key, size_t keylen)
 {
   const char* int2hex = "0123456789abcdef";
   string result;
   size_t j = 0;
-  size_t len = str.size();
-  size_t keylen = key.size();
-  for (size_t i = 0; i < len; i++)
+  for (size_t i = 0; i < msglen; i++)
   {
-      char code = str[i] ^ key[j++];
+      char code = msg[i] ^ key[j++];
       if (j >= keylen)
           j = 0;
       result+=int2hex[code>>4];
@@ -39,17 +37,15 @@ string xorEnc(const string& str, const string& key)
   return result;
 }
 
-string xorDec(const string& str, const string& key)
+string xorDec(const char* msg, size_t msglen, const char* key, size_t keylen)
 {
     string result;
-    size_t len = str.size();
     size_t j = 0;
-    if (len & 1)
+    if (msglen & 1)
         throw runtime_error("Not a proper hex string");
-    size_t keylen = key.size();
-    for (size_t i=0; i<len; i+=2)
+    for (size_t i=0; i<msglen; i+=2)
     {
-        char code = (hexDigitToInt(str[i]) << 4)|hexDigitToInt(str[i+1]);
+        char code = (hexDigitToInt(msg[i]) << 4)|hexDigitToInt(msg[i+1]);
         code ^= key[j++];
         if (j >= keylen)
             j = 0;
@@ -76,46 +72,46 @@ string makeRandomString(int len)
     return result;
 }
 
-IString* DummyCrypto::generateMac(const char* data, const char* key)
+IString* DummyCrypto::generateMac(const InputString& data, const InputString& key)
 {
     if (!data || !key)
         return nullptr;
-    return new StringImpl(xorEnc(data, key));
+    return new IString_string(xorEnc(data.c_str(), data.size(), key.c_str(), key.size()));
 }
 
-IString* DummyCrypto::decryptMessage(const char* msg)
+IString* DummyCrypto::decryptMessage(const InputString& msg)
 {
     if (!msg)
         return nullptr;
-    return new StringImpl(xorDec(msg, mOwnJid));
+    return new IString_string(xorDec(msg.c_str(), msg.size(), mOwnJid.c_str(), mOwnJid.size()));
 }
 
-IString* DummyCrypto::encryptMessageForJid(const char* msg, const char* bareJid)
+IString* DummyCrypto::encryptMessageForJid(const InputString& msg, const InputString& bareJid)
 {
-    if (mKeysLoaded.find(bareJid) == mKeysLoaded.end())
+    if (mKeysLoaded.find(string(bareJid.c_str(), bareJid.size())) == mKeysLoaded.end())
         return nullptr;
-    return new StringImpl(xorEnc(msg, bareJid));
+    return new IString_string(xorEnc(msg.c_str(), msg.size(), bareJid.c_str(), bareJid.size()));
 }
 
-void DummyCrypto::preloadCryptoForJid(const char* jid, void* userp, void(*cb)(void*, const char*))
+void DummyCrypto::preloadCryptoForJid(const InputString& jid, void* userp, void(*cb)(void*, const InputString&))
 {
     assert(jid);
-    mKeysLoaded.insert(jid);
+    mKeysLoaded.insert(string(jid.c_str(), jid.size()));
     cb(userp, nullptr);
 }
 
-IString* DummyCrypto::scrambleJid(const char* jid)
+IString* DummyCrypto::scrambleJid(const InputString& jid)
 {
-    return new StringImpl(jid);
+    return new IString_string(string(jid.c_str(), jid.size()));
 }
 IString* DummyCrypto::generateFprMacKey()
 {
-    return new StringImpl(makeRandomString(16));
+    return new IString_string(makeRandomString(16));
 }
 
 IString* DummyCrypto::generateRandomString(size_t size)
 {
-    return new StringImpl(makeRandomString(size));
+    return new IString_string(makeRandomString(size));
 }
 
 }

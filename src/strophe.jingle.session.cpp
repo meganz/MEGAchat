@@ -297,7 +297,7 @@ void JingleSession::addFingerprintMac(strophe::Stanza j)
     }
     if (!strFps.empty())
         strFps.resize(strFps.size()-1); //truncate last ';'
-    unique_ptr<ICryptoFunctions::IString> fprmac(mJingle.crypto().generateMac(
+    VString fprmac(mJingle.crypto().generateMac(
         strFps.c_str(), (*this)["peerFprMacKey"].c_str()));
     j.setAttr("fprmac", fprmac->c_str());
 }

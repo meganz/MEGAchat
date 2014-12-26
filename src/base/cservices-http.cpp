@@ -3,37 +3,69 @@
 #include <event2/event.h>
 #include <assert.h>
 #include "gcmpp.h"
-
+#include <string.h>
 
 #define always_assert(cond) \
     if (!(cond)) SVC_LOG_ERROR("HTTP: Assertion failed: '%s' at file %s, line %d", #cond, __FILE__, __LINE__)
+#define SVC_HTTP_DEBUG_LIBEVENT_BRIDGE
+#ifdef SVC_HTTP_DEBUG_LIBEVENT_BRIDGE
+    #define LE2CURL_LOG(fmtString,...) printf("libevent-curl: " fmtString "\n", ##__VA_ARGS__)
+#else
+    #define LE2CURL_LOG(fmtString,...)
+#endif
+
 
 event* gTimerEvent = NULL;
 CURLM* gCurlMultiHandle = NULL;
 int gNumRunning = 0;
+const char* services_http_useragent = NULL;
+int services_http_use_ipv6 = 0;
 
 static void le2_onEvent(int fd, short events, void* userp);
 static inline void checkCompleted();
+static inline short curlToLe2Events(int what);
+static inline const char *le2EventsToString(short events);
 
-void CurlConn_init(CurlConnection* conn, int sockfd)
+struct CurlEvents
 {
-    conn->socket = sockfd;
-    conn->curEvents = 0;
-    conn->read = event_new(services_get_event_loop(), sockfd, EV_READ, le2_onEvent, conn);
-    conn->write = event_new(services_get_event_loop(), sockfd, EV_WRITE, le2_onEvent, conn);
-}
-
-static inline void CurlConn_finalize(CurlConnection* conn)
-{
-    event_del(conn->read);
-    event_del(conn->write);
-    conn->socket = -1;
-    conn->curEvents = 0;
-    event_free(conn->read);
-    event_free(conn->write);
-    conn->read = NULL;
-    conn->write = NULL;
-}
+    event* read;
+    event* write;
+    short curEvents;
+    int sock; //only needed for logging/debugging
+    CurlEvents(int sockfd)
+        :read(event_new(services_get_event_loop(), sockfd, EV_READ|EV_PERSIST, le2_onEvent, this)),
+         write(event_new(services_get_event_loop(), sockfd, EV_WRITE|EV_PERSIST, le2_onEvent, this)),
+         curEvents(0), sock(sockfd)
+    {}
+    ~CurlEvents()
+    {
+        event_del(read);
+        event_del(write);
+        event_free(read);
+        event_free(write);
+    }
+    void subscribeToEvents(int what)
+    {
+        short events = curlToLe2Events(what);
+        short changed = events ^ curEvents;
+        curEvents = events;
+        LE2CURL_LOG("Subscribe socket %d to events: %s", sock, le2EventsToString(events));
+        if (changed & EV_READ) //change requested on read subscription
+        {
+            if (events & EV_READ)
+                event_add(read, nullptr);
+            else
+                event_del(read);
+        }
+        if (changed & EV_WRITE)
+        {
+            if (events & EV_WRITE)
+                event_add(write, nullptr);
+            else
+                event_del(write);
+        }
+    }
+};
 
 static inline short curlToLe2Events(int what)
 {
@@ -51,33 +83,23 @@ static inline int le2ToCurlEvents(short events)
     return ret;
 }
 
-static inline void CurlConn_subscribeToEvents(CurlConnection* conn, int what)
+static inline const char* le2EventsToString(short events)
 {
-    int events = curlToLe2Events(what);
-    int changed = events ^ conn->curEvents;
-    conn->curEvents = events;
-    if (changed & EV_READ) //change requested on read subscription
-    {
-        if (events & EV_READ)
-            event_add(conn->read, nullptr);
-        else
-            event_del(conn->read);
-    }
-    if (changed & EV_WRITE)
-    {
-        if (events & EV_WRITE)
-            event_add(conn->write, nullptr);
-        else
-            event_del(conn->write);
-    }
+    if ((events & (EV_READ|EV_WRITE)) == (EV_READ|EV_WRITE))
+        return "READ|WRITE";
+    else if (events & EV_READ)
+        return "READ";
+    else if (events & EV_WRITE)
+        return "WRITE";
+    else
+        return "(NONE)";
 }
+
 static void le2_onEvent(int fd, short events, void* userp)
 {
+    LE2CURL_LOG("Event %s on socket %d", le2EventsToString(events), fd);
     events = le2ToCurlEvents(events);
-    CurlConnection* conn = (CurlConnection*)userp;
-    assert(conn);
-
-    int oldNumRunning = gNumRunning;
+//    int oldNumRunning = gNumRunning;
     int ret = curl_multi_socket_action(gCurlMultiHandle, fd, events, &gNumRunning);
     if (ret != CURLM_OK)
     {
@@ -89,7 +111,8 @@ static void le2_onEvent(int fd, short events, void* userp)
 
 static void le2_onTimer(int fd, short kind, void *userp)
 {
-    int oldNumRunning = gNumRunning;
+    LE2CURL_LOG("Timer event");
+//    int oldNumRunning = gNumRunning;
     int ret = curl_multi_socket_action(gCurlMultiHandle,
         CURL_SOCKET_TIMEOUT, 0, &gNumRunning);
     if (ret != CURLM_OK)
@@ -120,30 +143,25 @@ static void checkCompleted()
 
 static int curlcb_subscribe_to_events(CURL *e, curl_socket_t fd, int what, void *cbp, void *sockp)
 {
-    CurlConnection* conn = (CurlConnection*)sockp;
-//    const char *whatstr[]={ "none", "IN", "OUT", "INOUT", "REMOVE" };
+    CurlEvents* evts = (CurlEvents*)sockp;
     if (what == CURL_POLL_REMOVE)
     {
-        if (conn)
+        if (evts)
         {
-            CurlConn_finalize(conn);
+            LE2CURL_LOG("Removing events struct from socket %d (easy handle: %p)", fd, e);
             curl_multi_assign(gCurlMultiHandle, fd, NULL);
+            delete evts;
         }
     }
     else
     {
-        if (!conn)
+        if (!evts)
         {
-            int ret = curl_easy_getinfo(e, CURLINFO_PRIVATE, &conn);
-            if (!ret || !conn)
-            {
-                SVCS_LOG_ERROR("curlcb_subscribe_to_events: Assertion failed: Error getting CurlConnection pointer from curl easy handle: %d", ret);
-                abort();
-            }
-            CurlConn_init(conn, fd);
-            curl_multi_assign(gCurlMultiHandle, fd, conn);
+            LE2CURL_LOG("Creating events struct on socket %d: (easy handle: %p)", fd, e);
+            evts = new CurlEvents(fd);
+            curl_multi_assign(gCurlMultiHandle, fd, evts);
         }
-        CurlConn_subscribeToEvents(conn, what);
+        evts->subscribeToEvents(what);
     }
     return 0;
 }
@@ -152,7 +170,7 @@ static int curlcb_subscribe_to_timer(CURLM *multi, long timeout_ms, void* userp)
 {
     if (timeout_ms < 0)
         return 0;
-
+    LE2CURL_LOG("Subscribe to timer: %ld", timeout_ms);
     struct timeval timeout;
     timeout.tv_sec = timeout_ms/1000;
     timeout.tv_usec = (timeout_ms%1000)*1000;
@@ -165,12 +183,15 @@ MEGAIO_EXPORT int services_http_init(unsigned options)
 {
     if (gCurlMultiHandle)
         return -1;
+    services_http_set_useragent("Mega Client");
+    curl_global_init(CURL_GLOBAL_ALL);
     gCurlMultiHandle = curl_multi_init();
     curl_multi_setopt(gCurlMultiHandle, CURLMOPT_SOCKETFUNCTION, curlcb_subscribe_to_events);
     curl_multi_setopt(gCurlMultiHandle, CURLMOPT_SOCKETDATA, NULL);
     curl_multi_setopt(gCurlMultiHandle, CURLMOPT_TIMERFUNCTION, curlcb_subscribe_to_timer);
     curl_multi_setopt(gCurlMultiHandle, CURLMOPT_TIMERDATA, NULL);
     gTimerEvent = evtimer_new(services_get_event_loop(), le2_onTimer, NULL);
+    return 0;
 }
 
 MEGAIO_EXPORT int services_http_shutdown()
@@ -183,6 +204,21 @@ MEGAIO_EXPORT int services_http_shutdown()
     curl_multi_cleanup(gCurlMultiHandle);
     gCurlMultiHandle = NULL;
     return 0;
+}
+
+MEGAIO_EXPORT int services_http_set_useragent(const char* useragent)
+{
+    size_t len = strlen(useragent);
+    if (len < 1)
+    {
+        SVCS_LOG_ERROR("services_http_set_useragent: Attempt to assing an empty user agent");
+        return 0;
+    }
+    if (services_http_useragent)
+        free((void*)services_http_useragent);
+    services_http_useragent = (const char*)malloc(len+1);
+    memcpy((void*)services_http_useragent, useragent, len+1);
+    return 1;
 }
 
 static const char* url_find_host_end(const char* p);

@@ -465,31 +465,31 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                     cancelAutoAcceptEntry(callIt, "initiate-timeout", "timed out waiting for caller to start call", 0);
                 }, mJingleAutoAcceptTimeout);
 
-                auto answerFunc = new function<void(char*)>([this, state](const char* errMsg)
+                auto answerFunc = new function<void(const InputString&)>([this, state](const InputString& errMsg)
                 {
                     if (errMsg)
                     {
-                        onInternalError("Failed to preload crypto key. Won't answer call", "preloadCryptoForJid");
+                        onInternalError("Failed to preload peer's public key. Won't answer call", "preloadCryptoForJid");
                         return;
                     }
 
                     Stanza ans(mConn);
-                    ans.init("message",
-                    {
-                        {"sid", state->sid.c_str()},
-                        {"to", state->from.c_str()},
-                        {"type", "megaCallAnswer"},
-                        {"fprmackey", VString(
-                            mCrypto->encryptMessageForJid(state->ownFprMacKey.c_str(),
-                            state->bareJid.c_str())).c_str()},
-                        {"anonid", mOwnAnonId}
-                    });
+                    ans.setName("message")
+                        .setAttr("sid", state->sid.c_str())
+                        .setAttr("to", state->from.c_str())
+                        .setAttr("type", "megaCallAnswer")
+                        .setAttr("fprmackey", VString(
+                            mCrypto->encryptMessageForJid(
+                                InputString(state->ownFprMacKey),
+                                InputString(state->bareJid)))
+                        )
+                        .setAttr("anonid", mOwnAnonId.c_str());
                     mConn.send(ans);
                 });
-                mCrypto->preloadCryptoForJid(state->bareJid.c_str(), answerFunc,
-                  [](void* userp, const char* errMsg)
+                mCrypto->preloadCryptoForJid(InputString(state->bareJid), answerFunc,
+                  [](void* userp, const InputString& errMsg)
                 {
-                    unique_ptr<function<void(const char*)> > fcall(static_cast<function<void(const char*)>*>(userp));
+                    unique_ptr<function<void(const InputString&)> > fcall(static_cast<function<void(const InputString&)>*>(userp));
                     (*fcall)(errMsg);
                 });
          }

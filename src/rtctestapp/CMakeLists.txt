@@ -14,6 +14,8 @@ set (SRCS
      ../base/cservices.cpp
      ../base/cservices-strophe.cpp
      ../base/cservices-dns.cpp
+     ../base/cservices-http.cpp
+     base32.c
 )
 
 set(QT_FORMS mainwindow.ui)
@@ -24,14 +26,30 @@ INCLUDE(${QT_USE_FILE})
 add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden -Wall)
 
 #list(APPEND CMAKE_CXX_FLAGS -std=c++11)
-
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
 add_subdirectory(.. rtcModule)
 get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
+
+set (optMegaSdkPath "/home/loki/megasdk" CACHE PATH "Mega SDK path")
+if (WIN32)
+  if (WINPHONE8)
+    set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/wp8")
+  else()
+    set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/win32")
+  endif()
+else()
+  set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/posix")
+endif()
+
+set(MEGASDK_INCLUDES "${optMegaSdkPath}/include" "${MEGASDK_PLATFORM_INCLUDES}")
+set(MEGASDK_LIB "${optMegaSdkPath}/src/.libs/libmega.so")
+
 include_directories(
     ..
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${STROPHE_INCLUDES}
+    ${MEGASDK_INCLUDES}
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -40,6 +58,7 @@ set_target_properties(rtctestapp PROPERTIES AUTOMOC TRUE)
 target_link_libraries(rtctestapp
     ${QT_LIBRARIES}
     rtcModule
+    ${MEGASDK_LIB}
 )
 
 

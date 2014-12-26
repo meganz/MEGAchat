@@ -14,18 +14,18 @@ typedef struct
     int end;
 } t_string_bounds;
 
-typedef struct
+struct _CurlConnection;
+typedef struct _CurlConnection
 {
-    int socket;
-    short curEvents;
-    event* read;
-    event* write;
-    void (*connOnComplete)(void* self, CURLcode code);
+    void (*connOnComplete)(struct _CurlConnection* self, CURLcode code);
 } CurlConnection;
 
 MEGAIO_IMPEXP CURLM* gCurlMultiHandle;
 MEGAIO_IMPEXP int services_http_init(unsigned options);
 MEGAIO_IMPEXP int services_http_shutdown();
+MEGAIO_IMPEXP int services_http_set_useragent(const char* useragent);
+MEGAIO_IMPEXP const char* services_http_useragent;
+MEGAIO_IMPEXP int services_http_use_ipv6;
 MEGAIO_IMPEXP t_string_bounds services_http_url_get_host(const char* url);
 
 #endif // CSERVICESHTTP_H

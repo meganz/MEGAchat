@@ -10,7 +10,7 @@ namespace mega
 {
 enum
 {
-    ERRTYPE_HTTP = 0x3e9a4ffb;
+    ERRTYPE_HTTP = 0x3e9a4ffb
 };
 
 namespace http //deserves its own namespace
@@ -23,30 +23,31 @@ protected:
     size_t mDataSize = 0;
 public:
     char* buf() const { return mBuf; }
-    ~HttpBuffer() { if (mBuf) free(mBuf); }
-    size_t size() const {return size;}
+    ~Buffer() { if (mBuf) free(mBuf); }
+    size_t bufSize() const {return mBufSize;}
     size_t dataSize() const {return mDataSize;}
     void ensureAppendSize(size_t size)
     {
         if (mBuf)
         {
             size += mDataSize;
-            if (size > mSize)
-                mBuf = ::realloc(mBuf, size);
+            if (size > mBufSize)
+                mBuf = (char*)realloc(mBuf, size);
             else
                 return;
         }
         else
         {
-            mBuf = malloc(size);
+            mBuf = (char*)malloc(size);
         }
-        mSize = size;
+        mBufSize = size;
     }
     const char* append(size_t writeSize)
     {
         ensureAppendSize(writeSize);
-        const char* appendPtr = mBuf+mDataSize;
+        char* appendPtr = mBuf+mDataSize;
         mDataSize+=writeSize;
+        return appendPtr;
     }
     void clearData() { mDataSize = 0;}
     void shrinkToFitData(size_t maxReserve)
@@ -54,10 +55,10 @@ public:
         if (!mBuf)
             return;
         size_t maxSize = mDataSize+maxReserve;
-        if (mSize > maxSize)
+        if (mDataSize > maxSize)
         {
-            mBuf = realloc(mBuf, maxSize);
-            mSize = maxSize;
+            mBuf = (char*)realloc(mBuf, maxSize);
+            mBufSize = maxSize;
         }
     }
 };
@@ -68,9 +69,11 @@ class WriteAdapterBase
 protected:
     T& mSink;
 public:
-    WriteAdapter(T& target): mSink(target){}
+    WriteAdapterBase(T& target): mSink(target){}
     T& sink() const {return mSink;}
 };
+template <class T>
+class WriteAdapter;
 
 template <>
 class WriteAdapter<std::string>: public WriteAdapterBase<std::string>
@@ -90,45 +93,35 @@ protected:
     Client& mClient;
 public:
     ResponseBase(Client& client): mClient(client){}
-    Client& client() const {return mClient;}
+    Client& client() {return mClient;}
 //    virtual void append(const char* data, size_t len) = 0; //This method (and only this) is called by the libevent thread for performace reasons!!!
     virtual void onTransferComplete(int code, int type) = 0; //called by the GUI thread
     virtual ~ResponseBase(){}
 };
-
-template <class T, class CB>
-class Response: public ResponseBase
+template <class T>
+class ResponseWithData: public ResponseBase
 {
+protected:
     std::shared_ptr<T> mSink;
     WriteAdapter<T> mWriter;
-    CB mCb;
 public:
-    Response(Client& client, CB&& aCb, std::shared_ptr<T> sink)
-        :ResponseBase(client), mSink(sink), mWriter(sink), mCb(std::forward<CB>(aCb))
-    {}
-    virtual void onTransferComplete(int code, int type)
-    {
-        mCb(code, type);
-    }
-    friend class HttpClient;
+    ResponseWithData(Client& client, std::shared_ptr<T> sink)
+        :ResponseBase(client), mSink(sink), mWriter(*mSink){}
+    std::shared_ptr<T>& data() {return mSink;}
+    friend class Client;
 };
 
 template <class T, class CB>
-class ResponseWithOwnData: public Response<T, CB>
+class Response: public ResponseWithData<T>
 {
+    CB mCb;
 public:
-    std::shared_ptr<T> data;
-    ResponseWithOwnData(Client &client, CB&& aCb, size_t initialSize)
-        :Response<T, CB>(client, std::forward<CB>(aCb), *(new T), initialSize)
+    Response(Client& client, CB&& aCb, std::shared_ptr<T> sink)
+        :ResponseWithData<T>(client, sink ? sink : std::shared_ptr<T>(new T())),
+        mCb(std::forward<CB>(aCb)) {}
+    virtual void onTransferComplete(int code, int type)
     {
-//base class is always initialized first, so we need to create the mData object before we
-//reach to initializing mData, and then get the pointer to it back from the base class
-//we could avoid these things by multiply inheriting first from T and next from Response<T>
-//but then we would have to do more exotic polymorphic casting from ResponseBase,
-//because Response<T> will not be the first class in the inheritance chain, so the
-//pointer to ResponseBase would have to be offset-adjusted to cast it to ResponseWithOwnData
-//using dynamic_cast.
-        mData.reset(&(mWriter.sink()));
+        mCb(code, type, ResponseWithData<T>::mSink);
     }
     friend class HttpClient;
 };
@@ -141,32 +134,30 @@ public:
     } while(0)
 
 
-class HttpClient: public CurlConnection
+class Client: public CurlConnection
 {
 protected:
     CURL* mCurl;
     int mMaxRetryWaitTime = 30;
     int mMaxRetryCount = 10;
-    bool busy = false;
+    int status = 0;
     //the following two are updated directly by the libevent thread
     size_t mResponseLen = 0;
     size_t mCurrentRecvLen = 0;
     //===
     curl_slist* mCustomHeaders = nullptr;
-    void* mReader = nullptr;
+//    std::unique_ptr<StreamSrcBase> mReader;
     std::unique_ptr<ResponseBase> mResponse;
-    HttpClient()
-    :curl(curl_easy_init())
+public:
+    Client()
+    :mCurl(curl_easy_init())
     {
-        if (!curl)
-            throw runtime_error("Could not create a CURL easy handle");
-        it ret = curl_multi_add_handle(gCurlMultiHandle, curl);
-        if (ret != CURLE_OK)
-            throw runtime_error("Could not add CURL easy handle to multi handle");
-        conn.onComplete = onTransferComplete;
+        if (!mCurl)
+            throw std::runtime_error("Could not create a CURL easy handle");
+        connOnComplete = onTransferComplete;
 
         _curleopt(CURLOPT_PRIVATE, this);
-        _curleopt(CURLOPT_USERAGENT, gHttpUserAgent.c_str());
+        _curleopt(CURLOPT_USERAGENT, services_http_useragent);
         _curleopt(CURLOPT_FOLLOWLOCATION, 1L);
         _curleopt(CURLOPT_AUTOREFERER, 1L);
         _curleopt(CURLOPT_MAXREDIRS, 5L);
@@ -175,26 +166,35 @@ protected:
         _curleopt(CURLOPT_ACCEPT_ENCODING, ""); //enable compression
         _curleopt(CURLOPT_COOKIEFILE, "");
         _curleopt(CURLOPT_COOKIESESSION, 1L);
+        _curleopt(CURLOPT_SSL_CTX_FUNCTION, &sslCtxFunction);
     }
-    static void onTransferComplete(CurlConnection* conn, CURLCode code) //called by the CURL-libevent code
+protected:
+    static void onTransferComplete(CurlConnection* conn, CURLcode code) //called by the CURL-libevent code
     {
-        auto self = (HttpClient*)conn;
-        self->busy = false;
+        auto self = (Client*)conn;
+        self->status = 0;
         if (self->mResponse)
             self->mResponse->onTransferComplete(code, ERRTYPE_HTTP);
     }
+    static CURLcode sslCtxFunction(CURL* curl, void* sslctx, void*)
+    {
+        //TODO: Implement
+        return CURLE_OK;
+    }
+
 
     template <class R>
     void setupRecvAndStart(const std::string& url) //mResponse must be set before calling this
     {
         resolveUrlDomain(url,
-        [this, response](int errcode, const std::string& url)
-        {
+         [this](int errcode, const std::string& url)
+         {
             if (errcode)
-                return response->onTransferComplete(errcode, ERRTYPE_DNS);
+                return mResponse->onTransferComplete(errcode, ERRTYPE_DNS);
 
-            _curleopt(CURLOPT_WRITEDATA, this->mResponse.get());
-            auto writefunc = [](char *ptr, size_t size, size_t nmemb, void *userp)
+            _curleopt(CURLOPT_WRITEDATA, mResponse.get());
+            typedef size_t(*CURL_WRITEFUNC)(char *ptr, size_t size, size_t nmemb, void *userp);
+            CURL_WRITEFUNC writefunc = [](char *ptr, size_t size, size_t nmemb, void *userp)
             {
                 size_t len = size*nmemb;
                 static_cast<R*>(userp)->mWriter.append((const char*)ptr, len);
@@ -202,41 +202,71 @@ protected:
             };
             _curleopt(CURLOPT_WRITEFUNCTION, writefunc);
             _curleopt(CURLOPT_URL, url.c_str());
-            busy = true;
+            status = 1;
             curl_multi_add_handle(gCurlMultiHandle, mCurl);
-        });
+         });
     }
+public:
     template <class T>
-    promise::Promise<ResponseWithOwnData<T>& >void get(const std::string& url)
+    promise::Promise<std::shared_ptr<T> >
+    get(const std::string& url, std::shared_ptr<T> sink=nullptr)
     {
-        promise::Promise<ResponseWithOwnData<T> >pms;
+        promise::Promise<std::shared_ptr<T> > pms;
         get(url,
-        [pms, this](int code, int type)
+        [pms, this](int code, int type, std::shared_ptr<T> data) mutable
         {
             if ((type == ERRTYPE_HTTP) && (code == CURLE_OK))
-                pms.resolve(*mResponse);
+                pms.resolve(data);
             else
                 pms.reject(code, type);
-        });
+        }, sink);
+        return pms;
     }
     template <class T, class CB>
-    void get(const std::string& url, CB&& cb)
+    void get(const std::string& url, CB&& cb, std::shared_ptr<T> sink=nullptr)
     {
-        _curleopt(mCurl, CURLOPT_GET, 1L);
-        mResponse.reset(new ResponseWithOwnData<T>(this, std::forward<CB>(cb)));
-        setupRecvAndStart<ResponseWithOwnData<T> >(url);
+        _curleopt(CURLOPT_HTTPGET, 1L);
+        mResponse.reset(new Response<T, CB>(*this, std::forward<CB>(cb), sink));
+        setupRecvAndStart<Response<T, CB> >(url);
     }
+    template <class T, class CB>
+    void post(const std::string& url, CB&& cb, const std::string& postData, std::shared_ptr<T> sink=nullptr)
+    {
+        _curleopt(CURLOPT_POSTFIELDS, postData.c_str());
+        _curleopt(CURLOPT_POSTFIELDSIZE, (long)postData.size());
+        post(url, std::forward<CB>(cb), sink);
+    }
+    template <class T>
+    promise::Promise<std::shared_ptr<T> >
+    post(const std::string& url, const char* postData, std::shared_ptr<T> sink=nullptr)
+    {
+        assert(postData);
+        _curleopt(CURLOPT_POSTFIELDS, postData);
+        return get(url, postData, sink);
+    }
+/*
     template <class R, class WT>
-    void post(const std::string& url)
+    void postStream(const std::string& url) //mResponse and mReader must be set before calling this
     {
-
+        _curleopt(CURLOPT_READFUNCTION,
+        [](char *buffer, size_t size, size_t nitems, void* userp)
+        {
+            auto src = (StreamSrc*)userp;
+            size_t requested = size*nitems;
+            return src->read(requested, buffer);
+        });
+        _curleopt(CURLOPT_READDATA, this.mReader.get());
+        _curleopt(CURLOPT_HTTPPOST, 1L);
     }
-
+public:
+*/
+protected:
     template <class CB>
     void resolveUrlDomain(const std::string& url, const CB& cb)
     {
         auto bounds = services_http_url_get_host(url.c_str());
-        auto type = services_dns_host_type(bounds.start, bounds.end);
+        auto type = services_dns_host_type(url.c_str()+bounds.start, url.c_str()+bounds.end);
+        printf("host = %s\n", url.substr(bounds.start, bounds.end-bounds.start).c_str());
         if (type & SVC_DNS_HOST_IS_IP)
         {
             return cb(SVCDNS_ESUCCESS, url);
@@ -247,39 +277,41 @@ protected:
         }
         else if (type == SVC_DNS_HOST_DOMAIN)
         {
-            string domain(bounds.start, hostlen);
-            dnsLookup(domain.c_str(), gIpMode,
-            [this, cb, bounds](int errCode, std::shared_ptr<AddrInfo>& addrs)
+            std::string domain(url.c_str()+bounds.start, bounds.end-bounds.start);
+            dnsLookup(domain.c_str(), services_http_use_ipv6?SVCF_DNS_IPV6:SVCF_DNS_IPV4,
+            [this, cb, bounds, url](int errCode, std::shared_ptr<AddrInfo>&& addrs)
             {
                 if (errCode)
                 {
-                    return cb(errCode, nullptr);
+                    return cb(errCode, url);
                 }
                 size_t hostlen = bounds.end-bounds.start;
-                if (!gUseIpV6)
+                std::string newUrl = url;
+                if (!services_http_use_ipv6)
                 {
                    if (addrs->ip4addrs().empty())
                        return cb(SVCDNS_ENOTEXIST, nullptr); //TODO: Find proper error code
-                   std::string newUrl = url;
-                   newUrl.replace(bounds.start, hostlen, addrs->ip4addrs[0]);
+                   newUrl.replace((size_t)bounds.start, hostlen, addrs->ip4addrs()[0].toString());
                 }
                 else
                 {
                     if (addrs->ip6addrs().empty())
                         return cb(SVCDNS_ENOTEXIST, nullptr);
-                    std::string newUrl = url;
-                    newUrl.replace(bounds.start, hostlen, addrs->ip6addrs[0]);
+                    newUrl.replace((size_t)bounds.start, hostlen, addrs->ip6addrs()[0].toString());
                 }
                 return cb(SVCDNS_ESUCCESS, newUrl);
             });
         }
         else
         {
-            KR_LOG_ERROR(__FUNCTION__ ": unknown type: %d returned from services_dns_host_type()", type);
+            KR_LOG_ERROR("%s: unknown type: %d returned from services_dns_host_type()", __FUNCTION__ , type);
         }
     }
-    void addHeader(const char* nameVal)
-{
-    mCustomHeaderscurl_slist hdr = curl_slist_append(NULL, nameVal);
-    curl_easy_setopt(mCurl, CURLOPT_)
+};
 }
+}
+ //   void addHeader(const char* nameVal)
+//{
+//    mCustomHeaderscurl_slist hdr = curl_slist_append(NULL, nameVal);
+//    curl_easy_setopt(mCurl, CURLOPT_)
+//}

@@ -18,6 +18,8 @@
 #include "../DummyCrypto.h"
 #include "../strophe.disco.h"
 #include "../base/services.h"
+#include "sdkApi.h"
+#include "base32.h"
 
 using namespace std;
 using namespace promise;
@@ -26,6 +28,7 @@ MainWindow* mainWin = NULL;
 rtcModule::IRtcModule* rtc = NULL;
 unique_ptr<rtcModule::ICryptoFunctions> crypto;
 unique_ptr<rtcModule::IEventHandler> handler;
+unique_ptr<MyMegaApi> api(new MyMegaApi("sdfsdfsdf"));
 
 struct GcmEvent: public QEvent
 {
@@ -140,23 +143,46 @@ int main(int argc, char **argv)
 
     /* create a connection */
     mainWin->mConn.reset(new strophe::Connection(services_strophe_get_ctx()));
-    Connection& conn = *(mainWin->mConn.get());
-    /* setup authentication information */
-    xmpp_conn_set_jid(conn, jid.c_str());
-    xmpp_conn_set_pass(conn, pass);
-    conn.registerPlugin("disco", new disco::DiscoPlugin(conn, "Karere"));
-    handler.reset(new RtcEventHandler(mainWin));
+
+//get xmpp login from Mega API
+    api->call(&MegaApi::login, "lpetrov+mega14@me.com", "megarullz")
+    .then([](ReqResult result)
+    {
+        printf("login success\n");
+        return api->call(&MegaApi::getUserData);
+    })
+    .then([](ReqResult result)
+    {
+        auto user = result->getText();
+
+        AutoString pass = api->dumpXMPPSession();
+        auto len = strlen(pass.c_str());
+        if (len < 16)
+            return promise::reject<int>("Session id is shorter than 16 bytes");
+        ((char&)pass.c_str()[16]) = 0;
+
+        Connection& conn = *(mainWin->mConn.get());
+        /* setup authentication information */
+        string xmppuser = (string(user)+"@developers.mega.co.nz/karerenative");
+        xmpp_conn_set_jid(conn, xmppuser.c_str());
+        xmpp_conn_set_pass(conn, pass.c_str());
+        printf("user = '%s', pass = '%s'\n", xmppuser.c_str(), pass.c_str());
+
+        conn.registerPlugin("disco", new disco::DiscoPlugin(conn, "Karere"));
+        handler.reset(new RtcEventHandler(mainWin));
 
     /* create rtcModule */
-    crypto.reset(new rtcModule::DummyCrypto(jid.c_str()));
-    rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
-    rtc->updateIceServers("url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret");
-    conn.registerPlugin("rtcmodule", rtc);
-    /* initiate connection */
-    conn.connect(NULL, 0)
+        crypto.reset(new rtcModule::DummyCrypto(jid.c_str()));
+        rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
+        rtc->updateIceServers("url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret");
+        conn.registerPlugin("rtcmodule", rtc);
+        /* initiate connection */
+        return conn.connect("karere-001.developers.mega.co.nz", 0);
+    })
     .then([&](int)
     {
         printf("==========Connect promise resolved\n");
+        Connection& conn = *(mainWin->mConn.get());
         xmpp_timed_handler_add(conn, ping, 100000, &conn);
         conn.addHandler(message_handler, NULL, "message", NULL, NULL, &conn);
     /* Send initial <presence/> so that we appear online to contacts */

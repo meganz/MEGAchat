@@ -69,7 +69,7 @@ Node::ResponseIq Node::responseFromQuery(strophe::Stanza req)
     const char* attr = reqQuery.attrOrNull("xmlns");
     if (attr)
         res.query.setAttr("xmlns", attr);
-    if (attr = reqQuery.attrOrNull("node"))
+    if ((attr = reqQuery.attrOrNull("node")))
         res.query.setAttr("node", attr);
 
     return res;
