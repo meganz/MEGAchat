@@ -106,7 +106,7 @@ string RtcModule::getLocalAudioAndVideo()
         {
             int idx = mVideoInDeviceName.empty()
                 ? 0
-                : getDeviceIdxByName(mVideoInDeviceName, devices.audio);
+                : getDeviceIdxByName(mAudioInDeviceName, devices.audio);
             if (idx < 0)
             {
                 KR_LOG_WARNING("Configured audio input device '%s' not present, using default device", mAudioInDeviceName.c_str());

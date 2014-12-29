@@ -2,9 +2,9 @@
 #define MEGACRYPTOFUNCTIONS_H
 #include <map>
 #include "ICryptoFunctions.h"
-#define USE_CRYPTOPP 1
-#include <mega/types.h>
-#include <mega/crypto/cryptopp.h>
+//#define USE_CRYPTOPP 1
+#include <mega.h>
+//#include <mega/crypto/cryptopp.h>
 
 class MyMegaApi;
 namespace rtcModule
@@ -12,13 +12,12 @@ namespace rtcModule
 class MegaCryptoFuncs: public rtcModule::ICryptoFunctions
 {
 protected:
-    std::string mOwnJid;
     //cache that maps user emails to jid&public key
     std::map<std::string, mega::AsymmCipher> mKeysLoaded;
     mega::AsymmCipher mPrivKey;
     MyMegaApi& mMega;
 public:
-    MegaCryptoFuncs(const std::string& ownJid, MyMegaApi& megaApi);
+    MegaCryptoFuncs(MyMegaApi& megaApi);
     //ICryptoFunctions interface implementation
     virtual IString* generateMac(const CString& data, const CString& key);
     virtual IString* decryptMessage(const CString& msg);

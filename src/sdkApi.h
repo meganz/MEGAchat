@@ -6,6 +6,7 @@
 
 typedef std::shared_ptr<mega::MegaRequest> ReqResult;
 typedef promise::Promise<ReqResult> ApiPromise;
+enum {ERRTYPE_MEGASDK = 0x3e9aab10};
 
 class SdkString
 {
@@ -38,7 +39,7 @@ public:
             if (mPromise.done())
                 return; //a timeout timer may resolve it before the actual callback
             if(errCode != mega::MegaError::API_OK)
-                mPromise.reject(errCode, 0x3e9aab10);
+                mPromise.reject(errCode, ERRTYPE_MEGASDK);
             else
                 mPromise.resolve(req);
             delete this;

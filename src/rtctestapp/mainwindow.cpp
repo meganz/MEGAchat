@@ -55,29 +55,40 @@ return;
     if (inCall)
     {
         rtc->hangupAll("hangup", nullptr);
+        inCall = false;
+        ui->callBtn->setText("Call");
     }
     else
     {
-        api->call(&MegaApi::getUserData, peermail.c_str())
+        std::string peerMail = ui->calleeInput->text().toLatin1().data();
+        if (peerMail.empty())
+        {
+            QMessageBox::critical(this, "Error", "Invalid user entered in peer input box");
+            return;
+        }
+        api->call(&MegaApi::getUserData, peerMail.c_str())
         .then([this](ReqResult result)
         {
             const char* peer = result->getText();
             if (!peer)
-                throw std::runtime_error("Error getting peer's jid");
-            string peerJid = string(peer)+"@developers.mega.co.nz";
+                throw std::runtime_error("Returned peer user is NULL");
 
+            string peerJid = string(peer)+"@developers.mega.co.nz";
             rtcModule::AvFlags av;
             av.audio = true;
             av.video = true;
             char sid[rtcModule::RTCM_SESSIONID_LEN+2];
             rtc->startMediaCall(sid, peerJid.c_str(), av, nullptr);
             inCall = true;
-            ui->button->setText("Hangup");
+            ui->callBtn->setText("Hangup");
             return nullptr;
         })
-        .fail([](const promise::Error& err)
+        .fail([this](const promise::Error& err)
         {
-            printf("Error calling user: %s\n", err.msg().c_str());
+            if (err.type() == 0x3e9aab10)
+                QMessageBox::critical(this, "Error", "Callee user not recognized");
+            else
+                QMessageBox::critical(this, "Error", QString("Error calling user:")+err.msg().c_str());
             return nullptr;
         });
     }
@@ -102,6 +113,29 @@ return;
         return nullptr;
     });
     */
+}
+void MainWindow::onAudioInSelected()
+{
+    auto combo = ui->audioInCombo;
+    int ret = rtc->selectAudioInDevice(combo->itemText(combo->currentIndex()).toAscii().data());
+    if (ret < 0)
+    {
+        QMessageBox::critical(this, "Error", "Selected device not present");
+        return;
+    }
+    printf("selected audio device: %d\n", ret);
+}
+
+void MainWindow::onVideoInSelected()
+{
+    auto combo = ui->videoInCombo;
+    int ret = rtc->selectVideoInDevice(combo->itemText(combo->currentIndex()).toAscii().data());
+    if (ret < 0)
+    {
+        QMessageBox::critical(this, "Error", "Selected device not present");
+        return;
+    }
+    printf("selected video device: %d\n", ret);
 }
 
 MainWindow::~MainWindow()

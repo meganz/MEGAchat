@@ -21,8 +21,8 @@ static void delarray(T* str)
 typedef MyAutoHandle<byte*, void(*)(byte*), delarray<byte>, nullptr> Buffer;
 typedef MyAutoHandle<const char*, void(*)(const char*), delarray<const char, char>, nullptr> MegaCStr;
 
-MegaCryptoFuncs::MegaCryptoFuncs(const std::string& ownJid, MyMegaApi& megaApi)
-:mOwnJid(ownJid), mMega(megaApi)
+MegaCryptoFuncs::MegaCryptoFuncs(MyMegaApi& megaApi)
+:mMega(megaApi)
 {
     const char* privk = mMega.userData->getPrivateKey();
     size_t privkLen;
@@ -70,7 +70,7 @@ IString* MegaCryptoFuncs::encryptMessageForJid(const CString& msg, const CString
         return nullptr;
     if (msg.size() != kFprMacKeyLen)
     {
-        fprintf(stderr, "encryptMessageForJid: Message must be exactly 44 bytes long, but is %lu bytes", msg.size());
+        fprintf(stderr, "encryptMessageForJid: Message must be exactly 44 bytes long, but is %lu bytes", (unsigned long)msg.size());
         return nullptr;
     }
     auto it = mKeysLoaded.find(string(bareJid.c_str(), bareJid.size()));
@@ -95,9 +95,11 @@ void MegaCryptoFuncs::preloadCryptoForJid(const CString& bareJid, void* userp,
     const char* pos = strchr(bareJid.c_str(), '@');
     if (!pos)
         return cb(userp, "Jid does not contain an '@'");
+    shared_ptr<string> spBareJid(new string(bareJid.c_str(), bareJid.size()));
+    if (mKeysLoaded.find(*spBareJid) != mKeysLoaded.end())
+        return cb(userp, nullptr);
     string jiduser(bareJid.c_str(), pos-bareJid.c_str());
     MegaCStr handle((char*)(MegaApi::base32ToBase64(jiduser.c_str())));
-    shared_ptr<string> spBareJid(new string(bareJid.c_str(), bareJid.size()));
 
     mMega.call(&MegaApi::getUserData, handle.handle())
     .then([this, spBareJid, userp, cb](ReqResult result)
@@ -105,20 +107,20 @@ void MegaCryptoFuncs::preloadCryptoForJid(const CString& bareJid, void* userp,
         auto& key = mKeysLoaded[*spBareJid];
         size_t keylen = strlen(result->getPassword());
         if (keylen < 1)
-            throw std::runtime_error("preloadCryptoForJid: Public key returned by API is empty");
+            return promise::reject<int>(promise::Error("Public key returned by API is empty", -1, ERRTYPE_MEGASDK));
 
         Buffer binkey(new byte[keylen+4]);
         int binlen = mega::Base64::atob(result->getPassword(), binkey, keylen);
         int ret = key.setkey(AsymmCipher::PUBKEY, binkey, binlen);
         if (!ret)
-            throw std::runtime_error("preloadCryptoForJid: Error parsing public key");
+            return promise::reject<int>(promise::Error("Error parsing public key", -1, ERRTYPE_MEGASDK));
         cb(userp, nullptr);
-        return nullptr;
+        return promise::Promise<int>(0);
     })
     .fail([userp, cb](const promise::Error& err)
     {
         cb(userp, err.msg());
-        return nullptr;
+        return 0;
     });
 }
 

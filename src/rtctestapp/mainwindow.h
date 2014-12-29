@@ -25,6 +25,8 @@ public:
     Ui::MainWindow *ui;
 public slots:
     void buttonPushed();
+    void onAudioInSelected();
+    void onVideoInSelected();
 //    void megaMessageSlot(void* msg);
 };
 
@@ -57,13 +59,13 @@ public:
         if (ret == 0)
         {
             inCall = true;
-            mMainWindow->ui->button->setText("Hangup");
+            mMainWindow->ui->callBtn->setText("Hangup");
         }
     }
     virtual void onCallEnded(rtcModule::IJingleSession *sess, rtcModule::IRtcStats *stats)
     {
         inCall = false;
-        mMainWindow->ui->button->setText("Call");
+        mMainWindow->ui->callBtn->setText("Call");
     }
 
 };

@@ -121,7 +121,6 @@ int ping(xmpp_conn_t * const pconn, void * const userdata)
 }
 
 const char* usermail;
-const char* peermail;
 const char* pass = NULL;
 std::string jid;
 bool inCall = false;
@@ -136,16 +135,17 @@ int main(int argc, char **argv)
     }
     usermail = argv[1];
     pass = argv[2];
-    peermail = argv[3];
     QApplication a(argc, argv);
     mainWin = new MainWindow;
-    mainWin->show();
+    mainWin->ui->callBtn->setEnabled(false);
+    mainWin->ui->callBtn->setText("Login...");
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 
     services_init(megaPostMessageToGui, SVC_STROPHE_LOG);
 
     /* create a connection */
     mainWin->mConn.reset(new strophe::Connection(services_strophe_get_ctx()));
+    mainWin->ui->calleeInput->setText(argv[3]);
 
 //get xmpp login from Mega API
     api->call(&MegaApi::login, usermail, pass)
@@ -176,13 +176,17 @@ int main(int argc, char **argv)
         handler.reset(new RtcEventHandler(mainWin));
 
     /* create rtcModule */
-        crypto.reset(new rtcModule::MegaCryptoFuncs(jid, *api));
+        crypto.reset(new rtcModule::MegaCryptoFuncs(*api));
 //        crypto.reset(new rtcModule::DummyCrypto(jid.c_str()));
 
         rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
         rtcModule::IPtr<rtcModule::IDeviceList> audio(rtc->getAudioInDevices());
         for (size_t i=0, len=audio->size(); i<len; i++)
-            printf("Device '%s'\n", audio->name(i).c_str());
+            mainWin->ui->audioInCombo->addItem(audio->name(i).c_str());
+        rtcModule::IPtr<rtcModule::IDeviceList> video(rtc->getVideoInDevices());
+        for (size_t i=0, len=video->size(); i<len; i++)
+            mainWin->ui->videoInCombo->addItem(video->name(i).c_str());
+
         rtc->updateIceServers("url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret");
         conn.registerPlugin("rtcmodule", rtc);
         /* initiate connection */
@@ -191,6 +195,8 @@ int main(int argc, char **argv)
     .then([&](int)
     {
         printf("==========Connect promise resolved\n");
+        mainWin->ui->callBtn->setEnabled(true);
+        mainWin->ui->callBtn->setText("Call");
         Connection& conn = *(mainWin->mConn.get());
         xmpp_timed_handler_add(conn, ping, 100000, &conn);
         conn.addHandler(message_handler, NULL, "message", NULL, NULL, &conn);
@@ -206,6 +212,8 @@ int main(int argc, char **argv)
         return error;
     });
     signal(SIGINT, sigintHandler);
+    mainWin->show();
+
     return a.exec();
 }
 
