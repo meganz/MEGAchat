@@ -4,6 +4,7 @@
 #include "IJingleSession.h"
 #include "IVideoRenderer.h"
 #include "mstrophepp.h" //only needed for IPlugin
+#include "ITypes.h"
 
 namespace rtcModule
 {
@@ -23,16 +24,13 @@ enum {
 /** Interface of object passed to onIncomingCallRequest. This interface contains methods
  *  to get info about the call request, has a method to answer or reject the call.
  */
-struct IAnswerCall
+struct IAnswerCall: public IDestroy
 {
     virtual int answer(bool accept, const AvFlags& answerAv,
                        const char* reason, const char* text) = 0;
     virtual const char* const* files() const = 0;
     virtual const AvFlags& peerAv() const = 0;
     virtual bool reqStillValid() const = 0;
-    virtual void destroy() { delete this; }
-protected:
-    virtual ~IAnswerCall() {} //deleted via destoy() only to use our memory manager
 };
 
 struct StatOptions
@@ -44,7 +42,7 @@ struct StatOptions
 struct IRtcStats {};
 /** Public event handler callback interface.
  *  All events from the Rtc module are sent to the application via this interface */
-struct IEventHandler
+struct IEventHandler: public IDestroy
 {
     virtual void addDiscoFeature(const char* feature) {}
     virtual void onLocalMediaFail(const char* errMsg, int* cont=nullptr) {}
@@ -66,7 +64,12 @@ struct IEventHandler
 };
 
 //===
-/** Interface of the RtcModule */
+/** Interface of the RtcModule
+* As this interface has to work across a DLL boundary,
+* operator delete can't be called directly becaue it would use the allocator on the side
+* of the DLL boundary on which it is called. Instead, the interface has a virtual delete()
+* method that calls the destructor at the implementation side of the boundary
+*/
 class IRtcModule: public virtual strophe::IPlugin
 {
 public:
@@ -133,9 +136,24 @@ public:
      there was an error or the status is unknown (not established yet or no statistics available)
     */
     virtual int isRelay(const char* sid) = 0;
-    virtual void destroy() = 0;
-protected:
-//    virtual ~IRtcModule(){}
+    //@{
+    /** Get a list of all input audio or video devices detected
+     * @return A list of all detected input devices in the system.
+     *  You take responsibility for freeing the IDeviceList object
+     */
+    virtual IDeviceList* getAudioInDevices() = 0;
+    virtual IDeviceList* getVideoInDevices() = 0;
+    //@}
+    //@{
+    /**
+     * @brief selectAudioInDevice
+     * @param devname The name of the device, as returned by IDeviceList.name()
+     * @return The index of the device in the current enumeration, or -1 if the device
+     * was not found. In the latter case, the device is not changed
+     */
+    virtual int selectAudioInDevice(const char* devname) = 0;
+    virtual int selectVideoInDevice(const char* devname) = 0;
+    //@}
 };
 
 }

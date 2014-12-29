@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(rtctestapp)
 include (../utils.cmake)
+include (../FindCryptopp.cmake)
 
 FIND_PACKAGE(Qt4 REQUIRED)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -11,11 +12,11 @@ set (SRCS
      main.cpp
      ../strophe.disco.cpp
      ../DummyCrypto.cpp
+     ../MegaCryptoFunctions.cpp
      ../base/cservices.cpp
      ../base/cservices-strophe.cpp
      ../base/cservices-dns.cpp
      ../base/cservices-http.cpp
-     base32.c
 )
 
 set(QT_FORMS mainwindow.ui)
@@ -23,7 +24,7 @@ QT4_WRAP_UI(QT_GEN_FORMS_HEADERS ${QT_FORMS})
 #QT4_ADD_RESOURCES(helloworld_RESOURCES_RCC ${helloworld_RESOURCES})
 
 INCLUDE(${QT_USE_FILE})
-add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden -Wall)
+add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden -Wall -Wno-unused-local-typedefs)
 
 #list(APPEND CMAKE_CXX_FLAGS -std=c++11)
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
@@ -47,6 +48,7 @@ set(MEGASDK_LIB "${optMegaSdkPath}/src/.libs/libmega.so")
 include_directories(
     ..
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../third-party
     ${CMAKE_CURRENT_BINARY_DIR}
     ${STROPHE_INCLUDES}
     ${MEGASDK_INCLUDES}
@@ -59,6 +61,7 @@ target_link_libraries(rtctestapp
     ${QT_LIBRARIES}
     rtcModule
     ${MEGASDK_LIB}
+    ${CRYPTOPP_LIBRARIES}
 )
 
 

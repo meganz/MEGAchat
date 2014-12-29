@@ -1,7 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "qmessagebox.h"
-#include <QThread>
 #include <string>
 #include "videoRenderer_Qt.h"
 #include "../base/gcm.h"
@@ -9,8 +8,8 @@
 #include "../base/services-dns.hpp"
 #include "../base/services-http.hpp"
 #include <iostream>
-#include <mega/json.h>
-#include <mega/utils.h>
+#include <rapidjson/document.h>
+#include <sdkApi.h>
 
 #undef emit
 #define THROW_IF_FALSE(statement) \
@@ -20,8 +19,9 @@
 
 extern MainWindow* mainWin;
 extern rtcModule::IRtcModule* rtc;
-extern std::string peer;
-
+extern std::string peermail;
+extern const std::string jidDomain;
+extern std::unique_ptr<MyMegaApi> api;
 using namespace std;
 using namespace mega;
 
@@ -51,34 +51,35 @@ void MainWindow::buttonPushed()
 
 return;
 */
-    mega::JSON json;
-    json.begin("{\"url\":\"http://example.com:1234/?udp=1\", \"user\":\"testuser\", \"pass\":\"testpass\"}");
-    json.enterobject();
-    mega::nameid name;
-    while ((name = json.getnameid()) != EOO)
-    {
-        if (name == MAKENAMEID3('u', 'r', 'l'))
-            printf("url = %s\n", json.getvalue());
-        else if (name == MAKENAMEID4('u','s','e','r'))
-            printf("user = %s\n", json.getvalue());
-        else if (name == MAKENAMEID4('p','a','s','s'))
-            printf("pass = %s\n", json.getvalue());
-        else
-            printf("UNKNOWN nameid\n");
-    }
+
     if (inCall)
     {
         rtc->hangupAll("hangup", nullptr);
     }
     else
     {
-        rtcModule::AvFlags av;
-        av.audio = true;
-        av.video = true;
-        char sid[rtcModule::RTCM_SESSIONID_LEN+2];
-        rtc->startMediaCall(sid, peer.c_str(), av, nullptr);
-        inCall = true;
-        ui->button->setText("Hangup");
+        api->call(&MegaApi::getUserData, peermail.c_str())
+        .then([this](ReqResult result)
+        {
+            const char* peer = result->getText();
+            if (!peer)
+                throw std::runtime_error("Error getting peer's jid");
+            string peerJid = string(peer)+"@developers.mega.co.nz";
+
+            rtcModule::AvFlags av;
+            av.audio = true;
+            av.video = true;
+            char sid[rtcModule::RTCM_SESSIONID_LEN+2];
+            rtc->startMediaCall(sid, peerJid.c_str(), av, nullptr);
+            inCall = true;
+            ui->button->setText("Hangup");
+            return nullptr;
+        })
+        .fail([](const promise::Error& err)
+        {
+            printf("Error calling user: %s\n", err.msg().c_str());
+            return nullptr;
+        });
     }
 
     /*

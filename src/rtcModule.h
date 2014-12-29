@@ -41,6 +41,8 @@ protected:
     IEventHandler* mEventHandler;
     std::map<std::string, std::shared_ptr<CallRequest> > mCallRequests;
     artc::DeviceManager mDeviceManager;
+    std::string mVideoInDeviceName;
+    std::string mAudioInDeviceName;
 public:
     RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers);
@@ -61,11 +63,17 @@ public:
     virtual IJingleSession* getSessionBySid(const char* sid);
     virtual int updateIceServers(const char* iceServers);
     virtual int isRelay(const char* sid);
+    virtual IDeviceList* getAudioInDevices();
+    virtual IDeviceList* getVideoInDevices();
+    virtual int selectAudioInDevice(const char* devname);
+    virtual int selectVideoInDevice(const char* devname);
+
     virtual void destroy() {delete this;}
     //=== Implementation methods
     bool hasLocalStream() { return (mAudioInput || mVideoInput); }
     void logInputDevices();
     std::string getLocalAudioAndVideo();
+    int getDeviceIdxByName(const std::string& name, const artc::DeviceList& devices);
     template <class OkCb, class ErrCb>
     void myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool allowEmpty=false);
     void onConnState(const xmpp_conn_event_t status,

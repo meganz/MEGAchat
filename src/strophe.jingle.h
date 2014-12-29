@@ -30,20 +30,6 @@ struct AnswerOptions
 typedef std::function<bool(bool, std::shared_ptr<AnswerOptions>, const char* reason,
    const char* text)> CallAnswerFunc;
 
-//Convenience type to accomodate returned IString objects from ICryptoFunctions api
-struct VString: public std::unique_ptr<IString>
-{
-    typedef std::unique_ptr<IString> Base;
-    VString(IString* obj): Base(obj)
-    {
-        if (!get())
-            throw std::runtime_error("NULL IString object");
-    }
-    bool empty() {return get()->empty();}
-    const char* c_str() const {return get()->c_str();}
-    operator const char*() const {return get()->c_str();}
-    size_t size() const {return get()->size();}
-};
 
 class Jingle
 {

@@ -465,7 +465,8 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                     cancelAutoAcceptEntry(callIt, "initiate-timeout", "timed out waiting for caller to start call", 0);
                 }, mJingleAutoAcceptTimeout);
 
-                auto answerFunc = new function<void(const InputString&)>([this, state](const InputString& errMsg)
+                auto answerFunc = new function<void(const CString&)>
+                ([this, state](const CString& errMsg)
                 {
                     if (errMsg)
                     {
@@ -480,16 +481,17 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                         .setAttr("type", "megaCallAnswer")
                         .setAttr("fprmackey", VString(
                             mCrypto->encryptMessageForJid(
-                                InputString(state->ownFprMacKey),
-                                InputString(state->bareJid)))
+                                CString(state->ownFprMacKey),
+                                CString(state->bareJid)))
                         )
                         .setAttr("anonid", mOwnAnonId.c_str());
                     mConn.send(ans);
                 });
-                mCrypto->preloadCryptoForJid(InputString(state->bareJid), answerFunc,
-                  [](void* userp, const InputString& errMsg)
+                mCrypto->preloadCryptoForJid(CString(state->bareJid), answerFunc,
+                  [](void* userp, const CString& errMsg)
                 {
-                    unique_ptr<function<void(const InputString&)> > fcall(static_cast<function<void(const InputString&)>*>(userp));
+                    unique_ptr<function<void(const CString&)> >
+                      fcall(static_cast<function<void(const CString&)>*>(userp));
                     (*fcall)(errMsg);
                 });
          }
@@ -732,7 +734,7 @@ bool Jingle::verifyMac(const std::string& msg, const std::string& key, const std
     string expectedMac;
     try
     {
-        expectedMac = VString(crypto().generateMac(msg.c_str(), key.c_str())).c_str();
+        expectedMac = VString(crypto().generateMac(msg, key)).c_str();
     }
     catch(...)
     {

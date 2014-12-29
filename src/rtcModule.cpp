@@ -2,6 +2,8 @@
 #include "StringUtils.h"
 #include "base/services.h"
 #include "strophe.jingle.session.h"
+#include "ITypesImpl.h"
+#include "IDeviceListImpl.h"
 
 #define RTCM_EVENT(name,...)            \
     printf("\e[32mEvent: %s\e[0m\n", #name);       \
@@ -23,7 +25,8 @@ RtcModule::RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers)
 :Jingle(conn, crypto, iceServers), mEventHandler(handler)
 {
-    mOwnAnonId = VString(crypto->scrambleJid(InputString(mConn.jid())));
+    mOwnAnonId = VString(crypto->scrambleJid(CString(mConn.jid())));
+//    logInputDevices();
 }
 
 void RtcModule::logInputDevices()
@@ -31,9 +34,45 @@ void RtcModule::logInputDevices()
     auto& devices = mDeviceManager.inputDevices();
     KR_LOG_DEBUG("Input devices on this system:");
     for (const auto& dev: devices.audio)
-        KR_LOG_DEBUG("\tAudio: %s\n", dev.name.c_str());
+        KR_LOG("\tAudio: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
     for (const auto& dev: devices.video)
-        KR_LOG_DEBUG("\tVideo: %s\n", dev.name.c_str());
+        KR_LOG("\tVideo: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
+}
+IDeviceList* RtcModule::getAudioInDevices()
+{
+    return new IDeviceListImpl(mDeviceManager.inputDevices().audio);
+}
+IDeviceList* RtcModule::getVideoInDevices()
+{
+    return new IDeviceListImpl(mDeviceManager.inputDevices().video);
+}
+
+int RtcModule::selectAudioInDevice(const char* devname)
+{
+    string strDevName(devname);
+    int idx = getDeviceIdxByName(strDevName, mDeviceManager.inputDevices().audio);
+    if (idx < 0)
+        return -1;
+    mAudioInDeviceName = strDevName;
+    return idx;
+}
+
+int RtcModule::selectVideoInDevice(const char* devname)
+{
+    string strDevName(devname);
+    int idx = getDeviceIdxByName(strDevName, mDeviceManager.inputDevices().video);
+    if (idx < 0)
+        return -1;
+    mVideoInDeviceName = strDevName;
+    return idx;
+
+}
+int RtcModule::getDeviceIdxByName(const string& name, const artc::DeviceList& devices)
+{
+    for (size_t i=0; i<devices.size(); i++)
+        if (devices[i].name == name)
+            return i;
+    return -1;
 }
 
 string RtcModule::getLocalAudioAndVideo()
@@ -45,8 +84,16 @@ string RtcModule::getLocalAudioAndVideo()
     if (devices.video.size() > 0)
       try
         {
+             int idx = mVideoInDeviceName.empty()
+                 ? 0
+                 : getDeviceIdxByName(mVideoInDeviceName, devices.video);
+             if (idx < 0)
+             {
+                 KR_LOG_WARNING("Configured video input device '%s' not present, using default device", mVideoInDeviceName.c_str());
+                 idx = 0;
+             }
              mVideoInput = deviceManager.getUserVideo(
-                          artc::MediaGetOptions(devices.video[0]));
+                 artc::MediaGetOptions(devices.video[idx]));
         }
         catch(exception& e)
         {
@@ -57,8 +104,16 @@ string RtcModule::getLocalAudioAndVideo()
     if (devices.audio.size() > 0)
         try
         {
+            int idx = mVideoInDeviceName.empty()
+                ? 0
+                : getDeviceIdxByName(mVideoInDeviceName, devices.audio);
+            if (idx < 0)
+            {
+                KR_LOG_WARNING("Configured audio input device '%s' not present, using default device", mAudioInDeviceName.c_str());
+                idx = 0;
+            }
             mAudioInput = deviceManager.getUserAudio(
-                          artc::MediaGetOptions(devices.audio[0]));
+                artc::MediaGetOptions(devices.audio[idx]));
         }
         catch(exception& e)
         {
@@ -323,7 +378,8 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
       },
       nullptr, "message", "megaCallDecline", state->targetJid.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
-      auto sendCall = new function<void(const InputString&)>([this, state](const InputString& errMsg)
+      auto sendCall = new function<void(const CString&)>(
+      [this, state](const CString& errMsg)
       {
           if (errMsg)
           {
@@ -383,11 +439,11 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
               },
               callAnswerTimeout);
       });
-      crypto().preloadCryptoForJid(InputString(strophe::getBareJidFromJid(state->targetJid)),
-          static_cast<void*>(sendCall), [](void* userp, const InputString& errMsg)
+      crypto().preloadCryptoForJid(CString(strophe::getBareJidFromJid(state->targetJid)),
+          static_cast<void*>(sendCall), [](void* userp, const CString& errMsg)
           {
-              unique_ptr<function<void(const InputString&)> >
-                      sendCallFunc(static_cast<function<void(const InputString&)>* >(userp));
+              unique_ptr<function<void(const CString&)> >
+                      sendCallFunc(static_cast<function<void(const CString&)>* >(userp));
               (*sendCallFunc)(errMsg);
           });
 

@@ -1,6 +1,6 @@
 #pragma once
 
-template <typename T, typename CF, CF CloseFunc, long InvalidValue>
+template <typename T, typename CF, CF CloseFunc, T InvalidValue>
 class MyAutoHandle
 {
 protected:

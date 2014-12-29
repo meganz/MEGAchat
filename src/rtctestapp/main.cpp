@@ -19,10 +19,13 @@
 #include "../strophe.disco.h"
 #include "../base/services.h"
 #include "sdkApi.h"
-#include "base32.h"
+#include "MegaCryptoFunctions.h"
+
+const std::string jidDomain = "@developers.mega.co.nz";
 
 using namespace std;
 using namespace promise;
+using namespace mega;
 
 MainWindow* mainWin = NULL;
 rtcModule::IRtcModule* rtc = NULL;
@@ -117,23 +120,23 @@ int ping(xmpp_conn_t * const pconn, void * const userdata)
    return 1;
 }
 
-string jid;
+const char* usermail;
+const char* peermail;
 const char* pass = NULL;
-string peer;
+std::string jid;
 bool inCall = false;
 
 int main(int argc, char **argv)
 {
     /* take a jid and password on the command line */
-    if (argc != 3)
+    if (argc != 4)
     {
-        fprintf(stderr, "Usage: rtctestapp <user> <peer>\n\n");
+        fprintf(stderr, "Usage: rtctestapp <usermail> <userpass> <peermail>\n\n");
         return 1;
     }
-    const string serverpart = "@j100.server.lu";
-    jid = argv[1]+serverpart;
-    pass = "testpass";
-    peer = argv[2]+serverpart;
+    usermail = argv[1];
+    pass = argv[2];
+    peermail = argv[3];
     QApplication a(argc, argv);
     mainWin = new MainWindow;
     mainWin->show();
@@ -145,7 +148,7 @@ int main(int argc, char **argv)
     mainWin->mConn.reset(new strophe::Connection(services_strophe_get_ctx()));
 
 //get xmpp login from Mega API
-    api->call(&MegaApi::login, "lpetrov+mega14@me.com", "megarullz")
+    api->call(&MegaApi::login, usermail, pass)
     .then([](ReqResult result)
     {
         printf("login success\n");
@@ -153,27 +156,33 @@ int main(int argc, char **argv)
     })
     .then([](ReqResult result)
     {
-        auto user = result->getText();
-
-        AutoString pass = api->dumpXMPPSession();
-        auto len = strlen(pass.c_str());
-        if (len < 16)
-            return promise::reject<int>("Session id is shorter than 16 bytes");
-        ((char&)pass.c_str()[16]) = 0;
+        api->userData = result;
+        const char* user = result->getText();
+        if (!user || !user[0])
+            throw std::runtime_error("Could not get our own JID");
+        SdkString xmppPass = api->dumpXMPPSession();
+        if (xmppPass.size() < 16)
+            return promise::reject<int>("Mega session id is shorter than 16 bytes");
+        ((char&)xmppPass.c_str()[16]) = 0;
 
         Connection& conn = *(mainWin->mConn.get());
         /* setup authentication information */
-        string xmppuser = (string(user)+"@developers.mega.co.nz/karerenative");
-        xmpp_conn_set_jid(conn, xmppuser.c_str());
-        xmpp_conn_set_pass(conn, pass.c_str());
-        printf("user = '%s', pass = '%s'\n", xmppuser.c_str(), pass.c_str());
+        jid = (user+jidDomain);
+        xmpp_conn_set_jid(conn, jid.c_str());
+        xmpp_conn_set_pass(conn, xmppPass.c_str());
+        printf("user = '%s', pass = '%s'\n", jid.c_str(), xmppPass.c_str());
 
         conn.registerPlugin("disco", new disco::DiscoPlugin(conn, "Karere"));
         handler.reset(new RtcEventHandler(mainWin));
 
     /* create rtcModule */
-        crypto.reset(new rtcModule::DummyCrypto(jid.c_str()));
+        crypto.reset(new rtcModule::MegaCryptoFuncs(jid, *api));
+//        crypto.reset(new rtcModule::DummyCrypto(jid.c_str()));
+
         rtc = createRtcModule(conn, handler.get(), crypto.get(), "");
+        rtcModule::IPtr<rtcModule::IDeviceList> audio(rtc->getAudioInDevices());
+        for (size_t i=0, len=audio->size(); i<len; i++)
+            printf("Device '%s'\n", audio->name(i).c_str());
         rtc->updateIceServers("url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret");
         conn.registerPlugin("rtcmodule", rtc);
         /* initiate connection */
@@ -193,7 +202,7 @@ int main(int argc, char **argv)
     })
     .fail([](const promise::Error& error)
     {
-        printf("==========Connect promise failed\n");
+        printf("==========Connect promise failed:\n%s\n", error.msg().c_str());
         return error;
     });
     signal(SIGINT, sigintHandler);
