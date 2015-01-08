@@ -6,6 +6,7 @@
 #include <time.h>
 #include <string.h>
 #include <base/cservices.h> //needed for isatty_xxx
+
 #ifdef _WIN32
     #include <winsock2.h>
     #include <windows.h> //we must never include windows.h before winsock2.h
@@ -15,10 +16,10 @@
 #else
     #include <sys/time.h>
 #endif
-//defines the name of the webrtc adapter layer namespace
-//#define MEGA_RTCADAPTER_NS artc
-//defines the name of the karere webrtc+jingle module namespace
-#define KARERE_RTCMODULE_NS rtcModule
+
+#define KARERE_DEFAULT_XMPP_SERVER "karere-001.developers.mega.co.nz"
+#define KARERE_DEFAULT_TURN_SERVERS "url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret"
+
 #define KR_CHECK_NULLARG(name) \
     do { \
       if (!(name))\
@@ -27,8 +28,8 @@
 
 namespace karere
 {
-typedef std::map<std::string, std::string> StringMap;
 
+typedef std::map<std::string, std::string> StringMap;
 
 //time function
 typedef int64_t Ts;
@@ -72,15 +73,9 @@ static inline Ts timestampMs()
 
 extern int isatty_stdout;
 extern int isatty_stderr;
+static inline const char* colorOn(const char* escape) { return isatty_stdout?escape:""; }
+static inline const char* colorOff() { return isatty_stdout?"\e[0m":"";  }
 
-static inline const char* colorOn(const char* escape)
-{
-    return isatty_stdout?escape:"";
-}
-static inline const char* colorOff()
-{
-    return isatty_stdout?"\e[0m":"";
-}
 }
 
 #define KR_LOG(fmtString,...) printf(fmtString "\n", ##__VA_ARGS__)

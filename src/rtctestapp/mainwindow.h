@@ -9,6 +9,7 @@
 #include <ui_mainwindow.h>
 #include "karereCommon.h"
 #include "IJingleSession.h"
+#include "ChatClient.h"
 
 namespace Ui {
 class MainWindow;
@@ -19,7 +20,6 @@ class MainWindow : public QMainWindow
     Q_OBJECT
     
 public:
-    std::shared_ptr<strophe::Connection> mConn;
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
     Ui::MainWindow *ui;
@@ -31,20 +31,14 @@ public slots:
 };
 
 extern bool inCall;
-
+extern std::unique_ptr<karere::Client> gClient;
 class RtcEventHandler: public rtcModule::IEventHandler
 {
 protected:
     MainWindow* mMainWindow;
-    disco::DiscoPlugin& mDisco;
 public:
     RtcEventHandler(MainWindow* mainWindow)
-        :mMainWindow(mainWindow), mDisco(mainWindow->mConn->plugin<disco::DiscoPlugin>("disco"))
-    {}
-    virtual void addDiscoFeature(const char* feature)
-    {
-        mDisco.addFeature(feature);
-    }
+        :mMainWindow(mainWindow){}
     virtual void onLocalStreamObtained(IVideoRenderer** renderer)
     {
         *renderer = mMainWindow->ui->localRenderer;

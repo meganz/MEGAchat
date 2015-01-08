@@ -75,7 +75,7 @@ protected:
 /** The period within which an outgoing call can be answered by peer */
     int callAnswerTimeout = 50000;
     AutoAcceptMap mAutoAcceptCalls;
-    std::unique_ptr<ICryptoFunctions> mCrypto;
+    IPtrNoNull<ICryptoFunctions> mCrypto;
     std::string mOwnAnonId;
 public:
     enum {DISABLE_MIC = 1, DISABLE_CAM = 2, HAS_MIC = 4, HAS_CAM = 8};
@@ -84,7 +84,7 @@ public:
     std::shared_ptr<webrtc::PeerConnectionInterface::IceServers> mIceServers;
     webrtc::FakeConstraints mMediaConstraints;
     artc::DeviceManager deviceManager;
-    ICryptoFunctions& crypto() const {return *mCrypto;}
+    ICryptoFunctions& crypto() {return *mCrypto;}
 //event handler interface
     virtual void onConnectionEvent(int state, const std::string& msg){}
     virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream){}
@@ -113,7 +113,7 @@ public:
     virtual void onInternalError(const std::string& msg, const char* where);
 //==
     Jingle(xmpp_conn_t* conn, ICryptoFunctions* crypto, const char* iceServers="");
-    virtual void discoAddFeature(const char* feature) = 0;//{printf("jingle::discoaddfeature  called\n");} //= 0;
+    virtual void discoAddFeature(const char* feature) {}//{printf("jingle::discoaddfeature  called\n");} //= 0;
     void addAudioCaps();
     void addVideoCaps();
     void registerDiscoCaps();

@@ -5,6 +5,8 @@
 #include "strophe.jingle.h"
 #include "streamPlayer.h"
 
+namespace disco {class Plugin;}
+
 namespace rtcModule
 {
 /** This is the class that implements the user-accessible API to webrtc.
@@ -43,6 +45,7 @@ protected:
     artc::DeviceManager mDeviceManager;
     std::string mVideoInDeviceName;
     std::string mAudioInDeviceName;
+    disco::DiscoPlugin* mDiscoPlugin = nullptr;
 public:
     RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers);
@@ -101,11 +104,7 @@ public:
 
     void onJingleError(JingleSession* sess, const std::string& origin,
                        const std::string& stanza, strophe::Stanza orig, char type);
-    virtual void discoAddFeature(const char* feature)
-    {
-        printf("======================= rtcmodule::discoAddFeature called\n");
-        mEventHandler->addDiscoFeature(feature);
-    }
+    virtual void discoAddFeature(const char* feature);
     void refLocalStream(bool sendsVideo);
     void unrefLocalStream(bool sendsVideo);
     void freeLocalStream();

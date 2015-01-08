@@ -4,6 +4,7 @@
 #include "strophe.jingle.session.h"
 #include "ITypesImpl.h"
 #include "IDeviceListImpl.h"
+#include "strophe.disco.h"
 
 #define RTCM_EVENT(name,...)            \
     printf("\e[32mEvent: %s\e[0m\n", #name);       \
@@ -26,7 +27,13 @@ RtcModule::RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
 :Jingle(conn, crypto, iceServers), mEventHandler(handler)
 {
     mOwnAnonId = VString(crypto->scrambleJid(CString(mConn.jid())));
-//    logInputDevices();
+    mDiscoPlugin = mConn.pluginPtr<disco::DiscoPlugin>("disco");
+    //    logInputDevices();
+}
+void RtcModule::discoAddFeature(const char* feature)
+{
+    if (mDiscoPlugin)
+        mDiscoPlugin->addFeature(feature);
 }
 
 void RtcModule::logInputDevices()

@@ -61,6 +61,8 @@ struct IEventHandler: public IDestroy
                    const char* origXml, char type) {}
     virtual void onLocalVideoDisabled() {}
     virtual void onLocalVideoEnabled() {}
+protected:
+    virtual ~IEventHandler() {}
 };
 
 //===

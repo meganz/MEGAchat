@@ -7,7 +7,6 @@
 #include "webrtcAdapter.h"
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.h"
-#include "strophe.disco.h"
 #include "StringUtils.h"
 #include <mstrophepp.h>
 

@@ -74,15 +74,18 @@ public:
             throw std::runtime_error("NULL pointer in AutoIPtrNoNull::reset()");
         mPtr = ptr;
     }
-    T* operator->() const {return mPtr;}
-    T& operator*() const {return mPtr;}
+    const T* operator->() const {return mPtr;}
+    const T& operator*() const {return *mPtr;}
+    T* operator->() {return mPtr;}
+    T& operator*() {return *mPtr;}
+
 };
 template <class T>
 class IPtr
 {
     T* mPtr;
 public:
-    explicit IPtr(T* ptr): mPtr(ptr){}
+    explicit IPtr(T* ptr=nullptr): mPtr(ptr){}
     IPtr(IPtr<T>& other)
     {
         reset(other.release());

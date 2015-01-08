@@ -10,6 +10,10 @@ set (SRCS
      ../videoRenderer_Qt.cpp
      mainwindow.cpp
      main.cpp
+     ../ChatRoom.cpp
+     ../ContactList.cpp
+     ../ChatClient.cpp
+     ../../third-party/murmurHash/MurmurHash3.cpp
      ../strophe.disco.cpp
      ../DummyCrypto.cpp
      ../MegaCryptoFunctions.cpp

@@ -27,7 +27,6 @@ public:
     virtual IString* scrambleJid(const CString& jid);
     virtual IString* generateFprMacKey();
     virtual IString* generateRandomString(size_t size);
-    virtual ~MegaCryptoFuncs() {}
 };
 
 }

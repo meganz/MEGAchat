@@ -5,7 +5,7 @@
 
 namespace rtcModule
 {
-class ICryptoFunctions: IDestroy
+class ICryptoFunctions: public IDestroy
 {
 public:
     virtual IString* generateMac(const CString& data, const CString& key) = 0;
@@ -16,7 +16,8 @@ public:
     virtual IString* scrambleJid(const CString& jid) = 0;
     virtual IString* generateRandomString(size_t size) = 0;
     virtual IString* generateFprMacKey() = 0;
-    virtual ~ICryptoFunctions() {}
+protected:
+    virtual ~ICryptoFunctions(){}
 };
 }
 
