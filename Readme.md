@@ -58,7 +58,7 @@ Checkout the git repository and cd to the root of the checkout
 `mkdir build`  
 `cd build`  
 
-## Build of the the whole codebase incuding the test app ##
+## Build of the the whole codebase including the test app ##
 In the build directory created in the webrtc module build, do  
 `ccmake ..cd rtctestapp`  
 In the menu, first hit 'c'. The config parameters will get populated. Then you need to setup the following paths:  
