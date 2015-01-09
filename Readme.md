@@ -3,9 +3,11 @@
 ## Dependencies ##
 
  - `cmake` (and ccmake if a config GUI is required)  
- - Our version of strophe (https://code.developers.mega.co.nz/messenger/strophe-native, see readme for it's own dependencies)  
+ - Our version of strophe (https://code.developers.mega.co.nz/messenger/strophe-native, see readme for it's own dependencies). No need to explicitly build it, will be done by the Karere build system.  
+ - `libevent2` - at least 2.0.x  
  - Qt4 (for the test app): `libqtcore4 libqtgui4 libqt4-dev`  
  - Native WebRTC stack from Chrome, see below for build instructions for it.  
+ - The Mega SDK. Check out the repository, configure the SDK in a minimalistic way - without image libs etc. only the crypto and HTTP functionality is needed. Install crypto++ and libcurl globally in the system, because the Karere build will need to find them as well and link to them directly. Install any other mandatory Mega SDK dependencies and build it. It does not have to be installed with make install, it will be accessed directly in the checkout dir.  
  - Our high level CMake build system that allows CMake projects to build and link with webrtc:  
 `git clone git@code.developers.mega.co.nz:messenger/webrtc-buildsys.git`
 
@@ -51,19 +53,32 @@ to build webrtc in the corresponding mode. Go get a coffee.
 Unfortunately the webrtc build does not generate a single lib and config header file(for specific C defines to configure the code). Rather, it creates a lot of smaller static libs that can be used only from within the chrome/webrtc build system, which takes care of include paths, linking libs, setting proper defines (and there are quite a few of them). So we either need to build our code within the webrtc/chrome build system, rewrite the build system to something more universal, or do a combination of both. That's what we do currently. Fortunately, the Chrome build system generates a webrtc test app that links in the whole webrtc stack - the app is called peerconnection_client. We can get the ninja file generated for this executable and translate it to CMake. The file is located at trunk/out/Release|Debug/obj/talk peerconnection_client.ninja. The webrtc-buildsys project that was listed in the dependencies is a basically a translation of this ninja file and allows linking webrtc in a higher level CMake file with just a single line (with the help of a cmake module that allows propagation of defines, include dirs etc to dependent projects in a very simple and straightforward way).  
 You do not need to run cmake in webrtc-buildsys directly, but rather include it from the actual application that links to it. This will be described in the webrtc module build procedure.
 
-## Build of webrtc module ##
+## Building ##
 Checkout the git repository and cd to the root of the checkout  
 `mkdir build`  
 `cd build`  
-`ccmake ../src`  
+
+## Build of the the whole codebase incuding the test app ##
+In the build directory created in the webrtc module build, do  
+`ccmake ..cd rtctestapp`  
 In the menu, first hit 'c'. The config parameters will get populated. Then you need to setup the following paths:  
 `optWebrtcCmakeBuild` -  path to the directory where the webrtc-buildsys checkout is located  
 `webrtcRoot` - path to the trunk directory of the webrtc source tree  
 `WEBRTC_BUILD_TYPE` - the build mode of the webrtc code, as built with ninja. If you built with `-C opt/Release`, then specify `Release` here, similarly for Debug.  
 `CMAKE_BUILD_TYPE` - Set this to Debug to build the webrtc module (not the webrtc stack itself) in debug mode 
+`optMegaSdkPath` - Set up the path to the dir where you checked out and built the mega sdk repository (see dependencies).  
+`optStrophePath` - Set the path to the dir where you checked out our verison of Strophe. No need to have built it, it will be built inside the Karere build tree. The below options come from the strophe build system which is included. For more info on these, check the Strophe Readme.md file i nthe Strophe repo.
+`optStropheSslLib` - Set to OpenSSL, if not already set.
+`optStropheXmlLib` - Can be set to `EXPAT`, `LibXml2` or `Detect` for autodetecting. Tested mostly with expat.
+`optStropheBuildShared` - set it to ON.
+`optStropheExportDlsyms` - set it to OFF.
+`optStroheNoLibEvent` - make sure it's OFF! If it's ON this means that libevent (including development package) was not found on your system.  
 Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit and in the console, just type
 `make`  
 And if all is well, the test app will build.
+
+## Build of webrtc module ##
+
 
 # Getting familiar with the codebase #
 ## Basic knlowledge ##
@@ -84,6 +99,9 @@ The public headers are:
   * The rtctestapp above is the reference app. Build it, study it, experiment with it.
   * IRtcModule, IEventHandler in /src/IRtcModule.h. These are used to initiate rtc calls and receive events.
   * IVideoRenderer in /src/IVideoRenderer.h is used to implement video playback in arbitrary GUI environments. Example implementation for Qt is in src/VideoRenderer_Qt.h;.cpp. The example usage can be seen from the rtctestapp application.
+
+## If Mega API calls are required ##
+  * To integrate with the environment, a simple bridge class called MyMegaApi is implemented in /src/sdkApi.h. Example usage of it is in /src/ChatClient.cpp and in /src/MegaCryptoFuncs.cpp. 
 
 ## More advanced things that should not be needed but are good to know in order to understand the underlying environment better ##
   * The function call marshalling mechanims in /src/base/gcm.h and /src/base/gcmpp.h. The code is documented in detail. The mechanism marshalls lambda calls from a worker thread to the GUI thread. Examples of use of marshallCall() can be seen for example in /src/webrtcAdapter.h and in many different places.  This mechanism should not be directly needed in high-level code that runs in the GUI thread.
