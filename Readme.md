@@ -65,3 +65,14 @@ Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit and i
 `make`  
 And if all is well, the test app will build.
 
+
+# Getting familiar with the codebase and programming environment #
+  * the Strophe C++ and C interfaces (https://code.developers.mega.co.nz/messenger/strophe-native)
+The public headers are:
+    - The plain C interface is mstrophe.h
+    - The C++ interface is mstrophepp.h and mstrophepp-conn.h 
+    - study bot-libevent.cpp example in /examples
+  * The Promise lib in base/promise.h and example usage for example in /src/test-promise.cpp
+  * The Conversation/Chatroom management code in /src/ChatRoom.h;.cpp
+  * The overall client structure in /src/ChatClient.h;.cpp
+
