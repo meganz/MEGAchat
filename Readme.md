@@ -65,8 +65,8 @@ Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit and i
 `make`  
 And if all is well, the test app will build.
 
-
-# Getting familiar with the codebase and programming environment #
+# Getting familiar with the codebase #
+## Basic knlowledge ##
   * the Strophe C++ and C interfaces (https://code.developers.mega.co.nz/messenger/strophe-native)
 The public headers are:
     - The plain C interface is mstrophe.h
@@ -75,4 +75,16 @@ The public headers are:
   * The Promise lib in base/promise.h and example usage for example in /src/test-promise.cpp
   * The Conversation/Chatroom management code in /src/ChatRoom.h;.cpp
   * The overall client structure in /src/ChatClient.h;.cpp
+  * The setTimeout() and setInterval() timer functions in /src/base/timers.h  
+
+## Test application ##
+  * /src/rtctestapp is a Qt application that binds all together in a simple test app. Among other things, it shows how the GCM (Gui Call Marshaller) is implemented on the API user's side. It also shows how to use the IVideoRenderer interface to implement video playback.
+
+## For application implementors ##
+  * The rtctestapp above is the reference app. Build it, study it, experiment with it.
+  * IRtcModule, IEventHandler in /src/IRtcModule.h. These are used to initiate rtc calls and receive events.
+  * IVideoRenderer in /src/IVideoRenderer.h is used to implement video playback in arbitrary GUI environments. Example implementation for Qt is in src/VideoRenderer_Qt.h;.cpp. The example usage can be seen from the rtctestapp application.
+
+## More advanced things that should not be needed but are good to know in order to understand the underlying environment better ##
+  * The function call marshalling mechanims in /src/base/gcm.h and /src/base/gcmpp.h. The code is documented in detail. The mechanism marshalls lambda calls from a worker thread to the GUI thread. Examples of use of marshallCall() can be seen for example in /src/webrtcAdapter.h and in many different places.  This mechanism should not be directly needed in high-level code that runs in the GUI thread.
 
