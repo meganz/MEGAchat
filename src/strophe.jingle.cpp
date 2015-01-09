@@ -128,7 +128,7 @@ void Jingle::onJingle(Stanza iq)
         // send ack first
         Stanza ack(mConn);
         ack.setName("iq") //type will be set before sending, depending on the error flag
-           .setAttr("from", mConn.jid())
+           .setAttr("from", mConn.fullJid())
            .setAttr("to", iq.attr("from"))
            .setAttr("id", iq.attr("id"));
 
@@ -204,7 +204,7 @@ void Jingle::onJingle(Stanza iq)
                 KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
                 try
                 {
-                    FakeSessionInfo info(jingle.attr("sid"), peerjid, mConn.jid(), false, ans["peerAnonId"]);
+                    FakeSessionInfo info(jingle.attr("sid"), peerjid, mConn.fullJid(), false, ans["peerAnonId"]);
                     onCallTerminated(NULL, "security", "fingerprint verification failed", &info);
                 }
                 catch(...){}
@@ -374,7 +374,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
             mConn.removeHandler(state->cancelHandlerId);
             state->cancelHandlerId = nullptr;
             const char* by = msg.attr("by");
-            if (strcmp(by, mConn.jid()))
+            if (strcmp(by, mConn.fullJid()))
                onCallCanceled(state->from.c_str(), "handled-elsewhere", by,
                   strcmp(msg.attr("accepted"), "1") == 0);
          },
@@ -542,7 +542,7 @@ bool Jingle::cancelAutoAcceptEntry(AutoAcceptMap::iterator it, const char* reaso
     else
     {
         AutoAcceptCallInfo& ans = *(it->second);
-        FakeSessionInfo info(it->first, ans["from"], mConn.jid(), false, ans["peerAnonId"]);
+        FakeSessionInfo info(it->first, ans["from"], mConn.fullJid(), false, ans["peerAnonId"]);
         mAutoAcceptCalls.erase(it);
         onCallTerminated(NULL, reason, text, &info);
     }

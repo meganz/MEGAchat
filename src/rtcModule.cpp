@@ -26,7 +26,7 @@ RtcModule::RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers)
 :Jingle(conn, crypto, iceServers), mEventHandler(handler)
 {
-    mOwnAnonId = VString(crypto->scrambleJid(CString(mConn.jid())));
+    mOwnAnonId = VString(crypto->scrambleJid(CString(mConn.fullJid())));
     mDiscoPlugin = mConn.pluginPtr<disco::DiscoPlugin>("disco");
     //    logInputDevices();
 }
@@ -309,7 +309,7 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
               }
 
               initiate(state->sid.c_str(), fullPeerJid,
-                  state->myJid.empty()?mConn.jid():state->myJid.c_str(), state->sessStream,
+                  state->myJid.empty()?mConn.fullJid():state->myJid.c_str(), state->sessStream,
                   state->av, {
                       {"ownFprMacKey", state->ownFprMacKey.c_str()},
                       {"peerFprMacKey", peerFprMacKey.c_str()},

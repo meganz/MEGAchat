@@ -92,7 +92,7 @@ void Client::startSelfPings(int intervalSec)
         Stanza ping(*conn);
         ping.setName("iq")
             .setAttr("type", "get")
-            .setAttr("from", conn->jid())
+            .setAttr("from", conn->fullJid())
                 .c("ping", {{"xmlns", "urn:xmpp:ping"}});
         conn->sendIqQuery(ping, "set")
         .then([](Stanza s)

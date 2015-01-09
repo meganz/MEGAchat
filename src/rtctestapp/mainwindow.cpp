@@ -54,7 +54,7 @@ void MainWindow::buttonPushed()
 
 return;
 */
-    for (auto& item: gClient->contactList.contactsBareJid)
+    for (auto& item: gClient->contactList.contactsFullJid)
         printf("%s: %d\n", item.first.c_str(), item.second);
 return;
     if (inCall)
@@ -87,7 +87,7 @@ return;
             av.audio = true;
             av.video = true;
             char sid[rtcModule::RTCM_SESSIONID_LEN+2];
-            gClient->mRtc->startMediaCall(sid, room->peerJid().c_str(), av, nullptr);
+            gClient->mRtc->startMediaCall(sid, room->peerFullJid().c_str(), av, nullptr);
             inCall = true;
             ui->callBtn->setText("Hangup");
             return nullptr;

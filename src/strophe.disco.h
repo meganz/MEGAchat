@@ -104,7 +104,7 @@ public:
 
 inline const char* Node::rootJid() const
 {
-    return mDisco.mConn.jid();
+    return mDisco.mConn.fullJid();
 }
 } //end namespace disco
 

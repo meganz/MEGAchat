@@ -187,7 +187,7 @@ DiscoPlugin::request(const char* to, const char* ns, const char* node)
     strophe::Stanza iq(mConn);
     iq.setName("iq")
             .setAttr("to", to)
-            .setAttr("from", mConn.jid());
+            .setAttr("from", mConn.fullJid());
     auto query = iq.c("query");
     query.setAttr("xmlns", ns);
     if (node)

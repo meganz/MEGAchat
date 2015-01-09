@@ -20,7 +20,7 @@ protected:
     std::string mEmail;
     std::string mPassword;
 public:
-    std::unique_ptr<strophe::Connection> conn;
+    std::shared_ptr<strophe::Connection> conn;
     ContactList contactList;
 protected:
     std::unique_ptr<MyMegaApi> mApi;

@@ -3,6 +3,7 @@
 
 using namespace strophe;
 using namespace promise;
+using namespace std;
 
 namespace karere
 {
@@ -19,7 +20,7 @@ Promise<int> ContactList::init()
         }
         if (strstr(jid, "@conference."))
             return; //we are not interested in chatroom presences
-        if (strcmp(jid, client.conn->jid()) == 0) //our own presence, this is the end of the presence list
+        if (strcmp(jid, client.conn->fullJid()) == 0) //our own presence, this is the end of the presence list
         {
             if (!pms.done())
                 pms.resolve(0);
@@ -39,4 +40,20 @@ ContactList::~ContactList()
     if (mHandler)
         client.conn->removeHandler(mHandler);
 }
+vector<string> ContactList::getFullJidsOfJid(const string& jid)
+{
+    size_t len = jid.find("/");
+    if (len == string::npos)
+        len = jid.size();
+    vector<string> result;
+    for (auto& item: contactsFullJid)
+    {
+        const string& fjid = item.first;
+        if ((strncmp(fjid.c_str(), jid.c_str(), len) == 0)
+         && (fjid[len] == '/'))
+            result.emplace_back(fjid);
+    }
+    return result;
+}
+
 }

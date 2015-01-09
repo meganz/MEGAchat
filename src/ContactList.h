@@ -26,6 +26,8 @@ public:
     ~ContactList();
     OnlineMap contactsFullJid;
     OnlineMap contactsBareJid;
+    std::vector<std::string> getFullJidsOfJid(const std::string& jid);
+
 protected:
     xmpp_handler mHandler;
 };
