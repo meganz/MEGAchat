@@ -19,10 +19,6 @@
     }
 
 extern MainWindow* mainWin;
-extern rtcModule::IRtcModule* rtc;
-extern std::string peermail;
-extern const std::string jidDomain;
-extern std::unique_ptr<MyMegaApi> api;
 extern std::unique_ptr<karere::Client> gClient;
 
 using namespace std;
@@ -54,12 +50,9 @@ void MainWindow::buttonPushed()
 
 return;
 */
-    for (auto& item: gClient->contactList.contactsFullJid)
-        printf("%s: %d\n", item.first.c_str(), item.second);
-return;
     if (inCall)
     {
-        rtc->hangupAll("hangup", nullptr);
+        gClient->rtc->hangupAll("hangup", nullptr);
         inCall = false;
         ui->callBtn->setText("Call");
     }
@@ -71,7 +64,7 @@ return;
             QMessageBox::critical(this, "Error", "Invalid user entered in peer input box");
             return;
         }
-        api->call(&MegaApi::getUserData, peerMail.c_str())
+        gClient->api->call(&MegaApi::getUserData, peerMail.c_str())
         .then([this](ReqResult result)
         {
             const char* peer = result->getText();
@@ -87,7 +80,7 @@ return;
             av.audio = true;
             av.video = true;
             char sid[rtcModule::RTCM_SESSIONID_LEN+2];
-            gClient->mRtc->startMediaCall(sid, room->peerFullJid().c_str(), av, nullptr);
+            gClient->rtc->startMediaCall(sid, room->peerFullJid().c_str(), av, nullptr);
             inCall = true;
             ui->callBtn->setText("Hangup");
             return nullptr;
@@ -126,7 +119,7 @@ return;
 void MainWindow::onAudioInSelected()
 {
     auto combo = ui->audioInCombo;
-    int ret = gClient->mRtc->selectAudioInDevice(combo->itemText(combo->currentIndex()).toAscii().data());
+    int ret = gClient->rtc->selectAudioInDevice(combo->itemText(combo->currentIndex()).toAscii().data());
     if (ret < 0)
     {
         QMessageBox::critical(this, "Error", "Selected device not present");
@@ -138,7 +131,7 @@ void MainWindow::onAudioInSelected()
 void MainWindow::onVideoInSelected()
 {
     auto combo = ui->videoInCombo;
-    int ret = gClient->mRtc->selectVideoInDevice(combo->itemText(combo->currentIndex()).toAscii().data());
+    int ret = gClient->rtc->selectVideoInDevice(combo->itemText(combo->currentIndex()).toAscii().data());
     if (ret < 0)
     {
         QMessageBox::critical(this, "Error", "Selected device not present");

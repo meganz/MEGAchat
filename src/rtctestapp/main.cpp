@@ -84,19 +84,17 @@ int main(int argc, char **argv)
     services_init(megaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin->ui->calleeInput->setText(argv[3]);
     gClient.reset(new karere::Client(argv[1], argv[2], new RtcEventHandler(mainWin)));
-    gClient->onRtcInitialized = []()
-    {
-        rtcModule::IPtr<rtcModule::IDeviceList> audio(gClient->mRtc->getAudioInDevices());
-        for (size_t i=0, len=audio->size(); i<len; i++)
-            mainWin->ui->audioInCombo->addItem(audio->name(i).c_str());
-        rtcModule::IPtr<rtcModule::IDeviceList> video(gClient->mRtc->getVideoInDevices());
-        for (size_t i=0, len=video->size(); i<len; i++)
-            mainWin->ui->videoInCombo->addItem(video->name(i).c_str());
-        gClient->mRtc->updateIceServers(KARERE_DEFAULT_TURN_SERVERS);
-    };
     gClient->start()
     .then([](int)
     {
+        rtcModule::IPtr<rtcModule::IDeviceList> audio(gClient->rtc->getAudioInDevices());
+        for (size_t i=0, len=audio->size(); i<len; i++)
+            mainWin->ui->audioInCombo->addItem(audio->name(i).c_str());
+        rtcModule::IPtr<rtcModule::IDeviceList> video(gClient->rtc->getVideoInDevices());
+        for (size_t i=0, len=video->size(); i<len; i++)
+            mainWin->ui->videoInCombo->addItem(video->name(i).c_str());
+        gClient->rtc->updateIceServers(KARERE_DEFAULT_TURN_SERVERS);
+
         mainWin->ui->callBtn->setEnabled(true);
         mainWin->ui->callBtn->setText("Call");
         return 0;

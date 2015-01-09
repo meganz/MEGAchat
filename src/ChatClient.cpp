@@ -25,27 +25,27 @@ Client::Client(const string& email, const string& password,
                rtcModule::IEventHandler* rtcHandler)
     :mEmail(email), mPassword(password),
     conn(new strophe::Connection(services_strophe_get_ctx())),
-    contactList(*this),
-    mApi(new MyMegaApi("sdfsdfsdf")), mRtcHandler(rtcHandler)
+    contactList(*this), mRtcHandler(rtcHandler),
+    api(new MyMegaApi("sdfsdfsdf"))
 {
 }
 Promise<int> Client::start()
 {
 /* get xmpp login from Mega API */
     return
-    mApi->call(&MegaApi::login, mEmail.c_str(), mPassword.c_str())
+    api->call(&MegaApi::login, mEmail.c_str(), mPassword.c_str())
     .then([this](ReqResult result)
     {
         KR_LOG_DEBUG("Login to Mega API successful");
-        return mApi->call(&MegaApi::getUserData);
+        return api->call(&MegaApi::getUserData);
     })
     .then([this](ReqResult result)
     {
-        mApi->userData = result;
+        api->userData = result;
         const char* user = result->getText();
         if (!user || !user[0])
             return promise::reject<int>("Could not get our own JID");
-        SdkString xmppPass = mApi->dumpXMPPSession();
+        SdkString xmppPass = api->dumpXMPPSession();
         if (xmppPass.size() < 16)
             return promise::reject<int>("Mega session id is shorter than 16 bytes");
         ((char&)xmppPass.c_str()[16]) = 0;
@@ -62,12 +62,12 @@ Promise<int> Client::start()
     {
         printf("==========Connect promise resolved\n");
 //Create the RtcModule object
-        //the MegaCryptoFuncs object needs mApi->userData (to initialize the private key etc)
-        mRtc.reset(createRtcModule(
-          *conn, mRtcHandler.get(), new rtcModule::MegaCryptoFuncs(*mApi), //new rtcModule::DummyCrypto(jid.c_str());
+        //the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
+        rtc.reset(createRtcModule(
+          *conn, mRtcHandler.get(), new rtcModule::MegaCryptoFuncs(*api), //new rtcModule::DummyCrypto(jid.c_str());
           ""));
         conn->registerPlugin("disco", new disco::DiscoPlugin(*conn, "Karere Native"));
-        conn->registerPlugin("rtcmodule", mRtc.get());
+        conn->registerPlugin("rtcmodule", rtc.get());
         if (onRtcInitialized)
             onRtcInitialized();
 //===

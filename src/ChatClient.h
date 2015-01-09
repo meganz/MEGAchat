@@ -23,10 +23,10 @@ public:
     std::shared_ptr<strophe::Connection> conn;
     ContactList contactList;
 protected:
-    std::unique_ptr<MyMegaApi> mApi;
     rtcModule::IPtr<rtcModule::IEventHandler> mRtcHandler;
 public:
-    rtcModule::IPtr<rtcModule::IRtcModule> mRtc;
+    std::unique_ptr<MyMegaApi> api;
+    rtcModule::IPtr<rtcModule::IRtcModule> rtc;
     std::function<void()> onRtcInitialized;
     std::map<std::string, ChatRoom> chatRooms;
     Client(const std::string& email, const std::string& password,
