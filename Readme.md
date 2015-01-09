@@ -77,9 +77,6 @@ Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit and i
 `make`  
 And if all is well, the test app will build.
 
-## Build of webrtc module ##
-
-
 # Getting familiar with the codebase #
 ## Basic knlowledge ##
   * Strophe: https://code.developers.mega.co.nz/messenger/strophe-native  
