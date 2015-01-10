@@ -70,7 +70,11 @@ inline megaHandle setTimer(CB&& callback, unsigned time)
     evtimer_add(pMsg->timerEvent, &tv);
     return pMsg->handle;
 }
-
+/** Cancels a previously set timeout with setTimeout()
+ * @return \c false if the handle is not valid. This can happen if the timeout
+ * already triggered, then the handle is invalidated. This situation is safe and
+ * considered normal
+ */
 static inline bool cancelTimeout(megaHandle handle)
 {
     assert(handle);
@@ -93,20 +97,38 @@ static inline bool cancelTimeout(megaHandle handle)
     });
     return true;
 }
-
+/** @brief Cancels a previously set timer with setInterval.
+ * @return \c false if the handle is not valid.
+ */
 static inline bool cancelInterval(megaHandle handle)
 {
     return cancelTimeout(handle);
 }
-
+/**
+ *
+ *@brief Sets a one-shot timer, similar to javascript's setTimeout()
+ *@param cb This is a C++11 lambda, std::function or any other object that
+ * has \c operator()
+ * @param timeMs - the time in milliseconds after which the callback
+ * will be called one single time and the timer will be destroyed,
+ * and the handle will be invalidated
+ * @returns a handle that can be used to cancel the timeout
+ */
 template<class CB>
-static inline megaHandle setTimeout(CB&& cb, unsigned time)
+static inline megaHandle setTimeout(CB&& cb, unsigned timeMs)
 {
     return setTimer<0>(std::forward<CB>(cb), time);
 }
-
+/**
+ @brief Sets a repeating timer, similar to javascript's setInterval
+ @param callback A C++11 lambda function, std::function or any other object
+ that has \c operator()
+ @param timeMs - the timer's period in milliseconds. The function will be called
+ releatedly until cancelInterval() is called on the returned handle
+ @returns a handle that can be used to cancel the timer
+*/
 template <class CB>
-static inline megaHandle setInterval(CB&& callback, unsigned time)
+static inline megaHandle setInterval(CB&& callback, unsigned timeMs)
 {
     return setTimer<EV_PERSIST>(std::forward<CB>(callback), time);
 }
