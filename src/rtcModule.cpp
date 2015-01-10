@@ -781,15 +781,6 @@ void RtcModule::onCallAnswered(JingleSession& sess)
 
 void RtcModule::removeRemotePlayer(JingleSession& sess)
 {
-    /**
-        The media session with peer JID has been destroyed, and the video element
-            has to be removed from the DOM.
-        @event "remote-player-remove"
-        @type object
-        @property {string} id The id of the html video element to be removed
-        @property {string} peer The full jid of the peer
-        @property {SessWrapper} sess
-    */
     if (!sess.remotePlayer)
     {
         KR_LOG_ERROR("removeVideo: remote player is already NULL");
@@ -848,18 +839,18 @@ void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const 
 //                type: 'POST',
 //                data: JSON.stringify(obj.stats||obj.basicStats)
 //        });
-           RTCM_EVENT(onCallEnded, sess, stats.get());
+           RTCM_EVENT(onCallEnded, sess, reason, text, stats.get());
        }
        else
        {
            BasicStats bstats(*sess, reason);
-           RTCM_EVENT(onCallEnded, sess, &bstats);
+           RTCM_EVENT(onCallEnded, sess, reason, text, &bstats);
        }
    }
    else //no sess
    {
        BasicStats bstats(*noSess, reason);
-       RTCM_EVENT(onCallEnded, noSess, &bstats);
+       RTCM_EVENT(onCallEnded, noSess, reason, text, &bstats);
    }
  }
 
@@ -988,7 +979,7 @@ IJingleSession* RtcModule::getSessionBySid(const char* sid)
 
 /**
   Updates the ICE servers that will be used in the next call.
-  @param iceServers An array of ice server objects - same as the iceServers parameter in
+  @param servers An array of ice server objects - same as the iceServers parameter in
           the RtcSession constructor
 */
 /** url=xxx, user=xxx, pass=xxx; url=xxx, user=xxx... */
