@@ -28,7 +28,8 @@ extern "C"
  * only that member is typedef-ed as megaMessage. Adding data members to the structure is
  * done by deriving in C++ from the megaMessage struct. The \c void(void*) function
  * is called the \c handler.
- * As both the handler and message structure are provided by the user,
+ * As both the handler and message structure are normally provided at the same
+ * place in user code (or even done automatically by e.g. a templated function),
  * the handler knows the actual type of the structure, so it can cast it to the
  * proper \c megaMessage-derived type and access the additional data after the
  * \c megaMessage header. In other words, this is polymorphism in plain C,
