@@ -26,7 +26,7 @@ public:
     const std::string& roomJid() const {return mRoomJid;}
     const std::string& myRoomJid() const {return mMyRoomJid;}
     const std::string& peerRoomJid() const {return mPeerRoomJid;}
-    promise::Promise<strophe::Stanza> addUserToChat(const std::string& fullJid);
+    promise::Promise<int> addUserToChat(const std::string& fullJid);
 };
 }
 

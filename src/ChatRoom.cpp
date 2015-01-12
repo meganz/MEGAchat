@@ -84,7 +84,7 @@ ChatRoom::create(Client& client, const std::string& peerFullJid)
     {
         return room->addUserToChat(room->peerFullJid());
     })
-    .then([ret, room](Stanza s) mutable
+    .then([ret, room](int) mutable
     {
         ret.resolve(room);
         return 0;
@@ -98,7 +98,7 @@ ChatRoom::create(Client& client, const std::string& peerFullJid)
     return ret;
 };
 
-Promise<Stanza> ChatRoom::addUserToChat(const string& peerFullJid)
+Promise<int> ChatRoom::addUserToChat(const string& peerFullJid)
 {
     Stanza grant(*client.conn);
     grant.setName("iq")
@@ -139,13 +139,15 @@ Promise<Stanza> ChatRoom::addUserToChat(const string& peerFullJid)
             .c("x")
                 .setAttr("xmlns", "jabber:x:conference")
                 .setAttr("jid", roomJid())
-                .setAttr("json", json);
-        return client.conn->sendQuery(invite, "invite");
+                .c("json")
+                    .t(json);
+        client.conn->sendQuery(invite, "invite");
+        return 0; //TODO: Invite ack?
      })
     .fail([](const promise::Error& err) mutable
      {
         printf("Error adding user to chatroom: %s\n", err.msg().c_str());
-        return promise::reject<Stanza>(err);
+        return err;
      });
 }
 }
