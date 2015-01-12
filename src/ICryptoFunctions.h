@@ -23,23 +23,32 @@ class ICryptoFunctions: public IDestroy
 {
 public:
     virtual IString* generateMac(const CString& data, const CString& key) = 0;
-    /** Decrypt a message encrypt with our own public key, using our private key */
+    /** @brief
+     * Decrypt a message encrypted with our own public key, using our private key
+    */
     virtual IString* decryptMessage(const CString& msg) = 0;
-    /** Encrypt a message with the peer's public key. The key of that JID myst have
+    /**
+     * @brief
+     * Encrypt a message with the peer's public key. The key of that JID myst have
      * been pre-loaded using preloadCryptoForJid()
      **/
     virtual IString* encryptMessageForJid(const CString& msg, const CString& jid) = 0;
-    /** Fetches the specified JID's public key for use with encryptMessageForJid() */
+    /** @brief
+     * Fetches the specified JID's public key for use with encryptMessageForJid()
+    */
     virtual void preloadCryptoForJid(const CString& jid, void* userp,
         void(*cb)(void* userp, const CString& errMsg)) = 0;
-    /** Used to anonymize the user in submitting call statistics */
+    /** @brief
+     * Used to anonymize the user in submitting call statistics
+    */
     virtual IString* scrambleJid(const CString& jid) = 0;
-    /** Generic random string function */
+    /** @brief Generic random string function */
     virtual IString* generateRandomString(size_t size) = 0;
-    /** Uses generateRandomString() to generate the 32-byte fprMacKey */
+    /** @brief Uses generateRandomString() to generate the 32-byte fprMacKey */
     virtual IString* generateFprMacKey() = 0;
 protected:
-    /** Non-pubnlic dtor. Use destroy() to delete the object, which giarantees
+    /** @brief
+     * Non-pubnlic dtor. Use destroy() to delete the object, which giarantees
      * that the memory will be freed by the correct memory manager
      */
     virtual ~ICryptoFunctions(){}
