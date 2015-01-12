@@ -10,8 +10,7 @@
  * Each peer generates a 32-byte random key called an fprMacKey.
  * Then encrypts it with the public RSA key of the remote peer and sends it to him.
  * The peer decrypts int with their private RSA key. Then each side generates
- * a SHA256 HMAC of their own media encryption fingerprint + a fixed text string
- * (something like 'webrtc fingerprint verification'), keyed with the peer's
+ * a SHA256 HMAC of their own media encryption fingerprint, keyed with the peer's
  * fprMacKey. Then sends it to the remote. The remote does the same
  * calculation for its own media crypto fingerprint, and compares what it received.
  * They must match.
