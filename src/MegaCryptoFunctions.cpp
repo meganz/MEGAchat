@@ -61,6 +61,7 @@ IString* MegaCryptoFuncs::decryptMessage(const CString& b64msg)
     auto ret = new IString_buffer<>(new char[1024]); //accommondate 8192 bit RSA keylen
     mPrivKey.decrypt(binmsg, binlen, (byte*)ret->bufWritePtr(), 1024);
     ret->setStrSize(kFprMacKeyLen);
+    printf("=============== Peer fprMacKey: %s\n", ret->c_str());
     return ret;
 }
 
@@ -73,6 +74,7 @@ IString* MegaCryptoFuncs::encryptMessageForJid(const CString& msg, const CString
         fprintf(stderr, "encryptMessageForJid: Message must be exactly 44 bytes long, but is %lu bytes", (unsigned long)msg.size());
         return nullptr;
     }
+    printf("=============== FprMacKey: %s\n", msg.c_str());
     auto it = mKeysLoaded.find(string(bareJid.c_str(), bareJid.size()));
     if (it == mKeysLoaded.end())
         return nullptr;
@@ -152,18 +154,12 @@ IString* MegaCryptoFuncs::generateRandomString(size_t size)
 {
     int binsize = size*3/4+4;
     Buffer buf(new byte[binsize]);
-    int ret = RAND_bytes(buf, binsize);
-    if (!ret)
-    {
-        fprintf(stderr, "WARNING: generateRandomString: Cannot generate cryptographically string random values");
-        ret = RAND_pseudo_bytes(buf, binsize);
-    }
-    if (!ret) //this will likely crash the application, but is convenient for debugging
-        throw std::runtime_error("generateRandomString: Cannot generate random values, OpenSSL returned error");
-    std::string b64;
-    b64.resize(size+16);
+    PrnGen::genblock(buf, binsize);
+    std::string b64(size+16, 0); //16 is just a buffer overflow precaution
     int b64len = Base64::btoa(buf, binsize, (char*)b64.data());
+    assert((size_t)b64len >= size);
     assert((size_t)b64len < size+16);
+
     b64.resize(size);
     return new IString_string(b64);
 }

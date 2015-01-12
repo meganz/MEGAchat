@@ -52,7 +52,7 @@ public:
     virtual IString* generateFprMacKey() = 0;
 protected:
     /** @brief
-     * Non-public dtor. Use destroy() to delete the object, which giarantees
+     * Non-public dtor. Use destroy() to delete the object, which guarantees
      * that the memory will be freed by the correct memory manager
      */
     virtual ~ICryptoFunctions(){}
