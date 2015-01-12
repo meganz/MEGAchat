@@ -22,6 +22,9 @@ namespace rtcModule
 class ICryptoFunctions: public IDestroy
 {
 public:
+    /** @brief Generates a HMAC of the fingerprint hash+a fixed string, keyed with
+     * the peer's fprMacKey
+     */
     virtual IString* generateMac(const CString& data, const CString& key) = 0;
     /** @brief
      * Decrypt a message encrypted with our own public key, using our private key
