@@ -3,10 +3,14 @@
 #include <stddef.h> //size_t
 #include "ITypes.h"
 
-/** Fingerprint verification scheme description
+namespace rtcModule
+{
+
+/** @brief Interface for implementing the SRTP fingerprint verification
+ *
  * The fingerprint verification resembles the ZRTP verification, but uses
  * the Mega key infrastructure instead of manually verifying the security code.
- * The scheme is as follows:
+ * The scheme is as follows:\n
  * Each peer generates a 32-byte random key called an fprMacKey.
  * Then encrypts it with the public RSA key of the remote peer and sends it to him.
  * The peer decrypts int with their private RSA key. Then each side generates
@@ -16,8 +20,6 @@
  * They must match.
  */
 
-namespace rtcModule
-{
 class ICryptoFunctions: public IDestroy
 {
 public:
