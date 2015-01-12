@@ -134,16 +134,8 @@ IString* MegaCryptoFuncs::scrambleJid(const CString& jid)
 IString* MegaCryptoFuncs::generateFprMacKey()
 {
     unsigned char buf[32];
-    int ret = RAND_bytes(buf, 32);
-    if (!ret)
-    {
-        fprintf(stderr, "WARNING: generateFprMacKey: Cannot generate cryptographically string random values");
-        ret = RAND_pseudo_bytes(buf, 32);
-    }
-    if (!ret) //this will likely crash the application, but is convenient for debugging
-        throw std::runtime_error("generateFprMacKey: Cannot generate random values, OpenSSL returned error");
-    std::string b64;
-    b64.resize(44);
+    PrnGen::genblock(buf, 32);
+    std::string b64(44, 0);
     int b64len = mega::Base64::btoa(buf, 32, (char*)b64.data());
     assert(b64len == 43);
     b64[43]='=';
