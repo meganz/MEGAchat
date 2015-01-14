@@ -10,8 +10,8 @@ using namespace mega;
 namespace rtcModule
 {
 
-//the fprmac key is 32 bytes, padded is 33, base64 encoded is x 4/3 = 44
-enum {kFprMacKeyLen = 44};
+//the fprmac key is 32 bytes, base64 encoded without padding is 43
+enum {kFprMacKeyLen = 43};
 
 template <class T, class D=T>
 static void delarray(T* str)
@@ -28,13 +28,11 @@ MegaCryptoFuncs::MegaCryptoFuncs(MyMegaApi& megaApi)
     size_t privkLen;
     if (!privk || !(privkLen = strlen(privk)))
         throw std::runtime_error("MegaCryptoFunctions ctor: No private key available");
-    printf("Private key: %s\n", privk);
     Buffer binprivk(new byte[privkLen+4]);
     int binlen = mega::Base64::atob(privk, binprivk, privkLen);
-    printf("binlen = %d, first 2 bytes: %x %x\n", binlen, binprivk.handle()[0], binprivk.handle()[1]);
     int ret = mPrivKey.setkey(mega::AsymmCipher::PRIVKEY, binprivk, binlen);
     if (!ret)
-        throw std::runtime_error("MEgaCryptoFunctions ctor: Error setting private key");
+        throw std::runtime_error("MegaCryptoFunctions ctor: Error setting private key");
 }
 
 IString* MegaCryptoFuncs::generateMac(const CString& data, const CString& key)
@@ -48,9 +46,10 @@ IString* MegaCryptoFuncs::generateMac(const CString& data, const CString& key)
          binmac, &bmlen);
     auto mac = new IString_buffer<>(new char[45]);
     size_t maclen = Base64::btoa(binmac, bmlen, mac->bufWritePtr());
-    assert(maclen == 43);
-    mac->bufWritePtr()[43] = '=';
-    mac->setStrSize(44);
+    assert(maclen == 43); //32 bytes to base64 without padding
+    mac->setStrSize(maclen);
+    printf("\n===================== generateMac: data='%s', key='%s', mac='%s'\n",
+           data.c_str(), key.c_str(), mac->c_str());
     return mac;
 }
 
@@ -61,7 +60,7 @@ IString* MegaCryptoFuncs::decryptMessage(const CString& b64msg)
     auto ret = new IString_buffer<>(new char[1024]); //accommondate 8192 bit RSA keylen
     mPrivKey.decrypt(binmsg, binlen, (byte*)ret->bufWritePtr(), 1024);
     ret->setStrSize(kFprMacKeyLen);
-    printf("=============== Peer fprMacKey: %s\n", ret->c_str());
+    printf("=============== Peer fprMacKey[%lu]: %s\n", ret->size(), ret->c_str());
     return ret;
 }
 
@@ -71,7 +70,7 @@ IString* MegaCryptoFuncs::encryptMessageForJid(const CString& msg, const CString
         return nullptr;
     if (msg.size() != kFprMacKeyLen)
     {
-        fprintf(stderr, "encryptMessageForJid: Message must be exactly 44 bytes long, but is %lu bytes", (unsigned long)msg.size());
+        fprintf(stderr, "encryptMessageForJid: Message must be exactly 43 bytes long, but is %lu bytes", (unsigned long)msg.size());
         return nullptr;
     }
     printf("=============== FprMacKey: %s\n", msg.c_str());
@@ -135,10 +134,10 @@ IString* MegaCryptoFuncs::generateFprMacKey()
 {
     unsigned char buf[32];
     PrnGen::genblock(buf, 32);
-    std::string b64(44, 0);
+    std::string b64(kFprMacKeyLen+2, 0);
     int b64len = mega::Base64::btoa(buf, 32, (char*)b64.data());
-    assert(b64len == 43);
-    b64[43]='=';
+    assert(b64len == kFprMacKeyLen);
+    buf[kFprMacKeyLen] = 0; //termiante string, just in case
     return new IString_string(b64);
 }
 
