@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QMessageBox>
 #include <mstrophepp.h>
 #include <IRtcModule.h>
 #include <mstrophepp.h>
@@ -32,10 +33,57 @@ public slots:
 
 extern bool inCall;
 extern std::unique_ptr<karere::Client> gClient;
+
+class CallAnswerGui: QObject
+{
+    Q_OBJECT
+public:
+    rtcModule::IAnswerCall* ctrl;
+    MainWindow* mMainWin;
+    QPushButton* answerBtn;
+    QPushButton* rejectBtn;
+    std::unique_ptr<QMessageBox> msg;
+    CallAnswerGui(rtcModule::IAnswerCall* aCtrl, MainWindow* win):ctrl(aCtrl), mMainWin(win),
+        msg(new QMessageBox(QMessageBox::Information,
+        "Incoming call", QString::fromAscii(ctrl->callerFullJid())+" is calling you"))
+    {
+        answerBtn = msg->addButton("Answer", QMessageBox::AcceptRole);
+        rejectBtn = msg->addButton("Reject", QMessageBox::RejectRole);
+        msg->setWindowModality(Qt::NonModal);
+        QObject::connect(msg.get(), SIGNAL(buttonClicked(QAbstractButton*)),
+            this, SLOT(onBtnClick(QAbstractButton*)));
+        msg->show();
+    }
+public slots:
+    void onBtnClick(QAbstractButton* btn)
+    {
+        printf("===============onButtonClient\n");
+        ctrl->setUserData(nullptr);
+//        std::unique_ptr<CallAnswerGui> autodel(this);
+        msg->hide();
+        if (btn == answerBtn)
+        {
+            int ret = ctrl->answer(true, rtcModule::AvFlags(true, true), nullptr, nullptr);
+            if (ret == 0)
+            {
+                inCall = true;
+                mMainWin->ui->callBtn->setText("Hangup");
+            }
+        }
+        else
+        {
+            ctrl->answer(false, rtcModule::AvFlags(true, true), "hangup", nullptr);
+            inCall = false;
+            mMainWin->ui->callBtn->setText("Call");
+        }
+    }
+};
+
 class RtcEventHandler: public rtcModule::IEventHandler
 {
 protected:
     MainWindow* mMainWindow;
+    virtual ~RtcEventHandler(){}
 public:
     RtcEventHandler(MainWindow* mainWindow)
         :mMainWindow(mainWindow){}
@@ -49,13 +97,29 @@ public:
     }
     virtual void onCallIncomingRequest(rtcModule::IAnswerCall* ctrl)
     {
-        int ret = ctrl->answer(true, rtcModule::AvFlags(true, true), nullptr, nullptr);
-        if (ret == 0)
+/*        if (mMainWindow->ui->autoAnswerChk->checkState() == Qt::Checked)
         {
-            inCall = true;
-            mMainWindow->ui->callBtn->setText("Hangup");
+            int ret = ctrl->answer(true, rtcModule::AvFlags(true, true), nullptr, nullptr);
+            if (ret == 0)
+            {
+                inCall = true;
+                mMainWindow->ui->callBtn->setText("Hangup");
+            }
+        }
+        else */
+        {
+            ctrl->setUserData(new CallAnswerGui(ctrl, mMainWindow));
         }
     }
+    virtual void onIncomingCallCanceled(const char *sid, const char *event, const char *by, int accepted, void **userp)
+    {
+        if(*userp)
+        {
+            delete static_cast<CallAnswerGui*>(*userp);
+            *userp = nullptr;
+        }
+    }
+
     virtual void onCallEnded(rtcModule::IJingleSession *sess, rtcModule::IRtcStats *stats)
     {
         inCall = false;

@@ -351,6 +351,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         Ts tsReceived = -1;
         string bareJid;
         string ownFprMacKey;
+        void* userp = nullptr;
     };
     shared_ptr<State> state(new State);
 
@@ -375,8 +376,8 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
             state->cancelHandlerId = nullptr;
             const char* by = msg.attr("by");
             if (strcmp(by, mConn.fullJid()))
-               onCallCanceled(state->from.c_str(), "handled-elsewhere", by,
-                  strcmp(msg.attr("accepted"), "1") == 0);
+               onCallCanceled(state->sid.c_str(), "handled-elsewhere", by,
+                  strcmp(msg.attr("accepted"), "1") == 0, &(state->userp));
          },
          NULL, "message", "megaNotifyCallHandled", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
@@ -391,7 +392,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
             mConn.removeHandler(state->elsewhereHandlerId);
             state->elsewhereHandlerId = nullptr;
 
-            onCallCanceled(state->from.c_str(), "canceled", nullptr, false);
+            onCallCanceled(state->sid.c_str(), "canceled", nullptr, false, &(state->userp));
         },
         NULL, "message", "megaCallCancel", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
@@ -405,7 +406,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
             mConn.removeHandler(state->cancelHandlerId);
             state->cancelHandlerId = nullptr;
 
-            onCallCanceled(state->from.c_str(), "timeout", NULL, false);
+            onCallCanceled(state->sid.c_str(), "timeout", NULL, false, &(state->userp));
         },
         callAnswerTimeout+10000);
 
@@ -510,7 +511,8 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
          return true;
         })); //end answer func
 
-        onIncomingCallRequest(state->from.c_str(), ansFunc, reqStillValid, peerMedia, files);
+        onIncomingCallRequest(state->from.c_str(), state->sid.c_str(),
+          ansFunc, reqStillValid, peerMedia, files, &(state->userp));
     }
     catch(exception& e)
     {

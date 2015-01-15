@@ -45,22 +45,26 @@ enum {
  */
 struct IAnswerCall: public IDestroy
 {
-/** Answers or rejects an incoming call
- * @param accept Whether to accept or reject the call
- * @param answerAv What media to send when accepting the call.
- * @param reason Reason for call reject.
- * @param text Full text message for call reject reason.
- *  Could be an error message. \c NULL for none
- * */
+    /** Answers or rejects an incoming call
+     * @param accept Whether to accept or reject the call
+     * @param answerAv What media to send when accepting the call.
+     * @param reason Reason for call reject.
+     * @param text Full text message for call reject reason.
+     *  Could be an error message. \c NULL for none
+     */
     virtual int answer(bool accept, const AvFlags& answerAv,
                        const char* reason, const char* text) = 0;
+    /** @brief Returns the session id of the incoming call */
+    virtual const char* sid() const = 0;
+    /** @brief Returns the caller's full jid */
+    virtual const char* callerFullJid() const = 0;
     /**
      * @returns A null-terminated char* array of file paths names that are to received
      * in a data call. This being NULL means that the call is a media call, and
      * being non-NULL means it's a data call.
      */
     virtual const char* const* files() const = 0;
-    /** The types of media (audio and/or video) that the peer sends */
+    /** @brief The types of media (audio and/or video) that the peer sends */
     virtual const AvFlags& peerAv() const = 0;
     /**
      * Returns whether the incoming call request is still valid at this
@@ -68,6 +72,16 @@ struct IAnswerCall: public IDestroy
      * or timed out
     */
     virtual bool reqStillValid() const = 0;
+    /**
+     * @brief Associates a user pointer with this object. This can be used
+     * for example to attach a GUI to the IAnswerCall object
+     * @param userp The user pointer
+     * @param deleter An optional deleter function. If provided, it will be alled
+     * with the user pointer when the IAnswerCall is deleter.
+     */
+    virtual void setUserData(void* userp) = 0;
+    /** @brief Gets the user data pointer previously set with setUserData */
+    virtual void* userData() const = 0;
 };
 
 struct StatOptions
@@ -111,7 +125,7 @@ struct IEventHandler: public IDestroy
 * @param text - Verbose message why the call was declined. May be NULL
 * @param isDataCall - denotes if the call is media or data call
 */
-    virtual void oncallDeclined(const char* fullPeerJid, const char* sid,
+    virtual void onCallDeclined(const char* fullPeerJid, const char* sid,
       const char* reason, const char* text, int isDataCall){}
 /**
 * @brief Fired when the remote did not answer the call within an acceptable
@@ -142,6 +156,25 @@ struct IEventHandler: public IDestroy
 * @param sess The newly created session
 */
     virtual void onCallAnswered(IJingleSession* sess) {}
+/**
+  @brief Notifies when an not-yet-answered incoming call is canceled for some reason
+  @param peer The full jid of the peer that initiated the call
+  @param event A text tag of the type of the cancel event - if it was canceled,
+  handled by another device of our account etc.
+  @param by In case the call was handled or rejected by another device of our
+  account, specified which one by its full JID
+  @param accepted Whether the call was accepted or rejected
+  @param userp A pointer to the storage memory of the IAnswerCall::userData() void*.
+  The user can both read and write it in both places.
+  This is intended to bind the incoming-call and the incoming-call-canceled
+  events to a common user context. The user can destroy this context and set the
+  pointer back to nullptr at any time, and subsequent
+  events (currently there should not be) will
+  see the updated to NULL void* value and know that it has been destroyed.
+*/
+    virtual void onIncomingCallCanceled(const char* sid, const char* event,
+    const char* by, int accepted, void** userp) {}
+
 /**
 * @brief Fired just before a remote stream goes away, to remove
 * the video player from the GUI.

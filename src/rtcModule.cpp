@@ -375,7 +375,7 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
                  .setAttr("accepted", "0");
               mConn.send(msg);
           }
-          RTCM_EVENT(oncallDeclined,
+          RTCM_EVENT(onCallDeclined,
               fullPeerJid, //peer
               state->sid.c_str(),
               stanza.attrOrNull("reason"),
@@ -701,17 +701,25 @@ void RtcModule::createLocalPlayer()
 struct AnswerCallController: public IAnswerCall
 {
     RtcModule& self;
+    string mSid;
+    string mCallerFullJid;
     shared_ptr<CallAnswerFunc> mAnsFunc;
     shared_ptr<function<bool(void)> > mReqStillValid;
     AvFlags mPeerAv;
     shared_ptr<set<string> > mFiles;
     vector<const char*> mFileCStrings;
+//this points to a void* inside a 'state' struct to which mAnsFunc keeps a
+//shared_ptr. So as long as this object exists, the void* location will also exist
+    void** mUserpPtr;
 
-    AnswerCallController(RtcModule& aSelf, shared_ptr<CallAnswerFunc>& ansFunc,
+    AnswerCallController(RtcModule& aSelf, const char* sid,
+      const char* callerFullJid,
+      shared_ptr<CallAnswerFunc>& ansFunc,
       shared_ptr<function<bool()> >& aReqStillValid, const AvFlags& aPeerAv,
-      shared_ptr<set<string> >& aFiles)
-    :self(aSelf), mAnsFunc(ansFunc),
-      mReqStillValid(aReqStillValid), mPeerAv(aPeerAv), mFiles(aFiles)
+      shared_ptr<set<string> >& aFiles, void** userpPtr)
+    :self(aSelf), mSid(sid), mCallerFullJid(callerFullJid), mAnsFunc(ansFunc),
+      mReqStillValid(aReqStillValid), mPeerAv(aPeerAv), mFiles(aFiles),
+      mUserpPtr(userpPtr)
     {
         if(mFiles)
         {
@@ -720,6 +728,10 @@ struct AnswerCallController: public IAnswerCall
             mFileCStrings.push_back(nullptr);
         }
     }
+    virtual const char* sid() const {return mSid.c_str();}
+    virtual const char* callerFullJid() const {return mCallerFullJid.c_str();}
+    virtual void setUserData(void* userp) { *mUserpPtr = userp; }
+    virtual void* userData() const { return *mUserpPtr;}
     virtual const char* const* files() const
     {
         if (!mFiles)
@@ -765,18 +777,23 @@ struct AnswerCallController: public IAnswerCall
     }
 };
 
-void RtcModule::onIncomingCallRequest(const char* from, shared_ptr<CallAnswerFunc>& ansFunc,
+void RtcModule::onIncomingCallRequest(const char* from, const char* sid,
+    shared_ptr<CallAnswerFunc>& ansFunc,
     shared_ptr<function<bool()> >& reqStillValid, const AvFlags& peerMedia,
-    shared_ptr<set<string> >& files)
+    shared_ptr<set<string> >& files, void** userp)
 {
     //this is the C cross-module answer function that the application calls to answer or reject the call
     AnswerCallController* ansCtrl = new AnswerCallController(
-                *this, ansFunc, reqStillValid, peerMedia, files);
+        *this, sid, from?from:"", ansFunc, reqStillValid, peerMedia, files, userp);
     RTCM_EVENT(onCallIncomingRequest, ansCtrl);
 }
 void RtcModule::onCallAnswered(JingleSession& sess)
 {
     RTCM_EVENT(onCallAnswered, &sess);
+}
+void RtcModule::onCallCanceled(const char *sid, const char *event, const char *by, bool accepted, void** userpPtr)
+{
+    RTCM_EVENT(onIncomingCallCanceled, sid, event, by, accepted, userpPtr);
 }
 
 void RtcModule::removeRemotePlayer(JingleSession& sess)

@@ -49,8 +49,8 @@ protected:
 public:
     RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers);
-    virtual ~RtcModule();
-
+    template <class OkCb, class ErrCb>
+    void myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool allowEmpty=false);
 //IRtcModule interface
     virtual int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const char* files[]=NULL,
                       const char* myJid=NULL);
@@ -70,15 +70,14 @@ public:
     virtual IDeviceList* getVideoInDevices();
     virtual int selectAudioInDevice(const char* devname);
     virtual int selectVideoInDevice(const char* devname);
-
     virtual void destroy() {delete this;}
+protected:
+    virtual ~RtcModule();
     //=== Implementation methods
     bool hasLocalStream() { return (mAudioInput || mVideoInput); }
     void logInputDevices();
     std::string getLocalAudioAndVideo();
     int getDeviceIdxByName(const std::string& name, const artc::DeviceList& devices);
-    template <class OkCb, class ErrCb>
-    void myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool allowEmpty=false);
     void onConnState(const xmpp_conn_event_t status,
                      const int error, xmpp_stream_error_t * const stream_error);
 
@@ -86,9 +85,10 @@ public:
     void enumCallsForHangup(CB cb, const char* reason, const char* text);
     void onPresenceUnavailable(strophe::Stanza pres);
     void createLocalPlayer();
-    virtual void onIncomingCallRequest(const char* from, std::shared_ptr<CallAnswerFunc>& ansFunc,
+    virtual void onIncomingCallRequest(const char* from, const char* sid,
+        std::shared_ptr<CallAnswerFunc>& ansFunc,
         std::shared_ptr<std::function<bool()> >& reqStillValid, const AvFlags& peerMedia,
-        std::shared_ptr<std::set<std::string> >& files);
+        std::shared_ptr<std::set<std::string> >& files, void** userpPtr);
     void onCallAnswered(JingleSession& sess);
     void removeRemotePlayer(JingleSession& sess);
     /** Called by the remote media player when the first frame is about to be rendered,
@@ -105,6 +105,9 @@ public:
     void onJingleError(JingleSession* sess, const std::string& origin,
                        const std::string& stanza, strophe::Stanza orig, char type);
     virtual void discoAddFeature(const char* feature);
+    //overriden handler of JinglePlugin
+    virtual void onCallCanceled(const char *sid, const char *event, const char *by,
+        bool accepted, void** userpPtr);
     void refLocalStream(bool sendsVideo);
     void unrefLocalStream(bool sendsVideo);
     void freeLocalStream();
