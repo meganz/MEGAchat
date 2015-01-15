@@ -45,8 +45,10 @@ public:
     std::unique_ptr<QMessageBox> msg;
     CallAnswerGui(rtcModule::IAnswerCall* aCtrl, MainWindow* win):ctrl(aCtrl), mMainWin(win),
         msg(new QMessageBox(QMessageBox::Information,
-        "Incoming call", QString::fromAscii(ctrl->callerFullJid())+" is calling you"))
+        "Incoming call", QString::fromAscii(ctrl->callerFullJid())+" is calling you",
+        QMessageBox::NoButton, mMainWin))
     {
+        msg->setAttribute(Qt::WA_DeleteOnClose);
         answerBtn = msg->addButton("Answer", QMessageBox::AcceptRole);
         rejectBtn = msg->addButton("Reject", QMessageBox::RejectRole);
         msg->setWindowModality(Qt::NonModal);
@@ -59,8 +61,7 @@ public slots:
     {
         printf("===============onButtonClient\n");
         ctrl->setUserData(nullptr);
-//        std::unique_ptr<CallAnswerGui> autodel(this);
-        msg->hide();
+        msg->close();
         if (btn == answerBtn)
         {
             int ret = ctrl->answer(true, rtcModule::AvFlags(true, true), nullptr, nullptr);
