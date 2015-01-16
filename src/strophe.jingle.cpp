@@ -498,12 +498,12 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
          else //answer == false
          {
                 Stanza declMsg(mConn);
-                declMsg.init("message",
-                {
-                    {"to", state->from.c_str()},
-                    {"type", "megaCallDecline"},
-                    {"reason", reason?"unknown":reason}
-                });
+                declMsg.setName("message")
+                .setAttr("sid", state->sid.c_str())
+                .setAttr("to", state->from.c_str())
+                .setAttr("type", "megaCallDecline")
+                .setAttr("reason", reason?reason:"reject");
+
                 if (text)
                     declMsg.c("body", {}).t(text);
                 mConn.send(declMsg);
