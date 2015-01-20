@@ -60,7 +60,7 @@ IString* MegaCryptoFuncs::decryptMessage(const CString& b64msg)
     auto ret = new IString_buffer<>(new char[1024]); //accommondate 8192 bit RSA keylen
     mPrivKey.decrypt(binmsg, binlen, (byte*)ret->bufWritePtr(), 1024);
     ret->setStrSize(kFprMacKeyLen);
-    printf("=============== Peer fprMacKey[%lu]: %s\n", ret->size(), ret->c_str());
+ //   printf("=============== Peer fprMacKey[%lu]: %s\n", ret->size(), ret->c_str());
     return ret;
 }
 
@@ -73,7 +73,7 @@ IString* MegaCryptoFuncs::encryptMessageForJid(const CString& msg, const CString
         fprintf(stderr, "encryptMessageForJid: Message must be exactly 43 bytes long, but is %lu bytes", (unsigned long)msg.size());
         return nullptr;
     }
-    printf("=============== FprMacKey: %s\n", msg.c_str());
+//    printf("=============== FprMacKey: %s\n", msg.c_str());
     auto it = mKeysLoaded.find(string(bareJid.c_str(), bareJid.size()));
     if (it == mKeysLoaded.end())
         return nullptr;

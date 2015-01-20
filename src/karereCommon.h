@@ -17,8 +17,10 @@
     #include <sys/time.h>
 #endif
 
-#define KARERE_DEFAULT_XMPP_SERVER "karere-001.developers.mega.co.nz"
-#define KARERE_DEFAULT_TURN_SERVERS "url=turn:j100.server.lu:3591?transport=udp, user=alex, pass=alexsecret"
+#define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
+#define KARERE_XMPP_DOMAIN "karere.mega.nz"
+
+#define KARERE_DEFAULT_TURN_SERVERS "url=turn:trn530n003.karere.mega.nz:3478?transport=udp, user=inoo20jdnH, pass=02nNKDBkkS"
 
 #define KR_CHECK_NULLARG(name) \
     do { \

@@ -2,8 +2,6 @@
 #define CHATCOMMON_H
 #include <murmurHash/MurmurHash3.h>
 
-#define KARERE_XMPP_DOMAIN "developers.mega.co.nz"
-
 namespace karere
 {
 

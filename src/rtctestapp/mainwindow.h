@@ -40,8 +40,8 @@ class CallAnswerGui: QObject
 public:
     rtcModule::IAnswerCall* ctrl;
     MainWindow* mMainWin;
-    QPushButton* answerBtn;
-    QPushButton* rejectBtn;
+    QAbstractButton* answerBtn;
+    QAbstractButton* rejectBtn;
     std::unique_ptr<QMessageBox> msg;
     CallAnswerGui(rtcModule::IAnswerCall* aCtrl, MainWindow* win):ctrl(aCtrl), mMainWin(win),
         msg(new QMessageBox(QMessageBox::Information,
@@ -55,11 +55,11 @@ public:
         QObject::connect(msg.get(), SIGNAL(buttonClicked(QAbstractButton*)),
             this, SLOT(onBtnClick(QAbstractButton*)));
         msg->show();
+        msg->raise();
     }
 public slots:
     void onBtnClick(QAbstractButton* btn)
     {
-        printf("===============onButtonClient\n");
         ctrl->setUserData(nullptr);
         msg->close();
         if (btn == answerBtn)
@@ -119,6 +119,7 @@ public:
             delete static_cast<CallAnswerGui*>(*userp);
             *userp = nullptr;
         }
+        printf("Call canceled for reason: %s\n", event);
     }
 
     virtual void onCallEnded(rtcModule::IJingleSession *sess, rtcModule::IRtcStats *stats)
