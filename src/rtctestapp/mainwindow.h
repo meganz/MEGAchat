@@ -122,8 +122,10 @@ public:
         printf("Call canceled for reason: %s\n", event);
     }
 
-    virtual void onCallEnded(rtcModule::IJingleSession *sess, rtcModule::IRtcStats *stats)
+    virtual void onCallEnded(rtcModule::IJingleSession *sess,
+        const char* reason, const char* text, rtcModule::IRtcStats *stats)
     {
+        printf("on call ended\n");
         inCall = false;
         mMainWindow->ui->callBtn->setText("Call");
     }
