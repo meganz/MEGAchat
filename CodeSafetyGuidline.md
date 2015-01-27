@@ -1,8 +1,8 @@
 # C/C++ Code safety guideline #
 This guide describes the code safety principles that were and *must* be followed in the Karere C++ code  
-These principles are not about code readability, but to minimize bugs, memory leaks, crashes
-and provide good self-diagnostics with minimum effort on the programmer's side. Following these principles should
-greatly increase passive code safety, and actually make the code simpler and, as a side effect, more readable.
+These principles aim to minimize bugs, memory leaks, crashes and provide good error reporting and 
+self-diagnostics with minimum effort on the programmer's side. Following these principles should considerably increase
+passive code safety, and actually make the code simpler and, as a side effect, more readable.
 
 ## Memory and resource management ##
 * Get familiar with the C++ RAII concept, if you are not already. It's extensively used and referenced below.
