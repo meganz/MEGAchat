@@ -155,6 +155,7 @@ anywhere in the code. Example:
     return xxx; //guaranteed to be the result of the complete operation
 }
 ```
+
 ## Variable declaration and initialization ##
 * Use descriptive names, even for local variables with small scope. No matter the scope, people will read that code.
 * Declare local variables right before the place where they are used, and *not* in the beginning of the function.
