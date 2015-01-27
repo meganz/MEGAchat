@@ -40,15 +40,14 @@ string was not found, because this, in the general case, can be expected. Howeve
 code relies on the fact that the substring _is_ found, an exception can be town to bail out. In that case, the code logic
 doesn't need to care about 'what if' abnormal conditions.
  * If you can throw exceptions, but a function that you call returns error codes, such as a plain C API function,
- throw an error if it returns an error code. If there are multiple such calls, implement the error check and throw in an
-inline static function or a macro, and wrap all calls in that function/macro. Macros should be avoided, but in this case
-a macro has access to the line number where the actual call happened, and a function does not. Also, a macro can log a parameters
-as strings, so it could be beneficial to use a macro that takes the call's parameters as its own, calls the function, and if
-there is an error, add the value of some/all parameters in the error message. This can be an invaluable diagnostic tool. For
-example, when configuring a CURL handle, a macro can include the CURLOPT_xxx constant as a string, together with the line
-number in the error message. See the macro `_curleopt` in `base/services_http.hpp` about an example.
- * When a function has to check for conditions before continuing, never use nested `if`-s (Microsoft-style),
- unless necessary in that specific case. Instead, check for that condition, and if it's not met, return from that function.
+and you leave handling that error to the caller, throw an error when it returns an error condtion. If there are multiple such
+calls, implement the error check and throw in an inline static function or a macro, and wrap all calls in that function/macro.
+Macros should be avoided, but in this case a macro has access to the line number where the actual call happened, and a
+function doesn't. Also, a macro can log its parameters as strings (i.e. it can easily log an enum by its name).
+See the macro `_curleopt` in `base/services_http.hpp` about an example.
+ * When a function has to check for conditions before continuing with next steps, never use nested `if`-s (Microsoft-style),
+unless necessary in that specific case. Instead, check for that condition, and if it's not met, do an early return
+from that function.  
 For example compare the following two code snippets:
 ```
     if (param != NULL) //function parameter validation
@@ -74,10 +73,11 @@ For example compare the following two code snippets:
         }
    }
 
-   <cleanup - have to check if resources at each step were actually allocated, because we may have had a fail before it>
-   return xxx;
-   <what are we actually returning here? A complete or a half-baked result? How do we signal what actually went wrong from this
-single place?>
+   <cleanup code> //needs additional state info to know if something failed and whether
+
+   //what are we actually returning here? A complete or a half-baked result?
+   //How do we signal what actually went wrong from this single place?
+   return xxx; 
 ```
 This code looks even less readable in K&R indentation style. Very often code written like this fails silently without even giving
 a clue that something went wrong, let alone signaling _exactly_ what went wrong. I leave it to the reader to imagine how easy
