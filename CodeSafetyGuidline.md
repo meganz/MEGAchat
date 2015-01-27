@@ -168,6 +168,7 @@ Incorrect:
        a = 40;
     }
 ```
+
 Correct:  
 ```
 int a = someCondition ? 40 : 10; 
