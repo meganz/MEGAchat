@@ -21,7 +21,7 @@ and automatically frees the object on class deletion.
 RAII template class if possible, similar to a smart pointer, that is instructed how to delete this type of resource.
 One such class, already used in the code, is `MyAutoHandle` in `src/AutoHandle.h`. The template takes 4 parameters - the handle type,
 the signature of the 'free' function, pointer to the 'free' function itself, and an 'invalid value' - if the handle has that
-value, it is not freed. Only if such an universal 'smart handle' class cannot be used, write your own for the specific case.
+value, it is not freed. Only if such an universal 'smart handle' class cannot be used conveniently, write your own for the specific case.
 The fewer implementations of such classes are used, the less chance of a buggy such implementation.
  * Assume any line of code can throw an exception or do an early return, even if you are sure it doesn't at the moment.
 Later someone may change the code to throw or add an early return. As an example, imagine you are allocating a resource near
@@ -35,8 +35,8 @@ possible. Unfortunately this is not possible/safe across a DLL border or when th
 stack frames of another library. In other words, exceptions must not propagate into the OS or a third-party library.
  * Use exceptions to signal errors wherever possible, but do not abuse them. Exceptions signal infrequent conditions that
 are not to be handled by the normal code flow. In other words - exceptions signal 'exceptional' conditions, and not ones that
-may be expected by the normal code flow. For example, a universal string search function must not in case the searched string
-was not found, because this, in the general case, can be expected. However, in a specific string search, where the subsequent
+may be expected by the normal code flow. For example, a _universal_ string search function should not throw in case the searched
+string was not found, because this, in the general case, can be expected. However, in a specific string search, where the subsequent
 code relies on the fact that the substring _is_ found, an exception can be town to bail out. In that case, the code logic
 doesn't need to care about 'what if' abnormal conditions.
  * If you can throw exceptions, but a function that you call returns error codes, such as a plain C API function,
