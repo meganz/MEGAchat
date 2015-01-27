@@ -37,7 +37,7 @@ stack frames of another library. In other words, exceptions must not propagate i
 are not to be handled by the normal code flow. In other words - exceptions signal 'exceptional' conditions, and not ones that
 may be expected by the normal code flow. For example, a _universal_ string search function should not throw in case the searched
 string was not found, because this, in the general case, can be expected. However, in a specific string search, where the subsequent
-code relies on the fact that the substring _is_ found, an exception can be town to bail out. In that case, the code logic
+code relies on the fact that the substring _is always_ found, an exception can be thrown to bail out. In that case, the code logic
 doesn't need to care about 'what if' abnormal conditions.
  * If you can throw exceptions, but a function that you call returns error codes, such as a plain C API function,
 and you leave handling that error to the caller, throw an error when it returns an error condtion. If there are multiple such
