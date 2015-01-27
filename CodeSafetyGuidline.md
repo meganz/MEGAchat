@@ -168,8 +168,10 @@ Incorrect:
        a = 40;
     }
 ```
-Correct:
-```    int a = someCondition ? 40 : 10; ```
+Correct:  
+```
+int a = someCondition ? 40 : 10; 
+```
 
 However if the `if (someCondition)` has to execute other code as well, it may not be as clean and practical to avoid double
 initialization.
