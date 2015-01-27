@@ -160,13 +160,13 @@ anywhere in the code. Example:
 * Declare local variables right before the place where they are used, and *not* in the beginning of the function.
 * Always initialize the variable at the place of declaration.
 * Avoid double-initialization of local variables wherever possible:  
-Incorrect:
+Incorrect:  
 ```
-    int a = 10;  
-    if (someCondition)  
-    {  
-       a = 40;  
-    }  
+    int a = 10;
+    if (someCondition)
+    {
+       a = 40;
+    }
 ```  
 Correct:
 ```    int a = someCondition ? 40 : 10; ```
