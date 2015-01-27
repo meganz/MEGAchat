@@ -1,6 +1,5 @@
 # C/C++ Code safety guideline #
 This guide describes the code safety principles that were and *must* be followed in the Karere C++ code  
-
 These principles are not about code readability, but to minimize bugs, memory leaks, crashes
 and provide good self-diagnostics with minimum effort on the programmer's side. Following these principles should
 greatly increase passive code safety, and actually make the code simpler and, as a side effect, more readable.
