@@ -33,6 +33,7 @@ Using RAII for resource management, as described above, solves this problem.
 To automate error handling, and make it non-intrusive, error reporting is done via exceptions, and not via return codes, wherever
 possible. Unfortunately this is not possible/safe across a DLL border or when the exception would pass through OS callbacks or
 stack frames of another library. In other words, exceptions must not propagate into the OS or a third-party library.
+
  * Use exceptions to signal errors wherever possible, but do not abuse them. Exceptions signal infrequent conditions that
 are not to be handled by the normal code flow. In other words - exceptions signal 'exceptional' conditions, and not ones that
 may be expected by the normal code flow. For example, a _universal_ string search function should not throw in case the searched
