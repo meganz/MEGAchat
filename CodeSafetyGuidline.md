@@ -76,7 +76,7 @@ For example compare the following two code snippets:
    <cleanup code> //needs additional state info to know if something failed and whether
 
    //what are we actually returning here? A complete or a half-baked result?
-   //How do we signal what actually went wrong from this single place?
+   //How do we signal what actually went wrong from this single place? would need additional state to do that.
    return xxx; 
 ```
 This code looks even less readable in K&R indentation style. Very often code written like this fails silently without even giving
@@ -108,8 +108,8 @@ Instead, do:
 to implement that cleanup code as a function(due to using a lot of local variables), _and_ it actually makes code shorter,
 better structured and readable - _then and only then_, you can use `goto`! These are very rare cases in C++ (currently there is
 no such use in the C++ Karere codebase), and not so rare in plain C (because it can't cleanup using RAII).
-One thing you must be very careful about if using goto in this case: you should not have `goto` skip the initialization
-of variables that you use after the goto. This should never happen if you always initialize variables at the place of
+One thing you must be very careful about if using `goto` in this case: you should not have `goto` skip the initialization
+of variables that you use after the `goto`. This should never happen if you always initialize variables at the place of
 declaration, and the compiler should issue a warning about that, but still be very careful. A passive safety measure against
 that is to have the variable scopes not larger than necessary. This is a common good coding practice and should be done anyway,
 anywhere in the code. Example:  
@@ -159,7 +159,7 @@ anywhere in the code. Example:
 * Use descriptive names, even for local variables with small scope. No matter the scope, people will read that code.
 * Declare local variables right before the place where they are used, and *not* in the beginning of the function.
 * Always initialize the variable at the place of declaration.
-* Avoid double-initialization of local variables wherever possible:
+* Avoid double-initialization of local variables wherever possible:  
 Incorrect:
 ```
     int a = 10;
@@ -167,7 +167,7 @@ Incorrect:
     {
        a = 40;
     }
-```
+```  
 Correct:
 ```    int a = someCondition ? 40 : 10; ```
 
@@ -176,10 +176,24 @@ initialization.
 
 ## Raw pointer handling ##
 * When an object has to keep a reference to some other object and that reference never changes throughout the lifetime of the
-object, do not do it with a pointer, but with a reference. That is, the member type will be not 'SomeObject*', but 'SomeObject&'.
-The reference must be passed to the constructor and the member initialized in ctor the initialization list, otherwise the
+object whose member it is, do not do it with a pointer, but with a reference. That is, the type of the member 
+will be not 'SomeObject*', but 'SomeObject&'.
+The reference must be passed to the constructor and the member initialized in the ctor initialization list, otherwise the
 code will not compile. In this way the reference is guaranteed to be non-NULL, cannot be changed during the lifetime of the
 object, and is more convenient to dereference with `.` rather than `->`.
 * Pass references rather than pointers as function parameters whenever NULL is not used. This guarantees that the parameter
 is never NULL, and is easier to dereference with a `.` rather than `->`.
 
+## Forward declarations ##
+In a header, whenever you are using _only_ pointers or references to an externall class (i.e. not defined in that header),
+but not accessing its members or doing any operations with it, do not include the header that defines that external class,
+but rather do a forward declaration. At this point the compiler only needs to know that this is a class, and nothing more.
+Including the header make you life easier but will slow down compilation and doint it many times can _greatly_ slow down
+compilation.
+## Templates ##
+Templates are both type-safe and very efficient because the compiler knows all types and code at compile times and can do a
+lot of optimizations. The safety of templates can be very roughly be described with this: "If it compiles, it will most
+probably just work correctly". One of the reasons for this is that the compiler knows the exact types of everything,
+(rather than doing type conversions to match declared types), and has a more complete picture of what you are trying to do.
+* You can get familiar with the CRTP (Curiously Recurreing Template Pattern) pattern and use it whenever you need polymorphism
+and can do with static polymorphism.
