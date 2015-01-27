@@ -1,5 +1,5 @@
 # C/C++ Code safety guideline #
-This guide describes the code safery principles that were and *must* be followed in the Karere C++ code  
+This guide describes the code safety principles that were and *must* be followed in the Karere C++ code  
 
 These principles are not about code readability, but to minimize bugs, memory leaks, crashes
 and provide good self-diagnostics with minimum effort on the programmer's side. Following these principles should
@@ -7,9 +7,9 @@ greatly increase passive code safety, and actually make the code simpler and, as
 
 ## Memory and resource management ##
 * Get familiar with the C++ RAII concept, if you are not already. It's extensively used and referenced below.
-* Never use `operator delete` or any resource deallocation function directly, even in destructors. This is unless you
-are writing a smart pointer or some other RAII class, or in a specific case where this is absolutely necessary. Using operator
-delete or a resource deallocation function direcdtly means that you are doing manual resource management, and this is
+* Do not use `operator delete` or any resource deallocation function directly, even in destructors. This is unless you
+are writing a smart pointer or some other RAII class, or in a specific case where this is absolutely necessary. Using `operator
+delete` or a resource deallocation function directly means that you are doing manual resource management, and this is
 exactly what we want to avoid. Instead:
   - Use stack-allocated objects/structures wherever possible. This is also much more efficient.
   - Use smart, rather than raw pointers for dynamically-allocated objects/structures. This applies also to class members.
@@ -37,7 +37,7 @@ stack frames of another library. In other words, exceptions must not propagate i
 are not to be handled by the normal code flow. In other words - exceptions signal 'exceptional' conditions, and not ones that
 may be expected by the normal code flow. For example, a universal string search function must not in case the searched string
 was not found, because this, in the general case, can be expected. However, in a specific string search, where the subsequent
-code relies on the fact that the substring _is_ found, an exception can be thown to bail out. In that case, the code logic
+code relies on the fact that the substring _is_ found, an exception can be town to bail out. In that case, the code logic
 doesn't need to care about 'what if' abnormal conditions.
  * If you can throw exceptions, but a function that you call returns error codes, such as a plain C API function,
  throw an error if it returns an error code. If there are multiple such calls, implement the error check and throw in an
@@ -80,7 +80,7 @@ For example compare the following two code snippets:
 single place?>
 ```
 This code looks even less readable in K&R indentation style. Very often code written like this fails silently without even giving
-a clue that something went wrong, let alone signalling _exactly_ what went wrong. I leave it to the reader to imagine how easy
+a clue that something went wrong, let alone signaling _exactly_ what went wrong. I leave it to the reader to imagine how easy
 is to debug such code.  
 
 Instead, do:
@@ -107,10 +107,10 @@ Instead, do:
  cannot be done automatically with RAII, _and_ the cleanup code before all returns is mostly the same, _and_ is it not practical
 to implement that cleanup code as a function(due to using a lot of local variables), _and_ it actually makes code shorter,
 better structured and readable - _then and only then_, you can use `goto`! These are very rare cases in C++ (currently there is
-no such use in the C++ Karere codebase), and not so rare in plain C (becaue it can't cleanup using RAII).
+no such use in the C++ Karere codebase), and not so rare in plain C (because it can't cleanup using RAII).
 One thing you must be very careful about if using goto in this case: you should not have `goto` skip the initialization
-of variables that you use after the goto. This should never happen if you always initialize variabled at the place of
-declaretion, and the compiler should issue a warning about that, but still be very careful. A passive safety measure against
+of variables that you use after the goto. This should never happen if you always initialize variables at the place of
+declaration, and the compiler should issue a warning about that, but still be very careful. A passive safety measure against
 that is to have the variable scopes not larger than necessary. This is a common good coding practice and should be done anyway,
 anywhere in the code. Example:  
 ```
