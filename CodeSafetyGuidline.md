@@ -99,7 +99,7 @@ Instead, do:
     <do some final stuff4>
     <do cleanup>
     return xxx; //guaranteed to be the result of the complete operation
-```    
+```  
   * If you need to do cleanup before _each_ of the returns (both the early returns or the final one), _and_ that cleanup
  cannot be done automatically with RAII, _and_ the cleanup code before all returns is mostly the same, _and_ is it not practical
 to implement that cleanup code as a function(due to using a lot of local variables), _and_ it actually makes code shorter,
@@ -108,7 +108,7 @@ not so rare in plain C (becaue it can't cleanup using RAII). One thing you must 
 case: you should not have 'goto' skip the initialization of variables that you use after the goto. This should never happen
 if you always initialize variabled at the place of declaretion, and the compiler should issue a warning about that,
 but still be very careful. A passive safety measure against that is to have the variable scopes not larger than
-necessary. This is a common good coding practice and should be done anyway, anywhere in the code. Example:
+necessary. This is a common good coding practice and should be done anyway, anywhere in the code. Example:  
 ```
     <allocate resource 1>
     .....
