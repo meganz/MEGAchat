@@ -146,7 +146,7 @@ anywhere in the code. Example:
        goto cleanup;
     }
     <do some final stuff4>
-    cleanup:
+cleanup:
         <free resource n>
         ....
         <free resource 1>
