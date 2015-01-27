@@ -162,11 +162,11 @@ anywhere in the code. Example:
 * Avoid double-initialization of local variables wherever possible:  
 Incorrect:
 ```
-    int a = 10;
-    if (someCondition)
-    {
-       a = 40;
-    }
+    int a = 10;  
+    if (someCondition)  
+    {  
+       a = 40;  
+    }  
 ```  
 Correct:
 ```    int a = someCondition ? 40 : 10; ```
