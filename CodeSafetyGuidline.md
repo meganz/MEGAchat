@@ -162,6 +162,7 @@ cleanup:
 * Always initialize the variable at the place of declaration.
 * Avoid double-initialization of local variables wherever possible:  
 Incorrect:  
+
 ```
     int a = 10;
     if (someCondition)
