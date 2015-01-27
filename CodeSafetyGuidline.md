@@ -5,7 +5,7 @@ greatly increase passive code safety.
 
 ## Memory and resource management ##
 * Get familiar with the C++ RAII concept, if you are not already. It's extensively used and referenced below.
-* Never use operator delete or any resource deallocation function directly, even in destructors. This is unless you
+* Never use `operator delete` or any resource deallocation function directly, even in destructors. This is unless you
 are writing a smart pointer or some other RAII class, or in a specific case where this is absolutely necessary. Using operator
 delete or a resource deallocation function direcdtly means that you are doing manual resource management, and this is
 exactly what we want to avoid. Instead:
@@ -17,7 +17,7 @@ A smart pointer solves both problems - it auto-initializes to NULL, unless given
 and automatically frees the object on class deletion.
  * When dealing with a non-memory resource, such as some kind of handle (i.e. OS handle), use an universal 'smart handle'
 RAII template class if possible, similar to a smart pointer, that is instructed how to delete this type of resource.
-One such class, already used in the code, is MyAutoHandle in src/AutoHandle.h. The template takes 4 parameters - the handle type,
+One such class, already used in the code, is `MyAutoHandle` in `src/AutoHandle.h`. The template takes 4 parameters - the handle type,
 the signature of the 'free' function, pointer to the 'free' function itself, and an 'invalid value' - if the handle has that
 value, it is not freed. Only if such an universal 'smart handle' class cannot be used, write your own for the specific case.
 The fewer implementations of such classes are used, the less chance of a buggy such implementation.
@@ -44,8 +44,8 @@ a macro has access to the line number where the actual call happened, and a func
 as strings, so it could be beneficial to use a macro that takes the call's parameters as its own, calls the function, and if
 there is an error, add the value of some/all parameters in the error message. This can be an invaluable diagnostic tool. For
 example, when configuring a CURL handle, a macro can include the CURLOPT_xxx constant as a string, together with the line
-number in the error message. See the macro _curleopt in base/services_http.hpp about an example.
- * When a function has to check for conditions before continuing, never use nested 'if'-s (Microsoft-style),
+number in the error message. See the macro `_curleopt` in `base/services_http.hpp` about an example.
+ * When a function has to check for conditions before continuing, never use nested `if`-s (Microsoft-style),
  unless necessary in that specific case. Instead, check for that condition, and if it's not met, return from that function.
 For example compare the following two code snippets:
 ```
@@ -71,6 +71,7 @@ For example compare the following two code snippets:
             }
         }
    }
+
    <cleanup - have to check if resources at each step were actually allocated, because we may have had a fail before it>
    return xxx;
    <what are we actually returning here? A complete or a half-baked result? How do we signal what actually went wrong from this
@@ -103,12 +104,13 @@ Instead, do:
   * If you need to do cleanup before _each_ of the returns (both the early returns or the final one), _and_ that cleanup
  cannot be done automatically with RAII, _and_ the cleanup code before all returns is mostly the same, _and_ is it not practical
 to implement that cleanup code as a function(due to using a lot of local variables), _and_ it actually makes code shorter,
-better structured and readable - _then and only then_, you can use 'goto'! These are very rare cases in C++, and
-not so rare in plain C (becaue it can't cleanup using RAII). One thing you must be very careful about if using goto in this
-case: you should not have 'goto' skip the initialization of variables that you use after the goto. This should never happen
-if you always initialize variabled at the place of declaretion, and the compiler should issue a warning about that,
-but still be very careful. A passive safety measure against that is to have the variable scopes not larger than
-necessary. This is a common good coding practice and should be done anyway, anywhere in the code. Example:  
+better structured and readable - _then and only then_, you can use `goto`! These are very rare cases in C++ (currently there is
+no such use in the C++ Karere codebase), and not so rare in plain C (becaue it can't cleanup using RAII).
+One thing you must be very careful about if using goto in this case: you should not have `goto` skip the initialization
+of variables that you use after the goto. This should never happen if you always initialize variabled at the place of
+declaretion, and the compiler should issue a warning about that, but still be very careful. A passive safety measure against
+that is to have the variable scopes not larger than necessary. This is a common good coding practice and should be done anyway,
+anywhere in the code. Example:  
 ```
     <allocate resource 1>
     .....
@@ -167,7 +169,7 @@ Incorrect:
 Correct:
 ```    int a = someCondition ? 40 : 10; ```
 
-However if the 'if (someCondition)' has to execute other code as well, it may not be as clean and practical to avoid double
+However if the `if (someCondition)` has to execute other code as well, it may not be as clean and practical to avoid double
 initialization.
 
 ## Raw pointer handling ##
@@ -175,7 +177,7 @@ initialization.
 object, do not do it with a pointer, but with a reference. That is, the member type will be not 'SomeObject*', but 'SomeObject&'.
 The reference must be passed to the constructor and the member initialized in ctor the initialization list, otherwise the
 code will not compile. In this way the reference is guaranteed to be non-NULL, cannot be changed during the lifetime of the
-object, and is more convenient to dereference with '.' rather than '->'.
+object, and is more convenient to dereference with `.` rather than `->`.
 * Pass references rather than pointers as function parameters whenever NULL is not used. This guarantees that the parameter
-is never NULL, and is easier to dereference with a '.' rather than '->'.
+is never NULL, and is easier to dereference with a `.` rather than `->`.
 
