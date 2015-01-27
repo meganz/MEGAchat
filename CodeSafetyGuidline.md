@@ -1,9 +1,9 @@
-= This guide describes the code safery principles that were and *must* be followed in the Karere C++ code =
+# This guide describes the code safery principles that were and *must* be followed in the Karere C++ code #
 These principles are not about code readability, but to minimize bugs, memory leaks, crashes
 and provide good self-diagnostics with minimum effort on the programmer's side. Following these principles should
 greatly increase passive code safety.
 
-== Memory and resource management ==
+## Memory and resource management ##
 * Get familiar with the C++ RAII concept, if you are not already. It's extensively used and referenced below.
 * Never use operator delete or any resource deallocation function directly, even in destructors. This is unless you
 are writing a smart pointer or some other RAII class, or in a specific case where this is absolutely necessary. Using operator
@@ -27,7 +27,7 @@ the start of a function, and manually freeing it near the end. If something thro
 that function, your resource freeing code will not get executed, and you will have a resource leak.
 Using RAII for resource management, as described above, solves this problem.
 
-== Error handling ==
+## Error handling ##
 To automate error handling, and make it non-intrusive, error reporting is done via exceptions, and not via return codes, wherever
 possible. Unfortunately this is not possible/safe across a DLL border or when the exception would pass through OS callbacks or
 stack frames of another library. In other words, exceptions must not propagate into the OS or a third-party library.
@@ -48,7 +48,7 @@ number in the error message. See the macro _curleopt in base/services_http.hpp a
  * When a function has to check for conditions before continuing, never use nested 'if'-s (Microsoft-style),
  unless necessary in that specific case. Instead, check for that condition, and if it's not met, return from that function.
 For example compare the following two code snippets:
-
+```
     if (param != NULL) //function parameter validation
     {
         <do some stuff1>
@@ -75,12 +75,13 @@ For example compare the following two code snippets:
    return xxx;
    <what are we actually returning here? A complete or a half-baked result? How do we signal what actually went wrong from this
 single place?>
-
+```
 This code looks even less readable in K&R indentation style. Very often code written like this fails silently without even giving
 a clue that something went wrong, let alone signalling _exactly_ what went wrong. I leave it to the reader to imagine how easy
 is to debug such code.  
 
 Instead, do:
+```
     if (!param) //function parameter validation
         <throw or return some error: informative about what exactly happened>
     <do some stuff1>
@@ -98,7 +99,7 @@ Instead, do:
     <do some final stuff4>
     <do cleanup>
     return xxx; //guaranteed to be the result of the complete operation
-    
+```    
   * If you need to do cleanup before _each_ of the returns (both the early returns or the final one), _and_ that cleanup
  cannot be done automatically with RAII, _and_ the cleanup code before all returns is mostly the same, _and_ is it not practical
 to implement that cleanup code as a function(due to using a lot of local variables), _and_ it actually makes code shorter,
@@ -108,6 +109,7 @@ case: you should not have 'goto' skip the initialization of variables that you u
 if you always initialize variabled at the place of declaretion, and the compiler should issue a warning about that,
 but still be very careful. A passive safety measure against that is to have the variable scopes not larger than
 necessary. This is a common good coding practice and should be done anyway, anywhere in the code. Example:
+```
     <allocate resource 1>
     .....
     <allocate resource n>
@@ -148,25 +150,27 @@ necessary. This is a common good coding practice and should be done anyway, anyw
         throw std::runtime_error("func failed: "+errMsg);
     return xxx; //guaranteed to be the result of the complete operation
 }
-
-== Variable declaration and initialization ==
+```
+## Variable declaration and initialization ##
 * Use descriptive names, even for local variables with small scope. No matter the scope, people will read that code.
 * Declare local variables right before the place where they are used, and *not* in the beginning of the function.
 * Always initialize the variable at the place of declaration.
 * Avoid double-initialization of local variables wherever possible:
 Incorrect:
+```
     int a = 10;
     if (someCondition)
     {
        a = 40;
     }
+```
 Correct:
-    int a = someCondition ? 40 : 10;
+```    int a = someCondition ? 40 : 10; ```
 
 However if the 'if (someCondition)' has to execute other code as well, it may not be as clean and practical to avoid double
 initialization.
 
-== Raw pointer handling ==
+## Raw pointer handling ##
 * When an object has to keep a reference to some other object and that reference never changes throughout the lifetime of the
 object, do not do it with a pointer, but with a reference. That is, the member type will be not 'SomeObject*', but 'SomeObject&'.
 The reference must be passed to the constructor and the member initialized in ctor the initialization list, otherwise the
