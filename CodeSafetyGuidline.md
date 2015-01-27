@@ -3,7 +3,7 @@ This guide describes the code safery principles that were and *must* be followed
 
 These principles are not about code readability, but to minimize bugs, memory leaks, crashes
 and provide good self-diagnostics with minimum effort on the programmer's side. Following these principles should
-greatly increase passive code safety.
+greatly increase passive code safety, and actually make the code simpler and, as a side effect, more readable.
 
 ## Memory and resource management ##
 * Get familiar with the C++ RAII concept, if you are not already. It's extensively used and referenced below.
