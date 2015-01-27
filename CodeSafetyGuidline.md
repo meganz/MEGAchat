@@ -200,5 +200,4 @@ Templates are both type-safe and very efficient because the compiler knows all t
 lot of optimizations. The safety of templates can be very roughly be described with this: "If it compiles, it will most
 probably just work correctly". One of the reasons for this is that the compiler knows the exact types of everything,
 (rather than doing type conversions to match declared types), and has a more complete picture of what you are trying to do.
-* You can get familiar with the CRTP (Curiously Recurreing Template Pattern) pattern and use it whenever you need polymorphism
-and can do with static polymorphism.
+
