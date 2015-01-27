@@ -194,6 +194,7 @@ but not accessing its members or doing any operations with it, do not include th
 but rather do a forward declaration. At this point the compiler only needs to know that this is a class, and nothing more.
 Including the header may make you life easier but will slow down compilation and doing it many times can _greatly_ slow down
 compilation.
+
 ## Templates ##
 Templates are both type-safe and very efficient because the compiler knows all types and code at compile times and can do a
 lot of optimizations. The safety of templates can be very roughly be described with this: "If it compiles, it will most
