@@ -182,7 +182,7 @@ initialization.
 ## Raw pointer handling ##
 * When an object has to keep a reference to some other object and that reference never changes throughout the lifetime of the
 object whose member it is, do not do it with a pointer, but with a reference. That is, the type of the member 
-will be not 'SomeObject*', but 'SomeObject&'.
+will be not `SomeObject*`, but `SomeObject&`.
 The reference must be passed to the constructor and the member initialized in the ctor initialization list, otherwise the
 code will not compile. In this way the reference is guaranteed to be non-NULL, cannot be changed during the lifetime of the
 object, and is more convenient to dereference with `.` rather than `->`.
