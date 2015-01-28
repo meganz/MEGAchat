@@ -103,53 +103,60 @@ Instead, do:
     <do cleanup>
     return xxx; //guaranteed to be the result of the complete operation
 ```  
-  * If you need to do cleanup before _each_ of the returns (both the early returns and the final one), _and_ that cleanup
- cannot be done automatically with RAII, _and_ the cleanup code before all returns is mostly the same, _and_ is it not practical
-to implement that cleanup code as a function(due to using a lot of local variables), _and_ it actually makes code shorter,
-better structured and readable - _then and only then_, you can use `goto`! These are very rare cases in C++ (currently there is
+  * If you need to do cleanup before _each_ of the returns (both the early returns and the final one), *and* that cleanup
+ cannot be done automatically with RAII, *and* is it not practical to implement that cleanup code as a function (using
+ a lot of local variables and/or you need to cleanup only what has been allocated so far), *and* it actually makes code shorter,
+better structured and readable - *then and only then*, you can use `goto`! These are very rare cases in C++ (currently there is
 no such use in the C++ Karere codebase), and not so rare in plain C (because it can't cleanup using RAII).
 One thing you must be very careful about if using `goto` in this case: you should not have `goto` skip the initialization
 of variables that you use after the `goto`. This should never happen if you always initialize variables at the place of
 declaration, and the compiler should issue a warning about that, but still be very careful. A passive safety measure against
 that is to have the variable scopes not larger than necessary. This is a common good coding practice and should be done anyway,
-anywhere in the code. Example:  
+anywhere in the code. Goto allows you to also do an 'unwinding-like' clieanup, where you free only resources that you
+have allocated so far. Example:  
 ```
     <allocate resource 1>
-    .....
-    <allocate resource n>
-
     string errMsg;
     if (!param) 
     {
         errMsg = "Function parameter is NULL";
-        goto cleanup;
+        goto cleanup1;
     }
+    <allocate resource 2>
     <do some stuff1>
     bool okToContinue1 = <some check expression>;
     if (!okToContinue1) 
     {
         errMsg = "Was not ok to continue to step 1";
-        goto cleanup;
+        goto cleanup2;
     }
+    <allocate resource 3>
     <do some stuff2>
     bool okToContinue2 = <some check expression>;
     if (!okToContinue2)
     {
         errMsg = "Was not ok to continue to step 2";
-        goto cleanup;
+        goto cleanup3;
     }
+    <allocate resource 4>
     <do some stuff3>
     bool okToContinue3 = <some check expression>;
     if (!okToContinue3)
     {
        errMsg = "Was not ok to continue to step 3";
-       goto cleanup;
+       goto cleanup4;
     }
     <do some final stuff4>
-cleanup:
-        <free resource n>
-        ....
+
+cleanup4:
+        <free resource 4>
+cleanup3:
+        <free resource 3>
+cleanup2:
+        <free resource 2>
+cleanup1:
         <free resource 1>
+
     if (!errMsg.empty())
         throw std::runtime_error("func failed: "+errMsg);
     return xxx; //guaranteed to be the result of the complete operation
