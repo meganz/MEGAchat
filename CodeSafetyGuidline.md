@@ -103,7 +103,7 @@ Instead, do:
     <do cleanup>
     return xxx; //guaranteed to be the result of the complete operation
 ```  
-  * If you need to do cleanup before _each_ of the returns (both the early returns or the final one), _and_ that cleanup
+  * If you need to do cleanup before _each_ of the returns (both the early returns and the final one), _and_ that cleanup
  cannot be done automatically with RAII, _and_ the cleanup code before all returns is mostly the same, _and_ is it not practical
 to implement that cleanup code as a function(due to using a lot of local variables), _and_ it actually makes code shorter,
 better structured and readable - _then and only then_, you can use `goto`! These are very rare cases in C++ (currently there is
