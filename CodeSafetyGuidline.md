@@ -114,6 +114,7 @@ declaration, and the compiler should issue a warning about that, but still be ve
 that is to have the variable scopes not larger than necessary. This is a common good coding practice and should be done anyway,
 anywhere in the code. Goto allows you to also do an 'unwinding-like' clieanup, where you free only resources that you
 have allocated so far. Example:  
+
 ```
     <allocate resource 1>
     string errMsg;
