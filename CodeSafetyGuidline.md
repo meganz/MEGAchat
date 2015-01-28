@@ -196,7 +196,7 @@ The reference must be passed to the constructor and the member initialized in th
 code will not compile. In this way the reference is guaranteed to be non-NULL, cannot be changed during the lifetime of the
 object, and is more convenient to dereference with `.` rather than `->`.
 * Pass references rather than pointers as function parameters whenever NULL is not used. This guarantees that the parameter
-is never NULL, is easier to pass as parameter (doesn't require & in front), and is easier to dereference with a
+is never NULL, is easier to pass as parameter (does not require & in front), and is easier to dereference with a
  `.` rather than `->`.
 
 ## Forward declarations ##
