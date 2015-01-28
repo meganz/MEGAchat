@@ -180,6 +180,8 @@ However if the `if (someCondition)` has to execute other code as well, it may no
 initialization.
 
 ## Raw pointer handling ##
+The general rule is - whereve you can, use references instead of pointers. References are safer: they are guaranteed to be
+initialized, cannot be NULL and cannot be changed.
 * When an object has to keep a reference to some other object and that reference never changes throughout the lifetime of the
 object whose member it is, do not do it with a pointer, but with a reference. That is, the type of the member 
 will be not `SomeObject*`, but `SomeObject&`.
@@ -187,11 +189,12 @@ The reference must be passed to the constructor and the member initialized in th
 code will not compile. In this way the reference is guaranteed to be non-NULL, cannot be changed during the lifetime of the
 object, and is more convenient to dereference with `.` rather than `->`.
 * Pass references rather than pointers as function parameters whenever NULL is not used. This guarantees that the parameter
-is never NULL, and is easier to dereference with a `.` rather than `->`.
+is never NULL, is easier to pass as parameter (doesn't require & in front), and is easier to dereference with a
+ `.` rather than `->`.
 
 ## Forward declarations ##
 In a header, whenever you are using _only_ pointers or references to an external class (i.e. not declared in that header),
-but not accessing its members or doing any operations with it, do not include the header that defines that external class,
+but not accessing its members or doing any operations with it, do not include the header that declares that external class,
 but rather do a forward declaration. At this point the compiler only needs to know that this is a class, and nothing more.
 Including the header may make you life easier but will slow down compilation and doing it many times can _greatly_ slow down
 compilation.
