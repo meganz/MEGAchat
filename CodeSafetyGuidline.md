@@ -190,7 +190,7 @@ object, and is more convenient to dereference with `.` rather than `->`.
 is never NULL, and is easier to dereference with a `.` rather than `->`.
 
 ## Forward declarations ##
-In a header, whenever you are using _only_ pointers or references to an external class (i.e. not defined in that header),
+In a header, whenever you are using _only_ pointers or references to an external class (i.e. not declared in that header),
 but not accessing its members or doing any operations with it, do not include the header that defines that external class,
 but rather do a forward declaration. At this point the compiler only needs to know that this is a class, and nothing more.
 Including the header may make you life easier but will slow down compilation and doing it many times can _greatly_ slow down
