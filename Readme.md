@@ -71,6 +71,7 @@ We need to set some env variables before proceeding with running the config scri
 `perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libssl\.dylib/-lssl/g' talk/libjingle.gyp`
 Now issue the command: 
 `gclient runhooks --force`
+
 This will run the config scripts and generate ninja files from the gyp projects.
 
 ### Build ###
