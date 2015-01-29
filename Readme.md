@@ -53,7 +53,8 @@ Export JAVA_HOME to point to your JDK installation:
 ### Configure the build ###
 We need to set some env variables before proceeding with running the config scripts.  
 `export GYP_GENERATORS="ninja"`  
-`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0`  
+`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0` 
+
 Now issue the command:  
 `gclient runhooks --force`  
 This will run the config scripts and generate ninja files from the gyp projects.
