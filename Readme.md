@@ -22,7 +22,18 @@ Make sure they are in the system's path, because they provide custom versions of
 
 ### Checkout the code ###
 For code checkout and configuration the tool `gclient` from depot tools is used, as it needs to checkout 100s of repositories and run a lot of config scripts. What is more specific here is that we need to checkout a specific revision of the source tree, as there are a lot of changes in the webRTC code and the most recent code will not work. Another reason not to use the most recent version is that Google changed the build process to require the whole Chromium source tree, which is about 10GB of code, versus the older versions that require only a fraction of that. First, we need to tell gclient with what repository to work:  
+`gclient config http://webrtc.googlecode.com/svn/trunk`
+`echo "target_os = ['android', 'unix']" >> .gclient`
+
+This creates a .gclient file in the current dir. Next, checkout the code:  
+`gclient sync --revision r6937 --force`  
+This may take a long time.  
+
+### Checkout the code (Mac)###
+For code checkout and configuration the tool `gclient` from depot tools is used, as it needs to checkout 100s of repositories and run a lot of config scripts. What is more specific here is that we need to checkout a specific revision of the source tree, as there are a lot of changes in the webRTC code and the most recent code will not work. Another reason not to use the most recent version is that Google changed the build process to require the whole Chromium source tree, which is about 10GB of code, versus the older versions that require only a fraction of that. First, we need to tell gclient with what repository to work:  
 `gclient config http://webrtc.googlecode.com/svn/trunk`  
+`echo "target_os = ['mac']" >> .gclient`
+
 This creates a .gclient file in the current dir. Next, checkout the code:  
 `gclient sync --revision r6937 --force`  
 This may take a long time.  
@@ -42,6 +53,16 @@ Now issue the command:
 `gclient runhooks --force`  
 This will run the config scripts and generate ninja files from the gyp projects.
 
+### Configure the build (Mac) ###
+`cd trunk`
+`export GYP_DEFINES="enable_tracing=1 build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64"`
+`export GYP_GENERATORS="ninja"`
+`export GYP_GENERATOR_FLAGS="output_dir=out"`
+`export GYP_CROSSCOMPILE=1`
+`perl -0pi -e 's/gdwarf-2/g/g' tools/gyp/pylib/gyp/xcode_emulation.py`
+`perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libcrypto\.dylib/-lcrypto/g' talk/libjingle.gyp`
+`perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libssl\.dylib/-lssl/g' talk/libjingle.gyp`
+
 ### Build ###
 Run:  
 `ninja -C out/Release`  
@@ -49,6 +70,8 @@ or
 `ninja -C out/Debug`  
 to build webrtc in the corresponding mode. Go get a coffee.
 
+### Build (Mac)###
+`gclient runhooks`
 ### Build with CMake ###
 Unfortunately the webrtc build does not generate a single lib and config header file(for specific C defines to configure the code). Rather, it creates a lot of smaller static libs that can be used only from within the chrome/webrtc build system, which takes care of include paths, linking libs, setting proper defines (and there are quite a few of them). So we either need to build our code within the webrtc/chrome build system, rewrite the build system to something more universal, or do a combination of both. That's what we do currently. Fortunately, the Chrome build system generates a webrtc test app that links in the whole webrtc stack - the app is called peerconnection_client. We can get the ninja file generated for this executable and translate it to CMake. The file is located at trunk/out/Release|Debug/obj/talk peerconnection_client.ninja. The webrtc-buildsys project that was listed in the dependencies is a basically a translation of this ninja file and allows linking webrtc in a higher level CMake file with just a single line (with the help of a cmake module that allows propagation of defines, include dirs etc to dependent projects in a very simple and straightforward way).  
 You do not need to run cmake in webrtc-buildsys directly, but rather include it from the actual application that links to it. This will be described in the webrtc module build procedure.
@@ -102,4 +125,3 @@ The public headers are:
 
 ## More advanced things that should not be needed but are good to know in order to understand the underlying environment better ##
   * The function call marshalling mechanims in /src/base/gcm.h and /src/base/gcmpp.h. The code is documented in detail. The mechanism marshalls lambda calls from a worker thread to the GUI thread. Examples of use of marshallCall() can be seen for example in /src/webrtcAdapter.h and in many different places.  This mechanism should not be directly needed in high-level code that runs in the GUI thread.
-
