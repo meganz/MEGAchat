@@ -505,7 +505,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 .setAttr("reason", reason?reason:"reject");
 
                 if (text)
-                    declMsg.c("body", {}).t(text);
+                    declMsg.c("body").t(text);
                 mConn.send(declMsg);
          }
          return true;

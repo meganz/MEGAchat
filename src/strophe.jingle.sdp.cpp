@@ -190,7 +190,7 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
             }
 
             if (hasLine(m, "a=rtcp-mux"))
-                desc.c("rtcp-mux", {});
+                desc.c("rtcp-mux");
 
             // XEP-0293 -- map a=rtcp-fb:*
             rtcpFbToJingle(m, desc, "*");
