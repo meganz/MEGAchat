@@ -70,7 +70,7 @@ or
 `ninja -C out/Debug`  
 to build webrtc in the corresponding mode. Go get a coffee.
 
-### Build with CMake ###
+### Using the webrtc stack with CMake ###
 Unfortunately the webrtc build does not generate a single lib and config header file (for specific C defines
  to configure the code). Rather, it creates a lot of smaller static libs that can be used only from within the chrome/webrtc
  build system, which takes care of include paths, linking libs, setting proper defines (and there are quite a few of them).
@@ -79,7 +79,7 @@ Unfortunately the webrtc build does not generate a single lib and config header 
  a webrtc test app that links in the whole webrtc stack - the app is called `peerconnection_client`. We can get the ninja file
  generated for this executable and translate it to CMake.
  The file is located at `trunk/out/Release|Debug/obj/talk/peerconnection_client.ninja`. The webrtc-buildsys project that
- was listed in the dependencies is a basically a translation of this ninja file and allows linking webrtc in a higher level
+ was listed in the dependencies is basically a translation of this ninja file and allows linking webrtc in a higher level
  CMake file with just a single line (with the help of a cmake module that allows propagation of defines,
  include dirs etc to dependent projects in a very simple and straightforward way).  
  You do not need to run cmake in webrtc-buildsys directly, but rather include it from the actual application that links to it.
