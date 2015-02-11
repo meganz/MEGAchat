@@ -3,25 +3,36 @@
 ## Dependencies ##
 
  - `cmake` (and ccmake if a config GUI is required)  
- - Our version of strophe (https://code.developers.mega.co.nz/messenger/strophe-native, see readme for it's own dependencies). No need to explicitly build it, will be done by the Karere build system.  
+ - Our version of strophe (https://code.developers.mega.co.nz/messenger/strophe-native, see readme for it's own dependencies).
+ No need to explicitly build it, will be done by the Karere build system.  
  - `libevent2` - at least 2.0.x  
  - Qt4 (for the test app): `libqtcore4 libqtgui4 libqt4-dev`  
  - Native WebRTC stack from Chrome, see below for build instructions for it.  
- - The Mega SDK. Check out the repository, configure the SDK in a minimalistic way - without image libs etc. only the crypto and HTTP functionality is needed. Install crypto++ and libcurl globally in the system, because the Karere build will need to find them as well and link to them directly. Install any other mandatory Mega SDK dependencies and build it. It does not have to be installed with make install, it will be accessed directly in the checkout dir.  
+ - The Mega SDK. Check out the repository, configure the SDK in a minimalistic way - without image libs etc.
+ Only the crypto and HTTP functionality is needed. Install crypto++ and libcurl globally in the system, because the Karere
+ build will need to find them as well and link to them directly. Install any other mandatory Mega SDK dependencies
+ and build the SDK. It does not have to be installed with `make install`, it will be accessed directly in the checkout dir.  
  - Our high level CMake build system that allows CMake projects to build and link with webrtc:  
 `git clone git@code.developers.mega.co.nz:messenger/webrtc-buildsys.git`
 
 ## Building webrtc ##
-First, create a directory where all webrtc stuff will go, and cd to it. All instructions in this section assume that the current directory is that one.  
+First, create a directory where all webrtc stuff will go, and cd to it. All instructions in this section assume that the
+current directory is that one.  
 
 ### Install depot_tools ###
 We need to install Google's depot_tools, as per these instructions:  
 https://sites.google.com/a/chromium.org/dev/developers/how-tos/install-depot-tools  
 
-Make sure they are in the system's path, because they provide custom versions of commands that may already be available on the system, and the custom ones must be picked instead of the system ones.
+Make sure they are at the before all other paths in the system's path, because they provide custom versions of commands
+ that may already be available on the system, and the custom ones must be picked instead of the system ones.
 
 ### Checkout the code ###
-For code checkout and configuration the tool `gclient` from depot tools is used, as it needs to checkout 100s of repositories and run a lot of config scripts. What is more specific here is that we need to checkout a specific revision of the source tree, as there are a lot of changes in the webRTC code and the most recent code will not work. Another reason not to use the most recent version is that Google changed the build process to require the whole Chromium source tree, which is about 10GB of code, versus the older versions that require only a fraction of that. First, we need to tell gclient with what repository to work:  
+For code checkout and configuration the tool `gclient` from depot tools is used, as it needs to checkout 100s of repositories
+ and run a lot of config scripts. What is more specific here is that we need to checkout a specific revision of the source
+ tree, as there are a lot of changes in the webRTC code and the most recent code will not work. Another reason not to use the
+ most recent version is that Google changed the build process to require the whole Chromium source tree, which is about
+ 10GB of code, versus the older versions that require only a fraction of that. First, we need to tell gclient with what
+ repository to work:  
 `gclient config http://webrtc.googlecode.com/svn/trunk`  
 * For Android, do:  
 `echo "target_os = ['android', 'unix']" >> .gclient`  
@@ -33,8 +44,8 @@ This creates a .gclient file in the current dir. Next, checkout the code:
 This may take a long time.  
 
 ### Install dependencies (Linux) ###
-There are various packages required by the webrtc build, most of them are checked out by gclient, but there are some that need to be installed on the system.
-To do that on linux, you can run:  
+There are various packages required by the webrtc build, most of them are checked out by gclient, but there are some that need
+to be installed on the system. To do that on linux, you can run:  
 `cd trunk/build && ./install-build-deps.sh`  
 Also you need Java JDK 6 or 7(For something related to android, but seems to be run unconditionally):  
 If you don't have JDK installed, install `openjdk-7-jdk`. Export JAVA_HOME to point to your JDK installation, on Ubuntu is something like that:  
@@ -93,10 +104,13 @@ Checkout the `karere-native` git repository and cd to the root of the checkout
 In the menu, first hit 'c'. The config parameters will get populated. Then you need to setup the following paths:  
 `optWebrtcCmakeBuild` -  path to the directory where the webrtc-buildsys checkout is located  
 `webrtcRoot` - path to the trunk directory of the webrtc source tree  
-`WEBRTC_BUILD_TYPE` - the build mode of the webrtc code, as built with ninja. If you built with `-C opt/Release`, then specify `Release` here, similarly for Debug.  
+`WEBRTC_BUILD_TYPE` - the build mode of the webrtc code, as built with ninja. If you built with `-C opt/Release`,
+then specify `Release` here, similarly for Debug.  
 `CMAKE_BUILD_TYPE` - Set this to Debug to build the webrtc module (not the webrtc stack itself) in debug mode 
 `optMegaSdkPath` - Set up the path to the dir where you checked out and built the mega sdk repository (see dependencies).  
-`optStrophePath` - Set the path to the dir where you checked out our verison of Strophe. No need to have built it, it will be built inside the Karere build tree. The below options come from the strophe build system which is included. For more info on these, check the Strophe Readme.md file i nthe Strophe repo.
+`optStrophePath` - Set the path to the dir where you checked out our verison of Strophe. No need to have built it,
+ it will be built inside the Karere build tree. The below options come from the strophe build system which is included.
+ For more info on these, check the Strophe Readme.md file i nthe Strophe repo.
 `optStropheSslLib` - Set to OpenSSL, if not already set.
 `optStropheXmlLib` - Can be set to `EXPAT`, `LibXml2` or `Detect` for autodetecting. Tested mostly with expat.
 `optStropheBuildShared` - set it to ON.
