@@ -49,7 +49,7 @@ Export JAVA_HOME to point to your JDK installation:
 We need to set some env variables before proceeding with running the config scripts.  
 `export GYP_GENERATORS="ninja"`  
 * For Linux:  
-`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0` 
+`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0"` 
 
 * For Mac:  
 `cd trunk`  
@@ -71,17 +71,25 @@ or
 to build webrtc in the corresponding mode. Go get a coffee.
 
 ### Build with CMake ###
-Unfortunately the webrtc build does not generate a single lib and config header file(for specific C defines to configure the code). Rather, it creates a lot of smaller static libs that can be used only from within the chrome/webrtc build system, which takes care of include paths, linking libs, setting proper defines (and there are quite a few of them). So we either need to build our code within the webrtc/chrome build system, rewrite the build system to something more universal, or do a combination of both. That's what we do currently. Fortunately, the Chrome build system generates a webrtc test app that links in the whole webrtc stack - the app is called peerconnection_client. We can get the ninja file generated for this executable and translate it to CMake. The file is located at trunk/out/Release|Debug/obj/talk peerconnection_client.ninja. The webrtc-buildsys project that was listed in the dependencies is a basically a translation of this ninja file and allows linking webrtc in a higher level CMake file with just a single line (with the help of a cmake module that allows propagation of defines, include dirs etc to dependent projects in a very simple and straightforward way).  
-You do not need to run cmake in webrtc-buildsys directly, but rather include it from the actual application that links to it. This will be described in the webrtc module build procedure.
+Unfortunately the webrtc build does not generate a single lib and config header file (for specific C defines
+ to configure the code). Rather, it creates a lot of smaller static libs that can be used only from within the chrome/webrtc
+ build system, which takes care of include paths, linking libs, setting proper defines (and there are quite a few of them).
+ So we either need to build our code within the webrtc/chrome build system, rewrite the build system to something more
+ universal, or do a combination of both. That's what we do currently. Fortunately, the Chrome build system generates
+ a webrtc test app that links in the whole webrtc stack - the app is called `peerconnection_client`. We can get the ninja file
+ generated for this executable and translate it to CMake.
+ The file is located at `trunk/out/Release|Debug/obj/talk/peerconnection_client.ninja`. The webrtc-buildsys project that
+ was listed in the dependencies is a basically a translation of this ninja file and allows linking webrtc in a higher level
+ CMake file with just a single line (with the help of a cmake module that allows propagation of defines,
+ include dirs etc to dependent projects in a very simple and straightforward way).  
+ You do not need to run cmake in webrtc-buildsys directly, but rather include it from the actual application that links to it.
+ This will be described in the webrtc module build procedure.
 
-## Building ##
-Checkout the git repository and cd to the root of the checkout  
+## Building the Karere codebase, including the test app ##
+Checkout the `karere-native` git repository and cd to the root of the checkout  
 `mkdir build`  
 `cd build`  
-
-## Build of the the whole codebase including the test app ##
-In the build directory created in the webrtc module build, do  
-`ccmake ..cd rtctestapp`  
+`ccmake ../src/rtctestapp`  
 In the menu, first hit 'c'. The config parameters will get populated. Then you need to setup the following paths:  
 `optWebrtcCmakeBuild` -  path to the directory where the webrtc-buildsys checkout is located  
 `webrtcRoot` - path to the trunk directory of the webrtc source tree  
@@ -94,9 +102,13 @@ In the menu, first hit 'c'. The config parameters will get populated. Then you n
 `optStropheBuildShared` - set it to ON.
 `optStropheExportDlsyms` - set it to OFF.
 `optStroheNoLibEvent` - make sure it's OFF! If it's ON this means that libevent (including development package) was not found on your system.  
-Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit and in the console, just type
+Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit and in the console, just type  
 `make`  
 And if all is well, the test app will build.
+
+## Building the Doxygen documentation ##
+From withing the build directory of the previous step, type  
+`make doc`  
 
 # Getting familiar with the codebase #
 ## Basic knlowledge ##
@@ -117,6 +129,11 @@ The public headers are:
 
 ## For application implementors ##
   * The rtctestapp above is the reference app. Build it, study it, experiment with it.
+Note theat there is one critical and platform-dependent function that each app that uses Karere must define, called
+`megaPostMessageToGui()`. This function is the heart of the message passing mechanism (called the Gui Call Marshaller, or GCM)
+that Karere relies on. If you don't define it, there will be a link error when you try to build the application, saying that
+`_megaPostMessageToGui` is an undefined symbol.  
+For more details, read the comments in base/gcm.h, and for reference implementation study rtctestapp/main.cpp
   * IRtcModule, IEventHandler in /src/IRtcModule.h. These are used to initiate rtc calls and receive events.
   * IVideoRenderer in /src/IVideoRenderer.h is used to implement video playback in arbitrary GUI environments.
     Example implementation for Qt is in src/VideoRenderer_Qt.h;.cpp.
