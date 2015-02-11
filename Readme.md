@@ -22,31 +22,26 @@ Make sure they are in the system's path, because they provide custom versions of
 
 ### Checkout the code ###
 For code checkout and configuration the tool `gclient` from depot tools is used, as it needs to checkout 100s of repositories and run a lot of config scripts. What is more specific here is that we need to checkout a specific revision of the source tree, as there are a lot of changes in the webRTC code and the most recent code will not work. Another reason not to use the most recent version is that Google changed the build process to require the whole Chromium source tree, which is about 10GB of code, versus the older versions that require only a fraction of that. First, we need to tell gclient with what repository to work:  
-`gclient config http://webrtc.googlecode.com/svn/trunk`
-`echo "target_os = ['android', 'unix']" >> .gclient`
-
-This creates a .gclient file in the current dir. Next, checkout the code:  
-`gclient sync --revision r6937 --force`  
-This may take a long time.  
-
-### Checkout the code (Mac)###
-For code checkout and configuration the tool `gclient` from depot tools is used, as it needs to checkout 100s of repositories and run a lot of config scripts. What is more specific here is that we need to checkout a specific revision of the source tree, as there are a lot of changes in the webRTC code and the most recent code will not work. Another reason not to use the most recent version is that Google changed the build process to require the whole Chromium source tree, which is about 10GB of code, versus the older versions that require only a fraction of that. First, we need to tell gclient with what repository to work:  
 `gclient config http://webrtc.googlecode.com/svn/trunk`  
-`echo "target_os = ['mac']" >> .gclient`
+* For Android, do:  
+`echo "target_os = ['android', 'unix']" >> .gclient`  
+* For MacOS, do:  
+`echo "target_os = ['mac']" >> .gclient`  
 
 This creates a .gclient file in the current dir. Next, checkout the code:  
 `gclient sync --revision r6937 --force`  
 This may take a long time.  
 
-### Install dependencies ###
-There are various packages required by the webrtc build, most of them are checked out by gclient, but there are some that need to be installed on the system. To do that on linux, you can run:  
+### Install dependencies (Linux) ###
+There are various packages required by the webrtc build, most of them are checked out by gclient, but there are some that need to be installed on the system.
+To do that on linux, you can run:  
 `cd trunk/build && ./install-build-deps.sh`  
 Also you need Java JDK 6 or 7(For something related to android, but seems to be run unconditionally):  
 If you don't have JDK installed, install `openjdk-7-jdk`. Export JAVA_HOME to point to your JDK installation, on Ubuntu is something like that:  
 `export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
 
 ### Install dependencies (Mac) ###
-Install home brew and use `brew install` to java JDK 6 or 7.
+Install Homebrew and use `brew install` to install java JDK 6 or 7.
 Export JAVA_HOME to point to your JDK installation:
 `export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/`
 
@@ -55,23 +50,16 @@ We need to set some env variables before proceeding with running the config scri
 `export GYP_GENERATORS="ninja"`  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0` 
 
+* Additionally, for Mac:
+`cd trunk`  
+`export GYP_DEFINES="enable_tracing=1 build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64"`  
+`export GYP_CROSSCOMPILE=1`  
+`perl -0pi -e 's/gdwarf-2/g/g' tools/gyp/pylib/gyp/xcode_emulation.py`  
+`perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libcrypto\.dylib/-lcrypto/g' talk/libjingle.gyp`  
+`perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libssl\.dylib/-lssl/g' talk/libjingle.gyp`  
+
 Now issue the command:  
 `gclient runhooks --force`  
-This will run the config scripts and generate ninja files from the gyp projects.
-
-### Configure the build (Mac) ###
-`cd trunk`
-We need to set some env variables before proceeding with running the config scripts. 
-`export GYP_DEFINES="enable_tracing=1 build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64"`
-`export GYP_GENERATORS="ninja"`
-`export GYP_GENERATOR_FLAGS="output_dir=out"`
-`export GYP_CROSSCOMPILE=1`
-`perl -0pi -e 's/gdwarf-2/g/g' tools/gyp/pylib/gyp/xcode_emulation.py`
-`perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libcrypto\.dylib/-lcrypto/g' talk/libjingle.gyp`
-`perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libssl\.dylib/-lssl/g' talk/libjingle.gyp`
-Now issue the command: 
-`gclient runhooks --force`
-
 This will run the config scripts and generate ninja files from the gyp projects.
 
 ### Build ###
@@ -122,15 +110,24 @@ The public headers are:
   * The setTimeout() and setInterval() timer functions in /src/base/timers.h  
 
 ## Test application ##
-  * /src/rtctestapp is a Qt application that binds all together in a simple test app. Among other things, it shows how the GCM (Gui Call Marshaller) is implemented on the API user's side. It also shows how to use the IVideoRenderer interface to implement video playback.
+  * /src/rtctestapp is a Qt application that binds all together in a simple test app.
+ Among other things, it shows how the GCM (Gui Call Marshaller) is implemented on the API user's side.
+ It also shows how to use the IVideoRenderer interface to implement video playback.
 
 ## For application implementors ##
   * The rtctestapp above is the reference app. Build it, study it, experiment with it.
   * IRtcModule, IEventHandler in /src/IRtcModule.h. These are used to initiate rtc calls and receive events.
-  * IVideoRenderer in /src/IVideoRenderer.h is used to implement video playback in arbitrary GUI environments. Example implementation for Qt is in src/VideoRenderer_Qt.h;.cpp. The example usage can be seen from the rtctestapp application.
+  * IVideoRenderer in /src/IVideoRenderer.h is used to implement video playback in arbitrary GUI environments.
+    Example implementation for Qt is in src/VideoRenderer_Qt.h;.cpp.
+    The example usage can be seen from the rtctestapp application.
 
 ## If Mega API calls are required ##
-  * To integrate with the environment, a simple bridge class called MyMegaApi is implemented in /src/sdkApi.h. Example usage of it is in /src/ChatClient.cpp and in /src/MegaCryptoFuncs.cpp. 
+  * To integrate with the environment, a simple bridge class called MyMegaApi is implemented in /src/sdkApi.h.
+    Example usage of it is in /src/ChatClient.cpp and in /src/MegaCryptoFuncs.cpp. 
 
 ## More advanced things that should not be needed but are good to know in order to understand the underlying environment better ##
-  * The function call marshalling mechanims in /src/base/gcm.h and /src/base/gcmpp.h. The code is documented in detail. The mechanism marshalls lambda calls from a worker thread to the GUI thread. Examples of use of marshallCall() can be seen for example in /src/webrtcAdapter.h and in many different places.  This mechanism should not be directly needed in high-level code that runs in the GUI thread.
+  * The function call marshalling mechanims in /src/base/gcm.h and /src/base/gcmpp.h. The code is documented in detail.
+    The mechanism marshalls lambda calls from a worker thread to the GUI thread. Examples of use of
+    marshallCall() can be seen for example in /src/webrtcAdapter.h and in many different places.
+    This mechanism should not be directly needed in high-level code that runs in the GUI thread.
+
