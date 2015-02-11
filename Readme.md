@@ -48,7 +48,7 @@ There are various packages required by the webrtc build, most of them are checke
 some that need to be installed on the system. To do that on linux, you can run:  
 `cd trunk/build && ./install-build-deps.sh`  
 Also you need Java JDK 6 or 7 (for something related to android, but seems to be run unconditionally):  
-If you don't have JDK installed, install `openjdk-7-jdk`. Export JAVA_HOME to point to your JDK installation, on Ubuntu
+If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to point to your JDK installation, on Ubuntu
 is something like that:  
 `export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
 
