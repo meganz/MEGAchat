@@ -50,7 +50,7 @@ We need to set some env variables before proceeding with running the config scri
 `export GYP_GENERATORS="ninja"`  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0` 
 
-* Additionally, for Mac:
+* Additionally, for Mac:  
 `cd trunk`  
 `export GYP_DEFINES="enable_tracing=1 build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64"`  
 `export GYP_CROSSCOMPILE=1`  
