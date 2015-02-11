@@ -128,13 +128,14 @@ static std::string replaceOccurrences(const std::string& src, const std::string&
     size_t oldEnd = 0;
     while((pos = src.find(from, pos))!=std::string::npos)
     {
-        if (oldEnd && (pos != oldEnd))
+        if (pos != oldEnd)
             result.append(&(src[oldEnd]), pos-oldEnd);
         result.append(to);
         oldEnd = pos+from.size();
+        pos++;
     }
     if (oldEnd < src.size())
-        result.append(&(src[oldEnd]), pos-oldEnd);
+        result.append(&(src[oldEnd]), src.size()-oldEnd);
     return result;
 }
 
