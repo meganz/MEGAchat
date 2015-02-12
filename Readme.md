@@ -82,7 +82,7 @@ or
 `ninja -C out/Debug`  
 to build webrtc in the corresponding mode. Go get a coffee.  
 
-NOTE: If you get an error message about missing sanitizer_options.cc file, please add the following code to the hooks section
+NOTE: If you get an error message about missing `sanitizer_options.cc` file, please add the following code to the hooks section
 of the `trunk/DEPS` file:
 ``` 
   {
