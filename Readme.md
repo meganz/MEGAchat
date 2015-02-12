@@ -51,7 +51,7 @@ Then
 * Linux
 There are various packages required by the webrtc build, most of them are checked out by gclient, but there are
 some that need to be installed on the system. To do that on linux, you can run:  
-`cd trunk/build && ./install-build-deps.sh`  
+`build/install-build-deps.sh`  
 Also you need Java JDK 6 or 7 (for something related to android, but seems to be run unconditionally):  
 If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to point to your JDK installation, on Ubuntu
 is something like that:  
@@ -67,6 +67,11 @@ JDK 7 will not work for this particular revision (some warnings are triggered an
 configured to treat warnings as errors). Therefore you need to install JDK 6 (unless already done).  
 Export JAVA_HOME to point to the JDK installation:  
 `export JAVA_HOME=/usr/lib/jvm/java-6-openjdk`   
+Install dependencies by running
+`build/install-build-deps-android.sh`  
+However this script seems to install far too many unnecessary packages such as apache2 or firefox localization packs.
+So you may want to try to manually install dependencies, especially if you have done a native platform build before
+on this machine, in which case you may already have most dependencies.
 
 ### Configure the build ###
 We need to set some env variables before proceeding with running the config scripts.  
