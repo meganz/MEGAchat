@@ -48,7 +48,7 @@ Then
 `cd trunk`
 
 ### Install dependencies ###
-* Linux
+* Linux  
 There are various packages required by the webrtc build, most of them are checked out by gclient, but there are
 some that need to be installed on the system. To do that on linux, you can run:  
 `build/install-build-deps.sh`  
@@ -57,12 +57,12 @@ If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to 
 is something like that:  
 `export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
 
-* Mac
+* Mac  
 Install Homebrew and use `brew install` to install java JDK 6 or 7.  
 Export JAVA_HOME to point to your JDK installation:  
 `export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/`
 
-* Android
+* Android  
 JDK 7 will not work for this particular revision (some warnings are triggered and the build is
 configured to treat warnings as errors). Therefore you need to install JDK 6 (unless already done).  
 Export JAVA_HOME to point to the JDK installation:  
