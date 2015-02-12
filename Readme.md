@@ -20,11 +20,11 @@ First, create a directory where all webrtc stuff will go, and cd to it. All inst
 current directory is that one.  
 
 ### Install depot_tools ###
-We need to install Google's depot_tools, as per these instructions:  
+We need to install Google's `depot_tools`, as per these instructions:  
 https://sites.google.com/a/chromium.org/dev/developers/how-tos/install-depot-tools  
 
-Make sure they are at the before all other paths in the system's path, because they provide custom versions of commands
- that may already be available on the system, and the custom ones must be picked instead of the system ones.
+Make sure the path to the `depot_tools` dir is at the start of the system's path, because the tools provide custom versions
+of commands that may already be available on the system, and the custom ones must be picked instead of the system ones.
 
 ### Checkout the code ###
 For code checkout and configuration the tool `gclient` from depot tools is used, as it needs to checkout 100s of repositories
@@ -59,13 +59,13 @@ is something like that:
 
 * Mac  
 Install Homebrew and use `brew install` to install java JDK 6 or 7.  
-Export JAVA_HOME to point to your JDK installation:  
+Export `JAVA_HOME` to point to your JDK installation:  
 `export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/`
 
 * Android  
 JDK 7 will not work for this particular revision (some warnings are triggered and the build is
 configured to treat warnings as errors). Therefore you need to install JDK 6 (unless already done).  
-Export JAVA_HOME to point to the JDK installation:  
+Export `JAVA_HOME` to point to the JDK installation:  
 `export JAVA_HOME=/usr/lib/jvm/java-6-openjdk`   
 Install dependencies by running  
 `build/install-build-deps-android.sh`  
