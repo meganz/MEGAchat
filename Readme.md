@@ -61,7 +61,7 @@ Export JAVA_HOME to point to your JDK installation:
 We need to set some env variables before proceeding with running the config scripts.  
 `export GYP_GENERATORS="ninja"`  
 * For Linux:  
-`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0"` 
+`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1"` 
 
 * For Mac:  
 `cd trunk`  
