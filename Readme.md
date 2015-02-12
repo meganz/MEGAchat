@@ -72,17 +72,17 @@ Export JAVA_HOME to point to the JDK installation:
 We need to set some env variables before proceeding with running the config scripts.  
 `export GYP_GENERATORS="ninja"`  
 
-* For Linux:  
+* Linux:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1"` 
 
-* For Mac:  
+* Mac:  
 `export GYP_DEFINES="enable_tracing=1 build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64"`  
 `export GYP_CROSSCOMPILE=1`  
 `perl -0pi -e 's/gdwarf-2/g/g' tools/gyp/pylib/gyp/xcode_emulation.py`  
 `perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libcrypto\.dylib/-lcrypto/g' talk/libjingle.gyp`  
 `perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libssl\.dylib/-lssl/g' talk/libjingle.gyp`  
 
-*For Android:  
+* Android:  
 Run a script to setup the environment to use the built-in android NDK:  
 `build/android/envsetup.sh`  
 Configure GYP:  
