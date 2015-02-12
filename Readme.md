@@ -80,7 +80,19 @@ Run:
 `ninja -C out/Release`  
 or  
 `ninja -C out/Debug`  
-to build webrtc in the corresponding mode. Go get a coffee.
+to build webrtc in the corresponding mode. Go get a coffee.  
+
+NOTE: If you get an error message about missing sanitizer_options.cc file, please add the following code to the hooks section
+of the `trunk/DEPS` file:
+``` 
+  {
+    "pattern": "tools/sanitizer_options/sanitizer_options.cc",
+    "action" : ["svn", "update", "-r", Var("chromium_revision"), Var("root_dir") + "/tools/sanitizer_options/sanitizer_options.cc"],
+  },
+```
+Note: this fix was taken from `https://code.google.com/p/chromium/issues/detail?id=407183`  
+Then re-run  
+`gclient runhooks --force`, and then the `ninja` command.
 
 ### Using the webrtc stack with CMake ###
 Unfortunately the webrtc build does not generate a single lib and config header file (for specific C defines
