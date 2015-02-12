@@ -34,16 +34,21 @@ For code checkout and configuration the tool `gclient` from depot tools is used,
  10GB of code, versus the older versions that require only a fraction of that. First, we need to tell gclient with what
  repository to work:  
 `gclient config http://webrtc.googlecode.com/svn/trunk`  
+
 * For Android, do:  
 `echo "target_os = ['android', 'unix']" >> .gclient`  
+
 * For MacOS, do:  
 `echo "target_os = ['mac']" >> .gclient`  
 
 This creates a .gclient file in the current dir. Next, checkout the code:  
 `gclient sync --revision r6937 --force`  
 This may take a long time.  
+Then  
+`cd trunk`
 
-### Install dependencies (Linux) ###
+### Install dependencies ###
+* Linux
 There are various packages required by the webrtc build, most of them are checked out by gclient, but there are
 some that need to be installed on the system. To do that on linux, you can run:  
 `cd trunk/build && ./install-build-deps.sh`  
@@ -52,24 +57,36 @@ If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to 
 is something like that:  
 `export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
 
-### Install dependencies (Mac) ###
-Install Homebrew and use `brew install` to install java JDK 6 or 7.
-Export JAVA_HOME to point to your JDK installation:
+* Mac
+Install Homebrew and use `brew install` to install java JDK 6 or 7.  
+Export JAVA_HOME to point to your JDK installation:  
 `export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/`
+
+* Android
+JDK 7 will not work for this particular revision (some warnings are triggered and the build is
+configured to treat warnings as errors). Therefore you need to install JDK 6 (unless already done).  
+Export JAVA_HOME to point to the JDK installation:  
+`export JAVA_HOME=/usr/lib/jvm/java-6-openjdk`   
 
 ### Configure the build ###
 We need to set some env variables before proceeding with running the config scripts.  
 `export GYP_GENERATORS="ninja"`  
+
 * For Linux:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1"` 
 
 * For Mac:  
-`cd trunk`  
 `export GYP_DEFINES="enable_tracing=1 build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64"`  
 `export GYP_CROSSCOMPILE=1`  
 `perl -0pi -e 's/gdwarf-2/g/g' tools/gyp/pylib/gyp/xcode_emulation.py`  
 `perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libcrypto\.dylib/-lcrypto/g' talk/libjingle.gyp`  
 `perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libssl\.dylib/-lssl/g' talk/libjingle.gyp`  
+
+*For Android:  
+Run a script to setup the environment to use the built-in android NDK:  
+`build/android/envsetup.sh`  
+Configure GYP:  
+`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`   
 
 Now issue the command:  
 `gclient runhooks --force`  
@@ -82,8 +99,9 @@ or
 `ninja -C out/Debug`  
 to build webrtc in the corresponding mode. Go get a coffee.  
 
-NOTE: If you get an error message about missing `sanitizer_options.cc` file, please add the following code to the hooks section
-of the `trunk/DEPS` file:
+### Possible build problems ###
+* If you get an error message about missing `sanitizer_options.cc` file, please add the following code to the `hooks`
+section of the `trunk/DEPS` file:
 ``` 
   {
     "pattern": "tools/sanitizer_options/sanitizer_options.cc",
@@ -91,8 +109,16 @@ of the `trunk/DEPS` file:
   },
 ```
 Note: this fix was taken from `https://code.google.com/p/chromium/issues/detail?id=407183`  
-Then re-run  
-`gclient runhooks --force`, and then the `ninja` command.
+
+Then re-run `gclient runhooks --force`, and then the `ninja` command.
+
+### Verify the build ##
+`cd out/Release|Debug`
+* Desktop OS builds  
+run `peerconnection_server` app to start a signalling server.  
+run two or more `peerconnection_client` instances and do a call between them via the server.
+* Android  
+The build system generates a test application `WebRTCDemo-debug.apk`. Copy it to a device, install it and run it.
 
 ### Using the webrtc stack with CMake ###
 Unfortunately the webrtc build does not generate a single lib and config header file (for specific C defines
