@@ -114,7 +114,6 @@ section of the `trunk/DEPS` file:
   },
 ```
 Note: this fix was taken from `https://code.google.com/p/chromium/issues/detail?id=407183`  
-
 Then re-run `gclient runhooks --force`, and then the `ninja` command.
 
 ### Verify the build ##
