@@ -23,7 +23,7 @@ current directory is that one.
 We need to install Google's `depot_tools`, as per these instructions:  
 https://sites.google.com/a/chromium.org/dev/developers/how-tos/install-depot-tools  
 
-Make sure the path to the `depot_tools` dir is at the start of the system's path, because the tools provide custom versions
+Make sure the path to the `depot_tools` dir is at the start of the system path, because the tools provide custom versions
 of commands that may already be available on the system, and the custom ones must be picked instead of the system ones.
 
 ### Checkout the code ###
