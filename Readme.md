@@ -67,7 +67,7 @@ JDK 7 will not work for this particular revision (some warnings are triggered an
 configured to treat warnings as errors). Therefore you need to install JDK 6 (unless already done).  
 Export JAVA_HOME to point to the JDK installation:  
 `export JAVA_HOME=/usr/lib/jvm/java-6-openjdk`   
-Install dependencies by running
+Install dependencies by running  
 `build/install-build-deps-android.sh`  
 However this script seems to install far too many unnecessary packages such as apache2 or firefox localization packs.
 So you may want to try to manually install dependencies, especially if you have done a native platform build before
