@@ -28,7 +28,7 @@ include_directories(${INCLUDES})
 
 if (CMAKE_COMPILER_IS_GNUC OR CMAKE_COMPILER_IS_GNUCXX)
     add_definitions(-fvisibility=hidden -fPIC)
-    list(APPEND CMAKE_CXX_FLAGS -std=c++11)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif()
 
 add_library(services SHARED ${SRCS})
