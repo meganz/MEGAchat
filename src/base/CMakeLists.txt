@@ -37,6 +37,7 @@ target_link_libraries(services
   ${LIBEVENT_LIB}
   ${CURL_LIBRARIES}
   event_pthreads
+  z
 )
 targetExportDefines(services "")
 targetExportFullpathIncludes(services ${INCLUDES})
