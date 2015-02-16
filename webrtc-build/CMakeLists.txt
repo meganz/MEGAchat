@@ -77,9 +77,7 @@ set(WEBRTC_LIBS
     ${webrtcBuild}/third_party/libjpeg_turbo/libjpeg_turbo.a
     ${webrtcBuild}/third_party/usrsctp/libusrsctplib.a
     ${webrtcBuild}/third_party/protobuf/libprotobuf_lite.a
-    ${webrtcBuild}/net/third_party/nss/libcrssl.a
     ${webrtcBuild}/third_party/jsoncpp/libjsoncpp.a
-    ${webrtcBuild}/net/third_party/nss/libcrssl.a
     ${webrtcBuild}/third_party/libsrtp/libsrtp.a
 
 )
@@ -88,7 +86,10 @@ set(WEBRTC_LIBS_X86
     ${webrtcBuild}/webrtc/common_audio/libcommon_audio_sse2.a
     ${webrtcBuild}/webrtc/modules/libaudio_processing_sse2.a
 )
-set(WEBRTC_LIBS_LINUX)
+set(WEBRTC_LIBS_LINUX
+    ${webrtcBuild}/net/third_party/nss/libcrssl.a
+)
+
 set(WEBRTC_LIBS_ARM
     ${webrtcBuild}/webrtc/modules/libisac_neon.a
     ${webrtcBuild}/webrtc/modules/libaudio_processing_neon.a
@@ -255,9 +256,11 @@ if ("${WEBRTC_BUILD_TYPE}" STREQUAL "Debug")
 endif()
 
 if (ANDROID)
+    message(STATUS "Building rtcModule on arm Android")
     appendArchStuff(ARM)
     appendPlatformStuff(ANDROID)
 elseif(UNIX AND NOT APPLE) #linux
+    message(STATUS "Building rtcModule on x86 Linux")
     appendArchStuff(X86)
     appendPlatformStuff(LINUX)
 else()
