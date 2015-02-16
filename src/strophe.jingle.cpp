@@ -3,6 +3,7 @@
 #include <string>
 #include <map>
 #include <memory>
+#include "karereCommon.h"
 #include "base/services.h"
 #include "webrtcAdapter.h"
 #include "strophe.jingle.session.h"
