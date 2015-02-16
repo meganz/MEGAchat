@@ -28,7 +28,7 @@
 namespace std
 {
 template<typename T>
-string to_string(const T& t)
+static inline string to_string(const T& t)
 {
     ostringstream os;
     os << t;
