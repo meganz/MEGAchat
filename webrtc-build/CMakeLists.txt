@@ -58,7 +58,7 @@ set(WEBRTC_LIBS
     ${webrtcBuild}/webrtc/modules/libmedia_file.a
     ${webrtcBuild}/webrtc/common_audio/libcommon_audio.a
     ${webrtcBuild}/webrtc/common_video/libcommon_video.a
-    ${webrtcBuild}/webrtc/build/libsanitizer_options.a
+#    ${webrtcBuild}/webrtc/build/libsanitizer_options.a
     ${webrtcBuild}/webrtc/libwebrtc.a
     ${webrtcBuild}/webrtc/system_wrappers/source/libfield_trial_default.a
     ${webrtcBuild}/webrtc/libwebrtc_common.a
