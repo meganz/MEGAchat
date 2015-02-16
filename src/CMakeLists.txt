@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8)
 project(rtcModule)
 include (utils.cmake)
 
+set(optRtcModuleBuildShared 1 CACHE BOOL "Whether to build rtcModule as a shared lib")
+
 set (SRCS
     strophe.jingle.session.cpp
     strophe.jingle.cpp
