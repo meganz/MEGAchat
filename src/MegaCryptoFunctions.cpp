@@ -137,7 +137,7 @@ IString* MegaCryptoFuncs::generateFprMacKey()
     std::string b64(kFprMacKeyLen+2, 0);
     int b64len = mega::Base64::btoa(buf, 32, (char*)b64.data());
     assert(b64len == kFprMacKeyLen);
-    buf[kFprMacKeyLen] = 0; //termiante string, just in case
+    b64.resize(kFprMacKeyLen); //termiante string, just in case
     return new IString_string(b64);
 }
 
