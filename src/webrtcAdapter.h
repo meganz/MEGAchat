@@ -11,6 +11,7 @@
 #include <talk/app/webrtc/jsepsessiondescription.h>
 #include <talk/app/webrtc/jsep.h>
 #include "base/gcmpp.h"
+#include "karereCommon.h" //only for std::string on android
 #include "base/promise.h"
 
 namespace artc
