@@ -30,10 +30,10 @@ RtcModule::RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
     mDiscoPlugin = mConn.pluginPtr<disco::DiscoPlugin>("disco");
     //    logInputDevices();
 }
+
 void RtcModule::discoAddFeature(const char* feature)
 {
-    if (mDiscoPlugin)
-        mDiscoPlugin->addFeature(feature);
+    mEventHandler->discoAddFeature(feature);
 }
 
 void RtcModule::logInputDevices()

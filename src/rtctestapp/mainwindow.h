@@ -98,19 +98,7 @@ public:
     }
     virtual void onCallIncomingRequest(rtcModule::IAnswerCall* ctrl)
     {
-/*        if (mMainWindow->ui->autoAnswerChk->checkState() == Qt::Checked)
-        {
-            int ret = ctrl->answer(true, rtcModule::AvFlags(true, true), nullptr, nullptr);
-            if (ret == 0)
-            {
-                inCall = true;
-                mMainWindow->ui->callBtn->setText("Hangup");
-            }
-        }
-        else */
-        {
-            ctrl->setUserData(new CallAnswerGui(ctrl, mMainWindow));
-        }
+        ctrl->setUserData(new CallAnswerGui(ctrl, mMainWindow));
     }
     virtual void onIncomingCallCanceled(const char *sid, const char *event, const char *by, int accepted, void **userp)
     {
@@ -128,6 +116,10 @@ public:
         printf("on call ended\n");
         inCall = false;
         mMainWindow->ui->callBtn->setText("Call");
+    }
+    virtual void discoAddFeature(const char *feature)
+    {
+        gClient->conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
     }
 
 };

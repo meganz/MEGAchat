@@ -35,21 +35,6 @@ mega::http::Client* client = nullptr;
 extern bool inCall;
 void MainWindow::buttonPushed()
 {
-/*    if (!client)
-        client = new mega::http::Client;
-    client->get<std::string>("http://www.osnews.com/")
-    .then([](std::shared_ptr<std::string> data)
-    {
-        cout << "response:" <<endl<<*data<<endl;
-        return nullptr;
-    })
-    .fail([](const promise::Error& err)
-    {
-        return nullptr;
-    });
-
-return;
-*/
     if (inCall)
     {
         gClient->rtc->hangupAll("hangup", nullptr);
@@ -94,28 +79,8 @@ return;
             return nullptr;
         });
     }
-
-    /*
-    mega::dnsLookup("google.com", 0)
-    .then([](std::shared_ptr<mega::AddrInfo> result)
-    {
-        printf("Canonical name: %s\n", result->canonName().c_str());
-        auto& ip4s = result->ip4addrs();
-        for (auto& ip: ip4s)
-            printf("ipv4: %s\n", ip.toString());
-        auto& ip6s = result->ip6addrs();
-        for (auto& ip: ip6s)
-            printf("ipv6: %s\n", ip.toString());
-
-        return nullptr;
-    })
-    .fail([](const promise::Error& err)
-    {
-        printf("DNS lookup error: %s\n", err.msg().c_str());
-        return nullptr;
-    });
-    */
 }
+
 void MainWindow::onAudioInSelected()
 {
     auto combo = ui->audioInCombo;
@@ -145,3 +110,39 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+/*    if (!client)
+        client = new mega::http::Client;
+    client->get<std::string>("http://www.osnews.com/")
+    .then([](std::shared_ptr<std::string> data)
+    {
+        cout << "response:" <<endl<<*data<<endl;
+        return nullptr;
+    })
+    .fail([](const promise::Error& err)
+    {
+        return nullptr;
+    });
+
+return;
+*/
+
+/*
+mega::dnsLookup("google.com", 0)
+.then([](std::shared_ptr<mega::AddrInfo> result)
+{
+    printf("Canonical name: %s\n", result->canonName().c_str());
+    auto& ip4s = result->ip4addrs();
+    for (auto& ip: ip4s)
+        printf("ipv4: %s\n", ip.toString());
+    auto& ip6s = result->ip6addrs();
+    for (auto& ip: ip6s)
+        printf("ipv6: %s\n", ip.toString());
+
+    return nullptr;
+})
+.fail([](const promise::Error& err)
+{
+    printf("DNS lookup error: %s\n", err.msg().c_str());
+    return nullptr;
+});
+*/

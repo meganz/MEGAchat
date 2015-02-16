@@ -3,15 +3,25 @@
 
 /* This is a plain C header */
 #ifdef __cplusplus
-  #define MEGA_GCM_EXTERNC extern "C"
+    #define MEGA_GCM_C_FUNC extern "C"
+    #define MEGA_GCM_EXTERNC_VAR extern "C"
 #else
-  #define MEGA_GCM_EXTERNC
+    #define MEGA_GCM_C_FUNC
+    #define MEGA_GCM_EXTERNC_VAR extern
 #endif
 
 #ifdef _WIN32
-#define MEGA_GCM_EXPORT MEGA_GCM_EXTERNC __declspec(dllexport)
+    #define MEGA_GCM_DLLEXPORT __declspec(dllexport)
+    #define MEGA_GCM_DLLIMPORT __declspec(dllimport)
 #else
-#define MEGA_GCM_EXPORT MEGA_GCM_EXTERNC __attribute__ ((visibility ("default")))
+    #define MEGA_GCM_DLLEXPORT __attribute__ ((visibility("default")))
+    #define MEGA_GCM_DLLIMPORT
+#endif
+
+#ifdef MEGA_SERVICES_BUILDING
+    #define MEGA_GCM_IMPEXP MEGA_GCM_C_FUNC MEGA_GCM_DLLEXPORT
+#else
+    #define MEGA_GCM_IMPEXP MEGA_GCM_C_FUNC MEGA_GCM_DLLIMPORT
 #endif
 
 struct megaMessage;
@@ -55,8 +65,13 @@ struct megaMessage
 //enum {kMegaMsgMagic = 0x3e9a3591};
 
 /** This is the type of the function that posts a megaMessage to the GUI thread */
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef void (*GcmPostFunc)(void*);
-
+#ifdef __cplusplus
+}
+#endif
 /** This function posts an opaque \c void* to the application's (GUI) message loop.
 * That message is then received by the application's main (GUI) thread and
 * the user's code is responsible to send it to \c megaProcessMessage(void*)
@@ -66,7 +81,7 @@ typedef void (*GcmPostFunc)(void*);
 * call on the main (GUI) thread.
 */
 
-void megaPostMessageToGui(void* msg);
+MEGA_GCM_EXTERNC_VAR MEGA_GCM_IMPEXP GcmPostFunc megaPostMessageToGui;
 
 /** When the application's main (GUI) thread receives a message posted by
  * megaPostMessageToGui(), the user's code must forward the \c void* pointer

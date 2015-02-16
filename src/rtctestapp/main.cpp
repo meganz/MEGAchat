@@ -47,7 +47,7 @@ public:
 
 AppDelegate appDelegate;
 
-MEGA_GCM_EXPORT void megaPostMessageToGui(void* msg)
+extern "C" void myMegaPostMessageToGui(void* msg)
 {
     QEvent* event = new GcmEvent(msg);
     QApplication::postEvent(&appDelegate, event);
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
     mainWin->ui->callBtn->setText("Login...");
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 
-    services_init(megaPostMessageToGui, SVC_STROPHE_LOG);
+    services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin->ui->calleeInput->setText(argv[3]);
     gClient.reset(new karere::Client(argv[1], argv[2], new RtcEventHandler(mainWin)));
     gClient->start()

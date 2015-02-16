@@ -13,6 +13,7 @@ set (SRCS
      ../ChatRoom.cpp
      ../ContactList.cpp
      ../ChatClient.cpp
+     ../karereCommon.cpp
      ../../third-party/murmurHash/MurmurHash3.cpp
      ../strophe.disco.cpp
      ../DummyCrypto.cpp

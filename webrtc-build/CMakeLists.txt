@@ -240,6 +240,7 @@ macro(appendPlatformStuff pname)
     list(APPEND WEBRTC_CFLAGS ${WEBRTC_CFLAGS_${pname}})
     list(APPEND WEBRTC_CXXFLAGS ${WEBRTC_CXXFLAGS_${pname}})
     list(APPEND WEBRTC_LDFLAGS ${WEBRTC_LDFLAGS_${pname}})
+    list(APPEND WEBRTC_LIBS ${WEBRTC_LIBS_${pname}})
     list(APPEND WEBRTC_SYSLIBS ${WEBRTC_SYSLIBS_${pname}})
 
     listToSpacedString(WEBRTC_CFLAGS)

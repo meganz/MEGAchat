@@ -245,6 +245,15 @@ struct IEventHandler: public IDestroy
      * a call was started. The GUI should enable the local video display.
      */
     virtual void onLocalVideoEnabled() {}
+    /**
+     * @brief discoAddFeature Called when rtcModule wants to add a disco feature
+     * to the xmpp client. The implementation should normally have instantiated
+     * the disco plugin on the connection, and this method should forward the call
+     * to the addFeature() method of the plugin. This is to abstract the disco
+     * interface, so that the rtcModule does not care how disco is implemented.
+     * @param feature The disco feature string to add
+     */
+    virtual void discoAddFeature(const char* feature) {}
 protected:
     /**
      * @brief Non-public destructor to avoid mixing memory managers. Destreuction

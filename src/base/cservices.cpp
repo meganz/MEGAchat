@@ -9,7 +9,7 @@
 #include "cservices-thread.h"
 
 struct event_base* services_eventloop = NULL;
-GcmPostFunc services_megaPostMessageToGui = NULL;
+MEGA_GCM_DLLEXPORT GcmPostFunc megaPostMessageToGui = NULL;
 t_svc_thread_handle libeventThread; //can't initialzie with pthreads - there is no reserved invalid value
 t_svc_thread_id libeventThreadId;
 bool hasLibeventThread = false;
@@ -33,7 +33,7 @@ SVC_THREAD_FUNCDECL(libeventThreadFunc)
 
 MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
 {
-    services_megaPostMessageToGui = postFunc;
+    megaPostMessageToGui = postFunc;
 #ifdef _WIN32
     WSADATA wsadata;
     WSAStartup(MAKEWORD(2,2), &wsadata);
