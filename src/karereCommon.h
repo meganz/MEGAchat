@@ -21,8 +21,9 @@
 #define KARERE_XMPP_DOMAIN "karere.mega.nz"
 
 #define KARERE_DEFAULT_TURN_SERVERS "url=turn:trn530n003.karere.mega.nz:3478?transport=udp, user=inoo20jdnH, pass=02nNKDBkkS"
-#ifdef __ANDROID__
+#if defined(__ANDROID__) && !defined(HAVE_STD_TO_STRING)
 //Android is missing std::to_string
+#define HAVE_STD_TO_STRING 1
 #include <sstream>
 
 namespace std
