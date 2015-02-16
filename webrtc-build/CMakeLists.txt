@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0015 NEW)
 
-include (utils.cmake)
+include (../src/utils.cmake)
 
 project(webrtc_monolithic)
 
@@ -247,7 +247,7 @@ macro(appendPlatformStuff pname)
 endmacro()
 
 macro(appendArchStuff aname)
-    list(APPEND WEBRTC_LIBS ${WEBRTC_LIBS_${aname})
+    list(APPEND WEBRTC_LIBS ${WEBRTC_LIBS_${aname}})
 endmacro()
 
 if ("${WEBRTC_BUILD_TYPE}" STREQUAL "Debug")
@@ -268,20 +268,24 @@ endif()
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
     COMMAND ar crs ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
-        "${webrtcBuild}/third_party/libvpx/source/*.o"
-        "${webrtcBuild}/../gen/third_party/libvpx/*.o" VERBATIM
+        `find ${webrtcBuild}/third_party/libvpx/ -name '*.o'`
+        `find ${webrtcBuild}/../gen/third_party/libvpx -name '*.o'`
+    DEPENDS "${webrtcBuild}/third_party/libvpx/source/"
 )
 
-add_definitions(${WEBRTC_DEFS})
-include_directories(${WEBRTC_INCLUDES})
-add_definitions(${WEBRTC_CFLAGS} ${WEBRTC_CXXFLAGS})
+set(CMAKE_MODULE_LINKER_FLAGS ${WEBRTC_LDFLAGS})
+set(CMAKE_SHARED_LINKER_FLAGS ${WEBRTC_LDFLAGS})
 
-add_library(webrtc_my dummy.c)
+if(optWebrtcShared)
+add_library(webrtc_my SHARED dummy.c libmyvpx.a)
+else()
+add_library(webrtc_my dummy.c libmyvpx.a)
+endif()
 
 target_link_libraries(webrtc_my ${WEBRTC_LIBS} ${WEBRTC_SYSLIBS})
 
-editTargetProp(webrtc_my LINK_FLAGS ADD ${WEBRTC_LDFLAGS})
-targetExportDefines(webrtc_my ${WEBRTC_DEFS})
-targetExportFullpathIncludes(webrtc_my ${WEBRTC_INCLUDES} ${WEBRTC_SYSINCLUDES})
-targetExportCompileFlags(webrtc_my -fno-rtti)
+set(WEBRTC_SYSLIBS ${WEBRTC_SYSLIBS} CACHE INETRNAL "")
+set(WEBRTC_LDFLAGS "-fno-rtti" CACHE INTERNAL "")
+set(WEBRTC_DEFS ${WEBRTC_DEFS} CACHE INTERNAL "")
+set(WEBRTC_INCLUDES ${WEBRTC_INCLUDES} CACHE INTERNAL "")
 

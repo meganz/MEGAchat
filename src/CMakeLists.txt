@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8)
 project(rtcModule)
 include (utils.cmake)
 
-set (optWebrtcCmakeBuild "../../webrtc-buildsys" CACHE PATH "Path to CMakeLists.txt file that puts together webrtc libs")
 set (SRCS
     strophe.jingle.session.cpp
     strophe.jingle.cpp
@@ -14,21 +13,16 @@ set (SRCS
 )
 
 add_subdirectory(base)
-add_subdirectory("${optWebrtcCmakeBuild}" webrtc)
+add_subdirectory(../webrtc-build webrtc)
 
 list(APPEND CMAKE_CXX_FLAGS -std=c++11)
 get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${STROPHE_INCLUDES})
+include_directories(. ${CMAKE_CURRENT_BINARY_DIR} ${STROPHE_INCLUDES} ${WEBRTC_INCLUDES})
 
-add_definitions(-DRTCM_BUILDING -fvisibility=hidden)
+add_definitions(-DRTCM_BUILDING ${WEBRTC_DEFS} -fvisibility=hidden)
 
 #-Wno-unused-local-typedefs suppresses a lot of warning form webrtc headers from COMPILE_ASSERT: see https://code.google.com/p/chromium/issues/detail?id=227506
 add_definitions(-Wno-unused-local-typedefs)
-
-# The below line should be uncommented if dlls can't link to dynamic symbols exported
-# by the main app executable
-#
-# add_definitions(-DMEGA_GCM_CLIENT_INIT_API=rtcModule)
 
 if(optRtcModuleBuildShared)
     add_library(rtcModule SHARED ${SRCS})
@@ -36,8 +30,8 @@ else()
     add_library(rtcModule ${SRCS})
 endif()
 
-target_link_targets(rtcModule webrtc_my services)
-target_link_libraries(rtcModule pthread)
+target_link_targets(rtcModule services)
+target_link_libraries(rtcModule webrtc_my pthread)
 
 targetExportDefines(rtcModule "")
 targetExportFullpathIncludes(rtcModule ${CMAKE_CURRENT_SOURCE_DIR})
