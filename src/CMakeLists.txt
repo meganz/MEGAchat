@@ -17,7 +17,9 @@ set (SRCS
 add_subdirectory(base)
 add_subdirectory(../webrtc-build webrtc)
 
-list(APPEND CMAKE_CXX_FLAGS -std=c++11)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WEBRTC_CXXFLAGS} -std=c++11")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WEBRTC_CFLAGS}")
+
 get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
 include_directories(. ${CMAKE_CURRENT_BINARY_DIR} ${STROPHE_INCLUDES} ${WEBRTC_INCLUDES})
 
