@@ -12,8 +12,6 @@
  Only the crypto and HTTP functionality is needed. Install crypto++ and libcurl globally in the system, because the Karere
  build will need to find them as well and link to them directly. Install any other mandatory Mega SDK dependencies
  and build the SDK. It does not have to be installed with `make install`, it will be accessed directly in the checkout dir.  
- - Our high level CMake build system that allows CMake projects to build and link with webrtc:  
-`git clone git@code.developers.mega.co.nz:messenger/webrtc-buildsys.git`
 
 ## Building webrtc ##
 First, create a directory where all webrtc stuff will go, and cd to it. All instructions in this section assume that the
@@ -132,12 +130,11 @@ Unfortunately the webrtc build does not generate a single lib and config header 
  universal, or do a combination of both. That's what we do currently. Fortunately, the Chrome build system generates
  a webrtc test app that links in the whole webrtc stack - the app is called `peerconnection_client`. We can get the ninja file
  generated for this executable and translate it to CMake.
- The file is located at `trunk/out/Release|Debug/obj/talk/peerconnection_client.ninja`. The webrtc-buildsys project that
- was listed in the dependencies is basically a translation of this ninja file and allows linking webrtc in a higher level
- CMake file with just a single line (with the help of a cmake module that allows propagation of defines,
- include dirs etc to dependent projects in a very simple and straightforward way).  
- You do not need to run cmake in webrtc-buildsys directly, but rather include it from the actual application that links to it.
- This will be described in the webrtc module build procedure.
+ The file is located at `trunk/out/Release|Debug/obj/talk/peerconnection_client.ninja`. The webrtc-build/CMakeLists.txt file
+ is basically a translation of this ninja for different platforms, and allows linking webrtc in a higher level
+ CMake file with just a few lines. You do not need to run that cmake script directly, but rather include it from the actual
+ application that links to it. THis is already done by the rtcModule build system.
+ This will be described in more detail in the webrtc module build procedure.
 
 ## Building the Karere codebase, including the test app ##
 Checkout the `karere-native` git repository and cd to the root of the checkout  
@@ -145,7 +142,6 @@ Checkout the `karere-native` git repository and cd to the root of the checkout
 `cd build`  
 `ccmake ../src/rtctestapp`  
 In the menu, first hit 'c'. The config parameters will get populated. Then you need to setup the following paths:  
-`optWebrtcCmakeBuild` -  path to the directory where the webrtc-buildsys checkout is located  
 `webrtcRoot` - path to the trunk directory of the webrtc source tree  
 `WEBRTC_BUILD_TYPE` - the build mode of the webrtc code, as built with ninja. If you built with `-C opt/Release`,
 then specify `Release` here, similarly for Debug.  
