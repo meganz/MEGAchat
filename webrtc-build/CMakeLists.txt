@@ -15,7 +15,7 @@ if (NOT WEBRTC_BUILD_TYPE)
     message(FATAL_ERROR "WEBRTC_BUILD_TYPE must be already set")
 endif()
 
-set(webrtcRoot "${CMAKE_CURRENT_SOURCE_DIR}/../webrtc/trunk" CACHE PATH "Path to the source&build tree of webrtc")
+set(webrtcRoot "${CMAKE_CURRENT_SOURCE_DIR}/../../webrtc/trunk" CACHE PATH "Path to the source&build tree of webrtc")
 set(webrtcBuild "${webrtcRoot}/out/${WEBRTC_BUILD_TYPE}/obj")
 
 set(optWebrtcShared 0 CACHE BOOL "Build webrtc as shared lib")
