@@ -117,9 +117,9 @@ MEGAIO_EXPORT megaHandle services_hstore_add_handle(unsigned short type, void* p
     gHandleStore.emplace(std::piecewise_construct,
         std::forward_as_tuple(id), std::forward_as_tuple(type, ptr))
 #ifndef NDEBUG
-.second
+        .second
 #endif
-;
+               ;
     assert(inserted);
     return id;
 }
