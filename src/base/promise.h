@@ -188,7 +188,7 @@ protected:
 		CbLists* mCbs;
 		ResolvedState mResolved;
 		bool mPending;
-		T mResult;
+        typename std::remove_const<T>::type mResult;
 		Error mError;
 		SharedObj()
 		:mRefCount(1), mCbs(NULL), mResolved(PROMISE_RESOLV_NOT),
