@@ -2,10 +2,13 @@
 #include "ChatRoom.h"
 #include "ChatCommon.h"
 #include "ChatClient.h"
+#include <mega/base64.h>
+#include <openssl/sha.h>
 
 using namespace std;
 using namespace strophe;
 using namespace promise;
+namespace nsmega = mega;
 
 namespace karere
 {
@@ -27,8 +30,6 @@ ChatRoom::create(Client& client, const std::string& peerFullJid)
     string peerBareJid = strophe::getBareJidFromJid(peerFullJid);
     string myId = userIdFromJid(conn->fullJid());
     string peerId = userIdFromJid(peerFullJid);
-    string roomJid = "prv_";
-    roomJid.reserve(64);
     string* id1;
     string* id2;
     if (myBareJid <= peerBareJid)
@@ -41,9 +42,20 @@ ChatRoom::create(Client& client, const std::string& peerFullJid)
         id1 = &peerId;
         id2 = &myId;
     }
-    roomJid.append(to_string(fastHash(*id1)))
-            .append("_").append(to_string(fastHash(*id2)))
-            .append("@conference.").append(KARERE_XMPP_DOMAIN);
+    string jidstr;
+    jidstr.reserve(64);
+    jidstr.append("prv").append(*id1).append(*id2);
+    unsigned char shabuf[33];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, jidstr.c_str(), jidstr.size());
+    SHA256_Final(shabuf, &sha256);
+    char b32[27]; //26 actually
+    nsmega::Base32::btoa(shabuf, 16, b32);
+    shabuf[26] = 0;
+    string roomJid;
+    roomJid.reserve(64);
+    roomJid.append(b32).append("@conference.").append(KARERE_XMPP_DOMAIN);
     string myRoomJid = roomJid;
     myRoomJid.append("/").append(myId).append("__")
             .append(strophe::getResourceFromJid(myFullJid));
