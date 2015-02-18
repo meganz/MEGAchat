@@ -52,6 +52,7 @@ set(MEGASDK_LIB "${optMegaSdkPath}/src/.libs/libmega.so")
 
 include_directories(
     ..
+    ../base
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../third-party
     ${CMAKE_CURRENT_BINARY_DIR}

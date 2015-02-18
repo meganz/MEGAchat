@@ -623,7 +623,7 @@ int RtcModule::hangupByPeer(const char* peerJid, char callType, const char* reas
 
 int RtcModule::hangupAll(const char* reason, const char* text)
 {
-    bool term = 0;
+    int term = 0;
     enumCallsForHangup([&term](const string&, const string&, int)
     {
         term++;

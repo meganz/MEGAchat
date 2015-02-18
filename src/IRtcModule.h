@@ -97,8 +97,9 @@ struct IRtcStats {};
  * All events from the Rtc module are sent to the application
  * via this interface
 */
-struct IEventHandler: public IDestroy
+class IEventHandler: public IDestroy
 {
+public:
 /**
 * Fired when there was an error obtaining local audio and/or video streams
 * @param errMsg The error message
