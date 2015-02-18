@@ -215,9 +215,11 @@ protected:
     };
 
     template <typename Ret>
-    struct ValueTypeFromCbRet {    typedef Ret Type; };
+    struct ValueTypeFromCbRet
+    {  typedef typename std::remove_const<Ret>::type Type; };
     template<typename Ret>
-    struct ValueTypeFromCbRet<Promise<Ret> > {typedef Ret Type; };
+    struct ValueTypeFromCbRet<Promise<Ret> >
+    {  typedef typename std::remove_const<Ret>::type Type;  };
 
     void addRef()
     {
