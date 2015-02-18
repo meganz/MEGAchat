@@ -440,7 +440,8 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
                   Stanza cancelMsg(mConn);
                   cancelMsg.setName("message")
                       .setAttr("type", "megaCallCancel")
-                      .setAttr("to", getBareJidFromJid(state->targetJid).c_str());
+                      .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
+                      .setAttr("reason", "answer-timeout");
                   xmpp_send(mConn, cancelMsg);
                   RTCM_EVENT(onCallAnswerTimeout, state->targetJid.c_str());
               },
@@ -492,7 +493,8 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
             cancelMsg.setName("message")
                     .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
                     .setAttr("sid", state->sid.c_str())
-                    .setAttr("type", "megaCallCancel");
+                    .setAttr("type", "megaCallCancel")
+                    .setAttr("reason", "user");
             mConn.send(cancelMsg);
             return true;
       }

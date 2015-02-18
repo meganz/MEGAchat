@@ -383,7 +383,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
          },
          NULL, "message", "megaNotifyCallHandled", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
-    // Add a 'cancel' handler that will ivalidate the call request if the caller sends a cancel message
+    // Add a 'cancel' handler that will invalidate the call request if the caller sends a cancel message
         state->cancelHandlerId = mConn.addHandler([this, state]
          (Stanza stanza, void*, bool& keep)
          {
@@ -393,8 +393,10 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
             state->cancelHandlerId = nullptr;
             mConn.removeHandler(state->elsewhereHandlerId);
             state->elsewhereHandlerId = nullptr;
-
-            onCallCanceled(state->sid.c_str(), "canceled", nullptr, false, &(state->userp));
+            const char* reason = stanza.attrOrNull("reason");
+            if (!reason)
+                reason = "unknown";
+            onCallCanceled(state->sid.c_str(), reason, nullptr, false, &(state->userp));
         },
         NULL, "message", "megaCallCancel", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
