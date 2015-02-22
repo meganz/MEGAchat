@@ -82,8 +82,6 @@ set(WEBRTC_LIBS
 )
 else() #APPLE
     file(GLOB WEBRTC_LIBS "${webrtcBuild}/../*.a")
-message(STATUS "=============== ${webrtcBuild} ====== libs = ${WEBRTC_LIBS}")
-
 endif()
 
 set(WEBRTC_LIBS_X86
