@@ -13,6 +13,8 @@
     #ifdef WIN32_LEAN_AND_MEAN
         #include <mmsystem.h>
     #endif
+#elif defined(__MACH__)
+   #include <mach/mach_time.h>
 #else
     #include <sys/time.h>
 #endif
@@ -67,7 +69,7 @@ static inline Ts timestampMs()
     now += _gTimeBase;
     return now;
 }
-#elif defined(_POSIX_MONOTONIC_CLOCK)
+#elif !defined(__MACH__) && defined(_POSIX_MONOTONIC_CLOCK) //macos defines _POSIX_MONOTONIC_CLOCK to -1 but does not implement it
 static inline Ts timestampMs()
 {
     struct timespec ts;
@@ -75,6 +77,7 @@ static inline Ts timestampMs()
     return (Ts)ts.tv_sec*1000 + (Ts)ts.tv_nsec / 1000000;
 }
 #elif defined (__MACH__)
+extern double _gTimeConversionFactor;
 void _init_mac_timefunc();
 static inline Ts timestampMs()
 {
