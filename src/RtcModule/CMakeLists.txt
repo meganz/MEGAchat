@@ -1,27 +1,27 @@
 cmake_minimum_required(VERSION 2.8)
 project(rtcModule)
-include (utils.cmake)
+include (../utils.cmake)
 
 set(optRtcModuleBuildShared 1 CACHE BOOL "Whether to build rtcModule as a shared lib")
 
 set (SRCS
     strophe.jingle.session.cpp
     strophe.jingle.cpp
-    webrtcAdapter.cpp
     strophe.jingle.sdp.cpp
-    rtcModule.cpp
-    karereCommon.cpp
-    lib.cpp
+    WebrtcAdapter.cpp
+    RtcModule.cpp
+    ../KarereCommon.cpp
+    Lib.cpp
 )
 
-add_subdirectory(base)
-add_subdirectory(../webrtc-build webrtc)
+add_subdirectory(../base base)
+add_subdirectory(../../webrtc-build webrtc)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WEBRTC_CXXFLAGS} -std=c++11")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WEBRTC_CFLAGS}")
 
 get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
-include_directories(. ./base ${CMAKE_CURRENT_BINARY_DIR} ${STROPHE_INCLUDES} ${WEBRTC_INCLUDES})
+include_directories(.. ../base ${CMAKE_CURRENT_BINARY_DIR} ${STROPHE_INCLUDES} ${WEBRTC_INCLUDES})
 
 add_definitions(-DRTCM_BUILDING ${WEBRTC_DEFS} -fvisibility=hidden)
 
