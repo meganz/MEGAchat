@@ -10,8 +10,8 @@
 
 typedef struct
 {
-    int start;
-    int end;
+    long start;
+    long end;
 } t_string_bounds;
 
 struct _CurlConnection;
