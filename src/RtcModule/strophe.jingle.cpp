@@ -3,9 +3,9 @@
 #include <string>
 #include <map>
 #include <memory>
-#include "karereCommon.h"
+#include "KarereCommon.h"
 #include "base/services.h"
-#include "webrtcAdapter.h"
+#include "WebrtcAdapter.h"
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.h"
 #include "StringUtils.h"

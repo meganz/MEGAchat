@@ -4,7 +4,7 @@
 #include <IVideoRenderer.h>
 //#include <karereCommon.h>
 #include "base/gcm.h"
-#include "webrtcAdapter.h"
+#include "WebrtcAdapter.h"
 #include <mutex>
 
 namespace artc

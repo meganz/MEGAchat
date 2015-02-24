@@ -1,7 +1,7 @@
 #include <QWidget>
 #include <QPainter>
 #include <QMutexLocker>
-#include "videoRenderer_Qt.h"
+#include "VideoRenderer_Qt.h"
 #include <stdexcept>
 
 VideoRendererQt::VideoRendererQt(QWidget *parent)

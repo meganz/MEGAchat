@@ -3,7 +3,7 @@
 #include <mega/base64.h>
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
-#include "sdkApi.h"
+#include "SdkApi.h"
 #include "ITypesImpl.h"
 
 using namespace mega;

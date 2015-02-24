@@ -3,7 +3,7 @@
 
 #include "IRtcModule.h"
 #include "strophe.jingle.h"
-#include "streamPlayer.h"
+#include "StreamPlayer.h"
 
 namespace disco {class Plugin;}
 

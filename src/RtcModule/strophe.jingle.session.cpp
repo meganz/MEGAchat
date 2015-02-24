@@ -1,7 +1,7 @@
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.sdp.h"
 #include "strophe.jingle.h"
-#include "karereCommon.h"
+#include "KarereCommon.h"
 #include "StringUtils.h"
 
 using namespace std;

@@ -5,12 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mstrophepp.h>
-#include "../IRtcModule.h"
-#include "../lib.h"
-#include "../DummyCrypto.h"
-#include "../strophe.disco.h"
-#include "../base/services.h"
-#include "sdkApi.h"
+#include "RtcModule/IRtcModule.h"
+#include "RtcModule/Lib.h"
+#include "DummyCrypto.h"
+#include "strophe.disco.h"
+#include "base/services.h"
+#include "SdkApi.h"
 #include "MegaCryptoFunctions.h"
 #include "ChatClient.h"
 

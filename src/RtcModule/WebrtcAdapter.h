@@ -10,7 +10,7 @@
 #include <talk/app/webrtc/test/fakeconstraints.h>
 #include <talk/app/webrtc/jsepsessiondescription.h>
 #include <talk/app/webrtc/jsep.h>
-#include "base/Gcmpp.h"
+#include "base/gcmpp.h"
 #include "KarereCommon.h" //only for std::string on android
 #include "base/Promise.h"
 

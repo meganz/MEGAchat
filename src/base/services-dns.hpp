@@ -3,7 +3,7 @@
 //This header is the C++11 layer on top of cservices-dns.h
 #include "cservices.h"
 #include "addrinfo.hpp"
-#include "promise.h"
+#include "Promise.h"
 
 namespace mega
 {

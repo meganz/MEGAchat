@@ -38,7 +38,7 @@ MEGAIO_EXPORT int services_strophe_init(int options)
     return (gStropheContext != nullptr);
 }
 
-MEGAIO_IMPEXP xmpp_ctx_t* services_strophe_get_ctx()
+MEGAIO_EXPORT xmpp_ctx_t* services_strophe_get_ctx()
 {
     return gStropheContext;
 }

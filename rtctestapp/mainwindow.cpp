@@ -2,14 +2,14 @@
 #include "ui_mainwindow.h"
 #include "qmessagebox.h"
 #include <string>
-#include "videoRenderer_Qt.h"
-#include "../base/gcm.h"
-#include "../IRtcModule.h"
-#include "../base/services-dns.hpp"
-#include "../base/services-http.hpp"
+#include <VideoRenderer_Qt.h>
+#include <gcm.h>
+#include "RtcModule/IRtcModule.h"
+#include <services-dns.hpp>
+#include <services-http.hpp>
 #include <iostream>
 #include <rapidjson/document.h>
-#include <sdkApi.h>
+#include <SdkApi.h>
 #include <ChatClient.h>
 
 #undef emit

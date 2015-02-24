@@ -2,7 +2,7 @@
 #include <atomic>
 #include <mstrophepp.h>
 #include "strophe.jingle.sdp.h"
-#include "karereCommon.h"
+#include <KarereCommon.h>
 #include "StringUtils.h"
 
 // SDP STUFF
