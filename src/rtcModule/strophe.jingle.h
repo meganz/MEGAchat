@@ -5,11 +5,11 @@
 #include <string>
 #include <map>
 #include <memory>
-#include "WebrtcAdapter.h"
+#include "webrtcAdapter.h"
 #include "IJingleSession.h"
 #include "ICryptoFunctions.h"
 #include <mstrophepp.h>
-#include "KarereCommon.h"
+#include "karereCommon.h"
 
 namespace disco
 {

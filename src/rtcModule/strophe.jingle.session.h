@@ -2,11 +2,11 @@
 #define STROPHE_JINGLE_SESSION_H
 #include <memory>
 #include <mstrophepp.h>
-#include "Promise.h"
-#include "KarereCommon.h"
-#include "WebrtcAdapter.h"
+#include "promise.h"
+#include "karereCommon.h"
+#include "webrtcAdapter.h"
 #include <talk/app/webrtc/test/fakeconstraints.h>
-#include "StreamPlayer.h"
+#include "streamPlayer.h"
 #include "strophe.jingle.sdp.h"
 #include "IJingleSession.h"
 #include "IRtcModule.h" //needed for StatOptions only

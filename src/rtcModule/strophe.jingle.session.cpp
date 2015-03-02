@@ -1,8 +1,8 @@
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.sdp.h"
 #include "strophe.jingle.h"
-#include "KarereCommon.h"
-#include "StringUtils.h"
+#include "karereCommon.h"
+#include "stringUtils.h"
 
 using namespace std;
 using namespace promise;
