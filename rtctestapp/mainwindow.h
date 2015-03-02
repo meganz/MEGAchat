@@ -6,11 +6,11 @@
 #include <mstrophepp.h>
 #include <IRtcModule.h>
 #include <mstrophepp.h>
-#include "../strophe.disco.h"
+#include <strophe.disco.h>
 #include <ui_mainwindow.h>
-#include "karereCommon.h"
-#include "IJingleSession.h"
-#include "ChatClient.h"
+#include <karereCommon.h>
+#include <rtcModule/IJingleSession.h>
+#include <chatClient.h>
 
 namespace Ui {
 class MainWindow;

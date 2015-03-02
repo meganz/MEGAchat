@@ -1,5 +1,5 @@
-#include "MegaCryptoFunctions.h"
-#include "AutoHandle.h"
+#include "megaCryptoFunctions.h"
+#include "autoHandle.h"
 #include <mega/base64.h>
 #include <openssl/hmac.h>
 #include <openssl/rand.h>

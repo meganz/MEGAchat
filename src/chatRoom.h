@@ -1,7 +1,7 @@
 #ifndef CHATROOM_H
 #define CHATROOM_H
 #include <mstrophepp.h>
-#include "ChatCommon.h"
+//#include "chatCommon.h"
 namespace karere
 {
 class Client;

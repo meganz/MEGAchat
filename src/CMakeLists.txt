@@ -1,55 +1,60 @@
 cmake_minimum_required(VERSION 2.8)
-project(rtcModule)
-include (utils.cmake)
+project(chatclient)
 
-set(optRtcModuleBuildShared 1 CACHE BOOL "Whether to build rtcModule as a shared lib")
+include (utils.cmake)
+include (FindCryptopp.cmake)
 
 set (SRCS
-    strophe.jingle.session.cpp
-    strophe.jingle.cpp
-    webrtcAdapter.cpp
-    strophe.jingle.sdp.cpp
-    rtcModule.cpp
-    karereCommon.cpp
-    lib.cpp
+     chatRoom.cpp
+     contactList.cpp
+     chatClient.cpp
+     karereCommon.cpp
+     strophe.disco.cpp
+     dummyCrypto.cpp
+     megaCryptoFunctions.cpp
 )
 
-add_subdirectory(base)
-add_subdirectory(../webrtc-build webrtc)
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WEBRTC_CXXFLAGS} -std=c++11")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WEBRTC_CFLAGS}")
-
-get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
-include_directories(. ./base ${CMAKE_CURRENT_BINARY_DIR} ${STROPHE_INCLUDES} ${WEBRTC_INCLUDES})
-
-add_definitions(-DRTCM_BUILDING ${WEBRTC_DEFS} -fvisibility=hidden)
-
-#-Wno-unused-local-typedefs suppresses a lot of warning form webrtc headers from COMPILE_ASSERT: see https://code.google.com/p/chromium/issues/detail?id=227506
-add_definitions(-Wno-unused-local-typedefs)
-
-if(optRtcModuleBuildShared)
-    add_library(rtcModule SHARED ${SRCS})
-else()
-    add_library(rtcModule ${SRCS})
+add_definitions(-D_DEBUG -fvisibility=hidden -Wall)
+if (CMAKE_COMPILER_ID STREQUAL "GNU")
+    add_definitions(-Wno-unused-local-typedefs)
 endif()
 
-target_link_targets(rtcModule services)
-target_link_libraries(rtcModule webrtc_my pthread)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-targetExportDefines(rtcModule "")
-targetExportFullpathIncludes(rtcModule ${CMAKE_CURRENT_SOURCE_DIR})
-targetExportCompileFlags(rtcModule "")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
+add_subdirectory(rtcModule)
+get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
 
-# add a target to generate API documentation with Doxygen
-find_package(Doxygen)
-if(DOXYGEN_FOUND)
-set(CMAKE_DOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/doc")
-set(CMAKE_DOXYPROJECT_NAME "RTC Module")
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
-add_custom_target(doc
-${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
-WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-COMMENT "Generating API documentation with Doxygen" VERBATIM
+set (optMegaSdkPath "/home/loki/megasdk" CACHE PATH "Mega SDK path")
+if (WIN32)
+  if (WINPHONE8)
+    set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/wp8")
+  else()
+    set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/win32")
+  endif()
+else()
+  set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/posix")
+endif()
+
+set(MEGASDK_INCLUDES "${optMegaSdkPath}/include" "${MEGASDK_PLATFORM_INCLUDES}")
+set_property(GLOBAL PROPERTY MEGASDK_INCLUDES ${MEGASDK_INCLUDES})
+set(MEGASDK_LIB "${optMegaSdkPath}/src/.libs/libmega.so")
+
+include_directories(
+    .
+    rtcModule
+    base
+    ../third-party
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${STROPHE_INCLUDES}
+    ${MEGASDK_INCLUDES}
 )
-endif(DOXYGEN_FOUND)
+
+add_library(chatclient ${SRCS})
+target_link_libraries(chatclient
+    rtcmodule
+    ${MEGASDK_LIB}
+    ${CRYPTOPP_LIBRARIES}
+)
+
+

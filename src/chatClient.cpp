@@ -5,14 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mstrophepp.h>
-#include "../IRtcModule.h"
-#include "../lib.h"
-#include "../DummyCrypto.h"
-#include "../strophe.disco.h"
-#include "../base/services.h"
+#include "rtcModule/IRtcModule.h"
+#include "rtcModule/lib.h"
+#include "dummyCrypto.h"
+#include "strophe.disco.h"
+#include "base/services.h"
 #include "sdkApi.h"
-#include "MegaCryptoFunctions.h"
-#include "ChatClient.h"
+#include "megaCryptoFunctions.h"
+#include "chatClient.h"
 
 using namespace std;
 using namespace promise;

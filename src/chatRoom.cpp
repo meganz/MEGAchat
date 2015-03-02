@@ -1,7 +1,7 @@
 #include <mstrophepp.h>
-#include "ChatRoom.h"
-#include "ChatCommon.h"
-#include "ChatClient.h"
+#include "chatRoom.h"
+#include "chatCommon.h"
+#include "chatClient.h"
 #include <mega/base64.h>
 #include <openssl/sha.h>
 
@@ -28,8 +28,8 @@ ChatRoom::create(Client& client, const std::string& peerFullJid)
         throw runtime_error("Error getting own JID from connection");
     string myBareJid = strophe::getBareJidFromJid(myFullJid);
     string peerBareJid = strophe::getBareJidFromJid(peerFullJid);
-    string myId = userIdFromJid(conn->fullJid());
-    string peerId = userIdFromJid(peerFullJid);
+    string myId = strophe::getNodeFromJid(conn->fullJid());
+    string peerId = strophe::getNodeFromJid(peerFullJid);
     string* id1;
     string* id2;
     if (myBareJid <= peerBareJid)

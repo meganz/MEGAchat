@@ -1,6 +1,6 @@
 #include "rtcModule.h"
-#include "StringUtils.h"
-#include "base/services.h"
+#include "stringUtils.h"
+#include "../base/services.h"
 #include "strophe.jingle.session.h"
 #include "ITypesImpl.h"
 #include "IDeviceListImpl.h"

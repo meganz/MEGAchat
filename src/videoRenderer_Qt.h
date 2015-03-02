@@ -1,7 +1,7 @@
 #ifndef VIDEORENDERER_QT_H
 #define VIDEORENDERER_QT_H
 
-#include "IVideoRenderer.h"
+#include "rtcModule/IVideoRenderer.h"
 #include <QWidget>
 #include <QMutex>
 #include <memory>

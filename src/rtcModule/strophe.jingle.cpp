@@ -8,7 +8,7 @@
 #include "webrtcAdapter.h"
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.h"
-#include "StringUtils.h"
+#include "stringUtils.h"
 #include <mstrophepp.h>
 
 using namespace std;
