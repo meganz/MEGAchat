@@ -28,8 +28,8 @@ ChatRoom::create(Client& client, const std::string& peerFullJid)
         throw runtime_error("Error getting own JID from connection");
     string myBareJid = strophe::getBareJidFromJid(myFullJid);
     string peerBareJid = strophe::getBareJidFromJid(peerFullJid);
-    string myId = userIdFromJid(conn->fullJid());
-    string peerId = userIdFromJid(peerFullJid);
+    string myId = strophe::getNodeFromJid(conn->fullJid());
+    string peerId = strophe::getNodeFromJid(peerFullJid);
     string* id1;
     string* id2;
     if (myBareJid <= peerBareJid)
