@@ -15,7 +15,7 @@ if (NOT WEBRTC_BUILD_TYPE)
     message(FATAL_ERROR "WEBRTC_BUILD_TYPE must be already set")
 endif()
 
-set(webrtcRoot "${CMAKE_CURRENT_SOURCE_DIR}/../../../webrtc/trunk" CACHE PATH "Path to the source&build tree of webrtc")
+set(webrtcRoot "~/webrtc-build/trunk" CACHE PATH "Path to the source&build tree of webrtc")
 set(webrtcBuild "${webrtcRoot}/out/${WEBRTC_BUILD_TYPE}/obj")
 
 set(optWebrtcShared 0 CACHE BOOL "Build webrtc as shared lib")
@@ -210,12 +210,14 @@ set(WEBRTC_SYSINCLUCES_ANDROID)
 set(WEBRTC_CFLAGS
     -fstack-protector --param=ssp-buffer-size=4
     -fno-strict-aliasing -Wno-unused-parameter
-    -Wno-missing-field-initializers -fvisibility=hidden -pipe -fPIC
-    -Wno-unused-local-typedefs
+    -Wno-missing-field-initializers -pipe -fPIC
 )
+if (CMAKE_COMPILER_ID STREQUAL "GNU")
+    list(APPEND WEBRTC_CLAGS -Wno-unused-local-typedefs)
+endif()
 
 set(WEBRTC_CXXFLAGS
-    -fno-rtti -fno-exceptions -fno-threadsafe-statics -fvisibility-inlines-hidden
+    -fno-rtti -fno-exceptions -fno-threadsafe-statics
     -Wno-deprecated -std=gnu++11 -Wno-narrowing -Wno-literal-suffix
 )
 
@@ -241,6 +243,7 @@ set(WEBRTC_CFLAGS_COMMON_MACOS
     -Wno-unneeded-internal-declaration -Wno-covered-switch-default
     -Wstring-conversion -Wno-c++11-narrowing -Wno-deprecated-register
 )
+
 set(WEBRTC_CFLAGS_MACOS
     ${WEBRTC_CFLAGS_COMMON_MACOS}
     -std=c99 -fno-slp-vectorize -fcolor-diagnostics
@@ -282,7 +285,7 @@ set(WEBRTC_SYSLIBS_MACOS
     "-framework AVFoundation" "-framework WebKit" "-framework Cocoa" "-framework AudioToolbox"
     "-framework Foundation" "-framework IOKit" "-framework Security"
     "-framework SystemConfiguration" "-framework CoreAudio" "-framework CoreVideo"
-    "-framework OpenGL" "-framework QTKit" stdc++
+    "-framework OpenGL" "-framework QTKit"
 )
 
 macro(appendPlatformStuff pname)
@@ -338,13 +341,14 @@ add_custom_command(
 set(myvpx libmyvpx.a)
 endif()
 
-set(CMAKE_MODULE_LINKER_FLAGS ${WEBRTC_LDFLAGS})
-set(CMAKE_SHARED_LINKER_FLAGS ${WEBRTC_LDFLAGS})
+set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
+
 
 if(optWebrtcShared)
-add_library(webrtc_my SHARED dummy.c ${myvpx})
+add_library(webrtc_my SHARED dummy.cpp ${myvpx})
 else()
-add_library(webrtc_my dummy.c ${myvpx})
+add_library(webrtc_my dummy.cpp ${myvpx})
 endif()
 target_link_libraries(webrtc_my ${WEBRTC_LIBS} ${WEBRTC_SYSLIBS})
 
