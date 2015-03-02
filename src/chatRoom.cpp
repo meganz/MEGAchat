@@ -1,7 +1,7 @@
 #include <mstrophepp.h>
-#include "ChatRoom.h"
-#include "ChatCommon.h"
-#include "ChatClient.h"
+#include "chatRoom.h"
+#include "chatCommon.h"
+#include "chatClient.h"
 #include <mega/base64.h>
 #include <openssl/sha.h>
 

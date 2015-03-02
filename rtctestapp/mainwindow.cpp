@@ -2,15 +2,15 @@
 #include "ui_mainwindow.h"
 #include "qmessagebox.h"
 #include <string>
-#include <VideoRenderer_Qt.h>
+#include <videoRenderer_Qt.h>
 #include <gcm.h>
-#include "RtcModule/IRtcModule.h"
+#include "rtcModule/IRtcModule.h"
 #include <services-dns.hpp>
 #include <services-http.hpp>
 #include <iostream>
 #include <rapidjson/document.h>
-#include <SdkApi.h>
-#include <ChatClient.h>
+#include <sdkApi.h>
+#include <chatClient.h>
 
 #undef emit
 #define THROW_IF_FALSE(statement) \

@@ -1,7 +1,7 @@
 #ifndef CONTACTLIST_H
 #define CONTACTLIST_H
 #include <mstrophepp.h>
-#include "KarereCommon.h"
+#include "karereCommon.h"
 
 namespace karere
 {

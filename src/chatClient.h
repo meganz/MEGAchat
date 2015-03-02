@@ -1,7 +1,7 @@
 #ifndef CHATCLIENT_H
 #define CHATCLIENT_H
-#include "ContactList.h"
-#include "ChatRoom.h"
+#include "contactList.h"
+#include "chatRoom.h"
 #include "ITypes.h" //for IPtr
 
 namespace strophe {class Connection;}

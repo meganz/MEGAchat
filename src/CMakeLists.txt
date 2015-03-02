@@ -5,14 +5,13 @@ include (utils.cmake)
 include (FindCryptopp.cmake)
 
 set (SRCS
-     ChatRoom.cpp
-     ContactList.cpp
-     ChatClient.cpp
-     KarereCommon.cpp
-     ../third-party/murmurHash/MurmurHash3.cpp
+     chatRoom.cpp
+     contactList.cpp
+     chatClient.cpp
+     karereCommon.cpp
      strophe.disco.cpp
-     DummyCrypto.cpp
-     MegaCryptoFunctions.cpp
+     dummyCrypto.cpp
+     megaCryptoFunctions.cpp
 )
 
 add_definitions(-D_DEBUG -fvisibility=hidden -Wall)
@@ -23,7 +22,7 @@ endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
-add_subdirectory(RtcModule)
+add_subdirectory(rtcModule)
 get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
 
 set (optMegaSdkPath "/home/loki/megasdk" CACHE PATH "Mega SDK path")
@@ -43,7 +42,7 @@ set(MEGASDK_LIB "${optMegaSdkPath}/src/.libs/libmega.so")
 
 include_directories(
     .
-    RtcModule
+    rtcModule
     base
     ../third-party
     ${CMAKE_CURRENT_BINARY_DIR}
@@ -53,7 +52,7 @@ include_directories(
 
 add_library(chatclient ${SRCS})
 target_link_libraries(chatclient
-    rtcModule
+    rtcmodule
     ${MEGASDK_LIB}
     ${CRYPTOPP_LIBRARIES}
 )

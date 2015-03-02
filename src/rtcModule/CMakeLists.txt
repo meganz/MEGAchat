@@ -8,10 +8,10 @@ set (SRCS
     strophe.jingle.session.cpp
     strophe.jingle.cpp
     strophe.jingle.sdp.cpp
-    WebrtcAdapter.cpp
-    RtcModule.cpp
-    ../KarereCommon.cpp
-    Lib.cpp
+    webrtcAdapter.cpp
+    rtcModule.cpp
+    lib.cpp
+    ../karereCommon.cpp
 )
 
 add_subdirectory(../base base)
@@ -29,17 +29,17 @@ add_definitions(-DRTCM_BUILDING ${WEBRTC_DEFS} -fvisibility=hidden)
 add_definitions(-Wno-unused-local-typedefs)
 
 if(optRtcModuleBuildShared)
-    add_library(rtcModule SHARED ${SRCS})
+    add_library(rtcmodule SHARED ${SRCS})
 else()
-    add_library(rtcModule ${SRCS})
+    add_library(rtcmodule ${SRCS})
 endif()
 
-target_link_targets(rtcModule services)
-target_link_libraries(rtcModule webrtc_my pthread)
+target_link_targets(rtcmodule services)
+target_link_libraries(rtcmodule webrtc_my pthread)
 
-targetExportDefines(rtcModule "")
-targetExportFullpathIncludes(rtcModule ${CMAKE_CURRENT_SOURCE_DIR})
-targetExportCompileFlags(rtcModule "")
+targetExportDefines(rtcmodule "")
+targetExportFullpathIncludes(rtcmodule ${CMAKE_CURRENT_SOURCE_DIR})
+targetExportCompileFlags(rtcmodule "")
 
 # add a target to generate API documentation with Doxygen
 find_package(Doxygen)

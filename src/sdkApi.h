@@ -1,7 +1,7 @@
 #ifndef SDKAPI_H
 #define SDKAPI_H
 #include <megaapi.h>
-#include "base/Promise.h"
+#include "base/promise.h"
 #include "base/gcmpp.h"
 
 typedef std::shared_ptr<mega::MegaRequest> ReqResult;

@@ -13,17 +13,6 @@ static inline std::string userIdFromJid(const std::string& jid)
     return jid.substr(0, pos);
 }
 
-static inline uint32_t fastHash(const char* str, size_t len)
-{
-    uint32_t result;
-    MurmurHash3_x86_32(str, len, 0x4ef5391a, &result);
-    return result;
-}
-
-static inline uint32_t fastHash(const std::string& str)
-{
-    return fastHash(str.c_str(), str.size());
-}
 }
 
 #endif // CHATCOMMON_H

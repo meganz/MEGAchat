@@ -8,9 +8,9 @@
 #include <mstrophepp.h>
 #include <strophe.disco.h>
 #include <ui_mainwindow.h>
-#include <KarereCommon.h>
-#include <RtcModule/IJingleSession.h>
-#include <ChatClient.h>
+#include <karereCommon.h>
+#include <rtcModule/IJingleSession.h>
+#include <chatClient.h>
 
 namespace Ui {
 class MainWindow;

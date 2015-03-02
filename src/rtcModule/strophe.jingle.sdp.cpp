@@ -2,8 +2,8 @@
 #include <atomic>
 #include <mstrophepp.h>
 #include "strophe.jingle.sdp.h"
-#include <KarereCommon.h>
-#include "StringUtils.h"
+#include <karereCommon.h>
+#include "stringUtils.h"
 
 // SDP STUFF
 namespace sdpUtil

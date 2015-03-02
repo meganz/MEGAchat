@@ -5,10 +5,10 @@ FIND_PACKAGE(Qt4 REQUIRED)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set (SRCS
-     ../src/VideoRenderer_Qt.cpp
      mainwindow.cpp
      main.cpp
-     ../src/KarereCommon.cpp
+     ../src/videoRenderer_Qt.cpp
+     ../src/karereCommon.cpp
 )
 
 set(QT_FORMS mainwindow.ui)
@@ -27,7 +27,7 @@ get_property(MEGASDK_INCLUDES GLOBAL PROPERTY MEGASDK_INCLUDES)
 include_directories(
     ../src
     ../src/base
-    ../src/RtcModule
+    ../src/rtcModule
     ../third-party
     ${CMAKE_CURRENT_BINARY_DIR}
     ${STROPHE_INCLUDES}
