@@ -18,8 +18,6 @@ QT4_WRAP_UI(QT_GEN_FORMS_HEADERS ${QT_FORMS})
 INCLUDE(${QT_USE_FILE})
 add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden -Wall -Wno-unused-local-typedefs)
 
-#list(APPEND CMAKE_CXX_FLAGS -std=c++11)
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
 add_subdirectory(../src chatclient)
 get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
 get_property(MEGASDK_INCLUDES GLOBAL PROPERTY MEGASDK_INCLUDES)
@@ -35,11 +33,18 @@ include_directories(
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(SYSLIBS)
+if (CLANG_STDLIB)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
+    set(SYSLIBS ${CLANG_STDLIB})
+endif()
+
 add_executable(rtctestapp ${SRCS} ${QT_GEN_MOC_SRCS} ${QT_GEN_FORMS_HEADERS})
 set_target_properties(rtctestapp PROPERTIES AUTOMOC TRUE)
 target_link_libraries(rtctestapp
     ${QT_LIBRARIES}
     chatclient
+    ${SYSLIBS}
 )
 
 

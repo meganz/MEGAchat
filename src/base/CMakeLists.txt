@@ -31,14 +31,22 @@ if  (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif()
 
+set(SYSLIBS z)
+
+if (CLANG_STDLIB)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
+    list(APPEND SYSLIBS ${CLANG_STDLIB})
+endif()
+
 add_library(services SHARED ${SRCS})
+
 target_link_libraries(services
   strophe
   ${LIBEVENT_LIB}
   ${CURL_LIBRARIES}
-  event_pthreads
-  z
+  ${SYSLIBS}
 )
+
 targetExportDefines(services "")
 targetExportFullpathIncludes(services ${INCLUDES})
 targetExportCompileFlags(services "")

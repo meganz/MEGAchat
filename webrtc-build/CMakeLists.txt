@@ -271,7 +271,7 @@ set(WEBRTC_LDFLAGS_ANDROID
 )
 set(WEBRTC_LDFLAGS_MACOS
     -Wl,-search_paths_first -Wl,-ObjC
-    -Wl,-dead_strip -mmacosx-version-min=10.8 -arch x86_64
+    -Wl,-dead_strip -arch x86_64
 )
 set(WEBRTC_SYSLIBS)
 set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)

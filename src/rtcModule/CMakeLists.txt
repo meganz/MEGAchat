@@ -26,7 +26,16 @@ include_directories(. .. ../base ${CMAKE_CURRENT_BINARY_DIR} ${STROPHE_INCLUDES}
 add_definitions(-DRTCM_BUILDING ${WEBRTC_DEFS} -fvisibility=hidden)
 
 #-Wno-unused-local-typedefs suppresses a lot of warning form webrtc headers from COMPILE_ASSERT: see https://code.google.com/p/chromium/issues/detail?id=227506
-add_definitions(-Wno-unused-local-typedefs)
+if (CMAKE_COMPILER_ID STREQUAL "GNU")
+    add_definitions(-Wno-unused-local-typedefs)
+endif()
+
+set(SYSLIBS pthread)
+
+if (CLANG_STDLIB)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
+    list(APPEND SYSLIBS ${CLANG_STDLIB})
+endif()
 
 if(optRtcModuleBuildShared)
     add_library(rtcmodule SHARED ${SRCS})
@@ -35,7 +44,7 @@ else()
 endif()
 
 target_link_targets(rtcmodule services)
-target_link_libraries(rtcmodule webrtc_my pthread)
+target_link_libraries(rtcmodule webrtc_my ${SYSLIBS})
 
 targetExportDefines(rtcmodule "")
 targetExportFullpathIncludes(rtcmodule ${CMAKE_CURRENT_SOURCE_DIR})
