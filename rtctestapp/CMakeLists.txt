@@ -16,7 +16,10 @@ QT4_WRAP_UI(QT_GEN_FORMS_HEADERS ${QT_FORMS})
 #QT4_ADD_RESOURCES(helloworld_RESOURCES_RCC ${helloworld_RESOURCES})
 
 INCLUDE(${QT_USE_FILE})
-add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden -Wall -Wno-unused-local-typedefs)
+add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden -Wall)
+if (CMAKE_COMPILER_ID STREQUAL "GNU")
+    add_definitions(-Wno-unused-local-typedefs)
+endif()
 
 add_subdirectory(../src chatclient)
 get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
