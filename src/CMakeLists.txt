@@ -15,7 +15,7 @@ set (SRCS
 )
 
 add_definitions(-D_DEBUG -fvisibility=hidden -Wall)
-if (CMAKE_COMPILER_ID STREQUAL "GNU")
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_definitions(-Wno-unused-local-typedefs)
 endif()
 

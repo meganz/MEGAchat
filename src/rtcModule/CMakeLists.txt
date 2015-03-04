@@ -26,7 +26,7 @@ include_directories(. .. ../base ${CMAKE_CURRENT_BINARY_DIR} ${STROPHE_INCLUDES}
 add_definitions(-DRTCM_BUILDING ${WEBRTC_DEFS} -fvisibility=hidden)
 
 #-Wno-unused-local-typedefs suppresses a lot of warning form webrtc headers from COMPILE_ASSERT: see https://code.google.com/p/chromium/issues/detail?id=227506
-if (CMAKE_COMPILER_ID STREQUAL "GNU")
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_definitions(-Wno-unused-local-typedefs)
 endif()
 

@@ -17,7 +17,7 @@ QT4_WRAP_UI(QT_GEN_FORMS_HEADERS ${QT_FORMS})
 
 INCLUDE(${QT_USE_FILE})
 add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden -Wall)
-if (CMAKE_COMPILER_ID STREQUAL "GNU")
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_definitions(-Wno-unused-local-typedefs)
 endif()
 
