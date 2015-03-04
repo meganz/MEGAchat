@@ -66,8 +66,6 @@ void MainWindow::buttonPushed()
             av.video = true;
             char sid[rtcModule::RTCM_SESSIONID_LEN+2];
             gClient->rtc->startMediaCall(sid, room->peerFullJid().c_str(), av, nullptr);
-            inCall = true;
-            ui->callBtn->setText("Hangup");
             return nullptr;
         })
         .fail([this](const promise::Error& err)

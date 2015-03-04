@@ -90,6 +90,8 @@ public:
         :mMainWindow(mainWindow){}
     virtual void onLocalStreamObtained(IVideoRenderer** renderer)
     {
+        inCall = true;
+        mMainWindow->ui->callBtn->setText("Hangup");
         *renderer = mMainWindow->ui->localRenderer;
     }
     virtual void onRemoteSdpRecv(rtcModule::IJingleSession* sess, IVideoRenderer** rendererRet)
@@ -123,7 +125,7 @@ public:
     }
     virtual void onLocalMediaFail(const char* err, int* cont = nullptr)
     {
-        printf("=============LocalMediaFail: %s\n", err);
+        KR_LOG_ERROR("=============LocalMediaFail: %s", err);
     }
 
 };
