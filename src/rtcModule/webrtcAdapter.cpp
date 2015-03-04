@@ -107,7 +107,8 @@ InputVideoDevice::cloneTrack()
 
 InputVideoDevice::~InputVideoDevice()
 {
-    mTrack->GetSource()->GetVideoCapturer()->Stop();
+    if (mTrack)
+        mTrack->GetSource()->GetVideoCapturer()->Stop();
 }
 
 std::shared_ptr<InputAudioDevice>
