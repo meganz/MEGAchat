@@ -22,7 +22,7 @@ if (CMAKE_COMPILER_ID STREQUAL "GNU")
 endif()
 
 add_subdirectory(../src chatclient)
-get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
+get_property(SERVICES_INCLUDES GLOBAL PROPERTY SERVICES_INCLUDES)
 get_property(MEGASDK_INCLUDES GLOBAL PROPERTY MEGASDK_INCLUDES)
 
 include_directories(
@@ -31,7 +31,7 @@ include_directories(
     ../src/rtcModule
     ../third-party
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${STROPHE_INCLUDES}
+    ${SERVICES_INCLUDES}
     ${MEGASDK_INCLUDES}
 )
 

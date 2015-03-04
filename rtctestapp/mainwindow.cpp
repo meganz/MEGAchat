@@ -30,7 +30,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 }
-mega::http::Client* client = nullptr;
+http::Client* client = nullptr;
 
 extern bool inCall;
 void MainWindow::buttonPushed()
@@ -111,7 +111,7 @@ MainWindow::~MainWindow()
 }
 
 /*    if (!client)
-        client = new mega::http::Client;
+        client = new http::Client;
     client->get<std::string>("http://www.osnews.com/")
     .then([](std::shared_ptr<std::string> data)
     {
@@ -127,8 +127,8 @@ return;
 */
 
 /*
-mega::dnsLookup("google.com", 0)
-.then([](std::shared_ptr<mega::AddrInfo> result)
+dnsLookup("google.com", 0)
+.then([](std::shared_ptr<AddrInfo> result)
 {
     printf("Canonical name: %s\n", result->canonName().c_str());
     auto& ip4s = result->ip4addrs();

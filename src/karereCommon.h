@@ -5,7 +5,6 @@
 #include <string>
 #include <time.h>
 #include <string.h>
-#include <base/cservices.h> //needed for isatty_xxx
 
 #ifdef _WIN32
     #include <winsock2.h>

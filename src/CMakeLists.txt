@@ -25,9 +25,9 @@ if (CLANG_STDLIB)
 endif()
 
 add_subdirectory(rtcModule)
-get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
+get_property(SERVICES_INCLUDES GLOBAL PROPERTY SERVICES_INCLUDES)
 
-set (optMegaSdkPath "/home/loki/megasdk" CACHE PATH "Mega SDK path")
+set (optMegaSdkPath "~/megasdk" CACHE PATH "Mega SDK path")
 if (WIN32)
   if (WINPHONE8)
     set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/wp8")
@@ -40,7 +40,7 @@ endif()
 
 set(MEGASDK_INCLUDES "${optMegaSdkPath}/include" "${MEGASDK_PLATFORM_INCLUDES}")
 set_property(GLOBAL PROPERTY MEGASDK_INCLUDES ${MEGASDK_INCLUDES})
-set(MEGASDK_LIB "${optMegaSdkPath}/src/.libs/libmega.so")
+set(MEGASDK_LIB "${optMegaSdkPath}/src/.libs/libmega${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 include_directories(
     .
@@ -48,8 +48,9 @@ include_directories(
     base
     ../third-party
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${STROPHE_INCLUDES}
     ${MEGASDK_INCLUDES}
+    ${SERVICES_INCLUDES}
+    ${CRYPTOPP_INCLUDE_DIRS}
 )
 
 add_library(chatclient ${SRCS})

@@ -121,6 +121,10 @@ public:
     {
         gClient->conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
     }
+    virtual void onLocalMediaFail(const char* err, int* cont = nullptr)
+    {
+        printf("=============LocalMediaFail: %s\n", err);
+    }
 
 };
 

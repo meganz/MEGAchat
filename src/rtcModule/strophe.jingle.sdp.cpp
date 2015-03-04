@@ -696,6 +696,8 @@ string find_line(const LineGroup& haystack, const string& needle, const LineGrou
         return ret;
     return find_line<flags>(sessionpart, needle);
 }
+//used from strophe.jingle.session and we must define that symbol
+template string find_line<0>(const LineGroup& haystack, const string& needle, const LineGroup& sessionpart);
 
 bool hasLine(const LineGroup& lines, const string& needle)
 {

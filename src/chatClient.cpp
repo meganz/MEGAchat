@@ -87,7 +87,7 @@ Promise<int> Client::start()
 
 void Client::startSelfPings(int intervalSec)
 {
-    mega::setInterval([this]()
+    setInterval([this]()
     {
         Stanza ping(*conn);
         ping.setName("iq")

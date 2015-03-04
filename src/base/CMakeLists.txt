@@ -25,6 +25,8 @@ set(INCLUDES
  ${STROPHE_INCLUDES}
 )
 include_directories(${INCLUDES})
+set_property(GLOBAL PROPERTY SERVICES_INCLUDES ${INCLUDES})
+
 
 if  (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
     add_definitions(-fvisibility=hidden -fPIC)
