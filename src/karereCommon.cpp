@@ -16,7 +16,7 @@ int isatty_stderr = isatty(2);
     {
         mach_timebase_info_data_t timebase;
         mach_timebase_info(&timebase);
-        _gTimeConversionFactor = ((double)timebase.numer*1000000) / (double)timebase.denom;
+        _gTimeConversionFactor = ((double)timebase.numer) / ((double)timebase.denom*1000000);
     }
 #endif
 }
