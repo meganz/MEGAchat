@@ -79,11 +79,19 @@ We need to set some env variables before proceeding with running the config scri
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1"` 
 
 * Mac:  
-`export GYP_DEFINES="enable_tracing=1 build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64"`  
-`export GYP_CROSSCOMPILE=1`  
-`perl -0pi -e 's/gdwarf-2/g/g' tools/gyp/pylib/gyp/xcode_emulation.py`  
-`perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libcrypto\.dylib/-lcrypto/g' talk/libjingle.gyp`  
-`perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libssl\.dylib/-lssl/g' talk/libjingle.gyp`  
+We will want to build webrtc using the system clang compiler instead of the one provided by google with depot_tools. In this
+way we will avoid linking problems with runtime, ABI issues etc. To do so, we first need to set the CC and CXX env variables:
+`export CC=/usr/bin/clang`  
+`export CXX=/usr/bin/clang++`  
+The build process uses a clang compiler plugin to do some automated code checks etc, and it will not work with the system
+compiler, causing an error. So we need to disable this plugin via `clang_use_chrome_plugins=0` parameter in GYP_DEFINES (see below).
+Also, we are going to force the use of libc++ instead of libstdc++ as a standard lib for clang. This would cause an error that
+10.6 target mac platform is too old to require libc++, as it is relatively new. That's why we need to bump the target platform
+version to 10.7, using `mac_deployment_target`.  
+So, the final `GYP_DEFINES` looks like this:  
+`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64 clang_use_chrome_plugins=0 mac_deployment_target=10.7"`  
+Having 10.7 as target however, will cause a deprecation warning, that will be treated as error, when compiling `nss`.
+This is why we need to modify `net/third_party/nss/ssl.gyp` and add to the `cflags` `-Wno-deprecated-declarations`.  
 
 * Android:  
 Run a script to setup the environment to use the built-in android NDK:  
@@ -91,9 +99,19 @@ Run a script to setup the environment to use the built-in android NDK:
 Configure GYP:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`   
 
-Now issue the command:  
+### Generate the makefiles ###
+Issue the command:  
 `gclient runhooks --force`  
 This will run the config scripts and generate ninja files from the gyp projects.
+
+* Mac:  
+To force the use of libc++ std library, you need to modify the out/Release|Debug/build.ninja file that contains the basic rules
+for building the various types of source files. To the rules `rule cxx` and `rule objcxx`, in the `command = ` lines, just before
+`$cflags_pch_xxx` add the following:  
+`-stdlib=libc++`
+and make sure it is surrounded with spaces from the adjacent parameters.  
+Then, find the `rule link`, and add in a similar way to the command, before `$libs$postbuilds`:  
+`-stdlib=libc++ -lc++`
 
 ### Build ###
 Run:  
@@ -116,11 +134,16 @@ Then re-run `gclient runhooks --force`, and then the `ninja` command.
 
 ### Verify the build ##
 `cd out/Release|Debug`
-* Desktop OS builds  
+
+* Linux and Windows builds  
 run `peerconnection_server` app to start a signalling server.  
 run two or more `peerconnection_client` instances and do a call between them via the server.
+
 * Android  
 The build system generates a test application `WebRTCDemo-debug.apk`. Copy it to a device, install it and run it.
+
+* Mac  
+The build generates an AppRTCDemo.app that works with the apprtc web app at `https://apprtc.appspot.com`  
 
 ### Using the webrtc stack with CMake ###
 Unfortunately the webrtc build does not generate a single lib and config header file (for specific C defines
