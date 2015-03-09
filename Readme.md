@@ -105,13 +105,14 @@ Issue the command:
 This will run the config scripts and generate ninja files from the gyp projects.
 
 * Mac:  
-To force the use of libc++ std library, you need to modify the out/Release|Debug/build.ninja file that contains the basic rules
-for building the various types of source files. To the rules `rule cxx` and `rule objcxx`, in the `command = ` lines, just before
-`$cflags_pch_xxx` add the following:  
+To force the use of libc++ std library, we need to provide the `-stdlib=libc++` flag to all C++ and ObjC++ compile commands,
+by modifying the out/Release|Debug/build.ninja file that contains the basic rules for building the various types of source files.  
+To the rules `rule cxx` and `rule objcxx`, in the `command = ` lines, just before `$cflags_pch_xxx`,  add the following:  
 `-stdlib=libc++`  
 and make sure it is surrounded with spaces from the adjacent parameters.  
-Then, find the `rule link`, and add in a similar way to the command, before `$libs$postbuilds`:  
-`-stdlib=libc++ -lc++`
+Then, find the `rule link`, and in a similar way, add to the command, before `$libs$postbuilds`:  
+`-stdlib=libc++ -lc++`  
+This also instructs the linker to link against the libc++.
 
 ### Build ###
 Run:  
