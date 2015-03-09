@@ -80,7 +80,7 @@ We need to set some env variables before proceeding with running the config scri
 
 * Mac:  
 We will want to build webrtc using the system clang compiler instead of the one provided by google with depot_tools. In this
-way we will avoid linking problems with runtime, ABI issues etc. To do so, we first need to set the CC and CXX env variables:
+way we will avoid linking problems with runtime, ABI issues etc. To do so, we first need to set the CC and CXX env variables:  
 `export CC=/usr/bin/clang`  
 `export CXX=/usr/bin/clang++`  
 The build process uses a clang compiler plugin to do some automated code checks etc, and it will not work with the system
