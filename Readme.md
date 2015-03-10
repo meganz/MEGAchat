@@ -12,9 +12,14 @@
  Only the crypto and HTTP functionality is needed. Install crypto++ and libcurl globally in the system, because the Karere
  build will need to find them as well and link to them directly. Install any other mandatory Mega SDK dependencies
  and build the SDK. It does not have to be installed with `make install`, it will be accessed directly in the checkout dir.  
-* MacOS
+
+* MacOS  
 Because MacOS has a built-in version of openssl, which is not compatible for some reason (causes Strophe login to stall),
-we have to install a generic version of openssl via Homebrew or mac ports.  
+we have to install a generic version of openssl via Homebrew or mac ports. To make sure the webrtc build does not pick the
+system openssl headers, you can rename the /usr/include/openssl dir and the corresponding dir(s) in the XCode SDKs,
+temporarily until you build webrtc. These header dirs are needed only for development, correspond to old versions of openssl
+0.9.7 or 0.9.8, and the headers generate tons of depracation warnings, so you may want to consider keeping them renamed
+and linking against an up to date version of openssl when building software.   
 
 ## Building webrtc ##
 First, create a directory where all webrtc stuff will go, and cd to it. All instructions in this section assume that the
@@ -181,10 +186,10 @@ then specify `Release` here, similarly for Debug.
 `optStropheExportDlsyms` - set it to OFF.
 `optStroheNoLibEvent` - make sure it's OFF! If it's ON this means that libevent (including development package) was not found on your system.  
 
-* MacOS
+* Mac  
 You need to tell CMake to use the openssl version that you installed, because it would normally detect and use the system version.
-To do that, set the OPENSSL_CRYPTO_LIBRARY and OPENSSL_SSL_LIBRARY to point to the libcrypto.dylib and libssl.dylib files
-respectively of the openssl that you installed, and OPENSSL_INCLUDE_DIR to the dir containing
+To do that, set the `OPENSSL_CRYPTO_LIBRARY` and `OPENSSL_SSL_LIBRARY` to point to the `libcrypto.dylib` and `libssl.dylib` files
+respectively of the openssl that you installed, and `OPENSSL_INCLUDE_DIR` to the dir containing
 the /openssl dir containing the openssl headers. Note that these 3 CMake variables are 'advanced' so in ccmake you need to hit 't'
 to show them.  
 
