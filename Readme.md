@@ -12,6 +12,9 @@
  Only the crypto and HTTP functionality is needed. Install crypto++ and libcurl globally in the system, because the Karere
  build will need to find them as well and link to them directly. Install any other mandatory Mega SDK dependencies
  and build the SDK. It does not have to be installed with `make install`, it will be accessed directly in the checkout dir.  
+* MacOS
+Because MacOS has a built-in version of openssl, which is not compatible for some reason (causes Strophe login to stall),
+we have to install a generic version of openssl via Homebrew or mac ports.  
 
 ## Building webrtc ##
 First, create a directory where all webrtc stuff will go, and cd to it. All instructions in this section assume that the
@@ -46,7 +49,7 @@ Then
 `cd trunk`
 
 ### Install dependencies ###
-* Linux  
+* Linux
 There are various packages required by the webrtc build, most of them are checked out by gclient, but there are
 some that need to be installed on the system. To do that on linux, you can run:  
 `build/install-build-deps.sh`  
@@ -55,10 +58,8 @@ If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to 
 is something like that:  
 `export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
 
-* Mac  
-Install Homebrew and use `brew install` to install java JDK 6 or 7.  
-Export `JAVA_HOME` to point to your JDK installation:  
-`export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/`
+* Mac
+The Mac build does not need Java  
 
 * Android  
 JDK 7 will not work for this particular revision (some warnings are triggered and the build is
@@ -179,6 +180,14 @@ then specify `Release` here, similarly for Debug.
 `optStropheBuildShared` - set it to ON.
 `optStropheExportDlsyms` - set it to OFF.
 `optStroheNoLibEvent` - make sure it's OFF! If it's ON this means that libevent (including development package) was not found on your system.  
+
+* MacOS
+You need to tell CMake to use the openssl version that you installed, because it would normally detect and use the system version.
+To do that, set the OPENSSL_CRYPTO_LIBRARY and OPENSSL_SSL_LIBRARY to point to the libcrypto.dylib and libssl.dylib files
+respectively of the openssl that you installed, and OPENSSL_INCLUDE_DIR to the dir containing
+the /openssl dir containing the openssl headers. Note that these 3 CMake variables are 'advanced' so in ccmake you need to hit 't'
+to show them.  
+
 Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit and in the console, just type  
 `make`  
 And if all is well, the test app will build.
