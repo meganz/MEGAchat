@@ -3,6 +3,7 @@ project(chatclient)
 
 include (utils.cmake)
 include (FindCryptopp.cmake)
+find_package(OpenSSL REQUIRED)
 
 set (SRCS
      chatRoom.cpp
@@ -51,6 +52,7 @@ include_directories(
     ${MEGASDK_INCLUDES}
     ${SERVICES_INCLUDES}
     ${CRYPTOPP_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
 )
 
 add_library(chatclient ${SRCS})
