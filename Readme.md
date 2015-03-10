@@ -97,7 +97,9 @@ version to 10.7, using `mac_deployment_target`.
 So, the final `GYP_DEFINES` looks like this:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64 clang_use_chrome_plugins=0 mac_deployment_target=10.7"`  
 Having 10.7 as target however, will cause a deprecation warning, that will be treated as error, when compiling `nss`.
-This is why we need to modify `net/third_party/nss/ssl.gyp` and add to the `cflags` `-Wno-deprecated-declarations`.  
+This is why we need to modify `net/third_party/nss/ssl.gyp` and add to the `cflags` `-Wno-deprecated-declarations`. If this does
+not work for some reason, or you have missed to do it before generating and editing the ninja makefiles, you can edit the
+corresponding ninja file in out/Debug|Release/obj/net/third_party/nss/libssl.ninja and add the flag to `cflags`.
 
 * Android:  
 Run a script to setup the environment to use the built-in android NDK:  
