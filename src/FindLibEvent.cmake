@@ -11,7 +11,11 @@ foreach(prefix ${LibEvent_EXTRA_PREFIXES})
 endforeach()
 
 find_path(LIBEVENT_INCLUDE_DIR event.h PATHS ${LibEvent_INCLUDE_PATHS})
-find_library(LIBEVENT_LIB NAMES event PATHS ${LibEvent_LIB_PATHS})
+find_library(LIBEVENT_LIB_CORE NAMES event event_pthreads PATHS ${LibEvent_LIB_PATHS})
+find_library(LIBEVENT_LIB_THREADS NAMES event_pthreads PATHS ${LibEvent_LIB_PATHS})
+if (LIBEVENT_LIB_CORE)
+    set(LIBEVENT_LIB ${LIBEVENT_LIB_CORE} ${LIBEVENT_LIB_THREADS})
+endif()
 
 if (LIBEVENT_LIB AND LIBEVENT_INCLUDE_DIR)
   set(LibEvent_FOUND TRUE)

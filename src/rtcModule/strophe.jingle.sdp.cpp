@@ -2,8 +2,8 @@
 #include <atomic>
 #include <mstrophepp.h>
 #include "strophe.jingle.sdp.h"
-#include "karereCommon.h"
-#include "StringUtils.h"
+#include <karereCommon.h>
+#include "stringUtils.h"
 
 // SDP STUFF
 namespace sdpUtil
@@ -662,7 +662,7 @@ string tillEol(const string text, size_t& pos)
     pos = string::npos;
     return text.substr(start);
 }
-template <int flags = 0>
+template <int flags>
 string find_line(const LineGroup& haystack, const string& needle, size_t& i)
 {
     for (; i<haystack.size(); i++)
@@ -682,13 +682,13 @@ string find_line(const LineGroup& haystack, const string& needle, size_t& i)
     return "";
 }
 
-template <int flags = 0>
+template <int flags>
 string find_line(const LineGroup& haystack, const string& needle)
 {
      size_t i = 0;
      return find_line<flags>(haystack, needle, i);
 }
-template <int flags = 0>
+template <int flags>
 string find_line(const LineGroup& haystack, const string& needle, const LineGroup& sessionpart)
 {
     string ret = find_line<flags&(~LINEFIND_MUST_EXIST)>(haystack, needle);
@@ -696,6 +696,8 @@ string find_line(const LineGroup& haystack, const string& needle, const LineGrou
         return ret;
     return find_line<flags>(sessionpart, needle);
 }
+//used from strophe.jingle.session and we must define that symbol
+template string find_line<0>(const LineGroup& haystack, const string& needle, const LineGroup& sessionpart);
 
 bool hasLine(const LineGroup& lines, const string& needle)
 {
@@ -718,7 +720,7 @@ bool hasLine(const LineGroup& lines, const string& needle, const LineGroup& sess
 /** Returns a unique_ptr to a LineGroup containing all lines starting with \c needle.
  * If none are found, a NULL unique_ptr is returned
  */
-template <int flags = 0>
+template <int flags>
 unique_ptr<LineGroup> find_lines(const LineGroup& haystack, const string& needle)
 {
    size_t start = 0;
@@ -737,7 +739,7 @@ unique_ptr<LineGroup> find_lines(const LineGroup& haystack, const string& needle
    return lines;
 }
 
-template <int flags = 0>
+template <int flags>
 unique_ptr<LineGroup> find_lines(const LineGroup& haystack, const string& needle, const LineGroup& sessionpart)
 {
     auto lines = find_lines<flags&(~LINEFIND_MUST_EXIST)>(haystack, needle);

@@ -6,11 +6,11 @@
 #include <mstrophepp.h>
 #include <IRtcModule.h>
 #include <mstrophepp.h>
-#include "../strophe.disco.h"
+#include <strophe.disco.h>
 #include <ui_mainwindow.h>
-#include "karereCommon.h"
-#include "IJingleSession.h"
-#include "ChatClient.h"
+#include <karereCommon.h>
+#include <rtcModule/IJingleSession.h>
+#include <chatClient.h>
 
 namespace Ui {
 class MainWindow;
@@ -90,6 +90,8 @@ public:
         :mMainWindow(mainWindow){}
     virtual void onLocalStreamObtained(IVideoRenderer** renderer)
     {
+        inCall = true;
+        mMainWindow->ui->callBtn->setText("Hangup");
         *renderer = mMainWindow->ui->localRenderer;
     }
     virtual void onRemoteSdpRecv(rtcModule::IJingleSession* sess, IVideoRenderer** rendererRet)
@@ -120,6 +122,10 @@ public:
     virtual void discoAddFeature(const char *feature)
     {
         gClient->conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
+    }
+    virtual void onLocalMediaFail(const char* err, int* cont = nullptr)
+    {
+        KR_LOG_ERROR("=============LocalMediaFail: %s", err);
     }
 
 };

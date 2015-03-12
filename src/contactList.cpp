@@ -1,5 +1,5 @@
-#include "ContactList.h"
-#include "ChatClient.h"
+#include "contactList.h"
+#include "chatClient.h"
 
 using namespace strophe;
 using namespace promise;

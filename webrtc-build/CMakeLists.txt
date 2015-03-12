@@ -15,11 +15,11 @@ if (NOT WEBRTC_BUILD_TYPE)
     message(FATAL_ERROR "WEBRTC_BUILD_TYPE must be already set")
 endif()
 
-set(webrtcRoot "${CMAKE_CURRENT_SOURCE_DIR}/../../../webrtc/trunk" CACHE PATH "Path to the source&build tree of webrtc")
+set(webrtcRoot "~/webrtc-build/trunk" CACHE PATH "Path to the source&build tree of webrtc")
 set(webrtcBuild "${webrtcRoot}/out/${WEBRTC_BUILD_TYPE}/obj")
 
 set(optWebrtcShared 0 CACHE BOOL "Build webrtc as shared lib")
-
+if (NOT APPLE)
 set(WEBRTC_LIBS
     ${webrtcBuild}/talk/libjingle_peerconnection.a
     ${webrtcBuild}/talk/libjingle_p2p.a
@@ -79,8 +79,11 @@ set(WEBRTC_LIBS
     ${webrtcBuild}/third_party/protobuf/libprotobuf_lite.a
     ${webrtcBuild}/third_party/jsoncpp/libjsoncpp.a
     ${webrtcBuild}/third_party/libsrtp/libsrtp.a
-
 )
+else() #APPLE
+    file(GLOB WEBRTC_LIBS "${webrtcBuild}/../*.a")
+endif()
+
 set(WEBRTC_LIBS_X86
     ${webrtcBuild}/webrtc/modules/libvideo_processing_sse2.a
     ${webrtcBuild}/webrtc/common_audio/libcommon_audio_sse2.a
@@ -103,33 +106,52 @@ set(WEBRTC_LIBS_ANDROID
    ${webrtcBuild}/third_party/icu/libicudata.a
 )
 
-set(WEBRTC_DEFS -DV8_DEPRECATION_WARNINGS)
+set(WEBRTC_DEFS -DV8_DEPRECATION_WARNINGS -DUSE_LIBJPEG_TURBO=1 -DCHROMIUM_BUILD
+ -DENABLE_WEBRTC=1 -DENABLE_CONFIGURATION_POLICY -DENABLE_AUTOFILL_DIALOG=1
+-DENABLE_MANAGED_USERS=1
+)
 
-set(WEBRTC_DEFS_LINUX
-    -DBLINK_SCALE_FILTERS_AT_RECORD_TIME
+set(WEBRTC_DEFS_DESKTOP
     -DEXPAT_RELATIVE_PATH -DFEATURE_ENABLE_VOICEMAIL -DGTEST_RELATIVE_PATH
     -DJSONCPP_RELATIVE_PATH -DLOGGING=1 -DSRTP_RELATIVE_PATH
-    -DFEATURE_ENABLE_SSL -DFEATURE_ENABLE_PSTN -DHAVE_SRTP
+    -DFEATURE_ENABLE_SSL -DFEATURE_ENABLE_PSTN -DHAVE_SRTP     -DHAVE_SCTP
     -DHAVE_WEBRTC_VIDEO -DHAVE_WEBRTC_VOICE -DUSE_WEBRTC_DEV_BRANCH
-    -D_FILE_OFFSET_BITS=64 -DCHROMIUM_BUILD -DTOOLKIT_VIEWS=1
-    -DUI_COMPOSITOR_IMAGE_TRANSPORT -DUSE_AURA=1 -DUSE_CAIRO=1 -DUSE_GLIB=1
-    -DUSE_DEFAULT_RENDER_THEME=1 -DUSE_LIBJPEG_TURBO=1 -DUSE_X11=1
-    -DUSE_CLIPBOARD_AURAX11=1 -DENABLE_ONE_CLICK_SIGNIN -DUSE_XI2_MT=2
-    -DENABLE_REMOTING=1 -DENABLE_WEBRTC=1 -DENABLE_PEPPER_CDMS
-    -DENABLE_CONFIGURATION_POLICY -DENABLE_INPUT_SPEECH
-    -DENABLE_NOTIFICATIONS -DUSE_UDEV -DENABLE_EGLIMAGE=1
-    -DENABLE_TASK_MANAGER=1 -DENABLE_EXTENSIONS=1
-    -DENABLE_PLUGIN_INSTALLATION=1 -DENABLE_PLUGINS=1
-    -DENABLE_SESSION_SERVICE=1 -DENABLE_THEMES=1 -DENABLE_AUTOFILL_DIALOG=1
-    -DENABLE_BACKGROUND=1 -DENABLE_GOOGLE_NOW=1 -DCLD_VERSION=2
+    -DENABLE_ONE_CLICK_SIGNIN -DENABLE_REMOTING=1  -DENABLE_PEPPER_CDMS
+    -DENABLE_NOTIFICATIONS -DENABLE_TASK_MANAGER=1      -DENABLE_EXTENSIONS=1
+    -DENABLE_PLUGINS=1 -DENABLE_PLUGIN_INSTALLATION=1 -DENABLE_SESSION_SERVICE=1
+    -DENABLE_THEMES=1 -DENABLE_BACKGROUND=1 -DENABLE_GOOGLE_NOW=1
+    -DENABLE_EGLIMAGE=1 #also on windows?
     -DENABLE_FULL_PRINTING=1 -DENABLE_PRINTING=1 -DENABLE_SPELLCHECK=1
     -DENABLE_CAPTIVE_PORTAL_DETECTION=1 -DENABLE_APP_LIST=1
-    -DENABLE_SETTINGS_APP=1 -DENABLE_MANAGED_USERS=1 -DENABLE_MDNS=1
-    -DENABLE_SERVICE_DISCOVERY=1 -DLIBPEERCONNECTION_LIB=1 -DLINUX -DWEBRTC_POSIX=1
-    -DHAVE_SCTP -DHASH_NAMESPACE=__gnu_cxx -DPOSIX -DDISABLE_DYNAMIC_CAST
-    -D_REENTRANT -DSSL_USE_NSS -DHAVE_NSS_SSL_H -DSSL_USE_NSS_RNG
-    -DUSE_NSS=1 -DDYNAMIC_ANNOTATIONS_ENABLED=1
-    -DWTF_USE_DYNAMIC_ANNOTATIONS=1
+    -DENABLE_SETTINGS_APP=1 -DENABLE_SERVICE_DISCOVERY=1 -DLIBPEERCONNECTION_LIB=1
+    -D_REENTRANT
+)
+
+set(WEBRTC_DEFS_LINUX
+    ${WEBRTC_DEFS_DESKTOP}
+    -DUI_COMPOSITOR_IMAGE_TRANSPORT -DUSE_AURA=1 -DUSE_CAIRO=1 -DUSE_GLIB=1
+    -DUSE_DEFAULT_RENDER_THEME=1  -DUSE_X11=1 -DUSE_CLIPBOARD_AURAX11=1 -DUSE_XI2_MT=2
+    -DENABLE_INPUT_SPEECH -DUSE_UDEV -DCLD_VERSION=2 -DENABLE_MDNS=1
+    -DLINUX -DWEBRTC_POSIX=1 -DHASH_NAMESPACE=__gnu_cxx -DPOSIX -DDISABLE_DYNAMIC_CAST
+    -DSSL_USE_NSS -DHAVE_NSS_SSL_H -DSSL_USE_NSS_RNG -DUSE_NSS=1
+    -DDYNAMIC_ANNOTATIONS_ENABLED=1 -DWTF_USE_DYNAMIC_ANNOTATIONS=1
+    -DBLINK_SCALE_FILTERS_AT_RECORD_TIME -D_FILE_OFFSET_BITS=64 -DTOOLKIT_VIEWS=1
+)
+
+set(WEBRTC_DEFS_MACOS
+     ${WEBRTC_DEFS_DESKTOP}
+    -D__ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORE=0
+    -DCR_CLANG_REVISION=214024
+    -DENABLE_PRE_SYNC_BACKUP
+    -DENABLE_HIDPI=1
+    -DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY
+    -DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE
+    -DCLD_VERSION=2 -DCLD2_DATA_SOURCE=static
+    -DENABLE_WIFI_BOOTSTRAPPING=1
+    -DOSX -DWEBRTC_MAC -DCARBON_DEPRECATED=YES
+    -DHASH_NAMESPACE=__gnu_cxx -DPOSIX -DWEBRTC_POSIX
+    -DDISABLE_DYNAMIC_CAST -DXML_STATIC
+    -DDYNAMIC_ANNOTATIONS_ENABLED=0
 )
 
 set(WEBRTC_DEFS_ANDROID #arm
@@ -149,7 +171,7 @@ set(WEBRTC_DEFS_ANDROID #arm
     -D__STDC_FORMAT_MACROS -DANDROID -D__GNU_SOURCE=1 -DUSE_STLPORT=1
     -D_STLP_USE_PTR_SPECIALIZATIONS=1 '-DCHROME_BUILD_ID=""'
     -DHAVE_SYS_UIO_H -DDYNAMIC_ANNOTATIONS_ENABLED=1
-    -DWTF_USE_DYNAMIC_ANNOTATIONS=1 -D_DEBUG
+    -DWTF_USE_DYNAMIC_ANNOTATIONS=1
 )
 
 
@@ -187,13 +209,15 @@ set(WEBRTC_SYSINCLUCES_ANDROID)
 
 set(WEBRTC_CFLAGS
     -fstack-protector --param=ssp-buffer-size=4
-    -fno-exceptions -fno-strict-aliasing -Wno-unused-parameter
-    -Wno-missing-field-initializers -fvisibility=hidden -pipe -fPIC
-    -Wno-unused-local-typedefs
+    -fno-strict-aliasing -Wno-unused-parameter
+    -Wno-missing-field-initializers -pipe -fPIC
 )
+if (CMAKE_COMPILER_ID STREQUAL "GNU")
+    list(APPEND WEBRTC_CLAGS -Wno-unused-local-typedefs)
+endif()
 
 set(WEBRTC_CXXFLAGS
-    -fno-rtti -fno-threadsafe-statics -fvisibility-inlines-hidden
+    -fno-rtti -fno-exceptions -fno-threadsafe-statics
     -Wno-deprecated -std=gnu++11 -Wno-narrowing -Wno-literal-suffix
 )
 
@@ -212,18 +236,42 @@ set(WEBRTC_CFLAGS_ANDROID #arm
 
 set(WEBRTC_CXXFLAGS_ANDROID -Wsign-compare -Wnon-virtual-dtor -Woverloaded-virtual -Wno-abi)
 
-set(WEBRTC_LDFLAGS
+set(WEBRTC_CFLAGS_COMMON_MACOS
+    -gdwarf-2 -Werror -Wnewline-eof
+    -mmacosx-version-min=10.6 -arch x86_64 -Wendif-labels
+    -Wno-selector-type-mismatch -Wheader-hygiene -Wno-char-subscripts
+    -Wno-unneeded-internal-declaration -Wno-covered-switch-default
+    -Wstring-conversion -Wno-c++11-narrowing -Wno-deprecated-register
+)
+
+set(WEBRTC_CFLAGS_MACOS
+    ${WEBRTC_CFLAGS_COMMON_MACOS}
+    -std=c99 -fno-slp-vectorize -fcolor-diagnostics
+)
+set(WEBRTC_CXXFLAGS_MACOS
+    ${WEBRTC_CFLAGS_COMMON_MACOS}
+    -fno-slp-vectorize -fcolor-diagnostics -fno-strict-aliasing
+    -fobjc-call-cxx-cdtors #this applies only for obj-cxx, but cmake does not have flags specially for obj-c++
+)
+
+set(WEBRTC_LDFLAGS)
+
+set(WEBRTC_LDFLAGS_LINUX
+    -Wl,-z,now -Wl,-z,relro -Wl,--fatal-warnings
+    -Wl,-z,noexecstack -fPIC -Wl,--disable-new-dtags
+)
+
+set(WEBRTC_LDFLAGS_ANDROID
     -Wl,-z,now -Wl,-z,relro -Wl,--fatal-warnings
     -Wl,-z,noexecstack -fPIC
-    #-Wl,--whole-archive
-    #-Wl,--icf=none
-)
-set(WEBRTC_LDFLAGS_LINUX -Wl,--disable-new-dtags)
-
-set(WEBRTC_LDFLAGS_ANDROID -fuse-ld=gold -nostdlib -Wl,--no-undefined
+    -fuse-ld=gold -nostdlib -Wl,--no-undefined
     -Wl,--icf=safe
     -Wl,-shared,-Bsymbolic
     -Wl,--warn-shared-textrel -Wl,-O1 -Wl,--as-needed
+)
+set(WEBRTC_LDFLAGS_MACOS
+    -Wl,-search_paths_first -Wl,-ObjC
+    -Wl,-dead_strip -arch x86_64
 )
 set(WEBRTC_SYSLIBS)
 set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)
@@ -231,6 +279,13 @@ set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)
 set(WEBRTC_SYSLIBS_LINUX
     nss3 nssutil3 smime3 plds4 plc4 nspr4
     crypto expat pthread Xext X11 m dl
+)
+
+set(WEBRTC_SYSLIBS_MACOS
+    "-framework AVFoundation" "-framework WebKit" "-framework Cocoa" "-framework AudioToolbox"
+    "-framework Foundation" "-framework IOKit" "-framework Security"
+    "-framework SystemConfiguration" "-framework CoreAudio" "-framework CoreVideo"
+    "-framework OpenGL" "-framework QTKit"
 )
 
 macro(appendPlatformStuff pname)
@@ -254,13 +309,19 @@ endmacro()
 
 if ("${WEBRTC_BUILD_TYPE}" STREQUAL "Debug")
     list(APPEND WEBRTC_DEFS  -D_DEBUG)
+else()
+    list(APPEND WEBRTC_DEFS -DNDEBUG -DNVALGRIND)
 endif()
 
 if (ANDROID)
     message(STATUS "Building rtcModule on arm Android")
     appendArchStuff(ARM)
     appendPlatformStuff(ANDROID)
-elseif(UNIX AND NOT APPLE) #linux
+elseif(APPLE)
+    message(STATUS "Building rtcModule on x86 MacOSX")
+    # appendArchStuff(X86)
+    appendPlatformStuff(MACOS)
+elseif(UNIX) #linux
     message(STATUS "Building rtcModule on x86 Linux")
     appendArchStuff(X86)
     appendPlatformStuff(LINUX)
@@ -268,6 +329,7 @@ else()
     message(FATAL_ERROR "Unknown platform")
 endif()
 
+if (NOT APPLE)
 #put together all object files of vpx in a single .a because there are circular dependencies between the original libs
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
@@ -276,19 +338,21 @@ add_custom_command(
         `find ${webrtcBuild}/../gen/third_party/libvpx -name '*.o'`
     DEPENDS "${webrtcBuild}/third_party/libvpx/source/"
 )
-
-set(CMAKE_MODULE_LINKER_FLAGS ${WEBRTC_LDFLAGS})
-set(CMAKE_SHARED_LINKER_FLAGS ${WEBRTC_LDFLAGS})
-
-if(optWebrtcShared)
-add_library(webrtc_my SHARED dummy.c libmyvpx.a)
-else()
-add_library(webrtc_my dummy.c libmyvpx.a)
+set(myvpx libmyvpx.a)
 endif()
 
+set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
+
+
+if(optWebrtcShared)
+add_library(webrtc_my SHARED dummy.cpp ${myvpx})
+else()
+add_library(webrtc_my dummy.cpp ${myvpx})
+endif()
 target_link_libraries(webrtc_my ${WEBRTC_LIBS} ${WEBRTC_SYSLIBS})
 
-set(WEBRTC_SYSLIBS ${WEBRTC_SYSLIBS} CACHE INETRNAL "")
+set(WEBRTC_SYSLIBS ${WEBRTC_SYSLIBS} CACHE INTERNAL "")
 set(WEBRTC_LDFLAGS "-fno-rtti" CACHE INTERNAL "")
 set(WEBRTC_DEFS ${WEBRTC_DEFS} CACHE INTERNAL "")
 set(WEBRTC_INCLUDES ${WEBRTC_INCLUDES} CACHE INTERNAL "")

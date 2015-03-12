@@ -1,5 +1,5 @@
-#include "MegaCryptoFunctions.h"
-#include "AutoHandle.h"
+#include "megaCryptoFunctions.h"
+#include "autoHandle.h"
 #include <mega/base64.h>
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
@@ -7,6 +7,8 @@
 #include "ITypesImpl.h"
 
 using namespace mega;
+using namespace std;
+
 namespace rtcModule
 {
 
@@ -29,8 +31,8 @@ MegaCryptoFuncs::MegaCryptoFuncs(MyMegaApi& megaApi)
     if (!privk || !(privkLen = strlen(privk)))
         throw std::runtime_error("MegaCryptoFunctions ctor: No private key available");
     Buffer binprivk(new byte[privkLen+4]);
-    int binlen = mega::Base64::atob(privk, binprivk, privkLen);
-    int ret = mPrivKey.setkey(mega::AsymmCipher::PRIVKEY, binprivk, binlen);
+    int binlen = Base64::atob(privk, binprivk, privkLen);
+    int ret = mPrivKey.setkey(AsymmCipher::PRIVKEY, binprivk, binlen);
     if (!ret)
         throw std::runtime_error("MegaCryptoFunctions ctor: Error setting private key");
 }
@@ -38,7 +40,7 @@ MegaCryptoFuncs::MegaCryptoFuncs(MyMegaApi& megaApi)
 IString* MegaCryptoFuncs::generateMac(const CString& data, const CString& key)
 {
     Buffer binkey(new byte[key.size()+4]);
-    int binKeyLen = mega::Base64::atob(key.c_str(), binkey, key.size());
+    int binKeyLen = Base64::atob(key.c_str(), binkey, key.size());
     // You may use other hash engines. e.g EVP_md5(), EVP_sha224, EVP_sha512, etc
     unsigned char binmac[EVP_MAX_MD_SIZE];
     unsigned int bmlen = 0;
@@ -85,7 +87,7 @@ IString* MegaCryptoFuncs::encryptMessageForJid(const CString& msg, const CString
         return nullptr;
     }
     auto ret = new IString_buffer<>(new char[binlen*4/3+4]);
-    int b64size = mega::Base64::btoa(buf, binlen, ret->bufWritePtr());
+    int b64size = Base64::btoa(buf, binlen, ret->bufWritePtr());
     ret->setStrSize(b64size);
     return ret;
 }
@@ -111,7 +113,7 @@ void MegaCryptoFuncs::preloadCryptoForJid(const CString& bareJid, void* userp,
             return promise::reject<int>(promise::Error("Public key returned by API is empty", -1, ERRTYPE_MEGASDK));
 
         Buffer binkey(new byte[keylen+4]);
-        int binlen = mega::Base64::atob(result->getPassword(), binkey, keylen);
+        int binlen = Base64::atob(result->getPassword(), binkey, keylen);
         int ret = key.setkey(AsymmCipher::PUBKEY, binkey, binlen);
         if (!ret)
             return promise::reject<int>(promise::Error("Error parsing public key", -1, ERRTYPE_MEGASDK));
@@ -135,7 +137,7 @@ IString* MegaCryptoFuncs::generateFprMacKey()
     unsigned char buf[32];
     PrnGen::genblock(buf, 32);
     std::string b64(kFprMacKeyLen+2, 0);
-    int b64len = mega::Base64::btoa(buf, 32, (char*)b64.data());
+    int b64len = Base64::btoa(buf, 32, (char*)b64.data());
     assert(b64len == kFprMacKeyLen);
     b64.resize(kFprMacKeyLen); //termiante string, just in case
     return new IString_string(b64);

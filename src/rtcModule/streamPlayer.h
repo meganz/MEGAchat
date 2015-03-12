@@ -2,7 +2,6 @@
 #define STREAMPLAYER_H
 #include <talk/app/webrtc/mediastreaminterface.h>
 #include <IVideoRenderer.h>
-//#include <karereCommon.h>
 #include "base/gcm.h"
 #include "webrtcAdapter.h"
 #include <mutex>

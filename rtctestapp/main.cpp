@@ -8,11 +8,11 @@
 #include <mstrophepp.h>
 #include <QtGui/QApplication>
 #include "mainwindow.h"
-#include "../base/gcm.h"
-#include "../base/services.h"
-#include "ChatClient.h"
-#include "lib.h"
-#include "sdkApi.h"
+#include <base/gcm.h>
+#include <base/services.h>
+#include <chatClient.h>
+#include <rtcModule/lib.h>
+#include <sdkApi.h>
 
 using namespace std;
 using namespace promise;

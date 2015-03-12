@@ -8,7 +8,7 @@
 #include "webrtcAdapter.h"
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.h"
-#include "StringUtils.h"
+#include "stringUtils.h"
 #include <mstrophepp.h>
 
 using namespace std;
@@ -20,6 +20,7 @@ namespace rtcModule
 using namespace std;
 using namespace strophe;
 using namespace karere;
+using namespace mega; //In clang there is a class named mega, so using the mega:: qualifier causes a compile error about ambiguous identifier
 
 AvFlags peerMediaToObj(const char* strPeerMedia);
 
@@ -298,9 +299,9 @@ void Jingle::onJingle(Stanza iq)
         {
             const char* affected = NULL;
             Stanza info;
-            if (info = jingle.childByAttr("ringing", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1", true))
+            if ((info = jingle.childByAttr("ringing", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1", true)))
                 onRinging(*sess);
-            else if (info = jingle.childByAttr("mute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1", true))
+            else if ((info = jingle.childByAttr("mute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1", true)))
             {
                 affected = info.attr("name");
                 AvFlags av;
@@ -313,7 +314,7 @@ void Jingle::onJingle(Stanza iq)
                     current.video = false;
                 onMuted(*sess, av);
             }
-            else if (info = jingle.childByAttr("unmute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1"))
+            else if ((info = jingle.childByAttr("unmute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1")))
             {
                 affected = info.attr("name");
                 AvFlags av;
@@ -382,7 +383,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
          },
          NULL, "message", "megaNotifyCallHandled", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
-    // Add a 'cancel' handler that will ivalidate the call request if the caller sends a cancel message
+    // Add a 'cancel' handler that will invalidate the call request if the caller sends a cancel message
         state->cancelHandlerId = mConn.addHandler([this, state]
          (Stanza stanza, void*, bool& keep)
          {
@@ -392,12 +393,14 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
             state->cancelHandlerId = nullptr;
             mConn.removeHandler(state->elsewhereHandlerId);
             state->elsewhereHandlerId = nullptr;
-
-            onCallCanceled(state->sid.c_str(), "canceled", nullptr, false, &(state->userp));
+            const char* reason = stanza.attrOrNull("reason");
+            if (!reason)
+                reason = "unknown";
+            onCallCanceled(state->sid.c_str(), reason, nullptr, false, &(state->userp));
         },
         NULL, "message", "megaCallCancel", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
-        mega::setTimeout([this, state]()
+        setTimeout([this, state]()
          {
             if (!state->cancelHandlerId) //cancel message was received and handler was removed
                 return;
@@ -455,7 +458,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 info["peerAnonId"] = callmsg.attr("anonid");
 //TODO: Handle file transfer
 // This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
-                mega::setTimeout([this, state, tsTillJingle]()
+                setTimeout([this, state, tsTillJingle]()
                 { //invalidate auto-answer after a timeout
                     AutoAcceptMap::iterator callIt = mAutoAcceptCalls.find(state->sid);
                     if (callIt == mAutoAcceptCalls.end())

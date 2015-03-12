@@ -25,20 +25,30 @@ set(INCLUDES
  ${STROPHE_INCLUDES}
 )
 include_directories(${INCLUDES})
+set_property(GLOBAL PROPERTY SERVICES_INCLUDES ${INCLUDES})
 
-if (CMAKE_COMPILER_IS_GNUC OR CMAKE_COMPILER_IS_GNUCXX)
+
+if  (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
     add_definitions(-fvisibility=hidden -fPIC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif()
 
+set(SYSLIBS z)
+
+if (CLANG_STDLIB)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
+    list(APPEND SYSLIBS ${CLANG_STDLIB})
+endif()
+
 add_library(services SHARED ${SRCS})
+
 target_link_libraries(services
   strophe
   ${LIBEVENT_LIB}
   ${CURL_LIBRARIES}
-  event_pthreads
-  z
+  ${SYSLIBS}
 )
+
 targetExportDefines(services "")
 targetExportFullpathIncludes(services ${INCLUDES})
 targetExportCompileFlags(services "")

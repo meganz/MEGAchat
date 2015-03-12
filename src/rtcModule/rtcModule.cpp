@@ -1,6 +1,6 @@
 #include "rtcModule.h"
-#include "StringUtils.h"
-#include "base/services.h"
+#include "stringUtils.h"
+#include "../base/services.h"
 #include "strophe.jingle.session.h"
 #include "ITypesImpl.h"
 #include "IDeviceListImpl.h"
@@ -440,7 +440,8 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
                   Stanza cancelMsg(mConn);
                   cancelMsg.setName("message")
                       .setAttr("type", "megaCallCancel")
-                      .setAttr("to", getBareJidFromJid(state->targetJid).c_str());
+                      .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
+                      .setAttr("reason", "answer-timeout");
                   xmpp_send(mConn, cancelMsg);
                   RTCM_EVENT(onCallAnswerTimeout, state->targetJid.c_str());
               },
@@ -492,7 +493,8 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
             cancelMsg.setName("message")
                     .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
                     .setAttr("sid", state->sid.c_str())
-                    .setAttr("type", "megaCallCancel");
+                    .setAttr("type", "megaCallCancel")
+                    .setAttr("reason", "user");
             mConn.send(cancelMsg);
             return true;
       }
@@ -623,7 +625,7 @@ int RtcModule::hangupByPeer(const char* peerJid, char callType, const char* reas
 
 int RtcModule::hangupAll(const char* reason, const char* text)
 {
-    bool term = 0;
+    int term = 0;
     enumCallsForHangup([&term](const string&, const string&, int)
     {
         term++;

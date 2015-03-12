@@ -2,15 +2,15 @@
 #include "ui_mainwindow.h"
 #include "qmessagebox.h"
 #include <string>
-#include "videoRenderer_Qt.h"
-#include "../base/gcm.h"
-#include "../IRtcModule.h"
-#include "../base/services-dns.hpp"
-#include "../base/services-http.hpp"
+#include <videoRenderer_Qt.h>
+#include <gcm.h>
+#include "rtcModule/IRtcModule.h"
+#include <services-dns.hpp>
+#include <services-http.hpp>
 #include <iostream>
 #include <rapidjson/document.h>
 #include <sdkApi.h>
-#include <ChatClient.h>
+#include <chatClient.h>
 
 #undef emit
 #define THROW_IF_FALSE(statement) \
@@ -30,7 +30,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 }
-mega::http::Client* client = nullptr;
+http::Client* client = nullptr;
 
 extern bool inCall;
 void MainWindow::buttonPushed()
@@ -66,8 +66,6 @@ void MainWindow::buttonPushed()
             av.video = true;
             char sid[rtcModule::RTCM_SESSIONID_LEN+2];
             gClient->rtc->startMediaCall(sid, room->peerFullJid().c_str(), av, nullptr);
-            inCall = true;
-            ui->callBtn->setText("Hangup");
             return nullptr;
         })
         .fail([this](const promise::Error& err)
@@ -111,7 +109,7 @@ MainWindow::~MainWindow()
 }
 
 /*    if (!client)
-        client = new mega::http::Client;
+        client = new http::Client;
     client->get<std::string>("http://www.osnews.com/")
     .then([](std::shared_ptr<std::string> data)
     {
@@ -127,8 +125,8 @@ return;
 */
 
 /*
-mega::dnsLookup("google.com", 0)
-.then([](std::shared_ptr<mega::AddrInfo> result)
+dnsLookup("google.com", 0)
+.then([](std::shared_ptr<AddrInfo> result)
 {
     printf("Canonical name: %s\n", result->canonName().c_str());
     auto& ip4s = result->ip4addrs();

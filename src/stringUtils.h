@@ -10,7 +10,7 @@
 namespace karere
 {
 template<class Cont>
-void tokenize(const char* src, const char* delims, Cont& cont)
+static inline void tokenize(const char* src, const char* delims, Cont& cont)
 {
     const char* start = src;
     for (;;)
@@ -76,14 +76,14 @@ static inline std::string trim(const std::string& str, const char* trimChars=" \
         return str.substr(start, end-start+1);
 }
 
-static size_t findFirstOf(const std::string& str, const char* chars, size_t start, size_t end)
+static inline size_t findFirstOf(const std::string& str, const char* chars, size_t start, size_t end)
 {
     for (size_t i=start; i<end; i++)
         if(strchr(chars, str[i]))
             return i;
     return std::string::npos;
 }
-static size_t findFirstNotOf(const std::string& str, const char* chars, size_t start, size_t end)
+static inline size_t findFirstNotOf(const std::string& str, const char* chars, size_t start, size_t end)
 {
     for (size_t i=start; i<end; i++)
         if(!strchr(chars, str[i]))
@@ -121,7 +121,7 @@ inline static void parseNameValues(const char* str, const char* pairDelims, char
     }
 }
 
-static std::string replaceOccurrences(const std::string& src, const std::string& from, const std::string& to)
+static inline std::string replaceOccurrences(const std::string& src, const std::string& from, const std::string& to)
 {
     std::string result;
     size_t pos = 0;

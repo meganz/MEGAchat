@@ -13,6 +13,14 @@
  build will need to find them as well and link to them directly. Install any other mandatory Mega SDK dependencies
  and build the SDK. It does not have to be installed with `make install`, it will be accessed directly in the checkout dir.  
 
+* MacOS  
+Because MacOS has a built-in version of openssl, which is not compatible for some reason (causes Strophe login to stall),
+we have to install a generic version of openssl via Homebrew or mac ports. To make sure the webrtc build does not pick the
+system openssl headers, you can rename the /usr/include/openssl dir and the corresponding dir(s) in the XCode SDKs,
+temporarily until you build webrtc. These header dirs are needed only for development, correspond to old versions of openssl
+0.9.7 or 0.9.8, and the headers generate tons of depracation warnings, so you may want to consider keeping them renamed
+and linking against an up to date version of openssl when building software.   
+
 ## Building webrtc ##
 First, create a directory where all webrtc stuff will go, and cd to it. All instructions in this section assume that the
 current directory is that one.  
@@ -46,7 +54,7 @@ Then
 `cd trunk`
 
 ### Install dependencies ###
-* Linux  
+* Linux
 There are various packages required by the webrtc build, most of them are checked out by gclient, but there are
 some that need to be installed on the system. To do that on linux, you can run:  
 `build/install-build-deps.sh`  
@@ -55,10 +63,8 @@ If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to 
 is something like that:  
 `export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
 
-* Mac  
-Install Homebrew and use `brew install` to install java JDK 6 or 7.  
-Export `JAVA_HOME` to point to your JDK installation:  
-`export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_71.jdk/Contents/Home/`
+* Mac
+The Mac build does not need Java  
 
 * Android  
 JDK 7 will not work for this particular revision (some warnings are triggered and the build is
@@ -79,11 +85,21 @@ We need to set some env variables before proceeding with running the config scri
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1"` 
 
 * Mac:  
-`export GYP_DEFINES="enable_tracing=1 build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64"`  
-`export GYP_CROSSCOMPILE=1`  
-`perl -0pi -e 's/gdwarf-2/g/g' tools/gyp/pylib/gyp/xcode_emulation.py`  
-`perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libcrypto\.dylib/-lcrypto/g' talk/libjingle.gyp`  
-`perl -0pi -e 's/\$\(SDKROOT\)\/usr\/lib\/libssl\.dylib/-lssl/g' talk/libjingle.gyp`  
+We will want to build webrtc using the system clang compiler instead of the one provided by google with depot_tools. In this
+way we will avoid linking problems with runtime, ABI issues etc. To do so, we first need to set the CC and CXX env variables:  
+`export CC=/usr/bin/clang`  
+`export CXX=/usr/bin/clang++`  
+The build process uses a clang compiler plugin to do some automated code checks etc, and it will not work with the system
+compiler, causing an error. So we need to disable this plugin via `clang_use_chrome_plugins=0` parameter in GYP_DEFINES (see below).
+Also, we are going to force the use of libc++ instead of libstdc++ as a standard lib for clang. This would cause an error that
+10.6 target mac platform is too old to require libc++, as it is relatively new. That's why we need to bump the target platform
+version to 10.7, using `mac_deployment_target`.  
+So, the final `GYP_DEFINES` looks like this:  
+`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64 clang_use_chrome_plugins=0 mac_deployment_target=10.7"`  
+Having 10.7 as target however, will cause a deprecation warning, that will be treated as error, when compiling `nss`.
+This is why we need to modify `net/third_party/nss/ssl.gyp` and add to the `cflags` `-Wno-deprecated-declarations`. If this does
+not work for some reason, or you have missed to do it before generating and editing the ninja makefiles, you can edit the
+corresponding ninja file in out/Debug|Release/obj/net/third_party/nss/libssl.ninja and add the flag to `cflags`.
 
 * Android:  
 Run a script to setup the environment to use the built-in android NDK:  
@@ -91,9 +107,20 @@ Run a script to setup the environment to use the built-in android NDK:
 Configure GYP:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`   
 
-Now issue the command:  
+### Generate the makefiles ###
+Issue the command:  
 `gclient runhooks --force`  
 This will run the config scripts and generate ninja files from the gyp projects.
+
+* Mac:  
+To force the use of libc++ std library, we need to provide the `-stdlib=libc++` flag to all C++ and ObjC++ compile commands,
+by modifying the out/Release|Debug/build.ninja file that contains the basic rules for building the various types of source files.  
+To the rules `rule cxx` and `rule objcxx`, in the `command = ` lines, just before `$cflags_pch_xxx`,  add the following:  
+`-stdlib=libc++`  
+and make sure it is surrounded with spaces from the adjacent parameters.  
+Then, find the `rule link`, and in a similar way, add to the command, before `$libs$postbuilds`:  
+`-stdlib=libc++ -lc++`  
+This also instructs the linker to link against the libc++.
 
 ### Build ###
 Run:  
@@ -116,11 +143,16 @@ Then re-run `gclient runhooks --force`, and then the `ninja` command.
 
 ### Verify the build ##
 `cd out/Release|Debug`
-* Desktop OS builds  
+
+* Linux and Windows builds  
 run `peerconnection_server` app to start a signalling server.  
 run two or more `peerconnection_client` instances and do a call between them via the server.
+
 * Android  
 The build system generates a test application `WebRTCDemo-debug.apk`. Copy it to a device, install it and run it.
+
+* Mac  
+The build generates an AppRTCDemo.app that works with the apprtc web app at `https://apprtc.appspot.com`  
 
 ### Using the webrtc stack with CMake ###
 Unfortunately the webrtc build does not generate a single lib and config header file (for specific C defines
@@ -155,6 +187,14 @@ then specify `Release` here, similarly for Debug.
 `optStropheBuildShared` - set it to ON.
 `optStropheExportDlsyms` - set it to OFF.
 `optStroheNoLibEvent` - make sure it's OFF! If it's ON this means that libevent (including development package) was not found on your system.  
+
+* Mac  
+You need to tell CMake to use the openssl version that you installed, because it would normally detect and use the system version.
+To do that, set the `OPENSSL_CRYPTO_LIBRARY` and `OPENSSL_SSL_LIBRARY` to point to the `libcrypto.dylib` and `libssl.dylib` files
+respectively of the openssl that you installed, and `OPENSSL_INCLUDE_DIR` to the dir containing
+the /openssl dir containing the openssl headers. Note that these 3 CMake variables are 'advanced' so in ccmake you need to hit 't'
+to show them.  
+
 Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit and in the console, just type  
 `make`  
 And if all is well, the test app will build.
