@@ -276,7 +276,7 @@ set(WEBRTC_LDFLAGS_MACOS
     -Wl,-dead_strip -arch x86_64
 )
 set(WEBRTC_SYSLIBS)
-set(WEBRTC_SYSLIBS_ANDROID log cpufeatures GLESv2 OpenSLES m dl)
+set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)
 
 set(WEBRTC_SYSLIBS_LINUX
     nss3 nssutil3 smime3 plds4 plc4 nspr4
@@ -319,6 +319,7 @@ if (ANDROID)
     message(STATUS "Building rtcModule on arm Android")
     appendArchStuff(ARM)
     appendPlatformStuff(ANDROID)
+    set(WEBRTC_SRCS "${ANDROID_NDK}/sources/android/cpufeatures/cpu-features.c")
 elseif(APPLE)
     message(STATUS "Building rtcModule on x86 MacOSX")
     # appendArchStuff(X86)
@@ -332,15 +333,15 @@ else()
 endif()
 
 if (NOT APPLE)
-#put together all object files of vpx in a single .a because there are circular dependencies between the original libs
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
-    COMMAND ar crs ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
-        `find ${webrtcBuild}/third_party/libvpx/ -name '*.o'`
-        `find ${webrtcBuild}/../gen/third_party/libvpx -name '*.o'`
-    DEPENDS "${webrtcBuild}/third_party/libvpx/source/"
-)
-set(myvpx libmyvpx.a)
+    #put together all object files of vpx in a single .a because there are circular dependencies between the original libs
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
+        COMMAND ar crs ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
+            `find ${webrtcBuild}/third_party/libvpx/ -name '*.o'`
+            `find ${webrtcBuild}/../gen/third_party/libvpx -name '*.o'`
+        DEPENDS "${webrtcBuild}/third_party/libvpx/source/"
+    )
+    set(myvpx libmyvpx.a)
 endif()
 
 set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
@@ -348,9 +349,9 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
 
 
 if(optWebrtcShared)
-add_library(webrtc_my SHARED dummy.cpp ${myvpx})
+    add_library(webrtc_my SHARED dummy.cpp ${WEBRTC_SRCS} ${myvpx})
 else()
-add_library(webrtc_my dummy.cpp ${myvpx})
+    add_library(webrtc_my dummy.cpp ${WEBRTC_SRCS} ${myvpx})
 endif()
 target_link_libraries(webrtc_my ${WEBRTC_LIBS} ${WEBRTC_SYSLIBS})
 
