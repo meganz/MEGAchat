@@ -276,7 +276,7 @@ set(WEBRTC_LDFLAGS_MACOS
     -Wl,-dead_strip -arch x86_64
 )
 set(WEBRTC_SYSLIBS)
-set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)
+set(WEBRTC_SYSLIBS_ANDROID log cpufeatures GLESv2 OpenSLES m dl)
 
 set(WEBRTC_SYSLIBS_LINUX
     nss3 nssutil3 smime3 plds4 plc4 nspr4
