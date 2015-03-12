@@ -30,7 +30,9 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_definitions(-Wno-unused-local-typedefs)
 endif()
 
+if (NOT ANDROID AND NOT WIN32)
 set(SYSLIBS pthread)
+endif()
 
 if (CLANG_STDLIB)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")

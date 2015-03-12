@@ -104,6 +104,7 @@ set(WEBRTC_LIBS_ARM
 set(WEBRTC_LIBS_ANDROID
    ${webrtcBuild}/third_party/icu/libicuuc.a
    ${webrtcBuild}/third_party/icu/libicudata.a
+   -lssl -lcrypto
 )
 
 set(WEBRTC_DEFS -DV8_DEPRECATION_WARNINGS -DUSE_LIBJPEG_TURBO=1 -DCHROMIUM_BUILD
