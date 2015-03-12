@@ -99,8 +99,9 @@ set(WEBRTC_LIBS_ARM
     ${webrtcBuild}/webrtc/common_audio/libcommon_audio_neon.a
     ${webrtcBuild}/webrtc/modules/audio_processing/lib_core_neon_offsets.a
     ${webrtcBuild}/../libyuv_neon.a
-
+    ${webrtcBuild}/webrtc/system_wrappers/source/libcpu_features_android.a
 )
+
 set(WEBRTC_LIBS_ANDROID
    ${webrtcBuild}/third_party/icu/libicuuc.a
    ${webrtcBuild}/third_party/icu/libicudata.a
