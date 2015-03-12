@@ -102,10 +102,13 @@ set(WEBRTC_LIBS_ARM
     ${webrtcBuild}/webrtc/system_wrappers/source/libcpu_features_android.a
 )
 
+if (ANDROID)
+    add_library(cpufeatures "${ANDROID_NDK}/sources/android/cpufeatures/cpu-features.c")
+endif()
+
 set(WEBRTC_LIBS_ANDROID
    ${webrtcBuild}/third_party/icu/libicuuc.a
    ${webrtcBuild}/third_party/icu/libicudata.a
-   -lssl -lcrypto
 )
 
 set(WEBRTC_DEFS -DV8_DEPRECATION_WARNINGS -DUSE_LIBJPEG_TURBO=1 -DCHROMIUM_BUILD
@@ -276,7 +279,7 @@ set(WEBRTC_LDFLAGS_MACOS
     -Wl,-dead_strip -arch x86_64
 )
 set(WEBRTC_SYSLIBS)
-set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)
+set(WEBRTC_SYSLIBS_ANDROID cpufeatures log GLESv2 OpenSLES crypto ssl m dl)
 
 set(WEBRTC_SYSLIBS_LINUX
     nss3 nssutil3 smime3 plds4 plc4 nspr4
@@ -319,7 +322,6 @@ if (ANDROID)
     message(STATUS "Building rtcModule on arm Android")
     appendArchStuff(ARM)
     appendPlatformStuff(ANDROID)
-    set(WEBRTC_SRCS "${ANDROID_NDK}/sources/android/cpufeatures/cpu-features.c")
 elseif(APPLE)
     message(STATUS "Building rtcModule on x86 MacOSX")
     # appendArchStuff(X86)
@@ -349,9 +351,9 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
 
 
 if(optWebrtcShared)
-    add_library(webrtc_my SHARED dummy.cpp ${WEBRTC_SRCS} ${myvpx})
+    add_library(webrtc_my SHARED dummy.cpp ${myvpx})
 else()
-    add_library(webrtc_my dummy.cpp ${WEBRTC_SRCS} ${myvpx})
+    add_library(webrtc_my dummy.cpp ${myvpx})
 endif()
 target_link_libraries(webrtc_my ${WEBRTC_LIBS} ${WEBRTC_SYSLIBS})
 
