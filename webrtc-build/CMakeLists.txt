@@ -99,8 +99,8 @@ set(WEBRTC_LIBS_ARM
 
 )
 set(WEBRTC_LIBS_ANDROID
-   ${webrtcBuild}/obj/third_party/icu/libicuuc.a
-   ${webrtcBuild}/obj/third_party/icu/libicudata.a
+   ${webrtcBuild}/third_party/icu/libicuuc.a
+   ${webrtcBuild}/third_party/icu/libicudata.a
 )
 
 set(WEBRTC_DEFS -DV8_DEPRECATION_WARNINGS)
