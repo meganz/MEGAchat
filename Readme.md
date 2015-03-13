@@ -151,7 +151,7 @@ Then, copy the `boringssl.gyp` file from `/webrtc-build/android` directory of th
 to the `third_party/boringssl` dir you just created. This file maps boringssl references to the openssl installed
 in your android sysroot. For this to work, you need to have the `ANDROID_DEPS` env variable set to the android sysroot dir,
 where all depenencies are build:  
-`export ANDROID_DEPS=<path-to-android-ndk-you-installed>/platforms/android-14/arch-arm`
+`export ANDROID_DEPS=<path-to-android-ndk-you-installed>/platforms/android-14/arch-arm`  
 Note that you cannot take the NDK_PATH env var set by the `android-commands.sh` script since you must not source it in this
 shell, as already explained.  
 Configure GYP:  
