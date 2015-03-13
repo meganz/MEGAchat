@@ -149,8 +149,11 @@ In order to do that:
 `mkdir third_party/boringssl`  
 Then, copy the `boringssl.gyp` file from `/webrtc-build/android` directory of the karere-native source tree
 to the `third_party/boringssl` dir you just created. This file maps boringssl references to the openssl installed
-in your android sysroot. For this to work, you need to have the ANDROID_DEPS env variable set, as explained before.
-
+in your android sysroot. For this to work, you need to have the `ANDROID_DEPS` env variable set to the android sysroot dir,
+where all depenencies are build:  
+`export ANDROID_DEPS=<path-to-android-ndk-you-installed>/platforms/android-14/arch-arm`
+Note that you cannot take the NDK_PATH env var set by the `android-commands.sh` script since you must not source it in this
+shell, as already explained.  
 Configure GYP:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`   
 
