@@ -1,4 +1,13 @@
-#  Building the webrtc module #
+#  Building karere-native #
+Checkout the `karere-native` git repository to a dir chosen by you.
+## Toolchains ##
+* Android  
+Building of webrtc is supported only on Linux.This is a limitation of Google's webrtc/chromium build system.  
+Install the android NDK. Although webrtc comes with its own copy of the NDK, we are going to use the standard one for building
+the karere-native code, and let webrtc build with its own NDK. Both compilers are gcc 4.8 so they are binary compatible.  
+Forcing webrtc to build with an external NDK will not work. For some operations, like assembly code transformations, a host
+compiler is used, which is the clang version that comes with webrtc. To use an external NDK, we need to specify explicitly
+specify the `--sysroot` path of the external NDK, which also gets passed to the clang host compiler, causing errors. 
 
 ## Dependencies ##
 
@@ -6,12 +15,32 @@
  - Our version of strophe (https://code.developers.mega.co.nz/messenger/strophe-native, see readme for it's own dependencies).
  No need to explicitly build it, will be done by the Karere build system.  
  - `libevent2` - at least 2.0.x  
- - Qt4 (for the test app): `libqtcore4 libqtgui4 libqt4-dev`  
  - Native WebRTC stack from Chrome, see below for build instructions for it.  
  - The Mega SDK. Check out the repository, configure the SDK in a minimalistic way - without image libs etc.
  Only the crypto and HTTP functionality is needed. Install crypto++ and libcurl globally in the system, because the Karere
  build will need to find them as well and link to them directly. Install any other mandatory Mega SDK dependencies
  and build the SDK. It does not have to be installed with `make install`, it will be accessed directly in the checkout dir.  
+* Desktop OS-es  
+ - Qt4 (for the test app): `libqtcore4 libqtgui4 libqt4-dev`  
+
+* Android  
+You need to install a CMake toolchain in order to make it easy to cross-compile for android with cmake. This toolchain is
+in the following repo, clone it:  
+`https://github.com/taka-no-me/android-cmake.git`  
+Also, to make it easy to do autotools and cmake builds with the NDK that you installed, a shell script is provided in the
+strophe-native source tree, `/android-commands.sh`. You need to first edit this script and set two paths to reflect your setup.
+Find the section marked with the commend '===User-set variables':  
+set `NDK_PATH` to the root of the NDK that you installed. This should look something like `/path/to/android-ndk-r10d`  
+set `ANDROID_CMAKE_TOOLCHAIN` to the full path to the `android-toolchain.cmake` file inside the cmake toolchain repo you checked
+out.  
+Then source this script in your shell:  
+`source /path/to/android-commands.sh`   
+It should print instructions how to use it with autotools and cmake.  
+Using these instructions, build and install the karere-native dependencies for android. All should install in the
+`$NDK_PATH/platforms/android-14/arch-arm/usr` directory inside the NDK tree.  
+Because crypto++ build system is broken for android, a CMake file is provided to build it, in
+`karere-native/webrtc-build/android/cryptopp_CMakeLists.txt`. Rename it to CMakeLists.txt and put it in the crypto++ source dir,
+then build it.
 
 * MacOS  
 Because MacOS has a built-in version of openssl, which is not compatible for some reason (causes Strophe login to stall),
@@ -22,7 +51,13 @@ temporarily until you build webrtc. These header dirs are needed only for develo
 and linking against an up to date version of openssl when building software.   
 
 ## Building webrtc ##
-First, create a directory where all webrtc stuff will go, and cd to it. All instructions in this section assume that the
+* Android
+Start a fresh new shell for building webrtc. You must NOT use a shell where `android-commands.sh` has been sourced, because
+that script sets the CC, CXX etc variables to the NDK compiler that you installed. However we don't want to build webrtc with
+that compiler, but rather with its own version (reasons explained above). Therefore, you must not use here the shell that you
+used to build the dependencies.However it will be used later to build the karere codebase.  
+
+First, create a directory where all webrtc stuff will go, and `cd` to it. All instructions in this section assume that the
 current directory is that one.  
 
 ### Install depot_tools ###
@@ -104,6 +139,18 @@ corresponding ninja file in out/Debug|Release/obj/net/third_party/nss/libssl.nin
 * Android:  
 Run a script to setup the environment to use the built-in android NDK:  
 `build/android/envsetup.sh`  
+
+Since the android build of webrtc uses Google's fork of openssl (boringssl), which is not binary-compatible with normal openssl,
+we need to force the webrtc build system to work with the normal openssl instead. This is not trivial and we need to replace
+the .gyp file responsible for building the boringssl lib, which also provides its lib names and include dir to dependent projects.
+First, just in case, we will hide all boringssl stuff from the build system and create our own fake dir with the fale .gyp file.
+In order to do that:  
+`mv third_party/boringssl third_party/boringssl_hide`  
+`mkdir third_party/boringssl`  
+Then, copy the `boringssl.gyp` file from `/webrtc-build/android` directory of the karere-native source tree
+to the `third_party/boringssl` dir you just created. This file maps boringssl references to the openssl installed
+in your android sysroot. For this to work, you need to have the ANDROID_DEPS env variable set, as explained before.
+
 Configure GYP:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`   
 
@@ -169,7 +216,7 @@ Unfortunately the webrtc build does not generate a single lib and config header 
  This will be described in more detail in the webrtc module build procedure.
 
 ## Building the Karere codebase, including the test app ##
-Checkout the `karere-native` git repository and cd to the root of the checkout  
+Change directory to the root of the karere-native checkout  
 `mkdir build`  
 `cd build`  
 `ccmake ../src/rtctestapp`  
