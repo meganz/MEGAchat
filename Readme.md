@@ -139,7 +139,6 @@ corresponding ninja file in out/Debug|Release/obj/net/third_party/nss/libssl.nin
 * Android:  
 Run a script to setup the environment to use the built-in android NDK:  
 `build/android/envsetup.sh`  
-
 Since the android build of webrtc uses Google's fork of openssl (boringssl), which is not binary-compatible with normal openssl,
 we need to force the webrtc build system to work with the normal openssl instead. This is not trivial and we need to replace
 the .gyp file responsible for building the boringssl lib, which also provides its lib names and include dir to dependent projects.
