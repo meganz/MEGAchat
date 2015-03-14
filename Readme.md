@@ -157,7 +157,7 @@ Also, we need to hack the webrtc build system to use the gnustl C++ runtime inst
 have to use the same runtime at least in the webrtc module of Karere, and stlport does not have good support for C++11, exceptions
 are disabled and we use them a lot. However some small fixes need to be applies to the webrtc code to be able to build with gnustl.
 To make all these changes easy, a patch is included that takes care of everything, and also fixes the sanitized_options build issue
-(described below). The patch is located at `karere-native/webrtc-build/android/webrtc.patch`. verify that you are in
+(described below). The patch is located at `karere-native/webrtc-build/android/webrtc.patch`. Verify that you are in
 the webrtc trunk directory, and do:  
 `svn patch /path/to/karere-native/webrtc-build/android/webrtc.patch`  
 Note that the patch is valid only for the 6937 revision of webrtc.  
