@@ -161,7 +161,6 @@ To make all these changes easy, a patch is included that takes care of everythin
 the webrtc trunk directory, and do:  
 `svn patch /path/to/karere-native/webrtc-build/android/webrtc.patch`  
 Note that the patch is valid only for the 6937 revision of webrtc.  
-
 Configure GYP:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`   
 
