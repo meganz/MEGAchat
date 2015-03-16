@@ -453,7 +453,7 @@ public:
 
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler)
     {
-        mRtcHandler = rtcHandler;
+        mRtcHandler.reset(rtcHandler);
     }
 
     promise::Promise<int> init()
