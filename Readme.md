@@ -21,7 +21,11 @@ specify the `--sysroot` path of the external NDK, which also gets passed to the 
  build will need to find them as well and link to them directly. Install any other mandatory Mega SDK dependencies
  and build the SDK. It does not have to be installed with `make install`, it will be accessed directly in the checkout dir.  
 * Desktop OS-es  
- - Qt4 (for the test app): `libqtcore4 libqtgui4 libqt4-dev`  
+ - Qt4 (for the test app): `libqtcore4 libqtgui4 libqt4-dev`
+ - mpEnc. Check out the repository, install libsodium , download gTest and easylog and build. 
+ After it is successfully built, export the following 2 environment variables:
+ MPENC_INCLUDE - '{path to mpEnc package}/src'
+ MPENC_LIB - '{path to the built mpEnc lib}'
 
 * Android  
 You need to install a CMake toolchain in order to make it easy to cross-compile for android with cmake. This toolchain is
@@ -298,4 +302,3 @@ For more details, read the comments in base/gcm.h, and for reference implementat
     The mechanism marshalls lambda calls from a worker thread to the GUI thread. Examples of use of
     marshallCall() can be seen for example in /src/webrtcAdapter.h and in many different places.
     This mechanism should not be directly needed in high-level code that runs in the GUI thread.
-
