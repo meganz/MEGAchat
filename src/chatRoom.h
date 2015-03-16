@@ -144,17 +144,18 @@ public:
             class P = SharedDummyMember, class NP = DummyEncProtocolHandler>
     static
     promise::Promise<std::shared_ptr<ChatRoom<N, GN, P, NP>> >
-    create(Client<N, GN, P, NP>& client, const std::string& peerFullJid) {
-        std::shared_ptr<strophe::Connection> conn = client.conn;
-        const char* myFullJid = xmpp_conn_get_bound_jid(*conn);
+    create(Client<N, GN, P, NP>& client, const std::string& peerFullJid)
+    {
+        const char* myFullJid = xmpp_conn_get_bound_jid(*client.conn);
 
-        if (!myFullJid) {
+        if (!myFullJid)
+        {
             throw std::runtime_error("Error getting own JID from connection");
         }
 
         std::string myBareJid = strophe::getBareJidFromJid(myFullJid);
         std::string peerBareJid = strophe::getBareJidFromJid(peerFullJid);
-        std::string myId = userIdFromJid(conn->fullJid());
+        std::string myId = userIdFromJid(client.conn->fullJid());
         std::string peerId = userIdFromJid(peerFullJid);
         std::string roomJid = "prv_";
         roomJid.reserve(64);
@@ -183,7 +184,7 @@ public:
         peerRoomJid.append("/").append(peerId).append("__")
                    .append(strophe::getResourceFromJid(peerFullJid));
 
-        strophe::Stanza pres(*conn);
+        strophe::Stanza pres(*client.conn);
         pres.setName("presence")
             .setAttr("xmlns", "jabber:client")
             .setAttr("from", myFullJid)
@@ -196,10 +197,10 @@ public:
             myRoomJid, peerRoomJid));
         promise::Promise<std::shared_ptr<ChatRoom<N, GN, P, NP>>> ret;
 
-        conn->sendQuery(pres, "muc")
-        .then([ret, room, conn, myFullJid, &client](strophe::Stanza result) mutable
+        client.conn->sendQuery(pres, "muc")
+        .then([ret, room, myFullJid, &client](strophe::Stanza result) mutable
          {
-            strophe::Stanza config(*conn);
+            strophe::Stanza config(*client.conn);
 
             config.setName("iq")
                   .setAttr("to", room->roomJid())
@@ -212,7 +213,7 @@ public:
                   .setAttr("type", "submit");
 
 
-            return conn->sendIqQuery(config, "config");
+            return client.conn->sendIqQuery(config, "config");
          })
          .then([ret, room, myFullJid, &client](strophe::Stanza s) mutable
         {

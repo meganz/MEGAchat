@@ -261,7 +261,8 @@ protected:
         }
         std::string type = (stanza.attrOrNull("type") != NULL) ? stanza.attr("type") : "";
 
-        if (type.compare("action") == 0) {
+        if (type.compare("action") == 0)
+        {
             xmpp_stanza_t* rawX = stanza.rawChild("x");
             if( rawX != NULL)
             {
@@ -280,22 +281,27 @@ protected:
 
                     while(jsondata.storeobject(&obj))
                     {
-                        if(obj.compare("action") == 0) {
+                        if(obj.compare("action") == 0)
+                        {
                             jsondata.pos++;
                             jsondata.storeobject(&actionname);
                         }
-                        if(obj.compare("roomJid") == 0) {
+                        if(obj.compare("roomJid") == 0)
+                        {
                             jsondata.pos++;
                             jsondata.storeobject(&roomJid);
                         }
                     }
-                    actionMessage = std::shared_ptr<ActionMessage>(
-                                                   new ActionMessage(
-                                                        std::string(stanza.attr("to")),
-                                                        std::string(stanza.attr("from")),
-                                                        roomJid,
-                                                        (actionname.compare("conv_start") == 0) ? ActionMessage::CONVERSATION_START : ((actionname.compare("conv_end") == 0) ? ActionMessage::CONVERSATION_END : ActionMessage::USER_LEFT))
-                                                        );
+                    actionMessage = std::shared_ptr<ActionMessage>(new ActionMessage(
+                        std::string(stanza.attr("to")),
+                        std::string(stanza.attr("from")),
+                            roomJid,
+                            (actionname.compare("conv_start") == 0)
+                                ? ActionMessage::CONVERSATION_START
+                                : ((actionname.compare("conv_end") == 0)
+                                   ? ActionMessage::CONVERSATION_END
+                                   : ActionMessage::USER_LEFT))
+                    );
                 }
             }
         }
@@ -334,10 +340,11 @@ protected:
         std::string messageId = generateMessageId(conn->fullJid() + (toRoomJid.empty() ? "" : toRoomJid), "");
         strophe::Stanza action_message(*conn);
         std::string json = "{";
-        if (!toRoomJid.empty()) {
+        if (!toRoomJid.empty())
+        {
             json.append("\"roomJid\":\"")
                 .append(toRoomJid)
-				.append("\",");
+                .append("\",");
         }
         json.append("\"action\":\"")
             .append(action)
@@ -346,11 +353,11 @@ protected:
         action_message.setName("message")
                       .setAttr("to", strophe::getBareJidFromJid(conn->fullJid()))
                       .setAttr("type", "action")
-					  .c("x")
-					  .setAttr("xmlns", "jabber:x:conference")
-					  .setAttr("jid", toRoomJid)
+                      .c("x")
+                          .setAttr("xmlns", "jabber:x:conference")
+                          .setAttr("jid", toRoomJid)
                       .c("json")
-                      .t(json);
+                          .t(json);
         conn->send(action_message);
     }
 
@@ -366,19 +373,22 @@ protected:
         roster.setName("iq")
               .setAttr("type", "get")
               .setAttr("from", conn->fullJid())
-              .c("query", {{"xmlns", "jabber:iq:roster"}});
+              .c("query")
+                  .setAttr("xmlns", "jabber:iq:roster");
         return conn->sendIqQuery(roster, "roster")
         .then([this](strophe::Stanza s) mutable
         {
             xmpp_stanza_t* rawQuery = s.rawChild("query");
-            if (rawQuery != NULL) {
+            if (rawQuery != NULL)
+            {
                 xmpp_stanza_t* c = xmpp_stanza_get_children(rawQuery);
                 for (; c!=NULL; c = xmpp_stanza_get_next(c))
                 {
                     if (strcmp("item", xmpp_stanza_get_name(c)))
                         continue;
                     const char* attrVal = xmpp_stanza_get_attribute(c, "jid");
-                    if (attrVal != NULL) {
+                    if (attrVal != NULL)
+                    {
                         this->contactList.addContact(std::string(attrVal));
                         message_bus::SharedMessage<> busMessage(CONTACT_ADDED_EVENT);
                         busMessage->addValue(CONTACT_JID, std::string(attrVal));
@@ -406,7 +416,7 @@ protected:
         pong.setAttr("type", "result")
             .setAttr("to", peerJid)
             .setAttr("from", conn->fullJid())
-			.setAttr("id", messageId);
+            .setAttr("id", messageId);
 
         conn->send(pong);
     }
@@ -418,13 +428,11 @@ public:
     std::map<std::string, std::shared_ptr<ChatRoom<M, GM, SP, EH>>> chatRooms;
 
     Client(const std::string& email, const std::string& password)
-               :
-               mEmail(email), mPassword(password),
-               conn(new strophe::Connection(services_strophe_get_ctx())),
-               contactList(conn),
-               mRtcHandler(NULL),
-               api(new MyMegaApi("sdfsdfsdf")) {
-    }
+    : mEmail(email), mPassword(password),
+      conn(new strophe::Connection(services_strophe_get_ctx())),
+      contactList(conn), mRtcHandler(NULL),
+      api(new MyMegaApi("sdfsdfsdf"))
+    {}
 
 
     virtual ~Client()
@@ -516,7 +524,9 @@ public:
                     if (actionMessage != nullptr)
                     {
                         handleActionMessage(actionMessage);
-                    } else {
+                    }
+                    else
+                    {
                         /*if it is a normal incoming message*/
                         std::shared_ptr<IncomingMessage> incomingMessage = composeIncomingMessesage(stanza_data);
                         if (incomingMessage != nullptr)
@@ -527,7 +537,8 @@ public:
                     }
 
                     /*Chat State Notifications*/
-                    if (stanza_data.rawChild("composing")) {
+                    if (stanza_data.rawChild("composing"))
+                    {
                         KR_LOG("%s is typing\n", stanza_data.attr("from"));
                     }
                 }, nullptr, "message", nullptr, nullptr);
@@ -536,7 +547,8 @@ public:
                 {
                     std::shared_ptr<PresenceMessage> presenceMessage =
                                                 composePresenceMessage(stanza_data);
-                    if(presenceMessage != nullptr) {
+                    if(presenceMessage != nullptr)
+                    {
                         handlePresenceMessage(presenceMessage);
                         return;
                     }
@@ -545,14 +557,16 @@ public:
                 mXmppIqHandler = conn->addHandler([this, pmse](strophe::Stanza stanza_data, void*, bool &keep) mutable
                 {
                     xmpp_stanza_t* rawPing = stanza_data.rawChild("ping");
-                    if(rawPing != NULL) {
+                    if(rawPing != NULL)
+                    {
                         sendPong(stanza_data.attr("from"), stanza_data.attr("id"));
                         return;
                     }
                 }, nullptr, "iq", nullptr, nullptr);
             }
 
-            if (onRtcInitialized) {
+            if (onRtcInitialized)
+            {
                 onRtcInitialized();
             }
 
@@ -571,12 +585,15 @@ public:
 
     }
 
-    void handleInvitationMessage(std::shared_ptr<InviteMessage> &message) {
+    void handleInvitationMessage(std::shared_ptr<InviteMessage> &message)
+    {
         joinRoom(message->getRoomJid(), message->getPassword(), message->getMeta());
     }
 
-    void handleDataMessage(std::shared_ptr<IncomingMessage> &message) {
-        if (message->getType() == IncomingMessage::CHAT) { // private message
+    void handleDataMessage(std::shared_ptr<IncomingMessage> &message)
+    {
+        if (message->getType() == IncomingMessage::CHAT)
+        { // private message
             KR_LOG("You get a private message from %s\n:%s", message->getFromJid().c_str(), message->getContents().c_str());
             return ;
         }
@@ -584,18 +601,21 @@ public:
         assert(message->getType() == IncomingMessage::GROUPCHAT);
         auto r = chatRooms.find(message->getRoomJid());
 
-        if(r == chatRooms.end()) {
+        if(r == chatRooms.end())
+        {
             KR_LOG_ERROR("Room not found: %s", message->getRoomJid().c_str());
             return;
         }
         KR_LOG("from Jid : %s --- self Jid : %s", message->getFromJid().c_str(), conn->fullJid());
         /*if the message is from the sender himself, just ignore it.*/
-        if(message->getFromJid().compare(conn->fullJid()) == 0) {
+        if(message->getFromJid().compare(conn->fullJid()) == 0)
+        {
             return ;
         }
         std::string contents = message->getContents();
         size_t pos;
-        if((pos = contents.find(MPENC_HEADER)) != std::string::npos) {
+        if((pos = contents.find(MPENC_HEADER)) != std::string::npos)
+        {
             KR_LINE;
             KR_LOG("mpEnc message received");
             KR_LINE_END;
@@ -603,7 +623,8 @@ public:
             std::string data(contents.begin() + pos + strlen(MPENC_HEADER), contents.end());
             r->second->filterIncoming(data);
         }
-        else {
+        else
+        {
             std::string messName(ROOM_MESSAGE_EVENT);
             messName.append(message->getRoomJid());
             KR_LOG("*********** Message name = %s", messName.c_str());
@@ -617,12 +638,18 @@ public:
     void handleActionMessage(std::shared_ptr<ActionMessage> &message)
     {
         std::string myJid =  strophe::getBareJidFromJid(std::string(xmpp_conn_get_bound_jid(*this->conn)));
-        if(myJid.compare(strophe::getBareJidFromJid(message->getFromJid())) == 0) {// action from my another device.
-            if(message->getActionType()== ActionMessage::CONVERSATION_END) {
-                if(chatRooms.find(message->getRoomJid()) != chatRooms.end()) {
+        if(myJid.compare(strophe::getBareJidFromJid(message->getFromJid())) == 0)
+        {// action from my another device.
+            if(message->getActionType()== ActionMessage::CONVERSATION_END)
+            {
+                if(chatRooms.find(message->getRoomJid()) != chatRooms.end())
+                {
                     leaveRoom(message->getRoomJid());
-                } else if (message->getActionType() == ActionMessage::CONVERSATION_START) {
-                    if(chatRooms.find(message->getRoomJid()) == chatRooms.end()) {
+                }
+                else if (message->getActionType() == ActionMessage::CONVERSATION_START)
+                {
+                    if(chatRooms.find(message->getRoomJid()) == chatRooms.end())
+                    {
                         joinRoom(message->getRoomJid(), getNickname());
                     }
                 }
@@ -630,40 +657,51 @@ public:
         }
     }
 
-    void handlePresenceMessage(std::shared_ptr<PresenceMessage> &message) {
+    void handlePresenceMessage(std::shared_ptr<PresenceMessage> &message)
+    {
         std::string roomJid(message->getRoomJid());
         size_t pos = roomJid.find_first_of("@conference");
         // Test if this is a valid room id.
-        if(pos == std::string::npos) {
+        if(pos == std::string::npos)
+        {
             throw std::runtime_error("Invalid room jid");
         }
-        if (std::string(conn->fullJid()).compare(message->getFromJid()) == 0) {
-            return ;
+        if (std::string(conn->fullJid()).compare(message->getFromJid()) == 0)
+        {
+            return;
         }
         std::string myJid =  strophe::getBareJidFromJid(std::string(xmpp_conn_get_bound_jid(*this->conn)));
         KR_LOG("my Jid is %s --- from Jid is %s\n", myJid.c_str(), message->getFromJid().c_str());
 
-        if(myJid.compare(strophe::getBareJidFromJid(message->getFromJid())) == 0) {// action from my another device.
-			if(message->getType().compare("unavailable") == 0) {
-
-			} else if (message->getType().compare("available") == 0) {
-				if(chatRooms.find(message->getRoomJid()) == chatRooms.end()) {
-					joinRoom(message->getRoomJid(), getNickname());
-				}
-				else {
-				    addOtherUser(message->getRoomJid(), message->getFromJid());
-				}
-			}
+        if(myJid.compare(strophe::getBareJidFromJid(message->getFromJid())) == 0)
+        {// action from my another device.
+            if(message->getType().compare("unavailable") == 0)
+            {
+            }
+            else if (message->getType().compare("available") == 0)
+            {
+                if(chatRooms.find(message->getRoomJid()) == chatRooms.end())
+                {
+                    joinRoom(message->getRoomJid(), getNickname());
+                }
+                else
+                {
+                    addOtherUser(message->getRoomJid(), message->getFromJid());
+                }
+            }
         }
-        else {
+        else
+        {
             addOtherUser(message->getRoomJid(), message->getFromJid());
         }
     }
 
-    void addOtherUser(const std::string &roomId, const std::string &otherJid) {
+    void addOtherUser(const std::string &roomId, const std::string &otherJid)
+    {
         auto r = chatRooms.find(roomId);
 
-        if(r == chatRooms.end()) {
+        if(r == chatRooms.end())
+        {
             KR_LOG_ERROR("Room not found: %s", roomId.c_str());
             KR_LOG_ERROR("message jid = %s", roomId.c_str());
             return;
@@ -680,7 +718,8 @@ public:
         KR_LOG(LINE);
         KR_LOG("testing room ownership");
         KR_LOG(LINE);
-        if(r->second->ownsRoom()) {
+        if(r->second->ownsRoom())
+        {
             KR_LOG(LINE);
             KR_LOG("Kicking off encryption.");
             KR_LOG(LINE);
@@ -688,11 +727,11 @@ public:
         }
     }
 
-	/**
-	* @brief Self Ping function.
-	* @param [intervalSec] {int} optional with default value as 100, interval in seconds to do self ping.
-	* @returns {void}
-	*/
+    /**
+    * @brief Self Ping function.
+    * @param [intervalSec] {int} optional with default value as 100, interval in seconds to do self ping.
+    * @returns {void}
+    */
     void startSelfPings(int intervalSec = 100)
     {
         return pingPeer(strophe::getBareJidFromJid(conn->fullJid()), intervalSec);
@@ -729,34 +768,37 @@ public:
         }, intervalSec*1000);
     }
 
-	/**
-	* @brief generate a message Id based on the target Jid and message.
-	*
-	*/
+    /**
+    * @brief generate a message Id based on the target Jid and message.
+    *
+    */
     std::string messageId(const std::string& Jid, const std::string& message)
     {
         return generateMessageId(Jid, message);
     }
-	/**
-	* @Get a unique nickname based on current connection.
-	* @returns {string} nickname based on current connection.
-	*/
+    /**
+    * @Get a unique nickname based on current connection.
+    * @returns {string} nickname based on current connection.
+    */
     std::string getNickname() const
     {
         return getUsername() + "__" + getResource();
     }
 
     /**
-	* Send a message to a chat room.
-	* @param roomJid {string} room's JID.
-	* @param message {string} message to send.
-	* @returns {void}
-	*/
+    * Send a message to a chat room.
+    * @param roomJid {string} room's JID.
+    * @param message {string} message to send.
+    * @returns {void}
+    */
     void sendMessage(const std::string& roomJid, const std::string& message)
     {
-        if (chatRooms.find(roomJid) != chatRooms.end()) {
+        if (chatRooms.find(roomJid) != chatRooms.end())
+        {
             chatRooms[roomJid]->filterOutgoing(message);
-        } else {
+        }
+        else
+        {
             KR_LOG_WARNING("invalid room Jid %s\n", roomJid.c_str());
         }
     }
@@ -776,8 +818,8 @@ public:
                       .setAttr("to", peerFullJid)
                       .setAttr("type", "chat")
                       .c("body")
-                      .c("messageContents")
-                      .t(message);
+                          .c("messageContents")
+                              .t(message);
         conn->send(stanza_message);
     }
 
@@ -790,7 +832,8 @@ public:
     {
         std::string room_nick = roomJid;
         std::string nickName = getNickname();
-        if(!nickName.empty()) {
+        if(!nickName.empty())
+        {
             room_nick.append("/" + nickName);
         }
         //string presenceid = conn->getUniqueId();
@@ -803,7 +846,8 @@ public:
         sendBroadcastAction("conv_end", roomJid);
 
         /*after leaving the chat room, remove the chat room from client's chat room list.*/
-        if (chatRooms.find(roomJid) != chatRooms.end()) {
+        if (chatRooms.find(roomJid) != chatRooms.end())
+        {
             chatRooms.erase(roomJid);
         }
         return;
@@ -818,7 +862,8 @@ public:
     void joinRoom(const std::string& roomJid, const std::string& password = "", const MessageMeta& meta = MessageMeta())
     {
         // if the chat room does not exist.
-        if( chatRooms.find(roomJid) == chatRooms.end()) {
+        if( chatRooms.find(roomJid) == chatRooms.end())
+        {
             KR_LOG(LINE);
             KR_LOG("join: Creating Room: %s", roomJid.c_str());
             KR_LOG(LINE);
@@ -839,7 +884,8 @@ public:
 
         std::string room_nick = roomJid;
         std::string nickName = getNickname();
-        if(nickName.size() > 0) {
+        if(!nickName.empty())
+        {
             room_nick.append("/" + strophe::escapeNode(nickName));// escapeNode(nickName)
         }
         const char* myFullJid = xmpp_conn_get_bound_jid(*conn);
@@ -849,8 +895,8 @@ public:
             .setAttr("from", myFullJid)
             .setAttr("to", room_nick)
             .c("x")
-            .setAttr("xmlns", "http://jabber.org/protocol/muc")
-            .c("password");
+                .setAttr("xmlns", "http://jabber.org/protocol/muc")
+                .c("password");
         conn->send(pres);
 
         sendBroadcastAction("conv-start", roomJid);
@@ -858,7 +904,8 @@ public:
 
     typedef std::function<void(const char*)> ErrorFunction;
 
-    void invite(const std::string &peerMail) {
+    void invite(const std::string &peerMail)
+    {
         api->call(&mega::MegaApi::getUserData, peerMail.c_str())
         .then([this](ReqResult result)
         {
@@ -872,21 +919,26 @@ public:
             std::string peerJid = std::string(peer)+"@"+KARERE_XMPP_DOMAIN;
             return karere::ChatRoom<M, GM, SP, EH>::create(*this, peerJid);
         })
-        .then([&](std::shared_ptr<karere::ChatRoom<M, GM, SP, EH>> room)
+        .then([this](std::shared_ptr<karere::ChatRoom<M, GM, SP, EH>> room)
         {
-            if (chatRooms.find(room->roomJid()) != chatRooms.end()) {
+            if (chatRooms.find(room->roomJid()) != chatRooms.end())
+            {
                 chatRooms[room->roomJid()]->addUserToChat(room->peerFullJid());
-            } else {
+            }
+            else
+            {
                 KR_LOG_WARNING("invalid room Jid %s\n", room->roomJid().c_str());
             }
             return nullptr;
         })
         .fail([&](const promise::Error& err)
         {
-            if (err.type() == 0x3e9aab10) {
+            if (err.type() == 0x3e9aab10)
+            {
                 sendErrorMessage("Callee user not recognized");
             }
-            else {
+            else
+            {
                 std::string error("Error calling user:");
                 error.append(err.msg().c_str());
                 sendErrorMessage(error);
@@ -903,10 +955,13 @@ public:
     */
     void sendChatState(const std::string& roomJid, const ChatState::STATE_TYPE chatState)
     {
-        if (chatRooms.find(roomJid) != chatRooms.end()) {
+        if (chatRooms.find(roomJid) != chatRooms.end())
+        {
             std::string myJid =  strophe::getBareJidFromJid(std::string(xmpp_conn_get_bound_jid(*this->conn)));
             chatRooms[roomJid]->sendUserChatState(myJid, chatState);
-        } else {
+        }
+        else
+        {
             KR_LOG_WARNING("invalid room Jid %s\n", roomJid.c_str());
         }
     }
@@ -915,23 +970,24 @@ public:
     * @brief set user's chat presence.
     * set user's presence state, which can be one of online, busy, away, online
     */
-    void setPresence(const Presence pres, const int delay = 0 )
+    void setPresence(const Presence pres, const int delay = 0)
     {
         strophe::Stanza msg(*conn);
         msg.setName("presence")
            .setAttr("id", generateMessageId(std::string("presence"), std::string("")))
            .c("show")
-           .t(ContactList::presenceToText(pres))
-           .up()
+               .t(ContactList::presenceToText(pres))
+               .up()
            .c("status")
-           .t(ContactList::presenceToText(pres))
-           .up();
-        if(delay > 0) {
-            msg = msg.
-                  c("delay")
-                  .setAttr("xmlns", "urn:xmpp:delay")
-                  .setAttr("from", conn->fullJid())
-                  .up();
+               .t(ContactList::presenceToText(pres))
+               .up();
+        if(delay > 0)
+        {
+            msg = msg
+                  .c("delay")
+                      .setAttr("xmlns", "urn:xmpp:delay")
+                      .setAttr("from", conn->fullJid())
+                      .up();
         }
 
         conn->send(msg);
@@ -969,31 +1025,35 @@ protected:
     rtcModule::IPtr<rtcModule::IEventHandler> mRtcHandler;
 
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
-    getOtherUserInfo(std::string &emailAddress) {
+    getOtherUserInfo(std::string &emailAddress)
+    {
         std::string event(USER_INFO_EVENT);
         event.append(emailAddress);
         message_bus::SharedMessage<M_MESS_PARAMS> userMessage(event);
 
         return api->call(&mega::MegaApi::getUserData, emailAddress.c_str())
-        .then([this, &userMessage](ReqResult result){
+        .then([this, userMessage](ReqResult result)
+        {
             const char *peer = result->getText();
             const char *pk = result->getPassword();
 
             return userMessage;
         })
-        .fail([&](const promise::Error &err){
+        .fail([&](const promise::Error &err)
+        {
             return nullptr;
         });
     }
 
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
-    getThisUserInfo() {
+    getThisUserInfo()
+    {
         std::string event(THIS_USER_INFO_EVENT);
         message_bus::SharedMessage<M_MESS_PARAMS> userMessage(event);
 
         return api->call(&mega::MegaApi::getUserData)
-                .then([this, &userMessage](ReqResult result){
-
+                .then([this, userMessage](ReqResult result)
+        {
         })
         .fail([&](const promise::Error &err){
             return nullptr;
@@ -1005,13 +1065,7 @@ protected:
 #define MPENC_T_PARAMS mpenc_cpp::Member,mpenc_cpp::GroupMember,mpenc_cpp::SharedMemberPtr,mpenc_cpp::UpperHandler
 #define MPENC_T_DYMMY_PARAMS DummyMember, DummyGroupMember,SharedDummyMember, DummyEncProtocolHandle
 
-class ChatClient : public Client<MPENC_T_PARAMS> {
-typedef Client<MPENC_T_PARAMS> super;
-public:
-    ChatClient(const std::string& email, const std::string& password)
-    : super (email, password)
-    {}
+typedef Client<MPENC_T_PARAMS> ChatClient;
 
-    };
 }
 #endif // CHATCLIENT_H
