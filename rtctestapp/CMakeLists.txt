@@ -30,12 +30,12 @@ else()
     message(FATAL_ERROR, "MPENC_INCLUDE env variable not set.")
 endif()
 
-if(DEFINED ENV{MPENC_LIB})
-    message("found $ENV{MPENC_LIB}")
-    set(MPENC_LIB_DIR $ENV{MPENC_LIB})
+if(DEFINED ENV{MPENC_LIB_DIR})
+    message("found $ENV{MPENC_LIB_DIR}")
+    set(MPENC_LIB_DIR $ENV{MPENC_LIB_DIR})
     message("${MPENC_LIB_DIR}")
 else()
-    message(FATAL_ERROR, "MPENC_LIB env varibale not set.")
+    message(FATAL_ERROR "MPENC_LIB_DIR env varibale not set.")
 endif()
 find_path(SODIUM_INCLUDE_DIR sodium.h
           PATH_SUFFIXES sodium)
@@ -69,6 +69,7 @@ include_directories(
     ${EASYLOGGING_INCLUDE_DIRS}
     ${SODIUM_INCLUDE_DIRS}
     ${MPENC_INCLUDE_DIR}
+    ${OPENSSL_INCLUDE_DIR}
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
