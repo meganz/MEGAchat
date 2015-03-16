@@ -84,9 +84,8 @@ int main(int argc, char **argv)
 
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin->ui->calleeInput->setText(argv[3]);
-    karere::ChatClient *client = new karere::ChatClient(argv[1], argv[2]);
-    client->registerRtcHandler(new RtcEventHandler(mainWin));
-    gClient = unique_ptr<karere::ChatClient>(client);
+    gClient.reset(new karere::ChatClient(argv[1], argv[2]));
+    gClient->registerRtcHandler(new RtcEventHandler(mainWin));
     gClient->init()
     .then([](int)
     {
