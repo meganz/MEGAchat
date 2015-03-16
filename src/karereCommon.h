@@ -12,8 +12,8 @@
     #ifdef WIN32_LEAN_AND_MEAN
         #include <mmsystem.h>
     #endif
-#elif defined(__MACH__)
-   #include <mach/mach_time.h>
+#elif defined (__MACH__)
+    #include <mach/mach_time.h>
 #else
     #include <sys/time.h>
 #endif
@@ -45,8 +45,32 @@ static inline string to_string(const T& t)
         throw std::runtime_error(std::string(__FUNCTION__)+": Assertion failed: Argument '"+#name+"' is NULL"); \
     } while(0)
 
+#define LINE     "==================================== mpenc stuff ==================================="
+#define LINE_END "===================================================================================="
 namespace karere
 {
+
+
+///////////// MPENC TEMP SIGNING KEYS //////////////////////
+
+// while waiting for the addition of code for the keys to be added to the
+// SDK/client, we are using hard-coded keys.
+
+static const unsigned char PUB_KEY[32] = {20, 122, 218,  85, 160, 200,   4, 178,
+        54,  71, 120, 167, 152,  18,  92, 104,
+       114, 167, 231, 210, 198,  30,  82, 154,
+       107, 244,  82,  27, 105, 132,  57, 135 };
+
+static const unsigned char SEC_KEY[64] = {165,  20,  21, 140,  82,  46,  73,  10,
+        108, 212, 186,  39,  71,  31, 119, 135,
+        155,   1, 255,  38, 139, 184,  68, 223,
+         70,  18, 206, 232, 186, 165,  69, 225,
+         20, 122, 218,  85, 160, 200,   4, 178,
+         54,  71, 120, 167, 152,  18,  92, 104,
+        114, 167, 231, 210, 198,  30,  82, 154,
+        107, 244,  82,  27, 105, 132,  57, 135,};
+
+////////////////////////////////////////////////////////////
 
 typedef std::map<std::string, std::string> StringMap;
 
@@ -100,6 +124,13 @@ static inline const char* colorOff() { return isatty_stdout?"\e[0m":"";  }
 
 #define KR_LOG(fmtString,...) printf(fmtString "\n", ##__VA_ARGS__)
 #define KR_LOG_COLOR(color, fmtString,...) printf("\e[" #color "m" fmtString "\e[0m\n", ##__VA_ARGS__)
+#define KR_LINE KR_LOG(LINE)
+#define KR_LINE_END KR_LOG(LINE)
+#define MPENC_HEADER "?mpENCv1?"
+
+#define MP_LOG(fmt, b) KR_LOG(LINE); \
+                  KR_LOG(fmt, b); \
+                  KR_LOG(LINE);
 
 #define KR_LOG_DEBUG(fmtString,...) KR_LOG("debug: " fmtString, ##__VA_ARGS__)
 #define KR_LOG_WARNING(fmtString,...)    do { \

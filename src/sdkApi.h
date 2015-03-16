@@ -34,6 +34,7 @@ public:
     {
         std::shared_ptr<mega::MegaRequest> req(request->copy());
         int errCode = e->getErrorCode();
+        printf("error cod is %d\n", errCode);
         mega::marshallCall([this, req, errCode]()
         {
             if (mPromise.done())

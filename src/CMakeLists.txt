@@ -6,13 +6,14 @@ include (FindCryptopp.cmake)
 find_package(OpenSSL REQUIRED)
 
 set (SRCS
-     chatRoom.cpp
-     contactList.cpp
-     chatClient.cpp
+     ../third-party/murmurHash/MurmurHash3.cpp
      karereCommon.cpp
      strophe.disco.cpp
      dummyCrypto.cpp
      megaCryptoFunctions.cpp
+     ./text_filter/text_filter.cpp
+     ./text_filter/default_link_handler.cpp
+     ./text_filter/default_emoticon_handler.cpp
 )
 
 add_definitions(-D_DEBUG -fvisibility=hidden -Wall)
@@ -38,7 +39,19 @@ if (WIN32)
 else()
   set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/posix")
 endif()
+if(DEFINED ENV{MPENC_INCLUDE})
+    set(MPENC_INCLUDE_DIR $ENV{MPENC_INCLUDE})
+else()
+    message(FATAL_ERROR, "MPENC_INCLUDE env variable not set.")
+endif()
 
+if(DEFINED ENV{MPENC_LIB})
+    message("found $ENV{MPENC_LIB}")
+    set(MPENC_LIB_DIR $ENV{MPENC_LIB})
+    message("${MPENC_LIB_DIR}")
+else()
+    message(FATAL_ERROR, "MPENC_LIB env varibale not set.")
+endif()
 set(MEGASDK_INCLUDES "${optMegaSdkPath}/include" "${MEGASDK_PLATFORM_INCLUDES}")
 set_property(GLOBAL PROPERTY MEGASDK_INCLUDES ${MEGASDK_INCLUDES})
 set(MEGASDK_LIB "${optMegaSdkPath}/src/.libs/libmega${CMAKE_SHARED_LIBRARY_SUFFIX}")
@@ -53,6 +66,7 @@ include_directories(
     ${SERVICES_INCLUDES}
     ${CRYPTOPP_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
+    ${MPENC_INCLUDE_DIR}
 )
 
 add_library(chatclient ${SRCS})

@@ -6,11 +6,10 @@
 #include <mstrophepp.h>
 #include <IRtcModule.h>
 #include <mstrophepp.h>
-#include <strophe.disco.h>
+#include "../strophe.disco.h"
 #include <ui_mainwindow.h>
-#include <karereCommon.h>
-#include <rtcModule/IJingleSession.h>
-#include <chatClient.h>
+#include "IJingleSession.h"
+#include "ChatClient.h"
 
 namespace Ui {
 class MainWindow;
@@ -24,7 +23,17 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
     Ui::MainWindow *ui;
+    std::string chatRoomJid;
+    void handleMessage(std::string &message);
+    void roomAdded(std::string &roomJid);
+    void contactAdded(std::string &contactJid);
+    void contactStateChange(std::string &contactJid, karere::Presence oldState, karere::Presence newState);
+    void handleError(std::string &message);
+    void handleWarning(std::string &message);
 public slots:
+    void inviteButtonPushed();
+    void sendButtonPushed();
+    void leaveButtonPushed();
     void buttonPushed();
     void onAudioInSelected();
     void onVideoInSelected();
@@ -32,7 +41,7 @@ public slots:
 };
 
 extern bool inCall;
-extern std::unique_ptr<karere::Client> gClient;
+extern std::unique_ptr<karere::ChatClient> gClient;
 
 class CallAnswerGui: QObject
 {
@@ -42,6 +51,7 @@ public:
     MainWindow* mMainWin;
     QAbstractButton* answerBtn;
     QAbstractButton* rejectBtn;
+
     std::unique_ptr<QMessageBox> msg;
     CallAnswerGui(rtcModule::IAnswerCall* aCtrl, MainWindow* win):ctrl(aCtrl), mMainWin(win),
         msg(new QMessageBox(QMessageBox::Information,

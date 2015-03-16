@@ -111,6 +111,7 @@ public:
     operator bool() const {return (mPtr != nullptr);}
     T* operator->() const {return mPtr;}
     T& operator*() const {return mPtr;}
+    T& operator=(T* ptr) {mPtr=ptr; return *mPtr;}
 };
 //Convenience type to accomodate returned IString objects from ICryptoFunctions api
 struct VString: public IPtrNoNull<IString>
