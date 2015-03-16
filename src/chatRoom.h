@@ -1,7 +1,7 @@
 #ifndef CHATROOM_H
 #define CHATROOM_H
 
-#include "ChatCommon.h"
+#include "chatCommon.h"
 #include "karereCommon.h"
 #include "text_filter/text_filter.h"
 #include "messageBus.h"

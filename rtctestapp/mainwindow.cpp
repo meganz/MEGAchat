@@ -10,7 +10,7 @@
 #include <iostream>
 #include <rapidjson/document.h>
 #include <sdkApi.h>
-#include <ChatClient.h>
+#include <chatClient.h>
 #include <messageBus.h>
 
 #undef emit

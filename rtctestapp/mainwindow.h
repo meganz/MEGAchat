@@ -9,7 +9,7 @@
 #include "../strophe.disco.h"
 #include <ui_mainwindow.h>
 #include "IJingleSession.h"
-#include "ChatClient.h"
+#include "chatClient.h"
 
 namespace Ui {
 class MainWindow;
