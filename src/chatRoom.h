@@ -494,7 +494,7 @@ public:
     void beginEncryptionProtocolProcess() {
 
         KR_LINE;
-        KR_LOG("Num users = %d", memberVector.size());
+        KR_LOG("Num users = %lu", memberVector.size());
 
         for(auto &i : memberVector) {
             KR_LOG("User: %s", i->getId().c_str());
