@@ -212,7 +212,11 @@ public:
     const Contact& getContact(const std::string& userJid) const
     {
         PresentContactMap::const_iterator it = contacts.find(userJid);
-        return (it != contacts.end()) ? *it->second : Contact(std::string(""));
+        if (it != contacts.end()) {
+            *it->second;
+        } else {
+            throw std::runtime_error("invalid user JID");
+        }
     }
 
     /**
