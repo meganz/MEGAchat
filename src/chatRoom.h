@@ -15,8 +15,12 @@
 #include <group_member.h>
 #include "busConstants.h"
 #include "iEncHandler.h"
+#include <openssl/sha.h>
+#include <mega/base64.h>
 #include "iMember.h"
 #include "karereEventObjects.h"
+
+namespace nsmega = mega;
 
 namespace karere
 {
@@ -155,10 +159,8 @@ public:
 
         std::string myBareJid = strophe::getBareJidFromJid(myFullJid);
         std::string peerBareJid = strophe::getBareJidFromJid(peerFullJid);
-        std::string myId = userIdFromJid(client.conn->fullJid());
-        std::string peerId = userIdFromJid(peerFullJid);
-        std::string roomJid = "prv_";
-        roomJid.reserve(64);
+        std::string myId = strophe::getNodeFromJid(client.conn->fullJid());
+        std::string peerId = strophe::getNodeFromJid(peerFullJid);
         std::string* id1;
         std::string* id2;
 
@@ -172,9 +174,21 @@ public:
             id1 = &peerId;
             id2 = &myId;
         }
-        roomJid.append(std::to_string(fastHash(*id1)))
-               .append("_").append(std::to_string(fastHash(*id2)))
-               .append("@conference.").append(KARERE_XMPP_DOMAIN);
+
+        std::string jidstr;
+        jidstr.reserve(64);
+        jidstr.append("prv").append(*id1).append(*id2);
+        unsigned char shabuf[33];
+        SHA256_CTX sha256;
+        SHA256_Init(&sha256);
+        SHA256_Update(&sha256, jidstr.c_str(), jidstr.size());
+        SHA256_Final(shabuf, &sha256);
+        char b32[27]; //26 actually
+        nsmega::Base32::btoa(shabuf, 16, b32);
+        shabuf[26] = 0;
+        std::string roomJid;
+        roomJid.reserve(64);
+        roomJid.append(b32).append("@conference.").append(KARERE_XMPP_DOMAIN);
 
         std::string myRoomJid = roomJid;
         myRoomJid.append("/").append(myId).append("__")
@@ -198,7 +212,7 @@ public:
         promise::Promise<std::shared_ptr<ChatRoom<N, GN, P, NP>>> ret;
 
         client.conn->sendQuery(pres, "muc")
-        .then([ret, room, myFullJid, &client](strophe::Stanza result) mutable
+        .then([ret, room, &client](strophe::Stanza result) mutable
          {
             strophe::Stanza config(*client.conn);
 

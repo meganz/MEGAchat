@@ -45,7 +45,7 @@ else()
     message(FATAL_ERROR "MPENC_INCLUDE env variable not set.")
 endif()
 
-if(DEFINED ENV{MPENC_LIB})
+if(DEFINED ENV{MPENC_LIB_DIR})
     message("found $ENV{MPENC_LIB}")
     set(MPENC_LIB_DIR $ENV{MPENC_LIB})
     message("${MPENC_LIB_DIR}")
