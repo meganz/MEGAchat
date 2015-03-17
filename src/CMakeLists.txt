@@ -6,14 +6,15 @@ include (FindCryptopp.cmake)
 find_package(OpenSSL REQUIRED)
 
 set (SRCS
-     ../third-party/murmurHash/MurmurHash3.cpp
-     karereCommon.cpp
-     strophe.disco.cpp
-     dummyCrypto.cpp
-     megaCryptoFunctions.cpp
-     ./text_filter/text_filter.cpp
-     ./text_filter/default_link_handler.cpp
-     ./text_filter/default_emoticon_handler.cpp
+    ../third-party/murmurHash/MurmurHash3.cpp
+    karereCommon.cpp
+    strophe.disco.cpp
+    dummyCrypto.cpp
+    megaCryptoFunctions.cpp
+    chatClient.cpp
+    ./text_filter/text_filter.cpp
+    ./text_filter/default_link_handler.cpp
+    ./text_filter/default_emoticon_handler.cpp
 )
 
 add_definitions(-D_DEBUG -fvisibility=hidden -Wall)

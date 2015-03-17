@@ -3,7 +3,6 @@
 #include <mstrophepp.h>
 #include <type_traits>
 #include "busConstants.h"
-
 #include "karereCommon.h"
 
 namespace karere
