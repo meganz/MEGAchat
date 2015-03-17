@@ -213,7 +213,7 @@ public:
     {
         PresentContactMap::const_iterator it = contacts.find(userJid);
         if (it != contacts.end()) {
-            *it->second;
+            return *it->second;
         } else {
             throw std::runtime_error("invalid user JID");
         }
