@@ -4,27 +4,7 @@
 #include "contactList.h"
 #include "ITypes.h" //for IPtr
 #include "karereEventObjects.h"
-#ifdef _WIN32
-    #include <winsock2.h>
-#endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <mstrophepp.h>
 #include "rtcModule/IRtcModule.h"
-#include "rtcModule/lib.h"
-#include "dummyCrypto.h"
-#include "strophe.disco.h"
-#include "base/services.h"
-#include "sdkApi.h"
-#include "megaCryptoFunctions.h"
-#include "iEncHandler.h"
-#include "messageBus.h"
-#include "busConstants.h"
-#include <common.h>
-#include <upper_handler.h>
-#include <shared_buffer.h>
-
 #include <memory>
 #include <map>
 #include <type_traits>

@@ -891,6 +891,9 @@ Client<M,GM,SP,EH>::getThisUserInfo()
         return userMessage; //av: same here - was nullptr but compile error
     });
 }
+
+//tell compielr to create instances for our template class with these template params
+//this allows us to define the methods in a .cpp file.
 template class Client<MPENC_T_PARAMS>;
 
 }
