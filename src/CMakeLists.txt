@@ -12,6 +12,7 @@ set (SRCS
     dummyCrypto.cpp
     megaCryptoFunctions.cpp
     chatClient.cpp
+    contactList.cpp
     ./text_filter/text_filter.cpp
     ./text_filter/default_link_handler.cpp
     ./text_filter/default_emoticon_handler.cpp
