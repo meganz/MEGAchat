@@ -558,12 +558,12 @@ void Client<M,GM,SP,EH>::handleActionMessage(std::shared_ptr<ActionMessage> &mes
             {
                 leaveRoom(message->getRoomJid());
             }
-            else if (message->getActionType() == ActionMessage::CONVERSATION_START)
+        }
+        else if (message->getActionType() == ActionMessage::CONVERSATION_START)
+        {
+            if(chatRooms.find(message->getRoomJid()) == chatRooms.end())
             {
-                if(chatRooms.find(message->getRoomJid()) == chatRooms.end())
-                {
-                    joinRoom(message->getRoomJid(), getNickname());
-                }
+                joinRoom(message->getRoomJid(), getNickname());
             }
         }
     }
