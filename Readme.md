@@ -284,10 +284,9 @@ The public headers are:
 
 ## For application implementors ##
   * The rtctestapp above is the reference app. Build it, study it, experiment with it.
-Note theat there is one critical and platform-dependent function that each app that uses Karere must define, called
-`megaPostMessageToGui()`. This function is the heart of the message passing mechanism (called the Gui Call Marshaller, or GCM)
-that Karere relies on. If you don't define it, there will be a link error when you try to build the application, saying that
-`_megaPostMessageToGui` is an undefined symbol.  
+Note theat there is one critical and platform-dependent function that each app that uses Karere must provide, which will be
+referenced as `megaPostMessageToGui()`, but it can have any name. This function is the heart of the message passing mechanism
+(called the Gui Call Marshaller, or GCM) that Karere relies on. You must pass a pointer to this function to `services_init()`.  
 For more details, read the comments in base/gcm.h, and for reference implementation study rtctestapp/main.cpp
   * IRtcModule, IEventHandler in /src/IRtcModule.h. These are used to initiate rtc calls and receive events.
   * IVideoRenderer in /src/IVideoRenderer.h is used to implement video playback in arbitrary GUI environments.
