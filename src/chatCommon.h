@@ -2,6 +2,7 @@
 #define CHATCOMMON_H
 #include <murmurHash/MurmurHash3.h>
 #include <string>
+#include "karereCommon.h" //for std::to_string on android
 
 namespace karere
 {
