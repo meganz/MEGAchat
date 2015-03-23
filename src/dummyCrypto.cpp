@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <memory>
 #include "ITypesImpl.h"
+#include <stdlib.h>
 
 using namespace std;
 
