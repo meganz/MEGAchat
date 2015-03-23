@@ -260,16 +260,60 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QTextEdit" name="textEdit"/>
+              <widget class="QTextEdit" name="chatTextEdit"/>
              </item>
              <item>
-              <widget class="QPushButton" name="pushButton">
-               <property name="text">
-                <string>Send</string>
-               </property>
-              </widget>
+              <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="1,0">
+               <item>
+                <widget class="QTextEdit" name="typingTextEdit"/>
+               </item>
+               <item>
+                <layout class="QVBoxLayout" name="verticalLayout_9" stretch="1,0">
+                 <item>
+                  <widget class="QPushButton" name="inviteButton">
+                   <property name="text">
+                    <string>invite</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="sendButton">
+                   <property name="text">
+                    <string>send</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="leaveButton">
+                   <property name="text">
+                    <string>leave room</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+              </layout>
              </item>
             </layout>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="contactRender" stretch="1,0">
+          <item>
+           <widget class="QLabel" name="label">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+              <horstretch>1</horstretch>
+              <verstretch>1</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Contact List:</string>
+            </property>
+           </widget>
+           <widget class="QListWidget" name="contactList">
            </widget>
           </item>
          </layout>
@@ -340,9 +384,30 @@
     </hint>
    </hints>
   </connection>
+ <connection>
+   <sender>inviteButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>inviteButtonPushed()</slot>
+ </connection>
+ <connection>
+   <sender>sendButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>sendButtonPushed()</slot>
+ </connection>
+ <connection>
+   <sender>leaveButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>leaveButtonPushed()</slot>
+ </connection>
  </connections>
  <slots>
   <slot>buttonPushed()</slot>
+  <slot>inviteButtonPushed()</slot>
+  <slot>sendButtonPushed()</slot>
+  <slot>leaveButtonPushed()</slot>
   <slot>onAudioInSelected()</slot>
   <slot>onVideoInSelected()</slot>
  </slots>

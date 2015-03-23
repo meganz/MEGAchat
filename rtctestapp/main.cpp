@@ -19,7 +19,7 @@ using namespace promise;
 using namespace mega;
 
 MainWindow* mainWin = NULL;
-unique_ptr<karere::Client> gClient;
+unique_ptr<karere::ChatClient> gClient;
 
 struct GcmEvent: public QEvent
 {
@@ -60,7 +60,7 @@ void sigintHandler(int)
 {
     printf("SIGINT Received\n");
     fflush(stdout);
-    mega::marshallCall([]{mainWin->close();});
+    marshallCall([]{mainWin->close();});
 }
 
 const char* usermail;
@@ -75,6 +75,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Usage: rtctestapp <usermail> <userpass> <peermail>\n\n");
         return 1;
     }
+
     QApplication a(argc, argv);
     mainWin = new MainWindow;
     mainWin->ui->callBtn->setEnabled(false);
@@ -83,8 +84,9 @@ int main(int argc, char **argv)
 
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin->ui->calleeInput->setText(argv[3]);
-    gClient.reset(new karere::Client(argv[1], argv[2], new RtcEventHandler(mainWin)));
-    gClient->start()
+    gClient.reset(new karere::ChatClient(argv[1], argv[2]));
+    gClient->registerRtcHandler(new RtcEventHandler(mainWin));
+    gClient->init()
     .then([](int)
     {
         rtcModule::IPtr<rtcModule::IDeviceList> audio(gClient->rtc->getAudioInDevices());
@@ -97,6 +99,13 @@ int main(int argc, char **argv)
 
         mainWin->ui->callBtn->setEnabled(true);
         mainWin->ui->callBtn->setText("Call");
+
+        std::vector<std::string> contacts = gClient->getContactList().getContactJids();
+
+        for(size_t i=0; i<contacts.size();i++)
+        {
+            mainWin->ui->contactList->addItem(new QListWidgetItem(QIcon("/images/online.png"), contacts[i].c_str()));
+        }
         return 0;
     })
     .fail([](const promise::Error& error)
@@ -104,6 +113,7 @@ int main(int argc, char **argv)
         printf("==========Client::start() promise failed:\n%s\n", error.msg().c_str());
         return error;
     });
+
     signal(SIGINT, sigintHandler);
     mainWin->show();
 
