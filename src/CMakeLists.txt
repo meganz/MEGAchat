@@ -55,7 +55,7 @@ else()
     message(FATAL_ERROR "MPENC_LIB_DIR env varibale not set.")
 endif()
 
-set(MEGASDK_INCLUDES "${optMegaSdkPath}/include" "${MEGASDK_PLATFORM_INCLUDES}")ß
+set(MEGASDK_INCLUDES "${optMegaSdkPath}/include" "${MEGASDK_PLATFORM_INCLUDES}")
 if (ANDROID) #android does not have glob.h in /usr/include
     list(APPEND MEGASDK_INCLUDES ${optMegaSdkPath}/third_party/glob)
 endif()
