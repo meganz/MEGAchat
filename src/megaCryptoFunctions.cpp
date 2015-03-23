@@ -1,3 +1,4 @@
+#include "karereCommon.h" //for std::to_string on android, needed by promise.h
 #include "megaCryptoFunctions.h"
 #include "autoHandle.h"
 #include <mega/base64.h>
@@ -5,7 +6,6 @@
 #include <openssl/rand.h>
 #include "sdkApi.h"
 #include "ITypesImpl.h"
-#include <karereCommon.h> //for std::to_string on android, needed by promise.h
 using namespace mega;
 using namespace std;
 
