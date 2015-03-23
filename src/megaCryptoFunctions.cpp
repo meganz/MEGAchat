@@ -5,7 +5,7 @@
 #include <openssl/rand.h>
 #include "sdkApi.h"
 #include "ITypesImpl.h"
-
+#include <karereCommon.h> //for std::to_string on android, needed by promise.h
 using namespace mega;
 using namespace std;
 
