@@ -76,7 +76,7 @@ include_directories(
     ${MPENC_INCLUDE_DIR}
 )
 
-add_library(chatclient SHARED ${SRCS})
+add_library(chatclient ${SRCS})
 target_link_libraries(chatclient
     rtcmodule
     ${MEGASDK_LIB}
