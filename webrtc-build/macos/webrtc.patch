@@ -11,19 +11,6 @@ Index: talk/media/webrtc/webrtcvideocapturer.cc
    }
  #endif
    module_ = factory_->Create(0, vcm_id);
-Index: webrtc/modules/video_capture/ios/rtc_video_capture_ios_objc.h
-===================================================================
---- webrtc/modules/video_capture/ios/rtc_video_capture_ios_objc.h	(revision 6937)
-+++ webrtc/modules/video_capture/ios/rtc_video_capture_ios_objc.h	(working copy)
-@@ -12,7 +12,7 @@
- #define WEBRTC_MODULES_VIDEO_CAPTURE_IOS_VIDEO_CAPTURE_IOS_OBJC_H_
- 
- #import <Foundation/Foundation.h>
--#import <UIKit/UIKit.h>
-+#import <cocoa/cocoa.h>
- 
- #include "webrtc/modules/video_capture/ios/video_capture_ios.h"
- 
 Index: webrtc/modules/video_capture/mac/video_capture_mac.mm
 ===================================================================
 --- webrtc/modules/video_capture/mac/video_capture_mac.mm	(revision 6937)
