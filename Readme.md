@@ -156,7 +156,7 @@ a modified version of the iOS capturer, which uses AVFoundation - the recommende
 The code for the capturer is in `karere-native/webrtc-build/macos/mac-capturer`. You need to delete the following directory in
 the webrtc tree:  
 `rm webrtc/modules/video_capture/mac`  
-and then copy mac-capturer at the place of the deleted one. Also, you need to patch the webrtc tree via:  
+and then copy `mac-capturer` at the place of the deleted dir, again with the name `mac`. Also, you need to patch the webrtc tree via:  
 `svn patch /path/to/karere-native/webrtc-build/macos/webrtc.patch`  
 This will do some modifications to the build system to use the new capturer and also a small modification to a source file.
 
