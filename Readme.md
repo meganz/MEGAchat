@@ -139,7 +139,26 @@ So, the final `GYP_DEFINES` looks like this:
 Having 10.7 as target however, will cause a deprecation warning, that will be treated as error, when compiling `nss`.
 This is why we need to modify `net/third_party/nss/ssl.gyp` and add to the `cflags` `-Wno-deprecated-declarations`. If this does
 not work for some reason, or you have missed to do it before generating and editing the ninja makefiles, you can edit the
-corresponding ninja file in out/Debug|Release/obj/net/third_party/nss/libssl.ninja and add the flag to `cflags`.
+corresponding ninja file in out/Debug|Release/obj/net/third_party/nss/libssl.ninja and add the flag to `cflags`.  
+**Change camera capturer**  
+The video capturer on macos is based on QTKit (QuickTime) and is practically unusable when capture creation and operations are
+initiated from the main thread of the app (as is the case with Karere), because a deadlock occurs.  
+*Details*  
+The reason is that the main thread queues the operations on a worker thread and waits until the operation is executed in
+order to return its result. However the qtkit capturer code does several performSelectorOnMainThread-s and waits for the result.
+The main thread however is waiting for us, so a deadlock occurs.
+It seems the the execution on the main thread is a workaround for some bugs that were found when using the QTKit API, although
+the doc says QTKit API is thread-safe. The explicit calls on the main thread are solvable by replacing them with
+performSelectorInBackground, which successfully starts camera capture, but stopping it calls the main thread internally from
+within the framework, so it's not fixable. Moreover, QTKit is deprecated by Apple. So the capturer is completely replaced with
+a modified version of the iOS capturer, which uses AVFoundation - the recommended way to do capture.  
+*End Details*  
+The code for the capturer is in `karere-native/webrtc-build/macos/mac-capturer`. You need to delete the following directory in
+the webrtc tree:  
+`rm webrtc/modules/video_capture/mac`  
+and then copy mac-capturer at the place of the deleted one. Also, you need to patch the webrtc tree via:  
+`svn patch /path/to/karere-native/webrtc-build/macos/webrtc.patch`  
+This will do some modifications to the build system to use the new capturer and also a small modification to a source file.
 
 * Android:  
 Run a script to setup the environment to use the built-in android NDK:  
