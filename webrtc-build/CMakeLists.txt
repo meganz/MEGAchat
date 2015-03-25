@@ -290,7 +290,7 @@ set(WEBRTC_SYSLIBS_MACOS
     "-framework AVFoundation" "-framework WebKit" "-framework Cocoa" "-framework AudioToolbox"
     "-framework Foundation" "-framework IOKit" "-framework Security"
     "-framework SystemConfiguration" "-framework CoreAudio" "-framework CoreVideo"
-    "-framework OpenGL" "-framework QTKit"
+    "-framework OpenGL" "-framework QTKit -framework CoreMedia"
 )
 
 macro(appendPlatformStuff pname)
