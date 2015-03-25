@@ -99,8 +99,10 @@ string RtcModule::getLocalAudioAndVideo()
                  KR_LOG_WARNING("Configured video input device '%s' not present, using default device", mVideoInDeviceName.c_str());
                  idx = 0;
              }
-             mVideoInput = deviceManager.getUserVideo(
-                 artc::MediaGetOptions(devices.video[idx]));
+             artc::MediaGetOptions opts(devices.video[idx]);
+             opts.constraints.SetMandatoryMinWidth(1280);
+             opts.constraints.SetMandatoryMinHeight(720);
+             mVideoInput = deviceManager.getUserVideo(opts);
         }
         catch(exception& e)
         {
