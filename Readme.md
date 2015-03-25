@@ -22,10 +22,10 @@ specify the `--sysroot` path of the external NDK, which also gets passed to the 
  and build the SDK. It does not have to be installed with `make install`, it will be accessed directly in the checkout dir.  
  - Desktop OS-es  
      * Qt4 (for the test app): `libqtcore4 libqtgui4 libqt4-dev`
- - mpEnc. Check out the repository, install `libsodium` , download `gTest` and `easyloggingpp` and follow the build instructions to build. 
-   https://code.developers.mega.co.nz/messenger/mpenc_cpp
-    After it is successfully built, export the following 2 environment variables:
-     `MPENC_INCLUDE` - '{path to mpEnc package}/src'
+ - mpEnc. Check out the repository https://code.developers.mega.co.nz/messenger/mpenc_cpp, install `libsodium`,
+ download `gTest` and `easyloggingpp` and follow the build instructions to build.  
+    After it is successfully built, export the following 2 environment variables:  
+     `MPENC_INCLUDE` - '{path to mpEnc package}/src'  
      `MPENC_LIB_DIR` - '{path to the directory containing the built mpEnc lib}'  
 
 * Android  
