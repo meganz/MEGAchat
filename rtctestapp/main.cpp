@@ -78,6 +78,7 @@ int main(int argc, char **argv)
 
     QApplication a(argc, argv);
     mainWin = new MainWindow;
+    mainWin->ui->localRenderer->setMirrored(true);
     mainWin->ui->callBtn->setEnabled(false);
     mainWin->ui->callBtn->setText("Login...");
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));

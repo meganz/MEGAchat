@@ -19,10 +19,11 @@ void VideoRendererQt::paintEvent(QPaintEvent* event)
 {
     QMutexLocker locker(&mMutex);
     QPainter painter(this);
-    painter.drawImage(QRect(0, 0, width(), height()), *mFrame);
+    painter.drawImage(QRect(0, 0, width(), height()),
+      mMirrored ? mFrame->mirrored(true, false) : *mFrame);
 }
 
-//IVideoRendere interface implementation
+//IVideoRenderer interface implementation
 unsigned char* VideoRendererQt::getImageBuffer(int size, int width, int height, void** userData)
 {
     QImage* bmp = new QImage(width, height, QImage::Format_ARGB32);
