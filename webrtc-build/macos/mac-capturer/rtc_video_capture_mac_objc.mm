@@ -198,13 +198,36 @@ using namespace webrtc::videocapturemodule;
  [_captureSession setSessionPreset:preset];
 
   // take care of capture framerate now
+  do {
+      NSArray* sessionInputs = _captureSession.inputs;
+      if ([sessionInputs count] <= 0)
+          break;
+      AVCaptureDevice* inputDevice = [sessionInputs[0] device];
+      if (!inputDevice) {
+          break;
+      }
+      NSArray* supportedRanges = inputDevice.activeFormat.videoSupportedFrameRateRanges;
+      if ([supportedRanges count] <= 0) {
+        break;
+      }
+      AVFrameRateRange* targetRange = supportedRanges[0];
+      // Find the largest supported framerate, but lower than capability.maxFPS.
+      for (AVFrameRateRange* range in supportedRanges) {
+          if ((range.maxFrameRate <= _capability.maxFPS) &&
+                  (range.maxFrameRate >= targetRange.maxFrameRate)) {
+              targetRange = range;
+          }
+      }
+      if (targetRange && [inputDevice lockForConfiguration:NULL]) {
+          inputDevice.activeVideoMinFrameDuration = targetRange.minFrameDuration;
+          inputDevice.activeVideoMaxFrameDuration = targetRange.minFrameDuration;
+          [inputDevice unlockForConfiguration];
+          //printf("fps = %llu\n", targetRange.minFrameDuration.timescale/targetRange.minFrameDuration.value);
+      }
+  } while(false);
+
   _connection = [currentOutput connectionWithMediaType:AVMediaTypeVideo];
   [self setRelativeVideoOrientation];
-  CMTime cm_time = {1, _capability.maxFPS, kCMTimeFlags_Valid, 0};
-
-  [_connection setVideoMinFrameDuration:cm_time];
-  [_connection setVideoMaxFrameDuration:cm_time];
-
   // finished configuring, commit settings to AVCaptureSession.
   [_captureSession commitConfiguration];
 
@@ -213,28 +236,7 @@ using namespace webrtc::videocapturemodule;
 }
 
 - (void)setRelativeVideoOrientation {
-//  if (!_connection.supportsVideoOrientation)
     return;
-/*
-  switch ([UIApplication sharedApplication].statusBarOrientation) {
-    case UIInterfaceOrientationPortrait:
-#if defined(__IPHONE_8_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_8_0
-    case UIInterfaceOrientationUnknown:
-#endif
-      _connection.videoOrientation = AVCaptureVideoOrientationPortrait;
-      break;
-    case UIInterfaceOrientationPortraitUpsideDown:
-      _connection.videoOrientation =
-          AVCaptureVideoOrientationPortraitUpsideDown;
-      break;
-    case UIInterfaceOrientationLandscapeLeft:
-      _connection.videoOrientation = AVCaptureVideoOrientationLandscapeLeft;
-      break;
-    case UIInterfaceOrientationLandscapeRight:
-      _connection.videoOrientation = AVCaptureVideoOrientationLandscapeRight;
-      break;
-  }
-  */
 }
 
 - (void)onVideoError:(NSNotification*)notification {
@@ -345,13 +347,13 @@ using namespace webrtc::videocapturemodule;
 
   uint8_t* baseAddress =
       (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(videoFrame, kYPlaneIndex);
-  int yPlaneBytesPerRow =
+  size_t yPlaneBytesPerRow =
       CVPixelBufferGetBytesPerRowOfPlane(videoFrame, kYPlaneIndex);
-  int yPlaneHeight = CVPixelBufferGetHeightOfPlane(videoFrame, kYPlaneIndex);
-  int uvPlaneBytesPerRow =
+  size_t yPlaneHeight = CVPixelBufferGetHeightOfPlane(videoFrame, kYPlaneIndex);
+  size_t uvPlaneBytesPerRow =
       CVPixelBufferGetBytesPerRowOfPlane(videoFrame, kUVPlaneIndex);
-  int uvPlaneHeight = CVPixelBufferGetHeightOfPlane(videoFrame, kUVPlaneIndex);
-  int frameSize =
+  size_t uvPlaneHeight = CVPixelBufferGetHeightOfPlane(videoFrame, kUVPlaneIndex);
+  size_t frameSize =
       yPlaneBytesPerRow * yPlaneHeight + uvPlaneBytesPerRow * uvPlaneHeight;
 
   VideoCaptureCapability tempCaptureCapability;
