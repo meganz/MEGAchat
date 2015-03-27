@@ -14,8 +14,8 @@
 
 #import <cocoa/cocoa.h>
 
-#import "webrtc/modules/video_capture/ios/device_info_ios_objc.h"
-#import "webrtc/modules/video_capture/ios/rtc_video_capture_ios_objc.h"
+#import "device_info_mac_objc.h"
+#import "rtc_video_capture_mac_objc.h"
 
 #include "webrtc/system_wrappers/interface/trace.h"
 
@@ -140,44 +140,32 @@ using namespace webrtc::videocapturemodule;
   }
   int32_t width = capability.width;
   int32_t height = capability.height;
-  if (capability.width >= 1920 || capability.height >= 1080) {
-      if ([_captureSession canSetSessionPreset:@"AVCaptureSessionPreset1920x1080"]) {
+  if ((capability.width >= 1920 || capability.height >= 1080)
+      && ([_captureSession canSetSessionPreset:@"AVCaptureSessionPreset1920x1080"])) {
           width = 1920;
           height = 1080;
-          goto done;
-      }
-  }
-  if (capability.width >= 1280 || capability.height >= 720) {
-     if ([_captureSession canSetSessionPreset:AVCaptureSessionPreset1280x720]) {
+  } else if ((capability.width >= 1280 || capability.height >= 720)
+      && ([_captureSession canSetSessionPreset:AVCaptureSessionPreset1280x720])) {
          width = 1280;
          height = 720;
-         goto done;
-     }
-  }
-  if (capability.width >= 640 || capability.height >= 480) {
-      if ([_captureSession canSetSessionPreset:AVCaptureSessionPreset640x480]) {
+  } else if ((capability.width >= 640 || capability.height >= 480)
+      && ([_captureSession canSetSessionPreset:AVCaptureSessionPreset640x480])) {
           width = 640;
           height = 480;
-          goto done;
-      }
-  }
-  if (capability.width >= 320 || capability.height >= 240) {
-      if ([_captureSession canSetSessionPreset:AVCaptureSessionPreset320x240]) {
-          width = 320;
-          height = 240;
-          goto done;
-      }
-  }
-  if (capability.width >= 352 || capability.height >= 288) {
-      if ([_captureSession canSetSessionPreset:AVCaptureSessionPreset352x288]) {
+  } else if ((capability.width >= 352 || capability.height >= 288)
+      && ([_captureSession canSetSessionPreset:AVCaptureSessionPreset352x288])) {
           width = 352;
           height = 288;
-          goto done;
-      }
+  } else if ((capability.width >= 320 || capability.height >= 240)
+      && ([_captureSession canSetSessionPreset:AVCaptureSessionPreset320x240])) {
+          width = 320;
+          height = 240;
+  } else {
+      printf("Video Capturer: Could not find a supported capture resolution (requested: %dx%d) at %s:%d\n",
+        capability.width, capability.height, __FILE__, __LINE__);
+      return NO;
   }
-  return NO;
 
-done:
   _capability = capability;
   _capability.width = width;
   _capability.height = height;

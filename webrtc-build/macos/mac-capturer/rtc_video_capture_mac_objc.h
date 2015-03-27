@@ -12,9 +12,7 @@
 #define WEBRTC_MODULES_VIDEO_CAPTURE_IOS_VIDEO_CAPTURE_IOS_OBJC_H_
 
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
-
-#include "webrtc/modules/video_capture/ios/video_capture_ios.h"
+#include "video_capture_mac.h"
 
 // The following class listens to a notification with name:
 // 'StatusBarOrientationDidChange'.

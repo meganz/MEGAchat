@@ -12,8 +12,8 @@
 #error "This file requires ARC support."
 #endif
 
-#include "webrtc/modules/video_capture/ios/device_info_ios_objc.h"
-#include "webrtc/modules/video_capture/ios/rtc_video_capture_ios_objc.h"
+#include "device_info_mac_objc.h"
+#include "rtc_video_capture_mac_objc.h"
 #include "webrtc/system_wrappers/interface/ref_count.h"
 #include "webrtc/system_wrappers/interface/scoped_refptr.h"
 #include "webrtc/system_wrappers/interface/trace.h"
