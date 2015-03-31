@@ -6,7 +6,7 @@
 ## Buildroot ##
 A 'buildroot' is a directory tree, consisting of a root dir, with a `usr`
 subdirectory, where all built libraries and headers will be installed, and
-third-party dependencies (i.e. not system libs and headers) will be looked
+third-party dependencies (i.e. non-system libs and headers) will be looked
 for. For each target - device and simulator you need one such tree. Their
 default names are `~/ios-iphoneos-buildroot` and `~/ios-iphonesimulator-buildroot`
 correspondingly. You can have a different name and location, but you will need
