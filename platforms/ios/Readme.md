@@ -1,6 +1,8 @@
 # Setting up build environment for iOS #
+
 ## Prerequisites ##
  - Installed XCode  
+
 ## Buildroot ##
 A 'buildroot' is a directory tree, consisting of a root dir, with a `usr`
 subdirectory, where all built libraries and headers will be installed, and
@@ -12,6 +14,7 @@ to update the envirnoment script (see below).
 To create a buildroot, just create the root dir, then the `usr` subdir,
 and `usr/lib`, `usr/include` subdirs. Then, in the root dir, copy the corresponding
 cmake toolchain file. That's all.
+
 ## Environment script ##
 After you have the necessary buildroot, verify that the user-settable variables
 in the `ios-env.sh` script are correctly set, and **source** it into your shell.
