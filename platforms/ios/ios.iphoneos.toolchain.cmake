@@ -5,12 +5,12 @@ execute_process(COMMAND /usr/bin/xcode-select -print-path
                 OUTPUT_VARIABLE XCODE_DEVELOPER_DIR
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-# Locate gcc
+# Locate clang
 execute_process(COMMAND /usr/bin/xcrun -sdk iphoneos -find clang
                 OUTPUT_VARIABLE CMAKE_C_COMPILER
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-# Locate g++
+# Locate clang++
 execute_process(COMMAND /usr/bin/xcrun -sdk iphoneos -find clang++
                 OUTPUT_VARIABLE CMAKE_CXX_COMPILER
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
