@@ -1,12 +1,10 @@
-cmake_minimum_required(VERSION 2.8.8)
+\cmake_minimum_required(VERSION 2.8.8)
 
 add_definitions(-Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
 
 if (CMAKE_C_COMPILER_ID MATCHES "icc.*$")
     add_definitions(-wd68 -wd186 -wd279 -wd327)
-endif()
-
-if (CMAKE_C_COMPILER_ID MATCHES "GNU")
+elseif (CMAKE_C_COMPILER_ID MATCHES "GNU")
     add_definitions(-DCRYPTOPP_DISABLE_AESNI)
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     add_definitions(-Wno-tautological-compare -Wno-unused-value -DCRYPTOPP_DISABLE_ASM)
