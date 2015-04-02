@@ -3,12 +3,12 @@ cmake_minimum_required(VERSION 2.8.8)
 add_definitions(-Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
 
 
-if (${CMAKE_C_COMPILER} MATCHES "icc.*$")
-add_definitions(-wd68 -wd186 -wd279 -wd327)
+if (CMAKE_C_COMPILER_ID MATCHES "icc.*$")
+    add_definitions(-wd68 -wd186 -wd279 -wd327)
 endif()
 
-if (CMAKE_COMPILER_IS_GNUC)
-add_definitions(-DCRYPTOPP_DISABLE_AESNI)
+if (CMAKE_C_COMPILER_ID MATCHES "GNU")
+    add_definitions(-DCRYPTOPP_DISABLE_AESNI)
 endif()
 
 if ("${CMAKE_SYSTEM_NAME}" MATCHES ".*sun.*")
@@ -20,16 +20,16 @@ elseif (WIN32)
 elseif (IOS)
 # iOS cross-compile configuration. Works in conjunction with IS_CROSS_COMPILE.
 #   See http://www.cryptopp.com/wiki/iOS_(Command_Line).
-  add_definitions(-Os -pipe -fPIC -DCRYPTOPP_DISABLE_ASM -stdlib=libc++)
-  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -flat_namespace")
+    add_definitions(-Os -pipe -fPIC -DCRYPTOPP_DISABLE_ASM -stdlib=libc++)
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -flat_namespace")
 elseif (ANDROID)
 # Android cross-compile configuration. Works in conjunction with IS_CROSS_COMPILE.
 #   See http://www.cryptopp.com/wiki/Android_(Command_Line).
-  add_definitions(-DCRYPTOPP_DISABLE_ASM)
+    add_definitions(-DCRYPTOPP_DISABLE_ASM)
 endif()
 
-if(CMAKE_COMPILER_IS_CLANG)
-add_definitions(-Wno-tautological-compare -Wno-unused-value)
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    add_definitions(-Wno-tautological-compare -Wno-unused-value -DCRYPTOPP_DISABLE_ASM)
 endif()
 
 FILE(GLOB SRCS *.cpp)
@@ -59,19 +59,25 @@ add_custom_command(
 )
 #DLLSRCS = algebra.cpp algparam.cpp asn.cpp basecode.cpp cbcmac.cpp channels.cpp cryptlib.cpp des.cpp dessp.cpp dh.cpp dll.cpp dsa.cpp ec2n.cpp eccrypto.cpp ecp.cpp eprecomp.cpp files.cpp filters.cpp fips140.cpp fipstest.cpp gf2n.cpp gfpcrypt.cpp hex.cpp hmac.cpp integer.cpp iterhash.cpp misc.cpp modes.cpp modexppc.cpp mqueue.cpp nbtheory.cpp oaep.cpp osrng.cpp pch.cpp pkcspad.cpp pubkey.cpp queue.cpp randpool.cpp rdtables.cpp rijndael.cpp rng.cpp rsa.cpp sha.cpp simple.cpp skipjack.cpp strciphr.cpp trdlocal.cpp
 
-add_library(cryptopp_s STATIC ${SRCS})
+add_library(cryptopp STATIC ${SRCS})
 #add_library(cryptopp SHARED ${SRCS})
 #target_link_libraries(cryptopp ${SYSLIBS})
-add_executable(test EXCLUDE_FROM_ALL ${TEST_SRCS})
-target_link_libraries(test cryptopp_s ${SYSLIBS})
+enable_testing()
 
-install(TARGETS cryptopp_s
+add_executable(cryptest ${TEST_SRCS})
+target_link_libraries(cryptest cryptopp ${SYSLIBS})
+
+add_test(NAME tests 
+         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+         COMMAND cryptest v)
+
+install(TARGETS cryptopp
             RUNTIME DESTINATION bin
             LIBRARY DESTINATION lib
             ARCHIVE DESTINATION lib)
 
 file(GLOB HEADERS "*.h")
-install(FILES ${HEADERS} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/crypto++)
+install(FILES ${HEADERS} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/cryptopp)
 
 #cryptest.import.exe: cryptopp.dll libcryptopp.import.a $(TESTIMPORTOBJS)
 #adhoc.cpp: adhoc.cpp.proto
