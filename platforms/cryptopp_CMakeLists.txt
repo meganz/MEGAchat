@@ -9,6 +9,8 @@ endif()
 
 if (CMAKE_C_COMPILER_ID MATCHES "GNU")
     add_definitions(-DCRYPTOPP_DISABLE_AESNI)
+elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    add_definitions(-Wno-tautological-compare -Wno-unused-value -DCRYPTOPP_DISABLE_ASM)
 endif()
 
 if ("${CMAKE_SYSTEM_NAME}" MATCHES ".*sun.*")
@@ -26,8 +28,6 @@ elseif (ANDROID)
 # Android cross-compile configuration. Works in conjunction with IS_CROSS_COMPILE.
 #   See http://www.cryptopp.com/wiki/Android_(Command_Line).
     add_definitions(-DCRYPTOPP_DISABLE_ASM)
-elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
-    add_definitions(-Wno-tautological-compare -Wno-unused-value -DCRYPTOPP_DISABLE_ASM)
 endif()
 
 FILE(GLOB SRCS *.cpp)
