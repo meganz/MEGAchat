@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8.8)
 
 add_definitions(-Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
 
-
 if (CMAKE_C_COMPILER_ID MATCHES "icc.*$")
     add_definitions(-wd68 -wd186 -wd279 -wd327)
 endif()
@@ -61,8 +60,8 @@ add_custom_command(
 add_library(cryptopp STATIC ${SRCS})
 #add_library(cryptopp SHARED ${SRCS})
 #target_link_libraries(cryptopp ${SYSLIBS})
-enable_testing()
 
+enable_testing()
 add_executable(cryptest ${TEST_SRCS})
 target_link_libraries(cryptest cryptopp ${SYSLIBS})
 
