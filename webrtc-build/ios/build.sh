@@ -16,7 +16,7 @@ function wrsim() {
 }
 
 #- To build & sign the sample app for an iOS device:
-  wrios && gclient runhooks --force && ninja -C out/Release-iphoneos AppRTCDemo
+  wrios && gclient runhooks --force && ninja -C out/Release AppRTCDemo
 #  wrsim && gclient runhooks --force && ninja -C out/Release-iphonesimulator AppRTCDemo
 
 #- To install the sample app on an iOS device:
