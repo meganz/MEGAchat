@@ -8,7 +8,6 @@ project(webrtc_monolithic)
 
 if (NOT WEBRTC_BUILD_TYPE)
     set(WEBRTC_BUILD_TYPE Release CACHE STRING "WebRTC build mode" FORCE)
-    set_property(CACHE WEBRTC_BUILD_TYPE PROPERTY STRINGS Release Debug RelWithDebInfo MinSizeRel)
 endif()
 
 if (NOT WEBRTC_BUILD_TYPE)
@@ -92,26 +91,28 @@ set(WEBRTC_LIBS_X86
 set(WEBRTC_LIBS_LINUX
     ${webrtcBuild}/net/third_party/nss/libcrssl.a
 )
-
-set(WEBRTC_LIBS_ARM
-    ${webrtcBuild}/webrtc/modules/libisac_neon.a
-    ${webrtcBuild}/webrtc/modules/libaudio_processing_neon.a
-    ${webrtcBuild}/webrtc/common_audio/libcommon_audio_neon.a
-    ${webrtcBuild}/webrtc/modules/audio_processing/lib_core_neon_offsets.a
-    ${webrtcBuild}/../libyuv_neon.a
-    ${webrtcBuild}/webrtc/system_wrappers/source/libcpu_features_android.a
-)
+if (NOT APPLE) #apple build just globs all .a files, so we dont need to specially handle this
+    set(WEBRTC_LIBS_ARM
+        ${webrtcBuild}/webrtc/modules/libisac_neon.a
+        ${webrtcBuild}/webrtc/modules/libaudio_processing_neon.a
+        ${webrtcBuild}/webrtc/common_audio/libcommon_audio_neon.a
+        ${webrtcBuild}/webrtc/modules/audio_processing/lib_core_neon_offsets.a
+        ${webrtcBuild}/../libyuv_neon.a
+    )
+endif()
 
 if (ANDROID)
     add_library(cpufeatures "${ANDROID_NDK}/sources/android/cpufeatures/cpu-features.c")
 endif()
 
 set(WEBRTC_LIBS_ANDROID
+   ${webrtcBuild}/webrtc/system_wrappers/source/libcpu_features_android.a
    ${webrtcBuild}/third_party/icu/libicuuc.a
    ${webrtcBuild}/third_party/icu/libicudata.a
 )
 
 set(WEBRTC_DEFS -DV8_DEPRECATION_WARNINGS -DUSE_LIBJPEG_TURBO=1 -DCHROMIUM_BUILD
+#the following defines are not fiund in any header, so maybe htey can be removed
  -DENABLE_WEBRTC=1 -DENABLE_CONFIGURATION_POLICY -DENABLE_AUTOFILL_DIALOG=1
 -DENABLE_MANAGED_USERS=1
 )
@@ -120,7 +121,7 @@ set(WEBRTC_DEFS_DESKTOP
     -DEXPAT_RELATIVE_PATH -DFEATURE_ENABLE_VOICEMAIL -DGTEST_RELATIVE_PATH
     -DJSONCPP_RELATIVE_PATH -DLOGGING=1 -DSRTP_RELATIVE_PATH
     -DFEATURE_ENABLE_SSL -DFEATURE_ENABLE_PSTN -DHAVE_SRTP     -DHAVE_SCTP
-    -DHAVE_WEBRTC_VIDEO -DHAVE_WEBRTC_VOICE -DUSE_WEBRTC_DEV_BRANCH
+    -DHAVE_WEBRTC_VIDEO -DHAVE_WEBRTC_VOICE -DUSE_WEBRTC_DEV_BRANCH #so far IOS has all those
     -DENABLE_ONE_CLICK_SIGNIN -DENABLE_REMOTING=1  -DENABLE_PEPPER_CDMS
     -DENABLE_NOTIFICATIONS -DENABLE_TASK_MANAGER=1      -DENABLE_EXTENSIONS=1
     -DENABLE_PLUGINS=1 -DENABLE_PLUGIN_INSTALLATION=1 -DENABLE_SESSION_SERVICE=1
@@ -143,25 +144,41 @@ set(WEBRTC_DEFS_LINUX
     -DBLINK_SCALE_FILTERS_AT_RECORD_TIME -D_FILE_OFFSET_BITS=64 -DTOOLKIT_VIEWS=1
 )
 
-set(WEBRTC_DEFS_MACOS
-     ${WEBRTC_DEFS_DESKTOP}
-    -D__ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORE=0
-    -DCR_CLANG_REVISION=214024
-    -DENABLE_PRE_SYNC_BACKUP
-    -DENABLE_HIDPI=1
-    -DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY
-    -DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE
-    -DCLD_VERSION=2 -DCLD2_DATA_SOURCE=static
-    -DENABLE_WIFI_BOOTSTRAPPING=1
-    -DOSX -DWEBRTC_MAC -DCARBON_DEPRECATED=YES
+set(WEBRTC_DEFS_APPLE
+    -DWEBRTC_MAC -DCARBON_DEPRECATED=YES
     -DHASH_NAMESPACE=__gnu_cxx -DPOSIX -DWEBRTC_POSIX
     -DDISABLE_DYNAMIC_CAST -DXML_STATIC
     -DDYNAMIC_ANNOTATIONS_ENABLED=0
+    -DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY
+    -DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE
+    -DCR_CLANG_REVISION=214024
+)
+
+set(WEBRTC_DEFS_MACOS
+     ${WEBRTC_DEFS_DESKTOP}
+     ${WEBRTC_DEFS_APPLE}
+    -D__ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORE=0
+    -DENABLE_PRE_SYNC_BACKUP
+    -DENABLE_HIDPI=1
+    -DCLD_VERSION=2 -DCLD2_DATA_SOURCE=static
+    -DENABLE_WIFI_BOOTSTRAPPING=1
+    -DOSX
+)
+
+set(WEBRTC_DEFS_IOS
+    ${WEBRTC_DEFS_DESKTOP}
+    ${WEBRTC_DEFS_APPLE}
+    -DDISABLE_NACL -DCR_CLANG_REVISION=214024
+    -DCLD_VERSION=1 -DENABLE_SPELLCHECK=1 -DDISABLE_FTP_SUPPORT=1
+    -DIOS -DWEBRTC_IOS
+    -D_REENTRANT
+    -DNDEBUG -DNVALGRIND
+    -DNS_BLOCK_ASSERTIONS=1
 )
 
 set(WEBRTC_DEFS_ANDROID #arm
     -D_FILE_OFFSET_BITS=64 -DNO_TCMALLOC
-    -DDISABLE_NACL -DCHROMIUM_BUILD -DUSE_LIBJPEG_TURBO=1 -DENABLE_WEBRTC=1
+    -DDISABLE_NACL -DCHROMIUM_BUILD -DUSE_LIBJPEG_TURBO=1
     -DUSE_PROPRIETARY_CODECS -DENABLE_BROWSER_CDMS
     -DENABLE_CONFIGURATION_POLICY
     -DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY
@@ -241,22 +258,36 @@ set(WEBRTC_CFLAGS_ANDROID #arm
 
 set(WEBRTC_CXXFLAGS_ANDROID -Wsign-compare -Wnon-virtual-dtor -Woverloaded-virtual -Wno-abi)
 
-set(WEBRTC_CFLAGS_COMMON_MACOS
-    -gdwarf-2 -Werror -Wnewline-eof
-    -mmacosx-version-min=10.6 -arch x86_64 -Wendif-labels
+set(WEBRTC_FLAGS_APPLE
+    -gdwarf-2 -Wnewline-eof -Wendif-labels
     -Wno-selector-type-mismatch -Wheader-hygiene -Wno-char-subscripts
     -Wno-unneeded-internal-declaration -Wno-covered-switch-default
     -Wstring-conversion -Wno-c++11-narrowing -Wno-deprecated-register
 )
 
-set(WEBRTC_CFLAGS_MACOS
-    ${WEBRTC_CFLAGS_COMMON_MACOS}
+set(WEBRTC_FLAGS_MACOS
+    ${WEBRTC_FLAGS_APPLE}
+    -Werror -mmacosx-version-min=10.6 -arch x86_64
+)
+
+set(WEBRTC_CFLAGS_APPLE
+    ${WEBRTC_FLAGS_APPLE}
     -std=c99 -fno-slp-vectorize -fcolor-diagnostics
 )
-set(WEBRTC_CXXFLAGS_MACOS
-    ${WEBRTC_CFLAGS_COMMON_MACOS}
-    -fno-slp-vectorize -fcolor-diagnostics -fno-strict-aliasing
+set(WEBRTC_CFLAGS_MACOS ${WEBRTC_CFLAGS_APPLE})
+set(WEBRTC_CFLAGS_IOS ${WEBRTC_CFLAGS_APPLE})
+
+set(WEBRTC_CXXFLAGS_APPLE
+    ${WEBRTC_FLAGS_APPLE}
+    -fno-slp-vectorize -fcolor-diagnostics
     -fobjc-call-cxx-cdtors #this applies only for obj-cxx, but cmake does not have flags specially for obj-c++
+)
+
+set(WEBRTC_CXXFLAGS_MACOS
+    ${WEBRTC_CXXFLAGS_APPLE} -fno-strict-aliasing
+)
+set(WEBRTC_CXXFLAGS_IOS
+    ${WEBRTC_CXXFLAGS_APPLE} -fno-threadsafe-statics
 )
 
 set(WEBRTC_LDFLAGS)
@@ -274,10 +305,14 @@ set(WEBRTC_LDFLAGS_ANDROID
     -Wl,-shared,-Bsymbolic
     -Wl,--warn-shared-textrel -Wl,-O1 -Wl,--as-needed
 )
-set(WEBRTC_LDFLAGS_MACOS
+set(WEBRTC_LDFLAGS_APPLE
     -Wl,-search_paths_first -Wl,-ObjC
-    -Wl,-dead_strip -arch x86_64
+    -Wl,-dead_strip
 )
+
+set(WEBRTC_LDFLAGS_MACOS ${WEBRTC_LDFLAGS_APPLE} -arch x86_64)
+set(WEBRTC_LDFLAGS_IOS ${WEBRTC_LDFLAGS_APPLE})
+
 set(WEBRTC_SYSLIBS)
 set(WEBRTC_SYSLIBS_ANDROID cpufeatures log GLESv2 OpenSLES crypto ssl m dl)
 
@@ -286,11 +321,22 @@ set(WEBRTC_SYSLIBS_LINUX
     crypto expat pthread Xext X11 m dl
 )
 
+set(WEBRTC_SYSLIBS_APPLE
+    "-framework AVFoundation" "-framework AudioToolbox"
+    "-framework Foundation" "-framework Security"
+    "-framework SystemConfiguration" "-framework CoreVideo"
+    "-framework CoreMedia"
+)
+
 set(WEBRTC_SYSLIBS_MACOS
-    "-framework AVFoundation" "-framework WebKit" "-framework Cocoa" "-framework AudioToolbox"
-    "-framework Foundation" "-framework IOKit" "-framework Security"
-    "-framework SystemConfiguration" "-framework CoreAudio" "-framework CoreVideo"
-    "-framework OpenGL" "-framework QTKit -framework CoreMedia"
+    ${WEBRTC_SYSLIBS_APPLE}
+    "-framework OpenGL" "-framework WebKit" "-framework Cocoa"
+    "-framework IOKit" "-framework CoreAudio"
+)
+set(WEBRTC_SYSLIBS_IOS
+    ${WEBRTC_SYSLIBS_APPLE}
+    sqlite3 "-framework GLKit" "-framework OpenGLES"
+   "-framework UIKit" "-framework QuartzCore"
 )
 
 macro(appendPlatformStuff pname)
@@ -319,19 +365,23 @@ else()
 endif()
 
 if (ANDROID)
-    message(STATUS "Building rtcModule on arm Android")
+    message(STATUS "Building rtcModule for arm Android")
     appendArchStuff(ARM)
     appendPlatformStuff(ANDROID)
-elseif(APPLE)
-    message(STATUS "Building rtcModule on x86 MacOSX")
+elseif(APPLE_IOS)
+    message(STATUS "Building rtcModule for arm iOS")
+    appendArchStuff(ARM)
+    appendPlatformStuff(IOS)
+elseif(APPLE) #macosx
+    message(STATUS "Building rtcModule for x86 MacOSX")
     # appendArchStuff(X86)
     appendPlatformStuff(MACOS)
 elseif(UNIX) #linux
-    message(STATUS "Building rtcModule on x86 Linux")
+    message(STATUS "Building rtcModule for x86 Linux")
     appendArchStuff(X86)
     appendPlatformStuff(LINUX)
 else()
-    message(FATAL_ERROR "Unknown platform")
+    message(FATAL_ERROR "Unsupported platform")
 endif()
 
 if (NOT APPLE)
