@@ -332,6 +332,7 @@ set(WEBRTC_SYSLIBS_MACOS
     ${WEBRTC_SYSLIBS_APPLE}
     "-framework OpenGL" "-framework WebKit" "-framework Cocoa"
     "-framework IOKit" "-framework CoreAudio"
+    "-framework QTKit" #still needed by libjingle_media.a for device connect notification etc.
 )
 set(WEBRTC_SYSLIBS_IOS
     ${WEBRTC_SYSLIBS_APPLE}
