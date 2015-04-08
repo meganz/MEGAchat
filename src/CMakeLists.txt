@@ -31,16 +31,38 @@ endif()
 add_subdirectory(rtcModule)
 get_property(SERVICES_INCLUDES GLOBAL PROPERTY SERVICES_INCLUDES)
 
-set (optMegaSdkPath "~/megasdk" CACHE PATH "Mega SDK path")
-if (WIN32)
-  if (WINPHONE8)
-    set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/wp8")
-  else()
-    set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/win32")
-  endif()
-else()
-  set(MEGASDK_PLATFORM_INCLUDES "${optMegaSdkPath}/include/mega/posix")
+#find Mega SDK and its dependencies
+find_path(MEGASDK_PUBLIC_INCLUDE_DIR megaapi.h)
+find_library(MEGASDK_LIBS NAMES libmega)
+if (NOT MEGASDK_PUBLIC_INCLUDE_DIR)
+    message(FATAL_ERROR "Could not find mega sdk header megaapi.h")
 endif()
+if (NOT MEGASDK_LIB)
+    message(FATAL_ERROR "Could not find mega sdk lib (but header found)")
+endif()
+
+if (NOT WIN32)
+    find_library(CARES_LIB libcares)
+    if (NOT CARES_LIB)
+        message(FATAL_ERROR "Could not find c-ares library, neede by Mega SDK")
+    endif()
+    #c-ares is the only megasdk dependency that we don't already include,
+    #so add it to the megasdk libs
+    list(APPEND MEGASDK_LIBS ${CARES_LIB})
+endif()
+#add mega platform includes
+find_path(
+    MEGASDK_PLATFORM_INCLUDES
+    NAMES megawaiter.h meganet.h
+    PATHS "${MEGASDK_PUBLIC_INCLUDE_DIR}/mega"
+    PATH_SUFFIXES "wp8 win32 posix"
+)
+set(MEGASDK_INCLUDES "${MEGASDK_PUBLIC_INCLUDE_DIR}" "${MEGASDK_PUBLIC_INCLUDE_DIR}/mega" "${MEGASDK_PLATFORM_INCLUDES}")
+if (ANDROID) #android does not have glob.h in /usr/include
+    list(APPEND MEGASDK_INCLUDES ../third_party/glob) #temporary hack until code in the sdk depending on glob.h is removed from android build
+endif()
+
+#Find mpEnc
 if(DEFINED ENV{MPENC_INCLUDE})
     set(MPENC_INCLUDE_DIR $ENV{MPENC_INCLUDE})
 else()
@@ -54,11 +76,8 @@ if(DEFINED ENV{MPENC_LIB_DIR})
 else()
     message(FATAL_ERROR "MPENC_LIB_DIR env varibale not set.")
 endif()
+#===
 
-set(MEGASDK_INCLUDES "${optMegaSdkPath}/include" "${MEGASDK_PLATFORM_INCLUDES}")
-if (ANDROID) #android does not have glob.h in /usr/include
-    list(APPEND MEGASDK_INCLUDES ${optMegaSdkPath}/third_party/glob)
-endif()
 
 set_property(GLOBAL PROPERTY MEGASDK_INCLUDES ${MEGASDK_INCLUDES})
 set(MEGASDK_LIB "${optMegaSdkPath}/src/.libs/libmega${CMAKE_SHARED_LIBRARY_SUFFIX}")
