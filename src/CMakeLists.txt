@@ -5,6 +5,8 @@ include (utils.cmake)
 include (FindCryptopp.cmake)
 find_package(OpenSSL REQUIRED)
 
+set(MPENC_DIR "~/mpenc_cpp" CACHE PATH "mpEnc checkout dir built withing a /build subdir")
+
 set (SRCS
     ../third-party/murmurHash/MurmurHash3.cpp
     karereCommon.cpp
@@ -33,16 +35,17 @@ get_property(SERVICES_INCLUDES GLOBAL PROPERTY SERVICES_INCLUDES)
 
 #find Mega SDK and its dependencies
 find_path(MEGASDK_PUBLIC_INCLUDE_DIR megaapi.h)
-find_library(MEGASDK_LIBS NAMES libmega)
 if (NOT MEGASDK_PUBLIC_INCLUDE_DIR)
     message(FATAL_ERROR "Could not find mega sdk header megaapi.h")
 endif()
-if (NOT MEGASDK_LIB)
+
+find_library(MEGASDK_LIBS mega)
+if (NOT MEGASDK_LIBS)
     message(FATAL_ERROR "Could not find mega sdk lib (but header found)")
 endif()
 
 if (NOT WIN32)
-    find_library(CARES_LIB libcares)
+    find_library(CARES_LIB cares)
     if (NOT CARES_LIB)
         message(FATAL_ERROR "Could not find c-ares library, neede by Mega SDK")
     endif()
@@ -50,37 +53,41 @@ if (NOT WIN32)
     #so add it to the megasdk libs
     list(APPEND MEGASDK_LIBS ${CARES_LIB})
 endif()
+
 #add mega platform includes
 find_path(
     MEGASDK_PLATFORM_INCLUDES
     NAMES megawaiter.h meganet.h
     PATHS "${MEGASDK_PUBLIC_INCLUDE_DIR}/mega"
-    PATH_SUFFIXES "wp8 win32 posix"
+    PATH_SUFFIXES wp8 win32 posix
 )
 set(MEGASDK_INCLUDES "${MEGASDK_PUBLIC_INCLUDE_DIR}" "${MEGASDK_PUBLIC_INCLUDE_DIR}/mega" "${MEGASDK_PLATFORM_INCLUDES}")
-if (ANDROID) #android does not have glob.h in /usr/include
-    list(APPEND MEGASDK_INCLUDES ../third_party/glob) #temporary hack until code in the sdk depending on glob.h is removed from android build
-endif()
+
+#if (ANDROID) #android does not have glob.h in /usr/include
+#    list(APPEND MEGASDK_INCLUDES ../third_party/glob) #temporary hack until code in the sdk depending on glob.h is removed from android build
+#endif()
+
+#save globally so other cmakefiles can use these
+set_property(GLOBAL PROPERTY MEGASDK_INCLUDES ${MEGASDK_INCLUDES})
+set(MEGASDK_LIBS ${MEGASDK_LIBS})
 
 #Find mpEnc
-if(DEFINED ENV{MPENC_INCLUDE})
-    set(MPENC_INCLUDE_DIR $ENV{MPENC_INCLUDE})
-else()
-    message(FATAL_ERROR "MPENC_INCLUDE env variable not set.")
+find_path(MPENC_INCLUDE_DIR
+    NAMES cliques.h codec.h
+    PATHS "${MPENC_DIR}"
+    PATH_SUFFIXES src include
+)
+if(!MPENC_INCLUDE_DIR)
+    message(FATAL_ERROR "mpEnc include dir not found")
 endif()
 
-if(DEFINED ENV{MPENC_LIB_DIR})
-    message("found $ENV{MPENC_LIB_DIR}")
-    set(MPENC_LIB_DIR $ENV{MPENC_LIB_DIR})
-    message("${MPENC_LIB_DIR}")
-else()
-    message(FATAL_ERROR "MPENC_LIB_DIR env varibale not set.")
+find_library(MPENC_LIBS NAMES mpEnc_cpp
+ PATHS "${MPENC_DIR}/build" PATH_SUFFIXES src
+)
+if(!MPENC_LIBS)
+    message(FATAL_ERROR "Could not find mpenc lib (but header dir found)")
 endif()
 #===
-
-
-set_property(GLOBAL PROPERTY MEGASDK_INCLUDES ${MEGASDK_INCLUDES})
-set(MEGASDK_LIB "${optMegaSdkPath}/src/.libs/libmega${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 include_directories(
     .
@@ -100,6 +107,7 @@ target_link_libraries(chatclient
     rtcmodule
     ${MEGASDK_LIB}
     ${CRYPTOPP_LIBRARIES}
+    ${MPENC_LIBS}
 )
 
 
