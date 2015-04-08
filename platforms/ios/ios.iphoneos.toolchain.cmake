@@ -41,6 +41,20 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(APPLE_IOS ON)
 set(TARGET_OS_IPHONE ON)
 
+# Fix for failing xcode generation for iOS, see bug 15329 on cmake bugracker
+
+set(CMAKE_MACOSX_BUNDLE YES)
+set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
+
+# Fix unmatching dependency static lib project output dir and
+# static link link path
+# static libs are output in <Release|Debug>-<iphoneos|iphonesimulator> subdir
+# but are specified in Release|Debug subdir in the link commands
+
+set(CMAKE_XCODE_EFFECTIVE_PLATFORMS "-iphoneos;-iphonesimulator")
+
+# By default the target is the current ios version, e.g. 8
+set(CMAKE_XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET "6.0")
 
 #
 # Legacy searches (xcrun is not available)
