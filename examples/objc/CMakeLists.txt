@@ -46,7 +46,9 @@ set_target_properties(objctestapp PROPERTIES RESOURCE "${RESOURCES}")
      MACOSX_BUNDLE_BUNDLE_VERSION "${VERSION_STRING}"
      MACOSX_BUNDLE_COPYRIGHT "Copyright 2015, MEGA Ltd. All Rights Reserved."
  )
- 
+
+set(MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/MacOSXBundleInfo.plist.in")
+
 target_link_libraries(objctestapp
     karere
     ${SYSLIBS}

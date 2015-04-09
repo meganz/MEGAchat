@@ -3,6 +3,7 @@
     <dependencies>
         <deployment identifier="iOS"/>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="6247"/>
+        <capability name="Alignment constraints with different attributes" minToolsVersion="5.1"/>
         <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
     </dependencies>
     <scenes>
@@ -15,7 +16,7 @@
                         <viewControllerLayoutGuide type="bottom" id="Rgt-MC-TO3"/>
                     </layoutGuides>
                     <view key="view" contentMode="scaleToFill" id="VvO-o5-bec">
-                        <rect key="frame" x="0.0" y="0.0" width="320" height="548"/>
+                        <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                         <subviews>
                             <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="pTW-nY-2qS" userLabel="RemoteVIdeo" customClass="VideoRendererObjc">
@@ -42,8 +43,8 @@
                                 <exclude reference="xye-s4-eDW"/>
                             </mask>
                             <mask key="constraints">
-                                <exclude reference="oHs-6m-kxx"/>
                                 <exclude reference="GCx-P0-uYW"/>
+                                <exclude reference="oHs-6m-kxx"/>
                             </mask>
                         </variation>
                         <variation key="widthClass=compact">
@@ -52,8 +53,8 @@
                                 <include reference="xye-s4-eDW"/>
                             </mask>
                             <mask key="constraints">
-                                <exclude reference="oHs-6m-kxx"/>
                                 <exclude reference="GCx-P0-uYW"/>
+                                <exclude reference="oHs-6m-kxx"/>
                             </mask>
                         </variation>
                     </view>
