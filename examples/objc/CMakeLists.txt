@@ -4,9 +4,9 @@ project(objctestapp)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set (SRCS
-     AppDelegate.m
+     AppDelegate.mm
      ViewController.m
-     main.m
+     main.mm
      ../../src/videoRenderer_objc.mm
      ../../src/videoRenderer_objc.h #need the header explicitly added to xcode, so it can recongized the widget
      ../../src/karereCommon.cpp
