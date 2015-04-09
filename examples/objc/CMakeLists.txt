@@ -32,6 +32,8 @@ if (CLANG_STDLIB)
     set(SYSLIBS ${CLANG_STDLIB})
 endif()
 
+set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS Entitlements.plist)
+
 add_executable(objctestapp ${SRCS} ${RESOURCES})
 set_target_properties(objctestapp PROPERTIES RESOURCE "${RESOURCES}")
  set_target_properties(objctestapp PROPERTIES
