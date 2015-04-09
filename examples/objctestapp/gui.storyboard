@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="6254" systemVersion="14C109" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="5U6-IK-PLk">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="6247"/>
+        <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID="1HX-TY-3sS">
+            <objects>
+                <viewController id="5U6-IK-PLk" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="e50-Fw-Zh3"/>
+                        <viewControllerLayoutGuide type="bottom" id="Rgt-MC-TO3"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="VvO-o5-bec">
+                        <rect key="frame" x="0.0" y="0.0" width="320" height="548"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                        <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="pTW-nY-2qS" userLabel="RemoteVIdeo" customClass="VideoRendererObjc">
+                                <rect key="frame" x="0.0" y="0.0" width="240" height="128"/>
+                                <variation key="widthClass=compact" fixedFrame="YES">
+                                    <rect key="frame" x="0.0" y="212" width="400" height="368"/>
+                                </variation>
+                            </imageView>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="xye-s4-eDW" userLabel="Local Video" customClass="VideoRendererObjc">
+                                <rect key="frame" x="0.0" y="0.0" width="240" height="128"/>
+                                <variation key="widthClass=compact" ambiguous="YES">
+                                    <rect key="frame" x="0.0" y="20" width="147" height="184"/>
+                                </variation>
+                            </imageView>
+                        </subviews>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                        <constraints>
+                            <constraint firstItem="Rgt-MC-TO3" firstAttribute="top" secondItem="xye-s4-eDW" secondAttribute="bottom" id="GCx-P0-uYW"/>
+                            <constraint firstItem="xye-s4-eDW" firstAttribute="leading" secondItem="VvO-o5-bec" secondAttribute="leadingMargin" id="oHs-6m-kxx"/>
+                        </constraints>
+                        <variation key="default">
+                            <mask key="subviews">
+                                <exclude reference="pTW-nY-2qS"/>
+                                <exclude reference="xye-s4-eDW"/>
+                            </mask>
+                            <mask key="constraints">
+                                <exclude reference="oHs-6m-kxx"/>
+                                <exclude reference="GCx-P0-uYW"/>
+                            </mask>
+                        </variation>
+                        <variation key="widthClass=compact">
+                            <mask key="subviews">
+                                <include reference="pTW-nY-2qS"/>
+                                <include reference="xye-s4-eDW"/>
+                            </mask>
+                            <mask key="constraints">
+                                <exclude reference="oHs-6m-kxx"/>
+                                <exclude reference="GCx-P0-uYW"/>
+                            </mask>
+                        </variation>
+                    </view>
+                    <simulatedStatusBarMetrics key="simulatedStatusBarMetrics"/>
+                    <nil key="simulatedTopBarMetrics"/>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="oTe-6M-dhS" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="378" y="-176"/>
+        </scene>
+    </scenes>
+</document>
