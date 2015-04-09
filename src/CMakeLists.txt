@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(chatclient)
+project(karere)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 include (utils.cmake)
@@ -35,26 +35,30 @@ endif()
 add_subdirectory(rtcModule)
 add_subdirectory(${MPENC_DIR} mpenc)
 #===
-message(STATUS "mpenc includes = ${MPENC_INCLUDE_DIRS}")
+message(STATUS "cryptopp dirs: ${CRYPTOPP_INCLUDE_DIRS}")
 
-include_directories(
-    .
-    ../third-party
-    ./rtcmodule #same as ${RTCMODULE_INCLUDE_DIRS} but simpler
-    ${CMAKE_CURRENT_BINARY_DIR}
+set(KARERE_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/base
+    ${RTCMODULE_INCLUDE_DIRS}
+    ${STROPHE_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../third-party
+
     ${LIBMEGA_INCLUDE_DIRS}
-    ${SERVICES_INCLUDE_DIRS}
     ${CRYPTOPP_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
     ${MPENC_INCLUDE_DIRS}
+    CACHE STRING "Include directries needed by projects using karere lib"
 )
+include_directories(${KARERE_INCLUDE_DIRS})
 
-add_library(chatclient ${SRCS})
-target_link_libraries(chatclient
+add_library(karere ${SRCS})
+
+target_link_libraries(karere
     rtcmodule
-    ${MEGASDK_LIB}
+    ${LIBMEGA_LIBRARIES}
     ${CRYPTOPP_LIBRARIES}
-    ${MPENC_LIBS}
+    mpEnc_cpp
 )
 
 

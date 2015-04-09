@@ -21,18 +21,8 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_definitions(-Wno-unused-local-typedefs)
 endif()
 
-add_subdirectory(../../src chatclient)
-include_directories(
-    ../../src
-    ../../src/base
-    ../../src/rtcModule
-    ../../third-party
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${SERVICES_INCLUDE_DIRS}
-    ${LIBMEGA_INCLUDE_DIRS}
-    ${MPENC_INCLUDE_DIRS}
-    ${OPENSSL_INCLUDE_DIR}
-)
+add_subdirectory(../../src karere)
+include_directories(${CMAKE_CURRENT_BINARY_DIR} ${KARERE_INCLUDE_DIRS})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(SYSLIBS)
@@ -45,9 +35,8 @@ add_executable(rtctestapp ${SRCS} ${QT_GEN_MOC_SRCS} ${QT_GEN_FORMS_HEADERS})
 set_target_properties(rtctestapp PROPERTIES AUTOMOC TRUE)
 target_link_libraries(rtctestapp
     ${QT_LIBRARIES}
-    chatclient
+    karere
     ${SYSLIBS}
-    mpEnc_cpp
 )
 
 

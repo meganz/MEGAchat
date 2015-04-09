@@ -22,6 +22,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WEBRTC_CFLAGS}")
 
 include_directories(. .. ../base ${CMAKE_CURRENT_BINARY_DIR}
     ${SERVICES_INCLUDE_DIRS} ${WEBRTC_INCLUDES})
+
 set(RTCMODULE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "rtcModule include dirs for dependent projects")
 
 add_definitions(-DRTCM_BUILDING ${WEBRTC_DEFS} -fvisibility=hidden)

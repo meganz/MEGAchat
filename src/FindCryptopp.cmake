@@ -24,3 +24,4 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Crypto++ DEFAULT_MSG
     CRYPTOPP_LIBRARIES CRYPTOPP_INCLUDE_DIRS)
 
+set(CRYPTOPP_INCLUDE_DIRS ${CRYPTOPP_INCLUDE_DIRS}/..)
