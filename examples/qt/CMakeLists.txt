@@ -7,8 +7,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 set (SRCS
      mainwindow.cpp
      main.cpp
-     ../src/videoRenderer_Qt.cpp
-     ../src/karereCommon.cpp
+     ../../src/videoRenderer_Qt.cpp
+     ../../src/karereCommon.cpp
 )
 
 set(QT_FORMS mainwindow.ui)
@@ -21,12 +21,12 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_definitions(-Wno-unused-local-typedefs)
 endif()
 
-add_subdirectory(../src chatclient)
+add_subdirectory(../../src chatclient)
 include_directories(
-    ../src
-    ../src/base
-    ../src/rtcModule
-    ../third-party
+    ../../src
+    ../../src/base
+    ../../src/rtcModule
+    ../../third-party
     ${CMAKE_CURRENT_BINARY_DIR}
     ${SERVICES_INCLUDE_DIRS}
     ${LIBMEGA_INCLUDE_DIRS}
