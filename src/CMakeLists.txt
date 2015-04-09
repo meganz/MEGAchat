@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 2.8)
 project(chatclient)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 include (utils.cmake)
-include (FindCryptopp.cmake)
+find_package(Cryptopp REQUIRED)
+find_package(Mega REQUIRED)
 find_package(OpenSSL REQUIRED)
 
-set(MPENC_DIR "~/mpenc_cpp" CACHE PATH "mpEnc checkout dir built withing a /build subdir")
+set(MPENC_DIR "~/mpenc_cpp" CACHE PATH "mpEnc checkout dir built within a /build subdir")
 
 set (SRCS
     ../third-party/murmurHash/MurmurHash3.cpp
@@ -31,75 +33,20 @@ if (CLANG_STDLIB)
 endif()
 
 add_subdirectory(rtcModule)
-get_property(SERVICES_INCLUDES GLOBAL PROPERTY SERVICES_INCLUDES)
-
-#find Mega SDK and its dependencies
-find_path(MEGASDK_PUBLIC_INCLUDE_DIR megaapi.h)
-if (NOT MEGASDK_PUBLIC_INCLUDE_DIR)
-    message(FATAL_ERROR "Could not find mega sdk header megaapi.h")
-endif()
-
-find_library(MEGASDK_LIBS mega)
-if (NOT MEGASDK_LIBS)
-    message(FATAL_ERROR "Could not find mega sdk lib (but header found)")
-endif()
-
-if (NOT WIN32)
-    find_library(CARES_LIB cares)
-    if (NOT CARES_LIB)
-        message(FATAL_ERROR "Could not find c-ares library, neede by Mega SDK")
-    endif()
-    #c-ares is the only megasdk dependency that we don't already include,
-    #so add it to the megasdk libs
-    list(APPEND MEGASDK_LIBS ${CARES_LIB})
-endif()
-
-#add mega platform includes
-find_path(
-    MEGASDK_PLATFORM_INCLUDES
-    NAMES megawaiter.h meganet.h
-    PATHS "${MEGASDK_PUBLIC_INCLUDE_DIR}/mega"
-    PATH_SUFFIXES wp8 win32 posix
-)
-set(MEGASDK_INCLUDES "${MEGASDK_PUBLIC_INCLUDE_DIR}" "${MEGASDK_PUBLIC_INCLUDE_DIR}/mega" "${MEGASDK_PLATFORM_INCLUDES}")
-
-#if (ANDROID) #android does not have glob.h in /usr/include
-#    list(APPEND MEGASDK_INCLUDES ../third_party/glob) #temporary hack until code in the sdk depending on glob.h is removed from android build
-#endif()
-
-#save globally so other cmakefiles can use these
-set_property(GLOBAL PROPERTY MEGASDK_INCLUDES ${MEGASDK_INCLUDES})
-set(MEGASDK_LIBS ${MEGASDK_LIBS})
-
-#Find mpEnc
-find_path(MPENC_INCLUDE_DIR
-    NAMES cliques.h codec.h
-    PATHS "${MPENC_DIR}"
-    PATH_SUFFIXES src include
-)
-if(!MPENC_INCLUDE_DIR)
-    message(FATAL_ERROR "mpEnc include dir not found")
-endif()
-
-find_library(MPENC_LIBS NAMES mpEnc_cpp
- PATHS "${MPENC_DIR}/build" PATH_SUFFIXES src
-)
-if(!MPENC_LIBS)
-    message(FATAL_ERROR "Could not find mpenc lib (but header dir found)")
-endif()
+add_subdirectory(${MPENC_DIR} mpenc)
 #===
+message(STATUS "mpenc includes = ${MPENC_INCLUDE_DIRS}")
 
 include_directories(
     .
-    rtcModule
-    base
     ../third-party
+    ./rtcmodule #same as ${RTCMODULE_INCLUDE_DIRS} but simpler
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${MEGASDK_INCLUDES}
-    ${SERVICES_INCLUDES}
+    ${LIBMEGA_INCLUDE_DIRS}
+    ${SERVICES_INCLUDE_DIRS}
     ${CRYPTOPP_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
-    ${MPENC_INCLUDE_DIR}
+    ${MPENC_INCLUDE_DIRS}
 )
 
 add_library(chatclient ${SRCS})

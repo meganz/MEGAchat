@@ -3,6 +3,7 @@ project(services)
 include(../utils.cmake)
 
 set (optStrophePath "~/strophe-native" CACHE PATH "Path to our custom strophe (mstrophe) lib")
+set (optServicesBuildShared 1 CACHE BOOL "Build libservices as a shared lib, for use of the async services by several shared objects")
 
 set(SRCS
   cservices.cpp
@@ -17,16 +18,12 @@ find_package(LibEvent REQUIRED)
 find_package(CURL REQUIRED)
 
 add_subdirectory(${optStrophePath} strophe)
-get_property(STROPHE_INCLUDES GLOBAL PROPERTY STROPHE_INCLUDES)
-
-set(INCLUDES
- ${LIBEVENT_INCLUDE_DIR}
- ${CURL_INCLUDE_DIRS}
- ${STROPHE_INCLUDES}
+set(SERVICES_INCLUDE_DIRS
+   ${LIBEVENT_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS}
+   ${STROPHE_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}
+   CACHE STRING "Include dirs for libservices dependent projects"
 )
-include_directories(${INCLUDES})
-set_property(GLOBAL PROPERTY SERVICES_INCLUDES ${INCLUDES})
-
+include_directories(${SERVICES_INCLUDE_DIRS})
 
 if  (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
     add_definitions(-fvisibility=hidden -fPIC)
@@ -40,15 +37,15 @@ if (CLANG_STDLIB)
     list(APPEND SYSLIBS ${CLANG_STDLIB})
 endif()
 
-add_library(services SHARED ${SRCS})
+if (optServicesBuildShared)
+    add_library(services SHARED ${SRCS})
+else()
+    add_library(services ${SRCS})
+endif()
 
 target_link_libraries(services
   strophe
-  ${LIBEVENT_LIB}
+  ${LIBEVENT_LIBRARIES}
   ${CURL_LIBRARIES}
   ${SYSLIBS}
 )
-
-targetExportDefines(services "")
-targetExportFullpathIncludes(services ${INCLUDES})
-targetExportCompileFlags(services "")

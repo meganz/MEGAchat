@@ -22,53 +22,15 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 endif()
 
 add_subdirectory(../src chatclient)
-get_property(SERVICES_INCLUDES GLOBAL PROPERTY SERVICES_INCLUDES)
-get_property(MEGASDK_INCLUDES GLOBAL PROPERTY MEGASDK_INCLUDES)
-if(DEFINED ENV{MPENC_INCLUDE})
-    set(MPENC_INCLUDE_DIR $ENV{MPENC_INCLUDE})
-else()
-    message(FATAL_ERROR, "MPENC_INCLUDE env variable not set.")
-endif()
-
-if(DEFINED ENV{MPENC_LIB_DIR})
-    message("found $ENV{MPENC_LIB_DIR}")
-    set(MPENC_LIB_DIR $ENV{MPENC_LIB_DIR})
-    message("${MPENC_LIB_DIR}")
-else()
-    message(FATAL_ERROR "MPENC_LIB_DIR env varibale not set.")
-endif()
-find_path(SODIUM_INCLUDE_DIR sodium.h
-          PATH_SUFFIXES sodium)
-find_library(SODIUM_LIBRARY NAMES libsodium sodium)
-find_path(EASYLOGGING_INCLUDE_DIR easylogging++.h)
-
-if(NOT SODIUM_INCLUDE_DIR)
-    message(FATAL_ERROR "libsodium include dir not found")
-endif()
-
-if(NOT SODIUM_LIBRARY)
-    message(FATAL_ERROR "libsodium library not found")
-endif()
-
-if(NOT EASYLOGGING_INCLUDE_DIR)
-    message(FATAL_ERROR "easylogging header not found")
-endif()
-
-set(EASYLOGGING_INCLUDE_DIRS ${EASYLOGGING_INCLUDE_DIR})
-set(SODIUM_LIBRARIES ${SODIUM_LIBRARY})
-set(SODIUM_INCLUDE_DIRS ${SODIUM_INCLUDE_DIR})
-
 include_directories(
     ../src
     ../src/base
     ../src/rtcModule
     ../third-party
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${SERVICES_INCLUDES}
-    ${MEGASDK_INCLUDES}
-    ${EASYLOGGING_INCLUDE_DIRS}
-    ${SODIUM_INCLUDE_DIRS}
-    ${MPENC_INCLUDE_DIR}
+    ${SERVICES_INCLUDE_DIRS}
+    ${LIBMEGA_INCLUDE_DIRS}
+    ${MPENC_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
 )
 
@@ -79,20 +41,13 @@ if (CLANG_STDLIB)
     set(SYSLIBS ${CLANG_STDLIB})
 endif()
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(LIBMPENC_CPP_LIB "libmpEnc_cpp.dylib")
-else ()
-    set(LIBMPENC_CPP_LIB "libmpEnc_cpp.so")
-endif ()
-
 add_executable(rtctestapp ${SRCS} ${QT_GEN_MOC_SRCS} ${QT_GEN_FORMS_HEADERS})
 set_target_properties(rtctestapp PROPERTIES AUTOMOC TRUE)
 target_link_libraries(rtctestapp
     ${QT_LIBRARIES}
     chatclient
     ${SYSLIBS}
-    ${SODIUM_LIBRARIES}
-    ${MPENC_LIB_DIR}/${LIBMPENC_CPP_LIB}
+    mpEnc_cpp
 )
 
 

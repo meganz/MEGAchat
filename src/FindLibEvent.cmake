@@ -1,41 +1,29 @@
-# - Find LibEvent (a cross event library)
+# - Find LibEvent (a cross-platform event library)
 # This module defines
-# LIBEVENT_INCLUDE_DIR, where to find LibEvent headers
-# LIBEVENT_LIB, LibEvent libraries
-# LibEvent_FOUND, If false, do not try to use libevent
+# LIBEVENT_INCLUDE_DIRS, where to find LibEvent headers
+# LIBEVENT_LIBRARIES, LibEvent libraries
+# LIBEVENT_FOUND, If false, do not try to use libevent
 
-set(LibEvent_EXTRA_PREFIXES /usr/local /opt/local "$ENV{HOME}")
-foreach(prefix ${LibEvent_EXTRA_PREFIXES})
-  list(APPEND LibEvent_INCLUDE_PATHS "${prefix}/include")
-  list(APPEND LibEvent_LIB_PATHS "${prefix}/lib")
-endforeach()
+find_package(PkgConfig)
+pkg_check_modules(PC_LIBEVENT QUIET libevent)
 
-find_path(LIBEVENT_INCLUDE_DIR event.h PATHS ${LibEvent_INCLUDE_PATHS})
-find_library(LIBEVENT_LIB_CORE NAMES event event_pthreads PATHS ${LibEvent_LIB_PATHS})
-find_library(LIBEVENT_LIB_THREADS NAMES event_pthreads PATHS ${LibEvent_LIB_PATHS})
+find_path(LIBEVENT_INCLUDE_DIRS event.h
+    HINTS ${PC_LIBEVENT_INCLUDEDIR} ${PC_LIBEVENT_INCLUDE_DIRS}
+)
+find_library(LIBEVENT_LIB_CORE NAMES event
+    HINTS ${PC_LIBEVENT_LIBDIR} ${PC_LIBEVENT_LIBRARY_DIRS}
+)
+find_library(LIBEVENT_LIB_THREADS NAMES event_pthreads event_win32
+    HINTS ${PC_LIBEVENT_LIBDIR} ${PC_LIBEVENT_LIBRARY_DIRS}
+)
 if (LIBEVENT_LIB_CORE)
-    set(LIBEVENT_LIB ${LIBEVENT_LIB_CORE} ${LIBEVENT_LIB_THREADS})
+    set(LIBEVENT_LIBRARIES ${LIBEVENT_LIB_CORE} ${LIBEVENT_LIB_THREADS})
 endif()
 
-if (LIBEVENT_LIB AND LIBEVENT_INCLUDE_DIR)
-  set(LibEvent_FOUND TRUE)
-  set(LIBEVENT_LIB ${LIBEVENT_LIB})
-else ()
-  set(LibEvent_FOUND FALSE)
-endif ()
+include(FindPackageHandleStandardArgs)
+# handle the QUIETLY and REQUIRED arguments and set LIBXML2_FOUND to TRUE
+# if all listed variables are TRUE
+find_package_handle_standard_args(LibEvent DEFAULT_MSG
+    LIBEVENT_LIBRARIES LIBEVENT_INCLUDE_DIRS)
 
-if (LibEvent_FOUND)
-  if (NOT LibEvent_FIND_QUIETLY)
-    message(STATUS "Found libevent: ${LIBEVENT_LIB}")
-  endif ()
-else ()
-  if (LibEvent_FIND_REQUIRED)
-    message(FATAL_ERROR "Could NOT find libevent.")
-  endif ()
-  message(STATUS "libevent NOT found.")
-endif ()
-
-mark_as_advanced(
-    LIBEVENT_LIB
-    LIBEVENT_INCLUDE_DIR
-  )
+mark_as_advanced(LIBEVENT_LIB_CORE LIBEVENT_LIB_THREADS)
