@@ -4,7 +4,7 @@ pkg_check_modules(PC_LIBMEGA QUIET libmega)
 
 #find Mega SDK and its dependencies
 find_path(LIBMEGA_PUBLIC_INCLUDE_DIR megaapi.h
-    HINTS ${PC_LIBMEGA_INCUDEDIR} ${PC_LIBMEGA_INCLUDE_DIRS}
+    HINTS ${PC_LIBMEGA_INCLUDEDIR} ${PC_LIBMEGA_INCLUDE_DIRS}
 )
 
 find_library(_LIBMEGA_LIBRARIES mega
