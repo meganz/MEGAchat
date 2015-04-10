@@ -35,7 +35,6 @@ endif()
 add_subdirectory(rtcModule)
 add_subdirectory(${MPENC_DIR} mpenc)
 #===
-message(STATUS "cryptopp dirs: ${CRYPTOPP_INCLUDE_DIRS}")
 
 set(KARERE_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}
