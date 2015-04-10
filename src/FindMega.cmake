@@ -7,12 +7,12 @@ find_path(LIBMEGA_PUBLIC_INCLUDE_DIR megaapi.h
     HINTS ${PC_LIBMEGA_INCUDEDIR} ${PC_LIBMEGA_INCLUDE_DIRS}
 )
 
-find_library(LIBMEGA_LIBRARIES mega
+find_library(_LIBMEGA_LIBRARIES mega
     HINTS ${PC_LIBMEGA_LIBDIR} ${PC_LIBMEGA_LIBRARY_DIRS}
 )
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(LibMega DEFAULT_MSG
-    LIBMEGA_LIBRARIES LIBMEGA_PUBLIC_INCLUDE_DIR
+    _LIBMEGA_LIBRARIES LIBMEGA_PUBLIC_INCLUDE_DIR
 )
 
 if (NOT WIN32)
@@ -23,7 +23,15 @@ if (NOT WIN32)
     endif()
     #c-ares is the only megasdk dependency that we don't already include,
     #so add it to the megasdk libs
-    list(APPEND LIBMEGA_LIBRARIES ${CARES_LIB})
+    list(APPEND _LIBMEGA_LIBRARIES ${CARES_LIB})
+endif()
+
+if (APPLE)
+#needed for thumbnail generation, we don't use freeimage on these platforms
+    list(APPEND _LIBMEGA_LIBRARIES "-framework ImageIO")
+    if (APPLE_IOS)
+        list(APPEND _LIBMEGA_LIBRARIES "-framework MobileCoreServices")
+    endif()
 endif()
 
 #add mega platform includes
@@ -36,8 +44,10 @@ find_path(
 
 set(LIBMEGA_INCLUDE_DIRS "${LIBMEGA_PUBLIC_INCLUDE_DIR}"
     "${LIBMEGA_PUBLIC_INCLUDE_DIR}/mega" "${LIBMEGA_PLATFORM_INCLUDES}")
-
+set(LIBMEGA_LIBRARIES "${_LIBMEGA_LIBRARIES}" CACHE STRING "libmega library and dependencies")
+message("sdfsdfsdfsdfsdfsdfsdf")
 #if (ANDROID) #android does not have glob.h in /usr/include
 #    list(APPEND MEGASDK_INCLUDES ../third_party/glob) #temporary hack until code in the sdk depending on glob.h is removed from android build
 #endif()
 
+mark_as_advanced(_LIBMENGA_LIBRARIES)

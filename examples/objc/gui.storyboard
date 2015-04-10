@@ -19,16 +19,16 @@
                         <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                         <subviews>
-                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="pTW-nY-2qS" userLabel="RemoteVIdeo" customClass="VideoRendererObjc">
-                                <rect key="frame" x="0.0" y="0.0" width="240" height="128"/>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Sm1-Z1-iOe" userLabel="Remote Video" customClass="VideoRendererObjc">
+                                <rect key="frame" x="155" y="338" width="240" height="128"/>
                                 <variation key="widthClass=compact" fixedFrame="YES">
                                     <rect key="frame" x="0.0" y="212" width="400" height="368"/>
                                 </variation>
                             </imageView>
-                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="xye-s4-eDW" userLabel="Local Video" customClass="VideoRendererObjc">
-                                <rect key="frame" x="0.0" y="0.0" width="240" height="128"/>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="xye-s4-eDW" userLabel="Local Video" customClass="VideoRendererObjc">
+                                <rect key="frame" x="155" y="39" width="240" height="128"/>
                                 <variation key="widthClass=compact" ambiguous="YES">
-                                    <rect key="frame" x="0.0" y="20" width="147" height="184"/>
+                                    <rect key="frame" x="94" y="28" width="100" height="100"/>
                                 </variation>
                             </imageView>
                         </subviews>
@@ -38,10 +38,6 @@
                             <constraint firstItem="xye-s4-eDW" firstAttribute="leading" secondItem="VvO-o5-bec" secondAttribute="leadingMargin" id="oHs-6m-kxx"/>
                         </constraints>
                         <variation key="default">
-                            <mask key="subviews">
-                                <exclude reference="pTW-nY-2qS"/>
-                                <exclude reference="xye-s4-eDW"/>
-                            </mask>
                             <mask key="constraints">
                                 <exclude reference="GCx-P0-uYW"/>
                                 <exclude reference="oHs-6m-kxx"/>
@@ -49,7 +45,6 @@
                         </variation>
                         <variation key="widthClass=compact">
                             <mask key="subviews">
-                                <include reference="pTW-nY-2qS"/>
                                 <include reference="xye-s4-eDW"/>
                             </mask>
                             <mask key="constraints">
