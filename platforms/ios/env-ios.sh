@@ -1,4 +1,4 @@
-#!/bin/bash
+\#!/bin/bash
 
 #Source this file in the current shell to setup the cross-compile build environment
 
@@ -36,7 +36,9 @@ compileropts="-arch $IOSC_ARCH $IOSC_OS_VERSION -stdlib=libc++"
 #export CFLAGS="-I$IOSC_BUILDROOT/usr/include"
 #export CXXFLAGS="-I$IOSC_BUILDROOT/usr/include"
 export LDFLAGS="--sysroot $IOSC_SYSROOT -L$IOSC_BUILDROOT/usr/lib $compileropts -lc++"
-export CPPFLAGS="-isysroot$IOSC_SYSROOT -I$IOSC_BUILDROOT/usr/include $compileropts"
+export CFLAGS="$compileropts"
+export CXXFLAGS="$compileropts"
+export CPPFLAGS="-isysroot$IOSC_SYSROOT -I$IOSC_BUILDROOT/usr/include"
 
 export CC="`$find clang`"
 export CXX="`$find clang++`"
