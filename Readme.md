@@ -118,7 +118,11 @@ We need to set some env variables before proceeding with running the config scri
 `export GYP_GENERATORS="ninja"`  
 
 * Linux:  
-`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0"` 
+Rewrite the clang download script to empty, as the download errors out because of self-signed https cert, and we don't
+actually need clang on Linux:  
+`echo "" > tools/clang/scripts/update.py`  
+Then set the GYP options with:  
+`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0"`   
 
 * Mac:  
 We will want to build webrtc using the system clang compiler instead of the one provided by google with depot_tools. In this
