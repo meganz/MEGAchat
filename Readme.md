@@ -291,8 +291,8 @@ The public headers are:
     - The C++ interface is mstrophepp.h and mstrophepp-conn.h 
     - study bot-libevent.cpp example in /examples
   * The Promise lib in base/promise.h and example usage for example in /src/test-promise.cpp
-  * The Conversation/Chatroom management code in /src/ChatRoom.h;.cpp
-  * The overall client structure in /src/ChatClient.h;.cpp
+  * The Conversation/Chatroom management code in /src/chatRoom.h;.cpp
+  * The overall client structure in /src/chatClient.h;.cpp
   * The setTimeout() and setInterval() timer functions in /src/base/timers.h  
 
 ## Test application ##
@@ -309,12 +309,12 @@ You must pass a pointer to this function to `services_init()`.
 For more details, read the comments in base/gcm.h, and for reference implementation study rtctestapp/main.cpp
   * IRtcModule, IEventHandler in /src/IRtcModule.h. These are used to initiate rtc calls and receive events.
   * IVideoRenderer in /src/IVideoRenderer.h is used to implement video playback in arbitrary GUI environments.
-    Example implementation for Qt is in src/VideoRenderer_Qt.h;.cpp.
+    Example implementation for Qt is in src/videoRenderer_Qt.h;.cpp.
     The example usage can be seen from the rtctestapp application.
 
 ## If Mega API calls are required ##
   * To integrate with the environment, a simple bridge class called MyMegaApi is implemented in /src/sdkApi.h.
-    Example usage of it is in /src/ChatClient.cpp and in /src/MegaCryptoFuncs.cpp. 
+    Example usage of it is in /src/chatClient.cpp and in /src/megaCryptoFuncs.cpp. 
 
 ## More advanced things that should not be needed but are good to know in order to understand the underlying environment better ##
   * The function call marshalling mechanims in /src/base/gcm.h and /src/base/gcmpp.h. The code is documented in detail.
