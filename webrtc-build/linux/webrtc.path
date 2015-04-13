@@ -1,0 +1,14 @@
+Index: DEPS
+===================================================================
+--- DEPS	(revision 6937)
++++ DEPS	(working copy)
+@@ -387,5 +387,9 @@
+     "action": ["python", Var("root_dir") + "/webrtc/build/gyp_webrtc",
+                Var("extra_gyp_flag")],
+   },
++  {
++    "pattern": "tools/sanitizer_options/sanitizer_options.cc",
++    "action" : ["svn", "update", "-r", Var("chromium_revision"), Var("root_dir") + "/tools/sanitizer_options/sanitizer_options.cc"],
++  },
+ ]
+ 

@@ -1,0 +1,70 @@
+Index: build/common.gypi
+===================================================================
+--- build/common.gypi	(revision 289723)
++++ build/common.gypi	(working copy)
+@@ -1654,7 +1654,7 @@
+           'android_ndk_root%': '<(android_ndk_root)',
+           'android_sdk_root%': '<(android_sdk_root)',
+           'android_sdk_version%': '<(android_sdk_version)',
+-          'android_stlport_root': '<(android_ndk_root)/sources/cxx-stl/stlport',
++          'android_stlport_root': '<(android_ndk_root)/sources/cxx-stl/gnu-libstdc++/4.8',
+           'host_os%': '<(host_os)',
+ 
+           'android_sdk%': '<(android_sdk_root)/platforms/android-<(android_sdk_version)',
+@@ -1724,8 +1724,9 @@
+         'android_sdk_jar%': '<(android_sdk)/android.jar',
+ 
+         'android_stlport_root': '<(android_stlport_root)',
+-        'android_stlport_include': '<(android_stlport_root)/stlport',
+         'android_stlport_libs_dir': '<(android_stlport_root)/libs/<(android_app_abi)',
++        'android_stlport_include': '-isystem <(android_stlport_root)/include -isystem <(android_stlport_root)/include/backward -isystem <(android_stlport_root)/libs/<(android_app_abi)/include',
++
+         'host_os%': '<(host_os)',
+ 
+         # Location of the "objcopy" binary, used by both gyp and scripts.
+@@ -4294,13 +4295,13 @@
+           # Figure this out early since it needs symbols from libgcc.a, so it
+           # has to be before that in the set of libraries.
+           ['use_system_stlport==1', {
+-            'android_stlport_library': 'stlport',
++            'android_stlport_library': '-lgnustl_static -lsupc++',
+           }, {
+             'conditions': [
+               ['component=="shared_library"', {
+-                  'android_stlport_library': 'stlport_shared',
++                  'android_stlport_library': '-lgnustl_static -lsupc++',
+               }, {
+-                  'android_stlport_library': 'stlport_static',
++                  'android_stlport_library': '-lgnustl_static -lsupc++',
+               }],
+             ],
+           }],
+@@ -4386,8 +4387,8 @@
+             'defines': [
+               'ANDROID',
+               '__GNU_SOURCE=1',  # Necessary for clone()
+-              'USE_STLPORT=1',
+-              '_STLP_USE_PTR_SPECIALIZATIONS=1',
++              #'USE_STLPORT=1',
++              #'_STLP_USE_PTR_SPECIALIZATIONS=1',
+               'CHROME_BUILD_ID="<(chrome_build_id)"',
+             ],
+             'ldflags!': [
+@@ -4398,7 +4399,7 @@
+               '-Wl,--no-undefined',
+             ],
+             'libraries': [
+-              '-l<(android_stlport_library)',
++              '<(android_stlport_library)',
+               # Manually link the libgcc.a that the cross compiler uses.
+               '<!(<(android_toolchain)/*-gcc -print-libgcc-file-name)',
+               '-lc',
+@@ -4533,7 +4534,7 @@
+                 ],
+               }, { # else: use_system_stlport!=1
+                 'cflags': [
+-                  '-isystem<(android_stlport_include)',
++                  '<(android_stlport_include)',
+                 ],
+                 'ldflags': [
+                   '-L<(android_stlport_libs_dir)',
