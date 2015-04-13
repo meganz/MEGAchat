@@ -56,7 +56,7 @@ temporarily until you build webrtc. These header dirs are needed only for develo
 and linking against an up to date version of openssl when building software.   
 
 ## Building webrtc ##
-* Android
+* Android  
 Start a fresh new shell for building webrtc. You must NOT use a shell where `android-commands.sh` has been sourced, because
 that script sets the CC, CXX etc variables to the NDK compiler that you installed. However we don't want to build webrtc with
 that compiler, but rather with its own version (reasons explained above). Therefore, you must not use here the shell that you
@@ -94,7 +94,7 @@ Then
 `cd trunk`
 
 ### Install dependencies ###
-* Linux
+* Linux  
 There are various packages required by the webrtc build, most of them are checked out by gclient, but there are
 some that need to be installed on the system. To do that on linux, you can run:  
 `build/install-build-deps.sh`  
@@ -103,7 +103,7 @@ If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to 
 is something like that:  
 `export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
 
-* Mac
+* Mac  
 The Mac build does not need Java  
 
 * Android  
@@ -179,12 +179,15 @@ Note that you cannot take the NDK_PATH env var set by the `android-commands.sh` 
 shell, as already explained.  
 Also, we need to hack the webrtc build system to use the gnustl C++ runtime instead of stlport. This is important because we
 have to use the same runtime at least in the webrtc module of Karere, and stlport does not have good support for C++11, exceptions
-are disabled and we use them a lot. However some small fixes need to be applies to the webrtc code to be able to build with gnustl.
-To make all these changes easy, a patch is included that takes care of everything, and also fixes the sanitized_options build issue
-(described below). The patch is located at `karere-native/webrtc-build/android/webrtc.patch`. Verify that you are in
-the webrtc trunk directory, and do:  
+are disabled and we use them a lot. To apply the gnustl patch (to the build/common.gypi file),
+verify that you are in the webrtc trunk directory:  
+`cd build && svn patch /path/to/karere/webrtc-build/android/common.gypi.patch`  
+Also, some small fixes need to be applies to the webrtc code to be able to build with gnustl.
+To make these changes easy, apply the following patch, which and also fixes the sanitized_options build issue
+(described below). Verify that you are in the webrtc trunk directory, and do:  
 `svn patch /path/to/karere-native/webrtc-build/android/webrtc.patch`  
-Note that the patch is valid only for the 6937 revision of webrtc.  
+Note that the patches are valid only for the 6937 revision of webrtc. The reason why the patches are two and not one combined
+is that these are two separate svn repos, and not one.  
 Configure GYP:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`   
 
