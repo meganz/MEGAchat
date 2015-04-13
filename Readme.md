@@ -264,7 +264,7 @@ then specify `Release` here, similarly for Debug.
 `optStropheBuildShared` - set it to ON.
 `optStropheExportDlsyms` - set it to OFF.
 `optStroheNoLibEvent` - make sure it's OFF! If it's ON this means that libevent (including development package) was not found on your system.  
-`optMpencDir` - the dir of the mpEnc checkout
+`MPENC_DIR` - the dir of the mpEnc checkout
 * Mac  
 You need to tell CMake to use the openssl version that you installed, because it would normally detect and use the system version.
 To do that, set the `OPENSSL_CRYPTO_LIBRARY` and `OPENSSL_SSL_LIBRARY` to point to the `libcrypto.dylib` and `libssl.dylib` files
