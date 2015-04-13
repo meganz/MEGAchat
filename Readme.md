@@ -22,29 +22,25 @@ specify the `--sysroot` path of the external NDK, which also gets passed to the 
  and build the SDK. It does not have to be installed with `make install`, it will be accessed directly in the checkout dir.  
  - Desktop OS-es  
      * Qt4 (for the test app): `libqtcore4 libqtgui4 libqt4-dev`
- - mpEnc. Check out the repository https://code.developers.mega.co.nz/messenger/mpenc_cpp, install `libsodium`,
- download `gTest` and `easyloggingpp` and follow the build instructions to build.  
-    After it is successfully built, export the following 2 environment variables:  
-     `MPENC_INCLUDE` - '{path to mpEnc package}/src'  
-     `MPENC_LIB_DIR` - '{path to the directory containing the built mpEnc lib}'  
+ - mpEnc. Check out the repository https://code.developers.mega.co.nz/messenger/mpenc_cpp, install `libsodium`.
 
 * Android  
 You need to install a CMake toolchain in order to make it easy to cross-compile for android with cmake. This toolchain is
 in the following repo, clone it:  
 `https://github.com/taka-no-me/android-cmake.git`  
-Also, to make it easy to do autotools and cmake builds with the NDK that you installed, a shell script is provided in the
-strophe-native source tree, `/android-commands.sh`. You need to first edit this script and set two paths to reflect your setup.
+Also, to make it easy to do autotools and cmake builds with the NDK that you installed, a shell script is provided in
+`platforms/android/android-env.sh`. You need to first edit this script and set two paths to reflect your setup.
 Find the section marked with the commend '===User-set variables':  
 set `NDK_PATH` to the root of the NDK that you installed. This should look something like `/path/to/android-ndk-r10d`  
 set `ANDROID_CMAKE_TOOLCHAIN` to the full path to the `android-toolchain.cmake` file inside the cmake toolchain repo you checked
 out.  
 Then source this script in your shell:  
-`source /path/to/android-commands.sh`   
+`source /path/to/android-env.sh`   
 It should print instructions how to use it with autotools and cmake.  
 Using these instructions, build and install the karere-native dependencies for android. All should install in the
 `$NDK_PATH/platforms/android-14/arch-arm/usr` directory inside the NDK tree.  
 Because crypto++ build system is broken for android, a CMake file is provided to build it, in
-`karere-native/webrtc-build/android/cryptopp_CMakeLists.txt`. Rename it to CMakeLists.txt and put it in the crypto++ source dir,
+`karere-native/webrtc-build/cryptopp_CMakeLists.txt`. Rename it to CMakeLists.txt and put it in the crypto++ source dir,
 then build it.
 
 * MacOS  
@@ -56,7 +52,7 @@ temporarily until you build webrtc. These header dirs are needed only for develo
 and linking against an up to date version of openssl when building software.   
 
 ## Building webrtc ##
-* Android
+* Android  
 Start a fresh new shell for building webrtc. You must NOT use a shell where `android-commands.sh` has been sourced, because
 that script sets the CC, CXX etc variables to the NDK compiler that you installed. However we don't want to build webrtc with
 that compiler, but rather with its own version (reasons explained above). Therefore, you must not use here the shell that you
@@ -94,7 +90,7 @@ Then
 `cd trunk`
 
 ### Install dependencies ###
-* Linux
+* Linux  
 There are various packages required by the webrtc build, most of them are checked out by gclient, but there are
 some that need to be installed on the system. To do that on linux, you can run:  
 `build/install-build-deps.sh`  
@@ -103,7 +99,7 @@ If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to 
 is something like that:  
 `export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
 
-* Mac
+* Mac  
 The Mac build does not need Java  
 
 * Android  
@@ -122,7 +118,14 @@ We need to set some env variables before proceeding with running the config scri
 `export GYP_GENERATORS="ninja"`  
 
 * Linux:  
-`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1"` 
+Rewrite the clang download script to empty, as the download errors out because of self-signed https cert of the server,
+and we don't actually need clang on Linux:  
+`echo "" > tools/clang/scripts/update.py`  
+To fix an issue with missing sanitizer_options.cc, described at `https://code.google.com/p/chromium/issues/detail?id=407183`  
+apply a patch to the ./DEPS file to fix it:  
+`svn patch path/to/karere/platforms/linux/webrtc.patch`  
+Then set the GYP options with:  
+`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0"`   
 
 * Mac:  
 We will want to build webrtc using the system clang compiler instead of the one provided by google with depot_tools. In this
@@ -179,12 +182,15 @@ Note that you cannot take the NDK_PATH env var set by the `android-commands.sh` 
 shell, as already explained.  
 Also, we need to hack the webrtc build system to use the gnustl C++ runtime instead of stlport. This is important because we
 have to use the same runtime at least in the webrtc module of Karere, and stlport does not have good support for C++11, exceptions
-are disabled and we use them a lot. However some small fixes need to be applies to the webrtc code to be able to build with gnustl.
-To make all these changes easy, a patch is included that takes care of everything, and also fixes the sanitized_options build issue
-(described below). The patch is located at `karere-native/webrtc-build/android/webrtc.patch`. Verify that you are in
-the webrtc trunk directory, and do:  
+are disabled and we use them a lot. To apply the gnustl patch (to the build/common.gypi file),
+verify that you are in the webrtc trunk directory:  
+`cd build && svn patch /path/to/karere/webrtc-build/android/common.gypi.patch`  
+Also, some small fixes need to be applies to the webrtc code to be able to build with gnustl.
+To make these changes easy, apply the following patch, which and also fixes the sanitized_options build issue
+(described below). Verify that you are in the webrtc trunk directory, and do:  
 `svn patch /path/to/karere-native/webrtc-build/android/webrtc.patch`  
-Note that the patch is valid only for the 6937 revision of webrtc.  
+Note that the patches are valid only for the 6937 revision of webrtc. The reason why the patches are two and not one combined
+is that these are two separate svn repos, and not one.  
 Configure GYP:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`   
 
@@ -211,16 +217,6 @@ or
 to build webrtc in the corresponding mode. Go get a coffee.  
 
 ### Possible build problems ###
-* If you get an error message about missing `sanitizer_options.cc` file, please add the following code to the `hooks`
-section of the `trunk/DEPS` file:
-``` 
-  {
-    "pattern": "tools/sanitizer_options/sanitizer_options.cc",
-    "action" : ["svn", "update", "-r", Var("chromium_revision"), Var("root_dir") + "/tools/sanitizer_options/sanitizer_options.cc"],
-  },
-```
-Note: this fix was taken from `https://code.google.com/p/chromium/issues/detail?id=407183`  
-Then re-run `gclient runhooks --force`, and then the `ninja` command.
 
 ### Verify the build ##
 `cd out/Release|Debug`
@@ -268,7 +264,7 @@ then specify `Release` here, similarly for Debug.
 `optStropheBuildShared` - set it to ON.
 `optStropheExportDlsyms` - set it to OFF.
 `optStroheNoLibEvent` - make sure it's OFF! If it's ON this means that libevent (including development package) was not found on your system.  
-
+`optMpencDir` - the dir of the mpEnc checkout
 * Mac  
 You need to tell CMake to use the openssl version that you installed, because it would normally detect and use the system version.
 To do that, set the `OPENSSL_CRYPTO_LIBRARY` and `OPENSSL_SSL_LIBRARY` to point to the `libcrypto.dylib` and `libssl.dylib` files
@@ -292,8 +288,8 @@ The public headers are:
     - The C++ interface is mstrophepp.h and mstrophepp-conn.h 
     - study bot-libevent.cpp example in /examples
   * The Promise lib in base/promise.h and example usage for example in /src/test-promise.cpp
-  * The Conversation/Chatroom management code in /src/ChatRoom.h;.cpp
-  * The overall client structure in /src/ChatClient.h;.cpp
+  * The Conversation/Chatroom management code in /src/chatRoom.h;.cpp
+  * The overall client structure in /src/chatClient.h;.cpp
   * The setTimeout() and setInterval() timer functions in /src/base/timers.h  
 
 ## Test application ##
@@ -310,12 +306,12 @@ You must pass a pointer to this function to `services_init()`.
 For more details, read the comments in base/gcm.h, and for reference implementation study rtctestapp/main.cpp
   * IRtcModule, IEventHandler in /src/IRtcModule.h. These are used to initiate rtc calls and receive events.
   * IVideoRenderer in /src/IVideoRenderer.h is used to implement video playback in arbitrary GUI environments.
-    Example implementation for Qt is in src/VideoRenderer_Qt.h;.cpp.
+    Example implementation for Qt is in src/videoRenderer_Qt.h;.cpp.
     The example usage can be seen from the rtctestapp application.
 
 ## If Mega API calls are required ##
   * To integrate with the environment, a simple bridge class called MyMegaApi is implemented in /src/sdkApi.h.
-    Example usage of it is in /src/ChatClient.cpp and in /src/MegaCryptoFuncs.cpp. 
+    Example usage of it is in /src/chatClient.cpp and in /src/megaCryptoFuncs.cpp. 
 
 ## More advanced things that should not be needed but are good to know in order to understand the underlying environment better ##
   * The function call marshalling mechanims in /src/base/gcm.h and /src/base/gcmpp.h. The code is documented in detail.
