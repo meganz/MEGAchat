@@ -118,9 +118,12 @@ We need to set some env variables before proceeding with running the config scri
 `export GYP_GENERATORS="ninja"`  
 
 * Linux:  
-Rewrite the clang download script to empty, as the download errors out because of self-signed https cert, and we don't
-actually need clang on Linux:  
+Rewrite the clang download script to empty, as the download errors out because of self-signed https cert of the server,
+and we don't actually need clang on Linux:  
 `echo "" > tools/clang/scripts/update.py`  
+To fix an issue with missing sanitizer_options.cc, described at `https://code.google.com/p/chromium/issues/detail?id=407183`  
+apply a patch to the ./DEPS file to fix it:  
+`svn patch path/to/karere/platforms/linux/webrtc.patch`  
 Then set the GYP options with:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0"`   
 
@@ -214,16 +217,6 @@ or
 to build webrtc in the corresponding mode. Go get a coffee.  
 
 ### Possible build problems ###
-* If you get an error message about missing `sanitizer_options.cc` file, please add the following code to the `hooks`
-section of the `trunk/DEPS` file:
-``` 
-  {
-    "pattern": "tools/sanitizer_options/sanitizer_options.cc",
-    "action" : ["svn", "update", "-r", Var("chromium_revision"), Var("root_dir") + "/tools/sanitizer_options/sanitizer_options.cc"],
-  },
-```
-Note: this fix was taken from `https://code.google.com/p/chromium/issues/detail?id=407183`  
-Then re-run `gclient runhooks --force`, and then the `ninja` command.
 
 ### Verify the build ##
 `cd out/Release|Debug`
