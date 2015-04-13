@@ -22,29 +22,25 @@ specify the `--sysroot` path of the external NDK, which also gets passed to the 
  and build the SDK. It does not have to be installed with `make install`, it will be accessed directly in the checkout dir.  
  - Desktop OS-es  
      * Qt4 (for the test app): `libqtcore4 libqtgui4 libqt4-dev`
- - mpEnc. Check out the repository https://code.developers.mega.co.nz/messenger/mpenc_cpp, install `libsodium`,
- download `gTest` and `easyloggingpp` and follow the build instructions to build.  
-    After it is successfully built, export the following 2 environment variables:  
-     `MPENC_INCLUDE` - '{path to mpEnc package}/src'  
-     `MPENC_LIB_DIR` - '{path to the directory containing the built mpEnc lib}'  
+ - mpEnc. Check out the repository https://code.developers.mega.co.nz/messenger/mpenc_cpp, install `libsodium`.
 
 * Android  
 You need to install a CMake toolchain in order to make it easy to cross-compile for android with cmake. This toolchain is
 in the following repo, clone it:  
 `https://github.com/taka-no-me/android-cmake.git`  
-Also, to make it easy to do autotools and cmake builds with the NDK that you installed, a shell script is provided in the
-strophe-native source tree, `/android-commands.sh`. You need to first edit this script and set two paths to reflect your setup.
+Also, to make it easy to do autotools and cmake builds with the NDK that you installed, a shell script is provided in
+`platforms/android/android-env.sh`. You need to first edit this script and set two paths to reflect your setup.
 Find the section marked with the commend '===User-set variables':  
 set `NDK_PATH` to the root of the NDK that you installed. This should look something like `/path/to/android-ndk-r10d`  
 set `ANDROID_CMAKE_TOOLCHAIN` to the full path to the `android-toolchain.cmake` file inside the cmake toolchain repo you checked
 out.  
 Then source this script in your shell:  
-`source /path/to/android-commands.sh`   
+`source /path/to/android-env.sh`   
 It should print instructions how to use it with autotools and cmake.  
 Using these instructions, build and install the karere-native dependencies for android. All should install in the
 `$NDK_PATH/platforms/android-14/arch-arm/usr` directory inside the NDK tree.  
 Because crypto++ build system is broken for android, a CMake file is provided to build it, in
-`karere-native/webrtc-build/android/cryptopp_CMakeLists.txt`. Rename it to CMakeLists.txt and put it in the crypto++ source dir,
+`karere-native/webrtc-build/cryptopp_CMakeLists.txt`. Rename it to CMakeLists.txt and put it in the crypto++ source dir,
 then build it.
 
 * MacOS  
@@ -271,7 +267,7 @@ then specify `Release` here, similarly for Debug.
 `optStropheBuildShared` - set it to ON.
 `optStropheExportDlsyms` - set it to OFF.
 `optStroheNoLibEvent` - make sure it's OFF! If it's ON this means that libevent (including development package) was not found on your system.  
-
+`optMpencDir` - the dir of the mpEnc checkout
 * Mac  
 You need to tell CMake to use the openssl version that you installed, because it would normally detect and use the system version.
 To do that, set the `OPENSSL_CRYPTO_LIBRARY` and `OPENSSL_SSL_LIBRARY` to point to the `libcrypto.dylib` and `libssl.dylib` files
