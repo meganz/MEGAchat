@@ -100,8 +100,8 @@ string RtcModule::getLocalAudioAndVideo()
                  idx = 0;
              }
              artc::MediaGetOptions opts(devices.video[idx]);
-             opts.constraints.SetMandatoryMinWidth(1280);
-             opts.constraints.SetMandatoryMinHeight(720);
+             //opts.constraints.SetMandatoryMinWidth(1280);
+             //opts.constraints.SetMandatoryMinHeight(720);
              mVideoInput = deviceManager.getUserVideo(opts);
         }
         catch(exception& e)
