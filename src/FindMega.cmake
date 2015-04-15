@@ -45,7 +45,7 @@ find_path(
 set(LIBMEGA_INCLUDE_DIRS "${LIBMEGA_PUBLIC_INCLUDE_DIR}"
     "${LIBMEGA_PUBLIC_INCLUDE_DIR}/mega" "${LIBMEGA_PLATFORM_INCLUDES}")
 set(LIBMEGA_LIBRARIES "${_LIBMEGA_LIBRARIES}" CACHE STRING "libmega library and dependencies")
-message("sdfsdfsdfsdfsdfsdfsdf")
+
 #if (ANDROID) #android does not have glob.h in /usr/include
 #    list(APPEND MEGASDK_INCLUDES ../third_party/glob) #temporary hack until code in the sdk depending on glob.h is removed from android build
 #endif()
