@@ -4,7 +4,7 @@
     {
       'target_name': 'boringssl',
       'type': '<(component)',
-      'includes': [],
+      'include_dirs': ['<!(echo $ANDROID_DEPS/usr/include)'],
       'sources': [],
       'all_dependent_settings': {
         'libraries': [
