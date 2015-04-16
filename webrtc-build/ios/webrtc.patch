@@ -1,0 +1,50 @@
+Index: webrtc/base/base.gyp
+===================================================================
+--- webrtc/base/base.gyp	(revision 6937)
++++ webrtc/base/base.gyp	(working copy)
+@@ -453,6 +453,7 @@
+               'SSL_USE_NSS',
+             ],
+           },
++#no build_with_chromium
+         }, {
+           'conditions': [
+             ['build_json==1', {
+@@ -557,17 +558,6 @@
+               ],
+             },
+           },
+-           'conditions': [
+-            ['build_ssl==1', {
+-              'dependencies': [
+-                '<(DEPTH)/net/third_party/nss/ssl.gyp:libssl',
+-              ]
+-            }, {
+-              'include_dirs': [
+-                '<(ssl_root)',
+-              ],
+-            }],
+-          ],
+         }],
+         ['use_x11 == 1', {
+           'link_settings': {
+@@ -724,19 +714,6 @@
+             'scoped_autorelease_pool.mm',
+           ],
+         }],
+-        ['OS=="ios"', {
+-          'sources!': [
+-            'openssl.h',
+-            'openssladapter.cc',
+-            'openssladapter.h',
+-            'openssldigest.cc',
+-            'openssldigest.h',
+-            'opensslidentity.cc',
+-            'opensslidentity.h',
+-            'opensslstreamadapter.cc',
+-            'opensslstreamadapter.h',
+-          ],
+-        }],
+         ['OS!="linux" and OS!="android"', {
+           'sources!': [
+             'linux.cc',
