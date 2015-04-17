@@ -1,5 +1,5 @@
 //
-//  AppDelegate.m
+//  AppDelegate.mm
 //  testapp
 //
 //  Created by Alex Vasilev on 4/5/15.
@@ -10,7 +10,7 @@
 #include <chatClient.h>
 #include <services.h>
 
-UIApplication* gTheApp = nil;
+AppDelegate* gTheAppDelegate = nil;
 std::shared_ptr<karere::ChatClient> gClient;
 
 @interface AppDelegate ()
@@ -22,13 +22,12 @@ std::shared_ptr<karere::ChatClient> gClient;
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-    gTheApp = application;
+    gTheAppDelegate = self;
     services_init([](void* msg)
     {
-        printf("even recv\n");
-        [gTheApp performSelectorOnMainThread: @selector(processMessage)
+        [gTheAppDelegate performSelectorOnMainThread: @selector(processMessage:)
                     withObject: [NSValue valueWithPointer: msg]
-                    waitUntilDone:FALSE
+                    waitUntilDone: FALSE
         ];
     }, SVC_STROPHE_LOG);
     gClient.reset(new karere::ChatClient("lpetrov+mega14@me.com", "megarullz"));
@@ -36,7 +35,7 @@ std::shared_ptr<karere::ChatClient> gClient;
     gClient->init()
     .then([](int)
           {
-              printf("logged in\n");
+              printf("Logged in\n");
               rtcModule::IPtr<rtcModule::IDeviceList> audio(gClient->rtc->getAudioInDevices());
  //             for (size_t i=0, len=audio->size(); i<len; i++)
  //                 mainWin->ui->audioInCombo->addItem(audio->name(i).c_str());

@@ -3,7 +3,6 @@
     <dependencies>
         <deployment identifier="iOS"/>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="6247"/>
-        <capability name="Alignment constraints with different attributes" minToolsVersion="5.1"/>
         <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
     </dependencies>
     <scenes>
@@ -19,18 +18,30 @@
                         <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                         <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="xye-s4-eDW" userLabel="Local Video" customClass="VideoRendererObjc">
+                                <rect key="frame" x="155" y="39" width="240" height="128"/>
+                                <variation key="widthClass=compact" ambiguous="YES">
+                                    <rect key="frame" x="0.0" y="28" width="154" height="176"/>
+                                </variation>
+                                <variation key="heightClass=compact-widthClass=compact" ambiguous="YES">
+                                    <rect key="frame" x="0.0" y="0.0" width="0.0" height="0.0"/>
+                                </variation>
+                            </imageView>
                             <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Sm1-Z1-iOe" userLabel="Remote Video" customClass="VideoRendererObjc">
                                 <rect key="frame" x="155" y="338" width="240" height="128"/>
                                 <variation key="widthClass=compact" fixedFrame="YES">
                                     <rect key="frame" x="0.0" y="212" width="400" height="368"/>
                                 </variation>
                             </imageView>
-                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="xye-s4-eDW" userLabel="Local Video" customClass="VideoRendererObjc">
-                                <rect key="frame" x="155" y="39" width="240" height="128"/>
-                                <variation key="widthClass=compact" ambiguous="YES">
-                                    <rect key="frame" x="94" y="28" width="100" height="100"/>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="htq-oC-xHJ">
+                                <rect key="frame" x="-23" y="-15" width="46" height="30"/>
+                                <state key="normal" title="Call">
+                                    <color key="titleShadowColor" white="0.5" alpha="1" colorSpace="calibratedWhite"/>
+                                </state>
+                                <variation key="widthClass=compact" fixedFrame="YES">
+                                    <rect key="frame" x="321" y="36" width="63" height="30"/>
                                 </variation>
-                            </imageView>
+                            </button>
                         </subviews>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                         <constraints>
@@ -38,18 +49,22 @@
                             <constraint firstItem="xye-s4-eDW" firstAttribute="leading" secondItem="VvO-o5-bec" secondAttribute="leadingMargin" id="oHs-6m-kxx"/>
                         </constraints>
                         <variation key="default">
+                            <mask key="subviews">
+                                <exclude reference="htq-oC-xHJ"/>
+                            </mask>
                             <mask key="constraints">
-                                <exclude reference="GCx-P0-uYW"/>
                                 <exclude reference="oHs-6m-kxx"/>
+                                <exclude reference="GCx-P0-uYW"/>
                             </mask>
                         </variation>
                         <variation key="widthClass=compact">
                             <mask key="subviews">
                                 <include reference="xye-s4-eDW"/>
+                                <include reference="htq-oC-xHJ"/>
                             </mask>
                             <mask key="constraints">
-                                <exclude reference="GCx-P0-uYW"/>
                                 <exclude reference="oHs-6m-kxx"/>
+                                <exclude reference="GCx-P0-uYW"/>
                             </mask>
                         </variation>
                     </view>
@@ -58,7 +73,7 @@
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="oTe-6M-dhS" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="378" y="-176"/>
+            <point key="canvasLocation" x="352.5" y="-595"/>
         </scene>
     </scenes>
 </document>

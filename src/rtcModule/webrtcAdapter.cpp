@@ -68,8 +68,8 @@ void DeviceManager::enumInputDevices()
 {
      if (!get()->GetVideoCaptureDevices(&(mInputDevices.video)))
          throw std::runtime_error("Can't enumerate video devices");
-     if (!get()->GetAudioInputDevices(&(mInputDevices.audio)))
-         throw std::runtime_error("Can't enumerate audio devices");
+     get()->GetAudioInputDevices(&(mInputDevices.audio)); //normal to fail on iOS and other platforms that don't use device manager for audio devices
+//         throw std::runtime_error("Can't enumerate audio devices");
 }
 
 std::shared_ptr<InputVideoDevice>

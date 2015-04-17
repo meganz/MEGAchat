@@ -3,12 +3,14 @@ project(objctestapp)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
+#need to ad headers explicitly so that the xcode project sees them
 set (SRCS
      AppDelegate.mm
-     ViewController.m
+     mainWindow.mm
+     mainWindow.h
      main.mm
      ../../src/videoRenderer_objc.mm
-     ../../src/videoRenderer_objc.h #need the header explicitly added to xcode, so it can recongized the widget
+     ../../src/videoRenderer_objc.h
      ../../src/karereCommon.cpp
 )
 set(RESOURCES
