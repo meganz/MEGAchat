@@ -14,3 +14,5 @@
 - (void)processMessage:(NSValue*) wrappedPtr;
 @end
 
+extern AppDelegate* gTheAppDelegate;
+

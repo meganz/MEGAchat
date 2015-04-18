@@ -30,7 +30,7 @@ class VideoRendererCpp: public IVideoRenderer
 protected:
     VideoRendererObjc* mVideoRenderer;
     bool mDisabled = false;
-    unsigned char* mBuf;
+    unsigned char* mBuf = nullptr;
     size_t mWidth;
     size_t mHeight;
     size_t mBufSize;

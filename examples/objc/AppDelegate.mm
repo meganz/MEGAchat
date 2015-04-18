@@ -7,11 +7,11 @@
 //
 
 #import "AppDelegate.h"
+#include "mainWindow.h"
 #include <chatClient.h>
-#include <services.h>
+#include <gcm.h>
 
-AppDelegate* gTheAppDelegate = nil;
-std::shared_ptr<karere::ChatClient> gClient;
+std::unique_ptr<karere::ChatClient> gClient;
 
 @interface AppDelegate ()
 
@@ -22,51 +22,15 @@ std::shared_ptr<karere::ChatClient> gClient;
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-    gTheAppDelegate = self;
-    services_init([](void* msg)
-    {
-        [gTheAppDelegate performSelectorOnMainThread: @selector(processMessage:)
-                    withObject: [NSValue valueWithPointer: msg]
-                    waitUntilDone: FALSE
-        ];
-    }, SVC_STROPHE_LOG);
-    gClient.reset(new karere::ChatClient("lpetrov+mega14@me.com", "megarullz"));
-//    gClient->registerRtcHandler(new RtcEventHandler(mainWin));
-    gClient->init()
-    .then([](int)
-          {
-              printf("Logged in\n");
-              rtcModule::IPtr<rtcModule::IDeviceList> audio(gClient->rtc->getAudioInDevices());
- //             for (size_t i=0, len=audio->size(); i<len; i++)
- //                 mainWin->ui->audioInCombo->addItem(audio->name(i).c_str());
-              rtcModule::IPtr<rtcModule::IDeviceList> video(gClient->rtc->getVideoInDevices());
- //             for (size_t i=0, len=video->size(); i<len; i++)
- //                 mainWin->ui->videoInCombo->addItem(video->name(i).c_str());
-              gClient->rtc->updateIceServers(KARERE_DEFAULT_TURN_SERVERS);
-              
- //             mainWin->ui->callBtn->setEnabled(true);
- //             mainWin->ui->callBtn->setText("Call");
-              
-              std::vector<std::string> contacts = gClient->getContactList().getContactJids();
-              
- //             for(size_t i=0; i<contacts.size();i++)
- //             {
- //                 mainWin->ui->contactList->addItem(new QListWidgetItem(QIcon("/images/online.png"), contacts[i].c_str()));
- //             }
-              return 0;
-          })
-    .fail([](const promise::Error& error)
-          {
-              printf("==========Client::start() promise failed:\n%s\n", error.msg().c_str());
-              return error;
-          });
-    
     return YES;
 }
+
+//GuiCallMarshaller message forwarder
 - (void)processMessage:(NSValue*) wrappedPtr
 {
     megaProcessMessage([wrappedPtr pointerValue]);
 }
+
 - (void)applicationWillResignActive:(UIApplication *)application {
     // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
     // Use this method to pause ongoing tasks, disable timers, and throttle down OpenGL ES frame rates. Games should use this method to pause the game.

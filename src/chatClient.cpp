@@ -274,6 +274,7 @@ void Client<M,GM,SP,EH>::sendBroadcastAction(const std::string& action, /*const 
     action_message.setName("message")
                   .setAttr("to", strophe::getBareJidFromJid(conn->fullJid()))
                   .setAttr("type", "action")
+                  .setAttr("id", messageId)
                   .c("x")
                       .setAttr("xmlns", "jabber:x:conference")
                       .setAttr("jid", toRoomJid)
