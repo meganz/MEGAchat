@@ -130,7 +130,7 @@ In order to do that:
 `mkdir third_party/boringssl`  
 `cp /path/to/karere/webrtc-build/boringssl.gyp ./third_party/boringssl/`
 
-This file maps boringssl references to the openssl installed in your android sysroot.
+This file maps boringssl references to the openssl installed in your system/sysroot/buildroot.
 For this to work, you need to have the `DEPS_SYSROOT` env variable set to the prefix where openssl is installed.
 When not cross-compiling, this is usually `/usr` or `/usr/local`, and when cross-compiling, this is normally
 the sysroot/buildroot directory where all depenencies are built.
@@ -149,11 +149,11 @@ below, so you don't need to to anything about that at this point. However, the w
 does not check only the use_xxx flags when determining the backend, but it also decides based on the target operating system.
 So we need to patch it.
 
-* iOS
+* iOS  
 Apply the patch to webrtc/base/base.gypi:
 `svn patch /path/to/karere/webrtc-build/ios/webrtc.patch`
 
-* All others except Android and iOS
+* Linux, MacOS  
 TODO:
 No patches are ready yet, you should edit webrtc/base/base.gyp yourself. However, practical experience shows that building
 webrtc against nss, when openssl is a dynamic library does not cause problems on these platforms. So you can go that route
