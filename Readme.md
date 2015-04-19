@@ -136,10 +136,10 @@ When not cross-compiling, this is usually `/usr` or `/usr/local`, and when cross
 the sysroot/buildroot directory where all depenencies are built.
 Note that on cross-build environments you cannot assign this variable to a variable set by the cross-compile environment
 env-xxx.sh script, because that script must not be sourced in this shell.
-* Android
+* Android  
 This path would be:  
 `export DEPS_SYSROOT="<path-to-android-ndk-you-installed>/platforms/android-14/arch-arm/usr"`  
-* iOS
+* iOS  
 This path would usually be:
 `export DEPS_SYSROOT="/path/to/ios-iphoneos-buildroot/usr"`
 
