@@ -297,12 +297,22 @@ Unfortunately the webrtc build does not generate a single lib and config header 
  application that links to it. THis is already done by the rtcModule build system.
  This will be described in more detail in the webrtc module build procedure.
 
-## Building the Karere codebase, including the test app ##
+## Building the Karere codebase, including a test app ##
 Change directory to the root of the karere-native checkout  
 `mkdir build`  
 `cd build`  
-`ccmake ../src/rtctestapp`  
-In the menu, first hit 'c'. The config parameters will get populated. Then you need to setup the following paths:  
+* Desktop OS-es  
+`ccmake ../examples/qt`
+* iOS  
+You need to have env-ios.sh sourced in the shell, as explained above. Then, run *ccmake* in cross-compile mode as per the instructions
+for cmake in the env script:
+`eval ccmake -GXcode $CMAKE_XCOMPILE_ARGS ../examples/objc`  
+This (after configuring via the menu) will not build the app but generate a XCode project linking all dependencies (including webrtc).
+You can build that project with XCode.  
+
+### Configure Karere ###
+In the ccmake menu that appeared in the previous step, first hit 'c'. The config parameters will get populated.
+Then you need to setup the following paths:  
 `webrtcRoot` - path to the trunk directory of the webrtc source tree  
 `WEBRTC_BUILD_TYPE` - the build mode of the webrtc code, as built with ninja. This is the dir name specified to ninja with
 the -C option after `out/`. If you built with `-C opt/Release`, then specify `Release` here, similarly for Debug.
@@ -327,14 +337,18 @@ the /openssl dir containing the openssl headers. Note that these 3 CMake variabl
 to show them.  
 
 * iOS  
-You  must set all options to build as shared library to OFF.  
+You  must set all options to build any lib (strophe, mpenc, etc) as shared library to OFF.  
+Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit.
 
-Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit and in the console, just type  
+* Non-iOS  
+In the console, just type  
 `make`  
 And if all is well, the test app will build.
+*iOS  
+After ccmake has quit, you should have an xcode project in the build dir.
 
 ## Building the Doxygen documentation ##
-From withing the build directory of the previous step, type  
+From within the build directory of the previous step, provided that you generated a make build, type  
 `make doc`  
 
 # Getting familiar with the codebase #
