@@ -230,17 +230,17 @@ is that these are two separate svn repos, and not one.
 Configure GYP:  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`  
 
-* iOS
+* iOS  
 No manual configuration is needed, this is done by the provided `build.sh` script, see below.
 
 ### Generate the makefiles ###
 
-* Non-iOS
+* Non-iOS  
 Issue the command:  
 `gclient runhooks --force`  
 This will run the config scripts and generate ninja files from the gyp projects.
 
-* Mac:  
+* Mac  
 To force the use of libc++ std library, we need to provide the `-stdlib=libc++` flag to all C++ and ObjC++ compile commands,
 by modifying the out/Release|Debug/build.ninja file that contains the basic rules for building the various types of source files.  
 To the rules `rule cxx` and `rule objcxx`, in the `command = ` lines, just before `$cflags_pch_xxx`,  add the following:  
@@ -251,29 +251,29 @@ Then, find the `rule link`, and in a similar way, add to the command, before `$l
 This also instructs the linker to link against the libc++.
 
 ### Build ###
-* Non-iOS
+* Non-iOS  
 Run:  
 `ninja -C out/Release`  
 or  
 `ninja -C out/Debug`  
 to build webrtc in the corresponding mode. Go get a coffee.  
 
-* iOS
+* iOS  
 The configure and build steps are automated by a shaell script. Run:
 `/path/to/karere/webrtc-build/ios/build.sh`
 from within the trunk webrtc directory.
 
 ### Verify the build ###
 * Cd to build directory
- = non-iOS
+ = non-iOS  
 `cd out/Release|Debug`
 
- = iOS
+ = iOS  
 `cd out/Release-iphoneos|Debug-iphoneos`
 
-* Built executables
+* Built executables  
 
-= Linux and Windows builds  
+= Linux and Windows builds    
 run `peerconnection_server` app to start a signalling server.  
 run two or more `peerconnection_client` instances and do a call between them via the server.
 
