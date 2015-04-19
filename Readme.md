@@ -343,8 +343,9 @@ Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit.
 * Non-iOS  
 In the console, just type  
 `make`  
-And if all is well, the test app will build.
-*iOS  
+And if all is well, the test app will build.  
+
+* iOS  
 After ccmake has quit, you should have an xcode project in the build dir.
 
 ## Building the Doxygen documentation ##
