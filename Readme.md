@@ -36,7 +36,7 @@ Using this environment, build all third-party dependencies listed above. For cry
 cross-compilation, that's why a cmake build script is prtovided for it in `platforms/cryptopp_CMakeLists.txt`.
 Use it for building crypto++.
 
-* iOS
+* iOS  
 IMPORTANT: As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs. Usually
 they default to dynamic libs, so you must take care of that explicitly.
 
@@ -55,7 +55,7 @@ Start a fresh new shell for building webrtc. You must NOT use a shell where `env
 that script sets the CC, CXX etc variables to the NDK compiler that you installed. However we don't want to build webrtc with
 that compiler, but rather with its own version (reasons explained above). Therefore, you must not use here the shell that you
 used to build the dependencies.However it will be used later to build the karere codebase.  
-* iOS
+* iOS  
 Start a fresh new shell for buulding webrtc.  You must NOT use a shell where `env-ios.sh` has been sourced.  
 
 First, create a directory where all webrtc stuff will go, and `cd` to it. All instructions in this section assume that the
