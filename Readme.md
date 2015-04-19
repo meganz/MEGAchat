@@ -365,8 +365,8 @@ The public headers are:
   * The overall client structure in /src/chatClient.h;.cpp
   * The setTimeout() and setInterval() timer functions in /src/base/timers.h  
 
-## Test application ##
-  * /src/rtctestapp is a Qt application that binds all together in a simple test app.
+## Test applications ##
+  * /examples/qt is a Qt application that binds all together in a simple test app.
  Among other things, it shows how the GCM (Gui Call Marshaller) is implemented on the API user's side.
  It also shows how to use the IVideoRenderer interface to implement video playback.
 
