@@ -337,7 +337,7 @@ the /openssl dir containing the openssl headers. Note that these 3 CMake variabl
 to show them.  
 
 * iOS  
-You  must set all options to build any lib (strophe, mpenc, etc) as shared library to OFF.  
+You  must set all options to build anything as shared library to OFF, as Apple doesn't allow dynamic linking.  
 Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit.
 
 * Non-iOS  
