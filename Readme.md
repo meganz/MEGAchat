@@ -268,7 +268,7 @@ from within the trunk webrtc directory.
    - non-iOS  
   `cd out/Release|Debug`
 
-  -iOS  
+  - iOS  
   `cd out/Release-iphoneos|Debug-iphoneos`
 
 * Built executables  
