@@ -306,7 +306,7 @@ In the menu, first hit 'c'. The config parameters will get populated. Then you n
 `webrtcRoot` - path to the trunk directory of the webrtc source tree  
 `WEBRTC_BUILD_TYPE` - the build mode of the webrtc code, as built with ninja. This is the dir name specified to ninja with
 the -C option after `out/`. If you built with `-C opt/Release`, then specify `Release` here, similarly for Debug.
-* iOS
+* iOS  
 This dir is normally `Release-iphoneos` or `Debug-iphoneos` to differentiate from simulator builds.  
 
 `CMAKE_BUILD_TYPE` - Set this to Debug to build the webrtc module (not the webrtc stack itself) in debug mode 
@@ -326,7 +326,7 @@ respectively of the openssl that you installed, and `OPENSSL_INCLUDE_DIR` to the
 the /openssl dir containing the openssl headers. Note that these 3 CMake variables are 'advanced' so in ccmake you need to hit 't'
 to show them.  
 
-* iOS
+* iOS  
 You  must set all options to build as shared library to OFF.  
 
 Hit 'c' again to re-configure, and then 'g'. After that ccmake should quit and in the console, just type  
