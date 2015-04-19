@@ -265,11 +265,11 @@ from within the trunk webrtc directory.
 
 ### Verify the build ###
 * Cd to build directory
- = non-iOS  
-`cd out/Release|Debug`
+   - non-iOS  
+  `cd out/Release|Debug`
 
- = iOS  
-`cd out/Release-iphoneos|Debug-iphoneos`
+  -iOS  
+  `cd out/Release-iphoneos|Debug-iphoneos`
 
 * Built executables  
 
