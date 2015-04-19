@@ -155,11 +155,11 @@ Apply the patch to webrtc/base/base.gypi:
 
 * Linux, MacOS  
 TODO:
-No patches are ready yet, you should edit webrtc/base/base.gyp yourself. However, practical experience shows that building
-webrtc against nss, when openssl is a dynamic library does not cause problems on these platforms. So you can go that route
-for now, just make sure openssl is installed as a dynamic lib. The boringssl changes that you just made do not hurt so you don't
-need to revert them if you decided to let webrtc build with nss. However, you should remove `use_openssl=1 use_nss=0` in
-the GYP_DEFINES string provided below.
+No patches are ready yet, you should edit webrtc/base/base.gyp yourself. However, practical experience on these platforms shows
+that building webrtc against nss, when openssl is a dynamic library does not cause problems on these platforms.
+So you can go that route for now, just make sure openssl is installed as a dynamic lib.
+The boringssl changes that you just made do not hurt so you don't need to revert them if you decided to let webrtc build with nss.
+However, you should remove `use_openssl=1 use_nss=0` from the GYP_DEFINES string provided here.
 
 ### Configure the build ###
 We need to set some env variables before proceeding with running the config scripts.  
