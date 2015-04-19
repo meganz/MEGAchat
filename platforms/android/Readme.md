@@ -11,8 +11,8 @@ set `ANDROID_CMAKE_TOOLCHAIN` to the full path to the `android-toolchain.cmake` 
 Then source this script in your shell:  
 `source /path/to/karere/platforms/android/env-android.sh`   
 It should print instructions how to use it with autotools and cmake.  
-All autotools builds done in this environment should install in the
+All autotools (and cmake in case the script supports install target) builds done in this environment should install in the
 `$NDK_PATH/platforms/android-14/arch-arm/usr` directory inside the NDK tree.  
 Because crypto++ build system is broken for android, a CMake file is provided to build it, in
-`karere-native/webrtc-build/cryptopp_CMakeLists.txt`. Rename it to CMakeLists.txt and put it in the crypto++ source dir,
+`/path/to/karere/platforms/cryptopp_CMakeLists.txt`. Rename it to CMakeLists.txt and put it in the crypto++ source dir,
 then build it.
