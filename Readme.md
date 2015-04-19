@@ -259,8 +259,8 @@ or
 to build webrtc in the corresponding mode. Go get a coffee.  
 
 * iOS  
-The configure and build steps are automated by a shaell script. Run:
-`/path/to/karere/webrtc-build/ios/build.sh`
+The configure and build steps are automated by a shell script. Run:  
+`/path/to/karere/webrtc-build/ios/build.sh`  
 from within the trunk webrtc directory.
 
 ### Verify the build ###
@@ -273,15 +273,15 @@ from within the trunk webrtc directory.
 
 * Built executables  
 
-= Linux and Windows builds    
-run `peerconnection_server` app to start a signalling server.  
-run two or more `peerconnection_client` instances and do a call between them via the server.
+  - Linux and Windows builds    
+  Run `peerconnection_server` app to start a signalling server.  
+  Run two or more `peerconnection_client` instances and do a call between them via the server.
 
-= Android  
-The build system generates a test application `WebRTCDemo-debug.apk`. Copy it to a device, install it and run it.
+  - Android  
+  The build system generates a test application `WebRTCDemo-debug.apk`. Copy it to a device, install it and run it.
 
-= Mac and iOS 
-The build generates an AppRTCDemo.app that works with the apprtc web app at `https://apprtc.appspot.com`  
+  - Mac and iOS 
+  The build generates an AppRTCDemo.app that works with the apprtc web app at `https://apprtc.appspot.com`  
 
 ### Using the webrtc stack with CMake ###
 Unfortunately the webrtc build does not generate a single lib and config header file (for specific C defines
