@@ -280,7 +280,7 @@ from within the trunk webrtc directory.
   - Android  
   The build system generates a test application `WebRTCDemo-debug.apk`. Copy it to a device, install it and run it.
 
-  - Mac and iOS 
+  - Mac and iOS  
   The build generates an AppRTCDemo.app that works with the apprtc web app at `https://apprtc.appspot.com`  
 
 ### Using the webrtc stack with CMake ###
