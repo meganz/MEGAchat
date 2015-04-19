@@ -56,7 +56,7 @@ that script sets the CC, CXX etc variables to the NDK compiler that you installe
 that compiler, but rather with its own version (reasons explained above). Therefore, you must not use here the shell that you
 used to build the dependencies.However it will be used later to build the karere codebase.  
 * iOS  
-Start a fresh new shell for buulding webrtc.  You must NOT use a shell where `env-ios.sh` has been sourced.  
+Start a fresh new shell for bulding webrtc.  You must NOT use a shell where `env-ios.sh` has been sourced.  
 
 First, create a directory where all webrtc stuff will go, and `cd` to it. All instructions in this section assume that the
 current directory is that one.  
@@ -99,8 +99,8 @@ If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to 
 is something like that:  
 `export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
 
-* Mac  
-The Mac build does not need Java.  
+* Mac  and iOS 
+No Java is or any other dependencies are needed on these platforms.  
 
 * Android  
 JDK 7 will not work for this particular revision (some warnings are triggered and the build is
@@ -116,7 +116,7 @@ on this machine, in which case you may already have most dependencies.
 ### Replace the openssl version ###
 
 WebRTC supports two backends for ssl - `openssl` and `nss`, and it ships the source code of both. On all platfrorms except
-for Android, it builds with `nss` as its ssl backend. Tha bad thing is that nss and openssl cannot be both uncluded in one
+for Android, it builds with `nss` as its ssl backend. Tha bad thing is that nss and openssl cannot be both included in one
 application, because they have internal symbols with the same names which get mixed up resulting in e.g. openssl calling into nss
 resulting in spectacular segfaults. On the other hand, we do not support nss for the rest of the codebase (SDK, strophe),
 and of the two backends supported by webrtc we can use only openssl. Therefore, we must force webrtc to build with openssl on all
@@ -124,17 +124,18 @@ platforms. Then we hit another problem - webrtc wants to build with Google's own
 (shipped within the webrtc source tree). It is not binary compatible with the standard openssl and this will result again in
 segfaults. So we need to force webrtc to build against the 'system' openssl, that will be used for the rest of the code as well.
 To do that, we need to replace the .gyp file responsible for building and linking webrtc against the boringssl lib.
-First, just in case, we will hide all boringssl stuff from the build system and create our own fake dir with the fale .gyp file.
+First, just in case, we will hide all boringssl stuff from the build system and create our own fake dir with the false .gyp file.
 In order to do that:  
 `mv third_party/boringssl third_party/boringssl_hide`  
 `mkdir third_party/boringssl`  
-Then, copy the `boringssl.gyp` file from `/path/to/karere/webrtc-build` directory of the karere-native source tree
-to the `third_party/boringssl` dir you just created. This file maps boringssl references to the openssl installed
-in your android sysroot. For this to work, you need to have the `DEPS_SYSROOT` env variable set to the prefix where openssl
-is installed. When not cross-compiling, this is usually `/usr` or `/usr/local`, and when cross-compiling, this is normally
+`cp /path/to/karere/webrtc-build/boringssl.gyp ./third_party/boringssl/`
+
+This file maps boringssl references to the openssl installed in your android sysroot.
+For this to work, you need to have the `DEPS_SYSROOT` env variable set to the prefix where openssl is installed.
+When not cross-compiling, this is usually `/usr` or `/usr/local`, and when cross-compiling, this is normally
 the sysroot/buildroot directory where all depenencies are built.
-Note that on cross-build environments you cannot assign this variable to a variable set by the cross-compile environment set by
-env-xxx.sh script, since that script must not be sourced in this shell.
+Note that on cross-build environments you cannot assign this variable to a variable set by the cross-compile environment
+env-xxx.sh script, because that script must not be sourced in this shell.
 * Android
 This path would be:  
 `export DEPS_SYSROOT="<path-to-android-ndk-you-installed>/platforms/android-14/arch-arm/usr"`  
