@@ -304,8 +304,8 @@ Change directory to the root of the karere-native checkout
 * Desktop OS-es  
 `ccmake ../examples/qt`
 * iOS  
-You need to have env-ios.sh sourced in the shell, as explained above. Then, run *ccmake* in cross-compile mode as per the instructions
-for cmake in the env script:
+You need to have `env-ios.sh` sourced in the shell, as explained above. Then, run *ccmake* in cross-compile mode as per the instructions
+for cmake in the env script:  
 `eval ccmake -GXcode $CMAKE_XCOMPILE_ARGS ../examples/objc`  
 This (after configuring via the menu) will not build the app but generate a XCode project linking all dependencies (including webrtc).
 You can build that project with XCode.  
