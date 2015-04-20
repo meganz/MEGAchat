@@ -1,17 +1,20 @@
 #  Building karere-native #
-Checkout the `karere-native` git repository to a dir chosen by you.
 ## Toolchains ##
-* Android  
 
+* Android  
 Building of webrtc is supported only on Linux.This is a limitation of Google's webrtc/chromium build system.  
 Install the android NDK. Although webrtc comes with its own copy of the NDK, we are going to use the standard one for building
 the karere-native code, and let webrtc build with its own NDK. Both compilers are gcc 4.8 so they are binary compatible.  
 Forcing webrtc to build with an external NDK will not work. For some operations, like assembly code transformations, a host
 compiler is used, which is the clang version that comes with webrtc. To use an external NDK, we need to specify explicitly
 specify the `--sysroot` path of the external NDK, which also gets passed to the clang host compiler, causing errors. 
-* iOS  
 
+* iOS  
 Building of webrtc is supported only on MacOS. You need to install XCode.  
+
+## Get the code ##
+
+Checkout the `https://code.developers.mega.co.nz/messenger/karere-native` git repository to a dir chosen by you.
 
 ## Dependencies ##
 
@@ -90,6 +93,8 @@ Then
 `cd trunk`
 
 ### Install dependencies ###
+WebRTC requires `openssl` libs and headers installed on the system or in case of cross-ciompilation, in the sysroot/buildroot.  
+
 * Linux  
 There are various packages required by the webrtc build, most of them are checked out by gclient, but there are
 some that need to be installed on the system. To do that on linux, you can run:  
