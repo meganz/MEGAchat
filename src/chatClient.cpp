@@ -15,6 +15,7 @@
 #include "strophe.disco.h"
 #include "base/services.h"
 #include "sdkApi.h"
+#include "retryhandler.h"
 #include "megaCryptoFunctions.h"
 #include "iEncHandler.h"
 #include "messageBus.h"
@@ -120,7 +121,7 @@ void Client<M,GM,SP,EH>::testBusMessage(message_bus::SharedMessage<> &message)
         std::string to = message->getValue<std::string>("to");
         std::string from = message->getValue<std::string>("from");
         std::string jid = message->getValue<std::string>("jid");
-        int iType = message->getValue<InviteMessage::eInvitationType>("iType");
+        //int iType = message->getValue<InviteMessage::eInvitationType>("iType");
         MessageMeta meta = message->getValue<MessageMeta>("meta");
     }
     catch(std::runtime_error &error)
@@ -135,7 +136,7 @@ std::shared_ptr<PresenceMessage> Client<M,GM,SP,EH>::composePresenceMessage(stro
     std::shared_ptr<PresenceMessage> presenceMessage = nullptr;
     const char* type = stanza.attrOrNull("type");
     std::string from = stanza.attr("from");
-    xmpp_stanza_t *rawX = stanza.rawChild("x");
+    //xmpp_stanza_t *rawX = stanza.rawChild("x");
 
     if(from.find("@conference") != std::string::npos)
     {
@@ -392,7 +393,11 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
         xmpp_conn_set_pass(*conn, xmppPass.c_str());
         KR_LOG("user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
         /* initiate connection */
-        return conn->connect(KARERE_DEFAULT_XMPP_SERVER, 0);
+        return mega::retry([this]()
+        {
+            //return promise::reject<int>("test");
+            return conn->connect(KARERE_DEFAULT_XMPP_SERVER, 0);
+        });
     })
     .then([this](int)
     {
@@ -841,12 +846,10 @@ void Client<M,GM,SP,EH>::setPresence(const Presence pres, const int delay)
 
     if(delay > 0)
     {
-        msg = msg.c("delay")
-                     .setAttr("xmlns", "urn:xmpp:delay")
-                     .setAttr("from", conn->fullJid())
-                     .up();
+        msg.c("delay")
+                .setAttr("xmlns", "urn:xmpp:delay")
+                .setAttr("from", conn->fullJid());
     }
-
     conn->send(msg);
 }
 
@@ -861,8 +864,8 @@ Client<M,GM,SP,EH>::getOtherUserInfo(std::string &emailAddress)
     return api->call(&mega::MegaApi::getUserData, emailAddress.c_str())
     .then([this, userMessage](ReqResult result)
     {
-        const char *peer = result->getText();
-        const char *pk = result->getPassword();
+        //const char *peer = result->getText();
+        //const char *pk = result->getPassword();
 
         return userMessage;
     });
