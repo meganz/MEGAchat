@@ -15,7 +15,7 @@
 #include "strophe.disco.h"
 #include "base/services.h"
 #include "sdkApi.h"
-#include "retryhandler.h"
+#include <base/retryHandler.h>
 #include "megaCryptoFunctions.h"
 #include "iEncHandler.h"
 #include "messageBus.h"
