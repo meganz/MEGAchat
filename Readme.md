@@ -370,16 +370,17 @@ The public headers are:
   * The overall client structure in /src/chatClient.h;.cpp
   * The setTimeout() and setInterval() timer functions in /src/base/timers.h  
 
-## Test applications ##
-
-### Video renderer widgets ###
+## Video renderer widgets ##
 Karere provides platform-specific video renderer widgets for Qt and iOS (probably will work also for MacOS with no or minimal changes).
-These widgets are implemented as subclasses of standard widgets. Their code is in src/videoRenderer_xxx.cpp/mm/h. They can be used directly
+These widgets are implemented as subclasses of standard widgets. Their code is in src/videoRenderer_xxx.cpp;mm;h. They can be used directly
 in the platform's GUI designer by placing the corresponding standard widget and then selecting the VideoRenderer_xxx class name from the menu
-to tell the GUI designer to use the specialized renderer widget subclass.
-The example apps, among other things, show how the GCM (Gui Call Marshaller) is implemented on the API user's side.
+to tell the GUI designer to use that subclass. You must include these files in your project, including the headers, to make the subclass visible
+to the GUI designer.
+
+## Test Applications ##
+Karere provides several example apps, which, among other things, show how the GCM (Gui Call Marshaller) is implemented on the API user's side.
 It also shows how to use the video renderer widgets and the IVideoRenderer interface they implement to do video playback.
-### Applications ###
+
 The test apps are:
 * examples/qt - a Qt application.
 * examples/objc - an iOS app.
