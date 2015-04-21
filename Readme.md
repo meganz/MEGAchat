@@ -371,9 +371,18 @@ The public headers are:
   * The setTimeout() and setInterval() timer functions in /src/base/timers.h  
 
 ## Test applications ##
-  * /examples/qt is a Qt application that binds all together in a simple test app.
- Among other things, it shows how the GCM (Gui Call Marshaller) is implemented on the API user's side.
- It also shows how to use the IVideoRenderer interface to implement video playback.
+
+### Video renderer widgets ###
+Karere provides platform-specific video renderer widgets for Qt and iOS (probably will work also for MacOS with no or minimal changes).
+These widgets are implemented as subclasses of standard widgets. Their code is in src/videoRenderer_xxx.cpp/mm/h. They can be used directly
+in the platform's GUI designer by placing the corresponding standard widget and then selecting the VideoRenderer_xxx class name from the menu
+to tell the GUI designer to use the specialized renderer widget subclass.
+The example apps, among other things, show how the GCM (Gui Call Marshaller) is implemented on the API user's side.
+It also shows how to use the video renderer widgets and the IVideoRenderer interface they implement to do video playback.
+### Applications ###
+The test apps are:
+* examples/qt - a Qt application.
+* examples/objc - an iOS app.
 
 ## For application implementors ##
   * The rtctestapp above is the reference app. Build it, study it, experiment with it.
