@@ -1,6 +1,6 @@
 #ifndef MEGA_LOGGER_H_INCLUDED
 #define MEGA_LOGGER_H_INCLUDED
-#include <stdlib.h>
+#include <stdlib.h> //needed for abort()
 
 enum
 {
