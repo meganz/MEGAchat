@@ -5,6 +5,7 @@
 #include <string>
 #include <time.h>
 #include <string.h>
+#include <logger.h>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -115,37 +116,26 @@ static inline Ts timestampMs()
 }
 #endif
 
-extern int isatty_stdout;
-extern int isatty_stderr;
-static inline const char* colorOn(const char* escape) { return isatty_stdout?escape:""; }
-static inline const char* colorOff() { return isatty_stdout?"\e[0m":"";  }
-
 }
 
-#define KR_LOG(fmtString,...) printf(fmtString "\n", ##__VA_ARGS__)
-#define KR_LOG_COLOR(color, fmtString,...) printf("\e[" #color "m" fmtString "\e[0m\n", ##__VA_ARGS__)
+
 #define KR_LINE KR_LOG(LINE)
 #define KR_LINE_END KR_LOG(LINE)
 #define MPENC_HEADER "?mpENCv1?"
-
 #define MP_LOG(fmt, b) KR_LOG(LINE); \
                   KR_LOG(fmt, b); \
                   KR_LOG(LINE);
 
-#define KR_LOG_DEBUG(fmtString,...) KR_LOG("debug: " fmtString, ##__VA_ARGS__)
-#define KR_LOG_WARNING(fmtString,...)    do { \
-   if (karere::isatty_stdout) \
-      KR_LOG_COLOR(33, "WARNING: " fmtString, ##__VA_ARGS__); \
-    else \
-      KR_LOG("WARNING: " fmtString, ##__VA_ARGS__); \
-    } while (0)
+#define KR_LOG_RTC_EVENT(fmtString,...) KARERE_LOG_INFO(krLogChannel_rtcevent, fmtString, ##__VA_ARGS__)
+#define KR_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_default, fmtString, ##__VA_ARGS__)
+#define KR_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_default, fmtString, ##__VA_ARGS__)
+#define KR_LOG_WARNING(fmtString,...)  KARERE_LOG_WARNING(krLogChannel_default, fmtString, ##__VA_ARGS__)
+#define KR_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_default, fmtString, ##__VA_ARGS__)
 
-#define KR_LOG_ERROR(fmtString,...) do { \
-    if (karere::isatty_stdout) \
-      KR_LOG_COLOR(31;1, "ERROR: " fmtString, ##__VA_ARGS__); \
-    else \
-      KR_LOG("ERROR: " fmtString, ##__VA_ARGS__); \
-      } while(0)
+#define CHAT_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_textchat, fmtString, ##__VA_ARGS__)
+#define CHAT_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_textchat, fmtString, ##__VA_ARGS__)
+#define CHAT_LOG_WARNING(fmtString,...)  KARERE_LOG_WARNING(krLogChannel_textchat, fmtString, ##__VA_ARGS__)
+#define CHAT_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_textchat, fmtString, ##__VA_ARGS__)
 
 #define KR_THROW_IF_FALSE(statement) do {\
     if (!(statement)) {\

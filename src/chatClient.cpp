@@ -391,7 +391,7 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
         std::string jid = std::string(user)+"@" KARERE_XMPP_DOMAIN;
         xmpp_conn_set_jid(*conn, jid.c_str());
         xmpp_conn_set_pass(*conn, xmppPass.c_str());
-        KR_LOG("user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
+        KR_LOG_DEBUG("user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
         /* initiate connection */
         return mega::retry([this]()
         {
@@ -401,7 +401,7 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
     })
     .then([this](int)
     {
-        KR_LOG("==========Connect promise resolved\n");
+        KR_LOG_INFO("==========Connect promise resolved\n");
         //Create the RtcModule object
         //the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
         //to use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
@@ -455,7 +455,7 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
                 /*Chat State Notifications*/
                 if (stanza_data.rawChild("composing"))
                 {
-                    KR_LOG("%s is typing\n", stanza_data.attr("from"));
+                    CHAT_LOG_DEBUG("%s is typing\n", stanza_data.attr("from"));
                 }
             }, nullptr, "message", nullptr, nullptr);
 
@@ -511,7 +511,7 @@ void Client<M,GM,SP,EH>::handleDataMessage(std::shared_ptr<IncomingMessage> &mes
 {
     if (message->getType() == IncomingMessage::CHAT)
     { // private message
-        KR_LOG("You get a private message from %s\n:%s", message->getFromJid().c_str(), message->getContents().c_str());
+        CHAT_LOG_DEBUG("You get a private message from %s\n:%s", message->getFromJid().c_str(), message->getContents().c_str());
         return;
     }
 
@@ -520,10 +520,10 @@ void Client<M,GM,SP,EH>::handleDataMessage(std::shared_ptr<IncomingMessage> &mes
 
     if(r == chatRooms.end())
     {
-        KR_LOG_ERROR("Room not found: %s", message->getRoomJid().c_str());
+        CHAT_LOG_ERROR("Room not found: %s", message->getRoomJid().c_str());
         return;
     }
-    KR_LOG("from Jid : %s --- self Jid : %s", message->getFromJid().c_str(), conn->fullJid());
+    CHAT_LOG_DEBUG("from Jid : %s --- self Jid : %s", message->getFromJid().c_str(), conn->fullJid());
     /*if the message is from the sender himself, just ignore it.*/
     if(message->getFromJid() == conn->fullJid())
     {
@@ -533,9 +533,7 @@ void Client<M,GM,SP,EH>::handleDataMessage(std::shared_ptr<IncomingMessage> &mes
     size_t pos;
     if((pos = contents.find(MPENC_HEADER)) != std::string::npos)
     {
-        KR_LINE;
-        KR_LOG("mpEnc message received");
-        KR_LINE_END;
+        CHAT_LOG_DEBUG("mpEnc message received");
 
         std::string data(contents.begin() + pos + strlen(MPENC_HEADER), contents.end());
         r->second->filterIncoming(data);
@@ -544,7 +542,7 @@ void Client<M,GM,SP,EH>::handleDataMessage(std::shared_ptr<IncomingMessage> &mes
     {
         std::string messName(ROOM_MESSAGE_EVENT);
         messName.append(message->getRoomJid());
-        KR_LOG("*********** Message name = %s", messName.c_str());
+        CHAT_LOG_DEBUG("*********** Message name = %s", messName.c_str());
         message_bus::SharedMessage<M_MESS_PARAMS> busMessage(messName);
         busMessage->addValue(ROOM_MESSAGE_CONTENTS, message->getContents());
         message_bus::SharedMessageBus<M_BUS_PARAMS>::getMessageBus()
@@ -590,7 +588,7 @@ void Client<M,GM,SP,EH>::handlePresenceMessage(std::shared_ptr<PresenceMessage> 
         return;
     }
     std::string myJid = strophe::getBareJidFromJid(this->conn->fullOrBareJid());
-    KR_LOG("my Jid is %s --- from Jid is %s\n", myJid.c_str(), message->getFromJid().c_str());
+    CHAT_LOG_DEBUG("my Jid is %s --- from Jid is %s\n", myJid.c_str(), message->getFromJid().c_str());
 
     if(myJid == strophe::getBareJidFromJid(message->getFromJid()))
     {// action from my another device.
@@ -621,26 +619,22 @@ void Client<M,GM,SP,EH>::addOtherUser(const std::string &roomId, const std::stri
     auto r = chatRooms.find(roomId);
     if(r == chatRooms.end())
     {
-        KR_LOG_ERROR("Room not found: %s", roomId.c_str());
-        KR_LOG_ERROR("message jid = %s", roomId.c_str());
+        CHAT_LOG_ERROR("Room not found: %s", roomId.c_str());
+        CHAT_LOG_ERROR("message jid = %s", roomId.c_str());
         return;
     }
 
-    KR_LOG("Room found: %s", roomId.c_str());
+    CHAT_LOG_DEBUG("Room found: %s", roomId.c_str());
     SharedChatRoomMember<M, SP> member(otherJid);
     r->second->addGroupMember(member);
     std::string m("User");
     m.append(member->getId()).append(" has entered the room");
     sendGeneralMessage(m);
 
-    KR_LOG(LINE);
-    KR_LOG("testing room ownership");
-    KR_LOG(LINE);
+    CHAT_LOG_DEBUG("testing room ownership");
     if(r->second->ownsRoom())
     {
-        KR_LOG(LINE);
-        KR_LOG("Kicking off encryption.");
-        KR_LOG(LINE);
+        CHAT_LOG_INFO("Kicking off encryption.");
         r->second->beginEncryptionProtocolProcess();
     }
 }
@@ -671,7 +665,7 @@ void Client<M,GM,SP,EH>::pingPeer(const std::string& peerJid, int intervalSec)
         })
         .fail([](const promise::Error& err)
         {
-            KR_LOG("Error receiving pong\n");
+            KR_LOG_ERROR("Error receiving pong\n");
             return err;
         });
     }, intervalSec*1000);
@@ -686,7 +680,7 @@ void Client<M,GM,SP,EH>::sendMessage(const std::string& roomJid, const std::stri
     }
     else
     {
-        KR_LOG_WARNING("invalid room Jid %s\n", roomJid.c_str());
+        CHAT_LOG_WARNING("invalid room Jid %s\n", roomJid.c_str());
     }
 }
 
@@ -737,9 +731,7 @@ void Client<M,GM,SP,EH>::joinRoom(const std::string& roomJid, const std::string&
     // if the chat room does not exist.
     if( chatRooms.find(roomJid) == chatRooms.end())
     {
-        KR_LOG(LINE);
-        KR_LOG("join: Creating Room: %s", roomJid.c_str());
-        KR_LOG(LINE);
+        CHAT_LOG_DEBUG("join: Creating Room: %s", roomJid.c_str());
         std::shared_ptr<ChatRoom<M, GM, SP, EH>> chatRoom(
             new ChatRoom<M, GM, SP, EH>(*this, roomJid, meta.participants));
         chatRoom->roomSetup(conn->fullJid());
@@ -781,8 +773,8 @@ void Client<M,GM,SP,EH>::invite(const std::string &peerMail)
     {
         const char* peer = result->getText();
         const char* pk = result->getPassword();
-        KR_LOG("\n----> pk = %s", pk);
-        KR_LOG("----> pk_size = %zu", strlen(pk));
+        CHAT_LOG_DEBUG("\n----> pk = %s", pk);
+        CHAT_LOG_DEBUG("----> pk_size = %zu", strlen(pk));
         if (!peer)
             throw std::runtime_error("Returned peer user is NULL");
 
@@ -797,7 +789,7 @@ void Client<M,GM,SP,EH>::invite(const std::string &peerMail)
         }
         else
         {
-            KR_LOG_WARNING("invalid room Jid %s\n", room->roomJid().c_str());
+            CHAT_LOG_WARNING("invalid room Jid %s\n", room->roomJid().c_str());
         }
         return nullptr;
     })
@@ -827,7 +819,7 @@ void Client<M,GM,SP,EH>::sendChatState(const std::string& roomJid, const ChatSta
     }
     else
     {
-        KR_LOG_WARNING("invalid room Jid %s\n", roomJid.c_str());
+        CHAT_LOG_WARNING("invalid room Jid %s\n", roomJid.c_str());
     }
 }
 

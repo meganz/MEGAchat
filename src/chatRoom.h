@@ -114,12 +114,10 @@ public:
 
         mpenc_cpp::SecureKey key((unsigned char*)PUB_KEY, 32);
         member->setStaticPublicKey(key);
-        KR_LINE;
-        KR_LOG("Added member %s", member->getId().c_str());
+        CHAT_LOG_INFO("Added member %s", member->getId().c_str());
         encryptionHandler.setMemberKeyUh(member->getId(), key);
         auto keyTest = member->getStaticPublicKey();
         //KR_LOG("Key resolves to: %d", (unsigned int)keyTest);
-        KR_LINE_END;
     }
 
     /**
@@ -231,9 +229,7 @@ public:
          })
          .then([ret, room, myFullJid, &client](strophe::Stanza s) mutable
         {
-            KR_LINE;
-            KR_LOG("create: Creating room: %s", room->roomJid().c_str());
-            KR_LINE_END;
+            CHAT_LOG_INFO("create: Creating room: %s", room->roomJid().c_str());
             client.chatRooms.insert(std::pair<std::string, std::shared_ptr<ChatRoom<N, GN, P, NP>>>(room->roomJid(), room));
             room->roomSetup(myFullJid);
             room->isOwner = true;
@@ -243,7 +239,7 @@ public:
         .fail([ret](const promise::Error& err) mutable
         {
             ret.reject(err);
-            KR_LOG_ERROR("Room creation failed");
+            CHAT_LOG_ERROR("Room creation failed");
 
             return 0;
         });
@@ -262,9 +258,7 @@ public:
         mpenc_cpp::SharedGroupMemberPtr gpMem(ownerMember->getId());
         encryptionHandler.setGroupMemberUh(gpMem);
         memberVector.push_back(ownerMember);
-        KR_LINE;
-        KR_LOG("Setting room owner to: true");
-        KR_LINE_END;
+        CHAT_LOG_INFO("Setting room owner to: true");
 
 
         ///// Dodgy pk and sk.
@@ -462,37 +456,29 @@ private:
         });
 
         encryptionHandler.addOutgoingMessageObserverUh([this](int num){
-            KR_LOG(LINE);
-            KR_LOG("Sending outgoing message");
+            CHAT_LOG_INFO("Sending outgoing message");
             mpenc_cpp::SharedBuffer buffer =
                     encryptionHandler.getNextMessageUh();
             std::string retMessage(MPENC_HEADER);
             retMessage.append(buffer.str());
-            KR_LOG(LINE);
 
             sendMessage(retMessage);
         });
 
         encryptionHandler.addIncomingDataMessageObserverUh([this](int num){
-            KR_LINE;
-            KR_LOG("Incoming data message");
+            CHAT_LOG_INFO("Incoming data message");
             mpenc_cpp::SharedBuffer dataMesssage =
                                             encryptionHandler.getNextDataMessageUh();
             incomingTextFilter.handleData(dataMesssage.str());
-            KR_LINE_END;
         });
 
         encryptionHandler.addErrorObserverUh(mpenc_cpp::I_DONT_KNOW_YOUR_GUESS_IS_AS_GOOD_AS_MINE, [](mpenc_cpp::MPENC_ERROR error){
-            KR_LOG(LINE);
-            KR_LOG("Error code: %d", error);
-            KR_LOG(LINE);
+            CHAT_LOG_ERROR("Error code: %d", error);
             sendWarningMessage(mpenc_cpp::getErrorString(error));
         });
 
         encryptionHandler.addStateObserverUh([](mpenc_cpp::ProtocolState s){
-            KR_LINE;
-            KR_LOG("State: %s", mpenc_cpp::getStateString(s).c_str());
-            KR_LINE_END;
+            CHAT_LOG_INFO("State: %s", mpenc_cpp::getStateString(s).c_str());
         });
     }
 
@@ -507,14 +493,12 @@ public:
 
     void beginEncryptionProtocolProcess() {
 
-        KR_LINE;
-        KR_LOG("Num users = %zu", memberVector.size());
+        CHAT_LOG_INFO("Num users = %zu", memberVector.size());
 
         for(auto &i : memberVector) {
-            KR_LOG("User: %s", i->getId().c_str());
+            CHAT_LOG_INFO("User: %s", i->getId().c_str());
         }
 
-        KR_LINE;
         encryptionHandler.startUh(memberVector, mpenc_cpp::WMF_BASE_64);
     }
 
@@ -524,16 +508,14 @@ public:
      * @param message Incoming message from XMPP.
      */
     void filterIncoming(const std::string &message) {
-//        KR_LOG("Filtering message: %s", message.c_str());
+//        CHAT_LOG_INFO("Filtering message: %s", message.c_str());
 //        if(encryptionHandler.getProtocolStateUh() == mpenc_cpp::INITILISED) {
 //            encryptionHandler.createDataMessageUh(mpenc_cpp::SharedBuffer(message));
 //        }
 //        else {
 //            textFilterIncoming(message);
 //        }
-        KR_LINE;
-        KR_LOG("incoming message = %s", message.c_str());
-        KR_LINE;
+        CHAT_LOG_INFO("incoming message = %s", message.c_str());
         mpenc_cpp::SharedBuffer buffer((unsigned char*)message.c_str(), message.size());
         encryptionHandler.processBaseSixtyFourMessageUh(buffer);
     }
@@ -553,7 +535,7 @@ public:
     }
 
     void filterOutgoing(const std::string &message) {
-        KR_LOG("Filtering message: %s", message.c_str());
+        CHAT_LOG_INFO("Filtering message: %s", message.c_str());
 
         try {
             outgoingTextFilter.handleData(message);
@@ -569,7 +551,7 @@ public:
         if(encryptionHandler.getProtocolStateUh() == mpenc_cpp::INITILISED) {
             encryptionHandler.createDataMessageB64Uh(mpenc_cpp::SharedBuffer(message));
             std::string nMessage(encryptionHandler.getNextMessageUh().str());
-            KR_LOG("sending encrypted message %s", nMessage.c_str());
+            CHAT_LOG_INFO("sending encrypted message %s", nMessage.c_str());
             sendMessage(nMessage);
         }
         else {
@@ -583,7 +565,7 @@ public:
 	*/
     void sendMessage(const std::string& message)
     {
-        KR_LOG("sending message %s", message.c_str());
+        CHAT_LOG_INFO("sending message %s", message.c_str());
 
         strophe::Stanza stanza_message(*client.conn);
         stanza_message.setName("message")

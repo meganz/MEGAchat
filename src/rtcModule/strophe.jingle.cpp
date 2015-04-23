@@ -135,7 +135,7 @@ void Jingle::onJingle(Stanza iq)
            .setAttr("id", iq.attr("id"));
 
         bool error = false;
-        KR_LOG_COLOR(34, "onJingle '%s' from '%s'", action, iq.attr("from"));
+        KR_LOG_RTC_EVENT("onJingle '%s' from '%s'", action, iq.attr("from"));
 
         if (strcmp(action, "session-initiate"))
         {
@@ -341,7 +341,7 @@ void Jingle::onJingle(Stanza iq)
 /* Incoming call request with a message stanza of type 'megaCall' */
 void Jingle::onIncomingCallMsg(Stanza callmsg)
 {
-    KR_LOG_COLOR(34;1, "megaCall handler called");
+    KR_LOG_RTC_EVENT("megaCall handler called");
 
     struct State
     {

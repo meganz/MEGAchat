@@ -10,6 +10,7 @@ set(SRCS
   cservices-strophe.cpp
   cservices-dns.cpp
   cservices-http.cpp
+  logger.cpp
 )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/..")

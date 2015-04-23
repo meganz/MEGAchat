@@ -7,7 +7,7 @@
 #include "strophe.disco.h"
 
 #define RTCM_EVENT(name,...)            \
-    printf("\e[32mEvent: %s\e[0m\n", #name);       \
+    KR_LOG_RTC_EVENT("%s", #name);       \
     mEventHandler->name(__VA_ARGS__)
 
 using namespace std;
@@ -39,12 +39,13 @@ void RtcModule::discoAddFeature(const char* feature)
 void RtcModule::logInputDevices()
 {
     auto& devices = mDeviceManager.inputDevices();
-    KR_LOG_DEBUG("Input devices on this system:");
+    KR_LOG_INFO("Input devices on this system:");
     for (const auto& dev: devices.audio)
-        KR_LOG("\tAudio: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
+        KR_LOG_INFO("\tAudio: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
     for (const auto& dev: devices.video)
-        KR_LOG("\tVideo: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
+        KR_LOG_INFO("\tVideo: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
 }
+
 IDeviceList* RtcModule::getAudioInDevices()
 {
     return new IDeviceListImpl(mDeviceManager.inputDevices().audio);

@@ -138,7 +138,7 @@ void MainWindow::roomAdded(std::string &roomJid) {
     this->chatRoomJid = roomJid;
     std::string listenEvent(ROOM_MESSAGE_EVENT);
     listenEvent.append(this->chatRoomJid);
-    KR_LOG("************* eventName = %s", listenEvent.c_str());
+    CHAT_LOG_DEBUG("************* eventName = %s", listenEvent.c_str());
     message_bus::MessageListener<M_MESS_PARAMS> l {
         "guiListenerNoOne",
         [this](message_bus::SharedMessage<M_MESS_PARAMS> &message,
