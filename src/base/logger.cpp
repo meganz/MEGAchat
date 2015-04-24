@@ -151,7 +151,7 @@ void Logger::logv(const char* prefix, unsigned level, unsigned flags, const char
     }
     va_end(vaList);
     bytesLogged+=sprintfRv;
-    buf[bytesLogged] = '0';
+    buf[bytesLogged] = 0;
     logString(level, buf, flags, bytesLogged);
 }
 
