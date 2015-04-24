@@ -52,7 +52,8 @@ static inline void sendBusMessage(const char *type, const char *valName,
         const std::string &message) {
    message_bus::SharedMessage<M_MESS_PARAMS> busMessage(type);
    busMessage->addValue(valName, message);
-   CHAT_LOG_DEBUG("sending message type: '%s' with content type: '%s' with contents: '%s'" type, message;
+   CHAT_LOG_DEBUG("sending message type: '%s' with content type: '%s' with contents: '%s'",
+        type, valName, message);
    message_bus::SharedMessageBus<M_BUS_PARAMS>::
        getMessageBus()->alertListeners(type, busMessage);
 }
