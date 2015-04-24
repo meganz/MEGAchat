@@ -2,7 +2,7 @@
 #include <mstrophe-libevent.h>
 #include "cservices.h"
 #include "gcmpp.h"
-
+#include "logger.h"
 
 static bool processMessage(void* arg, int what)
 {
@@ -21,20 +21,33 @@ static void eventcb(void* arg, int what)
 }
 
 static xmpp_ctx_t* gStropheContext = NULL;
+unsigned stropheToKarereLogLevels[4];
 
 MEGAIO_EXPORT int services_strophe_init(int options)
 {
+    stropheToKarereLogLevels[XMPP_LEVEL_DEBUG] = krLogLevelDebug;
+    stropheToKarereLogLevels[XMPP_LEVEL_INFO] = krLogLevelInfo;
+    stropheToKarereLogLevels[XMPP_LEVEL_WARN] = krLogLevelWarn;
+    stropheToKarereLogLevels[XMPP_LEVEL_ERROR] = krLogLevelError;
+
     xmpp_evloop_api_t* evloop = xmpp_libevent_evloop_new(
             services_get_event_loop(), eventcb);
     //  evloop->reset_waitflags = 0;
     /* init library */
     xmpp_initialize();
-
     /* create a context */
-    xmpp_log_t* log = (options & SVC_STROPHE_LOG)
-            ? xmpp_get_default_logger(XMPP_LEVEL_DEBUG)
-            : nullptr; /* NULL silences output */
-    gStropheContext = xmpp_ctx_new(NULL, evloop, log);
+    static xmpp_log_t log =
+    {
+        [](void* userdata, const xmpp_log_level_t level, const char* area, const char* msg)
+        {
+            if (area && (area[0] == 'x') && (area[1] =='m') && (area[2] == 'p') && (area[3] == 'p'))
+                KARERE_LOG(krLogChannel_xmpp, stropheToKarereLogLevels[level], "%s", msg);
+            else
+                KARERE_LOG(krLogChannel_strophe, stropheToKarereLogLevels[level], "[%s]: %s", area, msg);
+        },
+        nullptr
+    };
+    gStropheContext = xmpp_ctx_new(NULL, evloop, &log);
     return (gStropheContext != nullptr);
 }
 

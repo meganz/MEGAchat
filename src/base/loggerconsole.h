@@ -31,7 +31,7 @@ public:
         else if (level == krLogLevelWarn)
         {
             if (mStderrIsAtty)
-                fprintf(stderr, "\033[1;33m%s%s", msg, "\033[0m");
+                fprintf(stderr, "\033[1;33m%s\033[0m", msg);
             else
                 fputs(msg, stderr);
 
@@ -41,7 +41,7 @@ public:
         else //get color from flags
         {
             if (mStdoutIsAtty)
-                printf("%s%s%s", stdoutColorSelect(flags), msg, "\033[0m");
+                printf("%s%s\033[0m", stdoutColorSelect(flags), msg);
             else
                 fputs(msg, stdout);
         }
@@ -55,7 +55,7 @@ public:
             "\033[30m", "\033[31m", "\033[32m", "\033[33m", "\033[34m", "\033[35m", "\033[36m", "\033[37m",
             "\033[1;30m", "\033[1;31m", "\033[1;32m", "\033[1;33m", "\033[1;34m", "\033[1;35m", "\033[1;36m", "\033[1;37m"
         };
-        printf("============== flags: %X, color: %u\n", flags, flags & krLogColorMask);
+        //printf("============== flags: %X, color: %u\n", flags, flags & krLogColorMask);
         return colorEscapes[flags & krLogColorMask];
     }
 };

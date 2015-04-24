@@ -166,8 +166,8 @@ extern "C" KRLOGGER_DLLIMPEXP void krLoggerLogString(unsigned channel, unsigned 
 extern "C" KRLOGGER_DLLIMPEXP unsigned krLogLevelStrToNum(const char* str);
 
 #define KARERE_LOG(channel, level, fmtString,...)   \
-    (level <= krLoggerChannels[channel].logLevel) ?  \
-       krLoggerLog(channel, level, fmtString "\n", ##__VA_ARGS__): void(0)
+    ((level <= krLoggerChannels[channel].logLevel) ?  \
+       krLoggerLog(channel, level, fmtString "\n", ##__VA_ARGS__): void(0))
 
 #ifdef __cplusplus
 //C++ style logging with streaming opereator

@@ -144,7 +144,7 @@ std::shared_ptr<PresenceMessage> Client<M,GM,SP,EH>::composePresenceMessage(stro
         std::string separator("__");
         std::string fromStr = from.substr(from.find("/")+1);
         std::string fromJid = fromStr.replace(fromStr.find(separator), separator.size(), std::string("@") + std::string(KARERE_XMPP_DOMAIN) + std::string("/"));
-        KR_LOG_DEBUG("room Jid : %s --- from Jid : %s --- action: %s\n", roomJid.c_str(), fromJid.c_str(), (type != NULL) ? stanza.attr("type"): "available");
+        CHAT_LOG_DEBUG("room Jid : %s --- from Jid : %s --- action: %s\n", roomJid.c_str(), fromJid.c_str(), (type != NULL) ? stanza.attr("type"): "available");
         presenceMessage = std::shared_ptr<PresenceMessage>(new PresenceMessage(
             stanza.attr("to"), fromJid, roomJid,
             type ? stanza.attr("type") : std::string("available")

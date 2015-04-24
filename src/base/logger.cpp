@@ -267,6 +267,7 @@ void Logger::setupFromEnvVar()
         if (chan == chans.end())
             log("LOGGER", krLogLevelError, 0, "Unknown channel in KRLOG env variable: %s. Ignoring", item.first.c_str());
         chan->second->logLevel = item.second.numVal;
+        printf("============== channel %s -> %u\n", item.first.c_str(), chan->second->logLevel);
     }
 }
 
@@ -309,7 +310,7 @@ extern "C" KRLOGGER_DLLEXPORT void krLoggerLog(unsigned channel, unsigned level,
 {
     va_list vaList;
     va_start(vaList, fmtString);
-    auto chan = karere::gLogger.logChannels[channel];
+    auto& chan = karere::gLogger.logChannels[channel];
     karere::gLogger.logv(chan.display, level, chan.flags, fmtString, vaList);
     va_end(vaList);
 }
