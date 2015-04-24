@@ -19,9 +19,10 @@ enum
     krLogColorMask = 0x0F,
     krLogNoAutoFlush = 1 << 4,
     krLogNoTimestamps = 1 << 5,
-    krLogNoFile = 1 << 6,
-    krLogNoConsole = 1 << 7,
-    krGlobalFlagMask = krLogNoAutoFlush //flags that override channel flags
+    krLogNoLevel = 1 << 6,
+    krLogNoFile = 1 << 7,
+    krLogNoConsole = 1 << 8,
+    krGlobalFlagMask = krLogNoAutoFlush|krLogNoLevel|krLogNoTimestamps ///flags that override channel flags when they are globally set
 };
 
 typedef struct _KarereLogChannel
@@ -54,6 +55,7 @@ public:
 protected:
     std::string mTimeFmt;
     inline void setup();
+    void setupFromEnvVar();
     std::unique_ptr<FileLogger> mFileLogger;
     std::unique_ptr<ConsoleLogger> mConsoleLogger;
     volatile unsigned mFlags;
@@ -161,6 +163,7 @@ extern "C" KRLOGGER_DLLIMPEXP void krLoggerLog(unsigned channel, unsigned level,
     const char* fmtString, ...);
 extern "C" KRLOGGER_DLLIMPEXP void krLoggerLogString(unsigned channel, unsigned level,
     const char* str);
+extern "C" KRLOGGER_DLLIMPEXP unsigned krLogLevelStrToNum(const char* str);
 
 #define KARERE_LOG(channel, level, fmtString,...)   \
     (level <= krLoggerChannels[channel].logLevel) ?  \
