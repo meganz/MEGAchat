@@ -3,6 +3,7 @@
 #include <megaapi.h>
 #include "base/promise.h"
 #include "base/gcmpp.h"
+#include <logger.h>
 
 typedef std::shared_ptr<mega::MegaRequest> ReqResult;
 typedef promise::Promise<ReqResult> ApiPromise;
@@ -34,7 +35,7 @@ public:
     {
         std::shared_ptr<mega::MegaRequest> req(request->copy());
         int errCode = e->getErrorCode();
-        printf("error cod is %d\n", errCode);
+        //printf("error code is %d\n", errCode);
         mega::marshallCall([this, req, errCode]()
         {
             if (mPromise.done())
@@ -47,15 +48,24 @@ public:
         });
     }
 };
+class MyMegaLogger: public ::mega::MegaLogger
+{
+    virtual void log(const char *time, int loglevel, const char *source, const char *message)
+    {
+        KARERE_LOG(krLogChannel_megasdk, loglevel, "%s", message);
+    }
+};
 
 class MyMegaApi: public mega::MegaApi
 {
 public:
     std::shared_ptr<mega::MegaRequest> userData;
+    std::unique_ptr<MyMegaLogger> mLogger;
     MyMegaApi(const char *appKey)
-        :mega::MegaApi(appKey, (const char *)NULL, "Karere")
+        :mega::MegaApi(appKey, (const char *)NULL, "Karere"), mLogger(new MyMegaLogger)
     {
-        setLogLevel(MegaApi::LOG_LEVEL_INFO);
+        setLoggerObject(mLogger.get());
+        setLogLevel(MegaApi::LOG_LEVEL_MAX);
     }
     template <typename... Args, typename MSig=void(mega::MegaApi::*)(Args..., mega::MegaRequestListener*)>
     ApiPromise call(MSig method, Args... args)

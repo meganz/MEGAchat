@@ -82,7 +82,8 @@ Logger::Logger(unsigned aFlags, const char* timeFmt)
     setupFromEnvVar();
 }
 
-inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix, const char* severity)
+inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix, const char* severity,
+                                  unsigned flags)
 {
     size_t bytesLogged = 0;
     if ((mFlags & krLogNoTimestamps) == 0)
@@ -106,7 +107,7 @@ inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix,
         bytesLogged += myStrncpy(buf+bytesLogged, prefix, bufSize-bytesLogged);
         buf[bytesLogged++] = ']';
     }
-    if (bytesLogged)
+    if (bytesLogged && ((flags & krLogNoLeadingSpace) == 0))
         buf[bytesLogged++] = ' ';
     return bytesLogged;
 }
@@ -114,10 +115,13 @@ inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix,
 void Logger::logv(const char* prefix, unsigned level, unsigned flags, const char* fmtString,
                  va_list aVaList)
 {
+    flags |= (mFlags & krGlobalFlagMask);
     char statBuf[LOGGER_SPRINTF_BUF_SIZE];
     char* buf = statBuf;
     size_t bytesLogged = prependInfo(buf, LOGGER_SPRINTF_BUF_SIZE, prefix,
-        (flags & krLogNoLevel)?NULL:krLogLevelNames[level][0]);
+        ((flags & krLogNoLevel) && (level > krLogLevelWarn))
+            ? NULL
+            :krLogLevelNames[level][0], flags);
 
     va_list vaList;
     va_copy(vaList, aVaList);
@@ -165,10 +169,9 @@ void Logger::logString(unsigned level, const char* msg, unsigned flags, size_t l
         len = strlen(msg);
 
     std::lock_guard<std::mutex> lock(mMutex);
-    flags |= (mFlags & krGlobalFlagMask);
-    if (mConsoleLogger && ((flags & krLogNoFile) == 0))
+    if (mConsoleLogger && ((flags & krLogNoConsole) == 0))
         mConsoleLogger->logString(level, msg, flags);
-    if ((mFileLogger) && ((flags && krLogNoConsole) == 0))
+    if ((mFileLogger) && ((flags & krLogNoFile) == 0))
         mFileLogger->logString(msg, len, flags);
     if (!mUserLoggers.empty())
     {
@@ -265,9 +268,12 @@ void Logger::setupFromEnvVar()
     {
         auto chan = chans.find(item.first);
         if (chan == chans.end())
+        {
             log("LOGGER", krLogLevelError, 0, "Unknown channel in KRLOG env variable: %s. Ignoring", item.first.c_str());
+            continue;
+        }
         chan->second->logLevel = item.second.numVal;
-        printf("============== channel %s -> %u\n", item.first.c_str(), chan->second->logLevel);
+        //printf("============== channel %s -> %u\n", item.first.c_str(), chan->second->logLevel);
     }
 }
 

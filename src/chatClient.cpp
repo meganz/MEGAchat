@@ -144,7 +144,7 @@ std::shared_ptr<PresenceMessage> Client<M,GM,SP,EH>::composePresenceMessage(stro
         std::string separator("__");
         std::string fromStr = from.substr(from.find("/")+1);
         std::string fromJid = fromStr.replace(fromStr.find(separator), separator.size(), std::string("@") + std::string(KARERE_XMPP_DOMAIN) + std::string("/"));
-        CHAT_LOG_DEBUG("room Jid : %s --- from Jid : %s --- action: %s\n", roomJid.c_str(), fromJid.c_str(), (type != NULL) ? stanza.attr("type"): "available");
+        CHAT_LOG_DEBUG("room Jid : %s --- from Jid : %s --- action: %s", roomJid.c_str(), fromJid.c_str(), (type != NULL) ? stanza.attr("type"): "available");
         presenceMessage = std::shared_ptr<PresenceMessage>(new PresenceMessage(
             stanza.attr("to"), fromJid, roomJid,
             type ? stanza.attr("type") : std::string("available")
@@ -588,7 +588,7 @@ void Client<M,GM,SP,EH>::handlePresenceMessage(std::shared_ptr<PresenceMessage> 
         return;
     }
     std::string myJid = strophe::getBareJidFromJid(this->conn->fullOrBareJid());
-    CHAT_LOG_DEBUG("my Jid is %s --- from Jid is %s\n", myJid.c_str(), message->getFromJid().c_str());
+    CHAT_LOG_DEBUG("my Jid is %s --- from Jid is %s", myJid.c_str(), message->getFromJid().c_str());
 
     if(myJid == strophe::getBareJidFromJid(message->getFromJid()))
     {// action from my another device.
@@ -680,7 +680,7 @@ void Client<M,GM,SP,EH>::sendMessage(const std::string& roomJid, const std::stri
     }
     else
     {
-        CHAT_LOG_WARNING("invalid room Jid %s\n", roomJid.c_str());
+        CHAT_LOG_WARNING("invalid room Jid %s", roomJid.c_str());
     }
 }
 
@@ -789,7 +789,7 @@ void Client<M,GM,SP,EH>::invite(const std::string &peerMail)
         }
         else
         {
-            CHAT_LOG_WARNING("invalid room Jid %s\n", room->roomJid().c_str());
+            CHAT_LOG_WARNING("invalid room Jid %s", room->roomJid().c_str());
         }
         return nullptr;
     })
@@ -819,7 +819,7 @@ void Client<M,GM,SP,EH>::sendChatState(const std::string& roomJid, const ChatSta
     }
     else
     {
-        CHAT_LOG_WARNING("invalid room Jid %s\n", roomJid.c_str());
+        CHAT_LOG_WARNING("invalid room Jid %s", roomJid.c_str());
     }
 }
 

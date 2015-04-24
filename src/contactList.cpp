@@ -50,7 +50,7 @@ promise::Promise<int> ContactList::init()
         }
         for (std::map<std::string, std::shared_ptr<Contact>>::iterator it = contacts.begin(); it != contacts.end(); it++)
         {
-            KR_LOG_DEBUG("Bare Jid:%s --- State : %d\n", it->second->getBareJid().c_str(), it->second->getPresence());
+            CHAT_LOG_DEBUG("Bare Jid:%s --- State : %d", it->second->getBareJid().c_str(), it->second->getPresence());
         }
     }, nullptr, "presence", nullptr, nullptr);
     return pms;

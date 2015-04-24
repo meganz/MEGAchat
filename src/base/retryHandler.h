@@ -8,7 +8,7 @@
 #define RETRY_DEBUG_LOGGING 1
 
 #ifdef RETRY_DEBUG_LOGGING
-    #define RETRY_LOG(fmtString,...) KR_LOG_DEBUG("Retry: " fmtString, ##__VA_ARGS__)
+    #define RETRY_LOG(fmtString,...) KR_LOG_WARNING("Retry: " fmtString, ##__VA_ARGS__)
 #else
     #define RETRY_LOG(fmtString,...)
 #endif

@@ -135,7 +135,7 @@ void Jingle::onJingle(Stanza iq)
            .setAttr("id", iq.attr("id"));
 
         bool error = false;
-        KR_LOG_RTC_EVENT("onJingle '%s' from '%s'", action, iq.attr("from"));
+        JINGLE_LOG_INFO("onJingle '%s' from '%s'", action, iq.attr("from"));
 
         if (strcmp(action, "session-initiate"))
         {

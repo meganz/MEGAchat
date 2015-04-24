@@ -53,7 +53,7 @@ static inline void sendBusMessage(const char *type, const char *valName,
    message_bus::SharedMessage<M_MESS_PARAMS> busMessage(type);
    busMessage->addValue(valName, message);
    CHAT_LOG_DEBUG("sending message type: '%s' with content type: '%s' with contents: '%s'",
-        type, valName, message);
+        type, valName, message.c_str());
    message_bus::SharedMessageBus<M_BUS_PARAMS>::
        getMessageBus()->alertListeners(type, busMessage);
 }

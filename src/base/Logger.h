@@ -22,6 +22,7 @@ enum
     krLogNoLevel = 1 << 6,
     krLogNoFile = 1 << 7,
     krLogNoConsole = 1 << 8,
+    krLogNoLeadingSpace = 1 << 9,
     krGlobalFlagMask = krLogNoAutoFlush|krLogNoLevel|krLogNoTimestamps ///flags that override channel flags when they are globally set
 };
 
@@ -59,7 +60,7 @@ protected:
     std::unique_ptr<FileLogger> mFileLogger;
     std::unique_ptr<ConsoleLogger> mConsoleLogger;
     volatile unsigned mFlags;
-    size_t prependInfo(char *buf, size_t bufSize, const char* prefix, const char* severity);
+    size_t prependInfo(char *buf, size_t bufSize, const char* prefix, const char* severity, unsigned flags);
 
     /** This is the low-level log function that does the actual logging
      *  of an assembled single string */
