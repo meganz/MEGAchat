@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 #include <time.h>
 #include <string.h>
 
@@ -116,7 +117,7 @@ inline static void parseNameValues(const char* str, const char* pairDelims, char
         if (nend == std::string::npos)
             nend = eq;
         size_t vstart = findFirstNotOf(pair, "\t ", eq+1, plen);
-        cont.emplace(make_pair(std::string(pair.c_str()+pstart, nend-pstart),
+        cont.emplace(typename Cont::value_type(std::string(pair.c_str()+pstart, nend-pstart),
           (vstart!=std::string::npos)?std::string(pair.c_str()+vstart, pstart+plen-vstart):""));
     }
 }
