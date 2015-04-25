@@ -1,16 +1,17 @@
 /** Log channel configuration
 
-KR_LOGGER_CONFIG(krLogChannel_<channel_id1>, krLogChannel_<channel_id2>,...)
+KR_LOGGER_CONFIG_START(krLogChannel_<channel_id1>, krLogChannel_<channel_id2>,...)
 
 //always configure the default channel. Normally it does not have a prefix displayed
      KR_LOGCHANNEL(default NULL Debug 0);
      KR_LOGCHANNEL(<channel_id1> "<prefix1>" <debug_level1> <channel_flags>);
      KR_LOGCHANNEL(<channel_id2> "<prefix2>" <debug_level2> <channel_flags>);
      ...
-//optional settings
-    flags = flags | krLogNoTimestamp; //modify global flags to suit your needs
-    logToConsole(); //enable console logging, disabled by default
-    logToFile("log.txt", <rotate_size>); //enable file logging, disabled by default
+//optional settings. You can call any methods of karere::Logger here, or any other code,
+//but you must enclose each line in a KR_LOG_CONFIG() macro. No semicolon required at end of line.
+    KR_LOG_CONFIG(flags = flags | krLogNoTimestamp) //modify global flags to suit your needs
+    KR_LOG_CONFIG(logToConsole()) //enable console logging, disabled by default
+    KR_LOG_CONFIG(logToFile("log.txt", <rotate_size>)) //enable file logging, disabled by default
 //end optional
 KR_LOGGER_CONFIG_END()
 
@@ -28,16 +29,16 @@ log_file - if not NULL, enables logging to that file.
 rotate_size - the maximum size of the log file, in kbytes, after which the log file is truncated in half
 */
 
-KR_LOGGER_CONFIG(krLogChannel_xmpp, krLogChannel_strophe, krLogChannel_rtcevent, krLogChannel_textchat,
+KR_LOGGER_CONFIG_START(krLogChannel_xmpp, krLogChannel_strophe, krLogChannel_rtcevent, krLogChannel_textchat,
                  krLogChannel_jingle, krLogChannel_megasdk)
-    KR_LOGCHANNEL(default, NULL, Debug, 0);
-    KR_LOGCHANNEL(xmpp, "xmpp", Debug, krLogNoLevel | 7);
-    KR_LOGCHANNEL(strophe, "strophe", Debug, krLogNoLeadingSpace);
-    KR_LOGCHANNEL(rtcevent, "rtcevent", Debug, krLogNoLevel | 10);
-    KR_LOGCHANNEL(jingle, NULL, Debug, krLogNoLevel | 14);
-    KR_LOGCHANNEL(textchat, "chat", Debug, 12);
-    KR_LOGCHANNEL(megasdk, "sdk", Info, 4);
-    setFlags(krLogNoLevel);
-    logToConsole();
-    logToFile("log.txt", 500);
+    KR_LOGCHANNEL(default, NULL, Debug, 0)
+    KR_LOGCHANNEL(xmpp, "xmpp", Debug, krLogNoLevel | 7)
+    KR_LOGCHANNEL(strophe, "strophe", Debug, krLogNoLeadingSpace)
+    KR_LOGCHANNEL(rtcevent, "rtcevent", Debug, krLogNoLevel | 10)
+    KR_LOGCHANNEL(jingle, NULL, Debug, krLogNoLevel | 14)
+    KR_LOGCHANNEL(textchat, "chat", Debug, 12)
+    KR_LOGCHANNEL(megasdk, "sdk", Info, 4)
+    KR_LOGGER_CONFIG(setFlags(krLogNoLevel))
+    KR_LOGGER_CONFIG(logToConsole())
+    KR_LOGGER_CONFIG(logToFile("log.txt", 500))
 KR_LOGGER_CONFIG_END()

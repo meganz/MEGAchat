@@ -117,17 +117,18 @@ extern Logger gLogger;
 
 #define __KR_DEFINE_LOGCHANNELS_ENUM(...)                                           \
     enum { krLogChannel_default = 0, ##__VA_ARGS__, krLogChannelLast }
-
 #ifdef __cplusplus
 
-#define KR_LOGGER_CONFIG(...)                                                       \
+#define KR_LOGGER_CONFIG_START(...)                                                       \
     __KR_DEFINE_LOGCHANNELS_ENUM(__VA_ARGS__);                                      \
     inline void karere::Logger::setup() {                                           \
         unsigned long long initialized = 0;
 
 #define KR_LOGCHANNEL(id, display, level, flags)                                    \
         logChannels[krLogChannel_##id] = {#id, display, krLogLevel##level, flags};  \
-        initialized |= (1 << krLogChannel_##id)
+        initialized |= (1 << krLogChannel_##id);
+
+#define KR_LOGGER_CONFIG(...) __VA_ARGS__;
 
 #define KR_LOGGER_CONFIG_END()                                                      \
         if (initialized != ((1 << krLogChannelLast) -1)) {                          \
@@ -136,8 +137,9 @@ extern Logger gLogger;
         }                                                                           \
 }
 #else
-#define KR_LOGGER_CONFIG(...)  __KR_DEFINE_LOGCHANNELS_ENUM(__VA_ARGS__);
+#define KR_LOGGER_CONFIG_START(...)  __KR_DEFINE_LOGCHANNELS_ENUM(__VA_ARGS__);
 #define KR_LOGCHANNEL(id, display, level, flags)
+#define KR_LOGGER_CONFIG(...)
 #define KR_LOGGER_CONFIG_END()
 #endif
 
