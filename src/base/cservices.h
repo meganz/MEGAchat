@@ -2,6 +2,7 @@
 #define CSERVICES_H_INCLUDED
 
 /* Plain C interface of the services library */
+#include <logger.h>
 
 struct event_base;
 struct event;
@@ -33,15 +34,10 @@ struct event;
   #define MEGAIO_IMPEXP MEGAIO_EXTERNC
 #endif
 //Logging macros used by the services code
-#define SVCS_LOG(fmtString,...) printf("Services: " fmtString "\n", ##__VA_ARGS__)
-#define SVCS_LOG_ERROR(fmtString,...) SVCS_LOG("[E]" fmtString, ##__VA_ARGS__)
-#define SVCS_LOG_WARNING(fmtString,...) SVCS_LOG("[W]" fmtString, ##__VA_ARGS__)
-#define SVCS_LOG_INFO(fmtString,...) SVCS_LOG("[I]" fmtString, ##__VA_ARGS__)
-#ifndef NDEBUG
-    #define SVCS_LOG_DEBUG(fmtString,...) SVCS_LOG("[D]" fmtString, ##__VA_ARGS__)
-#else
-    #define SVC_LOG_DEBUG(fmtString,...)
-#endif
+#define SVC_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_services, fmtString, ##__VA_ARGS__)
+#define SVC_LOG_WARNING(fmtString,...) KARERE_LOG_ERROR(krLogChannel_services, fmtString, ##__VA_ARGS__)
+#define SVC_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_services, fmtString, ##__VA_ARGS__)
+#define SVC_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_sercvices, fmtString, ##__VA_ARGS__)
 //helper macros
 #define _MEGA_STRLITERAL(x) _MEGA_STRLITERAL2(x)
 #define _MEGA_STRLITERAL2(x) #x

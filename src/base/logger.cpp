@@ -80,6 +80,8 @@ Logger::Logger(unsigned aFlags, const char* timeFmt)
 {
     setup();
     setupFromEnvVar();
+    if ((mFlags & krLogNoStartMessage) == 0)
+        log("LOGGER", 0, 0, "========== Application startup ===========\n");
 }
 
 inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix, const char* severity,
@@ -112,7 +114,7 @@ inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix,
     return bytesLogged;
 }
 
-void Logger::logv(const char* prefix, unsigned level, unsigned flags, const char* fmtString,
+void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const char* fmtString,
                  va_list aVaList)
 {
     flags |= (mFlags & krGlobalFlagMask);
@@ -163,7 +165,7 @@ void Logger::logv(const char* prefix, unsigned level, unsigned flags, const char
  *  of an assembled single string. We still need the log level here, because if the
  *  console color selection.
  */
-void Logger::logString(unsigned level, const char* msg, unsigned flags, size_t len)
+void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t len)
 {
     if (len == (size_t)-1)
         len = strlen(msg);
@@ -180,7 +182,7 @@ void Logger::logString(unsigned level, const char* msg, unsigned flags, size_t l
     }
 }
 
-void Logger::log(const char* prefix, unsigned level, unsigned flags,
+void Logger::log(const char* prefix, krLogLevel level, unsigned flags,
                 const char* fmtString, ...)
 {
     va_list vaList;
@@ -198,7 +200,10 @@ std::shared_ptr<Logger::LogBuffer> Logger::loadLog()
 }
 
 Logger::~Logger()
-{}
+{
+    if ((mFlags & krLogNoTerminateMessage) == 0)
+        log("LOGGER", 0, 0, "========== Application terminate ===========\n");
+}
 
 void Logger::addUserLogger(const char* tag, ILoggerBackend* logger)
 {
@@ -229,38 +234,43 @@ void Logger::setupFromEnvVar()
     std::map<std::string, ParamVal> config;
     try
     {
-        parseNameValues(strConfig, " ;:", '=', config);
+        parseNameValues(strConfig, " ,;:", '=', config);
         //verify log level names
         for (auto& param: config)
         {
             unsigned level = krLogLevelStrToNum(param.second.c_str());
-            if (level == (unsigned)-1)
+            if (level == (krLogLevel)-1)
                 throw std::runtime_error("can't recognize log level name '"+param.second+"'");
             param.second.numVal = level;
         }
     }
     catch(std::exception& e)
     {
-        log("LOGGER", krLogLevelError, 0, "Error parsing KRLOG env variable: %s. Settings from that variable will not be applied", e.what());
+        log("LOGGER", krLogLevelError, 0, "Error parsing KRLOG env variable:\n%s\nEnv settings will not be applied\n", e.what());
         return;
     }
+    if ((mFlags & krLogDontShowEnvConfig) == 0)
+        log("LOGGER", 0, 0, "KRLOG env configuration variable detected\n");
 
     //put channels in a map for easier access
-    unsigned allLevels;
+    krLogLevel allLevels;
     auto it = config.find("all");
     if(it != config.end()) {
         allLevels = it->second.numVal;
         config.erase(it);
+        if ((mFlags & krLogDontShowEnvConfig) == 0)
+            log("LOGGER", 0, 0, "All channels, except below -> '%s'\n", krLogLevelNames[allLevels][1]);
+
     }
     else
     {
-        allLevels = (unsigned)-1;
+        allLevels = -1;
     }
     std::map<std::string, KarereLogChannel*> chans;
     for (size_t n = 0; n < krLogChannelLast; n++)
     {
         KarereLogChannel& chan = logChannels[n];
-        if (allLevels != (unsigned)-1)
+        if (allLevels != (krLogLevel)-1)
             chan.logLevel = allLevels;
         chans[chan.id] = &chan;
     }
@@ -269,17 +279,18 @@ void Logger::setupFromEnvVar()
         auto chan = chans.find(item.first);
         if (chan == chans.end())
         {
-            log("LOGGER", krLogLevelError, 0, "Unknown channel in KRLOG env variable: %s. Ignoring", item.first.c_str());
+            log("LOGGER", krLogLevelError, 0, "Unknown channel in KRLOG env variable: %s. Ignoring\n", item.first.c_str());
             continue;
         }
         chan->second->logLevel = item.second.numVal;
-        //printf("============== channel %s -> %u\n", item.first.c_str(), chan->second->logLevel);
+        if ((mFlags & krLogDontShowEnvConfig) == 0)
+            log("LOGGER", 0, 0, "Channel '%s' -> %s\n", item.first.c_str(), krLogLevelNames[chan->second->logLevel][1]);
     }
 }
 
 Logger gLogger;
 extern "C" KRLOGGER_DLLEXPORT KarereLogChannel* krLoggerChannels = gLogger.logChannels;
-extern "C" KRLOGGER_DLLEXPORT unsigned krLogLevelStrToNum(const char* strLevel)
+extern "C" KRLOGGER_DLLEXPORT krLogLevel krLogLevelStrToNum(const char* strLevel)
 {
     for (size_t n = 0; n<=krLogLevelLast; n++)
     {
@@ -288,7 +299,7 @@ extern "C" KRLOGGER_DLLEXPORT unsigned krLogLevelStrToNum(const char* strLevel)
          || (name[0] && (strcasecmp(strLevel, name[0]) == 0)))
             return n;
     }
-    return (unsigned)-1;
+    return (krLogLevel)-1;
 }
 
 static size_t myStrncpy(char* dest, const char* src, size_t maxCount)
@@ -311,7 +322,7 @@ static size_t myStrncpy(char* dest, const char* src, size_t maxCount)
 }
 }
 
-extern "C" KRLOGGER_DLLEXPORT void krLoggerLog(unsigned channel, unsigned level,
+extern "C" KRLOGGER_DLLEXPORT void krLoggerLog(krLogChannelNo channel, krLogLevel level,
     const char* fmtString, ...)
 {
     va_list vaList;

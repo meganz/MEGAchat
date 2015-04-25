@@ -105,7 +105,7 @@ public:
     {}
     ~RetryHandler()
     {
-        RETRY_LOG("Deleting RetryHandler instance");
+        //RETRY_LOG("Deleting RetryHandler instance");
     }
     /** @brief Starts the retry attempts */
     void start()

@@ -7,6 +7,7 @@
 #include <event2/thread.h>
 #include <assert.h>
 #include "cservices-thread.h"
+#include "cservices.h"
 
 struct event_base* services_eventloop = NULL;
 MEGA_GCM_DLLEXPORT GcmPostFunc megaPostMessageToGui = NULL;
@@ -24,9 +25,9 @@ MEGAIO_EXPORT event_base* services_get_event_loop()
 SVC_THREAD_FUNCDECL(libeventThreadFunc)
 {
     /* enter the event loop */
-    printf("libevent thread started, entering eventloop\n");
+    SVC_LOG_INFO("libevent thread started, entering eventloop");
     event_base_loop(services_eventloop, 0);//EVLOOP_NO_EXIT_ON_EMPTY
-    printf("libevent loop terminated\n");
+    SVC_LOG_INFO("libevent loop terminated");
     return (t_svc_thread_funcret)0;
 
 }
@@ -68,10 +69,10 @@ MEGAIO_EXPORT int services_shutdown()
     services_http_shutdown();
 #endif
     event_base_loopexit(services_eventloop, NULL);
-    printf("Terminating libevent thread...");
+    SVC_LOG_INFO("Terminating libevent thread...");
     svc_thread_join(libeventThread);
     hasLibeventThread = false;
-    printf("done\n");
+    SVC_LOG_INFO("libevent thread terminated");
     return 0;
 }
 

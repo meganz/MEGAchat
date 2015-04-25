@@ -2,13 +2,14 @@
 #define MEGA_LOGGER_H_INCLUDED
 #include <stdlib.h> //needed for abort()
 
+typedef unsigned short krLogLevel;
 enum
 {
-//0 is reserved to completely disable logging
+//0 is reserved to ovverwrite completely disabled logging. Used only by logger itself
     krLogLevelError = 1,
     krLogLevelWarn,
     krLogLevelInfo,
-    krLogVerbose,
+    krLOgLevelVerbose,
     krLogLevelDebug,
     krLogLevelDebugVerbose,
     krLogLevelLast = krLogLevelDebugVerbose
@@ -23,9 +24,12 @@ enum
     krLogNoFile = 1 << 7,
     krLogNoConsole = 1 << 8,
     krLogNoLeadingSpace = 1 << 9,
+    krLogDontShowEnvConfig = 1 << 10,
+    krLogNoStartMessage = 1 << 11,
+    krLogNoTerminateMessage = 1 << 12,
     krGlobalFlagMask = krLogNoAutoFlush|krLogNoLevel|krLogNoTimestamps ///flags that override channel flags when they are globally set
 };
-
+typedef unsigned char krLogChannelNo;
 typedef struct _KarereLogChannel
 {
     const char* id;
@@ -64,7 +68,7 @@ protected:
 
     /** This is the low-level log function that does the actual logging
      *  of an assembled single string */
-    void logString(unsigned level, const char* msg, unsigned flags, size_t len=(size_t)-1);
+    void logString(krLogLevel level, const char* msg, unsigned flags, size_t len=(size_t)-1);
     std::map<std::string, std::shared_ptr<ILoggerBackend> > mUserLoggers;
 public:
     std::mutex mMutex;
@@ -80,8 +84,8 @@ public:
     void logToFile(const char* fileName, size_t rotateSize);
     void setAutoFlush(bool enable=true);
     Logger(unsigned flags = 0, const char* timeFmt="%m-%d %H:%M:%S");
-    void logv(const char* prefix, unsigned level, unsigned flags, const char* fmtString, va_list aVaList);
-    void log(const char* prefix, unsigned level, unsigned flags,
+    void logv(const char* prefix, krLogLevel level, unsigned flags, const char* fmtString, va_list aVaList);
+    void log(const char* prefix, krLogLevel level, unsigned flags,
                 const char* fmtString, ...);
     std::shared_ptr<LogBuffer> loadLog();
     void addUserLogger(const char* tag, ILoggerBackend* logger);
@@ -103,7 +107,7 @@ public:
     class ILoggerBackend
     {
         public:
-        virtual void log(unsigned level, const char* msg, size_t len, unsigned flags) = 0;
+        virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags) = 0;
         virtual ~ILoggerBackend() {}
     };
 
@@ -162,11 +166,11 @@ extern Logger gLogger;
 #endif
 
 extern "C" KRLOGGER_DLLIMPEXP KarereLogChannel* krLoggerChannels;
-extern "C" KRLOGGER_DLLIMPEXP void krLoggerLog(unsigned channel, unsigned level,
+extern "C" KRLOGGER_DLLIMPEXP void krLoggerLog(krLogChannelNo channel, krLogLevel level,
     const char* fmtString, ...);
-extern "C" KRLOGGER_DLLIMPEXP void krLoggerLogString(unsigned channel, unsigned level,
+extern "C" KRLOGGER_DLLIMPEXP void krLoggerLogString(krLogChannelNo channel, krLogLevel level,
     const char* str);
-extern "C" KRLOGGER_DLLIMPEXP unsigned krLogLevelStrToNum(const char* str);
+extern "C" KRLOGGER_DLLIMPEXP krLogLevel krLogLevelStrToNum(const char* str);
 
 #define KARERE_LOG(channel, level, fmtString,...)   \
     ((level <= krLoggerChannels[channel].logLevel) ?  \

@@ -48,11 +48,19 @@ public:
         });
     }
 };
+
+
+
 class MyMegaLogger: public ::mega::MegaLogger
 {
     virtual void log(const char *time, int loglevel, const char *source, const char *message)
     {
-        KARERE_LOG(krLogChannel_megasdk, loglevel, "%s", message);
+        static int sdkToKarereLogLevels[mega::MegaApi::LOG_LEVEL_MAX+1] =
+        {
+            krLogLevelError, krLogLevelError, krLogLevelWarn,
+            krLogLevelInfo, krLogLevelDebug, krLogLevelDebugVerbose
+        };
+        KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s", message);
     }
 };
 

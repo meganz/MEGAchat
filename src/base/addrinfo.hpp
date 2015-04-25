@@ -53,7 +53,7 @@ public:
               else if (ai->ai_family == AF_INET6)
                  mIpv6Addrs.emplace_back(((sockaddr_in6*)ai->ai_addr)->sin6_addr);
               else
-                 SVCS_LOG_ERROR("DNS: Unknown family of address returned by dns resolver");
+                 SVC_LOG_ERROR("DNS: Unknown family of address returned by dns resolver");
             ai=ai->ai_next;
         }
     }

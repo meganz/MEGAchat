@@ -19,7 +19,7 @@ MEGAIO_EXPORT int services_dns_init(int options)
     services_dns_eventbase = evdns_base_new(services_eventloop, 1);
     if (!services_dns_eventbase)
     {
-        SVCS_LOG_ERROR("evdns_base_new() returned NULL");
+        SVC_LOG_ERROR("evdns_base_new() returned NULL");
         return 0;
     }
     else

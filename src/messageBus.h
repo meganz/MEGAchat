@@ -554,7 +554,7 @@ public:
 
     template<class Z>
     inline void init(NoStorage<Z> &storage) {
-        std::cout << "init DefaultHandler" << std::endl;
+        CHAT_LOG_DEBUG("init DefaultHandler");
     }
 
     template<class Z>
@@ -736,7 +736,6 @@ public:
 
     static inline SharedMessageBus<Z, M, D> getMessageBus() {
         if(!messageBus) {
-            std::cout << "creating" << std::endl;
             messageBus = SharedMessageBus<Z, M, D>(new M<Z, D>());
             messageBus->alerter.init(messageBus->storage);
         }
@@ -866,7 +865,7 @@ public:
 
     template<class Z>
     inline void init(ThreadDeque<Z> &storage) {
-        LOG_INFO("init ThreadHandler" << std::endl);
+        CHAT_LOG_DEBUG("init ThreadHandler");
         threadP =
                 std::shared_ptr<std::thread>(new std::thread(ThreadDeque<Z>::run, &storage));
     }
@@ -880,7 +879,7 @@ public:
     template<class Z>
     inline void alertListeners(std::string &event, SharedMessage<Z> &message,
             SharedListenerList<Z> &list, ThreadDeque<Z> &storage) {
-        std::cout << "alerting" << std::endl;
+        CHAT_LOG_DEBUG("alerting");
         storage.pushBack({ list, message });
     }
 

@@ -103,7 +103,7 @@ static void le2_onEvent(int fd, short events, void* userp)
     int ret = curl_multi_socket_action(gCurlMultiHandle, fd, events, &gNumRunning);
     if (ret != CURLM_OK)
     {
-        SVCS_LOG_ERROR("le2_onEvent: curl_multi_socket_action() returned error %d", ret);
+        SVC_LOG_ERROR("le2_onEvent: curl_multi_socket_action() returned error %d", ret);
         return;
     }
     checkCompleted();
@@ -117,7 +117,7 @@ static void le2_onTimer(int fd, short kind, void *userp)
         CURL_SOCKET_TIMEOUT, 0, &gNumRunning);
     if (ret != CURLM_OK)
     {
-        SVCS_LOG_ERROR("le2_onTimer: curl_multi_socket_action() returned error %d", ret);
+        SVC_LOG_ERROR("le2_onTimer: curl_multi_socket_action() returned error %d", ret);
         return;
     }
     checkCompleted();
@@ -211,7 +211,7 @@ MEGAIO_EXPORT int services_http_set_useragent(const char* useragent)
     size_t len = strlen(useragent);
     if (len < 1)
     {
-        SVCS_LOG_ERROR("services_http_set_useragent: Attempt to assing an empty user agent");
+        SVC_LOG_ERROR("services_http_set_useragent: Attempt to assing an empty user agent");
         return 0;
     }
     if (services_http_useragent)
