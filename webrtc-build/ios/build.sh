@@ -1,5 +1,5 @@
 function wrbase() {
-  export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 clang_use_chrome_plugins=0 use_system_libcxx=1"
+  export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 clang_use_chrome_plugins=0 use_system_libcxx=1 use_openssl=1 use_nss=0"
   export GYP_GENERATORS="ninja"
 }
 
@@ -16,7 +16,7 @@ function wrsim() {
 }
 
 #- To build & sign the sample app for an iOS device:
-  wrios && gclient runhooks --force && ninja -C out/Release AppRTCDemo
+  wrios && gclient runhooks --force && ninja -C out/Release-iphoneos AppRTCDemo
 #  wrsim && gclient runhooks --force && ninja -C out/Release-iphonesimulator AppRTCDemo
 
 #- To install the sample app on an iOS device:
