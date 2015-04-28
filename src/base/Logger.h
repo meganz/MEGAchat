@@ -185,12 +185,11 @@ extern "C" KRLOGGER_DLLIMPEXP krLogLevel krLogLevelStrToNum(const char* str);
 #define KARERE_LOG_ALWAYS(channel, fmtString,...) KARERE_LOG(channel, krLogLevelAlways, fmtString, ##__VA_ARGS__)
 
 #define KARERE_LOGPP(channel, level, ...) \
-    if (level < krLoggerChannels[channel].logLevel) \
+    if (level <= krLoggerChannels[channel].logLevel) \
     do { \
         std::ostringstream oss; \
-        oss << ##__VA_ARGS__; \
-        KarereLogChannel* chan = krLoggerChannels[channel]; \
-        krLoggerLog(chan->display, level, chan->flags, "%s\n", oss.str()); \
+        oss << __VA_ARGS__; \
+        krLoggerLog(channel, level, "%s\n", oss.str().c_str()); \
     } while (false)
 
 #define KARERE_LOGPP_DEBUG(channel,...) KARERE_LOGPP(channel, krLogLevelDebug, ##__VA_ARGS__)

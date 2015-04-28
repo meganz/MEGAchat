@@ -8,6 +8,7 @@ find_package(Mega REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 set(MPENC_DIR "~/mpenc_cpp" CACHE PATH "mpEnc checkout dir built within a /build subdir")
+set(KARERE_LOGGER_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/base CACHE PATH "Karere logger include dir") #tell mpenc to use the karere logger
 
 set (SRCS
     ../third-party/murmurHash/MurmurHash3.cpp
@@ -22,7 +23,7 @@ set (SRCS
     ./text_filter/default_emoticon_handler.cpp
 )
 
-add_definitions(-D_DEBUG -fvisibility=hidden -Wall)
+add_definitions(-fvisibility=hidden -Wall)
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_definitions(-Wno-unused-local-typedefs)
 endif()

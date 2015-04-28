@@ -16,7 +16,7 @@ QT4_WRAP_UI(QT_GEN_FORMS_HEADERS ${QT_FORMS})
 #QT4_ADD_RESOURCES(helloworld_RESOURCES_RCC ${helloworld_RESOURCES})
 
 INCLUDE(${QT_USE_FILE})
-add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden -Wall)
+add_definitions(${QT_DEFINITIONS} -D_DEBUG -fvisibility=hidden -Wall -DHAVE_KARERE_LOGGER)
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_definitions(-Wno-unused-local-typedefs)
 endif()

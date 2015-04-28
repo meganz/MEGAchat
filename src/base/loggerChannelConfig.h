@@ -31,12 +31,13 @@ rotate_size - the maximum size of the log file, in kbytes, after which the log f
 
 KR_LOGGER_CONFIG_START(
         krLogChannel_xmpp, krLogChannel_strophe, krLogChannel_rtcevent, krLogChannel_textchat,
-        krLogChannel_jingle, krLogChannel_megasdk, krLogChannel_services)
+        krLogChannel_jingle, krLogChannel_megasdk, krLogChannel_services, krLogChannel_mpenc)
     KR_LOGCHANNEL(default, NULL, Debug, 0)
     KR_LOGCHANNEL(xmpp, "xmpp", Debug, krLogNoLevel | 7)
     KR_LOGCHANNEL(strophe, "strophe", Debug, krLogNoLeadingSpace)
     KR_LOGCHANNEL(rtcevent, "rtcevent", Debug, krLogNoLevel | 10)
     KR_LOGCHANNEL(jingle, NULL, Debug, krLogNoLevel | 14)
+    KR_LOGCHANNEL(mpenc, "mpenc", Debug, 4)
     KR_LOGCHANNEL(textchat, "chat", Debug, 12)
     KR_LOGCHANNEL(megasdk, "sdk", Info, 4)
     KR_LOGCHANNEL(services, "services", Info, 0)
