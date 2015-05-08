@@ -214,9 +214,9 @@ protected:
                     return;
                 static const promise::Error timeoutError("timeout", 2, kPromiseType);
                 RETRY_LOG("Attempt %zu timed out after %u ms", mCurrentAttemptNo, mAttemptTimeout);
+                schedNextRetry(timeoutError);
                 if (!std::is_same<CancelFunc, void*>::value)
                     mCancelFunc();
-                schedNextRetry(timeoutError);
             }, mAttemptTimeout);
         }
         mState = kStateInProgress;
