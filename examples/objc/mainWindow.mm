@@ -14,6 +14,7 @@
 #include <sdkApi.h>
 #include <chatClient.h>
 #include <messageBus.h>
+#include <karereCommon.h>
 
 @interface MainWindow()
 
@@ -200,7 +201,7 @@ bool inCall = false;
     self.chatRoomJid = roomJid;
     std::string listenEvent(ROOM_MESSAGE_EVENT);
     listenEvent.append(self.chatRoomJid);
-    KR_LOG("************* eventName = %s", listenEvent.c_str());
+    //KR_LOG("************* eventName = %s", listenEvent.c_str());
     message_bus::MessageListener<M_MESS_PARAMS> l {
         "guiListenerNoOne",
         [self](message_bus::SharedMessage<M_MESS_PARAMS> &message,
