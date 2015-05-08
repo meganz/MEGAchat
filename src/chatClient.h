@@ -222,17 +222,11 @@ protected:
     std::string mEmail;
     /** our password */
     std::string mPassword;
-    /** xmpp message handler */
-    xmpp_handler mXmppMessageHandler;
-    /** xmpp presence handler */
-    xmpp_handler mXmppPresenceHandler;
-    /** xmpp iq handler */
-    xmpp_handler mXmppIqHandler;
     /** client's contact list */
     ContactList contactList;
     /* handler for webrtc events */
     rtcModule::IPtr<rtcModule::IEventHandler> mRtcHandler;
-
+    void registerTextChatHandlers();
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
         getOtherUserInfo(std::string &emailAddress);
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>

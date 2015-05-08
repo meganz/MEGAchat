@@ -235,8 +235,8 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
       string ownFprMacKey;
       string myJid;
       bool isBroadcast;
-      xmpp_handler ansHandler = nullptr;
-      xmpp_handler declineHandler = nullptr;
+      unsigned ansHandler = 0;
+      unsigned declineHandler = 0;
       State state = kNotYetUserMedia;
       artc::tspMediaStream sessStream;
       AvFlags av;
@@ -281,8 +281,8 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
                   return;
               state->state = kPeerAnsweredOrTimedout;
               mConn.removeHandler(state->declineHandler);
-              state->declineHandler = nullptr;
-              state->ansHandler = nullptr;
+              state->declineHandler = 0;
+              state->ansHandler = 0;
 // The crypto exceptions thrown here will simply discard the call request and remove the handler
               string peerFprMacKey = stanza.attr("fprmackey");
               try
@@ -352,8 +352,8 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
 
           state->state = kPeerAnsweredOrTimedout;
           mConn.removeHandler(state->ansHandler);
-          state->ansHandler = nullptr;
-          state->declineHandler = nullptr;
+          state->ansHandler = 0;
+          state->declineHandler = 0;
           state->sessStream = nullptr;
           unrefLocalStream(state->av.video);
 
@@ -435,9 +435,9 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
 
                   state->state = kPeerAnsweredOrTimedout;
                   mConn.removeHandler(state->ansHandler);
-                  state->ansHandler = nullptr;
+                  state->ansHandler = 0;
                   mConn.removeHandler(state->declineHandler);
-                  state->declineHandler = nullptr;
+                  state->declineHandler = 0;
                   state->sessStream = nullptr;
                   unrefLocalStream(state->av.video);
                   Stanza cancelMsg(mConn);
@@ -487,9 +487,9 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
       { //same as if (ansHandler)
             state->state = kCallCanceledByUs;
             mConn.removeHandler(state->ansHandler);
-            state->ansHandler = nullptr;
+            state->ansHandler = 0;
             mConn.removeHandler(state->declineHandler);
-            state->declineHandler = nullptr;
+            state->declineHandler = 0;
 
             unrefLocalStream(state->av.video);
             Stanza cancelMsg(mConn);

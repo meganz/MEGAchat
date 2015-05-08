@@ -346,8 +346,8 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
     struct State
     {
         bool handledElsewhere = false;
-        xmpp_handler elsewhereHandlerId = nullptr;
-        xmpp_handler cancelHandlerId = nullptr;
+        unsigned elsewhereHandlerId = 0;
+        unsigned cancelHandlerId = 0;
         string sid;
         string from;
         Ts tsReceived = -1;
@@ -373,9 +373,9 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
             keep = false;
             if (!state->cancelHandlerId)
                 return;
-            state->elsewhereHandlerId = nullptr;
+            state->elsewhereHandlerId = 0;
             mConn.removeHandler(state->cancelHandlerId);
-            state->cancelHandlerId = nullptr;
+            state->cancelHandlerId = 0;
             const char* by = msg.attr("by");
             if (strcmp(by, mConn.fullJid()))
                onCallCanceled(state->sid.c_str(), "handled-elsewhere", by,
@@ -390,9 +390,9 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
             keep = false;
             if (!state->elsewhereHandlerId)
                 return;
-            state->cancelHandlerId = nullptr;
+            state->cancelHandlerId = 0;
             mConn.removeHandler(state->elsewhereHandlerId);
-            state->elsewhereHandlerId = nullptr;
+            state->elsewhereHandlerId = 0;
             const char* reason = stanza.attrOrNull("reason");
             if (!reason)
                 reason = "unknown";
@@ -406,9 +406,9 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 return;
     // Call was not handled elsewhere, but may have been answered/rejected by us
             mConn.removeHandler(state->elsewhereHandlerId);
-            state->elsewhereHandlerId = nullptr;
+            state->elsewhereHandlerId = 0;
             mConn.removeHandler(state->cancelHandlerId);
-            state->cancelHandlerId = nullptr;
+            state->cancelHandlerId = 0;
 
             onCallCanceled(state->sid.c_str(), "timeout", NULL, false, &(state->userp));
         },

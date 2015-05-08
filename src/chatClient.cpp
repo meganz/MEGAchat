@@ -345,18 +345,7 @@ Client<M,GM,SP,EH>::Client(const std::string& email, const std::string& password
 template<class M, class GM, class SP, class EH>
 Client<M,GM,SP,EH>::~Client()
 {
-    if(mXmppMessageHandler)
-    {
-        conn->removeHandler(mXmppMessageHandler);
-    }
-    if(mXmppPresenceHandler)
-    {
-        conn->removeHandler(mXmppPresenceHandler);
-    }
-    if(mXmppIqHandler)
-    {
-        conn->removeHandler(mXmppIqHandler);
-    }
+    //when the strophe::Connection is destroyed, it smpp connection conn member is destroyed
 }
 
 template<class M, class GM, class SP, class EH>
@@ -376,6 +365,11 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
         KR_LOG_DEBUG("Login to Mega API successful");
         return api->call(&mega::MegaApi::getUserData);
     })
+    .fail([](const promise::Error& err)
+    {
+        KR_LOG_ERROR("Mega API login error: %s", err.what());
+        return err;
+    })
     .then([this](ReqResult result)
     {
         api->userData = result;
@@ -393,15 +387,41 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
         xmpp_conn_set_pass(*conn, xmppPass.c_str());
         KR_LOG_DEBUG("user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
         /* initiate connection */
-        return mega::retry([this]()
+        return mega::retry(
+        [this]()
         {
-            //return promise::reject<int>("test");
             return conn->connect(KARERE_DEFAULT_XMPP_SERVER, 0);
+        },
+        [this]()
+        {
+            xmpp_disconnect(*conn, -1);
+        },
+        10000, 0, 1000, 10000)
+#if 0
+//testing retrying of  failed logins
+        .fail([this](const promise::Error& err)
+        {
+            KR_LOG_WARNING("Done with retries, login");
+            promise::Promise<int> pms;
+            mega::setTimeout([this, pms]() mutable
+            {
+                conn->connect(KARERE_DEFAULT_XMPP_SERVER, 0)
+                .then([pms](int ret) mutable
+                { pms.resolve(ret); return 0;});
+            }, 4000);
+            return pms;
         });
+
+#endif
+    ;})
+    .fail([](const promise::Error& error)
+    {
+        KR_LOG_ERROR("XMPP login error:\n%s", error.what());
+        return error;
     })
     .then([this](int)
     {
-        KR_LOG_INFO("==========Connect promise resolved\n");
+        KR_LOG_INFO("XMPP login success");
         //Create the RtcModule object
         //the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
         //to use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
@@ -411,93 +431,91 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
         conn->registerPlugin("disco", new disco::DiscoPlugin(*conn, "Karere Native"));
         //register rtcmodule as a plugin
         conn->registerPlugin("rtcmodule", rtc.get());
-
-        /**
-        * Wrapper function to register message handler
-        * @param conn {xmpp_conn_t} xmpp connection pointer.
-        * @param stanza {xmpp_stanza_t} xmpp stanza data.
-        * @param userdata {void*} userdata.
-        * @returns {int} 1 to keep receiving messages from connection.
-        */
-        promise::Promise<int> pmse;
-        {
-            mXmppMessageHandler = conn->addHandler([this, pmse](strophe::Stanza stanza_data, void*, bool& keep) mutable
-            {
-                std::shared_ptr<InviteMessage> inviteMessage = composeInviteMessesage(stanza_data);
-                /*if it is an invitation*/
-                if (inviteMessage)
-                {
-                    std::string myJid = strophe::getBareJidFromJid(std::string(xmpp_conn_get_bound_jid(*this->conn)));
-                    std::string toJid = strophe::getBareJidFromJid(inviteMessage->getToJid());
-                    if (myJid == toJid)
-                    {
-                        handleInvitationMessage(inviteMessage);
-                    }
-                    return;
-                }
-                /*if it is an action message*/
-                std::shared_ptr<ActionMessage> actionMessage = composeActionMessesage(stanza_data);
-                if (actionMessage)
-                {
-                    handleActionMessage(actionMessage);
-                }
-                else
-                {
-                    /*if it is a normal incoming message*/
-                    std::shared_ptr<IncomingMessage> incomingMessage = composeIncomingMessesage(stanza_data);
-                    if (incomingMessage)
-                    {
-                        handleDataMessage(incomingMessage);
-                        return;
-                    }
-                }
-
-                /*Chat State Notifications*/
-                if (stanza_data.rawChild("composing"))
-                {
-                    CHAT_LOG_DEBUG("%s is typing\n", stanza_data.attr("from"));
-                }
-            }, nullptr, "message", nullptr, nullptr);
-
-            mXmppPresenceHandler = conn->addHandler([this, pmse](strophe::Stanza stanza_data, void*, bool &keep) mutable
-            {
-                std::shared_ptr<PresenceMessage> presenceMessage =
-                    composePresenceMessage(stanza_data);
-                if(presenceMessage)
-                {
-                    handlePresenceMessage(presenceMessage);
-                    return;
-                }
-            }, nullptr, "presence", nullptr, nullptr);
-
-            mXmppIqHandler = conn->addHandler([this, pmse](strophe::Stanza stanza_data, void*, bool &keep) mutable
-            {
-                xmpp_stanza_t* rawPing = stanza_data.rawChild("ping");
-                if(rawPing)
-                {
-                    sendPong(stanza_data.attr("from"), stanza_data.attr("id"));
-                    return;
-                }
-            }, nullptr, "iq", nullptr, nullptr);
-        }
-
         if (onRtcInitialized)
         {
             onRtcInitialized();
         }
 
-        auto pms =  initializeContactList();
+        auto pms = initializeContactList();
         /* Send initial <presence/> so that we appear online to contacts */
         strophe::Stanza pres(*conn);
         pres.setName("presence");
         conn->send(pres);
         return pms;
     })
-    .fail([](const promise::Error& error)
+    .then([this](int)
     {
-        KR_LOG_WARNING("==========Connect promise failed:\n%s\n", error.msg().c_str());
-        return error;
+    KR_LOG_WARNING("contactlist initialized");
+        registerTextChatHandlers();
+        return 0;
+    })
+    .fail([](const promise::Error& err)
+    {
+        KR_LOG_ERROR("Error initializing contactlist: %s", err.what());
+        return err;
     });
+}
+
+template<class M, class GM, class SP, class EH>
+void Client<M,GM,SP,EH>::registerTextChatHandlers()
+{
+    conn->addHandler([this](strophe::Stanza stanza_data, void*, bool& keep) mutable
+    {
+        std::shared_ptr<InviteMessage> inviteMessage = composeInviteMessesage(stanza_data);
+        /*if it is an invitation*/
+        if (inviteMessage)
+        {
+            std::string myJid = strophe::getBareJidFromJid(std::string(xmpp_conn_get_bound_jid(*this->conn)));
+            std::string toJid = strophe::getBareJidFromJid(inviteMessage->getToJid());
+            if (myJid == toJid)
+            {
+                handleInvitationMessage(inviteMessage);
+            }
+            return;
+        }
+        /*if it is an action message*/
+        std::shared_ptr<ActionMessage> actionMessage = composeActionMessesage(stanza_data);
+        if (actionMessage)
+        {
+            handleActionMessage(actionMessage);
+        }
+        else
+        {
+            /*if it is a normal incoming message*/
+            std::shared_ptr<IncomingMessage> incomingMessage = composeIncomingMessesage(stanza_data);
+            if (incomingMessage)
+            {
+                handleDataMessage(incomingMessage);
+                return;
+            }
+        }
+
+        /*Chat State Notifications*/
+        if (stanza_data.rawChild("composing"))
+        {
+            CHAT_LOG_DEBUG("%s is typing\n", stanza_data.attr("from"));
+        }
+    }, nullptr, "message", nullptr, nullptr);
+
+    conn->addHandler([this](strophe::Stanza stanza_data, void*, bool &keep) mutable
+    {
+        std::shared_ptr<PresenceMessage> presenceMessage = composePresenceMessage(stanza_data);
+        if(presenceMessage)
+        {
+            handlePresenceMessage(presenceMessage);
+            return;
+        }
+    }, nullptr, "presence", nullptr, nullptr);
+
+    conn->addHandler([this](strophe::Stanza stanza_data, void*, bool &keep) mutable
+    {
+        xmpp_stanza_t* rawPing = stanza_data.rawChild("ping");
+        if(rawPing)
+        {
+            sendPong(stanza_data.attr("from"), stanza_data.attr("id"));
+            return;
+        }
+    }, nullptr, "iq", nullptr, nullptr);
 }
 
 template<class M, class GM, class SP, class EH>

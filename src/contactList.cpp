@@ -7,13 +7,13 @@
 namespace karere
 {
 ContactList::ContactList(std::shared_ptr<strophe::Connection> connection)
-: connection(connection){
-}
+: connection(connection)
+{}
 
 promise::Promise<int> ContactList::init()
 {
     promise::Promise<int> pms;
-    mHandler = connection->addHandler([this, pms](strophe::Stanza presence, void*, bool& keep) mutable
+    connection->addHandler([this, pms](strophe::Stanza presence, void*, bool& keep) mutable
     {
         const char* jid = presence.attrOrNull("from");
         if(!jid)
@@ -103,9 +103,6 @@ const Contact& ContactList::getContact(const std::string& userJid) const
 }
 
 ContactList::~ContactList()
-{
-    if (mHandler)
-        connection->removeHandler(mHandler);
-}
+{}
 
 }
