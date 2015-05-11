@@ -227,6 +227,7 @@ protected:
     /* handler for webrtc events */
     rtcModule::IPtr<rtcModule::IEventHandler> mRtcHandler;
     void registerTextChatHandlers();
+    void setupReconnectHandler();
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
         getOtherUserInfo(std::string &emailAddress);
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>

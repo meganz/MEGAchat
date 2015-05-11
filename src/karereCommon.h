@@ -21,6 +21,9 @@
 
 #define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
 #define KARERE_XMPP_DOMAIN "karere.mega.nz"
+#define KARERE_LOGIN_TIMEOUT 10000
+#define KARERE_RECONNECT_DELAY_MAX 10000
+#define KARERE_RECONNECT_DELAY_INITIAL 1000
 
 #define KARERE_DEFAULT_TURN_SERVERS "url=turn:trn530n003.karere.mega.nz:3478?transport=udp, user=inoo20jdnH, pass=02nNKDBkkS"
 #if defined(__ANDROID__) && !defined(HAVE_STD_TO_STRING)

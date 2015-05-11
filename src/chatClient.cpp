@@ -385,8 +385,8 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
         std::string jid = std::string(user)+"@" KARERE_XMPP_DOMAIN;
         xmpp_conn_set_jid(*conn, jid.c_str());
         xmpp_conn_set_pass(*conn, xmppPass.c_str());
-        KR_LOG_DEBUG("user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
-        /* initiate connection */
+        KR_LOG_DEBUG("xmpp user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
+// initiate connection
         return mega::retry(
         [this]()
         {
@@ -396,9 +396,9 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
         {
             xmpp_disconnect(*conn, -1);
         },
-        10000, 0, 1000, 10000)
+        KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
 #if 0
-//testing retrying of  failed logins
+//testing retrying of failed logins
         .fail([this](const promise::Error& err)
         {
             KR_LOG_WARNING("Done with retries, login");
@@ -422,9 +422,13 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
     .then([this](int)
     {
         KR_LOG_INFO("XMPP login success");
-        //Create the RtcModule object
-        //the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
-        //to use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
+
+// handle reconnect due to network errors
+        setupReconnectHandler();
+
+// Create the RtcModule object
+// the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
+// To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
         rtc.reset(createRtcModule(
             *conn, mRtcHandler.get(), new rtcModule::MegaCryptoFuncs(*api), ""));
         //create and register disco strophe plugin
@@ -435,9 +439,9 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
         {
             onRtcInitialized();
         }
-
+// install contactlist handlers before sending initial presence so that the presences that start coming after that get processed
         auto pms = initializeContactList();
-        /* Send initial <presence/> so that we appear online to contacts */
+// Send initial <presence/> so that we appear online to contacts
         strophe::Stanza pres(*conn);
         pres.setName("presence");
         conn->send(pres);
@@ -445,7 +449,7 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
     })
     .then([this](int)
     {
-    KR_LOG_WARNING("contactlist initialized");
+        KR_LOG_DEBUG("contactlist initialized");
         registerTextChatHandlers();
         return 0;
     })
@@ -454,6 +458,43 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
         KR_LOG_ERROR("Error initializing contactlist: %s", err.what());
         return err;
     });
+}
+
+template<class M, class GM, class SP, class EH>
+void Client<M,GM,SP,EH>::setupReconnectHandler()
+{
+    auto retryCtrl = mega::createRetryController(
+        [this]()
+    {
+        return conn->connect(KARERE_DEFAULT_XMPP_SERVER, 0);
+    },
+        [this]() {xmpp_disconnect(*conn, -1);},
+        KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL
+    );
+    typedef decltype(retryCtrl) RC;
+    conn->addConnStateHandler(
+       [](xmpp_conn_t* conn_c, xmpp_conn_event_t event, int error,
+        xmpp_stream_error_t* stream_error, void* userdata, bool& keepHandler) mutable
+    {
+        if ((event != XMPP_CONN_DISCONNECT) && (event != XMPP_CONN_FAIL))
+            return;
+        assert(xmpp_conn_get_state(conn_c) == XMPP_STATE_DISCONNECTED);
+        auto retryCtrl = static_cast<RC>(userdata);
+        if (retryCtrl->state() & mega::rh::kStateBitRunning)
+            return;
+
+        if (retryCtrl->state() == mega::rh::kStateFinished) //we had previous retry session, reset the retry controller
+            retryCtrl->reset();
+        retryCtrl->start(500); //need to process(i.e. ignore) all stale libevent messages for the old connection so they don't get interpreted in the context of the new connection
+    }, retryCtrl);
+#if 0
+    //test
+    mega::setInterval([this]()
+    {
+        printf("simulating disconnect\n");
+        xmpp_disconnect(*conn, -1);
+    }, 6000);
+#endif
 }
 
 template<class M, class GM, class SP, class EH>
