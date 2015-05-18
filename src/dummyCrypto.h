@@ -26,6 +26,8 @@ public:
     virtual ~DummyCrypto() {}
 };
 
+std::string makeRandomString(int len);
+
 }
 
 

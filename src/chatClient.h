@@ -8,7 +8,7 @@
 #include <memory>
 #include <map>
 #include <type_traits>
-
+#include <retryHandler.h>
 
 namespace strophe {class Connection;}
 namespace rtcModule
@@ -137,15 +137,20 @@ public:
     * @param [intervalSec] {int} optional with default value as 100, interval in seconds to do self ping.
     * @returns {void}
     */
-    void startSelfPings(int intervalSec = 100);
+    /** @brief Notifies the client that internet connection is again available */
+    void notifyNetworkOffline();
+    /** @brief Notifies the client that network connection is down */
+    void notifyNetworkOnline();
+    void startKeepalivePings();
     /**
      * @brief Ping a target peer to check whether he/she is alive
-     * @param [peerJid] {string} peer's Jid.
+     * @param [peerJid] {const char*} peer's Jid. If NULL, then no 'to'
+     * attribute will be included in the stanza, effectively sending the ping to the server
      * @param [intervalSec] {int} optional with default value as 100, interval in seconds to do ping.
      *
      * This performs a xmpp ping request to xmpp server and check whether the target user is alive or not.
      */
-    void pingPeer(const std::string& peerJid, int intervalSec = 100);
+    strophe::StanzaPromise pingPeer(const char* peerJid);
     /**
     * @brief generate a message Id based on the target Jid and message.
     *
@@ -224,6 +229,8 @@ protected:
     std::string mPassword;
     /** client's contact list */
     ContactList contactList;
+    std::unique_ptr<mega::rh::IRetryController> mReconnectController;
+    xmpp_ts mLastPingTs = 0;
     /* handler for webrtc events */
     rtcModule::IPtr<rtcModule::IEventHandler> mRtcHandler;
     void registerTextChatHandlers();

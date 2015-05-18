@@ -15,7 +15,6 @@
 #include "strophe.disco.h"
 #include "base/services.h"
 #include "sdkApi.h"
-#include <base/retryHandler.h>
 #include "megaCryptoFunctions.h"
 #include "iEncHandler.h"
 #include "messageBus.h"
@@ -345,7 +344,7 @@ Client<M,GM,SP,EH>::Client(const std::string& email, const std::string& password
 template<class M, class GM, class SP, class EH>
 Client<M,GM,SP,EH>::~Client()
 {
-    //when the strophe::Connection is destroyed, it smpp connection conn member is destroyed
+    //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
 
 template<class M, class GM, class SP, class EH>
@@ -381,8 +380,10 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
             return promise::reject<int>("Mega session id is shorter than 16 bytes");
         ((char&)xmppPass.c_str()[16]) = 0;
 
+        //xmpp_conn_set_keepalive(*conn, 10, 4);
         /* setup authentication information */
-        std::string jid = std::string(user)+"@" KARERE_XMPP_DOMAIN;
+        std::string jid = std::string(user)+"@" KARERE_XMPP_DOMAIN "/kn_";
+        jid.append(rtcModule::makeRandomString(10));
         xmpp_conn_set_jid(*conn, jid.c_str());
         xmpp_conn_set_pass(*conn, xmppPass.c_str());
         KR_LOG_DEBUG("xmpp user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
@@ -451,6 +452,7 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
     {
         KR_LOG_DEBUG("contactlist initialized");
         registerTextChatHandlers();
+        startKeepalivePings();
         return 0;
     })
     .fail([](const promise::Error& err)
@@ -463,30 +465,31 @@ promise::Promise<int> Client<M,GM,SP,EH>::init()
 template<class M, class GM, class SP, class EH>
 void Client<M,GM,SP,EH>::setupReconnectHandler()
 {
-    auto retryCtrl = mega::createRetryController(
-        [this]()
+    mReconnectController.reset(mega::createRetryController(
+    [this]()
     {
+        mLastPingTs = 0;
         return conn->connect(KARERE_DEFAULT_XMPP_SERVER, 0);
     },
-        [this]() {xmpp_disconnect(*conn, -1);},
-        KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL
-    );
-    typedef decltype(retryCtrl) RC;
+    [this]()
+    {
+        xmpp_disconnect(*conn, -1);
+    }, KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+
     conn->addConnStateHandler(
-       [](xmpp_conn_t* conn_c, xmpp_conn_event_t event, int error,
+       [this](xmpp_conn_t* conn_c, xmpp_conn_event_t event, int error,
         xmpp_stream_error_t* stream_error, void* userdata, bool& keepHandler) mutable
     {
         if ((event != XMPP_CONN_DISCONNECT) && (event != XMPP_CONN_FAIL))
             return;
         assert(xmpp_conn_get_state(conn_c) == XMPP_STATE_DISCONNECTED);
-        auto retryCtrl = static_cast<RC>(userdata);
-        if (retryCtrl->state() & mega::rh::kStateBitRunning)
+        if (mReconnectController->state() & mega::rh::kStateBitRunning)
             return;
 
-        if (retryCtrl->state() == mega::rh::kStateFinished) //we had previous retry session, reset the retry controller
-            retryCtrl->reset();
-        retryCtrl->start(500); //need to process(i.e. ignore) all stale libevent messages for the old connection so they don't get interpreted in the context of the new connection
-    }, retryCtrl);
+        if (mReconnectController->state() == mega::rh::kStateFinished) //we had previous retry session, reset the retry controller
+            mReconnectController->reset();
+        mReconnectController->start(500); //need to process(i.e. ignore) all stale libevent messages for the old connection so they don't get interpreted in the context of the new connection
+    });
 #if 0
     //test
     mega::setInterval([this]()
@@ -495,6 +498,37 @@ void Client<M,GM,SP,EH>::setupReconnectHandler()
         xmpp_disconnect(*conn, -1);
     }, 6000);
 #endif
+}
+
+template<class M, class GM, class SP, class EH>
+void Client<M,GM,SP,EH>::notifyNetworkOffline()
+{
+    KR_LOG_WARNING("Network offline notification received, starting reconnect attempts");
+    if (xmpp_conn_get_state(*conn) == XMPP_STATE_DISCONNECTED)
+    {
+        //if we are disconnected, the retry controller must never be at work, so not 'finished'
+        assert(mReconnectController->state() != mega::rh::kStateFinished);
+        if (mReconnectController->currentAttemptNo() > 2)
+            mReconnectController->restart();
+    }
+    else
+    {
+        conn->disconnect(-1); //this must trigger the conn state handler which will start the reconnect controller
+    }
+}
+
+template<class M, class GM, class SP, class EH>
+void Client<M,GM,SP,EH>::notifyNetworkOnline()
+{
+    if (xmpp_conn_get_state(*conn) == XMPP_STATE_CONNECTED)
+        return;
+
+    if (mReconnectController->state() == mega::rh::kStateFinished)
+    {
+        KR_LOG_WARNING("notifyNetworkOnline: reconnect controller is in 'finished' state, but connection is not connected. Resetting reconnect controller.");
+        mReconnectController->reset();
+    }
+    mReconnectController->restart();
 }
 
 template<class M, class GM, class SP, class EH>
@@ -699,35 +733,50 @@ void Client<M,GM,SP,EH>::addOtherUser(const std::string &roomId, const std::stri
 }
 
 template<class M, class GM, class SP, class EH>
-void Client<M,GM,SP,EH>::startSelfPings(int intervalSec)
+void Client<M,GM,SP,EH>::startKeepalivePings()
 {
-    pingPeer(strophe::getBareJidFromJid(conn->fullJid()), intervalSec);
+    mega::setInterval([this]()
+    {
+        if (!xmpp_conn_is_authenticated(*conn))
+            return;
+        if (mLastPingTs) //waiting for pong
+        {
+            if (xmpp_time_stamp()-mLastPingTs > 9000)
+            {
+                KR_LOG_WARNING("Keepalive ping timeout");
+                notifyNetworkOffline();
+            }
+        }
+        else
+        {
+            mLastPingTs = xmpp_time_stamp();
+            pingPeer(nullptr)
+            .then([this](strophe::Stanza s)
+            {
+                mLastPingTs = 0;
+                return 0;
+            });
+        }
+    }, 10000);
 }
 
 template<class M, class GM, class SP, class EH>
-void Client<M,GM,SP,EH>::pingPeer(const std::string& peerJid, int intervalSec)
+strophe::StanzaPromise Client<M,GM,SP,EH>::pingPeer(const char* peerJid)
 {
-    mega::setInterval([this, peerJid]()
-    {
-        strophe::Stanza ping(*conn);
-        ping.setName("iq")
-            .setAttr("type", "get")
-            .setAttr("to", peerJid)
-            .setAttr("from", conn->fullJid())
-            .setAttr("id", messageId(peerJid, std::string("ping")))
-            .c("ping")
+    strophe::Stanza ping(*conn);
+    ping.setName("iq")
+        .setAttr("type", "get")
+        .c("ping")
                 .setAttr("xmlns", "urn:xmpp:ping");
-        conn->sendIqQuery(ping, "set")
-        .then([](strophe::Stanza s)
-        {
-            return 0;
-        })
-        .fail([](const promise::Error& err)
-        {
-            KR_LOG_ERROR("Error receiving pong\n");
-            return err;
-        });
-    }, intervalSec*1000);
+    if (peerJid)
+        ping.setAttr("to", peerJid);
+
+    return conn->sendIqQuery(ping, "png")
+    .fail([](const promise::Error& err)
+    {
+        KR_LOG_ERROR("Error receiving pong\n");
+        return err;
+    });
 }
 
 template<class M, class GM, class SP, class EH>
