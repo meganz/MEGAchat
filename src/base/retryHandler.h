@@ -39,6 +39,34 @@ enum
     kDefaultMaxAttemptCount = 0,
     kDefaultMaxSingleWaitTime = 60000
 };
+class IRetryController
+{
+protected:
+    State mState = kStateNotStarted;
+    size_t mCurrentAttemptNo = 0;
+    bool mAutoDestruct = false; //used when we use this object on the heap
+public:
+    virtual void start(unsigned delay) = 0;
+    virtual void restart(unsigned delay=0) = 0;
+    virtual bool abort() = 0;
+    virtual void reset() = 0;
+    size_t currentAttemptNo() const { return mCurrentAttemptNo; }
+/** Tells the retry handler to delete itself after it has resolved the outupt promise.
+ * This is convenient in a fire-and-forget scenario. Typically the user keeps
+ * a copy of the output promise, obtained via getPromise(), which keeps the promise
+ * alive even of the RetryController object is deleted. See the implementation of
+ * the standalone function retry() for an example of that.
+ * \warning This can be set only if the instance is allocated on the heap and not
+ * on the stack
+ */
+    void setAutoDestroy() { mAutoDestruct = true; }
+/** @brief
+ * The state of the retry handler - whether it has not yet been started, is in progress
+ * or has finished and the output promise is resolved/rejected.
+ */
+    State state() const { return mState; }
+    virtual ~IRetryController(){};
+};
 
 /** @brief
  * This is a simple class that retries a promise-returning function call, until the
@@ -53,7 +81,7 @@ enum
  * (failed) call of the function.
  */
 template<class Func, class CancelFunc=void*>
-class RetryController
+class RetryController: public IRetryController
 {
 public:
     /** @brief
@@ -64,34 +92,19 @@ public:
 
 protected:
     enum { kBitness = sizeof(size_t)*8-10 }; //maximum exponent of mInitialWaitTime that fits into a size_t
-    State mState = kStateNotStarted;
     Func mFunc;
     CancelFunc mCancelFunc;
-    size_t mCurrentAttemptNo = 0;
+    size_t mCurrentAttemptId = 0; //used to detect callbacks from stale attempts. Never reset (unlike mCurrentAttemptNo)
     size_t mMaxAttemptCount;
     unsigned mAttemptTimeout = 0;
     unsigned mMaxSingleWaitTime;
     promise::Promise<RetType> mPromise;
     unsigned long mTimer = 0;
     unsigned short mInitialWaitTime;
-    bool mAutoDestruct = false; //used when we use this object on the heap
+    unsigned mRestart = 0;
 public:
     /** Gets the output promise that is resolved. */
     promise::Promise<RetType>& getPromise() {return mPromise;}
-    /** Tells the retry handler to delete itself after it has resolved the outupt promise.
-     * This is convenient in a fire-and-forget scenario. Typically the user keeps
-     * a copy of the output promise, obtained via getPromise(), which keeps the promise
-     * alive even of the RetryController object is deleted. See the implementation of
-     * the standalone function retry() for an example of that.
-     * \warning This can be set only if the instance is allocated on the heap and not
-     * on the stack
-     */
-    void setAutoDestroy() { mAutoDestruct = true; }
-    /** @brief
-     * The state of the retry handler - whether it has not yet been started, is in progress
-     * or has finished and the output promise is resolved/rejected.
-     */
-    State state() const { return mState; }
     /**
      * @param func - The function that does the operation being retried.
      * This can be a lambda, function object or a C funtion pointer. The function
@@ -149,15 +162,11 @@ public:
      */
     bool abort()
     {
-        if ((mState != kStateInProgress) && (mState != kStateRetryWait))
+        if ((mState & kStateBitRunning) == 0)
             return false;
 
         assert(!mPromise.done());
-        if (mTimer)
-        {
-            cancelTimeout(mTimer);
-            mTimer = 0;
-        }
+        cancelTimer();
         if ((mState == kStateInProgress) && !std::is_same<CancelFunc, void*>::value)
             mCancelFunc();
         mPromise.reject(promise::Error("aborted", 1, kErrorType));
@@ -187,18 +196,28 @@ public:
     }
     /**
      * @brief restart
-     * Aborts, resets and starts the RetryController in one go.
-     * @return Returns the new output promise. Even in case the retry handler
-     * is already deleted when restart() returns (in case autoDestroy is set),
-     * the promise is guaranteed to be valid.
+     * Restarts the attempts with the initial backoff value, i.e. as if the controller was just started,
+     * but keeps the current promise object. If the controller has not yet been started, this call is
+     * equivalent to start().
+     * This method can't be called if the controller is in the \c finished state, in which case an exception will
+     * be thrown
      */
-    promise::Promise<RetType> restart()
+    void restart(unsigned delay=0)
     {
-        abort();
-        reset();
-        auto pms = getPromise();
-        start();
-        return pms;
+        if (mState == kStateFinished)
+        {
+            throw std::runtime_error("restart: Already in finished state");
+        }
+        else if (mState == kStateInProgress)
+        {
+            mRestart = delay ? delay : 1; //schedNextRetry will do the actual restart once the current attempt finishes
+        }
+        else //kStateRetryWait or kStateNotStarted
+        {
+            cancelTimer();
+            mState = kStateNotStarted;
+            start(delay);
+        }
     }
 protected:
     unsigned calcWaitTime()
@@ -223,14 +242,14 @@ protected:
     {
         assert(mTimer == 0);
         assert(!mPromise.done());
-        auto attempt = mCurrentAttemptNo;
+        auto attempt = mCurrentAttemptId;
     //set an attempt timeout timer
         if (mAttemptTimeout)
         {
             mTimer = setTimeout([this, attempt]()
             {
                 mTimer = 0;
-                if ((attempt != mCurrentAttemptNo) || mPromise.done())
+                if ((attempt != mCurrentAttemptId) || mPromise.done())
                     return;
                 static const promise::Error timeoutError("timeout", 2, kErrorType);
                 RETRY_LOG("Attempt %zu timed out after %u ms", mCurrentAttemptNo, mAttemptTimeout);
@@ -243,7 +262,7 @@ protected:
         mFunc()
         .then([this, attempt](const RetType& ret)
         {
-            if ((attempt != mCurrentAttemptNo) || mPromise.done())
+            if ((attempt != mCurrentAttemptId) || mPromise.done())
             {
                 RETRY_LOG("A previous timed-out/aborted attempt returned success");
                 return ret;
@@ -257,7 +276,7 @@ protected:
         })
         .fail([this, attempt](const promise::Error& err)
         {
-            if ((attempt != mCurrentAttemptNo) || mPromise.done())//mPromise changed, we already in another attempt and this callback is from the old attempt, ignore it
+            if ((attempt != mCurrentAttemptId) || mPromise.done())//mPromise changed, we already in another attempt and this callback is from the old attempt, ignore it
             {
                 RETRY_LOG("A previous timed-out/aborted attempt returned failure: %s", err.msg().c_str());
                 return err;
@@ -271,7 +290,15 @@ protected:
     bool schedNextRetry(const promise::Error& err)
     {
         assert(mTimer == 0);
+        if (mRestart)
+        {
+            mRestart = 0;
+            mState = kStateNotStarted;
+            start(mRestart); //will just schedule, because we pass it a nonzero delay
+            return true;
+        }
         mCurrentAttemptNo++; //always increment, to mark the end of the previous attempt
+        mCurrentAttemptId++;
         if (mMaxAttemptCount && (mCurrentAttemptNo > mMaxAttemptCount)) //give up
         {
             mPromise.reject(err);
