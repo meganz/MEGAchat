@@ -37,7 +37,17 @@ Jingle::Jingle(xmpp_conn_t* conn, ICryptoFunctions* crypto, const char* iceServe
     mMediaConstraints.SetMandatoryReceiveAudio(true);
     mMediaConstraints.SetMandatoryReceiveVideo(true);
     mMediaConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
+    registerDiscoCaps();
+    mConn.addHandler(std::bind(&Jingle::onJingle, this, _1),
+                     "urn:xmpp:jingle:1", "iq", "set");
+//            mConn.addHandler(std::bind(&Jingle::onIncomingCallMsg, this, _1),
+    mConn.addHandler([this](Stanza stanza, void* user, bool& keep)
+    {
+        onIncomingCallMsg(stanza);
+    },
+    nullptr, "message", "megaCall");
 }
+
 void Jingle::addAudioCaps()
 {
     discoAddFeature("urn:xmpp:jingle:apps:rtp:audio");
@@ -70,19 +80,7 @@ void Jingle::onConnState(const xmpp_conn_event_t status,
 {
     try
     {
-        if (status == XMPP_CONN_CONNECT)
-        {
-            registerDiscoCaps();
-            mConn.addHandler(std::bind(&Jingle::onJingle, this, _1),
-                             "urn:xmpp:jingle:1", "iq", "set");
-//            mConn.addHandler(std::bind(&Jingle::onIncomingCallMsg, this, _1),
-            mConn.addHandler([this](Stanza stanza, void* user, bool& keep)
-            {
-                onIncomingCallMsg(stanza);
-            },
-            nullptr, "message", "megaCall");
-        }
-        else if (status == XMPP_CONN_FAIL)
+        if (status == XMPP_CONN_FAIL)
         {
             string msg("error code: "+to_string(error));
             if (stream_error)

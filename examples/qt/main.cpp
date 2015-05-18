@@ -19,7 +19,7 @@ using namespace promise;
 using namespace mega;
 
 MainWindow* mainWin = NULL;
-unique_ptr<karere::ChatClient> gClient;
+unique_ptr<karere::Client> gClient;
 
 struct GcmEvent: public QEvent
 {
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin->ui->calleeInput->setText(argv[3]);
-    gClient.reset(new karere::ChatClient(argv[1], argv[2]));
+    gClient.reset(new karere::Client(argv[1], argv[2]));
     gClient->registerRtcHandler(new RtcEventHandler(mainWin));
     gClient->init()
     .then([](int)

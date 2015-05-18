@@ -19,28 +19,22 @@
 #include <mega/base64.h>
 #include "iMember.h"
 #include "karereEventObjects.h"
+#include "textModuleTypeConfig.h"
+#include "chatClient.h"
+#include "textModule.h"
 
 namespace nsmega = mega;
 
 namespace karere
 {
 
-template<class M, class GM, class SP, class EP>
 class Client;
 
 /**
  * @brief Represents a XMPP chatroom Encapsulates the members and handlers
  * required to process transactions with the room and other members of the room.
- *
- * Template Parameters:
- *      M: The member class to be used.
- *      GM: The group member class to be used.
- *      SP: The shared pointer class for members.
- *      EP: The encryption protocol handler.
  */
-template<class M = DummyMember, class GM = DummyGroupMember,
-        class SP = SharedDummyMember, class EP = DummyEncProtocolHandler>
-class ChatRoom
+class ChatRoom: public TextModuleTypeConfig
 {
 public:
     typedef enum eState {
@@ -62,19 +56,16 @@ public:
     } STATE;
 
 public:
-    static_assert(std::is_base_of<M, GM>::value,
-                            "Template parameter M must be a base of GM.");
-    static_assert(std::is_base_of<std::shared_ptr<M>, SP>::value,
-                            "Template parameter SP must be a base of std::shared_ptr<M>");
+    typedef SharedChatRoomMember<MemberType, SharedMemberPtrType> RoomMember;
     /*
-     * @param aClient {Client} reference to a client-owner of chat room
-     * @param peerFullJid {string} peer's JID
-     * @param roomJid {string} room's JID
-     * @param myRoomJid {string} room's JID of owner's
-     * @param peerRoomJid {string} room's JID of peer's
+     * @param aClient reference to a client-owner of chat room
+     * @param peerFullJid peer's JID
+     * @param roomJid room's JID
+     * @param myRoomJid room's JID of owner's
+     * @param peerRoomJid room's JID of peer's
      * @constructor
     */
-    ChatRoom(Client<M, GM, SP, EP>& aClient, const std::string& peerFullJid,
+    ChatRoom(Client& aClient, const std::string& peerFullJid,
              const std::string& roomJid, const std::string& myRoomJid,
              const std::string& peerRoomJid) :
                  client(aClient),
@@ -83,9 +74,9 @@ public:
                  mMyRoomJid(myRoomJid),
                  mPeerRoomJid(peerRoomJid),
                  mMyFullJid(client.conn->fullJid()),
-                 isOwner(false){
+                 isOwner(false)
+    {
 
-        printf("myFullJid:%s\n", mMyFullJid.c_str());
         // For filtering incoming messages.
         init();
     }
@@ -97,9 +88,10 @@ public:
      * @param Participants {std::vector<std::string>} room's participants
     * @constructor
     */
-    ChatRoom(Client<M, GM, SP, EP>& aClient, const std::string& roomJid, const std::vector<std::string> Participants)
+    ChatRoom(Client& aClient, const std::string& roomJid, const std::vector<std::string> Participants)
     :client(aClient), mRoomJid(roomJid), mMyFullJid(client.conn->fullJid()),
-     isOwner(false){
+     isOwner(false)
+    {
          init();
     }
 
@@ -108,7 +100,7 @@ public:
      *
      * @param member The member to add to the ChatRoom.
      */
-    void addGroupMember(SharedChatRoomMember<M, SP> member) {
+    void addGroupMember(RoomMember member) {
         members.insert({member->getId(), member});
         memberVector.push_back(member);
 
@@ -126,14 +118,11 @@ public:
      * @param fullJid The fullJid of the member to find.
      * @return The member, if it exists, or an empty shared_ptr.
      */
-    SharedChatRoomMember<M, SP> getGroupMember(std::string &fullJid) {
-        SharedChatRoomMember<M, SP> member;
-        auto i = members.find(fullJid);
-        if(i != members.end()) {
-            member = i->second();
-        }
-
-        return member;
+    RoomMember getGroupMember(std::string &fullJid) {
+        auto it = members.find(fullJid);
+        return (it != members.end())
+                ? it->second
+                : RoomMember();
     }
 
     /*
@@ -142,13 +131,10 @@ public:
      * @factory function to create ChatRoom object.
      * @return {shared_ptr<ChatRoom>} a smart pointer pointing to a new ChatRoom object.
     */
-    template<class N = DummyMember, class GN = DummyGroupMember,
-            class P = SharedDummyMember, class NP = DummyEncProtocolHandler>
-    static
-    promise::Promise<std::shared_ptr<ChatRoom<N, GN, P, NP>> >
-    create(Client<N, GN, P, NP>& client, const std::string& peerFullJid)
+    static promise::Promise<std::shared_ptr<ChatRoom> >
+    create(Client& client, const std::string& peerFullJid)
     {
-        const char* myFullJid = xmpp_conn_get_bound_jid(*client.conn);
+        const char* myFullJid = client.conn->fullJid();
 
         if (!myFullJid)
         {
@@ -205,9 +191,9 @@ public:
             .setAttr("xmlns", "http://jabber.org/protocol/muc")
             .c("password");
 
-        std::shared_ptr<ChatRoom> room(new ChatRoom<N, GN, P, NP>(client, peerFullJid, roomJid,
+        std::shared_ptr<ChatRoom> room(new ChatRoom(client, peerFullJid, roomJid,
             myRoomJid, peerRoomJid));
-        promise::Promise<std::shared_ptr<ChatRoom<N, GN, P, NP>>> ret;
+        promise::Promise<std::shared_ptr<ChatRoom>> ret;
 
         client.conn->sendQuery(pres, "muc")
         .then([ret, room, &client](strophe::Stanza result) mutable
@@ -230,7 +216,7 @@ public:
          .then([ret, room, myFullJid, &client](strophe::Stanza s) mutable
         {
             CHAT_LOG_INFO("create: Creating room: %s", room->roomJid().c_str());
-            client.chatRooms.insert(std::pair<std::string, std::shared_ptr<ChatRoom<N, GN, P, NP>>>(room->roomJid(), room));
+            client.mTextModule->chatRooms.insert(std::pair<std::string, std::shared_ptr<ChatRoom>>(room->roomJid(), room));
             room->roomSetup(myFullJid);
             room->isOwner = true;
             ret.resolve(room);
@@ -243,17 +229,14 @@ public:
 
             return 0;
         });
-
-
         return ret;
-    };
+    }
 
     inline void roomSetup(const char *myFullJid) {
         // Set the owner member for this chatroom, and add to the list of members.
         // TODO: There is something wrong with groupmember, not being added
         // properly.
-        ownerMember =
-               SharedChatRoomMember<M, SP>(myFullJid);
+        ownerMember = RoomMember(myFullJid);
         members.insert({ownerMember->getId(), ownerMember});
         mpenc_cpp::SharedGroupMemberPtr gpMem(ownerMember->getId());
         encryptionHandler.setGroupMemberUh(gpMem);
@@ -279,14 +262,14 @@ public:
 	*
 	* @returns {(STATE)} mState
 	*/
-    inline STATE getState() const {return mState;}
+    STATE getState() const {return mState;}
 
 	/**
 	* Setter for property `mState`
 	*
 	* @returns {(void)}
 	*/
-    inline void setState(const STATE state) const { mState = state;}
+    void setState(const STATE state) { mState = state;}
 
     /**
 	* Getter for property `mMyFullJid`
@@ -596,8 +579,7 @@ protected:
     /**
      * @brief The client for this room.
      */
-    Client<M, GM, SP, EP>& client;
-
+    Client& client;
     /**
      * @brief The id for the initial peer used to create the room.
      */
@@ -626,7 +608,7 @@ protected:
     /**
      * @brief The map of members for this room.
      */
-    std::map<std::string, SharedChatRoomMember<M, SP>> members;
+    std::map<std::string, RoomMember> members;
 
     /**
      * @brief Vector of members.
@@ -636,7 +618,7 @@ protected:
     /**
      * @brief The member who owns the current client.
      */
-    SharedChatRoomMember<M, SP> ownerMember;
+    RoomMember ownerMember;
 
     /**
      * @brief The list of participants in the chatroom.
@@ -646,7 +628,7 @@ protected:
     /**
      * @brief The encryption handler for this chatroom.
      */
-    EP encryptionHandler;
+    EncryptionHandlerType encryptionHandler;
 
     /**
      * @brief The incoming text filter for this chatroom.
@@ -663,9 +645,6 @@ protected:
      * off mpenc.
      */
     bool isOwner;
-
-private:
-
 };
 
 }

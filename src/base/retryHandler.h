@@ -4,6 +4,7 @@
 #include <promise.h>
 #include <base/gcm.h>
 #include <karereCommon.h>
+#include <base/timers.h>
 
 #define RETRY_DEBUG_LOGGING 1
 
@@ -142,7 +143,7 @@ public:
         if (delay)
         {
             mState = kStateRetryWait;
-            mTimer = setTimeout([this]()
+            mTimer = ::mega::setTimeout([this]()
             {
                 mTimer = 0;
                 nextTry();

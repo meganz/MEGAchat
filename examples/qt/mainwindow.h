@@ -41,7 +41,7 @@ public slots:
 };
 
 extern bool inCall;
-extern std::unique_ptr<karere::ChatClient> gClient;
+extern std::unique_ptr<karere::Client> gClient;
 
 class CallAnswerGui: QObject
 {

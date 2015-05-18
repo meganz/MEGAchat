@@ -17,6 +17,7 @@ set (SRCS
     dummyCrypto.cpp
     megaCryptoFunctions.cpp
     chatClient.cpp
+    textModule.cpp
     contactList.cpp
     ./text_filter/text_filter.cpp
     ./text_filter/default_link_handler.cpp

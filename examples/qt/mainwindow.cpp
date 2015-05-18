@@ -12,6 +12,8 @@
 #include <sdkApi.h>
 #include <chatClient.h>
 #include <messageBus.h>
+#include <textModule.h>
+#include <chatRoom.h>
 
 #undef emit
 #define THROW_IF_FALSE(statement) \
@@ -20,7 +22,7 @@
     }
 
 extern MainWindow* mainWin;
-extern std::unique_ptr<karere::ChatClient> gClient;
+extern std::unique_ptr<karere::Client> gClient;
 
 using namespace std;
 using namespace mega;
@@ -159,7 +161,7 @@ void MainWindow::inviteButtonPushed()
         return;
     }
 
-    gClient->invite(peerMail);
+    gClient->mTextModule->invite(peerMail);
 
 }
 
@@ -176,13 +178,13 @@ void MainWindow::handleWarning(std::string &message) {
 //void MainWindow::
 void MainWindow::leaveButtonPushed()
 {
-    gClient->leaveRoom(chatRoomJid);
+    gClient->mTextModule->leaveRoom(chatRoomJid);
 }
 
 void MainWindow::sendButtonPushed()
 {
     std::string message = ui->typingTextEdit->toPlainText().toUtf8().constData();
-    gClient->sendMessage(chatRoomJid, message);
+    gClient->mTextModule->sendMessage(chatRoomJid, message);
     ui->typingTextEdit->setPlainText("");
 }
 
@@ -210,9 +212,9 @@ void MainWindow::buttonPushed()
                 throw std::runtime_error("Returned peer user is NULL");
 
             string peerJid = string(peer)+"@"+KARERE_XMPP_DOMAIN;
-            return karere::ChatRoom<MPENC_T_PARAMS>::create(*gClient, peerJid);
+            return karere::ChatRoom::create(*gClient, peerJid);
         })
-        .then([this](shared_ptr<karere::ChatRoom<MPENC_T_PARAMS>> room)
+        .then([this](shared_ptr<karere::ChatRoom> room)
         {
             rtcModule::AvFlags av;
             av.audio = true;
@@ -220,7 +222,7 @@ void MainWindow::buttonPushed()
             char sid[rtcModule::RTCM_SESSIONID_LEN+2];
             gClient->rtc->startMediaCall(sid, room->peerFullJid().c_str(), av, nullptr);
             this->chatRoomJid = room->roomJid();
-            gClient->chatRooms[chatRoomJid]->addUserToChat(room->peerFullJid());
+            gClient->mTextModule->chatRooms[chatRoomJid]->addUserToChat(room->peerFullJid());
             inCall = true;
             ui->callBtn->setText("Hangup");
             return nullptr;

@@ -65,6 +65,7 @@ protected:
     };
     typedef std::map<std::string, std::shared_ptr<AutoAcceptCallInfo> > AutoAcceptMap;
     strophe::Connection mConn;
+    bool mHandlersInitialized = false; //used in conn state handler to initialize only on first connect
     std::map<std::string, std::shared_ptr<JingleSession> > mSessions;
 /** Timeout after which if an iq response is not received, an error is generated */
     int mJingleTimeout = 50000;
