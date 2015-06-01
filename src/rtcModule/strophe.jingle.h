@@ -30,31 +30,11 @@ struct AnswerOptions
 typedef std::function<bool(bool, std::shared_ptr<AnswerOptions>, const char* reason,
    const char* text)> CallAnswerFunc;
 
+struct FakeSessionInfo;
 
 class Jingle
 {
 protected:
-/** Contains all info about a not-yet-established session, when onCallTerminated is fired and there is no session yet */
-    struct FakeSessionInfo: public IJingleSession
-    {
-        const std::string mSid;
-        const std::string mPeer;
-        const std::string mJid;
-        bool mIsInitiator;
-        std::string mPeerAnonId;
-        FakeSessionInfo(const std::string& aSid, const std::string& aPeer,
-            const std::string& aMyJid, bool aInitiator, const std::string& peerAnonId)
-            :mSid(aSid), mPeer(aPeer), mJid(aMyJid), mIsInitiator(aInitiator){}
-        virtual bool isRealSession() const {return false;}
-        virtual const char* getSid() const {return mSid.c_str();}
-        virtual const char* getJid() const {return mJid.c_str();}
-        virtual const char* getPeerJid() const {return mPeer.c_str();}
-        virtual const char* getPeerAnonId() const {return mPeerAnonId.c_str();}
-        virtual bool isCaller() const {return mIsInitiator;}
-        virtual int isRelayed() const {return false;}
-        virtual void setUserData(void*, DeleteFunc delFunc) {}
-        virtual void* getUserData() const {return nullptr;}
-    };
 /** Contains all info about an incoming call that has been accepted at the message level and needs to be autoaccepted at the jingle level */
     struct AutoAcceptCallInfo: public karere::StringMap
     {
@@ -86,6 +66,7 @@ public:
     webrtc::FakeConstraints mMediaConstraints;
     artc::DeviceManager deviceManager;
     ICryptoFunctions& crypto() {return *mCrypto;}
+    const std::string& getOwnAnonId() const { return mOwnAnonId; }
 //event handler interface
     virtual void onConnectionEvent(int state, const std::string& msg){}
     virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream){}

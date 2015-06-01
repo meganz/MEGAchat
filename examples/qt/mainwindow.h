@@ -123,8 +123,9 @@ public:
     }
 
     virtual void onCallEnded(rtcModule::IJingleSession *sess,
-        const char* reason, const char* text, rtcModule::IRtcStats *stats)
+        const char* reason, const char* text, rtcModule::stats::IRtcStats *statsObj)
     {
+        rtcModule::IPtr<rtcModule::stats::IRtcStats> stats(statsObj);
         printf("on call ended\n");
         inCall = false;
         mMainWindow->ui->callBtn->setText("Call");

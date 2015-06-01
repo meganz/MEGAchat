@@ -4,9 +4,10 @@
 #include "strophe.jingle.session.h"
 #include "ITypesImpl.h"
 #include "IDeviceListImpl.h"
-#include "strophe.disco.h"
+//#include "strophe.disco.h"
+#include "rtcStats.h"
 
-#define RTCM_EVENT(name,...)            \
+#define RTCM_EVENT(name,...)             \
     KR_LOG_RTC_EVENT("%s", #name);       \
     mEventHandler->name(__VA_ARGS__)
 
@@ -27,8 +28,7 @@ RtcModule::RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
 :Jingle(conn, crypto, iceServers), mEventHandler(handler)
 {
     mOwnAnonId = VString(crypto->scrambleJid(CString(mConn.fullJid())));
-    mDiscoPlugin = mConn.pluginPtr<disco::DiscoPlugin>("disco");
-    //    logInputDevices();
+//  logInputDevices();
 }
 
 void RtcModule::discoAddFeature(const char* feature)
@@ -837,7 +837,7 @@ void RtcModule::onMediaStart(const string& sid)
         if (statOptions.maxSamplePeriod < 0)
             statOptions.maxSamplePeriod = 5;
 
-        sess.mStatsRecorder.reset(new StatsRecorder(sess, statOptions));
+        sess.mStatsRecorder.reset(new stats::Recorder(sess, statOptions));
         sess.mStatsRecorder->start();
     }
     sess.tsMediaStart = karere::timestampMs();
@@ -855,23 +855,22 @@ void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const 
 
        if(sess->mStatsRecorder) //stats are created only if onRemoteSdp occurs
        {
-           auto stats = sess->mStatsRecorder->terminate(makeCallId(sess));
-           stats->termRsn = reason?reason:"(unknown)";
+           sess->mStatsRecorder->terminate(reason?reason:"(unknown)");
 //           jQuery.ajax(this.statsUrl, {
 //                type: 'POST',
 //                data: JSON.stringify(obj.stats||obj.basicStats)
 //        });
-           RTCM_EVENT(onCallEnded, sess, reason, text, stats.get());
+           RTCM_EVENT(onCallEnded, sess, reason, text, sess->mStatsRecorder->mStats.release());
        }
        else
        {
-           BasicStats bstats(*sess, reason);
+           stats::BasicStats bstats(*sess, reason);
            RTCM_EVENT(onCallEnded, sess, reason, text, &bstats);
        }
    }
    else //no sess
    {
-       BasicStats bstats(*noSess, reason);
+       stats::BasicStats bstats(*noSess, reason);
        RTCM_EVENT(onCallEnded, noSess, reason, text, &bstats);
    }
  }
@@ -1151,20 +1150,6 @@ void RtcModule::enableLocalVideo()
 void RtcModule::removeRemoteVideo(JingleSession& sess)
 {
 
-}
-
-/**
- Creates a unique string identifying the call,
- that is independent of whether the
- caller or callee generates it. Used only for sending stats
-*/
-string RtcModule::makeCallId(IJingleSession* sess)
-{
-    assert(sess);
-    if (sess->isCaller())
-        return mOwnAnonId+":"+sess->getPeerAnonId()+":"+sess->getSid();
-      else
-        return string(sess->getPeerAnonId())+":"+mOwnAnonId+":"+sess->getSid();
 }
 
 AvFlags RtcModule::getStreamAv(artc::tspMediaStream& stream)

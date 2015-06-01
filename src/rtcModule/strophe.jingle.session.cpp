@@ -1,6 +1,7 @@
 #include "strophe.jingle.session.h"
 #include "strophe.jingle.sdp.h"
 #include "strophe.jingle.h"
+#include "rtcStats.h"
 #include "karereCommon.h"
 #include "stringUtils.h"
 
@@ -21,6 +22,10 @@ JingleSession::JingleSession(Jingle& jingle, const string& myJid, const string& 
       mFtHandler(ftHandler)
 {
     syncAvState();
+}
+JingleSession::~JingleSession()
+{
+    delUserData();
 }
 
 void JingleSession::initiate(bool isInitiator)
@@ -324,6 +329,21 @@ Promise<Stanza> JingleSession::sendIq(Stanza iq, const string& origin)
             mJingle.onJingleError(this, origin, err.msg(), iq);
             return err;
         });
+}
+
+int JingleSession::isRelayed() const
+{
+    if (!mStatsRecorder)
+        return -1;
+    return mStatsRecorder->isRelay()?1:0;
+}
+
+const char* makeCallId(const IJingleSession *sess, const Jingle& jingle)
+{
+    if (sess->isCaller())
+        return (jingle.getOwnAnonId()+":"+sess->getPeerAnonId()+":"+sess->getSid()).c_str();
+      else
+        return (std::string(sess->getPeerAnonId())+":"+jingle.getOwnAnonId()+":"+sess->getSid()).c_str();
 }
 
 }

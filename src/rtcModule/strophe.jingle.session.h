@@ -9,7 +9,6 @@
 #include "streamPlayer.h"
 #include "strophe.jingle.sdp.h"
 #include "IJingleSession.h"
-#include "IRtcModule.h" //needed for StatOptions only
 
 namespace rtcModule
 {
@@ -17,48 +16,16 @@ namespace rtcModule
 class Jingle;
 class JingleEventHandler; //can't nest it into Jingle
 class JingleSession;
+namespace stats { class Recorder; }
 
 class FileTransferHandler
 {
 public:
     void remove(const char*, const char*){}
 };
-//Dummy stats recorder. TODO: Implement
-class RtcStats: public IRtcStats
-{
-public:
-    bool isCaller;
-    std::string termRsn;
-    RtcStats(JingleSession& sess, const StatOptions& options){}
-//        :isCaller(sess.isInitiator()){}
-};
-
-class BasicStats: public IRtcStats
-{
-public:
-    bool isCaller;
-    std::string termRsn;
-    BasicStats(const IJingleSession& sess, const char* aTermRsn)
-        :isCaller(sess.isCaller()), termRsn(aTermRsn?aTermRsn:""){}
-};
-
-class StatsRecorder
-{
-protected:
-    JingleSession& mSession;
-    StatOptions mOptions;
-public:
-    StatsRecorder(JingleSession& sess, const StatOptions& options)
-        :mSession(sess), mOptions(options){}
-    bool isRelay() const {return false;}
-    void start() {}
-    std::shared_ptr<RtcStats> terminate(std::string&& callId)
-    {
-        return std::shared_ptr<RtcStats>(new RtcStats(mSession, mOptions));
-    }
-};
 
 typedef std::vector<strophe::Stanza> StanzaQueue;
+const char* makeCallId(const IJingleSession*, const Jingle& jingle);
 
 class JingleSession: public IJingleSession, public karere::StringMap
 {
@@ -77,9 +44,10 @@ public:
         int width = 0;
         int height = 0;
     };
+
+    Jingle& mJingle; //needs to be public for makeCallId()
 protected:
     typedef karere::StringMap Base;
-    Jingle& mJingle;
     std::string mSid;
     std::string mOwnJid;
     std::string mPeerJid;
@@ -87,8 +55,7 @@ public:
     AvFlags mRemoteAvState;
     AvFlags mLocalAvState;
 protected:
-    artc::myPeerConnection<JingleSession> mPeerConn;
-    ::strophe::Connection& mConnection;
+    strophe::Connection& mConnection;
     std::string mInitiator;
     std::string mResponder;
     bool mIsInitiator;
@@ -104,10 +71,11 @@ protected:
     void reportError(const std::string& msg, const char* where);
     void addFingerprintMac(strophe::Stanza jingle);
 public:
+    artc::myPeerConnection<JingleSession> mPeerConn;
     std::unique_ptr<StanzaQueue> inputQueue;
     std::shared_ptr<artc::StreamPlayer> remotePlayer;
     karere::Ts tsMediaStart = 0;
-    std::unique_ptr<StatsRecorder> mStatsRecorder;
+    std::unique_ptr<stats::Recorder> mStatsRecorder;
 
 //PeerConnection callback interface
     void onError() {KR_LOG_ERROR("session %s: peerconnection called onError()", mSid.c_str());}
@@ -126,13 +94,9 @@ public:
     virtual const char* getJid() const {return mOwnJid.c_str();}
     virtual const char* getPeerJid() const {return mPeerJid.c_str();}
     virtual const char* getPeerAnonId() const {return at("peerAnonId").c_str();}
+    virtual const char* getCallId() const { return makeCallId(this, mJingle); }
     virtual bool isCaller() const {return mIsInitiator;}
-    virtual int isRelayed() const
-    {
-        if (!mStatsRecorder)
-            return -1;
-        return mStatsRecorder->isRelay()?1:0;
-    }
+    virtual int isRelayed() const;
     virtual void setUserData(void* userData, DeleteFunc delFunc)
     {
         delUserData();
@@ -142,14 +106,11 @@ public:
     virtual void* getUserData() const {return mUserData;}
 //===
     JingleSession(Jingle& jingle, const	std::string& myJid,
-        const std::string& peerJid,	const std::string& sid,
+        const std::string& peerJid, const std::string& sid,
         strophe::Connection& connection, artc::tspMediaStream sessLocalStream,
         const AvFlags& avState, const karere::StringMap& props, FileTransferHandler* ftHandler=NULL);
     void initiate(bool isInitiator);
-    ~JingleSession()
-    {
-        delUserData();
-    }
+    ~JingleSession();
     void delUserData()
     {
         if(mUserData && mUserDataDelFunc)
@@ -196,6 +157,31 @@ public:
     promise::Promise<int> muteUnmute(bool state, const AvFlags& what);
     promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string &origin);
 };
+
+/** Contains all info about a not-yet-established session, when onCallTerminated is fired and there is no session yet */
+struct FakeSessionInfo: public IJingleSession
+{
+    const Jingle& mJingle;
+    const std::string mSid;
+    const std::string mPeer;
+    const std::string mJid;
+    bool mIsInitiator;
+    std::string mPeerAnonId;
+    FakeSessionInfo(Jingle& jingle, const std::string& aSid, const std::string& aPeer,
+        const std::string& aMyJid, bool aInitiator, const std::string& peerAnonId)
+    :mJingle(jingle), mSid(aSid), mPeer(aPeer), mJid(aMyJid), mIsInitiator(aInitiator){}
+    virtual bool isRealSession() const {return false;}
+    virtual const char* getSid() const {return mSid.c_str();}
+    virtual const char* getJid() const {return mJid.c_str();}
+    virtual const char* getPeerJid() const {return mPeer.c_str();}
+    virtual const char* getPeerAnonId() const {return mPeerAnonId.c_str();}
+    virtual const char* getCallId() const { return makeCallId(this, mJingle); }
+    virtual bool isCaller() const {return mIsInitiator;}
+    virtual int isRelayed() const {return false;}
+    virtual void setUserData(void*, DeleteFunc delFunc) {}
+    virtual void* getUserData() const {return nullptr;}
+};
+
 }
 
 #endif // STROPHE_JINGLE_SESSION_H

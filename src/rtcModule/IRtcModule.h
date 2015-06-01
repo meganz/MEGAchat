@@ -20,10 +20,11 @@
  * You should have received a copy of the license along with this
  * program.
  */
+#include "ITypes.h"
 #include "IJingleSession.h"
 #include "IVideoRenderer.h"
+#include "IRtcStats.h"
 #include "mstrophepp.h" //only needed for IPlugin
-#include "ITypes.h"
 
 namespace rtcModule
 {
@@ -90,7 +91,6 @@ struct StatOptions
     int scanPeriod = -1;
     int maxSamplePeriod = -1;
 };
-struct IRtcStats {};
 
 /**
  * Public event handler callback interface.
@@ -210,7 +210,7 @@ public:
      * @param stats A stats object thet contains full or basic statistics for the call.
      */
     virtual void onCallEnded(IJingleSession* sess, const char* reason, const char* text,
-                             IRtcStats* stats) {}
+                             stats::IRtcStats* stats) {}
     /**
      * @brief Fired when the media and codec description of the remote side
      * has been received and parsed by webRTC. At this point it is known exactly

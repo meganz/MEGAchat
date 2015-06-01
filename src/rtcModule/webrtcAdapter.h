@@ -158,21 +158,58 @@ protected:
 
 typedef std::shared_ptr<SdpText> sspSdpText;
 
-struct StatsCallbacks: public webrtc::StatsObserver
+struct MappedStatsItem
 {
-    typedef promise::Promise<std::shared_ptr<std::vector<webrtc::StatsReport> > > PromiseType;
-    StatsCallbacks(const PromiseType& promise):mPromise(promise){}
-    virtual void OnComplete(const std::vector<webrtc::StatsReport>& reports)
+    std::string id;
+    std::string type;
+    double timestamp;
+    std::map<std::string, std::string> values;
+    MappedStatsItem(const std::string& aid, const std::string& atype, const double& ats): id(aid), type(atype), timestamp(ats){}
+    bool hasVal(const char* name)
     {
-        PromiseType::Type stats(new std::vector<webrtc::StatsReport>(reports)); //this is a std::shared_ptr
-        mega::marshallCall([this, stats]()
-        {
-            mPromise.resolve(stats);
-            delete this;
-        });
+        return (values.find(name) != values.end());
     }
-protected:
-    PromiseType mPromise;
+    const std::string& strVal(const std::string& name)
+    {
+        static std::string empty;
+        auto it = values.find(name);
+        if (it == values.end())
+            return empty;
+        return it->second;
+    }
+    bool longVal(const std::string& name, long& ret)
+    {
+        auto it = values.find(name);
+        if (it == values.end())
+            return false;
+        ret = std::stol(it->second);
+        return true;
+    }
+    long longVal(const std::string& name)
+    {
+        auto it = values.find(name);
+        if (it == values.end())
+            return 0;
+        return std::stol(it->second);
+    }
+};
+
+class MappedStatsData: public std::vector<MappedStatsItem>
+{
+public:
+    MappedStatsData(const std::vector<webrtc::StatsReport>& data)
+    {
+        for (const auto& item: data)
+        {
+            emplace_back(item.id, item.type, item.timestamp);
+            auto& m = back().values;
+            for (const auto& val: item.values)
+            {
+                assert(m.find(val.name) == m.end());
+                m[val.name] = val.value;
+            }
+        }
+    }
 };
 
 template <class C>
@@ -224,8 +261,8 @@ protected:
           mega::marshallCall([this]() { mHandler.onRenegotiationNeeded();});
       }
     protected:
+        /** own callback interface, always called by the GUI thread */
         C& mHandler;
-        //own callback interface, always called by the GUI thread
     };
     typedef rtc::scoped_refptr<webrtc::PeerConnectionInterface> Base;
     std::shared_ptr<Observer> mObserver;
@@ -277,13 +314,6 @@ public:
       auto observer = new rtc::RefCountedObject<SdpSetCallbacks>(promise);
       observer->AddRef();
       get()->SetRemoteDescription(observer, desc);
-      return promise;
-  }
-  StatsCallbacks::PromiseType getStats(
-    webrtc::MediaStreamTrackInterface* track, webrtc::PeerConnectionInterface::StatsOutputLevel level)
-  {
-      StatsCallbacks::PromiseType promise;
-      get()->GetStats(new rtc::RefCountedObject<StatsCallbacks>(promise), track, level);
       return promise;
   }
 };

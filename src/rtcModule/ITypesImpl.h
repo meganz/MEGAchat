@@ -1,3 +1,5 @@
+#ifndef ITYPES_IMPL_H
+#define ITYPES_IMPL_H
 #include <string>
 #include <string.h>
 #include "ITypes.h"
@@ -15,6 +17,16 @@ public:
     virtual const char* c_str() const {return mString.c_str();}
     virtual size_t size() const {return mString.size();}
     virtual bool empty() const {return mString.empty();}
+};
+class IString_ref: public IString
+{
+    virtual ~IString_ref(){}
+    const std::string& mStr;
+public:
+    IString_ref(const std::string& str): mStr(str) {}
+    virtual const char* c_str() const { return mStr.c_str(); }
+    virtual size_t size() const { return mStr.size(); }
+    virtual bool empty() const { return mStr.empty(); }
 };
 
 template<typename F=void(*)(void*), F FreeFunc=::free>
@@ -48,3 +60,5 @@ public:
     virtual bool empty() const {return (!mBuf || (mBuf[0] == 0));}
 };
 }
+
+#endif

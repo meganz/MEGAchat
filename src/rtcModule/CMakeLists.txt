@@ -9,6 +9,7 @@ set (SRCS
     strophe.jingle.cpp
     strophe.jingle.sdp.cpp
     webrtcAdapter.cpp
+    rtcStats.cpp
     rtcModule.cpp
     lib.cpp
     ../karereCommon.cpp

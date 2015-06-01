@@ -22,6 +22,7 @@ struct IJingleSession
     virtual const char* getPeerJid() const = 0;
     virtual bool isCaller() const = 0;
     virtual const char* getPeerAnonId() const = 0;
+    virtual const char* getCallId() const = 0;
 /** Returns whether the session's udnerlying media connection is relayed via a TURN server or not
  * @return -1 if unknown, 1 if true, 0 if false
  */

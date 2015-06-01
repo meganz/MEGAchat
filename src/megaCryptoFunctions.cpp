@@ -50,8 +50,8 @@ IString* MegaCryptoFuncs::generateMac(const CString& data, const CString& key)
     size_t maclen = Base64::btoa(binmac, bmlen, mac->bufWritePtr());
     assert(maclen == 43); //32 bytes to base64 without padding
     mac->setStrSize(maclen);
-    printf("\n===================== generateMac: data='%s', key='%s', mac='%s'\n",
-           data.c_str(), key.c_str(), mac->c_str());
+//   printf("\n===================== generateMac: data='%s', key='%s', mac='%s'\n",
+//          data.c_str(), key.c_str(), mac->c_str());
     return mac;
 }
 

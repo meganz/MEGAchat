@@ -5,8 +5,6 @@
 #include "strophe.jingle.h"
 #include "streamPlayer.h"
 
-namespace disco {class Plugin;}
-
 namespace rtcModule
 {
 /** This is the class that implements the user-accessible API to webrtc.
@@ -45,7 +43,6 @@ protected:
     artc::DeviceManager mDeviceManager;
     std::string mVideoInDeviceName;
     std::string mAudioInDeviceName;
-    disco::DiscoPlugin* mDiscoPlugin = nullptr;
 public:
     RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers);
@@ -124,7 +121,6 @@ protected:
        that is independent of whether the
        caller or callee generates it. Used only for sending stats
     */
-    std::string makeCallId(IJingleSession* sess);
     AvFlags getStreamAv(artc::tspMediaStream& stream);
     template <class F>
     int getAvByJid(const char* jid, AvFlags& av, F&& func);
