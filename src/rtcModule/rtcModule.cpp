@@ -497,7 +497,7 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
                     .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
                     .setAttr("sid", state->sid.c_str())
                     .setAttr("type", "megaCallCancel")
-                    .setAttr("reason", "user");
+                    .setAttr("reason", "caller");
             mConn.send(cancelMsg);
             return true;
       }
@@ -828,14 +828,14 @@ void RtcModule::onMediaStart(const string& sid)
         KR_LOG_DEBUG("Received onMediaStart for a session witn NULL remote player");
         return;
     }
-    StatOptions statOptions;
+    stats::Options statOptions;
     RTCM_EVENT(onMediaRecv, &sess, &statOptions);
     if (statOptions.enableStats)
     {
         if (statOptions.scanPeriod < 0)
-            statOptions.scanPeriod = 1;
+            statOptions.scanPeriod = 1000;
         if (statOptions.maxSamplePeriod < 0)
-            statOptions.maxSamplePeriod = 5;
+            statOptions.maxSamplePeriod = 5000;
 
         sess.mStatsRecorder.reset(new stats::Recorder(sess, statOptions));
         sess.mStatsRecorder->start();

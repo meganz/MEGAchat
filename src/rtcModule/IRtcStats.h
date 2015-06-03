@@ -7,67 +7,59 @@ namespace rtcModule
 {
 namespace stats
 {
-typedef long Val;
+
+struct BwInfo
+{
+    long bs;
+    long bps;
+    long abps;
+};
 
 struct Sample
 {
+    int64_t ts;
     struct
     {
-        struct
+        struct : BwInfo
         {
-            Val bt;
-            Val bps;
-            Val abps;
-            Val pl;
-            Val fps;
-            Val dly;
-            Val jtr;
-            Val width;
-            Val height;
-            Val bwav;
+            long pl;
+            long fps;
+            long dly;
+            long jtr;
+            short width;
+            short height;
+            long bwav;
         } r;
-        struct
+        struct : BwInfo
         {
-            Val bt;
-            Val bps;
-            Val abps;
-            Val gbps;
-            Val gabps;
-            Val rtt;
-            Val fps;
-            Val cfps;
-            Val cjtr;
-            Val width;
-            Val height;
-            Val el;
-            Val lcpu;
-            Val lbw;
-            Val bwav;
+            long gbps;
+            long gabps;
+            long rtt;
+            short fps;
+            short cfps;
+            long cjtr;
+            short width;
+            short height;
+            float el;
+            unsigned char lcpu;
+            unsigned char lbw;
+            long bwav;
         } s;
     } vstats;
     struct
     {
-        Val rtt;
-        Val pl;
-        Val jtr;
+        long rtt;
+        long pl;
+        long jtr;
+        BwInfo r;
+        BwInfo s;
     } astats;
     struct
     {
-        Val rtt;
-        struct
-        {
-            Val bt;
-            Val bps;
-            Val abps;
-        } r;
-        struct
-        {
-            Val bt;
-            Val bps;
-            Val abps;
-        } s;
+        long rtt;
+        BwInfo r;
+        BwInfo s;
     } cstats;
-    int64_t ts;
 };
 
 class IConnInfo
@@ -89,6 +81,14 @@ public:
     virtual const Sample* samples() const = 0;
     virtual const IConnInfo* connInfo() const = 0;
 };
+
+struct Options
+{
+    int enableStats = 1;
+    int scanPeriod = -1;
+    int maxSamplePeriod = -1;
+};
+
 }
 }
 #endif

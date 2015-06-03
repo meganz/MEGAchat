@@ -171,7 +171,7 @@ struct MappedStatsItem
     }
     const std::string& strVal(const std::string& name)
     {
-        static std::string empty;
+        static const std::string empty;
         auto it = values.find(name);
         if (it == values.end())
             return empty;
@@ -182,7 +182,9 @@ struct MappedStatsItem
         auto it = values.find(name);
         if (it == values.end())
             return false;
-        ret = std::stol(it->second);
+        ret = std::strtol(it->second.c_str(), nullptr, 10);
+        if (errno == ERANGE)
+            throw std::runtime_error("MappedStatItem::longVal: Error converting '"+it->second+"' to long");
         return true;
     }
     long longVal(const std::string& name)
@@ -190,7 +192,10 @@ struct MappedStatsItem
         auto it = values.find(name);
         if (it == values.end())
             return 0;
-        return std::stol(it->second);
+        long ret = std::strtol(it->second.c_str(), nullptr, 10);
+        if (errno == ERANGE)
+            throw std::runtime_error("MappedStatItem::longVal: Error converting '"+it->second+"' to long");
+        return ret;
     }
 };
 

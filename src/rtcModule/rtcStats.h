@@ -30,7 +30,10 @@ class RtcStats: public IRtcStats
 {
 public:
     std::string mTermRsn;
-    bool mIsCaller;
+    int mIsCaller;
+    char mSper; //sample period
+    int64_t mStartTs;
+    int64_t mDur;
     std::string mCallId;
     std::vector<Sample*> mSamples;
     ConnInfo mConnInfo;
@@ -46,6 +49,7 @@ public:
         return mSamples[0];
     }
     virtual const IConnInfo* connInfo() const { return &mConnInfo; }
+    virtual IString* toJson() const;
 };
 
 class BasicStats: public IRtcStats
@@ -69,20 +73,40 @@ public:
 
 };
 
-class Recorder: public rtc::RefCountedObject<webrtc::StatsObserver>
+class Recorder: public webrtc::StatsObserver
 {
 protected:
+    struct BwCalculator
+    {
+        BwInfo* mBwInfo = nullptr;
+        int64_t mTotalBytes = 0;
+        void reset(BwInfo* aBwInfo)
+        {
+            assert(aBwInfo);
+            mBwInfo = aBwInfo;
+            mBwInfo->bs = 0;
+        }
+        void calculate(long periodMs, long newTotalBytes);
+    };
+
     JingleSession& mSession;
-    StatOptions mOptions;
+    Options mOptions;
     webrtc::PeerConnectionInterface::StatsOutputLevel mStatsLevel =
             webrtc::PeerConnectionInterface::kStatsOutputLevelDebug;
     std::unique_ptr<Sample> mCurrSample;
     bool mHasConnInfo = false;
     megaHandle mTimer = 0;
-
+    BwCalculator mVideoRxBwCalc;
+    BwCalculator mVideoTxBwCalc;
+    BwCalculator mAudioRxBwCalc;
+    BwCalculator mAudioTxBwCalc;
+    BwCalculator mConnRxBwCalc;
+    BwCalculator mConnTxBwCalc;
+    void addSample();
+    void resetBwCalculators();
 public:
     IPtr<RtcStats> mStats;
-    Recorder(JingleSession& sess, const StatOptions& options);
+    Recorder(JingleSession& sess, const Options& options);
     ~Recorder();
     bool isRelay() const
     {
@@ -92,7 +116,9 @@ public:
     }
     void start();
     void terminate(const char* termRsn);
-    virtual void onComplete(const std::vector<webrtc::StatsReport>& data);
+    virtual void OnComplete(const std::vector<webrtc::StatsReport>& data);
+    virtual int AddRef() { return 3; }
+    virtual int Release() { return 2; }
     void onStats(const std::shared_ptr<artc::MappedStatsData>& data);
     std::function<void(void*, int)> onSample;
 };

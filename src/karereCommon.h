@@ -6,6 +6,7 @@
 #include <time.h>
 #include <string.h>
 #include <logger.h>
+#include <mstrophe.h>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -13,15 +14,11 @@
     #ifdef WIN32_LEAN_AND_MEAN
         #include <mmsystem.h>
     #endif
-#elif defined (__MACH__)
-    #include <mach/mach_time.h>
-#else
-    #include <sys/time.h>
 #endif
 
 #define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
 #define KARERE_XMPP_DOMAIN "karere.mega.nz"
-#define KARERE_LOGIN_TIMEOUT 10000
+#define KARERE_LOGIN_TIMEOUT 15000
 #define KARERE_RECONNECT_DELAY_MAX 10000
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
 
@@ -49,8 +46,6 @@ static inline string to_string(const T& t)
         throw std::runtime_error(std::string(__FUNCTION__)+": Assertion failed: Argument '"+#name+"' is NULL"); \
     } while(0)
 
-#define LINE     "==================================== mpenc stuff ==================================="
-#define LINE_END "===================================================================================="
 namespace karere
 {
 
@@ -79,51 +74,16 @@ static const unsigned char SEC_KEY[64] = {165,  20,  21, 140,  82,  46,  73,  10
 typedef std::map<std::string, std::string> StringMap;
 
 //time function
-typedef int64_t Ts;
-
-
-#ifdef _WIN32
-//We need to have these static vars extern in order to have the functions static inlined
-extern Ts _gLastTimeValue;
-extern Ts _gTimeBase;
-
+typedef xmpp_ts Ts;
 static inline Ts timestampMs()
 {
-    Ts now = timeGetTime();
-    if (now < _gLastTimeValue)
-        _gTimeBase+=0xFFFFFFFF;
-    _gLastTimeValue = now;
-    now += _gTimeBase;
-    return now;
-}
-#elif !defined(__MACH__) && defined(_POSIX_MONOTONIC_CLOCK) //macos defines _POSIX_MONOTONIC_CLOCK to -1 but does not implement it
-static inline Ts timestampMs()
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (Ts)ts.tv_sec*1000 + (Ts)ts.tv_nsec / 1000000;
-}
-#elif defined (__MACH__)
-extern double _gTimeConversionFactor;
-void _init_mac_timefunc();
-static inline Ts timestampMs()
-{
-    return (double)mach_absolute_time() * _gTimeConversionFactor;
-}
-#else
-static inline Ts timestampMs()
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (Ts)tv.tv_sec * 1000 + (Ts)tv.tv_usec / 1000;
-}
-#endif
-
+    //use strophe's timestamp function
+    return xmpp_time_stamp();
 }
 
-
-#define KR_LINE KR_LOG(LINE)
-#define KR_LINE_END KR_LOG(LINE)
+//logging stuff
+//#define KR_LINE KR_LOG(LINE)
+//#define KR_LINE_END KR_LOG(LINE)
 #define MPENC_HEADER "?mpENCv1?"
 #define MP_LOG(fmt, b) KR_LOG(LINE); \
                   KR_LOG(fmt, b); \
@@ -147,5 +107,5 @@ static inline Ts timestampMs()
         throw std::runtime_error(std::string("Karere: ")+#statement+" failed (returned false)\nAt file "+__FILE__+":"+std::to_string(__LINE__)); \
      } \
  } while(0)
-
+}
 #endif

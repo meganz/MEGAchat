@@ -85,13 +85,6 @@ struct IAnswerCall: public IDestroy
     virtual void* userData() const = 0;
 };
 
-struct StatOptions
-{
-    bool enableStats = true;
-    int scanPeriod = -1;
-    int maxSamplePeriod = -1;
-};
-
 /**
  * Public event handler callback interface.
  * All events from the Rtc module are sent to the application
@@ -194,7 +187,7 @@ public:
      * @param statOptions Options that control how statistics will be collected
      * for this call session.
      */
-    virtual void onMediaRecv(IJingleSession* sess, StatOptions* statOptions) {}
+    virtual void onMediaRecv(IJingleSession* sess, stats::Options* statOptions) {}
     /**
      * @brief A call that has been accepted has ended - either normally by user
      * hangup, or because of an error. This event is fired also in case of
