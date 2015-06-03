@@ -31,7 +31,7 @@ class RtcStats: public IRtcStats
 public:
     std::string mTermRsn;
     int mIsCaller;
-    char mSper; //sample period
+    int mSper; //sample period
     int64_t mStartTs;
     int64_t mDur;
     std::string mCallId;
@@ -92,7 +92,7 @@ protected:
     JingleSession& mSession;
     Options mOptions;
     webrtc::PeerConnectionInterface::StatsOutputLevel mStatsLevel =
-            webrtc::PeerConnectionInterface::kStatsOutputLevelDebug;
+            webrtc::PeerConnectionInterface::kStatsOutputLevelStandard;
     std::unique_ptr<Sample> mCurrSample;
     bool mHasConnInfo = false;
     megaHandle mTimer = 0;

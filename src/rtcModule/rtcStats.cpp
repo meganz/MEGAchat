@@ -147,7 +147,6 @@ void Recorder::onStats(const std::shared_ptr<artc::MappedStatsData>& data)
                 mStats->mConnInfo.mCtype = item.strVal("googRemoteCandidateType");
                 mStats->mConnInfo.mProto = item.strVal("googTransportType");
             }
-            printf("conn stats\n");
             auto& cstat = mCurrSample->cstats;
             AVG("googRtt", cstat.rtt);
             mConnRxBwCalc.calculate(period, item.longVal("bytesReceived"));
@@ -198,7 +197,7 @@ void Recorder::onStats(const std::shared_ptr<artc::MappedStatsData>& data)
     }
     if (shouldAddSample)
     {
-        printf("==============add sample\n");
+        KR_LOG_DEBUG("Stats: add sample");
         addSample();
         if (onSample)
         {
@@ -217,7 +216,6 @@ void Recorder::start()
     mStats->mStartTs = karere::timestampMs();
     mTimer = mega::setInterval([this]()
     {
-        printf("=============== stats timer\n");
         mSession.mPeerConn->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
     }, mOptions.scanPeriod);
 }
