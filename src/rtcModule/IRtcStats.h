@@ -71,7 +71,7 @@ public:
     virtual IString* vcodec() const = 0;
 };
 
-class IRtcStats: public IDestroy
+class IRtcStats: public IRefCounted
 {
 public:
     virtual IString* termRsn() const = 0;
@@ -80,6 +80,7 @@ public:
     virtual size_t sampleCnt() const = 0;
     virtual const Sample* samples() const = 0;
     virtual const IConnInfo* connInfo() const = 0;
+    virtual IString* toJson() const = 0;
 };
 
 struct Options

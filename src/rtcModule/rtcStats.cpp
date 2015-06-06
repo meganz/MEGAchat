@@ -211,6 +211,7 @@ void Recorder::onStats(const std::shared_ptr<artc::MappedStatsData>& data)
 void Recorder::start()
 {
     assert(mSession.mPeerConn);
+    mStats->mIsCaller = mSession.isCaller();
     mStats->mCallId = mSession.getCallId();
     mStats->mSper = mOptions.scanPeriod;
     mStats->mStartTs = karere::timestampMs();
@@ -272,7 +273,7 @@ IString* RtcStats::toJson() const
     std::string json;
     json.reserve(10240);
     json ="{";
-    JSON_ADD_STR(sid, mCallId);
+    JSON_ADD_STR(cid, mCallId);
     JSON_ADD_INT(isCaller, mIsCaller);
     JSON_ADD_INT(ts, mStartTs);
     JSON_ADD_INT(sper, mSper);

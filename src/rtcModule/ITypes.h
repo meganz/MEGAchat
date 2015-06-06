@@ -112,6 +112,64 @@ public:
     T* operator->() const {return mPtr;}
     T& operator*() const {return mPtr;}
 };
+class IRefCounted
+{
+public:
+    virtual void addRef() = 0;
+    virtual void release() = 0;
+protected:
+    virtual ~IRefCounted(){}
+};
+
+
+template <class T>
+class ISharedPtr
+{
+protected:
+    T* mPtr;
+public:
+    explicit ISharedPtr(T* ptr = nullptr): mPtr(ptr) { if (mPtr) mPtr->addRef(); }
+    explicit ISharedPtr(const ISharedPtr<T>& other)
+    :mPtr(other.mPtr)
+    {
+        if (mPtr)
+            mPtr->addRef();
+    }
+    ~ISharedPtr() { if (mPtr) mPtr->release(); }
+    T* get() { return mPtr;}
+    operator bool() const { return (mPtr != nullptr); }
+    T* operator->() const { return mPtr; }
+    T& operator*() const { mPtr; }
+    void reset(T* newPtr)
+    {
+        if (mPtr)
+            mPtr->release();
+        mPtr = newPtr;
+        mPtr->addRef();
+    }
+    void reset(const ISharedPtr<T>& other)
+    {
+        if (mPtr)
+            mPtr->release();
+        mPtr = other.mPtr;
+        if (mPtr)
+            mPtr->addRef();
+    }
+
+    ISharedPtr<T>& operator=(const ISharedPtr<T>& other)
+    {
+        reset(other);
+        return *this;
+    }
+
+    void release()
+    {
+        if (mPtr)
+            mPtr->release();
+        mPtr = nullptr;
+    }
+};
+
 //Convenience type to accomodate returned IString objects from ICryptoFunctions api
 struct VString: public IPtrNoNull<IString>
 {

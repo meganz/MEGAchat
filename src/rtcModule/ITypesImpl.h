@@ -59,6 +59,45 @@ public:
     }
     virtual bool empty() const {return (!mBuf || (mBuf[0] == 0));}
 };
+
+template < class T>
+class IRefCountedMixin: virtual public T
+{
+protected:
+    std::atomic<long> mRefCount;
+public:
+    IRefCountedMixin(): mRefCount(0){}
+    virtual void addRef() { mRefCount++; }
+    virtual void release()
+    {
+        mRefCount--;
+        assert((mRefCount >= 0) || "IRefCounted: negative refCount detected, probably release() has been called without a previous addRef()");
+        if (mRefCount <= 0)
+            delete this;
+    }
+};
+
+class IRefCountedBase
+{
+protected:
+    std::atomic<long> mRefCount;
+    virtual ~IRefCountedBase(){}
+public:
+    IRefCountedBase(): mRefCount(0) {}
+    virtual void addRef() { mRefCount++; }
+    virtual void release()
+    {
+        mRefCount--;
+        assert((mRefCount >= 0) || "IRefCounted: negative refCount detected, probably release() has been called without a previous addRef()");
+        if (mRefCount <= 0)
+            destroy();
+    }
+    virtual void destroy()
+    {
+        delete this;
+    }
+};
+
 }
 
 #endif

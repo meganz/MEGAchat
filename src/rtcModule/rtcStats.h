@@ -26,7 +26,7 @@ public:
     virtual IString* vcodec() const { return new IString_ref(mVcodec); }
 };
 
-class RtcStats: public IRtcStats
+class RtcStats: public IRefCountedMixin<IRtcStats>
 {
 public:
     std::string mTermRsn;
@@ -52,7 +52,7 @@ public:
     virtual IString* toJson() const;
 };
 
-class BasicStats: public IRtcStats
+class BasicStats: public IRefCountedMixin<IRtcStats>
 {
 public:
     bool mIsCaller;
@@ -70,6 +70,7 @@ public:
     virtual size_t sampleCnt() const { return 0; }
     virtual const Sample* samples() const { return nullptr; }
     virtual const IConnInfo* connInfo() const { return nullptr; }
+    virtual IString* toJson() const { return new IString_string("");}
 
 };
 
@@ -105,7 +106,7 @@ protected:
     void addSample();
     void resetBwCalculators();
 public:
-    IPtr<RtcStats> mStats;
+    ISharedPtr<RtcStats> mStats;
     Recorder(JingleSession& sess, const Options& options);
     ~Recorder();
     bool isRelay() const

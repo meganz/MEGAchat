@@ -7,7 +7,7 @@
 
 #define always_assert(cond) \
     if (!(cond)) SVC_LOG_ERROR("HTTP: Assertion failed: '%s' at file %s, line %d", #cond, __FILE__, __LINE__)
-#define SVC_HTTP_DEBUG_LIBEVENT_BRIDGE
+#undef SVC_HTTP_DEBUG_LIBEVENT_BRIDGE
 #ifdef SVC_HTTP_DEBUG_LIBEVENT_BRIDGE
     #define LE2CURL_LOG(fmtString,...) printf("libevent-curl: " fmtString "\n", ##__VA_ARGS__)
 #else
@@ -16,10 +16,10 @@
 
 
 event* gTimerEvent = NULL;
-CURLM* gCurlMultiHandle = NULL;
+MEGAIO_EXPORT CURLM* gCurlMultiHandle = NULL;
 int gNumRunning = 0;
-const char* services_http_useragent = NULL;
-int services_http_use_ipv6 = 0;
+MEGAIO_EXPORT const char* services_http_useragent = NULL;
+MEGAIO_EXPORT int services_http_use_ipv6 = 0;
 
 static void le2_onEvent(int fd, short events, void* userp);
 static inline void checkCompleted();
@@ -222,7 +222,7 @@ MEGAIO_EXPORT int services_http_set_useragent(const char* useragent)
 }
 
 static const char* url_find_host_end(const char* p);
-t_string_bounds services_http_url_get_host(const char* url)
+MEGAIO_EXPORT t_string_bounds services_http_url_get_host(const char* url)
 {
     const char* p = url;
     for (; *p; p++)

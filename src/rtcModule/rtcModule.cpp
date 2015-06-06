@@ -6,6 +6,8 @@
 #include "IDeviceListImpl.h"
 //#include "strophe.disco.h"
 #include "rtcStats.h"
+#include <base/services-http.hpp>
+#include <retryHandler.h>
 
 #define RTCM_EVENT(name,...)             \
     KR_LOG_RTC_EVENT("%s", #name);       \
@@ -848,31 +850,59 @@ void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const 
 {
  //WARNING: sess may be a dummy object, only with peerjid property, in case something went
  //wrong before the actual session was created, e.g. if SRTP fingerprint verification failed
-   if (sess)
-   {
-       removeRemoteVideo(*sess);
-       unrefLocalStream(sess->mLocalAvState.video);
+    ISharedPtr<stats::IRtcStats> stats;
+    if (sess)
+    {
+        removeRemoteVideo(*sess);
+        unrefLocalStream(sess->mLocalAvState.video);
 
-       if(sess->mStatsRecorder) //stats are created only if onRemoteSdp occurs
-       {
-           sess->mStatsRecorder->terminate(reason?reason:"(unknown)");
+        if(sess->mStatsRecorder) //stats are created only if onRemoteSdp occurs
+        {
+            sess->mStatsRecorder->terminate(reason?reason:"(unknown)");
 //           jQuery.ajax(this.statsUrl, {
 //                type: 'POST',
 //                data: JSON.stringify(obj.stats||obj.basicStats)
 //        });
-           RTCM_EVENT(onCallEnded, sess, reason, text, sess->mStatsRecorder->mStats.release());
+           stats.reset(sess->mStatsRecorder->mStats.get());
        }
        else
        {
-           stats::BasicStats bstats(*sess, reason);
-           RTCM_EVENT(onCallEnded, sess, reason, text, &bstats);
+           stats.reset(new stats::BasicStats(*sess, reason));
        }
+       RTCM_EVENT(onCallEnded, sess, reason, text, stats.get());
    }
    else //no sess
    {
-       stats::BasicStats bstats(*noSess, reason);
-       RTCM_EVENT(onCallEnded, noSess, reason, text, &bstats);
+       stats.reset(new stats::BasicStats(*noSess, reason));
+       RTCM_EVENT(onCallEnded, noSess, reason, text, stats.get());
    }
+    IString* json = stats->toJson();
+    auto client = new ::mega::http::Client;
+    ::mega::retry([client, json]()
+    {
+        return client->post<std::string>("https://stats.karere.mega.nz/stats", json->c_str(), json->size())
+            .fail([](const promise::Error& err)
+        {
+            KR_LOG_ERROR("=========== Error: code=%d, type=%d, msg='%s'", err.code(), err.type(), err.what());
+            return err;
+        });
+    })
+    .fail([client, json](const promise::Error& err)
+    {
+        //delete client;
+        //json->destroy();
+        return err;
+    })
+    .then([client, json](std::shared_ptr<std::string> response)
+    {
+        //delete client;
+        //json->destroy();
+        printf("=========== response = '%s'\n", response->c_str());
+        return response;
+    });//CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
+      //size_t maxRetries = rh::RetryController<Func>::kDefaultMaxAttemptCount,
+      //size_t maxSingleWaitTime = rh::RetryController<Func>::kDefaultMaxSingleWaitTime,
+      //short backoffStart = 1000)
  }
 
 //onRemoteStreamAdded -> onMediaStart() event from player -> onMediaRecv() -> addVideo()

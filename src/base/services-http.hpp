@@ -5,6 +5,8 @@
 
 #define always_assert(cond) \
     if (!(cond)) SVC_LOG_ERROR("HTTP: Assertion failed: '%s' at file %s, line %d", #cond, __FILE__, __LINE__)
+#define KRHTTP_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_http, fmtString, ##__VA_ARGS__)
+#define KRHTTP_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_http, fmtString, ##__VA_ARGS__)
 
 namespace mega
 {
@@ -119,18 +121,23 @@ public:
     Response(Client& client, CB&& aCb, std::shared_ptr<T> sink)
         :ResponseWithData<T>(client, sink ? sink : std::shared_ptr<T>(new T())),
         mCb(std::forward<CB>(aCb)) {}
-    virtual void onTransferComplete(int code, int type)
-    {
-        mCb(code, type, ResponseWithData<T>::mSink);
-    }
+    virtual void onTransferComplete(int code, int type);
     friend class HttpClient;
 };
+const char* strNotNull(const char* str)
+{
+    if (!str)
+        return "(null)";
+    else
+        return str;
+}
 
 #define _curleopt(opt, val) \
     do {                                                      \
     CURLcode ret = curl_easy_setopt(mCurl, opt, val);         \
     if (ret != CURLE_OK)                                      \
-        throw std::runtime_error(std::string("curl_easy_setopt(")+ #opt +") at file "+ __FILE__+ ":"+std::to_string(__LINE__)); \
+        throw std::runtime_error(std::string("curl_easy_setopt(")+ #opt +") failed with code "+ \
+        std::to_string(ret)+" ["+strNotNull(curl_easy_strerror(ret))+"] at file "+ __FILE__+ ":"+std::to_string(__LINE__)); \
     } while(0)
 
 
@@ -138,17 +145,13 @@ class Client: public CurlConnection
 {
 protected:
     CURL* mCurl;
-    int mMaxRetryWaitTime = 30;
-    int mMaxRetryCount = 10;
-    int status = 0;
-    //the following two are updated directly by the libevent thread
-    size_t mResponseLen = 0;
-    size_t mCurrentRecvLen = 0;
-    //===
+    bool mBusy = false;
+    std::string mUrl;
     curl_slist* mCustomHeaders = nullptr;
 //    std::unique_ptr<StreamSrcBase> mReader;
     std::unique_ptr<ResponseBase> mResponse;
 public:
+    const std::string& url() const { return mUrl; }
     Client()
     :mCurl(curl_easy_init())
     {
@@ -167,14 +170,32 @@ public:
         _curleopt(CURLOPT_COOKIEFILE, "");
         _curleopt(CURLOPT_COOKIESESSION, 1L);
         _curleopt(CURLOPT_SSL_CTX_FUNCTION, &sslCtxFunction);
+        _curleopt(CURLOPT_SSL_VERIFYPEER, 0L);
+        _curleopt(CURLOPT_SSL_VERIFYHOST, 0L);
+
     }
 protected:
     static void onTransferComplete(CurlConnection* conn, CURLcode code) //called by the CURL-libevent code
     {
         auto self = (Client*)conn;
-        self->status = 0;
-        if (self->mResponse)
-            self->mResponse->onTransferComplete(code, ERRTYPE_HTTP);
+        if (code == CURLE_OK)
+         {
+            long httpCode;
+            curl_easy_getinfo(self->mCurl, CURLINFO_RESPONSE_CODE, &httpCode);
+            KRHTTP_LOG_DEBUG("Completed request to '%s' with status %d", self->mUrl.c_str(), httpCode);
+            if (self->mResponse)
+                self->mResponse->onTransferComplete(httpCode, 0);
+        }
+        else
+        {
+            KRHTTP_LOG_DEBUG("Request to '%s' failed with error code: %d [%s]",
+                self->mUrl.c_str(), code, curl_easy_strerror((CURLcode)code));
+            if (self->mResponse)
+                self->mResponse->onTransferComplete(code, ERRTYPE_HTTP);
+
+        }
+
+        self->mBusy = false;
     }
     static CURLcode sslCtxFunction(CURL* curl, void* sslctx, void*)
     {
@@ -184,25 +205,31 @@ protected:
 
 
     template <class R>
-    void setupRecvAndStart(const std::string& url) //mResponse must be set before calling this
+    void setupRecvAndStart(const std::string& aUrl) //mResponse must be set before calling this
     {
-        resolveUrlDomain(url,
+        mBusy = true;
+        mUrl = aUrl;
+        resolveUrlDomain(aUrl,
          [this](int errcode, const std::string& url)
          {
             if (errcode)
-                return mResponse->onTransferComplete(errcode, ERRTYPE_DNS);
-
-            _curleopt(CURLOPT_WRITEDATA, mResponse.get());
-            typedef size_t(*CURL_WRITEFUNC)(char *ptr, size_t size, size_t nmemb, void *userp);
-            CURL_WRITEFUNC writefunc = [](char *ptr, size_t size, size_t nmemb, void *userp)
+            {
+                KRHTTP_LOG_ERROR("DNS error %d on request to '%s'", errcode, mUrl.c_str());
+                mResponse->onTransferComplete(errcode, ERRTYPE_DNS);
+                mBusy = false;
+                return;
+            }
+            typedef size_t(*WriteFunc)(char *ptr, size_t size, size_t nmemb, void *userp);
+            WriteFunc writefunc = [](char *ptr, size_t size, size_t nmemb, void *userp)
             {
                 size_t len = size*nmemb;
                 static_cast<R*>(userp)->mWriter.append((const char*)ptr, len);
                 return len;
             };
             _curleopt(CURLOPT_WRITEFUNCTION, writefunc);
+            _curleopt(CURLOPT_WRITEDATA, mResponse.get());
             _curleopt(CURLOPT_URL, url.c_str());
-            status = 1;
+            KRHTTP_LOG_DEBUG("Starting request '%s'...", mUrl.c_str());
             curl_multi_add_handle(gCurlMultiHandle, mCurl);
          });
     }
@@ -215,10 +242,17 @@ public:
         get(url,
         [pms, this](int code, int type, std::shared_ptr<T> data) mutable
         {
-            if ((type == ERRTYPE_HTTP) && (code == CURLE_OK))
+            if (type == 0)
+            {
                 pms.resolve(data);
+            }
             else
-                pms.reject(code, type);
+            {
+                if (code == ERRTYPE_HTTP)
+                    pms.reject(promise::Error(curl_easy_strerror((CURLcode)code), code, type));
+                else
+                    pms.reject(code, type);
+            }
         }, sink);
         return pms;
     }
@@ -230,19 +264,36 @@ public:
         setupRecvAndStart<Response<T, CB> >(url);
     }
     template <class T, class CB>
-    void post(const std::string& url, CB&& cb, const std::string& postData, std::shared_ptr<T> sink=nullptr)
+    void post(const std::string& url, CB&& cb, const char* postData, size_t postDataSize, std::shared_ptr<T> sink=nullptr)
     {
-        _curleopt(CURLOPT_POSTFIELDS, postData.c_str());
-        _curleopt(CURLOPT_POSTFIELDSIZE, (long)postData.size());
-        post(url, std::forward<CB>(cb), sink);
+        assert(postData);
+        _curleopt(CURLOPT_HTTPPOST, 1L);
+        _curleopt(CURLOPT_POSTFIELDS, postData);
+        _curleopt(CURLOPT_POSTFIELDSIZE, (long)postDataSize);
+        mResponse.reset(new Response<T, CB>(*this, std::forward<CB>(cb), sink));
+        setupRecvAndStart<Response<T, CB> >(url);
     }
     template <class T>
     promise::Promise<std::shared_ptr<T> >
-    post(const std::string& url, const char* postData, std::shared_ptr<T> sink=nullptr)
+    post(const std::string& url, const char* postData, size_t postDataSize, std::shared_ptr<T> sink=nullptr)
     {
-        assert(postData);
-        _curleopt(CURLOPT_POSTFIELDS, postData);
-        return get(url, postData, sink);
+        promise::Promise<std::shared_ptr<T> > pms;
+        post(url,
+        [pms, this](int code, int type, std::shared_ptr<T> data) mutable
+        {
+            if (type == 0)
+            {
+                pms.resolve(data);
+            }
+            else
+            {
+                if (code == ERRTYPE_HTTP)
+                    pms.reject(promise::Error(curl_easy_strerror((CURLcode)code), code, type));
+                else
+                    pms.reject(code, type);
+            }
+        }, postData, postDataSize, sink);
+        return pms;
     }
 /*
     template <class R, class WT>
@@ -266,13 +317,14 @@ protected:
     {
         auto bounds = services_http_url_get_host(url.c_str());
         auto type = services_dns_host_type(url.c_str()+bounds.start, url.c_str()+bounds.end);
-        printf("host = %s\n", url.substr(bounds.start, bounds.end-bounds.start).c_str());
         if (type & SVC_DNS_HOST_IS_IP)
         {
+            KRHTTP_LOG_DEBUG("resolveUrlDomain: Host is already an IP");
             return cb(SVCDNS_ESUCCESS, url);
         }
         else if (type == SVC_DNS_HOST_INVALID)
         {
+            KRHTTP_LOG_DEBUG("resolveUrlDomain: '%s' is not a vaild host name", url.substr(bounds.start, bounds.end-bounds.start).c_str());
             return cb(SVCDNS_EFORMAT, url);
         }
         else if (type == SVC_DNS_HOST_DOMAIN)
@@ -287,16 +339,19 @@ protected:
                 }
                 size_t hostlen = bounds.end-bounds.start;
                 std::string newUrl = url;
-                if (!services_http_use_ipv6)
+                if (!services_http_use_ipv6 || addrs->ip6addrs().empty())
                 {
-                   if (addrs->ip4addrs().empty())
-                       return cb(SVCDNS_ENOTEXIST, nullptr); //TODO: Find proper error code
+                    if (addrs->ip4addrs().empty())
+                        return cb(SVCDNS_ENOTEXIST, nullptr); //TODO: Find proper error code
+
+                    KRHTTP_LOG_DEBUG("Resolved '%.*s' -> ipv4 '%s'",
+                          bounds.end-bounds.start, url.c_str()+bounds.start, addrs->ip4addrs()[0].toString());
                    newUrl.replace((size_t)bounds.start, hostlen, addrs->ip4addrs()[0].toString());
                 }
                 else
                 {
-                    if (addrs->ip6addrs().empty())
-                        return cb(SVCDNS_ENOTEXIST, nullptr);
+                    KRHTTP_LOG_DEBUG("Resolved '.*%s' -> ipv6 '%s'",
+                        bounds.end-bounds.start, url.c_str()+bounds.start, addrs->ip6addrs()[0].toString());
                     newUrl.replace((size_t)bounds.start, hostlen, addrs->ip6addrs()[0].toString());
                 }
                 return cb(SVCDNS_ESUCCESS, newUrl);
@@ -304,10 +359,17 @@ protected:
         }
         else
         {
-            KR_LOG_ERROR("%s: unknown type: %d returned from services_dns_host_type()", __FUNCTION__ , type);
+            KRHTTP_LOG_ERROR("%s: unknown type: %d returned from services_dns_host_type()", __FUNCTION__ , type);
         }
     }
 };
+
+template <class T, class CB>
+void Response<T,CB>::onTransferComplete(int code, int type)
+{
+    mCb(code, type, ResponseWithData<T>::mSink);
+}
+
 }
 }
  //   void addHeader(const char* nameVal)

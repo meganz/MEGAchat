@@ -337,10 +337,10 @@ protected:
    point of the backoff time algorithm: \c backoffStart * 2^(current_retry_number).
    See the constructor of RetryController for more details
  */
-template <class Func, class CancelFunc=void*>
-static inline auto retry(Func&& func,CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
-    size_t maxRetries = rh::RetryController<Func>::kDefaultMaxAttemptCount,
-    size_t maxSingleWaitTime = rh::RetryController<Func>::kDefaultMaxSingleWaitTime,
+template <class Func, class CancelFunc=void(*)(void)>
+static inline auto retry(Func&& func,CancelFunc&& cancelFunc = [](){}, unsigned attemptTimeout = 0,
+    size_t maxRetries = rh::kDefaultMaxAttemptCount,
+    size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
     short backoffStart = 1000)
 ->decltype(func())
 {
