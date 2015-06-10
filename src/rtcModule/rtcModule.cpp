@@ -878,7 +878,7 @@ void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const 
    }
     IString* json = stats->toJson();
     auto client = new ::mega::http::Client;
-    ::mega::retry([client, json]()
+    ::mega::retry([client, json](int no)
     {
         return client->post<std::string>("https://stats.karere.mega.nz/stats", json->c_str(), json->size())
             .fail([](const promise::Error& err)

@@ -89,7 +89,7 @@ public:
      * The value type of the promise returned by the operation and by the RetryController
      * itself
      */
-    typedef typename decltype(std::declval<Func>().operator()())::Type RetType;
+    typedef typename decltype(std::declval<Func>().operator()(0))::Type RetType;
 
 protected:
     enum { kBitness = sizeof(size_t)*8-10 }; //maximum exponent of mInitialWaitTime that fits into a size_t
@@ -260,7 +260,7 @@ protected:
             }, mAttemptTimeout);
         }
         mState = kStateInProgress;
-        mFunc()
+        mFunc(mCurrentAttemptNo)
         .then([this, attempt](const RetType& ret)
         {
             if ((attempt != mCurrentAttemptId) || mPromise.done())
@@ -342,7 +342,7 @@ static inline auto retry(Func&& func,CancelFunc&& cancelFunc = [](){}, unsigned 
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
     short backoffStart = 1000)
-->decltype(func())
+->decltype(func(0))
 {
     auto self = new rh::RetryController<Func, CancelFunc>(
         std::forward<Func>(func), std::forward<CancelFunc>(cancelFunc), attemptTimeout,

@@ -135,7 +135,7 @@ promise::Promise<int> Client::init()
         setupHandlers();
 // initiate connection
         return mega::retry(
-        [this]()
+        [this](int no)
         {
             return conn->connect(KARERE_DEFAULT_XMPP_SERVER, 0);
         },
@@ -194,7 +194,7 @@ promise::Promise<int> Client::init()
     .then([this](int)
     {
         KR_LOG_DEBUG("contactlist initialized");
-        startKeepalivePings();
+        //startKeepalivePings();
         return 0;
     })
     .fail([](const promise::Error& err)
@@ -216,7 +216,7 @@ void Client::setupHandlers()
 void Client::setupReconnectHandler()
 {
     mReconnectController.reset(mega::createRetryController(
-    [this]()
+    [this](int no)
     {
         mLastPingTs = 0;
         return conn->connect(KARERE_DEFAULT_XMPP_SERVER, 0);
