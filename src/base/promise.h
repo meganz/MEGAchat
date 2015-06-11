@@ -176,7 +176,7 @@ public:
     };
 protected:
     typedef std::function<void(const T&)> SuccessCb;
-    typedef    std::function<void(const Error&)> FailCb;
+    typedef std::function<void(const Error&)> FailCb;
     struct SharedObj
     {
         struct CbLists
@@ -305,8 +305,15 @@ public:
     }
 
     virtual ~Promise() { decRef(); }
+
     int done() const
-    {return (mSharedObj?(mSharedObj->mResolved):PROMISE_RESOLV_NOT);}
+    { return (mSharedObj ? (mSharedObj->mResolved) : PROMISE_RESOLV_NOT); }
+
+    const Type& value() const
+    {
+        assert(mSharedObj && (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS));
+        return mSharedObj->mResult;
+    }
 protected:
     virtual PromiseBase* clone() const
     {    return new Promise<T>(*this);    }
@@ -549,7 +556,7 @@ struct WhenStateShared
 {
     int numready = 0;
     Promise<int> output;
-    int currentCount = 0;
+    bool lastAdded = false;
     int totalCount = 0;
 };
 
@@ -558,15 +565,15 @@ struct WhenState: public std::shared_ptr<WhenStateShared>
     WhenState():std::shared_ptr<WhenStateShared>(new WhenStateShared){}
 };
 
-
 template <class T>
 inline void _when_add_single(WhenState& state, Promise<T>& promise)
 {
-    state->currentCount++;
+    state->totalCount++;
     promise.then([state](const T& ret)
     {
         int n = ++(state->numready);
-        if (!state->totalCount || (n < state->totalCount))
+        printf("numready = %d\n", state->numready);
+        if (!state->lastAdded || (n < state->totalCount))
             return ret;
         assert(n == state->totalCount);
         state->output.resolve(0);
@@ -582,7 +589,7 @@ template <class T>
 inline void _when_add(WhenState& state, Promise<T>& promise)
 {
 //this is called when the final promise is added. Now we know the actual count
-    state->totalCount = state->currentCount+1;//this enables checking in the then() handlers if all promises are fulfilled. they can't be all fulfilled till now, because we have not yet added the last promise
+    state->lastAdded = true;
     _when_add_single(state, promise);
 }
 template <class T, class...Args>
