@@ -585,6 +585,7 @@ inline void _when_add_single(WhenState& state, Promise<T>& promise)
         return err;
     });
 }
+
 template <class T>
 inline void _when_add(WhenState& state, Promise<T>& promise)
 {
