@@ -1,12 +1,12 @@
 #ifndef _PROMISE_H
 #define _PROMISE_H
-#include <functional>
 #include <stdexcept>
 #include <vector>
 #include <string>
 #include <utility>
 #include <memory>
 #include <assert.h>
+
 namespace promise
 {
 #define PROMISE_LOG(fmtString,...) printf("promise: " fmtString"\n", ##__VA_ARGS__)
