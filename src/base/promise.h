@@ -421,7 +421,9 @@ public:
         std::unique_ptr<ISuccessCb> resolveCb(createChainedCb<T, Out>(std::forward<F>(cb), next));
 
         if (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
+        {
             (*resolveCb)(mSharedObj->mResult);
+        }
         else
         {
             assert((mSharedObj->mResolved == PROMISE_RESOLV_NOT));
