@@ -206,7 +206,7 @@ protected:
     {
         return new Callback<P,CB>(std::forward<CB>(cb));
     }
-
+//===
     struct SharedObj
     {
         struct CbLists
