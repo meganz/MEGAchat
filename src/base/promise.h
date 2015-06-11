@@ -490,11 +490,6 @@ protected:
             auto& item = ebs[i];
             (static_cast<Promise<T>*>(item.promise))->resolve(val);
         }
-
-//we dont need to explicitly keep the shared state in memory anymore,
-//release the artificial reference, and the shared object will be deleted
-//as soon as all user promise objects go out of scope
-//        decRef();
     }
 public:
     virtual void reject(const Error& err)
