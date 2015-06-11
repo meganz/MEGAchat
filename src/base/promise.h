@@ -9,7 +9,7 @@
 #include <assert.h>
 namespace promise
 {
-#define PROMISE_LOG(fmtString,...) printf(fmtString"\n", ##__VA_ARGS__)
+#define PROMISE_LOG(fmtString,...) printf("promise: " fmtString"\n", ##__VA_ARGS__)
 #ifdef PROMISE_DEBUG_REFS
     #define PROMISE_LOG_REF(fmtString,...) PROMISE_LOG(fmtString, ##__VA_ARGS__)
 #else
@@ -161,7 +161,6 @@ public:
     ~CallbackList() {assert(mCount == 0);}
 };
 
-
 struct _Empty{};
 
 template<typename T, int L=4>
@@ -175,8 +174,39 @@ public:
         PROMISE_RESOLV_FAIL = 2
     };
 protected:
-    typedef std::function<void(const T&)> SuccessCb;
-    typedef std::function<void(const Error&)> FailCb;
+    template<class P>
+    struct ICallback
+    {
+        virtual void operator()(const P&) = 0;
+        virtual ~ICallback(){}
+    };
+    template <class P, class CB>
+    struct Callback: public ICallback<P>
+    {
+    protected:
+        CB mCb;
+    public:
+        virtual void operator()(const P& err) { mCb(err); }
+        Callback(CB&& cb): mCb(std::forward<CB>(cb)){}
+    };
+    typedef ICallback<T> ISuccessCb;
+    typedef ICallback<Error> IFailCb;
+    template <class CB>
+    struct SuccessCb: public Callback<T, CB>
+    {  using Callback<T,CB>::Callback; };
+    template <class CB>
+    struct FailCb: public Callback<Error, CB>
+    {  using Callback<Error,CB>::Callback; };
+
+/** Helper funtion to be able to deduce the callback type of the passed lambda and create and
+  * Callback object with that type. We cannot do that by derectly callind the Callback constructor
+  */
+    template <class P, class CB>
+    ICallback<P>* createCb(CB&& cb)
+    {
+        return new Callback<P,CB>(std::forward<CB>(cb));
+    }
+
     struct SharedObj
     {
         struct CbLists
@@ -201,8 +231,8 @@ protected:
         {
             if (mCbs)
             {
-                mCbs->mSuccessCbs.template clear<SuccessCb>();
-                mCbs->mFailCbs.template clear<FailCb>();
+                mCbs->mSuccessCbs.template clear<ISuccessCb>();
+                mCbs->mFailCbs.template clear<IFailCb>();
                 delete mCbs;
             }
         }
@@ -309,68 +339,65 @@ public:
     int done() const
     { return (mSharedObj ? (mSharedObj->mResolved) : PROMISE_RESOLV_NOT); }
 
-    const Type& value() const
-    {
-        assert(mSharedObj && (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS));
-        return mSharedObj->mResult;
-    }
 protected:
     virtual PromiseBase* clone() const
     {    return new Promise<T>(*this);    }
 
-    template <typename In, typename Out>
-    std::function<void(const In&)>* createChainedCb(
-        const std::function<Promise<Out>(const In&)>& cb,
-        Promise<Out>& next)
+/** Creates a wrapper function around a then() handler that handles exceptions and propagates
+ * the result to resolve/reject chained promises
+ */
+    template <typename In, typename Out, class CB>
+    ICallback<In>* createChainedCb(CB&& cb, Promise<Out>& next)
     {
-      return new std::function<void(const In&)>([cb,next](const In& result) mutable->void
-      {
-        _Empty e;
-        Promise<Out> promise(e);
-        try
+        //cb must have the singature Promise<Out>(const In&)
+        return createCb<In>([cb,next](const In& result) mutable->void
         {
-            promise = cb(result);
-        }
-        catch(std::exception& e)
-        {
-            next.reject(Error(e.what(), 0, 1));
-            return;
-        }
-        catch(Error& e)
-        {
-            next.reject(e);
-            return;
-        }
-        catch(const char* e)
-        {
-           next.reject(Error(e, 0, 1));
-           return;
-        }
-        catch(...)
-        {
-            next.reject(Error("(unknown exception type)", 0, 1));
-            return;
-        }
-        if (!promise.hasCallbacks())
-            std::swap(promise.mSharedObj->mCbs, next.mSharedObj->mCbs);
-        else
-        {
-        //add our callbacks and errbacks to the returned promise
-        auto& nextCbs = next.thenCbs();
-        if (nextCbs.count())
-        {
-            auto& promiseCbs = promise.thenCbs();
-            promiseCbs.addListMoveItems(nextCbs);
-        }
-        auto& nextEbs = next.failCbs();
-        if (nextEbs.count())
-        {
-            auto& promiseEbs = promise.failCbs();
-            promiseEbs.addListMoveItems(nextEbs);
-        }
-        }
-        if (promise.mSharedObj->mPending)
-            promise.doPendingResolve();
+            _Empty e;
+            Promise<Out> promise(e);
+            try
+            {
+                promise = cb(result);
+            }
+            catch(std::exception& e)
+            {
+                next.reject(Error(e.what(), 0, 1));
+                return;
+            }
+            catch(Error& e)
+            {
+                next.reject(e);
+                return;
+            }
+            catch(const char* e)
+            {
+                next.reject(Error(e, 0, 1));
+                return;
+            }
+            catch(...)
+            {
+                next.reject(Error("(unknown exception type)", 0, 1));
+                return;
+            }
+            if (!promise.hasCallbacks())
+                std::swap(promise.mSharedObj->mCbs, next.mSharedObj->mCbs);
+            else
+            {
+                //add our callbacks and errbacks to the returned promise
+                auto& nextCbs = next.thenCbs();
+                if (nextCbs.count())
+                {
+                    auto& promiseCbs = promise.thenCbs();
+                    promiseCbs.addListMoveItems(nextCbs);
+                }
+                auto& nextEbs = next.failCbs();
+                if (nextEbs.count())
+                {
+                    auto& promiseEbs = promise.failCbs();
+                    promiseEbs.addListMoveItems(nextEbs);
+                }
+            }
+            if (promise.mSharedObj->mPending)
+                promise.doPendingResolve();
         });
     }
 public:
@@ -391,8 +418,7 @@ public:
             return next;
         }
 
-        std::unique_ptr<std::function<void(const T&)> > resolveCb(
-                createChainedCb<T, Out>(std::forward<F>(cb), next));
+        std::unique_ptr<ISuccessCb> resolveCb(createChainedCb<T, Out>(std::forward<F>(cb), next));
 
         if (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
             (*resolveCb)(mSharedObj->mResult);
@@ -423,8 +449,7 @@ public:
             next.resolve(mSharedObj->mResult);
             return next;
         }
-        std::unique_ptr<std::function<void(const Error&)> > failCb(
-            createChainedCb<Error, T>(eb, next));
+        std::unique_ptr<IFailCb> failCb(createChainedCb<Error, T>(std::forward<F>(eb), next));
 
         if(mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
             (*failCb)(mSharedObj->mError);
@@ -460,7 +485,7 @@ protected:
         auto& cbs = thenCbs();
         int cnt = cbs.count();
         for (int i=0; i<cnt; i++)
-            (*static_cast<SuccessCb*>(cbs[i].callback))(val);
+            (*static_cast<ISuccessCb*>(cbs[i].callback))(val);
 //now propagate the successful resolve skipping the fail() handlers to
 //the handlers following them. The promises that follow the fail()
 //are guaranteed to be of our type, because fail() callbacks
@@ -514,7 +539,7 @@ protected:
         auto& ebs = failCbs();
         int cnt = ebs.count();
         for (int i=0; i<cnt; i++)
-            (*static_cast<FailCb*>(ebs[i].callback))(err);
+            (*static_cast<IFailCb*>(ebs[i].callback))(err);
 //propagate past success handlers till a fail handler is found
         auto& cbs = thenCbs();
         cnt = cbs.count();
@@ -566,20 +591,20 @@ struct WhenState: public std::shared_ptr<WhenStateShared>
 };
 
 template <class T>
-inline void _when_add_single(WhenState& state, Promise<T>& promise)
+inline void _when_add_single(WhenState& state, Promise<T>& pms)
 {
     state->totalCount++;
-    promise.then([state](const T& ret)
+    pms.then([state, pms](const T& ret)
     {
         int n = ++(state->numready);
-        printf("numready = %d\n", state->numready);
+        PROMISE_LOG_REF("%p: when: %p: numready = %d, pms state: %d\n", pms.mSharedObj, state.get(), state->numready, pms.mSharedObj->mResolved);
         if (!state->lastAdded || (n < state->totalCount))
             return ret;
         assert(n == state->totalCount);
         state->output.resolve(0);
         return ret;
     });
-    promise.fail([state](const Error& err)
+    pms.fail([state](const Error& err)
     {
         state->output.reject(err);
         return err;
