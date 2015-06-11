@@ -269,7 +269,6 @@ protected:
             {
                 PROMISE_LOG_REF("%p: delete", mSharedObj);
                 delete mSharedObj;
-            //    mSharedObj = NULL;
                 assert(cnt == 0);
             }
         }
@@ -291,17 +290,6 @@ protected:
             assert(cnt == 0);
         }
     }
-/*    inline void swap(Promise<T>& other)
-    {
-        auto tmp = mSharedObj;
-        mSharedObj = other.mSharedObj;
-        other.mSharedObj = tmp;
-    }
-*/
-//We need to keeps the shared object in memory until the promise is
-//resolved, even when all user Promise objects go out of scope
-//This reference will be released when the promise is resolved or rejected
-//            addRef();
 public://TODO: Must make these protected and make them accessible buy a friend proxy
     inline CallbackList<L>& thenCbs() {return mSharedObj->cbs().mSuccessCbs;}
     inline CallbackList<L>& failCbs() {return mSharedObj->cbs().mFailCbs;}
