@@ -331,8 +331,9 @@ protected:
     virtual PromiseBase* clone() const
     {    return new Promise<T>(*this);    }
 
-/** Creates a wrapper function around a then() handler that handles exceptions and propagates
- * the result to resolve/reject chained promises
+/** Creates a wrapper function around a then() or fail() handler that handles exceptions and propagates
+ * the result to resolve/reject chained promises. \c In is the type of the callback's parameter,
+ * \c Out is its return type, \c CB is the type of the callback itself.
  */
     template <typename In, typename Out, class CB>
     ICallback<In>* createChainedCb(CB&& cb, Promise<Out>& next)
