@@ -647,7 +647,7 @@ inline void _when_add(WhenState& state, Promise<T>& promise)
 {
 //this is called when the final promise is added. Now we know the actual count
     state->lastAdded = true;
-    _when_add_single(state, promise);
+    _when_add_single<T>(state, promise);
 }
 template <class T, class...Args>
 inline void _when_add(WhenState& state, Promise<T>& promise,
