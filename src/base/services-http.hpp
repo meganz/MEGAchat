@@ -87,44 +87,43 @@ public:
 };
 
 class Client;
-
-//Polymorphic decoupling of http response and completion callback types
-class ResponseBase
+class ResponseBase //polymorphic decoupling of response object and termination callback type
 {
-protected:
-    Client& mClient;
 public:
-    ResponseBase(Client& client): mClient(client){}
-    Client& client() {return mClient;}
-//    virtual void append(const char* data, size_t len) = 0; //This method (and only this) is called by the libevent thread for performace reasons!!!
-    virtual void onTransferComplete(int code, int type) = 0; //called by the GUI thread
-    virtual ~ResponseBase(){}
+    virtual void onTransferComplete(const Client& client, int code, int type) = 0;
 };
+
 template <class T>
-class ResponseWithData: public ResponseBase
+class Response: public ResponseBase
 {
 protected:
     std::shared_ptr<T> mSink;
     WriteAdapter<T> mWriter;
+    int mHttpCode = -1;
+    void setHttpCode(int code) {mHttpCode = code;}
 public:
-    ResponseWithData(Client& client, std::shared_ptr<T> sink)
-        :ResponseBase(client), mSink(sink), mWriter(*mSink){}
+    Response(std::shared_ptr<T> sink)
+        :mSink(sink ? sink : std::shared_ptr<T>(new T())), mWriter(*mSink){}
+    virtual ~Response(){}
     std::shared_ptr<T>& data() {return mSink;}
+    int httpCode() const { return mHttpCode;}
+//  virtual void append(const char* data, size_t len) = 0; //This method (and only this) is called by the libevent thread for performace reasons!!!
     friend class Client;
 };
 
 template <class T, class CB>
-class Response: public ResponseWithData<T>
+class ResponseWithCb: public Response<T>
 {
+protected:
     CB mCb;
+    CB& callabck() const {return mCb;}
 public:
-    Response(Client& client, CB&& aCb, std::shared_ptr<T> sink)
-        :ResponseWithData<T>(client, sink ? sink : std::shared_ptr<T>(new T())),
-        mCb(std::forward<CB>(aCb)) {}
-    virtual void onTransferComplete(int code, int type);
+    ResponseWithCb(CB&& aCb, std::shared_ptr<T> sink)
+    :Response<T>(sink), mCb(std::forward<CB>(aCb)) {}
+    virtual void onTransferComplete(const Client& client, int code, int type);
     friend class HttpClient;
 };
-const char* strNotNull(const char* str)
+static inline const char* strNotNull(const char* str)
 {
     if (!str)
         return "(null)";
@@ -149,8 +148,8 @@ protected:
     std::string mUrl;
     curl_slist* mCustomHeaders = nullptr;
 //    std::unique_ptr<StreamSrcBase> mReader;
-    std::unique_ptr<ResponseBase> mResponse;
 public:
+    std::shared_ptr<ResponseBase> mResponse;
     const std::string& url() const { return mUrl; }
     Client()
     :mCurl(curl_easy_init())
@@ -184,14 +183,14 @@ protected:
             curl_easy_getinfo(self->mCurl, CURLINFO_RESPONSE_CODE, &httpCode);
             KRHTTP_LOG_DEBUG("Completed request to '%s' with status %d", self->mUrl.c_str(), httpCode);
             if (self->mResponse)
-                self->mResponse->onTransferComplete(httpCode, 0);
+                self->mResponse->onTransferComplete(*self, httpCode, 0);
         }
         else
         {
             KRHTTP_LOG_DEBUG("Request to '%s' failed with error code: %d [%s]",
                 self->mUrl.c_str(), code, curl_easy_strerror((CURLcode)code));
             if (self->mResponse)
-                self->mResponse->onTransferComplete(code, ERRTYPE_HTTP);
+                self->mResponse->onTransferComplete(*self, code, ERRTYPE_HTTP);
 
         }
 
@@ -203,8 +202,7 @@ protected:
         return CURLE_OK;
     }
 
-
-    template <class R>
+    template <class T, class CB>
     void setupRecvAndStart(const std::string& aUrl) //mResponse must be set before calling this
     {
         mBusy = true;
@@ -215,7 +213,7 @@ protected:
             if (errcode)
             {
                 KRHTTP_LOG_ERROR("DNS error %d on request to '%s'", errcode, mUrl.c_str());
-                mResponse->onTransferComplete(errcode, ERRTYPE_DNS);
+                mResponse->onTransferComplete(*this, errcode, ERRTYPE_DNS);
                 mBusy = false;
                 return;
             }
@@ -223,7 +221,7 @@ protected:
             WriteFunc writefunc = [](char *ptr, size_t size, size_t nmemb, void *userp)
             {
                 size_t len = size*nmemb;
-                static_cast<R*>(userp)->mWriter.append((const char*)ptr, len);
+                static_cast<Response<T>*>(userp)->mWriter.append((const char*)ptr, len);
                 return len;
             };
             _curleopt(CURLOPT_WRITEFUNCTION, writefunc);
@@ -234,17 +232,30 @@ protected:
          });
     }
 public:
-    template <class T>
-    promise::Promise<std::shared_ptr<T> >
-    get(const std::string& url, std::shared_ptr<T> sink=nullptr)
+    bool abort()
     {
-        promise::Promise<std::shared_ptr<T> > pms;
+        if (!mBusy)
+            return false;
+        auto ret = curl_multi_remove_handle(gCurlMultiHandle, mCurl);
+        if (ret != CURLM_OK)
+            throw std::runtime_error("http::Client::abort: Error calling curl_multi_remove_handle: code "+std::to_string(ret));
+        mBusy = false;
+        mResponse.reset();
+        return true;
+    }
+
+    template <class T>
+    promise::Promise<std::shared_ptr<Response<T> > >
+    pget(const std::string& url, std::shared_ptr<T> sink=nullptr)
+    {
+        promise::Promise<std::shared_ptr<Response<T> > > pms;
         get(url,
-        [pms, this](int code, int type, std::shared_ptr<T> data) mutable
+        [pms, this](int code, int type, std::shared_ptr<Response<T> > response) mutable
         {
             if (type == 0)
             {
-                pms.resolve(data);
+                response->setHttpCode(code);
+                pms.resolve(response);
             }
             else
             {
@@ -260,8 +271,8 @@ public:
     void get(const std::string& url, CB&& cb, std::shared_ptr<T> sink=nullptr)
     {
         _curleopt(CURLOPT_HTTPGET, 1L);
-        mResponse.reset(new Response<T, CB>(*this, std::forward<CB>(cb), sink));
-        setupRecvAndStart<Response<T, CB> >(url);
+        mResponse.reset(new ResponseWithCb<T, CB>(std::forward<CB>(cb), sink));
+        setupRecvAndStart<T, CB>(url);
     }
     template <class T, class CB>
     void post(const std::string& url, CB&& cb, const char* postData, size_t postDataSize, std::shared_ptr<T> sink=nullptr)
@@ -270,20 +281,21 @@ public:
         _curleopt(CURLOPT_HTTPPOST, 1L);
         _curleopt(CURLOPT_POSTFIELDS, postData);
         _curleopt(CURLOPT_POSTFIELDSIZE, (long)postDataSize);
-        mResponse.reset(new Response<T, CB>(*this, std::forward<CB>(cb), sink));
-        setupRecvAndStart<Response<T, CB> >(url);
+        mResponse.reset(new ResponseWithCb<T, CB>(std::forward<CB>(cb), sink));
+        setupRecvAndStart<T, CB>(url);
     }
     template <class T>
-    promise::Promise<std::shared_ptr<T> >
-    post(const std::string& url, const char* postData, size_t postDataSize, std::shared_ptr<T> sink=nullptr)
+    promise::Promise<std::shared_ptr<Response<T> > >
+    ppost(const std::string& url, const char* postData, size_t postDataSize, std::shared_ptr<T> sink=nullptr)
     {
-        promise::Promise<std::shared_ptr<T> > pms;
+        promise::Promise<std::shared_ptr<Response<T> > > pms;
         post(url,
-        [pms, this](int code, int type, std::shared_ptr<T> data) mutable
+        [pms, this](int code, int type, std::shared_ptr<Response<T> > response) mutable
         {
             if (type == 0)
             {
-                pms.resolve(data);
+                response->setHttpCode(code);
+                pms.resolve(response);
             }
             else
             {
@@ -365,9 +377,9 @@ protected:
 };
 
 template <class T, class CB>
-void Response<T,CB>::onTransferComplete(int code, int type)
+void ResponseWithCb<T,CB>::onTransferComplete(const Client& client, int code, int type)
 {
-    mCb(code, type, ResponseWithData<T>::mSink);
+    mCb(code, type, std::dynamic_pointer_cast<Response<T> >(client.mResponse));
 }
 
 }

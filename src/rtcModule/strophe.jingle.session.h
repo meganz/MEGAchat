@@ -149,12 +149,12 @@ public:
     promise::Promise<int> setRemoteDescription(strophe::Stanza stanza, const std::string& desctype);
 //    void addIceCandidate(strophe::Stanza stanza);
     void addIceCandidates(strophe::Stanza transportInfo);
-    promise::Promise<int> sendAnswer();
+    promise::Promise<void> sendAnswer();
     promise::Promise<strophe::Stanza> sendTerminate(const char *reason, const char *text);
     promise::Promise<strophe::Stanza> sendMute(bool muted, const std::string& what);
     void syncAvState();
-    promise::Promise<int> sendAvState();
-    promise::Promise<int> muteUnmute(bool state, const AvFlags& what);
+    promise::Promise<void> sendAvState();
+    promise::Promise<void> muteUnmute(bool state, const AvFlags& what);
     promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string &origin);
 };
 

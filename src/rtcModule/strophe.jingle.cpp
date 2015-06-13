@@ -231,11 +231,11 @@ void Jingle::onJingle(Stanza iq)
             {
                 return sess->sendAnswer();
             })
-            .then([sess](int)
+            .then([sess]()
             {
                   return sess->sendAvState();
             })
-            .then([this, sess](int)
+            .then([this, sess]()
             {
                 onCallAnswered(*sess);
 //now handle all packets queued up while we were waiting for user's accept of the call
@@ -599,7 +599,7 @@ Jingle::initiate(const char* sid, const char* peerjid, const char* myjid,
       {
         return sess->sendAvState();
       })
-      .then([sess](int)
+      .then([sess]()
       {
         return sess;
       });

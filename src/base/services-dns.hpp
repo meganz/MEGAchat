@@ -4,6 +4,7 @@
 #include "cservices.h"
 #include "addrinfo.hpp"
 #include "promise.h"
+#include "gcm.h"
 
 namespace mega
 {
@@ -34,7 +35,7 @@ protected:
 };
 
 template <class CB>
-void dnsLookup(const char* name, unsigned flags, CB&& cb, const char* service=nullptr)
+static inline void dnsLookup(const char* name, unsigned flags, CB&& cb, const char* service=nullptr)
 {
     evutil_addrinfo hints;
     memset(&hints, 0, sizeof(hints));
@@ -69,7 +70,7 @@ void dnsLookup(const char* name, unsigned flags, CB&& cb, const char* service=nu
         }, msg);
 }
 
-promise::Promise<std::shared_ptr<AddrInfo> >
+static inline promise::Promise<std::shared_ptr<AddrInfo> >
 dnsLookup(const char* name, unsigned flags, const char* service=nullptr)
 {
     promise::Promise<std::shared_ptr<AddrInfo> > pms;

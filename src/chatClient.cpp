@@ -1,3 +1,5 @@
+#define PROMISE_DEBUG_REFS 1
+
 #include "chatRoom.h"
 #include "contactList.h"
 #include "ITypes.h" //for IPtr
@@ -22,7 +24,7 @@
 #include <common.h>
 #include <upper_handler.h>
 #include <shared_buffer.h>
-
+#include <serverListProvider.h>
 #include <memory>
 #include <map>
 #include <type_traits>
@@ -82,7 +84,8 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 
 Client::Client(const std::string& email, const std::string& password)
  :conn(new strophe::Connection(services_strophe_get_ctx())),
-  api(new MyMegaApi("karere-native")),mEmail(email), mPassword(password), contactList(conn),
+  api(new MyMegaApi("karere-native")),mEmail(email), mPassword(password),
+  contactList(conn), mXmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp"),
   mRtcHandler(NULL)
 {}
 
@@ -97,12 +100,14 @@ void Client::registerRtcHandler(rtcModule::IEventHandler* rtcHandler)
 {
     mRtcHandler.reset(rtcHandler);
 }
-
+#define SHARED_STATE(varname, membtype)             \
+    struct SharedState##__LINE__{membtype value;};  \
+    std::shared_ptr<SharedState##__LINE__> varname(new SharedState##__LINE__)
 
 promise::Promise<int> Client::init()
 {
     /* get xmpp login from Mega API */
-    return
+    auto pmsMegaLogin =
     api->call(&mega::MegaApi::login, mEmail.c_str(), mPassword.c_str())
     .then([this](ReqResult result)
     {
@@ -114,53 +119,51 @@ promise::Promise<int> Client::init()
         KR_LOG_ERROR("Mega API login error: %s", err.what());
         return err;
     })
-    .then([this](ReqResult result)
+    .then([this](ReqResult result) -> promise::Promise<void>
     {
         api->userData = result;
         const char* user = result->getText();
         if (!user || !user[0])
-            return promise::reject<int>("Could not get our own JID");
+            return promise::Error("Could not get our own JID");
         SdkString xmppPass = api->dumpXMPPSession();
         if (xmppPass.size() < 16)
-            return promise::reject<int>("Mega session id is shorter than 16 bytes");
+            return promise::Error("Mega session id is shorter than 16 bytes");
         ((char&)xmppPass.c_str()[16]) = 0;
 
         //xmpp_conn_set_keepalive(*conn, 10, 4);
-        /* setup authentication information */
+        // setup authentication information
         std::string jid = std::string(user)+"@" KARERE_XMPP_DOMAIN "/kn_";
         jid.append(rtcModule::makeRandomString(10));
         xmpp_conn_set_jid(*conn, jid.c_str());
         xmpp_conn_set_pass(*conn, xmppPass.c_str());
         KR_LOG_DEBUG("xmpp user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
         setupHandlers();
-// initiate connection
-        return mega::retry(
-        [this](int no)
+        return promise::_Void();
+    });
+
+    SHARED_STATE(server, std::shared_ptr<ServerInfo>);
+    promise::Promise<int> pmsGelbReq = mXmppServerProvider.getServer()
+        .then([server](std::shared_ptr<ServerInfo> aServer) mutable
         {
-            return conn->connect(KARERE_DEFAULT_XMPP_SERVER, 0);
+            server->value = aServer;
+            printf("gelb promise resolved, server = %s\n", server->value->host.c_str());
+            return 0;
+        });
+    printf("gelb promise = %p; mega promise = %p\n", pmsGelbReq.mSharedObj, pmsMegaLogin.mSharedObj);
+    return promise::when(pmsMegaLogin, pmsGelbReq)
+    .then([this, server]()
+    {
+// initiate connection
+        return mega::retry([this, server](int no)
+        {
+            return conn->connect(server->value->host.c_str(), 0);
         },
         [this]()
         {
             xmpp_disconnect(*conn, -1);
         },
-        KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
-#if 0
-//testing retrying of failed logins
-        .fail([this](const promise::Error& err)
-        {
-            KR_LOG_WARNING("Done with retries, login");
-            promise::Promise<int> pms;
-            mega::setTimeout([this, pms]() mutable
-            {
-                conn->connect(KARERE_DEFAULT_XMPP_SERVER, 0)
-                .then([pms](int ret) mutable
-                { pms.resolve(ret); return 0;});
-            }, 4000);
-            return pms;
-        });
-
-#endif
-    ;})
+        KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+    })
     .fail([](const promise::Error& error)
     {
         KR_LOG_ERROR("XMPP login error:\n%s", error.what());
@@ -183,6 +186,7 @@ promise::Promise<int> Client::init()
         conn->registerPlugin("textchat", mTextModule.get());
 // create and register disco strophe plugin
         conn->registerPlugin("disco", new disco::DiscoPlugin(*conn, "Karere Native"));
+        KR_LOG_DEBUG("webrtc and textchat plugins initialized");
 // install contactlist handlers before sending initial presence so that the presences that start coming after that get processed
         auto pms = initializeContactList();
 // Send initial <presence/> so that we appear online to contacts
@@ -199,7 +203,7 @@ promise::Promise<int> Client::init()
     })
     .fail([](const promise::Error& err)
     {
-        KR_LOG_ERROR("Error initializing contactlist: %s", err.what());
+        KR_LOG_ERROR("Error initializing client: %s", err.what());
         return err;
     });
 }

@@ -282,7 +282,7 @@ protected:
                 RETRY_LOG("A previous timed-out/aborted attempt returned failure: %s", err.msg().c_str());
                 return err;
             }
-            RETRY_LOG("Attempt %zu failed", mCurrentAttemptNo);
+            RETRY_LOG("Attempt %zu failed with message '%s'", mCurrentAttemptNo, err.what());
             cancelTimer();
             schedNextRetry(err);
             return err;

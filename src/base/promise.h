@@ -19,21 +19,12 @@ namespace promise
 static const char* kNoMoreCallbacksMsg =
   "No more space for promise callbacks, please increase the N template argument";
 
-template <bool B, typename T>
-struct EnableIf
-{};
-
-template <typename T>
-struct EnableIf<true, T>
-{typedef T type;};
-
-#define PROMISE_ENABLE_IF(cond, t) \
-typename EnableIf<cond, t>::type
-
-template <typename A, typename B>
-struct NotSame{enum {value=true};};
-template <typename A>
-struct NotSame<A,A>{enum {value=false};};
+//===
+struct _Void{};
+template<typename V>
+struct MaskVoid { typedef V type;};
+template<>
+struct MaskVoid<void> {typedef _Void type;};
 
 //Promise error class. We need it to be a refcounted object, because
 //often the user would return somehting like return PromiseError(...)
@@ -186,14 +177,14 @@ protected:
     protected:
         CB mCb;
     public:
-        virtual void operator()(const P& err) { mCb(err); }
+        virtual void operator()(const P& arg) { mCb(arg); }
         Callback(CB&& cb): mCb(std::forward<CB>(cb)){}
     };
-    typedef ICallback<T> ISuccessCb;
+    typedef ICallback<typename MaskVoid<T>::type> ISuccessCb;
     typedef ICallback<Error> IFailCb;
     template <class CB>
-    struct SuccessCb: public Callback<T, CB>
-    {  using Callback<T,CB>::Callback; };
+    struct SuccessCb: public Callback<typename MaskVoid<T>::type, CB>
+    {  using Callback<typename MaskVoid<T>::type,CB>::Callback; };
     template <class CB>
     struct FailCb: public Callback<Error, CB>
     {  using Callback<Error,CB>::Callback; };
@@ -202,9 +193,9 @@ protected:
   * Callback object with that type. We cannot do that by derectly callind the Callback constructor
   */
     template <class P, class CB>
-    ICallback<P>* createCb(CB&& cb)
+    ICallback<typename MaskVoid<P>::type>* createCb(CB&& cb)
     {
-        return new Callback<P,CB>(std::forward<CB>(cb));
+        return new Callback<typename MaskVoid<P>::type, CB>(std::forward<CB>(cb));
     }
 //===
     struct SharedObj
@@ -218,7 +209,7 @@ protected:
         CbLists* mCbs;
         ResolvedState mResolved;
         bool mPending;
-        typename std::remove_const<T>::type mResult;
+        typename MaskVoid<typename std::remove_const<T>::type>::type mResult;
         Error mError;
         SharedObj()
         :mRefCount(1), mCbs(NULL), mResolved(PROMISE_RESOLV_NOT),
@@ -245,12 +236,36 @@ protected:
     };
 
     template <typename Ret>
-    struct ValueTypeFromCbRet
+    struct RemovePromise
     {  typedef typename std::remove_const<Ret>::type Type; };
     template<typename Ret>
-    struct ValueTypeFromCbRet<Promise<Ret> >
+    struct RemovePromise<Promise<Ret> >
     {  typedef typename std::remove_const<Ret>::type Type;  };
 
+//===
+    struct CallCbHandleVoids
+    {
+        template<class Out, class In, class CB, class=typename std::enable_if<!std::is_same<In,_Void>::value && !std::is_same<Out, void>::value, int>::type>
+        static Promise<Out> call(CB& cb, const In& val) {  return cb(val);  }
+
+        template<class Out, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && !std::is_same<Out, void>::value, int>::type>
+        static Promise<Out> call(CB& cb, const _Void& val) {  return cb();   }
+
+        template<class Out, class In, class CB, class=typename std::enable_if<!std::is_same<In,_Void>::value && std::is_same<Out,void>::value, int>::type>
+        static Promise<void> call(CB& cb, const In& val){ cb(val); return _Void(); }
+
+        template<class Out, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && std::is_same<Out,void>::value, int>::type>
+        static Promise<void> call(CB& cb, const _Void& val) { cb(); return _Void(); }
+    };
+    struct CallCbWithMaskedVoidArg
+    {
+        template <class P, class CB, class=typename std::enable_if<!std::is_same<P,_Void>::value, int>::type>
+        static void call(CB& cb, const P& param) { cb(param); }
+        template <class P, class CB, class=typename std::enable_if<std::is_same<P,_Void>::value, int>::type>
+        static void call(CB& cb, const _Void& param) { cb(); }
+    };
+
+//===
     void addRef()
     {
         if (!mSharedObj)
@@ -302,14 +317,14 @@ public:
     {
         reset(other.mSharedObj);
     }
-    template <class=PROMISE_ENABLE_IF((NotSame<T, Error>::value), void)>
-    Promise(const T& val):mSharedObj(new SharedObj)
+    template <class=typename std::enable_if<!std::is_same<T, Error>::value, int>::type>
+    Promise(const typename MaskVoid<T>::type& val):mSharedObj(new SharedObj)
     {
         resolve(val);
     }
-    Promise(T&& val):mSharedObj(new SharedObj)
+    Promise(typename MaskVoid<T>::type&& val):mSharedObj(new SharedObj)
     {
-        resolve(std::forward<T>(val));
+        resolve(std::forward<typename MaskVoid<T>::type>(val));
     }
 
     Promise(const Error& err):mSharedObj(new SharedObj)
@@ -345,7 +360,7 @@ protected:
             Promise<Out> promise(e);
             try
             {
-                promise = cb(result);
+                promise = CallCbHandleVoids::template call<Out, In>(cb, result);
             }
             catch(std::exception& e)
             {
@@ -389,6 +404,10 @@ protected:
                 promise.doPendingResolve();
         });
     }
+    template <class CB>
+    auto ValueTypeFromCbRet(CB&& cb) -> typename RemovePromise<decltype(cb(this->mSharedObj->mResult))>::Type;
+    template <class CB>
+    auto ValueTypeFromCbRet(CB&& cb) -> typename RemovePromise<decltype(cb())>::Type;
 public:
 /**
 * The Out template argument is the return type of the provided callback \c cb
@@ -397,9 +416,9 @@ public:
 * \c Promise<Out> instance
 */
     template <typename F>
-    auto then(F&& cb)->Promise<typename ValueTypeFromCbRet<decltype(cb(mSharedObj->mResult))>::Type>
+    auto then(F&& cb)->Promise<decltype(this->ValueTypeFromCbRet(cb))>
     {
-        typedef typename ValueTypeFromCbRet<decltype(cb(mSharedObj->mResult))>::Type Out;
+        typedef decltype(this->ValueTypeFromCbRet(cb)) Out;
         Promise<Out> next;
         if (mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
         {
@@ -407,7 +426,7 @@ public:
             return next;
         }
 
-        std::unique_ptr<ISuccessCb> resolveCb(createChainedCb<T, Out>(std::forward<F>(cb), next));
+        std::unique_ptr<ISuccessCb> resolveCb(createChainedCb<typename MaskVoid<T>::type, Out>(std::forward<F>(cb), next));
 
         if (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
         {
@@ -470,8 +489,14 @@ public:
             mSharedObj->mPending = true;
         }
     }
+    template <typename V=T, class=typename std::enable_if<std::is_same<V,void>::value, int>::type>
+    void resolve()
+    {
+        resolve(_Void());
+    }
+
 protected:
-    void doResolve(const T& val)
+    void doResolve(const typename MaskVoid<T>::type& val)
     {
         auto& cbs = thenCbs();
         int cnt = cbs.count();
@@ -566,7 +591,7 @@ inline Promise<T> reject(const Error& err)
 struct WhenStateShared
 {
     int numready = 0;
-    Promise<int> output;
+    Promise<void> output;
     bool lastAdded = false;
     int totalCount = 0;
 };
@@ -576,7 +601,7 @@ struct WhenState: public std::shared_ptr<WhenStateShared>
     WhenState():std::shared_ptr<WhenStateShared>(new WhenStateShared){}
 };
 
-template <class T>
+template <class T, class=typename std::enable_if<!std::is_same<T,void>::value, int>::type>
 inline void _when_add_single(WhenState& state, Promise<T>& pms)
 {
     state->totalCount++;
@@ -587,8 +612,28 @@ inline void _when_add_single(WhenState& state, Promise<T>& pms)
         if (!state->lastAdded || (n < state->totalCount))
             return ret;
         assert(n == state->totalCount);
-        state->output.resolve(0);
+        state->output.resolve();
         return ret;
+    });
+    pms.fail([state](const Error& err)
+    {
+        state->output.reject(err);
+        return err;
+    });
+}
+
+template <class T, class=typename std::enable_if<std::is_same<T,void>::value, int>::type>
+inline void _when_add_single(WhenState& state, Promise<void>& pms)
+{
+    state->totalCount++;
+    pms.then([state, pms]()
+    {
+        int n = ++(state->numready);
+        PROMISE_LOG_REF("%p: when: %p: numready = %d, pms state: %d\n", pms.mSharedObj, state.get(), state->numready, pms.mSharedObj->mResolved);
+        if (!state->lastAdded || (n < state->totalCount))
+            return;
+        assert(n == state->totalCount);
+        state->output.resolve();
     });
     pms.fail([state](const Error& err)
     {
@@ -608,12 +653,12 @@ template <class T, class...Args>
 inline void _when_add(WhenState& state, Promise<T>& promise,
                       Args... promises)
 {
-    _when_add_single(state, promise);
+    _when_add_single<T>(state, promise);
     _when_add(state, promises...);
 }
 
 template<class... Args>
-inline Promise<int> when(Args... inputs)
+inline Promise<void> when(Args... inputs)
 {
     WhenState state;
     _when_add(state, inputs...);

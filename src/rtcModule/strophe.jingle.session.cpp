@@ -202,7 +202,7 @@ void JingleSession::addIceCandidates(Stanza transportInfo)
     });
 }
 
-Promise<int> JingleSession::sendAnswer()
+Promise<void> JingleSession::sendAnswer()
 {
     checkActive("sendAnswer");
 //must first send the sdp, and then setLocalDescription because
@@ -256,14 +256,14 @@ void JingleSession::syncAvState()
         vt->set_enabled(mLocalAvState.video);
 }
 
-Promise<int> JingleSession::sendAvState()
+Promise<void> JingleSession::sendAvState()
 {
     return promise::when(
                 mLocalAvState.audio?Promise<Stanza>(Stanza()):sendMute(true, "voice"),
                 mLocalAvState.video?Promise<Stanza>(Stanza()):sendMute(true, "video"));
 }
 
-Promise<int> JingleSession::muteUnmute(bool state, const AvFlags& what)
+Promise<void> JingleSession::muteUnmute(bool state, const AvFlags& what)
 {
 //First do the actual muting, and only then send the signalling
     if (what.audio)

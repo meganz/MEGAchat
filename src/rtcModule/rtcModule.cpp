@@ -880,7 +880,7 @@ void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const 
     auto client = new ::mega::http::Client;
     ::mega::retry([client, json](int no)
     {
-        return client->post<std::string>("https://stats.karere.mega.nz/stats", json->c_str(), json->size())
+        return client->ppost<std::string>("https://stats.karere.mega.nz/stats", json->c_str(), json->size())
             .fail([](const promise::Error& err)
         {
             KR_LOG_ERROR("=========== Error: code=%d, type=%d, msg='%s'", err.code(), err.type(), err.what());
@@ -893,11 +893,11 @@ void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const 
         //json->destroy();
         return err;
     })
-    .then([client, json](std::shared_ptr<std::string> response)
+    .then([client, json](std::shared_ptr<http::Response<std::string> > response)
     {
         //delete client;
         //json->destroy();
-        printf("=========== response = '%s'\n", response->c_str());
+        printf("=========== response = '%s'\n", response->data()->c_str());
         return response;
     });//CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
       //size_t maxRetries = rh::RetryController<Func>::kDefaultMaxAttemptCount,

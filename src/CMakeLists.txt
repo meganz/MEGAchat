@@ -19,6 +19,7 @@ set (SRCS
     chatClient.cpp
     textModule.cpp
     contactList.cpp
+    serverListProvider.cpp
     ./text_filter/text_filter.cpp
     ./text_filter/default_link_handler.cpp
     ./text_filter/default_emoticon_handler.cpp

@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <retryHandler.h>
 #include <busConstants.h>
+#include <serverListProvider.h>
 
 namespace strophe { class Connection; }
 namespace rtcModule
@@ -107,6 +108,7 @@ protected:
     std::string mPassword;
     /** client's contact list */
     ContactList contactList;
+    SingleServerProvider<GelbProvider> mXmppServerProvider;
     std::unique_ptr<mega::rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
     /* handler for webrtc events */
