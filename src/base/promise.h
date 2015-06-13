@@ -605,10 +605,10 @@ template <class T, class=typename std::enable_if<!std::is_same<T,void>::value, i
 inline void _when_add_single(WhenState& state, Promise<T>& pms)
 {
     state->totalCount++;
-    pms.then([state, pms](const T& ret)
+    pms.then([state](const T& ret)
     {
         int n = ++(state->numready);
-        PROMISE_LOG_REF("%p: when: %p: numready = %d, pms state: %d\n", pms.mSharedObj, state.get(), state->numready, pms.mSharedObj->mResolved);
+        PROMISE_LOG_REF("when: %p: numready = %d", state.get(), state->numready);
         if (!state->lastAdded || (n < state->totalCount))
             return ret;
         assert(n == state->totalCount);
@@ -626,10 +626,10 @@ template <class T, class=typename std::enable_if<std::is_same<T,void>::value, in
 inline void _when_add_single(WhenState& state, Promise<void>& pms)
 {
     state->totalCount++;
-    pms.then([state, pms]()
+    pms.then([state]()
     {
         int n = ++(state->numready);
-        PROMISE_LOG_REF("%p: when: %p: numready = %d, pms state: %d\n", pms.mSharedObj, state.get(), state->numready, pms.mSharedObj->mResolved);
+        PROMISE_LOG_REF("when: %p: numready = %d", state.get(), state->numready);
         if (!state->lastAdded || (n < state->totalCount))
             return;
         assert(n == state->totalCount);
