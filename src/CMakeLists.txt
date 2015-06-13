@@ -12,14 +12,13 @@ set(KARERE_LOGGER_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/base CACHE PATH "Kare
 
 set (SRCS
     ../third-party/murmurHash/MurmurHash3.cpp
-    karereCommon.cpp
+//    karereCommon.cpp
     strophe.disco.cpp
     dummyCrypto.cpp
     megaCryptoFunctions.cpp
     chatClient.cpp
     textModule.cpp
     contactList.cpp
-    serverListProvider.cpp
     ./text_filter/text_filter.cpp
     ./text_filter/default_link_handler.cpp
     ./text_filter/default_emoticon_handler.cpp

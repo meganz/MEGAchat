@@ -1,9 +1,5 @@
-#define PROMISE_DEBUG_REFS 1
-
-#include "chatRoom.h"
 #include "contactList.h"
 #include "ITypes.h" //for IPtr
-#include "karereEventObjects.h"
 #ifdef _WIN32
     #include <winsock2.h>
 #endif
@@ -13,21 +9,13 @@
 #include <mstrophepp.h>
 #include "rtcModule/IRtcModule.h"
 #include "rtcModule/lib.h"
-#include "dummyCrypto.h"
+#include "dummyCrypto.h" //for makeRandomString
 #include "strophe.disco.h"
 #include "base/services.h"
 #include "sdkApi.h"
 #include "megaCryptoFunctions.h"
-#include "iEncHandler.h"
-#include "messageBus.h"
-#include "busConstants.h"
-#include <common.h>
-#include <upper_handler.h>
-#include <shared_buffer.h>
 #include <serverListProvider.h>
 #include <memory>
-#include <map>
-#include <type_traits>
 #include "chatClient.h"
 #include "textModule.h"
 
@@ -85,7 +73,8 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 Client::Client(const std::string& email, const std::string& password)
  :conn(new strophe::Connection(services_strophe_get_ctx())),
   api(new MyMegaApi("karere-native")),mEmail(email), mPassword(password),
-  contactList(conn), mXmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp"),
+  contactList(conn),
+  mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp")),
   mRtcHandler(NULL)
 {}
 
@@ -141,15 +130,12 @@ promise::Promise<int> Client::init()
         return promise::_Void();
     });
 
-    SHARED_STATE(server, std::shared_ptr<ServerInfo>);
-    promise::Promise<int> pmsGelbReq = mXmppServerProvider.getServer()
-        .then([server](std::shared_ptr<ServerInfo> aServer) mutable
+    SHARED_STATE(server, std::shared_ptr<HostPortServerInfo>);
+    promise::Promise<void> pmsGelbReq = mXmppServerProvider->getServer()
+        .then([server](std::shared_ptr<HostPortServerInfo> aServer) mutable
         {
             server->value = aServer;
-            printf("gelb promise resolved, server = %s\n", server->value->host.c_str());
-            return 0;
         });
-    printf("gelb promise = %p; mega promise = %p\n", pmsGelbReq.mSharedObj, pmsMegaLogin.mSharedObj);
     return promise::when(pmsMegaLogin, pmsGelbReq)
     .then([this, server]()
     {

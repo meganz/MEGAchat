@@ -24,7 +24,7 @@ debug_level can be: Debug,Warn,Error,Off. Note that this is not in quites
 prefix - the string that is prefixed before each log line for that channel. Can be NULL
 channel_flags - currently only the lower 4 bits are used, which define the color of the messages in the console:
 0-7 correspond to terminal escape codes \033[0;30m - \033[0;37m. These are dark colors
-0-8 correspond to terminal escape codes \033[1;30m - \033[1;37m. These are bright colors
+8-15 correspond to terminal escape codes \033[1;30m - \033[1;37m. These are bright colors
 log_file - if not NULL, enables logging to that file.
 rotate_size - the maximum size of the log file, in kbytes, after which the log file is truncated in half
 */
@@ -39,10 +39,10 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(rtcevent, "rtcevent", Debug, krLogNoLevel | 10)
     KR_LOGCHANNEL(jingle, NULL, Debug, krLogNoLevel | 14)
     KR_LOGCHANNEL(mpenc, "mpenc", Debug, 4)
-    KR_LOGCHANNEL(textchat, "chat", Debug, 12)
-    KR_LOGCHANNEL(megasdk, "sdk", Info, 4)
+    KR_LOGCHANNEL(textchat, "chat", Warn, 4)
+    KR_LOGCHANNEL(megasdk, "sdk", Info, 12)
     KR_LOGCHANNEL(services, "services", Info, 0)
-    KR_LOGCHANNEL(http, "http", Debug, 0)
+    KR_LOGCHANNEL(http, "http", Debug, 13)
     KR_LOGGER_CONFIG(setFlags(krLogNoLevel))
     KR_LOGGER_CONFIG(logToConsole())
     KR_LOGGER_CONFIG(logToFile("log.txt", 500))
