@@ -1,3 +1,6 @@
+#ifndef _SERVICES_HTTP_HPP
+#define _SERVICES_HTTP_HPP
+
 #include "cservices.h"
 #include "services-dns.hpp"
 #include <curl/curl.h>
@@ -176,7 +179,10 @@ public:
 protected:
     static void onTransferComplete(CurlConnection* conn, CURLcode code) //called by the CURL-libevent code
     {
+        //WARNING: The client object 'self' may be destroyed in the mResponse->onTransferComplete. Therefore
+        //we should not access the 'self' object after calling that callback
         auto self = (Client*)conn;
+        self->mBusy = false;
         if (code == CURLE_OK)
          {
             long httpCode;
@@ -191,10 +197,7 @@ protected:
                 self->mUrl.c_str(), code, curl_easy_strerror((CURLcode)code));
             if (self->mResponse)
                 self->mResponse->onTransferComplete(*self, code, ERRTYPE_HTTP);
-
         }
-
-        self->mBusy = false;
     }
     static CURLcode sslCtxFunction(CURL* curl, void* sslctx, void*)
     {
@@ -212,9 +215,9 @@ protected:
          {
             if (errcode)
             {
+                mBusy = false;
                 KRHTTP_LOG_ERROR("DNS error %d on request to '%s'", errcode, mUrl.c_str());
                 mResponse->onTransferComplete(*this, errcode, ERRTYPE_DNS);
-                mBusy = false;
                 return;
             }
             typedef size_t(*WriteFunc)(char *ptr, size_t size, size_t nmemb, void *userp);
@@ -389,3 +392,4 @@ void ResponseWithCb<T,CB>::onTransferComplete(const Client& client, int code, in
 //    mCustomHeaderscurl_slist hdr = curl_slist_append(NULL, nameVal);
 //    curl_easy_setopt(mCurl, CURLOPT_)
 //}
+#endif
