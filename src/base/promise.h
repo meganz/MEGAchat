@@ -244,16 +244,16 @@ protected:
 //===
     struct CallCbHandleVoids
     {
-        template<class Out, class In, class CB, class=typename std::enable_if<!std::is_same<In,_Void>::value && !std::is_same<Out, void>::value, int>::type>
+        template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<!std::is_same<In,_Void>::value && !std::is_same<CbOut, void>::value, int>::type>
         static Promise<Out> call(CB& cb, const In& val) {  return cb(val);  }
 
-        template<class Out, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && !std::is_same<Out, void>::value, int>::type>
+        template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && !std::is_same<CbOut, void>::value, int>::type>
         static Promise<Out> call(CB& cb, const _Void& val) {  return cb();   }
 
-        template<class Out, class In, class CB, class=typename std::enable_if<!std::is_same<In,_Void>::value && std::is_same<Out,void>::value, int>::type>
+        template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<!std::is_same<In,_Void>::value && std::is_same<CbOut,void>::value, int>::type>
         static Promise<void> call(CB& cb, const In& val){ cb(val); return _Void(); }
 
-        template<class Out, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && std::is_same<Out,void>::value, int>::type>
+        template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && std::is_same<CbOut,void>::value, int>::type>
         static Promise<void> call(CB& cb, const _Void& val) { cb(); return _Void(); }
     };
     struct CallCbWithMaskedVoidArg
@@ -349,7 +349,7 @@ protected:
  * the result to resolve/reject chained promises. \c In is the type of the callback's parameter,
  * \c Out is its return type, \c CB is the type of the callback itself.
  */
-    template <typename In, typename Out, class CB>
+    template <typename In, typename Out, typename RealOut, class CB>
     ICallback<In>* createChainedCb(CB&& cb, Promise<Out>& next)
     {
         //cb must have the singature Promise<Out>(const In&)
@@ -359,7 +359,7 @@ protected:
             Promise<Out> promise(e);
             try
             {
-                promise = CallCbHandleVoids::template call<Out, In>(cb, result);
+                promise = CallCbHandleVoids::template call<Out, RealOut, In>(cb, result);
             }
             catch(std::exception& e)
             {
@@ -382,7 +382,10 @@ protected:
                 return;
             }
             if (!promise.hasCallbacks())
-                std::swap(promise.mSharedObj->mCbs, next.mSharedObj->mCbs);
+            {
+                promise.mSharedObj->mCbs = next.mSharedObj->mCbs;
+                next.mSharedObj->mCbs = nullptr;
+            }
             else
             {
                 //add our callbacks and errbacks to the returned promise
@@ -404,9 +407,14 @@ protected:
         });
     }
     template <class CB>
-    auto ValueTypeFromCbRet(CB&& cb) -> typename RemovePromise<decltype(cb(this->mSharedObj->mResult))>::Type;
+    auto ValueTypeFromCbRet(CB&& cb) -> decltype(cb(this->mSharedObj->mResult));
     template <class CB>
-    auto ValueTypeFromCbRet(CB&& cb) -> typename RemovePromise<decltype(cb())>::Type;
+    auto ValueTypeFromCbRet(CB&& cb) -> decltype(cb());
+    template <class CB>
+    auto ValueTypeFromEbRet(CB&& cb) -> decltype(cb(Error()));
+    template <class CB>
+    auto ValueTypeFromEbRet(CB&& cb) -> decltype(cb());
+
 public:
 /**
 * The Out template argument is the return type of the provided callback \c cb
@@ -415,9 +423,9 @@ public:
 * \c Promise<Out> instance
 */
     template <typename F>
-    auto then(F&& cb)->Promise<decltype(this->ValueTypeFromCbRet(cb))>
+    auto then(F&& cb)->Promise<typename RemovePromise<decltype(this->ValueTypeFromCbRet(cb))>::Type>
     {
-        typedef decltype(this->ValueTypeFromCbRet(cb)) Out;
+        typedef typename RemovePromise<decltype(this->ValueTypeFromCbRet(cb))>::Type Out;
         Promise<Out> next;
         if (mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
         {
@@ -425,7 +433,8 @@ public:
             return next;
         }
 
-        std::unique_ptr<ISuccessCb> resolveCb(createChainedCb<typename MaskVoid<T>::type, Out>(std::forward<F>(cb), next));
+        std::unique_ptr<ISuccessCb> resolveCb(createChainedCb<typename MaskVoid<T>::type, Out,
+            decltype(this->ValueTypeFromCbRet(cb))>(std::forward<F>(cb), next));
 
         if (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
         {
@@ -458,7 +467,8 @@ public:
             next.resolve(mSharedObj->mResult);
             return next;
         }
-        std::unique_ptr<IFailCb> failCb(createChainedCb<Error, T>(std::forward<F>(eb), next));
+        std::unique_ptr<IFailCb> failCb(createChainedCb<Error, T,
+            decltype(this->ValueTypeFromEbRet(eb))>(std::forward<F>(eb), next));
 
         if(mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
             (*failCb)(mSharedObj->mError);
@@ -611,12 +621,14 @@ inline void _when_add_single(WhenState& state, Promise<T>& pms)
         if (!state->lastAdded || (n < state->totalCount))
             return ret;
         assert(n == state->totalCount);
-        state->output.resolve();
+        if (!state->output.done())
+            state->output.resolve();
         return ret;
     });
     pms.fail([state](const Error& err)
     {
-        state->output.reject(err);
+        if (!state->output.done())
+            state->output.reject(err);
         return err;
     });
 }
@@ -632,11 +644,13 @@ inline void _when_add_single(WhenState& state, Promise<void>& pms)
         if (!state->lastAdded || (n < state->totalCount))
             return;
         assert(n == state->totalCount);
-        state->output.resolve();
+        if (!state->output.done())
+            state->output.resolve();
     });
     pms.fail([state](const Error& err)
     {
-        state->output.reject(err);
+        if (!state->output.done())
+            state->output.reject(err);
         return err;
     });
 }
