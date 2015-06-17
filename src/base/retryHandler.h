@@ -99,6 +99,7 @@ protected:
     size_t mMaxAttemptCount;
     unsigned mAttemptTimeout = 0;
     unsigned mMaxSingleWaitTime;
+    unsigned short mDelayRandPct = 20;
     promise::Promise<RetType> mPromise;
     unsigned long mTimer = 0;
     unsigned short mInitialWaitTime;
@@ -106,6 +107,7 @@ protected:
 public:
     /** Gets the output promise that is resolved. */
     promise::Promise<RetType>& getPromise() {return mPromise;}
+    void setWaitRandomnessPct(unsigned short pct) { mDelayRandPct = pct; }
     /**
      * @param func - The function that does the operation being retried.
      * This can be a lambda, function object or a C funtion pointer. The function
@@ -222,6 +224,13 @@ public:
     }
 protected:
     unsigned calcWaitTime()
+    {
+        unsigned t = calcWaitTimeNoRandomness();
+        unsigned randRange = (t * mDelayRandPct) / 100;
+        t = t - randRange + (rand() % 1000) * (randRange * 2) / 1000;
+        return t;
+    }
+    unsigned calcWaitTimeNoRandomness()
     {
         if (mCurrentAttemptNo > kBitness)
             return mMaxSingleWaitTime;
