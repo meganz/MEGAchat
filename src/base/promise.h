@@ -49,8 +49,7 @@ public:
     Error(const std::string& msg, int code=0, int type=0)
         :Base(new ErrorShared(msg, code, type))
     {}
-    Error(){}
-    Error(const char* msg, int code=0, int type=0)
+    Error(const char* msg=nullptr, int code=0, int type=0)
         :Base(new ErrorShared(msg?msg:"", code, type))
     {}
     using Base::operator=;
