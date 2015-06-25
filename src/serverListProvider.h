@@ -10,13 +10,16 @@
 namespace mega { namespace http { class Client; } }
 namespace karere
 {
-#define SRVJSON_CHECK_GET_PROP(varname, name, type)                                             \
-    auto varname = json.FindMember(#name);                                                \
-    if (varname == json.MemberEnd())                                                        \
-        throw std::runtime_error("No '" #name "' field in JSON server item");         \
+#define SRVJSON_CHECK_GET_PROP(varname, name, type)                                              \
+    auto varname = json.FindMember(#name);                                                       \
+    if (varname == json.MemberEnd())                                                             \
+        throw std::runtime_error("No '" #name "' field in JSON server item");                    \
     if (!varname->value.Is##type())                                                              \
         throw std::runtime_error("JSON field '" #name "' is not of type '" #type "'")
 
+template <class S>
+void parseServerList(const rapidjson::Value& arr, std::vector<std::shared_ptr<S> >& servers);
+static inline const char* strOrEmpty(const char* str);
 struct HostPortServerInfo
 {
     std::string host;
@@ -55,14 +58,26 @@ public:
             .then([this](int) -> promise::Promise<std::shared_ptr<typename B::Server> >
             {
                 if (B::needsUpdate())
+                {
                     return promise::Error("No servers", 0x3e9a9e1b, 1);
+                }
                 else
+                {
+                    printf("returning server\n");
                     return B::at(B::mNextAssignIdx++);
+                }
             });
         }
         else
         {
-            return B::at(B::mNextAssignIdx++);
+            promise::Promise<std::shared_ptr<typename B::Server> > pms;
+            mega::setTimeout([pms, this]() mutable
+            {
+                pms.resolve(B::at(B::mNextAssignIdx++));
+            }, 0);
+            return pms;
+
+//            return B::at(B::mNextAssignIdx++);
         }
     }
 };
@@ -99,8 +114,18 @@ class StaticProvider: public ServerList<S>
 protected:
 public:
     typedef S Server;
-    StaticProvider(const char* servers);
-    promise::Promise<void> fetchServers() { this->mNextAssignIdx = 0; }
+    StaticProvider(const char* serversJson)
+    {
+        rapidjson::Document doc;
+        doc.Parse<0>(serversJson);
+        if (doc.HasParseError())
+        {
+            throw std::runtime_error(std::string("Error parsing json: ")+strOrEmpty(doc.GetParseError())
+                                     +" at position "+std::to_string(doc.GetErrorOffset()));
+        }
+        parseServerList(doc, *this);
+    }
+    promise::Promise<int> fetchServers() { this->mNextAssignIdx = 0; return 0;}
 };
 
 template <class S=HostPortServerInfo>
@@ -109,55 +134,103 @@ class GelbProvider: public ServerList<S>
 protected:
     std::string mGelbHost;
     std::string mService;
-    size_t mReqTimeout;
-    size_t mMaxAttempts;
     int64_t mMaxReuseOldServersAge;
     int64_t mLastUpdateTs = 0;
-    std::shared_ptr<mega::http::Client> mClient; //can only get away with shared_ptr and incomplete Client class
-    void parseServerList(const std::string& json);
+    std::unique_ptr<mega::http::Client> mClient;
+    std::unique_ptr<mega::rh::IRetryController> mRetryController;
+    void parseServersJson(const std::string& json);
 public:
     typedef S Server;
     promise::Promise<int> fetchServers();
-    GelbProvider(const char* gelbHost, const char* service, int64_t maxReuseOldServersAge=0,
-        size_t maxAttempts=3, size_t reqTimeout=4000)
-    :mGelbHost(gelbHost), mService(service), mReqTimeout(reqTimeout), mMaxAttempts(maxAttempts),
-      mMaxReuseOldServersAge(maxReuseOldServersAge)
+    GelbProvider(const char* gelbHost, const char* service, int reqCount=2, unsigned reqTimeout=4000,
+        int64_t maxReuseOldServersAge=0);
+    void abort()
+    {
+        if (!mClient)
+            return;
+        mRetryController->abort();
+        assert(!mClient);
+    }
+};
+template <class S=HostPortServerInfo>
+class FallbackSingleServerProvider
+{
+protected:
+    SingleServerProvider<GelbProvider<S> > mGelbProvider;
+    SingleServerProvider<StaticProvider<S> > mStaticProvider;
+    int mGelbReqRetryCount;
+    unsigned mGelbReqTimeout;
+public:
+    FallbackSingleServerProvider(const char* gelbHost, const char* service, const char* staticServers,
+        int64_t gelbMaxReuseAge=0, int gelbRetryCount=2, unsigned gelbReqTimeout=4000)
+        :mGelbProvider(gelbHost, service, gelbRetryCount, gelbReqTimeout, gelbMaxReuseAge),
+        mStaticProvider(staticServers)
     {}
+    promise::Promise<std::shared_ptr<S> > getServer()
+    {
+        return mGelbProvider.getServer()
+        .fail([this](const promise::Error& err)
+        {
+            KR_LOG_ERROR("Gelb request failed, falling back to static server list");
+            return mStaticProvider.getServer();
+        });
+    }
+    void abort()
+    {
+        mGelbProvider.abort();
+    }
 };
 
 template <class S>
-promise::Promise<int> GelbProvider<S>::fetchServers()
+GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
+    int reqCount, unsigned reqTimeout, int64_t maxReuseOldServersAge)
+    :mGelbHost(gelbHost), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
 {
-//    auto client = new mega::http::Client;
-
-    std::shared_ptr<mega::http::Client> client(new mega::http::Client);
-    return ::mega::retry([this, client](int no) -> promise::Promise<int>
+    mRetryController.reset(mega::createRetryController(
+    [this](int no)
     {
-        return client->pget<std::string>(mGelbHost+"/?service="+mService)
+        assert(mClient && !mClient->busy());
+        return mClient->pget<std::string>(mGelbHost+"/?service="+mService)
         .then([this](std::shared_ptr<mega::http::Response<std::string> > response)
             -> promise::Promise<int>
         {
+            mClient.reset();
             if (response->httpCode() != 200)
             {
                 return promise::Error("Non-200 http response from GeLB server: "
                                       +*response->data(), 0x3e9a9e1b, 1);
             }
-            parseServerList(*(response->data()));
+            parseServersJson(*(response->data()));
             this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
             this->mLastUpdateTs = timestampMs();
             return 0;
         });
-    }, [this, client](){client->abort();}, mReqTimeout, mMaxAttempts, 0)
+    },
+    [this]()
+    {
+        if (mClient) //if this was the last attempt, the output promise will fail and reset() to nullptr
+            mClient->abort();
+    }, reqTimeout, reqCount, 1, 1));
+}
+
+template <class S>
+promise::Promise<int> GelbProvider<S>::fetchServers()
+{
+    if (mClient)
+        throw std::runtime_error("GeLB provider: a request is already in progress");
+    mClient.reset(new mega::http::Client);
+    mRetryController->reset();
+    return static_cast<promise::Promise<int>& > (mRetryController->start())
     .fail([this](const promise::Error& err) -> promise::Promise<int>
     {
-        if (this->mLastUpdateTs && ((timestampMs() - mLastUpdateTs) < mMaxReuseOldServersAge))
+        mClient.reset();
+        if (!this->mLastUpdateTs || ((timestampMs() - mLastUpdateTs) > mMaxReuseOldServersAge))
         {
-            this->mNextAssignIdx = 0;
-            KR_LOG_WARNING("Gelb client: error getting new servers, reusing not too old servers that we have from gelb");
-            return 0;
-        }
-        else
             return err;
+        }
+        this->mNextAssignIdx = 0;
+        KR_LOG_WARNING("Gelb client: error getting new servers, reusing not too old servers that we have from gelb");
+        return 0;
     });
 }
 
@@ -170,7 +243,7 @@ static inline const char* strOrEmpty(const char* str)
 }
 
 template <class S>
-void GelbProvider<S>::parseServerList(const std::string& json)
+void GelbProvider<S>::parseServersJson(const std::string& json)
 {
     rapidjson::Document doc;
     doc.Parse<0>(json.c_str());
@@ -185,14 +258,22 @@ void GelbProvider<S>::parseServerList(const std::string& json)
     auto arr = doc.FindMember(mService.c_str());
     if (arr == doc.MemberEnd())
         throw std::runtime_error("JSON receoved does not have a '"+mService+"' member");
-    if (!arr->value.IsArray())
+    parseServerList(arr->value, *this);
+}
+
+template <class S>
+void parseServerList(const rapidjson::Value& arr, std::vector<std::shared_ptr<S> >& servers)
+{
+    if (!arr.IsArray())
         throw std::runtime_error("JSON received from GeLB is not an array");
-    for (auto it=arr->value.Begin(); it!=arr->value.End(); ++it)
+    std::vector<std::shared_ptr<S> > parsed;
+    for (auto it=arr.Begin(); it!=arr.End(); ++it)
     {
         if (!it->IsObject())
             throw std::runtime_error("Server info entry is not an object");
-        this->emplace_back(new S(*it));
+        parsed.emplace_back(new S(*it));
     }
+    servers.swap(parsed);
 }
 }
 

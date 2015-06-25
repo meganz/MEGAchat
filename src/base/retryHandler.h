@@ -47,7 +47,7 @@ protected:
     size_t mCurrentAttemptNo = 0;
     bool mAutoDestruct = false; //used when we use this object on the heap
 public:
-    virtual void start(unsigned delay) = 0;
+    virtual promise::PromiseBase& start(unsigned delay=0) = 0;
     virtual void restart(unsigned delay=0) = 0;
     virtual bool abort() = 0;
     virtual void reset() = 0;
@@ -68,6 +68,8 @@ public:
     State state() const { return mState; }
     virtual ~IRetryController(){};
 };
+template <typename CB> inline static void callFuncIfNotNull(const CB& cb) { cb(); }
+inline static void callFuncIfNotNull(std::nullptr_t){}
 
 /** @brief
  * This is a simple class that retries a promise-returning function call, until the
@@ -92,7 +94,7 @@ public:
     typedef typename decltype(std::declval<Func>().operator()(0))::Type RetType;
 
 protected:
-    enum { kBitness = sizeof(size_t)*8-10 }; //maximum exponent of mInitialWaitTime that fits into a size_t
+    enum { kBitness = sizeof(unsigned)*8-10 }; //maximum exponent of mInitialWaitTime that fits into an unsigned
     Func mFunc;
     CancelFunc mCancelFunc;
     size_t mCurrentAttemptId = 0; //used to detect callbacks from stale attempts. Never reset (unlike mCurrentAttemptNo)
@@ -128,7 +130,7 @@ public:
         size_t maxAttemptCount=kDefaultMaxAttemptCount, unsigned short backoffStart=1000)
         :mFunc(std::forward<Func>(func)), mCancelFunc(std::forward<CancelFunc>(cancelFunc)),
          mMaxAttemptCount(maxAttemptCount), mAttemptTimeout(attemptTimeout),
-         mMaxSingleWaitTime((maxSingleWaitTime>0) ? maxSingleWaitTime : ((unsigned)-1)),
+         mMaxSingleWaitTime(maxSingleWaitTime),
          mInitialWaitTime(backoffStart)
     {}
     ~RetryController()
@@ -136,11 +138,12 @@ public:
         //RETRY_LOG("Deleting RetryController instance");
     }
     /** @brief Starts the retry attempts */
-    void start(unsigned delay=0)
+    promise::PromiseBase& start(unsigned delay=0)
     {
         if (mState != kStateNotStarted)
             throw std::runtime_error("RetryController: Already started or not reset after finished");
         assert(mTimer == 0);
+        mCurrentAttemptId++;
         mCurrentAttemptNo = 1; //mCurrentAttempt increments immediately before the wait delay (if any)
         if (delay)
         {
@@ -155,13 +158,14 @@ public:
         {
             nextTry();
         }
+        return mPromise;
     }
     /**
      * @brief abort
      * @return whether the abort was actually pefrormed or it
      * was not needed (i.e. not yet started or already finished). When the retries
-     * are abouted, teh putput promise is immediately rejected with an error of type
-     * RetryController::kErrorType, code 1 and text "aborted".
+     * are aborted, the output promise is immediately rejected with an error of type
+     * 1 (generic), code 2 (abort) and text "aborted".
      */
     bool abort()
     {
@@ -171,8 +175,8 @@ public:
         assert(!mPromise.done());
         cancelTimer();
         if ((mState == kStateInProgress) && !std::is_same<CancelFunc, void*>::value)
-            mCancelFunc();
-        mPromise.reject(promise::Error("aborted", 1, kErrorType));
+            callFuncIfNotNull(mCancelFunc);
+        mPromise.reject("aborted", promise::kErrAbort, promise::kErrorTypeGeneric);
         if (mAutoDestruct)
             delete this;
         return true;
@@ -232,9 +236,15 @@ protected:
     }
     unsigned calcWaitTimeNoRandomness()
     {
+        printf("kBitness = %d, mMaxSingleWaitTime = %u\n", kBitness, mMaxSingleWaitTime);
         if (mCurrentAttemptNo > kBitness)
-            return mMaxSingleWaitTime;
-        size_t t = (1 << (mCurrentAttemptNo-1)) * mInitialWaitTime;
+        {
+            if (!mInitialWaitTime)
+                return 0;
+            else
+                return mMaxSingleWaitTime;
+        }
+        unsigned t = (1 << (mCurrentAttemptNo-1)) * mInitialWaitTime;
         if (t <= mMaxSingleWaitTime)
             return t;
         else
@@ -258,14 +268,19 @@ protected:
         {
             mTimer = setTimeout([this, attempt]()
             {
+                assert(attempt == mCurrentAttemptId); //if we are in a next attempt, cancelTimer() should have been called and this callback should never fire
+                assert(!mPromise.done()); //same reason
                 mTimer = 0;
-                if ((attempt != mCurrentAttemptId) || mPromise.done())
-                    return;
-                static const promise::Error timeoutError("timeout", 2, kErrorType);
+                static const promise::Error timeoutError("timeout", promise::kErrTimeout, promise::kErrorTypeGeneric);
                 RETRY_LOG("Attempt %zu timed out after %u ms", mCurrentAttemptNo, mAttemptTimeout);
+                if (!std::is_same<CancelFunc, std::nullptr_t>::value)
+                {
+                    auto id = mCurrentAttemptId;
+                    callFuncIfNotNull(mCancelFunc);
+                    if (id != mCurrentAttemptId) //cancelFunc failed the input promise and a retry was already scheduled as a result, we have to bail out
+                        return;
+                }
                 schedNextRetry(timeoutError);
-                if (!std::is_same<CancelFunc, void*>::value)
-                    mCancelFunc();
             }, mAttemptTimeout);
         }
         mState = kStateInProgress;
@@ -302,9 +317,10 @@ protected:
         assert(mTimer == 0);
         if (mRestart)
         {
+            auto save = mRestart;
             mRestart = 0;
             mState = kStateNotStarted;
-            start(mRestart); //will just schedule, because we pass it a nonzero delay
+            start(save); //will just schedule, because we pass it a nonzero delay. Handles mCurrentAttemptId/No by itself
             return true;
         }
         mCurrentAttemptNo++; //always increment, to mark the end of the previous attempt
@@ -374,6 +390,37 @@ static inline rh::RetryController<Func, CancelFunc>* createRetryController(
         std::forward<CancelFunc>(cancelFunc), attemptTimeout,
         maxSingleWaitTime, maxRetries, backoffStart);
     return retryController;
+}
+
+template <class CB, class CCB=std::nullptr_t>
+auto performWithTimeout(CB&& cb, unsigned timeout, CCB&& cancelCb=nullptr)
+-> promise::Promise<typename std::enable_if<!std::is_same<typename decltype(cb())::Type, void>::value, typename decltype(cb())::Type>::type>
+{
+    typedef typename decltype(cb())::Type Type;
+    promise::Promise<Type> pms;
+    ::mega::setTimeout([pms, cancelCb]() mutable
+    {
+        if (pms.done())
+            return;
+        pms.reject(promise::Error("Operation timed out", 1, 1));
+        if (!std::is_same<CCB, void*>::value)
+        {
+            rh::callFuncIfNotNull(cancelCb);
+        }
+    }, timeout);
+
+    cb()
+    .then([pms](const Type& val) mutable
+    {
+        if (!pms.done())
+            pms.resolve(val);
+    })
+    .fail([pms](const promise::Error& err) mutable
+    {
+        if (!pms.done())
+            pms.reject(err);
+    });
+    return pms;
 }
 }
 #endif // RETRYHANDLER_H

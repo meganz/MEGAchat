@@ -25,6 +25,9 @@
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
 
 #define KARERE_DEFAULT_TURN_SERVERS "url=turn:trn530n003.karere.mega.nz:3478?transport=udp, user=inoo20jdnH, pass=02nNKDBkkS"
+#define KARERE_FALLBACK_XMPP_SERVERS "[\
+{\"host\":\"xmpp270n001.karere.mega.nz\",\"port\":443}]"
+
 #if defined(__ANDROID__) && !defined(HAVE_STD_TO_STRING)
 //Android is missing std::to_string
 #define HAVE_STD_TO_STRING 1

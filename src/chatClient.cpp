@@ -74,8 +74,8 @@ Client::Client(const std::string& email, const std::string& password)
  :conn(new strophe::Connection(services_strophe_get_ctx())),
   api(new MyMegaApi("karere-native")),mEmail(email), mPassword(password),
   contactList(conn),
-  mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp")),
-  mRtcHandler(NULL)
+  mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp",
+  KARERE_FALLBACK_XMPP_SERVERS)), mRtcHandler(NULL)
 {}
 
 
@@ -131,24 +131,51 @@ promise::Promise<int> Client::init()
     });
 
     SHARED_STATE(server, std::shared_ptr<HostPortServerInfo>);
-    promise::Promise<void> pmsGelbReq = mXmppServerProvider->getServer()
-        .then([server](std::shared_ptr<HostPortServerInfo> aServer) mutable
-        {
-            server->value = aServer;
-        });
+    auto pmsGelbReq = mXmppServerProvider->getServer()
+    .then([server](std::shared_ptr<HostPortServerInfo> aServer) mutable
+    {
+        server->value = aServer;
+        return 0;
+    });
+
     return promise::when(pmsMegaLogin, pmsGelbReq)
     .then([this, server]()
     {
 // initiate connection
         return mega::retry([this, server](int no)
         {
-            return conn->connect(server->value->host.c_str(), 0);
-        },
-        [this]()
-        {
-            xmpp_disconnect(*conn, -1);
-        },
-        KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+            if (no < 2)
+            {
+                return mega::performWithTimeout([this, server]()
+                {
+                    KR_LOG_INFO("Connecting to xmpp server %s...", server->value->host.c_str());
+                    return conn->connect(server->value->host.c_str(), 0);
+                    //return promise::Promise<int>();
+                }, KARERE_LOGIN_TIMEOUT,
+                [this]()
+                {
+                    xmpp_disconnect(*conn, -1);
+                });
+            }
+            else
+            {
+                return mXmppServerProvider->getServer()
+                .then([this](std::shared_ptr<HostPortServerInfo> aServer)
+                {
+                    KR_LOG_WARNING("Connecting to new xmpp server: %s...", aServer->host.c_str());
+                    //return promise::reject<int>(0);
+                    return mega::performWithTimeout([this, aServer]()
+                    {
+                        return conn->connect(aServer->host.c_str(), 0);
+                       // return promise::Promise<int>();
+                    }, KARERE_LOGIN_TIMEOUT,
+                    [this]()
+                    {
+                        xmpp_disconnect(*conn, -1);
+                    });
+                });
+            }
+        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     })
     .fail([](const promise::Error& error)
     {

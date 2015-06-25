@@ -26,6 +26,9 @@ struct MaskVoid { typedef V type;};
 template<>
 struct MaskVoid<void> {typedef _Void type;};
 
+template <class T, int L>
+class Promise;
+
 //Promise error class. We need it to be a refcounted object, because
 //often the user would return somehting like return PromiseError(...)
 //That would be converted to a failed promise object, and the Error would
@@ -42,14 +45,27 @@ struct ErrorShared
     {}
 };
 
+enum
+{
+    kErrorTypeGeneric = 1
+};
+enum
+{
+    kErrException = 1,
+    kErrAbort = 2,
+    kErrTimeout = 3
+};
+
 class Error: protected std::shared_ptr<ErrorShared>
 {
+protected:
+    Error(): Base(nullptr){}
 public:
     typedef std::shared_ptr<ErrorShared> Base;
-    Error(const std::string& msg, int code=0, int type=0)
+    Error(const std::string& msg, int code=0, int type=kErrorTypeGeneric)
         :Base(new ErrorShared(msg, code, type))
     {}
-    Error(const char* msg=nullptr, int code=0, int type=0)
+    Error(const char* msg, int code=0, int type=kErrorTypeGeneric)
         :Base(new ErrorShared(msg?msg:"", code, type))
     {}
     using Base::operator=;
@@ -62,6 +78,8 @@ public:
         return "Error: '"+get()->mMsg+"'\nType: "+
         std::to_string(get()->mType)+" Code: "+std::to_string(get()->mCode);
     }
+    template <class T, int L>
+    friend class Promise;
 };
 
 class PromiseBase
@@ -363,7 +381,7 @@ protected:
             }
             catch(std::exception& e)
             {
-                next.reject(Error(e.what(), 0, 1));
+                next.reject(Error(e.what(), kErrException));
                 return;
             }
             catch(Error& e)
@@ -373,12 +391,12 @@ protected:
             }
             catch(const char* e)
             {
-                next.reject(Error(e, 0, 1));
+                next.reject(Error(e, kErrException));
                 return;
             }
             catch(...)
             {
-                next.reject(Error("(unknown exception type)", 0, 1));
+                next.reject(Error("(unknown exception type)", kErrException));
                 return;
             }
             if (!promise.hasCallbacks())
@@ -553,6 +571,11 @@ public:
     {
         reject(Error("", code, type));
     }
+    inline void reject(const std::string& msg, int code, int type)
+    {
+        reject(Error(msg, code, type));
+    }
+
 protected:
     void doReject(const Error& err)
     {

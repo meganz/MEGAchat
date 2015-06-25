@@ -15,7 +15,8 @@ namespace mega
 {
 enum
 {
-    ERRTYPE_HTTP = 0x3e9a4ffb
+    ERRTYPE_HTTP = 0x3e9a4ffb,
+    ERRTYPE_ABORT = 0x000ab027
 };
 
 namespace http //deserves its own namespace
@@ -148,12 +149,14 @@ class Client: public CurlConnection
 protected:
     CURL* mCurl;
     bool mBusy = false;
+    size_t mRequestId = 0;
     std::string mUrl;
     curl_slist* mCustomHeaders = nullptr;
 //    std::unique_ptr<StreamSrcBase> mReader;
 public:
     std::shared_ptr<ResponseBase> mResponse;
     const std::string& url() const { return mUrl; }
+    const bool busy() const { return mBusy; }
     Client()
     :mCurl(curl_easy_init())
     {
@@ -209,10 +212,16 @@ protected:
     void setupRecvAndStart(const std::string& aUrl) //mResponse must be set before calling this
     {
         mBusy = true;
+        auto id = ++mRequestId;
         mUrl = aUrl;
         resolveUrlDomain(aUrl,
-         [this](int errcode, const std::string& url)
+         [this, id](int errcode, const std::string& url)
          {
+            if (!mBusy || (id != mRequestId)) //stale callback, maybe request was aborted
+            {
+                KRHTTP_LOG_ERROR("Stale DNS callback, ignoring");
+                return;
+            }
             if (errcode)
             {
                 mBusy = false;
@@ -243,7 +252,12 @@ public:
         if (ret != CURLM_OK)
             throw std::runtime_error("http::Client::abort: Error calling curl_multi_remove_handle: code "+std::to_string(ret));
         mBusy = false;
-        mResponse.reset();
+        if (mResponse)
+        {
+            auto save = mResponse; //we must not access the client state after calling the onTransferComplete callback, as the client may get destroyed in the cb
+            mResponse.reset();
+            save->onTransferComplete(*this, 1, ERRTYPE_ABORT);
+        }
         return true;
     }
 
@@ -264,6 +278,8 @@ public:
             {
                 if (code == ERRTYPE_HTTP)
                     pms.reject(promise::Error(curl_easy_strerror((CURLcode)code), code, type));
+                else if (code == ERRTYPE_ABORT)
+                    pms.reject(promise::Error("aborted", code, type));
                 else
                     pms.reject(code, type);
             }
