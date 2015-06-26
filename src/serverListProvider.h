@@ -58,26 +58,14 @@ public:
             .then([this](int) -> promise::Promise<std::shared_ptr<typename B::Server> >
             {
                 if (B::needsUpdate())
-                {
                     return promise::Error("No servers", 0x3e9a9e1b, 1);
-                }
                 else
-                {
-                    printf("returning server\n");
                     return B::at(B::mNextAssignIdx++);
-                }
             });
         }
         else
         {
-            promise::Promise<std::shared_ptr<typename B::Server> > pms;
-            mega::setTimeout([pms, this]() mutable
-            {
-                pms.resolve(B::at(B::mNextAssignIdx++));
-            }, 0);
-            return pms;
-
-//            return B::at(B::mNextAssignIdx++);
+            return B::at(B::mNextAssignIdx++);
         }
     }
 };
@@ -171,7 +159,7 @@ public:
         return mGelbProvider.getServer()
         .fail([this](const promise::Error& err)
         {
-            KR_LOG_ERROR("Gelb request failed, falling back to static server list");
+            KR_LOG_ERROR("Gelb request failed with error '%s', falling back to static server list", err.what());
             return mStaticProvider.getServer();
         });
     }

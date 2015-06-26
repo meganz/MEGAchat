@@ -142,7 +142,7 @@ promise::Promise<int> Client::init()
     .then([this, server]()
     {
 // initiate connection
-        return mega::retry([this, server](int no)
+        return mega::retry([this, server](int no) -> promise::Promise<void>
         {
             if (no < 2)
             {
@@ -150,7 +150,6 @@ promise::Promise<int> Client::init()
                 {
                     KR_LOG_INFO("Connecting to xmpp server %s...", server->value->host.c_str());
                     return conn->connect(server->value->host.c_str(), 0);
-                    //return promise::Promise<int>();
                 }, KARERE_LOGIN_TIMEOUT,
                 [this]()
                 {
@@ -163,11 +162,9 @@ promise::Promise<int> Client::init()
                 .then([this](std::shared_ptr<HostPortServerInfo> aServer)
                 {
                     KR_LOG_WARNING("Connecting to new xmpp server: %s...", aServer->host.c_str());
-                    //return promise::reject<int>(0);
                     return mega::performWithTimeout([this, aServer]()
                     {
                         return conn->connect(aServer->host.c_str(), 0);
-                       // return promise::Promise<int>();
                     }, KARERE_LOGIN_TIMEOUT,
                     [this]()
                     {
@@ -182,7 +179,7 @@ promise::Promise<int> Client::init()
         KR_LOG_ERROR("XMPP login error:\n%s", error.what());
         return error;
     })
-    .then([this](int)
+    .then([this]()
     {
         KR_LOG_INFO("XMPP login success");
 
