@@ -395,7 +395,7 @@ protected:
                 next.reject(Error("(unknown exception type)", kErrException));
                 return;
             }
-            next.mSharedObj->mMaster = promise; //makes 'next' attach subsequient callbacks to 'promise'
+            next.mSharedObj->mMaster = promise; //makes 'next' attach subsequiently added callbacks to 'promise'
             if (!promise.hasCallbacks())
             {
                 promise.mSharedObj->mCbs = next.mSharedObj->mCbs;
@@ -403,26 +403,22 @@ protected:
             }
             else
             {
-                //add our callbacks and errbacks to the returned promise
+                //add the callbacks and errbacks of 'next' to 'promise'
                 auto& nextCbs = next.thenCbs();
                 if (nextCbs.count())
-                {
-                    auto& promiseCbs = promise.thenCbs();
-                    promiseCbs.addListMoveItems(nextCbs);
-                }
+                    promise.thenCbs().addListMoveItems(nextCbs);
+
                 auto& nextEbs = next.failCbs();
                 if (nextEbs.count())
-                {
-                    auto& promiseEbs = promise.failCbs();
-                    promiseEbs.addListMoveItems(nextEbs);
-                }
+                    promise.failCbs().addListMoveItems(nextEbs);
             }
             if (promise.mSharedObj->mPending)
                 promise.doPendingResolve();
         }, next);
     }
+    //SFINAE leaves only the appropriate overload
     template <class CB>
-    auto ValueTypeFromCbRet(CB&& cb) -> decltype(cb(T())); //this->mSharedObj->mResult));
+    auto ValueTypeFromCbRet(CB&& cb) -> decltype(cb(T()));
     template <class CB>
     auto ValueTypeFromCbRet(CB&& cb) -> decltype(cb());
     template <class CB>
@@ -525,8 +521,18 @@ protected:
     {
         auto& cbs = thenCbs();
         int cnt = cbs.count();
-        for (int i=0; i<cnt; i++)
-            (*cbs[i])(val);
+        if (cnt)
+        {
+            if (cnt == 1) //optimize for single callback
+            {
+                (*cbs[0])(val);
+            }
+            else
+            {
+                for (int i=0; i<cnt; i++)
+                    (*cbs[i])(val);
+            }
+        }
 //now propagate the successful resolve skipping the fail() handlers to
 //the handlers following them. The promises that follow the fail()
 //are guaranteed to be of our type, because fail() callbacks
@@ -535,10 +541,20 @@ protected:
 //have the type of the last then() callback)
         auto& ebs = failCbs();
         cnt = ebs.count();
-        for (int i=0; i<cnt; i++)
+        if(cnt)
         {
-            auto& item = ebs[i];
-            static_cast<IFailCbWithPromise*>(item)->nextPromise.resolve(val);
+            if (cnt == 1)
+            {
+                static_cast<IFailCbWithPromise*>(ebs[0])->nextPromise.resolve(val);
+            }
+            else
+            {
+                for (int i=0; i<cnt; i++)
+                {
+                    auto& item = ebs[i];
+                    static_cast<IFailCbWithPromise*>(item)->nextPromise.resolve(val);
+                }
+            }
         }
     }
 public:
@@ -579,17 +595,37 @@ protected:
     {
         auto& ebs = failCbs();
         int cnt = ebs.count();
-        for (int i=0; i<cnt; i++)
-            (*static_cast<IFailCb*>(ebs[i]))(err);
+        if (cnt)
+        {
+            if (cnt == 1) //optimize
+            {
+                (*static_cast<IFailCb*>(ebs[0]))(err);
+            }
+            else
+            {
+                for (int i=0; i<cnt; i++)
+                    (*static_cast<IFailCb*>(ebs[i]))(err);
+            }
+        }
 //propagate past success handlers till a fail handler is found
         auto& cbs = thenCbs();
         cnt = cbs.count();
-        for (int i=0; i<cnt; i++)
+        if (cnt)
         {
+            if (cnt == 1)
+            {
+                cbs[0]->rejectNextPromise(err);
+            }
+            else
+            {
+                for (int i=0; i<cnt; i++)
+                {
 //we dont know the type of the promise, but the interface to reject()
 //has a fixed type, hence the reject() is a vitual function of the base class
 //and we can reject any promise without knowing its type
-            cbs[i]->rejectNextPromise(err);
+                    cbs[i]->rejectNextPromise(err);
+                }
+            }
         }
     }
     void doPendingResolve()
