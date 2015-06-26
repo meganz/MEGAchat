@@ -142,9 +142,8 @@ public:
         if (mCount+cnt > L)
             throw std::runtime_error(kNoMoreCallbacksMsg);
         for (int i=0; i<cnt; i++)
-            items[mCount+i] = other.items[i];
+            items[mCount++] = other.items[i];
         other.mCount = 0;
-        mCount += cnt;
     }
     void clear()
     {
@@ -276,14 +275,6 @@ protected:
         template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && std::is_same<CbOut,void>::value, int>::type>
         static Promise<void> call(CB& cb, const _Void& val) { cb(); return _Void(); }
     };
-    struct CallCbWithMaskedVoidArg
-    {
-        template <class P, class CB, class=typename std::enable_if<!std::is_same<P,_Void>::value, int>::type>
-        static void call(CB& cb, const P& param) { cb(param); }
-        template <class P, class CB, class=typename std::enable_if<std::is_same<P,_Void>::value, int>::type>
-        static void call(CB& cb, const _Void& param) { cb(); }
-    };
-
 //===
     void addRef()
     {
@@ -348,6 +339,7 @@ public:
 
     Promise(const Error& err):mSharedObj(new SharedObj)
     {
+        assert(err);
         reject(err);
     }
     Promise<T>& operator=(const Promise<T>& other)
@@ -364,6 +356,7 @@ public:
 protected:
     virtual PromiseBase* clone() const
     {    return new Promise<T>(*this);    }
+    bool hasMaster() const { return (mSharedObj->mMaster.mSharedObj != nullptr) ; }
 
 /** Creates a wrapper function around a then() or fail() handler that handles exceptions and propagates
  * the result to resolve/reject chained promises. \c In is the type of the callback's parameter,
@@ -400,25 +393,42 @@ protected:
                 next.reject(Error("(unknown exception type)", kErrException));
                 return;
             }
-            next.mSharedObj->mMaster = promise; //makes 'next' attach subsequiently added callbacks to 'promise'
-            if (!promise.hasCallbacks())
+
+            Promise<Out>* master; //master is the promise that actually gets resolved, equivalent to the 'deferred' object
+            if (!promise.hasMaster())
             {
-                promise.mSharedObj->mCbs = next.mSharedObj->mCbs;
+                master = &promise;
+            }
+            else //trace back the chain until the master is reached, then move next's callbacks to it
+            {
+                master = &(promise.mSharedObj->mMaster);
+                auto mm = &(master->mSharedObj->mMaster); //the master of master
+                while(mm->mSharedObj)
+                {
+                    master = mm;
+                    mm = &(mm->mSharedObj->mMaster);
+                }
+            }
+            next.mSharedObj->mMaster = *master; //makes 'next' attach subsequently added callbacks to 'master'
+
+            if (!master->hasCallbacks())
+            {
+                master->mSharedObj->mCbs = next.mSharedObj->mCbs;
                 next.mSharedObj->mCbs = nullptr;
             }
             else
             {
-                //add the callbacks and errbacks of 'next' to 'promise'
+                //move the callbacks and errbacks of 'next' to 'master'
                 auto& nextCbs = next.thenCbs();
                 if (nextCbs.count())
-                    promise.thenCbs().addListMoveItems(nextCbs);
+                    master->thenCbs().addListMoveItems(nextCbs);
 
                 auto& nextEbs = next.failCbs();
                 if (nextEbs.count())
-                    promise.failCbs().addListMoveItems(nextEbs);
+                    master->failCbs().addListMoveItems(nextEbs);
             }
-            if (promise.mSharedObj->mPending)
-                promise.doPendingResolve();
+            if (master->mSharedObj->mPending)
+                master->doPendingResolve();
         }, next);
     }
     //SFINAE leaves only the appropriate overload
@@ -565,16 +575,17 @@ protected:
 public:
     void reject(const Error& err)
     {
+        assert(err);
         if (mSharedObj->mResolved)
             throw std::runtime_error("Alrady resolved/rejected");
+
+        mSharedObj->mError = err;
         mSharedObj->mResolved = PROMISE_RESOLV_FAIL;
+
         if (hasCallbacks())
             doReject(err);
         else
-        {
-            mSharedObj->mError = err;
             mSharedObj->mPending = true;
-        }
     }
     inline void reject(const std::string& msg)
     {
@@ -598,6 +609,8 @@ public:
 protected:
     void doReject(const Error& err)
     {
+        assert(mSharedObj->mError);
+        assert(mSharedObj->mResolved == PROMISE_RESOLV_FAIL);
         auto& ebs = failCbs();
         int cnt = ebs.count();
         if (cnt)
