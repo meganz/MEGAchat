@@ -40,6 +40,7 @@ enum
     kDefaultMaxAttemptCount = 0,
     kDefaultMaxSingleWaitTime = 60000
 };
+
 class IRetryController
 {
 protected:
@@ -236,7 +237,6 @@ protected:
     }
     unsigned calcWaitTimeNoRandomness()
     {
-        printf("kBitness = %d, mMaxSingleWaitTime = %u\n", kBitness, mMaxSingleWaitTime);
         if (mCurrentAttemptNo > kBitness)
         {
             if (!mInitialWaitTime)
@@ -256,6 +256,42 @@ protected:
             return;
         cancelTimeout(mTimer);
         mTimer = 0;
+    }
+//    template <class P, class=typename std::enable_if<!std::is_same<typename P::Type, void>::value, int>::type>
+    template <class P>
+    void attachThenHandler(P& promise, unsigned attempt)
+    {
+        promise.then([this, attempt](const RetType& ret)
+        {
+            if ((attempt != mCurrentAttemptId) || mPromise.done())
+            {
+                RETRY_LOG("A previous timed-out/aborted attempt returned success");
+                return ret;
+            }
+            cancelTimer();
+            mPromise.resolve(ret);
+            mState = kStateFinished;
+            if (mAutoDestruct)
+                delete this;
+            return ret;
+        });
+    }
+//    template <class P, class=typename std::enable_if<std::is_same<typename P::Type, void>::value, int>::type>
+    void attachThenHandler(promise::Promise<void>& promise, unsigned attempt)
+    {
+        promise.then([this, attempt]()
+        {
+            if ((attempt != mCurrentAttemptId) || mPromise.done())
+            {
+                RETRY_LOG("A previous timed-out/aborted attempt returned success");
+                return;
+            }
+            cancelTimer();
+            mPromise.resolve();
+            mState = kStateFinished;
+            if (mAutoDestruct)
+                delete this;
+        });
     }
 
     void nextTry()
@@ -284,22 +320,10 @@ protected:
             }, mAttemptTimeout);
         }
         mState = kStateInProgress;
-        mFunc(mCurrentAttemptNo)
-        .then([this, attempt](const RetType& ret)
-        {
-            if ((attempt != mCurrentAttemptId) || mPromise.done())
-            {
-                RETRY_LOG("A previous timed-out/aborted attempt returned success");
-                return ret;
-            }
-            cancelTimer();
-            mPromise.resolve(ret);
-            mState = kStateFinished;
-            if (mAutoDestruct)
-                delete this;
-            return ret;
-        })
-        .fail([this, attempt](const promise::Error& err)
+
+        auto pms = mFunc(mCurrentAttemptNo);
+        attachThenHandler(pms, attempt);
+        pms.fail([this, attempt](const promise::Error& err)
         {
             if ((attempt != mCurrentAttemptId) || mPromise.done())//mPromise changed, we already in another attempt and this callback is from the old attempt, ignore it
             {
@@ -392,9 +416,28 @@ static inline rh::RetryController<Func, CancelFunc>* createRetryController(
     return retryController;
 }
 
+template <class P>
+inline void _timeoutAttachThenHandler(P& pms)
+{
+    pms.then([pms](const typename P::Type& val) mutable
+    {
+        if (!pms.done())
+            pms.resolve(val);
+    });
+}
+
+inline void _timeoutAttachThenHandler(promise::Promise<void>& pms)
+{
+    pms.then([pms]() mutable
+    {
+        if (!pms.done())
+            pms.resolve();
+    });
+}
+
 template <class CB, class CCB=std::nullptr_t>
 auto performWithTimeout(CB&& cb, unsigned timeout, CCB&& cancelCb=nullptr)
--> promise::Promise<typename std::enable_if<!std::is_same<typename decltype(cb())::Type, void>::value, typename decltype(cb())::Type>::type>
+-> promise::Promise<typename decltype(cb())::Type>
 {
     typedef typename decltype(cb())::Type Type;
     promise::Promise<Type> pms;
@@ -409,16 +452,14 @@ auto performWithTimeout(CB&& cb, unsigned timeout, CCB&& cancelCb=nullptr)
         }
     }, timeout);
 
-    cb()
-    .then([pms](const Type& val) mutable
-    {
-        if (!pms.done())
-            pms.resolve(val);
-    })
-    .fail([pms](const promise::Error& err) mutable
+
+    auto retpms = cb();
+    _timeoutAttachThenHandler(retpms);
+    retpms.fail([pms](const promise::Error& err) mutable
     {
         if (!pms.done())
             pms.reject(err);
+        return err;
     });
     return pms;
 }
