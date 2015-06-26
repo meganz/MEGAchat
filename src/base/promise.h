@@ -115,7 +115,7 @@ public:
     template<class SP>
     inline void push(SP& cb)
     {
-        if (mCount>=L)
+        if (mCount >= L)
             throw std::runtime_error(kNoMoreCallbacksMsg);
         items[mCount++] = cb.release();
     }
