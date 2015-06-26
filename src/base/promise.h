@@ -130,6 +130,11 @@ public:
         assert((idx >= 0) && (idx <= mCount));
         return items[idx];
     }
+    inline C*& first()
+    {
+        assert(mCount > 0);
+        return items[0];
+    }
     inline int count() const {return mCount;}
     inline void addListMoveItems(CallbackList& other)
     {
@@ -525,7 +530,7 @@ protected:
         {
             if (cnt == 1) //optimize for single callback
             {
-                (*cbs[0])(val);
+                (*cbs.first())(val);
             }
             else
             {
@@ -545,7 +550,7 @@ protected:
         {
             if (cnt == 1)
             {
-                static_cast<IFailCbWithPromise*>(ebs[0])->nextPromise.resolve(val);
+                static_cast<IFailCbWithPromise*>(ebs.first())->nextPromise.resolve(val);
             }
             else
             {
@@ -599,7 +604,7 @@ protected:
         {
             if (cnt == 1) //optimize
             {
-                (*static_cast<IFailCb*>(ebs[0]))(err);
+                (*static_cast<IFailCb*>(ebs.first()))(err);
             }
             else
             {
@@ -614,7 +619,7 @@ protected:
         {
             if (cnt == 1)
             {
-                cbs[0]->rejectNextPromise(err);
+                cbs.first()->rejectNextPromise(err);
             }
             else
             {
