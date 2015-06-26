@@ -26,6 +26,9 @@ struct MaskVoid { typedef V type;};
 template<>
 struct MaskVoid<void> {typedef _Void type;};
 
+struct IVirtDtor
+{  virtual ~IVirtDtor() {}  };
+
 template <class T, int L>
 class Promise;
 
@@ -86,22 +89,15 @@ class PromiseBase
 {
 protected:
 public:
-    virtual void reject(const Error& err) = 0;
     virtual PromiseBase* clone() const = 0;
     virtual ~PromiseBase(){}
 };
 
-template <int L>
+template <int L, class C>
 class CallbackList
 {
-public:
-    struct Item
-    {
-        void* callback;
-        PromiseBase* promise;
-    };
 protected:
-    Item items[L];
+    C* items[L];
     int mCount;
 public:
     CallbackList():mCount(0){}
@@ -117,24 +113,19 @@ public:
  * and in this case the smartpointer will prevent the pointer leak.
 */
     template<class SP>
-    inline void push(SP& cb, PromiseBase* promise)
+    inline void push(SP& cb)
     {
         if (mCount>=L)
-        {
-            delete promise;
             throw std::runtime_error(kNoMoreCallbacksMsg);
-        }
-        Item& item = items[mCount++];
-        item.callback = cb.release();
-        item.promise = promise;
+        items[mCount++] = cb.release();
     }
 
-    inline Item& operator[](int idx)
+    inline C*& operator[](int idx)
     {
         assert((idx >= 0) && (idx <= mCount));
         return items[idx];
     }
-    inline const Item& operator[](int idx) const
+    inline const C*& operator[](int idx) const
     {
         assert((idx >= 0) && (idx <= mCount));
         return items[idx];
@@ -146,24 +137,15 @@ public:
         if (mCount+cnt > L)
             throw std::runtime_error(kNoMoreCallbacksMsg);
         for (int i=0; i<cnt; i++)
-        {
-            Item& otherItem = other.items[i];
-            Item& item = items[mCount+i];
-            item.callback = otherItem.callback;
-            item.promise = otherItem.promise;
-        }
+            items[mCount+i] = other.items[i];
         other.mCount = 0;
         mCount += cnt;
     }
-    template <class C>
     void clear()
     {
+        static_assert(std::is_base_of<IVirtDtor, C>::value, "Callback type must be inherited from IVirtDtor");
         for (int i=0; i<mCount; i++)
-        {
-            Item& item = items[i];
-            delete static_cast<C*>(item.callback);
-            delete item.promise;
-        }
+            delete ((IVirtDtor*)items[i]); //static_cast wont work here because there is no info that ICallback inherits from IVirtDtor
         mCount = 0;
     }
     ~CallbackList() {assert(mCount == 0);}
@@ -183,54 +165,69 @@ public:
     };
 protected:
     template<class P>
-    struct ICallback
+    struct ICallback: public IVirtDtor
     {
         virtual void operator()(const P&) = 0;
-        virtual ~ICallback(){}
+        virtual void rejectNextPromise(const Error&) = 0;
     };
-    template <class P, class CB>
-    struct Callback: public ICallback<P>
+
+    template <class P, class TP>
+    struct ICallbackWithPromise: public ICallback<P>
+    {
+    public:
+        Promise<TP> nextPromise;
+        virtual void rejectNextPromise(const Error& err) { nextPromise.reject(err); }
+        ICallbackWithPromise(const Promise<TP>& next): nextPromise(next){}
+    };
+
+    template <class P, class CB, class TP=int>
+    struct Callback: public ICallbackWithPromise<P, TP>
     {
     protected:
         CB mCb;
     public:
         virtual void operator()(const P& arg) { mCb(arg); }
-        Callback(CB&& cb): mCb(std::forward<CB>(cb)){}
+        Callback(CB&& cb, const Promise<TP>& next)
+            :ICallbackWithPromise<P, TP>(next), mCb(std::forward<CB>(cb)){}
     };
     typedef ICallback<typename MaskVoid<T>::type> ISuccessCb;
     typedef ICallback<Error> IFailCb;
+    typedef ICallbackWithPromise<Error, T> IFailCbWithPromise;
+
+    template <class CB, class TP>
+    struct SuccessCb: public Callback<typename MaskVoid<T>::type, CB, TP>
+    {  using Callback<typename MaskVoid<T>::type, CB, TP>::Callback; };
+
     template <class CB>
-    struct SuccessCb: public Callback<typename MaskVoid<T>::type, CB>
-    {  using Callback<typename MaskVoid<T>::type,CB>::Callback; };
-    template <class CB>
-    struct FailCb: public Callback<Error, CB>
-    {  using Callback<Error,CB>::Callback; };
+    struct FailCb: public Callback<Error, CB, T>
+    {  using Callback<Error, CB, T>::Callback; };
 
 /** Helper funtion to be able to deduce the callback type of the passed lambda and create and
   * Callback object with that type. We cannot do that by derectly callind the Callback constructor
   */
-    template <class P, class CB>
-    ICallback<typename MaskVoid<P>::type>* createCb(CB&& cb)
+    template <class P, class CB, class TP>
+    ICallback<typename MaskVoid<P>::type>* createCb(CB&& cb, Promise<TP>& next)
     {
-        return new Callback<typename MaskVoid<P>::type, CB>(std::forward<CB>(cb));
+        return new Callback<typename MaskVoid<P>::type, CB, TP>(std::forward<CB>(cb), next);
     }
 //===
     struct SharedObj
     {
         struct CbLists
         {
-            CallbackList<L> mSuccessCbs;
-            CallbackList<L> mFailCbs;
+            CallbackList<L, ISuccessCb> mSuccessCbs;
+            CallbackList<L, IFailCb> mFailCbs;
         };
         int mRefCount;
         CbLists* mCbs;
         ResolvedState mResolved;
         bool mPending;
+        Promise<T,L> mMaster;
         typename MaskVoid<typename std::remove_const<T>::type>::type mResult;
         Error mError;
         SharedObj()
         :mRefCount(1), mCbs(NULL), mResolved(PROMISE_RESOLV_NOT),
-         mPending(false)
+         mPending(false), mMaster(_Empty())
         {
             PROMISE_LOG_REF("%p: addRef->1", this);
         }
@@ -239,8 +236,8 @@ protected:
         {
             if (mCbs)
             {
-                mCbs->mSuccessCbs.template clear<ISuccessCb>();
-                mCbs->mFailCbs.template clear<IFailCb>();
+                mCbs->mSuccessCbs.clear();
+                mCbs->mFailCbs.clear();
                 delete mCbs;
             }
         }
@@ -322,13 +319,13 @@ protected:
             assert(cnt == 0);
         }
     }
-public://TODO: Must make these protected and make them accessible buy a friend proxy
-    inline CallbackList<L>& thenCbs() {return mSharedObj->cbs().mSuccessCbs;}
-    inline CallbackList<L>& failCbs() {return mSharedObj->cbs().mFailCbs;}
-public:
+    inline CallbackList<L, ISuccessCb>& thenCbs() {return mSharedObj->cbs().mSuccessCbs;}
+    inline CallbackList<L, IFailCb>& failCbs() {return mSharedObj->cbs().mFailCbs;}
     SharedObj* mSharedObj;
-    typedef T Type;
     Promise(const _Empty&) : mSharedObj(NULL){} //internal use
+    template <class FT,int FL> friend class Promise;
+public:
+    typedef T Type;
     Promise() : mSharedObj(new SharedObj){}
     Promise(const Promise& other):mSharedObj(NULL)
     {
@@ -373,8 +370,7 @@ protected:
         //cb must have the singature Promise<Out>(const In&)
         return createCb<In>([cb,next](const In& result) mutable->void
         {
-            _Empty e;
-            Promise<Out> promise(e);
+            Promise<Out> promise((_Empty()));
             try
             {
                 promise = CallCbHandleVoids::template call<Out, RealOut, In>(cb, result);
@@ -399,6 +395,7 @@ protected:
                 next.reject(Error("(unknown exception type)", kErrException));
                 return;
             }
+            next.mSharedObj->mMaster = promise; //makes 'next' attach subsequient callbacks to 'promise'
             if (!promise.hasCallbacks())
             {
                 promise.mSharedObj->mCbs = next.mSharedObj->mCbs;
@@ -422,10 +419,10 @@ protected:
             }
             if (promise.mSharedObj->mPending)
                 promise.doPendingResolve();
-        });
+        }, next);
     }
     template <class CB>
-    auto ValueTypeFromCbRet(CB&& cb) -> decltype(cb(this->mSharedObj->mResult));
+    auto ValueTypeFromCbRet(CB&& cb) -> decltype(cb(T())); //this->mSharedObj->mResult));
     template <class CB>
     auto ValueTypeFromCbRet(CB&& cb) -> decltype(cb());
     template <class CB>
@@ -443,13 +440,14 @@ public:
     template <typename F>
     auto then(F&& cb)->Promise<typename RemovePromise<decltype(this->ValueTypeFromCbRet(cb))>::Type>
     {
+        if (mSharedObj->mMaster.mSharedObj) //if we are a slave promise (returned by then() or fail()), forward callbacks to our master promise
+            return mSharedObj->mMaster.then(std::forward<F>(cb));
+
+        if (mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
+            return mSharedObj->mError;
+
         typedef typename RemovePromise<decltype(this->ValueTypeFromCbRet(cb))>::Type Out;
         Promise<Out> next;
-        if (mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
-        {
-            next.reject(mSharedObj->mError);
-            return next;
-        }
 
         std::unique_ptr<ISuccessCb> resolveCb(createChainedCb<typename MaskVoid<T>::type, Out,
             decltype(this->ValueTypeFromCbRet(cb))>(std::forward<F>(cb), next));
@@ -461,7 +459,7 @@ public:
         else
         {
             assert((mSharedObj->mResolved == PROMISE_RESOLV_NOT));
-            thenCbs().push(resolveCb, new Promise<Out>(next));
+            thenCbs().push(resolveCb);
         }
 
         return next;
@@ -479,12 +477,13 @@ public:
     template <typename F>
     auto fail(F&& eb)->Promise<T>
     {
-        Promise<T> next;
+        if (mSharedObj->mMaster.mSharedObj) //if we are a slave promise (returned by then() or fail()), forward callbacks to our master promise
+            return mSharedObj->mMaster.fail(std::forward<F>(eb));
+
         if (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
-        {
-            next.resolve(mSharedObj->mResult);
-            return next;
-        }
+            return mSharedObj->mResult;
+
+        Promise<T> next;
         std::unique_ptr<IFailCb> failCb(createChainedCb<Error, T,
             decltype(this->ValueTypeFromEbRet(eb))>(std::forward<F>(eb), next));
 
@@ -493,13 +492,11 @@ public:
         else
         {
             assert((mSharedObj->mResolved == PROMISE_RESOLV_NOT));
-            failCbs().push(failCb, new Promise<T>(next));
+            failCbs().push(failCb);
         }
 
         return next;
     }
-    inline bool hasCallbacks()
-    {        return (mSharedObj->mCbs!=NULL);    }
     //V can be const& or &&
     template <typename V>
     void resolve(V val)
@@ -523,12 +520,13 @@ public:
     }
 
 protected:
+    inline bool hasCallbacks() const { return (mSharedObj->mCbs!=NULL); }
     void doResolve(const typename MaskVoid<T>::type& val)
     {
         auto& cbs = thenCbs();
         int cnt = cbs.count();
         for (int i=0; i<cnt; i++)
-            (*static_cast<ISuccessCb*>(cbs[i].callback))(val);
+            (*cbs[i])(val);
 //now propagate the successful resolve skipping the fail() handlers to
 //the handlers following them. The promises that follow the fail()
 //are guaranteed to be of our type, because fail() callbacks
@@ -540,11 +538,11 @@ protected:
         for (int i=0; i<cnt; i++)
         {
             auto& item = ebs[i];
-            (static_cast<Promise<T>*>(item.promise))->resolve(val);
+            static_cast<IFailCbWithPromise*>(item)->nextPromise.resolve(val);
         }
     }
 public:
-    virtual void reject(const Error& err)
+    void reject(const Error& err)
     {
         if (mSharedObj->mResolved)
             throw std::runtime_error("Alrady resolved/rejected");
@@ -582,22 +580,18 @@ protected:
         auto& ebs = failCbs();
         int cnt = ebs.count();
         for (int i=0; i<cnt; i++)
-            (*static_cast<IFailCb*>(ebs[i].callback))(err);
+            (*static_cast<IFailCb*>(ebs[i]))(err);
 //propagate past success handlers till a fail handler is found
         auto& cbs = thenCbs();
         cnt = cbs.count();
         for (int i=0; i<cnt; i++)
         {
-            auto& item = cbs[i];
 //we dont know the type of the promise, but the interface to reject()
 //has a fixed type, hence the reject() is a vitual function of the base class
 //and we can reject any promise without knowing its type
-            item.promise->reject(err);
+            cbs[i]->rejectNextPromise(err);
         }
-
-//        decRef();
     }
-public:
     void doPendingResolve()
     {
         if (!hasCallbacks())
