@@ -1,6 +1,7 @@
 #ifndef ITYPES_IMPL_H
 #define ITYPES_IMPL_H
 #include <string>
+#include <atomic>
 #include <string.h>
 #include "ITypes.h"
 
