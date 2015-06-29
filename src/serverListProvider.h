@@ -39,7 +39,7 @@ struct HostPortServerInfo
 template <class S>
 class ServerList: public std::vector<std::shared_ptr<S> >
 {
-protected:
+public: //must be protected, but because of a gcc bug, protected/private members cant be accessed from within a lambda
     size_t mNextAssignIdx = 0;
     bool needsUpdate() const { return ((mNextAssignIdx >= this->size()) || this->empty()); }
 
