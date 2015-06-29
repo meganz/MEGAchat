@@ -370,7 +370,11 @@ protected:
         return true;
     }
 };
+//g++ < 4.9 has a bug where one can't specify a lambda as default function parameter,
+//so we define that default func parameter for retry() here
+static inline void _emptyCancelFunc(){}
 } //end namespace rh
+
 
 /**
  * Convenience function to retry a lambda call returning a promise.
@@ -387,7 +391,8 @@ protected:
    See the constructor of RetryController for more details
  */
 template <class Func, class CancelFunc=void(*)(void)>
-static inline auto retry(Func&& func,CancelFunc&& cancelFunc = [](){}, unsigned attemptTimeout = 0,
+static inline auto retry(Func&& func, CancelFunc&& cancelFunc = rh::_emptyCancelFunc,
+    unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
     short backoffStart = 1000)
