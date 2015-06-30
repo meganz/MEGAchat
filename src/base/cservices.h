@@ -26,7 +26,7 @@ struct event;
     #define MEGAIO_IMPORT MEGAIO_EXTERNC
 #endif
 
-#ifdef MEGAIO_BUILDING
+#ifdef services_EXPORTS
     #define MEGAIO_IMPEXP MEGAIO_EXPORT
 #else
     #define MEGAIO_IMPEXP MEGAIO_IMPORT
