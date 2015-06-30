@@ -26,6 +26,36 @@ struct MaskVoid { typedef V type;};
 template<>
 struct MaskVoid<void> {typedef _Void type;};
 
+//get lambda return type, regardless of argument count and types
+template <class T>
+struct LambdaDecompose;
+
+template <typename R, typename C, class... Args>
+struct LambdaDecompose<R(C::*)(Args...) const>
+{
+    typedef R RetType;
+    constexpr static int nargs = sizeof...(Args);
+};
+template <typename R, typename C, class... Args>
+struct LambdaDecompose<R(C::*)(Args...)>
+{
+    typedef R RetType;
+    constexpr static int nargs = sizeof...(Args);
+};
+
+template <class F>
+struct FuncTraits
+{ typedef typename LambdaDecompose<decltype(&F::operator())>::RetType RetType; enum {nargs = LambdaDecompose<decltype(&F::operator())>::nargs};};
+
+template <class R, class... Args>
+struct FuncTraits <R(*)(Args...)>{ typedef R RetType; enum {nargs = sizeof...(Args)};};
+
+template <class C, class R, class...Args>
+struct FuncTraits <R(C::*)(Args...)> { typedef R RetType; enum {nargs = sizeof...(Args)};};
+
+template <class C, class R, class...Args>
+struct FuncTraits <R(C::*)(Args...) const> { typedef R RetType; enum {nargs = sizeof...(Args)};};
+//===
 struct IVirtDtor
 {  virtual ~IVirtDtor() {}  };
 
@@ -431,15 +461,6 @@ protected:
                 master->doPendingResolve();
         }, next);
     }
-    //SFINAE leaves only the appropriate overload
-    template <class CB>
-    auto ValueTypeFromCbRet(CB&& cb) -> decltype(cb(T()));
-    template <class CB>
-    auto ValueTypeFromCbRet(CB&& cb) -> decltype(cb());
-    template <class CB>
-    auto ValueTypeFromEbRet(CB&& cb) -> decltype(cb(Error()));
-    template <class CB>
-    auto ValueTypeFromEbRet(CB&& cb) -> decltype(cb());
 
 public:
 /**
@@ -449,7 +470,7 @@ public:
 * \c Promise<Out> instance
 */
     template <typename F>
-    auto then(F&& cb)->Promise<typename RemovePromise<decltype(this->ValueTypeFromCbRet(cb))>::Type>
+    auto then(F&& cb)->Promise<typename RemovePromise<typename FuncTraits<F>::RetType>::Type >
     {
         if (mSharedObj->mMaster.mSharedObj) //if we are a slave promise (returned by then() or fail()), forward callbacks to our master promise
             return mSharedObj->mMaster.then(std::forward<F>(cb));
@@ -457,11 +478,11 @@ public:
         if (mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
             return mSharedObj->mError;
 
-        typedef typename RemovePromise<decltype(this->ValueTypeFromCbRet(cb))>::Type Out;
+        typedef typename RemovePromise<typename FuncTraits<F>::RetType>::Type Out;
         Promise<Out> next;
 
         std::unique_ptr<ISuccessCb> resolveCb(createChainedCb<typename MaskVoid<T>::type, Out,
-            decltype(this->ValueTypeFromCbRet(cb))>(std::forward<F>(cb), next));
+            typename FuncTraits<F>::RetType>(std::forward<F>(cb), next));
 
         if (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
         {
@@ -496,7 +517,7 @@ public:
 
         Promise<T> next;
         std::unique_ptr<IFailCb> failCb(createChainedCb<Error, T,
-            decltype(this->ValueTypeFromEbRet(eb))>(std::forward<F>(eb), next));
+            typename FuncTraits<F>::RetType>(std::forward<F>(eb), next));
 
         if(mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
             (*failCb)(mSharedObj->mError);
