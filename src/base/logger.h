@@ -34,7 +34,7 @@ typedef struct _KarereLogChannel
 {
     const char* id;
     const char* display;
-    int logLevel;
+    krLogLevel logLevel;
     unsigned flags;
 } KarereLogChannel;
 

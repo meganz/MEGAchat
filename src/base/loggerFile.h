@@ -2,25 +2,29 @@
 #define FILE_LOGGER_INCLUDED
 
 #include "logger.h"
+#include <assert.h>
+
 namespace karere
 {
 class FileLogger
 {
 protected:
     FILE* mFile;
-    unsigned mRotateSize;
+    long mRotateSize;
     std::string mFileName;
     volatile unsigned& mFlags;
-    size_t mLogSize;
+    long mLogSize;
 public:
     void setRotateSize(unsigned rotateSize) { mRotateSize = rotateSize; }
 
 FileLogger(volatile unsigned& flags, const char* logFile, int rotateSize)
  :mFile(NULL), mRotateSize(rotateSize), mFlags(flags), mLogSize(0)
 {
+    assert(rotateSize > 0);
     if (logFile)
         startLogging(logFile);
 }
+
 void startLogging(const char* fileName)
 {
 	if (mFile)
@@ -45,8 +49,8 @@ void logString(const char* buf, size_t len, unsigned flags)
     if (mLogSize >= mRotateSize)
         rotateLog();
     mLogSize += len;
-    int ret = fwrite(buf, 1, len, mFile);
-    if (ret != (int)len)
+    size_t ret = fwrite(buf, 1, len, mFile);
+    if (ret != len)
         perror("FileLogger: WARNING: Error writing to log file: ");
     if ((mFlags & krLogNoAutoFlush) == 0)
         fflush(mFile);
@@ -59,13 +63,16 @@ std::shared_ptr<Logger::LogBuffer> loadLog() //Logger must be locked!!!
     if (!buf->data)
         throw std::runtime_error("FileLogger::loadLog: Out of memory when allocating buffer");
     fseek(mFile, 0, SEEK_SET);
-    int bytesRead = fread(buf->data, 1, mLogSize, mFile);
-    if (bytesRead != (int)mLogSize)
+    long bytesRead = fread(buf->data, 1, mLogSize, mFile);
+    if (bytesRead != mLogSize)
     {
-        if (bytesRead < 0)
+        if (ferror(mFile))
             perror("ERROR: FileLogger::loadLog: Error reading log file: ");
+        else if (feof(mFile))
+            fprintf(stderr, "ERROR: FileLogger::loadLog: EOF while reading log file. Required: %ld, read: %ld", mLogSize, bytesRead);
         else
-           fprintf(stderr, "ERROR: FileLogger::loadLog: Could not read enough bytes. Required: %zu, read: %d", mLogSize, bytesRead);
+            fprintf(stderr, "ERROR: FileLogger::loadLog: Unknown error has occurred while reading file. ferror() and feof() were not set");
+
         return NULL;
     }
     buf->data[mLogSize] = 0; //zero terminate the string in the buffer
@@ -76,10 +83,10 @@ std::shared_ptr<Logger::LogBuffer> loadLog() //Logger must be locked!!!
 void rotateLog()
 {
     auto buf = loadLog();
-    int slicePos = mLogSize - (mRotateSize / 2);
+    long slicePos = mLogSize - (mRotateSize / 2);
     if (slicePos <= 1)
         throw std::runtime_error("FileLogger::rotate: The slice offset is less than 1");
-    if ((unsigned)slicePos >= mLogSize - 1)
+    if (slicePos >= mLogSize - 1)
         throw std::runtime_error("FileLogger::rotate: The slice offset is at the end of the log. Rotate size is too small");
 
     long i;
@@ -98,7 +105,7 @@ void rotateLog()
     FILE* writeFile = fopen(mFileName.c_str(), "wb");
     if (!writeFile)
         throw std::runtime_error("FileLogger::rotate: Cannot open log file for rewriting");
-    size_t writeLen = mLogSize-slicePos;
+    int writeLen = mLogSize-slicePos;
     int ret = fwrite(buf->data+slicePos, 1, writeLen, writeFile);
     if (ret != writeLen)
     {
