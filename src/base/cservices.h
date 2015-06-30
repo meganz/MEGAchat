@@ -17,22 +17,21 @@ struct event;
   #ifdef _WIN32
     #define MEGAIO_EXPORT MEGAIO_EXTERNC __declspec(dllexport)
     #define MEGAIO_IMPORT MEGAIO_EXTERNC __declspec(dllimport)
-  #else
+  #else //non-win32
     #define MEGAIO_EXPORT MEGAIO_EXTERNC __attribute__ ((visibility ("default")))
     #define MEGAIO_IMPORT MEGAIO_EXPORT
   #endif
-
-  #ifdef MEGAIO_BUILDING
-     #define MEGAIO_IMPEXP MEGAIO_EXPORT
-  #else
-     #define MEGAIO_IMPEXP MEGAIO_IMPORT
-  #endif
-#else
-//TODO: The below fix is temporary until services is moved in a dll
-  #define MEGAIO_EXPORT MEGAIO_EXTERNC __attribute__ ((visibility ("default")))
-  #define MEGAIO_IMPORT MEGAIO_EXTERNC
-  #define MEGAIO_IMPEXP MEGAIO_EXTERNC
+#else //not a DLL
+    #define MEGAIO_EXPORT MEGAIO_EXTERNC
+    #define MEGAIO_IMPORT MEGAIO_EXTERNC
 #endif
+
+#ifdef MEGAIO_BUILDING
+    #define MEGAIO_IMPEXP MEGAIO_EXPORT
+#else
+    #define MEGAIO_IMPEXP MEGAIO_IMPORT
+#endif
+
 //Logging macros used by the services code
 #define SVC_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_services, fmtString, ##__VA_ARGS__)
 #define SVC_LOG_WARNING(fmtString,...) KARERE_LOG_ERROR(krLogChannel_services, fmtString, ##__VA_ARGS__)
