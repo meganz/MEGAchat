@@ -421,45 +421,41 @@ static inline rh::RetryController<Func, CancelFunc>* createRetryController(
     return retryController;
 }
 
-template <class P>
-inline void _timeoutAttachThenHandler(P& pms)
+template <class T>
+inline void _timeoutAttachThenHandler(promise::Promise<T>& in, promise::Promise<T>& out)
 {
-    pms.then([pms](const typename P::Type& val) mutable
+    in.then([out](const T& val) mutable
     {
-        if (!pms.done())
-            pms.resolve(val);
+        if (!out.done())
+            out.resolve(val);
     });
 }
 
-inline void _timeoutAttachThenHandler(promise::Promise<void>& pms)
+inline void _timeoutAttachThenHandler(promise::Promise<void>& in, promise::Promise<void>& out)
 {
-    pms.then([pms]() mutable
+    in.then([out]() mutable
     {
-        if (!pms.done())
-            pms.resolve();
+        if (!out.done())
+            out.resolve();
     });
 }
 
 template <class CB, class CCB=std::nullptr_t>
 auto performWithTimeout(CB&& cb, unsigned timeout, CCB&& cancelCb=nullptr)
--> promise::Promise<typename decltype(cb())::Type>
+-> promise::Promise<typename promise::FuncTraits<CB>::RetType::Type>
 {
-    typedef typename decltype(cb())::Type Type;
+    typedef typename promise::FuncTraits<CB>::RetType::Type Type;
     promise::Promise<Type> pms;
     ::mega::setTimeout([pms, cancelCb]() mutable
     {
         if (pms.done())
             return;
         pms.reject(promise::Error("Operation timed out", 1, 1));
-        if (!std::is_same<CCB, void*>::value)
-        {
-            rh::callFuncIfNotNull(cancelCb);
-        }
+        rh::callFuncIfNotNull(cancelCb);
     }, timeout);
 
-
     auto retpms = cb();
-    _timeoutAttachThenHandler(retpms);
+    _timeoutAttachThenHandler(retpms, pms);
     retpms.fail([pms](const promise::Error& err) mutable
     {
         if (!pms.done())

@@ -24,7 +24,17 @@
 #define KARERE_RECONNECT_DELAY_MAX 10000
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
 
-#define KARERE_DEFAULT_TURN_SERVERS "url=turn:trn530n003.karere.mega.nz:3478?transport=udp, user=inoo20jdnH, pass=02nNKDBkkS"
+#define KARERE_DEFAULT_TURN_SERVERS \
+   "[{\"host\":\"turn:trn270n001.karere.mega.nz:3478?transport=udp\"}," \
+    "{\"host\":\"turn:trn270n002.karere.mega.nz:3478?transport=udp\"}," \
+    "{\"host\":\"turn:trn530n001.karere.mega.nz:3478?transport=udp\"}," \
+    "{\"host\":\"turn:trn530n002.karere.mega.nz:3478?transport=udp\"}," \
+    "{\"host\":\"turn:trn302n001.karere.mega.nz:3478?transport=udp\"}," \
+    "{\"host\":\"turn:trn302n002.karere.mega.nz:3478?transport=udp\"}]"
+
+#define KARERE_TURN_USERNAME "inoo20jdnH"
+#define KARERE_TURN_PASSWORD "02nNKDBkkS"
+
 #define KARERE_FALLBACK_XMPP_SERVERS "[\
 {\"host\":\"xmpp270n001.karere.mega.nz\",\"port\":443}]"
 

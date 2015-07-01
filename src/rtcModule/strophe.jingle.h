@@ -10,6 +10,7 @@
 #include "ICryptoFunctions.h"
 #include <mstrophepp.h>
 #include "karereCommon.h"
+#include <serverListProviderForwards.h>
 
 namespace disco
 {
@@ -58,6 +59,8 @@ protected:
     AutoAcceptMap mAutoAcceptCalls;
     IPtrNoNull<ICryptoFunctions> mCrypto;
     std::string mOwnAnonId;
+    typedef karere::FallbackServerProvider<karere::TurnServerInfo> TurnServerProvider;
+    std::unique_ptr<TurnServerProvider> mTurnServerProvider;
 public:
     enum {DISABLE_MIC = 1, DISABLE_CAM = 2, HAS_MIC = 4, HAS_CAM = 8};
     int mediaFlags = 0;
@@ -95,13 +98,15 @@ public:
     virtual void onUnmuted(JingleSession& sess, const AvFlags& affected){}
     virtual void onInternalError(const std::string& msg, const char* where);
 //==
+/** @param iceServers the static fallback server list in json form:
+ *  {"host":"turn:host:port?protocol=tcp/udp", "user":<username>,"pass": <password>}
+ */
     Jingle(xmpp_conn_t* conn, ICryptoFunctions* crypto, const char* iceServers="");
     virtual void discoAddFeature(const char* feature) {}//{printf("jingle::discoaddfeature  called\n");} //= 0;
     void addAudioCaps();
     void addVideoCaps();
     void registerDiscoCaps();
-/** url:xxx, user:xxx, pass:xxx; url:xxx, user:xxx... */
-    int setIceServers(const char* iceServers);
+    int setIceServers(const karere::ServerList<karere::TurnServerInfo>& servers);
  //plugin connection state handler
     void onConnState(const xmpp_conn_event_t status,
         const int error, xmpp_stream_error_t * const stream_error);

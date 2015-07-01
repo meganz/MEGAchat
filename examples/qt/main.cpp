@@ -96,7 +96,6 @@ int main(int argc, char **argv)
         rtcModule::IPtr<rtcModule::IDeviceList> video(gClient->rtc->getVideoInDevices());
         for (size_t i=0, len=video->size(); i<len; i++)
             mainWin->ui->videoInCombo->addItem(video->name(i).c_str());
-        gClient->rtc->updateIceServers(KARERE_DEFAULT_TURN_SERVERS);
 
         mainWin->ui->callBtn->setEnabled(true);
         mainWin->ui->callBtn->setText("Call");

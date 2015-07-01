@@ -8,6 +8,7 @@
 #include "rtcStats.h"
 #include <base/services-http.hpp>
 #include <retryHandler.h>
+#include <serverListProvider.h>
 
 #define RTCM_EVENT(name,...)             \
     KR_LOG_RTC_EVENT("%s", #name);       \
@@ -17,6 +18,7 @@ using namespace std;
 using namespace promise;
 using namespace strophe;
 using namespace mega;
+using namespace karere;
 using namespace placeholders;
 
 namespace rtcModule
@@ -134,9 +136,11 @@ string RtcModule::getLocalAudioAndVideo()
         }
     return errors;
 }
-template <class OkCb, class ErrCb>
-void RtcModule::myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool allowEmpty)
+
+Promise<artc::tspMediaStream>
+RtcModule::myGetUserMedia(const AvFlags& av, bool allowEmpty)
 {
+    Promise<artc::tspMediaStream> pms;
     bool lmfCalled = false;
     try
     {
@@ -153,7 +157,8 @@ void RtcModule::myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool a
             string msg = "Could not create local stream: CreateLocalMediaStream() failed";
             lmfCalled = true;
             RTCM_EVENT(onLocalMediaFail, msg.c_str());
-            return errCb(msg);
+            pms.reject(msg);
+            return pms;
         }
 
         if (!hasLocalStream() || !errors.empty())
@@ -166,7 +171,8 @@ void RtcModule::myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool a
             {
                 lmfCalled = true;
                 RTCM_EVENT(onLocalMediaFail, msg.c_str());
-                return errCb(msg);
+                pms.reject(msg);
+                return pms;
             }
             else
             {
@@ -174,7 +180,10 @@ void RtcModule::myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool a
                 int cont = 0;
                 RTCM_EVENT(onLocalMediaFail, msg.c_str(), &cont);
                 if (!cont)
-                    return errCb(msg);
+                {
+                    pms.reject(msg);
+                    return pms;
+                }
             }
         }
 
@@ -186,14 +195,17 @@ void RtcModule::myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool a
         if (!alreadyHadStream)
             createLocalPlayer(); //creates local player but does not link it to stream
         refLocalStream(av.video); //links player to stream
-        okCb(stream);
+        pms.resolve(stream);
+        return pms;
     }
     catch(exception& e)
     {
         if (!lmfCalled)
             RTCM_EVENT(onLocalMediaFail, e.what());
-        return errCb(e.what()?e.what():"Error getting local media stream");
+        pms.reject(e.what()?e.what():"Error getting local media stream");
+        return pms;
     }
+    return pms;
 }
  
 void RtcModule::onConnState(const xmpp_conn_event_t status,
@@ -242,6 +254,7 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
       State state = kNotYetUserMedia;
       artc::tspMediaStream sessStream;
       AvFlags av;
+      std::shared_ptr<karere::ServerList<karere::TurnServerInfo> > turnServers;
       unique_ptr<vector<string> > files;
   };
   shared_ptr<StateContext> state(new StateContext);
@@ -252,9 +265,9 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
   state->myJid = myJid?myJid:"";
   state->targetJid = targetJid;
 //  state->files = describeFiles(files);  TODO: Implement
-  auto initiateCallback = [this, state, files](artc::tspMediaStream sessStream)
+  auto initiateCallback = [this, state]()
   {
-      auto actualAv = getStreamAv(sessStream);
+      auto actualAv = getStreamAv(state->sessStream);
       if ((state->av.audio && !actualAv.audio) || (state->av.video && !actualAv.video))
       {
           KR_LOG_WARNING("startMediaCall: Could not obtain audio or video stream requested by the user");
@@ -267,7 +280,6 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
           return;
       }
       state->state = kGotUserMediaWaitingPeer;
-      state->sessStream = sessStream;
 // Call accepted handler
       state->ansHandler = mConn.addHandler([this, state](Stanza stanza, void*, bool& keep)
       {
@@ -390,22 +402,14 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
       },
       nullptr, "message", "megaCallDecline", state->targetJid.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
-      auto sendCall = new function<void(const CString&)>(
-      [this, state](const CString& errMsg)
-      {
-          if (errMsg)
-          {
-              onInternalError(errMsg.c_str(), "preloadCryptoForJid");
-              return;
-          }
-          Stanza msg(mConn);
-          msg.setName("message")
-             .setAttr("to", state->targetJid.c_str())
-             .setAttr("type", "megaCall")
-             .setAttr("sid", state->sid.c_str())
-             .setAttr("fprmackey",
-                 VString(crypto().encryptMessageForJid(state->ownFprMacKey.c_str(), state->targetJid.c_str())).c_str())
-             .setAttr("anonid", mOwnAnonId.c_str());
+      Stanza msg(mConn);
+      msg.setName("message")
+         .setAttr("to", state->targetJid.c_str())
+         .setAttr("type", "megaCall")
+         .setAttr("sid", state->sid.c_str())
+         .setAttr("fprmackey",
+             VString(crypto().encryptMessageForJid(state->ownFprMacKey.c_str(), state->targetJid.c_str())).c_str())
+         .setAttr("anonid", mOwnAnonId.c_str());
 /*          if (files)
           {
               var infos = {};
@@ -425,46 +429,77 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
               msgattrs.files = JSON.stringify(infos);
           } else {
  */
-          msg.setAttr("media", avFlagsToString(state->av).c_str());
-          mConn.send(msg);
+      msg.setAttr("media", avFlagsToString(state->av).c_str());
+      mConn.send(msg);
 
-          if (!state->files)
-              setTimeout([this, state]()
-              {
-                  mCallRequests.erase(state->sid);
-                  if (state->state != 1)
-                      return;
-
-                  state->state = kPeerAnsweredOrTimedout;
-                  mConn.removeHandler(state->ansHandler);
-                  state->ansHandler = 0;
-                  mConn.removeHandler(state->declineHandler);
-                  state->declineHandler = 0;
-                  state->sessStream = nullptr;
-                  unrefLocalStream(state->av.video);
-                  Stanza cancelMsg(mConn);
-                  cancelMsg.setName("message")
-                      .setAttr("type", "megaCallCancel")
-                      .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
-                      .setAttr("reason", "answer-timeout");
-                  xmpp_send(mConn, cancelMsg);
-                  RTCM_EVENT(onCallAnswerTimeout, state->targetJid.c_str());
-              },
-              callAnswerTimeout);
-      });
-      crypto().preloadCryptoForJid(CString(strophe::getBareJidFromJid(state->targetJid)),
-          static_cast<void*>(sendCall), [](void* userp, const CString& errMsg)
+      if (!state->files)
+      {
+          setTimeout([this, state]()
           {
-              unique_ptr<function<void(const CString&)> >
-                      sendCallFunc(static_cast<function<void(const CString&)>* >(userp));
-              (*sendCallFunc)(errMsg);
-          });
+              mCallRequests.erase(state->sid);
+              if (state->state != 1)
+                  return;
 
+              state->state = kPeerAnsweredOrTimedout;
+              mConn.removeHandler(state->ansHandler);
+              state->ansHandler = 0;
+              mConn.removeHandler(state->declineHandler);
+              state->declineHandler = 0;
+              state->sessStream = nullptr;
+              unrefLocalStream(state->av.video);
+              Stanza cancelMsg(mConn);
+              cancelMsg.setName("message")
+                       .setAttr("type", "megaCallCancel")
+                       .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
+                       .setAttr("reason", "answer-timeout");
+              xmpp_send(mConn, cancelMsg);
+              RTCM_EVENT(onCallAnswerTimeout, state->targetJid.c_str());
+          },
+          callAnswerTimeout);
+      };
   }; //end initiateCallback()
+  promise::Promise<void> cryptoPms;
+  crypto().preloadCryptoForJid(CString(getBareJidFromJid(state->targetJid)),
+      new Promise<void>(cryptoPms),
+      [](void* userp, const CString& errMsg) mutable
+      {
+          std::shared_ptr<Promise<void>> pCryptoPms(static_cast<Promise<void>*>(userp));
+          if (errMsg)
+              pCryptoPms->reject(errMsg);
+          else
+              pCryptoPms->resolve();
+      }
+  );
+  auto gelbPms = mTurnServerProvider->getServers()
+  .then([state](std::shared_ptr<ServerList<TurnServerInfo> > servers)
+  {
+      state->turnServers = servers;
+  });
+
+  Promise<void> mediaPms;
   if (state->av.audio || state->av.video) //same as av, but we use state->av to make sure it's set up correctly
-      myGetUserMedia(state->av, initiateCallback, [](const string& errMsg){}, true);
+  {
+      myGetUserMedia(state->av, true)
+      .then([state, mediaPms](const artc::tspMediaStream& stream) mutable
+      {
+          state->sessStream = stream;
+          mediaPms.resolve();
+      });
+  }
   else
-      initiateCallback(nullptr);
+  {
+      mediaPms.resolve();
+  }
+  when(cryptoPms, mediaPms, gelbPms)
+  .then([this, state, initiateCallback]()
+  {
+      setIceServers(*(state->turnServers));
+      initiateCallback();
+  })
+  .fail([](const Error& err)
+  {
+      KR_LOG_ERROR("Call setup failed: %s", err.what());
+  });
 
   //return an object with a cancel() method
   if (mCallRequests.find(state->sid) != mCallRequests.end())
@@ -761,20 +796,18 @@ struct AnswerCallController: public IAnswerCall
             //so we don't capture 'this' and use the members, but capture all members
             //we need
             auto& ansFunc = mAnsFunc;
-            self.myGetUserMedia(answerAv,
-               [ansFunc, answerAv](artc::tspMediaStream sessStream)
+            self.myGetUserMedia(answerAv, (mPeerAv.audio || mPeerAv.video))
+            .then([ansFunc, answerAv](artc::tspMediaStream sessStream)
             {
                 shared_ptr<AnswerOptions> opts(new AnswerOptions);
                 opts->localStream = sessStream;
                 opts->av = avFlagsOfStream(sessStream, answerAv);
                 (*ansFunc)(true, opts, nullptr, nullptr);
-            },
-            [ansFunc](const string& err)
+            })
+            .fail([ansFunc](const Error& err)
             {
-                (*ansFunc)(false, shared_ptr<AnswerOptions>(), "error", ("There was a problem accessing user's camera or microphone. Error: "+err).c_str());
-            },
-            //allow to answer with no media only if peer is sending something
-            (mPeerAv.audio || mPeerAv.video));
+                (*ansFunc)(false, shared_ptr<AnswerOptions>(), "error", ("There was a problem accessing user's camera or microphone. Error: "+err.msg()).c_str());
+            });
         }
         else
         {//file transfer
@@ -1026,27 +1059,6 @@ IJingleSession* RtcModule::getSessionBySid(const char* sid)
         return nullptr;
     else
         return it->second.get();
-}
-
-/**
-  Updates the ICE servers that will be used in the next call.
-  @param servers An array of ice server objects - same as the iceServers parameter in
-          the RtcSession constructor
-*/
-/** url=xxx, user=xxx, pass=xxx; url=xxx, user=xxx... */
-int RtcModule::updateIceServers(const char* servers)
-{
-    bool has = false;
-    try
-    {
-        has = setIceServers(servers);
-    }
-    catch(exception& e)
-    {
-        KR_LOG_WARNING("Error setting ICE servers: %s", e.what());
-        return RTCM_EINVAL;
-    }
-    return has?1:0;
 }
 
 void RtcModule::refLocalStream(bool sendsVideo)

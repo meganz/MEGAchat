@@ -383,13 +383,6 @@ public:
      */
     virtual IJingleSession* getSessionBySid(const char* sid) = 0;
     /**
-    @brief Updates the ICE servers that will be used in the next call.
-    @param iceServers An array of ice server objects - same as the iceServers parameter in
-          the RtcSession constructor
-    */
-    /** url:xxx, user:xxx, pass:xxx; url:xxx, user:xxx... */
-    virtual int updateIceServers(const char* iceServers) = 0;
-    /**
      * @brief Returns whether the call or file transfer with the given
       sessionId is being relaid via a TURN server or not.
       @param sid The session id of the call

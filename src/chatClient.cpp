@@ -189,7 +189,7 @@ promise::Promise<int> Client::init()
 // Create and register the rtcmodule plugin
 // the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
 // To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
-        rtc.reset(createRtcModule(*conn, mRtcHandler.get(), new rtcModule::MegaCryptoFuncs(*api), ""));
+        rtc.reset(createRtcModule(*conn, mRtcHandler.get(), new rtcModule::MegaCryptoFuncs(*api), KARERE_DEFAULT_TURN_SERVERS));
         conn->registerPlugin("rtcmodule", rtc.get());
 // create and register text chat plugin
         mTextModule.reset(new TextModule(*this));

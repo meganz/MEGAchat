@@ -10,6 +10,7 @@
 #include "strophe.jingle.h"
 #include "stringUtils.h"
 #include <mstrophepp.h>
+#include <serverListProvider.h>
 
 using namespace std;
 using namespace promise;
@@ -31,9 +32,11 @@ void Jingle::onInternalError(const string& msg, const char* where)
 //==
 
 Jingle::Jingle(xmpp_conn_t* conn, ICryptoFunctions* crypto, const char* iceServers)
-:mConn(conn), mCrypto(crypto)
+:mConn(conn), mCrypto(crypto),
+  mTurnServerProvider(
+    new TurnServerProvider("https://gelb530n001.karere.mega.nz", "turn", iceServers)),
+  mIceServers(new webrtc::PeerConnectionInterface::IceServers)
 {
-    setIceServers(iceServers);
     mMediaConstraints.SetMandatoryReceiveAudio(true);
     mMediaConstraints.SetMandatoryReceiveVideo(true);
     mMediaConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
@@ -754,38 +757,25 @@ bool Jingle::verifyMac(const std::string& msg, const std::string& key, const std
     return match;
 }
 
-int Jingle::setIceServers(const char* iceServers)
+int Jingle::setIceServers(const ServerList<TurnServerInfo>& servers)
 {
-    if (!iceServers || !iceServers[0])
+    webrtc::PeerConnectionInterface::IceServers rtcServers;
+    webrtc::PeerConnectionInterface::IceServer rtcServer;
+    for (auto& server: servers)
     {
-        mIceServers.reset(new webrtc::PeerConnectionInterface::IceServers);
-        return 0;
+        rtcServer.uri = server->url;
+        if (!server->user.empty())
+            rtcServer.username = server->user;
+        else
+            rtcServer.username = KARERE_TURN_USERNAME;
+        if (!server->pass.empty())
+            rtcServer.password = server->pass;
+        else
+            rtcServer.password = KARERE_TURN_PASSWORD;
+        KR_LOG_DEBUG("Adding ICE server: '%s'", rtcServer.uri.c_str());
+        rtcServers.push_back(rtcServer);
     }
-    webrtc::PeerConnectionInterface::IceServers servers;
-
-    vector<string> strServers;
-    tokenize(iceServers, ";", strServers);
-    for (string& strServer: strServers)
-    {
-        map<string, string> props;
-        parseNameValues(strServer.c_str(), ",", '=', props);
-        webrtc::PeerConnectionInterface::IceServer server;
-
-        for (auto& p: props)
-        {
-            const string& name = p.first;
-            if (name == "url")
-                server.uri = p.second;
-            else if (name == "user")
-                server.username = p.second;
-            else if (name == "pass")
-                server.password = p.second;
-            else
-                KR_LOG_WARNING("setIceServers: Unknown server property '%s'", p.second.c_str());
-        }
-        servers.push_back(server);
-    }
-    mIceServers->swap(servers);
+    mIceServers->swap(rtcServers);
     return (int)(mIceServers->size());
 }
 

@@ -108,7 +108,7 @@ protected:
     std::string mPassword;
     /** client's contact list */
     ContactList contactList;
-    typedef FallbackSingleServerProvider<>  XmppServerProvider;
+    typedef FallbackServerProvider<HostPortServerInfo>  XmppServerProvider;
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
     std::unique_ptr<mega::rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;

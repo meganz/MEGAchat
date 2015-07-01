@@ -46,8 +46,8 @@ protected:
 public:
     RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers);
-    template <class OkCb, class ErrCb>
-    void myGetUserMedia(const AvFlags& av, OkCb okCb, ErrCb errCb, bool allowEmpty=false);
+    promise::Promise<artc::tspMediaStream>
+    myGetUserMedia(const AvFlags& av, bool allowEmpty=false);
 //IRtcModule interface
     virtual int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const char* files[]=NULL,
                       const char* myJid=NULL);
@@ -61,7 +61,6 @@ public:
     virtual int getReceivedAvByJid(const char* jid, AvFlags& av);
     virtual IJingleSession* getSessionByJid(const char* fullJid, char type='m');
     virtual IJingleSession* getSessionBySid(const char* sid);
-    virtual int updateIceServers(const char* iceServers);
     virtual int isRelay(const char* sid);
     virtual IDeviceList* getAudioInDevices();
     virtual IDeviceList* getVideoInDevices();
