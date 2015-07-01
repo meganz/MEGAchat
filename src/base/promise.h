@@ -26,26 +26,9 @@ struct MaskVoid { typedef V type;};
 template<>
 struct MaskVoid<void> {typedef _Void type;};
 
-//get lambda return type, regardless of argument count and types
-template <class T>
-struct LambdaDecompose;
-
-template <typename R, typename C, class... Args>
-struct LambdaDecompose<R(C::*)(Args...) const>
-{
-    typedef R RetType;
-    constexpr static int nargs = sizeof...(Args);
-};
-template <typename R, typename C, class... Args>
-struct LambdaDecompose<R(C::*)(Args...)>
-{
-    typedef R RetType;
-    constexpr static int nargs = sizeof...(Args);
-};
-
+//get function/lambda return type, regardless of argument count and types
 template <class F>
-struct FuncTraits
-{ typedef typename LambdaDecompose<decltype(&F::operator())>::RetType RetType; enum {nargs = LambdaDecompose<decltype(&F::operator())>::nargs};};
+struct FuncTraits: public FuncTraits<decltype(&F::operator())>{};
 
 template <class R, class... Args>
 struct FuncTraits <R(*)(Args...)>{ typedef R RetType; enum {nargs = sizeof...(Args)};};
