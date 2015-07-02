@@ -329,7 +329,6 @@ void Jingle::onJingle(Stanza iq)
         const char* msg = e.what();
         if (!msg)
             msg = "(no message)";
-        KR_LOG_ERROR("Exception in onJingle handler: '%s'", msg);
         onError(sess->sid().c_str(), msg, "jingle-action-error", "Error in onJingle handler");
    }
 }
