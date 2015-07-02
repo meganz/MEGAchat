@@ -598,6 +598,8 @@ void RtcModule::enumCallsForHangup(CB cb, const char* reason, const char* text)
 }
 inline bool callTypeMatches(int type, char userType)
 {
+    if (userType == 'a')
+        return true;
     bool isFtCall = (type & 0x0100);
     return (((userType == 'm') && !isFtCall) ||
             ((userType == 'f') && isFtCall));
@@ -732,7 +734,7 @@ void RtcModule::createLocalPlayer()
     RTCM_EVENT(onLocalStreamObtained, &renderer);
     if (!renderer)
     {
-        onInternalError("User event handler did not return a video renderer interface", "onLocalStreamObtained");
+        onError(nullptr, "onLocalStreamObtained: User event handler did not return a video renderer interface", nullptr, nullptr);
         return;
     }
     mLocalPlayer.reset(new artc::StreamPlayer(renderer, nullptr, nullptr));
@@ -960,21 +962,21 @@ void RtcModule::onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream st
 
 //void onRemoteStreamRemoved() - not interested to handle here
 
-void RtcModule::onJingleError(JingleSession* sess, const std::string& origin,
-                           const string& stanza, strophe::Stanza orig, char type)
+void RtcModule::onError(const char* sid, const string& msg, const char* reason, const char* text, unsigned flags)
 {
-    const char* errType = NULL;
-    if (type == 't')
-        errType = "Timeout";
-    else if (type == 's')
-        errType = "Error";
+    const char* type = ((flags & ERRFLAG_ASSERTION)?"internal assertion":"");
+    if (sid)
+    {
+        KR_LOG_ERROR("An %serror has occurred on a call session: %s\nThe session will be terminated with reason '%s', text '%s'",
+            type, sid, msg.c_str(), reason, text);
+        RTCM_EVENT(onError, sid, msg.c_str(), reason, text, flags);
+        hangupBySid(sid, 'a', reason, text);
+    }
     else
-        errType = "(Bug)";
-    auto origXml = orig.dump();
-    KR_LOG_ERROR("%s getting response to '%s' packet, session: '%s'\nerror-packet:\n%s\norig-packet:\n%s\n",
-            errType, origin.c_str(), sess?sess->sid().c_str():"(none)", stanza.c_str(),
-            origXml.c_str());
-    RTCM_EVENT(onJingleError, sess, origin.c_str(), stanza.c_str(), origXml.c_str(), type);
+    {
+        KR_LOG_ERROR("An %serror has occurred: %s", type, msg.c_str());
+        RTCM_EVENT(onError, nullptr, msg.c_str(), reason, text, flags);
+    }
 }
 
 int RtcModule::getSentAvBySid(const char* sid, AvFlags& av)
@@ -1078,7 +1080,7 @@ void RtcModule::unrefLocalStream(bool sendsVideo)
 
     if ((mLocalStreamRefCount <= 0) && (mLocalVideoRefCount > 0))
     {
-        onInternalError("BUG: local stream refcount dropped to zero, but local video refcount is > 0", "unrefLocalStream");
+        onError(nullptr, "unrefLocalStream: BUG: Local stream refcount dropped to zero, but local video refcount is > 0");
         mLocalVideoRefCount = 0; //quick fix, should never happen
     }
     if (mLocalVideoRefCount <= 0)
@@ -1097,17 +1099,17 @@ void RtcModule::freeLocalStream()
     }
     if (mLocalStreamRefCount > 0)
     {
-        onInternalError(("BUG: localStream refcount is > 0 ("+to_string(mLocalStreamRefCount)+")").c_str(), "freeLocalStream");
+        onError(nullptr, ("freeLocalStream: BUG: localStream refcount is > 0 ("+to_string(mLocalStreamRefCount)+")").c_str(), nullptr, nullptr, ERRFLAG_ASSERTION);
         return;
     }
     if (mLocalStreamRefCount < 0)
     {
-        KR_LOG_WARNING("freeLocalStream: local stream refcount is negative: %d", mLocalStreamRefCount);
+        onError(nullptr, "freeLocalStream: local stream refcount is negative", nullptr, nullptr, ERRFLAG_ASSERTION);
         mLocalStreamRefCount = 0; //in case it was negative for some reason
     }
     if (mLocalVideoRefCount != 0)
     {
-        onInternalError("About to free local stream, but local video refcount is not 0", "freeLocalStream");
+        onError(nullptr, "freeLocalStream: About to free local stream, but local video refcount is not 0", nullptr, nullptr, ERRFLAG_ASSERTION);
         disableLocalVideo(); //detaches local stream from local video player
     }
     mLocalPlayer.reset();
@@ -1124,7 +1126,7 @@ void RtcModule::freeLocalStream()
     hangupAll("app-terminate", nullptr);
     if (mAudioInput || mVideoInput || mLocalPlayer)
     {
-        onInternalError("BUG: Local stream or local player was not freed", "RtcModule::~RtcModule");
+        onError(nullptr, "RtcModule::~RtcModule: BUG: Local stream or local player was not freed", nullptr, nullptr, ERRFLAG_ASSERTION);
     }
 }
 
@@ -1164,7 +1166,7 @@ void RtcModule::disableLocalVideo()
         return;
      if (!mLocalPlayer)
      {
-         onInternalError("mLocalVideoEnabled is true, but there is no local player", "disableLocalVideo");
+         onError(nullptr, "disableLocalVideo: mLocalVideoEnabled is true, but there is no local player", nullptr, nullptr, ERRFLAG_ASSERTION);
          return;
      }
 // All references to local video are muted, disable local video display
@@ -1179,7 +1181,7 @@ void RtcModule::enableLocalVideo()
         return;
     if (!mLocalPlayer)
     {
-        onInternalError("Can't enable video, there is no local player", "enableLocalVideo");
+        onError(nullptr, "enableLocalVideo: Can't enable video, there is no local player", nullptr, nullptr, ERRFLAG_ASSERTION);
         return;
     }
     if (mVideoInput)

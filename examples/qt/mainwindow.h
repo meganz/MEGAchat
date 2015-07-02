@@ -138,6 +138,10 @@ public:
     {
         KR_LOG_ERROR("=============LocalMediaFail: %s", err);
     }
+    virtual void onError(const char* sid, const char* msg, const char* reason, const char* text, unsigned flags)
+    {
+        KR_LOG_ERROR("onError even handler: %s", msg);
+    }
 
 };
 

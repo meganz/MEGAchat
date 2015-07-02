@@ -68,7 +68,7 @@ protected:
     void* mUserData = nullptr;
     DeleteFunc mUserDataDelFunc = nullptr;
 //    bool mLastIceCandidate = false;
-    void reportError(const std::string& msg, const char* where);
+    void reportError(const std::string& msg, const char* reason, const char* text, unsigned flags=0);
     void addFingerprintMac(strophe::Stanza jingle);
 public:
     artc::myPeerConnection<JingleSession> mPeerConn;
@@ -155,7 +155,8 @@ public:
     void syncAvState();
     promise::Promise<void> sendAvState();
     promise::Promise<void> muteUnmute(bool state, const AvFlags& what);
-    promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string &origin);
+    promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq,
+        const std::string& origin, unsigned flags=0);
 };
 
 /** Contains all info about a not-yet-established session, when onCallTerminated is fired and there is no session yet */

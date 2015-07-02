@@ -36,6 +36,12 @@ enum {
     RTCM_ENOTFOUND = -3,
     RTCM_ENONE = -4
 };
+/** Flags to onError callback */
+enum {
+    ERRFLAG_ASSERTION = 1, ///Internal assertion failed, probably a bug has been hit
+    ERRFLAG_NOTERMINATE = 2 ///The session (if there is one) will not be terminated due to this error
+};
+
 /** Length of Jingle session id strings */
 enum {
     RTCM_SESSIONID_LEN = 16
@@ -226,8 +232,8 @@ public:
      * @param type The type of the error. Currently always 's', meaning that the
      * error was received as an error stanza, and stanza and origXml are stanzas
      */
-    virtual void onJingleError(IJingleSession* sess, const char* origin, const char* stanza,
-                   const char* origXml, char type) {}
+    virtual void onError(const char* sid, const char* msg, const char* reason,
+                   const char* text, unsigned flags) {}
     /**
      * @brief Fired when all current calls have muted sending local video, so the local video
      * display should be stopped. Ideally in this case the camera should be stopped,

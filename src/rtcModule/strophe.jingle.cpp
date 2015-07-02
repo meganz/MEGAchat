@@ -11,7 +11,7 @@
 #include "stringUtils.h"
 #include <mstrophepp.h>
 #include <serverListProvider.h>
-
+#include <IRtcModule.h>
 using namespace std;
 using namespace promise;
 using namespace std::placeholders;
@@ -24,11 +24,6 @@ using namespace karere;
 using namespace mega; //In clang there is a class named mega, so using the mega:: qualifier causes a compile error about ambiguous identifier
 
 AvFlags peerMediaToObj(const char* strPeerMedia);
-
-void Jingle::onInternalError(const string& msg, const char* where)
-{
-    KR_LOG_ERROR("Internal error at %s: %s", where, msg.c_str());
-}
 //==
 
 Jingle::Jingle(xmpp_conn_t* conn, ICryptoFunctions* crypto, const char* iceServers)
@@ -113,14 +108,13 @@ static int Jingle::_static_onIncomingCallMsg(xmpp_conn_t* const conn, xmpp_stanz
 */
 void Jingle::onJingle(Stanza iq)
 {
+   shared_ptr<JingleSession> sess; //declare it here because we need it in teh catch() handler
    try
    {
         Stanza jingle = iq.child("jingle");
         const char* sid = jingle.attr("sid");
         auto sit = mSessions.find(sid);
-        shared_ptr<JingleSession> sess((sit == mSessions.end())
-            ? nullptr
-            : sit->second);
+        sess = ((sit == mSessions.end()) ? nullptr : sit->second);
 
         if (sess && sess->inputQueue.get())
         {
@@ -336,14 +330,12 @@ void Jingle::onJingle(Stanza iq)
         if (!msg)
             msg = "(no message)";
         KR_LOG_ERROR("Exception in onJingle handler: '%s'", msg);
-        onInternalError(msg, "onJingle");
+        onError(sess->sid().c_str(), msg, "jingle-action-error", "Error in onJingle handler");
    }
 }
 /* Incoming call request with a message stanza of type 'megaCall' */
 void Jingle::onIncomingCallMsg(Stanza callmsg)
 {
-    KR_LOG_RTC_EVENT("megaCall handler called");
-
     struct State
     {
         bool handledElsewhere = false;
@@ -355,9 +347,13 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         string bareJid;
         string ownFprMacKey;
         void* userp = nullptr;
+        Stanza callmsg;
+        Promise<void> pmsCrypto;
+        Promise<void> pmsGelb;
     };
     shared_ptr<State> state(new State);
 
+    state->callmsg = callmsg;
     state->from = callmsg.attr("from");
     state->sid = callmsg.attr("sid");
     if (mAutoAcceptCalls.find(state->sid) != mAutoAcceptCalls.end())
@@ -402,7 +398,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         NULL, "message", "megaCallCancel", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
         setTimeout([this, state]()
-         {
+        {
             if (!state->cancelHandlerId) //cancel message was received and handler was removed
                 return;
     // Call was not handled elsewhere, but may have been answered/rejected by us
@@ -428,20 +424,40 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
          }));
         shared_ptr<set<string> > files; //TODO: implement file transfers
         AvFlags peerMedia; //TODO: Implement peerMedia parsing
+
 // Notify about incoming call
         shared_ptr<CallAnswerFunc> ansFunc(new CallAnswerFunc(
-         [this, state, callmsg, reqStillValid](bool accept, shared_ptr<AnswerOptions> options, const char* reason, const char* text)
-         {
+        [this, state, reqStillValid](bool accept, shared_ptr<AnswerOptions> options, const char* reason, const char* text)
+        {
 // If dialog was displayed for too long, the peer timed out waiting for response,
 // or user was at another client and that other client answred.
 // When the user returns at this client he may see the expired dialog asking to accept call,
 // and will answer it, but we have to ignore it because it's no longer valid
             if (!(*reqStillValid)()) // Call was cancelled, or request timed out and handler was removed
                 return false;//the callback returning false signals to the calling user code that the call request is not valid anymore
-            if (accept)
+            if (!accept)
             {
+                Stanza declMsg(mConn);
+                declMsg.setName("message")
+                       .setAttr("sid", state->sid.c_str())
+                       .setAttr("to", state->from.c_str())
+                       .setAttr("type", "megaCallDecline")
+                       .setAttr("reason", reason?reason:"reject");
+
+                if (text)
+                    declMsg.c("body").t(text);
+                mConn.send(declMsg);
+                return true;
+            }
+//accept == true
+            printf("ACCEPTING CALL 0\n");
+
+            when(state->pmsCrypto, state->pmsGelb)
+            .then([this, state, options]()
+            {
+                printf("ACCEPTING CALL\n");
                 state->ownFprMacKey = VString(mCrypto->generateFprMacKey()).c_str();
-                VString peerFprMacKey = mCrypto->decryptMessage(callmsg.attr("fprmackey"));
+                VString peerFprMacKey = mCrypto->decryptMessage(state->callmsg.attr("fprmackey"));
                 if (peerFprMacKey.empty())
                     throw std::runtime_error("Faield to verify peer's fprmackey from call request");
 // tsTillJingle measures the time since we sent megaCallAnswer till we receive jingle-initiate
@@ -456,7 +472,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 info.options = options; //shared_ptr
                 info["peerFprMacKey"] = peerFprMacKey.c_str();
                 info["ownFprMacKey"] = state->ownFprMacKey.c_str();
-                info["peerAnonId"] = callmsg.attr("anonid");
+                info["peerAnonId"] = state->callmsg.attr("anonid");
 //TODO: Handle file transfer
 // This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
                 setTimeout([this, state, tsTillJingle]()
@@ -470,59 +486,55 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                     cancelAutoAcceptEntry(callIt, "initiate-timeout", "timed out waiting for caller to start call", 0);
                 }, mJingleAutoAcceptTimeout);
 
-                auto answerFunc = new function<void(const CString&)>
-                ([this, state](const CString& errMsg)
-                {
-                    if (errMsg)
-                    {
-                        onInternalError("Failed to preload peer's public key. Won't answer call", "preloadCryptoForJid");
-                        return;
-                    }
-
-                    Stanza ans(mConn);
-                    ans.setName("message")
-                        .setAttr("sid", state->sid.c_str())
-                        .setAttr("to", state->from.c_str())
-                        .setAttr("type", "megaCallAnswer")
-                        .setAttr("fprmackey", VString(
-                            mCrypto->encryptMessageForJid(
-                                CString(state->ownFprMacKey),
-                                CString(state->bareJid)))
-                        )
-                        .setAttr("anonid", mOwnAnonId.c_str());
-                    mConn.send(ans);
-                });
-                mCrypto->preloadCryptoForJid(CString(state->bareJid), answerFunc,
-                  [](void* userp, const CString& errMsg)
-                {
-                    unique_ptr<function<void(const CString&)> >
-                      fcall(static_cast<function<void(const CString&)>*>(userp));
-                    (*fcall)(errMsg);
-                });
-         }
-         else //answer == false
-         {
-                Stanza declMsg(mConn);
-                declMsg.setName("message")
-                .setAttr("sid", state->sid.c_str())
-                .setAttr("to", state->from.c_str())
-                .setAttr("type", "megaCallDecline")
-                .setAttr("reason", reason?reason:"reject");
-
-                if (text)
-                    declMsg.c("body").t(text);
-                mConn.send(declMsg);
-         }
-         return true;
+                Stanza ans(mConn);
+                ans.setName("message")
+                   .setAttr("sid", state->sid.c_str())
+                   .setAttr("to", state->from.c_str())
+                   .setAttr("type", "megaCallAnswer")
+                   .setAttr("fprmackey", VString(
+                       mCrypto->encryptMessageForJid(
+                           CString(state->ownFprMacKey),
+                           CString(state->bareJid)))
+                   )
+                   .setAttr("anonid", mOwnAnonId.c_str());
+                mConn.send(ans);
+            })
+            .fail([this, state](const Error& err)
+            {
+                KR_LOG_ERROR("Call answering failed: %s", err.what());
+                onError(state->sid.c_str(), err.msg(), "prejingle-answer-error",
+                        "Error during pre-jingle call answer response");
+            });
+            return true;
         })); //end answer func
+
+        mTurnServerProvider->getServers()
+        .then([this, state](std::shared_ptr<ServerList<TurnServerInfo> > servers)
+        {
+            setIceServers(*servers);
+            state->pmsGelb.resolve();
+        })
+        .fail([state](const Error& err)
+        {
+            state->pmsGelb.reject(err);
+        });
+        mCrypto->preloadCryptoForJid(CString(state->bareJid), new Promise<void>(state->pmsCrypto),
+        [](void* userp, const CString& errMsg)
+        {
+            unique_ptr<Promise<void> > pPmsGelb(static_cast<Promise<void>*>(userp));
+            if (!errMsg)
+                pPmsGelb->resolve();
+            else
+                pPmsGelb->reject(errMsg);
+        });
 
         onIncomingCallRequest(state->from.c_str(), state->sid.c_str(),
           ansFunc, reqStillValid, peerMedia, files, &(state->userp));
     }
     catch(exception& e)
     {
-        KR_LOG_ERROR("Exception in onIncomingCallRequest handler: %s", e.what());
-        onInternalError(e.what(), "onCallIncoming");
+        KR_LOG_ERROR("Exception in onIncomingCallMsg handler: %s", e.what());
+        onError(state->sid.c_str(), e.what(), "prejingle-answer-error", "Exception in onIncomingCallMsg");
     }
 }
 
@@ -685,7 +697,7 @@ Promise<Stanza> Jingle::sendTerminateNoSession(const char* sid, const char* to, 
       .c(reason);
     if (text)
         last.parent().c("text").t(text);
-    return sendIq(term, "term-no-sess");
+    return sendIq(term, "term-no-sess", sid, ERRFLAG_NOTERMINATE);
 }
 
 bool Jingle::sessionIsValid(const JingleSession& sess)
@@ -723,12 +735,14 @@ string Jingle::getFingerprintsFromJingle(Stanza j)
     return result;
 }
 
-Promise<Stanza> Jingle::sendIq(Stanza iq, const string& origin)
+Promise<Stanza> Jingle::sendIq(Stanza iq, const string& origin, const char* sid, unsigned flags)
 {
+    string strSid(sid?sid:"");
     return mConn.sendIqQuery(iq)
-        .fail([this, origin, iq](const promise::Error& err)
+        .fail([this, origin, strSid, flags](const promise::Error& err)
         {
-            onJingleError(nullptr, origin, err.msg(), iq);
+            onError((strSid.empty()?nullptr:strSid.c_str()), err.msg(), "jingle-error",
+                    ("Error iq response on operation "+origin).c_str(), flags);
             return err;
         });
 }

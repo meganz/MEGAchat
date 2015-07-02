@@ -66,7 +66,7 @@ void JingleSession::onRemoveStream(artc::tspMediaStream stream)
 {
     if (stream != mRemoteStream) //we can't throw here because we are in a callback
     {
-        KR_LOG_ERROR("onRemoveStream: Stream is not the remote stream that we have");
+        reportError("onRemoveStream: Stream is not the remote stream that we have", nullptr, nullptr, ERRFLAG_ASSERTION);
         return;
     }
     mRemoteStream = NULL;
@@ -231,7 +231,7 @@ Promise<Stanza> JingleSession::sendTerminate(const char* reason, const char* tex
     auto rsn = term.second.c("reason").c(reason?reason:"unknown").parent();
     if (text)
         rsn.c("text").t(text);
-    return sendIq(term.first, "set");
+    return sendIq(term.first, "set", ERRFLAG_NOTERMINATE);
 }
 
 Promise<Stanza> JingleSession::sendMute(bool muted, const string& what)
@@ -242,6 +242,12 @@ Promise<Stanza> JingleSession::sendMute(bool muted, const string& what)
       {"name", what.c_str()}
     });
     return sendIq(info.first, "set");
+}
+
+promise::Promise<strophe::Stanza>
+JingleSession::sendIq(strophe::Stanza iq, const std::string &origin, unsigned flags)
+{
+    return mJingle.sendIq(iq, origin, mSid.c_str(), flags);
 }
 
 void JingleSession::syncAvState()
@@ -276,9 +282,9 @@ Promise<void> JingleSession::muteUnmute(bool state, const AvFlags& what)
                 what.video?sendMute(state, "video"):Promise<Stanza>(Stanza()));
 }
 
-void JingleSession::reportError(const string& e, const char* where)
+void JingleSession::reportError(const string& msg, const char* reason, const char* text, unsigned flags)
 {
-    mJingle.onInternalError(e, where);
+    mJingle.onError(mSid.c_str(), msg, reason, text, flags);
 }
 
 void JingleSession::addFingerprintMac(strophe::Stanza j)
@@ -319,16 +325,6 @@ pair<Stanza, Stanza> JingleSession::createJingleIq(const string& to, const char*
             .setAttr("initiator", mInitiator.c_str())
             .setAttr("sid", mSid.c_str())
     );
-}
-
-Promise<Stanza> JingleSession::sendIq(Stanza iq, const string& origin)
-{
-    return mConnection.sendIqQuery(iq)
-        .fail([this, iq, origin](const promise::Error& err)
-        {
-            mJingle.onJingleError(this, origin, err.msg(), iq);
-            return err;
-        });
 }
 
 int JingleSession::isRelayed() const

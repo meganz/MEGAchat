@@ -98,8 +98,7 @@ protected:
     virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream);
     //void onRemoteStreamRemoved() - not interested to handle here
 
-    void onJingleError(JingleSession* sess, const std::string& origin,
-                       const std::string& stanza, strophe::Stanza orig, char type);
+    virtual void onError(const char* sid, const std::string& msg, const char* reason=nullptr, const char* text=nullptr, unsigned flags=0);
     virtual void discoAddFeature(const char* feature);
     //overriden handler of JinglePlugin
     virtual void onCallCanceled(const char *sid, const char *event, const char *by,

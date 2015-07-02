@@ -58,11 +58,15 @@ void ParsedSdp::parse(const string& strSdp)
 
 int ParsedSdp::getMlineIndex(const string& mid)
 {
-    string start = "m=";
+    string start = "a=mid:";
     start.append(mid);
     for (size_t i=0; i<media.size(); i++)
-        if (startsWith(media[i][0], start))
+    {
+        auto& desc = media[i];
+        for (size_t j=1; j<desc.size(); j++)
+        if (desc[j] ==  start)
             return (int)i;
+    }
     return -1;
 }
 

@@ -33,6 +33,14 @@ typedef std::function<bool(bool, std::shared_ptr<AnswerOptions>, const char* rea
 
 struct FakeSessionInfo;
 
+enum ErrorType
+{
+    ERR_UNKNOWN = 0,
+    ERR_INTERNAL = 1,
+    ERR_API = 2,
+    ERR_PROTOCOL = 3
+};
+
 class Jingle
 {
 protected:
@@ -74,9 +82,6 @@ public:
     virtual void onConnectionEvent(int state, const std::string& msg){}
     virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream){}
     virtual void onRemoteStreamRemoved(JingleSession& sess, artc::tspMediaStream stream){}
-    virtual void onJingleError(JingleSession* sess, const std::string& origin,
-        const std::string& stanza, strophe::Stanza orig, char type='s'){} //TODO: implement stanza object in promise errors
-    virtual void onJingleTimeout(JingleSession& sess, const std::string& err, strophe::Stanza orig){}
 //    virtual void onIceConnStateChange(JingleSession& sess, event){}
     virtual void onIceComplete(JingleSession& sess){}
 //rtcHandler callback interface, called by the connection.jingle object
@@ -96,7 +101,7 @@ public:
     virtual void onRinging(JingleSession& sess){}
     virtual void onMuted(JingleSession& sess, const AvFlags& affected){}
     virtual void onUnmuted(JingleSession& sess, const AvFlags& affected){}
-    virtual void onInternalError(const std::string& msg, const char* where);
+    virtual void onError(const char* sid, const std::string& msg, const char* reason, const char* text, unsigned flags=0) {};
 //==
 /** @param iceServers the static fallback server list in json form:
  *  {"host":"turn:host:port?protocol=tcp/udp", "user":<username>,"pass": <password>}
@@ -139,11 +144,13 @@ public:
         bool nosend=false);
     promise::Promise<strophe::Stanza> sendTerminateNoSession(const char* sid,
         const char* to, const char* reason, const char* text);
-    promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string& origin);
+    promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string& origin,
+                                             const char* sid=nullptr, unsigned flags=0);
     bool sessionIsValid(const JingleSession &sess);
     std::string getFingerprintsFromJingle(strophe::Stanza j);
     bool verifyMac(const std::string& msg, const std::string& key, const std::string& actualMac);
 };
+
 }
 
 #endif
