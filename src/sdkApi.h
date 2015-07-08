@@ -82,6 +82,16 @@ public:
         (this->*method)(args..., listener);
         return listener->mPromise;
     }
+    ~MyMegaApi()
+    {
+        //we need to destroy the logger after the base mega::MegaApi, because the MegaApi dtor uses the logger
+        MyMegaLogger* logger = mLogger.release();
+        mega::marshallCall([logger]()
+        {
+            delete logger;
+            KR_LOG_DEBUG("Deleted SDK logger");
+        });
+    }
 };
 
 #endif // SDKAPI_H

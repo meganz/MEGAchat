@@ -72,6 +72,7 @@ public:
     /** @brief Notifies the client that network connection is down */
     void notifyNetworkOnline();
     void startKeepalivePings();
+    promise::Promise<void> terminate();
     /**
      * @brief Ping a target peer to check whether he/she is alive
      * @param [peerJid] {const char*} peer's Jid. If NULL, then no 'to'

@@ -60,7 +60,9 @@ void sigintHandler(int)
 {
     printf("SIGINT Received\n");
     fflush(stdout);
-    marshallCall([]{mainWin->close();});
+//    marshallCall([]{mainWin->close();});
+    marshallCall([]{appDelegate.onAppTerminate();});
+
 }
 
 const char* usermail;
@@ -77,6 +79,7 @@ int main(int argc, char **argv)
     }
 
     QApplication a(argc, argv);
+    a.setQuitOnLastWindowClosed(false);
     mainWin = new MainWindow;
     mainWin->ui->localRenderer->setMirrored(true);
     mainWin->ui->callBtn->setEnabled(false);
@@ -110,7 +113,7 @@ int main(int argc, char **argv)
     })
     .fail([](const promise::Error& error)
     {
-        printf("==========Client::start() promise failed:\n%s\n", error.msg().c_str());
+        KR_LOG_ERROR("Client::start() promise failed:\n%s", error.msg().c_str());
         return error;
     });
 
@@ -122,9 +125,20 @@ int main(int argc, char **argv)
 
 void AppDelegate::onAppTerminate()
 {
-    printf("onAppTerminate\n");
-    gClient.reset();
-    rtcCleanup();
-    services_shutdown();
+    gClient->terminate()
+    .fail([](const promise::Error& err)
+    {
+        KR_LOG_ERROR("Error logging out the Mega client: ", err.what());
+    })
+    .then([this]()
+    {
+        gClient.reset();
+        rtcCleanup();
+        services_shutdown();
+        ::mega::marshallCall([]()
+        {
+            qApp->quit();
+        });
+    });
 }
 #include <main.moc>

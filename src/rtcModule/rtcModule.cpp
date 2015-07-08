@@ -967,14 +967,22 @@ void RtcModule::onError(const char* sid, const string& msg, const char* reason, 
     const char* type = ((flags & ERRFLAG_ASSERTION)?"internal assertion":"");
     if (sid)
     {
-        KR_LOG_ERROR("An %serror has occurred on a call session: %s\nThe session will be terminated with reason '%s', text '%s'",
-            type, sid, msg.c_str(), reason, text);
         RTCM_EVENT(onError, sid, msg.c_str(), reason, text, flags);
-        hangupBySid(sid, 'a', reason, text);
+        if ((flags & ERRFLAG_NOTERMINATE) == 0)
+        {
+            KR_LOG_ERROR("An %s error has occurred on a call session: %s\nThe session will be terminated with reason '%s', text '%s'",
+                type, sid, msg.c_str(), reason, text);
+            hangupBySid(sid, 'a', reason, text);
+        }
+        else
+        {
+            KR_LOG_ERROR("An %s error has occurred on a call session '%s': %s",
+                type, sid, msg.c_str());
+        }
     }
     else
     {
-        KR_LOG_ERROR("An %serror has occurred: %s", type, msg.c_str());
+        KR_LOG_ERROR("An %s error has occurred: %s", type, msg.c_str());
         RTCM_EVENT(onError, nullptr, msg.c_str(), reason, text, flags);
     }
 }

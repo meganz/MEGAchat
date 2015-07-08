@@ -76,7 +76,9 @@ Client::Client(const std::string& email, const std::string& password)
   contactList(conn),
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp",
   KARERE_FALLBACK_XMPP_SERVERS)), mRtcHandler(NULL)
-{}
+{
+//    xmpp_conn_clone(*conn);
+}
 
 
 Client::~Client()
@@ -295,10 +297,20 @@ void Client::notifyNetworkOnline()
     mReconnectController->restart();
 }
 
-
-
-
-
+promise::Promise<void> Client::terminate()
+{
+    promise::Promise<void> pms;
+    return api->call(&mega::MegaApi::logout)
+    .then([pms](ReqResult result) mutable
+    {
+        pms.resolve();
+    })
+    .fail([pms](const promise::Error& err) mutable
+    {
+        pms.reject(err);
+    });
+    return pms;
+}
 
 void Client::startKeepalivePings()
 {

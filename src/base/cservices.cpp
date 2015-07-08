@@ -25,9 +25,9 @@ MEGAIO_EXPORT event_base* services_get_event_loop()
 SVC_THREAD_FUNCDECL(libeventThreadFunc)
 {
     /* enter the event loop */
-    SVC_LOG_INFO("libevent thread started, entering eventloop");
+    SVC_LOG_INFO("Libevent thread started, entering eventloop");
     event_base_loop(services_eventloop, 0);//EVLOOP_NO_EXIT_ON_EMPTY
-    SVC_LOG_INFO("libevent loop terminated");
+    SVC_LOG_INFO("Libevent loop terminated");
     return (t_svc_thread_funcret)0;
 
 }
@@ -72,7 +72,7 @@ MEGAIO_EXPORT int services_shutdown()
     SVC_LOG_INFO("Terminating libevent thread...");
     svc_thread_join(libeventThread);
     hasLibeventThread = false;
-    SVC_LOG_INFO("libevent thread terminated");
+    SVC_LOG_INFO("Libevent thread terminated");
     return 0;
 }
 
