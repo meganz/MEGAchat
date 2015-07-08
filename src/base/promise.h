@@ -213,12 +213,17 @@ protected:
 
     template <class CB, class TP>
     struct SuccessCb: public Callback<typename MaskVoid<T>::type, CB, TP>
-    {  using Callback<typename MaskVoid<T>::type, CB, TP>::Callback; };
+    {
+        SuccessCb(CB&& cb, const Promise<TP>& next) //can't use ctotr inharitance because MSVC 2013 does not support it
+            :Callback<typename MaskVoid<T>::type, CB, TP>(std::forward<CB>(cb), next){}
+    };
 
     template <class CB>
     struct FailCb: public Callback<Error, CB, T>
-    {  using Callback<Error, CB, T>::Callback; };
-
+    {
+        FailCb(CB&& cb, const Promise<T>& next)
+        :Callback<Error, CB, T>(std::forward<CB>(cb), next){}
+    };
 /** Helper funtion to be able to deduce the callback type of the passed lambda and create and
   * Callback object with that type. We cannot do that by derectly callind the Callback constructor
   */
