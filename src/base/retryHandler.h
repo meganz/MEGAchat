@@ -92,7 +92,7 @@ public:
      * The value type of the promise returned by the operation and by the RetryController
      * itself
      */
-    typedef typename decltype(std::declval<Func>().operator()(0))::Type RetType;
+    typedef typename promise::FuncTraits<Func>::RetType::Type RetType;
 
 protected:
     enum { kBitness = sizeof(unsigned)*8-10 }; //maximum exponent of mInitialWaitTime that fits into an unsigned
