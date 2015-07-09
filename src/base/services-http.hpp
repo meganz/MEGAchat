@@ -179,6 +179,11 @@ public:
         _curleopt(CURLOPT_SSL_VERIFYHOST, 0L);
 
     }
+    ~Client()
+    {
+        if (mCurl)
+            curl_easy_cleanup(mCurl);
+    }
 protected:
     static void onTransferComplete(CurlConnection* conn, CURLcode code) //called by the CURL-libevent code
     {
