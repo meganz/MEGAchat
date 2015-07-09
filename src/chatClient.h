@@ -61,8 +61,10 @@ public:
     //Calling a function defined in the DLL that in turn calls the destructor ensures that operator
     //delete is called from code inside the DLL, i.e. in the runtime where the class is implemented,
     //operates and was allocated
-    rtcModule::IPtr<rtcModule::IRtcModule> rtc;
-    rtcModule::IPtr<TextModule> mTextModule;
+    rtcModule::IRtcModule* rtc = nullptr;
+    TextModule* mTextModule = nullptr;
+    bool isTerminating = false;
+    unsigned mReconnectConnStateHandler = 0;
     Client(const std::string& email, const std::string& password);
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);

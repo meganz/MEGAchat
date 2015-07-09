@@ -77,7 +77,6 @@ Client::Client(const std::string& email, const std::string& password)
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp",
   KARERE_FALLBACK_XMPP_SERVERS)), mRtcHandler(NULL)
 {
-//    xmpp_conn_clone(*conn);
 }
 
 
@@ -191,11 +190,11 @@ promise::Promise<int> Client::init()
 // Create and register the rtcmodule plugin
 // the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
 // To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
-        rtc.reset(createRtcModule(*conn, mRtcHandler.get(), new rtcModule::MegaCryptoFuncs(*api), KARERE_DEFAULT_TURN_SERVERS));
-        conn->registerPlugin("rtcmodule", rtc.get());
+        rtc = createRtcModule(*conn, mRtcHandler.get(), new rtcModule::MegaCryptoFuncs(*api), KARERE_DEFAULT_TURN_SERVERS);
+        conn->registerPlugin("rtcmodule", rtc);
 // create and register text chat plugin
-        mTextModule.reset(new TextModule(*this));
-        conn->registerPlugin("textchat", mTextModule.get());
+        mTextModule = new TextModule(*this);
+        conn->registerPlugin("textchat", mTextModule);
 // create and register disco strophe plugin
         conn->registerPlugin("disco", new disco::DiscoPlugin(*conn, "Karere Native"));
         KR_LOG_DEBUG("webrtc and textchat plugins initialized");
@@ -209,7 +208,7 @@ promise::Promise<int> Client::init()
     })
     .then([this](int)
     {
-        KR_LOG_DEBUG("contactlist initialized");
+        KR_LOG_DEBUG("Contactlist initialized");
         //startKeepalivePings();
         return 0;
     })
@@ -242,11 +241,11 @@ void Client::setupReconnectHandler()
         xmpp_disconnect(*conn, -1);
     }, KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
 
-    conn->addConnStateHandler(
+    mReconnectConnStateHandler = conn->addConnStateHandler(
        [this](xmpp_conn_t* conn_c, xmpp_conn_event_t event, int error,
         xmpp_stream_error_t* stream_error, void* userdata, bool& keepHandler) mutable
     {
-        if ((event != XMPP_CONN_DISCONNECT) && (event != XMPP_CONN_FAIL))
+        if (((event != XMPP_CONN_DISCONNECT) && (event != XMPP_CONN_FAIL)) || isTerminating)
             return;
         assert(xmpp_conn_get_state(conn_c) == XMPP_STATE_DISCONNECTED);
         if (mReconnectController->state() & mega::rh::kStateBitRunning)
@@ -299,17 +298,24 @@ void Client::notifyNetworkOnline()
 
 promise::Promise<void> Client::terminate()
 {
-    promise::Promise<void> pms;
-    return api->call(&mega::MegaApi::logout)
-    .then([pms](ReqResult result) mutable
+    if (isTerminating)
     {
-        pms.resolve();
-    })
-    .fail([pms](const promise::Error& err) mutable
+        KR_LOG_WARNING("Client::terminate: Already terminating");
+        return promise::Promise<void>();
+    }
+    isTerminating = true;
+    if (mReconnectConnStateHandler)
     {
-        pms.reject(err);
-    });
-    return pms;
+        conn->removeConnStateHandler(mReconnectConnStateHandler);
+        mReconnectConnStateHandler = 0;
+    }
+    if (mReconnectController)
+        mReconnectController->abort();
+    if (rtc)
+        rtc->hangupAll("app-close", "The application is terminating");
+    auto pmsDisconnect = conn->disconnect(2000);
+    auto pmsLogout = api->call(&mega::MegaApi::logout);
+    return when(pmsDisconnect, pmsLogout);
 }
 
 void Client::startKeepalivePings()
