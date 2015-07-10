@@ -22,7 +22,8 @@ static inline void marshallCall(F&& func)
     struct Msg: public megaMessage
     {
         F mFunc;
-        Msg(F&& aFunc, megaMessageFunc cHandler): megaMessage(cHandler), mFunc(aFunc){}
+        Msg(F&& aFunc, megaMessageFunc cHandler)
+        : megaMessage(cHandler), mFunc(std::forward<F>(aFunc)){}
 #ifndef NDEBUG
         unsigned magic = 0x3e9a3591;
 #endif
@@ -34,7 +35,25 @@ static inline void marshallCall(F&& func)
 // Although an exception should not happen here and will propagate to the
 // application's message/event loop. TODO: maybe provide a try/catch block here?
 // Asses the performence impact of this
-        std::unique_ptr<Msg> pMsg(static_cast<Msg*>(ptr));
+// We use a custom-tailored smart ptr here to gain some performance (i.e. destructor
+// always deletes, not null check needed)
+        struct AutoDel
+        {
+            Msg* mMsg;
+#if __clang__ && (__clang_major__ <= 3) && (__clang_minor__ <= 6)
+//clang bug #24077: member list initialziation does not work properly
+//when inside a lambda in a templated function scope.
+//mMsg has incorrect, arbitrary value.
+//So we initialize mMsg in the ctor body
+            AutoDel(Msg* aMsg) { this->mMsg = aMsg; }
+#else
+            AutoDel(Msg* aMsg): mMsg(aMsg){}
+#endif
+            ~AutoDel() { delete this->mMsg; }
+            Msg* operator->() { return this->mMsg; }
+        };
+
+        AutoDel pMsg(static_cast<Msg*>(ptr));
         assert(pMsg->magic == 0x3e9a3591);
         pMsg->mFunc();
     });
