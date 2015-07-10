@@ -242,12 +242,12 @@ void Client::setupReconnectHandler()
     }, KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
 
     mReconnectConnStateHandler = conn->addConnStateHandler(
-       [this](xmpp_conn_t* conn_c, xmpp_conn_event_t event, int error,
-        xmpp_stream_error_t* stream_error, void* userdata, bool& keepHandler) mutable
+       [this](xmpp_conn_event_t event, int error,
+        xmpp_stream_error_t* stream_error, bool& keepHandler) mutable
     {
         if (((event != XMPP_CONN_DISCONNECT) && (event != XMPP_CONN_FAIL)) || isTerminating)
             return;
-        assert(xmpp_conn_get_state(conn_c) == XMPP_STATE_DISCONNECTED);
+        assert(xmpp_conn_get_state(*conn) == XMPP_STATE_DISCONNECTED);
         if (mReconnectController->state() & mega::rh::kStateBitRunning)
             return;
 
@@ -313,9 +313,35 @@ promise::Promise<void> Client::terminate()
         mReconnectController->abort();
     if (rtc)
         rtc->hangupAll("app-close", "The application is terminating");
-    auto pmsDisconnect = conn->disconnect(2000);
-    auto pmsLogout = api->call(&mega::MegaApi::logout);
-    return when(pmsDisconnect, pmsLogout);
+    auto pmsDisconnect = conn->disconnect(2000)
+    .then([](int code)
+    {
+        printf("disconn promise resloved with code %d\n", code);
+        return code;
+    });
+
+    auto pmsLogout = mega::performWithTimeout(
+    [this]()
+    {
+        return api->call(&mega::MegaApi::logout);
+    }, 2000);
+
+    promise::Promise<void> pms;
+    when(pmsDisconnect, pmsLogout)
+    //resolve output promise asynchronously, because the callbacks of the output
+    //promise may free the client, and the resolve()-s of the input promises
+    //(mega and conn) are within the client's code, so any code after the resolve()s
+    //that tries to access the client will crash
+    .then([pms]() mutable
+    {
+        mega::marshallCall([pms]() mutable { pms.resolve(); });
+    })
+    .fail([pms](const promise::Error& err) mutable
+    {
+        mega::marshallCall([pms, err]() mutable { pms.reject(err); });
+        return err;
+    });
+    return pms;
 }
 
 void Client::startKeepalivePings()

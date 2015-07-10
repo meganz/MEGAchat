@@ -132,13 +132,13 @@ void AppDelegate::onAppTerminate()
     })
     .then([this]()
     {
+        qApp->quit(); //stop processing marshalled call messages
         gClient.reset();
         rtcCleanup();
         services_shutdown();
-        ::mega::marshallCall([]()
-        {
-            qApp->quit();
-        });
+//        ::mega::marshallCall([]()
+//        {
+//        });
     });
 }
 #include <main.moc>
