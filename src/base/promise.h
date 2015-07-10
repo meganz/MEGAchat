@@ -45,6 +45,104 @@ struct IVirtDtor
 template <class T, int L>
 class Promise;
 
+template <class T>
+class SharedPtr
+{
+protected:
+    struct Shared
+    {
+        T* mPtr;
+        int mRefCount;
+        Shared(T* ptr): mPtr(ptr), mRefCount(1) {}
+        void addRef() { mRefCount++; }
+        void release()
+        {
+            assert(mRefCount > 0);
+            if (mRefCount == 1)
+            {
+                if (mPtr)
+                    delete mPtr;
+                delete this;
+            }
+            else
+            {
+                mRefCount--;
+            }
+        }
+    };
+    Shared* mShared;
+public:
+    explicit SharedPtr(T* ptr=nullptr): mShared(new Shared(ptr)){}
+    SharedPtr(const SharedPtr& other): mShared(other.mShared){ mShared->addRef(); }
+    ~SharedPtr() { mShared->release(); }
+    T* get() const { return mShared->mPtr;}
+    void reset(T* ptr=nullptr)
+    {
+        mShared->release();
+        mShared = new Shared(ptr);
+    }
+    int use_count() const { return mShared->mRefCount; }
+    SharedPtr& operator=(const SharedPtr& other)
+    {
+        mShared->release();
+        mShared = other.mShared;
+        mShared->addRef();
+        return *this;
+    }
+    bool operator==(const SharedPtr& other) const
+    {
+       return (mShared->mPtr == other->mShared->mPtr);
+    }
+    explicit operator bool() const { return mShared->mPtr != nullptr; }
+    T& operator*() const { return mShared->mPtr; }
+    T* operator->() const { return *(mShared->mPtr); }
+};
+
+template <class T>
+class SharedObj
+{
+protected:
+    class Shared: public T
+    {
+        int mRefCount;
+        Shared(T&& obj): T(std::forward<T>(obj)), mRefCount(1) {}
+        void addRef() { mRefCount++; }
+        void release()
+        {
+            assert(mRefCount > 0);
+            if (mRefCount == 1)
+                delete this;
+            else
+                mRefCount--;
+        }
+    };
+    Shared* mShared;
+public:
+    explicit SharedObj(T&& obj): mShared(new Shared(std::forward<T>(obj))){}
+    SharedObj(const SharedObj& other): mShared(other.mShared){ mShared->addRef(); }
+    ~SharedObj() { mShared->release(); }
+    T* get() const { return mShared;}
+    void reset(T&& obj)
+    {
+        mShared->release();
+        mShared = new Shared(obj);
+    }
+    int use_count() const { return mShared->mRefCount; }
+    SharedObj& operator=(const SharedObj& other)
+    {
+        mShared->release();
+        mShared = other.mShared;
+        mShared->addRef();
+        return *this;
+    }
+    bool operator==(const SharedObj& other) const
+    {
+       return (mShared == other->mShared);
+    }
+    T& operator*() const { return *mShared; }
+    T* operator->() const { return mShared; }
+};
+
 //Promise error class. We need it to be a refcounted object, because
 //often the user would return somehting like return PromiseError(...)
 //That would be converted to a failed promise object, and the Error would
@@ -72,12 +170,12 @@ enum
     kErrTimeout = 3
 };
 
-class Error: protected std::shared_ptr<ErrorShared>
+class Error: protected SharedPtr<ErrorShared>
 {
 protected:
     Error(): Base(nullptr){}
 public:
-    typedef std::shared_ptr<ErrorShared> Base;
+    typedef SharedPtr<ErrorShared> Base;
     Error(const std::string& msg, int code=0, int type=kErrorTypeGeneric)
         :Base(new ErrorShared(msg, code, type))
     {}
@@ -239,6 +337,11 @@ protected:
         {
             CallbackList<L, ISuccessCb> mSuccessCbs;
             CallbackList<L, IFailCb> mFailCbs;
+            ~CbLists()
+            {
+                mSuccessCbs.clear();
+                mFailCbs.clear();
+            }
         };
         int mRefCount;
         CbLists* mCbs;
@@ -257,11 +360,7 @@ protected:
         ~SharedObj()
         {
             if (mCbs)
-            {
-                mCbs->mSuccessCbs.clear();
-                mCbs->mFailCbs.clear();
                 delete mCbs;
-            }
         }
         inline CbLists& cbs()
         {
