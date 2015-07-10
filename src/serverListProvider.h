@@ -73,62 +73,66 @@ struct TurnServerInfo
 };
 
 template <class S>
-class ServerList: public std::vector<std::shared_ptr<S> >
+using ServerList = std::vector<std::shared_ptr<S> >;
+
+template <class S>
+class ListProvider: public std::shared_ptr<ServerList<S> >
 {
 public: //must be protected, but because of a gcc bug, protected/private members cant be accessed from within a lambda
+    typedef std::shared_ptr<ServerList<S> > Base;
+    ListProvider():Base(new ServerList<S>()){}
     size_t mNextAssignIdx = 0;
-    bool needsUpdate() const { return ((mNextAssignIdx >= this->size()) || this->empty()); }
-
+    bool needsUpdate() const { return ((mNextAssignIdx >= (*this)->size()) || (*this)->empty()); }
 };
 
 template <class B>
-class ServerProvider: public B
+class ServerProvider
 {
+protected:
+    std::unique_ptr<B> mBase;
 public:
-    using B::B;
+    ServerProvider(B* base): mBase(base){}
     promise::Promise<std::shared_ptr<typename B::Server> > getServer()
     {
-        if (B::needsUpdate())
+        if (mBase->needsUpdate())
         {
-            return B::fetchServers()
+            return mBase->fetchServers()
             .then([this]() -> promise::Promise<std::shared_ptr<typename B::Server> >
             {
-                if (B::needsUpdate())
+                if (mBase->needsUpdate())
                     return promise::Error("No servers", 0x3e9a9e1b, 1);
                 else
-                    return B::at(B::mNextAssignIdx++);
+                    return (*mBase)->at(mBase->mNextAssignIdx++);
             });
         }
         else
         {
-            return B::at(B::mNextAssignIdx++);
+            return (*mBase)->at(mBase->mNextAssignIdx++);
         }
     }
     promise::Promise<std::shared_ptr<ServerList<typename B::Server> > > getServers()
     {
-        if (B::needsUpdate())
+        if (mBase->needsUpdate())
         {
-            return B::fetchServers()
+            return mBase->fetchServers()
             .then([this]() -> promise::Promise<std::shared_ptr<ServerList<typename B::Server> > >
             {
-                if (B::needsUpdate())
+                if (mBase->needsUpdate())
                     return promise::Error("No servers", 0x3e9a9e1b, 1);
-                B::mNextAssignIdx+=B::size();
-                return std::shared_ptr<ServerList<typename B::Server> >
-                      (new ServerList<typename B::Server>(*this));
+                mBase->mNextAssignIdx += (*(this->mBase))->size();
+                return *(this->mBase);
             });
         }
         else
         {
-            B::mNextAssignIdx+=B::size();
-            return std::shared_ptr<ServerList<typename B::Server> >
-                    (new ServerList<typename B::Server>(*this));
+            mBase->mNextAssignIdx += (*(this->mBase))->size();
+            return *(this->mBase);
         }
     }
 };
 
 template <class S>
-class StaticProvider: public ServerList<S>
+class StaticProvider: public ListProvider<S>
 {
 protected:
 public:
@@ -142,13 +146,13 @@ public:
             throw std::runtime_error(std::string("Error parsing json: ")+strOrEmpty(doc.GetParseError())
                                      +" at position "+std::to_string(doc.GetErrorOffset()));
         }
-        parseServerList(doc, *this);
+        parseServerList(doc, **this);
     }
     promise::Promise<void> fetchServers() { this->mNextAssignIdx = 0; return promise::_Void();}
 };
 
 template <class S>
-class GelbProvider: public ServerList<S>
+class GelbProvider: public ListProvider<S>
 {
 protected:
     std::string mGelbHost;
@@ -182,8 +186,8 @@ protected:
 public:
     FallbackServerProvider(const char* gelbHost, const char* service, const char* staticServers,
         int64_t gelbMaxReuseAge=0, int gelbRetryCount=2, unsigned gelbReqTimeout=4000)
-        :mGelbProvider(gelbHost, service, gelbRetryCount, gelbReqTimeout, gelbMaxReuseAge),
-        mStaticProvider(staticServers)
+        :mGelbProvider(new GelbProvider<S>(gelbHost, service, gelbRetryCount, gelbReqTimeout, gelbMaxReuseAge)),
+        mStaticProvider(new StaticProvider<S>(staticServers))
     {}
     promise::Promise<std::shared_ptr<S> > getServer()
     {
@@ -287,7 +291,7 @@ void GelbProvider<S>::parseServersJson(const std::string& json)
     auto arr = doc.FindMember(mService.c_str());
     if (arr == doc.MemberEnd())
         throw std::runtime_error("JSON receoved does not have a '"+mService+"' member");
-    parseServerList(arr->value, *this);
+    parseServerList(arr->value, **this);
 }
 
 template <class S>
