@@ -418,8 +418,7 @@ protected:
             }
 
             Promise<Out>* master =&(promise.mSharedObj->mMaster); //master is the promise that actually gets resolved, equivalent to the 'deferred' object
-            auto masterSo = master->mSharedObj;
-            if (!masterSo)
+            if (!master->mSharedObj)
             {
                 master = &promise;
             }
