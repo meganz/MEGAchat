@@ -313,13 +313,7 @@ promise::Promise<void> Client::terminate()
         mReconnectController->abort();
     if (rtc)
         rtc->hangupAll("app-close", "The application is terminating");
-    auto pmsDisconnect = conn->disconnect(2000)
-    .then([](int code)
-    {
-        printf("disconn promise resloved with code %d\n", code);
-        return code;
-    });
-
+    auto pmsDisconnect = conn->disconnect(2000);
     auto pmsLogout = mega::performWithTimeout(
     [this]()
     {

@@ -390,7 +390,7 @@ static inline void _emptyCancelFunc(){}
    point of the backoff time algorithm: \c backoffStart * 2^(current_retry_number).
    See the constructor of RetryController for more details
  */
-template <class Func, class CancelFunc=void(*)(void)>
+template <class Func, class CancelFunc=decltype(&rh::_emptyCancelFunc)>
 static inline auto retry(Func&& func, CancelFunc&& cancelFunc = rh::_emptyCancelFunc,
     unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,

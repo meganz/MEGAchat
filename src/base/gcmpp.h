@@ -28,31 +28,22 @@ static inline void marshallCall(F&& func)
         unsigned magic = 0x3e9a3591;
 #endif
     };
-    Msg* msg = new Msg(std::forward<F>(func),
-    [](megaMessage* ptr)
-    {
 // Ensure that the message is deleted even if exception is thrown in the lambda.
 // Although an exception should not happen here and will propagate to the
 // application's message/event loop. TODO: maybe provide a try/catch block here?
 // Asses the performence impact of this
 // We use a custom-tailored smart ptr here to gain some performance (i.e. destructor
-// always deletes, not null check needed)
-        struct AutoDel
-        {
-            Msg* mMsg;
-#if __clang__ && (__clang_major__ <= 3) && (__clang_minor__ <= 6)
-//clang bug #24077: member list initialziation does not work properly
-//when inside a lambda in a templated function scope.
-//mMsg has incorrect, arbitrary value.
-//So we initialize mMsg in the ctor body
-            AutoDel(Msg* aMsg) { this->mMsg = aMsg; }
-#else
-            AutoDel(Msg* aMsg): mMsg(aMsg){}
-#endif
-            ~AutoDel() { delete this->mMsg; }
-            Msg* operator->() { return this->mMsg; }
-        };
-
+// always deletes, no null check needed)
+    struct AutoDel
+    {
+        Msg* mMsg;
+        AutoDel(Msg* aMsg): mMsg(aMsg){}
+        ~AutoDel() { delete this->mMsg; }
+        Msg* operator->() { return this->mMsg; }
+    };
+    Msg* msg = new Msg(std::forward<F>(func),
+    [](megaMessage* ptr)
+    {
         AutoDel pMsg(static_cast<Msg*>(ptr));
         assert(pMsg->magic == 0x3e9a3591);
         pMsg->mFunc();
