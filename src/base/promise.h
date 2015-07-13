@@ -79,10 +79,10 @@ protected:
 public:
     typedef std::shared_ptr<ErrorShared> Base;
     Error(const std::string& msg, int code=0, int type=kErrorTypeGeneric)
-        :Base(new ErrorShared(msg, code, type))
+        :Base(std::make_shared<ErrorShared>(msg, code, type))
     {}
     Error(const char* msg, int code=0, int type=kErrorTypeGeneric)
-        :Base(new ErrorShared(msg?msg:"", code, type))
+        :Base(std::make_shared<ErrorShared>(msg?msg:"", code, type))
     {}
     using Base::operator=;
     const std::string& msg() const {return get()->mMsg;}
