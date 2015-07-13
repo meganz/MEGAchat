@@ -417,21 +417,13 @@ protected:
                 return;
             }
 
-            Promise<Out>* master; //master is the promise that actually gets resolved, equivalent to the 'deferred' object
-            if (!promise.hasMaster())
+            Promise<Out>* master =&(promise.mSharedObj->mMaster); //master is the promise that actually gets resolved, equivalent to the 'deferred' object
+            auto masterSo = master->mSharedObj;
+            if (!masterSo)
             {
                 master = &promise;
             }
-            else //trace back the chain until the master is reached, then move next's callbacks to it
-            {
-                master = &(promise.mSharedObj->mMaster);
-                auto mm = &(master->mSharedObj->mMaster); //the master of master
-                while(mm->mSharedObj)
-                {
-                    master = mm;
-                    mm = &(mm->mSharedObj->mMaster);
-                }
-            }
+            assert(!master->hasMaster());
             next.mSharedObj->mMaster = *master; //makes 'next' attach subsequently added callbacks to 'master'
 
             if (!master->hasCallbacks())
