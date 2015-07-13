@@ -322,25 +322,6 @@ protected:
         mSharedObj = other;
         addRef();
     }
-
-    inline void decRef()
-    {
-        if (!mSharedObj)
-            return;
-        int cnt = mSharedObj->mRefCount;
-        PROMISE_LOG_REF("%p: decRef->%d", mSharedObj, cnt);
-        if (cnt <= 1)
-        {
-            assert(cnt == 1);
-            PROMISE_LOG_REF("%p: delete", mSharedObj);
-            delete mSharedObj;
-            mSharedObj = nullptr;
-        }
-        else
-        {
-            mSharedObj->mRefCount--;
-        }
-    }
     inline CallbackList<L, ISuccessCb>& thenCbs() {return mSharedObj->cbs().mSuccessCbs;}
     inline CallbackList<L, IFailCb>& failCbs() {return mSharedObj->cbs().mFailCbs;}
     SharedObj* mSharedObj;
@@ -374,8 +355,24 @@ public:
         return *this;
     }
 
-    virtual ~Promise() { decRef(); }
-
+    virtual ~Promise()
+    {
+        if (mSharedObj)
+        {
+            int cnt = mSharedObj->mRefCount;
+            PROMISE_LOG_REF("%p: decRef->%d", mSharedObj, cnt);
+            if (cnt <= 1)
+            {
+                assert(cnt == 1);
+                PROMISE_LOG_REF("%p: delete", mSharedObj);
+                delete mSharedObj;
+            }
+            else
+            {
+                mSharedObj->mRefCount--;
+            }
+        }
+    }
     int done() const
     { return (mSharedObj ? (mSharedObj->mResolved) : PROMISE_RESOLV_NOT); }
 
