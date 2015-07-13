@@ -306,13 +306,17 @@ protected:
     {
         if (mSharedObj)
         {
-            int cnt = --(mSharedObj->mRefCount);
+            int cnt = mSharedObj->mRefCount;
             PROMISE_LOG_REF("%p: decRef->%d", mSharedObj, cnt);
-            if (cnt <= 0)
+            if (cnt <= 1)
             {
+                assert(cnt == 1);
                 PROMISE_LOG_REF("%p: delete", mSharedObj);
                 delete mSharedObj;
-                assert(cnt == 0);
+            }
+            else
+            {
+                --(mSharedObj->mRefCount);
             }
         }
         mSharedObj = other;
@@ -323,14 +327,18 @@ protected:
     {
         if (!mSharedObj)
             return;
-        int cnt = --(mSharedObj->mRefCount);
+        int cnt = mSharedObj->mRefCount;
         PROMISE_LOG_REF("%p: decRef->%d", mSharedObj, cnt);
-        if (cnt <= 0)
+        if (cnt <= 1)
         {
+            assert(cnt == 1);
             PROMISE_LOG_REF("%p: delete", mSharedObj);
             delete mSharedObj;
-            mSharedObj = NULL;
-            assert(cnt == 0);
+            mSharedObj = nullptr;
+        }
+        else
+        {
+            mSharedObj->mRefCount--;
         }
     }
     inline CallbackList<L, ISuccessCb>& thenCbs() {return mSharedObj->cbs().mSuccessCbs;}
