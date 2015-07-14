@@ -274,7 +274,7 @@ public:
             {
                 TESTLOOP_LOG_DEBUG("Negative or zero time to next event: %lld", timeToSleep);
             }
-            if (mNextEventTs - getTimeMs() > 0)
+            if (sched->first - getTimeMs() > 0)
             {
                 TESTLOOP_LOG_DEBUG("Woke up before mNextEventTs, will sleep again");
                 continue; //slept less than required, repeat
