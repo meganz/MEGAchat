@@ -5,9 +5,28 @@
 #include <map>
 #include <mutex>
 #include <thread>
-#ifdef __MINGW32__
-//std::mutex does not work currently under mingw
-	#include <windows.h>
+#include <string.h> //for strcmp
+#include <assert.h>
+#include <unistd.h>
+
+/** default timeout for a done() item */
+#ifndef TESTLOOP_DEFAULT_DONE_TIMEOUT
+    #define TESTLOOP_DEFAULT_DONE_TIMEOUT 2000
+#endif
+
+#define TESTLOOP_LOG(fmtString,...) printf("TESTLOOP: " fmtString "\n", ##__VA_ARGS__)
+#define TESTLOOP_LOG_ERROR(fmtString,...) TESTLOOP_LOG("ERR: " fmtString, ##__VA_ARGS__)
+
+#ifdef TESTLOOP_VERBOSE
+    #define TESTLOOP_LOG_VERBOSE(fmtString,...) TESTLOOP_LOG(fmtString, ##__VA_ARGS__)
+#else
+    #define TESTLOOP_LOG_VERBOSE(fmtString,...)
+#endif
+
+#ifdef TESTLOOP_DEBUG
+    #define TESTLOOP_LOG_DEBUG(fmtString,...) TESTLOOP_LOG(fmtString, ##__VA_ARGS__)
+#else
+    #define TESTLOOP_LOG_DEBUG(fmtString,...)
 #endif
 
 template <class M>
@@ -24,49 +43,23 @@ public:
 	}
 };
 
-
-class Async
+/** An async execution loop that runs scheduled function calls, added via schedCall(),
+ * and watches for user-specified 'conditions', added via addDone() being resolved
+ * within the specified timeout
+ */
+class EventLoop
 {
 protected:
-#ifdef __MINGW32__
-//std::mutex does not work currently under mingw
- class Mutex
- {
-  protected:
-	CRITICAL_SECTION mCritSect;
-  public:
-	Mutex(){ InitializeCriticalSection(&mCritSect);	}
-	~Mutex(){ LeaveCriticalSection(&mCritSect); }
-	inline void lock() {EnterCriticalSection(&mCritSect);}
-	inline void unlock() {LeaveCriticalSection(&mCritSect);}
- };
-	static inline long long getTimeMs()
-	{
-		static Mutex mutex;
-		static long long lastTicks = 0;
-	  mutex.lock();
-		long long ticks = GetTickCount() | (lastTicks & 0xFFFFFFFF00000000); //wraps every ~49 days, but is good enough for our purposes
-		if (ticks < lastTicks)
-			ticks |= ((ticks >> 32)+1)<<32; //increment more left 32bit word by 1
-		lastTicks = ticks;
-	  mutex.unlock();
-		return ticks;
-	}
-	static inline void sleep(int ms)
-	{	::Sleep(ms);	}
-
-#else
-	typedef std::mutex Mutex;
-	static inline long long getTimeMs()
+    typedef long long Ts;
+    static inline Ts getTimeMs()
 	{
 		return std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::system_clock::now().time_since_epoch()).count();
 	}
 	static inline void sleep(int ms)
 	{	std::this_thread::sleep_for(std::chrono::milliseconds(ms));	}
-#endif
 
-typedef Unlocker<Mutex> MutexUnlocker;
+typedef Unlocker<std::mutex> MutexUnlocker;
 public:
 	enum
 	{
@@ -75,226 +68,293 @@ public:
 		ASYNC_COMPLETE_SUCCESS = 1,
 		ASYNC_COMPLETE_ERROR = 2
 	};
+    enum
+    {
+        kEventTypeUnknown = 0,
+        kEventTypeDone = 1,
+        kEventTypeSchedCall = 2
+    };
 protected:
-	struct DoneCondition
+/**A done() item (added by addDone()) that has to be resolved by the user code
+ * withing a specified timeout and/or order, related to other such items
+*/
+    struct DoneItem
 	{
 		int complete = 0;
-		long long deadline = 0;
-		int order = 0;
-	};
+        Ts deadline = TESTLOOP_DEFAULT_DONE_TIMEOUT;
+        int order = 0;
+        std::string tag;
+        DoneItem(const char* aTag): tag(aTag){}
+        DoneItem(const char* aTag, const char* name1, int val1)
+        :tag(aTag) { setVal(name1, val1); }
+        DoneItem(const char* aTag, const char* name1, int val1, const char* name2, int val2)
+        :tag(aTag)
+        {
+            setVal(name1, val1);
+            setVal(name2, val2);
+        }
+        DoneItem(const DoneItem&) = default;
+        DoneItem(DoneItem&& other)
+        :tag(std::move(other.tag)), complete(other.complete), deadline(other.deadline),
+          order(other.order){}
+        void setVal(const char* name, int val)
+        {
+            if ((strcmp(name, "timeout") == 0) || (strcmp(name, "tmo") == 0))
+                deadline = val;
+            else if (strcmp(name, "order") == 0)
+                order = val;
+            else
+                throw std::runtime_error(std::string("Unknown property '")+name+"'' of done() with tag '"+tag+"'");
+        }
+    };
+/**A scheduled function call, added by schedCall(), that is executed by EventLoop
+ * after a specified time elapses (relative to the time it was added via schedCall())
+*/
+    typedef std::function<void()> SchedItem;
 
-	int mSeqCtr = 0;
-	long long mLastOrderTs = 0;
+    uint32_t mSeqCtr = 0;
+    uint64_t mLastOrderTs = 0;
+    int mOrderedDonesCtr = 0;
 public:
 	int defaultJitter = 400;
 	int jitterMin = 100;
 	int sleepGranularity = 50;
 protected:
-	bool mSingleDone = true;
-	std::map<long long, std::function<void()> > mSchedQueue;
-	std::map<std::string, DoneCondition> mDones;
+    const char* kColorSuccess = "";
+    const char* kColorFail = "";
+    const char* kColorNormal = "";
+    const char* kColorTag = "";
+
+/**The sched queue key has a timestamp as the most significant 32 bits and a uid counter
+key as the least significant 32 bits. So it's always ordered in execution time order
+*/
+    typedef std::multimap<Ts, SchedItem> SchedQueue;
+    SchedQueue mSchedQueue;
+/**A map is of done() items, keyed by a unique tag */
+    typedef std::map<std::string, DoneItem> DoneMap;
+    DoneMap mDones;
+    bool mHasDefaultDone = false;
+/** This flag marks the end of the event loop and is set when all done() items
+ * are resolved and all scheduled func calls have been executed */
 	int mComplete = 0;
 	int mWaitCount = 0;
-	int doneTimeout = 2000;
+    Ts mNextEventTs = 0xFFFFFFFFFFFFFFF;
+    int mNextEventType = kEventTypeUnknown;
+
 	std::string mErrorMsg;
 	std::string mErrorTag;
-	Mutex mMutex;
+    std::mutex mMutex;
 	int mFlags = 0;
+    void initColors()
+    {
+        if (!isatty(1))
+            return;
+
+        kColorSuccess = "\033[1;32m";
+        kColorFail = "\033[1;31m";
+        kColorNormal = "\033[0m";
+        kColorTag = "\033[34m";
+    }
 private:
-	Async(); //we don't want lambdas to make a copy of the async object by accident
+    EventLoop(const EventLoop&) = delete; //we don't want lambdas to make a copy of the async object by accident
 public:
-	Async(const std::vector<std::string>& items)
-	{
-		mMutex.lock();
-		mSingleDone = false;
-		for (const auto& item: items)
-			addDone(item);
+    EventLoop(int timeout=TESTLOOP_DEFAULT_DONE_TIMEOUT)
+    {
+        DoneItem item("_default");
+        item.deadline = timeout;
+        addDone(std::move(item));
+    }
+    EventLoop(std::vector<DoneItem>&& doneItems)
+    {
+        mMutex.lock();
+        for (auto& item: doneItems)
+        {
+            addDone(std::move(item));
+        }
 	}
 
-	Async(const std::map<std::string, std::map<std::string, int> >& items)
+    void addDone(DoneItem&& item)
 	{
-		mMutex.lock();
-		mSingleDone = false;
-		for (const auto& item: items)
-			addDone(item);
+        if (item.tag == "_default")
+            mHasDefaultDone = true;
+
+        item.deadline += getTimeMs();
+        std::string tag = item.tag; //for lambda
+
+        auto result = mDones.insert(make_pair(item.tag, std::forward<DoneItem>(item)));
+        if (!result.second)
+            usageError("addDone: Duplicate done() tag '"+item.tag+"'");
+        schedHandler([this,tag]()
+        {
+            auto it = mDones.find(tag);
+            if (it == mDones.end())
+            {
+                doError("Internal error: done() timeout handler could not find done item"+tag, tag);
+                return;
+            }
+            TESTLOOP_LOG_DEBUG("done() handler executed with %lld ms offset from ideal", it->second.deadline-getTimeMs());
+            auto offset = abs(it->second.deadline-getTimeMs());
+            if (offset > 10)
+                doError("Internal error: done('"+tag+"'') timeout handle executed with time offset of "+std::to_string(offset)+" (>10ms) from required", "");
+            if (it->second.complete)
+                return;
+            doError("Timed out waiting for condition to be satisfied", it->first);
+        }, result.first->second.deadline);
 	}
-	template <class S>
-	void addDone(const S& userSpec)
-	{
-		const std::string& tag = getDoneTagFromUserSpec(userSpec);
-		if (!mDones.insert(make_pair(tag, getDoneCondFromUserSpec(userSpec))).second)
-			throwAndReport("Duplicate done() tag '"+tag+"'");
-		mWaitCount = mDones.size();
-	}
-	~Async()
+    ~EventLoop()
 	{
 		mMutex.unlock();
 	}
 	virtual void onCompleteError()
+    {}
+    virtual void usageError(const std::string& msg)
 	{
-		if (!mErrorTag.empty())
-			throw std::runtime_error("Condition '"+mErrorTag+"': Error: "+mErrorMsg);
-		else
-			throw std::runtime_error("Error: "+mErrorMsg);
-	}
-	virtual void throwAndReport(const std::string& msg)
-	{
-		printf("Error calling Async API: %s\n", msg.c_str());
+        TESTLOOP_LOG_ERROR("Usage error: %s\n", msg.c_str());
 		throw std::runtime_error(msg);
 	}
 
-	void schedCall(std::function<void()>&& func, int after=SCHED_IN_ORDER, int jitter = 0)
+    void schedCall(SchedItem&& func, int after=-10, int jitter = 0)
 	{
 		if (jitter == 0)
 			jitter = defaultJitter;
-		long long key;
-		if (after == SCHED_IN_ORDER)
+        Ts ts;
+        if (after < 0) //ordered call: schedule -after ms after the previous ordered call
 		{
-			long long time = mLastOrderTs+(rand()%jitter)+jitterMin;
-			mLastOrderTs = time;
-			key = (time << 16)|(mSeqCtr++);
+            if (!mLastOrderTs)
+                mLastOrderTs = getTimeMs();
+            ts = mLastOrderTs-after; //after is negative
+            mLastOrderTs = ts;
 		}
 		else
-			key = (getTimeMs()+(rand()%jitter)+jitterMin) << 16;
-		std::function<void()> test = func;
-		mSchedQueue[key] = func;
+        {
+            ts = getTimeMs()+after;//(rand()%jitter)+jitterMin;
+        }
+        schedHandler(std::forward<SchedItem>(func), ts);
+    }
+    void schedHandler(SchedItem&& handler, Ts ts)
+    {
+        mSchedQueue.emplace(ts, std::forward<SchedItem>(handler));
+        if (ts < mNextEventTs)
+            setWakeupTs(ts);
 	}
-	int run(int doneTimeout = 2000)
-	{
-		long long now = getTimeMs();
-		for (auto& done: mDones)
-		{
-			auto& deadline = done.second.deadline;
-			if (!deadline)
-				deadline = doneTimeout;
-			deadline+=now;
-		}
+    void setWakeupTs(Ts& ts)
+    {
+        mNextEventTs = ts;
+        TESTLOOP_LOG_DEBUG("Setting next event after %lld ms", ts-getTimeMs());
+    }
 
-		while(!mComplete)
+    int run()
+	{
+        initColors();
+        if (mSchedQueue.empty())
+            throw std::runtime_error("Nothing to run: not even a single function call has been scheduled");
+        while(!mSchedQueue.empty() && !mComplete)
 		{
-			while (mSchedQueue.empty())
-			{
-				checkTimeouts();
-				if (mComplete)
-					break;
-				{
-					MutexUnlocker unlock(mMutex);
-					sleep(sleepGranularity);
-				}
-			}
-			if (mComplete)
-				break;
-			long long now = getTimeMs();
-			auto it = mSchedQueue.begin();
-			long long timeToSleep = (it->first>>16) - now;
-			auto call = it->second;
-			mSchedQueue.erase(it);
-			while (timeToSleep > 0)
-			{
-				long long start = getTimeMs(); //measure actual time, because mutex lock may block for a while
-				{
-					MutexUnlocker unlock(mMutex);
-					sleep(sleepGranularity);
-				}
-				timeToSleep-=(getTimeMs()-start);
-				checkTimeouts();
-			}
+            auto sched = mSchedQueue.begin();
+            auto timeToSleep = sched->first - getTimeMs();
+            if (timeToSleep > 0)
+            {
+                MutexUnlocker unlock(mMutex);
+                TESTLOOP_LOG_DEBUG("Sleeping %lld ms before next event", timeToSleep);
+                sleep(timeToSleep);
+            }
+            else
+            {
+                TESTLOOP_LOG_DEBUG("Negative or zero time to next event: %lld", timeToSleep);
+            }
+            if (mNextEventTs - getTimeMs() > 0)
+            {
+                TESTLOOP_LOG_DEBUG("Woke up before mNextEventTs, will sleep again");
+                continue; //slept less than required, repeat
+            }
+            auto call = std::move(sched->second);
+            mSchedQueue.erase(sched);
 			try
 			{
-				call();
+                call();
 			}
 			catch(std::exception& e)
 			{
-				doError("Exception: "+(e.what() ? std::string(e.what()) : std::string("(Empty message)")), "");
-			}
+                doError("Exception: "+(e.what() ? std::string(e.what()) : std::string("(Empty message)")), "");
+                break;
+            }
 			catch(...)
 			{
 				doError("Non-standard exception", "");
+                break;
 			}
-		}
+        }
+        assert(mComplete);
 		if (mComplete == ASYNC_COMPLETE_ERROR)
 			onCompleteError();
+
 		return mComplete;
 	}
 	void done(const std::string& tag)
 	{
-		if (mSingleDone)
-			throwAndReport("done() called with a tag, but no named conditions are registered (working in single done() mode)");
-
 		auto it = mDones.find(tag);
 		if (it == mDones.end())
 		{
-			doError("Unknown check tag '"+tag+"'", "");
+            usageError("Unknown done() tag '"+tag+"'");
 			return;
 		}
 		if (it->second.complete)
 		{
-			doError("Check already passed", tag);
+            doError("done() already resloved, can't resolve again", tag);
 			return;
 		}
 
-		mWaitCount--;
-		auto order = it->second.order;
-		if (order && (order != ((int)mDones.size()-mWaitCount)))
+        auto order = it->second.order;
+        if (order && (order != ++mOrderedDonesCtr))
 		{
-			doError("Condition did not complete in expected order. Expected: "+
+            doError("Did not resolve in expected order. Expected: "+
 			 std::to_string(order)+"; actual: "+
-			 std::to_string(mDones.size()-mWaitCount), it->first);
+             std::to_string(mOrderedDonesCtr), it->first);
 			return;
 		}
 
 		it->second.complete = ASYNC_COMPLETE_SUCCESS;
+        TESTLOOP_LOG("done('\%s%s\%s') -> %ssuccess%s", kColorTag, tag.c_str(),
+            kColorNormal, kColorSuccess, kColorNormal);
+    }
 
-		if (mWaitCount <= 0)
-		{
-			assert(mWaitCount == 0);
-			mComplete = ASYNC_COMPLETE_SUCCESS;
-		}
-	}
 	void done()
 	{
-		if (!mSingleDone)
-			throwAndReport("Called plain done() when multiple done conditions are tracked");
-		mComplete = ASYNC_COMPLETE_SUCCESS;
+        done("_default");
 	}
-	void doError(const std::string& msg, const std::string& tag)
+    void doError(const std::string& msg, const std::string& tag)
 	{
-		mErrorMsg = msg;
+        assert(mComplete == ASYNC_COMPLETE_NOT);
+        mErrorMsg = msg;
 		mErrorTag = tag;
 		mComplete = ASYNC_COMPLETE_ERROR;
-		if (!tag.empty())
-		{
-			auto it = mDones.find(tag);
-			if (it == mDones.end())
-				throwAndReport("error() called with unknown tag");
-			it->second.complete = ASYNC_COMPLETE_ERROR;
-		}
+        if (!tag.empty())
+        {
+            auto it = mDones.find(tag);
+            if (it == mDones.end())
+                usageError("error() called with unknown tag: "+tag);
+            it->second.complete = ASYNC_COMPLETE_ERROR;
+            TESTLOOP_LOG("done('%s%s%s') -> %sfail%s: %s\n", kColorTag,
+                tag.c_str(), kColorNormal, kColorFail, kColorNormal, msg.c_str());
+        }
+        else
+        {
+            TESTLOOP_LOG_ERROR("%s", msg.c_str());
+        }
 
 	}
 	void error(const std::string& msg)
 	{
-		if (!mSingleDone)
-			throwAndReport("Called plain error() when multiple done conditions are tracked");
-		doError(msg, "");
-	}
+        doError(msg, "_default");
+    }
 
-	void error(const std::string& tag, const std::string& msg)
-	{
-		if (mSingleDone)
-			throwAndReport("error() called with a tag, but no multiple done()s are tracked");
-		doError(msg, "");
+    void error(const std::string& tag, const std::string& msg)
+    {
+        if (tag.empty())
+            usageError("error() for a tagged done() item called, but the tag is empty");
+        doError(msg, tag);
+    }
 
-	}
-	void checkTimeouts()
-	{
-		long long now = getTimeMs();
-		for (const auto& item: mDones)
-		  if (!item.second.complete && (now > item.second.deadline))
-			{
-				doError("Timed out waiting for condition to be satisfied", item.first);
-				break;
-			}
-	}
 	static inline const char* completeCodeToString(int code)
 	{
 		static const char* strings[] =
@@ -307,31 +367,7 @@ public:
 			throw std::runtime_error("Invalid code value "+std::to_string(code));
 		return strings[code];
 	}
-	template <class S>
-	const std::string& getDoneTagFromUserSpec(const S& spec)
-	{	return spec.first;  }
-
-//	template <>
-	const std::string& getDoneTagFromUserSpec(const std::string& spec)
-	{	return spec;  }
-
-	template <class S>
-	DoneCondition getDoneCondFromUserSpec(const S& spec)
-	{
-		DoneCondition ret;
-		auto& vals = spec.second;
-		auto val = vals.find("timeout");
-		if (val != vals.end())
-			ret.deadline = val->second;
-		val = vals.find("order");
-		if (val != vals.end())
-			ret.order = val->second;
-		return ret;
-	}
-
-	DoneCondition getDoneCondFromUserSpec(const std::string& spec)
-	{	return DoneCondition();	}
-
 };
 
 #endif // ASYNCTEST_H
+
