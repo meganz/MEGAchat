@@ -296,8 +296,9 @@ public:
                 break;
 			}
         }
-        assert(mComplete);
-		if (mComplete == ASYNC_COMPLETE_ERROR)
+        if (!mComplete) //sched queue got empty, all is done
+            mComplete = ASYNC_COMPLETE_SUCCESS;
+        else  if (mComplete == ASYNC_COMPLETE_ERROR)
 			onCompleteError();
 
 		return mComplete;
@@ -346,7 +347,7 @@ public:
             if (it == mDones.end())
                 usageError("error() called with unknown tag: "+tag);
             it->second.complete = ASYNC_COMPLETE_ERROR;
-            TESTLOOP_LOG("done('%s%s%s') -> %sfail%s: %s\n", kColorTag,
+            TESTLOOP_LOG("done('%s%s%s') -> %sfail%s: %s", kColorTag,
                 tag.c_str(), kColorNormal, kColorFail, kColorNormal, msg.c_str());
         }
         else
