@@ -148,14 +148,10 @@ key as the least significant 32 bits. So it's always ordered in execution time o
 /** This flag marks the end of the event loop and is set when all done() items
  * are resolved and all scheduled func calls have been executed */
 	int mComplete = 0;
-	int mWaitCount = 0;
-    Ts mNextEventTs = 0xFFFFFFFFFFFFFFF;
-    int mNextEventType = kEventTypeUnknown;
-
 	std::string mErrorMsg;
 	std::string mErrorTag;
     std::mutex mMutex;
-	int mFlags = 0;
+    int mFlags = 0;
     void initColors()
     {
         if (!isatty(1))
@@ -274,9 +270,9 @@ public:
             {
                 TESTLOOP_LOG_DEBUG("Negative or zero time to next event: %lld", timeToSleep);
             }
-            if (sched->first - getTimeMs() > 0)
+            if (sched->first - getTimeMs() > 2)
             {
-                TESTLOOP_LOG_DEBUG("Woke up before mNextEventTs, will sleep again");
+                TESTLOOP_LOG_DEBUG("Woke up before next event time, will sleep again");
                 continue; //slept less than required, repeat
             }
             auto call = sched->second;
