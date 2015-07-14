@@ -151,7 +151,6 @@ key as the least significant 32 bits. So it's always ordered in execution time o
 	std::string mErrorMsg;
 	std::string mErrorTag;
     std::mutex mMutex;
-    int mFlags = 0;
     void initColors()
     {
         if (!isatty(1))
