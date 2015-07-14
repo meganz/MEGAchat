@@ -15,7 +15,7 @@
 #endif
 
 #define TESTLOOP_LOG(fmtString,...) printf("TESTLOOP: " fmtString "\n", ##__VA_ARGS__)
-#define TESTLOOP_LOG_ERROR(fmtString,...) TESTLOOP_LOG("ERR: " fmtString, ##__VA_ARGS__)
+#define TESTLOOP_LOG_ERROR(fmtString,...) TESTLOOP_LOG("%sERR: " fmtString "%s", kColorFail, ##__VA_ARGS__, kColorNormal)
 
 #ifdef TESTLOOP_VERBOSE
     #define TESTLOOP_LOG_VERBOSE(fmtString,...) TESTLOOP_LOG(fmtString, ##__VA_ARGS__)
@@ -110,7 +110,18 @@ protected:
 /**A scheduled function call, added by schedCall(), that is executed by EventLoop
  * after a specified time elapses (relative to the time it was added via schedCall())
 */
-    typedef std::function<void()> SchedItem;
+    struct SchedItemBase
+    {
+        virtual void operator()() = 0;
+        virtual ~SchedItemBase(){}
+    };
+    template <class CB>
+    struct SchedItem: public SchedItemBase
+    {
+        CB mCb;
+        SchedItem(CB&& cb): mCb(std::forward<CB>(cb)){}
+        virtual void operator()() { mCb(); }
+    };
 
     uint32_t mSeqCtr = 0;
     uint64_t mLastOrderTs = 0;
@@ -128,7 +139,7 @@ protected:
 /**The sched queue key has a timestamp as the most significant 32 bits and a uid counter
 key as the least significant 32 bits. So it's always ordered in execution time order
 */
-    typedef std::multimap<Ts, SchedItem> SchedQueue;
+    typedef std::multimap<Ts, std::shared_ptr<SchedItemBase> > SchedQueue;
     SchedQueue mSchedQueue;
 /**A map is of done() items, keyed by a unique tag */
     typedef std::map<std::string, DoneItem> DoneMap;
@@ -198,7 +209,7 @@ public:
                 doError("Internal error: done('"+tag+"'') timeout handle executed with time offset of "+std::to_string(offset)+" (>10ms) from required", "");
             if (it->second.complete)
                 return;
-            doError("Timed out waiting for condition to be satisfied", it->first);
+            doError("Timeout", it->first);
         }, result.first->second.deadline);
 	}
     ~EventLoop()
@@ -212,8 +223,8 @@ public:
         TESTLOOP_LOG_ERROR("Usage error: %s\n", msg.c_str());
 		throw std::runtime_error(msg);
 	}
-
-    void schedCall(SchedItem&& func, int after=-10, int jitter = 0)
+    template <class CB>
+    void schedCall(CB&& func, int after=-10, int jitter = 0)
 	{
 		if (jitter == 0)
 			jitter = defaultJitter;
@@ -229,11 +240,12 @@ public:
         {
             ts = getTimeMs()+after;//(rand()%jitter)+jitterMin;
         }
-        schedHandler(std::forward<SchedItem>(func), ts);
+        schedHandler(std::forward<CB>(func), ts);
     }
-    void schedHandler(SchedItem&& handler, Ts ts)
+    template <class CB>
+    void schedHandler(CB&& handler, Ts ts)
     {
-        mSchedQueue.emplace(ts, std::forward<SchedItem>(handler));
+        mSchedQueue.emplace(ts, std::make_shared<SchedItem<CB> >(std::forward<CB>(handler)));
         if (ts < mNextEventTs)
             setWakeupTs(ts);
 	}
@@ -267,20 +279,20 @@ public:
                 TESTLOOP_LOG_DEBUG("Woke up before mNextEventTs, will sleep again");
                 continue; //slept less than required, repeat
             }
-            auto call = std::move(sched->second);
+            auto call = sched->second;
             mSchedQueue.erase(sched);
 			try
 			{
-                call();
+                (*call)();
 			}
 			catch(std::exception& e)
 			{
-                doError("Exception: "+(e.what() ? std::string(e.what()) : std::string("(Empty message)")), "");
+                doError("Exception in scheduled func call: "+(e.what() ? std::string(e.what()) : std::string("(Empty message)")), "");
                 break;
             }
 			catch(...)
 			{
-				doError("Non-standard exception", "");
+                doError("Non-standard exception in scheduled func call", "");
                 break;
 			}
         }
