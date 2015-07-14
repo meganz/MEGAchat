@@ -233,7 +233,9 @@ public:
 		}
 		else
         {
-            ts = getTimeMs()+after;//(rand()%jitter)+jitterMin;
+            ts = getTimeMs()+after;
+            if (jitter)
+                ts+=jitter/2-(rand()%jitter);
         }
         schedHandler(std::forward<CB>(func), ts);
     }
