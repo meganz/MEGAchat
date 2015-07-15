@@ -12,7 +12,7 @@ using namespace std;
 static_assert(std::is_same<evutil_addrinfo, addrinfo>::value, "evutil_addrinfo is not the same as the system's addrinfo struct");
 
 extern "C" struct event_base* services_eventloop;
-struct evdns_base* services_dns_eventbase = NULL;
+MEGAIO_EXPORT struct evdns_base* services_dns_eventbase = NULL;
 
 MEGAIO_EXPORT int services_dns_init(int options)
 {
