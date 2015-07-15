@@ -1,5 +1,5 @@
-#ifndef ASYNCTEST_H
-#define ASYNCTEST_H
+#ifndef TESTLOOP_H
+#define TESTLOOP_H
 
 #include <vector>
 #include <map>
