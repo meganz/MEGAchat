@@ -35,12 +35,8 @@ class Unlocker
 protected:
 	M& mLock;
 public:
-	Unlocker(M& lock):mLock(lock) {
-		mLock.unlock();
-	}
-	~Unlocker() {
-		mLock.lock();
-	}
+    Unlocker(M& lock):mLock(lock) {  mLock.unlock();	}
+    ~Unlocker() { mLock.lock(); }
 };
 
 /** An async execution loop that runs scheduled function calls, added via schedCall(),
