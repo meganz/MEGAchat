@@ -9,11 +9,11 @@
 
 #define TESTS_INIT() \
 namespace test { \
-    int Test::gNumFailed = 0;         \
-    int Test::gNumTests = 0;          \
-    int Test::gNumDisabled = 0;       \
-    int Test::gNumTestGroups = 0;     \
-    Ts Test::gTotalExecTime = 0;      \
+    int gNumFailed = 0;               \
+    int gNumTests = 0;                \
+    int gNumDisabled = 0;             \
+    int gNumTestGroups = 0;           \
+    Ts gTotalExecTime = 0;            \
     const char* kColorTag = "";       \
     const char* kColorSuccess = "";   \
     const char* kColorFail = "";      \
@@ -36,6 +36,11 @@ extern const char* kColorSuccess;
 extern const char* kColorFail;
 extern const char* kColorNormal;
 extern const char* kColorWarning;
+extern int gNumFailed;
+extern int gNumTests;
+extern int gNumDisabled;
+extern int gNumTestGroups;
+extern Ts gTotalExecTime;
 
 //get function/lambda return type, regardless of argument count and types
 template <class F>
@@ -69,12 +74,6 @@ public:
     Ts execTime = 0;
     std::unique_ptr<EventLoop> loop;
     bool isDisabled = false;
-//global test counters
-    static int gNumFailed;
-    static int gNumTests;
-    static int gNumTestGroups;
-    static int gNumDisabled;
-    static Ts gTotalExecTime;
 //===
     constexpr static const char* kLine =     "====================================================";
     constexpr static const char* kThinLine = "----------------------------------------------------";
@@ -94,18 +93,18 @@ public:
         TEST_LOG("%s", errorMsg.c_str());
     }
     inline void run();
-    Test& disable() { isDisabled = true; gNumDisabled++; return *this; }
+    inline Test& disable();
     bool hasError() const { return !errorMsg.empty(); }
     static void printTotals()
     {
         TEST_LOG("%s", kLine);
         if (!gNumFailed)
             TEST_LOG("All %d tests in %d groups %spassed%s (%lld ms)",
-                gNumTests, gNumTestGroups, kColorSuccess, kColorNormal, gTotalExecTime);
+                gNumTests-gNumDisabled, gNumTestGroups, kColorSuccess, kColorNormal, gTotalExecTime);
         else
-            TEST_LOG("Some tests failed: %d %sfailed%s / %d total in %d groups (%lld ms)",
-                gNumFailed, kColorFail, kColorNormal, gNumTests,
-                gNumTestGroups, gTotalExecTime);
+            TEST_LOG("Some tests failed: %d %sfailed%s / %d total in %d group%s (%lld ms)",
+                gNumFailed, kColorFail, kColorNormal, gNumTests-gNumDisabled,
+                gNumTestGroups, (gNumTestGroups==1)?"":"s", gTotalExecTime);
         if (gNumDisabled)
             TEST_LOG("(%d tests DISABLED)", gNumDisabled);
         TEST_LOG("%s", kLine);
@@ -177,6 +176,8 @@ public:
     std::string errorMsg;
 	TestList tests;
     int numErrors = 0;
+    int numDisabled = 0;
+    int numTests = 0;
     Ts execTime = 0;
     std::function<void(Test&)> beforeEach;
 	std::function<void()> allCleanup;
@@ -193,7 +194,7 @@ public:
     Scenario(const std::string& aName, CB&& aBody)
         :name(aName), body(std::forward<CB>(aBody))
     {
-        Test::gNumTestGroups++;
+        gNumTestGroups++;
         run();
     }
     void run()
@@ -203,8 +204,13 @@ public:
 		try
 		{
             body(*this);
-           TEST_LOG(" (%zu test%s)...\n%s", tests.size(), (tests.size() == 1) ? "" : "s", Test::kThinLine);
-
+            numTests = tests.size() - numDisabled;
+            TEST_LOG_NO_EOL(" (%zu test%s", numTests, (numTests == 1) ? "" : "s");
+            if (numDisabled)
+            {
+                TEST_LOG_NO_EOL(", %d disabled", numDisabled);
+            }
+            TEST_LOG(")...\n%s", Test::kThinLine);
 		}
 		catch(std::exception& e)
 		{
@@ -216,18 +222,20 @@ public:
             error("Non-standard exception while setting up scenario '"+name+"'");
 			return;
 		}
-        for (auto& t: tests)
+        for (auto& test: tests)
 		{
-            if (t->isDisabled)
-                continue;
-
-            t->run();
-            TEST_LOG("%s", Test::kThinLine);
-            execTime += t->execTime;
-            if (t->hasError())
+            if (test->isDisabled)
             {
-                error(t->errorMsg);
-                break;
+                TEST_LOG("%sdis%s  '%s%s%s'\n%s", kColorWarning, kColorNormal,
+                    kColorTag, test->name.c_str(), kColorNormal, Test::kThinLine);
+                continue;
+            }
+            test->run();
+            TEST_LOG("%s", Test::kThinLine);
+            execTime += test->execTime;
+            if (test->hasError())
+            {
+                error(test->errorMsg);
             }
         }
 
@@ -262,14 +270,14 @@ public:
         {
             TEST_LOG("%sPASS%s  Group '%s%s%s': 0 errors / %zu test%s (%lld ms)",
                 kColorSuccess, kColorNormal, kColorTag, name.c_str(), kColorNormal,
-                tests.size(), (tests.size()==1)?"":"s", execTime);
+                numTests, (numTests==1)?"":"s", execTime);
         }
         else
         {
-            TEST_LOG("%sFAIL%s  Group '%s%s%s': %d error%s / %zu test%s (%lld ms)",
+            TEST_LOG("%sFAIL%s  Group '%s%s%s': %d error%s / %d test%s (%lld ms)",
                 kColorFail, kColorNormal, kColorTag, name.c_str(), kColorNormal,
-                numErrors, (numErrors==1)?"":"s", tests.size(),
-                (tests.size()==1)?"":"s", execTime);
+                numErrors, (numErrors==1)?"":"s", numTests,
+                (numTests==1)?"":"s", execTime);
         }
     }
 
@@ -324,6 +332,13 @@ void Test::run()
         TEST_LOG("%spass%s '%s%s%s' (%lld ms)", kColorSuccess, kColorNormal,
                  kColorTag, name.c_str(), kColorNormal, execTime);
     }
+}
+inline Test& Test::disable()
+{
+    isDisabled = true;
+    gNumDisabled++;
+    scenario.numDisabled++;
+    return *this;
 }
 
 } //end namespace
