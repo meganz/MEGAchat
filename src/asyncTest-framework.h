@@ -286,7 +286,7 @@ public:
 void Test::run()
 {
     TEST_LOG("run  '%s%s%s'...", kColorTag, name.c_str(), kColorNormal);
-    const char* execState = "before-each";
+    const char* execState = "'before-each'";
     Ts start = 0;
     try
     {
@@ -296,7 +296,7 @@ void Test::run()
         start = getTimeMs();
         if (loop)
         {
-            execState = "eventloop-setup";
+            execState = "'eventloop-setup'";
             body->call();
             execState = nullptr; //dont add info
             loop->run();
