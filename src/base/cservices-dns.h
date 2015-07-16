@@ -37,7 +37,7 @@ enum
     SVCF_DNS_IPV4 = SVCF_LAST << 2,
     SVCF_DNS_IPV6 = SVCF_LAST << 3
 };
-MEGAIO_EXPORT struct evdns_base* services_dns_eventbase;
+MEGAIO_IMPEXP struct evdns_base* services_dns_eventbase;
 static inline int services_dns_backend_to_svc_errcode(int code)
 {
     return code; //we have 1:1 matching of libevent to SVC error codes

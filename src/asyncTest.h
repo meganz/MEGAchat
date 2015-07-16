@@ -23,6 +23,12 @@
     #define TESTLOOP_LOG_VERBOSE(fmtString,...)
 #endif
 
+#ifdef TESTLOOP_LOG_DONES
+    #define TESTLOOP_LOG_DONE(fmtString,...) TESTLOOP_LOG(fmtString, ##__VA_ARGS__)
+#else
+    #define TESTLOOP_LOG_DONE(fmtString,...)
+#endif
+
 #ifdef TESTLOOP_DEBUG
     #define TESTLOOP_LOG_DEBUG(fmtString,...) TESTLOOP_LOG(fmtString, ##__VA_ARGS__)
 #else
@@ -122,6 +128,7 @@ protected:
     uint32_t mSeqCtr = 0;
     uint64_t mLastOrderTs = 0;
     int mOrderedDonesCtr = 0;
+    Ts mNextEventTs = 0xFFFFFFFFFFFFFFF;
 public:
 	int defaultJitter = 400;
 	int jitterMin = 100;
@@ -248,7 +255,7 @@ public:
         TESTLOOP_LOG_DEBUG("Setting next event after %lld ms", ts-getTimeMs());
     }
 
-    int run()
+    void run()
 	{
         initColors();
         if (mSchedQueue.empty())
@@ -274,27 +281,10 @@ public:
             }
             auto call = sched->second;
             mSchedQueue.erase(sched);
-			try
-			{
-                (*call)();
-			}
-			catch(std::exception& e)
-			{
-                doError("Exception in scheduled func call: "+(e.what() ? std::string(e.what()) : std::string("(Empty message)")), "");
-                break;
-            }
-			catch(...)
-			{
-                doError("Non-standard exception in scheduled func call", "");
-                break;
-			}
+            (*call)();
         }
         if (!mComplete) //sched queue got empty, all is done
             mComplete = ASYNC_COMPLETE_SUCCESS;
-        else  if (mComplete == ASYNC_COMPLETE_ERROR)
-			onCompleteError();
-
-		return mComplete;
 	}
 	void done(const std::string& tag)
 	{
@@ -320,7 +310,7 @@ public:
 		}
 
 		it->second.complete = ASYNC_COMPLETE_SUCCESS;
-        TESTLOOP_LOG("done('\%s%s\%s') -> %ssuccess%s", kColorTag, tag.c_str(),
+        TESTLOOP_LOG_DONE("done('\%s%s\%s') -> %ssuccess%s", kColorTag, tag.c_str(),
             kColorNormal, kColorSuccess, kColorNormal);
     }
 
@@ -340,12 +330,16 @@ public:
             if (it == mDones.end())
                 usageError("error() called with unknown tag: "+tag);
             it->second.complete = ASYNC_COMPLETE_ERROR;
-            TESTLOOP_LOG("done('%s%s%s') -> %sfail%s: %s", kColorTag,
-                tag.c_str(), kColorNormal, kColorFail, kColorNormal, msg.c_str());
+            std::string fullMsg("done('");
+            fullMsg.append(kColorTag).append(tag).append(kColorNormal)
+                   .append("'): ").append(msg);
+            TESTLOOP_LOG_DONE("%s", fullMsg.c_str());
+            throw std::runtime_error(fullMsg); //propagate to unit test framework to handle
         }
         else
         {
             TESTLOOP_LOG_ERROR("%s", msg.c_str());
+            throw std::runtime_error(msg);
         }
 
 	}
