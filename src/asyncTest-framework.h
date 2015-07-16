@@ -9,16 +9,17 @@
 
 #define TESTS_INIT() \
 namespace test { \
-    int Test::gNumFailed = 0; \
-    int Test::gNumTests = 0;  \
-    int Test::gNumDisabled = 0;\
-    Ts Test::gTotalExecTime = 0; \
-    const char* kColorTag = "";      \
-    const char* kColorSuccess = "";  \
-    const char* kColorFail = "";     \
-    const char* kColorNormal = "";   \
-    const char* kColorWarning = "";  \
-    struct TestInitializer {         \
+    int Test::gNumFailed = 0;         \
+    int Test::gNumTests = 0;          \
+    int Test::gNumDisabled = 0;       \
+    int Test::gNumTestGroups = 0;     \
+    Ts Test::gTotalExecTime = 0;      \
+    const char* kColorTag = "";       \
+    const char* kColorSuccess = "";   \
+    const char* kColorFail = "";      \
+    const char* kColorNormal = "";    \
+    const char* kColorWarning = "";   \
+    struct TestInitializer {          \
         TestInitializer() { Test::initColors(); }    \
         ~TestInitializer() { Test::printTotals(); } \
     };                                               \
@@ -71,6 +72,7 @@ public:
 //global test counters
     static int gNumFailed;
     static int gNumTests;
+    static int gNumTestGroups;
     static int gNumDisabled;
     static Ts gTotalExecTime;
 //===
@@ -98,11 +100,12 @@ public:
     {
         TEST_LOG("%s", kLine);
         if (!gNumFailed)
-            TEST_LOG("All %d tests %spassed%s (%lld ms)",
-                gNumTests, kColorSuccess, kColorNormal, gTotalExecTime);
+            TEST_LOG("All %d tests in %d groups %spassed%s (%lld ms)",
+                gNumTests, gNumTestGroups, kColorSuccess, kColorNormal, gTotalExecTime);
         else
-            TEST_LOG("Some tests failed: %d %sfailed%s / %d total (%lld ms)",
-                gNumFailed, kColorFail, kColorNormal, gNumTests, gTotalExecTime);
+            TEST_LOG("Some tests failed: %d %sfailed%s / %d total in %d groups (%lld ms)",
+                gNumFailed, kColorFail, kColorNormal, gNumTests,
+                gNumTestGroups, gTotalExecTime);
         if (gNumDisabled)
             TEST_LOG("(%d tests DISABLED)", gNumDisabled);
         TEST_LOG("%s", kLine);
@@ -190,6 +193,7 @@ public:
     Scenario(const std::string& aName, CB&& aBody)
         :name(aName), body(std::forward<CB>(aBody))
     {
+        Test::gNumTestGroups++;
         run();
     }
     void run()
@@ -270,7 +274,7 @@ public:
     }
 
 };
-//we need the complete definition of class Scenarion, so we defined run() outside the Test class
+//we need the complete definition of class Scenario, so we defined run() outside the Test class
 void Test::run()
 {
     TEST_LOG("run  '%s%s%s'...", kColorTag, name.c_str(), kColorNormal);
@@ -289,7 +293,8 @@ void Test::run()
             execState = nullptr; //dont add info
             loop->run();
             execTime = getTimeMs() - start;
-            gTotalExecTime += execTime;
+            if (!loop->errorMsg.empty())
+                error(loop->errorMsg);
         }
         else
         {
@@ -312,6 +317,7 @@ void Test::run()
         execTime = getTimeMs() - start;
         error(std::string("Non-standard exception in ")+execState);
     }
+    gTotalExecTime += execTime;
     doCleanup();
     if(errorMsg.empty())
     {

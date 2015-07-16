@@ -151,7 +151,6 @@ key as the least significant 32 bits. So it's always ordered in execution time o
 /** This flag marks the end of the event loop and is set when all done() items
  * are resolved and all scheduled func calls have been executed */
 	int mComplete = 0;
-	std::string mErrorMsg;
 	std::string mErrorTag;
     std::mutex mMutex;
     void initColors()
@@ -167,6 +166,7 @@ key as the least significant 32 bits. So it's always ordered in execution time o
 private:
     EventLoop(const EventLoop&) = delete; //we don't want lambdas to make a copy of the async object by accident
 public:
+    std::string errorMsg;
     EventLoop(int timeout=TESTLOOP_DEFAULT_DONE_TIMEOUT)
     {
         DoneItem item("_default");
@@ -207,7 +207,7 @@ public:
                 doError("Internal error: done('"+tag+"'') timeout handle executed with time offset of "+std::to_string(offset)+" (>10ms) from required", "");
             if (it->second.complete)
                 return;
-            doError("Timeout", it->first);
+            doError("Timeout", it->first, true);
         }, result.first->second.deadline);
 	}
     ~EventLoop()
@@ -282,6 +282,8 @@ public:
             auto call = sched->second;
             mSchedQueue.erase(sched);
             (*call)();
+            if (!errorMsg.empty())
+                break;
         }
         if (!mComplete) //sched queue got empty, all is done
             mComplete = ASYNC_COMPLETE_SUCCESS;
@@ -318,28 +320,31 @@ public:
 	{
         done("_default");
 	}
-    void doError(const std::string& msg, const std::string& tag)
+    void doError(const std::string& msg, const std::string& tag, bool noThrow=false)
 	{
         assert(mComplete == ASYNC_COMPLETE_NOT);
-        mErrorMsg = msg;
-		mErrorTag = tag;
 		mComplete = ASYNC_COMPLETE_ERROR;
         if (!tag.empty())
         {
             auto it = mDones.find(tag);
             if (it == mDones.end())
                 usageError("error() called with unknown tag: "+tag);
-            it->second.complete = ASYNC_COMPLETE_ERROR;
-            std::string fullMsg("done('");
-            fullMsg.append(kColorTag).append(tag).append(kColorNormal)
+            mErrorTag = tag;
+            errorMsg = ("done('");
+            errorMsg.append(kColorTag).append(tag).append(kColorNormal)
                    .append("'): ").append(msg);
-            TESTLOOP_LOG_DONE("%s", fullMsg.c_str());
-            throw std::runtime_error(fullMsg); //propagate to unit test framework to handle
+            it->second.complete = ASYNC_COMPLETE_ERROR;
+            TESTLOOP_LOG_DONE("%s", errorMsg.c_str());
+            if (!noThrow)
+                throw std::runtime_error(errorMsg); //propagate to unit test framework to handle
         }
         else
         {
+            errorMsg = msg;
+            mErrorTag = tag;
             TESTLOOP_LOG_ERROR("%s", msg.c_str());
-            throw std::runtime_error(msg);
+            if (!noThrow)
+                throw std::runtime_error(msg);
         }
 
 	}
