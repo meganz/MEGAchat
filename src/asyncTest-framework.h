@@ -1,3 +1,8 @@
+/**
+  @file Async unit testing framework
+  @author Alexander Vassilev, July 2015
+*/
+
 #ifndef ASYNCTEST_H
 #define ASYNCTEST_H
 
@@ -44,8 +49,10 @@ class TestGroup;
 typedef long long Ts;
 /** Used to signal an error and immediately bail out, but not report the error
  * as exception from user code. Usage: instead of error() when one wants to bail out
- * of the test. \c error() followed by \c return may not do teh job if we are inside
- * a lambda.
+ * of the test. \c error() followed by \c return may not do the job if we are inside
+ * a lambda. Still, an exception may also not work in all cases, when the lambda is
+ * run inside an exception handler, such as promise callback, where an exception will
+ * not cause exit from the test
  */
 struct BailoutException: public std::runtime_error
 {  BailoutException(const std::string& msg): std::runtime_error(msg){} };
@@ -390,11 +397,14 @@ inline Test& Test::disable()
 //check convenience macros
 
 #define check(cond) \
-do { \
-  if (!(cond)) throw test::BailoutException("check(" #cond ") failed at " __FILE__ \
-  ":" TEST_STRLITERAL(__LINE__)); \
+do {                                 \
+  if ((cond)) break;                 \
+  static const char* msg = "check(" #cond ") failed at " __FILE__ \
+  ":" TEST_STRLITERAL(__LINE__);    \
+  test.error(msg);                   \
+  throw test::BailoutException(msg); \
 } while(0)
 
-#define doneOrError(cond, name) check((cond)); loop.done(name)
+#define doneOrError(cond, name) do { check((cond)); loop.done(name); } while(0)
 
 #endif // ASYNCTEST_H

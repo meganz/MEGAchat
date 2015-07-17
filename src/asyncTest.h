@@ -1,3 +1,7 @@
+/** @file Event loop for async unit testing framework
+ *  @author Alexander Vassilev, July 2015
+ */
+
 #ifndef TESTLOOP_H
 #define TESTLOOP_H
 
