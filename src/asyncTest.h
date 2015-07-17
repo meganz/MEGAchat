@@ -34,7 +34,8 @@
 #else
     #define TESTLOOP_LOG_DEBUG(fmtString,...)
 #endif
-
+namespace test
+{
 template <class M>
 class Unlocker
 {
@@ -71,12 +72,6 @@ public:
         ASYNC_COMPLETE_ERROR = 2,
         ASYNC_COMPLETE_ABORTED = 3
 	};
-    enum
-    {
-        kEventTypeUnknown = 0,
-        kEventTypeDone = 1,
-        kEventTypeSchedCall = 2
-    };
 protected:
 /**A scheduled function call, added by schedCall(), that is executed by EventLoop
 * after a specified time elapses (relative to the time it was added via schedCall())
@@ -105,7 +100,7 @@ protected:
 	{
         std::string tag;
         int complete = 0;
-        Ts deadline = TESTLOOP_DEFAULT_DONE_TIMEOUT;
+        Ts deadline = -1; //means the loop will set its default
         int order = 0;
         SchedQueue::iterator schedItem;
         DoneItem(const char* aTag): tag(aTag){}
@@ -138,21 +133,25 @@ protected:
 public:
     int jitterPct = 50;
 protected:
+#ifndef TEST_HAVE_COLOR_VARS
     const char* kColorSuccess = "";
     const char* kColorFail = "";
     const char* kColorNormal = "";
     const char* kColorTag = "";
-
+    const char* kColorWarning = "";
+#endif
     SchedQueue mSchedQueue;
 /**A map is of done() items, keyed by a unique tag */
     typedef std::map<std::string, DoneItem> DoneMap;
     DoneMap mDones;
+    int defaultDoneTimeout;
     bool mHasDefaultDone = false;
 /** This flag marks the end of the event loop and is set when all done() items
  * are resolved and all scheduled func calls have been executed */
 	int mComplete = 0;
 	std::string mErrorTag;
     std::mutex mMutex;
+#ifndef TEST_HAVE_COLOR_VARS
     void initColors()
     {
         if (!isatty(1))
@@ -162,18 +161,21 @@ protected:
         kColorFail = "\033[1;31m";
         kColorNormal = "\033[0m";
         kColorTag = "\033[34m";
+        kColorWarning = "\033[33m";
     }
+#endif
 private:
     EventLoop(const EventLoop&) = delete; //we don't want lambdas to make a copy of the async object by accident
 public:
     std::string errorMsg;
     EventLoop(int timeout=TESTLOOP_DEFAULT_DONE_TIMEOUT)
+    :defaultDoneTimeout(timeout)
     {
         DoneItem item("_default");
-        item.deadline = timeout;
         addDone(std::move(item));
     }
-    EventLoop(std::vector<DoneItem>&& doneItems)
+    EventLoop(std::vector<DoneItem>&& doneItems, int timeout=TESTLOOP_DEFAULT_DONE_TIMEOUT)
+    :defaultDoneTimeout(timeout)
     {
         mMutex.lock();
         for (auto& item: doneItems)
@@ -181,19 +183,23 @@ public:
             addDone(std::move(item));
         }
 	}
-
     void addDone(DoneItem&& item)
 	{
         if (item.tag == "_default")
             mHasDefaultDone = true;
-
-        item.deadline += getTimeMs();
-        std::string tag = item.tag; //for lambda
+        if (item.deadline < 0)
+            item.deadline = defaultDoneTimeout;
 
         auto result = mDones.insert(make_pair(item.tag, std::forward<DoneItem>(item)));
         if (!result.second)
             usageError("addDone: Duplicate done() tag '"+item.tag+"'");
-        result.first->second.schedItem = schedHandler([this,tag]()
+        //we don't add the done item to the loop here because the deadline timestamps
+        //will be set just before the loop is run
+    }
+    void addDoneToLoop(DoneItem& item)
+    {
+        std::string tag = item.tag;
+        item.schedItem = schedHandler([this,tag]()
         {
             auto it = mDones.find(tag);
             if (it == mDones.end())
@@ -204,14 +210,19 @@ public:
             TESTLOOP_LOG_DEBUG("done('%s') timeout handler executed with %lld ms offset from ideal", tag.c_str(), it->second.deadline-getTimeMs());
             auto offset = abs(it->second.deadline-getTimeMs());
             if (offset > 10)
-                doError("Internal error: done('"+tag+"') timeout handler executed with time offset of "+std::to_string(offset)+" (>10ms) from required", "");
+            {
+                TESTLOOP_LOG("%sWARNING%s: done('%s') "
+                "timeout handler executed with time offset of %d ms (>10ms) from required. "
+                "NOTE: This is normal if paused in a debugger",
+                kColorWarning, kColorNormal, tag.c_str(), offset);
+            }
             if (it->second.complete)
             {
                 TESTLOOP_LOG_DEBUG("done('%s') timeout handler: done is resolved", tag.c_str());
                 return;
             }
             doError("Timeout", it->first, true);
-        }, result.first->second.deadline);
+        }, item.deadline);
     }
     ~EventLoop()
 	{
@@ -275,12 +286,24 @@ public:
         mNextEventTs = ts;
         TESTLOOP_LOG_DEBUG("Setting next event after %lld ms", ts-getTimeMs());
     }
+    void addAllDonesToLoop() //must be run at the start of the loop
+    {
+        auto now = getTimeMs();
+        for (auto& item: mDones)
+        {
+            item.second.deadline += now;
+            addDoneToLoop(item.second);
+        }
+    }
 
     void run()
 	{
+#ifndef TEST_HAVE_COLOR_VARS
         initColors();
+#endif
         if (mSchedQueue.empty())
             throw std::runtime_error("Nothing to run: not even a single function call has been scheduled");
+        addAllDonesToLoop();
         while (!mSchedQueue.empty() && !mComplete)
 		{
             TESTLOOP_LOG_DEBUG("Pending events: %zu", mSchedQueue.size());
@@ -395,6 +418,6 @@ public:
 		return strings[code];
 	}
 };
-
+}
 #endif // ASYNCTEST_H
 

@@ -1,6 +1,17 @@
 #ifndef ASYNCTEST_H
 #define ASYNCTEST_H
+
 #include<vector>
+namespace test
+{
+//need to declare the color vars before including the event loop header
+extern const char* kColorTag;
+extern const char* kColorSuccess;
+extern const char* kColorFail;
+extern const char* kColorNormal;
+extern const char* kColorWarning;
+}
+#define TEST_HAVE_COLOR_VARS
 #include "asyncTest.h"
 
 #define TEST_LOG_NO_EOL(fmtString,...) printf(fmtString, ##__VA_ARGS__)
@@ -19,6 +30,7 @@ namespace test { \
     const char* kColorFail = "";      \
     const char* kColorNormal = "";    \
     const char* kColorWarning = "";   \
+    int gDefaultDoneTimeout = 2000;   \
     struct TestInitializer {          \
         TestInitializer() { srand(time(nullptr)); Test::initColors(); }    \
         ~TestInitializer() { Test::printTotals(); } \
@@ -28,17 +40,16 @@ namespace test { \
 
 namespace test
 {
-class Scenario;
+class TestGroup;
 typedef long long Ts;
-
+/** Used to signal an error and immediately bail out, but not report the error
+ * as exception from user code. Usage: instead of error() when one wants to bail out
+ * of the test. \c error() followed by \c return may not do teh job if we are inside
+ * a lambda.
+ */
 struct BailoutException: public std::runtime_error
 {  BailoutException(const std::string& msg): std::runtime_error(msg){} };
 
-extern const char* kColorTag;
-extern const char* kColorSuccess;
-extern const char* kColorFail;
-extern const char* kColorNormal;
-extern const char* kColorWarning;
 extern int gNumFailed;
 extern int gNumTests;
 extern int gNumDisabled;
@@ -70,7 +81,7 @@ class Test
 {
     std::function<void()> cleanup;
 public:
-    Scenario& scenario;
+    TestGroup& group;
     std::string name;
     std::unique_ptr<ITestBody> body;
     std::string errorMsg;
@@ -82,7 +93,7 @@ public:
     constexpr static const char* kThinLine = "----------------------------------------------------";
 
     template<class CB>
-    inline Test(Scenario& parent, const std::string& aName, CB&& aBody, EventLoop* aLoop=nullptr);
+    inline Test(TestGroup& parent, const std::string& aName, CB&& aBody, EventLoop* aLoop=nullptr);
     void error(const std::string& msg)
     {
         if (!errorMsg.empty())
@@ -97,6 +108,9 @@ public:
         if (loop)
             loop->abort();
     }
+    template <class...Args>
+    void done(Args... args) { loop->done(args...); }
+
     inline void run();
     inline Test& disable();
     bool hasError() const { return !errorMsg.empty(); }
@@ -164,14 +178,14 @@ public:
 };
 
 template <class CB>
-Test::Test(Scenario& parent, const std::string& aName, CB&& aBody, EventLoop* aLoop)
-    :scenario(parent), name(aName), body(new TestBody<CB>(*this, std::forward<CB>(aBody))),
+Test::Test(TestGroup& parent, const std::string& aName, CB&& aBody, EventLoop* aLoop)
+    :group(parent), name(aName), body(new TestBody<CB>(*this, std::forward<CB>(aBody))),
      loop(aLoop)
 {
     gNumTests++;
 }
 
-class Scenario
+class TestGroup
 {
 public:
     typedef std::vector<std::shared_ptr<Test> > TestList;
@@ -184,7 +198,7 @@ public:
     Ts execTime = 0;
     std::function<void(Test&)> beforeEach;
 	std::function<void()> allCleanup;
-    std::function<void(Scenario&)> body;
+    std::function<void(TestGroup&)> body;
 
     template <class CB>
     Test& addTest(std::string&& name, EventLoop* aLoop, CB&& lambda)
@@ -194,7 +208,7 @@ public:
         return *tests.back();
 	}
     template <class CB>
-    Scenario(const std::string& aName, CB&& aBody)
+    TestGroup(const std::string& aName, CB&& aBody)
         :name(aName), body(std::forward<CB>(aBody))
     {
         gNumTestGroups++;
@@ -217,17 +231,17 @@ public:
 		}
         catch(BailoutException& e)
         {
-            error(std::string("Error at scenario setup: ")+e.what());
+            error(std::string("Error at test group setup: ")+e.what());
             return;
         }
 		catch(std::exception& e)
 		{
-            error(std::string("Exception during scenario setup:")+e.what());
+            error(std::string("Exception during test group setup:")+e.what());
 			return;
 		}
 		catch(...)
 		{
-            error("Non-standard exception during scenario setup");
+            error("Non-standard exception during test group setup");
 			return;
 		}
         for (auto& test: tests)
@@ -256,18 +270,18 @@ public:
             catch(BailoutException& e)
             { error(e.what()); }
             catch(std::exception& e)
-            {  error(std::string("Exception in cleanup of scenario: ")+e.what());  }
+            {  error(std::string("Exception in cleanup of test group: ")+e.what());  }
             catch(...)
-            {  error("Non standard exception in cleanup of scenario");  }
+            {  error("Non standard exception in cleanup of test group");  }
         }
         printSummary();
     }
     bool hasError() const { return !errorMsg.empty(); }
     void error(const std::string& msg)
     {
+        numErrors++;
         if (hasError())
             return;
-        numErrors++;
         errorMsg = msg;
 	}
     void printSummary()
@@ -288,7 +302,7 @@ public:
     }
 
 };
-//we need the complete definition of class Scenario, so we defined run() outside the Test class
+//we need the complete definition of class TestGroup, so we defined run() outside the Test class
 void Test::run()
 {
     TEST_LOG("run  '%s%s%s'...", kColorTag, name.c_str(), kColorNormal);
@@ -296,15 +310,17 @@ void Test::run()
     Ts start = 0;
     try
     {
-        if (scenario.beforeEach)
-            scenario.beforeEach(*this);
+        if (group.beforeEach)
+            group.beforeEach(*this);
 
         start = getTimeMs();
         if (loop)
         {
-            execState = "'eventloop-setup'";
-            body->call();
             execState = nullptr; //dont log error location
+            loop->schedCall([this]()
+            {
+                body->call();
+            });
             loop->run();
             execTime = getTimeMs() - start;
             if (!loop->errorMsg.empty())
@@ -332,7 +348,6 @@ void Test::run()
             error(std::string("Exception during ")+execState+": "+e.what());
         else
             error(std::string("Exception: ")+e.what());
-
     }
     catch(...)
     {
@@ -351,7 +366,7 @@ inline Test& Test::disable()
 {
     isDisabled = true;
     gNumDisabled++;
-    scenario.numDisabled++;
+    group.numDisabled++;
     return *this;
 }
 
@@ -363,13 +378,13 @@ inline Test& Test::disable()
 #define TEST_STRLITERAL(a) TEST_STRLITERAL2(a)
 
 #define TestGroup(name)\
-    TEST_TOKENPASTE(test::Scenario scenario, __LINE__) (name, [&](test::Scenario& group)
+    TEST_TOKENPASTE(test::TestGroup group, __LINE__) (name, [&](test::TestGroup& group)
 
 #define it(name)\
     group.addTest(name, nullptr, [&](test::Test& test)
 
 #define async(name,...)\
-    group.addTest(name, new EventLoop(__VA_ARGS__), [&](test::Test& test, EventLoop& loop)
+    group.addTest(name, new test::EventLoop(__VA_ARGS__), [&](test::Test& test, test::EventLoop& loop)
 
 
 //check convenience macros
