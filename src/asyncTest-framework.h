@@ -20,7 +20,7 @@ namespace test { \
     const char* kColorNormal = "";    \
     const char* kColorWarning = "";   \
     struct TestInitializer {          \
-        TestInitializer() { Test::initColors(); }    \
+        TestInitializer() { srand(time(nullptr)); Test::initColors(); }    \
         ~TestInitializer() { Test::printTotals(); } \
     };                                               \
     TestInitializer _gsTestInit;                     \

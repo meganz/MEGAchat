@@ -132,14 +132,11 @@ protected:
         }
     };
 
-    uint32_t mSeqCtr = 0;
-    uint64_t mLastOrderTs = 0;
+    Ts mLastOrderTs = 0;
     int mLastOrderedDoneNo = 0;
     Ts mNextEventTs = 0xFFFFFFFFFFFFFFF;
 public:
-	int defaultJitter = 400;
-	int jitterMin = 100;
-	int sleepGranularity = 50;
+    int jitterPct = 50;
 protected:
     const char* kColorSuccess = "";
     const char* kColorFail = "";
@@ -207,7 +204,7 @@ public:
             TESTLOOP_LOG_DEBUG("done('%s') timeout handler executed with %lld ms offset from ideal", tag.c_str(), it->second.deadline-getTimeMs());
             auto offset = abs(it->second.deadline-getTimeMs());
             if (offset > 10)
-                doError("Internal error: done('"+tag+"'') timeout handle executed with time offset of "+std::to_string(offset)+" (>10ms) from required", "");
+                doError("Internal error: done('"+tag+"') timeout handler executed with time offset of "+std::to_string(offset)+" (>10ms) from required", "");
             if (it->second.complete)
             {
                 TESTLOOP_LOG_DEBUG("done('%s') timeout handler: done is resolved", tag.c_str());
@@ -235,23 +232,32 @@ public:
 		throw std::runtime_error(msg);
 	}
     template <class CB>
-    void schedCall(CB&& func, int after=-10, int jitter = 0)
+    void schedCall(CB&& func, int after=-10, int aJitterPct = -1)
 	{
-		if (jitter == 0)
-			jitter = defaultJitter;
+        if (aJitterPct < 0)
+            aJitterPct = jitterPct;
         Ts ts;
         if (after < 0) //ordered call: schedule -after ms after the previous ordered call
 		{
+            after = -after;
             if (!mLastOrderTs)
                 mLastOrderTs = getTimeMs();
-            ts = mLastOrderTs-after; //after is negative
+            ts = mLastOrderTs+after; //after is negative
+            if (aJitterPct)
+            {
+                int j = (after*aJitterPct)/100;
+                ts += ((rand() % (2*j)) - j);
+            }
             mLastOrderTs = ts;
 		}
 		else
         {
             ts = getTimeMs()+after;
-            if (jitter)
-                ts+=jitter/2-(rand()%jitter);
+            if (aJitterPct)
+            {
+                int j = (after * aJitterPct) / 100;
+                ts += ((rand()% (2*j)) - j);
+            }
         }
         schedHandler(std::forward<CB>(func), ts);
     }
