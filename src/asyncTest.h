@@ -211,7 +211,7 @@ public:
                 return;
             doError("Timeout", it->first, true);
         }, result.first->second.deadline);
-	}
+    }
     ~EventLoop()
 	{
 		mMutex.unlock();
@@ -226,7 +226,8 @@ public:
     }
     virtual void usageError(const std::string& msg)
 	{
-        TESTLOOP_LOG_ERROR("Usage error: %s\n", msg.c_str());
+        errorMsg = msg;
+        TESTLOOP_LOG_ERROR("Usage error: %s", msg.c_str());
 		throw std::runtime_error(msg);
 	}
     template <class CB>
