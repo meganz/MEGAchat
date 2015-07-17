@@ -93,8 +93,8 @@ protected:
         SchedItem(CB&& cb): mCb(std::forward<CB>(cb)){}
         virtual void operator()() { mCb(); }
     };
-/**The sched queue key has a timestamp as the most significant 32 bits and a uid counter
-*  key as the least significant 32 bits. So it's always ordered in execution time order
+/**The sched queue key has a timestamp as the key.
+ * So it's always ordered in execution time order
 */
     typedef std::multimap<Ts, std::shared_ptr<SchedItemBase> > SchedQueue;
 
@@ -134,7 +134,7 @@ protected:
 
     uint32_t mSeqCtr = 0;
     uint64_t mLastOrderTs = 0;
-    int mOrderedDonesCtr = 0;
+    int mLastOrderedDoneNo = 0;
     Ts mNextEventTs = 0xFFFFFFFFFFFFFFF;
 public:
 	int defaultJitter = 400;
@@ -314,16 +314,16 @@ public:
 		}
 		if (it->second.complete)
 		{
-            doError("done() already resloved, can't resolve again", tag);
+            doError("done() already resloved, can't resolve again", tag, true);
 			return;
 		}
         mSchedQueue.erase(it->second.schedItem); //even if out of order, doesnt matter, as we are exiting the loop anyway, but for consistency
         auto order = it->second.order;
-        if (order && (order != ++mOrderedDonesCtr))
+        if (order && (order != ++mLastOrderedDoneNo))
 		{
             doError("Did not resolve in expected order. Expected: "+
-			 std::to_string(order)+"; actual: "+
-             std::to_string(mOrderedDonesCtr), it->first);
+             std::to_string(order)+", actual: "+
+             std::to_string(mLastOrderedDoneNo), it->first, true);
 			return;
 		}
 
@@ -338,7 +338,9 @@ public:
 	}
     void doError(const std::string& msg, const std::string& tag, bool noThrow=false)
 	{
-        assert(mComplete == ASYNC_COMPLETE_NOT);
+        if (mComplete == ASYNC_COMPLETE_ERROR)
+            return;
+
 		mComplete = ASYNC_COMPLETE_ERROR;
         if (!tag.empty())
         {
