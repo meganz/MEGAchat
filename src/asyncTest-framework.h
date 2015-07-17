@@ -363,13 +363,13 @@ inline Test& Test::disable()
 #define TEST_STRLITERAL(a) TEST_STRLITERAL2(a)
 
 #define TestGroup(name)\
-    TEST_TOKENPASTE(test::Scenario scenario, __LINE__) (#name, [&](test::Scenario& group)
+    TEST_TOKENPASTE(test::Scenario scenario, __LINE__) (name, [&](test::Scenario& group)
 
 #define it(name)\
-    group.addTest(#name, nullptr, [&](test::Test& test)
+    group.addTest(name, nullptr, [&](test::Test& test)
 
 #define async(name,...)\
-    group.addTest(#name, new EventLoop(__VA_ARGS__), [&](test::Test& test, EventLoop& loop)
+    group.addTest(name, new EventLoop(__VA_ARGS__), [&](test::Test& test, EventLoop& loop)
 
 
 //check convenience macros
@@ -379,5 +379,7 @@ do { \
   if (!(cond)) throw test::BailoutException("check(" #cond ") failed at " __FILE__ \
   ":" TEST_STRLITERAL(__LINE__)); \
 } while(0)
+
+#define doneOrError(cond, name) check((cond)); loop.done(name)
 
 #endif // ASYNCTEST_H

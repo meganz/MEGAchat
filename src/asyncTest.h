@@ -130,6 +130,7 @@ protected:
     uint64_t mLastOrderTs = 0;
     int mOrderedDonesCtr = 0;
     Ts mNextEventTs = 0xFFFFFFFFFFFFFFF;
+    int mResolvedDones = 0;
 public:
 	int defaultJitter = 400;
 	int jitterMin = 100;
@@ -267,7 +268,7 @@ public:
         initColors();
         if (mSchedQueue.empty())
             throw std::runtime_error("Nothing to run: not even a single function call has been scheduled");
-        while(!mSchedQueue.empty() && !mComplete)
+        while ((mSchedQueue.size() - mResolvedDones > 0) && !mComplete)
 		{
             auto sched = mSchedQueue.begin();
             auto timeToSleep = sched->first - getTimeMs();
@@ -308,7 +309,7 @@ public:
             doError("done() already resloved, can't resolve again", tag);
 			return;
 		}
-
+        mResolvedDones++; //decrement even if out of order, doesnt matter, as we are exiting the loop anyway, but for consistency
         auto order = it->second.order;
         if (order && (order != ++mOrderedDonesCtr))
 		{
