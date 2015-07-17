@@ -68,7 +68,8 @@ public:
 		SCHED_IN_ORDER = 0,
 		ASYNC_COMPLETE_NOT = 0,
 		ASYNC_COMPLETE_SUCCESS = 1,
-		ASYNC_COMPLETE_ERROR = 2
+        ASYNC_COMPLETE_ERROR = 2,
+        ASYNC_COMPLETE_ABORTED = 3
 	};
     enum
     {
@@ -216,6 +217,12 @@ public:
 	}
 	virtual void onCompleteError()
     {}
+    void abort()
+    {
+        if (mComplete)
+            return;
+        mComplete = ASYNC_COMPLETE_ABORTED;
+    }
     virtual void usageError(const std::string& msg)
 	{
         TESTLOOP_LOG_ERROR("Usage error: %s\n", msg.c_str());
@@ -346,13 +353,11 @@ public:
             if (!noThrow)
                 throw std::runtime_error(msg);
         }
-
 	}
 	void error(const std::string& msg)
 	{
         doError(msg, "_default");
     }
-
     void error(const std::string& tag, const std::string& msg)
     {
         if (tag.empty())

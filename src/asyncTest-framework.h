@@ -31,6 +31,9 @@ namespace test
 class Scenario;
 typedef long long Ts;
 
+struct BailoutException: public std::runtime_error
+{  BailoutException(const std::string& msg): std::runtime_error(msg){} };
+
 extern const char* kColorTag;
 extern const char* kColorSuccess;
 extern const char* kColorFail;
@@ -91,6 +94,8 @@ public:
                 .append("' (").append(std::to_string(execTime)).append(" ms)")
                 .append("\n* * * ").append(msg);
         TEST_LOG("%s", errorMsg.c_str());
+        if (loop)
+            loop->abort();
     }
     inline void run();
     inline Test& disable();
@@ -132,14 +137,12 @@ public:
 		{
             cleanup();
 		}
+        catch (BailoutException& e)
+        {  error(std::string("Error during cleanup: ") + e.what());  }
 		catch(std::exception& e)
-        {
-            error(std::string("Exception during cleanup: ")+e.what());
-        }
+        {  error(std::string("Exception during cleanup: ") + e.what());  }
 		catch(...)
-        {
-            error("Exception during cleanup");
-        }
+        {  error("Non-standard exception during cleanup");  }
 	}
 };
 
@@ -212,14 +215,19 @@ public:
             }
             TEST_LOG(")...\n%s", Test::kThinLine);
 		}
+        catch(BailoutException& e)
+        {
+            error(std::string("Error at scenario setup: ")+e.what());
+            return;
+        }
 		catch(std::exception& e)
 		{
-            error("EXCEPTION while setting up scenario '"+name+"':"+e.what());
+            error(std::string("Exception during scenario setup:")+e.what());
 			return;
 		}
 		catch(...)
 		{
-            error("Non-standard exception while setting up scenario '"+name+"'");
+            error("Non-standard exception during scenario setup");
 			return;
 		}
         for (auto& test: tests)
@@ -245,14 +253,12 @@ public:
             {
                 allCleanup();
             }
+            catch(BailoutException& e)
+            { error(e.what()); }
             catch(std::exception& e)
-            {
-                error("EXCEPTION in cleanup of scenario '"+name+"':"+e.what());
-            }
+            {  error(std::string("Exception in cleanup of scenario: ")+e.what());  }
             catch(...)
-            {
-                error("Non standard exception in cleanup of scenarion '"+name+"'");
-            }
+            {  error("Non standard exception in cleanup of scenario");  }
         }
         printSummary();
     }
@@ -311,11 +317,19 @@ void Test::run()
             execTime = getTimeMs() - start;
         }
     }
+    catch(BailoutException& e)
+    {
+        execTime = getTimeMs() - start;
+        if (execState)
+            error(std::string("Error during ")+execState+": "+e.what());
+        else
+            error(e.what());
+    }
     catch(std::exception& e)
     {
         execTime = getTimeMs() - start;
         if (execState)
-            error(std::string("Exception in ")+execState+": "+e.what());
+            error(std::string("Exception during ")+execState+": "+e.what());
         else
             error(std::string("Exception: ")+e.what());
 
@@ -323,7 +337,7 @@ void Test::run()
     catch(...)
     {
         execTime = getTimeMs() - start;
-        error(std::string("Non-standard exception in ")+execState);
+        error(std::string("Non-standard exception during ")+execState);
     }
     gTotalExecTime += execTime;
     doCleanup();
@@ -345,6 +359,9 @@ inline Test& Test::disable()
 
 #define TEST_DO_TOKENPASTE(a, b) a##b
 #define TEST_TOKENPASTE(a, b) TEST_DO_TOKENPASTE(a,b)
+#define TEST_STRLITERAL2(a) #a
+#define TEST_STRLITERAL(a) TEST_STRLITERAL2(a)
+
 #define TestGroup(name)\
     TEST_TOKENPASTE(test::Scenario scenario, __LINE__) (#name, [&](test::Scenario& group)
 
@@ -353,5 +370,14 @@ inline Test& Test::disable()
 
 #define async(name,...)\
     group.addTest(#name, new EventLoop(__VA_ARGS__), [&](test::Test& test, EventLoop& loop)
+
+
+//check convenience macros
+
+#define check(cond) \
+do { \
+  if (!(cond)) throw test::BailoutException("check(" #cond ") failed at " __FILE__ \
+  ":" TEST_STRLITERAL(__LINE__)); \
+} while(0)
 
 #endif // ASYNCTEST_H

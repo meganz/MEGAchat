@@ -90,9 +90,12 @@ void Client::registerRtcHandler(rtcModule::IEventHandler* rtcHandler)
 {
     mRtcHandler.reset(rtcHandler);
 }
+#define TOKENPASTE2(a,b) a##b
+#define TOKENPASTE(a,b) TOKENPASTE2(a,b)
+
 #define SHARED_STATE(varname, membtype)             \
-    struct SharedState##__LINE__{membtype value;};  \
-    std::shared_ptr<SharedState##__LINE__> varname(new SharedState##__LINE__)
+    struct TOKENPASTE(SharedState,__LINE__){membtype value;};  \
+    std::shared_ptr<TOKENPASTE(SharedState, __LINE__)> varname(new TOKENPASTE(SharedState,__LINE__))
 
 promise::Promise<int> Client::init()
 {
