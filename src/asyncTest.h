@@ -309,7 +309,7 @@ public:
             doError("done() already resloved, can't resolve again", tag);
 			return;
 		}
-        mResolvedDones++; //decrement even if out of order, doesnt matter, as we are exiting the loop anyway, but for consistency
+        mResolvedDones++; //increment even if out of order, doesnt matter, as we are exiting the loop anyway, but for consistency
         auto order = it->second.order;
         if (order && (order != ++mOrderedDonesCtr))
 		{

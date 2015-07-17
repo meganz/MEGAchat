@@ -304,7 +304,7 @@ void Test::run()
         {
             execState = "'eventloop-setup'";
             body->call();
-            execState = nullptr; //dont add info
+            execState = nullptr; //dont log error location
             loop->run();
             execTime = getTimeMs() - start;
             if (!loop->errorMsg.empty())
