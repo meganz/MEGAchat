@@ -69,10 +69,10 @@ public:
 class Test
 {
     std::function<void()> cleanup;
-    std::unique_ptr<ITestBody> body;
 public:
     Scenario& scenario;
     std::string name;
+    std::unique_ptr<ITestBody> body;
     std::string errorMsg;
     Ts execTime = 0;
     std::unique_ptr<EventLoop> loop;
@@ -150,8 +150,8 @@ template <class CB>
 class TestBody: public ITestBody
 {
 protected:
-    CB mCb;
     Test& mTest;
+    CB mCb;
     template <class E=CB>
     typename std::enable_if<FuncTraits<E>::nargs == 1, void>::type doCall()
     {  mCb(mTest);  }
@@ -203,12 +203,12 @@ public:
     void run()
 	{
         TEST_LOG("%s", Test::kLine);
-        TEST_LOG_NO_EOL("RUN   Group '%s%s%s'", kColorTag, name.c_str(), kColorNormal);
 		try
 		{
             body(*this);
             numTests = tests.size() - numDisabled;
-            TEST_LOG_NO_EOL(" (%zu test%s", numTests, (numTests == 1) ? "" : "s");
+            TEST_LOG_NO_EOL("RUN   Group '%s%s%s' (%zu test%s", kColorTag,
+                name.c_str(), kColorNormal, numTests, (numTests == 1) ? "" : "s");
             if (numDisabled)
             {
                 TEST_LOG_NO_EOL(", %d disabled", numDisabled);

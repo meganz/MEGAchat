@@ -78,15 +78,36 @@ public:
         kEventTypeSchedCall = 2
     };
 protected:
+/**A scheduled function call, added by schedCall(), that is executed by EventLoop
+* after a specified time elapses (relative to the time it was added via schedCall())
+*/
+    struct SchedItemBase
+    {
+        virtual void operator()() = 0;
+        virtual ~SchedItemBase(){}
+    };
+    template <class CB>
+    struct SchedItem: public SchedItemBase
+    {
+        CB mCb;
+        SchedItem(CB&& cb): mCb(std::forward<CB>(cb)){}
+        virtual void operator()() { mCb(); }
+    };
+/**The sched queue key has a timestamp as the most significant 32 bits and a uid counter
+*  key as the least significant 32 bits. So it's always ordered in execution time order
+*/
+    typedef std::multimap<Ts, std::shared_ptr<SchedItemBase> > SchedQueue;
+
 /**A done() item (added by addDone()) that has to be resolved by the user code
  * withing a specified timeout and/or order, related to other such items
 */
     struct DoneItem
 	{
-		int complete = 0;
+        std::string tag;
+        int complete = 0;
         Ts deadline = TESTLOOP_DEFAULT_DONE_TIMEOUT;
         int order = 0;
-        std::string tag;
+        SchedQueue::iterator schedItem;
         DoneItem(const char* aTag): tag(aTag){}
         DoneItem(const char* aTag, const char* name1, int val1)
         :tag(aTag) { setVal(name1, val1); }
@@ -110,27 +131,11 @@ protected:
                 throw std::runtime_error(std::string("Unknown property '")+name+"'' of done() with tag '"+tag+"'");
         }
     };
-/**A scheduled function call, added by schedCall(), that is executed by EventLoop
- * after a specified time elapses (relative to the time it was added via schedCall())
-*/
-    struct SchedItemBase
-    {
-        virtual void operator()() = 0;
-        virtual ~SchedItemBase(){}
-    };
-    template <class CB>
-    struct SchedItem: public SchedItemBase
-    {
-        CB mCb;
-        SchedItem(CB&& cb): mCb(std::forward<CB>(cb)){}
-        virtual void operator()() { mCb(); }
-    };
 
     uint32_t mSeqCtr = 0;
     uint64_t mLastOrderTs = 0;
     int mOrderedDonesCtr = 0;
     Ts mNextEventTs = 0xFFFFFFFFFFFFFFF;
-    int mResolvedDones = 0;
 public:
 	int defaultJitter = 400;
 	int jitterMin = 100;
@@ -141,10 +146,6 @@ protected:
     const char* kColorNormal = "";
     const char* kColorTag = "";
 
-/**The sched queue key has a timestamp as the most significant 32 bits and a uid counter
-key as the least significant 32 bits. So it's always ordered in execution time order
-*/
-    typedef std::multimap<Ts, std::shared_ptr<SchedItemBase> > SchedQueue;
     SchedQueue mSchedQueue;
 /**A map is of done() items, keyed by a unique tag */
     typedef std::map<std::string, DoneItem> DoneMap;
@@ -195,7 +196,7 @@ public:
         auto result = mDones.insert(make_pair(item.tag, std::forward<DoneItem>(item)));
         if (!result.second)
             usageError("addDone: Duplicate done() tag '"+item.tag+"'");
-        schedHandler([this,tag]()
+        result.first->second.schedItem = schedHandler([this,tag]()
         {
             auto it = mDones.find(tag);
             if (it == mDones.end())
@@ -203,12 +204,15 @@ public:
                 doError("Internal error: done() timeout handler could not find done item"+tag, tag);
                 return;
             }
-            TESTLOOP_LOG_DEBUG("done() handler executed with %lld ms offset from ideal", it->second.deadline-getTimeMs());
+            TESTLOOP_LOG_DEBUG("done('%s') timeout handler executed with %lld ms offset from ideal", tag.c_str(), it->second.deadline-getTimeMs());
             auto offset = abs(it->second.deadline-getTimeMs());
             if (offset > 10)
                 doError("Internal error: done('"+tag+"'') timeout handle executed with time offset of "+std::to_string(offset)+" (>10ms) from required", "");
             if (it->second.complete)
+            {
+                TESTLOOP_LOG_DEBUG("done('%s') timeout handler: done is resolved", tag.c_str());
                 return;
+            }
             doError("Timeout", it->first, true);
         }, result.first->second.deadline);
     }
@@ -252,11 +256,13 @@ public:
         schedHandler(std::forward<CB>(func), ts);
     }
     template <class CB>
-    void schedHandler(CB&& handler, Ts ts)
+    SchedQueue::iterator schedHandler(CB&& handler, Ts ts)
     {
-        mSchedQueue.emplace(ts, std::make_shared<SchedItem<CB> >(std::forward<CB>(handler)));
+        auto ret = mSchedQueue.emplace(ts, std::make_shared<SchedItem<CB> >(
+            std::forward<CB>(handler)));
         if (ts < mNextEventTs)
             setWakeupTs(ts);
+        return ret;
 	}
     void setWakeupTs(Ts& ts)
     {
@@ -269,8 +275,9 @@ public:
         initColors();
         if (mSchedQueue.empty())
             throw std::runtime_error("Nothing to run: not even a single function call has been scheduled");
-        while ((mSchedQueue.size() - mResolvedDones > 0) && !mComplete)
+        while (!mSchedQueue.empty() && !mComplete)
 		{
+            TESTLOOP_LOG_DEBUG("Pending events: %zu", mSchedQueue.size());
             auto sched = mSchedQueue.begin();
             auto timeToSleep = sched->first - getTimeMs();
             if (timeToSleep > 0)
@@ -310,7 +317,7 @@ public:
             doError("done() already resloved, can't resolve again", tag);
 			return;
 		}
-        mResolvedDones++; //increment even if out of order, doesnt matter, as we are exiting the loop anyway, but for consistency
+        mSchedQueue.erase(it->second.schedItem); //even if out of order, doesnt matter, as we are exiting the loop anyway, but for consistency
         auto order = it->second.order;
         if (order && (order != ++mOrderedDonesCtr))
 		{
