@@ -10,7 +10,7 @@ int main()
 
 TestGroup("general")
 {
-  async("Promise<int>: resolve:then->fail(recover)->then",
+  async("Promise<int>: resolve->then(ret error)->fail(recover)->then",
   {{"fail", "order", 2}, {"then1", "order", 1}, {"then2", "order", 3}})
   {
       Promise<int> pms;
@@ -40,7 +40,7 @@ TestGroup("general")
           {  pms.resolve(12345678);  }, 100);
   });
 
-  async("Promise<void>: resolve:then->fail(recover)->then",
+  async("Promise<void>: resolve->then(ret error)->fail(recover)->then",
   {{"fail", "order", 2}, {"then1", "order", 1}, {"then2", "order", 3}})
   {
       Promise<void> pms;
@@ -118,7 +118,7 @@ TestGroup("general")
       });
       pms.resolve(1234);
   });
-  async("should propagete failure through void callback", {"then"})
+  async("should propagete failure through void callback (r180f82)", {"then"})
   {
       Promise<int> pms;
       pms.then([&](int a)
@@ -127,13 +127,54 @@ TestGroup("general")
       })
       .then([&]() mutable
       {
-          test.error("then() should not be called after a rejected promise");
+          test.error("then() called by a rejected promise");
       })
       .fail([&](const Error& err) mutable
       {
           doneOrError(err.msg() == "message", "then");
       });
       loop.schedCall([pms]() mutable { pms.resolve(1); });
+  });
+  async("return <resolved>.then() from then() should propagate (r6f550b)")
+  {
+      Promise<int> pms;
+      pms.then([&](int a)
+      {
+          Promise<int> pms1(1);
+          return pms1
+          .then([](int a)
+          {
+              return a+1;
+          });
+      })
+      .then([&](int a)
+      {
+          doneOrError(a == 2, );
+      });
+      pms.resolve(1);
+
+  });
+  async("ret <resolved>.then() from then() from then() should propagate (rb1209c)")
+  {
+      Promise<int> pms;
+      pms.then([&](int a)
+      {
+          Promise<int> pms1;
+          return pms1.then([&](int a)
+          {
+              Promise<int> pms2(1);
+              return pms2
+              .then([](int a)
+              {
+                  return a+1;
+              });
+          });
+      })
+      .then([&](int a)
+      {
+          doneOrError(a == 2, );
+      });
+      pms.resolve(1);
   });
 
   async("should propagate resolution from nested scope",
@@ -220,8 +261,7 @@ TestGroup("when() tests")
         loop.schedCall([pms1]() mutable { pms1.resolve(1); }, 100);
         loop.schedCall([pms2]() mutable { pms2.resolve(); }, 100);
     });
-    async("when() with one already-failed and one async-resolved promise",
-    {{"output-failed", "order", 1}, {"resolved", "order", 2}})
+    async("when() with one already-failed and one async-resolved promise")
     {
         //when() should fail immediately without waiting for the unresolved promise
         Promise<void> pms1;
@@ -234,9 +274,8 @@ TestGroup("when() tests")
         })
         .fail([&](const Error& err)
         {
-            doneOrError(err.msg() == "Test error message", "output-failed");
+            doneOrError(err.msg() == "Test error message",);
         });
-        loop.schedCall([pms2, &test]() mutable { test.done("resolved"); pms2.resolve(1); }, 1000);
     });
     async("when() with one async-failed and one async-resolved promise",
     {{"first", "order", 1}, {"second", "order", 2}, {"output", "order", 3}})
