@@ -144,14 +144,14 @@ definition, see the example.
 ### Local system variables
 
 A test body has two local variables defined:  
- - `loop` (Only async tests).  
+ - `loop` (Only async tests)  
    The event loop inside which the asynchronous test runs (instance of `test::EventLoop`).
    This object has the following methods:   
     * `loop.addDone({tag [,option1, val1 [, option2, val2]]})`  
        Dynamically adds a done() condition to the test. The timeout starts to run since the moment the `loop.addDone()`
        is called.  
     * `loop.done(tag)`  
-       Signals that a `done()` condition has occurred. The tag identifies the condition that was specified  
+       Signals that a `done()` condition has occurred. The tag identifies the condition that was specified.  
     * `loop.jitterPct`
        The default fuzziness percent of schedCall() delays. If not set, it is 50%. See below the description
        of `loop.schedCall()`
