@@ -80,8 +80,8 @@ Tests are grouped in 'test groups', each group having the option to define a fun
 tests in the group.  
 The framework does not take control over the main() function, so it is defined by the user. The user is free to insert any
 initialization/cleanup code before/after each test group. For example, global initialization code can simply be put at the
-beginning of the main() function, before the definition of the first test group. However, code before/after single tests
-inside a group is not run in sequence with the tests.  
+beginning of the main() function, before the definition of the first test group. However, code inside a group is not run
+in sequence with the tests.  
 
 A test group is defined by the `testGroup()` macro, with the name of the test group as argument.
 Mind the bracket and semicolon after the closing brace. The body of the test group is executed in sequence after
