@@ -154,7 +154,7 @@ A test body has two local variables defined:
        Signals that a `done()` condition has occurred. The tag identifies the condition that was specified  
     * `loop.jitterPct`
        The default fuzziness percent of schedCall() delays. If not set, it is 50%. See below the description of `loop.schedCall()`
-    * `loop.schedCall(func, delay, jitterPct)`  
+    * `loop.schedCall(func, delay [, jitterPct])`  
        Schedules a call to the specified function after the specified period (in milliseconds), with some random variance.
        If `delay` is negative, then the delay is relative to the time of the last such call with negative delay. This allows easy setup of 
        function call sequences by specifying the delays between them instead of all delays relative to one single point
