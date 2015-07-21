@@ -141,20 +141,20 @@ definition, see the example.
 A test body has two local variables defined:  
  - `loop` (Only async tests). The event loop inside which the asynchronous test runs (instance of `test::EventLoop`).
 This object has the following methods:   
-    = `loop.addDone({tag [,option1, val1 [, option2, val2]]})` Dynamically adds a done() condition to the test. The timeout
+    * `loop.addDone({tag [,option1, val1 [, option2, val2]]})` Dynamically adds a done() condition to the test. The timeout
 starts to run since the moment the `loop.addDone()` is called.  
-    = `loop.done(tag)` Signals that a `done()` condition has occurred. The tag identifies the condition that was specified  
-    = `loop.schedCall(func, delay)` Schedules a call to the specified function after the specified period (in milliseconds).
+    * `loop.done(tag)` Signals that a `done()` condition has occurred. The tag identifies the condition that was specified  
+    * `loop.schedCall(func, delay)` Schedules a call to the specified function after the specified period (in milliseconds).
 If `delay` is negative, then the delay is relative to the time of the last such call with negative delay. Thus, sequences of
 function calls with specific delays between them can be scheduled. If `delay` is positive, it is relative to the current
 moment.
  - `test` The test object (instance of class `test::Test`) of that test. This object has the following methods:  
-    = `test.error(message)` Records that an error has occurred, but does not actually abort the test.
+    * `test.error(message)` Records that an error has occurred, but does not actually abort the test.
 After that call, normally the test should be aborted by the user via an early return, or by throwing an exception.
 However, throwing an exception would cause the error report to state that an exception has occurred, which can be misleading
 because the exception is used only to bail out. For this purpose, you can use the `test::BailoutException` class, which will be
 recognized by the framework and not reported.  
-    = `test.done(tag)` (Only async tests) Same as `loop.done(tag)`
+    * `test.done(tag)` (Only async tests) Same as `loop.done(tag)`
 
 ## Convenience macros
 There are a few convenience macros defined by the framework, and it's a good idea to include the public header of the framework
