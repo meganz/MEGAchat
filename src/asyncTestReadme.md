@@ -162,7 +162,7 @@ This object has the following methods:
     error report to state that an exception has occurred, which can be misleading because the exception is used only to
     bail out. For this purpose, you can use the `test::BailoutException` class, which will be recognized by the framework
     and not reported.  
-    * `test.done(tag)` (Only async tests)
+    * `test.done(tag)` (Only async tests)  
     Same as `loop.done(tag)`
 
 ## Convenience macros
