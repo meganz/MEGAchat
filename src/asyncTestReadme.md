@@ -83,7 +83,7 @@ initialization/cleanup code before/after each test group. For example, global in
 beginning of the main() function, before the definition of the first test group. However, code inside a group is not run
 in sequence with the tests - tests are executed after the body of the group completes execution.  
 
-A test group is defined by the `testGroup()` macro, with the name of the test group as argument.
+A test group is defined by the `testGroup(name) { <group body> });` macro, with the name of the test group as argument.
 Mind the bracket and semicolon after the closing brace. The body of the test group is executed in sequence after
 the last test of the previous group has finished execution (if there is one), and any user code before the 'addGroup()' call.
 The body has a local variable `group` defined, that references the current group object. That object has the
