@@ -1,4 +1,4 @@
-= Asynchronous C++11 unit testing environment =
+=Asynchronous C++11 unit testing environment=
 
 == Overview ==
 
