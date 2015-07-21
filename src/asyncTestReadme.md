@@ -94,7 +94,7 @@ following facilities:
 
 The group body can contain any code, but its purpose is to configure the test group and register tests in that group,
 so normally it just contains group configuration code and a sequence of asyncTest() and syncTest() calls, which define
-and add tests to the group, *but do not execute them yet*. The group conficuration code usually does operations on the `group`
+and add tests to the group, *but do not execute them yet*. The group configuration code usually does operations on the `group`
 object. After the group body execution completes, all registered tests are executed in the sequence in which they were
 registered. Finally, the main() function can return the total number of failed tests, communicating that info to the
 calling process.  
@@ -103,7 +103,7 @@ calling process.
 
 ### Async tests
 
-Async tests are defined and registered inside a group body by  
+Async tests are defined and registered inside a group body by:
 ```
 asyncTest (name [,<list of done()-s>])
 {
