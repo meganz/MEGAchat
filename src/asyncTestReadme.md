@@ -181,7 +181,8 @@ last to avoid potential conflict of these or any other macros from the framework
     used to resolve a `done()` condition, but only in case a condition is true, and signal error if the condition is false.
 
 ## Macros for debug, verbosity and defaults
-There are several macros that enable additional output:
+There are several macros that enable additional output. To be used, they should be defined before the test framework header is
+included:
 - `TESTLOOP_LOG_DONES` - if defined, every resolved done() condition will be logged
 - `TESTLOOP_DEBUG` - if defined, enables debug info output, related to the event loop
 - `TESTLOOP_DEFAULT_DONE_TIMEOUT` -  Sets the default timeout (in milliseconds) of `done()` conditions. If not set, the default
