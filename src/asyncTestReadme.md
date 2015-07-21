@@ -1,6 +1,6 @@
-=Asynchronous C++11 unit testing environment=
+# Asynchronous C++11 unit testing environment
 
-== Overview ==
+## Overview
 
 The async unit testing environment differs from the traditional C++ unit testing frameworks in the fact that it
 incorporates a message loop and instrumentation to register and track conditions that should occur
@@ -17,7 +17,7 @@ once the code of the test returns, an error is explicitly signalled by the code,
 The framework is a header-only library. To use it, it is needed to only include the public header "asyncTest-framework.h",
 and to insert the TESTS_INIT() macro in the global scope, before the main() function.  
  
-== Simple example ==
+## Simple example
 ```
 #include <asyncTest-framework.h>
 
@@ -72,7 +72,7 @@ testGroup("group one")
 } 
 ```
 
-== Structure ==
+## Structure
 
 Tests are grouped in 'test groups', each group having the option to define a function that can be executed before each of the
 tests in the group.  
@@ -97,9 +97,9 @@ object. After the group body execution completes, all registered tests are execu
 registered. Finally, the main() function can return the total number of failed tests, communicating that info to the
 calling process.  
 
-== Test definitions ==
+## Test definitions
 
-=== Async tests ===
+### Async tests
 
 Async tests are defined and registered inside a group body by  
 ```
@@ -121,7 +121,7 @@ within that period, the test fails with a message identifying the condition that
 have the 'order' parameter). In other words, all conditions with that config option specified must occur in the specified
 order relative to each other. If this option is not specified, then no order checking is done on that condition.  
 
-=== Synchronous tests ===
+### Synchronous tests
 
 Synchronous tests are added by:
 '''
@@ -131,12 +131,12 @@ syncTest(name)
 }
 '''  
 
-=== Disabling a test ===
+### Disabling a test
 
 Any syncronous or asynchronous test can be disabled by appending `.disable()` after the closing bracket of the test body
 definition, see the example.  
 
-=== Local system variables ===
+### Local system variables
 
 A test body has two local variables defined:  
  - `loop` (Only async tests). The event loop inside which the asynchronous test runs (instance of `test::EventLoop`).
@@ -156,7 +156,7 @@ because the exception is used only to bail out. For this purpose, you can use th
 recognized by the framework and not reported.  
     = `test.done(tag)` (Only async tests) Same as `loop.done(tag)`
 
-== Convenience macros ==
+## Convenience macros
 There are a few convenience macros defined by the framework, and it's a good idea to include the public header of the framework
 last to avoid potential conflict of these or any other macros from the framework with code in other headers.  
 
