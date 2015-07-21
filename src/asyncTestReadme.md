@@ -19,12 +19,13 @@ and to insert the TESTS_INIT() macro in the global scope, before the main() func
  
 ## Simple example
 ```
+#include <promise.h>
 #include <asyncTest-framework.h>
 
 INIT_TESTS();
+
 int main()
 {
-
 <global test initialization code goes here>
 testGroup("group one")
 {
