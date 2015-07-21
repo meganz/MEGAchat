@@ -153,8 +153,8 @@ A test body has two local variables defined:
     * `loop.schedCall(func, delay)`  
        Schedules a call to the specified function after the specified period (in milliseconds). If `delay` is negative,
        then the delay is relative to the time of the last such call with negative delay. Thus, sequences of
-       function calls with specific delays between them can be scheduled. If `delay` is positive, it is relative to
-       the current moment.
+       function calls with specific delays between them can be scheduled.  
+       If `delay` is positive, it is relative to the current moment.  
  - `test`  
     The test object (instance of class `test::Test`) of that test. This object has the following methods:  
     * `test.error(message)`  
