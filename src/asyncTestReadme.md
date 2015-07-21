@@ -106,7 +106,7 @@ Async tests are defined and registered inside a group body by
 asyncTest (name [,<list of done()-s>])
 {
     <test body>
-}
+});
 ```
 The name can be any string. The list of done-s is enclosed in braces, and each done() description is in the form:  
 `{'tag' [, 'option1', val1 [, 'option2', val2 ]]}`  
@@ -114,10 +114,12 @@ The `tag` is the unique identifier of the done() item, which is used (in the `te
 condition has occurred. What follows are optional configuration parameters for that done(). They are specified as a string
 option name followed by an integer value, then next option name, followed by an option value etc. Currenty there are
 only two config parameters:  
- - 'timeout' Specifies the time to wait for that condition (since the start of the test). If the condition does not occur
+ - 'timeout'  
+ Specifies the time to wait for that condition (since the start of the test). If the condition does not occur
 within that period, the test fails with a message identifying the condition that timed out. If this option is not specified,
  a default timeout of 2000ms is used.  
- - 'order' The condition should occur in the specified order, relative to other such 'ordered' conditions (i.e. ones that
+ - 'order'  
+ The condition should occur in the specified order, relative to other such 'ordered' conditions (i.e. ones that
 have the 'order' parameter). In other words, all conditions with that config option specified must occur in the specified
 order relative to each other. If this option is not specified, then no order checking is done on that condition.  
 
@@ -128,7 +130,7 @@ Synchronous tests are added by:
 syncTest(name)
 {
   <test body>
-}
+});
 ```  
 
 ### Disabling a test
