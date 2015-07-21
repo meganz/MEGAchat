@@ -387,10 +387,10 @@ inline Test& Test::disable()
 #define TestGroup(name)\
     TEST_TOKENPASTE(test::TestGroup group, __LINE__) (name, [&](test::TestGroup& group)
 
-#define it(name)\
+#define syncTest(name)\
     group.addTest(name, nullptr, [&](test::Test& test)
 
-#define async(name,...)\
+#define asyncTest(name,...)\
     group.addTest(name, new test::EventLoop(__VA_ARGS__), [&](test::Test& test, test::EventLoop& loop)
 
 

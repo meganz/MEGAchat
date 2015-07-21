@@ -176,7 +176,7 @@ public:
     :defaultDoneTimeout(timeout)
     {
         DoneItem item("_default");
-        addDone(std::move(item));
+        addDoneToMap(std::move(item));
     }
     EventLoop(std::vector<DoneItem>&& doneItems, int timeout=TESTLOOP_DEFAULT_DONE_TIMEOUT)
     :defaultDoneTimeout(timeout)
@@ -184,21 +184,22 @@ public:
         mMutex.lock();
         for (auto& item: doneItems)
         {
-            addDone(std::move(item));
+            addDoneToMap(std::move(item));
         }
 	}
-    void addDone(DoneItem&& item)
+    DoneItem& addDoneToMap(DoneItem&& item)
 	{
         if (item.tag == "_default")
             mHasDefaultDone = true;
         if (item.deadline < 0)
             item.deadline = defaultDoneTimeout;
 
-        auto result = mDones.insert(make_pair(item.tag, std::forward<DoneItem>(item)));
+        auto result = mDones.insert(std::make_pair(item.tag, std::forward<DoneItem>(item)));
         if (!result.second)
             usageError("addDone: Duplicate done() tag '"+item.tag+"'");
         //we don't add the done item to the loop here because the deadline timestamps
         //will be set just before the loop is run
+        return result.first->second;
     }
     void addDoneToLoop(DoneItem& item)
     {
@@ -232,6 +233,10 @@ public:
 	{
 		mMutex.unlock();
 	}
+    void addDone(DoneItem&& item)
+    {
+        addDoneToLoop(addDoneToMap(std::forward<DoneItem>(item)));
+    }
 	virtual void onCompleteError()
     {}
     void abort()

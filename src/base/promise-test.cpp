@@ -1,6 +1,6 @@
 //#define TESTLOOP_LOG_DONES
 //#define TESTLOOP_DEBUG
-#define TESTLOOP_DEFAULT_DONE_TIMEOUT 4000
+//#define TESTLOOP_DEFAULT_DONE_TIMEOUT 4000
 #include <asyncTest-framework.h>
 #include <promise.h>
 TESTS_INIT();
@@ -10,7 +10,8 @@ int main()
 
 TestGroup("general")
 {
-  async("Promise<int>: resolve->then(ret error)->fail(recover)->then",
+  group.beforeEach = [](test::Test&) { printf("before each\n");};
+  asyncTest("Promise<int>: resolve->then(ret error)->fail(recover)->then",
   {{"fail", "order", 2}, {"then1", "order", 1}, {"then2", "order", 3}})
   {
       Promise<int> pms;
@@ -40,7 +41,7 @@ TestGroup("general")
           {  pms.resolve(12345678);  }, 100);
   });
 
-  async("Promise<void>: resolve->then(ret error)->fail(recover)->then",
+  asyncTest("Promise<void>: resolve->then(ret error)->fail(recover)->then",
   {{"fail", "order", 2}, {"then1", "order", 1}, {"then2", "order", 3}})
   {
       Promise<void> pms;
@@ -69,7 +70,7 @@ TestGroup("general")
       loop.schedCall([pms]() mutable
           {  pms.resolve();  }, 100);
   });
-  async("rejected should skip all then()-s", {"fail1"})
+  asyncTest("rejected should skip all then()-s", {"fail1"})
   {
       Promise<void> pms;
       pms.then([&]()
@@ -87,7 +88,7 @@ TestGroup("general")
       pms.reject("test message");
   });
 
-  async("change type", {"then1", "then2", "then-final"})
+  asyncTest("change type", {"then1", "then2", "then-final"})
   {
       Promise<int> pms;
       pms.then([&](int a)
@@ -105,7 +106,7 @@ TestGroup("general")
       });
       pms.resolve(1212);
   });
-  async("should default-return resolved Promise<void>", {"then1", "then-final"})
+  asyncTest("should default-return resolved Promise<void>", {"then1", "then-final"})
   {
       Promise<int> pms;
       pms.then([&](int a) mutable
@@ -118,7 +119,7 @@ TestGroup("general")
       });
       pms.resolve(1234);
   });
-  async("should propagete failure through void callback (r180f82)", {"then"})
+  asyncTest("should propagete failure through void callback (r180f82)", {"then"})
   {
       Promise<int> pms;
       pms.then([&](int a)
@@ -135,7 +136,7 @@ TestGroup("general")
       });
       loop.schedCall([pms]() mutable { pms.resolve(1); });
   });
-  async("return <resolved>.then() from then() should propagate (r6f550b)")
+  asyncTest("return <resolved>.then() from then() should propagate (r6f550b)")
   {
       Promise<int> pms;
       pms.then([&](int a)
@@ -154,12 +155,12 @@ TestGroup("general")
       pms.resolve(1);
 
   });
-  async("ret <resolved>.then() from then() from then() should propagate (rb1209c)")
+  asyncTest("return <resolved>.then() from then() from then()\n      should propagate (rb1209c)")
   {
       Promise<int> pms;
       pms.then([&](int a)
       {
-          Promise<int> pms1;
+          Promise<int> pms1(1);
           return pms1.then([&](int a)
           {
               Promise<int> pms2(1);
@@ -177,7 +178,7 @@ TestGroup("general")
       pms.resolve(1);
   });
 
-  async("should propagate resolution from nested scope",
+  asyncTest("should propagate resolution from nested scope",
   {{"inner", "order", 1}, {"then-final", "order", 2}})
   {
       Promise<int> pms;
@@ -225,7 +226,7 @@ TestGroup("general")
 });
 TestGroup("when() tests")
 {
-    async("when() with 2 already resolved promises")
+    asyncTest("when() with 2 already resolved promises")
     {
         Promise<int> pms1;
         pms1.resolve(1);
@@ -237,7 +238,7 @@ TestGroup("when() tests")
             test.done();
         });
     });
-    async("when() with 1 already-resolved and one async-resolved promise")
+    asyncTest("when() with 1 already-resolved and one async-resolved promise")
     {
         Promise<int> pms1;
         pms1.resolve(1);
@@ -249,7 +250,7 @@ TestGroup("when() tests")
         });
         loop.schedCall([pms2]() mutable { pms2.resolve(); }, 100);
     });
-    async("when() with 2 async-resolved promise")
+    asyncTest("when() with 2 async-resolved promise")
     {
         Promise<int> pms1;
         Promise<void> pms2;
@@ -261,7 +262,7 @@ TestGroup("when() tests")
         loop.schedCall([pms1]() mutable { pms1.resolve(1); }, 100);
         loop.schedCall([pms2]() mutable { pms2.resolve(); }, 100);
     });
-    async("when() with one already-failed and one async-resolved promise")
+    asyncTest("when() with one already-failed and one async-resolved promise")
     {
         //when() should fail immediately without waiting for the unresolved promise
         Promise<void> pms1;
@@ -277,7 +278,7 @@ TestGroup("when() tests")
             doneOrError(err.msg() == "Test error message",);
         });
     });
-    async("when() with one async-failed and one async-resolved promise",
+    asyncTest("when() with one async-failed and one async-resolved promise",
     {{"first", "order", 1}, {"second", "order", 2}, {"output", "order", 3}})
     {
         Promise<void> pms1;
