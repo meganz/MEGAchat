@@ -110,7 +110,7 @@ asyncTest (name [,<list of done()-s>])
 ```
 
 The name can be any string. The list of done-s is enclosed in braces, and each done() description is in the form:  
-```{'tag' [, 'option1', val1 [, 'option2', val2 ]]}```  
+```{"tag" [, optname1, val1 [, optname2, val2 ]]}```  
 The `tag` is the unique identifier of the done() item, which is used (in the `test.done(tag)` call) to specify that
 condition has occurred. What follows are optional configuration parameters for that done(). They are specified as a string
 option name followed by an integer value, then next option name, followed by an option value etc. Currenty there are
