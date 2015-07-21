@@ -28,6 +28,8 @@ int main()
 <global test initialization code goes here>
 testGroup("group one")
 {
+    group.beforeEach = [&](test::Test& t){ printf("beforeEach\n"); };
+
     asyncTest("test one",
     {{"event 1", "order", 1}, {"event 2", "timeout", 4000, "order", 2}})
     {
@@ -40,7 +42,7 @@ testGroup("group one")
             });
         });
      });
-     asyncTest("test two", {"resolved", "bar"}
+     asyncTest("test two", {"foo", "bar"}
      {
         Promise<int> pms;
         pms.then([&](int a)
@@ -63,12 +65,11 @@ testGroup("group one")
      syncTest("test three")
      {
          int a = 2;
-         if(a != 2)
-             test.error("a must be 2);
+         check(a == 2);
      }).disable(); //disables the test
-
-     <global cleanup code goes here>
-     return test::gNumFailed;
+});
+    <global cleanup code goes here>
+    return test::gNumFailed;
 } 
 ```
 
