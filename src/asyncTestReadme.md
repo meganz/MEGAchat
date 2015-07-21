@@ -159,7 +159,7 @@ A test body has two local variables defined:
        If `delay` is negative, then the delay is relative to the time of the last such call with negative delay. This allows easy setup of 
        function call sequences by specifying the delays between them instead of all delays relative to one single point
        in time. If `delay` is positive, it is relative to the current moment. `jitterPct` is the fuzziness of the
-       actual delay as percent of the given value, i.e. the actual value is jitter +/- jitter*(jitterPct/100).
+       actual delay as percent of the given value, i.e. the actual value is delay +/- delay*(jitterPct/100).
        If not specified, the loop's default (if not set, then 50%) will be used.  
  - `test`  
     The object (instance of class `test::Test`) representing that test. This object has the following methods:  
