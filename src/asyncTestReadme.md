@@ -162,7 +162,7 @@ A test body has two local variables defined:
        to one single point in time. If `delay` is positive, it is relative to the current moment. `jitterPct` is the fuzziness
        of the actual delay as percent of the given value, i.e. the actual value randomly varies around `delay` with max
        deviation of `delay *(jitterPct/100)`.  
-       If `jitterPct` is not specified, the loop's default (if not set, then 50%) will be used.  
+       If `jitterPct` is not specified, the loop's default (if no default set, then 50%) will be used.  
  - `test`  
     The object (instance of class `test::Test`) representing that test. This object has the following methods:  
     * `test.error(message)`  
