@@ -169,10 +169,10 @@ This object has the following methods:
 There are a few convenience macros defined by the framework, and it's a good idea to include the public header of the framework
 last to avoid potential conflict of these or any other macros from the framework with code in other headers.  
 
- - `check(cond)`
+ - `check(cond)`  
     Similar to `assert()` - if the condition returns `false`, test.error() is called, after which
 `test::BailoutException` is thrown. The error message shows the condition that failed, and the source file and line.  
- - `doneOrError(cond, tag)` (Only in async tests)
+ - `doneOrError(cond, tag)` (Only in async tests)  
     Calls `check(cond)` and after that `test.done(tag)`. Therefore it can be
     used to resolve a `done()` condition, but only in case a condition is true, and signal error if the condition is false.
 
