@@ -65,7 +65,7 @@ testGroup("group one")
          int a = 2;
          if(a != 2)
              test.error("a must be 2);
-     }).disable(); //disabled the test
+     }).disable(); //disables the test
 
      <global cleanup code goes here>
      return test::gNumErrors;
