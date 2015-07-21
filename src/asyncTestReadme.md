@@ -88,9 +88,9 @@ Mind the bracket and semicolon after the closing brace. The body of the test gro
 the last test of the previous group has finished execution (if there is one), and any user code before the `addGroup()` call.
 The body has a local variable `group` defined, that references the current group object. That object has the
 following facilities:  
- - `group.beforeEach = <void(test::Test&) function>` If this property is set, then the specified function will be executed
-before each test, passing to it the `test` object that represents that test. For more info about the `test` object see
-the 'Local system variables' section.  
+ - `group.beforeEach = <void(test::Test&) function>`  
+   If this property is set, then the specified function will be executed before each test, passing to it the `test` object that
+   represents that test. For more info about the `test` object see the 'Local system variables' section.  
 
 The group body can contain any code, but its purpose is to configure the test group and register tests in that group,
 so normally it just contains group configuration code and a sequence of asyncTest() and syncTest() calls, which define
