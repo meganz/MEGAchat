@@ -18,7 +18,7 @@ The framework is a header-only library. To use it, it is needed to only include 
 and to insert the TESTS_INIT() macro in the global scope, before the main() function.  
  
 == Simple example ==
-'''
+```
 #include <asyncTest-framework.h>
 
 INIT_TESTS();
@@ -70,7 +70,7 @@ testGroup("group one")
      <global cleanup code goes here>
      return test::gNumErrors;
 } 
-'''
+```
 
 == Structure ==
 
