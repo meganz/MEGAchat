@@ -141,31 +141,40 @@ definition, see the example.
 ### Local system variables
 
 A test body has two local variables defined:  
- - `loop` (Only async tests). The event loop inside which the asynchronous test runs (instance of `test::EventLoop`).
+ - `loop` (Only async tests).  
+ The event loop inside which the asynchronous test runs (instance of `test::EventLoop`).
 This object has the following methods:   
-    * `loop.addDone({tag [,option1, val1 [, option2, val2]]})` Dynamically adds a done() condition to the test. The timeout
-starts to run since the moment the `loop.addDone()` is called.  
-    * `loop.done(tag)` Signals that a `done()` condition has occurred. The tag identifies the condition that was specified  
-    * `loop.schedCall(func, delay)` Schedules a call to the specified function after the specified period (in milliseconds).
-If `delay` is negative, then the delay is relative to the time of the last such call with negative delay. Thus, sequences of
-function calls with specific delays between them can be scheduled. If `delay` is positive, it is relative to the current
-moment.
- - `test` The test object (instance of class `test::Test`) of that test. This object has the following methods:  
-    * `test.error(message)` Records that an error has occurred, but does not actually abort the test.
-After that call, normally the test should be aborted by the user via an early return, or by throwing an exception.
-However, throwing an exception would cause the error report to state that an exception has occurred, which can be misleading
-because the exception is used only to bail out. For this purpose, you can use the `test::BailoutException` class, which will be
-recognized by the framework and not reported.  
-    * `test.done(tag)` (Only async tests) Same as `loop.done(tag)`
+    * `loop.addDone({tag [,option1, val1 [, option2, val2]]})`  
+       Dynamically adds a done() condition to the test. The timeout starts to run since the moment the `loop.addDone()`
+       is called.  
+    * `loop.done(tag)`  
+       Signals that a `done()` condition has occurred. The tag identifies the condition that was specified  
+    * `loop.schedCall(func, delay)`  
+       Schedules a call to the specified function after the specified period (in milliseconds). If `delay` is negative,
+       then the delay is relative to the time of the last such call with negative delay. Thus, sequences of
+       function calls with specific delays between them can be scheduled. If `delay` is positive, it is relative to
+       the current moment.
+ - `test`  
+    The test object (instance of class `test::Test`) of that test. This object has the following methods:  
+    * `test.error(message)`  
+    Records that an error has occurred, but does not actually abort the test. After that call, normally the test should be
+    aborted by the user via an early return, or by throwing an exception. However, throwing an exception would cause the
+    error report to state that an exception has occurred, which can be misleading because the exception is used only to
+    bail out. For this purpose, you can use the `test::BailoutException` class, which will be recognized by the framework
+    and not reported.  
+    * `test.done(tag)` (Only async tests)
+    Same as `loop.done(tag)`
 
 ## Convenience macros
 There are a few convenience macros defined by the framework, and it's a good idea to include the public header of the framework
 last to avoid potential conflict of these or any other macros from the framework with code in other headers.  
 
- - `check(cond)` Similar to `assert()` - if the condition returns `false`, test.error() is called, after which
+ - `check(cond)`
+    Similar to `assert()` - if the condition returns `false`, test.error() is called, after which
 `test::BailoutException` is thrown. The error message shows the condition that failed, and the source file and line.  
- - `doneOrError(cond, tag)` Only in async tests. Calls `check(cond)` and after that `test.done(tag)`. Therefore it can be
- used to resolve a `done()` condition, but only in case a condition is true, and signal error if the condition is false.
+ - `doneOrError(cond, tag)` (Only in async tests)
+    Calls `check(cond)` and after that `test.done(tag)`. Therefore it can be
+    used to resolve a `done()` condition, but only in case a condition is true, and signal error if the condition is false.
 
  
 
