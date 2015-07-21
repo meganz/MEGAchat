@@ -68,7 +68,7 @@ testGroup("group one")
      }).disable(); //disables the test
 
      <global cleanup code goes here>
-     return test::gNumErrors;
+     return test::gNumFailed;
 } 
 ```
 
