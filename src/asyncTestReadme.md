@@ -116,13 +116,13 @@ condition has occurred. What follows are optional configuration parameters for t
 option name followed by an integer value, then next option name, followed by an option value etc. Currenty there are
 only two config parameters:  
  - 'timeout'  
- Specifies the time to wait for that condition (since the start of the test). If the condition does not occur
-within that period, the test fails with a message identifying the condition that timed out. If this option is not specified,
- a default timeout of 2000ms is used.  
+   Specifies the time to wait for that condition (since the start of the test). If the condition does not occur
+   within that period, the test fails with a message identifying the condition that timed out. If this option is not specified,
+   a default timeout of 2000ms is used.  
  - 'order'  
- The condition should occur in the specified order, relative to other such 'ordered' conditions (i.e. ones that
-have the 'order' parameter). In other words, all conditions with that config option specified must occur in the specified
-order relative to each other. If this option is not specified, then no order checking is done on that condition.  
+   The condition should occur in the specified order, relative to other such 'ordered' conditions (i.e. ones that
+   have the 'order' parameter). In other words, all conditions with that config option specified must occur in the specified
+   order relative to each other. If this option is not specified, then no order checking is done on that condition.  
 
 ### Synchronous tests
 
