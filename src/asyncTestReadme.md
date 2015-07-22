@@ -185,7 +185,7 @@ A test body has two local variables defined:
       and not reported.  
     * `test.done(tag)` (Only async tests)  
       Same as `loop.done(tag)`
-    * `test.cleanup = <void() function>`
+    * `test.cleanup = <void() function>`  
     Registers a cleanup function that will be run after the body of the test is completed. This function is guaranteed to
     always execute after the test body completes, even if an error/exception occurred. This function is executed *before*
     the group's `afterEach` (if such is defined). An unhandled exception inside this function results in the test being
