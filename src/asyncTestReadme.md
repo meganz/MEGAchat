@@ -47,12 +47,12 @@ int main()
                 });
             });
          });
-         asyncTest("test two", {"foo", {"bar", "timeout", 2000}}
+         asyncTest("test two", {"foo", {"bar", "timeout", 2000}})
          {
              promise::Promise<int> pms;
              pms.then([&](int a)
              {
-                //if a is not 34, calls test.error() and throws a test::BailoutException. Otherwise, calls test.done("foo");
+                //if a is not 34, calls test.error() and throws a test::BailoutException. Otherwise, calls test.done("foo")
                 doneOrError(a == 34, "foo"); 
              })
              .then([&]()
