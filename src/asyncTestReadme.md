@@ -96,6 +96,10 @@ following facilities:
  - `group.beforeEach = <void(test::Test&) function>`  
    If this property is set, then the specified function will be executed before each test, passing to it the `test` object
    that represents that test. For more info about the `test` object see the 'Local system variables' section.  
+ - `group.afterEach = <void(test::Test&) function>`  
+   If this property is set, then the specified function will be executed after each test, passing to it the `test` object
+   representing that test. The function is guaranteed to be executed even if the test completed with error or exception.
+   All exceptions that may occur in `afterEach` are caught an silently ignored.  
 
 The group body can contain any code, but its purpose is to configure the test group and register tests in that group,
 so normally it just contains group configuration code and a sequence of asyncTest() and syncTest() calls, which define
@@ -181,6 +185,9 @@ A test body has two local variables defined:
       and not reported.  
     * `test.done(tag)` (Only async tests)  
       Same as `loop.done(tag)`
+    *`test.cleanup = <void() function>`  
+     Registers a function to be called after the test completes. The function is guaranteed to be called no matter how the
+     test completes (error, exception, etc). This function is executed *before* the group's `afterEach` (if such is defined).
 
 ## Convenience macros
 There are a few convenience macros defined by the framework, and it's a good idea to include the public header of the

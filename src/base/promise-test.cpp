@@ -10,7 +10,6 @@ int main()
 
 TestGroup("general")
 {
-  group.beforeEach = [](test::Test&) { printf("before each\n");};
   asyncTest("Promise<int>: resolve->then(ret error)->fail(recover)->then",
   {{"fail", "order", 2}, {"then1", "order", 1}, {"then2", "order", 3}})
   {

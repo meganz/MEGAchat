@@ -204,7 +204,8 @@ public:
     int numTests = 0;
     Ts execTime = 0;
     std::function<void(Test&)> beforeEach;
-	std::function<void()> allCleanup;
+    std::function<void(Test&)> afterEach;
+    std::function<void()> allCleanup;
     std::function<void(TestGroup&)> body;
 
     template <class CB>
@@ -363,6 +364,10 @@ void Test::run()
     }
     gTotalExecTime += execTime;
     doCleanup();
+    if (group.afterEach)
+    {
+        try { group.afterEach(*this); } catch(...){}
+    }
     if(errorMsg.empty())
     {
         TEST_LOG("%spass%s '%s%s%s' (%lld ms)", kColorSuccess, kColorNormal,
