@@ -99,7 +99,7 @@ following facilities:
  - `group.afterEach = <void(test::Test&) function>`  
    If this property is set, then the specified function will be executed after each test, passing to it the `test` object
    representing that test. The function is guaranteed to be executed even if the test completed with error or exception.
-   All exceptions that may occur in `afterEach` are caught an silently ignored.  
+   All exceptions that may occur in `afterEach` are caught and silently ignored.  
 
 The group body can contain any code, but its purpose is to configure the test group and register tests in that group,
 so normally it just contains group configuration code and a sequence of asyncTest() and syncTest() calls, which define
