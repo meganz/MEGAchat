@@ -4,7 +4,7 @@
 
 This async unit testing environment differs from the traditional C++ unit testing frameworks in the fact that it
 incorporates a message loop and instrumentation to register and track conditions that should occur
-(called 'done()-s' - after the name of the function that signals that the condition has occurred),
+(called 'done-s' - after the name of the function that signals that the condition has occurred),
 within a specified timeout, and in a given order, if necessary. It also provides a means to schedule a function call after
 a speficied time relative to the moment of scheduling, or, in 'ordered mode' - relative to the last such 'ordered' call.
 The async unit test is considered complete once all expected events have occurred or timed out, and all scheduled functions
@@ -47,7 +47,7 @@ testGroup("group one")
             });
         });
      });
-     asyncTest("test two", {"foo", "bar"}
+     asyncTest("test two", {"foo", {"bar", "timeout", 2000}}
      {
         promise::Promise<int> pms;
         pms.then([&](int a)
@@ -110,16 +110,18 @@ calling process.
 
 Async tests are defined and registered inside a group body by:
 ```
-asyncTest (name [,<list of done()-s>])
+asyncTest (name [,<list of done-s>])
 {
     <test body>
 });
 ```
 Mind the closing bracket and semicolon at the end.  
-The name can be any string. The list of done-s is enclosed in braces, and each done() description is in the form:  
+The name can be any string. The list of 'done' items is enclosed in braces, and each item description is in the form:  
 ```{tag [, optname1, val1 [, optname2, val2 ]]}```  
-The `tag` is the unique identifier of the done() item, which is used (in the `test.done(tag)` call) to specify that
-condition has occurred. What follows are optional configuration parameters for that done(). They are specified as a string
+or, if no options are needed, it can be just a string for the tag, with no enclosing braces.
+
+The `tag` is the unique identifier of the 'done' item, which is used (in the `test.done(tag)` call) to specify that
+condition has occurred. What follows are optional configuration parameters for that item. They are specified as a string
 option name followed by an integer value, then next option name, followed by an option value etc. Currenty there are
 only two config parameters:  
  - 'timeout'  
@@ -154,10 +156,10 @@ A test body has two local variables defined:
    The event loop inside which the asynchronous test runs (instance of `test::EventLoop`).
    This object has the following methods:   
     * `loop.addDone({tag [,option1, val1 [, option2, val2]]})`  
-       Dynamically adds a done() condition to the test. The timeout starts to run since the moment the `loop.addDone()`
+       Dynamically adds a 'done' condition to the test. The timeout starts to run since the moment the `loop.addDone()`
        is called.  
     * `loop.done(tag)`  
-       Signals that a `done()` condition has occurred. The tag identifies the condition that was specified.  
+       Signals that a 'done' condition has occurred. The tag identifies the condition that was specified.  
     * `loop.jitterPct`
        The default fuzziness percent of schedCall() delays. If not set, it is 50%. See below the description
        of `loop.schedCall()`
@@ -189,13 +191,13 @@ framework last to avoid potential conflict of these or any other macros from the
     `test::BailoutException` is thrown. The error message shows the condition that failed, and the source file and line.  
  - `doneOrError(cond, tag)` (Only in async tests)  
     Calls `check(cond)` and after that `test.done(tag)`. Therefore it can be
-    used to resolve a `done()` condition, but only in case a condition is true, and signal error if the condition is false.
+    used to resolve a 'done' condition, but only in case a condition is true, and signal error if the condition is false.
 
 ## Macros for debug, verbosity and defaults
 There are several macros that enable additional output, and set defaults. To be used, they should be defined before the test
 framework header is included:
-- `TESTLOOP_LOG_DONES` - if defined, every resolved done() condition will be logged
+- `TESTLOOP_LOG_DONES` - if defined, every resolved 'done' condition will be logged
 - `TESTLOOP_DEBUG` - if defined, enables debug info output, related to the event loop
-- `TESTLOOP_DEFAULT_DONE_TIMEOUT` -  Sets the default timeout (in milliseconds) of `done()` conditions. If not set, the
+- `TESTLOOP_DEFAULT_DONE_TIMEOUT` -  Sets the default timeout (in milliseconds) of 'done' conditions. If not set, the
   default is 2000ms
 
