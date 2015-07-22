@@ -144,7 +144,7 @@ Mind the closing bracket and semicolon at the end.
 
 ### Disabling a test
 
-Any syncronous or asynchronous test can be disabled by appending `.disable()` after the closing bracket of the test body
+Any synchronous or asynchronous test can be disabled by appending `.disable()` after the closing bracket of the test body
 definition, see the example.  
 
 ### Local system variables
