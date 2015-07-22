@@ -252,7 +252,7 @@ public:
 		throw std::runtime_error(msg);
 	}
     template <class CB>
-    void schedCall(CB&& func, int after=-10, int aJitterPct = -1)
+    void schedCall(CB&& func, int after=100, int aJitterPct = -1)
 	{
         if (aJitterPct < 0)
             aJitterPct = jitterPct;
