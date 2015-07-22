@@ -2,7 +2,7 @@
 
 ## Overview
 
-The async unit testing environment differs from the traditional C++ unit testing frameworks in the fact that it
+This async unit testing environment differs from the traditional C++ unit testing frameworks in the fact that it
 incorporates a message loop and instrumentation to register and track conditions that should occur
 (called 'done()-s' - after the name of the function that signals that the condition has occurred),
 within a specified timeout, and in a given order, if necessary. It also provides a means to schedule a function call after
@@ -20,13 +20,16 @@ and to insert the TESTS_INIT() macro in the global scope, before the main() func
 ## Simple example
 ```
 #include <promise.h>
+
+//good to have the test framework header included last,
+//to minimize the chance of macro conflicts
 #include <asyncTest-framework.h>
 
 INIT_TESTS();
 
 int main()
 {
-<global test initialization code goes here>
+<global test initialization code (if any) goes here>
 testGroup("group one")
 {
     group.beforeEach = [&](test::Test& t){ printf("beforeEach\n"); };
@@ -34,6 +37,7 @@ testGroup("group one")
     asyncTest("test one",
     {{"event 1", "order", 1}, {"event 2", "timeout", 4000, "order", 2}})
     {
+        loop.jitterPct = 40; //set the default schedCall() delay fuziness. By default it's 50%
         schedCall([&]()
         {
             test.done("event 1");
@@ -45,10 +49,11 @@ testGroup("group one")
      });
      asyncTest("test two", {"foo", "bar"}
      {
-        Promise<int> pms;
+        promise::Promise<int> pms;
         pms.then([&](int a)
         {
-            doneOrError(a == 34, "foo");
+            //if a is not 34, calls test.error() and throws a test::BailoutException. Otherwise, calls test.done("foo");
+            doneOrError(a == 34, "foo"); 
         })
         .then([&]()
         {
@@ -66,12 +71,12 @@ testGroup("group one")
      syncTest("test three")
      {
          int a = 2;
-         check(a == 2);
+         check(a == 2); // if a is not 2, calls test.error() and throws test::BailoutException
      }).disable(); //disables the test
 });
-    <global cleanup code goes here>
-    return test::gNumFailed;
-} 
+    <global cleanup code (if any) goes here>
+    return test::gNumFailed; //return the total error count to the calling process. Useful for automation
+}
 ```
 
 ## Structure
@@ -110,7 +115,7 @@ asyncTest (name [,<list of done()-s>])
     <test body>
 });
 ```
-
+Mind the closing bracket and semicolon at the end.  
 The name can be any string. The list of done-s is enclosed in braces, and each done() description is in the form:  
 ```{tag [, optname1, val1 [, optname2, val2 ]]}```  
 The `tag` is the unique identifier of the done() item, which is used (in the `test.done(tag)` call) to specify that
@@ -134,7 +139,8 @@ syncTest(name)
 {
   <test body>
 });
-```  
+```
+Mind the closing bracket and semicolon at the end.  
 
 ### Disabling a test
 
@@ -186,10 +192,10 @@ last to avoid potential conflict of these or any other macros from the framework
     used to resolve a `done()` condition, but only in case a condition is true, and signal error if the condition is false.
 
 ## Macros for debug, verbosity and defaults
-There are several macros that enable additional output. To be used, they should be defined before the test framework header is
-included:
+There are several macros that enable additional output, and set defaults. To be used, they should be defined before the test
+framework header is included:
 - `TESTLOOP_LOG_DONES` - if defined, every resolved done() condition will be logged
 - `TESTLOOP_DEBUG` - if defined, enables debug info output, related to the event loop
-- `TESTLOOP_DEFAULT_DONE_TIMEOUT` -  Sets the default timeout (in milliseconds) of `done()` conditions. If not set, the default
- is 2000ms
+- `TESTLOOP_DEFAULT_DONE_TIMEOUT` -  Sets the default timeout (in milliseconds) of `done()` conditions. If not set, the
+  default is 2000ms
 
