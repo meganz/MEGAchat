@@ -157,6 +157,7 @@ definition, see the example.
 
 To specify a cleanup function, specific for a given test (vs `group.afterEach`), you can:
  - append `.cleanup = <void() function>` after the closing bracket of a `syncTest` or `asyncTest` definition:
+
 ```
 asyncTest('foo', {"one", "two"})
 {
