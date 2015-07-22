@@ -181,8 +181,8 @@ A test body has two local variables defined:
       Same as `loop.done(tag)`
 
 ## Convenience macros
-There are a few convenience macros defined by the framework, and it's a good idea to include the public header of the framework
-last to avoid potential conflict of these or any other macros from the framework with code in other headers.  
+There are a few convenience macros defined by the framework, and it's a good idea to include the public header of the
+framework last to avoid potential conflict of these or any other macros from the framework with code in other headers.  
 
  - `check(cond)`  
     Similar to `assert()` - if the condition returns `false`, `test.error()` is called, after which
