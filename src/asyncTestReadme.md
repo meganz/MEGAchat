@@ -153,6 +153,23 @@ Mind the closing bracket and semicolon at the end.
 Any synchronous or asynchronous test can be disabled by appending `.disable()` after the closing bracket of the test body
 definition, see the example.  
 
+### Test-specific cleanup function ###
+
+To specify a cleanup function, specific for a given test, you can append `.cleanup(<void() function>)` after the closing
+bracket of a `syncTest` or `asyncTest` definition:
+```
+asyncTest('foo', {"one", "two"})
+{
+ <test body>
+})
+.cleanup([&]()
+{
+<cleanup code>
+});
+```  
+The function is guaranteed to be called no matter how the test completed (error, exception, etc). This function is executed
+*before* the group's `afterEach` (if such is defined).
+
 ### Local system variables
 
 A test body has two local variables defined:  
@@ -185,9 +202,6 @@ A test body has two local variables defined:
       and not reported.  
     * `test.done(tag)` (Only async tests)  
       Same as `loop.done(tag)`
-    *`test.cleanup = <void() function>`  
-     Registers a function to be called after the test completes. The function is guaranteed to be called no matter how the
-     test completes (error, exception, etc). This function is executed *before* the group's `afterEach` (if such is defined).
 
 ## Convenience macros
 There are a few convenience macros defined by the framework, and it's a good idea to include the public header of the

@@ -86,7 +86,7 @@ public:
 
 class Test
 {
-    std::function<void()> cleanup;
+    std::function<void()> mCleanupFunc;
 public:
     TestGroup& group;
     std::string name;
@@ -150,13 +150,15 @@ public:
         kColorTag = "\033[34m";
         kColorWarning = "\033[33m";
     }
+    template <class CB>
+    void cleanup(CB&& cb) { mCleanupFunc = std::forward<CB>(cb); }
     void doCleanup()
 	{
-        if (!cleanup)
+        if (!mCleanupFunc)
             return;
 		try
 		{
-            cleanup();
+            mCleanupFunc();
 		}
         catch (BailoutException& e)
         {  error(std::string("Error during cleanup: ") + e.what());  }
