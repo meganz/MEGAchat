@@ -42,7 +42,7 @@ static inline void marshallCall(F&& func)
         Msg* operator->() { return this->mMsg; }
     };
     Msg* msg = new Msg(std::forward<F>(func),
-    [](megaMessage* ptr)
+    [](void* ptr)
     {
         AutoDel pMsg(static_cast<Msg*>(ptr));
         assert(pMsg->magic == 0x3e9a3591);

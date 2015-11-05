@@ -64,14 +64,14 @@ inline megaHandle setTimer(CB&& callback, unsigned time)
 
     Msg* pMsg = new Msg(std::forward<CB>(callback),
         persist
-        ? [](megaMessage* arg)
+        ? [](void* arg)
           {
               auto msg = static_cast<Msg*>(arg);
               if (msg->canceled)
                   return;
               msg->cb();
           }
-        : [](megaMessage* arg)
+        : [](void* arg)
           {
               if (static_cast<Msg*>(arg)->canceled)
                   return;

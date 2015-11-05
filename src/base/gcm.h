@@ -24,8 +24,7 @@
     #define MEGA_GCM_IMPEXP MEGA_GCM_DLLIMPORT
 #endif
 
-struct megaMessage;
-typedef void(*megaMessageFunc)(struct megaMessage*);
+typedef void(*megaMessageFunc)(void*);
 
 #ifdef __cplusplus
 extern "C"
@@ -93,7 +92,7 @@ MEGA_GCM_EXTERNC_VAR MEGA_GCM_IMPEXP GcmPostFunc megaPostMessageToGui;
 static inline void megaProcessMessage(void* vptr)
 {
     struct megaMessage* msg = (struct megaMessage*)vptr;
-    msg->func(msg);
+    msg->func(vptr);
 }
 
 #ifdef __cplusplus

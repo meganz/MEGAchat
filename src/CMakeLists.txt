@@ -9,7 +9,7 @@ find_package(OpenSSL REQUIRED)
 
 set(MPENC_DIR "~/mpenc_cpp" CACHE PATH "mpEnc checkout dir built within a /build subdir")
 set(KARERE_LOGGER_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/base CACHE PATH "Karere logger include dir") #tell mpenc to use the karere logger
-
+set(LIBWS_DIR ../third-party/libws CACHE PATH "libws source dir, where its CMakeLists.txt is located")
 set (SRCS
     ../third-party/murmurHash/MurmurHash3.cpp
 //    karereCommon.cpp
@@ -19,6 +19,7 @@ set (SRCS
     chatClient.cpp
     textModule.cpp
     contactList.cpp
+    chatd.cpp
     ./text_filter/text_filter.cpp
     ./text_filter/default_link_handler.cpp
     ./text_filter/default_emoticon_handler.cpp
@@ -36,8 +37,11 @@ endif()
 
 add_subdirectory(rtcModule)
 add_subdirectory(${MPENC_DIR} mpenc)
-#===
+add_subdirectory(${LIBWS_DIR} libws)
 
+#===
+# The public variables, such as KARERE_INCLIDE_DIRS should not contain relative paths, as they
+# can be used outside of this context, and the base directory would be another one.
 set(KARERE_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/base
@@ -49,7 +53,8 @@ set(KARERE_INCLUDE_DIRS
     ${CRYPTOPP_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
     ${MPENC_INCLUDE_DIRS}
-    CACHE STRING "Include directries needed by projects using karere lib"
+    ${LIBWS_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/libws
+    STRING "Include directries needed by projects using karere lib"
 )
 include_directories(${KARERE_INCLUDE_DIRS})
 
@@ -60,6 +65,7 @@ target_link_libraries(karere
     ${LIBMEGA_LIBRARIES}
     ${CRYPTOPP_LIBRARIES}
     mpEnc_cpp
+    libws
 )
 
 

@@ -19,7 +19,7 @@ if (NOT WIN32)
     pkg_check_modules(PC_CARES QUIET libcares)
     find_library(CARES_LIB cares HINTS ${PC_CARES_LIBDIR} ${PC_CARES_LIBRARY_DIRS})
     if (NOT CARES_LIB)
-        message(FATAL_ERROR "Could not find c-ares library, neede by Mega SDK")
+        message(FATAL_ERROR "Could not find c-ares library, needed by Mega SDK")
     endif()
     #c-ares is the only megasdk dependency that we don't already include,
     #so add it to the megasdk libs
@@ -50,4 +50,4 @@ set(LIBMEGA_LIBRARIES "${_LIBMEGA_LIBRARIES}" CACHE STRING "libmega library and 
 #    list(APPEND MEGASDK_INCLUDES ../third_party/glob) #temporary hack until code in the sdk depending on glob.h is removed from android build
 #endif()
 
-mark_as_advanced(_LIBMENGA_LIBRARIES)
+mark_as_advanced(_LIBMEGA_LIBRARIES)

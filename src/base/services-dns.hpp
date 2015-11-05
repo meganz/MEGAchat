@@ -19,7 +19,7 @@ struct DnsReqMsg: public megaMessage
     DnsReqMsg(CB&& aCb)
         :megaMessage(gcmFunc), cb(std::forward<CB>(aCb)), errcode(0), addr(nullptr){}
 protected:
-    static void gcmFunc(megaMessage* msg)
+    static void gcmFunc(void* msg)
     {
         DnsReqMsg<CB>* self = (DnsReqMsg<CB>*)msg;
         if (self->errcode)
