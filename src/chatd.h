@@ -1,10 +1,16 @@
+#ifndef __CHATD_H__
+#define __CHATD_H__
+
 #include <libws.h>
 #include <stdint.h>
 #include <string>
+#include <buffer.h>
+#include <map>
+#include <set>
+#include <promise.h>
 
 namespace chatd
 {
-typedef uint64_t Id;
 // command opcodes
 enum Opcode
 {
@@ -34,8 +40,25 @@ enum Priv
     PRIV_OPER = 3
 };
 
+std::string base64urlencode(const void *data, size_t inlen);
+
+class Id
+{
+public:
+    uint64_t val;
+    std::string toString() const { return base64urlencode(&val, sizeof(val)); }
+    Id(const uint64_t& from=0): val(from){}
+    bool operator==(const Id& other) const { return val == other.val; }
+    Id& operator=(const Id& other) { val = other.val; return *this; }
+    Id& operator=(const uint64_t& aVal) { val = aVal; return *this; }
+    operator const uint64_t&() const { return val; }
+    bool operator<(const Id& other) const { return val < other.val; }
+};
+
 class Url
 {
+protected:
+    uint16_t getPortFromProtocol() const;
 public:
     std::string protocol;
     std::string host;
@@ -62,33 +85,12 @@ class Command: public Buffer
 public:
     Command(uint8_t opcode): Buffer(64) { write(0, opcode); }
     template<class T>
-    Command& operator+(const T& val)
+    Command&& operator+(const T& val)
     {
         write(dataSize(), val);
-        return *this;
+        return std::move(*this);
     }
 };
-
-std::string base64urlencode(const unsigned char *data, size_t inlen);
-class Id
-{
-public:
-    uint64_t val;
-    std::string toString() { return base64urlencode(&val, sizeof(val)); }
-    Id(const uint64_t& from=0): val(from){}
-    bool operator==(const Id& other) const { return val == other.val; }
-    Id& operator=(const Id& other) { val = other.val; return *this; }
-    Id& operator=(const uint64_t& aVal) { val = aVal; return *this; }
-    const uint64_t& operator uint64_t() const { return val; }
-    bool operator bool() const { return val != 0; }
-    bool operator<(const Id& other) const { return val < other.val; }
-};
-
-namespace std
-{
-    template<>
-    struct hash<Id> { size_t operator()(const Id& id) { return hash<uint64_t>()(id.val); } };
-}
 
 //for exception message purposes
 std::string operator+(const char* str, const Id& id)
@@ -96,6 +98,11 @@ std::string operator+(const char* str, const Id& id)
     std::string result(str);
     result.append(id.toString());
     return result;
+}
+std::string& operator+(std::string&& str, const Id& id)
+{
+    str.append(id.toString());
+    return str;
 }
 
 class Client;
@@ -109,8 +116,10 @@ protected:
     Buffer mCommandQueue;
     ws_t mWebSocket = nullptr;
     Url mUrl;
+    std::unique_ptr<promise::Promise<void> > mConnectPromise;
+    std::unique_ptr<promise::Promise<void> > mDisconnectPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
-    int state() { return mWebSocket ? ws_get_state(mWebSocket) : WS_STATE_DISCONNECTED; }
+    int getState() { return mWebSocket ? ws_get_state(mWebSocket) : WS_STATE_CLOSED_CLEANLY; }
     bool isOnline() const
     {
         return (mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
@@ -118,18 +127,19 @@ protected:
     static void websockConnectCb(ws_t ws, void* arg);
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
         size_t reason_len, void *arg);
-    Promise<void> reconnect();
-    Promise<void> disconnect();
+    promise::Promise<void> reconnect();
+    promise::Promise<void> disconnect();
     void reset();
     void sendCommand(Command&& cmd);
     void rejoinExistingChats();
     void resendPending();
     void join(const Id& chatid);
     void hist(const Id& chatid, long count);
-    void execCommand(const Buffer& buf);
+    void execCommand(const StaticBuffer& buf);
     void msgSend(const Id& chatid, const Message& message);
     void msgUpdate(const Id& chatid, const Message& message);
-
+    friend class Client;
+    friend class Messages;
 };
 
 // message storage subsystem
@@ -143,6 +153,8 @@ protected:
     uint32_t mForwardStart;
     std::vector<Message*> mForwardList;
     std::vector<Message*> mBackwardList;
+    std::map<Id, size_t> mSending;
+    std::map<size_t, Message*> mModified;
     std::map<Id, size_t> mIdToIndexMap;
     size_t mLastReceivedIdx = 0;
     size_t mLastSeenIdx = 0;
@@ -152,27 +164,29 @@ protected:
     void push_back(Message* msg) { mBackwardList.push_back(msg); }
     void clear()
     {
-        for (auto msg: *mBackwardList)
+        for (auto& msg: mBackwardList)
             delete msg;
         mBackwardList.clear();
-        for (auto msg: *mForwardList)
+        for (auto& msg: mForwardList)
             delete msg;
         mForwardList.clear();
     }
-    ~Messages() { clear(); }
     // msgid can be 0 in case of rejections
     bool confirm(const Id& msgxid, const Id& msgid);
-    void store(bool isNew, const Id& userid, const Id& msgid, uint32_t timestamp,
-               const char* msg, size_t msg);
+    size_t store(bool isNew, const Id& userid, const Id& msgid, uint32_t timestamp,
+               const char* msg, size_t msglen);
     void onMsgUpdCommand(const Id& msgid, const char* msgdata, size_t msglen);
     bool check(const Id& chatid, const Id& msgid);
+    void onLastReceived(const Id& msgid);
+    void onLastSeen(const Id& msgid);
     friend class Connection;
     friend class Client;
 
 public:
-    size_t lownum() { return mForwardStart - mBackwardList.size(); }
-    size_t highnum() { return mForwardStart + mForward.size()-1;}
-    inline Message* findOrNull(size_t num)
+    ~Messages() { clear(); }
+    size_t lownum() const { return mForwardStart - mBackwardList.size(); }
+    size_t highnum() const { return mForwardStart + mForwardList.size()-1;}
+    inline Message* findOrNull(size_t num) const
     {
         if (num < mForwardStart) //look in mBackwardList
         {
@@ -189,7 +203,7 @@ public:
             return mForwardList[idx];
         }
     }
-    Message& at(size_t num)
+    Message& at(size_t num) const
     {
         Message* msg = findOrNull(num);
         if (!msg)
@@ -199,8 +213,8 @@ public:
         return *msg;
     }
 
-    Message& operator[](size_t num) { return at(num); }
-    bool hasNum(size_t num)
+    Message& operator[](size_t num) const { return at(num); }
+    bool hasNum(size_t num) const
     {
         if (num < mForwardStart)
             return (mForwardStart - num <= mBackwardList.size());
@@ -211,7 +225,7 @@ public:
     bool isMsgReceived(size_t idx) const { return idx <= mLastReceivedIdx; }
     bool isMsgSending(size_t idx) const { return mSending.find(at(idx).id) == mSending.end(); }
     size_t submit(const char* msg, size_t msglen);
-    void modify(int32_t msgnum, const char* msgdata, size_t msglen);
+    void modify(size_t msgnum, const char* msgdata, size_t msglen);
     void resendPending();
     void range(const Id& chatid);
 
@@ -229,29 +243,29 @@ protected:
     Id mUserId;
     Id mMsgTransactionId;
     static bool sWebsockCtxInitialized;
-    uint32_t mOptions = kDefaultOptions;
+    uint32_t mOptions = 0;
     void sendCommand(const Id& chatid, Command&& cmd);
     Connection& getOrCreateConnection(const Id& chatid, int shardNo, const std::string& url, bool& isNew);
-    Connection& chatIdConn(const Id& chatid)
+    Connection& chatidConn(const Id& chatid)
     {
         auto it = mConnectionForChatId.find(chatid);
         if (it == mConnectionForChatId.end())
             throw std::runtime_error("chatidConn: Unknown chatid "+chatid);
         return *it->second;
     }
-    Messages& chatIdMessages(const Id& chatid)
+    Messages& chatidMessages(const Id& chatid)
     {
         auto it = mMessagesForChatId.find(chatid);
         if (it == mMessagesForChatId.end())
             throw std::runtime_error("chatidMessages: Unknown chatid "+chatid);
-        return it->second;
+        return *it->second;
     }
     void range(const Id& chatid);
     const Id& nextTransactionId() { mMsgTransactionId.val++; return mMsgTransactionId; }
     void onMsgUpdCommand(const Id& chatid, const Id& msgid, const char* msg, size_t msglen);
     bool msgCheck(const Id& chatid, const Id& msgid);
     void msgConfirm(const Id& msgxid, const Id& msgid);
-    void msgStore(bool isNew, const Id& chatid, const Id& userid, const Id& msgid, uint32_t ts,
+    size_t msgStore(bool isNew, const Id& chatid, const Id& userid, const Id& msgid, uint32_t ts,
                   const char* msg, size_t msglen);
 public:
     static ws_base_s sWebsocketContext;
@@ -261,10 +275,18 @@ public:
     void getHistory(const Id& chatid, int count);
     void join(const Id& chatid, int shardNo, const std::string& url);
     size_t msgSubmit(const Id& chatid, const char* msg, size_t msglen);
+    friend class Connection;
+    friend class Messages;
 };
 
 
 }
+namespace std
+{
+    template<>
+    struct hash<chatd::Id> { size_t operator()(const chatd::Id& id) const { return hash<uint64_t>()(id.val); } };
+}
+
 #endif
 
 

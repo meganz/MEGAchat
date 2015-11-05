@@ -1,0 +1,3 @@
+[submodule "third-party/libws"]
+	path = third-party/libws
+	url = https://github.com/alxvasilev/libws.git

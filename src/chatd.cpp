@@ -1,6 +1,15 @@
-#include <libws.h>
-#include <stdint.h>
-#include <string>
+#include "chatd.h"
+#include <base/cservices.h>
+#include <gcmpp.h>
+#include <retryHandler.h>
+
+#define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
+#define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
+#define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
+#define CHATD_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
+
+using namespace std;
+using namespace promise;
 
 namespace chatd
 {
@@ -17,27 +26,27 @@ Client::Client(const Id& userId, uint32_t options)
 {
     if (!sWebsockCtxInitialized)
     {
-        ws_global_init(&sWebsockBaseContext, services_get_event_loop(), services_dns_eventbase,
+        ws_global_init(&sWebsocketContext, services_get_event_loop(), services_dns_eventbase,
         [](struct bufferevent* bev, void* userp)
         {
-            mega::marshallCall([bev, userp]()
+            ::mega::marshallCall([bev, userp]()
             {
                 ws_read_callback(bev, userp);
             });
         },
         [](struct bufferevent* bev, short events, void* userp)
         {
-            mega::marshallCall([bev, events, userp]()
+            ::mega::marshallCall([bev, events, userp]()
             {
                 ws_event_callback(bev, events, userp);
             });
         },
         [](int fd, short events, void* userp)
         {
-            mega::marshallCall([events, userp]()
+            ::mega::marshallCall([events, userp]()
             {
                 ws_handle_marshall_timer_cb(0, events, userp);
-            })
+            });
         });
         sWebsockCtxInitialized = true;
     }
@@ -72,7 +81,9 @@ Connection& Client::getOrCreateConnection(const Id& chatid, int shardNo, const s
     if (it == mConnections.end())
     {
         isNew = true;
-        conn = mConnections[shardNo] = new Connection(this, shardNo);
+        conn = new Connection(*this, shardNo);
+        mConnections.emplace(std::piecewise_construct, std::forward_as_tuple(shardNo),
+                             std::forward_as_tuple(conn));
     }
     else
     {
@@ -121,7 +132,7 @@ void Url::parse(const std::string& url)
     else
     {
         ss = 0;
-        protocol = 'http';
+        protocol = "http";
     }
     char last = protocol[protocol.size()-1];
     isSecure = (last == 's') || (last == 'S');
@@ -133,7 +144,7 @@ void Url::parse(const std::string& url)
         if (ch == ':') //we have port
         {
             size_t ps = i+1;
-            mServer = url.substr(s, i-ss);
+            host = url.substr(ss, i-ss);
             for (; i<url.size(); i++)
             {
                 ch = url[i];
@@ -161,18 +172,18 @@ void Url::parse(const std::string& url)
     }
     //i now points to '/' or '?' and host and port must have been set
     assert(!host.empty());
-    path = (url[i] == '?') ? ("/"+url.substr(i)) : mPath = url.substr(i);
+    path = (url[i] == '?') ? ("/"+url.substr(i)) : path = url.substr(i);
     if (!port)
     {
         port = getPortFromProtocol();
     }
 }
 
-uint16_t Url::getPortFromProtocol()
+uint16_t Url::getPortFromProtocol() const
 {
     if ((protocol == "http") || (protocol == "ws"))
         return 80;
-    else if ((protocol = "https") || (protocol == "wss"))
+    else if ((protocol == "https") || (protocol == "wss"))
         return 443;
     else
         return 0;
@@ -186,35 +197,35 @@ void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *r
     auto pms = self->mConnectPromise.get();
     if (pms && !pms->done())
     {
-        pms.reject(state());
+        pms->reject(self->getState(), 0x3e9a4a1d);
     }
     pms = self->mDisconnectPromise.get();
     if (pms && !pms->done())
     {
-        pms.resolve();
+        pms->resolve();
     }
 }
 
 Promise<void> Connection::reconnect()
 {
-    int state = state();
+    int state = getState();
     if ((state == WS_STATE_CONNECTING) || (state == WS_STATE_CONNECTED))
     {
         throw std::runtime_error("Connection::reconnect: Already connected/connecting");
     }
     return
-    mega::retry([this](int no)
+    ::mega::retry([this](int no)
     {
         reset();
-        checkLibwsCall((libws_init(&client->mWebsocketContext, &mWebSocket)), "create socket");
+        checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
         ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
         ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
-        ws_set_on_msg_cb(mWebSocket,
+        ws_set_onmsg_cb(mWebSocket,
             [](ws_t ws, char *msg, uint64_t len, int binary, void *arg)
             {
                 Connection* self = static_cast<Connection*>(arg);
                 ASSERT_NOT_ANOTHER_WS("message");
-                self->execCommand(msg, len);
+                self->execCommand(StaticBuffer(msg, len));
             }, this);
 
         //TODO: attach other event handlers
@@ -239,7 +250,7 @@ Promise<void> Connection::disconnect()
     }
     if (!mDisconnectPromise)
     {
-        mDisconnectPromise = new Promise<void>;
+        mDisconnectPromise.reset(new Promise<void>);
     }
     ws_close(mWebSocket);
     return *mDisconnectPromise;
@@ -256,7 +267,7 @@ void Connection::reset()
     assert(!mWebSocket);
 }
 
-Connection::sendCommand(Command&& cmd)
+void Connection::sendCommand(Command&& cmd)
 {
     //console.error("CMD SENT: ", constStateToText(Chatd.Opcode, opcode), cmd);
     if (mCommandQueue.empty())
@@ -294,7 +305,7 @@ void Connection::resendPending()
 {
     for (auto& chatid: mChatIds)
     {
-        mClient.mMessagesForChatId[chatid].resendPending();
+        mClient.chatidMessages(chatid).resendPending();
     }
 }
 
@@ -306,19 +317,19 @@ void Connection::join(const Id& chatid)
 
 void Client::sendCommand(const Id& chatid, Command&& cmd)
 {
-    auto conn = chatIdConn(chatid);
+    auto& conn = chatidConn(chatid);
     conn.sendCommand(std::forward<Command>(cmd));
 }
 
 void Client::getHistory(const Id& chatid, int count)
 {
-    chatIdConn(chatid).hist(chatid, count);
+    chatidConn(chatid).hist(chatid, count);
 }
 
 // send RANGE
 void Client::range(const Id& chatid)
 {
-    chatIdMessages(chatid).range(chatid);
+    chatidMessages(chatid).range(chatid);
 }
 
 // send HIST
@@ -337,13 +348,13 @@ void Connection::hist(const Id& chatid, long count)
 // inbound command processing
 // multiple commands can appear as one WebSocket frame, but commands never cross frame boundaries
 // CHECK: is this assumption correct on all browsers and under all circumstances?
-void Connection::execCommand(const Buffer& buf)
+void Connection::execCommand(const StaticBuffer &buf)
 {
     size_t pos = 0;
 //IMPORTANT: Increment pos before calling the command handler, because the handler may throw, in which
 //case the next iteration will not advance and will execute the same command again, resulting in
 //infinite loop
-    while (pos < len)
+    while (pos < buf.dataSize())
     {
       try
       {
@@ -362,14 +373,15 @@ void Connection::execCommand(const Buffer& buf)
                 READ_ID(userid, 9);
                 READ_ID(chatid, 1);
                 int priv = buf.read<uint8_t>(17);
-                CHATD_LOG_DEBUG("Join or privilege change - user '%s' on '%s' with privilege level %d", userid.c_str(), chatid.c_str(), priv);
+                CHATD_LOG_DEBUG("Join or privilege change - user '%s' on '%s' with privilege level %d",
+                                ID_CSTR(userid), ID_CSTR(chatid), priv);
 
 //                self.chatd.trigger('onMembersUpdated', {
                 pos += 18;
                 break;
             }
-            case Chatd.Opcode.OLDMSG:
-            case Chatd.Opcode.NEWMSG:
+            case OP_OLDMSG:
+            case OP_NEWMSG:
             {
                 bool isNewMsg = (opcode == OP_NEWMSG);
                 READ_ID(msgid, 17);
@@ -379,12 +391,12 @@ void Connection::execCommand(const Buffer& buf)
                 READ_32(msglen, 29);
                 const char* msg = buf.read(33, msglen);
                 CHATD_LOG_DEBUG("%s message '%s' from '%s' on '%s' at '%u': '%.*s'",
-                    (isNewMsg ? "New" : "Old"), msgid.c_str(), userid.c_str(), chatid.c_str(), ts, msglen, msg);
+                    (isNewMsg ? "New" : "Old"), ID_CSTR(msgid), ID_CSTR(userid), ID_CSTR(chatid), ts, msglen, msg);
 
                 pos += 33;
                 pos += msglen;
 
-                size_t idx = mClient.msgStore(isNewMsg, chatid, new Message(msgid, userid, ts, msg, msglen));
+                mClient.msgStore(isNewMsg, chatid, msgid, userid, ts, msg, msglen);
                 sendCommand(Command(OP_RECEIVED) + chatid + msgid);
                 //onMessage
                 break;
@@ -396,7 +408,7 @@ void Connection::execCommand(const Buffer& buf)
                 READ_ID(msgid, 9);
                 const char* msg = buf.read(33, msglen);
 //at offset 16 is a nullid (id equal to zero) TODO: maybe remove it?
-                CHATD_LOG_DEBUG("Message %s EDIT/DELETION: '%.*s'", msgid.c_str(), msglen, msg);
+                CHATD_LOG_DEBUG("Message %s EDIT/DELETION: '%.*s'", ID_CSTR(msgid), msglen, msg);
                 pos += 33;
                 pos += msglen;
                 mClient.onMsgUpdCommand(chatid, msgid, msg, msglen);
@@ -432,7 +444,8 @@ void Connection::execCommand(const Buffer& buf)
                 READ_ID(userid,9);
                 READ_32(period, 17);
 
-                CHATD_LOG_DEBUG("Retention policy change on %s by %s to %u second(s)", chatid.c_str(), userid.c_str(), period);
+                CHATD_LOG_DEBUG("Retention policy change on %s by %s to %u second(s)",
+                                ID_CSTR(chatid), ID_CSTR(userid), period);
                 pos += 21;
                 break;
             }
@@ -440,7 +453,7 @@ void Connection::execCommand(const Buffer& buf)
             {
                 READ_ID(msgxid, 1);
                 READ_ID(msgid, 9);
-                CHATD_LOG_DEBUG("Sent message ID confirmed: %s", msgxid.c_str());
+                CHATD_LOG_DEBUG("Sent message ID confirmed: %s", ID_CSTR(msgxid));
                 pos += 17;
                 mClient.msgConfirm(msgxid, msgid);
                 break;
@@ -451,7 +464,7 @@ void Connection::execCommand(const Buffer& buf)
                 READ_ID(oldest, 9);
                 READ_ID(newest, 17);
                 CHATD_LOG_DEBUG("Known chat message IDs - oldest: %s, newest: %s",
-                                oldest.c_str, newest.c_str());
+                                ID_CSTR(oldest), ID_CSTR(newest));
                 pos += 25;
                 mClient.msgCheck(chatid, newest);
                 break;
@@ -476,7 +489,7 @@ void Connection::execCommand(const Buffer& buf)
             case OP_HISTDONE:
             {
                 READ_ID(chatid, 1);
-                CHATD_LOG_DEBUG("History retrieval of chat %s finished" + ID_CSTR(chatid));
+                CHATD_LOG_DEBUG("History retrieval of chat %s finished", ID_CSTR(chatid));
 //                self.chatd.trigger('onMessagesHistoryDone',
                 pos += 9;
                 break;
@@ -485,15 +498,8 @@ void Connection::execCommand(const Buffer& buf)
                 CHATD_LOG_ERROR("Unknown opcode %d, ignoring all subsequent comment", opcode);
                 return;
         }
-
-        if (pos >= len)
-        {
-            CHATD_LOG_ERROR("Short WebSocket frame - got %d, expected %d", len, pos);
-            // remove the command from the queue, its already processed, if this is not done, the code will loop forever
-            return;
-        }
       }
-      catch(Buffer::RangeError& e)
+      catch(BufferRangeError& e)
       {
             CHATD_LOG_ERROR("Bound check error while parsing command: %s\nAborting command processing");
             return;
@@ -512,7 +518,7 @@ void Client::join(const Id& chatid, int shardNo, const std::string& url)
         throw std::runtime_error("Client::join: Already joined chat "+chatid);
 
     Connection& conn = getOrCreateConnection(chatid, shardNo, url, isNew);
-    mMessagesForChatId[chatid] = new Messages(conn, chatid);
+    mMessagesForChatId[chatid].reset(new Messages(conn, chatid, size_t(-1) >> 1));
     if (!isNew)
     {
         conn.join(chatid);
@@ -522,7 +528,7 @@ void Client::join(const Id& chatid, int shardNo, const std::string& url)
 // submit a new message to the chatid
 size_t Client::msgSubmit(const Id& chatid, const char* msg, size_t msglen)
 {
-    return chatidMessages(chatid).submit(message);
+    return chatidMessages(chatid).submit(msg, msglen);
 }
 
 void Connection::msgSend(const Id& chatid, const Message& message)
@@ -541,13 +547,14 @@ size_t Messages::submit(const char* msg, size_t msglen)
     const Id& msgxid = mConnection.mClient.nextTransactionId();
 
     // write the new message to the message buffer and mark as in sending state
-    push_forward(new Message(msgxid, this.mClient.mUserId, time(NULL), msg, msglen));
+    Message* message = new Message(msgxid, mConnection.mClient.mUserId, time(NULL), msg, msglen);
+    push_forward(message);
     auto num = mSending[msgxid] = highnum();
 
     // if we believe to be online, send immediately
-    if (isOnline())
+    if (mConnection.isOnline())
     {
-        chatIdConn(mChatId).msgSend(mChatId, message);
+        mConnection.msgSend(mChatId, *message);
     }
     return num;
 }
@@ -556,7 +563,7 @@ void Messages::onLastReceived(const Id& msgid)
 {
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
-        throw std::runtime_error("Messages::onLastReceived: Unknown msgid %s for chatid %s", ID_CSTR(msgid), ID_CSTR(mChatId));
+        throw std::runtime_error("Messages::onLastReceived: Unknown msgid "+msgid+" for chatid "+mChatId);
     mLastReceivedIdx = it->second;
 }
 
@@ -564,7 +571,7 @@ void Messages::onLastSeen(const Id& msgid)
 {
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
-        throw std::runtime_error("Messages::onLastSeen: Unknown msgid %s for chatid %s", ID_CSTR(msgid), ID_CSTR(mChatId));
+        throw std::runtime_error("Messages::onLastSeen: Unknown msgid "+ msgid+" for chatid "+mChatId);
     mLastSeenIdx = it->second;
 }
 
@@ -576,14 +583,13 @@ void Messages::modify(size_t msgnum, const char* msgdata, size_t msglen)
     auto it = mSending.find(msg.id); //id is a msgxid
     if (it != mSending.end())
     {
-            it->second->assign(msgdata, msglen);
+            msg.assign(msgdata, msglen);
     }
     else
     {
-        auto& conn = chatIdConn(mChatId);
-        if (conn.isOnline())
+        if (mConnection.isOnline())
         {
-            conn.msgUpdate(mChatId, *msg);
+            mConnection.msgUpdate(mChatId, msg);
         }
     }
     mModified[msgnum] = &msg;
@@ -594,7 +600,7 @@ void Messages::resendPending()
     // resend all pending new messages and modifications
     for (auto& item: mSending)
     {
-        mConnection.msgSend(mChatId, *item.second);
+        mConnection.msgSend(mChatId, at(item.second));
     }
     for (auto& item: mModified)
     {    // resend all pending modifications of completed messages
@@ -608,16 +614,17 @@ void Messages::range(const Id& chatid)
     Id lowid;
     Id highid;
     size_t highest = highnum();
-    for (low = lownum(); low <= highest; low++)
+    size_t low = lownum();
+    for (; low <= highest; low++)
     {
-        auto lowmsg = at(low);
+        auto& lowmsg = at(low);
         auto sit = mSending.find(lowmsg.id);
         if (sit == mSending.end()) //message is not being sent
         {
             lowid = lowmsg.id;
             for (size_t high = highest; high > low; high--)
             {
-                auto highmsg = at(high);
+                auto& highmsg = at(high);
                 sit = mSending.find(highmsg.id);
                 if (sit == mSending.end())
                 {
@@ -640,7 +647,7 @@ void Client::msgConfirm(const Id& msgxid, const Id& msgid)
     // CHECK: is it more efficient to keep a separate mapping of msgxid to messages?
     for (auto& messages: mMessagesForChatId)
     {
-        if (messages.second.confirm(sit, msgid))
+        if (messages.second->confirm(msgxid, msgid))
             return;
     }
     throw std::runtime_error("msgConfirm: Unknown msgxid "+msgxid);
@@ -655,7 +662,7 @@ bool Messages::confirm(const Id& msgxid, const Id& msgid)
 
     auto num = it->second;
     mSending.erase(it);
-    Message& msg = mMessages[num];
+    Message& msg = at(num);
     //update transaction id to the actual msgid
     msg.id = msgid;
     mIdToIndexMap[msgid] = num;
@@ -671,7 +678,7 @@ bool Messages::confirm(const Id& msgxid, const Id& msgid)
     // we now have a proper msgid, resend MSGUPD in case the edit crossed the execution of the command
     if (mModified.find(num) != mModified.end())
     {
-        mConnection.msgUpdate(chatid, msg);
+        mConnection.msgUpdate(mChatId, msg);
     }
     return true;
 }
@@ -681,23 +688,23 @@ size_t Client::msgStore(bool isNew, const Id& chatid, const Id& userid, const Id
     return chatidMessages(chatid).store(isNew, userid, msgid, ts, msg, msglen);
 }
 
-size_t Messages::store(bool isNew, const Id& userid, const Id& msgid, uint32_t timestamp,const char* msg, size_t msg)
+size_t Messages::store(bool isNew, const Id& userid, const Id& msgid, uint32_t timestamp,const char* msg, size_t msglen)
 {
-    Message* msg = new Message(msgid, userid, timestamp, msg, msglen);
+    Message* message = new Message(msgid, userid, timestamp, msg, msglen);
     // store message
     size_t idx;
     if (isNew)
     {
-        push_forward(msg);
+        push_forward(message);
         idx = highnum();
         mLastReceivedIdx = idx;
     }
     else
     {
-        push_backward(msg);
+        push_back(message);
         idx = lownum();
     }
-    mMsgToIndexMap[msgid] = idx;
+    mIdToIndexMap[msgid] = idx;
     return idx;
 }
 
@@ -714,18 +721,19 @@ void Messages::onMsgUpdCommand(const Id& msgid, const char* msgdata, size_t msgl
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     {
-        CHATD_LOG_ERROR("Unknown chat id %s", ID_CSTR(chatid));
+        CHATD_LOG_ERROR("Unknown msgid %s", ID_CSTR(msgid));
         return;
     }
     size_t idx = it->second;
     // if we modified the message, remove from this.modified.
     // if someone else did before us, resend the MSGUPD (might be redundant)
-    auto it = mModified.find(idx);
-    if (it != mModified.end())
+    auto& msg = at(idx);
+    auto modit = mModified.find(idx);
+    if (modit != mModified.end())
     {
         if (msg.dataEquals(msgdata, msglen))
         {
-            mModified.erase(it);
+            mModified.erase(modit);
         }
         else
         {
@@ -734,7 +742,7 @@ void Messages::onMsgUpdCommand(const Id& msgid, const char* msgdata, size_t msgl
     }
     else //not in mModified
     {
-        msg.assign(msg, msglen);
+        msg.assign(msgdata, msglen);
         //Notify GUI about updated message
     }
 }
@@ -749,11 +757,11 @@ bool Client::msgCheck(const Id& chatid, const Id& msgid)
 
 bool Messages::check(const Id& chatid, const Id& msgid)
 {
-    Message& msg = *at(highnum());
+    Message& msg = at(highnum());
     // if the newest held message is not current, initiate a fetch of newer messages just in case
     if (msg.id != msgid)
     {
-        mConnection.mClient.sendCommand(Command(P_HIST) + chatid + uint32_t(32));
+        mConnection.sendCommand(Command(OP_HIST) + chatid + uint32_t(32));
         return true;
     }
     return false;
@@ -761,15 +769,15 @@ bool Messages::check(const Id& chatid, const Id& msgid)
 
 
 static char encoding_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-std::string base64urlencode(const unsigned char *data, size_t inlen)
+std::string base64urlencode(const void *data, size_t inlen)
 {
     std::string encoded_data;
     encoded_data.reserve(((inlen+2) / 3) * 4);
     for (int i = 0; i < inlen;)
     {
-        uint8_t octet_a = i < inlen ? data[i++] : 0;
-        uint8_t octet_b = i < inlen ? data[i++] : 0;
-        uint8_t octet_c = i < inlen ? data[i++] : 0;
+        uint8_t octet_a = i < inlen ? static_cast<const char*>(data)[i++] : 0;
+        uint8_t octet_b = i < inlen ? static_cast<const char*>(data)[i++] : 0;
+        uint8_t octet_c = i < inlen ? static_cast<const char*>(data)[i++] : 0;
 
         uint32_t triple = (octet_a << 16) + (octet_b << 8) + octet_c;
 
@@ -785,4 +793,4 @@ std::string base64urlencode(const unsigned char *data, size_t inlen)
     }
     return encoded_data;
 }
-
+}

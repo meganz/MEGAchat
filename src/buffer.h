@@ -1,5 +1,7 @@
 #ifndef __BUFFER_H__
 #define __BUFFER_H__
+#include <stdlib.h>
+#include <assert.h>
 
 class BufferRangeError: public std::runtime_error
 {
@@ -28,7 +30,7 @@ public:
     {
         return !(mBuf && mDataSize);
     }
-    bool operator bool() const
+    operator bool() const
     {
         return mBuf && mDataSize;
     }
@@ -43,11 +45,11 @@ public:
     template <class T>
     T& read(size_t offset) const
     {
-        return *static_cast<T*>(read(offset, sizeof(T)));
+        return *((T*)(read(offset, sizeof(T))));
     }
     bool dataEquals(const void* data, size_t datalen) const
     {
-        if (datalen != mDataLen)
+        if (datalen != mDataSize)
             return false;
         return (memcmp(mBuf, data, datalen) == 0);
     }
@@ -65,7 +67,7 @@ protected:
         mDataSize = 0;
     }
 public:
-    Buffer(size_t size): StaticBuffer((char*)malloc(size), 0), mBufSize(size)
+    Buffer(size_t size=kMinBufSize): StaticBuffer((char*)malloc(size), 0), mBufSize(size)
     {
         if (!mBuf)
         {
@@ -87,23 +89,23 @@ public:
                 mDataSize = datalen;
                 return;
             }
-            free(mBuf);
+            ::free(mBuf);
         }
         mBufSize = (kMinBufSize>datalen) ? kMinBufSize : datalen;
         mBuf = (char*)malloc(mBufSize);
-        if (!buf)
+        if (!mBuf)
         {
             zero();
-            thow std::runtime_error("Buffer::assign: Out of memory allocating block of size "+ std::to_string(datalen));
+            throw std::runtime_error("Buffer::assign: Out of memory allocating block of size "+ std::to_string(datalen));
         }
         mDataSize = datalen;
-        memcpy(mBuf, data, datalen);
+        ::memcpy(mBuf, data, datalen);
     }
     void reserve(size_t size)
     {
         if (!mBuf)
         {
-            mBuf = (char*)malloc(size);
+            mBuf = (char*)::malloc(size);
             mBufSize = size;
             assert(mDataSize == 0);
         }
@@ -111,7 +113,7 @@ public:
         {
             char* save = mBuf;
             size_t newsize = mBufSize+size;
-            mBuf = (char*)realloc(mBuf, newsize);
+            mBuf = (char*)::realloc(mBuf, newsize);
             if (!mBuf)
             {
                 mBuf = save;
@@ -123,18 +125,18 @@ public:
     void assign(Buffer&& other)
     {
         if (mBuf)
-            free(mBuf);
+            ::free(mBuf);
         mBuf = other.mBuf;
         mBufSize = other.mBufSize;
         mDataSize = other.mDataSize;
         other.zero();
     }
-    void write(size_t offset, void* data, size_t datalen)
+    void write(size_t offset, const void* data, size_t datalen)
     {
         auto writeEnd = offset+datalen-1;
         if (writeEnd < mDataSize)
         {
-            memcpy(mBuf+offset, data, datalen);
+            ::memcpy(mBuf+offset, data, datalen);
             return;
         }
         else
@@ -142,7 +144,7 @@ public:
             if (writeEnd >= mBufSize)
             {
                 auto save = mBuf;
-                mBuf = realloc(mBuf, writeEnd+1);
+                mBuf = (char*)::realloc(mBuf, writeEnd+1);
                 if (!mBuf)
                 {
                     mBuf = save;
@@ -155,7 +157,7 @@ public:
     }
     void write(size_t offset, const Buffer& from) { write(offset, from.buf(), from.dataSize()); }
     void append(const void* data, size_t datalen) { write(dataSize(), data, datalen); }
-    void append(const Buffer& from) { append(buf.buf(), buf.dataSize()); }
+    void append(const Buffer& from) { append(from.buf(), from.dataSize()); }
     template <class T>
     void append(const T& val)
     {
