@@ -136,9 +136,6 @@ void AppDelegate::onAppTerminate()
         gClient.reset();
         rtcCleanup();
         services_shutdown();
-//        ::mega::marshallCall([]()
-//        {
-//        });
     });
 }
 #include <main.moc>

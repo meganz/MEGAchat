@@ -12,6 +12,8 @@
 #include <serverListProviderForwards.h>
 
 namespace strophe { class Connection; }
+namespace chatd { class Client; }
+
 namespace rtcModule
 {
     class IRtcModule;
@@ -29,6 +31,7 @@ class Client
 public:
     /** client's strophe connection */
     std::shared_ptr<strophe::Connection> conn;
+    std::shared_ptr<chatd::Client> mChatd;
     std::string getUsername() const
     {
         return strophe::getNodeFromJid(conn->fullOrBareJid());

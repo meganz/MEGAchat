@@ -72,9 +72,13 @@ struct TurnServerInfo
     }
 };
 
+/** A list of server info structures, defined by the class S */
 template <class S>
 using ServerList = std::vector<std::shared_ptr<S> >;
 
+/** An abstract class that provides a list of servers (i.e. more than one). A single server info is
+ * contained in the class S
+ */
 template <class S>
 class ListProvider: public std::shared_ptr<ServerList<S> >
 {
@@ -85,6 +89,9 @@ public: //must be protected, but because of a gcc bug, protected/private members
     bool needsUpdate() const { return ((mNextAssignIdx >= (*this)->size()) || (*this)->empty()); }
 };
 
+/** The frontend server provider API class - can provide a single or multile servers,
+ * relying on a server data provider implemented by the class B
+ */
 template <class B>
 class ServerProvider
 {
@@ -131,6 +138,9 @@ public:
     }
 };
 
+/** An implementation of a server data provider that gets the servers from a local, static list,
+ *  possibly hardcoded
+ */
 template <class S>
 class StaticProvider: public ListProvider<S>
 {
@@ -151,6 +161,7 @@ public:
     promise::Promise<void> fetchServers() { this->mNextAssignIdx = 0; return promise::_Void();}
 };
 
+/** An implementation of a server data provider that gets the servers from the GeLB server */
 template <class S>
 class GelbProvider: public ListProvider<S>
 {
@@ -175,6 +186,9 @@ public:
         assert(!mClient);
     }
 };
+/** Another public API server provider that sits on top of one GeLB and one static providers.
+ *  It tries first to get servers via GeLB and if it doesn't sucees, falls back to the static provider
+ */
 template <class S>
 class FallbackServerProvider
 {

@@ -18,6 +18,7 @@
 #include <memory>
 #include "chatClient.h"
 #include "textModule.h"
+#include <chatd.h>
 
 namespace karere
 {
@@ -74,8 +75,8 @@ Client::Client(const std::string& email, const std::string& password)
  :conn(new strophe::Connection(services_strophe_get_ctx())),
   api(new MyMegaApi("karere-native")),mEmail(email), mPassword(password),
   contactList(conn),
-  mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp",
-  KARERE_FALLBACK_XMPP_SERVERS)), mRtcHandler(NULL)
+  mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS)),
+  mRtcHandler(NULL)
 {
 }
 
@@ -105,6 +106,8 @@ promise::Promise<int> Client::init()
     .then([this](ReqResult result)
     {
         KR_LOG_DEBUG("Login to Mega API successful");
+        mChatd.reset(new chatd::Client(mega::MegaApi::base64ToHandle(
+            SdkString(api->getMyUserHandle()).c_str()), 0));
         return api->call(&mega::MegaApi::getUserData);
     })
     .fail([](const promise::Error& err)

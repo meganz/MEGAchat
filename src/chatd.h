@@ -93,13 +93,13 @@ public:
 };
 
 //for exception message purposes
-std::string operator+(const char* str, const Id& id)
+static inline std::string operator+(const char* str, const Id& id)
 {
     std::string result(str);
     result.append(id.toString());
     return result;
 }
-std::string& operator+(std::string&& str, const Id& id)
+static inline std::string& operator+(std::string&& str, const Id& id)
 {
     str.append(id.toString());
     return str;
@@ -270,7 +270,7 @@ protected:
 public:
     static ws_base_s sWebsocketContext;
     Client(const Id& userId, uint32_t options);
-    ~Client();
+    ~Client(){}
 
     void getHistory(const Id& chatid, int count);
     void join(const Id& chatid, int shardNo, const std::string& url);
