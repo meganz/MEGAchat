@@ -10,6 +10,8 @@ find_package(OpenSSL REQUIRED)
 set(MPENC_DIR "~/mpenc_cpp" CACHE PATH "mpEnc checkout dir built within a /build subdir")
 set(KARERE_LOGGER_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/base CACHE PATH "Karere logger include dir") #tell mpenc to use the karere logger
 set(LIBWS_DIR ../third-party/libws CACHE PATH "libws source dir, where its CMakeLists.txt is located")
+set(LIBWS_EXTERNAL_LOOP 1 CACHE BOOL "Use libws with external libevent loop")
+
 set (SRCS
     ../third-party/murmurHash/MurmurHash3.cpp
 //    karereCommon.cpp
@@ -54,7 +56,7 @@ set(KARERE_INCLUDE_DIRS
     ${OPENSSL_INCLUDE_DIR}
     ${MPENC_INCLUDE_DIRS}
     ${LIBWS_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/libws
-    STRING "Include directries needed by projects using karere lib"
+    CACHE STRING "Include directries needed by projects using karere lib"
 )
 include_directories(${KARERE_INCLUDE_DIRS})
 
@@ -65,7 +67,7 @@ target_link_libraries(karere
     ${LIBMEGA_LIBRARIES}
     ${CRYPTOPP_LIBRARIES}
     mpEnc_cpp
-    libws
+    ws
 )
 
 

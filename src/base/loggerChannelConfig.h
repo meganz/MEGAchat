@@ -39,7 +39,7 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(rtcevent, "rtcevent", Debug, krLogNoLevel | 10)
     KR_LOGCHANNEL(jingle, NULL, Debug, krLogNoLevel | 14)
     KR_LOGCHANNEL(mpenc, "mpenc", Debug, 4)
-    KR_LOGCHANNEL(mpenc, "mpenc", Debug, 4)
+    KR_LOGCHANNEL(chatd, "chatd", Debug, 4)
     KR_LOGCHANNEL(textchat, "chat", Warn, 4)
     KR_LOGCHANNEL(megasdk, "sdk", Info, 12)
     KR_LOGCHANNEL(services, "services", Info, 0)

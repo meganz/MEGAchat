@@ -222,7 +222,7 @@ GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
     mRetryController.reset(mega::createRetryController(
     [this](int no)
     {
-        assert(mClient && !mClient->busy());
+        mClient.reset(new mega::http::Client);
         return mClient->pget<std::string>(mGelbHost+"/?service="+mService)
         .then([this](std::shared_ptr<mega::http::Response<std::string> > response)
             -> promise::Promise<int>
@@ -251,7 +251,6 @@ promise::Promise<void> GelbProvider<S>::fetchServers()
 {
     if (mClient)
         throw std::runtime_error("GeLB provider: a request is already in progress");
-    mClient.reset(new mega::http::Client);
     mRetryController->reset();
     return static_cast<promise::Promise<void>& > (mRetryController->start())
     .fail([this](const promise::Error& err) -> promise::Promise<void>
@@ -285,9 +284,6 @@ void GelbProvider<S>::parseServersJson(const std::string& json)
         throw std::runtime_error(std::string("Error parsing json: ")+strOrEmpty(doc.GetParseError())
                                  +" at position "+std::to_string(doc.GetErrorOffset()));
     }
-    auto ok = doc.FindMember("ok");
-    if ((ok == doc.MemberEnd()) || (!ok->value.IsInt()) || (!ok->value.GetInt()))
-            throw std::runtime_error("No ok:1 flag in JSON returned from GeLB");
     auto arr = doc.FindMember(mService.c_str());
     if (arr == doc.MemberEnd())
         throw std::runtime_error("JSON receoved does not have a '"+mService+"' member");
