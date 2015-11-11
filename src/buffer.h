@@ -14,11 +14,11 @@ protected:
     char* mBuf;
     size_t mDataSize;
 public:
-    StaticBuffer(char* data, size_t datasize)
-        :mBuf(data), mDataSize(datasize) {}
-    void assign(char* data, size_t datasize)
+    StaticBuffer(const char* data, size_t datasize)
+        :mBuf((char*)data), mDataSize(datasize) {}
+    void assign(const char* data, size_t datasize)
     {
-        mBuf = data;
+        mBuf = (char*)data;
         mDataSize = datasize;
     }
     void clear()
@@ -34,7 +34,7 @@ public:
     {
         return mBuf && mDataSize;
     }
-    char* buf() const { return mBuf;}
+    const char* buf() const { return mBuf;}
     size_t dataSize() const { return mDataSize; }
     char* read(size_t offset, size_t len) const
     {
@@ -67,6 +67,9 @@ protected:
         mDataSize = 0;
     }
 public:
+    char* buf() { return mBuf;}
+    const char* buf() const { return mBuf;}
+    size_t bufSize() const { return mBufSize;}
     Buffer(size_t size=kMinBufSize): StaticBuffer((char*)malloc(size), 0), mBufSize(size)
     {
         if (!mBuf)
@@ -131,13 +134,13 @@ public:
         mDataSize = other.mDataSize;
         other.zero();
     }
-    void write(size_t offset, const void* data, size_t datalen)
+    Buffer& write(size_t offset, const void* data, size_t datalen)
     {
         auto writeEnd = offset+datalen-1;
         if (writeEnd < mDataSize)
         {
             ::memcpy(mBuf+offset, data, datalen);
-            return;
+            return *this;
         }
         else
         {
@@ -154,21 +157,15 @@ public:
             memcpy(mBuf+offset, data, datalen);
             mDataSize = writeEnd+1;
         }
-    }
-    void write(size_t offset, const Buffer& from) { write(offset, from.buf(), from.dataSize()); }
-    void append(const void* data, size_t datalen) { write(dataSize(), data, datalen); }
-    void append(const Buffer& from) { append(from.buf(), from.dataSize()); }
-    template <class T>
-    void append(const T& val)
-    {
-        write(mDataSize, val);
-    }
-    template <class T>
-    Buffer& write(size_t offset, const T& val)
-    {
-        write(offset, &val, sizeof(val));
         return *this;
     }
+    Buffer& write(size_t offset, const Buffer& from) { return write(offset, from.buf(), from.dataSize()); }
+    Buffer& append(const void* data, size_t datalen) { return write(dataSize(), data, datalen);}
+    Buffer& append(const Buffer& from) { return append(from.buf(), from.dataSize());}
+    template <class T>
+    Buffer& append(const T& val) { return write(mDataSize, val);}
+    template <class T>
+    Buffer& write(size_t offset, const T& val) { return write(offset, &val, sizeof(val)); }
     void clear() { mDataSize = 0; }
     void free() {
         if (!mBuf)

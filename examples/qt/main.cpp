@@ -13,6 +13,7 @@
 #include <chatClient.h>
 #include <rtcModule/lib.h>
 #include <sdkApi.h>
+#include <chatd.h>
 
 using namespace std;
 using namespace promise;
@@ -109,6 +110,14 @@ int main(int argc, char **argv)
         {
             mainWin->ui->contactList->addItem(new QListWidgetItem(QIcon("/images/online.png"), contacts[i].c_str()));
         }
+
+        //test stuff for chatd
+        gClient->mChatd->join("R7gmLxEgQSA", 0, "wss://chattest.userstorage.mega.co.nz/8icGyvpt-RY")
+        .then([]()
+        {
+            printf("join promise resolved\n");
+           gClient->mChatd->msgSubmit("R7gmLxEgQSA", "this is a test message");
+        });
         return 0;
     })
     .fail([](const promise::Error& error)

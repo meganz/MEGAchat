@@ -106,8 +106,6 @@ promise::Promise<int> Client::init()
     .then([this](ReqResult result)
     {
         KR_LOG_DEBUG("Login to Mega API successful");
-        mChatd.reset(new chatd::Client(mega::MegaApi::base64ToHandle(
-            SdkString(api->getMyUserHandle()).c_str()), 0));
         return api->call(&mega::MegaApi::getUserData);
     })
     .fail([](const promise::Error& err)
@@ -134,6 +132,12 @@ promise::Promise<int> Client::init()
         xmpp_conn_set_pass(*conn, xmppPass.c_str());
         KR_LOG_DEBUG("xmpp user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
         setupHandlers();
+
+        SdkString uh(api->getMyUserHandle());
+        KR_LOG_DEBUG("Login to Mega API successful, userHandle: %s", uh.c_str());
+
+        mChatd.reset(new chatd::Client("8icGyvpt-RY", 0));
+
         return promise::_Void();
     });
 

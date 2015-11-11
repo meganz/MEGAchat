@@ -9,7 +9,7 @@ find_package(OpenSSL REQUIRED)
 
 set(MPENC_DIR "~/mpenc_cpp" CACHE PATH "mpEnc checkout dir built within a /build subdir")
 set(KARERE_LOGGER_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/base CACHE PATH "Karere logger include dir") #tell mpenc to use the karere logger
-set(LIBWS_DIR ../third-party/libws CACHE PATH "libws source dir, where its CMakeLists.txt is located")
+set(LIBWS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../third-party/libws CACHE PATH "libws source dir, where its CMakeLists.txt is located")
 set(LIBWS_EXTERNAL_LOOP 1 CACHE BOOL "Use libws with external libevent loop")
 
 set (SRCS
