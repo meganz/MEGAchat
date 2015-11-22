@@ -6,8 +6,9 @@
 #include <string.h>
 #include <signal.h>
 #include <mstrophepp.h>
-#include <QtGui/QApplication>
+#include <QApplication>
 #include "mainwindow.h"
+#include "chatWindow.h"
 #include <base/gcm.h>
 #include <base/services.h>
 #include <chatClient.h>
@@ -112,11 +113,11 @@ int main(int argc, char **argv)
         }
 
         //test stuff for chatd
-        gClient->mChatd->join("R7gmLxEgQSA", 0, "wss://chattest.userstorage.mega.co.nz/8icGyvpt-RY")
+        gClient->mChatd->join("R7gmLxEgQSA", 0, "wss://chattest.userstorage.mega.co.nz/8icGyvpt-RY",
+                              new ChatWindow(mainWin), 32)
         .then([]()
         {
             printf("join promise resolved\n");
-           gClient->mChatd->msgSubmit("R7gmLxEgQSA", "this is a test message");
         });
         return 0;
     })

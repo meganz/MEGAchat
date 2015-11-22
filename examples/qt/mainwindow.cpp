@@ -261,7 +261,7 @@ void MainWindow::buttonPushed()
 void MainWindow::onAudioInSelected()
 {
     auto combo = ui->audioInCombo;
-    int ret = gClient->rtc->selectAudioInDevice(combo->itemText(combo->currentIndex()).toAscii().data());
+    int ret = gClient->rtc->selectAudioInDevice(combo->itemText(combo->currentIndex()).toLatin1().data());
     if (ret < 0)
     {
         QMessageBox::critical(this, "Error", "Selected device not present");
@@ -273,7 +273,7 @@ void MainWindow::onAudioInSelected()
 void MainWindow::onVideoInSelected()
 {
     auto combo = ui->videoInCombo;
-    int ret = gClient->rtc->selectVideoInDevice(combo->itemText(combo->currentIndex()).toAscii().data());
+    int ret = gClient->rtc->selectVideoInDevice(combo->itemText(combo->currentIndex()).toLatin1().data());
     if (ret < 0)
     {
         QMessageBox::critical(this, "Error", "Selected device not present");

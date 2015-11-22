@@ -22,6 +22,7 @@ public:
     }
     inline operator T() const {return mHandle;}
     inline T handle() const {return mHandle;}
+    inline T* handlePtr() {return &mHandle;}
     inline MyAutoHandle& assign(T handle)
     {
         if (mHandle != InvalidValue)

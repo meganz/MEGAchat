@@ -55,7 +55,7 @@ public:
     std::unique_ptr<QMessageBox> msg;
     CallAnswerGui(rtcModule::IAnswerCall* aCtrl, MainWindow* win):ctrl(aCtrl), mMainWin(win),
         msg(new QMessageBox(QMessageBox::Information,
-        "Incoming call", QString::fromAscii(ctrl->callerFullJid())+" is calling you",
+        "Incoming call", QString::fromLatin1(ctrl->callerFullJid())+" is calling you",
         QMessageBox::NoButton, mMainWin))
     {
         msg->setAttribute(Qt::WA_DeleteOnClose);
