@@ -13,7 +13,7 @@ set (SRCS
 )
 
 qt5_wrap_ui(ui_hdrs mainwindow.ui chat.ui chatMessage.ui)
-list(APPEND ui_hdrs msgInputBox.h)
+list(APPEND ui_hdrs widgetSubclass.h)
 
 #QT4_ADD_RESOURCES(helloworld_RESOURCES_RCC ${helloworld_RESOURCES})
 

@@ -415,12 +415,12 @@ p, li { white-space: pre-wrap; }
   <customwidget>
    <class>MsgInputBox</class>
    <extends>QTextEdit</extends>
-   <header location="global">msgInputBox.h</header>
+   <header location="global">widgetSubclass.h</header>
   </customwidget>
   <customwidget>
    <class>MyMessageList</class>
    <extends>QListWidget</extends>
-   <header location="global">msginputbox.h</header>
+   <header location="global">widgetSubclass.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

@@ -11,7 +11,7 @@
 #include <QPropertyAnimation>
 #include <QMenu>
 #include <QMoveEvent>
-#include <msgInputBox.h>
+//#include <msgInputBox.h>
 #include <QScrollBar>
 #include <QTimer>
 #include <QProgressBar>
