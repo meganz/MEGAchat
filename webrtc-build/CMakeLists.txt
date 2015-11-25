@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0015 NEW)
 
 include (../src/utils.cmake)
+find_package(sqlite3 REQUIRED)
 
 project(webrtc_monolithic)
 
@@ -81,6 +82,7 @@ set(WEBRTC_LIBS
 )
 else() #APPLE
     file(GLOB WEBRTC_LIBS "${webrtcBuild}/../*.a")
+    list(APPEND WEBRTC_LIBS ${SQLITE3_LIBRARY})
 endif()
 
 set(WEBRTC_LIBS_X86
@@ -227,8 +229,6 @@ set(WEBRTC_SYSINCLUDES_LINUX
     /usr/include/nspr
 )
 
-set(WEBRTC_SYSINCLUCES_ANDROID)
-
 set(WEBRTC_CFLAGS
     -fstack-protector --param=ssp-buffer-size=4
     -fno-strict-aliasing -Wno-unused-parameter
@@ -336,8 +336,9 @@ set(WEBRTC_SYSLIBS_MACOS
 )
 set(WEBRTC_SYSLIBS_IOS
     ${WEBRTC_SYSLIBS_APPLE}
-    sqlite3 "-framework GLKit" "-framework OpenGLES"
-   "-framework UIKit" "-framework QuartzCore"
+#    sqlite3
+    "-framework GLKit" "-framework OpenGLES"
+    "-framework UIKit" "-framework QuartzCore"
 )
 
 macro(appendPlatformStuff pname)

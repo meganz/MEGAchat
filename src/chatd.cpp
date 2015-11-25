@@ -7,6 +7,24 @@
 using namespace std;
 using namespace promise;
 
+//#define CHATD_LOG_LISTENER_CALLS
+
+#ifdef CHATD_LOG_LISTENER_CALLS
+#define CHATD_LOG_LISTENER_CALL(fmtString,...) CHATD_LOG_DEBUG(fmtString, ##__VA_ARGS__)
+#else
+#define CHATD_LOG_LISTENER_CALL(...)
+#endif
+
+#define CALL_LISTENER(methodName,...)                                                           \
+    do {                                                                                        \
+      try {                                                                                     \
+          CHATD_LOG_LISTENER_CALL("calling " #methodName "()");                               \
+          mListener->methodName(__VA_ARGS__);                                                   \
+      } catch(std::exception& e) {                                                              \
+          CHATD_LOG_WARNING("Exception thrown from Listener::" #methodName "() app handler:\n%s", e.what());\
+      }                                                                                         \
+    } while(0)
+
 namespace chatd
 {
 
@@ -107,13 +125,10 @@ Promise<void> Client::join(const Id& chatid, int shardNo, const std::string& url
     // add chatid to the connection's chatids
     conn->mChatIds.insert(chatid);
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
-    Messages* msgs = new Messages(*conn, chatid, listener);
+    Messages* msgs = new Messages(*conn, chatid, listener, histFetchCount);
     mMessagesForChatId.emplace(std::piecewise_construct, std::forward_as_tuple(chatid),
                                std::forward_as_tuple(msgs));
-    if (histFetchCount)
-    {
-        msgs->mInitialHistoryFetchCount = histFetchCount;
-    }
+
     // attempt a connection ONLY if this is a new shard.
     if(isNew)
     {
@@ -392,17 +407,44 @@ bool Messages::getHistory(int count)
         return true;
     }
 }
+Messages::Messages(Connection& conn, const Id& chatid, Listener* listener, unsigned histFetchCount)
+    : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
+      mJoinPromise(new promise::Promise<void>), mListener(listener)
+{
+    assert(listener);
+    Idx newestDbIdx;
+    //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
+    listener->init(this, this, mOldestKnownMsgId, mNewestKnownMsgId, newestDbIdx);
+    if (!mOldestKnownMsgId)
+    {
+        CHATD_LOG_DEBUG("App says there is no local history");
+        mForwardStart = _CHATD_IDX_RANGE_MIDDLE;
+        mNewestKnownMsgId = Id::null();
+    }
+    else
+    {
+        assert(mNewestKnownMsgId); assert(newestDbIdx);
+        mForwardStart = newestDbIdx + 1;
+        CHATD_LOG_DEBUG("App has a local history range of %s - %s (%zu)",
+            mOldestKnownMsgId.toString().c_str(), mNewestKnownMsgId.toString().c_str(), mForwardStart);
+        if (histFetchCount)
+            mInitialHistoryFetchCount = histFetchCount;
+        CHATD_LOG_DEBUG("Loading local history");
+        getHistoryFromDb(mInitialHistoryFetchCount);
+    }
+}
 
-void Messages::getHistoryFromDb(int count)
+void Messages::getHistoryFromDb(unsigned count)
 {
     assert(mOldestKnownMsgId);
     std::vector<Message*> messages;
-    bool ret = mListener->fetchDbHistory(lownum()-1, count, messages);
+    CALL_LISTENER(fetchDbHistory, lownum()-1, count, messages);
     for (auto msg: messages)
     {
         msgIncoming(false, msg, true);
     }
-    if (!ret && mOldestKnownMsgId)
+    CALL_LISTENER(onHistoryDone, true);
+    if ((messages.size() < count) && mOldestKnownMsgId)
         throw std::runtime_error("Application says no more messages in db, but we still haven't seen specified oldest message id");
 }
 
@@ -433,7 +475,7 @@ void Connection::execCommand(const StaticBuffer &buf)
 #ifndef _NDEBUG
         size_t base = pos;
 #endif
-        CHATD_LOG_DEBUG("RECV %s", Command::opcodeToStr(opcode));
+//        CHATD_LOG_DEBUG("RECV %s", Command::opcodeToStr(opcode));
         switch (opcode)
         {
             case OP_KEEPALIVE:
@@ -448,7 +490,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                 READ_ID(userid, 8);
                 int priv = buf.read<int8_t>(pos);
                 pos++;
-                CHATD_LOG_DEBUG("Join or privilege change - user '%s' on '%s' with privilege level %d",
+                CHATD_LOG_DEBUG("recv JOIN - user '%s' on '%s' with privilege level %d",
                                 ID_CSTR(userid), ID_CSTR(chatid), priv);
                 auto listener = mClient.chatidMessages(chatid).mListener;
                 if (priv != PRIV_NOTPRESENT)
@@ -468,28 +510,12 @@ void Connection::execCommand(const StaticBuffer &buf)
                 READ_32(msglen, 28);
                 const char* msg = buf.read(pos, msglen);
                 pos += msglen;
-
-                CHATD_LOG_DEBUG("%s message '%s' from user '%s' on chatid '%s' at time %u with len %u",
-                    (isNewMsg ? "New" : "Old"), ID_CSTR(msgid), ID_CSTR(userid),
+                CHATD_LOG_DEBUG("recv %s: user '%s' on chatid '%s' at time %u with len %u",
+                    (isNewMsg ? "NEWMSG" : "OLDMSG"), ID_CSTR(msgid), ID_CSTR(userid),
                     ID_CSTR(chatid), ts, msglen);
 
                 mClient.chatidMessages(chatid).msgIncoming(
-                    isNewMsg, new Message(msgid, userid, ts, msg, msglen), false);
-                break;
-            }
-            case OP_MSGUPD:
-            {
-                READ_ID(chatid, 0);
-                READ_ID(userid, 8);
-                READ_ID(msgid, 16);
-//              READ_32(ts, 24);
-                pos+=4; //to silence unused var warning, we don't read the ts
-                READ_32(msglen, 28);
-                const char* msg = buf.read(pos, msglen);
-                pos += msglen;
-//at offset 16 is a nullid (id equal to zero) TODO: maybe remove it?
-                CHATD_LOG_DEBUG("Message %s EDIT/DELETION: '%.*s'", ID_CSTR(msgid), msglen, msg);
-                mClient.chatidMessages(chatid).onMsgUpdCommand(msgid, msg, msglen);
+                    isNewMsg, new Message(msgid, userid, ts, msg, msglen, nullptr), false);
                 break;
             }
             case OP_SEEN:
@@ -499,7 +525,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                 READ_ID(chatid, 0);
                 READ_ID(userid, 8);
                 READ_ID(msgid, 16);
-                CHATD_LOG_DEBUG("Newest seen message on %s for user %s: %s",
+                CHATD_LOG_DEBUG("recv SEEN on %s for user %s, msgid: %s",
                                 ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid));
                 mClient.chatidMessages(chatid).onLastSeen(msgid);
                 break;
@@ -508,7 +534,7 @@ void Connection::execCommand(const StaticBuffer &buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(msgid, 8);
-                CHATD_LOG_DEBUG("Newest delivered message on %s : %s", ID_CSTR(chatid), ID_CSTR(msgid));
+                CHATD_LOG_DEBUG("recv RECEIVED on %s, msgid: %s", ID_CSTR(chatid), ID_CSTR(msgid));
                 mClient.chatidMessages(chatid).onLastReceived(msgid);
                 break;
             }
@@ -517,7 +543,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                 READ_ID(chatid, 0);
                 READ_ID(userid, 8);
                 READ_32(period, 16);
-                CHATD_LOG_DEBUG("Retention policy change on %s by %s to %u second(s)",
+                CHATD_LOG_DEBUG("recv RETENTION on %s by user %s to %u second(s)",
                                 ID_CSTR(chatid), ID_CSTR(userid), period);
                 break;
             }
@@ -525,7 +551,7 @@ void Connection::execCommand(const StaticBuffer &buf)
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
-                CHATD_LOG_DEBUG("Sent message ID confirmed: %s->%s", ID_CSTR(msgxid), ID_CSTR(msgid));
+                CHATD_LOG_DEBUG("recv MSGID: %s->%s", ID_CSTR(msgxid), ID_CSTR(msgid));
                 mClient.msgConfirm(msgxid, msgid);
                 break;
             }
@@ -534,8 +560,8 @@ void Connection::execCommand(const StaticBuffer &buf)
                 READ_ID(chatid, 0);
                 READ_ID(oldest, 8);
                 READ_ID(newest, 16);
-                CHATD_LOG_DEBUG("Known chat message IDs - oldest: %s, newest: %s",
-                                ID_CSTR(oldest), ID_CSTR(newest));
+                CHATD_LOG_DEBUG("recv RANGE on %s: oldest: %s, newest: %s",
+                                ID_CSTR(chatid), ID_CSTR(oldest), ID_CSTR(newest));
                 mClient.chatidMessages(chatid).initialFetchHistory(newest);
                 break;
             }
@@ -544,7 +570,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                 READ_ID(id, 0);
                 READ_32(op, 8);
                 READ_32(code, 12); //TODO: what's this code?
-                CHATD_LOG_DEBUG("Command was rejected: %d / %d", op, code);
+                CHATD_LOG_DEBUG("recv REJECT: id='%s', %d / %d", ID_CSTR(id), op, code);
                 if (op == OP_NEWMSG)  // the message was rejected
                 {
                     mClient.msgConfirm(id, Id::null());
@@ -558,7 +584,7 @@ void Connection::execCommand(const StaticBuffer &buf)
             case OP_HISTDONE:
             {
                 READ_ID(chatid, 0);
-                CHATD_LOG_DEBUG("History retrieval of chat '%s' finished", ID_CSTR(chatid));
+                CHATD_LOG_DEBUG("recv HISTDONE: retrieval of chat '%s' finished", ID_CSTR(chatid));
                 auto& msgs = mClient.chatidMessages(chatid);
                 if(!msgs.mJoinPromise->done())
                 {
@@ -568,7 +594,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                 }
                 else
                 {
-                    msgs.mListener->onHistoryDone();
+                    msgs.mListener->onHistoryDone(false);
                 }
                 break;
             }
@@ -594,20 +620,15 @@ void Connection::msgSend(const Id& chatid, const Message& message)
     sendCommand(Command(OP_NEWMSG) + chatid + Id::null() + message.id + message.ts + message);
 }
 
-void Connection::msgUpdate(const Id& chatid, const Message& message)
+Message* Messages::msgSubmit(const char* msg, size_t msglen, bool isResend, const Id& aMsgxid, void* userp)
 {
-    sendCommand(Command(OP_MSGUPD) + chatid + Id::null() + message.id + (uint32_t)0 + message);
-}
-
-size_t Messages::msgSubmit(const char* msg, size_t msglen)
-{
-    // allocate a transactionid for the new message
-    const Id& msgxid = mConnection.mClient.nextTransactionId();
-
+    const Id& msgxid = aMsgxid ? aMsgxid : mClient.nextTransactionId();
     // write the new message to the message buffer and mark as in sending state
-    Message* message = new Message(msgxid, mConnection.mClient.mUserId, time(NULL), msg, msglen);
-    push_forward(message);
-    auto num = mSending[msgxid] = highnum();
+    Message* message = new Message(msgxid, mConnection.mClient.mUserId, time(NULL), msg, msglen, userp, true);
+    assert(message->isSending());
+    auto ret = mSending.insert(std::make_pair(msgxid, message));
+    if (!ret.second)
+        throw std::runtime_error("msgSubmit: provided msgxid is not unique");
 
     //if we believe to be online, send immediately
     //we don't sent a msgStatusChange event to the listener, as the GUI should initialize the
@@ -617,7 +638,7 @@ size_t Messages::msgSubmit(const char* msg, size_t msglen)
     {
         mConnection.msgSend(mChatId, *message);
     }
-    return num;
+    return message;
 }
 
 void Messages::onLastReceived(const Id& msgid)
@@ -633,6 +654,7 @@ void Messages::onLastReceived(const Id& msgid)
     {
         CHATD_LOG_WARNING("Last-received pointer points to a message by a peer, possibly the pointer was set incorrectly");
     }
+    Idx notifyOldest;
     if (mLastReceivedIdx) //we have a previous last-received index, notify user about received messages
     {
         auto idx = it->second;
@@ -642,20 +664,21 @@ void Messages::onLastReceived(const Id& msgid)
             CHATD_LOG_DEBUG("highnum() = %zu, mLastReceivedIdx = %zu, idx = %zu", highnum(), mLastReceivedIdx, idx);
             return;
         }
-        auto lastidx = mLastReceivedIdx;
+        notifyOldest = mLastReceivedIdx;
         mLastReceivedIdx = idx;
-        for (size_t i=lastidx; i<=idx; i++)
-        {
-            auto& msg = at(i);
-            if ((msg.userid == mClient.mUserId) && (mModified.find(msgid) == mModified.end()))
-            {
-                mListener->onMessageStatusChange(i, Message::kDelivered, 0);
-            }
-        }
-    }
+    } //no mLastReceivedIdx
     else
     {
         mLastReceivedIdx = it->second;
+        notifyOldest = lownum();
+    }
+    for (Idx i=notifyOldest; i<=mLastReceivedIdx; i++)
+    {
+        auto& msg = at(i);
+        if (msg.userid == mClient.mUserId)
+        {
+            mListener->onMessageStatusChange(i, Message::kDelivered, msg);
+        }
     }
 }
 
@@ -672,73 +695,62 @@ void Messages::onLastSeen(const Id& msgid)
     {
         CHATD_LOG_WARNING("Last-seen points to a message by us, possibly the pointer was not set properly");
     }
+    Idx notifyOldest;
     if (mLastSeenIdx)
     {
         auto idx = it->second;
         if (idx < mLastSeenIdx)
             throw std::runtime_error("onLastSeen: Can't set last seen index to an older message");
         assert(idx != mLastSeenIdx); //we were called redundantly - the msgid and index were already set and the same. This will not hurt, except for generating one redundant onMessageStateChange for the message that is pointed to by the index
-        auto prevIdx = mLastSeenIdx;
+        notifyOldest = mLastSeenIdx;
         mLastSeenIdx = idx;
-        for (size_t i=prevIdx; i<=idx; i++)
-        {
-            auto& msg = at(i);
-            if (msg.userid != mClient.mUserId)
-            {
-                mListener->onMessageStatusChange(i, Message::kSeen, 0);
-            }
-        }
     }
     else
     {
         mLastSeenIdx = it->second;
+        notifyOldest = lownum();
+    }
+    for (Idx i=notifyOldest; i<=mLastSeenIdx; i++)
+    {
+        auto& msg = at(i);
+        if (msg.userid != mClient.mUserId)
+        {
+            mListener->onMessageStatusChange(i, Message::kSeen, msg);
+        }
     }
 }
-bool Messages::setMessageSeen(size_t idx)
+bool Messages::setMessageSeen(Idx idx)
 {
     if (idx <= mLastSeenIdx)
+    {
+        CHATD_LOG_DEBUG("Attempted to move the last-seen pointer backward, ignoring");
         return false;
-    Message& msg = at(idx);
+    }
+    auto& msg = at(idx);
     if (msg.userid == mClient.mUserId)
     {
         CHATD_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id));
         return false;
     }
     mConnection.sendCommand(Command(OP_SEEN) + mChatId + mClient.mUserId + msg.id);
-    return true;
-}
-
-void Messages::msgModify(size_t msgnum, const char* msgdata, size_t msglen)
-{
-    // modify pending message so that a potential resend includes the change
-    Message& msg = at(msgnum);
-    if (msg.userid != mClient.mUserId)
-        throw std::runtime_error("You cannot modify other people's messages");
-    // record this modification for resending purposes
-    msg.assign(msgdata, msglen);
-
-    auto it = mSending.find(msg.id); //id is a msgxid
-    if (it == mSending.end())
+    for (Idx i=mLastSeenIdx; i<=idx; i++)
     {
-        if (mConnection.isOnline())
+        auto& m = at(i);
+        if (m.userid != mClient.mUserId)
         {
-            mConnection.msgUpdate(mChatId, msg);
+            mListener->onMessageStatusChange(i, Message::kSeen, m);
         }
     }
-    mModified[msgnum] = &msg;
-    mListener->onMessageStatusChange(msgnum, Message::kSending, 0);
+    return true;
 }
 
 void Messages::resendPending()
 {
-    // resend all pending new messages and modifications
+    // resend all pending new messages
     for (auto& item: mSending)
     {
-        mConnection.msgSend(mChatId, at(item.second));
-    }
-    for (auto& item: mModified)
-    {    // resend all pending modifications of completed messages
-        mConnection.msgUpdate(mChatId, *item.second);
+        assert(item.second->isSending());
+        mConnection.msgSend(mChatId, *item.second);
     }
 }
 
@@ -747,6 +759,7 @@ void Messages::range()
 {
     if (mOldestKnownMsgId)
     {
+        CHATD_LOG_DEBUG("Sending RANGE based on app db: %s - %s", mOldestKnownMsgId.toString().c_str(), mNewestKnownMsgId.toString().c_str());
         mConnection.sendCommand(Command(OP_RANGE) + mChatId + mOldestKnownMsgId + mNewestKnownMsgId);
         return;
     }
@@ -754,11 +767,11 @@ void Messages::range()
         return;
 
     auto highest = highnum();
-    size_t i = lownum();
+    Idx i = lownum();
     for (; i<=highest; i++)
     {
         auto& msg = at(i);
-        if (mSending.find(msg.id) != mSending.end())
+        if (msg.isSending())
         {
             i--;
             break;
@@ -766,6 +779,7 @@ void Messages::range()
     }
     if (i < lownum()) //we have only unsent messages
         return;
+    CHATD_LOG_DEBUG("Sending RANGE calculated from memory buffer: %s - %s", at(lownum()).id.toString().c_str(), at(i).id.toString().c_str());
     mConnection.sendCommand(Command(OP_RANGE) + mChatId + at(lownum()).id + at(i).id);
 }
 
@@ -781,59 +795,56 @@ void Client::msgConfirm(const Id& msgxid, const Id& msgid)
 }
 
 // msgid can be 0 in case of rejections
-bool Messages::confirm(const Id& msgxid, const Id& msgid)
+Idx Messages::confirm(const Id& msgxid, const Id& msgid)
 {
     auto it = mSending.find(msgxid);
     if (it == mSending.end())
         return false;
 
-    auto num = it->second;
+    Message* msg(it->second);
     mSending.erase(it);
-    Message& msg = at(num);
-    //update transaction id to the actual msgid
-    msg.id = msgid;
-    mIdToIndexMap[msgid] = num;
+    assert(msg->isSending());
+    msg->setIsSending(false);
 
-    // we now have a proper msgid, resend MSGUPD in case the edit crossed the execution of the command
-    if (mModified.find(num) != mModified.end())
+    if (!msgid)
     {
-        mConnection.msgUpdate(mChatId, msg);
+        CALL_LISTENER(onMessageRejected, msgxid);
+        delete msg;
+        return 0;
     }
-    else
-    {
-        if (!msgid)
-            mListener->onMessageStatusChange(num, Message::kServerRejected, 0);
-        else
-            mListener->onMessageStatusChange(num, Message::kServerReceived, Message::kCreated);
-    }
-    return true;
+    //update transaction id to the actual msgid
+    msg->id = msgid;
+    push_forward(msg);
+    auto idx = mIdToIndexMap[msgid] = highnum();
+    CALL_LISTENER(onMessageConfirmed, msgxid, msgid, idx);
+    return idx;
 }
-Message::Status Messages::getMsgStatus(size_t idx, const Id& userid)
+Message::Status Messages::getMsgStatus(Idx idx, const Id& userid)
 {
     if (userid == mClient.mUserId)
     {
-        Id& msgid = at(idx).id;
-        if ((mSending.find(msgid) != mSending.end()) || (mModified.find(idx) != mModified.end()))
+        auto& msg = at(idx);
+        if (msg.isSending())
             return Message::kSending;
         else if (idx <= mLastReceivedIdx)
             return Message::kDelivered;
         else
+        {
             return Message::kServerReceived;
+        }
     } //message is from a peer
     else
     {
-        if (!mLastSeenIdx)
-            CHATD_LOG_DEBUG("getMsgStatus: mLastSeenIdx is yet unknown, returning status NotSeen");
         return (idx <= mLastSeenIdx) ? Message::kSeen : Message::kNotSeen;
     }
 }
 
-size_t Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
+Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
 {
     assert((isLocal && !isNew) || !isLocal);
     auto msgid = message->id;
     assert(msgid);
-    size_t idx;
+    Idx idx;
 
     if (isNew)
     {
@@ -874,57 +885,30 @@ size_t Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
         onLastReceived(msgid);
     }
     if (isNew)
-        mListener->onRecvNewMessage(idx, *message, getMsgStatus(idx, message->userid));
+        CALL_LISTENER(onRecvNewMessage, idx, *message, (getMsgStatus(idx, message->userid)));
     else
-        mListener->onRecvHistoryMessage(idx, *message, getMsgStatus(idx, message->userid), isLocal);
+        CALL_LISTENER(onRecvHistoryMessage, idx, *message, (getMsgStatus(idx, message->userid)), isLocal);
 
     return idx;
-}
-
-void Messages::onMsgUpdCommand(const Id& msgid, const char* msgdata, size_t msglen)
-{
-    // CHECK: is it more efficient to maintain a full hash msgid -> num?
-    // FIXME: eliminate namespace clash collision risk
-    auto it = mIdToIndexMap.find(msgid);
-    if (it == mIdToIndexMap.end())
-    {
-        CHATD_LOG_ERROR("Unknown msgid %s", ID_CSTR(msgid));
-        return;
-    }
-    size_t idx = it->second;
-    // if we modified the message, remove from this.modified.
-    // if someone else did before us, resend the MSGUPD (might be redundant)
-    auto& msg = at(idx);
-    auto modit = mModified.find(idx);
-    if (modit != mModified.end())
-    {
-        if (msg.dataEquals(msgdata, msglen))
-        {
-            mModified.erase(modit);
-            mListener->onMessageStatusChange(idx, Message::kServerReceived, 0);
-        }
-        else
-        {
-            mConnection.msgUpdate(mChatId, msg);
-        }
-    }
-    else //not in mModified
-    {
-        msg.assign(msgdata, msglen);
-        mListener->onMessageEdited(idx, msg); //Notify GUI about updated message
-    }
 }
 
 void Messages::initialFetchHistory(const Id& serverNewest)
 {
 //we have messages in the db, fetch the newest from there
-    if (mOldestKnownMsgId)
+    if (empty())
     {
-        getHistoryFromDb(mInitialHistoryFetchCount);
+        assert(!mOldestKnownMsgId);
+        //we don't have messages in db, and we don't have messages in memory
+        //we haven't sent a RANGE, so we can get history only backwards
+        mConnection.sendCommand(Command(OP_HIST) + mChatId + (int32_t)(-mInitialHistoryFetchCount));
+    }
+    else
+    {
         if (at(highnum()).id != serverNewest)
         {
+            CHATD_LOG_DEBUG("There are new messages on the server, requesting them");
 //the server has more recent msgs than the most recent in our db, retrieve all newer ones, after our RANGE
-            mConnection.sendCommand(Command(OP_HIST) + mChatId + int32_t(0xffffffff));
+            mConnection.sendCommand(Command(OP_HIST) + mChatId + int32_t(0x0fffffff));
         }
         else
         {
@@ -932,15 +916,6 @@ void Messages::initialFetchHistory(const Id& serverNewest)
             mJoinPromise->resolve();
             setOnlineState(kChatStateOnline);
         }
-    }
-    else if (empty()) //we don't have messages in db, and we don't have messages in memory
-    {                 //we haven't sent a RANGE, so we can get history only backwards
-        mConnection.sendCommand(Command(OP_HIST) + mChatId + (int32_t)(-mInitialHistoryFetchCount));
-    }
-    else if (at(highnum()).id != serverNewest) //we have messages in memory and not in db, but not the latest one
-    {
-//we have sent a RANGE
-        mConnection.sendCommand(Command(OP_HIST) + mChatId + int32_t(0xffffffff));
     }
 }
 
@@ -1031,7 +1006,7 @@ size_t base64urldecode(const char* str, size_t len, void* bin, size_t binlen)
 
 const char* Command::opcodeNames[] =
 {
- "KEEPALIVE","JOIN", "OLDMSG", "NEWMSG", "MSGUPD ","SEEN",
+ "KEEPALIVE","JOIN", "OLDMSG", "NEWMSG", "MSGUPD(should not be used)","SEEN",
  "RECEIVED","RETENTION","HIST", "RANGE","MSGID","REJECT",
  "BROADCAST", "HISTDONE"
 };

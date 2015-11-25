@@ -32,6 +32,9 @@ public:
     /** client's strophe connection */
     std::shared_ptr<strophe::Connection> conn;
     std::shared_ptr<chatd::Client> mChatd;
+    std::string mMyUserHandle;
+    const std::string& myUserHandle() const { return mMyUserHandle; }
+    std::function<void()> onChatdReady;
     std::string getUsername() const
     {
         return strophe::getNodeFromJid(conn->fullOrBareJid());

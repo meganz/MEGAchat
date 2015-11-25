@@ -92,6 +92,14 @@ int main(int argc, char **argv)
     mainWin->ui->calleeInput->setText(argv[3]);
     gClient.reset(new karere::Client(argv[1], argv[2]));
     gClient->registerRtcHandler(new RtcEventHandler(mainWin));
+    gClient->onChatdReady = []()
+    {
+        //test stuff for chatd
+        gClient->mChatd->join("R7gmLxEgQSA", 0, "wss://chattest.userstorage.mega.co.nz/8icGyvpt-RY",
+                              new ChatWindow(mainWin), 32);
+
+    };
+
     gClient->init()
     .then([](int)
     {
@@ -111,15 +119,6 @@ int main(int argc, char **argv)
         {
             mainWin->ui->contactList->addItem(new QListWidgetItem(QIcon("/images/online.png"), contacts[i].c_str()));
         }
-
-        //test stuff for chatd
-        gClient->mChatd->join("R7gmLxEgQSA", 0, "wss://chattest.userstorage.mega.co.nz/8icGyvpt-RY",
-                              new ChatWindow(mainWin), 32)
-        .then([]()
-        {
-            printf("join promise resolved\n");
-        });
-        return 0;
     })
     .fail([](const promise::Error& error)
     {

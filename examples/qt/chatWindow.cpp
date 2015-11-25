@@ -11,7 +11,10 @@ struct AutoInit
             return;
         int ret = sqlite3_open((std::string(homedir)+"/.karere.db").c_str(), &db);
         if (ret != SQLITE_OK)
+        {
             db = nullptr;
+            return;
+        }
     }
 };
 

@@ -20,6 +20,8 @@
 #include "textModule.h"
 #include <chatd.h>
 
+#define _QUICK_LOGIN_NO_RTC
+
 namespace karere
 {
 
@@ -103,22 +105,17 @@ promise::Promise<int> Client::init()
     /* get xmpp login from Mega API */
     auto pmsMegaLogin =
     api->call(&mega::MegaApi::login, mEmail.c_str(), mPassword.c_str())
-    .then([this](ReqResult result)
+    .then([this](ReqResult result) mutable -> promise::Promise<ReqResult>
     {
         KR_LOG_DEBUG("Login to Mega API successful");
-        return api->call(&mega::MegaApi::getUserData);
-    })
-    .fail([](const promise::Error& err)
-    {
-        KR_LOG_ERROR("Mega API login error: %s", err.what());
-        return err;
-    })
-    .then([this](ReqResult result) -> promise::Promise<void>
-    {
-        api->userData = result;
-        const char* user = result->getText();
-        if (!user || !user[0])
-            return promise::Error("Could not get our own JID");
+        SdkString uh = api->getMyUserHandle();
+        if (!uh.c_str() || !uh.c_str()[0])
+            return promise::Error("Could not get our own userhandle/JID");
+        mMyUserHandle = uh.c_str();
+        mChatd.reset(new chatd::Client(mMyUserHandle.c_str(), 0));
+        if (onChatdReady)
+            onChatdReady();
+
         SdkString xmppPass = api->dumpXMPPSession();
         if (xmppPass.size() < 16)
             return promise::Error("Mega session id is shorter than 16 bytes");
@@ -126,19 +123,17 @@ promise::Promise<int> Client::init()
 
         //xmpp_conn_set_keepalive(*conn, 10, 4);
         // setup authentication information
-        std::string jid = std::string(user)+"@" KARERE_XMPP_DOMAIN "/kn_";
+        std::string jid = std::string(api->getMyXMPPJid())+"@" KARERE_XMPP_DOMAIN "/kn_";
         jid.append(rtcModule::makeRandomString(10));
         xmpp_conn_set_jid(*conn, jid.c_str());
         xmpp_conn_set_pass(*conn, xmppPass.c_str());
         KR_LOG_DEBUG("xmpp user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
         setupHandlers();
-
-        SdkString uh(api->getMyUserHandle());
-        KR_LOG_DEBUG("Login to Mega API successful, userHandle: %s", uh.c_str());
-
-        mChatd.reset(new chatd::Client("8icGyvpt-RY", 0));
-
-        return promise::_Void();
+        return api->call(&mega::MegaApi::getUserData);
+    })
+    .then([this](ReqResult result)
+    {
+        api->userData = result;
     });
 
     SHARED_STATE(server, std::shared_ptr<HostPortServerInfo>);
