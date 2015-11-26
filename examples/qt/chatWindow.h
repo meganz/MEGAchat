@@ -291,7 +291,7 @@ public slots:
         {
             mEditedMsg = nullptr; //just in case somethong throws
             //TODO: see how to associate the edited message widget with the userp
-            msg = mMessageOutput->msgModify(*edited, text.data(), text.size(), false, rowid, edited->userp);
+            msg = mMessageOutput->msgModify(*edited, text.data(), text.size(), rowid, edited->userp);
             auto& widget = widgetFromMessage(*edited);
             widget.confirmEdit(ui->mMessageEdit->toPlainText());
             widget.updateStatus(chatd::Message::kSending);
@@ -300,7 +300,7 @@ public slots:
         {
             if (text.isEmpty())
                 return;
-            msg = mMessageOutput->msgSubmit(text.data(), text.size(), false, rowid, nullptr);
+            msg = mMessageOutput->msgSubmit(text.data(), text.size(), rowid, nullptr);
             auto listItem = addMsgWidget(*msg, chatd::Message::kSending, false);
             msg->userp = listItem;
             ui->mMessageList->scrollToBottom();
@@ -433,7 +433,7 @@ public:
         stmt.bind(mMessages->chatId()).step(); //will always return a row, even if table empty
         auto minIdx = stmt.int64Col(0); //WARNING: the chatd implementation uses uint32_tvalues for idx.
         newestDbIdx = stmt.int64Col(1);
-        if (!minIdx) //no db history
+        if (sqlite3_column_type(stmt, 0) == SQLITE_NULL) //no db history
         {
             CHATD_LOG_WARNING("App: No local history found");
             oldestDbId = 0; //no really need to zero the others
@@ -466,7 +466,7 @@ public:
     }
     virtual void onRecvHistoryMessage(chatd::Idx idx, const chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
     {
-        assert(idx); assert(msg.id);
+        assert(idx != CHATD_IDX_INVALID); assert(msg.id);
         mLastHistFetchCount++;
         if (mHistFetchState)
         {
@@ -476,7 +476,7 @@ public:
         if (!isFromDb)
         {
             SqliteStmt stmt(karere::db, "insert into history(idx, chatid, msgid, userid, ts, data) values(?1, ?2, ?3, ?4, ?5, ?6);");
-            stmt << (int64_t)idx << mMessages->chatId().val << msg.id.val << msg.userid << msg.ts << msg;
+            stmt << idx << mMessages->chatId().val << msg.id << msg.userid << msg.ts << msg;
             stmt.step();
         }
         addMsgWidget(msg, status, true);
@@ -503,7 +503,7 @@ public:
     virtual void onMessageConfirmed(const chatd::Id& msgxid, const chatd::Id& msgid, chatd::Idx idx)
     {
         // add to history, message was just created at the server
-        assert(msgxid); assert(msgid); assert(idx);
+        assert(msgxid); assert(msgid); assert(idx != CHATD_IDX_INVALID);
         auto& msg = mMessages->at(idx);
         (SqliteStmt(karere::db, "insert into history(idx, msgid, chatid, userid, ts, data) values(?,?,?,?,?,?)")
           << (int64_t)idx << msgid << mMessages->chatId() << msg.userid << msg.ts << msg).step();
@@ -517,6 +517,10 @@ public:
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
         ui->mOnlineStateDisplay->setText(chatd::chatStateToStr(state));
+        if (state != chatd::kChatStateOnline)
+            return;
+        //we are online - we need to have fetched all new messages to be able to send unsent ones,
+        //because the crypto layer needs to have received the most recent keys
         if (!mUnsentChecked)
         {
             mUnsentChecked = true;
@@ -527,16 +531,12 @@ public:
                 chatd::Id msgxid = stmt.uint64Col(0);
                 Buffer buf;
                 stmt.blobCol(1, buf);
-                printf("buf: %.*s\n", buf.dataSize(), buf.buf());
-                auto msg = mMessageOutput->msgSubmit(buf.buf(), buf.dataSize(), true, msgxid, nullptr);
+                auto msg = mMessageOutput->msgSubmit(buf.buf(), buf.dataSize(), msgxid, nullptr);
                 auto item = addMsgWidget(*msg, chatd::Message::kSending, false);
                 msg->userp = item;
             }
         }
-        if (state == chatd::kChatStateOnline)
-        {
-            ui->mMessageList->scrollToBottom();
-        }
+        ui->mMessageList->scrollToBottom();
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {

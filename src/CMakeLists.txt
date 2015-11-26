@@ -49,6 +49,7 @@ set(KARERE_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/base
     ${RTCMODULE_INCLUDE_DIRS}
     ${STROPHE_INCLUDE_DIRS}
+    ${SERVICES_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/../third-party
 
     ${LIBMEGA_INCLUDE_DIRS}
@@ -58,10 +59,9 @@ set(KARERE_INCLUDE_DIRS
     ${LIBWS_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/libws
     CACHE STRING "Include directries needed by projects using karere lib"
 )
+
 include_directories(${KARERE_INCLUDE_DIRS})
-
 add_library(karere ${SRCS})
-
 target_link_libraries(karere
     rtcmodule
     ${LIBMEGA_LIBRARIES}

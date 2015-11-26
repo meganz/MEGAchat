@@ -10,10 +10,6 @@
 #include <list>
 #include <promise.h>
 #include <base/timers.h>
-#if !defined(NDEBUG) && (defined(__clang__) || defined(__GNUCXX__))
-    #include <typeinfo> //needed only for logging the name of the Listener callback in case it throws
-    #include <cxxabi.h>
-#endif
 
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
@@ -56,11 +52,12 @@ std::string base64urlencode(const void *data, size_t inlen);
 size_t base64urldecode(const char* str, size_t len, void* bin, size_t binlen);
 
 /// This type is used for ordered indexes in the message buffer
-typedef uint32_t Idx;
+typedef int32_t Idx;
 
 /// We want to fit in the positive range of a signed int64_t, for compatibility with sqlite which has no unsigned types
 /// Don't use an enum as its implicit type may screw up our value
-#define _CHATD_IDX_RANGE_MIDDLE 0x7fffffff
+#define CHATD_IDX_RANGE_MIDDLE 0
+#define CHATD_IDX_INVALID 0x7fffffff
 
 class Id
 {
@@ -310,8 +307,8 @@ public:
     /// (via \c onMessageConfirmed()). In that case, it should re-send it with the \c isResend
     /// flag set to true to avoid double encryption.
     /// Another approach is to save the plaintext message in the db, and possibly encrypt it
-    virtual Message* msgSubmit(const char* msg, size_t msglen, bool isResend, const Id& msgxid, void* userp) = 0;
-    virtual Message* msgModify(const Message& orig, const char* msg, size_t msglen, bool isResend, const Id& msgxid, void* userp) = 0;
+    virtual Message* msgSubmit(const char* msg, size_t msglen, const Id& msgxid, void* userp) = 0;
+    virtual Message* msgModify(const Message& orig, const char* msg, size_t msglen, const Id& msgxid, void* userp) = 0;
 };
 
 // message storage subsystem
@@ -427,7 +424,7 @@ public:
         Message* msg = findOrNull(num);
         if (!msg)
         {
-            throw std::runtime_error("Messages::operator[num]: num is outside of [lownum:highnum] range");
+            throw std::runtime_error("Messages::operator[idx]: idx = "+std::to_string(num)+" is outside of [lownum:highnum] range");
         }
         return *msg;
     }
@@ -446,10 +443,10 @@ public:
 
 // MessageOutput implementation - protected because we don't want to access Messages directly, but via the overridable MessageOutput interface
 protected:
-    Message* msgSubmit(const char* msg, size_t msglen, bool isResend, const Id& msgxid, void* userp);
-    Message* msgModify(const Message& orig, const char* msg, size_t msglen, bool isResend, const Id& msgxid, void* userp) //at this level we don't know how message editing is done, it's in the message packaging protocol
+    Message* msgSubmit(const char* msg, size_t msglen, const Id& msgxid, void* userp);
+    Message* msgModify(const Message& orig, const char* msg, size_t msglen, const Id& msgxid, void* userp) //at this level we don't know how message editing is done, it's in the message packaging protocol
     {
-        return msgSubmit(msg, msglen, isResend, msgxid, userp);
+        return msgSubmit(msg, msglen, msgxid, userp);
     }
 
 //===

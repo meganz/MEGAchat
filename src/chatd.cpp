@@ -3,6 +3,7 @@
 #include <gcmpp.h>
 #include <retryHandler.h>
 #include<libws_log.h>
+#include <event2/dns.h>
 
 using namespace std;
 using namespace promise;
@@ -228,6 +229,19 @@ void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *r
     {
         CHATD_LOG_DEBUG("Socket close on connection to shard %d. Reason: %.*s",
                         self->mShardNo, reason_len, reason);
+        if (errtype == WS_ERRTYPE_DNS)
+        {
+            CHATD_LOG_DEBUG("DNS error: forcing libevent to re-read /etc/resolv.conf");
+            //if we didn't have our network interface up at app startup, and resolv.conf is
+            //genereated dynamically, dns may never work unless we re-read the resolv.conf file
+#ifndef _WIN32
+            evdns_base_clear_host_addresses(services_dns_eventbase);
+            evdns_base_resolv_conf_parse(services_dns_eventbase,
+                DNS_OPTIONS_ALL & (~DNS_OPTION_SEARCH), "/etc/resolv.conf");
+#else
+        evdns_config_windows_nameservers(services_dns_eventbase);
+#endif
+        }
         self->onSocketClose();
     }
     catch(std::exception& e)
@@ -280,6 +294,7 @@ Promise<void> Connection::reconnect()
     ::mega::retry([this](int no)
     {
         reset();
+        CHATD_LOG_DEBUG("Chatd connecting to shard %d...", mShardNo);
         checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
         ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
         ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
@@ -339,6 +354,7 @@ void Connection::reset()
     {
         return;
     }
+    CHATD_LOG_DEBUG("Reset connection to shard %d", mShardNo);
     ws_close_immediately(mWebSocket);
     ws_destroy(&mWebSocket);
     assert(!mWebSocket);
@@ -418,12 +434,12 @@ Messages::Messages(Connection& conn, const Id& chatid, Listener* listener, unsig
     if (!mOldestKnownMsgId)
     {
         CHATD_LOG_DEBUG("App says there is no local history");
-        mForwardStart = _CHATD_IDX_RANGE_MIDDLE;
+        mForwardStart = CHATD_IDX_RANGE_MIDDLE;
         mNewestKnownMsgId = Id::null();
     }
     else
     {
-        assert(mNewestKnownMsgId); assert(newestDbIdx);
+        assert(mNewestKnownMsgId); assert(newestDbIdx != CHATD_IDX_INVALID);
         mForwardStart = newestDbIdx + 1;
         CHATD_LOG_DEBUG("App has a local history range of %s - %s (%zu)",
             mOldestKnownMsgId.toString().c_str(), mNewestKnownMsgId.toString().c_str(), mForwardStart);
@@ -620,7 +636,7 @@ void Connection::msgSend(const Id& chatid, const Message& message)
     sendCommand(Command(OP_NEWMSG) + chatid + Id::null() + message.id + message.ts + message);
 }
 
-Message* Messages::msgSubmit(const char* msg, size_t msglen, bool isResend, const Id& aMsgxid, void* userp)
+Message* Messages::msgSubmit(const char* msg, size_t msglen, const Id& aMsgxid, void* userp)
 {
     const Id& msgxid = aMsgxid ? aMsgxid : mClient.nextTransactionId();
     // write the new message to the message buffer and mark as in sending state
@@ -647,7 +663,7 @@ void Messages::onLastReceived(const Id& msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     { // we don't have that message in the buffer yet, so we don't know its index
-        mLastReceivedIdx = 0;
+        mLastReceivedIdx = CHATD_IDX_INVALID;
         return;
     }
     if (at(it->second).userid != mClient.mUserId)
@@ -655,7 +671,7 @@ void Messages::onLastReceived(const Id& msgid)
         CHATD_LOG_WARNING("Last-received pointer points to a message by a peer, possibly the pointer was set incorrectly");
     }
     Idx notifyOldest;
-    if (mLastReceivedIdx) //we have a previous last-received index, notify user about received messages
+    if (mLastReceivedIdx != CHATD_IDX_INVALID) //we have a previous last-received index, notify user about received messages
     {
         auto idx = it->second;
         if (mLastReceivedIdx > idx)
@@ -688,7 +704,7 @@ void Messages::onLastSeen(const Id& msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     {
-        mLastSeenIdx = 0;
+        mLastSeenIdx = CHATD_IDX_INVALID;
         return;
     }
     if (at(it->second).userid == mClient.mUserId)
@@ -696,7 +712,7 @@ void Messages::onLastSeen(const Id& msgid)
         CHATD_LOG_WARNING("Last-seen points to a message by us, possibly the pointer was not set properly");
     }
     Idx notifyOldest;
-    if (mLastSeenIdx)
+    if (mLastSeenIdx != CHATD_IDX_INVALID)
     {
         auto idx = it->second;
         if (idx < mLastSeenIdx)
@@ -721,6 +737,7 @@ void Messages::onLastSeen(const Id& msgid)
 }
 bool Messages::setMessageSeen(Idx idx)
 {
+    assert(idx != CHATD_IDX_INVALID);
     if (idx <= mLastSeenIdx)
     {
         CHATD_LOG_DEBUG("Attempted to move the last-seen pointer backward, ignoring");
@@ -821,6 +838,7 @@ Idx Messages::confirm(const Id& msgxid, const Id& msgid)
 }
 Message::Status Messages::getMsgStatus(Idx idx, const Id& userid)
 {
+    assert(idx != CHATD_IDX_INVALID);
     if (userid == mClient.mUserId)
     {
         auto& msg = at(idx);
@@ -868,27 +886,27 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     {
         mConnection.sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
     }
-    //normally the indices will not be set if mLastXXXId == msgid, as there will be only
-    //one chance to set the idx (we receive the msg only once).
-    if (msgid == mLastSeenId) //we didn't have the message when we received the last seen id
-    {
-        assert(!mLastSeenIdx);
-        CHATD_LOG_DEBUG("Received the message to which the last-seen msgid points, setting mLastSeenIndex to it");
-        onLastSeen(msgid);
-    }
-    if (mLastReceivedId == msgid)
-    {
-        assert(!mLastReceivedIdx);
-        //we didn't have the last-received message in the buffer when we received
-        //the last received msgid, and now we received the message - set the index pointer
-        CHATD_LOG_DEBUG("Received the message with the last-received msgid, setting the index to it");
-        onLastReceived(msgid);
-    }
     if (isNew)
         CALL_LISTENER(onRecvNewMessage, idx, *message, (getMsgStatus(idx, message->userid)));
     else
         CALL_LISTENER(onRecvHistoryMessage, idx, *message, (getMsgStatus(idx, message->userid)), isLocal);
 
+    //normally the indices will not be set if mLastXXXId == msgid, as there will be only
+    //one chance to set the idx (we receive the msg only once).
+    if (msgid == mLastSeenId) //we didn't have the message when we received the last seen id
+    {
+        assert(mLastSeenIdx == CHATD_IDX_INVALID);
+        CHATD_LOG_DEBUG("Received the message with the last-seen msgid, setting the index pointer to it");
+        onLastSeen(msgid);
+    }
+    if (mLastReceivedId == msgid)
+    {
+        assert(mLastReceivedIdx == CHATD_IDX_INVALID);
+        //we didn't have the message when we received the last received msgid pointer,
+        //and now we just received the message - set the index pointer
+        CHATD_LOG_DEBUG("Received the message with the last-received msgid, setting the index pointer to it");
+        onLastReceived(msgid);
+    }
     return idx;
 }
 
