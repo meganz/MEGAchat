@@ -107,6 +107,7 @@ public:
     Id userid;
     uint32_t ts;
     mutable void* userp;
+    Id edits;
     bool isSending() const { return mIsSending; }
     Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, Buffer&& buf, void* aUserp=nullptr, bool aIsSending=false)
         :Buffer(std::forward<Buffer>(buf)), id(aMsgid), userid(aUserid), ts(aTs), userp(aUserp), mIsSending(aIsSending){}
@@ -308,7 +309,15 @@ public:
     /// flag set to true to avoid double encryption.
     /// Another approach is to save the plaintext message in the db, and possibly encrypt it
     virtual Message* msgSubmit(const char* msg, size_t msglen, const Id& msgxid, void* userp) = 0;
-    virtual Message* msgModify(const Message& orig, const char* msg, size_t msglen, const Id& msgxid, void* userp) = 0;
+    virtual Message* msgModify(const Id& orig, const char* msg, size_t msglen, const Id& msgxid, void* userp) = 0;
+};
+enum HistFetchState
+{
+    kHistNotFetching = 0, ///< History is not being fetched, and there is probably history to fetch available
+    kHistNoMore = 1, ///< History is not being fetched, and we don't have any more history neither in db nor on server
+    kHistFetchingFlag = 2, ///< Set in case we are fetching either from server or db
+    kHistFetchingFromServer = 0 | kHistFetchingFlag, ///< We are currently fetching history from server
+    kHistFetchingFromDb = 1 | kHistFetchingFlag ///< We are currently fetching history from db
 };
 
 // message storage subsystem
@@ -326,9 +335,9 @@ protected:
     std::map<Id, Message*> mSending;
     std::map<Id, Idx> mIdToIndexMap;
     Id mLastReceivedId;
-    Idx mLastReceivedIdx = 0;
+    Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     Id mLastSeenId;
-    Idx mLastSeenIdx = 0;
+    Idx mLastSeenIdx = CHATD_IDX_INVALID;
     unsigned mInitialHistoryFetchCount = 32;
     std::unique_ptr<promise::Promise<void>> mJoinPromise;
     Listener* mListener;
@@ -337,8 +346,10 @@ protected:
     /// Before that happens, missing messages are supposed to be in a database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
     /// we disable this range and recalculate range() only from the buffer items
-        Id mOldestKnownMsgId;
-        Id mNewestKnownMsgId;
+    Id mOldestKnownMsgId;
+    Id mNewestKnownMsgId;
+    unsigned mLastHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
+    HistFetchState mHistFetchState = kHistNotFetching;
     Messages(Connection& conn, const Id& chatid, Listener* listener, unsigned histFetchCount=0);
     void push_forward(Message* msg) { mForwardList.push_back(msg); }
     void push_back(Message* msg) { mBackwardList.push_back(msg); }
@@ -364,6 +375,7 @@ protected:
     }
     void onMsgUpdCommand(const Id& msgid, const char* msgdata, size_t msglen);
     void initialFetchHistory(const Id& msgid);
+    void requestHistoryFromServer(int32_t count);
     void getHistoryFromDb(unsigned count);
     void onLastReceived(const Id& msgid);
     void onLastSeen(const Id& msgid);
@@ -378,6 +390,7 @@ protected:
     Message::Status getMsgStatus(Idx idx, const Id& userid);
     void resendPending();
     void range();
+    void onHistDone(); //called upont receipt of HISTDONE from server
     template <typename Ret, typename... Args, typename... Args2>
     Ret callListener(Ret(Listener::*method)(Args...), const char* methodName, Args2&&... args)
     {
@@ -402,6 +415,9 @@ public:
     Idx lownum() const { return mForwardStart - mBackwardList.size(); }
     Idx highnum() const { return mForwardStart + mForwardList.size()-1;}
     ChatState onlineState() const { return mOnlineState; }
+    bool isFetchingHistory() const { return mHistFetchState & kHistFetchingFlag; }
+    HistFetchState histFetchState() const { return mHistFetchState; }
+    unsigned lastHistFetchCount() const { return mLastHistFetchCount; }
     inline Message* findOrNull(Idx num) const
     {
         if (num < mForwardStart) //look in mBackwardList
@@ -437,6 +453,11 @@ public:
         else
             return (num < mForwardStart + mForwardList.size());
     }
+    Idx msgIndexFromId(const Id& id)
+    {
+        auto it = mIdToIndexMap.find(id);
+        return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;
+    }
     bool getHistory(int count); ///@ returns whether the fetch is from network (true), or database (false), so the app knows whether to display a progress bar/ui or not
     bool setMessageSeen(Idx idx);
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
@@ -444,9 +465,11 @@ public:
 // MessageOutput implementation - protected because we don't want to access Messages directly, but via the overridable MessageOutput interface
 protected:
     Message* msgSubmit(const char* msg, size_t msglen, const Id& msgxid, void* userp);
-    Message* msgModify(const Message& orig, const char* msg, size_t msglen, const Id& msgxid, void* userp) //at this level we don't know how message editing is done, it's in the message packaging protocol
+    Message* msgModify(const Id& orig, const char* msg, size_t msglen, const Id& msgxid, void* userp) //at this level we don't know how message editing is done, it's in the message packaging protocol
     {
-        return msgSubmit(msg, msglen, msgxid, userp);
+        auto newMsg = msgSubmit(msg, msglen, msgxid, userp);
+        newMsg->edits = orig;
+        return newMsg;
     }
 
 //===

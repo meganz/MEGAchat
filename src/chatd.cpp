@@ -419,10 +419,17 @@ bool Messages::getHistory(int count)
     }
     else
     {
-        mConnection.sendCommand(Command(OP_HIST) + mChatId + (int32_t)(-count));
+        requestHistoryFromServer(-count);
         return true;
     }
 }
+void Messages::requestHistoryFromServer(int32_t count)
+{
+        mLastHistFetchCount = 0;
+        mHistFetchState = kHistFetchingFromServer;
+        mConnection.sendCommand(Command(OP_HIST) + mChatId + count);
+}
+
 Messages::Messages(Connection& conn, const Id& chatid, Listener* listener, unsigned histFetchCount)
     : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
       mJoinPromise(new promise::Promise<void>), mListener(listener)
@@ -453,12 +460,15 @@ Messages::Messages(Connection& conn, const Id& chatid, Listener* listener, unsig
 void Messages::getHistoryFromDb(unsigned count)
 {
     assert(mOldestKnownMsgId);
+    mHistFetchState = kHistFetchingFromDb;
     std::vector<Message*> messages;
     CALL_LISTENER(fetchDbHistory, lownum()-1, count, messages);
+    mLastHistFetchCount = 0;
     for (auto msg: messages)
     {
-        msgIncoming(false, msg, true);
+        msgIncoming(false, msg, true); //increments mLastHistFetchCount
     }
+    mHistFetchState = kHistNotFetching;
     CALL_LISTENER(onHistoryDone, true);
     if ((messages.size() < count) && mOldestKnownMsgId)
         throw std::runtime_error("Application says no more messages in db, but we still haven't seen specified oldest message id");
@@ -526,7 +536,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                 READ_32(msglen, 28);
                 const char* msg = buf.read(pos, msglen);
                 pos += msglen;
-                CHATD_LOG_DEBUG("recv %s: user '%s' on chatid '%s' at time %u with len %u",
+                CHATD_LOG_DEBUG("recv %s: %s, user '%s' on chatid '%s' at time %u with len %u",
                     (isNewMsg ? "NEWMSG" : "OLDMSG"), ID_CSTR(msgid), ID_CSTR(userid),
                     ID_CSTR(chatid), ts, msglen);
 
@@ -601,17 +611,7 @@ void Connection::execCommand(const StaticBuffer &buf)
             {
                 READ_ID(chatid, 0);
                 CHATD_LOG_DEBUG("recv HISTDONE: retrieval of chat '%s' finished", ID_CSTR(chatid));
-                auto& msgs = mClient.chatidMessages(chatid);
-                if(!msgs.mJoinPromise->done())
-                {
-//resolve only on the first HISTDONE - we may have other history requests afterwards
-                    msgs.mJoinPromise->resolve();
-                    msgs.setOnlineState(kChatStateOnline);
-                }
-                else
-                {
-                    msgs.mListener->onHistoryDone(false);
-                }
+                mClient.chatidMessages(chatid).onHistDone();
                 break;
             }
             default:
@@ -634,6 +634,19 @@ void Connection::execCommand(const StaticBuffer &buf)
 void Connection::msgSend(const Id& chatid, const Message& message)
 {
     sendCommand(Command(OP_NEWMSG) + chatid + Id::null() + message.id + message.ts + message);
+}
+
+void Messages::onHistDone()
+{
+    assert(mHistFetchState == kHistFetchingFromServer);
+    mHistFetchState = (mLastHistFetchCount > 0) ? kHistNotFetching : kHistNoMore;
+    mListener->onHistoryDone(false);
+    if(!mJoinPromise->done())
+    {
+//resolve only on the first HISTDONE - we may have other history requests afterwards
+        mJoinPromise->resolve();
+        setOnlineState(kChatStateOnline);
+    }
 }
 
 Message* Messages::msgSubmit(const char* msg, size_t msglen, const Id& aMsgxid, void* userp)
@@ -874,6 +887,8 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     else
     {
         push_back(message);
+        assert(mHistFetchState & kHistFetchingFlag);
+        mLastHistFetchCount++;
         if (msgid == mOldestKnownMsgId) //we have a user-set range, and we have just added the oldest message that we know we have (maybe in db), the user range is no longer up-to-date, so disable it
         {
             mOldestKnownMsgId = 0;
@@ -918,7 +933,7 @@ void Messages::initialFetchHistory(const Id& serverNewest)
         assert(!mOldestKnownMsgId);
         //we don't have messages in db, and we don't have messages in memory
         //we haven't sent a RANGE, so we can get history only backwards
-        mConnection.sendCommand(Command(OP_HIST) + mChatId + (int32_t)(-mInitialHistoryFetchCount));
+        requestHistoryFromServer(-mInitialHistoryFetchCount);
     }
     else
     {
@@ -926,7 +941,7 @@ void Messages::initialFetchHistory(const Id& serverNewest)
         {
             CHATD_LOG_DEBUG("There are new messages on the server, requesting them");
 //the server has more recent msgs than the most recent in our db, retrieve all newer ones, after our RANGE
-            mConnection.sendCommand(Command(OP_HIST) + mChatId + int32_t(0x0fffffff));
+            requestHistoryFromServer(0x0fffffff);
         }
         else
         {

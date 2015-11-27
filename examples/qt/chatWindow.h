@@ -133,6 +133,7 @@ class MessageWidget: public QWidget
 protected:
     std::unique_ptr<Ui::ChatMessage> ui;
     const chatd::Message* mMessage; //we only need this for the popup menu - Qt doesn't give the index of the clicked item, only a pointer to it
+    const chatd::Message& mOriginal;
     short mEditCount = 0; //counts how many times we have edited the message, so that we can keep the edited display even after a canceled edit, in case there was a previous edit
     bool mIsMine;
     Q_PROPERTY(QColor msgColor READ msgColor WRITE setMsgColor)
@@ -146,7 +147,7 @@ protected:
     friend class ChatWindow;
 public:
     MessageWidget(QWidget* parent, const chatd::Message& msg, chatd::Message::Status status, const chatd::Messages& chatdMsgs)
-    : QWidget(parent), ui(new Ui::ChatMessage), mMessage(&msg), mIsMine(msg.userid == chatdMsgs.client().userId())
+    : QWidget(parent), ui(new Ui::ChatMessage), mMessage(&msg), mOriginal(msg), mIsMine(msg.userid == chatdMsgs.client().userId())
     {
         ui->setupUi(this);
         setAuthor(msg.userid);
@@ -196,7 +197,6 @@ public:
     }
     QPushButton* startEditing()
     {
-        mEditCount++;
         setBgColor(Qt::yellow);
         ui->mEditDisplay->hide();
         ui->mStatusDisplay->hide();
@@ -208,21 +208,13 @@ public:
         this->layout();
         return btn;
     }
-    MessageWidget& confirmEdit(const QString& newText)
-    {
-        disableEditGui();
-        ui->mEditDisplay->setText(tr("(edited)"));
-        ui->mMsgDisplay->setText(newText);
-        return *this;
-    }
     MessageWidget& cancelEdit()
     {
-        mEditCount--;
         disableEditGui();
         ui->mEditDisplay->setText(mEditCount?tr("(edited)"): QString());
         return *this;
     }
-    void disableEditGui()
+    MessageWidget& disableEditGui()
     {
         fadeIn(QColor(Qt::yellow));
         auto header = ui->mHeader->layout();
@@ -231,6 +223,7 @@ public:
         ui->mEditDisplay->show();
         ui->mStatusDisplay->show();
         delete btn;
+        return *this;
     }
     MessageWidget& setBgColor(const QColor& color)
     {
@@ -255,9 +248,9 @@ public:
         return *this;
     }
 };
-struct HistFetchState: public QProgressBar
+struct HistFetchUi: public QProgressBar
 {
-    HistFetchState(QWidget* parent): QProgressBar(parent) { setRange(0, kHistBatchSize); }
+    HistFetchUi(QWidget* parent): QProgressBar(parent) { setRange(0, kHistBatchSize); }
     QProgressBar* progressBar() { return this; }
 };
 
@@ -268,41 +261,47 @@ protected:
     Ui::ChatWindow* ui;
     chatd::Messages* mMessages = nullptr;
     chatd::MessageOutput* mMessageOutput = nullptr;
-    const chatd::Message* mEditedMsg = nullptr; ///pointer to the chatd message being edited. Also signals whether we are editing or writing a new message (nullptr - new msg, editing otherwise)
-    int mLastHistFetchCount = 0;
-    bool mNoMoreHistory = false;
+    MessageWidget* mEditedWidget = nullptr; ///pointer to the widget being edited. Also signals whether we are editing or writing a new message (nullptr - new msg, editing otherwise)
+    std::map<chatd::Id, const chatd::Message*> mNotLinkedEdits;
     bool mUnsentChecked = false;
-    std::unique_ptr<HistFetchState> mHistFetchState;
+    std::unique_ptr<HistFetchUi> mHistFetchUi;
 public slots:
     void onMsgSendBtn()
     {
-        chatd::Message* msg;
         auto text = ui->mMessageEdit->toPlainText().toUtf8();
-        auto edited = mEditedMsg;
         //save to 'sending' table
         SqliteStmt stmt(karere::db, "insert into sending(edited, chatid, ts, data) values(?,?,?,?)");
-        stmt << (edited ? edited->id : chatd::Id::null())
+        stmt << (mEditedWidget ? mEditedWidget->mOriginal.id : chatd::Id::null())
              << mMessages->chatId() << (uint32_t)time(NULL);
         stmt.bind(4, text.data(), text.size());
         stmt.step();
         //===
         int64_t rowid = sqlite3_last_insert_rowid(karere::db);
-        if (mEditedMsg)
+        if (mEditedWidget)
         {
-            mEditedMsg = nullptr; //just in case somethong throws
+            auto widget = mEditedWidget;
+            auto& msg = *mEditedWidget->mMessage;
+            mEditedWidget = nullptr;
+            if ((text.size() == msg.dataSize())
+              && (memcmp(text.data(), msg.buf(), text.size()) == 0))
+            { //no change
+                widget->disableEditGui();
+                ui->mMessageEdit->setText(QString());
+                return;
+            }
+
+            auto& original = widget->mOriginal;
             //TODO: see how to associate the edited message widget with the userp
-            msg = mMessageOutput->msgModify(*edited, text.data(), text.size(), rowid, edited->userp);
-            auto& widget = widgetFromMessage(*edited);
-            widget.confirmEdit(ui->mMessageEdit->toPlainText());
-            widget.updateStatus(chatd::Message::kSending);
+            auto edited = mMessageOutput->msgModify(original.id, text.data(), text.size(), rowid, original.userp);
+            addMsgEdit(*edited, original);
+            widget->disableEditGui().updateStatus(chatd::Message::kSending);
         }
         else
         {
             if (text.isEmpty())
                 return;
-            msg = mMessageOutput->msgSubmit(text.data(), text.size(), rowid, nullptr);
-            auto listItem = addMsgWidget(*msg, chatd::Message::kSending, false);
-            msg->userp = listItem;
+            auto msg = mMessageOutput->msgSubmit(text.data(), text.size(), rowid, nullptr);
+            msg->userp = addMsgWidget(*msg, chatd::Message::kSending, false);
             ui->mMessageList->scrollToBottom();
         }
         ui->mMessageEdit->setText(QString());
@@ -327,9 +326,7 @@ public slots:
     void onMessageEditAction()
     {
         auto action = qobject_cast<QAction*>(QObject::sender());
-        auto widget = action->data().value<MessageWidget*>();
-        mEditedMsg = widget->mMessage;
-        startEditingMsgWidget(*widget);
+        startEditingMsgWidget(*action->data().value<MessageWidget*>());
     }
     void editLastMsg()
     {
@@ -342,8 +339,6 @@ public slots:
             if (widget->mIsMine)
             {
                 msglist->scrollToItem(item);
-                mEditedMsg = widget->mMessage;
-                assert(mEditedMsg);
                 startEditingMsgWidget(*widget);
                 return;
             }
@@ -351,26 +346,31 @@ public slots:
     }
     void cancelMsgEdit()
     {
-        assert(mEditedMsg);
-        widgetFromMessage(*mEditedMsg).cancelEdit();
+        assert(mEditedWidget);
+        mEditedWidget->cancelEdit();
+        mEditedWidget = nullptr;
         ui->mMessageEdit->setText(QString());
     }
     void onMsgListRequestHistory(int scrollDelta)
     {
-        if (mHistFetchState) //Only checks for ongoing network fetch, we can't be already fetching db history, as that process is synchronous
+        fetchMoreHistory();
+    }
+    void fetchMoreHistory()
+    {
+        auto state = mMessages->histFetchState();
+        if (state & chatd::kHistFetchingFlag)
             return;
-        if (mNoMoreHistory)
+        if (state == chatd::kHistNoMore)
         {
             //TODO: Show in some way in the GUI that we have reached the start of history
             return;
         }
-        mLastHistFetchCount = 0;
         bool isRemote = mMessages->getHistory(kHistBatchSize);
         if (isRemote)
         {
-            mHistFetchState.reset(new HistFetchState(this));
+            mHistFetchUi.reset(new HistFetchUi(this));
             auto layout = qobject_cast<QBoxLayout*>(ui->titlebar->layout());
-            layout->insertWidget(1, mHistFetchState->progressBar());
+            layout->insertWidget(1, mHistFetchUi->progressBar());
         }
     }
 public:
@@ -385,10 +385,11 @@ public:
         show();
     }
 protected:
-    MessageWidget& widgetFromMessage(const chatd::Message& msg)
+    MessageWidget* widgetFromMessage(const chatd::Message& msg)
     {
-        assert(msg.userp);
-        return *qobject_cast<MessageWidget*>(ui->mMessageList->itemWidget(static_cast<QListWidgetItem*>(msg.userp)));
+        if (!msg.userp)
+            return nullptr;
+        return qobject_cast<MessageWidget*>(ui->mMessageList->itemWidget(static_cast<QListWidgetItem*>(msg.userp)));
     }
     QListWidgetItem* addMsgWidget(const chatd::Message& msg, chatd::Message::Status status,
                       bool first, QColor* color=nullptr)
@@ -409,18 +410,68 @@ protected:
             ui->mMessageList->addItem(item);
         }
         ui->mMessageList->setItemWidget(item, widget);
+        if(!checkHandleInboundEdits(msg))
+        {
+            if (color)
+                widget->fadeIn(*color);
+        }
+        return item;
+    }
+    void addMsgEdit(const chatd::Message& msg, bool first, QColor* color=nullptr)
+    {
+        assert(msg.edits);
+        auto idx = mMessages->msgIndexFromId(msg.edits);
+        if (idx == CHATD_IDX_INVALID) //maybe message is not loaded in buffer? Ignore it then
+        {
+            auto it = mNotLinkedEdits.find(msg.edits);
+            if ((it == mNotLinkedEdits.end()) || !first) //we are adding an oldest message, can't be a more recent edit, ignore
+                mNotLinkedEdits[msg.edits] = &msg;
+            msg.userp = nullptr;
+            CHATD_LOG_DEBUG("Can't find original message of edit, adding to map");
+            return;
+        }
+        auto& targetMsg = mMessages->at(idx);
+        assert(targetMsg.id == msg.edits);
+        addMsgEdit(msg, targetMsg, color);
+    }
+    void addMsgEdit(const chatd::Message& edited, const chatd::Message& original, QColor* color=nullptr)
+    {
+        auto widget = widgetFromMessage(original);
+//User pointer of referenced message by an edit can be null only if it's an edit itself. But edits
+//can't point to other edits, they must reference only the original message and can't be chained
+        if (!widget)
+        {
+            CHATD_LOG_ERROR("Edit message %lld points to another edit message %lld, ignoring message", edited.id, original.id);
+            return;
+        }
+        edited.userp = original.userp; //this is already done by msgModify that created the edited message
+        widget->mMessage = &edited;
+        widget->setText(edited).setEdited();
+        widget->mEditCount++;
         if (color)
             widget->fadeIn(*color);
-        return item;
     }
     void startEditingMsgWidget(MessageWidget& widget)
     {
+        mEditedWidget = &widget;
         auto cancelBtn = widget.startEditing();
         connect(cancelBtn, SIGNAL(clicked()), this, SLOT(cancelMsgEdit()));
-        ui->mMessageEdit->setText(QString().fromUtf8(mEditedMsg->buf(), mEditedMsg->dataSize()));
+        ui->mMessageEdit->setText(QString().fromUtf8(widget.mMessage->buf(), widget.mMessage->dataSize()));
         ui->mMessageEdit->moveCursor(QTextCursor::End);
     }
-
+    bool checkHandleInboundEdits(const chatd::Message& msg)
+    {
+        assert(msg.userp); //message must be in the GUI already
+        auto it = mNotLinkedEdits.find(msg.id);
+        if (it == mNotLinkedEdits.end())
+            return false;
+        CHATD_LOG_DEBUG("Loaded message that had edits pending");
+        auto widget = widgetFromMessage(msg);
+        auto updated = widget->mMessage = it->second;
+        widget->setText(*updated).setEdited();
+        mNotLinkedEdits.erase(it);
+        return true;
+    }
     chatd::Listener* listenerInterface() { return static_cast<chatd::Listener*>(this); }
 public:
     //chatd::Listener interface
@@ -457,62 +508,74 @@ public:
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, const chatd::Message& msg, chatd::Message::Status status)
     {
-        SqliteStmt stmt(karere::db, "insert into history(idx, chatid, msgid, userid, ts, data) values(?1, ?2, ?3, ?4, ?5, ?6);");
-        stmt << (int64_t)idx << mMessages->chatId() << msg.id << msg.userid << msg.ts << msg;
+        SqliteStmt stmt(karere::db, "insert into history(idx, chatid, msgid, userid, ts, edits, data) values(?1,?2,?3,?4,?5,?6,?7);");
+        stmt << (int64_t)idx << mMessages->chatId() << msg.id << msg.userid << msg.ts << msg.edits << msg;
         stmt.step();
-        addMsgWidget(msg, status, false);
+        if (msg.edits)
+            addMsgEdit(msg, false);
+        else
+            addMsgWidget(msg, status, false);
         mMessages->setMessageSeen(idx);
         ui->mMessageList->scrollToBottom();
     }
     virtual void onRecvHistoryMessage(chatd::Idx idx, const chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
     {
         assert(idx != CHATD_IDX_INVALID); assert(msg.id);
-        mLastHistFetchCount++;
-        if (mHistFetchState)
+        if (mHistFetchUi)
         {
-            mHistFetchState->progressBar()->setValue(mLastHistFetchCount);
-            mHistFetchState->progressBar()->repaint();
+            mHistFetchUi->progressBar()->setValue(mMessages->lastHistFetchCount());
+            mHistFetchUi->progressBar()->repaint();
         }
         if (!isFromDb)
         {
-            SqliteStmt stmt(karere::db, "insert into history(idx, chatid, msgid, userid, ts, data) values(?1, ?2, ?3, ?4, ?5, ?6);");
-            stmt << idx << mMessages->chatId().val << msg.id << msg.userid << msg.ts << msg;
+            SqliteStmt stmt(karere::db, "insert into history(idx, chatid, msgid, userid, ts, edits, data) values(?1, ?2, ?3, ?4, ?5, ?6, ?7);");
+            stmt << idx << mMessages->chatId().val << msg.id << msg.userid << msg.ts << msg.edits << msg;
             stmt.step();
         }
-        addMsgWidget(msg, status, true);
+        if (msg.edits)
+            addMsgEdit(msg, true);
+        else
+            addMsgWidget(msg, status, true);
+//        ui->mMessageList->scrollToBottom();
     }
     virtual void onHistoryDone(bool isFromDb)
     {
-        mHistFetchState.reset();
-        if (!mLastHistFetchCount)
-        {
-            mNoMoreHistory = true;
-            CHATD_LOG_DEBUG("No more history");
+        mHistFetchUi.reset();
+        if (!mMessages->lastHistFetchCount())
             return;
-        }
+
         auto& list = *ui->mMessageList;
         auto idx = list.indexAt(QPoint(list.rect().left()+10, list.rect().bottom()-2));
-        int last = (idx.isValid())?std::min(idx.row(), mLastHistFetchCount):mLastHistFetchCount;
+        if (!idx.isValid() && mMessages->histFetchState() != chatd::kHistNoMore)
+        {
+            fetchMoreHistory();
+            return;
+        }
+        int last = (idx.isValid())?std::min((unsigned)idx.row(), mMessages->lastHistFetchCount()):list.count()-1;
         for (int i=0; i<=last; i++)
             qobject_cast<MessageWidget*>(list.itemWidget(list.item(i)))->fadeIn(QColor(250,250,250));
     }
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg)
     {
-        widgetFromMessage(msg).updateStatus(newStatus);
+        auto widget = widgetFromMessage(msg);
+        if (widget)
+            widget->updateStatus(newStatus);
     }
     virtual void onMessageConfirmed(const chatd::Id& msgxid, const chatd::Id& msgid, chatd::Idx idx)
     {
         // add to history, message was just created at the server
         assert(msgxid); assert(msgid); assert(idx != CHATD_IDX_INVALID);
         auto& msg = mMessages->at(idx);
-        (SqliteStmt(karere::db, "insert into history(idx, msgid, chatid, userid, ts, data) values(?,?,?,?,?,?)")
-          << (int64_t)idx << msgid << mMessages->chatId() << msg.userid << msg.ts << msg).step();
+        (SqliteStmt(karere::db, "insert into history(idx, msgid, chatid, userid, ts, edits, data) values(?,?,?,?,?,?,?)")
+          << (int64_t)idx << msgid << mMessages->chatId() << msg.userid << msg.ts << msg.edits << msg).step();
 
         // delete from temporary storage in sending table
         (SqliteStmt(karere::db, "delete from sending where rowid = ?2")
           << mMessages->chatId() << msgxid).step();
 
-        widgetFromMessage(msg).updateStatus(chatd::Message::kServerReceived);
+        auto widget = widgetFromMessage(msg);
+        if (widget)
+            widget->updateStatus(chatd::Message::kServerReceived);
     }
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
@@ -524,23 +587,32 @@ public:
         if (!mUnsentChecked)
         {
             mUnsentChecked = true;
-            SqliteStmt stmt(karere::db, "select rowid, data from sending where chatid=? order by rowid asc");
+            SqliteStmt stmt(karere::db, "select rowid, edited, data from sending where chatid=? order by rowid asc");
             stmt << mMessages->chatId();
             while(stmt.step())
             {
                 chatd::Id msgxid = stmt.uint64Col(0);
+                chatd::Id edited = stmt.uint64Col(1);
                 Buffer buf;
-                stmt.blobCol(1, buf);
-                auto msg = mMessageOutput->msgSubmit(buf.buf(), buf.dataSize(), msgxid, nullptr);
-                auto item = addMsgWidget(*msg, chatd::Message::kSending, false);
-                msg->userp = item;
+                stmt.blobCol(2, buf);
+                if (edited)
+                {
+                    auto msg = mMessageOutput->msgModify(edited, buf.buf(), buf.dataSize(), msgxid, nullptr);
+                    addMsgEdit(*msg, false);
+                }
+                else
+                {
+                    auto msg = mMessageOutput->msgSubmit(buf.buf(), buf.dataSize(), msgxid, nullptr);
+                    auto item = addMsgWidget(*msg, chatd::Message::kSending, false);
+                    msg->userp = item;
+                }
             }
         }
         ui->mMessageList->scrollToBottom();
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(karere::db, "select msgid, userid, ts, data, idx from history where chatid=?1 and idx <= ?2 order by idx desc limit ?3");
+        SqliteStmt stmt(karere::db, "select msgid, userid, ts, data, idx, edits from history where chatid=?1 and idx <= ?2 order by idx desc limit ?3");
         stmt << mMessages->chatId().val << (int64_t)idx << count;
         int i = 0;
         while(stmt.step())
@@ -553,7 +625,9 @@ public:
             stmt.blobCol(3, buf);
             auto idx = stmt.uint64Col(4);
             assert(idx == mMessages->lownum()-1-messages.size());
-            messages.push_back(new chatd::Message(msgid, userid, ts, std::move(buf)));
+            auto msg = new chatd::Message(msgid, userid, ts, std::move(buf));
+            msg->edits = stmt.uint64Col(5);
+            messages.push_back(msg);
         }
     }
 };
