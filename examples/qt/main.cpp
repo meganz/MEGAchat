@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     {
         //test stuff for chatd
         gClient->mChatd->join("R7gmLxEgQSA", 0, "wss://chattest.userstorage.mega.co.nz/8icGyvpt-RY",
-                              new ChatWindow(mainWin), 32);
+                              new ChatWindow(mainWin));
 
     };
 

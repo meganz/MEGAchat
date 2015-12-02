@@ -11,103 +11,10 @@
 #include <QPropertyAnimation>
 #include <QMenu>
 #include <QMoveEvent>
-//#include <msgInputBox.h>
 #include <QScrollBar>
 #include <QTimer>
 #include <QProgressBar>
-#include <sqlite3.h>
-#include <autoHandle.h>
-
-class SqliteStmt
-{
-protected:
-    sqlite3_stmt* mStmt;
-    sqlite3* mDb;
-    int mLastBindCol = 0;
-    void check(int code, const char* opname)
-    {
-        if (code != SQLITE_OK)
-            throw std::runtime_error(getLastErrorMsg(opname));
-    }
-    std::string getLastErrorMsg(const char* opname)
-    {
-        std::string msg("SqliteStmt error ");
-        msg.append(std::to_string(sqlite3_errcode(mDb))).append(" on ");
-        if (opname)
-        {
-            msg.append("operation '").append(opname).append("': ");
-        }
-        else
-        {
-            const char* sql = sqlite3_sql(mStmt);
-            if (sql)
-                msg.append("query\n").append(sql).append("\n");
-        }
-        const char* errMsg = sqlite3_errmsg(mDb);
-        msg.append(errMsg?errMsg:"(no error message)");
-        return msg;
-    }
-public:
-    SqliteStmt(sqlite3* db, const char* sql) :mDb(db)
-    {
-        assert(db);
-        check(sqlite3_prepare_v2(db, sql, -1, &mStmt, nullptr), "create statement");
-        assert(mStmt);
-    }
-    ~SqliteStmt()
-    {
-        if (mStmt)
-            sqlite3_finalize(mStmt);
-    }
-    operator sqlite3_stmt*() { return mStmt; }
-    const operator sqlite3_stmt*() const {return mStmt; }
-    SqliteStmt& bind(int col, int val) { check(sqlite3_bind_int(mStmt, col, val), "bind"); return *this; }
-    SqliteStmt& bind(int col, const int64_t& val) { check(sqlite3_bind_int64(mStmt, col, val), "bind"); return *this; }
-    SqliteStmt& bind(int col, const std::string& val) { check(sqlite3_bind_text(mStmt, col, val.c_str(), (int)val.size(), SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const char* val, size_t size) { check(sqlite3_bind_text(mStmt, col, val, size, SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const void* val, size_t size) { check(sqlite3_bind_blob(mStmt, col, val, size, SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const Buffer& buf) { check(sqlite3_bind_blob(mStmt, col, buf.buf(), buf.dataSize(), SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const uint64_t& val) { check(sqlite3_bind_int64(mStmt, col, (int64_t)val), "bind"); return *this; }
-    SqliteStmt& bind(int col, unsigned int val) { check(sqlite3_bind_int(mStmt, col, (int)val), "bind"); return *this; }
-    SqliteStmt& clearBind() { mLastBindCol = 0; check(sqlite3_clear_bindings(mStmt), "clear bindings"); return *this; }
-    SqliteStmt& reset() { check(sqlite3_reset(mStmt), "reset"); return *this; }
-    template <class T>
-    SqliteStmt& bind(const T& val) { bind(++mLastBindCol, val); return *this; }
-    template <class T>
-    SqliteStmt& operator<<(const T& val) { return bind(val);}
-    bool step()
-    {
-        int ret = sqlite3_step(mStmt);
-        if (ret == SQLITE_DONE)
-            return false;
-        else if (ret == SQLITE_ROW)
-            return true;
-        else
-            throw std::runtime_error(getLastErrorMsg(nullptr));
-    }
-    void stepMustHaveData() { if (!step()) throw std::runtime_error("SqliteStmt::stepMustHaveData: No rows returned"); }
-    int intCol(int num) { return sqlite3_column_int(mStmt, num); }
-    int64_t int64Col(int num) { return sqlite3_column_int64(mStmt, num); }
-    std::string stringCol(int num)
-    {
-        const unsigned char* data = sqlite3_column_text(mStmt, num);
-        if (!data)
-            return std::string();
-        int size = sqlite3_column_bytes(mStmt, num);
-        return std::string((const char*)data, size);
-    }
-    void blobCol(int num, Buffer& buf)
-    {
-        buf.clear();
-        const void* data = sqlite3_column_blob(mStmt, num);
-        if (!data)
-            return;
-        int size = sqlite3_column_bytes(mStmt, num);
-        buf.assign(data, size);
-    }
-    uint64_t uint64Col(int num) { return (uint64_t)sqlite3_column_int64(mStmt, num);}
-    unsigned int uintCol(int num) { return (unsigned int)sqlite3_column_int(mStmt, num);}
-};
+#include <chatdDb.h>
 
 namespace Ui
 {
@@ -260,7 +167,6 @@ class ChatWindow: public QDialog, public chatd::Listener
 protected:
     Ui::ChatWindow* ui;
     chatd::Messages* mMessages = nullptr;
-    chatd::MessageOutput* mMessageOutput = nullptr;
     MessageWidget* mEditedWidget = nullptr; ///pointer to the widget being edited. Also signals whether we are editing or writing a new message (nullptr - new msg, editing otherwise)
     std::map<chatd::Id, const chatd::Message*> mNotLinkedEdits;
     bool mUnsentChecked = false;
@@ -269,14 +175,6 @@ public slots:
     void onMsgSendBtn()
     {
         auto text = ui->mMessageEdit->toPlainText().toUtf8();
-        //save to 'sending' table
-        SqliteStmt stmt(karere::db, "insert into sending(edited, chatid, ts, data) values(?,?,?,?)");
-        stmt << (mEditedWidget ? mEditedWidget->mOriginal.id : chatd::Id::null())
-             << mMessages->chatId() << (uint32_t)time(NULL);
-        stmt.bind(4, text.data(), text.size());
-        stmt.step();
-        //===
-        int64_t rowid = sqlite3_last_insert_rowid(karere::db);
         if (mEditedWidget)
         {
             auto widget = mEditedWidget;
@@ -292,7 +190,7 @@ public slots:
 
             auto& original = widget->mOriginal;
             //TODO: see how to associate the edited message widget with the userp
-            auto edited = mMessageOutput->msgModify(original.id, text.data(), text.size(), rowid, original.userp);
+            auto edited = mMessages->msgModify(original.id(), original.isSending(), text.data(), text.size(), original.userp);
             addMsgEdit(*edited, original);
             widget->disableEditGui().updateStatus(chatd::Message::kSending);
         }
@@ -300,7 +198,7 @@ public slots:
         {
             if (text.isEmpty())
                 return;
-            auto msg = mMessageOutput->msgSubmit(text.data(), text.size(), rowid, nullptr);
+            auto msg = mMessages->msgSubmit(text.data(), text.size(), nullptr);
             msg->userp = addMsgWidget(*msg, chatd::Message::kSending, false);
             ui->mMessageList->scrollToBottom();
         }
@@ -419,19 +317,19 @@ protected:
     }
     void addMsgEdit(const chatd::Message& msg, bool first, QColor* color=nullptr)
     {
-        assert(msg.edits);
-        auto idx = mMessages->msgIndexFromId(msg.edits);
+        assert(msg.edits());
+        auto idx = mMessages->msgIndexFromId(msg.edits());
         if (idx == CHATD_IDX_INVALID) //maybe message is not loaded in buffer? Ignore it then
         {
-            auto it = mNotLinkedEdits.find(msg.edits);
+            auto it = mNotLinkedEdits.find(msg.edits());
             if ((it == mNotLinkedEdits.end()) || !first) //we are adding an oldest message, can't be a more recent edit, ignore
-                mNotLinkedEdits[msg.edits] = &msg;
+                mNotLinkedEdits[msg.edits()] = &msg;
             msg.userp = nullptr;
             CHATD_LOG_DEBUG("Can't find original message of edit, adding to map");
             return;
         }
         auto& targetMsg = mMessages->at(idx);
-        assert(targetMsg.id == msg.edits);
+        assert(targetMsg.id() == msg.edits());
         addMsgEdit(msg, targetMsg, color);
     }
     void addMsgEdit(const chatd::Message& edited, const chatd::Message& original, QColor* color=nullptr)
@@ -439,11 +337,7 @@ protected:
         auto widget = widgetFromMessage(original);
 //User pointer of referenced message by an edit can be null only if it's an edit itself. But edits
 //can't point to other edits, they must reference only the original message and can't be chained
-        if (!widget)
-        {
-            CHATD_LOG_ERROR("Edit message %lld points to another edit message %lld, ignoring message", edited.id, original.id);
-            return;
-        }
+        assert(widget); //Edit message points to another edit message
         edited.userp = original.userp; //this is already done by msgModify that created the edited message
         widget->mMessage = &edited;
         widget->setText(edited).setEdited();
@@ -462,7 +356,7 @@ protected:
     bool checkHandleInboundEdits(const chatd::Message& msg)
     {
         assert(msg.userp); //message must be in the GUI already
-        auto it = mNotLinkedEdits.find(msg.id);
+        auto it = mNotLinkedEdits.find(msg.id());
         if (it == mNotLinkedEdits.end())
             return false;
         CHATD_LOG_DEBUG("Loaded message that had edits pending");
@@ -475,43 +369,15 @@ protected:
     chatd::Listener* listenerInterface() { return static_cast<chatd::Listener*>(this); }
 public:
     //chatd::Listener interface
-    virtual void init(chatd::Messages* messages, chatd::MessageOutput* out,chatd::Id& oldestDbId,
-                        chatd::Id& newestDbId, chatd::Idx& newestDbIdx)
+    virtual void init(chatd::Messages* messages, chatd::DbInterface*& dbIntf)
     {
         mMessages = messages;
-        mMessageOutput = out;
-        SqliteStmt stmt(karere::db, "select min(idx), max(idx) from history where chatid=?1");
-        stmt.bind(mMessages->chatId()).step(); //will always return a row, even if table empty
-        auto minIdx = stmt.int64Col(0); //WARNING: the chatd implementation uses uint32_tvalues for idx.
-        newestDbIdx = stmt.int64Col(1);
-        if (sqlite3_column_type(stmt, 0) == SQLITE_NULL) //no db history
-        {
-            CHATD_LOG_WARNING("App: No local history found");
-            oldestDbId = 0; //no really need to zero the others
-            newestDbId = newestDbIdx = 0;
-            return;
-        }
-        SqliteStmt stmt2(karere::db, "select msgid from history where chatid=?1 and idx=?2");
-        stmt2 << mMessages->chatId().val << (int64_t)minIdx;
-        stmt2.stepMustHaveData();
-        oldestDbId = stmt2.uint64Col(0);
-        stmt2.reset().bind(2, (int64_t)newestDbIdx);
-        stmt2.stepMustHaveData();
-        newestDbId = stmt2.uint64Col(0);
-        if (!newestDbId)
-        {
-            CHATD_LOG_WARNING("App: Newest msgid in db is null, telling chatd we don't have local history");
-            oldestDbId = 0;
-        }
-        printf("app range: %lld - % lld\n", oldestDbId.val, newestDbId.val);
+        dbIntf = new ChatdSqliteDb(messages, karere::db);
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, const chatd::Message& msg, chatd::Message::Status status)
     {
-        SqliteStmt stmt(karere::db, "insert into history(idx, chatid, msgid, userid, ts, edits, data) values(?1,?2,?3,?4,?5,?6,?7);");
-        stmt << (int64_t)idx << mMessages->chatId() << msg.id << msg.userid << msg.ts << msg.edits << msg;
-        stmt.step();
-        if (msg.edits)
+        if (msg.edits())
             addMsgEdit(msg, false);
         else
             addMsgWidget(msg, status, false);
@@ -520,19 +386,13 @@ public:
     }
     virtual void onRecvHistoryMessage(chatd::Idx idx, const chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
     {
-        assert(idx != CHATD_IDX_INVALID); assert(msg.id);
+        assert(idx != CHATD_IDX_INVALID); assert(msg.id());
         if (mHistFetchUi)
         {
             mHistFetchUi->progressBar()->setValue(mMessages->lastHistFetchCount());
             mHistFetchUi->progressBar()->repaint();
         }
-        if (!isFromDb)
-        {
-            SqliteStmt stmt(karere::db, "insert into history(idx, chatid, msgid, userid, ts, edits, data) values(?1, ?2, ?3, ?4, ?5, ?6, ?7);");
-            stmt << idx << mMessages->chatId().val << msg.id << msg.userid << msg.ts << msg.edits << msg;
-            stmt.step();
-        }
-        if (msg.edits)
+        if (msg.edits())
             addMsgEdit(msg, true);
         else
             addMsgWidget(msg, status, true);
@@ -566,13 +426,6 @@ public:
         // add to history, message was just created at the server
         assert(msgxid); assert(msgid); assert(idx != CHATD_IDX_INVALID);
         auto& msg = mMessages->at(idx);
-        (SqliteStmt(karere::db, "insert into history(idx, msgid, chatid, userid, ts, edits, data) values(?,?,?,?,?,?,?)")
-          << (int64_t)idx << msgid << mMessages->chatId() << msg.userid << msg.ts << msg.edits << msg).step();
-
-        // delete from temporary storage in sending table
-        (SqliteStmt(karere::db, "delete from sending where rowid = ?2")
-          << mMessages->chatId() << msgxid).step();
-
         auto widget = widgetFromMessage(msg);
         if (widget)
             widget->updateStatus(chatd::Message::kServerReceived);
@@ -584,51 +437,19 @@ public:
             return;
         //we are online - we need to have fetched all new messages to be able to send unsent ones,
         //because the crypto layer needs to have received the most recent keys
-        if (!mUnsentChecked)
+    }
+    virtual void onUnsentMsgLoaded(const chatd::Message& msg)
+    {
+        if (msg.edits()) //the
         {
-            mUnsentChecked = true;
-            SqliteStmt stmt(karere::db, "select rowid, edited, data from sending where chatid=? order by rowid asc");
-            stmt << mMessages->chatId();
-            while(stmt.step())
-            {
-                chatd::Id msgxid = stmt.uint64Col(0);
-                chatd::Id edited = stmt.uint64Col(1);
-                Buffer buf;
-                stmt.blobCol(2, buf);
-                if (edited)
-                {
-                    auto msg = mMessageOutput->msgModify(edited, buf.buf(), buf.dataSize(), msgxid, nullptr);
-                    addMsgEdit(*msg, false);
-                }
-                else
-                {
-                    auto msg = mMessageOutput->msgSubmit(buf.buf(), buf.dataSize(), msgxid, nullptr);
-                    auto item = addMsgWidget(*msg, chatd::Message::kSending, false);
-                    msg->userp = item;
-                }
-            }
+            addMsgEdit(msg, false);
+        }
+        else
+        {
+            auto item = addMsgWidget(msg, chatd::Message::kSending, false);
+            msg.userp = item;
         }
         ui->mMessageList->scrollToBottom();
-    }
-    virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
-    {
-        SqliteStmt stmt(karere::db, "select msgid, userid, ts, data, idx, edits from history where chatid=?1 and idx <= ?2 order by idx desc limit ?3");
-        stmt << mMessages->chatId().val << (int64_t)idx << count;
-        int i = 0;
-        while(stmt.step())
-        {
-            i++;
-            chatd::Id msgid(stmt.uint64Col(0));
-            chatd::Id userid(stmt.uint64Col(1));
-            unsigned ts = stmt.uintCol(2);
-            Buffer buf;
-            stmt.blobCol(3, buf);
-            auto idx = stmt.uint64Col(4);
-            assert(idx == mMessages->lownum()-1-messages.size());
-            auto msg = new chatd::Message(msgid, userid, ts, std::move(buf));
-            msg->edits = stmt.uint64Col(5);
-            messages.push_back(msg);
-        }
     }
 };
 

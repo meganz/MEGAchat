@@ -102,25 +102,35 @@ public:
         kNotSeen,
         kSeen
     };
-
-    Id id;
+private:
+//avoid setting the id and flag pairs one by one by making them accessible only by setXXX(Id,bool)
+    Id mId;
+    Id mEdits;
+    bool mIdIsXid = false;
+    bool mEditsIsXid = false;
+public:
     Id userid;
     uint32_t ts;
     mutable void* userp;
-    Id edits;
-    bool isSending() const { return mIsSending; }
-    Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, Buffer&& buf, void* aUserp=nullptr, bool aIsSending=false)
-        :Buffer(std::forward<Buffer>(buf)), id(aMsgid), userid(aUserid), ts(aTs), userp(aUserp), mIsSending(aIsSending){}
-    Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, const char* msg, size_t msglen, void* aUserp, bool aIsSending=false)
-        :Buffer(msg, msglen), id(aMsgid), userid(aUserid), ts(aTs), userp(aUserp), mIsSending(aIsSending){}
+    const Id& id() const { return mId; }
+    const Id& edits() const { return mEdits; }
+    bool isSending() const { return mIdIsXid; }
+    bool editsIsXid() const { return mEditsIsXid; }
+    void setId(const Id& aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
+    void setEdits(const Id& aEdits, bool isXid) { mEdits = aEdits; mEditsIsXid = isXid; }
+    Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, Buffer&& buf,
+            void* aUserp=nullptr, bool aIsSending=false)
+        :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
+          ts(aTs), userp(aUserp){}
+    Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, const char* msg, size_t msglen,
+            void* aUserp, bool aIsSending=false)
+        :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs), userp(aUserp) {}
     static const char* statusToStr(unsigned status)
     {
         return (status > kSeen) ? "(invalid status)" : statusNames[status];
     }
 protected:
-    bool mIsSending;
     static const char* statusNames[];
-    void setIsSending(bool val) { mIsSending = val; }
     friend class Messages;
 };
 
@@ -130,7 +140,7 @@ enum ChatState
 {kChatStateOffline = 0, kChatStateConnecting, kChatStateJoining, kChatStateOnline};
 static inline const char* chatStateToStr(unsigned state);
 
-class MessageOutput;
+class DbInterface;
 class Listener
 {
 public:
@@ -142,8 +152,7 @@ public:
 /// that we have in the local database
 /// @param newestDbIdx - the index of the newestDbId message, so that the message buffer indexes
 /// will be adjusted to match the ones in the local db
-    virtual void init(Messages* messages, MessageOutput* out,
-                        Id& oldestDbId, Id& newestDbId, Idx& newestDbIdx) = 0;
+    virtual void init(Messages* messages, DbInterface*& dbIntf) = 0;
 /// Called when that chatroom instance is being destroyed (e.g. on application close)
     virtual void onDestroy(){}
 /// A new message was received. This can be just sent by a peer, or retrieved from the server.
@@ -158,6 +167,7 @@ public:
 /// @param isFromDb Whether the history was retrieved from localDb, via fetchDbHistory() or from
 /// the server
     virtual void onHistoryDone(bool isFromDb) {}
+    virtual void onUnsentMsgLoaded(const Message& msg){}
 /// A message sent by us was received acknoledged by the server, assigning it a MSGID.
 /// At this stage, the message state is "received-by-server"
 /// @param msgxid - The request-response match id that we generated for the sent message. Normally
@@ -184,17 +194,6 @@ public:
     virtual void onUserJoined(const Id& userid, int privilege){}
 /// An user has left the chatroom
     virtual void onUserLeft(const Id& userid) {}
-/// Called when the client was requested to fetch history, and it knows the db contains the requested
-/// history range.
-/// @param startIdx - the start index of the requested history range
-/// @param count - the number of messages to return
-/// @param[out] messages - The app should put the messages in this vector, the most recent message being
-/// at position 0 in the vector, and the oldest being the last. If the returned message count is less
-/// than the requested by \c count, the client considers there is no more history in the db. However,
-/// if the application-specified \c oldestDbId in the call to \n init() has not been retrieved yet,
-/// an assertion will be triggered. Therefore, the application must always try to read not less than
-/// \c count messages, in case they are avaialble in the db.
-    virtual void fetchDbHistory(Idx startIdx, unsigned count, std::vector<Message*>& messages){}
 };
 
 class Command: public Buffer
@@ -250,6 +249,7 @@ protected:
     ws_t mWebSocket = nullptr;
     Url mUrl;
     megaHandle mPingTimer = 0;
+    bool mTerminating = false;
     std::unique_ptr<promise::Promise<void> > mConnectPromise;
     std::unique_ptr<promise::Promise<void> > mDisconnectPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
@@ -272,7 +272,6 @@ protected:
     void hist(const Id& chatid, long count);
     void execCommand(const StaticBuffer& buf);
     void msgSend(const Id& chatid, const Message& message);
-    void msgUpdate(const Id& chatid, const Message& message);
     friend class Client;
     friend class Messages;
 public:
@@ -282,35 +281,7 @@ public:
             ::mega::cancelInterval(mPingTimer);
     }
 };
-/// Message sending interface, that is used by the application to send messages
-/// We need to abstract the message send interface because we will attach a crypto layer on top,
-/// so the crypto layer can replace this interface
-class MessageOutput
-{
-public:
-    /// Send a message.
-    /// @param isResend - It is possible for the app to save the encrypted messages in the 'sending'
-    /// local db table, instead of the plaintext. In that case, when these messages should be re-sent,
-    /// i.e. after an app re-launch, the crypto layer should not encrypt them again, but pass them
-    /// to the chatd client directly. This is the purpose of this flag, and it is not used by the
-    /// chatd client itself.
-    /// @param msgxid - A unique id that will identify the message until it received a proper msgid
-    /// from the server. If 0 is specified, the client will generate its own, autonicremented value,
-    /// that is unique only during the application run. However it is convenient
-    /// and natural for a db-backed application to specify the unique row id where the message was
-    /// saved in the 'sending' table.
-    /// @param userp A user pointer to set the message's \c userp member to. That can be done
-    /// also manually with the returned Message* object.
-    /// @returns The Message object that was queued for transport at the client. In case a crypto
-    /// layer is used, it should be encrypted.
-    /// One approach to save unsent messages is to save the message in its encrypted form, and
-    /// re-send it on a subsequent app launch if it was never confirmed by the server
-    /// (via \c onMessageConfirmed()). In that case, it should re-send it with the \c isResend
-    /// flag set to true to avoid double encryption.
-    /// Another approach is to save the plaintext message in the db, and possibly encrypt it
-    virtual Message* msgSubmit(const char* msg, size_t msglen, const Id& msgxid, void* userp) = 0;
-    virtual Message* msgModify(const Id& orig, const char* msg, size_t msglen, const Id& msgxid, void* userp) = 0;
-};
+
 enum HistFetchState
 {
     kHistNotFetching = 0, ///< History is not being fetched, and there is probably history to fetch available
@@ -323,7 +294,7 @@ enum HistFetchState
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
-class Messages: public MessageOutput
+class Messages
 {
 protected:
     Connection& mConnection;
@@ -332,14 +303,18 @@ protected:
     Idx mForwardStart;
     std::vector<Message*> mForwardList;
     std::vector<Message*> mBackwardList;
-    std::map<Id, Message*> mSending;
+    struct SendingItem
+    {
+        Message* msg;
+        Message* edit;
+        SendingItem(Message* aMsg, Message* aEdit=nullptr): msg(aMsg), edit(aEdit){}
+    };
+    std::map<Id, SendingItem> mSending;
     std::map<Id, Idx> mIdToIndexMap;
     Id mLastReceivedId;
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
-    unsigned mInitialHistoryFetchCount = 32;
-    std::unique_ptr<promise::Promise<void>> mJoinPromise;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     /// User-supplied initial range, that we use until we see the message with mOldestKnownMsgId
@@ -350,7 +325,8 @@ protected:
     Id mNewestKnownMsgId;
     unsigned mLastHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
     HistFetchState mHistFetchState = kHistNotFetching;
-    Messages(Connection& conn, const Id& chatid, Listener* listener, unsigned histFetchCount=0);
+    DbInterface* mDbInterface = nullptr;
+    Messages(Connection& conn, const Id& chatid, Listener* listener);
     void push_forward(Message* msg) { mForwardList.push_back(msg); }
     void push_back(Message* msg) { mBackwardList.push_back(msg); }
     Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front() : mForwardList.back(); }
@@ -373,7 +349,7 @@ protected:
     {
         return msgIncoming(isNew, new Message(msgid, userid, timestamp, msg, msglen, nullptr), isLocal);
     }
-    void onMsgUpdCommand(const Id& msgid, const char* msgdata, size_t msglen);
+    void loadAndProcessUnsent();
     void initialFetchHistory(const Id& msgid);
     void requestHistoryFromServer(int32_t count);
     void getHistoryFromDb(unsigned count);
@@ -407,9 +383,9 @@ protected:
     }
     friend class Connection;
     friend class Client;
-
 public:
-    ~Messages() { clear(); }
+    unsigned initialHistoryFetchCount = 32;
+    ~Messages();
     const Id& chatId() const { return mChatId; }
     Client& client() const { return mClient; }
     Idx lownum() const { return mForwardStart - mBackwardList.size(); }
@@ -462,16 +438,16 @@ public:
     bool setMessageSeen(Idx idx);
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
 
-// MessageOutput implementation - protected because we don't want to access Messages directly, but via the overridable MessageOutput interface
+// Message output methods
+    Message* msgSubmit(const char* msg, size_t msglen, void* userp);
+//Queues a message as a edit message for \c orig. \attention Will delete a previous edit if
+//the original was not yet ack-ed by the server. That is, there can be only one pending
+//edit for a not-yet-sent message, and if there was a previous one, it will be deleted.
+//The user is responsible to clear any reference to a previous edit to avoid a dangling pointer.
+    Message* msgModify(const Id& oriId, bool isXid, const char* msg, size_t msglen, void* userp);
 protected:
-    Message* msgSubmit(const char* msg, size_t msglen, const Id& msgxid, void* userp);
-    Message* msgModify(const Id& orig, const char* msg, size_t msglen, const Id& msgxid, void* userp) //at this level we don't know how message editing is done, it's in the message packaging protocol
-    {
-        auto newMsg = msgSubmit(msg, msglen, msgxid, userp);
-        newMsg->edits = orig;
-        return newMsg;
-    }
-
+    void doMsgSubmit(Message* msg);
+    void doMsgModify(const Id& orig, bool isXid, Message* msg);
 //===
 };
 
@@ -511,11 +487,33 @@ public:
         return *it->second;
     }
 
-    promise::Promise<void> join(const Id& chatid, int shardNo, const std::string& url,
-                Listener* listener, unsigned histFetch=0);
-    promise::Promise<void>& joinPromise(const Id& chatid) const { return *chatidMessages(chatid).mJoinPromise;}
+    void join(const Id& chatid, int shardNo, const std::string& url, Listener* listener);
     friend class Connection;
     friend class Messages;
+};
+
+class DbInterface
+{
+public:
+    virtual void getHistoryInfo(Id& oldestDbId, Id& newestDbId, Idx& newestDbIdx) = 0;
+    /// Called when the client was requested to fetch history, and it knows the db contains the requested
+    /// history range.
+    /// @param startIdx - the start index of the requested history range
+    /// @param count - the number of messages to return
+    /// @param[out] messages - The app should put the messages in this vector, the most recent message being
+    /// at position 0 in the vector, and the oldest being the last. If the returned message count is less
+    /// than the requested by \c count, the client considers there is no more history in the db. However,
+    /// if the application-specified \c oldestDbId in the call to \n init() has not been retrieved yet,
+    /// an assertion will be triggered. Therefore, the application must always try to read not less than
+    /// \c count messages, in case they are avaialble in the db.
+    virtual void fetchDbHistory(Idx startIdx, unsigned count, std::vector<Message*>& messages) = 0;
+    virtual void saveMsgToSending(Message& msg) = 0;
+    virtual void deleteMsgFromSending(const Id& msgxid) = 0;
+    virtual void loadSendingTable(std::vector<Message*>& messages) = 0;
+    virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
+    virtual void updateMsgInSending(const Message& data) = 0;
+    virtual void updateSendingEditId(const Id& msgxid, const Id& msgid) = 0;
+    virtual ~DbInterface(){}
 };
 
 static inline const char* chatStateToStr(unsigned state)
@@ -529,28 +527,6 @@ static inline const char* chatStateToStr(unsigned state)
         return chatStates[state];
 }
 
-class DebugListener: public Listener
-{
-public:
-    Messages* mMessages;
-    virtual void init(Messages* messages, MessageOutput* output, Id& oldestDbId, Id& newestDbId, Idx& newestDbIdx)
-    { mMessages = messages; oldestDbId = Id::null(); printf("init()\n");}
-    virtual void onDestroy(){ printf("onDestroy\n");}
-    virtual void onRecvNewMessage(Idx idx, const Message& msg, Message::Status status)
-    {
-        printf("onNewMessage(%s, %s)\n", msg.id.toString().c_str(), Message::statusToStr(status));
-        mMessages->setMessageSeen(idx);
-    }
-    virtual void onRecvHistoryMessage(Idx idx, const Message& msg, Message::Status status, bool isFromDb)
-    {
-        printf("onOldMessage(%s, %s)\n", msg.id.toString().c_str(), Message::statusToStr(status));
-        mMessages->setMessageSeen(idx);
-    }
-    virtual void onMessageStatusChange(Idx idx, Message::Status newStatus, const Message& msg)
-    { printf("onMsgStatusChange: %u ->  %s\n", idx, Message::statusToStr(newStatus));}
-    virtual void onMessageEdited(Idx oldIdx, Idx newIdx, const Message& newmsg){}
-    virtual void onOnlineStateChange(ChatState state){printf("onlineStateChange: %s\n", chatStateToStr(state));}
-};
 
 }
 namespace std
