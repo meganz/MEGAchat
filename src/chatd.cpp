@@ -8,7 +8,7 @@
 using namespace std;
 using namespace promise;
 
-//#define CHATD_LOG_LISTENER_CALLS
+//#define CHATD_LOG_DB_CALLS
 
 #ifdef CHATD_LOG_LISTENER_CALLS
     #define CHATD_LOG_LISTENER_CALL(fmtString,...) CHATD_LOG_DEBUG(fmtString, ##__VA_ARGS__)
@@ -648,9 +648,11 @@ void Connection::execCommand(const StaticBuffer &buf)
     }
 }
 
-void Connection::msgSend(const Id& chatid, const Message& message)
+void Messages::msgSend(const Message& message)
 {
-    sendCommand(Command(OP_NEWMSG) + chatid + Id::null() + message.id() + message.ts + message);
+    Buffer encrypted;
+    CALL_LISTENER(encryptMessage, message, encrypted);
+    mConnection.sendCommand(Command(OP_NEWMSG) + mChatId + Id::null() + message.id() + message.ts + encrypted);
 }
 
 void Messages::onHistDone()
@@ -660,11 +662,11 @@ void Messages::onHistDone()
     mListener->onHistoryDone(false);
     if(mOnlineState != kChatStateOnline)
     {
-//only on the first HISTDONE - we may have other history requests afterwards
-        setOnlineState(kChatStateOnline);
-        loadAndProcessUnsent();
+        //only on the first HISTDONE - we may have other history requests afterwards
+        onJoinComplete();
     }
 }
+
 void Messages::loadAndProcessUnsent()
 {
     std::vector<Message*> messages;
@@ -673,7 +675,8 @@ void Messages::loadAndProcessUnsent()
     {
         if (msg->edits())
         {
-            doMsgModify(msg->edits(), msg->isSending(), msg);
+            std::unique_ptr<Message> autodel(msg); //in case msgModify() throws
+            msgModify(msg->edits(), msg->editsIsXid(), msg->buf(), msg->dataSize(), nullptr, msg->id());
         }
         else
         {
@@ -694,7 +697,11 @@ Message* Messages::msgSubmit(const char* msg, size_t msglen, void* userp)
 
 void Messages::doMsgSubmit(Message* message)
 {
-    CALL_DB(saveMsgToSending, *message); //assigns a proper msgxid
+    if (!message->id())
+        CALL_DB(saveMsgToSending, *message); //assigns a proper msgxid
+    else
+        assert(message->isSending());
+
     auto ret = mSending.insert(std::make_pair(message->id(), message));
     if (!ret.second)
         throw std::runtime_error("doMsgSubmit: provided msgxid is not unique");
@@ -705,22 +712,14 @@ void Messages::doMsgSubmit(Message* message)
     //The GUI should by default show it as sending
     if (mConnection.isOnline())
     {
-        mConnection.msgSend(mChatId, *message);
+        msgSend(*message);
     }
 }
 
-Message* Messages::msgModify(const Id& oriId, bool isXid, const char* msg, size_t msglen, void* userp)
+Message* Messages::msgModify(const Id& oriId, bool editsXid, const char* msg, size_t msglen, void* userp, const Id &ownId)
 {
-//use a smart pointer just in case doMsgModify() throws
-    std::unique_ptr<Message> message(new Message(Id::null(), mConnection.mClient.mUserId, time(NULL), msg, msglen, userp, true));
-    doMsgModify(oriId, isXid, message.get());
-    return message.release();
-}
-void Messages::doMsgModify(const Id& oriId, bool oriIsXid, Message* msg)
-{
-    assert(msg->mIdIsXid); //if not set already
     auto it = mIdToIndexMap.find(oriId);
-    if (!oriIsXid)
+    if (!editsXid)
     {
         if (it != mIdToIndexMap.end())
         {
@@ -729,29 +728,33 @@ void Messages::doMsgModify(const Id& oriId, bool oriIsXid, Message* msg)
             if (original.edits())
                 throw std::runtime_error("msgModify: Can't edit an edit message");
         }
-        msg->setEdits(oriId, false); //oriId is a real msgid
-        doMsgSubmit(msg);
-        return;
+        auto editMsg = new Message(Id::null(), mConnection.mClient.userId(), time(NULL), msg, msglen, userp, true);
+        editMsg->setEdits(oriId, false); //oriId is a real msgid
+        doMsgSubmit(editMsg);
+        return editMsg;
     }
     //oriId is a msgxid, must be in mSending
     auto sendIt = mSending.find(oriId);
     if (sendIt == mSending.end()) //It is guaranteed that the original message has already been added to mSent, as the db returns in creation order
-        throw std::runtime_error("msgModify: msgxid not found in mSending");
-
-    msg->setEdits(Id::null(), false); //we don't have a msgid of the original yet
-    if (sendIt->second.edit) //if we already have a pending edit message, delete it!
+        throw std::runtime_error("msgModify: Edited msgxid not found in mSending");
+    auto currEdit = sendIt->second.edit;
+    if (currEdit) //if we already have a pending edit message, delete it!
     {
         CHATD_LOG_DEBUG("Replacing edit of an unsent msg");
-        msg->setId(sendIt->second.edit->id(), true); //impersonate the previous edit, and update it in the db
-        delete sendIt->second.edit;
-        sendIt->second.edit = msg;
-        CALL_DB(updateMsgInSending, *msg);
+        currEdit->assign(msg, msglen); //impersonate the previous edit, and update it in the db
+        currEdit->ts = time(NULL);
+        CALL_DB(updateMsgInSending, *currEdit);
     }
     else
     {
-        sendIt->second.edit = msg;
-        CALL_DB(saveMsgToSending, *msg);
+        currEdit = sendIt->second.edit = new Message(ownId, mConnection.mClient.mUserId, time(NULL), msg, msglen, userp, true);
+        if (!ownId) //otherwise we have just loaded it from db and have a msgxid = rowid
+        {
+            printf("ownId = %lld\n", ownId.val);
+            CALL_DB(saveMsgToSending, *currEdit);
+        }
     }
+    return currEdit;
 }
 
 void Messages::onLastReceived(const Id& msgid)
@@ -864,7 +867,7 @@ void Messages::resendPending()
     for (auto& item: mSending)
     {
         assert(item.second.msg->isSending());
-        mConnection.msgSend(mChatId, *item.second.msg);
+        msgSend(*item.second.msg);
     }
 }
 
@@ -903,7 +906,7 @@ void Client::msgConfirm(const Id& msgxid, const Id& msgid)
     // CHECK: is it more efficient to keep a separate mapping of msgxid to messages?
     for (auto& messages: mMessagesForChatId)
     {
-        if (messages.second->confirm(msgxid, msgid))
+        if (messages.second->confirm(msgxid, msgid) != CHATD_IDX_INVALID)
             return;
     }
     throw std::runtime_error("msgConfirm: Unknown msgxid "+msgxid);
@@ -934,7 +937,7 @@ Idx Messages::confirm(const Id& msgxid, const Id& msgid)
     msg->setId(msgid, false);
     push_forward(msg);
     auto idx = mIdToIndexMap[msgid] = highnum();
-
+    printf("delete from sending: %lld\n", msgxid.val);
     CALL_DB(deleteMsgFromSending, msgxid);
     CALL_DB(addMsgToHistory, *msg, idx);
     if (edit)
@@ -1012,13 +1015,19 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     //one chance to set the idx (we receive the msg only once).
     if (msgid == mLastSeenId) //we didn't have the message when we received the last seen id
     {
-        assert(mLastSeenIdx == CHATD_IDX_INVALID);
+        if (mLastSeenIdx != CHATD_IDX_INVALID)
+        {
+            CHATD_LOG_ERROR("mLastSeenIdx already set for msgid %s: seems we saw the same msgid twice. Possibly corrupt history db or a bug", ID_CSTR(mLastSeenId));
+        }
         CHATD_LOG_DEBUG("Received the message with the last-seen msgid, setting the index pointer to it");
         onLastSeen(msgid);
     }
     if (mLastReceivedId == msgid)
     {
-        assert(mLastReceivedIdx == CHATD_IDX_INVALID);
+        if (mLastReceivedIdx != CHATD_IDX_INVALID)
+        {
+            CHATD_LOG_ERROR("mLastReceivedIdx already set for msgid %s: seems we saw the same msgid twice. Possibly corrupt history db or a bug", ID_CSTR(mLastReceivedId));
+        }
         //we didn't have the message when we received the last received msgid pointer,
         //and now we just received the message - set the index pointer
         CHATD_LOG_DEBUG("Received the message with the last-received msgid, setting the index pointer to it");
@@ -1047,9 +1056,14 @@ void Messages::initialFetchHistory(const Id& serverNewest)
         }
         else
         {
-            setOnlineState(kChatStateOnline);
+            onJoinComplete();
         }
     }
+}
+void Messages::onJoinComplete()
+{
+    setOnlineState(kChatStateOnline);
+    loadAndProcessUnsent();
 }
 
 static char b64enctable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

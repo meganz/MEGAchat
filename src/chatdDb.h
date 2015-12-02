@@ -59,7 +59,8 @@ public:
     }
     virtual void updateMsgInSending(const chatd::Message& msg)
     {
-        SqliteStmt stmt(mDb, "update "+mHistTblName+" set data = ?2, ts = ?3 where rowid = ?1");
+        printf("update %s\n", msg.id().toString().c_str());
+        SqliteStmt stmt(mDb, "update "+mSendingTblName+" set data = ?2, ts = ?3 where rowid = ?1");
         stmt << msg.id() << msg << msg.ts;
         stmt.step();
     }
@@ -87,7 +88,7 @@ public:
             Buffer buf;
             stmt.blobCol(2, buf);
             auto msg = new chatd::Message(stmt.uint64Col(0),
-                                mMessages->client().userId(), 0, std::move(buf), nullptr);
+                                mMessages->client().userId(), 0, std::move(buf), nullptr, true);
             msg->setEdits(stmt.uint64Col(1), stmt.intCol(3));
             messages.push_back(msg);
         }

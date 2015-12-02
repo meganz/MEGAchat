@@ -158,11 +158,11 @@ public:
 /// A new message was received. This can be just sent by a peer, or retrieved from the server.
 /// @param idx The index of the message in the buffer @param status - The 'seen' status of the
 /// message. Normally it should be 'not seen', until we call setMessageSeen() on it
-    virtual void onRecvNewMessage(Idx idx, const Message& msg, Message::Status status){}
+    virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status){}
 /// A history message has been received.
 /// @param isFromDb The message can be received from the server, or from the app's local
 /// history db, via fetchDbHistory() - this parameter specifies the source
-    virtual void onRecvHistoryMessage(Idx idx, const Message& msg, Message::Status status, bool isFromDb){}
+    virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isFromDb){}
 ///The retrieval of the requested history batch, via getHistory(), was completed
 /// @param isFromDb Whether the history was retrieved from localDb, via fetchDbHistory() or from
 /// the server
@@ -194,6 +194,12 @@ public:
     virtual void onUserJoined(const Id& userid, int privilege){}
 /// An user has left the chatroom
     virtual void onUserLeft(const Id& userid) {}
+    virtual void encryptMessage(const Message& src, Buffer& dest)
+    {
+        if (src.edits())
+            dest.append("e:").append(src.edits().toString()).append("\n");
+        dest.append(*static_cast<const Buffer*>(&src));
+    }
 };
 
 class Command: public Buffer
@@ -211,7 +217,7 @@ public:
         append(val);
         return std::move(*this);
     }
-    Command&& operator+(const Message& msg)
+    Command&& operator+(const Buffer& msg)
     {
         append<uint32_t>(msg.dataSize());
         append(msg.buf(), msg.dataSize());
@@ -271,7 +277,6 @@ protected:
     void join(const Id& chatid);
     void hist(const Id& chatid, long count);
     void execCommand(const StaticBuffer& buf);
-    void msgSend(const Id& chatid, const Message& message);
     friend class Client;
     friend class Messages;
 public:
@@ -349,6 +354,7 @@ protected:
     {
         return msgIncoming(isNew, new Message(msgid, userid, timestamp, msg, msglen, nullptr), isLocal);
     }
+    void onJoinComplete();
     void loadAndProcessUnsent();
     void initialFetchHistory(const Id& msgid);
     void requestHistoryFromServer(int32_t count);
@@ -356,6 +362,7 @@ protected:
     void onLastReceived(const Id& msgid);
     void onLastSeen(const Id& msgid);
     void join();
+    void msgSend(const Message& message);
     void setOnlineState(ChatState state)
     {
         if (state == mOnlineState)
@@ -444,10 +451,9 @@ public:
 //the original was not yet ack-ed by the server. That is, there can be only one pending
 //edit for a not-yet-sent message, and if there was a previous one, it will be deleted.
 //The user is responsible to clear any reference to a previous edit to avoid a dangling pointer.
-    Message* msgModify(const Id& oriId, bool isXid, const char* msg, size_t msglen, void* userp);
+    Message* msgModify(const Id& oriId, bool isXid, const char* msg, size_t msglen, void* userp, const Id& id=Id::null());
 protected:
     void doMsgSubmit(Message* msg);
-    void doMsgModify(const Id& orig, bool isXid, Message* msg);
 //===
 };
 

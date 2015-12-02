@@ -375,7 +375,7 @@ public:
         dbIntf = new ChatdSqliteDb(messages, karere::db);
     }
     virtual void onDestroy(){ close(); }
-    virtual void onRecvNewMessage(chatd::Idx idx, const chatd::Message& msg, chatd::Message::Status status)
+    virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
     {
         if (msg.edits())
             addMsgEdit(msg, false);
@@ -384,7 +384,7 @@ public:
         mMessages->setMessageSeen(idx);
         ui->mMessageList->scrollToBottom();
     }
-    virtual void onRecvHistoryMessage(chatd::Idx idx, const chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
+    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
     {
         assert(idx != CHATD_IDX_INVALID); assert(msg.id());
         if (mHistFetchUi)

@@ -104,6 +104,7 @@ public:
         mDataSize = datalen;
         ::memcpy(mBuf, data, datalen);
     }
+    void copyFrom(const Buffer& src) { assign(src.buf(), src.dataSize()); }
     void reserve(size_t size)
     {
         if (!mBuf)
@@ -160,6 +161,7 @@ public:
         return *this;
     }
     Buffer& write(size_t offset, const Buffer& from) { return write(offset, from.buf(), from.dataSize()); }
+    Buffer& write(size_t offset, const std::string& str) { return write(offset, str.c_str(), str.size()); }
     Buffer& append(const void* data, size_t datalen) { return write(dataSize(), data, datalen);}
     Buffer& append(const Buffer& from) { return append(from.buf(), from.dataSize());}
     template <class T>
