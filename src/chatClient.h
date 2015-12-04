@@ -10,6 +10,7 @@
 #include <retryHandler.h>
 #include <busConstants.h>
 #include <serverListProviderForwards.h>
+#include "sdkApi.h"
 
 namespace strophe { class Connection; }
 namespace chatd { class Client; }
@@ -20,12 +21,20 @@ namespace rtcModule
     class IEventHandler;
 }
 namespace mega { namespace rh { class IRetryController; } }
-class MyMegaApi;
-
+struct sqlite3;
 namespace karere
 {
 class TextModule;
 class ChatRoom;
+typedef void(*ReqUserInfoCb)(mega::MegaRequest*, void*);
+
+struct ReqUserInfoCbItem
+{
+    ReqUserInfoCb cb;
+    void* userp;
+    ReqUserInfoCbItem(ReqUserInfoCb aCb, void* aUserp): cb(aCb), userp(aUserp){}
+};
+
 class Client
 {
 public:
@@ -33,17 +42,28 @@ public:
     std::shared_ptr<strophe::Connection> conn;
     std::shared_ptr<chatd::Client> mChatd;
     std::string mMyUserHandle;
-    const std::string& myUserHandle() const { return mMyUserHandle; }
+    sqlite3* db = nullptr;
+    std::shared_ptr<MyMegaApi> api;
+    //we use IPtr smart pointers instead of std::unique_ptr because we want to delete not via the
+    //destructor, but via a destroy() method. This is to support cross-DLL loading of plugins,
+    //where operator delete would try to deallocate memory via the memory manager/runtime of the caller,
+    //which is often not the one that allocated that memory (usually the DLL allocates the object).
+    //Calling a function defined in the DLL that in turn calls the destructor ensures that operator
+    //delete is called from code inside the DLL, i.e. in the runtime where the class is implemented,
+    //operates and was allocated
+    rtcModule::IRtcModule* rtc = nullptr;
+    TextModule* mTextModule = nullptr;
+    bool isTerminating = false;
+    unsigned mReconnectConnStateHandler = 0;
     std::function<void()> onChatdReady;
+
+    const std::string& myUserHandle() const { return mMyUserHandle; }
+    void requestUserInfo(const uint64_t& userHandle, void* userp, ReqUserInfoCb cb);
     std::string getUsername() const
     {
         return strophe::getNodeFromJid(conn->fullOrBareJid());
     }
-
-    /**
-    * Get resource of current connection.
-    */
-    std::string getResource() const
+    std::string getResource() const /// < Get resource of current connection.
     {
         return strophe::getResourceFromJid(conn->fullJid());
     }
@@ -59,18 +79,6 @@ public:
      * This performs a request to xmpp roster server and fetch the contact list.
      * Contact list also registers a contact presence handler to update the list itself based on received presence messages.
      */
-    std::shared_ptr<MyMegaApi> api;
-    //we use IPtr smart pointers instead of std::unique_ptr because we want to delete not via the
-    //destructor, but via a destroy() method. This is to support cross-DLL loading of plugins,
-    //where operator delete would try to deallocate memory via the memory manager/runtime of the caller,
-    //which is often not the one that allocated that memory (usually the DLL allocates the object).
-    //Calling a function defined in the DLL that in turn calls the destructor ensures that operator
-    //delete is called from code inside the DLL, i.e. in the runtime where the class is implemented,
-    //operates and was allocated
-    rtcModule::IRtcModule* rtc = nullptr;
-    TextModule* mTextModule = nullptr;
-    bool isTerminating = false;
-    unsigned mReconnectConnStateHandler = 0;
     Client(const std::string& email, const std::string& password);
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
@@ -130,6 +138,8 @@ protected:
         getThisUserInfo();
     void setupHandlers();
     promise::Promise<int> initializeContactList();
+    std::map<uint64_t, ReqResult> mUserInfoCache;
+    std::map<uint64_t, std::shared_ptr<std::vector<ReqUserInfoCbItem> > > mPendingUserInfoRequests;
     /**
      * @brief send response to ping request.
      *

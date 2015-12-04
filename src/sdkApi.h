@@ -5,7 +5,7 @@
 #include "base/gcmpp.h"
 #include <logger.h>
 
-typedef std::shared_ptr<mega::MegaRequest> ReqResult;
+typedef std::shared_ptr<::mega::MegaRequest> ReqResult;
 typedef promise::Promise<ReqResult> ApiPromise;
 enum {ERRTYPE_MEGASDK = 0x3e9aab10};
 
@@ -33,9 +33,8 @@ public:
     ApiPromise mPromise;
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
     {
-        std::shared_ptr<mega::MegaRequest> req(request->copy());
+        std::shared_ptr<::mega::MegaRequest> req(request->copy());
         int errCode = e->getErrorCode();
-        //printf("error code is %d\n", errCode);
         mega::marshallCall([this, req, errCode]()
         {
             if (mPromise.done())
@@ -48,8 +47,6 @@ public:
         });
     }
 };
-
-
 
 class MyMegaLogger: public ::mega::MegaLogger
 {
@@ -70,7 +67,7 @@ public:
     std::shared_ptr<mega::MegaRequest> userData;
     std::unique_ptr<MyMegaLogger> mLogger;
     MyMegaApi(const char *appKey)
-        :mega::MegaApi(appKey, (const char *)NULL, "Karere"), mLogger(new MyMegaLogger)
+        :mega::MegaApi(appKey, ".", "Karere"), mLogger(new MyMegaLogger)
     {
         setLoggerObject(mLogger.get());
         setLogLevel(MegaApi::LOG_LEVEL_MAX);

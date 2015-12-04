@@ -102,6 +102,15 @@ public:
         kNotSeen,
         kSeen
     };
+    enum Type
+    {
+        //first are types encoded in the crypto/chatd protocol
+        kTypeRegularMessage = 0,
+        kTypeJoin = 1,
+        kTypeLeave = 2,
+        kTypeUser = 32 //from this on are types encoded in the payload
+    };
+
 private:
 //avoid setting the id and flag pairs one by one by making them accessible only by setXXX(Id,bool)
     Id mId;
@@ -111,6 +120,7 @@ private:
 public:
     Id userid;
     uint32_t ts;
+    unsigned char type = 0;
     mutable void* userp;
     const Id& id() const { return mId; }
     const Id& edits() const { return mEdits; }

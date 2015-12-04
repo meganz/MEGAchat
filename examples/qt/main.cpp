@@ -19,9 +19,10 @@
 using namespace std;
 using namespace promise;
 using namespace mega;
+using namespace karere;
 
 MainWindow* mainWin = NULL;
-unique_ptr<karere::Client> gClient;
+unique_ptr<karere::Client> gClientAutoDel;
 
 struct GcmEvent: public QEvent
 {
@@ -91,15 +92,8 @@ int main(int argc, char **argv)
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin->ui->calleeInput->setText(argv[3]);
     gClient.reset(new karere::Client(argv[1], argv[2]));
+//    gClientAutoDel.reset(gClient);
     gClient->registerRtcHandler(new RtcEventHandler(mainWin));
-    gClient->onChatdReady = []()
-    {
-        //test stuff for chatd
-        gClient->mChatd->join("R7gmLxEgQSA", 0, "wss://chattest.userstorage.mega.co.nz/8icGyvpt-RY",
-                              new ChatWindow(mainWin));
-
-    };
-
     gClient->init()
     .then([](int)
     {
@@ -112,7 +106,10 @@ int main(int argc, char **argv)
 
         mainWin->ui->callBtn->setEnabled(true);
         mainWin->ui->callBtn->setText("Call");
-
+//test stuff for chatd
+        gClient->mChatd->join("R7gmLxEgQSA", 0, "wss://chattest.userstorage.mega.co.nz/8icGyvpt-RY",
+                              new ChatWindow(mainWin));
+//==
         std::vector<std::string> contacts = gClient->getContactList().getContactJids();
 
         for(size_t i=0; i<contacts.size();i++)

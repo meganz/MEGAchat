@@ -15,20 +15,11 @@
 #include <QTimer>
 #include <QProgressBar>
 #include <chatdDb.h>
+#include <chatClient.h>
 
 namespace Ui
 {
 class ChatWindow;
-}
-
-//TODO: Implement properly
-namespace karere
-{
-static inline promise::Promise<std::string> getUsernameFromHandle(const chatd::Id& userid)
-{
-    return promise::Promise<std::string>(userid.toString());
-}
-extern sqlite3* db;
 }
 
 enum {kHistBatchSize = 32};
@@ -68,15 +59,17 @@ public:
         if (mIsMine)
         {
             ui->mAuthorDisplay->setText(tr("me"));
+            return *this;
         }
-        else
+
+        karere::gClient->requestUserInfo(userid, this,
+        [](mega::MegaRequest* result, void* userp)
         {
-            karere::getUsernameFromHandle(userid)
-            .then([this](const std::string& username)
-            {
-                ui->mAuthorDisplay->setText(QString().fromUtf8(username.c_str(), username.size()));
-            });
-        }
+            auto self = static_cast<MessageWidget*>(userp);
+            self->ui->mAuthorDisplay->setText(
+                QString().fromUtf8(result ? result->getText() : "error")
+            );
+        });
         return *this;
     }
 
@@ -372,7 +365,7 @@ public:
     virtual void init(chatd::Messages* messages, chatd::DbInterface*& dbIntf)
     {
         mMessages = messages;
-        dbIntf = new ChatdSqliteDb(messages, karere::db);
+        dbIntf = new ChatdSqliteDb(messages, karere::gClient->db);
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)

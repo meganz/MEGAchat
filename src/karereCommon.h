@@ -15,6 +15,7 @@
         #include <mmsystem.h>
     #endif
 #endif
+namespace karere { class Client; }
 
 #define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
 //#define KARERE_DEFAULT_XMPP_SERVER "xmpp234n001.developers.mega.co.nz"
@@ -63,8 +64,6 @@ static inline string to_string(const T& t)
 
 namespace karere
 {
-
-
 ///////////// MPENC TEMP SIGNING KEYS //////////////////////
 
 // while waiting for the addition of code for the keys to be added to the
@@ -122,5 +121,10 @@ static inline Ts timestampMs()
         throw std::runtime_error(std::string("Karere: ")+#statement+" failed (returned false)\nAt file "+__FILE__+":"+std::to_string(__LINE__)); \
      } \
  } while(0)
+
+class Client;
+extern std::unique_ptr<Client> gClient;
 }
+
+
 #endif

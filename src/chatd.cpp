@@ -368,7 +368,6 @@ void Connection::reset()
     {
         return;
     }
-    CHATD_LOG_DEBUG("Reset connection to shard %d", mShardNo);
     ws_close_immediately(mWebSocket);
     ws_destroy(&mWebSocket);
     assert(!mWebSocket);
@@ -384,7 +383,8 @@ bool Connection::sendCommand(Command&& cmd)
     bool result = (!rc && isOnline());
     if (result)
     {
-        CHATD_LOG_DEBUG("SENT %s, len %zu", Command::opcodeToStr(opcode), cmd.dataSize());
+        if (opcode != OP_KEEPALIVE)
+            CHATD_LOG_DEBUG("SENT %s, len %zu", Command::opcodeToStr(opcode), cmd.dataSize());
     }
     else
     {
@@ -523,7 +523,7 @@ void Connection::execCommand(const StaticBuffer &buf)
         {
             case OP_KEEPALIVE:
             {
-                CHATD_LOG_DEBUG("Server heartbeat received");
+                //CHATD_LOG_DEBUG("Server heartbeat received");
                 sendCommand(Command(OP_KEEPALIVE));
                 break;
             }

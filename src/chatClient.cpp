@@ -19,6 +19,7 @@
 #include "chatClient.h"
 #include "textModule.h"
 #include <chatd.h>
+#include <db.h>
 
 #define _QUICK_LOGIN_NO_RTC
 
@@ -80,6 +81,18 @@ Client::Client(const std::string& email, const std::string& password)
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS)),
   mRtcHandler(NULL)
 {
+    const char* homedir = getenv("HOME");
+    if (!homedir)
+        throw std::runtime_error("Cant get HOME env variable");
+
+    std::string path(homedir);
+    path.append("/.karere.db");
+    int ret = sqlite3_open(path.c_str(), &db);
+    if (ret != SQLITE_OK)
+    {
+        db = nullptr;
+        throw std::runtime_error("Can't access application database at "+path);
+    }
 }
 
 
@@ -102,23 +115,26 @@ void Client::registerRtcHandler(rtcModule::IEventHandler* rtcHandler)
 
 promise::Promise<int> Client::init()
 {
-    /* get xmpp login from Mega API */
-    auto pmsMegaLogin =
-    api->call(&mega::MegaApi::login, mEmail.c_str(), mPassword.c_str())
-    .then([this](ReqResult result) mutable -> promise::Promise<ReqResult>
+    SqliteStmt stmt(db, "select value from vars where name='lastsid'");
+    std::string sid = stmt.step() ? stmt.stringCol(0) : std::string();
+    auto pmsMegaLogin = sid.empty()
+            ? api->call(&mega::MegaApi::login, mEmail.c_str(), mPassword.c_str())
+            : api->call(&mega::MegaApi::fastLogin, sid.c_str());
+
+    pmsMegaLogin.then([this](ReqResult result) mutable
     {
         KR_LOG_DEBUG("Login to Mega API successful");
         SdkString uh = api->getMyUserHandle();
         if (!uh.c_str() || !uh.c_str()[0])
-            return promise::Error("Could not get our own userhandle/JID");
+            throw std::runtime_error("Could not get our own userhandle/JID");
         mMyUserHandle = uh.c_str();
         mChatd.reset(new chatd::Client(mMyUserHandle.c_str(), 0));
-        if (onChatdReady)
-            onChatdReady();
+//        if (onChatdReady)
+//            onChatdReady();
 
         SdkString xmppPass = api->dumpXMPPSession();
         if (xmppPass.size() < 16)
-            return promise::Error("Mega session id is shorter than 16 bytes");
+            throw std::runtime_error("Mega session id is shorter than 16 bytes");
         ((char&)xmppPass.c_str()[16]) = 0;
 
         //xmpp_conn_set_keepalive(*conn, 10, 4);
@@ -129,11 +145,18 @@ promise::Promise<int> Client::init()
         xmpp_conn_set_pass(*conn, xmppPass.c_str());
         KR_LOG_DEBUG("xmpp user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
         setupHandlers();
+    });
+    auto pmsMegaGud = pmsMegaLogin.then([this](ReqResult result)
+    {
         return api->call(&mega::MegaApi::getUserData);
     })
     .then([this](ReqResult result)
     {
         api->userData = result;
+    });
+    auto pmsMegaFetch = pmsMegaLogin.then([this](ReqResult result)
+    {
+        return api->call(&mega::MegaApi::fetchNodes);
     });
 
     SHARED_STATE(server, std::shared_ptr<HostPortServerInfo>);
@@ -143,10 +166,12 @@ promise::Promise<int> Client::init()
         server->value = aServer;
         return 0;
     });
-
-    return promise::when(pmsMegaLogin, pmsGelbReq)
+    return promise::when(pmsMegaGud, pmsMegaFetch, pmsGelbReq)
     .then([this, server]()
     {
+        if (onChatdReady)
+            onChatdReady();
+
 // initiate connection
         return mega::retry([this, server](int no) -> promise::Promise<void>
         {
@@ -318,20 +343,26 @@ promise::Promise<void> Client::terminate()
         mReconnectController->abort();
     if (rtc)
         rtc->hangupAll("app-close", "The application is terminating");
-    auto pmsDisconnect = conn->disconnect(2000);
-    auto pmsLogout = mega::performWithTimeout(
-    [this]()
+    const char* sess = api->dumpSession();
+    if (sess)
+    try
     {
-        return api->call(&mega::MegaApi::logout);
-    }, 2000);
-
+        SqliteStmt stmt(db, "insert or replace into vars(name,value) values('lastsid',?2)");
+        stmt << "lastsid" << sess;
+        stmt.step();
+    }
+    catch(std::exception& e)
+    {
+        KR_LOG_ERROR("Error while saving session id to database: %s", e.what());
+    }
+    sqlite3_close(db);
     promise::Promise<void> pms;
-    when(pmsDisconnect, pmsLogout)
+    conn->disconnect(2000)
     //resolve output promise asynchronously, because the callbacks of the output
     //promise may free the client, and the resolve()-s of the input promises
     //(mega and conn) are within the client's code, so any code after the resolve()s
     //that tries to access the client will crash
-    .then([pms]() mutable
+    .then([pms](int) mutable
     {
         mega::marshallCall([pms]() mutable { pms.resolve(); });
     })
@@ -435,6 +466,66 @@ Client::getOtherUserInfo(std::string &emailAddress)
 */
 }
 
+void Client::requestUserInfo(const uint64_t& userHandle, void* userp, ReqUserInfoCb cb)
+{
+    auto it = mUserInfoCache.find(userHandle);
+    if (it != mUserInfoCache.end())
+    {
+        if (cb)
+            cb(it->second.get(), userp);
+        return;
+    }
+    auto reqit = mPendingUserInfoRequests.find(userHandle);
+    if (reqit != mPendingUserInfoRequests.end())
+    {
+        if (cb)
+            reqit->second->emplace_back(cb, userp);
+        return;
+    }
+    std::shared_ptr<std::vector<ReqUserInfoCbItem>> cbs(new std::vector<ReqUserInfoCbItem>);
+    mPendingUserInfoRequests.emplace(userHandle, cbs);
+    if (cb)
+        cbs->emplace_back(cb, userp);
+
+    struct State
+    {
+        chatd::Id userHandle;
+        std::string strUh;
+        std::string firstName;
+        std::shared_ptr<std::vector<ReqUserInfoCbItem>> cbs;
+        State(const chatd::Id& uh, std::shared_ptr<std::vector<ReqUserInfoCbItem>> aCbs)
+            :userHandle(uh), strUh(uh.toString()), cbs(aCbs){}
+    };
+    auto state = std::make_shared<State>(userHandle, cbs);
+
+    api->call(&mega::MegaApi::getUserAttribute, state->strUh.c_str(), (int)MyMegaApi::USER_ATTR_FIRSTNAME)
+    .then([this, state](ReqResult result)
+    {
+        const char* name = result->getText();
+        state->firstName = name?name:"(null)";
+        return api->call(&mega::MegaApi::getUserAttribute, state->strUh.c_str(),
+            (int)MyMegaApi::USER_ATTR_LASTNAME);
+    })
+    .fail([this, state](const promise::Error& err)
+    {
+        for (auto& item: *state->cbs)
+        {
+            item.cb(nullptr, item.userp);
+        }
+        mPendingUserInfoRequests.erase(state->userHandle);
+        return err;
+    })
+    .then([this, state](ReqResult result)
+    {
+        //result->userData = new std::string(state->firstName);
+        mPendingUserInfoRequests.erase(state->userHandle);
+        mUserInfoCache.emplace(state->userHandle, result);
+        for (auto& item: *state->cbs)
+        {
+            item.cb(result.get(), item.userp);
+        }
+    });
+}
 
 promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
 Client::getThisUserInfo()

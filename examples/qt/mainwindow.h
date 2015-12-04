@@ -41,7 +41,6 @@ public slots:
 };
 
 extern bool inCall;
-extern std::unique_ptr<karere::Client> gClient;
 
 class CallAnswerGui: QObject
 {
@@ -132,7 +131,7 @@ public:
     }
     virtual void discoAddFeature(const char *feature)
     {
-        gClient->conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
+        karere::gClient->conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
     }
     virtual void onLocalMediaFail(const char* err, int* cont = nullptr)
     {

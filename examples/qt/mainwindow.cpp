@@ -22,10 +22,10 @@
     }
 
 extern MainWindow* mainWin;
-extern std::unique_ptr<karere::Client> gClient;
 
 using namespace std;
 using namespace mega;
+using namespace karere;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
