@@ -62,12 +62,12 @@ public:
             return *this;
         }
 
-        karere::gClient->requestUserInfo(userid, this,
-        [](mega::MegaRequest* result, void* userp)
+        karere::gClient->userAttrCache->getAttr(userid, karere::kUserAttrName, this,
+        [](Buffer* data, void* userp)
         {
             auto self = static_cast<MessageWidget*>(userp);
             self->ui->mAuthorDisplay->setText(
-                QString().fromUtf8(result ? result->getText() : "error")
+                QString().fromUtf8(data ? data->buf() : "error")
             );
         });
         return *this;

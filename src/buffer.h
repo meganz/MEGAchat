@@ -166,6 +166,7 @@ public:
     Buffer& append(const Buffer& from) { return append(from.buf(), from.dataSize());}
     template <class T>
     Buffer& append(const T& val) { return write(mDataSize, val);}
+    Buffer& append(const char* str) { return append((void*)str, strlen(str)); }
     template <class T>
     Buffer& write(size_t offset, const T& val) { return write(offset, &val, sizeof(val)); }
     void clear() { mDataSize = 0; }

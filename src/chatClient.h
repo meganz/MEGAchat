@@ -22,18 +22,76 @@ namespace rtcModule
 }
 namespace mega { namespace rh { class IRetryController; } }
 struct sqlite3;
+class Buffer;
+
 namespace karere
 {
 class TextModule;
 class ChatRoom;
-typedef void(*ReqUserInfoCb)(mega::MegaRequest*, void*);
 
-struct ReqUserInfoCbItem
+enum {kUserAttrName = 0, kUserAttrLast = 0};
+struct UserAttrDesc
 {
-    ReqUserInfoCb cb;
-    void* userp;
-    ReqUserInfoCbItem(ReqUserInfoCb aCb, void* aUserp): cb(aCb), userp(aUserp){}
+    int sdkId;
+    Buffer*(*getData)(const mega::MegaRequest&);
 };
+
+extern UserAttrDesc attrDesc[kUserAttrLast+1];
+
+struct UserAttrPair
+{
+    uint64_t user;
+    unsigned attrType;
+    bool operator<(const UserAttrPair& other) const
+    {
+        if (user == other.user)
+            return attrType < other.attrType;
+        else
+            return user < other.user;
+    }
+    UserAttrPair(const uint64_t& aUser, unsigned aType): user(aUser), attrType(aType){}
+};
+typedef void(*UserAttrReqCbFunc)(Buffer*, void*);
+struct UserAttrReqCb
+{
+    UserAttrReqCbFunc cb;
+    void* userp;
+    UserAttrReqCb(UserAttrReqCbFunc aCb, void* aUserp): cb(aCb), userp(aUserp){}
+};
+
+struct UserAttrCacheItem
+{
+    Buffer* data;
+    std::list<UserAttrReqCb> cbs;
+    bool pending;
+    UserAttrCacheItem(Buffer* buf, bool aPending): data(buf), pending(aPending){}
+    ~UserAttrCacheItem();
+    void notify();
+};
+
+class UserAttrCache: public std::map<UserAttrPair, std::shared_ptr<UserAttrCacheItem>>
+{
+protected:
+    struct CbRefItem
+    {
+        iterator itemit;
+        std::list<UserAttrReqCb>::iterator cbit;
+        CbRefItem(iterator aItemIt, std::list<UserAttrReqCb>::iterator aCbIt)
+            :itemit(aItemIt), cbit(aCbIt){}
+    };
+    Client& mClient;
+    uint64_t mCbId = 0;
+    std::map<uint64_t, CbRefItem> mCallbacks;
+    void dbWrite(const UserAttrPair& key, const Buffer& data);
+    uint64_t addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp);
+public:
+    UserAttrCache(Client& aClient);
+    ~UserAttrCache();
+    uint64_t getAttr(const uint64_t& user, unsigned attrType, void* userp,
+                             UserAttrReqCbFunc cb);
+    bool removeCb(const uint64_t &cbid);
+};
+
 
 class Client
 {
@@ -56,9 +114,9 @@ public:
     bool isTerminating = false;
     unsigned mReconnectConnStateHandler = 0;
     std::function<void()> onChatdReady;
+    std::unique_ptr<UserAttrCache> userAttrCache;
 
     const std::string& myUserHandle() const { return mMyUserHandle; }
-    void requestUserInfo(const uint64_t& userHandle, void* userp, ReqUserInfoCb cb);
     std::string getUsername() const
     {
         return strophe::getNodeFromJid(conn->fullOrBareJid());
@@ -138,8 +196,6 @@ protected:
         getThisUserInfo();
     void setupHandlers();
     promise::Promise<int> initializeContactList();
-    std::map<uint64_t, ReqResult> mUserInfoCache;
-    std::map<uint64_t, std::shared_ptr<std::vector<ReqUserInfoCbItem> > > mPendingUserInfoRequests;
     /**
      * @brief send response to ping request.
      *

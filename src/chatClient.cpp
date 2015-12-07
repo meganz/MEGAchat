@@ -20,6 +20,7 @@
 #include "textModule.h"
 #include <chatd.h>
 #include <db.h>
+#include <buffer.h>
 
 #define _QUICK_LOGIN_NO_RTC
 
@@ -93,6 +94,7 @@ Client::Client(const std::string& email, const std::string& password)
         db = nullptr;
         throw std::runtime_error("Can't access application database at "+path);
     }
+    userAttrCache.reset(new UserAttrCache(*this));
 }
 
 
@@ -465,66 +467,147 @@ Client::getOtherUserInfo(std::string &emailAddress)
     });
 */
 }
-
-void Client::requestUserInfo(const uint64_t& userHandle, void* userp, ReqUserInfoCb cb)
+UserAttrDesc attrDesc[kUserAttrLast+1] =
 {
-    auto it = mUserInfoCache.find(userHandle);
-    if (it != mUserInfoCache.end())
-    {
-        if (cb)
-            cb(it->second.get(), userp);
-        return;
-    }
-    auto reqit = mPendingUserInfoRequests.find(userHandle);
-    if (reqit != mPendingUserInfoRequests.end())
-    {
-        if (cb)
-            reqit->second->emplace_back(cb, userp);
-        return;
-    }
-    std::shared_ptr<std::vector<ReqUserInfoCbItem>> cbs(new std::vector<ReqUserInfoCbItem>);
-    mPendingUserInfoRequests.emplace(userHandle, cbs);
-    if (cb)
-        cbs->emplace_back(cb, userp);
+   { 0,0 } //username is special, so we don't use a descriptor for it
+};
+UserAttrCache::~UserAttrCache()
+{}
 
-    struct State
-    {
-        chatd::Id userHandle;
-        std::string strUh;
-        std::string firstName;
-        std::shared_ptr<std::vector<ReqUserInfoCbItem>> cbs;
-        State(const chatd::Id& uh, std::shared_ptr<std::vector<ReqUserInfoCbItem>> aCbs)
-            :userHandle(uh), strUh(uh.toString()), cbs(aCbs){}
-    };
-    auto state = std::make_shared<State>(userHandle, cbs);
+void UserAttrCache::dbWrite(const UserAttrPair& key, const Buffer& data)
+{
+    SqliteStmt stmt(mClient.db, "insert or replace into userattrs(userid, type, data) values(?,?,?)");
+    stmt << key.user << key.attrType << data;
+    stmt.step();
+}
 
-    api->call(&mega::MegaApi::getUserAttribute, state->strUh.c_str(), (int)MyMegaApi::USER_ATTR_FIRSTNAME)
-    .then([this, state](ReqResult result)
+UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
+{
+    SqliteStmt stmt(mClient.db, "select userid, type, data from userattrs");
+    while(stmt.step())
     {
-        const char* name = result->getText();
-        state->firstName = name?name:"(null)";
-        return api->call(&mega::MegaApi::getUserAttribute, state->strUh.c_str(),
-            (int)MyMegaApi::USER_ATTR_LASTNAME);
-    })
-    .fail([this, state](const promise::Error& err)
+        std::unique_ptr<Buffer> data(new Buffer((size_t)sqlite3_column_bytes(stmt, 2)));
+        stmt.blobCol(2, *data);
+
+        emplace(std::piecewise_construct,
+                std::forward_as_tuple(stmt.uint64Col(0), stmt.intCol(1)),
+                std::forward_as_tuple(std::make_shared<UserAttrCacheItem>(data.release(), false)));
+    }
+}
+
+void UserAttrCacheItem::notify()
+{
+    for (auto it=cbs.begin(); it!=cbs.end();)
     {
-        for (auto& item: *state->cbs)
-        {
-            item.cb(nullptr, item.userp);
+        auto curr = it;
+        it++;
+        curr->cb(data, curr->userp); //may erase curr
+    }
+}
+UserAttrCacheItem::~UserAttrCacheItem()
+{
+    if (data)
+        delete data;
+}
+
+uint64_t UserAttrCache::addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp)
+{
+    auto& cbs = itemit->second->cbs;
+    auto it = cbs.emplace(cbs.end(), cb, userp);
+    mCallbacks.emplace(std::piecewise_construct, std::forward_as_tuple(++mCbId),
+                       std::forward_as_tuple(itemit, it));
+    return mCbId;
+}
+
+bool UserAttrCache::removeCb(const uint64_t& cbid)
+{
+    auto it = mCallbacks.find(cbid);
+    if (it == mCallbacks.end())
+        return false;
+    auto& cbDesc = it->second;
+    cbDesc.itemit->second->cbs.erase(cbDesc.cbit);
+    return true;
+}
+
+uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
+            void* userp, UserAttrReqCbFunc cb)
+{
+    if (type > kUserAttrLast)
+        throw std::runtime_error("Invalid attribute id specified");
+    UserAttrPair key(userHandle, type);
+    auto it = find(key);
+    if (it != end())
+    {
+        auto& item = *it->second;
+        if (cb)
+        { //TODO: not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
+            auto cbid = addCb(it, cb, userp);
+            if (!item.pending)
+                cb(item.data, userp);
+            return cbid;
         }
-        mPendingUserInfoRequests.erase(state->userHandle);
-        return err;
-    })
-    .then([this, state](ReqResult result)
-    {
-        //result->userData = new std::string(state->firstName);
-        mPendingUserInfoRequests.erase(state->userHandle);
-        mUserInfoCache.emplace(state->userHandle, result);
-        for (auto& item: *state->cbs)
+        else
         {
-            item.cb(result.get(), item.userp);
+            return 0;
         }
-    });
+    }
+
+    auto item = std::make_shared<UserAttrCacheItem>(nullptr, true);
+    it = emplace(key, item).first;
+    uint64_t cbid = cb ? addCb(it, cb, userp) : 0;
+
+    if (type != kUserAttrName)
+    {
+        auto& attrType = attrDesc[type];
+        mClient.api->call(&mega::MegaApi::getUserAttribute,
+            chatd::base64urlencode(&userHandle, sizeof(userHandle)).c_str(), attrType.sdkId)
+        .then([this, &attrType, key, item](ReqResult result)
+        {
+            item->pending = false;
+            item->data = attrType.getData(*result);
+            dbWrite(key, *item->data);
+            item->notify();
+        })
+        .fail([this, item](const promise::Error& err)
+        {
+            item->pending = false;
+            item->data = nullptr;
+            item->notify();
+            return err;
+        });
+    }
+    else
+    {
+        item->data = new Buffer;
+        std::string strUh = chatd::base64urlencode(&userHandle, sizeof(userHandle));
+        mClient.api->call(&mega::MegaApi::getUserAttribute, strUh.c_str(),
+                  (int)MyMegaApi::USER_ATTR_FIRSTNAME)
+        .then([this, strUh, key, item](ReqResult result)
+        {
+            const char* name = result->getText();
+            item->data->append(name?name:"(null)");
+            return mClient.api->call(&mega::MegaApi::getUserAttribute, strUh.c_str(),
+                    (int)MyMegaApi::USER_ATTR_LASTNAME);
+        })
+        .then([this, key, item](ReqResult result)
+        {
+            Buffer* data = item->data;
+            data->append(' ');
+            const char* name = result->getText();
+            data->append(name ? name : "(null)").append<char>(0);
+            item->pending = false;
+            dbWrite(key, *data);
+            item->notify();
+        })
+        .fail([this, item](const promise::Error& err)
+        {
+            item->data = nullptr;
+            item->pending = false;
+            item->notify();
+            return err;
+        });
+    }
+    return cbid;
 }
 
 promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
