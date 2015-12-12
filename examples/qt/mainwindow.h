@@ -6,16 +6,17 @@
 #include <mstrophepp.h>
 #include <IRtcModule.h>
 #include <mstrophepp.h>
-#include "../strophe.disco.h"
+#include <../strophe.disco.h>
 #include <ui_mainwindow.h>
-#include "IJingleSession.h"
-#include "chatClient.h"
-
+#include <ui_clistitem.h>
+#include <IJingleSession.h>
+#include <chatClient.h>
+#include "chatWindow.h"
 namespace Ui {
 class MainWindow;
 }
 
-class MainWindow : public QMainWindow
+class MainWindow : public QMainWindow, public karere::IGui
 {
     Q_OBJECT
     
@@ -30,6 +31,9 @@ public:
     void contactStateChange(std::string &contactJid, karere::Presence oldState, karere::Presence newState);
     void handleError(std::string &message);
     void handleWarning(std::string &message);
+//IGui
+    virtual ITitleDisplay* createTitleDisplay(karere::ChatRoom& room);
+    virtual IChatWindow* createChatWindow(karere::ChatRoom& room);
 public slots:
     void inviteButtonPushed();
     void sendButtonPushed();
@@ -87,6 +91,52 @@ public slots:
             mMainWin->ui->callBtn->setText("Call");
         }
     }
+};
+class CListItemGui: public QWidget, public karere::IGui::ITitleDisplay
+{
+protected:
+    karere::ChatRoom* mRoom;
+    Ui::CListItemGui ui;
+    int mLastOverlayCount = 0;
+public:
+//karere::ITitleDisplay interface
+    virtual void updateTitle(const std::string& title)
+    { ui.mName->setText(QString::fromUtf8(title.c_str(), title.size())); }
+    virtual void updateOverlayCount(unsigned count)
+    {
+        ui.mUnreadIndicator->setText(QString::number(count));
+        if (count)
+        {
+            if (!mLastOverlayCount)
+                ui.mUnreadIndicator->show();
+        }
+        else
+        {
+            if (mLastOverlayCount)
+                ui.mUnreadIndicator->hide();
+        }
+        mLastOverlayCount = count;
+    }
+    virtual void setOnlineStatus(chatd::ChatState state)
+    {
+        QColor col;
+        if (state == chatd::kChatStateOffline)
+            col = QColor(Qt::gray);
+        else if (state < chatd::kChatStateOnline)
+            col = QColor(Qt::blue);
+        else
+            col = QColor(Qt::green);
+        auto palette = ui.mOnlineIndicator->palette();
+        palette.setColor(QPalette::Base, col);
+        ui.mOnlineIndicator->setPalette(palette);
+    }
+//===
+    CListItemGui(QWidget* parent, karere::ChatRoom* room=nullptr): QWidget(parent), mRoom(room)
+    {
+        ui.setupUi(this);
+        ui.mUnreadIndicator->hide();
+    }
+    ~CListItemGui() {}
 };
 
 class RtcEventHandler: public rtcModule::IEventHandler

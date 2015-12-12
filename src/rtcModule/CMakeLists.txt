@@ -12,7 +12,6 @@ set (SRCS
     rtcStats.cpp
     rtcModule.cpp
     lib.cpp
-//    ../karereCommon.cpp
 )
 
 add_subdirectory(../base base)

@@ -57,7 +57,7 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="QWidget" name="titlebar" native="true">
+       <widget class="QWidget" name="mTitlebar" native="true">
         <property name="palette">
          <palette>
           <active>
@@ -155,7 +155,7 @@
         <property name="styleSheet">
          <string notr="true"/>
         </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,1">
          <property name="spacing">
           <number>0</number>
          </property>
@@ -172,7 +172,13 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QLabel" name="mChatNameDisplay">
+          <widget class="QLabel" name="label">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="palette">
             <palette>
              <active>
@@ -241,7 +247,7 @@
             <bool>false</bool>
            </property>
            <property name="text">
-            <string>Chat with Donald Duck</string>
+            <string>Chat with</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>

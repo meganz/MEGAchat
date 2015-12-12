@@ -38,7 +38,7 @@ protected:
     QColor msgColor() { return palette().color(QPalette::Base); }
     void setMsgColor(const QColor& color)
     {
-        QPalette p = ui->mMsgDisplay->palette();
+        QPalette p(ui->mMsgDisplay->palette());
         p.setColor(QPalette::Base, color);
         ui->mMsgDisplay->setPalette(p);
     }
@@ -62,12 +62,13 @@ public:
             return *this;
         }
 
-        karere::gClient->userAttrCache->getAttr(userid, karere::kUserAttrName, this,
+        karere::gClient->userAttrCache.getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
         [](Buffer* data, void* userp)
         {
+            //buffer contains an unsigned char prefix that is the strlen() of the first name
             auto self = static_cast<MessageWidget*>(userp);
             self->ui->mAuthorDisplay->setText(
-                QString().fromUtf8(data ? data->buf() : "error")
+                QString().fromUtf8((data && (data->dataSize()>2)) ? data->buf()+1 : "error")
             );
         });
         return *this;
@@ -154,10 +155,11 @@ struct HistFetchUi: public QProgressBar
     QProgressBar* progressBar() { return this; }
 };
 
-class ChatWindow: public QDialog, public chatd::Listener
+class ChatWindow: public QDialog, public karere::IGui::IChatWindow
 {
     Q_OBJECT
 protected:
+    karere::ChatRoom& mRoom;
     Ui::ChatWindow* ui;
     chatd::Messages* mMessages = nullptr;
     MessageWidget* mEditedWidget = nullptr; ///pointer to the widget being edited. Also signals whether we are editing or writing a new message (nullptr - new msg, editing otherwise)
@@ -260,12 +262,13 @@ public slots:
         if (isRemote)
         {
             mHistFetchUi.reset(new HistFetchUi(this));
-            auto layout = qobject_cast<QBoxLayout*>(ui->titlebar->layout());
+            auto layout = qobject_cast<QBoxLayout*>(ui->mTitlebar->layout());
             layout->insertWidget(1, mHistFetchUi->progressBar());
         }
     }
 public:
-    ChatWindow(QWidget* parent): QDialog(parent), ui(new Ui::ChatWindow)
+    ChatWindow(karere::ChatRoom& room, QWidget* parent): QDialog(parent), mRoom(room),
+        ui(new Ui::ChatWindow)
     {
         ui->setupUi(this);
         ui->mMessageList->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -365,16 +368,16 @@ public:
     virtual void init(chatd::Messages* messages, chatd::DbInterface*& dbIntf)
     {
         mMessages = messages;
-        dbIntf = new ChatdSqliteDb(messages, karere::gClient->db);
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
     {
+        mRoom.onRecvNewMessage(idx, msg, status);
         if (msg.edits())
             addMsgEdit(msg, false);
         else
             addMsgWidget(msg, status, false);
-        mMessages->setMessageSeen(idx);
+        //mMessages->setMessageSeen(idx);
         ui->mMessageList->scrollToBottom();
     }
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
@@ -410,6 +413,7 @@ public:
     }
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg)
     {
+        mRoom.onMessageStatusChange(idx, newStatus, msg);
         auto widget = widgetFromMessage(msg);
         if (widget)
             widget->updateStatus(newStatus);
@@ -425,6 +429,7 @@ public:
     }
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
+        mRoom.onOnlineStateChange(state);
         ui->mOnlineStateDisplay->setText(chatd::chatStateToStr(state));
         if (state != chatd::kChatStateOnline)
             return;
@@ -443,6 +448,14 @@ public:
             msg.userp = item;
         }
         ui->mMessageList->scrollToBottom();
+    }
+    virtual void onUserJoined(const chatd::Id& userid, char priv)
+    {
+        mRoom.onUserJoined(userid, priv);
+    }
+    virtual void onUserLeft(const chatd::Id& userid)
+    {
+        mRoom.onUserLeft(userid);
     }
 };
 

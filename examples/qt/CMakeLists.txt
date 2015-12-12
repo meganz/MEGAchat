@@ -12,7 +12,7 @@ set (SRCS
      ../../src/karereCommon.cpp
 )
 
-qt5_wrap_ui(ui_hdrs mainwindow.ui chat.ui chatMessage.ui)
+qt5_wrap_ui(ui_hdrs mainwindow.ui chat.ui chatMessage.ui clistitem.ui)
 list(APPEND ui_hdrs widgetSubclass.h)
 
 #QT4_ADD_RESOURCES(helloworld_RESOURCES_RCC ${helloworld_RESOURCES})

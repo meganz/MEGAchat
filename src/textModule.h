@@ -12,7 +12,7 @@ namespace strophe {class Connection;}
 namespace karere
 {
 class Client;
-class ChatRoom;
+class XmppChatRoom;
 
 class TextModule: public virtual strophe::IPlugin, public TextModuleTypeConfig
 {
@@ -32,7 +32,7 @@ public:
     karere::Client& mClient;
     /** strophe connection object that scopes the text chat handlers */
     strophe::Connection conn;
-    std::map<std::string, std::shared_ptr<ChatRoom>> chatRooms;
+    std::map<std::string, std::shared_ptr<XmppChatRoom>> chatRooms;
     TextModule(karere::Client& client);
 
 protected:

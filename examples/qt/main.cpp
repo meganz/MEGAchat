@@ -15,6 +15,7 @@
 #include <rtcModule/lib.h>
 #include <sdkApi.h>
 #include <chatd.h>
+#include <mega/megaclient.h>
 
 using namespace std;
 using namespace promise;
@@ -80,7 +81,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Usage: rtctestapp <usermail> <userpass> <peermail>\n\n");
         return 1;
     }
-
+    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
     mainWin = new MainWindow;
@@ -91,7 +92,7 @@ int main(int argc, char **argv)
 
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin->ui->calleeInput->setText(argv[3]);
-    gClient.reset(new karere::Client(argv[1], argv[2]));
+    gClient.reset(new karere::Client(*mainWin, argv[1], argv[2]));
 //    gClientAutoDel.reset(gClient);
     gClient->registerRtcHandler(new RtcEventHandler(mainWin));
     gClient->init()
@@ -106,10 +107,6 @@ int main(int argc, char **argv)
 
         mainWin->ui->callBtn->setEnabled(true);
         mainWin->ui->callBtn->setText("Call");
-//test stuff for chatd
-        gClient->mChatd->join("R7gmLxEgQSA", 0, "wss://chattest.userstorage.mega.co.nz/8icGyvpt-RY",
-                              new ChatWindow(mainWin));
-//==
         std::vector<std::string> contacts = gClient->getContactList().getContactJids();
 
         for(size_t i=0; i<contacts.size();i++)

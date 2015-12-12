@@ -1,9 +1,13 @@
 #ifndef SDKAPI_H
 #define SDKAPI_H
+
+//the megaapi.h header needs this defined externally
+#define ENABLE_CHAT 1
 #include <megaapi.h>
 #include "base/promise.h"
 #include "base/gcmpp.h"
 #include <logger.h>
+
 
 typedef std::shared_ptr<::mega::MegaRequest> ReqResult;
 typedef promise::Promise<ReqResult> ApiPromise;

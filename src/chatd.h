@@ -201,7 +201,7 @@ public:
 /// The chatroom connection (to the chatd server shard) state state has changed.
     virtual void onOnlineStateChange(ChatState state){}
 /// An user has joined the room, or their privilege has changed
-    virtual void onUserJoined(const Id& userid, int privilege){}
+    virtual void onUserJoined(const Id& userid, char privilege){}
 /// An user has left the chatroom
     virtual void onUserLeft(const Id& userid) {}
     virtual void encryptMessage(const Message& src, Buffer& dest)
@@ -306,6 +306,8 @@ enum HistFetchState
     kHistFetchingFromDb = 1 | kHistFetchingFlag ///< We are currently fetching history from db
 };
 
+typedef std::map<Id,char> UserPrivMap;
+
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
@@ -332,6 +334,7 @@ protected:
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
+    UserPrivMap mUsers;
     /// User-supplied initial range, that we use until we see the message with mOldestKnownMsgId
     /// Before that happens, missing messages are supposed to be in a database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
@@ -341,7 +344,7 @@ protected:
     unsigned mLastHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
     HistFetchState mHistFetchState = kHistNotFetching;
     DbInterface* mDbInterface = nullptr;
-    Messages(Connection& conn, const Id& chatid, Listener* listener);
+    Messages(Connection& conn, const Id& chatid, Listener& listener);
     void push_forward(Message* msg) { mForwardList.push_back(msg); }
     void push_back(Message* msg) { mBackwardList.push_back(msg); }
     Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front() : mForwardList.back(); }
@@ -364,6 +367,7 @@ protected:
     {
         return msgIncoming(isNew, new Message(msgid, userid, timestamp, msg, msglen, nullptr), isLocal);
     }
+    void onUserJoin(const Id& userid, char priv);
     void onJoinComplete();
     void loadAndProcessUnsent();
     void initialFetchHistory(const Id& msgid);
@@ -401,7 +405,8 @@ protected:
     friend class Connection;
     friend class Client;
 public:
-    unsigned initialHistoryFetchCount = 32;
+    unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
+    const UserPrivMap& users() const { return mUsers; }
     ~Messages();
     const Id& chatId() const { return mChatId; }
     Client& client() const { return mClient; }
@@ -462,6 +467,8 @@ public:
 //edit for a not-yet-sent message, and if there was a previous one, it will be deleted.
 //The user is responsible to clear any reference to a previous edit to avoid a dangling pointer.
     Message* msgModify(const Id& oriId, bool isXid, const char* msg, size_t msglen, void* userp, const Id& id=Id::null());
+    unsigned unreadMsgCount() const;
+    void setListener(Listener& newListener) { mListener = &newListener; }
 protected:
     void doMsgSubmit(Message* msg);
 //===
@@ -503,7 +510,7 @@ public:
         return *it->second;
     }
 
-    void join(const Id& chatid, int shardNo, const std::string& url, Listener* listener);
+    void join(const Id& chatid, int shardNo, const std::string& url, Listener& listener);
     friend class Connection;
     friend class Messages;
 };
@@ -529,6 +536,7 @@ public:
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
     virtual void updateMsgInSending(const Message& data) = 0;
     virtual void updateSendingEditId(const Id& msgxid, const Id& msgid) = 0;
+    virtual void getIdxOfMsgid(const Id& msgid, chatd::Idx& idx) = 0;
     virtual ~DbInterface(){}
 };
 

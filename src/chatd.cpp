@@ -10,6 +10,8 @@ using namespace promise;
 
 //#define CHATD_LOG_DB_CALLS
 
+#define ID_CSTR(id) id.toString().c_str()
+
 #ifdef CHATD_LOG_LISTENER_CALLS
     #define CHATD_LOG_LISTENER_CALL(fmtString,...) CHATD_LOG_DEBUG(fmtString, ##__VA_ARGS__)
 #else
@@ -109,7 +111,7 @@ Client::Client(const Id& userId, uint32_t options)
     }
 
 // add a new chatd shard
-void Client::join(const Id& chatid, int shardNo, const std::string& url, Listener* listener)
+void Client::join(const Id& chatid, int shardNo, const std::string& url, Listener& listener)
 {
     auto msgsit = mMessagesForChatId.find(chatid);
     if (msgsit != mMessagesForChatId.end())
@@ -443,10 +445,9 @@ void Messages::requestHistoryFromServer(int32_t count)
         mConnection.sendCommand(Command(OP_HIST) + mChatId + count);
 }
 
-Messages::Messages(Connection& conn, const Id& chatid, Listener* listener)
-    : mConnection(conn), mClient(conn.mClient), mChatId(chatid), mListener(listener)
+Messages::Messages(Connection& conn, const Id& chatid, Listener& listener)
+    : mConnection(conn), mClient(conn.mClient), mChatId(chatid), mListener(&listener)
 {
-    assert(listener);
     Idx newestDbIdx;
     //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
     mListener->init(this, mDbInterface);
@@ -454,7 +455,7 @@ Messages::Messages(Connection& conn, const Id& chatid, Listener* listener)
     mDbInterface->getHistoryInfo(mOldestKnownMsgId, mNewestKnownMsgId, newestDbIdx);
     if (!mOldestKnownMsgId)
     {
-        CHATD_LOG_DEBUG("App says there is no local history");
+        CHATD_LOG_WARNING("Db has no local history for chat %s", ID_CSTR(mChatId));
         mForwardStart = CHATD_IDX_RANGE_MIDDLE;
         mNewestKnownMsgId = Id::null();
     }
@@ -462,10 +463,9 @@ Messages::Messages(Connection& conn, const Id& chatid, Listener* listener)
     {
         assert(mNewestKnownMsgId); assert(newestDbIdx != CHATD_IDX_INVALID);
         mForwardStart = newestDbIdx + 1;
-        CHATD_LOG_DEBUG("App has a local history range of %s - %s (%zu)",
-            mOldestKnownMsgId.toString().c_str(), mNewestKnownMsgId.toString().c_str(), mForwardStart);
-        CHATD_LOG_DEBUG("Loading local history");
-        getHistoryFromDb(initialHistoryFetchCount);
+        CHATD_LOG_DEBUG("Db has local history for chat %s: %s - %s (middle point: %u)",
+            ID_CSTR(mChatId), ID_CSTR(mOldestKnownMsgId), ID_CSTR(mNewestKnownMsgId), mForwardStart);
+        getHistoryFromDb(1); //to know if we have the latest message on server, we must at least load the latest db message
     }
 }
 Messages::~Messages()
@@ -498,7 +498,6 @@ void Messages::getHistoryFromDb(unsigned count)
     assert(offset==pos-base); Id varname(buf.read<uint64_t>(pos)); pos+=sizeof(uint64_t)
 #define READ_32(varname, offset)\
     assert(offset==pos-base); uint32_t varname(buf.read<uint32_t>(pos)); pos+= sizeof(uint32_t)
-#define ID_CSTR(id) id.toString().c_str()
 
 // inbound command processing
 // multiple commands can appear as one WebSocket frame, but commands never cross frame boundaries
@@ -531,15 +530,11 @@ void Connection::execCommand(const StaticBuffer &buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(userid, 8);
-                int priv = buf.read<int8_t>(pos);
+                char priv = buf.read<int8_t>(pos);
                 pos++;
                 CHATD_LOG_DEBUG("recv JOIN - user '%s' on '%s' with privilege level %d",
                                 ID_CSTR(userid), ID_CSTR(chatid), priv);
-                auto listener = mClient.chatidMessages(chatid).mListener;
-                if (priv != PRIV_NOTPRESENT)
-                    listener->onUserJoined(userid, priv);
-                else
-                    listener->onUserLeft(userid);
+                mClient.chatidMessages(chatid).onUserJoin(userid, priv);
                 break;
             }
             case OP_OLDMSG:
@@ -763,17 +758,32 @@ void Messages::onLastReceived(const Id& msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     { // we don't have that message in the buffer yet, so we don't know its index
-        mLastReceivedIdx = CHATD_IDX_INVALID;
-        return;
+        Idx idx;
+        CALL_DB(getIdxOfMsgid, msgid, idx);
+        if (idx != CHATD_IDX_INVALID)
+        {
+            if ((mLastReceivedIdx != CHATD_IDX_INVALID) && (idx < mLastReceivedIdx))
+            {
+                CHATD_LOG_ERROR("onLastReceived: Tried to set the index to an older message, ignoring");
+                CHATD_LOG_DEBUG("highnum() = %zu, mLastReceivedIdx = %zu, idx = %zu", highnum(), mLastReceivedIdx, idx);
+            }
+            else
+            {
+                mLastReceivedIdx = idx;
+            }
+        }
+        return; //last-received is behind history in memory, so nothing to notify about
     }
-    if (at(it->second).userid != mClient.mUserId)
+
+    auto idx = it->second;
+    if (at(idx).userid != mClient.mUserId)
     {
         CHATD_LOG_WARNING("Last-received pointer points to a message by a peer, possibly the pointer was set incorrectly");
     }
+    //notify about messages that become 'received'
     Idx notifyOldest;
     if (mLastReceivedIdx != CHATD_IDX_INVALID) //we have a previous last-received index, notify user about received messages
     {
-        auto idx = it->second;
         if (mLastReceivedIdx > idx)
         {
             CHATD_LOG_ERROR("onLastReceived: Tried to set the index to an older message, ignoring");
@@ -785,7 +795,7 @@ void Messages::onLastReceived(const Id& msgid)
     } //no mLastReceivedIdx
     else
     {
-        mLastReceivedIdx = it->second;
+        mLastReceivedIdx = idx;
         notifyOldest = lownum();
     }
     for (Idx i=notifyOldest; i<=mLastReceivedIdx; i++)
@@ -804,17 +814,32 @@ void Messages::onLastSeen(const Id& msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     {
-        mLastSeenIdx = CHATD_IDX_INVALID;
+        Idx idx;
+        //last seen is older than our history, so all history in memory is 'unseen', even if there was a previous, older last-seen
+        CALL_DB(getIdxOfMsgid, msgid, idx);
+        if (idx != CHATD_IDX_INVALID)
+        {
+            if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx < mLastSeenIdx))
+            {
+                CHATD_LOG_ERROR("onLastSeen: Can't set last seen index to an older message");
+            }
+            else
+            {
+                mLastSeenIdx = idx;
+            }
+        }
         return;
     }
-    if (at(it->second).userid == mClient.mUserId)
+
+    auto idx = it->second;
+    if(at(idx).userid == mClient.mUserId)
     {
         CHATD_LOG_WARNING("Last-seen points to a message by us, possibly the pointer was not set properly");
     }
+    //notify about messages that have become 'seen'
     Idx notifyOldest;
     if (mLastSeenIdx != CHATD_IDX_INVALID)
     {
-        auto idx = it->second;
         if (idx < mLastSeenIdx)
             throw std::runtime_error("onLastSeen: Can't set last seen index to an older message");
         assert(idx != mLastSeenIdx); //we were called redundantly - the msgid and index were already set and the same. This will not hurt, except for generating one redundant onMessageStateChange for the message that is pointed to by the index
@@ -823,7 +848,7 @@ void Messages::onLastSeen(const Id& msgid)
     }
     else
     {
-        mLastSeenIdx = it->second;
+        mLastSeenIdx = idx;
         notifyOldest = lownum();
     }
     for (Idx i=notifyOldest; i<=mLastSeenIdx; i++)
@@ -859,6 +884,22 @@ bool Messages::setMessageSeen(Idx idx)
         }
     }
     return true;
+}
+
+unsigned Messages::unreadMsgCount() const
+{
+    Idx first = ((mLastSeenIdx == CHATD_IDX_INVALID) || (mLastSeenIdx < lownum()))
+            ? lownum()
+            : mLastSeenIdx;
+    printf("mLastSeenIdx = %u, last = %u\n", mLastSeenIdx, highnum());
+    unsigned count = 0;
+    auto last = highnum();
+    for (Idx i=first; i<=last; i++)
+    {
+        if (at(i).userid != mClient.userId())
+            count++;
+    }
+    return count;
 }
 
 void Messages::resendPending()
@@ -1038,7 +1079,6 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
 
 void Messages::initialFetchHistory(const Id& serverNewest)
 {
-//we have messages in the db, fetch the newest from there
     if (empty())
     {
         assert(!mOldestKnownMsgId);
@@ -1060,6 +1100,20 @@ void Messages::initialFetchHistory(const Id& serverNewest)
         }
     }
 }
+
+void Messages::onUserJoin(const Id& userid, char priv)
+{
+    if (priv != PRIV_NOTPRESENT)
+        mUsers.emplace(userid, priv);
+    else
+        mUsers.emplace(userid, priv);
+
+    if (priv != PRIV_NOTPRESENT)
+        CALL_LISTENER(onUserJoined, userid, priv);
+    else
+        CALL_LISTENER(onUserLeft, userid);
+}
+
 void Messages::onJoinComplete()
 {
     setOnlineState(kChatStateOnline);

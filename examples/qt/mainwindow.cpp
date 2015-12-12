@@ -212,9 +212,9 @@ void MainWindow::buttonPushed()
                 throw std::runtime_error("Returned peer user is NULL");
 
             string peerJid = string(peer)+"@"+KARERE_XMPP_DOMAIN;
-            return karere::ChatRoom::create(*gClient, peerJid);
+            return karere::XmppChatRoom::create(*gClient, peerJid);
         })
-        .then([this](shared_ptr<karere::ChatRoom> room)
+        .then([this](shared_ptr<karere::XmppChatRoom> room)
         {
             rtcModule::AvFlags av;
             av.audio = true;
@@ -287,3 +287,18 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+karere::IGui::ITitleDisplay* MainWindow::createTitleDisplay(karere::ChatRoom& room)
+{
+    auto clist = ui->contactList;
+    auto contactGui = new CListItemGui(clist, &room);
+    auto item = new QListWidgetItem;
+    item->setSizeHint(contactGui->size());
+    clist->addItem(item);
+    ui->contactList->setItemWidget(item, contactGui);
+    return contactGui;
+}
+
+karere::IGui::IChatWindow* MainWindow::createChatWindow(karere::ChatRoom& room)
+{
+    return new ChatWindow(room, this);
+}

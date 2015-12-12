@@ -55,6 +55,9 @@ public:
     SqliteStmt& bind(int col, const Buffer& buf) { check(sqlite3_bind_blob(mStmt, col, buf.buf(), buf.dataSize(), SQLITE_STATIC), "bind"); return *this; }
     SqliteStmt& bind(int col, const uint64_t& val) { check(sqlite3_bind_int64(mStmt, col, (int64_t)val), "bind"); return *this; }
     SqliteStmt& bind(int col, unsigned int val) { check(sqlite3_bind_int(mStmt, col, (int)val), "bind"); return *this; }
+    template <class T, class... Args>
+    SqliteStmt& bindV(const T& val, Args... args) { return bind(val).bindV(args...); }
+    SqliteStmt& bindV() { return *this; }
     SqliteStmt& clearBind() { mLastBindCol = 0; check(sqlite3_clear_bindings(mStmt), "clear bindings"); return *this; }
     SqliteStmt& reset() { check(sqlite3_reset(mStmt), "reset"); return *this; }
     template <class T>
@@ -94,4 +97,13 @@ public:
     uint64_t uint64Col(int num) { return (uint64_t)sqlite3_column_int64(mStmt, num);}
     unsigned int uintCol(int num) { return (unsigned int)sqlite3_column_int(mStmt, num);}
 };
+
+template <class... Args>
+bool sqliteQuery(sqlite3* db, const char* sql, Args... args)
+{
+    SqliteStmt stmt(db, sql);
+    stmt.bindV(args...);
+    return stmt.step();
+}
+
 #endif

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>806</width>
-    <height>520</height>
+    <height>545</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,7 +21,16 @@
     <property name="spacing">
      <number>0</number>
     </property>
-    <property name="margin">
+    <property name="leftMargin">
+     <number>2</number>
+    </property>
+    <property name="topMargin">
+     <number>2</number>
+    </property>
+    <property name="rightMargin">
+     <number>2</number>
+    </property>
+    <property name="bottomMargin">
      <number>2</number>
     </property>
     <item>
@@ -58,7 +67,16 @@
            <property name="verticalSpacing">
             <number>1</number>
            </property>
-           <property name="margin">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
             <number>0</number>
            </property>
            <item row="0" column="0">
@@ -115,7 +133,16 @@
            <property name="spacing">
             <number>1</number>
            </property>
-           <property name="margin">
+           <property name="leftMargin">
+            <number>1</number>
+           </property>
+           <property name="topMargin">
+            <number>1</number>
+           </property>
+           <property name="rightMargin">
+            <number>1</number>
+           </property>
+           <property name="bottomMargin">
             <number>1</number>
            </property>
            <item>
@@ -153,7 +180,7 @@
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="localRemoteContainer" stretch="1,0">
+       <layout class="QHBoxLayout" name="localRemoteContainer" stretch="1,0,0">
         <item>
          <widget class="QGroupBox" name="remoteSide">
           <property name="title">
@@ -163,7 +190,16 @@
            <property name="spacing">
             <number>0</number>
            </property>
-           <property name="margin">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
             <number>0</number>
            </property>
            <item>
@@ -189,9 +225,6 @@
              <property name="layoutDirection">
               <enum>Qt::LeftToRight</enum>
              </property>
-             <zorder>calleeInput</zorder>
-             <zorder>callBtn</zorder>
-             <zorder></zorder>
             </widget>
            </item>
           </layout>
@@ -217,7 +250,16 @@
              <property name="spacing">
               <number>0</number>
              </property>
-             <property name="margin">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
               <number>0</number>
              </property>
              <item>
@@ -246,17 +288,24 @@
               </widget>
              </item>
             </layout>
-            <zorder>textEdit</zorder>
-            <zorder>localRenderer</zorder>
            </widget>
           </item>
           <item>
-           <widget class="QGroupBox" name="">
+           <widget class="QGroupBox" name="groupBox">
             <layout class="QVBoxLayout" name="verticalLayout_7">
              <property name="spacing">
               <number>0</number>
              </property>
-             <property name="margin">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
               <number>0</number>
              </property>
              <item>
@@ -268,7 +317,7 @@
                 <widget class="QTextEdit" name="typingTextEdit"/>
                </item>
                <item>
-                <layout class="QVBoxLayout" name="verticalLayout_9" stretch="1,0">
+                <layout class="QVBoxLayout" name="verticalLayout_9" stretch="1,0,0">
                  <item>
                   <widget class="QPushButton" name="inviteButton">
                    <property name="text">
@@ -300,20 +349,25 @@
          </layout>
         </item>
         <item>
-         <layout class="QVBoxLayout" name="contactRender" stretch="1,0">
+         <layout class="QVBoxLayout" name="contactRender" stretch="1">
           <item>
-           <widget class="QLabel" name="label">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-              <horstretch>1</horstretch>
-              <verstretch>1</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Contact List:</string>
-            </property>
-           </widget>
            <widget class="QListWidget" name="contactList">
+            <property name="autoFillBackground">
+             <bool>true</bool>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color:qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(100, 100, 100, 255), stop:1 rgba(200, 200, 200, 255));</string>
+            </property>
+            <item>
+             <property name="text">
+              <string>sdfsdf</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>sdfsdf</string>
+             </property>
+            </item>
            </widget>
           </item>
          </layout>
@@ -384,24 +438,54 @@
     </hint>
    </hints>
   </connection>
- <connection>
+  <connection>
    <sender>inviteButton</sender>
    <signal>clicked()</signal>
    <receiver>MainWindow</receiver>
    <slot>inviteButtonPushed()</slot>
- </connection>
- <connection>
+   <hints>
+    <hint type="sourcelabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
    <sender>sendButton</sender>
    <signal>clicked()</signal>
    <receiver>MainWindow</receiver>
    <slot>sendButtonPushed()</slot>
- </connection>
- <connection>
+   <hints>
+    <hint type="sourcelabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
    <sender>leaveButton</sender>
    <signal>clicked()</signal>
    <receiver>MainWindow</receiver>
    <slot>leaveButtonPushed()</slot>
- </connection>
+   <hints>
+    <hint type="sourcelabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>buttonPushed()</slot>

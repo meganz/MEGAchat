@@ -467,7 +467,7 @@ void TextModule::addOtherUser(const std::string &roomId, const std::string &othe
     }
 
     CHAT_LOG_DEBUG("Room found: %s", roomId.c_str());
-    ChatRoom::RoomMember member(otherJid);
+    XmppChatRoom::RoomMember member(otherJid);
     r->second->addGroupMember(member);
     std::string m("User");
     m.append(member->getId()).append(" has entered the room");
@@ -540,11 +540,11 @@ void TextModule::joinRoom(const std::string& roomJid, const std::string& passwor
     if( chatRooms.find(roomJid) == chatRooms.end())
     {
         CHAT_LOG_DEBUG("join: Creating Room: %s", roomJid.c_str());
-        std::shared_ptr<ChatRoom> chatRoom(new ChatRoom(mClient, roomJid, meta.participants));
+        std::shared_ptr<XmppChatRoom> chatRoom(new XmppChatRoom(mClient, roomJid, meta.participants));
         chatRoom->roomSetup(conn.fullJid());
-        chatRooms.insert(std::pair<std::string, std::shared_ptr<ChatRoom>>(roomJid, chatRoom));
+        chatRooms.insert(std::pair<std::string, std::shared_ptr<XmppChatRoom>>(roomJid, chatRoom));
 
-        // TODO: Move this to ChatRoom.
+        // TODO: Move this to XmppChatRoom.
         //Perform room stuff.
 
         //
@@ -585,9 +585,9 @@ void TextModule::invite(const std::string &peerMail)
             throw std::runtime_error("Returned peer user is NULL");
 
         std::string peerJid = std::string(peer)+"@"+KARERE_XMPP_DOMAIN;
-        return ChatRoom::create(mClient, peerJid);
+        return XmppChatRoom::create(mClient, peerJid);
     })
-    .then([this](std::shared_ptr<ChatRoom> room)
+    .then([this](std::shared_ptr<XmppChatRoom> room)
     {
         if (chatRooms.find(room->roomJid()) != chatRooms.end())
         {

@@ -34,7 +34,7 @@ class Client;
  * @brief Represents a XMPP chatroom Encapsulates the members and handlers
  * required to process transactions with the room and other members of the room.
  */
-class ChatRoom: public TextModuleTypeConfig
+class XmppChatRoom: public TextModuleTypeConfig
 {
 public:
     typedef enum eState {
@@ -65,7 +65,7 @@ public:
      * @param peerRoomJid room's JID of peer's
      * @constructor
     */
-    ChatRoom(Client& aClient, const std::string& peerFullJid,
+    XmppChatRoom(Client& aClient, const std::string& peerFullJid,
              const std::string& roomJid, const std::string& myRoomJid,
              const std::string& peerRoomJid) :
                  client(aClient),
@@ -88,7 +88,7 @@ public:
      * @param Participants {std::vector<std::string>} room's participants
     * @constructor
     */
-    ChatRoom(Client& aClient, const std::string& roomJid, const std::vector<std::string> Participants)
+    XmppChatRoom(Client& aClient, const std::string& roomJid, const std::vector<std::string> Participants)
     :client(aClient), mRoomJid(roomJid), mMyFullJid(client.conn->fullJid()),
      isOwner(false)
     {
@@ -96,9 +96,9 @@ public:
     }
 
     /**
-     * @brief Add the given member to the map of members for this ChatRoom.
+     * @brief Add the given member to the map of members for this XmppChatRoom.
      *
-     * @param member The member to add to the ChatRoom.
+     * @param member The member to add to the XmppChatRoom.
      */
     void addGroupMember(RoomMember member) {
         members.insert({member->getId(), member});
@@ -128,10 +128,10 @@ public:
     /*
      * @param aClient {Client} reference to a client-owner of chat room
      * @param peer {string} peer's JID
-     * @factory function to create ChatRoom object.
-     * @return {shared_ptr<ChatRoom>} a smart pointer pointing to a new ChatRoom object.
+     * @factory function to create XmppChatRoom object.
+     * @return {shared_ptr<XmppChatRoom>} a smart pointer pointing to a new XmppChatRoom object.
     */
-    static promise::Promise<std::shared_ptr<ChatRoom> >
+    static promise::Promise<std::shared_ptr<XmppChatRoom> >
     create(Client& client, const std::string& peerFullJid)
     {
         const char* myFullJid = client.conn->fullJid();
@@ -191,9 +191,9 @@ public:
             .setAttr("xmlns", "http://jabber.org/protocol/muc")
             .c("password");
 
-        std::shared_ptr<ChatRoom> room(new ChatRoom(client, peerFullJid, roomJid,
+        std::shared_ptr<XmppChatRoom> room(new XmppChatRoom(client, peerFullJid, roomJid,
             myRoomJid, peerRoomJid));
-        promise::Promise<std::shared_ptr<ChatRoom>> ret;
+        promise::Promise<std::shared_ptr<XmppChatRoom>> ret;
 
         client.conn->sendQuery(pres, "muc")
         .then([ret, room, &client](strophe::Stanza result) mutable
@@ -216,7 +216,7 @@ public:
          .then([ret, room, myFullJid, &client](strophe::Stanza s) mutable
         {
             CHAT_LOG_INFO("create: Creating room: %s", room->roomJid().c_str());
-            client.mTextModule->chatRooms.insert(std::pair<std::string, std::shared_ptr<ChatRoom>>(room->roomJid(), room));
+            client.mTextModule->chatRooms.insert(std::pair<std::string, std::shared_ptr<XmppChatRoom>>(room->roomJid(), room));
             room->roomSetup(myFullJid);
             room->isOwner = true;
             ret.resolve(room);

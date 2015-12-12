@@ -24,7 +24,6 @@ public:
         newestDbIdx = stmt.intCol(1);
         if (sqlite3_column_type(stmt, 0) == SQLITE_NULL) //no db history
         {
-            CHATD_LOG_WARNING("Db: No local history found");
             oldestDbId = 0; //no really need to zero the others
             newestDbId = newestDbIdx = 0;
             return;
@@ -41,7 +40,6 @@ public:
             CHATD_LOG_WARNING("Db: Newest msgid in db is null, telling chatd we don't have local history");
             oldestDbId = 0;
         }
-        printf("app range: %lld - % lld\n", oldestDbId.val, newestDbId.val);
     }
     virtual void saveMsgToSending(chatd::Message& msg)
     {
@@ -113,6 +111,12 @@ public:
             msg->setEdits(stmt.uint64Col(5), false);
             messages.push_back(msg);
         }
+    }
+    virtual void getIdxOfMsgid(const chatd::Id& msgid, chatd::Idx& idx)
+    {
+        SqliteStmt stmt(mDb, "select idx from history where msgid = ?");
+        stmt << msgid;
+        idx = (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
     }
 };
 

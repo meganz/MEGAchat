@@ -21,9 +21,10 @@
 #include <chatd.h>
 #include <db.h>
 #include <buffer.h>
+#include <chatdDb.h>
 
 #define _QUICK_LOGIN_NO_RTC
-
+using namespace promise;
 namespace karere
 {
 
@@ -75,12 +76,15 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 }
 
 
-Client::Client(const std::string& email, const std::string& password)
- :conn(new strophe::Connection(services_strophe_get_ctx())),
-  api(new MyMegaApi("karere-native")),mEmail(email), mPassword(password),
-  contactList(conn),
+Client::Client(IGui& aGui, const std::string& email, const std::string& password)
+ :db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
+  api(new MyMegaApi("karere-native")), userAttrCache(*this), gui(aGui),
+  mEmail(email), mPassword(password), contactList(conn),
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS)),
   mRtcHandler(NULL)
+{
+}
+sqlite3* Client::openDb()
 {
     const char* homedir = getenv("HOME");
     if (!homedir)
@@ -88,13 +92,13 @@ Client::Client(const std::string& email, const std::string& password)
 
     std::string path(homedir);
     path.append("/.karere.db");
-    int ret = sqlite3_open(path.c_str(), &db);
-    if (ret != SQLITE_OK)
+    sqlite3* database = nullptr;
+    int ret = sqlite3_open(path.c_str(), &database);
+    if (ret != SQLITE_OK || !database)
     {
-        db = nullptr;
         throw std::runtime_error("Can't access application database at "+path);
     }
-    userAttrCache.reset(new UserAttrCache(*this));
+    return database;
 }
 
 
@@ -130,7 +134,8 @@ promise::Promise<int> Client::init()
         if (!uh.c_str() || !uh.c_str()[0])
             throw std::runtime_error("Could not get our own userhandle/JID");
         mMyUserHandle = uh.c_str();
-        mChatd.reset(new chatd::Client(mMyUserHandle.c_str(), 0));
+        chatd.reset(new chatd::Client(mMyUserHandle.c_str(), 0));
+        chats.reset(new ChatRoomList(*this));
 //        if (onChatdReady)
 //            onChatdReady();
 
@@ -159,6 +164,23 @@ promise::Promise<int> Client::init()
     auto pmsMegaFetch = pmsMegaLogin.then([this](ReqResult result)
     {
         return api->call(&mega::MegaApi::fetchNodes);
+    })
+    .then([this](ReqResult result)
+    {
+//        mContacts.reset(api->getContacts());
+        return api->call(&mega::MegaApi::fetchChats);
+    })
+    .then([this](ReqResult result)
+    {
+        auto chatRooms = result->getMegaTextChatList();
+        if (chatRooms)
+        {
+            chats->syncRoomsWithApi(*chatRooms);
+        }
+        else
+        {
+            printf("NO CHATROOMS FROM API\n");
+        }
     });
 
     SHARED_STATE(server, std::shared_ptr<HostPortServerInfo>);
@@ -207,14 +229,9 @@ promise::Promise<int> Client::init()
             }
         }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     })
-    .fail([](const promise::Error& error)
-    {
-        KR_LOG_ERROR("XMPP login error:\n%s", error.what());
-        return error;
-    })
     .then([this]()
     {
-        KR_LOG_INFO("XMPP login success");
+        KR_LOG_INFO("Login success");
 
 // handle reconnect due to network errors
         setupReconnectHandler();
@@ -364,7 +381,11 @@ promise::Promise<void> Client::terminate()
     //promise may free the client, and the resolve()-s of the input promises
     //(mega and conn) are within the client's code, so any code after the resolve()s
     //that tries to access the client will crash
-    .then([pms](int) mutable
+    .then([this, pms](int) mutable
+    {
+        return api->call(&::mega::MegaApi::localLogout);
+    })
+    .then([pms](ReqResult result)
     {
         mega::marshallCall([pms]() mutable { pms.resolve(); });
     })
@@ -467,12 +488,25 @@ Client::getOtherUserInfo(std::string &emailAddress)
     });
 */
 }
-UserAttrDesc attrDesc[kUserAttrLast+1] =
-{
-   { 0,0 } //username is special, so we don't use a descriptor for it
+UserAttrDesc attrDesc[mega::MegaApi::USER_ATTR_LAST_INTERACTION+1] =
+{ //getData func | changeMask
+  //0 - avatar
+   { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getFile(), strlen(req.getFile())); }, mega::MegaUser::CHANGE_TYPE_AVATAR},
+  //firstname and lastname are handled specially, so we don't use a descriptor for it
+  //1 - first name
+   { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_FIRSTNAME},
+  //2 = last name
+   { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_LASTNAME},
+  //keyring
+   { [](const mega::MegaRequest& req)->Buffer* { throw std::runtime_error("not implemented"); }, mega::MegaUser::CHANGE_TYPE_AUTH},
+  //last interaction
+   { [](const mega::MegaRequest& req)->Buffer* { throw std::runtime_error("not implemented"); }, mega::MegaUser::CHANGE_TYPE_LSTINT}
 };
+
 UserAttrCache::~UserAttrCache()
-{}
+{
+    mClient.api->removeGlobalListener(this);
+}
 
 void UserAttrCache::dbWrite(const UserAttrPair& key, const Buffer& data)
 {
@@ -492,6 +526,35 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
         emplace(std::piecewise_construct,
                 std::forward_as_tuple(stmt.uint64Col(0), stmt.intCol(1)),
                 std::forward_as_tuple(std::make_shared<UserAttrCacheItem>(data.release(), false)));
+    }
+    mClient.api->addGlobalListener(this);
+}
+
+void UserAttrCache::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users)
+{
+    if (!users)
+        return;
+
+    for (auto i=0; i<users->size(); i++)
+    {
+        auto user = users->get(i);
+        printf("user %llu change: %d\n", user->getHandle(), user->getChanges());
+        int changed = user->getChanges();
+        for (auto t = 0; t <= mega::MegaApi::USER_ATTR_LAST_INTERACTION; t++)
+        {
+            printf("changed = %d, changeMask = %d\n", changed, attrDesc[t].changeMask);
+            if ((changed & attrDesc[t].changeMask) == 0)
+                continue;
+            UserAttrPair key(user->getHandle(), t);
+            auto it = find(key);
+            if (it == end()) //we don't have such attribute
+                continue;
+            auto& item = it->second;
+            if (item->pending)
+                continue;
+            item->pending = kCacheFetchUpdatePending;
+            fetchAttr(key, item);
+        }
     }
 }
 
@@ -532,8 +595,6 @@ bool UserAttrCache::removeCb(const uint64_t& cbid)
 uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
             void* userp, UserAttrReqCbFunc cb)
 {
-    if (type > kUserAttrLast)
-        throw std::runtime_error("Invalid attribute id specified");
     UserAttrPair key(userHandle, type);
     auto it = find(key);
     if (it != end())
@@ -542,7 +603,7 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
         if (cb)
         { //TODO: not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
             auto cbid = addCb(it, cb, userp);
-            if (!item.pending)
+            if (item.pending != kCacheFetchNewPending)
                 cb(item.data, userp);
             return cbid;
         }
@@ -552,25 +613,29 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
         }
     }
 
-    auto item = std::make_shared<UserAttrCacheItem>(nullptr, true);
+    auto item = std::make_shared<UserAttrCacheItem>(nullptr, kCacheFetchNewPending);
     it = emplace(key, item).first;
     uint64_t cbid = cb ? addCb(it, cb, userp) : 0;
-
-    if (type != kUserAttrName)
+    fetchAttr(key, item);
+    return cbid;
+}
+void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrCacheItem>& item)
+{
+    if (key.attrType != mega::MegaApi::USER_ATTR_LASTNAME)
     {
-        auto& attrType = attrDesc[type];
+        auto& attrType = attrDesc[key.attrType];
         mClient.api->call(&mega::MegaApi::getUserAttribute,
-            chatd::base64urlencode(&userHandle, sizeof(userHandle)).c_str(), attrType.sdkId)
+            chatd::base64urlencode(&key.user, sizeof(key.user)).c_str(), (int)key.attrType)
         .then([this, &attrType, key, item](ReqResult result)
         {
-            item->pending = false;
+            item->pending = kCacheFetchNotPending;
             item->data = attrType.getData(*result);
             dbWrite(key, *item->data);
             item->notify();
         })
         .fail([this, item](const promise::Error& err)
         {
-            item->pending = false;
+            item->pending = kCacheFetchNotPending;
             item->data = nullptr;
             item->notify();
             return err;
@@ -579,13 +644,26 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
     else
     {
         item->data = new Buffer;
-        std::string strUh = chatd::base64urlencode(&userHandle, sizeof(userHandle));
+        std::string strUh = chatd::base64urlencode(&key.user, sizeof(key.user));
         mClient.api->call(&mega::MegaApi::getUserAttribute, strUh.c_str(),
                   (int)MyMegaApi::USER_ATTR_FIRSTNAME)
         .then([this, strUh, key, item](ReqResult result)
         {
             const char* name = result->getText();
-            item->data->append(name?name:"(null)");
+            if (!name)
+                name = "(null)";
+            size_t len = strlen(name);
+            if (len > 255)
+            {
+                item->data->append<unsigned char>(255);
+                item->data->append(name, 252);
+                item->data->append("...", 3);
+            }
+            else
+            {
+                item->data->append<unsigned char>(len);
+                item->data->append(name);
+            }
             return mClient.api->call(&mega::MegaApi::getUserAttribute, strUh.c_str(),
                     (int)MyMegaApi::USER_ATTR_LASTNAME);
         })
@@ -595,19 +673,40 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
             data->append(' ');
             const char* name = result->getText();
             data->append(name ? name : "(null)").append<char>(0);
-            item->pending = false;
+            item->pending = kCacheFetchNotPending;
             dbWrite(key, *data);
             item->notify();
         })
         .fail([this, item](const promise::Error& err)
         {
             item->data = nullptr;
-            item->pending = false;
+            item->pending = kCacheFetchNotPending;
             item->notify();
             return err;
         });
     }
-    return cbid;
+}
+promise::Promise<Buffer*> UserAttrCache::getAttr(const uint64_t &user, unsigned attrType)
+{
+    struct State
+    {
+        Promise<Buffer*> pms;
+        UserAttrCache* self;
+        uint64_t cbid;
+    };
+    State* state = new State;
+    state->self = this;
+    state->cbid = getAttr(user, attrType, state, [](Buffer* buf, void* userp)
+    {
+        auto s = static_cast<State*>(userp);
+        s->self->removeCb(s->cbid);
+        if (buf)
+            s->pms.resolve(buf);
+        else
+            s->pms.reject("failed");
+        delete s;
+    });
+    return state->pms;
 }
 
 promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
@@ -625,6 +724,374 @@ Client::getThisUserInfo()
     {
         return userMessage; //av: same here - was nullptr but compile error
     });
+}
+
+ChatRoom::ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool aIsGroup, const std::string& aUrl, unsigned char aShard,
+  char aOwnPriv)
+:mParent(parent), mChatid(chatid), mUrl(aUrl), mShardNo(aShard), mIsGroup(aIsGroup), mOwnPriv(aOwnPriv),
+ mTitleDisplay(mParent.client.gui.createTitleDisplay(*this))
+{
+    parent.client.chatd->join(mChatid, mShardNo, mUrl, *this);
+}
+
+GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl, unsigned char aShard,
+    char aOwnPriv, const std::string& title)
+:ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv), mTitleString(title)
+{
+    SqliteStmt stmt(parent.client.db, "select user, priv from chat_peers where chatid=?");
+    stmt << mChatid;
+    while(stmt.step())
+    {
+        addMember(stmt.uint64Col(0), stmt.intCol(1), false);
+    }
+}
+PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
+    unsigned char aShard, char aOwnPriv, const uint64_t& peer, char peerPriv)
+:ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer), mPeerPriv(peerPriv)
+{
+}
+
+PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
+:PeerChatRoom(parent, chat.getHandle(), chat.getUrl(), chat.getShard(), chat.getOwnPrivilege(),
+              -1, 0)
+{
+    assert(!chat.isGroup());
+    auto peers = chat.getPeerList();
+    assert(peers);
+    assert(peers->size() == 1);
+    mPeer = peers->getPeerHandle(0);
+    mPeerPriv = peers->getPeerPrivilege(0);
+
+    sqliteQuery(mParent.client.db, "insert into chats(chatid, url, shard, peer, peer_priv, own_priv) values (?,?,?,?,?,?)",
+        mChatid, mUrl, mShardNo, mPeer, mPeerPriv, mOwnPriv);
+//just in case
+    SqliteStmt stmt(mParent.client.db, "delete from chat_peers where chatid = ?");
+    stmt << mChatid;
+    stmt.step();
+}
+
+void PeerChatRoom::syncOwnPriv(char priv)
+{
+    if (mOwnPriv == priv)
+        return;
+
+    mOwnPriv = priv;
+    sqliteQuery(mParent.client.db, "update chats set own_priv = ? where chatid = ?",
+                priv, mChatid);
+}
+
+void PeerChatRoom::syncPeerPriv(char priv)
+{
+    if (mPeerPriv == priv)
+        return;
+    mPeerPriv = priv;
+    sqliteQuery(mParent.client.db, "update chats set peer_priv = ? where chatid = ?",
+                priv, mChatid);
+}
+void PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
+{
+    ChatRoom::syncRoomPropertiesWithApi(chat);
+    syncOwnPriv(chat.getOwnPrivilege());
+    syncPeerPriv(chat.getPeerList()->getPeerPrivilege(0));
+}
+
+void GroupChatRoom::addMember(const uint64_t& userid, char priv, bool saveToDb)
+{
+    auto& m = mPeers[userid];
+    if (m)
+    {
+        if (m->mPriv == priv)
+        {
+            saveToDb = false;
+        }
+        else
+        {
+            m->mPriv = priv;
+        }
+    }
+    else
+    {
+        m = new Member(*this, userid, priv); //usernames will be updated when the Member object gets the username attribute
+    }
+    if (saveToDb)
+    {
+        sqliteQuery(mParent.client.db, "insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",
+            mChatid, userid, priv);
+    }
+}
+bool GroupChatRoom::removeMember(const uint64_t& userid)
+{
+    auto it = mPeers.find(userid);
+    if (it == mPeers.end())
+    {
+        KR_LOG_WARNING("GroupChatRoom::removeMember for a member that we don't have, ignoring");
+        return false;
+    }
+    delete it->second;
+    mPeers.erase(it);
+    sqliteQuery(mParent.client.db, "delete from chat_peers where chatid=? and userid=?",
+                mChatid, userid);
+    updateTitle();
+    return true;
+}
+
+void GroupChatRoom::deleteSelf()
+{
+    auto db = mParent.client.db;
+    sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
+    sqliteQuery(db, "delete from chats where chatid=?", mChatid);
+    delete this;
+}
+
+ChatRoomList::ChatRoomList(Client& aClient)
+:client(aClient)
+{
+    loadFromDb();
+}
+
+void ChatRoomList::loadFromDb()
+{
+    SqliteStmt stmt(client.db, "select chatid, url, shard, own_priv, peer, peer_priv, title from chats");
+    while(stmt.step())
+    {
+        auto chatid = stmt.uint64Col(0);
+        if (find(chatid) != end())
+        {
+            KR_LOG_WARNING("ChatRoomList: Attempted to load from db cache a chatid that is already in memory");
+            continue;
+        }
+        auto peer = stmt.uint64Col(4);
+        ChatRoom* room;
+        if (peer != uint64_t(-1))
+            room = new PeerChatRoom(*this, chatid, stmt.stringCol(1), stmt.intCol(2), stmt.intCol(3), peer, stmt.intCol(5));
+        else
+            room = new GroupChatRoom(*this, chatid, stmt.stringCol(1), stmt.intCol(2), stmt.intCol(3), stmt.stringCol(6));
+        emplace(chatid, room);
+    }
+}
+void ChatRoomList::syncRoomsWithApi(const mega::MegaTextChatList& rooms)
+{
+    auto size = rooms.size();
+    for (int i=0; i<size; i++)
+    {
+        addRoom(*rooms.get(i));
+    }
+}
+bool ChatRoomList::addRoom(const mega::MegaTextChat& room)
+{
+    auto chatid = room.getHandle();
+    auto it = find(chatid);
+    if (it != end()) //we already have that room
+    {
+        it->second->syncWithApi(room);
+        return false;
+    }
+    if (room.isGroup())
+        emplace(chatid, new GroupChatRoom(*this, room)); //also writes it to cache
+    else
+        emplace(chatid, new PeerChatRoom(*this, room));
+    return true;
+}
+bool ChatRoomList::removeRoom(const uint64_t &chatid)
+{
+    auto it = find(chatid);
+    if (it == end())
+        return false;
+    if (!it->second->isGroup())
+        throw std::runtime_error("Can't delete a 1on1 chat");
+    static_cast<GroupChatRoom*>(it->second)->deleteSelf();
+    erase(it);
+    return true;
+}
+
+ChatRoomList::~ChatRoomList()
+{
+    for (auto& room: *this)
+        delete room.second;
+}
+
+GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
+:ChatRoom(parent, chat.getHandle(), true, chat.getUrl(), chat.getShard(), chat.getOwnPrivilege())
+{
+    auto peers = chat.getPeerList();
+    assert(peers);
+    auto size = peers->size();
+    for (int i=0; i<size; i++)
+    {
+        auto handle = peers->getPeerHandle(i);
+        mPeers[handle] = new Member(*this, handle, peers->getPeerPrivilege(i));
+    }
+//save to db
+    auto db = karere::gClient->db;
+    sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
+    sqliteQuery(db, "insert or replace into chats(chatid, url, shard, peer, peer_priv, own_priv) values(?,?,?,-1,0,?)",
+                mChatid, mUrl, mShardNo, mOwnPriv);
+
+    SqliteStmt stmt(db, "insert into chat_peers(chatid, user, priv) values(?,?,?)");
+    for (auto& m: mPeers)
+    {
+        stmt << mChatid << m.first << m.second->mPriv;
+        stmt.step();
+        stmt.reset();
+    }
+    loadUserTitle();
+}
+
+void GroupChatRoom::loadUserTitle()
+{
+    //load user title if set
+    SqliteStmt stmt(mParent.client.db, "select title from chats where chatid = ?");
+    stmt << mChatid;
+    if (!stmt.step())
+    {
+        mHasUserTitle = false;
+        return;
+    }
+    std::string strTitle = stmt.stringCol(0);
+    if (strTitle.empty())
+    {
+        mHasUserTitle = false;
+        return;
+    }
+    mTitleString = strTitle;
+    mHasUserTitle = true;
+}
+
+void ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
+{
+    if (chat.getShard() != mShardNo)
+        throw std::runtime_error("syncWithApi: Shard number of chat can't change");
+    if (chat.isGroup() != mIsGroup)
+        throw std::runtime_error("syncWithApi: isGroup flag can't change");
+    auto db = karere::gClient->db;
+    auto url = chat.getUrl();
+    if (!url)
+        throw std::runtime_error("MegaTextChat::getUrl() returned NULL");
+    if (strcmp(url, mUrl.c_str()))
+    {
+        mUrl = url;
+        sqliteQuery(db, "update chats set url=? where chatid=?", mUrl, mChatid);
+    }
+    char ownPriv = chat.getOwnPrivilege();
+    if (ownPriv != mOwnPriv)
+    {
+        mOwnPriv = ownPriv;
+        sqliteQuery(db, "update chats set own_priv=? where chatid=?", ownPriv, mChatid);
+    }
+}
+void ChatRoom::init(chatd::Messages* msgs, chatd::DbInterface*& dbIntf)
+{
+    mMessages = msgs;
+    dbIntf = new ChatdSqliteDb(msgs, karere::gClient->db);
+    if (mChatWindow)
+    {
+        chatd::DbInterface* nullIntf = nullptr;
+        mChatWindow->init(msgs, nullIntf);
+    }
+}
+void GroupChatRoom::onUserJoined(const chatd::Id &userid, char privilege)
+{
+    addMember(userid, privilege, true);
+}
+void GroupChatRoom::onUserLeft(const chatd::Id &userid)
+{
+    removeMember(userid);
+}
+
+void PeerChatRoom::onUserJoined(const chatd::Id &userid, char privilege)
+{
+    if (userid == mParent.client.chatd->userId())
+        syncOwnPriv(privilege);
+    else if (userid.val == mPeer)
+        syncPeerPriv(privilege);
+    else
+        KR_LOG_ERROR("PeerChatRoom: Bug: Received JOIN event from chatd for a third user, ignoring");
+}
+
+void PeerChatRoom::onUserLeft(const chatd::Id &userid)
+{
+    KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
+}
+void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Message::Status status)
+{
+    printf("updating overlay count to %u\n", mMessages->unreadMsgCount());
+    mTitleDisplay->updateOverlayCount(mMessages->unreadMsgCount());
+}
+void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg)
+{
+    mTitleDisplay->updateOverlayCount(mMessages->unreadMsgCount());
+}
+
+void GroupChatRoom::syncMembers(const chatd::UserPrivMap& users)
+{
+    auto db = karere::gClient->db;
+    for (auto ourIt=mPeers.begin(); ourIt!=mPeers.end();)
+    {
+        auto userid = ourIt->first;
+        auto it = users.find(userid);
+        if (it == users.end()) //we have a user that is not in the chatroom anymore
+        {
+            auto erased = ourIt;
+            ourIt++;
+            auto member = erased->second;
+            mPeers.erase(erased);
+            delete member;
+            sqliteQuery(db, "delete from chat_peers where chatid=? and userid=?", mChatid, userid);
+        }
+        else
+        {
+            if (ourIt->second->mPriv != it->second)
+            {
+                sqliteQuery(db, "update chat_peers where chatid=? and userid=? set priv=?",
+                    mChatid, userid, it->second);
+            }
+            ourIt++;
+        }
+    }
+    for (auto& user: users)
+    {
+        if (mPeers.find(user.first) == mPeers.end())
+            addMember(user.first, user.second, true);
+    }
+}
+
+void GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
+{
+    ChatRoom::syncRoomPropertiesWithApi(chat);
+    chatd::UserPrivMap membs;
+    syncMembers(apiMembersToMap(chat, membs));
+}
+
+
+chatd::UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, chatd::UserPrivMap& membs)
+{
+    auto members = chat.getPeerList();
+    if (!members)
+        throw std::runtime_error("MegaTextChat::getPeers() returned NULL");
+
+    auto size = members->size();
+    for (int i=0; i<size; i++)
+        membs.emplace(members->getPeerHandle(i), members->getPeerPrivilege(i));
+    return membs;
+}
+
+GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, char aPriv)
+: mRoom(aRoom), mPriv(aPriv)
+{
+    mNameAttrCbHandle = mRoom.mParent.client.userAttrCache.getAttr(user, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    [](Buffer* buf, void* userp)
+    {
+        auto self = static_cast<Member*>(userp);
+        if (buf)
+            self->mName.assign(buf->buf(), buf->dataSize());
+        else if (self->mName.empty())
+            self->mName = "\x07(error)";
+        self->mRoom.updateTitle();
+    });
+}
+GroupChatRoom::Member::~Member()
+{
+    mRoom.mParent.client.userAttrCache.removeCb(mNameAttrCbHandle);
 }
 
 }
