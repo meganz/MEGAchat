@@ -565,10 +565,9 @@ void Connection::execCommand(const StaticBuffer &buf)
             //TODO: why do we test the whole buffer's len to determine the current command's len?
             //buffer may contain other commands following it
                 READ_ID(chatid, 0);
-                READ_ID(userid, 8);
-                READ_ID(msgid, 16);
+                READ_ID(msgid, 8);
                 CHATD_LOG_DEBUG("recv SEEN on %s for user %s, msgid: %s",
-                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid));
+                                ID_CSTR(chatid), ID_CSTR(msgid));
                 mClient.chatidMessages(chatid).onLastSeen(msgid);
                 break;
             }
@@ -878,7 +877,7 @@ bool Messages::setMessageSeen(Idx idx)
         CHATD_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
         return false;
     }
-    mConnection.sendCommand(Command(OP_SEEN) + mChatId + mClient.mUserId + msg.id());
+    mConnection.sendCommand(Command(OP_SEEN) + mChatId + msg.id());
     for (Idx i=mLastSeenIdx; i<=idx; i++)
     {
         auto& m = at(i);
