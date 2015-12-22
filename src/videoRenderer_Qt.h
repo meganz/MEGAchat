@@ -6,7 +6,7 @@
 #include <QMutex>
 #include <memory>
 
-class VideoRendererQt: public QWidget, public IVideoRenderer
+class VideoRendererQt: public QWidget, public rtcModule::IVideoRenderer
 {
 protected:
     Q_OBJECT

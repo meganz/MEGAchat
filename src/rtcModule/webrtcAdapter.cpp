@@ -43,6 +43,8 @@ unsigned long generateId()
     static unsigned long id = 0;
     return ++id;
 }
+/* Disable free cloning as we want to keep track of all active streams, so obtain
+ * any streams from the corresponding InputAudio/VideoDevice objects
 
 rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
         webrtc::MediaStreamInterface* other, const std::string& label)
@@ -63,6 +65,7 @@ rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
     }
     return result;
 }
+*/
 
 void DeviceManager::enumInputDevices()
 {
@@ -72,65 +75,53 @@ void DeviceManager::enumInputDevices()
 //         throw std::runtime_error("Can't enumerate audio devices");
 }
 
-std::shared_ptr<InputVideoDevice>
-DeviceManager::getUserVideo(const MediaGetOptions& options)
+template<>
+void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface>::createSource()
 {
-    std::shared_ptr<artc::InputVideoDevice> video(new artc::InputVideoDevice);
+    assert(!mSource.get());
 
     std::unique_ptr<cricket::VideoCapturer> capturer(
-        get()->CreateVideoCapturer(options.device));
+        mManager.get()->CreateVideoCapturer(mOptions->device));
+
     if (!capturer)
         throw std::runtime_error("Could not create video capturer");
 
-    auto source =
-        gWebrtcContext->CreateVideoSource(capturer.release(), &(options.constraints));
-    if (!source.get())
+    mSource = gWebrtcContext->CreateVideoSource(capturer.release(),
+        &(mOptions->constraints));
+
+    if (!mSource.get())
         throw std::runtime_error("Could not create a video source");
-
-    video->mTrack =
-      gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()), source);
-    if (!video->mTrack)
-        throw std::runtime_error("Could not create video track from video capturer");
-    return video;
 }
-
-rtc::scoped_refptr<webrtc::VideoTrackInterface>
-InputVideoDevice::cloneTrack()
+template<> webrtc::VideoTrackInterface*
+InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface>::createTrack()
 {
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> vtrack(
-        gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()),
-        mTrack->GetSource()));
-    if (!vtrack.get())
-        throw std::runtime_error("Could not create video track from video capturer");
-    return vtrack;
+    assert(mSource.get());
+    return gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()), mSource).release();
 }
-
-InputVideoDevice::~InputVideoDevice()
+template<>
+void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface>::freeSource()
 {
-    if (mTrack)
-        mTrack->GetSource()->GetVideoCapturer()->Stop();
+    if (!mSource)
+        return;
+    mSource->GetVideoCapturer()->Stop();
+    mSource = nullptr;
 }
 
-std::shared_ptr<InputAudioDevice>
-    DeviceManager::getUserAudio(const MediaGetOptions& options)
+template<>
+void InputDeviceShared<webrtc::AudioTrackInterface, webrtc::AudioSourceInterface>::createSource()
 {
-    shared_ptr<InputAudioDevice> audio(new InputAudioDevice);
-    audio->mTrack =
-         gWebrtcContext->CreateAudioTrack("a"+std::to_string(generateId()),
-         gWebrtcContext->CreateAudioSource(&(options.constraints)));
-    if (!audio->mTrack.get())
-        throw std::runtime_error("Could not create audio track");
-    return audio;
+    assert(!mSource.get());
+    mSource = gWebrtcContext->CreateAudioSource(&(mOptions->constraints));
 }
-
-rtc::scoped_refptr<webrtc::AudioTrackInterface> InputAudioDevice::cloneTrack()
+template<> webrtc::AudioTrackInterface*
+InputDeviceShared<webrtc::AudioTrackInterface, webrtc::AudioSourceInterface>::createTrack()
 {
-    rtc::scoped_refptr<webrtc::AudioTrackInterface> atrack(
-      gWebrtcContext->CreateAudioTrack("a"+std::to_string(generateId()),
-         mTrack->GetSource()));
-    if (!atrack.get())
-        throw std::runtime_error("Could not create audio track");
-    return atrack;
+    assert(mSource.get());
+    return gWebrtcContext->CreateAudioTrack("a"+std::to_string(generateId()), mSource).release();
 }
-
+template<>
+void InputDeviceShared<webrtc::AudioTrackInterface, webrtc::AudioSourceInterface>::freeSource()
+{
+    mSource = nullptr;
+}
 }

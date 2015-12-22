@@ -20,7 +20,7 @@ typedef enum ePresence//sorted by 'chatty-ness'
     kPresenceChatty = 5,
 } Presence;
 
-class Contact
+class XmppContact
 {
 protected:
     /*contact's bare JID*/
@@ -28,7 +28,7 @@ protected:
     /*constact's presence state*/
     Presence presence;
 public:
-    Contact(const std::string& BareJid, const Presence pre = Presence::kPresenceOffline)
+    XmppContact(const std::string& BareJid, const Presence pre = Presence::kPresenceOffline)
     : bareJid(BareJid)
     , presence(pre)
     {}
@@ -76,15 +76,15 @@ public:
     }
 };
 
-class ContactList
+class XmppContactList
 {
 public:
-    typedef std::map<std::string, std::shared_ptr<Contact>> PresentContactMap;
+    typedef std::map<std::string, std::shared_ptr<XmppContact>> PresentContactMap;
     typedef std::map<std::string, Presence> PresentContactIdentityMap;
 
-    ContactList(std::shared_ptr<strophe::Connection> connection);
+    XmppContactList(std::shared_ptr<strophe::Connection> connection);
 
-    ~ContactList();
+    ~XmppContactList();
     /*
      * @brief convert the presence state to a text.
      */
@@ -118,9 +118,9 @@ public:
     /**
     * @brief Get a contact from the contact list.
     * @param userJid {string} user's bared JID
-    * @returns {(shared_ptr<Contact>)} a reference to the contact.
+    * @returns {(shared_ptr<XmppContact>)} a reference to the contact.
     */
-    const Contact& getContact(const std::string& userJid) const;
+    const XmppContact& getContact(const std::string& userJid) const;
 
     /**
     * @brief Get the list of contact's bare Jids from the contact list.
@@ -145,7 +145,7 @@ protected:
     xmpp_handler mHandler;
 };
 
-inline std::string ContactList::presenceToText(Presence presence)
+inline std::string XmppContactList::presenceToText(Presence presence)
 {
     if (presence == kPresenceOffline)
         return std::string("unavailable");
@@ -162,7 +162,7 @@ inline std::string ContactList::presenceToText(Presence presence)
     }
 }
 
-inline Presence ContactList::textToPresence(const char* text)
+inline Presence XmppContactList::textToPresence(const char* text)
 {
     assert(text);
     if (!strcmp(text, "unavailable"))
@@ -180,7 +180,7 @@ inline Presence ContactList::textToPresence(const char* text)
     }
 }
 
-inline Presence ContactList::presenceFromStanza(strophe::Stanza pres)
+inline Presence XmppContactList::presenceFromStanza(strophe::Stanza pres)
 {
     assert(!strcmp(pres.name(), "presence"));
     auto rawShow = pres.rawChild("show");

@@ -2,17 +2,15 @@
 #include "stringUtils.h"
 #include "../base/services.h"
 #include "strophe.jingle.session.h"
-#include "ITypesImpl.h"
-#include "IDeviceListImpl.h"
-//#include "strophe.disco.h"
 #include "rtcStats.h"
 #include <base/services-http.hpp>
 #include <retryHandler.h>
 #include <serverListProvider.h>
-
-#define RTCM_EVENT(name,...)             \
-    KR_LOG_RTC_EVENT("%s", #name);       \
-    mEventHandler->name(__VA_ARGS__)
+#include "rtcmPrivate.h"
+#include "IRtcModule.h"
+#include "streamPlayer.h"
+#include "IVideoRenderer.h"
+#include "ICryptoFunctions.h"
 
 using namespace std;
 using namespace promise;
@@ -25,19 +23,19 @@ namespace rtcModule
 {
 //===
 string avFlagsToString(const AvFlags& av);
-AvFlags avFlagsOfStream(artc::tspMediaStream& stream, const AvFlags& flags);
+AvFlags parseAvString(const std::string& avString);
 
-RtcModule::RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
+RtcModule::RtcModule(xmpp_conn_t* conn, IGlobalEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers)
-:Jingle(conn, crypto, iceServers), mEventHandler(handler)
+:Jingle(conn, handler, crypto, iceServers)
 {
-    mOwnAnonId = VString(crypto->scrambleJid(CString(mConn.fullJid())));
+    mOwnAnonId = crypto->scrambleJid(mConn.fullJid());
 //  logInputDevices();
 }
 
 void RtcModule::discoAddFeature(const char* feature)
 {
-    mEventHandler->discoAddFeature(feature);
+    mGlobalHandler->discoAddFeature(feature);
 }
 
 void RtcModule::logInputDevices()
@@ -50,162 +48,157 @@ void RtcModule::logInputDevices()
         KR_LOG_INFO("\tVideo: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
 }
 
-IDeviceList* RtcModule::getAudioInDevices()
+void RtcModule::getAudioInDevices(std::vector<std::string>& devices) const
 {
-    return new IDeviceListImpl(mDeviceManager.inputDevices().audio);
-}
-IDeviceList* RtcModule::getVideoInDevices()
-{
-    return new IDeviceListImpl(mDeviceManager.inputDevices().video);
+    for (auto& dev:mDeviceManager.inputDevices().audio)
+        devices.push_back(dev.name);
 }
 
-int RtcModule::selectAudioInDevice(const char* devname)
+void RtcModule::getVideoInDevices(std::vector<std::string>& devices) const
 {
-    string strDevName(devname);
-    int idx = getDeviceIdxByName(strDevName, mDeviceManager.inputDevices().audio);
-    if (idx < 0)
-        return -1;
-    mAudioInDeviceName = strDevName;
-    return idx;
+    for(auto& dev:mDeviceManager.inputDevices().video)
+        devices.push_back(dev.name);
 }
 
-int RtcModule::selectVideoInDevice(const char* devname)
+bool RtcModule::selectDevice(const std::string& devname,
+            const artc::DeviceList& devices, string& selected)
 {
-    string strDevName(devname);
-    int idx = getDeviceIdxByName(strDevName, mDeviceManager.inputDevices().video);
-    if (idx < 0)
-        return -1;
-    mVideoInDeviceName = strDevName;
-    return idx;
+    if (devices.empty())
+    {
+        selected.clear();
+        return devname.empty();
+    }
+    if (devname.empty())
+    {
+        selected = devices[0].name;
+        return true;
+    }
 
+    if (!getDevice(devname, devices))
+    {
+        selected = devices[0].name;
+        return false;
+    }
+    else
+    {
+        selected = devname;
+        return true;
+    }
 }
-int RtcModule::getDeviceIdxByName(const string& name, const artc::DeviceList& devices)
+bool RtcModule::selectAudioInDevice(const string &devname)
+{
+    return selectDevice(devname, mDeviceManager.inputDevices().audio, mAudioInDeviceName);
+}
+bool RtcModule::selectVideoInDevice(const string &devname)
+{
+    return selectDevice(devname, mDeviceManager.inputDevices().video, mVideoInDeviceName);
+}
+
+const cricket::Device* RtcModule::getDevice(const string& name, const artc::DeviceList& devices)
 {
     for (size_t i=0; i<devices.size(); i++)
-        if (devices[i].name == name)
-            return i;
-    return -1;
+    {
+        auto device = &devices[i];
+        if (device->name == name)
+            return device;
+    }
+    return nullptr;
+}
+bool RtcModule::hasCaptureActive()
+{
+    return (mAudioInput || mVideoInput);
 }
 
-string RtcModule::getLocalAudioAndVideo()
+std::shared_ptr<artc::LocalStreamHandle> RtcModule::getLocalStream(std::string& errors)
 {
-    string errors;
-    if (hasLocalStream())
-        throw runtime_error("getLocalAudioAndVideo: Already has tracks");
-    const auto& devices = deviceManager.inputDevices();
-    if (devices.video.size() > 0)
-      try
-        {
-             int idx = mVideoInDeviceName.empty()
-                 ? 0
-                 : getDeviceIdxByName(mVideoInDeviceName, devices.video);
-             if (idx < 0)
-             {
-                 KR_LOG_WARNING("Configured video input device '%s' not present, using default device", mVideoInDeviceName.c_str());
-                 idx = 0;
-             }
-             artc::MediaGetOptions opts(devices.video[idx]);
-             //opts.constraints.SetMandatoryMinWidth(1280);
-             //opts.constraints.SetMandatoryMinHeight(720);
-             mVideoInput = deviceManager.getUserVideo(opts);
-        }
-        catch(exception& e)
-        {
-            errors.append("Error getting video device: ")
-                  .append(e.what()?e.what():"Unknown error")+='\n';
-        }
-
-    if (devices.audio.size() > 0)
-        try
-        {
-            int idx = mVideoInDeviceName.empty()
-                ? 0
-                : getDeviceIdxByName(mAudioInDeviceName, devices.audio);
-            if (idx < 0)
-            {
-                KR_LOG_WARNING("Configured audio input device '%s' not present, using default device", mAudioInDeviceName.c_str());
-                idx = 0;
-            }
-            mAudioInput = deviceManager.getUserAudio(
-                artc::MediaGetOptions(devices.audio[idx]));
-        }
-        catch(exception& e)
-        {
-            errors.append("Error getting audio device: ")
-                  .append(e.what()?e.what():"Unknown error")+='\n';
-        }
-    return errors;
-}
-
-Promise<artc::tspMediaStream>
-RtcModule::myGetUserMedia(const AvFlags& av, bool allowEmpty)
-{
-    Promise<artc::tspMediaStream> pms;
-    bool lmfCalled = false;
+    const auto& devices = mDeviceManager.inputDevices();
+    if (devices.video.empty() || mVideoInDeviceName.empty())
+    {
+        mVideoInput.reset();
+    }
+    else if (!mVideoInput || mVideoInput.mediaOptions().device.name != mVideoInDeviceName)
     try
     {
-        string errors;
-        bool alreadyHadStream = hasLocalStream();
-        if (!alreadyHadStream)
+        auto device = getDevice(mVideoInDeviceName, devices.video);
+        if (!device)
         {
-            errors = getLocalAudioAndVideo();
-            mLocalStreamRefCount = 0;
+            device = &devices.video[0];
+            errors.append("Configured video input device '").append(mVideoInDeviceName)
+                  .append("' not present, using default device\n");
         }
-        auto stream = artc::gWebrtcContext->CreateLocalMediaStream("localStream");
-        if(!stream.get())
-        {
-            string msg = "Could not create local stream: CreateLocalMediaStream() failed";
-            lmfCalled = true;
-            RTCM_EVENT(onLocalMediaFail, msg.c_str());
-            pms.reject(msg);
-            return pms;
-        }
-
-        if (!hasLocalStream() || !errors.empty())
-        {
-            string msg = "Error getting local stream track(s)";
-            if (!errors.empty())
-                msg.append(": ").append(errors);
-
-            if (!allowEmpty)
-            {
-                lmfCalled = true;
-                RTCM_EVENT(onLocalMediaFail, msg.c_str());
-                pms.reject(msg);
-                return pms;
-            }
-            else
-            {
-                lmfCalled = true;
-                int cont = 0;
-                RTCM_EVENT(onLocalMediaFail, msg.c_str(), &cont);
-                if (!cont)
-                {
-                    pms.reject(msg);
-                    return pms;
-                }
-            }
-        }
-
-        if (mAudioInput)
-            KR_THROW_IF_FALSE(stream->AddTrack(mAudioInput->cloneTrack()));
-        if (mVideoInput)
-            KR_THROW_IF_FALSE(stream->AddTrack(mVideoInput->cloneTrack()));
-
-        if (!alreadyHadStream)
-            createLocalPlayer(); //creates local player but does not link it to stream
-        refLocalStream(av.video); //links player to stream
-        pms.resolve(stream);
-        return pms;
+        auto opts = std::make_shared<artc::MediaGetOptions>(*device);
+        //opts.constraints.SetMandatoryMinWidth(1280);
+        //opts.constraints.SetMandatoryMinHeight(720);
+        mVideoInput = deviceManager.getUserVideo(opts);
     }
     catch(exception& e)
     {
-        if (!lmfCalled)
-            RTCM_EVENT(onLocalMediaFail, e.what());
-        pms.reject(e.what()?e.what():"Error getting local media stream");
-        return pms;
+        mVideoInput.reset();
+        errors.append("Error getting video device: ")
+              .append(e.what()?e.what():"Unknown error")+='\n';
     }
-    return pms;
+
+    if (devices.audio.empty() || mAudioInDeviceName.empty())
+    {
+        mAudioInput.reset();
+    }
+    else if (!mAudioInput || mAudioInput.mediaOptions().device.name != mAudioInDeviceName)
+    try
+    {
+        auto device = getDevice(mAudioInDeviceName, devices.audio);
+        if (!device)
+        {
+            errors.append("Configured audio input device '").append(mAudioInDeviceName)
+                  .append("' not present, using default device\n");
+            device = &devices.audio[0];
+        }
+        mAudioInput = deviceManager.getUserAudio(
+                std::make_shared<artc::MediaGetOptions>(*device));
+    }
+    catch(exception& e)
+    {
+        mAudioInput.reset();
+        errors.append("Error getting audio device: ")
+              .append(e.what()?e.what():"Unknown error")+='\n';
+    }
+    return std::make_shared<artc::LocalStreamHandle>(
+                mAudioInput?mAudioInput.getTrack():nullptr,
+                mVideoInput?mVideoInput.getTrack():nullptr);
+}
+
+bool Call::startLocalStream(bool allowEmpty)
+{
+    string errors;
+    if (mLocalStream)
+        return true;
+
+    try
+    {
+        mLocalStream = mRtc.getLocalStream(errors);
+        assert(mLocalStream);
+        createLocalPlayer();
+        return true;
+    }
+    catch(std::exception& e)
+    {
+        errors.append("Exception while getting local media:\n");
+        auto msg = e.what();
+        if (!msg)
+            msg = "(No exception message)";
+        errors.append(msg)+='\n';
+    }
+
+    //we can be here only if there was an exception
+    mLocalStream.reset();
+    bool cont = allowEmpty;
+    if (allowEmpty)
+        RTCM_EVENT(this, onLocalMediaFail, errors, &cont);
+    if (cont)
+        return true;
+
+    RTCM_EVENT(this, onLocalMediaFail, errors, nullptr);
+    hangup(kNoMediaError, errors.c_str());
+    return false;
 }
  
 void RtcModule::onConnState(const xmpp_conn_event_t status,
@@ -217,8 +210,7 @@ void RtcModule::onConnState(const xmpp_conn_event_t status,
         case XMPP_CONN_FAIL:
         case XMPP_CONN_DISCONNECT:
         {
-            terminateAll("disconnected", nullptr, true); //TODO: Maybe move to Jingle?
-            //freeLocalStreamIfUnused();
+            hangupAll(Call::kXmppDisconnError, nullptr); //TODO: Maybe move to Jingle?
             break;
         }
         case XMPP_CONN_CONNECT:
@@ -230,11 +222,11 @@ void RtcModule::onConnState(const xmpp_conn_event_t status,
     }
  }
 
-int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av,
-                              const char* files[], const char* myJid)
+void RtcModule::startMediaCall(IEventHandler* handler, const std::string& targetJid,
+        AvFlags av, const char* files[], const std::string& myJid)
 {
-  if (!sidOut || !targetJid)
-      return RTCM_EINVAL;
+  if (!handler || targetJid.empty())
+      throw std::runtime_error("No handler or target JID specified");
   enum State
   {
       kNotYetUserMedia = 0, //not yet got usermedia
@@ -253,30 +245,29 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
       unsigned declineHandler = 0;
       State state = kNotYetUserMedia;
       artc::tspMediaStream sessStream;
-      AvFlags av;
+      AvFlags av = AvFlags(false, false);
       std::shared_ptr<karere::ServerList<karere::TurnServerInfo> > turnServers;
       unique_ptr<vector<string> > files;
   };
   shared_ptr<StateContext> state(new StateContext);
   state->av = av; //we need to remember av in cancel handler as well, for freeing the local stream
   state->isBroadcast = strophe::getResourceFromJid(targetJid).empty();
-  state->ownFprMacKey = VString(crypto().generateFprMacKey()).c_str();
-  state->sid = VString(crypto().generateRandomString(RTCM_SESSIONID_LEN)).c_str();
-  state->myJid = myJid?myJid:"";
+  state->ownFprMacKey = crypto().generateFprMacKey();
+  state->sid = crypto().generateRandomString(RTCM_SESSIONID_LEN);
+  state->myJid = myJid;
   state->targetJid = targetJid;
 //  state->files = describeFiles(files);  TODO: Implement
-  auto initiateCallback = [this, state]()
+  auto initiateCallback = make_shared<std::function<void(Call&)>>(
+  [this, state](Call& aCall)
   {
-      auto actualAv = getStreamAv(state->sessStream);
+      auto actualAv = aCall.mLocalStream ? aCall.mLocalStream->av() : AvFlags(false,false);
       if ((state->av.audio && !actualAv.audio) || (state->av.video && !actualAv.video))
       {
           KR_LOG_WARNING("startMediaCall: Could not obtain audio or video stream requested by the user");
-          state->av.audio = actualAv.audio;
-          state->av.video = actualAv.video;
+          state->av = actualAv;
       }
       if (state->state == kCallCanceledByUs)
       {//call was canceled before we got user media
-          //freeLocalStreamIfUnused();
           return;
       }
       state->state = kGotUserMediaWaitingPeer;
@@ -289,28 +280,35 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
                   return; //message not for us, keep handler(by default keep==true)
 
               keep = false;
-              mCallRequests.erase(state->sid);
-
               if (state->state != kGotUserMediaWaitingPeer)
                   return;
+
+              GET_CALL(state->sid, kCallStateOutReq, return);
+
               state->state = kPeerAnsweredOrTimedout;
               mConn.removeHandler(state->declineHandler);
               state->declineHandler = 0;
               state->ansHandler = 0;
+              auto av = parseAvString(stanza.attr("media"));
+              if (!av.any() && !call->mLocalStream->av().any())
+              {
+                  call->hangup(Call::kNoMediaError);
+                  return;
+              }
 // The crypto exceptions thrown here will simply discard the call request and remove the handler
               string peerFprMacKey = stanza.attr("fprmackey");
               try
               {
-                  peerFprMacKey = VString(crypto().decryptMessage(peerFprMacKey.c_str())).c_str();
-                  if (peerFprMacKey.empty())
-                      peerFprMacKey = VString(crypto().generateFprMacKey()).c_str();
+                  call->mPeerFprMacKey = crypto().decryptMessage(peerFprMacKey);
+                  if (call->mPeerFprMacKey.empty())
+                      call->mPeerFprMacKey = crypto().generateFprMacKey();
               }
               catch(exception& e)
               {
-                  peerFprMacKey = VString(crypto().generateFprMacKey()).c_str();
+                  call->mPeerFprMacKey = crypto().generateFprMacKey();
               }
-              const char* peerAnonId = stanza.attr("anonid");
-              if (peerAnonId[0] == 0) //empty
+              call->mPeerAnonId = stanza.attr("anonid");
+              if (call->mPeerAnonId.empty())
                   throw runtime_error("Empty anonId in peer's call answer stanza");
               const char* fullPeerJid = stanza.attr("from");
               if (state->isBroadcast)
@@ -325,30 +323,15 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
                   xmpp_send(mConn, msg);
               }
 
-              initiate(state->sid.c_str(), fullPeerJid,
-                  state->myJid.empty()?mConn.fullJid():state->myJid.c_str(), state->sessStream,
-                  state->av, {
-                      {"ownFprMacKey", state->ownFprMacKey.c_str()},
-                      {"peerFprMacKey", peerFprMacKey.c_str()},
-                      {"peerAnonId", peerAnonId}
-                  })
-                 // TODO: files
-                 // files?ftManager.createUploadHandler(sid, fullPeerJid, fileArr):NULL);
-              .then([this, state](const std::shared_ptr<JingleSession>& sess)
-              {
-                  RTCM_EVENT(onCallInit, sess.get(), !!state->files);
-                  return 0;
-              })
-              .fail([](const Error& err)
-              {
-                  KR_LOG_ERROR("Error initiating session: %s", err.toString().c_str());
-                  return 0;
-              });
+              call->createSession(fullPeerJid, state->myJid);
+              // TODO: files
+              // files?ftManager.createUploadHandler(sid, fullPeerJid, fileArr):NULL);
+              call->initiate();
         }
         catch(runtime_error& e)
         {
-          unrefLocalStream(state->av.video);
-          KR_LOG_ERROR("Exception in call answer handler:\n%s\nIgnoring call", e.what());
+              erase(state->sid);
+              KR_LOG_ERROR("Exception in call answer handler:\n%s\nIgnoring call", e.what());
         }
       }, NULL, "message", "megaCallAnswer", state->targetJid.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
@@ -357,29 +340,26 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
       {
           if (stanza.attr("sid") != state->sid) //this message was not for us
               return;
-
           keep = false;
-          mCallRequests.erase(state->sid);
-
           if (state->state != kGotUserMediaWaitingPeer)
               return;
+          GET_CALL(state->sid, kCallStateOutReq, return);
 
+          ScopedCallHangup remover(*call);
           state->state = kPeerAnsweredOrTimedout;
           mConn.removeHandler(state->ansHandler);
           state->ansHandler = 0;
           state->declineHandler = 0;
           state->sessStream = nullptr;
-          unrefLocalStream(state->av.video);
-
-          string text;
           Stanza body = stanza.child("body", true);
           if (body)
           {
               const char* txt = body.textOrNull();
               if (txt)
-                  text = karere::xmlUnescape(txt);
+                  remover.text = karere::xmlUnescape(txt);
           }
           const char* fullPeerJid = stanza.attr("from");
+          call->mPeerJid = fullPeerJid;
 
           if (state->isBroadcast)
           {
@@ -392,13 +372,6 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
                  .setAttr("accepted", "0");
               mConn.send(msg);
           }
-          RTCM_EVENT(onCallDeclined,
-              fullPeerJid, //peer
-              state->sid.c_str(),
-              stanza.attrOrNull("reason"),
-              text.empty()?nullptr:text.c_str(),
-              !!state->files //isDataCall
-          );
       },
       nullptr, "message", "megaCallDecline", state->targetJid.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
@@ -408,7 +381,7 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
          .setAttr("type", "megaCall")
          .setAttr("sid", state->sid.c_str())
          .setAttr("fprmackey",
-             VString(crypto().encryptMessageForJid(state->ownFprMacKey.c_str(), state->targetJid.c_str())).c_str())
+              crypto().encryptMessageForJid(state->ownFprMacKey, state->targetJid).c_str())
          .setAttr("anonid", mOwnAnonId.c_str());
 /*          if (files)
           {
@@ -436,166 +409,68 @@ int RtcModule::startMediaCall(char* sidOut, const char* targetJid, const AvFlags
       {
           setTimeout([this, state]()
           {
-              mCallRequests.erase(state->sid);
-              if (state->state != 1)
+              if (state->state != kGotUserMediaWaitingPeer)
                   return;
-
               state->state = kPeerAnsweredOrTimedout;
-              mConn.removeHandler(state->ansHandler);
-              state->ansHandler = 0;
-              mConn.removeHandler(state->declineHandler);
-              state->declineHandler = 0;
-              state->sessStream = nullptr;
-              unrefLocalStream(state->av.video);
-              Stanza cancelMsg(mConn);
-              cancelMsg.setName("message")
-                       .setAttr("type", "megaCallCancel")
-                       .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
-                       .setAttr("reason", "answer-timeout");
-              xmpp_send(mConn, cancelMsg);
-              RTCM_EVENT(onCallAnswerTimeout, state->targetJid.c_str());
+              hangupBySid(state->sid, Call::kAnswerTimeout);
           },
           callAnswerTimeout);
       };
-  }; //end initiateCallback()
-  promise::Promise<void> cryptoPms;
-  crypto().preloadCryptoForJid(CString(getBareJidFromJid(state->targetJid)),
-      new Promise<void>(cryptoPms),
-      [](void* userp, const CString& errMsg) mutable
+  }); //end initiateCallback()
+  //return an object with a cancel() method
+  Call::HangupFunc cancelFunc = [this, state](TermCode reason, const char* text) -> bool //call request cancel function
+  {
+      state->state = kCallCanceledByUs;
+      if (state->ansHandler)
       {
-          std::shared_ptr<Promise<void>> pCryptoPms(static_cast<Promise<void>*>(userp));
-          if (errMsg)
-              pCryptoPms->reject(errMsg);
-          else
-              pCryptoPms->resolve();
+            mConn.removeHandler(state->ansHandler);
+            state->ansHandler = 0;
+            mConn.removeHandler(state->declineHandler);
+            state->declineHandler = 0;
       }
-  );
+      Stanza cancelMsg(mConn);
+      cancelMsg.setName("message")
+               .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
+               .setAttr("sid", state->sid.c_str())
+               .setAttr("type", "megaCallCancel")
+               .setAttr("reason", reason==Call::kUserHangup
+                        ? "user" : Call::termcodeToReason(reason).c_str());
+      if(text)
+          cancelMsg.setAttr("text", text);
+      mConn.send(cancelMsg);
+      return true;
+  };
+
+  auto& call = addCall(kCallStateOutReq, true, handler, state->sid,
+        std::move(cancelFunc), targetJid, state->av, !!files, state->myJid);
+  RTCM_EVENT(call, onOutgoingCallCreated, static_pointer_cast<ICall>(call));
+
+  if (!call->startLocalStream(true))
+  { //user explicitly chose not to contunue
+      return;
+  }
+  auto cryptoPms =
+    crypto().preloadCryptoForJid(getBareJidFromJid(state->targetJid));
+
   auto gelbPms = mTurnServerProvider->getServers()
   .then([state](std::shared_ptr<ServerList<TurnServerInfo> > servers)
   {
       state->turnServers = servers;
   });
 
-  Promise<void> mediaPms;
-  if (state->av.audio || state->av.video) //same as av, but we use state->av to make sure it's set up correctly
-  {
-      myGetUserMedia(state->av, true)
-      .then([state, mediaPms](const artc::tspMediaStream& stream) mutable
-      {
-          state->sessStream = stream;
-          mediaPms.resolve();
-      });
-  }
-  else
-  {
-      mediaPms.resolve();
-  }
-  when(cryptoPms, mediaPms, gelbPms)
-  .then([this, state, initiateCallback]()
+  //TODO: Maybe call initiateCallback in parallel with fetching crypto and querying gelb
+  when(cryptoPms, gelbPms)
+  .then([this, state, call, initiateCallback]()
   {
       setIceServers(*(state->turnServers));
-      initiateCallback();
+      (*initiateCallback)(*call);
   })
   .fail([](const Error& err)
   {
       KR_LOG_ERROR("Call setup failed: %s", err.what());
   });
-
-  //return an object with a cancel() method
-  if (mCallRequests.find(state->sid) != mCallRequests.end())
-      throw runtime_error("Assert failed: There is already a call request with this sid");
-  mCallRequests.emplace(std::piecewise_construct,
-    std::forward_as_tuple(state->sid),
-    std::forward_as_tuple(new CallRequest(state->targetJid, !!state->files,
-    [this, state]() //call request cancel function
-    {
-      shared_ptr<CallRequest> keepalive;
-      auto it = mCallRequests.find(state->sid);
-      if (it == mCallRequests.end())
-          KR_LOG_WARNING("Call request cancel(): Could not find ourself in mCallRequests map");
-      else
-      {
-          keepalive = it->second;
-          mCallRequests.erase(it);
-      }
-      if (state->state == kPeerAnsweredOrTimedout)
-          return false;
-      if (state->state == kGotUserMediaWaitingPeer)
-      { //same as if (ansHandler)
-            state->state = kCallCanceledByUs;
-            mConn.removeHandler(state->ansHandler);
-            state->ansHandler = 0;
-            mConn.removeHandler(state->declineHandler);
-            state->declineHandler = 0;
-
-            unrefLocalStream(state->av.video);
-            Stanza cancelMsg(mConn);
-            cancelMsg.setName("message")
-                    .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
-                    .setAttr("sid", state->sid.c_str())
-                    .setAttr("type", "megaCallCancel")
-                    .setAttr("reason", "caller");
-            mConn.send(cancelMsg);
-            return true;
-      }
-      else if (state->state == kNotYetUserMedia)
-      {
-          state->state = kCallCanceledByUs;
-          return true;
-      }
-      KR_LOG_WARNING("RtcSession: BUG: cancel() called when state has an unexpected value of %d", state->state);
-      return false;
-  })));
-  strncpy(sidOut, state->sid.c_str(), RTCM_SESSIONID_LEN);
-  return 0;
 }
 
-template <class CB>
-void RtcModule::enumCallsForHangup(CB cb, const char* reason, const char* text)
-{
-    for (auto callReq=mCallRequests.begin(); callReq!=mCallRequests.end();)
-    {
-        if (cb(callReq->first, callReq->second->targetJid,
-               1|(callReq->second->isFileTransfer?0x0100:0)))
-        {
-            auto erased = callReq;
-            callReq++;
-            erased->second->cancel(); //erases 'erased'
-        }
-        else
-        {
-            callReq++;
-        }
-    }
-    for (auto ans=mAutoAcceptCalls.begin(); ans!=mAutoAcceptCalls.end();)
-    {
-        if (cb(ans->first, ans->second->at("from"),
-               2|(ans->second->ftHandler?0x0100:0)))
-        {
-            auto erased = ans;
-            ans++;
-            cancelAutoAcceptEntry(erased, reason, text);
-        }
-        else
-        {
-            ans++;
-        }
-    }
-    for (auto sess=mSessions.begin(); sess!=mSessions.end();)
-    {
-        if (cb(sess->first, sess->second->peerJid(),
-               3|(sess->second->ftHandler()?0x0100:0)))
-        {
-            auto erased = sess;
-            sess++;
-            terminateBySid(erased->first.c_str(), reason, text);
-        }
-        else
-        {
-            sess++;
-        }
-    }
-}
 inline bool callTypeMatches(int type, char userType)
 {
     if (userType == 'a')
@@ -605,268 +480,101 @@ inline bool callTypeMatches(int type, char userType)
             ((userType == 'f') && isFtCall));
 }
 
-int RtcModule::hangupBySid(const char* sid, char callType, const char* reason, const char* text)
-{
-    int term = 0;
-    enumCallsForHangup([sid, &term, callType](const string& aSid, const string& peer, int type)
-    {
-        if (!callTypeMatches(type, callType))
-            return false;
-
-        if (aSid == sid)
-        {
-            if (term)
-                KR_LOG_WARNING("hangupBySid: BUG: Already terminated one call with that sid");
-            term++;
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    },
-    reason, text);
-    return term;
-}
-int RtcModule::hangupByPeer(const char* peerJid, char callType, const char* reason, const char* text)
-{
-    int term = 0;
-    bool isBareJid = !!strchr(peerJid, '/');
-    if (isBareJid)
-        enumCallsForHangup([peerJid, callType, &term](const string& aSid, const string& peer, int type)
-        {
-            if (!callTypeMatches(type, callType))
-                return false;
-            if (getBareJidFromJid(peer) == peerJid)
-            {
-                term++;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }, reason, text);
-    else
-        enumCallsForHangup([peerJid, &term, callType](const string& aSid, const string& peer, int type)
-        {
-            if (!callTypeMatches(type, callType))
-                return false;
-            if (peer == peerJid)
-            {
-                term++;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }, reason, text);
-    return term;
-}
-
-int RtcModule::hangupAll(const char* reason, const char* text)
-{
-    int term = 0;
-    enumCallsForHangup([&term](const string&, const string&, int)
-    {
-        term++;
-        return true;
-    },
-    reason, text);
-    return term;
-}
-
-int RtcModule::muteUnmute(bool state, const AvFlags& what, const char* jid)
+int RtcModule::muteUnmute(AvFlags state, const std::string& bareJid)
 {
     size_t affected = 0;
-    if (jid)
+    if (bareJid.empty())
     {
-        bool isBareJid = !!strchr(jid, '/');
-        for (auto& sess: mSessions)
+        for (auto& item: *this)
         {
-            const auto& peer = sess.second->peerJid();
-            bool match = isBareJid?(jid==getBareJidFromJid(peer)):(jid==peer);
-            if (!match)
-                continue;
+            item.second->muteUnmute(state);
             affected++;
-            sess.second->muteUnmute(state, what);
         }
     }
-// If we are muting all calls, disable also local video playback as well
+    else
+    {
+        for (auto& call: *this)
+        {
+            //TODO: call can have its peerJid be a bare jid (in case no session yet),
+            //match against that as well
+            const auto& peer = call.second->mPeerJid;
+            if (bareJid != getBareJidFromJid(peer))
+                continue;
+            affected++;
+            call.second->muteUnmute(state);
+        }
+    }
+// If we are muting all calls, local video playback will be disabled by the refcounting
+// mechanism as well
 // In Firefox, all local streams are only references to gLocalStream, so muting any of them
 // mutes all and the local video playback.
 // In Chrome all local streams are independent, so the local video stream has to be
 // muted explicitly as well
-    if (what.video && (!jid || (affected >= mSessions.size())))
-    {
-        if (state)
-            disableLocalVideo();
-        else
-            enableLocalVideo();
-    }
     return affected;
 }
 
 void RtcModule::onPresenceUnavailable(Stanza pres)
 {
     const char* from = pres.attr("from");
-    for (auto sess = mSessions.begin(); sess!=mSessions.end();)
+    for (auto it = begin(); it != end();)
     {
-        if (sess->second->peerJid() == from)
+        if (it->second->mPeerJid == from)
         {
-            auto erased = sess++;
-            terminate(erased->second.get(), "peer-disconnected", nullptr);
+            auto erased = it++;
+            erased->second->hangup(Call::kXmppDisconnError, nullptr);
         }
         else
         {
-            sess++;
+            it++;
         }
     }
 }
 
-void RtcModule::createLocalPlayer()
+void Call::createLocalPlayer()
 {
+    assert(mLocalStream);
 // This is called by myGetUserMedia when the the local stream is obtained (was not open before)
-    if (mLocalPlayer)
-        throw new Error("Local stream just obtained, but localVid was not NULL");
-    IVideoRenderer* renderer = NULL;
-    RTCM_EVENT(onLocalStreamObtained, &renderer);
-    if (!renderer)
+    if (mLocalPlayer) //should never happend
     {
-        onError(nullptr, "onLocalStreamObtained: User event handler did not return a video renderer interface", nullptr, nullptr);
+        KR_LOG_ERROR("Local stream just obtained, but mLocalPlayer was not NULL");
+        mLocalPlayer->attachVideo(mLocalStream->video());
         return;
     }
-    mLocalPlayer.reset(new artc::StreamPlayer(renderer, nullptr, nullptr));
-//    RTCM_EVENT(onLocalStreamObtained); //TODO: Maybe provide some interface to the player, but must be virtual because it crosses the module boundary
-//    maybeCreateVolMon();
-}
-
-struct AnswerCallController: public IAnswerCall
-{
-    RtcModule& self;
-    string mSid;
-    string mCallerFullJid;
-    shared_ptr<CallAnswerFunc> mAnsFunc;
-    shared_ptr<function<bool(void)> > mReqStillValid;
-    AvFlags mPeerAv;
-    shared_ptr<set<string> > mFiles;
-    vector<const char*> mFileCStrings;
-//this points to a void* inside a 'state' struct to which mAnsFunc keeps a
-//shared_ptr. So as long as this object exists, the void* location will also exist
-    void** mUserpPtr;
-
-    AnswerCallController(RtcModule& aSelf, const char* sid,
-      const char* callerFullJid,
-      shared_ptr<CallAnswerFunc>& ansFunc,
-      shared_ptr<function<bool()> >& aReqStillValid, const AvFlags& aPeerAv,
-      shared_ptr<set<string> >& aFiles, void** userpPtr)
-    :self(aSelf), mSid(sid), mCallerFullJid(callerFullJid), mAnsFunc(ansFunc),
-      mReqStillValid(aReqStillValid), mPeerAv(aPeerAv), mFiles(aFiles),
-      mUserpPtr(userpPtr)
+    IVideoRenderer* renderer = NULL;
+    RTCM_EVENT(this, onLocalStreamObtained, renderer);
+    if (!renderer)
     {
-        if(mFiles)
-        {
-            for(auto& f: *mFiles)
-                mFileCStrings.push_back(f.c_str());
-            mFileCStrings.push_back(nullptr);
-        }
+        hangup(Call::kInternalError, "onLocalStreamObtained did not return a video renderer interface");
+        return;
     }
-    virtual const char* sid() const {return mSid.c_str();}
-    virtual const char* callerFullJid() const {return mCallerFullJid.c_str();}
-    virtual void setUserData(void* userp) { *mUserpPtr = userp; }
-    virtual void* userData() const { return *mUserpPtr;}
-    virtual const char* const* files() const
-    {
-        if (!mFiles)
-            return nullptr;
-        else
-            return &(mFileCStrings[0]);
-    }
-    virtual const AvFlags& peerAv() const {return mPeerAv;}
-    virtual bool reqStillValid() const {return (*mReqStillValid)();}
-    virtual int answer(bool accept, const AvFlags &answerAv,
-        const char *reason, const char *text)
-    {
-        if (!accept)
-            return (*mAnsFunc)(false, nullptr, reason?reason:"busy", text)?0:ECANCELED;
-        if (!(*mReqStillValid)())
-            return ECANCELED;
-        if (!mFiles)
-        {
-            //WARNING: The lifetime of the object may be shorter than of the callbacks,
-            //so we don't capture 'this' and use the members, but capture all members
-            //we need
-            auto& ansFunc = mAnsFunc;
-            self.myGetUserMedia(answerAv, (mPeerAv.audio || mPeerAv.video))
-            .then([ansFunc, answerAv](artc::tspMediaStream sessStream)
-            {
-                shared_ptr<AnswerOptions> opts(new AnswerOptions);
-                opts->localStream = sessStream;
-                opts->av = avFlagsOfStream(sessStream, answerAv);
-                (*ansFunc)(true, opts, nullptr, nullptr);
-            })
-            .fail([ansFunc](const Error& err)
-            {
-                (*ansFunc)(false, shared_ptr<AnswerOptions>(), "error", ("There was a problem accessing user's camera or microphone. Error: "+err.msg()).c_str());
-            });
-        }
-        else
-        {//file transfer
-            (*mAnsFunc)(true, nullptr, nullptr, nullptr);
-        }
-      return 0;
-    }
-};
-
-void RtcModule::onIncomingCallRequest(const char* from, const char* sid,
-    shared_ptr<CallAnswerFunc>& ansFunc,
-    shared_ptr<function<bool()> >& reqStillValid, const AvFlags& peerMedia,
-    shared_ptr<set<string> >& files, void** userp)
-{
-    //this is the C cross-module answer function that the application calls to answer or reject the call
-    AnswerCallController* ansCtrl = new AnswerCallController(
-        *this, sid, from?from:"", ansFunc, reqStillValid, peerMedia, files, userp);
-    RTCM_EVENT(onCallIncomingRequest, ansCtrl);
-}
-void RtcModule::onCallAnswered(JingleSession& sess)
-{
-    RTCM_EVENT(onCallAnswered, &sess);
-}
-void RtcModule::onCallCanceled(const char *sid, const char *event, const char *by, bool accepted, void** userpPtr)
-{
-    RTCM_EVENT(onIncomingCallCanceled, sid, event, by, accepted, userpPtr);
+    mLocalPlayer.reset(new artc::StreamPlayer(renderer, nullptr, mLocalStream->video()));
+// TODO: Maybe provide some interface to the player, but must be virtual because it crosses the module boundary
+//  maybeCreateVolMon();
 }
 
-void RtcModule::removeRemotePlayer(JingleSession& sess)
+
+void Call::removeRemotePlayer()
 {
-    if (!sess.remotePlayer)
+    if (!mRemotePlayer)
     {
         KR_LOG_ERROR("removeVideo: remote player is already NULL");
         return;
     }
-    sess.remotePlayer->stop();
-    RTCM_EVENT(remotePlayerRemove, &sess, sess.remotePlayer->preDestroy());
-    sess.remotePlayer.reset();
+    mRemotePlayer->stop();
+    RTCM_EVENT(this, removeRemotePlayer, mRemotePlayer->preDestroy());
+    mRemotePlayer.reset();
 }
 //Called by the remote media player when the first frame is about to be rendered, analogous to
 //onMediaRecv in the js version
-void RtcModule::onMediaStart(const string& sid)
+void Call::onMediaStart()
 {
-    auto it = mSessions.find(sid);
-    if (it == mSessions.end())
+    if (!mRemotePlayer || !mSess)
     {
-        KR_LOG_DEBUG("Received onMediaStart for a non-existent sessions");
-        return;
-    }
-    JingleSession& sess = *(it->second);
-    if (!sess.remotePlayer)
-    {
-        KR_LOG_DEBUG("Received onMediaStart for a session witn NULL remote player");
+        KR_LOG_DEBUG("Received onMediaStart but remote player or session is NULL");
         return;
     }
     stats::Options statOptions;
-    RTCM_EVENT(onMediaRecv, &sess, &statOptions);
+    RTCM_EVENT(this, onMediaRecv, statOptions);
     if (statOptions.enableStats)
     {
         if (statOptions.scanPeriod < 0)
@@ -874,349 +582,242 @@ void RtcModule::onMediaStart(const string& sid)
         if (statOptions.maxSamplePeriod < 0)
             statOptions.maxSamplePeriod = 5000;
 
-        sess.mStatsRecorder.reset(new stats::Recorder(sess, statOptions));
-        sess.mStatsRecorder->start();
+        mSess->mStatsRecorder.reset(new stats::Recorder(*mSess, statOptions));
+        mSess->mStatsRecorder->start();
     }
-    sess.tsMediaStart = karere::timestampMs();
+    mSess->tsMediaStart = karere::timestampMs();
 }
 
-void RtcModule::onCallTerminated(JingleSession* sess, const char* reason, const char* text,
-                                 FakeSessionInfo *noSess)
+void Call::createSession(const std::string& ownJid, const std::string& peerJid,
+    FileTransferHandler *ftHandler)
 {
- //WARNING: sess may be a dummy object, only with peerjid property, in case something went
- //wrong before the actual session was created, e.g. if SRTP fingerprint verification failed
-    ISharedPtr<stats::IRtcStats> stats;
-    if (sess)
-    {
-        removeRemoteVideo(*sess);
-        unrefLocalStream(sess->mLocalAvState.video);
+    assert(!mSess);
+    assert(!ownJid.empty());
+    assert(!peerJid.empty());
+    mOwnJid = ownJid;
+    mPeerJid = peerJid;
+    mSess.reset(new JingleSession(*this, ftHandler));
+}
 
-        if(sess->mStatsRecorder) //stats are created only if onRemoteSdp occurs
-        {
-            sess->mStatsRecorder->terminate(reason?reason:"(unknown)");
-//           jQuery.ajax(this.statsUrl, {
-//                type: 'POST',
-//                data: JSON.stringify(obj.stats||obj.basicStats)
-//        });
-           stats.reset(sess->mStatsRecorder->mStats.get());
-       }
-       else
-       {
-           stats.reset(new stats::BasicStats(*sess, reason));
-       }
-       RTCM_EVENT(onCallEnded, sess, reason, text, stats.get());
-   }
-   else //no sess
-   {
-       stats.reset(new stats::BasicStats(*noSess, reason));
-       RTCM_EVENT(onCallEnded, noSess, reason, text, stats.get());
-   }
-    IString* json = stats->toJson();
-    auto client = new ::mega::http::Client;
+bool Call::hangup(TermCode termcode, const char* text, bool rejectIncoming)
+{
+    if (mState == kCallStateEnded)
+        return false;
+    bool ret = (mHangupFunc && !mSess
+            && ((mState != kCallStateInReq) || rejectIncoming))
+        ? mHangupFunc(termcode, text)
+        : true;
+    destroy(termcode, text);
+    return ret;
+}
+
+std::shared_ptr<stats::IRtcStats>
+Call::hangupSession(TermCode termcode, const char* text, bool nosend)
+{
+    assert(mSess);
+    auto reason = Call::termcodeToReason(termcode);
+    mSess->terminate(reason.c_str(), text, nosend);
+    std::shared_ptr<stats::IRtcStats> ret(mSess->mStatsRecorder //stats are created only if onRemoteSdp occurs
+        ? static_cast<stats::IRtcStats*>(mSess->mStatsRecorder->mStats.release())
+        : static_cast<stats::IRtcStats*>(new stats::BasicStats(*this, reason.c_str())));
+
+    mSess.reset();
+    mState = kCallStateEnded;
+    return ret;
+}
+
+void Call::destroy(TermCode termcode, const char *text, bool noSessTermSend)
+{
+    if (mState == kCallStateEnded)
+        throw std::runtime_error("Call::destroy: call already destoyed");
+    std::shared_ptr<stats::IRtcStats> stats(mSess
+        ? hangupSession(termcode, text, noSessTermSend)
+        : std::shared_ptr<stats::IRtcStats>(new stats::BasicStats(*this, Call::termcodeToReason(termcode))));
+
+    RTCM_EVENT(this, onCallEnded, termcode, text, stats);
+    setState(kCallStateEnded);
+    auto res = mRtc.erase(mSid);
+    if (!res)
+        KR_LOG_ERROR("Call::destroy: Call wasn't in the calls map");
+
+    auto json = std::make_shared<std::string>();
+    stats->toJson(*json);
+    auto client = std::make_shared<::mega::http::Client>();
     ::mega::retry([client, json](int no)
     {
-        return client->ppost<std::string>("https://stats.karere.mega.nz/stats", json->c_str(), json->size())
-            .fail([](const promise::Error& err)
-        {
-            KR_LOG_ERROR("=========== Error: code=%d, type=%d, msg='%s'", err.code(), err.type(), err.what());
-            return err;
-        });
-    })
-    .fail([client, json](const promise::Error& err)
-    {
-        //delete client;
-        //json->destroy();
-        return err;
+        return client->ppost<std::string>("https://stats.karere.mega.nz/stats",
+                                          json->c_str(), json->size());
     })
     .then([client, json](std::shared_ptr<http::Response<std::string> > response)
     {
-        //delete client;
-        //json->destroy();
-        printf("=========== response = '%s'\n", response->data()->c_str());
-        return response;
-    });//CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
+        printf(" stats post response = '%s'\n", response->data()->c_str());
+    });
+    //CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
       //size_t maxRetries = rh::RetryController<Func>::kDefaultMaxAttemptCount,
       //size_t maxSingleWaitTime = rh::RetryController<Func>::kDefaultMaxSingleWaitTime,
       //short backoffStart = 1000)
- }
+}
 
 //onRemoteStreamAdded -> onMediaStart() event from player -> onMediaRecv() -> addVideo()
-void RtcModule::onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream)
+void Call::onRemoteStreamAdded(artc::tspMediaStream stream)
 {
-    if (sess.remotePlayer)
+    if (!mSess)
     {
-        KR_LOG_WARNING("onRemoteStreamAdded: Session '%s' already has a remote player, ignoring event", sess.sid().c_str());
+        KR_LOG_ERROR("onRemoteStreamAdded for a call with no session");
+        return;
+    }
+    if (mRemotePlayer)
+    {
+        KR_LOG_WARNING("onRemoteStreamAdded: Session '%s' already has a remote player, ignoring event", mSid.c_str());
         return;
     }
 
     IVideoRenderer* renderer = NULL;
     IVideoRenderer** rendererRet = stream->GetVideoTracks().empty()?nullptr:&renderer;
-    RTCM_EVENT(onRemoteSdpRecv, &sess, rendererRet);
+    RTCM_EVENT(this, onRemoteSdpRecv, rendererRet);
     if (rendererRet && !*rendererRet)
         KR_LOG_ERROR("onRemoteSdpRecv: No video renderer provided by application");
-    sess.remotePlayer.reset(new artc::StreamPlayer(renderer));
-    sess.remotePlayer->setOnMediaStart(std::bind(&RtcModule::onMediaStart, this, sess.sid()));
-    sess.remotePlayer->attachToStream(stream);
-    sess.remotePlayer->start();
+    mRemotePlayer.reset(new artc::StreamPlayer(renderer));
+    mRemotePlayer->setOnMediaStart(std::bind(&Call::onMediaStart, this));
+    mRemotePlayer->attachToStream(stream);
+    mRemotePlayer->start();
+}
+
+void Call::onRemoteStreamRemoved(artc::tspMediaStream)
+{
+    if(!mRemotePlayer)
+        return;
+    removeRemotePlayer();
 }
 
 //void onRemoteStreamRemoved() - not interested to handle here
 
-void RtcModule::onError(const char* sid, const string& msg, const char* reason, const char* text, unsigned flags)
+AvFlags Call::sentAv() const
 {
-    const char* type = ((flags & ERRFLAG_ASSERTION)?"internal assertion":"");
-    if (sid)
-    {
-        RTCM_EVENT(onError, sid, msg.c_str(), reason, text, flags);
-        if ((flags & ERRFLAG_NOTERMINATE) == 0)
-        {
-            KR_LOG_ERROR("An %s error has occurred on a call session: %s\nThe session will be terminated with reason '%s', text '%s'",
-                type, sid, msg.c_str(), reason, text);
-            hangupBySid(sid, 'a', reason, text);
-        }
-        else
-        {
-            KR_LOG_ERROR("An %s error has occurred on a call session '%s': %s",
-                type, sid, msg.c_str());
-        }
-    }
+    if (!mLocalStream)
+        return AvFlags(false, false);
     else
-    {
-        KR_LOG_ERROR("An %s error has occurred: %s", type, msg.c_str());
-        RTCM_EVENT(onError, nullptr, msg.c_str(), reason, text, flags);
-    }
+        return mLocalStream->effectiveAv();
 }
 
-int RtcModule::getSentAvBySid(const char* sid, AvFlags& av)
+AvFlags Call::receivedAv() const
 {
-    if (!sid)
-        return RTCM_EINVAL;
-    auto it = mSessions.find(sid);
-    if (it == mSessions.end())
-        return RTCM_ENOTFOUND;
-    auto& localStream = it->second->getLocalStream();
-    if (!localStream)
-        return RTCM_ENONE;
-//we don't use sess.mutedState because in Forefox we don't have a separate
-//local streams for each session, so (un)muting one session's local stream applies to all
-//other sessions, making mutedState out of sync
-    auto audTracks = localStream->GetAudioTracks();
-    auto vidTracks = localStream->GetVideoTracks();
-    av.audio = (!audTracks.empty() && audTracks[0]->enabled());
-    av.video = (!vidTracks.empty() && vidTracks[0]->enabled());
-    return 0;
-}
-template <class F>
-int RtcModule::getAvByJid(const char* jid, AvFlags& av, F&& func)
-{
-    bool isBare = (strchr(jid, '/') == nullptr);
-    for (auto& sess: mSessions)
-    {
-        string sessJid = isBare?getBareJidFromJid(sess.second->peerJid()):sess.second->peerJid();
-        if (sessJid == jid)
-            return func(sess.first.c_str(), av);
-    }
-    return RTCM_ENOTFOUND;
-}
-int RtcModule::getSentAvByJid(const char* jid, AvFlags& av)
-{
-    return getAvByJid(jid, av, bind(&RtcModule::getSentAvBySid, this, _1, _2));
-}
-
-int RtcModule::getReceivedAvBySid(const char* sid, AvFlags& av)
-{
-    if (!sid)
-        return RTCM_EINVAL;
-    auto it = mSessions.find(sid);
-    if (it == mSessions.end())
-        return RTCM_ENOTFOUND;
-    auto& remoteStream = it->second->getRemoteStream();
+    if (!mSess)
+        return AvFlags(false, false);
+    auto& remoteStream = mSess->getRemoteStream();
     if (!remoteStream)
-        return RTCM_ENONE;
-    auto& m = it->second->mRemoteAvState;
-    av.audio = !remoteStream->GetAudioTracks().empty() && m.audio;
-    av.video = !remoteStream->GetVideoTracks().empty() && m.video;
-    return 0;
-}
-int RtcModule::getReceivedAvByJid(const char* jid, AvFlags& av)
-{
-    return getAvByJid(jid, av, bind(&RtcModule::getReceivedAvByJid, this, _1, _2));
+        return AvFlags(false, false);
+    auto ret = mSess->mRemoteAvState;
+    ret.audio &= !remoteStream->GetAudioTracks().empty();
+    ret.video &= !remoteStream->GetVideoTracks().empty();
+    return ret;
 }
 
-IJingleSession* RtcModule::getSessionByJid(const char* fullJid, char type)
+std::shared_ptr<Call> RtcModule::getCallByJid(const char* fullJid, char type)
 {
     if(!fullJid)
         return nullptr;
  //TODO: We get only the first media session to fullJid, but there may be more
-    for (auto& it: mSessions)
+    for (auto& item: *this)
     {
-        JingleSession& sess = *(it.second);
-        if (((type == 'm') && sess.ftHandler()) ||
-            ((type == 'f') && !sess.ftHandler()))
+        auto& call = item.second;
+        if (call->mPeerJid != fullJid)
             continue;
-        if (sess.peerJid() == fullJid)
-            return static_cast<IJingleSession*>(it.second.get());
+        if (((type == 'm') && call->mIsFileTransfer) ||
+            ((type == 'f') && !call->mIsFileTransfer))
+            continue;
+        return call;
     }
     return nullptr;
 }
 
-IJingleSession* RtcModule::getSessionBySid(const char* sid)
-{
-    if (!sid)
-        return nullptr;
-    auto it = mSessions.find(sid);
-    if (it == mSessions.end())
-        return nullptr;
-    else
-        return it->second.get();
-}
-
-void RtcModule::refLocalStream(bool sendsVideo)
-{
-    mLocalStreamRefCount++;
-    if (sendsVideo)
-    {
-        mLocalVideoRefCount++;
-        enableLocalVideo();
-    }
-}
-void RtcModule::unrefLocalStream(bool sendsVideo)
-{
-    mLocalStreamRefCount--;
-    if (sendsVideo)
-        mLocalVideoRefCount--;
-
-    if ((mLocalStreamRefCount <= 0) && (mLocalVideoRefCount > 0))
-    {
-        onError(nullptr, "unrefLocalStream: BUG: Local stream refcount dropped to zero, but local video refcount is > 0");
-        mLocalVideoRefCount = 0; //quick fix, should never happen
-    }
-    if (mLocalVideoRefCount <= 0)
-        disableLocalVideo();
-
-    if (mLocalStreamRefCount <= 0)
-        freeLocalStream();
-}
-
-void RtcModule::freeLocalStream()
-{
-    if (!hasLocalStream())
-    {
-        KR_LOG_WARNING("freeLocalStream: local stream is null");
-        return;
-    }
-    if (mLocalStreamRefCount > 0)
-    {
-        onError(nullptr, ("freeLocalStream: BUG: localStream refcount is > 0 ("+to_string(mLocalStreamRefCount)+")").c_str(), nullptr, nullptr, ERRFLAG_ASSERTION);
-        return;
-    }
-    if (mLocalStreamRefCount < 0)
-    {
-        onError(nullptr, "freeLocalStream: local stream refcount is negative", nullptr, nullptr, ERRFLAG_ASSERTION);
-        mLocalStreamRefCount = 0; //in case it was negative for some reason
-    }
-    if (mLocalVideoRefCount != 0)
-    {
-        onError(nullptr, "freeLocalStream: About to free local stream, but local video refcount is not 0", nullptr, nullptr, ERRFLAG_ASSERTION);
-        disableLocalVideo(); //detaches local stream from local video player
-    }
-    mLocalPlayer.reset();
-    mAudioInput.reset();
-    mVideoInput.reset();
-}
- /**
+/**
     Releases any global resources referenced by this instance, such as the reference
     to the local stream and video. This should be called especially if multiple instances
     of RtcSession are used in a single JS context
  */
- RtcModule::~RtcModule()
+RtcModule::~RtcModule()
 {
-    hangupAll("app-terminate", nullptr);
-    if (mAudioInput || mVideoInput || mLocalPlayer)
+    destroyAll(Call::kUserHangup);
+    if (mAudioInput || mVideoInput)
     {
-        onError(nullptr, "RtcModule::~RtcModule: BUG: Local stream or local player was not freed", nullptr, nullptr, ERRFLAG_ASSERTION);
+        KR_LOG_ERROR("RtcModule::~RtcModule: BUG: After destroying all calls, media input devices are still in use");
     }
 }
 
-int RtcModule::isRelay(const char* sid)
+int Call::isRelayed() const
 {
-    if (!sid)
-        return RTCM_EINVAL;
-    auto it = mSessions.find(sid);
-    if (it == mSessions.end())
-        return RTCM_ENOTFOUND;
-    if (!it->second->mStatsRecorder)
+    if (!mSess || !mSess->mStatsRecorder)
         return RTCM_EUNKNOWN;
-     return it->second->mStatsRecorder->isRelay();
+    return mSess->mStatsRecorder->isRelay();
 }
 
-
-AvFlags avFlagsOfStream(artc::tspMediaStream& stream, const AvFlags& flags)
+void Call::disableLocalVideo()
 {
-    AvFlags ret;
-    if (!stream)
-    {
-        ret.audio = false;
-        ret.video = false;
-    }
-    else
-    {
-        ret.audio = (flags.audio && (!stream->GetAudioTracks().empty()));
-        ret.video = (flags.video && (!stream->GetVideoTracks().empty()));
-    }
-    return ret;
-}
-
-
-void RtcModule::disableLocalVideo()
-{
-    if (!mLocalVideoEnabled)
-        return;
      if (!mLocalPlayer)
      {
-         onError(nullptr, "disableLocalVideo: mLocalVideoEnabled is true, but there is no local player", nullptr, nullptr, ERRFLAG_ASSERTION);
+         KR_LOG_WARNING("disableLocalVideo: There is no local player");
          return;
      }
-// All references to local video are muted, disable local video display
     mLocalPlayer->detachVideo();
-    mLocalVideoEnabled = false;
-    RTCM_EVENT(onLocalVideoDisabled);
+    RTCM_EVENT(this, onLocalVideoDisabled);
 }
 
-void RtcModule::enableLocalVideo()
+void Call::enableLocalVideo()
 {
-    if(mLocalVideoEnabled)
-        return;
-    if (!mLocalPlayer)
+    assert(mLocalPlayer);
+    if(mLocalPlayer->isVideoAttached())
     {
-        onError(nullptr, "enableLocalVideo: Can't enable video, there is no local player", nullptr, nullptr, ERRFLAG_ASSERTION);
+        KR_LOG_WARNING("enableLocalVideo: local player already attached to stream");
         return;
     }
-    if (mVideoInput)
-        mLocalPlayer->attachVideo(mVideoInput->track());
-    RTCM_EVENT(onLocalVideoEnabled);
-    mLocalVideoEnabled = true;
-    mLocalPlayer->start();
+    auto video = mLocalStream->video();
+    if (video)
+    {
+        mLocalPlayer->attachVideo(video);
+        RTCM_EVENT(this, onLocalVideoEnabled);
+        mLocalPlayer->start();
+    }
 }
 
-void RtcModule::removeRemoteVideo(JingleSession& sess)
+void Call::muteUnmute(AvFlags newState)
 {
-
+//First do the actual muting, and only then send the signalling
+    auto prevAv = mLocalAv;
+    if (mLocalStream)
+    {
+        mLocalStream->setAvState(newState);
+        newState = mLocalAv = mLocalStream->effectiveAv();
+    }
+    if (mSess)
+        mSess->sendMuteDelta(mLocalAv, prevAv);
 }
 
-AvFlags RtcModule::getStreamAv(artc::tspMediaStream& stream)
+std::string Call::id() const
 {
-    AvFlags result;
-    if (!stream)
+    return mIsCaller
+        ? (mRtc.ownAnonId()+":"+mSid)
+        : (mPeerAnonId+":"+mSid);
+}
+
+bool gInitialized = false;
+IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
+                  ICryptoFunctions* crypto, const char* iceServers)
+{
+    if (!gInitialized)
     {
-        result.audio = result.video = false;
+        artc::init(nullptr);
+        gInitialized = true;
     }
-    else
-    {
-        result.audio = !stream->GetAudioTracks().empty();
-        result.video = !stream->GetVideoTracks().empty();
-    }
-    return result;
+    return new RtcModule(conn, handler, crypto, iceServers);
+}
+
+void cleanup()
+{
+    if (!gInitialized)
+        return;
+    artc::cleanup();
+    gInitialized = false;
 }
 
 string avFlagsToString(const AvFlags &av)
@@ -1229,6 +830,10 @@ string avFlagsToString(const AvFlags &av)
     if (result.empty())
         result+='_';
     return result;
-
-} //end namespace
 }
+AvFlags parseAvString(const std::string& avString)
+{
+    return AvFlags(avString.find('a'), avString.find('v'));
+}
+} //end namespace
+

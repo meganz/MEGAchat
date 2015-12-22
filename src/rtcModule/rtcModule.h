@@ -1,12 +1,12 @@
 #ifndef RTCMODULE_H
 #define RTCMODULE_H
 
-#include "IRtcModule.h"
 #include "strophe.jingle.h"
 #include "streamPlayer.h"
 
 namespace rtcModule
 {
+namespace stats { class IRtcStats; }
 /** This is the class that implements the user-accessible API to webrtc.
  * Since the rtc module may be built by a different compiler (necessary on windows),
  * it is built as a shared object and its API is exposed via virtual interfaces.
@@ -19,109 +19,103 @@ namespace rtcModule
  *  - requested by peer but not yet initiated (mAutoAcceptCalls map)
  *  - in progress (mSessions map)
  */
-struct CallRequest
-{
-    std::string targetJid;
-    bool isFileTransfer;
-    std::function<bool()> cancel;
-    CallRequest(const std::string& aTargetJid, bool aIsFt, std::function<bool()>&& cancelFunc)
-        : targetJid(aTargetJid), isFileTransfer(aIsFt), cancel(cancelFunc){}
-};
-
-class RtcModule: public Jingle, public IRtcModule
+class Call: public JingleCall
 {
 protected:
-    typedef Jingle Base;
-    std::shared_ptr<artc::InputAudioDevice> mAudioInput;
-    std::shared_ptr<artc::InputVideoDevice> mVideoInput;
+    std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
-    int mLocalStreamRefCount = 0;
-    int mLocalVideoRefCount = 0;
-    bool mLocalVideoEnabled = false;
-    IEventHandler* mEventHandler;
-    std::map<std::string, std::shared_ptr<CallRequest> > mCallRequests;
-    artc::DeviceManager mDeviceManager;
-    std::string mVideoInDeviceName;
-    std::string mAudioInDeviceName;
-public:
-    RtcModule(xmpp_conn_t* conn, IEventHandler* handler,
-               ICryptoFunctions* crypto, const char* iceServers);
-    promise::Promise<artc::tspMediaStream>
-    myGetUserMedia(const AvFlags& av, bool allowEmpty=false);
-//IRtcModule interface
-    virtual int startMediaCall(char* sidOut, const char* targetJid, const AvFlags& av, const char* files[]=NULL,
-                      const char* myJid=NULL);
-    virtual int hangupBySid(const char* sid, char callType, const char* reason, const char* text);
-    virtual int hangupByPeer(const char* peerJid, char callType, const char* reason, const char* text);
-    virtual int hangupAll(const char* reason, const char* text);
-    virtual int muteUnmute(bool state, const AvFlags& what, const char* jid);
-    virtual int getSentAvBySid(const char* sid, AvFlags& av);
-    virtual int getSentAvByJid(const char* jid, AvFlags& av);
-    virtual int getReceivedAvBySid(const char* sid, AvFlags& av);
-    virtual int getReceivedAvByJid(const char* jid, AvFlags& av);
-    virtual IJingleSession* getSessionByJid(const char* fullJid, char type='m');
-    virtual IJingleSession* getSessionBySid(const char* sid);
-    virtual int isRelay(const char* sid);
-    virtual IDeviceList* getAudioInDevices();
-    virtual IDeviceList* getVideoInDevices();
-    virtual int selectAudioInDevice(const char* devname);
-    virtual int selectVideoInDevice(const char* devname);
-    virtual void destroy() {delete this;}
-protected:
-    virtual ~RtcModule();
-    //=== Implementation methods
-    bool hasLocalStream() { return (mAudioInput || mVideoInput); }
-    void logInputDevices();
-    std::string getLocalAudioAndVideo();
-    int getDeviceIdxByName(const std::string& name, const artc::DeviceList& devices);
-    void onConnState(const xmpp_conn_event_t status,
-                     const int error, xmpp_stream_error_t * const stream_error);
-
-    template <class CB>
-    void enumCallsForHangup(CB cb, const char* reason, const char* text);
-    void onPresenceUnavailable(strophe::Stanza pres);
+    std::shared_ptr<artc::StreamPlayer> mRemotePlayer;
+    void createSession(const std::string& me, const std::string& peerjid, FileTransferHandler* ftHandler=NULL);
+    std::shared_ptr<stats::IRtcStats>
+    hangupSession(TermCode termcode, const char* text, bool nosend);
+    bool startLocalStream(bool allowEmpty);
     void createLocalPlayer();
-    virtual void onIncomingCallRequest(const char* from, const char* sid,
-        std::shared_ptr<CallAnswerFunc>& ansFunc,
-        std::shared_ptr<std::function<bool()> >& reqStillValid, const AvFlags& peerMedia,
-        std::shared_ptr<std::set<std::string> >& files, void** userpPtr);
-    void onCallAnswered(JingleSession& sess);
-    void removeRemotePlayer(JingleSession& sess);
+    void freeLocalStream();
+    void disableLocalVideo();
+    void enableLocalVideo();
+    void removeRemotePlayer();
+    void muteUnmute(AvFlags newState);
     /** Called by the remote media player when the first frame is about to be rendered,
      *  analogous to onMediaRecv in the js version
      */
-    void onMediaStart(const std::string& sid);
-    virtual void onCallTerminated(JingleSession* sess, const char* reason, const char* text,
-                                  FakeSessionInfo* noSess);
-
+    void onMediaStart();
     //onRemoteStreamAdded -> onMediaStart() event from player -> onMediaRecv() -> addVideo()
-    virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream);
-    //void onRemoteStreamRemoved() - not interested to handle here
+    void onRemoteStreamAdded(artc::tspMediaStream stream);
+    void onRemoteStreamRemoved(artc::tspMediaStream);
+    void destroy(TermCode termcode, const char* text=nullptr, bool noSendSessTerm=false);
+    bool hangup(TermCode termcode, const char* text=nullptr, bool rejectIncoming=false);
 
-    virtual void onError(const char* sid, const std::string& msg, const char* reason=nullptr, const char* text=nullptr, unsigned flags=0);
+    friend class Jingle;
+    friend class RtcModule;
+    friend class JingleSession;
+public:
+    using JingleCall::JingleCall;
+    AvFlags sentAv() const;
+    AvFlags receivedAv() const;
+    bool hangup(const char* text=nullptr) { return hangup(kUserHangup, text, true); }
+    std::string id() const;
+    int isRelayed() const;
+};
+
+class RtcModule: public Jingle
+{
+protected:
+    typedef Jingle Base;
+    IGlobalEventHandler* mGlobalHandler;
+    artc::DeviceManager mDeviceManager;
+    std::string mVideoInDeviceName;
+    std::string mAudioInDeviceName;
+    artc::InputAudioDevice mAudioInput;
+    artc::InputVideoDevice mVideoInput;
+public:
+    RtcModule(xmpp_conn_t* conn, IGlobalEventHandler* handler,
+               ICryptoFunctions* crypto, const char* iceServers);
+//TODO: we need this virtual because it's called also from the base Jingle class
+//However, the class impl knows about the Call class (derived from JingleCall)
+//so the only problem is passing ourself as parent as RtcModule rather than Jingle
+//which would require casting
+    virtual std::shared_ptr<Call>& addCall(CallState aState, bool aIsCaller,
+            IEventHandler* aHandler,
+            const std::string& aSid, Call::HangupFunc&& aHangupFunc,
+            const std::string& aPeerJid, AvFlags localAv,
+            bool aIsFt=false, const std::string& aOwnJid = "")
+    {
+        //we can't use make_shared because the Call ctor is protected
+        auto res = emplace(aSid, std::shared_ptr<Call>(new Call(
+            *this, aIsCaller, aState, aHandler, aSid,
+            std::forward<Call::HangupFunc>(aHangupFunc), aPeerJid, localAv, aIsFt,
+            aOwnJid.empty() ? mConn.fullJid() : aOwnJid)));
+        if (!res.second)
+            throw std::runtime_error("Call with that sid already exists");
+        return res.first->second;
+    }
+    void startMediaCall(IEventHandler* userHandler, const std::string& targetJid,
+        AvFlags av, const char* files[]=nullptr, const std::string& myJid="");
+    std::shared_ptr<Call> getCallByJid(const char* fullJid, char type='m');
+    void getAudioInDevices(std::vector<std::string>& devices) const;
+    void getVideoInDevices(std::vector<std::string>& devices) const;
+    bool selectVideoInDevice(const std::string& devname);
+    bool selectAudioInDevice(const std::string& devname);
+    int muteUnmute(AvFlags state, const std::string& jid);
+    ~RtcModule();
+protected:
+    //=== Implementation methods
+    bool hasLocalStream() { return (mAudioInput || mVideoInput); }
+    void logInputDevices();
+    const cricket::Device* getDevice(const std::string& name, const artc::DeviceList& devices);
+    bool selectDevice(const std::string& devname, const artc::DeviceList& devices,
+                      std::string& selected);
+    std::string getLocalAudioAndVideo();
+    bool hasCaptureActive();
+    std::shared_ptr<artc::LocalStreamHandle> getLocalStream(std::string& errors);
+
+    void onConnState(const xmpp_conn_event_t status,
+                     const int error, xmpp_stream_error_t * const stream_error);
+
+    void onPresenceUnavailable(strophe::Stanza pres);
     virtual void discoAddFeature(const char* feature);
+    friend class Call;
     //overriden handler of JinglePlugin
-    virtual void onCallCanceled(const char *sid, const char *event, const char *by,
-        bool accepted, void** userpPtr);
-    void refLocalStream(bool sendsVideo);
-    void unrefLocalStream(bool sendsVideo);
-    void freeLocalStream();
-    /**
-        Hangs up all calls and releases any global resources referenced by this instance, such as the reference
-        to the local stream and video.
-    */
-    AvFlags avFlagsOfStream(artc::tspMediaStream& stream, const AvFlags& flags);
-    void disableLocalVideo();
-    void enableLocalVideo();
-    void removeRemoteVideo(JingleSession& sess);
-    /**
-       Creates a unique string identifying the call,
-       that is independent of whether the
-       caller or callee generates it. Used only for sending stats
-    */
-    AvFlags getStreamAv(artc::tspMediaStream& stream);
-    template <class F>
-    int getAvByJid(const char* jid, AvFlags& av, F&& func);
 };
 }
 #endif

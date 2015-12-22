@@ -8,13 +8,12 @@
 #include <talk/app/webrtc/test/fakeconstraints.h>
 #include "streamPlayer.h"
 #include "strophe.jingle.sdp.h"
-#include "IJingleSession.h"
+#include "IRtcModule.h"
 
 namespace rtcModule
 {
-
+class Call;
 class Jingle;
-class JingleEventHandler; //can't nest it into Jingle
 class JingleSession;
 namespace stats { class Recorder; }
 
@@ -25,9 +24,9 @@ public:
 };
 
 typedef std::vector<strophe::Stanza> StanzaQueue;
-const char* makeCallId(const IJingleSession*, const Jingle& jingle);
+const char* makeCallId(const JingleSession&);
 
-class JingleSession: public IJingleSession, public karere::StringMap
+class JingleSession
 {
 public:
     enum State {
@@ -44,36 +43,27 @@ public:
         int width = 0;
         int height = 0;
     };
-
+    Call& mCall;
     Jingle& mJingle; //needs to be public for makeCallId()
 protected:
-    typedef karere::StringMap Base;
     std::string mSid;
-    std::string mOwnJid;
-    std::string mPeerJid;
 public:
-    AvFlags mRemoteAvState;
-    AvFlags mLocalAvState;
+    AvFlags mRemoteAvState = AvFlags(false,false);
 protected:
-    strophe::Connection& mConnection;
     std::string mInitiator;
     std::string mResponder;
     bool mIsInitiator;
     State mState = SESSTATE_NULL;
-    artc::tspMediaStream mLocalStream;
     artc::tspMediaStream mRemoteStream;
     sdpUtil::ParsedSdp mLocalSdp;
     sdpUtil::ParsedSdp mRemoteSdp;
     std::unique_ptr<FileTransferHandler> mFtHandler;
-    void* mUserData = nullptr;
-    DeleteFunc mUserDataDelFunc = nullptr;
 //    bool mLastIceCandidate = false;
     void reportError(const std::string& msg, const char* reason, const char* text, unsigned flags=0);
     void addFingerprintMac(strophe::Stanza jingle);
 public:
     artc::myPeerConnection<JingleSession> mPeerConn;
     std::unique_ptr<StanzaQueue> inputQueue;
-    std::shared_ptr<artc::StreamPlayer> remotePlayer;
     karere::Ts tsMediaStart = 0;
     std::unique_ptr<stats::Recorder> mStatsRecorder;
 
@@ -90,49 +80,25 @@ public:
     std::pair<strophe::Stanza, strophe::Stanza>
     createJingleIq(const std::string& to, const char* action);
 //IJingleSession public interface
-    virtual const char* getSid() const {return mSid.c_str();}
-    virtual const char* getJid() const {return mOwnJid.c_str();}
-    virtual const char* getPeerJid() const {return mPeerJid.c_str();}
-    virtual const char* getPeerAnonId() const {return at("peerAnonId").c_str();}
-    virtual const char* getCallId() const { return makeCallId(this, mJingle); }
-    virtual bool isCaller() const {return mIsInitiator;}
-    virtual int isRelayed() const;
-    virtual void setUserData(void* userData, DeleteFunc delFunc)
-    {
-        delUserData();
-        mUserData = userData;
-        mUserDataDelFunc = delFunc;
-    }
-    virtual void* getUserData() const {return mUserData;}
+    bool isCaller() const {return mIsInitiator;}
+    int isRelayed() const;
 //===
-    JingleSession(Jingle& jingle, const	std::string& myJid,
-        const std::string& peerJid, const std::string& sid,
-        strophe::Connection& connection, artc::tspMediaStream sessLocalStream,
-        const AvFlags& avState, const karere::StringMap& props, FileTransferHandler* ftHandler=NULL);
+    JingleSession(Call& call, FileTransferHandler* ftHandler=NULL);
     void initiate(bool isInitiator);
     ~JingleSession();
-    void delUserData()
-    {
-        if(mUserData && mUserDataDelFunc)
-            mUserDataDelFunc(mUserData);
-    }
     promise::Promise<strophe::Stanza> accept();
     promise::Promise<strophe::Stanza> sendOffer();
-    artc::tspMediaStream& getLocalStream() {return mLocalStream;}
     artc::tspMediaStream& getRemoteStream() {return mRemoteStream;}
-    void terminate(const char* reason, const char* text=NULL); //TODO: maybe can be integrated in another place
+    void terminate(const char* reason, const char* text=NULL, bool nosend=false); //TODO: maybe can be integrated in another place
     inline bool isActive()
     {
-         return ((mPeerConn.get() != NULL)
-         &&	(mState != SESSTATE_ENDED)
-         && (mState != SESSTATE_ERROR)
-         &&	(mPeerConn.get()->signaling_state() !=
-             webrtc::PeerConnectionInterface::kClosed));
+         return (mPeerConn && (mState != SESSTATE_ENDED) && (mState != SESSTATE_ERROR)
+         && (mPeerConn->signaling_state() != webrtc::PeerConnectionInterface::kClosed));
     }
     inline void checkActive(const char* opname)
     {
         if (!isActive())
-            throw std::runtime_error((opname?opname:"")+std::string(": Session '")+mSid+ "' to '"+mPeerJid+
+            throw std::runtime_error((opname?opname:"")+std::string(": Session '")+mSid+
             "' is not active anymore or peerconnection has been closed");
     }
     inline const char* jCreator() const
@@ -140,47 +106,20 @@ public:
         return (mIsInitiator?"initiator":"responder");
     }
     State state() const {return mState;}
-    const std::string& jid() const {return mOwnJid;}
-    const std::string& peerJid() const {return mPeerJid;}
     const std::string& sid() const {return mSid;}
     bool isInitiator() const {return mIsInitiator;}
     FileTransferHandler* ftHandler() const {return mFtHandler.get();}
     promise::Promise<strophe::Stanza> sendIceCandidate(std::shared_ptr<artc::IceCandText> candidate);
-    promise::Promise<int> setRemoteDescription(strophe::Stanza stanza, const std::string& desctype);
+    promise::Promise<void> setRemoteDescription(strophe::Stanza stanza, const std::string& desctype);
 //    void addIceCandidate(strophe::Stanza stanza);
     void addIceCandidates(strophe::Stanza transportInfo);
     promise::Promise<void> sendAnswer();
+    promise::Promise<void> answer(strophe::Stanza offer);
     promise::Promise<strophe::Stanza> sendTerminate(const char *reason, const char *text);
-    promise::Promise<strophe::Stanza> sendMute(bool muted, const std::string& what);
-    void syncAvState();
-    promise::Promise<void> sendAvState();
-    promise::Promise<void> muteUnmute(bool state, const AvFlags& what);
+    promise::Promise<void> sendMute(bool unmuted, const std::string& what);
+    promise::Promise<void> sendMuteDelta(AvFlags oldf, AvFlags newf);
     promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq,
         const std::string& origin, unsigned flags=0);
-};
-
-/** Contains all info about a not-yet-established session, when onCallTerminated is fired and there is no session yet */
-struct FakeSessionInfo: public IJingleSession
-{
-    const Jingle& mJingle;
-    const std::string mSid;
-    const std::string mPeer;
-    const std::string mJid;
-    bool mIsInitiator;
-    std::string mPeerAnonId;
-    FakeSessionInfo(Jingle& jingle, const std::string& aSid, const std::string& aPeer,
-        const std::string& aMyJid, bool aInitiator, const std::string& peerAnonId)
-    :mJingle(jingle), mSid(aSid), mPeer(aPeer), mJid(aMyJid), mIsInitiator(aInitiator){}
-    virtual bool isRealSession() const {return false;}
-    virtual const char* getSid() const {return mSid.c_str();}
-    virtual const char* getJid() const {return mJid.c_str();}
-    virtual const char* getPeerJid() const {return mPeer.c_str();}
-    virtual const char* getPeerAnonId() const {return mPeerAnonId.c_str();}
-    virtual const char* getCallId() const { return makeCallId(this, mJingle); }
-    virtual bool isCaller() const {return mIsInitiator;}
-    virtual int isRelayed() const {return false;}
-    virtual void setUserData(void*, DeleteFunc delFunc) {}
-    virtual void* getUserData() const {return nullptr;}
 };
 
 }

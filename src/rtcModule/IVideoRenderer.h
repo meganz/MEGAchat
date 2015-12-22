@@ -1,6 +1,7 @@
 #ifndef IVIDEORENDERER_H
 #define IVIDEORENDERER_H
-
+namespace rtcModule
+{
 class IVideoRenderer
 {
 public:
@@ -11,5 +12,5 @@ public:
     virtual void clearViewport() {}
     virtual ~IVideoRenderer() {}
 };
-
+}
 #endif // IVIDEORENDERER_H

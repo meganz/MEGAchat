@@ -4,6 +4,7 @@
 #include <retryHandler.h>
 #include<libws_log.h>
 #include <event2/dns.h>
+#include "base64.h"
 
 using namespace std;
 using namespace promise;
@@ -54,8 +55,8 @@ namespace chatd
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
-Client::Client(const Id& userId, uint32_t options)
-:mUserId(userId), mOptions(options)
+Client::Client(const Id& userId)
+:mUserId(userId)
 {
     if (!sWebsockCtxInitialized)
     {
@@ -534,7 +535,10 @@ void Connection::execCommand(const StaticBuffer &buf)
                 pos++;
                 CHATD_LOG_DEBUG("recv JOIN - user '%s' on '%s' with privilege level %d",
                                 ID_CSTR(userid), ID_CSTR(chatid), priv);
-                mClient.chatidMessages(chatid).onUserJoin(userid, priv);
+                auto& msgs =  mClient.chatidMessages(chatid);
+                msgs.onUserJoin(userid, priv);
+                if (userid == mClient.userId())
+                    msgs.initialFetchHistory();
                 break;
             }
             case OP_OLDMSG:
@@ -600,7 +604,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                 READ_ID(newest, 16);
                 CHATD_LOG_DEBUG("recv RANGE on %s: oldest: %s, newest: %s",
                                 ID_CSTR(chatid), ID_CSTR(oldest), ID_CSTR(newest));
-                mClient.chatidMessages(chatid).initialFetchHistory(newest);
+                mClient.chatidMessages(chatid).mServerNewest = newest;
                 break;
             }
             case OP_REJECT:
@@ -615,7 +619,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                 }
                 else
                 {
-                    CHATD_LOG_WARNING("Something (not NEWMSG) was rejected, but not sure what, ignoring");
+                    CHATD_LOG_WARNING("%s rejected", Command::opcodeToStr(op));
                 }
                 break;
             }
@@ -891,7 +895,6 @@ unsigned Messages::unreadMsgCount() const
     Idx first = ((mLastSeenIdx == CHATD_IDX_INVALID) || (mLastSeenIdx < lownum()))
             ? lownum()
             : mLastSeenIdx;
-    printf("mLastSeenIdx = %u, last = %u\n", mLastSeenIdx, highnum());
     unsigned count = 0;
     auto last = highnum();
     for (Idx i=first; i<=last; i++)
@@ -1077,8 +1080,13 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     return idx;
 }
 
-void Messages::initialFetchHistory(const Id& serverNewest)
+void Messages::initialFetchHistory()
 {
+    if (mServerNewest)
+    {
+        CHATD_LOG_WARNING("initialFetchHistory: No RANGE has been received from server");
+        return;
+    }
     if (empty())
     {
         assert(!mOldestKnownMsgId);
@@ -1088,7 +1096,7 @@ void Messages::initialFetchHistory(const Id& serverNewest)
     }
     else
     {
-        if (at(highnum()).id() != serverNewest)
+        if (at(highnum()).id() != mServerNewest)
         {
             CHATD_LOG_DEBUG("There are new messages on the server, requesting them");
 //the server has more recent msgs than the most recent in our db, retrieve all newer ones, after our RANGE
@@ -1118,90 +1126,6 @@ void Messages::onJoinComplete()
 {
     setOnlineState(kChatStateOnline);
     loadAndProcessUnsent();
-}
-
-static char b64enctable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-std::string base64urlencode(const void *data, size_t inlen)
-{
-    std::string encoded_data;
-    encoded_data.reserve(((inlen+2) / 3) * 4);
-    for (int i = 0; i < inlen;)
-    {
-        uint8_t octet_a = i < inlen ? static_cast<const char*>(data)[i++] : 0;
-        uint8_t octet_b = i < inlen ? static_cast<const char*>(data)[i++] : 0;
-        uint8_t octet_c = i < inlen ? static_cast<const char*>(data)[i++] : 0;
-
-        uint32_t triple = (octet_a << 16) + (octet_b << 8) + octet_c;
-
-        encoded_data+= b64enctable[(triple >> 18) & 0x3F];
-        encoded_data+= b64enctable[(triple >> 12) & 0x3F];
-        encoded_data+= b64enctable[(triple >> 6) & 0x3F];
-        encoded_data+= b64enctable[triple & 0x3F];
-    }
-    int mod = inlen % 3;
-    if (mod)
-    {
-        encoded_data.resize(encoded_data.size() - (3 - mod));
-    }
-    return encoded_data;
-}
-
-static const unsigned char b64dectable[] = {
-    255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-    255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-    255,255,255,255,255,255,255,255,255,255,255,62, 255, 62,255, 63,
-    52,  53, 54, 55, 56, 57, 58, 59, 60, 61,255,255,255,255,255,255,
-    255,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,
-    15,  16, 17, 18, 19, 20, 21, 22, 23, 24, 25,255,255,255,255, 63,
-    255, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
-    41,  42, 43, 44, 45, 46, 47, 48, 49, 50, 51,255,255,255,255,255,
-    255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-    255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-    255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-    255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-    255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-    255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-    255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-    255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255
-};
-
-size_t base64urldecode(const char* str, size_t len, void* bin, size_t binlen)
-{
-    if (binlen < (len*3)/4)
-        throw std::runtime_error("Insufficient output buffer space");
-
-    const unsigned char* last = (const unsigned char*)str+len-1;
-    const unsigned char* in = (const unsigned char*)str;
-    unsigned char* out = (unsigned char*)bin;
-    for(;in <= last;)
-    {
-        unsigned char one = b64dectable[*in++];
-        if (one > 63)
-            throw std::runtime_error(std::string("Invalid char in base64 stream at offset") + std::to_string((char*)in - str));
-
-        unsigned char two = b64dectable[*in++];
-        if (two > 63)
-            throw std::runtime_error(std::string("Invalid char in base64 stream at offset") + std::to_string((char*)in - str));
-
-        *out++ = (one << 2) | (two >> 4);
-        if (in > last)
-            break;
-
-        unsigned char three = b64dectable[*in++];
-        if (three > 63)
-            throw std::runtime_error(std::string("Invalid char in base64 stream at offset") + std::to_string((char*)in - str));
-        *out++ = (two << 4) | (three >> 2);
-
-        if (in > last)
-            break;
-
-        unsigned char four = b64dectable[*in++];
-        if (four > 63)
-            throw std::runtime_error(std::string("Invalid char in base64 stream at offset") + std::to_string((char*)in - str));
-
-        *out++ = (three << 6) | four;
-    }
-    return out-(unsigned char*)bin;
 }
 
 const char* Command::opcodeNames[] =

@@ -127,7 +127,7 @@ void MainWindow::handleMessage(std::string &message) {
 }
 
 void MainWindow::contactStateChange(std::string &contactJid, karere::Presence oldState, karere::Presence newState) {
-    std::string msg = std::string("contact ") + contactJid + std::string(" changed from ") + karere::ContactList::presenceToText(oldState) + std::string(" to ") + karere::ContactList::presenceToText(newState);
+    std::string msg = std::string("contact ") + contactJid + std::string(" changed from ") + karere::XmppContactList::presenceToText(oldState) + std::string(" to ") + karere::XmppContactList::presenceToText(newState);
     handleMessage(msg);
 }
 
@@ -287,15 +287,53 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-karere::IGui::ITitleDisplay* MainWindow::createTitleDisplay(karere::ChatRoom& room)
+karere::IGui::ITitleDisplay*
+MainWindow::createContactItem(karere::Contact& contact)
 {
     auto clist = ui->contactList;
-    auto contactGui = new CListItemGui(clist, &room);
+    auto contactGui = new CListContactItem(clist, contact);
     auto item = new QListWidgetItem;
     item->setSizeHint(contactGui->size());
     clist->addItem(item);
-    ui->contactList->setItemWidget(item, contactGui);
+    clist->setItemWidget(item, contactGui);
     return contactGui;
+}
+karere::IGui::ITitleDisplay*
+MainWindow::createGroupChatItem(karere::GroupChatRoom& room)
+{
+    auto clist = ui->contactList;
+    auto chatGui = new CListGroupChatItem(clist, room);
+    auto item = new QListWidgetItem;
+    item->setSizeHint(chatGui->size());
+    clist->insertItem(0, item);
+    clist->setItemWidget(item, chatGui);
+    return chatGui;
+}
+
+void MainWindow::removeItem(ITitleDisplay* item, bool isGroup)
+{
+    auto clist = ui->contactList;
+    auto size = clist->count();
+    for (int i=0; i<size; i++)
+    {
+        auto gui = static_cast<CListItem*>(clist->itemWidget(clist->item(i)));
+        if (item == gui)
+        {
+            if (gui->isGroup() != isGroup)
+                throw std::runtime_error("ContactList: removeItem: Asked to remove a different type of contactlist item");
+            clist->takeItem(i);
+            return;
+        }
+    }
+    throw std::runtime_error("ContactList: removeItem: Item not found");
+}
+void MainWindow::removeGroupChatItem(ITitleDisplay *item)
+{
+    removeItem(item, true);
+}
+void MainWindow::removeContactItem(ITitleDisplay *item)
+{
+    removeItem(item, false);
 }
 
 karere::IGui::IChatWindow* MainWindow::createChatWindow(karere::ChatRoom& room)

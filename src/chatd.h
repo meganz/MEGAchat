@@ -332,6 +332,7 @@ protected:
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
+    Id mServerNewest; //the end of the last RANGE received from the server
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     UserPrivMap mUsers;
@@ -370,7 +371,7 @@ protected:
     void onUserJoin(const Id& userid, char priv);
     void onJoinComplete();
     void loadAndProcessUnsent();
-    void initialFetchHistory(const Id& msgid);
+    void initialFetchHistory();
     void requestHistoryFromServer(int32_t count);
     void getHistoryFromDb(unsigned count);
     void onLastReceived(const Id& msgid);
@@ -486,7 +487,6 @@ protected:
     Id mUserId;
     Id mMsgTransactionId;
     static bool sWebsockCtxInitialized;
-    uint32_t mOptions = 0;
     Connection& chatidConn(const Id& chatid)
     {
         auto it = mConnectionForChatId.find(chatid);
@@ -500,7 +500,7 @@ public:
     static ws_base_s sWebsocketContext;
     size_t pingIntervalSec = 30;
     const Id& userId() const { return mUserId; }
-    Client(const Id& userId, uint32_t options);
+    Client(const Id& userId);
     ~Client(){}
     Messages& chatidMessages(const Id& chatid) const
     {

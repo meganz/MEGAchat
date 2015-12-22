@@ -74,46 +74,46 @@ string makeRandomString(int len)
     return result;
 }
 
-IString* DummyCrypto::generateMac(const CString& data, const CString& key)
+std::string DummyCrypto::generateMac(const string& data, const string& key)
 {
-    if (!data || !key)
-        return nullptr;
-    return new IString_string(xorEnc(data.c_str(), data.size(), key.c_str(), key.size()));
+    if (data.empty() || key.empty())
+        return "";
+    return xorEnc(data.c_str(), data.size(), key.c_str(), key.size());
 }
 
-IString* DummyCrypto::decryptMessage(const CString& msg)
+string DummyCrypto::decryptMessage(const string& msg)
 {
-    if (!msg)
-        return nullptr;
-    return new IString_string(xorDec(msg.c_str(), msg.size(), mOwnJid.c_str(), mOwnJid.size()));
+    if (msg.empty())
+        return "";
+    return xorDec(msg.c_str(), msg.size(), mOwnJid.c_str(), mOwnJid.size());
 }
 
-IString* DummyCrypto::encryptMessageForJid(const CString& msg, const CString& bareJid)
+string DummyCrypto::encryptMessageForJid(const string& msg, const string& bareJid)
 {
-    if (mKeysLoaded.find(string(bareJid.c_str(), bareJid.size())) == mKeysLoaded.end())
-        return nullptr;
-    return new IString_string(xorEnc(msg.c_str(), msg.size(), bareJid.c_str(), bareJid.size()));
+    if (mKeysLoaded.find(bareJid) == mKeysLoaded.end())
+        return "";
+    return xorEnc(msg.c_str(), msg.size(), bareJid.c_str(), bareJid.size());
 }
 
-void DummyCrypto::preloadCryptoForJid(const CString& jid, void* userp, void(*cb)(void*, const CString&))
+promise::Promise<void> DummyCrypto::preloadCryptoForJid(const string& jid)
 {
-    assert(jid);
-    mKeysLoaded.insert(string(jid.c_str(), jid.size()));
-    cb(userp, nullptr);
+    assert(!jid.empty());
+    mKeysLoaded.insert(jid);
+    return promise::_Void();
 }
 
-IString* DummyCrypto::scrambleJid(const CString& jid)
+string DummyCrypto::scrambleJid(const string& jid)
 {
-    return new IString_string(string(jid.c_str(), jid.size()));
+    return jid;
 }
-IString* DummyCrypto::generateFprMacKey()
+string DummyCrypto::generateFprMacKey()
 {
-    return new IString_string(makeRandomString(16));
+    return makeRandomString(16);
 }
 
-IString* DummyCrypto::generateRandomString(size_t size)
+string DummyCrypto::generateRandomString(size_t size)
 {
-    return new IString_string(makeRandomString(size));
+    return makeRandomString(size);
 }
 
 }

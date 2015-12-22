@@ -126,6 +126,27 @@ public:
             mBufSize = newsize;
         }
     }
+    void setDataSize(size_t size)
+    {
+        if (size > mBufSize)
+            throw std::runtime_error("setDataSize: Attempted to set dataSize to span beyond bufferSize");
+        mDataSize = size;
+    }
+    char* writePtr(size_t offset, size_t dataLen)
+    {
+        auto reqdSize = offset+dataLen;
+        if (reqdSize > mBufSize)
+        {
+            reserve(reqdSize);
+            mDataSize = reqdSize;
+        }
+        else if (reqdSize > mDataSize)
+        {
+            mDataSize = reqdSize;
+        }
+        return mBuf+offset;
+    }
+    char* appendPtr(size_t dataLen) { return writePtr(mDataSize, dataLen); }
     void assign(Buffer&& other)
     {
         if (mBuf)

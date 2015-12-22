@@ -4,13 +4,6 @@
 namespace rtcModule
 {
 /** audio&video enabled flags used in many places */
-struct AvFlags
-{
-    bool audio = false;
-    bool video = false;
-    AvFlags(){}
-    AvFlags(bool a, bool v): audio(a), video(v){}
-};
 
 /** This is the interface of the session object exposed to the application via events etc */
 struct IJingleSession

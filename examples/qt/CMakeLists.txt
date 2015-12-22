@@ -7,12 +7,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 set (SRCS
      mainwindow.cpp
      chatWindow.cpp
+     callGui.cpp
      main.cpp
      ../../src/videoRenderer_Qt.cpp
      ../../src/karereCommon.cpp
 )
 
-qt5_wrap_ui(ui_hdrs mainwindow.ui chat.ui chatMessage.ui clistitem.ui)
+qt5_wrap_ui(ui_hdrs mainwindow.ui chat.ui chatMessage.ui clistitem.ui callGui.ui)
 list(APPEND ui_hdrs widgetSubclass.h)
 
 #QT4_ADD_RESOURCES(helloworld_RESOURCES_RCC ${helloworld_RESOURCES})

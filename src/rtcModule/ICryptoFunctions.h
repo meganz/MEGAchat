@@ -1,7 +1,8 @@
 #ifndef ICRYPTOFUNCTIONS_H
 #define ICRYPTOFUNCTIONS_H
 #include <stddef.h> //size_t
-#include "ITypes.h"
+#include <string>
+#include <promise.h>
 
 namespace rtcModule
 {
@@ -20,41 +21,35 @@ namespace rtcModule
  * They must match.
  */
 
-class ICryptoFunctions: public IDestroy
+class ICryptoFunctions
 {
 public:
     /** @brief Generates a HMAC of the fingerprint hash+a fixed string, keyed with
      * the peer's fprMacKey
      */
-    virtual IString* generateMac(const CString& data, const CString& key) = 0;
+    virtual std::string generateMac(const std::string& data, const std::string& key) = 0;
     /** @brief
      * Decrypt a message encrypted with our own public key, using our private key
     */
-    virtual IString* decryptMessage(const CString& msg) = 0;
+    virtual std::string decryptMessage(const std::string& msg) = 0;
     /**
      * @brief
      * Encrypt a message with the peer's public key. The key of that JID myst have
      * been pre-loaded using preloadCryptoForJid()
      **/
-    virtual IString* encryptMessageForJid(const CString& msg, const CString& jid) = 0;
+    virtual std::string encryptMessageForJid(const std::string& msg, const std::string& jid) = 0;
     /** @brief
      * Fetches the specified JID's public key for use with encryptMessageForJid()
     */
-    virtual void preloadCryptoForJid(const CString& jid, void* userp,
-        void(*cb)(void* userp, const CString& errMsg)) = 0;
+    virtual promise::Promise<void> preloadCryptoForJid(const std::string& jid) = 0;
     /** @brief
      * Used to anonymize the user in submitting call statistics
     */
-    virtual IString* scrambleJid(const CString& jid) = 0;
+    virtual std::string scrambleJid(const std::string& jid) = 0;
     /** @brief Generic random string function */
-    virtual IString* generateRandomString(size_t size) = 0;
+    virtual std::string generateRandomString(size_t size) = 0;
     /** @brief Uses generateRandomString() to generate the 32-byte fprMacKey */
-    virtual IString* generateFprMacKey() = 0;
-protected:
-    /** @brief
-     * Non-public dtor. Use destroy() to delete the object, which guarantees
-     * that the memory will be freed by the correct memory manager
-     */
+    virtual std::string generateFprMacKey() = 0;
     virtual ~ICryptoFunctions(){}
 };
 }

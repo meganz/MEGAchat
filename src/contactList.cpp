@@ -6,11 +6,11 @@
 
 namespace karere
 {
-ContactList::ContactList(std::shared_ptr<strophe::Connection> connection)
+XmppContactList::XmppContactList(std::shared_ptr<strophe::Connection> connection)
 : connection(connection)
 {}
 
-promise::Promise<int> ContactList::init()
+promise::Promise<int> XmppContactList::init()
 {
     promise::Promise<int> pms;
     connection->addHandler([this, pms](strophe::Stanza presence, void*, bool& keep) mutable
@@ -33,7 +33,7 @@ promise::Promise<int> ContactList::init()
         contactsFullJid[jid] = status;
         if (contacts.find(strophe::getBareJidFromJid(jid)) == contacts.end())
         {
-            contacts[strophe::getBareJidFromJid(jid)] =  std::shared_ptr<Contact>(new Contact(strophe::getBareJidFromJid(jid), status));
+            contacts[strophe::getBareJidFromJid(jid)] =  std::shared_ptr<XmppContact>(new XmppContact(strophe::getBareJidFromJid(jid), status));
             message_bus::SharedMessage<> busMessage(CONTACT_ADDED_EVENT);
             busMessage->addValue(CONTACT_JID, strophe::getBareJidFromJid(jid));
             message_bus::SharedMessageBus<>::getMessageBus()->alertListeners(CONTACT_ADDED_EVENT, busMessage);
@@ -48,7 +48,7 @@ promise::Promise<int> ContactList::init()
 
             bareJidStatus->setPresence(status);
         }
-        for (std::map<std::string, std::shared_ptr<Contact>>::iterator it = contacts.begin(); it != contacts.end(); it++)
+        for (std::map<std::string, std::shared_ptr<XmppContact>>::iterator it = contacts.begin(); it != contacts.end(); it++)
         {
             CHAT_LOG_DEBUG("Bare Jid:%s --- State : %d", it->second->getBareJid().c_str(), it->second->getPresence());
         }
@@ -56,7 +56,7 @@ promise::Promise<int> ContactList::init()
     return pms;
 }
 
-std::vector<std::string> ContactList::getFullJidsOfJid(const std::string& jid) const
+std::vector<std::string> XmppContactList::getFullJidsOfJid(const std::string& jid) const
 {
     size_t len = jid.find("/");
     if (len == std::string::npos)
@@ -72,7 +72,7 @@ std::vector<std::string> ContactList::getFullJidsOfJid(const std::string& jid) c
     return result;
 }
 
-std::vector<std::string> ContactList::getContactJids() const
+std::vector<std::string> XmppContactList::getContactJids() const
 {
     std::vector<std::string> result;
     for (auto& item: contacts)
@@ -82,17 +82,17 @@ std::vector<std::string> ContactList::getContactJids() const
     return result;
 }
 
-unsigned int ContactList::size() const
+unsigned int XmppContactList::size() const
 {
     return contacts.size();
 }
 
-void ContactList::addContact(const std::string& userJid)
+void XmppContactList::addContact(const std::string& userJid)
 {
-    contacts[userJid] = std::shared_ptr<Contact>(new Contact(userJid));
+    contacts[userJid] = std::shared_ptr<XmppContact>(new XmppContact(userJid));
 }
 
-const Contact& ContactList::getContact(const std::string& userJid) const
+const XmppContact& XmppContactList::getContact(const std::string& userJid) const
 {
     PresentContactMap::const_iterator it = contacts.find(userJid);
     if (it != contacts.end()) {
@@ -102,7 +102,7 @@ const Contact& ContactList::getContact(const std::string& userJid) const
     }
 }
 
-ContactList::~ContactList()
+XmppContactList::~XmppContactList()
 {}
 
 }

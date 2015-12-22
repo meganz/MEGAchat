@@ -1,10 +1,10 @@
 #ifndef RTCSTATS_H
 #define RTCSTATS_H
-#include "IRtcModule.h" //needed for StatOptions only
 #include "webrtcAdapter.h"
 #include "IRtcStats.h"
 #include "ITypesImpl.h"
 #include <timers.h>
+#include <strophe.jingle.session.h>
 
 namespace rtcModule
 {
@@ -20,17 +20,17 @@ public:
     std::string mVcodec;
     bool isRelay() const { return !mRlySvr.empty(); }
 
-    virtual IString* ctype() const { return new IString_ref(mCtype); }
-    virtual IString* proto() const { return new IString_ref(mProto); }
-    virtual IString* rlySvr() const { return new IString_ref(mRlySvr); }
-    virtual IString* vcodec() const { return new IString_ref(mVcodec); }
+    virtual const std::string& ctype() const { return mCtype; }
+    virtual const std::string& proto() const { return mProto; }
+    virtual const std::string& rlySvr() const { return mRlySvr; }
+    virtual const std::string& vcodec() const { return mVcodec; }
 };
 
 class RtcStats: public IRefCountedMixin<IRtcStats>
 {
 public:
     std::string mTermRsn;
-    int mIsCaller;
+    bool mIsCaller;
     int mSper; //sample period
     int64_t mStartTs;
     int64_t mDur;
@@ -38,39 +38,34 @@ public:
     std::vector<Sample*> mSamples;
     ConnInfo mConnInfo;
     //IRtcStats implementation
-    virtual IString* termRsn() const { return new IString_ref(mTermRsn); }
-    virtual int isCaller() const { return mIsCaller; }
-    virtual IString* callId() const { return new IString_ref(mCallId); }
+    virtual const std::string& termRsn() const { return mTermRsn; }
+    virtual bool isCaller() const { return mIsCaller; }
+    virtual const std::string& callId() const { return mCallId; }
     virtual size_t sampleCnt() const { return mSamples.size(); }
-    virtual const Sample* samples() const
-    {
-        if (mSamples.empty())
-            return nullptr;
-        return mSamples[0];
-    }
+    virtual const std::vector<Sample*>* samples() const { return &mSamples; }
     virtual const IConnInfo* connInfo() const { return &mConnInfo; }
-    virtual IString* toJson() const;
+    virtual void toJson(std::string& out) const;
 };
 
-class BasicStats: public IRefCountedMixin<IRtcStats>
+class BasicStats: public IRtcStats
 {
 public:
     bool mIsCaller;
     std::string mTermRsn;
     std::string mCallId;
-    BasicStats(const IJingleSession& sess, const char* aTermRsn)
-        :mIsCaller(sess.isCaller()), mTermRsn(aTermRsn?aTermRsn:""), mCallId(sess.getCallId()){}
-    virtual IString* ctype() const { return nullptr; }
-    virtual IString* proto() const { return nullptr; }
-    virtual IString* rlySvr() const { return nullptr; }
-    virtual IString* termRsn() const { return new IString_ref(mTermRsn); }
-    virtual IString* vcodec() const { return nullptr; }
-    virtual int isCaller() const { return mIsCaller; }
-    virtual IString* callId() const { return new IString_ref(mCallId); }
+    std::string mEmpty;
+    BasicStats(const Call& call, const std::string& aTermRsn);
+    virtual const std::string& ctype() const { return mEmpty; }
+    virtual const std::string& proto() const { return mEmpty; }
+    virtual const std::string& rlySvr() const { return mEmpty; }
+    virtual const std::string& termRsn() const { return mTermRsn; }
+    virtual const std::string& vcodec() const { return mEmpty; }
+    virtual bool isCaller() const { return mIsCaller; }
+    virtual const std::string& callId() const { return mCallId; }
     virtual size_t sampleCnt() const { return 0; }
-    virtual const Sample* samples() const { return nullptr; }
+    virtual const std::vector<Sample*>* samples() const { return nullptr; }
     virtual const IConnInfo* connInfo() const { return nullptr; }
-    virtual IString* toJson() const { return new IString_string("");}
+    virtual void toJson(std::string&) const {}
 
 };
 
@@ -106,7 +101,7 @@ protected:
     void addSample();
     void resetBwCalculators();
 public:
-    ISharedPtr<RtcStats> mStats;
+    std::unique_ptr<RtcStats> mStats;
     Recorder(JingleSession& sess, const Options& options);
     ~Recorder();
     bool isRelay() const

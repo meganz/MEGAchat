@@ -65,27 +65,28 @@ struct Sample
 class IConnInfo
 {
 public:
-    virtual IString* ctype() const = 0;
-    virtual IString* proto() const = 0;
-    virtual IString* rlySvr() const = 0;
-    virtual IString* vcodec() const = 0;
+    virtual const std::string& ctype() const = 0;
+    virtual const std::string& proto() const = 0;
+    virtual const std::string& rlySvr() const = 0;
+    virtual const std::string& vcodec() const = 0;
 };
 
-class IRtcStats: public IRefCounted
+class IRtcStats
 {
 public:
-    virtual IString* termRsn() const = 0;
-    virtual int isCaller() const = 0;
-    virtual IString* callId() const = 0;
+    virtual const std::string& termRsn() const = 0;
+    virtual bool isCaller() const = 0;
+    virtual const std::string& callId() const = 0;
     virtual size_t sampleCnt() const = 0;
-    virtual const Sample* samples() const = 0;
+    virtual const std::vector<Sample*>* samples() const = 0;
     virtual const IConnInfo* connInfo() const = 0;
-    virtual IString* toJson() const = 0;
+    virtual void toJson(std::string&) const = 0;
+    virtual ~IRtcStats(){}
 };
 
 struct Options
 {
-    int enableStats = 1;
+    bool enableStats = true;
     int scanPeriod = -1;
     int maxSamplePeriod = -1;
 };

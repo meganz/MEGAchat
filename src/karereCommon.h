@@ -94,6 +94,15 @@ static inline Ts timestampMs()
     //use strophe's timestamp function
     return xmpp_time_stamp();
 }
+struct AvFlags
+{
+    bool audio;
+    bool video;
+    AvFlags(bool a, bool v): audio(a), video(v){}
+    AvFlags(){}
+    bool operator==(const AvFlags& other) { return (audio == other.audio) && (video == other.video); }
+    bool any() const { return audio || video; }
+};
 
 //logging stuff
 //#define KR_LINE KR_LOG(LINE)

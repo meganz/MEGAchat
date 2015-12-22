@@ -19,14 +19,13 @@ protected:
 public:
     MegaCryptoFuncs(MyMegaApi& megaApi);
     //ICryptoFunctions interface implementation
-    virtual IString* generateMac(const CString& data, const CString& key);
-    virtual IString* decryptMessage(const CString& msg);
-    virtual IString* encryptMessageForJid(const CString& msg, const CString& bareJid);
-    virtual void preloadCryptoForJid(const CString& jid, void* userp,
-        void(*cb)(void* userp, const CString& errMsg));
-    virtual IString* scrambleJid(const CString& jid);
-    virtual IString* generateFprMacKey();
-    virtual IString* generateRandomString(size_t size);
+    virtual std::string generateMac(const std::string& data, const std::string& key);
+    virtual std::string decryptMessage(const std::string& msg);
+    virtual std::string encryptMessageForJid(const std::string& msg, const std::string& bareJid);
+    virtual promise::Promise<void> preloadCryptoForJid(const std::string& jid);
+    virtual std::string scrambleJid(const std::string& jid);
+    virtual std::string generateFprMacKey();
+    virtual std::string generateRandomString(size_t size);
 };
 
 }

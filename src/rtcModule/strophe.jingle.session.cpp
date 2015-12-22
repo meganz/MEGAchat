@@ -4,6 +4,8 @@
 #include "rtcStats.h"
 #include "karereCommon.h"
 #include "stringUtils.h"
+#include "rtcModule.h"
+#include "ICryptoFunctions.h"
 
 using namespace std;
 using namespace promise;
@@ -13,20 +15,13 @@ using namespace sdpUtil;
 namespace rtcModule
 {
 
-JingleSession::JingleSession(Jingle& jingle, const string& myJid, const string& peerjid,
- const string& sid, Connection& connection,
- artc::tspMediaStream sessLocalStream, const AvFlags& avState, const StringMap& props,
- FileTransferHandler* ftHandler)
-    :Base(props), mJingle(jingle), mSid(sid), mOwnJid(myJid), mPeerJid(peerjid),
-      mLocalAvState(avState), mConnection(connection), mLocalStream(sessLocalStream),
-      mFtHandler(ftHandler)
-{
-    syncAvState();
-}
+JingleSession::JingleSession(Call& call, FileTransferHandler* ftHandler)
+    :mCall(call), mJingle(mCall.mRtc),
+    mSid(call.mSid),
+    mFtHandler(ftHandler){}
+
 JingleSession::~JingleSession()
-{
-    delUserData();
-}
+{}
 
 void JingleSession::initiate(bool isInitiator)
 {
@@ -38,25 +33,25 @@ void JingleSession::initiate(bool isInitiator)
     mState = SESSTATE_PENDING;
     if (isInitiator)
     {
-        mInitiator = jid();
-        mResponder = peerJid();
+        mInitiator = mCall.mOwnJid;
+        mResponder = mCall.mPeerJid;
     }
     else
     {
-        mInitiator = peerJid();
-        mResponder = jid();
+        mInitiator = mCall.mPeerJid;
+        mResponder = mCall.mOwnJid;
     }
     //TODO: make it more elegant to initialize mPeerConn
-    artc::myPeerConnection<JingleSession> peerconn(*mJingle.mIceServers, *this, &mJingle.mMediaConstraints);
-    mPeerConn = peerconn;
+    mPeerConn = artc::myPeerConnection<JingleSession>(*mJingle.mIceServers,
+        *this, &mJingle.mMediaConstraints);
 
-    KR_THROW_IF_FALSE((mPeerConn->AddStream(mLocalStream, NULL)));
+    KR_THROW_IF_FALSE((mPeerConn->AddStream(*mCall.mLocalStream, NULL)));
 }
 //PeerConnection events
 void JingleSession::onAddStream(artc::tspMediaStream stream)
 {
     mRemoteStream = stream;
-    mJingle.onRemoteStreamAdded(*this, stream);
+    mCall.onRemoteStreamAdded(stream);
 }
 void JingleSession::onIceCandidate(std::shared_ptr<artc::IceCandText> candidate)
 {
@@ -66,11 +61,11 @@ void JingleSession::onRemoveStream(artc::tspMediaStream stream)
 {
     if (stream != mRemoteStream) //we can't throw here because we are in a callback
     {
-        reportError("onRemoveStream: Stream is not the remote stream that we have", nullptr, nullptr, ERRFLAG_ASSERTION);
+        KR_LOG_ERROR("onRemoveStream: Stream is not the remote stream that we have");
         return;
     }
-    mRemoteStream = NULL;
-    mJingle.onRemoteStreamRemoved(*this, stream);
+    mRemoteStream = nullptr;
+    mCall.onRemoteStreamRemoved(stream);
 }
 void JingleSession::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
 {
@@ -80,22 +75,28 @@ void JingleSession::onIceConnectionChange(webrtc::PeerConnectionInterface::IceCo
 void JingleSession::onIceComplete()
 {
     KR_LOG_DEBUG("onIceComplete");
-    mJingle.onIceComplete(*this);
+//    mCall.onIceComplete();
 }
 
 //end of event handlers
 
-void JingleSession::terminate(const char* reason, const char* text)
+void JingleSession::terminate(const char* reason, const char* text, bool nosend)
 {
+    if (mState == SESSTATE_ENDED)
+        return;
+    mState = SESSTATE_ENDED;
+
     if (mFtHandler)
         mFtHandler->remove(reason, text);
-
-    mState = SESSTATE_ENDED;
+    if (mStatsRecorder)
+        mStatsRecorder->terminate(reason);
     if (mPeerConn.get())
     {
         mPeerConn->Close();
         mPeerConn = NULL;
     }
+    if (!nosend)
+        sendTerminate(reason, text);
 }
 //TODO: Move to sdp utils
 Promise<Stanza> JingleSession::sendIceCandidate(
@@ -109,7 +110,7 @@ Promise<Stanza> JingleSession::sendIceCandidate(
     auto candAttrs = sdpUtil::candidateToJingle(candidate->candidate);
 
 // map to transport-info
-    auto cand = createJingleIq(mPeerJid, "transport-info");
+    auto cand = createJingleIq(mCall.mPeerJid, "transport-info");
     auto transport = cand.second
       .c("content", {
           {"creator", jCreator()},
@@ -140,20 +141,19 @@ Promise<Stanza> JingleSession::sendOffer()
     {
         string strSdp;
         KR_THROW_IF_FALSE(sdp->ToString(&strSdp));
-//        KR_LOG_COLOR(34, "offer:\n%s\n", strSdp.c_str());
         mLocalSdp.parse(strSdp);
         return mPeerConn.setLocalDescription(sdp);
     })
-    .then([this](int)
+    .then([this]()
     {
-        auto init = createJingleIq(mPeerJid, "session-initiate");
+        auto init = createJingleIq(mCall.mPeerJid, "session-initiate");
         mLocalSdp.toJingle(init.second, jCreator());
         addFingerprintMac(init.second);
         return sendIq(init.first, "offer");
     });
 }
 
-Promise<int> JingleSession::setRemoteDescription(Stanza elem, const string& desctype)
+Promise<void> JingleSession::setRemoteDescription(Stanza elem, const string& desctype)
 {
     if (!mRemoteSdp.raw.empty())
         throw runtime_error("setRemoteDescription() from stanza: already have remote description");
@@ -216,7 +216,7 @@ Promise<void> JingleSession::sendAnswer()
         KR_THROW_IF_FALSE(sdp->ToString(&strSdp));
         mLocalSdp.parse(strSdp);
     //this.localSDP.mangle();
-        auto accept = createJingleIq(mPeerJid, "session-accept");
+        auto accept = createJingleIq(mCall.mPeerJid, "session-accept");
         mLocalSdp.toJingle(accept.second, jCreator());
         addFingerprintMac(accept.second);
         auto sendPromise = sendIq(accept.first, "answer");
@@ -227,69 +227,55 @@ Promise<void> JingleSession::sendAnswer()
 
 Promise<Stanza> JingleSession::sendTerminate(const char* reason, const char* text)
 {
-    auto term =	createJingleIq(mPeerJid, "session-terminate");
+    auto term =	createJingleIq(mCall.mPeerJid, "session-terminate");
     auto rsn = term.second.c("reason").c(reason?reason:"unknown").parent();
     if (text)
         rsn.c("text").t(text);
-    return sendIq(term.first, "set", ERRFLAG_NOTERMINATE);
+    return sendIq(term.first, "set");
 }
 
-Promise<Stanza> JingleSession::sendMute(bool muted, const string& what)
+Promise<void> JingleSession::sendMute(bool unmuted, const string& what)
 {
-    auto info = createJingleIq(mPeerJid, "session-info");
-    info.second.c(muted ? "mute" : "unmute", {
+    auto info = createJingleIq(mCall.mPeerJid, "session-info");
+    info.second.c(unmuted ? "unmute" : "mute", {
       {"xmlns", "urn:xmpp:jingle:apps:rtp:info:1"},
       {"name", what.c_str()}
     });
-    return sendIq(info.first, "set");
+    return sendIq(info.first, "set")
+           .then([](Stanza){});
 }
 
 promise::Promise<strophe::Stanza>
 JingleSession::sendIq(strophe::Stanza iq, const std::string &origin, unsigned flags)
 {
-    return mJingle.sendIq(iq, origin, mSid.c_str(), flags);
+    return mJingle.sendIq(iq, origin, mSid.c_str());
 }
 
-void JingleSession::syncAvState()
+Promise<void> JingleSession::sendMuteDelta(AvFlags oldf, AvFlags newf)
 {
-    if (!mLocalStream.get())
-        return;
-    auto ats = mLocalStream->GetAudioTracks();
-    for (auto& at: ats)
-        at->set_enabled(mLocalAvState.audio);
-    auto vts = mLocalStream->GetVideoTracks();
-    for (auto& vt: vts)
-        vt->set_enabled(mLocalAvState.video);
+    Promise<void> pms1 = (oldf.audio != newf.audio)
+        ? sendMute(newf.audio, "voice") : promise::_Void();
+    Promise<void> pms2 = (oldf.video != newf.video)
+        ? sendMute(newf.video, "video") : promise::_Void();
+    return when(pms1, pms2);
 }
-
-Promise<void> JingleSession::sendAvState()
+Promise<void> JingleSession::answer(Stanza offer)
 {
-    return promise::when(
-                mLocalAvState.audio?Promise<Stanza>(Stanza()):sendMute(true, "voice"),
-                mLocalAvState.video?Promise<Stanza>(Stanza()):sendMute(true, "video"));
-}
-
-Promise<void> JingleSession::muteUnmute(bool state, const AvFlags& what)
-{
-//First do the actual muting, and only then send the signalling
-    if (what.audio)
-        mLocalAvState.audio = !state;
-    if (what.video)
-        mLocalAvState.video = !state;
-    syncAvState();
-    return promise::when(
-                what.audio?sendMute(state, "voice"):Promise<Stanza>(Stanza()),
-                what.video?sendMute(state, "video"):Promise<Stanza>(Stanza()));
-}
-
-void JingleSession::reportError(const string& msg, const char* reason, const char* text, unsigned flags)
-{
-    mJingle.onError(mSid.c_str(), msg, reason, text, flags);
+    initiate(false);
+    // configure session
+    return setRemoteDescription(offer, "offer").then([this]()
+    {
+        return sendAnswer();
+    })
+    .then([this]()
+    {
+        return sendMuteDelta(AvFlags(true,true), mCall.mLocalAv);
+    });
 }
 
 void JingleSession::addFingerprintMac(strophe::Stanza j)
 {
-    if (at("peerFprMacKey").empty())
+    if (mCall.mPeerFprMacKey.empty())
         throw std::runtime_error("addFingerprintMac: No peer fprMacKey has been received");
     multiset<string> fps;
     j.forEachChild("content", [&fps](Stanza content)
@@ -308,14 +294,13 @@ void JingleSession::addFingerprintMac(strophe::Stanza j)
     }
     if (!strFps.empty())
         strFps.resize(strFps.size()-1); //truncate last ';'
-    VString fprmac(mJingle.crypto().generateMac(
-        strFps.c_str(), (*this)["peerFprMacKey"].c_str()));
+    string fprmac = mJingle.crypto().generateMac(strFps, mCall.mPeerFprMacKey);
     j.setAttr("fprmac", fprmac.c_str());
 }
 
 pair<Stanza, Stanza> JingleSession::createJingleIq(const string& to, const char* action)
 {
-    Stanza root(xmpp_conn_get_context(mConnection));
+    Stanza root(mCall.mRtc.mConn);
     return make_pair(root, root.setName("iq")
         .setAttr("type", "set")
         .setAttr("to", to.c_str())
@@ -332,14 +317,6 @@ int JingleSession::isRelayed() const
     if (!mStatsRecorder)
         return -1;
     return mStatsRecorder->isRelay()?1:0;
-}
-
-const char* makeCallId(const IJingleSession *sess, const Jingle& jingle)
-{
-    if (sess->isCaller())
-        return (jingle.getOwnAnonId()+":"+sess->getPeerAnonId()+":"+sess->getSid()).c_str();
-      else
-        return (std::string(sess->getPeerAnonId())+":"+jingle.getOwnAnonId()+":"+sess->getSid()).c_str();
 }
 
 }

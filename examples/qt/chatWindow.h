@@ -16,7 +16,7 @@
 #include <QProgressBar>
 #include <chatdDb.h>
 #include <chatClient.h>
-
+#include "callGui.h"
 namespace Ui
 {
 class ChatWindow;
@@ -166,6 +166,7 @@ protected:
     std::map<chatd::Id, const chatd::Message*> mNotLinkedEdits;
     bool mUnsentChecked = false;
     std::unique_ptr<HistFetchUi> mHistFetchUi;
+    CallGui* mCallGui = nullptr;
 public slots:
     void onMsgSendBtn()
     {
@@ -266,6 +267,12 @@ public slots:
             layout->insertWidget(1, mHistFetchUi->progressBar());
         }
     }
+    void onVidGuiChk(bool enabled)
+    {
+        //auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget);
+        mVideoGui->setVisible(enabled);
+    }
+
 public:
     ChatWindow(karere::ChatRoom& room, QWidget* parent): QDialog(parent), mRoom(room),
         ui(new Ui::ChatWindow)

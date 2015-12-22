@@ -6,8 +6,7 @@
 #include <map>
 #include <memory>
 #include "webrtcAdapter.h"
-#include "IJingleSession.h"
-#include "ICryptoFunctions.h"
+#include "IRtcModule.h"
 #include <mstrophepp.h>
 #include "karereCommon.h"
 #include <serverListProviderForwards.h>
@@ -21,17 +20,74 @@ namespace disco
 namespace rtcModule
 {
 class JingleSession;
+class RtcModule;
+class IEventHandler;
+class IGlobalEventHandler;
 //TODO: Implement
 class FileTransferHandler;
-struct AnswerOptions
-{
-    artc::tspMediaStream localStream;
-    AvFlags av;
-};
-typedef std::function<bool(bool, std::shared_ptr<AnswerOptions>, const char* reason,
-   const char* text)> CallAnswerFunc;
 
-struct FakeSessionInfo;
+
+struct JingleCall: public ICall
+{
+protected:
+    typedef std::function<bool(TermCode, const char*)> HangupFunc;
+    HangupFunc mHangupFunc;
+    AvFlags mLocalAv;
+    std::shared_ptr<JingleSession> mSess;
+    std::string mOwnFprMacKey;
+    std::string mPeerFprMacKey;
+    template <class F>
+    JingleCall(RtcModule& aRtc, bool isCaller, CallState aState, IEventHandler* aHandler,
+         const std::string& aSid, F&& hangupFunc, const std::string& aPeerJid,
+         AvFlags localAv, bool aIsFt, const std::string& aOwnJid)
+    : ICall(aRtc, isCaller, aState, aHandler, aSid, aPeerJid, aIsFt, aOwnJid),
+      mHangupFunc(std::forward<F>(hangupFunc)), mLocalAv(localAv)
+    {
+        if (!mHandler && mIsCaller) //handler is set after creation when we answer
+            throw std::runtime_error("Call::Call: NULL user handler passed");
+    }
+    void initiate();
+    friend class Jingle;
+    friend class JingleSession;
+    friend class RtcModule;
+public:
+    virtual ~JingleCall(){} //we shouldn't need it virtual, but just in case
+    void setState(CallState newState) { mHangupFunc = nullptr; mState = newState; }
+};
+class ScopedCallRemover
+{
+protected:
+    RtcModule& rtc;
+    std::string sid;
+    TermCode code;
+    ScopedCallRemover(RtcModule& aRtc, const std::string& aSid,
+            TermCode aCode=JingleCall::kUserHangup)
+            : rtc(aRtc), sid(aSid), code(aCode){}
+    ScopedCallRemover(const JingleCall& call, TermCode aCode);
+public:
+    std::string text;
+};
+class ScopedCallDestroy: public ScopedCallRemover
+{
+    ScopedCallDestroy(ScopedCallDestroy&) = delete;
+public:
+    ScopedCallDestroy(RtcModule& aRtc, const std::string& aSid,
+        TermCode aCode=JingleCall::kUserHangup): ScopedCallRemover(aRtc,aSid,aCode){}
+    ScopedCallDestroy(const JingleCall& call, TermCode aCode=JingleCall::kUserHangup)
+        :ScopedCallRemover(call, aCode){}
+    ~ScopedCallDestroy(); //has to be defined in .cpp file as we can't load rtcModule.h here
+};
+class ScopedCallHangup: public ScopedCallRemover
+{
+    ScopedCallHangup(const ScopedCallHangup&) = delete;
+public:
+    ScopedCallHangup(RtcModule& aRtc, const std::string& aSid,
+        TermCode aCode=JingleCall::kUserHangup)
+        : ScopedCallRemover(aRtc, aSid, aCode){}
+    ScopedCallHangup(const JingleCall& call, TermCode aCode=JingleCall::kUserHangup)
+    :ScopedCallRemover(call, aCode){}
+    ~ScopedCallHangup(); //has to be defined in .cpp file as we can't load rtcModule.h here
+};
 
 enum ErrorType
 {
@@ -41,21 +97,17 @@ enum ErrorType
     ERR_PROTOCOL = 3
 };
 
-class Jingle
+class Call;
+class ICryptoFunctions;
+
+class Jingle: public std::map<std::string, std::shared_ptr<Call>>, strophe::IPlugin,
+        public IRtcModule
 {
 protected:
 /** Contains all info about an incoming call that has been accepted at the message level and needs to be autoaccepted at the jingle level */
-    struct AutoAcceptCallInfo: public karere::StringMap
-    {
-        karere::Ts tsReceived;
-        karere::Ts tsTillJingle;
-        std::shared_ptr<AnswerOptions> options;
-        std::shared_ptr<FileTransferHandler> ftHandler;
-    };
-    typedef std::map<std::string, std::shared_ptr<AutoAcceptCallInfo> > AutoAcceptMap;
     strophe::Connection mConn;
+    IGlobalEventHandler* mGlobalHandler;
     bool mHandlersInitialized = false; //used in conn state handler to initialize only on first connect
-    std::map<std::string, std::shared_ptr<JingleSession> > mSessions;
 /** Timeout after which if an iq response is not received, an error is generated */
     int mJingleTimeout = 50000;
 /** The period, during which an accepted call request will be valid
@@ -64,11 +116,16 @@ protected:
     int mJingleAutoAcceptTimeout = 15000;
 /** The period within which an outgoing call can be answered by peer */
     int callAnswerTimeout = 50000;
-    AutoAcceptMap mAutoAcceptCalls;
-    IPtrNoNull<ICryptoFunctions> mCrypto;
+    std::unique_ptr<ICryptoFunctions> mCrypto;
     std::string mOwnAnonId;
     typedef karere::FallbackServerProvider<karere::TurnServerInfo> TurnServerProvider;
     std::unique_ptr<TurnServerProvider> mTurnServerProvider;
+    void discoAddFeature(const char* feature);
+    bool destroyBySid(const std::string& sid, TermCode termcode, const char* text=nullptr);
+    bool hangupBySid(const std::string& sid, TermCode termcode, const char* text=nullptr);
+    std::shared_ptr<ICall> getCallBySid(const std::string& sid);
+    friend class ScopedCallDestroy; friend class ScopedCallHangup;
+    friend class JingleSession;
 public:
     enum {DISABLE_MIC = 1, DISABLE_CAM = 2, HAS_MIC = 4, HAS_CAM = 8};
     int mediaFlags = 0;
@@ -77,37 +134,20 @@ public:
     webrtc::FakeConstraints mMediaConstraints;
     artc::DeviceManager deviceManager;
     ICryptoFunctions& crypto() {return *mCrypto;}
-    const std::string& getOwnAnonId() const { return mOwnAnonId; }
-//event handler interface
-    virtual void onConnectionEvent(int state, const std::string& msg){}
-    virtual void onRemoteStreamAdded(JingleSession& sess, artc::tspMediaStream stream){}
-    virtual void onRemoteStreamRemoved(JingleSession& sess, artc::tspMediaStream stream){}
-//    virtual void onIceConnStateChange(JingleSession& sess, event){}
-    virtual void onIceComplete(JingleSession& sess){}
-//rtcHandler callback interface, called by the connection.jingle object
-    virtual void onIncomingCallRequest(const char* from, const char* sid,
-        std::shared_ptr<CallAnswerFunc>& ans,
-        std::shared_ptr<std::function<bool()> >& reqStillValid,
-        const AvFlags& peerMedia, std::shared_ptr<std::set<std::string> >& files,
-        void** userpPtr) {}
-    virtual void onCallCanceled(const char* sid, const char* event,
-     const char* by, bool accepted, void** userp){}
-    //virtual void onCallAnswerTimeout(const char* peer) {} Generated by the higher level
-    virtual void onCallAnswered(JingleSession& sess) {}
-    virtual void onCallTerminated(JingleSession* sess, const char* reason,
-      const char* text, FakeSessionInfo* info=NULL) = 0; //{KR_LOG_COLOR(32;1, "PURE VERTUAL ONCALLTERMINATED CALLED\n");}
-    virtual bool onCallIncoming(JingleSession& sess, std::string& reason,
-                                std::string& text){return true;}
-    virtual void onRinging(JingleSession& sess){}
-    virtual void onMuted(JingleSession& sess, const AvFlags& affected){}
-    virtual void onUnmuted(JingleSession& sess, const AvFlags& affected){}
-    virtual void onError(const char* sid, const std::string& msg, const char* reason, const char* text, unsigned flags=0) {};
+    const std::string& ownAnonId() const { return mOwnAnonId; }
+    virtual void onError(const char* sid, const std::string& msg, const char* reason, const char* text, unsigned flags=0) {}
 //==
 /** @param iceServers the static fallback server list in json form:
  *  {"host":"turn:host:port?protocol=tcp/udp", "user":<username>,"pass": <password>}
  */
-    Jingle(xmpp_conn_t* conn, ICryptoFunctions* crypto, const char* iceServers="");
-    virtual void discoAddFeature(const char* feature) {}//{printf("jingle::discoaddfeature  called\n");} //= 0;
+    Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler, ICryptoFunctions* crypto,
+           const char* iceServers="");
+    strophe::Connection& conn() { return mConn; }
+    virtual std::shared_ptr<Call>& addCall(CallState aState,
+        bool aIsCaller, IEventHandler* aHandler, const std::string& aSid,
+            JingleCall::HangupFunc&& hangupFunc,
+            const std::string& aPeerJid, AvFlags localAv, bool aIsFt=false,
+            const std::string& aOwnJid = "") = 0;
     void addAudioCaps();
     void addVideoCaps();
     void registerDiscoCaps();
@@ -115,38 +155,16 @@ public:
  //plugin connection state handler
     void onConnState(const xmpp_conn_event_t status,
         const int error, xmpp_stream_error_t * const stream_error);
-/*    int _static_onJingle(xmpp_conn_t* const conn,
-        xmpp_stanza_t* stanza, void* userdata);
-    static int _static_onIncomingCallMsg(xmpp_conn_t* const conn,
-        xmpp_stanza_t* stanza, void* userdata);
-*/
     void onJingle(strophe::Stanza iq);
-    /* Incoming call request with a message stanza of type 'megaCall' */
+/** Incoming call request with a message stanza of type 'megaCall' */
     void onIncomingCallMsg(strophe::Stanza callmsg);
-    bool cancelAutoAcceptEntry(const char* sid, const char* reason,
-        const char* text, char type=0);
-    bool cancelAutoAcceptEntry(AutoAcceptMap::iterator it, const char* reason,
-    const char* text, char type=0);
-    void cancelAllAutoAcceptEntries(const char* reason, const char* text);
-    void purgeOldAcceptCalls();
+    bool cancelIncomingReqCall(iterator it, TermCode code, const char* text=nullptr);
     void processAndDeleteInputQueue(JingleSession& sess);
-    promise::Promise<std::shared_ptr<JingleSession> >
-      initiate(const char* sid, const char* peerjid, const char* myjid,
-        artc::tspMediaStream sessStream, const AvFlags& avState,
-        karere::StringMap&& sessProps, FileTransferHandler* ftHandler=NULL);
-    std::shared_ptr<JingleSession> createSession(const char* me, const char* peerjid,
-        const char* sid, artc::tspMediaStream, const AvFlags& avState,
-        const karere::StringMap& sessProps, FileTransferHandler* ftHandler=NULL);
-    void terminateAll(const char* reason, const char* text, bool nosend=false);
-    bool terminateBySid(const char* sid, const char* reason, const char* text,
-        bool nosend=false);
-    bool terminate(JingleSession *sess, const char* reason, const char* text,
-        bool nosend=false);
-    promise::Promise<strophe::Stanza> sendTerminateNoSession(const char* sid,
-        const char* to, const char* reason, const char* text);
+    promise::Promise<std::shared_ptr<JingleSession> > initiate();
+    void hangupAll(TermCode code, const char* text=nullptr);
+    void destroyAll(TermCode code, const char* text=nullptr);
     promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string& origin,
-                                             const char* sid=nullptr, unsigned flags=0);
-    bool sessionIsValid(const JingleSession &sess);
+                                             const char* sid=nullptr);
     std::string getFingerprintsFromJingle(strophe::Stanza j);
     bool verifyMac(const std::string& msg, const std::string& key, const std::string& actualMac);
 };

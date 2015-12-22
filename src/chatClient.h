@@ -29,6 +29,9 @@ namespace karere
 {
 class TextModule;
 class ChatRoom;
+class GroupChatRoom;
+class Contact;
+class ContactList;
 class IGui
 {
 public:
@@ -37,12 +40,25 @@ public:
     public:
         virtual void updateTitle(const std::string& title) {}
         virtual void updateOverlayCount(unsigned count) {}
-        virtual void updateOnlineStatus(chatd::ChatState state) {}
+        virtual void updateOnlineIndication(int state) {}
     };
-    class IChatWindow: public chatd::Listener, public ITitleDisplay {};
-
+    class ICallGui{};
+    class IChatWindow: public chatd::Listener, public ITitleDisplay
+    {
+    public:
+        virtual ICallGui* callGui() = 0;
+    };
     virtual IChatWindow* createChatWindow(ChatRoom& room) = 0;
-    virtual ITitleDisplay* createTitleDisplay(ChatRoom& room) = 0;
+    class IContactList
+    {
+    public:
+        virtual ITitleDisplay* createContactItem(Contact& contact) = 0;
+        virtual ITitleDisplay* createGroupChatItem(GroupChatRoom& room) = 0;
+        virtual void removeContactItem(ITitleDisplay* item) = 0;
+        virtual void removeGroupChatItem(ITitleDisplay* item) = 0;
+        virtual IChatWindow* chatWindowForPeer(uint64_t handle) = 0;
+    };
+    virtual IContactList& contactList() = 0;
     virtual void onTerminate() {}
     virtual ~IGui() {}
 };
@@ -66,12 +82,10 @@ struct UserAttrPair
         else
             return user < other.user;
     }
-    UserAttrPair(const uint64_t& aUser, unsigned aType): user(aUser), attrType(aType)
+    UserAttrPair(uint64_t aUser, unsigned aType): user(aUser), attrType(aType)
     {
         if (attrType > mega::MegaApi::USER_ATTR_LAST_INTERACTION)
             throw std::runtime_error("Invalid attribute id specified");
-        if (attrType == mega::MegaApi::USER_ATTR_LASTNAME)
-            attrType = mega::MegaApi::USER_ATTR_FIRSTNAME;
     }
 };
 typedef void(*UserAttrReqCbFunc)(Buffer*, void*);
@@ -107,6 +121,7 @@ protected:
     uint64_t mCbId = 0;
     std::map<uint64_t, CbRefItem> mCallbacks;
     void dbWrite(const UserAttrPair& key, const Buffer& data);
+    void dbInvalidateItem(const UserAttrPair& item);
     uint64_t addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp);
     void fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrCacheItem>& item);
     virtual void onUsersUpdate(mega::MegaApi* api, mega::MegaUserList* users);
@@ -117,6 +132,7 @@ public:
                              UserAttrReqCbFunc cb);
     promise::Promise<Buffer*> getAttr(const uint64_t &user, unsigned attrType);
     bool removeCb(const uint64_t &cbid);
+    void onLogin();
 };
 class ChatRoomList;
 class ChatRoom: public chatd::Listener
@@ -190,8 +206,8 @@ protected:
     friend class Member;
 public:
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
-    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl, unsigned char aShard,
-        char aOwnPriv, const std::string& title);
+    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
+                  unsigned char aShard, char aOwnPriv, const std::string& title);
     ~GroupChatRoom()
     {
         for (auto& m: mPeers)
@@ -238,14 +254,40 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
 };
+class Contact
+{
+protected:
+    ContactList& mClist;
+    uint64_t mUserid;
+    std::string mEmail;
+    PeerChatRoom* mChatRoom;
+    uint64_t mUsernameAttrCbId;
+    IGui::ITitleDisplay* mDisplay;
+public:
+    Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
+            PeerChatRoom* room = nullptr);
+    ~Contact();
+    friend class ContactList;
+};
 
-class Client
+class ContactList: public std::map<uint64_t, Contact*>
+{
+public:
+    Client& client;
+    ContactList(Client& aClient);
+    ~ContactList();
+    bool addUserFromApi(mega::MegaUser& user);
+    void removeUser(const uint64_t& userid);
+    void syncWithApi(mega::MegaUserList& users);
+    IGui::ITitleDisplay* attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
+};
+
+class Client: public rtcModule::IGlobalEventHandler
 {
 public:
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
     std::unique_ptr<chatd::Client> chatd;
-    std::string mMyUserHandle;
     std::unique_ptr<MyMegaApi> api;
     //we use IPtr smart pointers instead of std::unique_ptr because we want to delete not via the
     //destructor, but via a destroy() method. This is to support cross-DLL loading of plugins,
@@ -261,8 +303,10 @@ public:
     std::function<void()> onChatdReady;
     UserAttrCache userAttrCache;
     IGui& gui;
+    std::unique_ptr<ContactList> contactList;
     std::unique_ptr<ChatRoomList> chats;
-    const std::string& myUserHandle() const { return mMyUserHandle; }
+    bool isLoggedIn() const { return mIsLoggedIn; }
+    const chatd::Id myHandle() const { return mMyHandle; }
     std::string getUsername() const
     {
         return strophe::getNodeFromJid(conn->fullOrBareJid());
@@ -314,27 +358,27 @@ public:
     * @param chatState {ChatState} user's chat state.
     * @returns {void}
     */
-    const Contact& getContact(const std::string& userJid)
+    const XmppContact& getContact(const std::string& userJid)
     {
-        return contactList.getContact(userJid);
+        return xmppContactList.getContact(userJid);
     }
-    ContactList& getContactList()
+    XmppContactList& getContactList()
     {
-        return contactList;
+        return xmppContactList;
     }
 protected:
+    chatd::Id mMyHandle = (uint64_t)-1;
+    bool mIsLoggedIn =false;
     /** our own email address */
     std::string mEmail;
     /** our password */
     std::string mPassword;
     /** client's contact list */
-    ContactList contactList;
-    typedef FallbackServerProvider<HostPortServerInfo>  XmppServerProvider;
+    XmppContactList xmppContactList;
+    typedef FallbackServerProvider<HostPortServerInfo> XmppServerProvider;
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
     std::unique_ptr<mega::rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
-    /* handler for webrtc events */
-    rtcModule::IPtr<rtcModule::IEventHandler> mRtcHandler;
     sqlite3* openDb();
     void setupReconnectHandler();
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
@@ -349,7 +393,12 @@ protected:
      * This performs an xmpp response to the received xmpp ping request.
      */
     void sendPong(const std::string& peerJid, const std::string& messageId);
-
+    virtual rtcModule::IEventHandler* onIncomingCallRequest(
+            const std::shared_ptr<rtcModule::ICall> &call,
+            std::shared_ptr<rtcModule::CallAnswerFunc> &ans,
+            std::shared_ptr<std::function<bool()> > &reqStillValid,
+            const karere::AvFlags &peerMedia,
+            std::shared_ptr<std::set<std::string>>&files){ return nullptr;}
 };
 }
 #endif // CHATCLIENT_H

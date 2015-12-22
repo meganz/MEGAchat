@@ -8,6 +8,7 @@
 
 namespace artc
 {
+typedef rtcModule::IVideoRenderer IVideoRenderer;
 
 class StreamPlayer: public webrtc::VideoRendererInterface
 {
@@ -106,7 +107,8 @@ public:
         if (mPlaying)
             mVideo->AddRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
     }
-
+    bool isVideoAttached() const { return mVideo.get() != nullptr; }
+    bool isAudioAttached() const { return mAudio.get() != nullptr; }
     void detachVideo()
     {
         if (!mVideo.get())

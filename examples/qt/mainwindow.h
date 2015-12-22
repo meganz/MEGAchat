@@ -16,7 +16,7 @@ namespace Ui {
 class MainWindow;
 }
 
-class MainWindow : public QMainWindow, public karere::IGui
+class MainWindow : public QMainWindow, public karere::IGui, public karere::IGui::IContactList
 {
     Q_OBJECT
     
@@ -31,9 +31,19 @@ public:
     void contactStateChange(std::string &contactJid, karere::Presence oldState, karere::Presence newState);
     void handleError(std::string &message);
     void handleWarning(std::string &message);
+    void removeItem(ITitleDisplay* item, bool isGroup);
+//IContactList
+    virtual ITitleDisplay* createContactItem(karere::Contact& contact);
+    virtual ITitleDisplay* createGroupChatItem(karere::GroupChatRoom& room);
+    virtual void removeContactItem(ITitleDisplay* item);
+    virtual void removeGroupChatItem(ITitleDisplay* item);
 //IGui
-    virtual ITitleDisplay* createTitleDisplay(karere::ChatRoom& room);
+    virtual karere::IGui::IContactList& contactList() { return *this; }
     virtual IChatWindow* createChatWindow(karere::ChatRoom& room);
+protected:
+    karere::IGui::ITitleDisplay* addItem(bool front, karere::Contact* contact,
+                karere::GroupChatRoom* room);
+
 public slots:
     void inviteButtonPushed();
     void sendButtonPushed();
@@ -92,13 +102,14 @@ public slots:
         }
     }
 };
-class CListItemGui: public QWidget, public karere::IGui::ITitleDisplay
+class CListItem: public QWidget, public karere::IGui::ITitleDisplay
 {
 protected:
-    karere::ChatRoom* mRoom;
     Ui::CListItemGui ui;
     int mLastOverlayCount = 0;
+    bool mIsGroup;
 public:
+    bool isGroup() const { return mIsGroup; }
 //karere::ITitleDisplay interface
     virtual void updateTitle(const std::string& title)
     { ui.mName->setText(QString::fromUtf8(title.c_str(), title.size())); }
@@ -117,7 +128,7 @@ public:
         }
         mLastOverlayCount = count;
     }
-    virtual void setOnlineStatus(chatd::ChatState state)
+    virtual void updateOnlineIndicator(int state)
     {
         QColor col;
         if (state == chatd::kChatStateOffline)
@@ -131,12 +142,28 @@ public:
         ui.mOnlineIndicator->setPalette(palette);
     }
 //===
-    CListItemGui(QWidget* parent, karere::ChatRoom* room=nullptr): QWidget(parent), mRoom(room)
+    CListItem(QWidget* parent, bool aIsGroup)
+    : QWidget(parent), mIsGroup(aIsGroup)
     {
         ui.setupUi(this);
         ui.mUnreadIndicator->hide();
     }
-    ~CListItemGui() {}
+};
+class CListContactItem: public CListItem
+{
+protected:
+    karere::Contact& mContact;
+public:
+    CListContactItem(QWidget* parent, karere::Contact& contact)
+        :CListItem(parent, false), mContact(contact){}
+};
+class CListGroupChatItem: public CListItem
+{
+protected:
+    karere::GroupChatRoom& mRoom;
+public:
+    CListGroupChatItem(QWidget* parent, karere::GroupChatRoom& room)
+        :CListItem(parent, true), mRoom(room){}
 };
 
 class RtcEventHandler: public rtcModule::IEventHandler

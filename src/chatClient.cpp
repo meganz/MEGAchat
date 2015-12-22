@@ -8,7 +8,6 @@
 #include <string.h>
 #include <mstrophepp.h>
 #include "rtcModule/IRtcModule.h"
-#include "rtcModule/lib.h"
 #include "dummyCrypto.h" //for makeRandomString
 #include "strophe.disco.h"
 #include "base/services.h"
@@ -48,13 +47,13 @@ promise::Promise<int> Client::initializeContactList()
                 if (!attrVal)
                     return;
 
-                contactList.addContact(std::string(attrVal));
+                xmppContactList.addContact(std::string(attrVal));
                 message_bus::SharedMessage<> busMessage(CONTACT_ADDED_EVENT);
                 busMessage->addValue(CONTACT_JID, std::string(attrVal));
                 message_bus::SharedMessageBus<>::getMessageBus()->alertListeners(CONTACT_ADDED_EVENT, busMessage);
             });
         }
-        return contactList.init();
+        return xmppContactList.init();
     })
     .fail([](const promise::Error& err)
     {
@@ -79,11 +78,25 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 Client::Client(IGui& aGui, const std::string& email, const std::string& password)
  :db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
   api(new MyMegaApi("karere-native")), userAttrCache(*this), gui(aGui),
-  mEmail(email), mPassword(password), contactList(conn),
-  mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS)),
-  mRtcHandler(NULL)
+  mEmail(email), mPassword(password), xmppContactList(conn),
+  mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
 {
+    SqliteStmt stmt(db, "select value from vars where name='my_handle'");
+    if (!stmt.step())
+    {
+        KR_LOG_DEBUG("No own mega handle found in local db");
+        return;
+    }
+    auto handle = stmt.uint64Col(0);
+    if (handle == 0 || handle == mega::UNDEF)
+        throw std::runtime_error("Invalid own handle in local database");
+
+    mMyHandle = handle;
+    chatd.reset(new chatd::Client(mMyHandle));
+    contactList.reset(new ContactList(*this));
+    chats.reset(new ChatRoomList(*this));
 }
+
 sqlite3* Client::openDb()
 {
     const char* homedir = getenv("HOME");
@@ -95,9 +108,7 @@ sqlite3* Client::openDb()
     sqlite3* database = nullptr;
     int ret = sqlite3_open(path.c_str(), &database);
     if (ret != SQLITE_OK || !database)
-    {
         throw std::runtime_error("Can't access application database at "+path);
-    }
     return database;
 }
 
@@ -107,11 +118,6 @@ Client::~Client()
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
 
-
-void Client::registerRtcHandler(rtcModule::IEventHandler* rtcHandler)
-{
-    mRtcHandler.reset(rtcHandler);
-}
 #define TOKENPASTE2(a,b) a##b
 #define TOKENPASTE(a,b) TOKENPASTE2(a,b)
 
@@ -129,13 +135,27 @@ promise::Promise<int> Client::init()
 
     pmsMegaLogin.then([this](ReqResult result) mutable
     {
+        mIsLoggedIn = true;
         KR_LOG_DEBUG("Login to Mega API successful");
+//        userAttrCache.onLogin();
         SdkString uh = api->getMyUserHandle();
         if (!uh.c_str() || !uh.c_str()[0])
-            throw std::runtime_error("Could not get our own userhandle/JID");
-        mMyUserHandle = uh.c_str();
-        chatd.reset(new chatd::Client(mMyUserHandle.c_str(), 0));
-        chats.reset(new ChatRoomList(*this));
+            throw std::runtime_error("Could not get our own user handle from API");
+        chatd::Id handle(uh.c_str());
+        if (mMyHandle != mega::UNDEF)
+        {
+            if (handle != mMyHandle)
+                throw std::runtime_error("Local DB inconsistency: Own userhandle returned from API differs from the one in local db");
+        }
+        else
+        {
+            KR_LOG_DEBUG("Obtained our own handle (%s), recording to database", handle.toString().c_str());
+            mMyHandle = handle;
+            sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
+            chatd.reset(new chatd::Client(mMyHandle));
+            contactList.reset(new ContactList(*this));
+            chats.reset(new ChatRoomList(*this));
+        }
 //        if (onChatdReady)
 //            onChatdReady();
 
@@ -167,7 +187,9 @@ promise::Promise<int> Client::init()
     })
     .then([this](ReqResult result)
     {
-//        mContacts.reset(api->getContacts());
+        userAttrCache.onLogin();
+
+        contactList->syncWithApi(*api->getContacts());
         return api->call(&mega::MegaApi::fetchChats);
     })
     .then([this](ReqResult result)
@@ -239,7 +261,7 @@ promise::Promise<int> Client::init()
 // Create and register the rtcmodule plugin
 // the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
 // To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
-        rtc = createRtcModule(*conn, mRtcHandler.get(), new rtcModule::MegaCryptoFuncs(*api), KARERE_DEFAULT_TURN_SERVERS);
+        rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*api), KARERE_DEFAULT_TURN_SERVERS);
         conn->registerPlugin("rtcmodule", rtc);
 // create and register text chat plugin
         mTextModule = new TextModule(*this);
@@ -361,7 +383,7 @@ promise::Promise<void> Client::terminate()
     if (mReconnectController)
         mReconnectController->abort();
     if (rtc)
-        rtc->hangupAll("app-close", "The application is terminating");
+        rtc->hangupAll();
     const char* sess = api->dumpSession();
     if (sess)
     try
@@ -449,10 +471,10 @@ void Client::setPresence(const Presence pres, const int delay)
     msg.setName("presence")
        .setAttr("id", generateMessageId(std::string("presence"), std::string("")))
        .c("show")
-           .t(ContactList::presenceToText(pres))
+           .t(XmppContactList::presenceToText(pres))
            .up()
        .c("status")
-           .t(ContactList::presenceToText(pres))
+           .t(XmppContactList::presenceToText(pres))
            .up();
 
     if(delay > 0)
@@ -510,9 +532,9 @@ UserAttrCache::~UserAttrCache()
 
 void UserAttrCache::dbWrite(const UserAttrPair& key, const Buffer& data)
 {
-    SqliteStmt stmt(mClient.db, "insert or replace into userattrs(userid, type, data) values(?,?,?)");
-    stmt << key.user << key.attrType << data;
-    stmt.step();
+    sqliteQuery(mClient.db,
+        "insert or replace into userattrs(userid, type, data) values(?,?,?)",
+        key.user, key.attrType, data);
 }
 
 UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
@@ -524,8 +546,8 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
         stmt.blobCol(2, *data);
 
         emplace(std::piecewise_construct,
-                std::forward_as_tuple(stmt.uint64Col(0), stmt.intCol(1)),
-                std::forward_as_tuple(std::make_shared<UserAttrCacheItem>(data.release(), false)));
+            std::forward_as_tuple(stmt.uint64Col(0), stmt.intCol(1)),
+            std::forward_as_tuple(std::make_shared<UserAttrCacheItem>(data.release(), false)));
     }
     mClient.api->addGlobalListener(this);
 }
@@ -538,11 +560,9 @@ void UserAttrCache::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users)
     for (auto i=0; i<users->size(); i++)
     {
         auto user = users->get(i);
-        printf("user %llu change: %d\n", user->getHandle(), user->getChanges());
         int changed = user->getChanges();
         for (auto t = 0; t <= mega::MegaApi::USER_ATTR_LAST_INTERACTION; t++)
         {
-            printf("changed = %d, changeMask = %d\n", changed, attrDesc[t].changeMask);
             if ((changed & attrDesc[t].changeMask) == 0)
                 continue;
             UserAttrPair key(user->getHandle(), t);
@@ -550,12 +570,23 @@ void UserAttrCache::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users)
             if (it == end()) //we don't have such attribute
                 continue;
             auto& item = it->second;
+            dbInvalidateItem(key); //immediately invalidate parsistent cache
+            if (item->cbs.empty()) //we aren't using that item atm
+            { //delete it from memory as well, forcing it to be freshly fetched if it's requested
+                erase(key);
+                continue;
+            }
             if (item->pending)
                 continue;
             item->pending = kCacheFetchUpdatePending;
             fetchAttr(key, item);
         }
     }
+}
+void UserAttrCache::dbInvalidateItem(const UserAttrPair& key)
+{
+    sqliteQuery(mClient.db, "delete from userattrs where userid=? and type=?",
+                key.user, key.attrType);
 }
 
 void UserAttrCacheItem::notify()
@@ -621,6 +652,9 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
 }
 void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrCacheItem>& item)
 {
+    if (!mClient.isLoggedIn())
+        return;
+    printf("fetchattr with type %d\n", key.attrType);
     if (key.attrType != mega::MegaApi::USER_ATTR_LASTNAME)
     {
         auto& attrType = attrDesc[key.attrType];
@@ -682,10 +716,19 @@ void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrC
             item->data = nullptr;
             item->pending = kCacheFetchNotPending;
             item->notify();
-            return err;
         });
     }
 }
+
+void UserAttrCache::onLogin()
+{
+    for (auto& item: *this)
+    {
+        if (item.second->pending != kCacheFetchNotPending)
+            fetchAttr(item.first, item.second);
+    }
+}
+
 promise::Promise<Buffer*> UserAttrCache::getAttr(const uint64_t &user, unsigned attrType)
 {
     struct State
@@ -728,8 +771,7 @@ Client::getThisUserInfo()
 
 ChatRoom::ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool aIsGroup, const std::string& aUrl, unsigned char aShard,
   char aOwnPriv)
-:mParent(parent), mChatid(chatid), mUrl(aUrl), mShardNo(aShard), mIsGroup(aIsGroup), mOwnPriv(aOwnPriv),
- mTitleDisplay(mParent.client.gui.createTitleDisplay(*this))
+:mParent(parent), mChatid(chatid), mUrl(aUrl), mShardNo(aShard), mIsGroup(aIsGroup), mOwnPriv(aOwnPriv)
 {
     parent.client.chatd->join(mChatid, mShardNo, mUrl, *this);
 }
@@ -744,16 +786,19 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const
     {
         addMember(stmt.uint64Col(0), stmt.intCol(1), false);
     }
+    mTitleDisplay = mParent.client.gui.contactList().createGroupChatItem(*this);
 }
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
     unsigned char aShard, char aOwnPriv, const uint64_t& peer, char peerPriv)
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer), mPeerPriv(peerPriv)
 {
+    printf("peer = %lld\n", peer);
+    mTitleDisplay = mParent.client.contactList->attachRoomToContact(peer, *this);
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
-:PeerChatRoom(parent, chat.getHandle(), chat.getUrl(), chat.getShard(), chat.getOwnPrivilege(),
-              -1, 0)
+:ChatRoom(parent, chat.getHandle(), false, chat.getUrl(), chat.getShard(), chat.getOwnPrivilege()),
+    mPeer((uint64_t)-1), mPeerPriv(0)
 {
     assert(!chat.isGroup());
     auto peers = chat.getPeerList();
@@ -765,9 +810,9 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     sqliteQuery(mParent.client.db, "insert into chats(chatid, url, shard, peer, peer_priv, own_priv) values (?,?,?,?,?,?)",
         mChatid, mUrl, mShardNo, mPeer, mPeerPriv, mOwnPriv);
 //just in case
-    SqliteStmt stmt(mParent.client.db, "delete from chat_peers where chatid = ?");
-    stmt << mChatid;
-    stmt.step();
+    sqliteQuery(mParent.client.db, "delete from chat_peers where chatid = ?", mChatid);
+    mTitleDisplay = mParent.client.contactList->attachRoomToContact(mPeer, *this);
+    KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API", chatd::Id(mChatid).toString().c_str());
 }
 
 void PeerChatRoom::syncOwnPriv(char priv)
@@ -935,6 +980,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
         stmt.reset();
     }
     loadUserTitle();
+    mTitleDisplay = mParent.client.gui.contactList().createGroupChatItem(*this);
 }
 
 void GroupChatRoom::loadUserTitle()
@@ -982,7 +1028,7 @@ void ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
 void ChatRoom::init(chatd::Messages* msgs, chatd::DbInterface*& dbIntf)
 {
     mMessages = msgs;
-    dbIntf = new ChatdSqliteDb(msgs, karere::gClient->db);
+    dbIntf = new ChatdSqliteDb(msgs, mParent.client.db);
     if (mChatWindow)
     {
         chatd::DbInterface* nullIntf = nullptr;
@@ -1092,6 +1138,111 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, char a
 GroupChatRoom::Member::~Member()
 {
     mRoom.mParent.client.userAttrCache.removeCb(mNameAttrCbHandle);
+}
+
+ContactList::ContactList(Client& aClient)
+:client(aClient)
+{
+    SqliteStmt stmt(client.db, "select userid, email from contacts");
+    while(stmt.step())
+    {
+        auto userid = stmt.uint64Col(0);
+        emplace(userid, new Contact(*this, userid, stmt.stringCol(1), nullptr));
+    }
+}
+
+bool ContactList::addUserFromApi(mega::MegaUser& user)
+{
+    auto userid = user.getHandle();
+    auto& item = (*this)[userid];
+    if (item)
+        return false;
+    auto cmail = user.getEmail();
+    std::string email(cmail?cmail:"");
+
+    sqliteQuery(client.db, "insert or replace into contacts(userid, email) values(?,?)", userid, email);
+    item = new Contact(*this, userid, email, nullptr);
+    KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
+    return true;
+}
+
+void ContactList::syncWithApi(mega::MegaUserList& users)
+{
+    std::set<uint64_t> apiUsers;
+    auto size = users.size();
+    for (int i=0; i<size; i++)
+    {
+        auto& user = *users.get(i);
+        apiUsers.insert(user.getHandle());
+        addUserFromApi(user);
+    }
+    for (auto it = begin(); it!= end();)
+    {
+        auto handle = it->first;
+        if (apiUsers.find(handle) != apiUsers.end())
+        {
+            it++;
+            continue;
+        }
+        auto erased = it;
+        it++;
+        delete erased->second;
+        erase(erased);
+    }
+}
+
+void ContactList::removeUser(const uint64_t& userid)
+{
+    auto it = find(userid);
+    if (it == end())
+    {
+        KR_LOG_ERROR("ContactList::removeUser: Unknown user");
+        return;
+    }
+    delete it->second;
+    erase(it);
+}
+
+ContactList::~ContactList()
+{
+    for (auto& it: *this)
+        delete it.second;
+}
+
+Contact::Contact(ContactList& clist, const uint64_t& userid,
+                 const std::string& email, PeerChatRoom* room)
+    :mClist(clist), mUserid(userid), mEmail(email), mChatRoom(room),
+     mDisplay(clist.client.gui.contactList().createContactItem(*this))
+{
+    mDisplay->updateTitle(email);
+    mUsernameAttrCbId = mClist.client.userAttrCache.getAttr(userid,
+        mega::MegaApi::USER_ATTR_LASTNAME, this,
+        [](Buffer* data, void* userp)
+        {
+            auto self = static_cast<Contact*>(userp);
+            if (!data || data->dataSize() < 2)
+                self->mDisplay->updateTitle(self->mEmail);
+            else
+                self->mDisplay->updateTitle(data->buf()+1);
+        });
+}
+Contact::~Contact()
+{
+    mClist.client.userAttrCache.removeCb(mUsernameAttrCbId);
+    mClist.client.gui.contactList().removeContactItem(mDisplay);
+}
+
+IGui::ITitleDisplay*
+ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
+{
+    auto it = find(userid);
+    if (it == end())
+        throw std::runtime_error("attachRoomToContact: userid not found");
+    auto& contact = *it->second;
+    if (contact.mChatRoom)
+        throw std::runtime_error("attachRoomToContact: contact already has a chat room attached");
+    contact.mChatRoom = &room;
+    return contact.mDisplay;
 }
 
 }

@@ -131,7 +131,7 @@ struct IceCandText
 class SdpSetCallbacks: public webrtc::SetSessionDescriptionObserver
 {
 public:
-    typedef promise::Promise<int> PromiseType;
+    typedef promise::Promise<void> PromiseType;
     SdpSetCallbacks(const PromiseType& promise)
     :mPromise(promise)
     {}
@@ -140,7 +140,7 @@ public:
     {
          mega::marshallCall([this]()
          {
-             mPromise.resolve(0);
+             mPromise.resolve();
              Release();
          });
     }
@@ -338,25 +338,142 @@ struct MediaGetOptions
 
 class DeviceManager;
 
-class InputVideoDevice
+template<class T>
+class TrackHandle
 {
-protected:
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> mTrack;
+    T mDevice; //shared_ptr
+    typename T::Shared::Track* mTrack;
 public:
-    const rtc::scoped_refptr<webrtc::VideoTrackInterface>& track() const {return mTrack;}
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> cloneTrack();
-    ~InputVideoDevice();
-    friend class DeviceManager;
+    TrackHandle(const T& device, typename T::Shared::Track* track);
+    ~TrackHandle();
+    typename T::Shared::Track* track() const { return mTrack; }
+    operator typename T::Shared::Track*() { return mTrack; }
+    operator const typename T::Shared::Track*() const { return mTrack; }
+};
+template <class T, class S>
+class InputDevice;
+template <class T, class S>
+class InputDeviceShared
+{
+private:
+    rtc::scoped_refptr<S> mSource;
+    std::shared_ptr<MediaGetOptions> mOptions;
+    int mRefCount = 0;
+    void createSource();
+    void freeSource();
+    friend class InputDevice<T,S>;
+    friend class TrackHandle<InputDevice<T,S>>;
+protected:
+    typedef InputDeviceShared<T,S> This;
+    typedef T Track;
+    std::shared_ptr<cricket::DeviceManagerInterface> mManager;
+    void refSource() { mRefCount++; }
+    void unrefSource()
+    {
+        if (--mRefCount <= 0)
+        {
+            assert(mRefCount == 0);
+            freeSource();
+        }
+    }
+    Track* createTrack();
+    friend class TrackHandle<This>;
+public:
+    InputDeviceShared(const std::shared_ptr<cricket::DeviceManagerInterface>& manager,
+            const std::shared_ptr<MediaGetOptions>& options)
+    : mOptions(options), mManager(manager) { assert(mManager && mOptions); }
+    ~InputDeviceShared()
+    {
+        if (mRefCount)
+        {
+            fprintf(stderr, "ERROR: artc::InputDevice: Media track is still being used");
+            freeSource();
+        }
+    }
 };
 
-class InputAudioDevice
+template <class T, class S>
+class InputDevice: public std::shared_ptr<InputDeviceShared<T,S>>
 {
 protected:
-    rtc::scoped_refptr<webrtc::AudioTrackInterface> mTrack;
+    typedef InputDeviceShared<T,S> Shared;
+    typedef std::shared_ptr<Shared> Base;
+    typedef TrackHandle<InputDevice<T,S>> Handle;
+    friend Handle;
 public:
-    const rtc::scoped_refptr<webrtc::AudioTrackInterface>& track() const {return mTrack;}
-    rtc::scoped_refptr<webrtc::AudioTrackInterface> cloneTrack();
-    friend class DeviceManager;
+    const MediaGetOptions& mediaOptions() const { return *Base::get()->mOptions; }
+    InputDevice(): Base(nullptr){}
+    InputDevice(const std::shared_ptr<cricket::DeviceManagerInterface>& manager,
+        const std::shared_ptr<MediaGetOptions>& options)
+        : Base(std::make_shared<InputDeviceShared<T,S>>(manager, options)){}
+
+    std::shared_ptr<Handle> getTrack()
+    {
+        auto shared = Base::get();
+        if (!shared->mSource)
+            shared->createSource();
+        return std::make_shared<Handle>(*this, shared->createTrack());
+    }
+};
+typedef InputDevice<webrtc::AudioTrackInterface, webrtc::AudioSourceInterface> InputAudioDevice;
+typedef InputDevice<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface> InputVideoDevice;
+
+template<class T>
+inline TrackHandle<T>::TrackHandle(const T& device, typename T::Shared::Track* track)
+:mDevice(device), mTrack(track)
+{
+    assert(track);
+    mDevice->refSource();
+}
+template<class T>
+inline TrackHandle<T>::~TrackHandle()
+{
+    mTrack->Release();
+    mDevice->unrefSource();
+}
+
+typedef TrackHandle<InputAudioDevice> LocalAudioTrackHandle;
+typedef TrackHandle<InputVideoDevice> LocalVideoTrackHandle;
+
+class LocalStreamHandle
+{
+protected:
+    std::shared_ptr<LocalAudioTrackHandle> mAudio;
+    std::shared_ptr<LocalVideoTrackHandle> mVideo;
+    tspMediaStream mStream;
+public:
+    karere::AvFlags av() { return karere::AvFlags(mAudio.get(), mVideo.get()); }
+    karere::AvFlags effectiveAv()
+    { return karere::AvFlags(mAudio && mAudio->track()->enabled(), mVideo && mVideo->track()->enabled()); }
+    void setAvState(karere::AvFlags av)
+    {
+        if (mAudio && mAudio->track()->enabled() != av.audio)
+                mAudio->track()->set_enabled(av.audio);
+        if (mVideo && mVideo->track()->enabled() != av.video)
+            mVideo->track()->set_enabled(av.video);
+    }
+    LocalStreamHandle(const std::shared_ptr<LocalAudioTrackHandle>& aAudio,
+        const std::shared_ptr<LocalVideoTrackHandle>& aVideo, const char* name="localStream")
+    :mAudio(aAudio), mVideo(aVideo), mStream(gWebrtcContext->CreateLocalMediaStream(name))
+    {
+        if (!mStream.get())
+            throw std::runtime_error("MyStream: Error creating stream object");
+        bool ok = true;
+        if (aAudio)
+            ok &= mStream->AddTrack(*aAudio);
+        if (aVideo)
+            ok &= mStream->AddTrack(*aVideo);
+        if (!ok)
+            throw std::runtime_error("Error adding track to media stream");
+    }
+    ~LocalStreamHandle()
+    { //make sure the stream is released before the tracks
+        mStream = nullptr;
+    }
+    webrtc::AudioTrackInterface* audio() { return mAudio?*mAudio:nullptr; }
+    webrtc::VideoTrackInterface* video() { return mVideo?*mVideo:nullptr; }
+    operator webrtc::MediaStreamInterface*() { return mStream; }
+    operator const webrtc::MediaStreamInterface*() const { return mStream; }
 };
 
 class DeviceManager: public std::shared_ptr<cricket::DeviceManagerInterface>
@@ -385,10 +502,11 @@ public:
     :Base(other){}
     const InputDevices& inputDevices() const {return mInputDevices;}
     void enumInputDevices();
-    std::shared_ptr<InputAudioDevice>
-        getUserAudio(const MediaGetOptions& options);
-    std::shared_ptr<InputVideoDevice>
-        getUserVideo(const MediaGetOptions& options);
+    InputAudioDevice getUserAudio(const std::shared_ptr<MediaGetOptions>& options)
+        { return InputAudioDevice(*this, options); }
+
+    InputVideoDevice getUserVideo(const std::shared_ptr<MediaGetOptions>& options)
+        { return InputVideoDevice(*this, options); }
 };
 
 }

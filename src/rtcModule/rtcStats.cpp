@@ -3,6 +3,7 @@
 #include <timers.h>
 #include <string.h> //for memset
 #include <karereCommon.h> //for timestampMs()
+#include <rtcModule.h>
 
 namespace rtcModule
 {
@@ -10,6 +11,8 @@ using namespace artc;
 using namespace std::placeholders;
 namespace stats
 {
+BasicStats::BasicStats(const Call& call, const std::string& aTermRsn)
+:mIsCaller(call.isCaller()), mTermRsn(aTermRsn), mCallId(call.id()){}
 
 Recorder::Recorder(JingleSession& sess, const Options &options)
     :mSession(sess), mOptions(options), mCurrSample(new Sample), mStats(new RtcStats)
@@ -212,7 +215,7 @@ void Recorder::start()
 {
     assert(mSession.mPeerConn);
     mStats->mIsCaller = mSession.isCaller();
-    mStats->mCallId = mSession.getCallId();
+    mStats->mCallId = mSession.mCall.id();
     mStats->mSper = mOptions.scanPeriod;
     mStats->mStartTs = karere::timestampMs();
     mTimer = mega::setInterval([this]()
@@ -227,7 +230,9 @@ void Recorder::terminate(const char* termRsn)
     mTimer = 0;
     mStats->mDur = karere::timestampMs() - mStats->mStartTs;
     mStats->mTermRsn = termRsn ? termRsn : "(unknown)";
-    printf("============== %s\n", mStats->toJson()->c_str());
+    std::string json;
+    mStats->toJson(json);
+    printf("============== %s\n", json.c_str());
 }
 Recorder::~Recorder()
 {
@@ -268,9 +273,8 @@ const char* decToString(float v)
     JSON_ADD_SAMPLES(path., bps);       \
     JSON_ADD_SAMPLES(path., abps)
 
-IString* RtcStats::toJson() const
+void RtcStats::toJson(std::string& json) const
 {
-    std::string json;
     json.reserve(10240);
     json ="{";
     JSON_ADD_STR(cid, mCallId);
@@ -338,7 +342,6 @@ IString* RtcStats::toJson() const
         JSON_END_SUBOBJ(); //a
     JSON_END_SUBOBJ(); //samples
     json[json.size()-1]='}'; //all
-    return new IString_string(json);
 }
 
 }
