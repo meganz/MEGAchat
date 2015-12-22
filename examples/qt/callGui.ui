@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CallGui</class>
+ <widget class="QWidget" name="CallGui">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>493</width>
+    <height>489</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <property name="locale">
+   <locale language="English" country="UnitedStates"/>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_2">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout" stretch="0">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <property name="sizeConstraint">
+        <enum>QLayout::SetNoConstraint</enum>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,0,0,0">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="titleDisplay">
+           <property name="text">
+            <string>Call with Donald Duck</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="muteBtn">
+           <property name="text">
+            <string>Mute</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="fullScreenBtn">
+           <property name="text">
+            <string>Full Screen</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="callBtn">
+           <property name="text">
+            <string>Hangup</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="remoteSide">
+       <property name="title">
+        <string>Remote</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_6">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="VideoRendererQt" name="remoteRenderer" native="true">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>320</width>
+            <height>240</height>
+           </size>
+          </property>
+          <property name="baseSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+          <widget class="QGroupBox" name="localBox">
+           <property name="geometry">
+            <rect>
+             <x>290</x>
+             <y>280</y>
+             <width>200</width>
+             <height>150</height>
+            </rect>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>1</horstretch>
+             <verstretch>1</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>150</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>200</width>
+             <height>150</height>
+            </size>
+           </property>
+           <property name="title">
+            <string>Local</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_5" stretch="0">
+            <property name="spacing">
+             <number>0</number>
+            </property>
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="VideoRendererQt" name="localRenderer" native="true">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>200</width>
+                <height>150</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>16777215</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>VideoRendererQt</class>
+   <extends>QWidget</extends>
+   <header>videoRenderer_Qt.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+ <slots>
+  <slot>buttonPushed()</slot>
+  <slot>inviteButtonPushed()</slot>
+  <slot>sendButtonPushed()</slot>
+  <slot>leaveButtonPushed()</slot>
+  <slot>onAudioInSelected()</slot>
+  <slot>onVideoInSelected()</slot>
+ </slots>
+</ui>
