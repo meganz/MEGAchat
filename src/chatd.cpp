@@ -926,7 +926,8 @@ void Messages::range()
     }
     if (empty())
     {
-        setOnlineState(kChatStateOnline);
+        CHATD_LOG_DEBUG("%s: No local history, no range to send", ID_CSTR(mChatId));
+        initialFetchHistory(Id::null());
         return;
     }
 
@@ -943,8 +944,8 @@ void Messages::range()
     }
     if (i < lownum()) //we have only unsent messages
         return;
-    CHATD_LOG_DEBUG("Sending RANGE calculated from memory buffer: %s - %s",
-        at(lownum()).id().toString().c_str(), at(i).id().toString().c_str());
+    CHATD_LOG_DEBUG("%s: Sending RANGE calculated from memory buffer: %s - %s",
+        ID_CSTR(mChatId), at(lownum()).id().toString().c_str(), at(i).id().toString().c_str());
     sendCommand(Command(OP_RANGE) + mChatId + at(lownum()).id() + at(i).id());
 }
 
@@ -1082,16 +1083,30 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     }
     return idx;
 }
+// procedure is as follows:
+// set state as joining
+// send join
+// receive joins
+// if (we don't have anything in DB or memory)
+// {
+//      call initialFetchHistory(0) - this results in sending HIST (-initialHistFetchCount)
+// }
+// if (server has history)
+// {
+//      receive server RANGE
+//      call initialFetchHistory(rangeLast) - ignored if it was already called in prev step
+// }
+// [receive history from server, if any]
+// receive HISTDONE
+// login is complete, set state to online
 
 void Messages::initialFetchHistory(Id serverNewest)
 {
-    assert(mOnlineState == kChatStateJoining);
-    if (!serverNewest)
-    {
-        CHATD_LOG_WARNING("initialFetchHistory: No RANGE has been received from server");
+    if (mInitialFetchHistoryCalled)
         return;
-    }
-    if (empty())
+    mInitialFetchHistoryCalled = true;
+    assert(mOnlineState == kChatStateJoining);
+    if (empty()) //if we have messages in db, we must always have loaded some
     {
         assert(!mOldestKnownMsgId);
         //we don't have messages in db, and we don't have messages in memory
@@ -1116,11 +1131,6 @@ void Messages::initialFetchHistory(Id serverNewest)
 
 void Messages::onUserJoin(const Id& userid, char priv)
 {
-    if (priv != PRIV_NOTPRESENT)
-        mUsers.emplace(userid, priv);
-    else
-        mUsers.emplace(userid, priv);
-
     if (priv != PRIV_NOTPRESENT)
         CALL_LISTENER(onUserJoined, userid, priv);
     else

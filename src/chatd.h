@@ -332,7 +332,8 @@ protected:
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
-    UserPrivMap mUsers;
+    bool mInitialFetchHistoryCalled = false;
+//    UserPrivMap mUsers;
     /// User-supplied initial range, that we use until we see the message with mOldestKnownMsgId
     /// Before that happens, missing messages are supposed to be in a database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
