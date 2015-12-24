@@ -15,22 +15,19 @@
 namespace Ui {
 class MainWindow;
 }
+namespace karere {
+class Client;
+}
 
 class MainWindow : public QMainWindow, public karere::IGui, public karere::IGui::IContactList
 {
     Q_OBJECT
-    
+    karere::Client* mClient;
 public:
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(karere::Client* aClient=nullptr);
+    void setClient(karere::Client& client) { mClient = &client; }
     ~MainWindow();
-    Ui::MainWindow *ui;
-    std::string chatRoomJid;
-    void handleMessage(std::string &message);
-    void roomAdded(std::string &roomJid);
-    void contactAdded(std::string &contactJid);
-    void contactStateChange(std::string &contactJid, karere::Presence oldState, karere::Presence newState);
-    void handleError(std::string &message);
-    void handleWarning(std::string &message);
+    Ui::MainWindow ui;
     void removeItem(ITitleDisplay* item, bool isGroup);
 //IContactList
     virtual ITitleDisplay* createContactItem(karere::Contact& contact);
@@ -40,68 +37,18 @@ public:
 //IGui
     virtual karere::IGui::IContactList& contactList() { return *this; }
     virtual IChatWindow* createChatWindow(karere::ChatRoom& room);
+    virtual IChatWindow& chatWindowForPeer(uint64_t handle);
 protected:
     karere::IGui::ITitleDisplay* addItem(bool front, karere::Contact* contact,
                 karere::GroupChatRoom* room);
 
 public slots:
-    void inviteButtonPushed();
-    void sendButtonPushed();
-    void leaveButtonPushed();
-    void buttonPushed();
     void onAudioInSelected();
     void onVideoInSelected();
-//    void megaMessageSlot(void* msg);
 };
 
 extern bool inCall;
 
-class CallAnswerGui: QObject
-{
-    Q_OBJECT
-public:
-    rtcModule::IAnswerCall* ctrl;
-    MainWindow* mMainWin;
-    QAbstractButton* answerBtn;
-    QAbstractButton* rejectBtn;
-
-    std::unique_ptr<QMessageBox> msg;
-    CallAnswerGui(rtcModule::IAnswerCall* aCtrl, MainWindow* win):ctrl(aCtrl), mMainWin(win),
-        msg(new QMessageBox(QMessageBox::Information,
-        "Incoming call", QString::fromLatin1(ctrl->callerFullJid())+" is calling you",
-        QMessageBox::NoButton, mMainWin))
-    {
-        msg->setAttribute(Qt::WA_DeleteOnClose);
-        answerBtn = msg->addButton("Answer", QMessageBox::AcceptRole);
-        rejectBtn = msg->addButton("Reject", QMessageBox::RejectRole);
-        msg->setWindowModality(Qt::NonModal);
-        QObject::connect(msg.get(), SIGNAL(buttonClicked(QAbstractButton*)),
-            this, SLOT(onBtnClick(QAbstractButton*)));
-        msg->show();
-        msg->raise();
-    }
-public slots:
-    void onBtnClick(QAbstractButton* btn)
-    {
-        ctrl->setUserData(nullptr);
-        msg->close();
-        if (btn == answerBtn)
-        {
-            int ret = ctrl->answer(true, rtcModule::AvFlags(true, true), nullptr, nullptr);
-            if (ret == 0)
-            {
-                inCall = true;
-                mMainWin->ui->callBtn->setText("Hangup");
-            }
-        }
-        else
-        {
-            ctrl->answer(false, rtcModule::AvFlags(true, true), "hangup", nullptr);
-            inCall = false;
-            mMainWin->ui->callBtn->setText("Call");
-        }
-    }
-};
 class CListItem: public QWidget, public karere::IGui::ITitleDisplay
 {
 protected:
@@ -156,6 +103,26 @@ protected:
 public:
     CListContactItem(QWidget* parent, karere::Contact& contact)
         :CListItem(parent, false), mContact(contact){}
+    virtual void mouseDoubleClickEvent(QMouseEvent* event)
+    {
+        if (mContact.chatRoom())
+        {
+            mContact.chatRoom()->chatWindow().show();
+            printf("showing chat window for chatid %s\n", chatd::Id(mContact.chatRoom()->chatid()).toString().c_str());
+
+            return;
+        }
+        mContact.createChatRoom()
+        .then([](karere::ChatRoom* room)
+        {
+            room->chatWindow().show();
+        })
+        .fail([this](const promise::Error& err)
+        {
+            QMessageBox::critical(nullptr, "rtctestapp",
+                "Error creating chatroom:\n"+QString::fromStdString(err.what()));
+        });
+    }
 };
 class CListGroupChatItem: public CListItem
 {
@@ -166,59 +133,5 @@ public:
         :CListItem(parent, true), mRoom(room){}
 };
 
-class RtcEventHandler: public rtcModule::IEventHandler
-{
-protected:
-    MainWindow* mMainWindow;
-    virtual ~RtcEventHandler(){}
-public:
-    RtcEventHandler(MainWindow* mainWindow)
-        :mMainWindow(mainWindow){}
-    virtual void onLocalStreamObtained(IVideoRenderer** renderer)
-    {
-        inCall = true;
-        mMainWindow->ui->callBtn->setText("Hangup");
-        *renderer = mMainWindow->ui->localRenderer;
-    }
-    virtual void onRemoteSdpRecv(rtcModule::IJingleSession* sess, IVideoRenderer** rendererRet)
-    {
-        *rendererRet = mMainWindow->ui->remoteRenderer;
-    }
-    virtual void onCallIncomingRequest(rtcModule::IAnswerCall* ctrl)
-    {
-        ctrl->setUserData(new CallAnswerGui(ctrl, mMainWindow));
-    }
-    virtual void onIncomingCallCanceled(const char *sid, const char *event, const char *by, int accepted, void **userp)
-    {
-        if(*userp)
-        {
-            delete static_cast<CallAnswerGui*>(*userp);
-            *userp = nullptr;
-        }
-        printf("Call canceled for reason: %s\n", event);
-    }
-
-    virtual void onCallEnded(rtcModule::IJingleSession *sess,
-        const char* reason, const char* text, rtcModule::stats::IRtcStats *statsObj)
-    {
-        rtcModule::ISharedPtr<rtcModule::stats::IRtcStats> stats(statsObj);
-        printf("on call ended\n");
-        inCall = false;
-        mMainWindow->ui->callBtn->setText("Call");
-    }
-    virtual void discoAddFeature(const char *feature)
-    {
-        karere::gClient->conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
-    }
-    virtual void onLocalMediaFail(const char* err, int* cont = nullptr)
-    {
-        KR_LOG_ERROR("=============LocalMediaFail: %s", err);
-    }
-    virtual void onError(const char* sid, const char* msg, const char* reason, const char* text, unsigned flags)
-    {
-        KR_LOG_ERROR("onError even handler: %s", msg);
-    }
-
-};
 
 #endif // MAINWINDOW_H

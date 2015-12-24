@@ -160,17 +160,18 @@ class ChatWindow: public QDialog, public karere::IGui::IChatWindow
     Q_OBJECT
 protected:
     karere::ChatRoom& mRoom;
-    Ui::ChatWindow* ui;
+    Ui::ChatWindow ui;
     chatd::Messages* mMessages = nullptr;
     MessageWidget* mEditedWidget = nullptr; ///pointer to the widget being edited. Also signals whether we are editing or writing a new message (nullptr - new msg, editing otherwise)
     std::map<chatd::Id, const chatd::Message*> mNotLinkedEdits;
     bool mUnsentChecked = false;
     std::unique_ptr<HistFetchUi> mHistFetchUi;
     CallGui* mCallGui = nullptr;
+    friend class CallGui;
 public slots:
     void onMsgSendBtn()
     {
-        auto text = ui->mMessageEdit->toPlainText().toUtf8();
+        auto text = ui.mMessageEdit->toPlainText().toUtf8();
         if (mEditedWidget)
         {
             auto widget = mEditedWidget;
@@ -180,7 +181,7 @@ public slots:
               && (memcmp(text.data(), msg.buf(), text.size()) == 0))
             { //no change
                 widget->disableEditGui();
-                ui->mMessageEdit->setText(QString());
+                ui.mMessageEdit->setText(QString());
                 return;
             }
 
@@ -196,9 +197,9 @@ public slots:
                 return;
             auto msg = mMessages->msgSubmit(text.data(), text.size(), nullptr);
             msg->userp = addMsgWidget(*msg, chatd::Message::kSending, false);
-            ui->mMessageList->scrollToBottom();
+            ui.mMessageList->scrollToBottom();
         }
-        ui->mMessageEdit->setText(QString());
+        ui.mMessageEdit->setText(QString());
     }
     void onMessageCtxMenu(const QPoint& point)
     {
@@ -224,7 +225,7 @@ public slots:
     }
     void editLastMsg()
     {
-        auto msglist = ui->mMessageList;
+        auto msglist = ui.mMessageList;
         int count = msglist->count();
         for(int i=count-1; i>=0; i--)
         {
@@ -243,7 +244,7 @@ public slots:
         assert(mEditedWidget);
         mEditedWidget->cancelEdit();
         mEditedWidget = nullptr;
-        ui->mMessageEdit->setText(QString());
+        ui.mMessageEdit->setText(QString());
     }
     void onMsgListRequestHistory(int scrollDelta)
     {
@@ -263,34 +264,33 @@ public slots:
         if (isRemote)
         {
             mHistFetchUi.reset(new HistFetchUi(this));
-            auto layout = qobject_cast<QBoxLayout*>(ui->mTitlebar->layout());
+            auto layout = qobject_cast<QBoxLayout*>(ui.mTitlebar->layout());
             layout->insertWidget(1, mHistFetchUi->progressBar());
         }
     }
     void onVidGuiChk(bool enabled)
     {
         //auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget);
-        mVideoGui->setVisible(enabled);
+        mCallGui->setVisible(enabled);
     }
 
 public:
-    ChatWindow(karere::ChatRoom& room, QWidget* parent): QDialog(parent), mRoom(room),
-        ui(new Ui::ChatWindow)
+    ChatWindow(karere::ChatRoom& room, QWidget* parent): QDialog(parent), mRoom(room)
     {
-        ui->setupUi(this);
-        ui->mMessageList->setContextMenuPolicy(Qt::CustomContextMenu);
-        connect(ui->mMsgSendBtn, SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
-        connect(ui->mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
-        connect(ui->mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
-        connect(ui->mMessageList, SIGNAL(requestHistory(int)), this, SLOT(onMsgListRequestHistory(int)));
-        show();
+        ui.setupUi(this);
+        ui.mMessageList->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(ui.mMsgSendBtn, SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
+        connect(ui.mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
+        connect(ui.mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
+        connect(ui.mMessageList, SIGNAL(requestHistory(int)), this, SLOT(onMsgListRequestHistory(int)));
+        QDialog::show();
     }
 protected:
     MessageWidget* widgetFromMessage(const chatd::Message& msg)
     {
         if (!msg.userp)
             return nullptr;
-        return qobject_cast<MessageWidget*>(ui->mMessageList->itemWidget(static_cast<QListWidgetItem*>(msg.userp)));
+        return qobject_cast<MessageWidget*>(ui.mMessageList->itemWidget(static_cast<QListWidgetItem*>(msg.userp)));
     }
     QListWidgetItem* addMsgWidget(const chatd::Message& msg, chatd::Message::Status status,
                       bool first, QColor* color=nullptr)
@@ -304,13 +304,13 @@ protected:
         item->setSizeHint(widget->size());
         if (first)
         {
-            ui->mMessageList->insertItem(0, item);
+            ui.mMessageList->insertItem(0, item);
         }
         else
         {
-            ui->mMessageList->addItem(item);
+            ui.mMessageList->addItem(item);
         }
-        ui->mMessageList->setItemWidget(item, widget);
+        ui.mMessageList->setItemWidget(item, widget);
         if(!checkHandleInboundEdits(msg))
         {
             if (color)
@@ -353,8 +353,8 @@ protected:
         mEditedWidget = &widget;
         auto cancelBtn = widget.startEditing();
         connect(cancelBtn, SIGNAL(clicked()), this, SLOT(cancelMsgEdit()));
-        ui->mMessageEdit->setText(QString().fromUtf8(widget.mMessage->buf(), widget.mMessage->dataSize()));
-        ui->mMessageEdit->moveCursor(QTextCursor::End);
+        ui.mMessageEdit->setText(QString().fromUtf8(widget.mMessage->buf(), widget.mMessage->dataSize()));
+        ui.mMessageEdit->moveCursor(QTextCursor::End);
     }
     bool checkHandleInboundEdits(const chatd::Message& msg)
     {
@@ -369,12 +369,20 @@ protected:
         mNotLinkedEdits.erase(it);
         return true;
     }
+    void setOnlineIndication(chatd::ChatState state)
+    {
+        ui.mOnlineStateDisplay->setText(chatd::chatStateToStr(state));
+        printf("setOnlineIndication: %s\n", chatd::chatStateToStr(state));
+    }
+    //we are online - we need to have fetched all new messages to be able to send unsent ones,
+    //because the crypto layer needs to have received the most recent keys
     chatd::Listener* listenerInterface() { return static_cast<chatd::Listener*>(this); }
 public:
     //chatd::Listener interface
     virtual void init(chatd::Messages* messages, chatd::DbInterface*& dbIntf)
     {
         mMessages = messages;
+        setOnlineIndication(mMessages->onlineState());
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -385,7 +393,7 @@ public:
         else
             addMsgWidget(msg, status, false);
         //mMessages->setMessageSeen(idx);
-        ui->mMessageList->scrollToBottom();
+        ui.mMessageList->scrollToBottom();
     }
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
     {
@@ -407,7 +415,7 @@ public:
         if (!mMessages->lastHistFetchCount())
             return;
 
-        auto& list = *ui->mMessageList;
+        auto& list = *ui.mMessageList;
         auto idx = list.indexAt(QPoint(list.rect().left()+10, list.rect().bottom()-2));
         if (!idx.isValid() && mMessages->histFetchState() != chatd::kHistNoMore)
         {
@@ -436,12 +444,8 @@ public:
     }
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
+        setOnlineIndication(state);
         mRoom.onOnlineStateChange(state);
-        ui->mOnlineStateDisplay->setText(chatd::chatStateToStr(state));
-        if (state != chatd::kChatStateOnline)
-            return;
-        //we are online - we need to have fetched all new messages to be able to send unsent ones,
-        //because the crypto layer needs to have received the most recent keys
     }
     virtual void onUnsentMsgLoaded(const chatd::Message& msg)
     {
@@ -454,7 +458,7 @@ public:
             auto item = addMsgWidget(msg, chatd::Message::kSending, false);
             msg.userp = item;
         }
-        ui->mMessageList->scrollToBottom();
+        ui.mMessageList->scrollToBottom();
     }
     virtual void onUserJoined(const chatd::Id& userid, char priv)
     {
@@ -464,6 +468,9 @@ public:
     {
         mRoom.onUserLeft(userid);
     }
+    virtual karere::IGui::ICallGui* getCallGui() { return mCallGui; }
+    virtual void show() { QDialog::show(); }
+    virtual void hide() { QDialog::hide(); }
 };
 
 #endif // CHATWINDOW_H

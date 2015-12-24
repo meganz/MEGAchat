@@ -179,10 +179,6 @@
   </connection>
  </connections>
  <slots>
-  <slot>buttonPushed()</slot>
-  <slot>inviteButtonPushed()</slot>
-  <slot>sendButtonPushed()</slot>
-  <slot>leaveButtonPushed()</slot>
   <slot>onAudioInSelected()</slot>
   <slot>onVideoInSelected()</slot>
  </slots>

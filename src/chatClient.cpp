@@ -21,6 +21,7 @@
 #include <db.h>
 #include <buffer.h>
 #include <chatdDb.h>
+#include <megaapi_impl.h>
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
@@ -257,18 +258,20 @@ promise::Promise<int> Client::init()
 
 // handle reconnect due to network errors
         setupReconnectHandler();
+// create and register disco strophe plugin
+        conn->registerPlugin("disco", new disco::DiscoPlugin(*conn, "Karere Native"));
 
 // Create and register the rtcmodule plugin
 // the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
 // To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
         rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*api), KARERE_DEFAULT_TURN_SERVERS);
         conn->registerPlugin("rtcmodule", rtc);
+
 // create and register text chat plugin
         mTextModule = new TextModule(*this);
         conn->registerPlugin("textchat", mTextModule);
-// create and register disco strophe plugin
-        conn->registerPlugin("disco", new disco::DiscoPlugin(*conn, "Karere Native"));
         KR_LOG_DEBUG("webrtc and textchat plugins initialized");
+
 // install contactlist handlers before sending initial presence so that the presences that start coming after that get processed
         auto pms = initializeContactList();
 // Send initial <presence/> so that we appear online to contacts
@@ -659,7 +662,7 @@ void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrC
     {
         auto& attrType = attrDesc[key.attrType];
         mClient.api->call(&mega::MegaApi::getUserAttribute,
-            chatd::base64urlencode(&key.user, sizeof(key.user)).c_str(), (int)key.attrType)
+            base64urlencode(&key.user, sizeof(key.user)).c_str(), (int)key.attrType)
         .then([this, &attrType, key, item](ReqResult result)
         {
             item->pending = kCacheFetchNotPending;
@@ -678,7 +681,7 @@ void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrC
     else
     {
         item->data = new Buffer;
-        std::string strUh = chatd::base64urlencode(&key.user, sizeof(key.user));
+        std::string strUh = base64urlencode(&key.user, sizeof(key.user));
         mClient.api->call(&mega::MegaApi::getUserAttribute, strUh.c_str(),
                   (int)MyMegaApi::USER_ATTR_FIRSTNAME)
         .then([this, strUh, key, item](ReqResult result)
@@ -922,20 +925,22 @@ void ChatRoomList::syncRoomsWithApi(const mega::MegaTextChatList& rooms)
         addRoom(*rooms.get(i));
     }
 }
-bool ChatRoomList::addRoom(const mega::MegaTextChat& room)
+ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room)
 {
     auto chatid = room.getHandle();
     auto it = find(chatid);
     if (it != end()) //we already have that room
     {
         it->second->syncWithApi(room);
-        return false;
+        return *it->second;
     }
-    if (room.isGroup())
-        emplace(chatid, new GroupChatRoom(*this, room)); //also writes it to cache
+    ChatRoom* ret;
+    if(room.isGroup())
+        ret = new GroupChatRoom(*this, room); //also writes it to cache
     else
-        emplace(chatid, new PeerChatRoom(*this, room));
-    return true;
+        ret = new PeerChatRoom(*this, room);
+    emplace(chatid, ret);
+    return *ret;
 }
 bool ChatRoomList::removeRoom(const uint64_t &chatid)
 {
@@ -1030,11 +1035,27 @@ void ChatRoom::init(chatd::Messages* msgs, chatd::DbInterface*& dbIntf)
     mMessages = msgs;
     dbIntf = new ChatdSqliteDb(msgs, mParent.client.db);
     if (mChatWindow)
-    {
-        chatd::DbInterface* nullIntf = nullptr;
-        mChatWindow->init(msgs, nullIntf);
-    }
+    switchListenerToChatWindow();
 }
+IGui::IChatWindow &ChatRoom::chatWindow()
+{
+    if (!mChatWindow)
+    {
+        mChatWindow = mParent.client.gui.createChatWindow(*this);
+        switchListenerToChatWindow();
+    }
+    return *mChatWindow;
+}
+
+void ChatRoom::switchListenerToChatWindow()
+{
+    if (mMessages->listener() == mChatWindow)
+        return;
+    chatd::DbInterface* dummyIntf = nullptr;
+    mChatWindow->init(mMessages, dummyIntf);
+    mMessages->setListener(*mChatWindow);
+}
+
 void GroupChatRoom::onUserJoined(const chatd::Id &userid, char privilege)
 {
     addMember(userid, privilege, true);
@@ -1231,6 +1252,25 @@ Contact::~Contact()
     mClist.client.userAttrCache.removeCb(mUsernameAttrCbId);
     mClist.client.gui.contactList().removeContactItem(mDisplay);
 }
+promise::Promise<ChatRoom*> Contact::createChatRoom()
+{
+    if (mChatRoom)
+    {
+        KR_LOG_WARNING("Contact::createChatRoom: chat room already exists, check before caling this method");
+        return Promise<ChatRoom*>(mChatRoom);
+    }
+    mega::MegaTextChatPeerListPrivate peers;
+    peers.addPeer(mUserid, chatd::PRIV_FULL);
+    return mClist.client.api->call(&mega::MegaApi::createChat, false, &peers)
+    .then([this](ReqResult result) -> Promise<ChatRoom*>
+    {
+        auto list = *result->getMegaTextChatList();
+        if (list.size() < 1)
+            return promise::Error("Empty chat list returned from API");
+        auto& room = mClist.client.chats->addRoom(*list.get(0));
+        return &room;
+    });
+}
 
 IGui::ITitleDisplay*
 ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
@@ -1243,6 +1283,11 @@ ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
         throw std::runtime_error("attachRoomToContact: contact already has a chat room attached");
     contact.mChatRoom = &room;
     return contact.mDisplay;
+}
+
+void Client::discoAddFeature(const char *feature)
+{
+    conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
 }
 
 }

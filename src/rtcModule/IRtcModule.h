@@ -112,10 +112,12 @@ enum
     RtcModule& rtc() const { return mRtc; }
     CallState state() const { return mState; }
     bool isCaller() const { return mIsCaller; }
+    const std::string& peerJid() const { return mPeerJid; }
     static const char* termcodeToMsg(TermCode event);
     static std::string termcodeToReason(TermCode event);
     static TermCode strToTermcode(std::string event);
     IEventHandler& handler() const { return *mHandler; }
+    virtual bool hangup(const char* text=nullptr) = 0;
 };
 /**
  * Call event handler callback interface. When the call is created, the user
@@ -151,7 +153,7 @@ virtual void onOutgoingCallCreated(const std::shared_ptr<ICall>& call) {}
 */
 
 /** Called when a session for the call has just been created */
-    virtual void onSession();
+    virtual void onSession() {}
 
 /** Called when out outgoing call was answered
  * @param peerJid - the full jid of the answerer
@@ -210,7 +212,7 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
 * non-null and points to a pointer that should receive an IVideoRenderer
 * instance. This instance will receive decoded video frames from the remote peer.
 */
-    virtual void onRemoteSdpRecv(IVideoRenderer** rendererRet) {}
+    virtual void onRemoteSdpRecv(IVideoRenderer*& rendererRet) {}
 /**
 * @brief Fired when a Jingle error XML stanza is received.
 * @param origin A short string identifying the operation during which the error occurred.
@@ -233,14 +235,24 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
 */
     virtual void onLocalVideoEnabled() {}
 
-    virtual void onMute(AvFlags what);
-    virtual void onUnmute(AvFlags what);
+    virtual void onMute(AvFlags what) {}
+    virtual void onUnmute(AvFlags what) {}
 protected:
 /**
 * @brief Non-public destructor to avoid mixing memory managers. Destruction
 * is done via calling IDestroy's destroy() method that this interface implements
 */
     virtual ~IEventHandler() {}
+};
+
+class ICallAnswer
+{
+public:
+    virtual std::shared_ptr<ICall> call() const = 0;
+    virtual bool reqStillValid() const = 0;
+    virtual std::set<std::string>* files() const = 0;
+    virtual AvFlags peerMedia() const = 0;
+    virtual bool answer(bool accept, AvFlags ownMedia) = 0;
 };
 
 class IGlobalEventHandler
@@ -262,10 +274,7 @@ public:
 * 'incoming call' GUI and if the call is actually answered, reset to an actual call
 * event handler.
 */
-    virtual IEventHandler* onIncomingCallRequest(const std::shared_ptr<ICall>& call,
-        std::shared_ptr<CallAnswerFunc>& ans,
-        std::shared_ptr<std::function<bool()> >& reqStillValid,
-        const AvFlags& peerMedia, std::shared_ptr<std::set<std::string> >& files) = 0;
+    virtual IEventHandler* onIncomingCallRequest(const std::shared_ptr<ICallAnswer>& ans) = 0;
 /**
 * @brief discoAddFeature Called when rtcModule wants to add a disco feature
 * to the xmpp client. The implementation should normally have instantiated
@@ -280,6 +289,9 @@ public:
 class IRtcModule: public strophe::IPlugin
 {
 public:
+    virtual void getAudioInDevices(std::vector<std::string>& devices) const = 0;
+    virtual void getVideoInDevices(std::vector<std::string>& devices) const = 0;
+
     virtual bool selectVideoInDevice(const std::string& devname) = 0;
     virtual bool selectAudioInDevice(const std::string& devname) = 0;
     virtual int muteUnmute(AvFlags state, const std::string& jid) = 0;
@@ -292,7 +304,7 @@ public:
 
 IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
                   ICryptoFunctions* crypto, const char* iceServers);
-void glovalCleanup();
+void globalCleanup();
 
 }
 

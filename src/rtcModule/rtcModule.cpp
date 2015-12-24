@@ -673,10 +673,12 @@ void Call::onRemoteStreamAdded(artc::tspMediaStream stream)
     }
 
     IVideoRenderer* renderer = NULL;
-    IVideoRenderer** rendererRet = stream->GetVideoTracks().empty()?nullptr:&renderer;
-    RTCM_EVENT(this, onRemoteSdpRecv, rendererRet);
-    if (rendererRet && !*rendererRet)
-        KR_LOG_ERROR("onRemoteSdpRecv: No video renderer provided by application");
+    RTCM_EVENT(this, onRemoteSdpRecv, renderer);
+    if (!renderer)
+    {
+        hangup(kInternalError, "onRemoteSdpRecv: No video renderer provided by application");
+        return;
+    }
     mRemotePlayer.reset(new artc::StreamPlayer(renderer));
     mRemotePlayer->setOnMediaStart(std::bind(&Call::onMediaStart, this));
     mRemotePlayer->attachToStream(stream);
@@ -801,6 +803,7 @@ std::string Call::id() const
 }
 
 bool gInitialized = false;
+__attribute__ ((visibility("default")))
 IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
                   ICryptoFunctions* crypto, const char* iceServers)
 {
@@ -812,7 +815,8 @@ IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
     return new RtcModule(conn, handler, crypto, iceServers);
 }
 
-void cleanup()
+__attribute__ ((visibility("default")))
+void globalCleanup()
 {
     if (!gInitialized)
         return;

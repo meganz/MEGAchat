@@ -256,7 +256,7 @@ void Jingle::onJingle(Stanza iq)
 /* Incoming call request with a message stanza of type 'megaCall' */
 void Jingle::onIncomingCallMsg(Stanza callmsg)
 {
-    struct State
+    struct State: public ICallAnswer
     {
         Jingle& self;
         bool handledElsewhere = false;
@@ -274,8 +274,28 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         Promise<void> pmsGelb;
         bool handlersFreed = false; //set to true when the stanza handlers have been freed
         bool userResponded = false; //set to true when user answers or rejects the call
-        std::shared_ptr<std::function<bool()>> reqStillValid;
-        std::shared_ptr<Call> call;
+        std::shared_ptr<Call> mCall;
+        AvFlags mPeerMedia;
+        std::shared_ptr<CallAnswerFunc> ansFunc;
+        //ICallAnswer interface
+        AvFlags peerMedia() const { return mPeerMedia; } //TODO: implement peer media parsing
+        bool reqStillValid() const
+        {
+            if (userResponded || mCall->state() != kCallStateInReq)
+                return false;
+            Ts tsTillUser = tsReceived + self.callAnswerTimeout+10000;
+            return (timestampMs() < tsTillUser);
+        }
+        bool answer(bool accept, AvFlags av)
+        {
+            if (userResponded)
+                return false;
+            userResponded = true;
+            return (*ansFunc)(accept, av);
+        }
+        std::set<std::string>* files() const { return nullptr; }
+        std::shared_ptr<ICall> call() const { return std::static_pointer_cast<ICall>(mCall); }
+        //==
         bool freeHandlers(unsigned* handler=nullptr)
         {
             if (handlersFreed)
@@ -297,7 +317,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         }
         State(Jingle& aSelf): self(aSelf){}
     };
-    shared_ptr<State> state(new State(*this));
+    shared_ptr<State> state = make_shared<State>(*this);
 
     state->callmsg = callmsg;
     state->sid = callmsg.attr("sid");
@@ -359,18 +379,10 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
 //will get onCallCanceled, or if the user answers at that moment, they will get
 //a call-not-valid-anymore condition
 
-        state->reqStillValid = std::make_shared<std::function<bool()>>([this, state]()
-        {
-            if (state->userResponded || state->call->state() != kCallStateInReq)
-                return false;
-              Ts tsTillUser = state->tsReceived + callAnswerTimeout+10000;
-              return (timestampMs() < tsTillUser);
-        });
-        shared_ptr<set<string> > files; //TODO: implement file transfers
-        AvFlags peerMedia(false,false); //TODO: Implement peerMedia parsing
+        state->mPeerMedia = AvFlags(false,false); //TODO: Implement peerMedia parsing
         auto hangupFunc = [this, state](TermCode termcode, const char* text)->bool
         {
-            if (!(*state->reqStillValid)()) // Call was cancelled, or request timed out and handler was removed
+            if (!state->reqStillValid()) // Call was cancelled, or request timed out and handler was removed
                 return false;
             state->userResponded = true;
             state->freeHandlers();
@@ -388,7 +400,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         };
 
 // Notify about incoming call
-        auto ansFunc = std::make_shared<CallAnswerFunc>(
+        state->ansFunc = std::make_shared<CallAnswerFunc>(
         [this, state](bool accept, AvFlags av)->bool
         {
 // If dialog was displayed for too long, the peer timed out waiting for response,
@@ -396,16 +408,16 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
 // When the user returns at this client he may see the expired dialog asking to accept call,
 // and will answer it, but we have to ignore it because it's no longer valid
             if (!accept)
-                return state->call->hangup();
+                return state->mCall->hangup();
 //accept call
-            if (!(*state->reqStillValid)()) // Call was cancelled, or request timed out and handler was removed
+            if (!state->reqStillValid()) // Call was cancelled, or request timed out and handler was removed
                 return false; //the callback returning false signals to the calling user code that the call request is not valid anymore
 
             state->userResponded = true;
             when(state->pmsCrypto, state->pmsGelb)
             .then([this, state, av]()
             {
-                if (!(*state->reqStillValid)())
+                if (!state->reqStillValid())
                     return;
                 auto it = find(state->sid);
                 if (it == end())
@@ -473,10 +485,10 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         });
         state->pmsCrypto = mCrypto->preloadCryptoForJid(state->fromBare);
 
-        auto& call = state->call = addCall(kCallStateInReq, false, nullptr, state->sid,
+        auto& call = state->mCall = addCall(kCallStateInReq, false, nullptr, state->sid,
             std::move(hangupFunc), state->from, AvFlags(true, true));
         call->mHandler = mGlobalHandler->onIncomingCallRequest(
-            static_pointer_cast<ICall>(call), ansFunc, state->reqStillValid, peerMedia, files);
+            static_pointer_cast<ICallAnswer>(state));
         if (!call->mHandler)
             throw std::runtime_error("onIncomingCallRequest: Application did not provide call event handler");
     }

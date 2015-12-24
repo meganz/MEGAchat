@@ -1,51 +1,34 @@
 #include "callGui.h"
-
+#include "chatWindow.h"
+#include <mega/base64.h> //for base32
+#include <chatRoom.h>
 using namespace std;
 using namespace mega;
 using namespace karere;
 
-
-extern bool inCall;
-extern karere::IGui::ICallGui* gCallGui = nullptr;
-
-void CallGui::callBtnPushed()
+void CallGui::onCallBtnPushed()
 {
-    if (inCall)
+    if (mCall)
     {
-        gClient->rtc->hangupAll("hangup", nullptr);
-        inCall = false;
-        ui->callBtn->setText("Call");
+        mCall->hangup();
+        ui.callBtn->setText("Call");
     }
     else
     {
-        std::string peerMail = ui->calleeInput->text().toLatin1().data();
-        if (peerMail.empty())
-        {
-            QMessageBox::critical(this, "Error", "Invalid user entered in peer input box");
-            return;
-        }
-        gClient->api->call(&MegaApi::getUserData, peerMail.c_str())
-        .then([this](ReqResult result)
-        {
-            const char* peer = result->getText();
-            if (!peer)
-                throw std::runtime_error("Returned peer user is NULL");
-
-            string peerJid = string(peer)+"@"+KARERE_XMPP_DOMAIN;
-            return karere::XmppChatRoom::create(*gClient, peerJid);
-        })
+        chatd::Id peer = static_cast<PeerChatRoom&>(
+                    static_cast<ChatWindow*>(parent())->mRoom).peer();
+        char buf[16];
+        auto len = ::mega::Base32::btoa((byte*)&peer.val, 8, buf);
+        assert(len < 16);
+        buf[len] = 0;
+        string peerJid = string(buf)+"@"+KARERE_XMPP_DOMAIN;
+        karere::XmppChatRoom::create(*gClient, peerJid)
         .then([this](shared_ptr<karere::XmppChatRoom> room)
         {
-            rtcModule::AvFlags av;
-            av.audio = true;
-            av.video = true;
-            char sid[rtcModule::RTCM_SESSIONID_LEN+2];
-            gClient->rtc->startMediaCall(sid, room->peerFullJid().c_str(), av, nullptr);
-            this->chatRoomJid = room->roomJid();
-            gClient->mTextModule->chatRooms[chatRoomJid]->addUserToChat(room->peerFullJid());
-            inCall = true;
-            ui->callBtn->setText("Hangup");
-            return nullptr;
+            rtcModule::AvFlags av(true,true);
+            gClient->rtc->startMediaCall(this, room->peerFullJid(), av, nullptr);
+            room->addUserToChat(room->peerFullJid());
+            ui.callBtn->setText("Hangup");
         })
         .fail([this](const promise::Error& err)
         {
@@ -53,7 +36,7 @@ void CallGui::callBtnPushed()
                 QMessageBox::critical(this, "Error", "Callee user not recognized");
             else
                 QMessageBox::critical(this, "Error", QString("Error calling user:")+err.msg().c_str());
-            return nullptr;
+            return err;
         });
     }
 }

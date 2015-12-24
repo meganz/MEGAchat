@@ -23,7 +23,6 @@ using namespace mega;
 using namespace karere;
 
 MainWindow* mainWin = NULL;
-unique_ptr<karere::Client> gClientAutoDel;
 
 struct GcmEvent: public QEvent
 {
@@ -84,45 +83,35 @@ int main(int argc, char **argv)
     ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
-    mainWin = new MainWindow;
-    mainWin->ui->localRenderer->setMirrored(true);
-    mainWin->ui->callBtn->setEnabled(false);
-    mainWin->ui->callBtn->setText("Login...");
-    QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
-    mainWin->ui->calleeInput->setText(argv[3]);
+    mainWin = new MainWindow();
     gClient.reset(new karere::Client(*mainWin, argv[1], argv[2]));
-//    gClientAutoDel.reset(gClient);
-    gClient->registerRtcHandler(new RtcEventHandler(mainWin));
+    mainWin->setClient(*gClient);
+    //    mainWin->ui.localRenderer->setMirrored(true);
+    QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
+
     gClient->init()
     .then([](int)
     {
-        rtcModule::IPtr<rtcModule::IDeviceList> audio(gClient->rtc->getAudioInDevices());
-        for (size_t i=0, len=audio->size(); i<len; i++)
-            mainWin->ui->audioInCombo->addItem(audio->name(i).c_str());
-        rtcModule::IPtr<rtcModule::IDeviceList> video(gClient->rtc->getVideoInDevices());
-        for (size_t i=0, len=video->size(); i<len; i++)
-            mainWin->ui->videoInCombo->addItem(video->name(i).c_str());
-
-        mainWin->ui->callBtn->setEnabled(true);
-        mainWin->ui->callBtn->setText("Call");
-        std::vector<std::string> contacts = gClient->getContactList().getContactJids();
-
-        for(size_t i=0; i<contacts.size();i++)
-        {
-            mainWin->ui->contactList->addItem(new QListWidgetItem(QIcon("/images/online.png"), contacts[i].c_str()));
-        }
+        KR_LOG_DEBUG("Client initialized");
+        vector<string> audio;
+        gClient->rtc->getAudioInDevices(audio);
+        for (auto& name: audio)
+            mainWin->ui.audioInCombo->addItem(name.c_str());
+        vector<string> video;
+        gClient->rtc->getVideoInDevices(video);
+        for (auto& name: video)
+            mainWin->ui.videoInCombo->addItem(name.c_str());
     })
     .fail([](const promise::Error& error)
     {
-        KR_LOG_ERROR("Client::start() promise failed:\n%s", error.msg().c_str());
-        return error;
+        QMessageBox::critical(mainWin, "rtctestapp", QString::fromLatin1("Client startup failed with error:\n")+QString::fromStdString(error.msg()));
+        mainWin->close();
     });
 
-    signal(SIGINT, sigintHandler);
     mainWin->show();
-
+    signal(SIGINT, sigintHandler);
     return a.exec();
 }
 
@@ -137,7 +126,7 @@ void AppDelegate::onAppTerminate()
     {
         qApp->quit(); //stop processing marshalled call messages
         gClient.reset();
-        rtcCleanup();
+        rtcModule::globalCleanup();
         services_shutdown();
     });
 }

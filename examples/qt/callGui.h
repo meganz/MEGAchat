@@ -11,36 +11,26 @@
 #include <IJingleSession.h>
 #include <chatClient.h>
 
-class CallGui : public QWidget
-{
-    Q_OBJECT    
-public:
-    Ui::CallGui ui;
-    CallGui(QWidget *parent = 0): QWidget(parent)
-    {
-        ui.setupUi(this);
-    }
-protected:
-public slots:
-    void onCallBtnPushed();
-};
 
 extern bool inCall;
 extern karere::IGui::ICallGui* gCallGui;
 
-class CallAnswerGui: QObject
+class CallAnswerGui: QObject, rtcModule::IEventHandler
 {
     Q_OBJECT
 public:
-    rtcModule::IAnswerCall* ctrl;
     QAbstractButton* answerBtn;
     QAbstractButton* rejectBtn;
-
+    std::shared_ptr<rtcModule::CallAnswerFunc> ansFunc;
+    std::shared_ptr<rtcModule::ICall> call;
     std::unique_ptr<QMessageBox> msg;
-    CallAnswerGui(rtcModule::IAnswerCall* aCtrl, CallGui* win):ctrl(aCtrl),
-        msg(new QMessageBox(QMessageBox::Information,
-        "Incoming call", QString::fromLatin1(ctrl->callerFullJid())+" is calling you",
-        QMessageBox::NoButton, nullptr))
+    CallAnswerGui(QWidget* parent, const std::shared_ptr<rtcModule::ICall>& aCall,
+            const std::shared_ptr<rtcModule::CallAnswerFunc>& ans,
+            const std::shared_ptr<std::function<bool()> >& reqStillValid,
+            karere::AvFlags peerMedia, const std::shared_ptr<std::set<std::string> >& files)
+    :QObject(parent), ansFunc(ans), call(aCall), msg(new QMessageBox(QMessageBox::Information,
+        "Incoming call", QString::fromStdString(call->peerJid()+" is calling you"),
+        QMessageBox::NoButton, parent))
     {
         msg->setAttribute(Qt::WA_DeleteOnClose);
         answerBtn = msg->addButton("Answer", QMessageBox::AcceptRole);
@@ -54,83 +44,57 @@ public:
 public slots:
     void onBtnClick(QAbstractButton* btn)
     {
-        ctrl->setUserData(nullptr);
         msg->close();
         if (btn == answerBtn)
         {
-            int ret = ctrl->answer(true, rtcModule::AvFlags(true, true), nullptr, nullptr);
-            if (ret == 0)
-            {
-                std::string caller(ctrl->callerFullJid());
-                auto pos = caller.find('@');
-                if (pos == std::string::npos)
-                    throw std::runtime_error("Cant get user handle from caller JID");
-                chatd::Id handle(caller.c_str(), pos);
-                auto chatwin = karere::gClient->gui.contactList().chatWindowForPeer(handle);
-                gCallGui = chatwin->callGui();
-                inCall = true;
-            }
+            bool ret = (*ansFunc)(true, karere::AvFlags(true, true));
+            if (!ret)
+                return;
+            inCall = true;
         }
         else //decline button
         {
-            gCallGui = nullptr;
             inCall = false;
-            ctrl->answer(false, rtcModule::AvFlags(true, true), "hangup", nullptr);
+            (*ansFunc)(false, rtcModule::AvFlags());
         }
     }
 };
-class RtcEventHandler: public rtcModule::IEventHandler
+class CallGui: public QWidget, public rtcModule::IEventHandler, public karere::IGui::ICallGui
 {
+Q_OBJECT
 protected:
-    virtual ~RtcEventHandler(){}
+    std::shared_ptr<rtcModule::ICall> mCall;
+public slots:
+    void onCallBtnPushed();
 public:
-    RtcEventHandler(){}
-    virtual void onLocalStreamObtained(IVideoRenderer** renderer)
+    Ui::CallGui ui;
+    CallGui(QWidget *parent = 0): QWidget(parent)
+    {
+        ui.setupUi(this);
+    }
+    virtual void onOutgoingCallCreated(const std::shared_ptr<rtcModule::ICall> &aCall)
+    {mCall = aCall;}
+    virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer)
     {
         inCall = true;
-        gCallGui->ui->callBtn->setText("Hangup");
-        *renderer = mCallGui->ui->localRenderer;
+        ui.callBtn->setText("Hangup");
+        renderer = ui.localRenderer;
     }
-    virtual void onRemoteSdpRecv(rtcModule::IJingleSession* sess, IVideoRenderer** rendererRet)
+    virtual void onRemoteSdpRecv(rtcModule::IVideoRenderer*& rendererRet)
     {
-        *rendererRet = gCallGui->ui->remoteRenderer;
+        rendererRet = ui.remoteRenderer;
     }
-    virtual void onCallIncomingRequest(rtcModule::IAnswerCall* ctrl)
+    virtual void onCallEnded(rtcModule::TermCode code, const char* text,
+        const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj)
     {
-        ctrl->setUserData(new CallAnswerGui(ctrl));
-    }
-    virtual void onIncomingCallCanceled(const char *sid, const char *event, const char *by, int accepted, void **userp)
-    {
-        if(*userp)
-        {
-            delete static_cast<CallAnswerGui*>(*userp);
-            *userp = nullptr;
-        }
-        printf("Call canceled for reason: %s\n", event);
-    }
-
-    virtual void onCallEnded(rtcModule::IJingleSession *sess,
-        const char* reason, const char* text, rtcModule::stats::IRtcStats *statsObj)
-    {
-        rtcModule::ISharedPtr<rtcModule::stats::IRtcStats> stats(statsObj);
         printf("on call ended\n");
         inCall = false;
-        gCallGui->ui->callBtn->setText("Call");
-        gCallGui = nullptr;
+        ui.callBtn->setText("Call");
     }
-    virtual void discoAddFeature(const char *feature)
+    virtual void onLocalMediaFail(const std::string& err, bool* cont)
     {
-        karere::gClient->conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
+        KR_LOG_ERROR("=============LocalMediaFail: %s", err.c_str());
     }
-    virtual void onLocalMediaFail(const char* err, int* cont = nullptr)
-    {
-        KR_LOG_ERROR("=============LocalMediaFail: %s", err);
-    }
-    virtual void onError(const char* sid, const char* msg, const char* reason, const char* text, unsigned flags)
-    {
-        KR_LOG_ERROR("onError even handler: %s", msg);
-    }
-
 };
 
 #endif // MAINWINDOW_H

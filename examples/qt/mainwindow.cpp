@@ -27,270 +27,43 @@ using namespace std;
 using namespace mega;
 using namespace karere;
 
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
-    ui(new Ui::MainWindow)
+MainWindow::MainWindow(Client* aClient): mClient(aClient)
 {
-    message_bus::MessageListener<M_MESS_PARAMS> l = {
-        "guiRoomListener",
-        [this](message_bus::SharedMessage<M_MESS_PARAMS> &message,
-                message_bus::MessageListener<M_MESS_PARAMS> &listener){
-            std::string rm(ROOM_ADDED_JID);
-
-            std::string roomJid = message->getValue<std::string>(rm);
-            roomAdded(roomJid);
-        }
-    };
-
-    message_bus::SharedMessageBus<M_BUS_PARAMS>::
-        getMessageBus()->addListener(ROOM_ADDED_EVENT, l);
-
-    message_bus::MessageListener<M_MESS_PARAMS> c = {
-        "guiContactListener",
-        [this](message_bus::SharedMessage<M_MESS_PARAMS> &message,
-                message_bus::MessageListener<M_MESS_PARAMS> &listener){
-            std::string contactJid = message->getValue<std::string>(CONTACT_JID);
-            karere::Presence oldState = message->getValue<karere::Presence>(CONTACT_OLD_STATE);
-            karere::Presence newState = message->getValue<karere::Presence>(CONTACT_STATE);
-            contactStateChange(contactJid, oldState, newState);
-        }
-    };
-
-    message_bus::SharedMessageBus<M_BUS_PARAMS>::
-        getMessageBus()->addListener(CONTACT_CHANGED_EVENT, c);
-
-    message_bus::MessageListener<M_MESS_PARAMS> ca = {
-        "guiContactListener",
-        [this](message_bus::SharedMessage<M_MESS_PARAMS> &message,
-                message_bus::MessageListener<M_MESS_PARAMS> &listener){
-            std::string contactJid = message->getValue<std::string>(CONTACT_JID);
-            contactAdded(contactJid);
-        }
-    };
-
-    message_bus::SharedMessageBus<M_BUS_PARAMS>::
-        getMessageBus()->addListener(CONTACT_ADDED_EVENT, ca);
-
-    message_bus::MessageListener<M_MESS_PARAMS> o = {
-        "guiErrorListener",
-        [this](message_bus::SharedMessage<M_MESS_PARAMS> &message,
-                message_bus::MessageListener<M_MESS_PARAMS> &listener) {
-            std::string errMsg =
-                    message->getValue<std::string>(ERROR_MESSAGE_CONTENTS);
-            handleError(errMsg);
-        }
-    };
-
-    message_bus::SharedMessageBus<M_BUS_PARAMS>::
-        getMessageBus()->addListener(ERROR_MESSAGE_EVENT, o);
-
-    message_bus::MessageListener<M_MESS_PARAMS> p = {
-        "guiGeneralListener",
-        [this](message_bus::SharedMessage<M_MESS_PARAMS> &message,
-                message_bus::MessageListener<M_MESS_PARAMS> &listener){
-            std::string generalMessage("GENERAL: ");
-            generalMessage.append(
-                    message->getValue<std::string>(GENERAL_EVENTS_CONTENTS));
-            handleMessage(generalMessage);
-        }
-    };
-
-    message_bus::SharedMessageBus<M_BUS_PARAMS>::
-        getMessageBus()->addListener(GENERAL_EVENTS, p);
-
-    message_bus::MessageListener<M_MESS_PARAMS> q = {
-        "guiWarningListener",
-        [this](message_bus::SharedMessage<M_MESS_PARAMS> &message,
-                message_bus::MessageListener<M_MESS_PARAMS> &listener){
-            std::string warMsg =
-                    message->getValue<std::string>(WARNING_MESSAGE_CONTENTS);
-            handleWarning(warMsg);
-        }
-    };
-
-    message_bus::SharedMessageBus<M_BUS_PARAMS>::
-        getMessageBus()->addListener(WARNING_MESSAGE_EVENT, q);
-
-    ui->setupUi(this);
+    ui.setupUi(this);
 }
-
-http::Client* client = nullptr;
-
 extern bool inCall;
 
-void MainWindow::handleMessage(std::string &message) {
-    QString chatMessage = ui->chatTextEdit->toPlainText() + "\n" + message.c_str();
-    ui->chatTextEdit->setPlainText(chatMessage);
-    QTextCursor c = ui->chatTextEdit->textCursor();
-    c.movePosition(QTextCursor::End);
-    ui->chatTextEdit->setTextCursor(c);
-}
-
-void MainWindow::contactStateChange(std::string &contactJid, karere::Presence oldState, karere::Presence newState) {
-    std::string msg = std::string("contact ") + contactJid + std::string(" changed from ") + karere::XmppContactList::presenceToText(oldState) + std::string(" to ") + karere::XmppContactList::presenceToText(newState);
-    handleMessage(msg);
-}
-
-void MainWindow::contactAdded(std::string &contactJid) {
-	printf("add contact %s\n", contactJid.c_str());
-	ui->contactList->addItem(new QListWidgetItem(QIcon("/images/online.png"), tr(contactJid.c_str())));
-}
-
-void MainWindow::roomAdded(std::string &roomJid) {
-    this->chatRoomJid = roomJid;
-    std::string listenEvent(ROOM_MESSAGE_EVENT);
-    listenEvent.append(this->chatRoomJid);
-    CHAT_LOG_DEBUG("************* eventName = %s", listenEvent.c_str());
-    message_bus::MessageListener<M_MESS_PARAMS> l {
-        "guiListenerNoOne",
-        [this](message_bus::SharedMessage<M_MESS_PARAMS> &message,
-                message_bus::MessageListener<M_MESS_PARAMS> &listener){
-            std::string data = message->getValue<std::string>(ROOM_MESSAGE_CONTENTS);
-            handleMessage(data);
-        }
-    };
-    message_bus::SharedMessageBus<M_BUS_PARAMS>::getMessageBus()->addListener(listenEvent, l);
-}
-
-void MainWindow::inviteButtonPushed()
-{
-    std::string peerMail = ui->calleeInput->text().toLatin1().data();
-    if (peerMail.empty())
-    {
-        QMessageBox::critical(this, "Error", "Invalid user entered in peer input box");
-        return;
-    }
-
-    gClient->mTextModule->invite(peerMail);
-
-}
-
-void MainWindow::handleError(std::string &message) {
-    QMessageBox::critical(this, "Error", message.c_str());
-}
-
-void MainWindow::handleWarning(std::string &message) {
-    std::string warningMessage("WARNING: ");
-    warningMessage.append(message);
-    handleMessage(warningMessage);
-}
-
-//void MainWindow::
-void MainWindow::leaveButtonPushed()
-{
-    gClient->mTextModule->leaveRoom(chatRoomJid);
-}
-
-void MainWindow::sendButtonPushed()
-{
-    std::string message = ui->typingTextEdit->toPlainText().toUtf8().constData();
-    gClient->mTextModule->sendMessage(chatRoomJid, message);
-    ui->typingTextEdit->setPlainText("");
-}
-
-void MainWindow::buttonPushed()
-{
-    if (inCall)
-    {
-        gClient->rtc->hangupAll("hangup", nullptr);
-        inCall = false;
-        ui->callBtn->setText("Call");
-    }
-    else
-    {
-        std::string peerMail = ui->calleeInput->text().toLatin1().data();
-        if (peerMail.empty())
-        {
-            QMessageBox::critical(this, "Error", "Invalid user entered in peer input box");
-            return;
-        }
-        gClient->api->call(&MegaApi::getUserData, peerMail.c_str())
-        .then([this](ReqResult result)
-        {
-            const char* peer = result->getText();
-            if (!peer)
-                throw std::runtime_error("Returned peer user is NULL");
-
-            string peerJid = string(peer)+"@"+KARERE_XMPP_DOMAIN;
-            return karere::XmppChatRoom::create(*gClient, peerJid);
-        })
-        .then([this](shared_ptr<karere::XmppChatRoom> room)
-        {
-            rtcModule::AvFlags av;
-            av.audio = true;
-            av.video = true;
-            char sid[rtcModule::RTCM_SESSIONID_LEN+2];
-            gClient->rtc->startMediaCall(sid, room->peerFullJid().c_str(), av, nullptr);
-            this->chatRoomJid = room->roomJid();
-            gClient->mTextModule->chatRooms[chatRoomJid]->addUserToChat(room->peerFullJid());
-            inCall = true;
-            ui->callBtn->setText("Hangup");
-            return nullptr;
-        })
-        .fail([this](const promise::Error& err)
-        {
-            if (err.type() == 0x3e9aab10)
-                QMessageBox::critical(this, "Error", "Callee user not recognized");
-            else
-                QMessageBox::critical(this, "Error", QString("Error calling user:")+err.msg().c_str());
-            return nullptr;
-        });
-    }
-
-
-    /*dnsLookup("google.com", 0)
-    .then([](std::shared_ptr<AddrInfo> result)
-    {
-        printf("Canonical name: %s\n", result->canonName().c_str());
-        auto& ip4s = result->ip4addrs();
-        for (auto& ip: ip4s)
-            printf("ipv4: %s\n", ip.toString());
-        auto& ip6s = result->ip6addrs();
-        for (auto& ip: ip6s)
-            printf("ipv6: %s\n", ip.toString());
-
-        return nullptr;
-    })
-    .fail([](const promise::Error& err)
-    {
-        printf("DNS lookup error: %s\n", err.msg().c_str());
-        return nullptr;
-    });*/
-
-}
 void MainWindow::onAudioInSelected()
 {
-    auto combo = ui->audioInCombo;
-    int ret = gClient->rtc->selectAudioInDevice(combo->itemText(combo->currentIndex()).toLatin1().data());
-    if (ret < 0)
+    auto combo = ui.audioInCombo;
+    bool ret = mClient->rtc->selectAudioInDevice(combo->itemText(combo->currentIndex()).toLatin1().data());
+    if (!ret)
     {
         QMessageBox::critical(this, "Error", "Selected device not present");
         return;
     }
-    printf("selected audio device: %d\n", ret);
+    printf("selected audio device\n");
 }
 
 void MainWindow::onVideoInSelected()
 {
-    auto combo = ui->videoInCombo;
-    int ret = gClient->rtc->selectVideoInDevice(combo->itemText(combo->currentIndex()).toLatin1().data());
-    if (ret < 0)
+    auto combo = ui.videoInCombo;
+    bool ret = mClient->rtc->selectVideoInDevice(combo->itemText(combo->currentIndex()).toLatin1().data());
+    if (!ret)
     {
         QMessageBox::critical(this, "Error", "Selected device not present");
         return;
     }
-    printf("selected video device: %d\n", ret);
+    printf("selected video device\n");
 }
 
 MainWindow::~MainWindow()
-{
-    delete ui;
-}
+{}
 
 karere::IGui::ITitleDisplay*
 MainWindow::createContactItem(karere::Contact& contact)
 {
-    auto clist = ui->contactList;
+    auto clist = ui.contactList;
     auto contactGui = new CListContactItem(clist, contact);
     auto item = new QListWidgetItem;
     item->setSizeHint(contactGui->size());
@@ -301,7 +74,7 @@ MainWindow::createContactItem(karere::Contact& contact)
 karere::IGui::ITitleDisplay*
 MainWindow::createGroupChatItem(karere::GroupChatRoom& room)
 {
-    auto clist = ui->contactList;
+    auto clist = ui.contactList;
     auto chatGui = new CListGroupChatItem(clist, room);
     auto item = new QListWidgetItem;
     item->setSizeHint(chatGui->size());
@@ -312,7 +85,7 @@ MainWindow::createGroupChatItem(karere::GroupChatRoom& room)
 
 void MainWindow::removeItem(ITitleDisplay* item, bool isGroup)
 {
-    auto clist = ui->contactList;
+    auto clist = ui.contactList;
     auto size = clist->count();
     for (int i=0; i<size; i++)
     {
@@ -339,4 +112,14 @@ void MainWindow::removeContactItem(ITitleDisplay *item)
 karere::IGui::IChatWindow* MainWindow::createChatWindow(karere::ChatRoom& room)
 {
     return new ChatWindow(room, this);
+}
+karere::IGui::IChatWindow& MainWindow::chatWindowForPeer(uint64_t handle)
+{
+    auto it = mClient->contactList->find(handle);
+    if (it == mClient->contactList->end())
+        throw std::runtime_error("chatWindowForPeer: peer '"+chatd::Id(handle).toString()+"' not in contact list");
+    auto room = it->second->chatRoom();
+    if (!room)
+        throw std::runtime_error("chatWindowForPeer: peer contact has no chatroom");
+    return room->chatWindow();
 }

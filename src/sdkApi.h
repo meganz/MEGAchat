@@ -2,7 +2,9 @@
 #define SDKAPI_H
 
 //the megaapi.h header needs this defined externally
-#define ENABLE_CHAT 1
+#ifndef ENABLE_CHAT
+    #define ENABLE_CHAT 1
+#endif
 #include <megaapi.h>
 #include "base/promise.h"
 #include "base/gcmpp.h"
@@ -44,9 +46,16 @@ public:
             if (mPromise.done())
                 return; //a timeout timer may resolve it before the actual callback
             if(errCode != mega::MegaError::API_OK)
-                mPromise.reject(errCode, ERRTYPE_MEGASDK);
+            {
+                std::string errmsg = "Mega API error ";
+                errmsg.append(std::to_string(errCode)).append(" (")
+                      .append(::mega::MegaError::getErrorString(errCode))+=')';
+                mPromise.reject(errmsg, errCode, ERRTYPE_MEGASDK);
+            }
             else
+            {
                 mPromise.resolve(req);
+            }
             delete this;
         });
     }

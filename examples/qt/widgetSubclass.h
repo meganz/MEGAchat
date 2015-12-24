@@ -69,6 +69,5 @@ protected:
         }
     }
 };
-
 #endif // MSGINPUTBOX
 

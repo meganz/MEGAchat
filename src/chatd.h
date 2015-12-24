@@ -10,6 +10,7 @@
 #include <list>
 #include <promise.h>
 #include <base/timers.h>
+#include "base64.h"
 
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
@@ -47,9 +48,6 @@ enum Priv
     PRIV_FULL = 2,
     PRIV_OPER = 3
 };
-
-std::string base64urlencode(const void *data, size_t inlen);
-size_t base64urldecode(const char* str, size_t len, void* bin, size_t binlen);
 
 /// This type is used for ordered indexes in the message buffer
 typedef int32_t Idx;
@@ -332,7 +330,6 @@ protected:
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
-    Id mServerNewest; //the end of the last RANGE received from the server
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     UserPrivMap mUsers;
@@ -371,20 +368,15 @@ protected:
     void onUserJoin(const Id& userid, char priv);
     void onJoinComplete();
     void loadAndProcessUnsent();
-    void initialFetchHistory();
+    void initialFetchHistory(Id serverNewest);
     void requestHistoryFromServer(int32_t count);
     void getHistoryFromDb(unsigned count);
     void onLastReceived(const Id& msgid);
     void onLastSeen(const Id& msgid);
+    bool sendCommand(Command&& cmd);
     void join();
     void msgSend(const Message& message);
-    void setOnlineState(ChatState state)
-    {
-        if (state == mOnlineState)
-            return;
-        mOnlineState = state;
-        mListener->onOnlineStateChange(state);
-    }
+    void setOnlineState(ChatState state);
     Message::Status getMsgStatus(Idx idx, const Id& userid);
     void resendPending();
     void range();
@@ -407,13 +399,14 @@ protected:
     friend class Client;
 public:
     unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
-    const UserPrivMap& users() const { return mUsers; }
+//    const UserPrivMap& users() const { return mUsers; }
     ~Messages();
     const Id& chatId() const { return mChatId; }
     Client& client() const { return mClient; }
     Idx lownum() const { return mForwardStart - mBackwardList.size(); }
     Idx highnum() const { return mForwardStart + mForwardList.size()-1;}
     ChatState onlineState() const { return mOnlineState; }
+    Listener* listener() const { return mListener; }
     bool isFetchingHistory() const { return mHistFetchState & kHistFetchingFlag; }
     HistFetchState histFetchState() const { return mHistFetchState; }
     unsigned lastHistFetchCount() const { return mLastHistFetchCount; }

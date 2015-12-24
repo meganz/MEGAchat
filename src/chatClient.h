@@ -46,7 +46,9 @@ public:
     class IChatWindow: public chatd::Listener, public ITitleDisplay
     {
     public:
-        virtual ICallGui* callGui() = 0;
+        virtual ICallGui* getCallGui() = 0;
+        virtual void show() = 0;
+        virtual void hide() = 0;
     };
     virtual IChatWindow* createChatWindow(ChatRoom& room) = 0;
     class IContactList
@@ -56,7 +58,7 @@ public:
         virtual ITitleDisplay* createGroupChatItem(GroupChatRoom& room) = 0;
         virtual void removeContactItem(ITitleDisplay* item) = 0;
         virtual void removeGroupChatItem(ITitleDisplay* item) = 0;
-        virtual IChatWindow* chatWindowForPeer(uint64_t handle) = 0;
+        virtual IChatWindow& chatWindowForPeer(uint64_t handle) = 0;
     };
     virtual IContactList& contactList() = 0;
     virtual void onTerminate() {}
@@ -148,6 +150,7 @@ protected:
     IGui::ITitleDisplay* mTitleDisplay;
     chatd::Messages* mMessages = nullptr;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat& chat);
+    void switchListenerToChatWindow();
 public:
     virtual void syncWithApi(const mega::MegaTextChat& chat) = 0;
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
@@ -159,6 +162,7 @@ public:
     unsigned char shardNo() const { return mShardNo; }
     char ownPriv() const { return mOwnPriv; }
     IGui::ITitleDisplay* titleDisplay() const { return mTitleDisplay; }
+    IGui::IChatWindow& chatWindow();
     //chatd::Listener implementation
     void init(chatd::Messages *messages, chatd::DbInterface *&dbIntf);
     void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
@@ -173,6 +177,7 @@ public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, char ownPriv, const uint64_t& peer, char peerPriv);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
+    const uint64_t peer() const { return mPeer; }
     void syncOwnPriv(char priv);
     void syncPeerPriv(char priv);
     virtual void syncWithApi(const mega::MegaTextChat& chat);
@@ -249,7 +254,7 @@ protected:
 public:
     Client& client;
     void syncRoomsWithApi(const mega::MegaTextChatList& rooms);
-    bool addRoom(const mega::MegaTextChat &room);
+    ChatRoom& addRoom(const mega::MegaTextChat &room);
     bool removeRoom(const uint64_t& chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
@@ -267,6 +272,8 @@ public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             PeerChatRoom* room = nullptr);
     ~Contact();
+    PeerChatRoom* chatRoom() { return mChatRoom; }
+    promise::Promise<ChatRoom *> createChatRoom();
     friend class ContactList;
 };
 
@@ -394,11 +401,9 @@ protected:
      */
     void sendPong(const std::string& peerJid, const std::string& messageId);
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
-            const std::shared_ptr<rtcModule::ICall> &call,
-            std::shared_ptr<rtcModule::CallAnswerFunc> &ans,
-            std::shared_ptr<std::function<bool()> > &reqStillValid,
-            const karere::AvFlags &peerMedia,
-            std::shared_ptr<std::set<std::string>>&files){ return nullptr;}
+            const std::shared_ptr<rtcModule::ICallAnswer> &call)
+    { return nullptr;}
+    virtual void discoAddFeature(const char *feature);
 };
 }
 #endif // CHATCLIENT_H
