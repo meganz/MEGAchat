@@ -36,25 +36,27 @@ extern bool inCall;
 void MainWindow::onAudioInSelected()
 {
     auto combo = ui.audioInCombo;
-    bool ret = mClient->rtc->selectAudioInDevice(combo->itemText(combo->currentIndex()).toLatin1().data());
+    string device = combo->itemText(combo->currentIndex()).toLatin1().data();
+    bool ret = mClient->rtc->selectAudioInDevice(device);
     if (!ret)
     {
         QMessageBox::critical(this, "Error", "Selected device not present");
         return;
     }
-    printf("selected audio device\n");
+    KR_LOG_DEBUG("Selected audio device '%s'", device.c_str());
 }
 
 void MainWindow::onVideoInSelected()
 {
     auto combo = ui.videoInCombo;
-    bool ret = mClient->rtc->selectVideoInDevice(combo->itemText(combo->currentIndex()).toLatin1().data());
+    string device = combo->itemText(combo->currentIndex()).toLatin1().data();
+    bool ret = mClient->rtc->selectVideoInDevice(device);
     if (!ret)
     {
         QMessageBox::critical(this, "Error", "Selected device not present");
         return;
     }
-    printf("selected video device\n");
+    KR_LOG_DEBUG("Selected video device '%s'", device.c_str());
 }
 
 MainWindow::~MainWindow()

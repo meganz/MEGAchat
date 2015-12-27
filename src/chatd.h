@@ -348,7 +348,6 @@ protected:
     void push_back(Message* msg) { mBackwardList.push_back(msg); }
     Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front() : mForwardList.back(); }
     Message* last() const { return (!mForwardList.empty())? mForwardList.front() : mBackwardList.back(); }
-    bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
     void clear()
     {
         for (auto& msg: mBackwardList)
@@ -378,7 +377,6 @@ protected:
     void join();
     void msgSend(const Message& message);
     void setOnlineState(ChatState state);
-    Message::Status getMsgStatus(Idx idx, const Id& userid);
     void resendPending();
     void range();
     void onHistDone(); //called upont receipt of HISTDONE from server
@@ -406,7 +404,10 @@ public:
     Client& client() const { return mClient; }
     Idx lownum() const { return mForwardStart - mBackwardList.size(); }
     Idx highnum() const { return mForwardStart + mForwardList.size()-1;}
+    Idx size() const { return mForwardList.size() + mBackwardList.size(); }
+    bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
     ChatState onlineState() const { return mOnlineState; }
+    Message::Status getMsgStatus(Idx idx, const Id& userid);
     Listener* listener() const { return mListener; }
     bool isFetchingHistory() const { return mHistFetchState & kHistFetchingFlag; }
     HistFetchState histFetchState() const { return mHistFetchState; }
@@ -462,7 +463,7 @@ public:
 //edit for a not-yet-sent message, and if there was a previous one, it will be deleted.
 //The user is responsible to clear any reference to a previous edit to avoid a dangling pointer.
     Message* msgModify(const Id& oriId, bool isXid, const char* msg, size_t msglen, void* userp, const Id& id=Id::null());
-    unsigned unreadMsgCount() const;
+    int unreadMsgCount() const;
     void setListener(Listener& newListener) { mListener = &newListener; }
 protected:
     void doMsgSubmit(Message* msg);
@@ -530,7 +531,8 @@ public:
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
     virtual void updateMsgInSending(const Message& data) = 0;
     virtual void updateSendingEditId(const Id& msgxid, const Id& msgid) = 0;
-    virtual void getIdxOfMsgid(const Id& msgid, chatd::Idx& idx) = 0;
+    virtual Idx getIdxOfMsgid(const Id& msgid) = 0;
+    virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;
     virtual ~DbInterface(){}
 };
 

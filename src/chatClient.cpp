@@ -76,10 +76,10 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 }
 
 
-Client::Client(IGui& aGui, const std::string& email, const std::string& password)
+Client::Client(IGui& aGui)
  :db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
   api(new MyMegaApi("karere-native")), userAttrCache(*this), gui(aGui),
-  mEmail(email), mPassword(password), xmppContactList(conn),
+  xmppContactList(conn),
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
 {
     SqliteStmt stmt(db, "select value from vars where name='my_handle'");
@@ -128,12 +128,26 @@ Client::~Client()
 
 promise::Promise<int> Client::init()
 {
-    SqliteStmt stmt(db, "select value from vars where name='lastsid'");
+    SqliteStmt stmt(db, "select value from vars where name='sid'");
     std::string sid = stmt.step() ? stmt.stringCol(0) : std::string();
-    auto pmsMegaLogin = sid.empty()
-            ? api->call(&mega::MegaApi::login, mEmail.c_str(), mPassword.c_str())
-            : api->call(&mega::MegaApi::fastLogin, sid.c_str());
-
+    ApiPromise pmsMegaLogin;
+    if (sid.empty())
+    {
+        std::string mail, pass;
+        if (!gui.requestLoginCredentials(mail, pass))
+            return promise::Error("No local session cache, and no login credential provided by user");
+        pmsMegaLogin = api->call(&mega::MegaApi::login, mail.c_str(), pass.c_str());
+    }
+    else
+    {
+        mHadSid = true;
+        pmsMegaLogin = api->call(&mega::MegaApi::fastLogin, sid.c_str())
+        .then([this](ReqResult result)
+        {
+            mHadSid = true;
+            return result;
+        });
+    }
     pmsMegaLogin.then([this](ReqResult result) mutable
     {
         mIsLoggedIn = true;
@@ -188,8 +202,13 @@ promise::Promise<int> Client::init()
     })
     .then([this](ReqResult result)
     {
-        userAttrCache.onLogin();
+        if (!mHadSid)
+        {
+            const char* sid = api->dumpSession();
+            sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
+        }
 
+        userAttrCache.onLogin();
         contactList->syncWithApi(*api->getContacts());
         return api->call(&mega::MegaApi::fetchChats);
     })
@@ -387,18 +406,6 @@ promise::Promise<void> Client::terminate()
         mReconnectController->abort();
     if (rtc)
         rtc->hangupAll();
-    const char* sess = api->dumpSession();
-    if (sess)
-    try
-    {
-        SqliteStmt stmt(db, "insert or replace into vars(name,value) values('lastsid',?2)");
-        stmt << "lastsid" << sess;
-        stmt.step();
-    }
-    catch(std::exception& e)
-    {
-        KR_LOG_ERROR("Error while saving session id to database: %s", e.what());
-    }
     sqlite3_close(db);
     promise::Promise<void> pms;
     conn->disconnect(2000)
@@ -775,8 +782,11 @@ Client::getThisUserInfo()
 ChatRoom::ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool aIsGroup, const std::string& aUrl, unsigned char aShard,
   char aOwnPriv)
 :mParent(parent), mChatid(chatid), mUrl(aUrl), mShardNo(aShard), mIsGroup(aIsGroup), mOwnPriv(aOwnPriv)
+{}
+
+void ChatRoom::join()
 {
-    parent.client.chatd->join(mChatid, mShardNo, mUrl, *this);
+    mParent.client.chatd->join(mChatid, mShardNo, mUrl, *this);
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl, unsigned char aShard,
@@ -790,13 +800,14 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const
         addMember(stmt.uint64Col(0), stmt.intCol(1), false);
     }
     mTitleDisplay = mParent.client.gui.contactList().createGroupChatItem(*this);
+    join();
 }
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
     unsigned char aShard, char aOwnPriv, const uint64_t& peer, char peerPriv)
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer), mPeerPriv(peerPriv)
 {
-    printf("peer = %lld\n", peer);
     mTitleDisplay = mParent.client.contactList->attachRoomToContact(peer, *this);
+    join();
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
@@ -816,6 +827,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     sqliteQuery(mParent.client.db, "delete from chat_peers where chatid = ?", mChatid);
     mTitleDisplay = mParent.client.contactList->attachRoomToContact(mPeer, *this);
     KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API", chatd::Id(mChatid).toString().c_str());
+    join();
 }
 
 void PeerChatRoom::syncOwnPriv(char priv)
@@ -841,6 +853,11 @@ void PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     ChatRoom::syncRoomPropertiesWithApi(chat);
     syncOwnPriv(chat.getOwnPrivilege());
     syncPeerPriv(chat.getPeerList()->getPeerPrivilege(0));
+}
+static std::string sEmptyString;
+const std::string& PeerChatRoom::titleString() const
+{
+    return mContact ? mContact->titleString(): sEmptyString;
 }
 
 void GroupChatRoom::addMember(const uint64_t& userid, char priv, bool saveToDb)
@@ -1035,13 +1052,17 @@ void ChatRoom::init(chatd::Messages* msgs, chatd::DbInterface*& dbIntf)
     mMessages = msgs;
     dbIntf = new ChatdSqliteDb(msgs, mParent.client.db);
     if (mChatWindow)
-    switchListenerToChatWindow();
+    {
+        switchListenerToChatWindow();
+    }
 }
+
 IGui::IChatWindow &ChatRoom::chatWindow()
 {
     if (!mChatWindow)
     {
         mChatWindow = mParent.client.gui.createChatWindow(*this);
+        mChatWindow->updateTitle(titleString());
         switchListenerToChatWindow();
     }
     return *mChatWindow;
@@ -1087,6 +1108,14 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Mess
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg)
 {
     mTitleDisplay->updateOverlayCount(mMessages->unreadMsgCount());
+}
+void ChatRoom::onOnlineStateChange(chatd::ChatState state)
+{
+//    if (state == chatd::kChatStateOnline)
+    {
+        mTitleDisplay->updateOverlayCount(mMessages->unreadMsgCount());
+    }
+    mTitleDisplay->updateOnlineIndication(state);
 }
 
 void GroupChatRoom::syncMembers(const chatd::UserPrivMap& users)
@@ -1232,21 +1261,30 @@ ContactList::~ContactList()
 
 Contact::Contact(ContactList& clist, const uint64_t& userid,
                  const std::string& email, PeerChatRoom* room)
-    :mClist(clist), mUserid(userid), mEmail(email), mChatRoom(room),
-     mDisplay(clist.client.gui.contactList().createContactItem(*this))
+    :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),
+     mDisplay(clist.client.gui.contactList().createContactItem(*this)),
+     mTitleString(email)
 {
-    mDisplay->updateTitle(email);
+    updateTitle(email);
     mUsernameAttrCbId = mClist.client.userAttrCache.getAttr(userid,
         mega::MegaApi::USER_ATTR_LASTNAME, this,
         [](Buffer* data, void* userp)
         {
             auto self = static_cast<Contact*>(userp);
             if (!data || data->dataSize() < 2)
-                self->mDisplay->updateTitle(self->mEmail);
+                self->updateTitle(self->mEmail);
             else
-                self->mDisplay->updateTitle(data->buf()+1);
+                self->updateTitle(data->buf()+1);
         });
 }
+void Contact::updateTitle(const std::string& str)
+{
+    mTitleString = str;
+    mDisplay->updateTitle(str);
+    if (mChatRoom && mChatRoom->hasChatWindow())
+        mChatRoom->chatWindow().updateTitle(str);
+}
+
 Contact::~Contact()
 {
     mClist.client.userAttrCache.removeCb(mUsernameAttrCbId);
@@ -1272,6 +1310,14 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     });
 }
 
+void Contact::setChatRoom(PeerChatRoom& room)
+{
+    assert(!mChatRoom);
+    mChatRoom = &room;
+    if (room.hasChatWindow())
+        room.chatWindow().updateTitle(mTitleString);
+}
+
 IGui::ITitleDisplay*
 ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
 {
@@ -1281,7 +1327,8 @@ ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
     auto& contact = *it->second;
     if (contact.mChatRoom)
         throw std::runtime_error("attachRoomToContact: contact already has a chat room attached");
-    contact.mChatRoom = &room;
+    contact.setChatRoom(room);
+    room.setContact(contact);
     return contact.mDisplay;
 }
 

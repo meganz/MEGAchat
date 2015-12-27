@@ -60,9 +60,13 @@ public:
 //karere::ITitleDisplay interface
     virtual void updateTitle(const std::string& title)
     { ui.mName->setText(QString::fromUtf8(title.c_str(), title.size())); }
-    virtual void updateOverlayCount(unsigned count)
+    virtual void updateOverlayCount(int count)
     {
-        ui.mUnreadIndicator->setText(QString::number(count));
+        if (count < 0)
+            ui.mUnreadIndicator->setText(QString::number(-count)+"+");
+        else
+            ui.mUnreadIndicator->setText(QString::number(count));
+
         if (count)
         {
             if (!mLastOverlayCount)

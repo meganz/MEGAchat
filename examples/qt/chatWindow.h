@@ -265,7 +265,7 @@ public slots:
         {
             mHistFetchUi.reset(new HistFetchUi(this));
             auto layout = qobject_cast<QBoxLayout*>(ui.mTitlebar->layout());
-            layout->insertWidget(1, mHistFetchUi->progressBar());
+            layout->insertWidget(2, mHistFetchUi->progressBar());
         }
     }
     void onVidGuiChk(bool enabled)
@@ -383,6 +383,16 @@ public:
     {
         mMessages = messages;
         setOnlineIndication(mMessages->onlineState());
+        if (mMessages->empty())
+            return;
+        printf("msg count = %d\n", mMessages->size());
+        auto last = mMessages->highnum();
+        for (chatd::Idx idx = mMessages->lownum(); idx<=last; idx++)
+        {
+            auto& msg = mMessages->at(idx);
+            addMsgWidget(msg, mMessages->getMsgStatus(idx, msg.userid), false);
+        }
+        mega::marshallCall([this]() { fetchMoreHistory(); });
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -392,8 +402,9 @@ public:
             addMsgEdit(msg, false);
         else
             addMsgWidget(msg, status, false);
-        //mMessages->setMessageSeen(idx);
         ui.mMessageList->scrollToBottom();
+        if (isActiveWindow())
+            mMessages->setMessageSeen(idx);
     }
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
     {
@@ -404,10 +415,14 @@ public:
             mHistFetchUi->progressBar()->repaint();
         }
         if (msg.edits())
+        {
             addMsgEdit(msg, true);
+        }
         else
+        {
             addMsgWidget(msg, status, true);
-//        ui->mMessageList->scrollToBottom();
+            ui.mMessageList->scrollToBottom();
+        }
     }
     virtual void onHistoryDone(bool isFromDb)
     {
@@ -416,6 +431,7 @@ public:
             return;
 
         auto& list = *ui.mMessageList;
+        //chech if we have filled the window height with history, if not, fetch more
         auto idx = list.indexAt(QPoint(list.rect().left()+10, list.rect().bottom()-2));
         if (!idx.isValid() && mMessages->histFetchState() != chatd::kHistNoMore)
         {
@@ -471,6 +487,10 @@ public:
     virtual karere::IGui::ICallGui* getCallGui() { return mCallGui; }
     virtual void show() { QDialog::show(); }
     virtual void hide() { QDialog::hide(); }
+    virtual void updateTitle(const std::string& title)
+    {
+        ui.mTitleLabel->setText(QString::fromStdString(title));
+    }
 };
 
 #endif // CHATWINDOW_H

@@ -9,7 +9,7 @@
 using namespace std;
 using namespace promise;
 
-#define CHATD_LOG_LISTENER_CALLS //DB_CALLS
+//#define CHATD_LOG_LISTENER_CALLS //DB_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
 
@@ -550,7 +550,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                 READ_32(msglen, 28);
                 const char* msg = buf.read(pos, msglen);
                 pos += msglen;
-                CHATD_LOG_DEBUG("%s: recv %s: %s, from user '%s' with len %u",
+                CHATD_LOG_DEBUG("%s: recv %s: '%s', from user '%s' with len %u",
                     ID_CSTR(chatid), (isNewMsg ? "NEWMSG" : "OLDMSG"), ID_CSTR(msgid),
                     ID_CSTR(userid), msglen);
 
@@ -564,7 +564,7 @@ void Connection::execCommand(const StaticBuffer &buf)
             //buffer may contain other commands following it
                 READ_ID(chatid, 0);
                 READ_ID(msgid, 8);
-                CHATD_LOG_DEBUG("%s: recv SEEN - msgid: %s",
+                CHATD_LOG_DEBUG("%s: recv SEEN - msgid: '%s'",
                                 ID_CSTR(chatid), ID_CSTR(msgid));
                 mClient.chatidMessages(chatid).onLastSeen(msgid);
                 break;
@@ -573,7 +573,7 @@ void Connection::execCommand(const StaticBuffer &buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(msgid, 8);
-                CHATD_LOG_DEBUG("%s: recv RECEIVED - msgid: %s", ID_CSTR(chatid), ID_CSTR(msgid));
+                CHATD_LOG_DEBUG("%s: recv RECEIVED - msgid: '%s'", ID_CSTR(chatid), ID_CSTR(msgid));
                 mClient.chatidMessages(chatid).onLastReceived(msgid);
                 break;
             }
@@ -582,7 +582,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                 READ_ID(chatid, 0);
                 READ_ID(userid, 8);
                 READ_32(period, 16);
-                CHATD_LOG_DEBUG("%s: recv RETENTION by user %s to %u second(s)",
+                CHATD_LOG_DEBUG("%s: recv RETENTION by user '%s' to %u second(s)",
                                 ID_CSTR(chatid), ID_CSTR(userid), period);
                 break;
             }
@@ -590,7 +590,7 @@ void Connection::execCommand(const StaticBuffer &buf)
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
-                CHATD_LOG_DEBUG("recv MSGID: %s->%s", ID_CSTR(msgxid), ID_CSTR(msgid));
+                CHATD_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
                 mClient.msgConfirm(msgxid, msgid);
                 break;
             }
@@ -761,8 +761,7 @@ void Messages::onLastReceived(const Id& msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     { // we don't have that message in the buffer yet, so we don't know its index
-        Idx idx;
-        CALL_DB(getIdxOfMsgid, msgid, idx);
+        Idx idx = mDbInterface->getIdxOfMsgid(msgid);
         if (idx != CHATD_IDX_INVALID)
         {
             if ((mLastReceivedIdx != CHATD_IDX_INVALID) && (idx < mLastReceivedIdx))
@@ -779,9 +778,12 @@ void Messages::onLastReceived(const Id& msgid)
     }
 
     auto idx = it->second;
+    if (idx == mLastReceivedIdx)
+        return; //probably set from db
     if (at(idx).userid != mClient.mUserId)
     {
-        CHATD_LOG_WARNING("Last-received pointer points to a message by a peer, possibly the pointer was set incorrectly");
+        CHATD_LOG_WARNING("%s: Last-received pointer points to a message by a peer,"
+            " possibly the pointer was set incorrectly", ID_CSTR(mChatId));
     }
     //notify about messages that become 'received'
     Idx notifyOldest;
@@ -817,9 +819,8 @@ void Messages::onLastSeen(const Id& msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     {
-        Idx idx;
+        Idx idx = mDbInterface->getIdxOfMsgid(msgid);
         //last seen is older than our history, so all history in memory is 'unseen', even if there was a previous, older last-seen
-        CALL_DB(getIdxOfMsgid, msgid, idx);
         if (idx != CHATD_IDX_INVALID)
         {
             if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx < mLastSeenIdx))
@@ -835,6 +836,8 @@ void Messages::onLastSeen(const Id& msgid)
     }
 
     auto idx = it->second;
+    if (idx == mLastSeenIdx)
+        return; //we may have set it from db already
     if(at(idx).userid == mClient.mUserId)
     {
         CHATD_LOG_WARNING("Last-seen points to a message by us, possibly the pointer was not set properly");
@@ -845,7 +848,6 @@ void Messages::onLastSeen(const Id& msgid)
     {
         if (idx < mLastSeenIdx)
             throw std::runtime_error("onLastSeen: Can't set last seen index to an older message");
-        assert(idx != mLastSeenIdx); //we were called redundantly - the msgid and index were already set and the same. This will not hurt, except for generating one redundant onMessageStateChange for the message that is pointed to by the index
         notifyOldest = mLastSeenIdx;
         mLastSeenIdx = idx;
     }
@@ -889,19 +891,33 @@ bool Messages::setMessageSeen(Idx idx)
     return true;
 }
 
-unsigned Messages::unreadMsgCount() const
+int Messages::unreadMsgCount() const
 {
-    Idx first = ((mLastSeenIdx == CHATD_IDX_INVALID) || (mLastSeenIdx < lownum()))
-            ? lownum()
-            : mLastSeenIdx;
+    Idx first;
+    bool mayHaveMore;
+    if (mLastSeenIdx == CHATD_IDX_INVALID)
+    {
+        first = lownum();
+        mayHaveMore = true;
+    }
+    else if (mLastSeenIdx < lownum())
+    {
+        return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
+    }
+    else
+    {
+        first = mLastSeenIdx;
+        mayHaveMore = false;
+    }
     unsigned count = 0;
     auto last = highnum();
     for (Idx i=first; i<=last; i++)
     {
-        if (at(i).userid != mClient.userId())
+        auto& msg = at(i);
+        if ((msg.userid != mClient.userId()) && !msg.edits()) //FIXME: This is not accurate - an edit of a seen message will not be counted
             count++;
     }
-    return count;
+    return mayHaveMore?-count:count;
 }
 
 void Messages::resendPending()
@@ -1063,19 +1079,11 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     //one chance to set the idx (we receive the msg only once).
     if (msgid == mLastSeenId) //we didn't have the message when we received the last seen id
     {
-        if (mLastSeenIdx != CHATD_IDX_INVALID)
-        {
-            CHATD_LOG_ERROR("mLastSeenIdx already set for msgid %s: seems we saw the same msgid twice. Possibly corrupt history db or a bug", ID_CSTR(mLastSeenId));
-        }
         CHATD_LOG_DEBUG("Received the message with the last-seen msgid, setting the index pointer to it");
         onLastSeen(msgid);
     }
     if (mLastReceivedId == msgid)
     {
-        if (mLastReceivedIdx != CHATD_IDX_INVALID)
-        {
-            CHATD_LOG_ERROR("mLastReceivedIdx already set for msgid %s: seems we saw the same msgid twice. Possibly corrupt history db or a bug", ID_CSTR(mLastReceivedId));
-        }
         //we didn't have the message when we received the last received msgid pointer,
         //and now we just received the message - set the index pointer
         CHATD_LOG_DEBUG("Received the message with the last-received msgid, setting the index pointer to it");
@@ -1117,7 +1125,6 @@ void Messages::initialFetchHistory(Id serverNewest)
     {
         if (at(highnum()).id() != serverNewest)
         {
-            printf("highnum = %d, id=%s\n", highnum(), at(highnum()).id().toString().c_str());
             CHATD_LOG_DEBUG("%s: There are new messages on the server, requesting them", ID_CSTR(mChatId));
 //the server has more recent msgs than the most recent in our db, retrieve all newer ones, after our RANGE
             requestHistoryFromServer(0x0fffffff);

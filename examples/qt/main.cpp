@@ -68,17 +68,17 @@ void sigintHandler(int)
 
 }
 
-const char* usermail;
-const char* pass = NULL;
+std::string usermail;
+std::string pass;
 bool inCall = false;
 
 int main(int argc, char **argv)
 {
     /* take a jid and password on the command line */
-    if (argc != 4)
+    if (argc == 3 && argv[1] && argv[2])
     {
-        fprintf(stderr, "Usage: rtctestapp <usermail> <userpass> <peermail>\n\n");
-        return 1;
+        usermail = argv[1];
+        pass = argv[2];
     }
     ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     QApplication a(argc, argv);
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin = new MainWindow();
-    gClient.reset(new karere::Client(*mainWin, argv[1], argv[2]));
+    gClient.reset(new karere::Client(*mainWin));
     mainWin->setClient(*gClient);
     //    mainWin->ui.localRenderer->setMirrored(true);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));

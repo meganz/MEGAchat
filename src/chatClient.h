@@ -39,7 +39,7 @@ public:
     {
     public:
         virtual void updateTitle(const std::string& title) {}
-        virtual void updateOverlayCount(unsigned count) {}
+        virtual void updateOverlayCount(int count) {}
         virtual void updateOnlineIndication(int state) {}
     };
     class ICallGui{};
@@ -50,6 +50,7 @@ public:
         virtual void show() = 0;
         virtual void hide() = 0;
     };
+    virtual bool requestLoginCredentials(std::string& user, std::string& pass){ return false; }
     virtual IChatWindow* createChatWindow(ChatRoom& room) = 0;
     class IContactList
     {
@@ -151,8 +152,10 @@ protected:
     chatd::Messages* mMessages = nullptr;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat& chat);
     void switchListenerToChatWindow();
+    void join(); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
 public:
     virtual void syncWithApi(const mega::MegaTextChat& chat) = 0;
+    virtual const std::string& titleString() const = 0;
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
              unsigned char shard, char ownPriv);
     virtual ~ChatRoom(){}
@@ -162,17 +165,22 @@ public:
     unsigned char shardNo() const { return mShardNo; }
     char ownPriv() const { return mOwnPriv; }
     IGui::ITitleDisplay* titleDisplay() const { return mTitleDisplay; }
-    IGui::IChatWindow& chatWindow();
+    IGui::IChatWindow& chatWindow(); /// < creates the windows if not already created
+    bool hasChatWindow() const { return mChatWindow != nullptr; }
     //chatd::Listener implementation
     void init(chatd::Messages *messages, chatd::DbInterface *&dbIntf);
     void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
     void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
+    void onOnlineStateChange(chatd::ChatState state);
 };
 class PeerChatRoom: public ChatRoom
 {
 protected:
     uint64_t mPeer;
     char mPeerPriv;
+    Contact* mContact = nullptr;
+    void setContact(Contact& contact) { mContact = &contact; }
+    friend class ContactList;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, char ownPriv, const uint64_t& peer, char peerPriv);
@@ -181,6 +189,7 @@ public:
     void syncOwnPriv(char priv);
     void syncPeerPriv(char priv);
     virtual void syncWithApi(const mega::MegaTextChat& chat);
+    virtual const std::string& titleString() const;
 //chatd::Listener interface
     virtual void onUserJoined(const chatd::Id& userid, char priv);
     virtual void onUserLeft(const chatd::Id& userid);
@@ -222,6 +231,7 @@ public:
     bool removeMember(const uint64_t& userid);
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     virtual void syncWithApi(const mega::MegaTextChat &chat);
+    virtual const std::string& titleString() const { return mTitleString; }
     void updateTitle()
     {
         if (mHasUserTitle)
@@ -264,16 +274,20 @@ class Contact
 protected:
     ContactList& mClist;
     uint64_t mUserid;
-    std::string mEmail;
     PeerChatRoom* mChatRoom;
     uint64_t mUsernameAttrCbId;
+    std::string mEmail;
     IGui::ITitleDisplay* mDisplay;
+    std::string mTitleString;
+    void updateTitle(const std::string& str);
+    void setChatRoom(PeerChatRoom& room);
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             PeerChatRoom* room = nullptr);
     ~Contact();
     PeerChatRoom* chatRoom() { return mChatRoom; }
     promise::Promise<ChatRoom *> createChatRoom();
+    const std::string& titleString() const { return mTitleString; }
     friend class ContactList;
 };
 
@@ -305,6 +319,7 @@ public:
     //operates and was allocated
     rtcModule::IRtcModule* rtc = nullptr;
     TextModule* mTextModule = nullptr;
+    bool mHadSid = false;
     bool isTerminating = false;
     unsigned mReconnectConnStateHandler = 0;
     std::function<void()> onChatdReady;
@@ -334,7 +349,7 @@ public:
      * This performs a request to xmpp roster server and fetch the contact list.
      * Contact list also registers a contact presence handler to update the list itself based on received presence messages.
      */
-    Client(IGui& gui, const std::string& email, const std::string& password);
+    Client(IGui& gui);
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
     promise::Promise<int> init();
