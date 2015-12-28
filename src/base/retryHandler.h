@@ -173,11 +173,11 @@ public:
         if ((mState & kStateBitRunning) == 0)
             return false;
 
-        assert(!mPromise.done());
         cancelTimer();
         if ((mState == kStateInProgress) && !std::is_same<CancelFunc, void*>::value)
             callFuncIfNotNull(mCancelFunc);
         mPromise.reject("aborted", promise::kErrAbort, promise::kErrorTypeGeneric);
+        mPromise = promise::Promise<RetType>();
         if (mAutoDestruct)
             delete this;
         return true;
@@ -263,14 +263,15 @@ protected:
     {
         promise.then([this, attempt](const RetType& ret)
         {
-            if ((attempt != mCurrentAttemptId) || mPromise.done())
+            if (attempt != mCurrentAttemptId)
             {
                 RETRY_LOG("A previous timed-out/aborted attempt returned success");
                 return ret;
             }
             cancelTimer();
-            mPromise.resolve(ret);
             mState = kStateFinished;
+            mPromise.resolve(ret);
+            mPromise = promise::Promise<RetType>(); //we must release previous promise as it may hold references captured in its lambdas
             if (mAutoDestruct)
                 delete this;
             return ret;
@@ -281,14 +282,15 @@ protected:
     {
         promise.then([this, attempt]()
         {
-            if ((attempt != mCurrentAttemptId) || mPromise.done())
+            if (attempt != mCurrentAttemptId)
             {
                 RETRY_LOG("A previous timed-out/aborted attempt returned success");
                 return;
             }
             cancelTimer();
-            mPromise.resolve();
             mState = kStateFinished;
+            mPromise.resolve();
+            mPromise = promise::Promise<RetType>();
             if (mAutoDestruct)
                 delete this;
         });
@@ -296,8 +298,8 @@ protected:
 
     void nextTry()
     {
+        assert(mState == kStateRetryWait || mState == kStateNotStarted);
         assert(mTimer == 0);
-        assert(!mPromise.done());
         auto attempt = mCurrentAttemptId;
     //set an attempt timeout timer
         if (mAttemptTimeout)
@@ -305,7 +307,6 @@ protected:
             mTimer = setTimeout([this, attempt]()
             {
                 assert(attempt == mCurrentAttemptId); //if we are in a next attempt, cancelTimer() should have been called and this callback should never fire
-                assert(!mPromise.done()); //same reason
                 mTimer = 0;
                 static const promise::Error timeoutError("timeout", promise::kErrTimeout, promise::kErrorTypeGeneric);
                 RETRY_LOG("Attempt %zu timed out after %u ms", mCurrentAttemptNo, mAttemptTimeout);
@@ -325,7 +326,7 @@ protected:
         attachThenHandler(pms, attempt);
         pms.fail([this, attempt](const promise::Error& err)
         {
-            if ((attempt != mCurrentAttemptId) || mPromise.done())//mPromise changed, we already in another attempt and this callback is from the old attempt, ignore it
+            if (attempt != mCurrentAttemptId)//we are already in another attempt and this callback is from the old attempt, ignore it
             {
                 RETRY_LOG("A previous timed-out/aborted attempt returned failure: %s", err.msg().c_str());
                 return err;
@@ -351,8 +352,9 @@ protected:
         mCurrentAttemptId++;
         if (mMaxAttemptCount && (mCurrentAttemptNo > mMaxAttemptCount)) //give up
         {
-            mPromise.reject(err);
             mState = kStateFinished;
+            mPromise.reject(err);
+            mPromise = promise::Promise<RetType>();
             if (mAutoDestruct)
                 delete this;
             return false;

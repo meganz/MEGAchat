@@ -51,7 +51,7 @@ protected:
     friend class JingleSession;
     friend class RtcModule;
 public:
-    virtual ~JingleCall(){} //we shouldn't need it virtual, but just in case
+    virtual ~JingleCall(){ printf("call destroy\n");} //we shouldn't need it virtual, but just in case
     void setState(CallState newState) { mHangupFunc = nullptr; mState = newState; }
 };
 class ScopedCallRemover

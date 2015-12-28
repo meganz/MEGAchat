@@ -54,7 +54,6 @@ public:
     bool hangup(const char* text=nullptr) { return hangup(kUserHangup, text, true); }
     std::string id() const;
     int isRelayed() const;
-    virtual ~Call() { printf("call destroy\n"); }
 };
 
 class RtcModule: public Jingle

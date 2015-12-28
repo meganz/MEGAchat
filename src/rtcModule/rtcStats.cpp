@@ -84,7 +84,7 @@ void dumpStats(const artc::MappedStatsData& data)
 
 void Recorder::onStats(const std::shared_ptr<artc::MappedStatsData>& data)
 {
-    dumpStats(*data);
+//    dumpStats(*data);
     long ts = karere::timestampMs() - mStats->mStartTs;
     long period = ts - mCurrSample->ts;
     mCurrSample->ts = ts;
