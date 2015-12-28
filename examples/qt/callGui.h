@@ -65,19 +65,19 @@ Q_OBJECT
 protected:
     std::shared_ptr<rtcModule::ICall> mCall;
 public slots:
-    void onCallBtnPushed();
+    void onCallBtn(bool);
 public:
     Ui::CallGui ui;
     CallGui(QWidget *parent = 0): QWidget(parent)
     {
         ui.setupUi(this);
+        connect(ui.mCallBtn, SIGNAL(clicked(bool)), this, SLOT(onCallBtn(bool)));
     }
+    void call();
     virtual void onOutgoingCallCreated(const std::shared_ptr<rtcModule::ICall> &aCall)
     {mCall = aCall;}
     virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer)
     {
-        inCall = true;
-        ui.callBtn->setText("Hangup");
         renderer = ui.localRenderer;
     }
     virtual void onRemoteSdpRecv(rtcModule::IVideoRenderer*& rendererRet)
@@ -87,9 +87,8 @@ public:
     virtual void onCallEnded(rtcModule::TermCode code, const char* text,
         const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj)
     {
-        printf("on call ended\n");
-        inCall = false;
-        ui.callBtn->setText("Call");
+        printf("call ended\n");
+        mCall.reset();
     }
     virtual void onLocalMediaFail(const std::string& err, bool* cont)
     {

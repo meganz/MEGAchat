@@ -17,6 +17,7 @@
 #include <chatdDb.h>
 #include <chatClient.h>
 #include "callGui.h"
+#include <mega/base64.h> //for jid base32 conversion
 namespace Ui
 {
 class ChatWindow;
@@ -268,10 +269,24 @@ public slots:
             layout->insertWidget(2, mHistFetchUi->progressBar());
         }
     }
-    void onVidGuiChk(bool enabled)
+    void onVidGuiChk(int checked)
     {
+        if (checked)
+        {
+            if (mCallGui)
+                return;
+            mCallGui = new CallGui(this);
+            auto uh = static_cast<karere::PeerChatRoom&>(mRoom).peer();
+            char buf[32];
+            auto len = mega::Base32::btoa((byte*)&uh, sizeof(uh), buf);
+            buf[len] = 0;
+            std::string jid(buf);
+            jid+='@';
+            jid.append(KARERE_XMPP_DOMAIN);
+            mRoom.parent.client.rtc->startMediaCall(mCallGui, jid, karere::AvFlags(true, true));
         //auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget);
-        mCallGui->setVisible(enabled);
+        mCallGui->setVisible(true);
+        }
     }
 
 public:
@@ -283,6 +298,7 @@ public:
         connect(ui.mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
         connect(ui.mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
         connect(ui.mMessageList, SIGNAL(requestHistory(int)), this, SLOT(onMsgListRequestHistory(int)));
+        connect(ui.mCallGuiChk, SIGNAL(stateChanged(int)), this, SLOT(onVidGuiChk(int)));
         QDialog::show();
     }
 protected:

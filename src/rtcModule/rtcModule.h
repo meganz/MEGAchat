@@ -25,7 +25,7 @@ protected:
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
     std::shared_ptr<artc::StreamPlayer> mRemotePlayer;
-    void createSession(const std::string& me, const std::string& peerjid, FileTransferHandler* ftHandler=NULL);
+    void createSession(const std::string& peerjid, const std::string& me, FileTransferHandler* ftHandler=NULL);
     std::shared_ptr<stats::IRtcStats>
     hangupSession(TermCode termcode, const char* text, bool nosend);
     bool startLocalStream(bool allowEmpty);
@@ -44,7 +44,6 @@ protected:
     void onRemoteStreamRemoved(artc::tspMediaStream);
     void destroy(TermCode termcode, const char* text=nullptr, bool noSendSessTerm=false);
     bool hangup(TermCode termcode, const char* text=nullptr, bool rejectIncoming=false);
-
     friend class Jingle;
     friend class RtcModule;
     friend class JingleSession;
@@ -55,6 +54,7 @@ public:
     bool hangup(const char* text=nullptr) { return hangup(kUserHangup, text, true); }
     std::string id() const;
     int isRelayed() const;
+    virtual ~Call() { printf("call destroy\n"); }
 };
 
 class RtcModule: public Jingle

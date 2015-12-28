@@ -289,7 +289,8 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
               mConn.removeHandler(state->declineHandler);
               state->declineHandler = 0;
               state->ansHandler = 0;
-              auto av = parseAvString(stanza.attr("media"));
+              //TODO: enable when implemented in js
+              auto av = AvFlags(true,true); //parseAvString(stanza.attr("media"));
               if (!av.any() && !call->mLocalStream->av().any())
               {
                   call->hangup(Call::kNoMediaError);
@@ -443,6 +444,7 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
 
   auto& call = addCall(kCallStateOutReq, true, handler, state->sid,
         std::move(cancelFunc), targetJid, state->av, !!files, state->myJid);
+  call->mOwnFprMacKey = state->ownFprMacKey;
   RTCM_EVENT(call, onOutgoingCallCreated, static_pointer_cast<ICall>(call));
 
   if (!call->startLocalStream(true))
@@ -548,6 +550,7 @@ void Call::createLocalPlayer()
         return;
     }
     mLocalPlayer.reset(new artc::StreamPlayer(renderer, nullptr, mLocalStream->video()));
+    mLocalPlayer->start();
 // TODO: Maybe provide some interface to the player, but must be virtual because it crosses the module boundary
 //  maybeCreateVolMon();
 }
@@ -588,7 +591,7 @@ void Call::onMediaStart()
     mSess->tsMediaStart = karere::timestampMs();
 }
 
-void Call::createSession(const std::string& ownJid, const std::string& peerJid,
+void Call::createSession(const std::string& peerJid, const std::string& ownJid,
     FileTransferHandler *ftHandler)
 {
     assert(!mSess);
@@ -634,6 +637,7 @@ void Call::destroy(TermCode termcode, const char *text, bool noSessTermSend)
         ? hangupSession(termcode, text, noSessTermSend)
         : std::shared_ptr<stats::IRtcStats>(new stats::BasicStats(*this, Call::termcodeToReason(termcode))));
 
+    mLocalStream.reset();
     RTCM_EVENT(this, onCallEnded, termcode, text, stats);
     setState(kCallStateEnded);
     auto res = mRtc.erase(mSid);

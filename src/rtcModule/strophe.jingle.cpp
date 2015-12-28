@@ -109,17 +109,17 @@ void Jingle::onJingle(Stanza iq)
    shared_ptr<Call> call; //declare it here because we need it in teh catch() handler
    try
    {
+        const char* from = iq.attr("from");
         Stanza jingle = iq.child("jingle");
         const char* sid = jingle.attr("sid");
-        const char* from = jingle.attr("from");
         auto callIt = find(sid);
         if (callIt == end())
             throw std::runtime_error("Could not find call for incoming jingle stanza with sid "+ std::string(sid));
 
+        call = callIt->second;
         if (call->mPeerJid != from)
             throw std::runtime_error("onJingle: sid and sender full JID mismatch");
 
-        call = callIt->second;
         auto sess = call->mSess;
         if (!sess)
             throw std::runtime_error("Jingle packet received, but the call has no session created");
@@ -160,6 +160,7 @@ void Jingle::onJingle(Stanza iq)
             sess->answer(jingle)
             .then([this, call]()
             {
+                call->setState(kCallStateSession);
                 RTCM_EVENT(call, onSession);
 //now handle all packets queued up while we were waiting for user's accept of the call
                 processAndDeleteInputQueue(*call->mSess);
@@ -172,7 +173,10 @@ void Jingle::onJingle(Stanza iq)
         else if (action == "session-accept")
         {
             if (call->state() != kCallStateOutReq)
-                throw std::runtime_error("Call is not in outgoing request state, but session-accept received");
+                throw std::runtime_error(std::string("Call is not in outgoing request state (state=")
+                    +std::to_string(call->state())+"), but session-accept received");
+            call->setState(kCallStateSession); //we should not do it before we send the jingle handshake
+
 // Verify SRTP fingerprint
             const string& ownFprMacKey = call->mOwnFprMacKey;
             if (ownFprMacKey.empty())
@@ -250,7 +254,9 @@ void Jingle::onJingle(Stanza iq)
         const char* msg = e.what();
         if (!msg)
             msg = "(no message)";
-        call->hangup(Call::kProtoError, msg);
+        KR_LOG_ERROR("Exception in onJingle handler: %s", msg);
+        if (call)
+            call->hangup(Call::kProtoError, msg);
    }
 }
 /* Incoming call request with a message stanza of type 'megaCall' */
@@ -539,7 +545,6 @@ void JingleCall::initiate()
         throw std::runtime_error("Call::initiate: Call does not have a session, call createSession() first");
 // create and initiate a new jinglesession to peerjid
     mSess->initiate(true);
-    setState(kCallStateSession); //we should not do it before we send the jingle handshake
     mSess->sendOffer()
       .then([this](Stanza)
       {

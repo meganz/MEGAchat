@@ -224,10 +224,16 @@ border-radius: 4px;</string>
           </spacer>
          </item>
          <item>
-          <widget class="QCheckBox" name="videoGuiChk">
+          <widget class="QCheckBox" name="mCallGuiChk">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="minimumSize">
             <size>
-             <width>0</width>
+             <width>18</width>
              <height>16</height>
             </size>
            </property>
@@ -254,7 +260,7 @@ image: url(/Users/loki/Desktop/camera.svg);
 }</string>
            </property>
            <property name="text">
-            <string>  </string>
+            <string/>
            </property>
            <property name="checkable">
             <bool>true</bool>

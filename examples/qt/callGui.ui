@@ -63,28 +63,28 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QLabel" name="titleDisplay">
+          <widget class="QLabel" name="mTtitleDisplay">
            <property name="text">
             <string>Call with Donald Duck</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="muteBtn">
+          <widget class="QPushButton" name="mMuteBtn">
            <property name="text">
             <string>Mute</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="fullScreenBtn">
+          <widget class="QPushButton" name="mFullScreenBtn">
            <property name="text">
             <string>Full Screen</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="callBtn">
+          <widget class="QPushButton" name="mCallBtn">
            <property name="text">
             <string>Hangup</string>
            </property>

@@ -140,8 +140,9 @@ public:
 class ChatRoomList;
 class ChatRoom: public chatd::Listener
 {
+public:
+    ChatRoomList& parent;
 protected:
-    ChatRoomList& mParent;
     IGui::IChatWindow* mChatWindow = nullptr;
     uint64_t mChatid;
     std::string mUrl;
