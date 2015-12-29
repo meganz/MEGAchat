@@ -31,10 +31,8 @@ protected:
     bool startLocalStream(bool allowEmpty);
     void createLocalPlayer();
     void freeLocalStream();
-    void disableLocalVideo();
-    void enableLocalVideo();
     void removeRemotePlayer();
-    void muteUnmute(AvFlags newState);
+    void muteUnmute(AvFlags what, bool state);
     /** Called by the remote media player when the first frame is about to be rendered,
      *  analogous to onMediaRecv in the js version
      */
@@ -95,7 +93,7 @@ public:
     void getVideoInDevices(std::vector<std::string>& devices) const;
     bool selectVideoInDevice(const std::string& devname);
     bool selectAudioInDevice(const std::string& devname);
-    int muteUnmute(AvFlags state, const std::string& jid);
+    int muteUnmute(AvFlags what, bool state, const std::string& jid);
     ~RtcModule();
 protected:
     //=== Implementation methods

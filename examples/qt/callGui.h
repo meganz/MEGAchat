@@ -11,9 +11,7 @@
 #include <IJingleSession.h>
 #include <chatClient.h>
 
-
-extern bool inCall;
-extern karere::IGui::ICallGui* gCallGui;
+class ChatWindow;
 
 class CallAnswerGui: QObject, rtcModule::IEventHandler
 {
@@ -50,11 +48,9 @@ public slots:
             bool ret = (*ansFunc)(true, karere::AvFlags(true, true));
             if (!ret)
                 return;
-            inCall = true;
         }
         else //decline button
         {
-            inCall = false;
             (*ansFunc)(false, rtcModule::AvFlags());
         }
     }
@@ -64,15 +60,15 @@ class CallGui: public QWidget, public rtcModule::IEventHandler, public karere::I
 Q_OBJECT
 protected:
     std::shared_ptr<rtcModule::ICall> mCall;
+    ChatWindow& mChatWindow;
 public slots:
-    void onCallBtn(bool);
+    void onHupBtn(bool);
+    void onChatBtn(bool);
+    void onMuteCam(int);
+    void onMuteMic(int);
 public:
     Ui::CallGui ui;
-    CallGui(QWidget *parent = 0): QWidget(parent)
-    {
-        ui.setupUi(this);
-        connect(ui.mCallBtn, SIGNAL(clicked(bool)), this, SLOT(onCallBtn(bool)));
-    }
+    CallGui(ChatWindow& parent);
     void call();
     virtual void onOutgoingCallCreated(const std::shared_ptr<rtcModule::ICall> &aCall)
     {mCall = aCall;}
@@ -85,11 +81,7 @@ public:
         rendererRet = ui.remoteRenderer;
     }
     virtual void onCallEnded(rtcModule::TermCode code, const char* text,
-        const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj)
-    {
-        printf("call ended\n");
-        mCall.reset();
-    }
+        const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj);
     virtual void onLocalMediaFail(const std::string& err, bool* cont)
     {
         KR_LOG_ERROR("=============LocalMediaFail: %s", err.c_str());

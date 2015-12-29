@@ -269,24 +269,19 @@ public slots:
             layout->insertWidget(2, mHistFetchUi->progressBar());
         }
     }
-    void onVidGuiChk(int checked)
+    void onCallBtn(bool)
     {
-        if (checked)
-        {
-            if (mCallGui)
-                return;
-            mCallGui = new CallGui(this);
-            auto uh = static_cast<karere::PeerChatRoom&>(mRoom).peer();
-            char buf[32];
-            auto len = mega::Base32::btoa((byte*)&uh, sizeof(uh), buf);
-            buf[len] = 0;
-            std::string jid(buf);
-            jid+='@';
-            jid.append(KARERE_XMPP_DOMAIN);
-            mRoom.parent.client.rtc->startMediaCall(mCallGui, jid, karere::AvFlags(true, true));
-        //auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget);
-        mCallGui->setVisible(true);
-        }
+        if (mCallGui)
+            return;
+        auto uh = static_cast<karere::PeerChatRoom&>(mRoom).peer();
+        char buf[32];
+        auto len = mega::Base32::btoa((byte*)&uh, sizeof(uh), buf);
+        buf[len] = 0;
+        std::string jid(buf);
+        jid+='@';
+        jid.append(KARERE_XMPP_DOMAIN);
+        createCallGui();
+        mRoom.parent.client.rtc->startMediaCall(mCallGui, jid, karere::AvFlags(true, true));
     }
 
 public:
@@ -298,10 +293,28 @@ public:
         connect(ui.mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
         connect(ui.mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
         connect(ui.mMessageList, SIGNAL(requestHistory(int)), this, SLOT(onMsgListRequestHistory(int)));
-        connect(ui.mCallGuiChk, SIGNAL(stateChanged(int)), this, SLOT(onVidGuiChk(int)));
+        connect(ui.mCallBtn, SIGNAL(clicked(bool)), this, SLOT(onCallBtn(bool)));
         QDialog::show();
     }
 protected:
+    void createCallGui()
+    {
+        assert(!mCallGui);
+        auto layout = qobject_cast<QBoxLayout*>(ui.mCentralWidget->layout());
+        mCallGui = new CallGui(*this);
+        layout->insertWidget(1, mCallGui, 1);
+        ui.mTitlebar->hide();
+        ui.mTextChatWidget->hide();
+    }
+
+    void deleteCallGui()
+    {
+        assert(mCallGui);
+        delete mCallGui;
+        mCallGui = nullptr;
+        ui.mTitlebar->show();
+        ui.mTextChatWidget->show();
+    }
     MessageWidget* widgetFromMessage(const chatd::Message& msg)
     {
         if (!msg.userp)

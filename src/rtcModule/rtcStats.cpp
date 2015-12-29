@@ -200,7 +200,7 @@ void Recorder::onStats(const std::shared_ptr<artc::MappedStatsData>& data)
     }
     if (shouldAddSample)
     {
-        KR_LOG_DEBUG("Stats: add sample");
+        //KR_LOG_DEBUG("Stats: add sample");
         addSample();
         if (onSample)
         {
@@ -344,5 +344,15 @@ void RtcStats::toJson(std::string& json) const
     json[json.size()-1]='}'; //all
 }
 
+void BasicStats::toJson(std::string& json) const
+{
+    json.reserve(512);
+    json ="{";
+    JSON_ADD_STR(cid, mCallId);
+    JSON_ADD_INT(isCaller, mIsCaller);
+    JSON_ADD_STR(termRsn, mTermRsn);
+    JSON_ADD_STR(bws, "n"); //TODO: Add platform info
+    json[json.size()-1] = '}';
+}
 }
 }

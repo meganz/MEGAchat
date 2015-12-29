@@ -2,15 +2,38 @@
 #include "chatWindow.h"
 #include <mega/base64.h> //for base32
 #include <chatRoom.h>
+#include "chatWindow.h"
+
 using namespace std;
 using namespace mega;
 using namespace karere;
 
-void CallGui::onCallBtn(bool)
+CallGui::CallGui(ChatWindow &parent)
+: QWidget(&parent), mChatWindow(parent)
+{
+    ui.setupUi(this);
+    connect(ui.mHupBtn, SIGNAL(clicked(bool)), this, SLOT(onHupBtn(bool)));
+    connect(ui.mShowChatBtn, SIGNAL(clicked(bool)), this, SLOT(onChatBtn(bool)));
+    connect(ui.mMuteMicChk, SIGNAL(stateChanged(int)), this, SLOT(onMuteMic(int)));
+    connect(ui.mMuteCamChk, SIGNAL(stateChanged(int)), this, SLOT(onMuteCam(int)));
+    connect(ui.mFullScreenChk, SIGNAL(stateChanged(int)), this, SLOT(onFullScreenChk(int)));
+}
+
+void CallGui::onHupBtn(bool)
 {
     if (!mCall)
         return;
     mCall->hangup();
+}
+void CallGui::onMuteMic(int state)
+{
+    AvFlags av(true, false);
+    mCall->muteUnmute(av, !state);
+}
+void CallGui::onMuteCam(int state)
+{
+    AvFlags av(false, true);
+    mCall->muteUnmute(av, !state);
 }
 
 void CallGui::call()
@@ -39,3 +62,18 @@ void CallGui::call()
     });
 }
 
+void CallGui::onCallEnded(rtcModule::TermCode code, const char* text,
+    const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj)
+{
+    mCall.reset();
+    mChatWindow.deleteCallGui();
+}
+
+void CallGui::onChatBtn(bool)
+{
+    auto& txtChat = *mChatWindow.ui.mTextChatWidget;
+    if (txtChat.isVisible())
+        txtChat.hide();
+    else
+        txtChat.show();
+}

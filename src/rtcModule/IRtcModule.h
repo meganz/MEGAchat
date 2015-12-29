@@ -118,6 +118,7 @@ enum
     static TermCode strToTermcode(std::string event);
     IEventHandler& handler() const { return *mHandler; }
     virtual bool hangup(const char* text=nullptr) = 0;
+    virtual void muteUnmute(AvFlags what, bool state) = 0;
 };
 /**
  * Call event handler callback interface. When the call is created, the user
@@ -133,8 +134,8 @@ public:
 * a call even if there was an error obtaining the local media stream. For example
 * if we still want to receive the peer's audio and video (and not send ours). In
 * such cases the \c cont parameter is not NULL and points to a boolean,
-* set to false by default. If you want to continue with establishing the call,
-* set it to \c true to continue.
+* set to true by default. If you want to not continue with establishing the call,
+* set it to \c false to terminate the call.
 */
 virtual void onLocalMediaFail(const std::string& errMsg, bool* cont) {}
 /**
@@ -186,19 +187,20 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
 */
     virtual void onMediaRecv(stats::Options& statOptions) {}
 /**
-* @brief A call that has been accepted has ended - either normally by user
-* hangup, or because of an error. The JIngle session of the call will be destroyed,
-* so the applicaton must not access it after this callback.
-* This event is fired also in case of
-* RTP fingerprint verification failure.
-* @param reason The reason for which the call is terminated. If the
-* fingerprint verification failed, the reason will be 'security'
-* If the peer terminated the call, the reason will be prefixed by 'peer-'.
-* For example, if we hung up the call, the reason would be 'hangup',
-* but if the peer hung up (with reason 'hangup'), the reason would be 'peer-hangup'
-* @param text A more detailed description of the reason. Can be an error
+* @brief A call is about to be deleted. The call has ended either normally by user
+* hangup, or because of an error, or it was never established.
+* This event is fired also in case of RTP fingerprint verification failure.
+* The user must release any shared_ptr references it may have to the ICall object,
+* to allow the call object to be actually deleted and memory re-claimed.
+* It is guaranteed that this event handler will not be called anymore, so it's safe
+* to delete it as well, even from within this method.
+* @param reason The reason for which the call is terminated.
+* If the peer terminated the call, the reason will have the ICall::kPeer bit set.
+* @param text A more detailed description of the reason, or \c nullptr. Can be an error
 * message. For fingerprint verification failure it is "fingerprint verification failed"
 * @param stats A stats object thet contains full or basic statistics for the call.
+* Reference to the stats object can be kept, its lifetime is not associated in any
+* way with the lifetime of the call object.
 */
     virtual void onCallEnded(TermCode termcode, const char* text,
                              const std::shared_ptr<stats::IRtcStats>& stats) {}
@@ -206,43 +208,23 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
 * @brief Fired when the media and codec description of the remote side
 * has been received and parsed by webRTC. At this point it is known exactly
 * what type of media, including codecs etc. the peer will send, and the stack
-* is prepared to handle it. If the remote is about to send video, then rendererRet
-* will be non-null, see below.
-* @param rendererRet If the remote is about to send video, this pointer is
-* non-null and points to a pointer that should receive an IVideoRenderer
-* instance. This instance will receive decoded video frames from the remote peer.
+* is prepared to handle it.
+* @param rendererRet The application must return an IVideoRenderer via this parameter.
+* This instance will receive decoded video frames from the remote peer.
+* The renderer is required even if the remote is does not send video initially,
+* as it may enable video sending during the call.
 */
     virtual void onRemoteSdpRecv(IVideoRenderer*& rendererRet) {}
-/**
-* @brief Fired when a Jingle error XML stanza is received.
-* @param origin A short string identifying the operation during which the error occurred.
-* @param stanza The error message or XML stanza, as string
-* @param origXml The message to which the error reply was received,
-* i.e. XML of the stanza to which the error response was received. Can be NULL.
-* @param type The type of the error. Currently always 's', meaning that the
-* error was received as an error stanza, and stanza and origXml are stanzas
-*/
-    virtual void onError(const std::string& msg) {}
-/**
-* @brief Fired when all current calls have muted sending local video, so the local video
-* display should be stopped. Ideally in this case the camera should be stopped,
-* but currently this is not possible as Firefox does not support SDP renegotiation.
-*/
-    virtual void onLocalVideoDisabled() {}
-/**
-* @brief Fired when at least one call enabled sending local video, or such
-* a call was started. The GUI should enable the local video display.
-*/
-    virtual void onLocalVideoEnabled() {}
-
+    /**
+     * @brief onMute The remote has muted audio and/or video sending.
+     * @param what Specifies what was muted
+     */
     virtual void onMute(AvFlags what) {}
+    /**
+     * @brief The remote has unmuted audio and/or video
+     * @param what SPecifies what has been unmuted
+     */
     virtual void onUnmute(AvFlags what) {}
-protected:
-/**
-* @brief Non-public destructor to avoid mixing memory managers. Destruction
-* is done via calling IDestroy's destroy() method that this interface implements
-*/
-    virtual ~IEventHandler() {}
 };
 
 class ICallAnswer
@@ -294,7 +276,7 @@ public:
 
     virtual bool selectVideoInDevice(const std::string& devname) = 0;
     virtual bool selectAudioInDevice(const std::string& devname) = 0;
-    virtual int muteUnmute(AvFlags state, const std::string& jid) = 0;
+    virtual int muteUnmute(AvFlags what, bool state, const std::string& jid) = 0;
     virtual void startMediaCall(IEventHandler* userHandler, const std::string& targetJid,
         AvFlags av, const char* files[]=nullptr, const std::string& myJid="") = 0;
     virtual void hangupAll(TermCode code = ICall::kUserHangup, const char* text=nullptr) = 0;

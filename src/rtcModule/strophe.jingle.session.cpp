@@ -234,15 +234,14 @@ Promise<Stanza> JingleSession::sendTerminate(const char* reason, const char* tex
     return sendIq(term.first, "set");
 }
 
-Promise<void> JingleSession::sendMute(bool unmuted, const string& what)
+Promise<void> JingleSession::sendMute(bool muted, const string& what)
 {
     auto info = createJingleIq(mCall.mPeerJid, "session-info");
-    info.second.c(unmuted ? "unmute" : "mute", {
-      {"xmlns", "urn:xmpp:jingle:apps:rtp:info:1"},
-      {"name", what.c_str()}
-    });
+    info.second.c(muted ? "mute":"unmute")
+            .setAttr("xmlns", "urn:xmpp:jingle:apps:rtp:info:1")
+            .setAttr("name", what.c_str());
     return sendIq(info.first, "set")
-           .then([](Stanza){});
+            .then([](Stanza){});
 }
 
 promise::Promise<strophe::Stanza>
@@ -254,9 +253,9 @@ JingleSession::sendIq(strophe::Stanza iq, const std::string &origin, unsigned fl
 Promise<void> JingleSession::sendMuteDelta(AvFlags oldf, AvFlags newf)
 {
     Promise<void> pms1 = (oldf.audio != newf.audio)
-        ? sendMute(newf.audio, "voice") : promise::_Void();
+        ? sendMute(!newf.audio, "voice") : promise::_Void();
     Promise<void> pms2 = (oldf.video != newf.video)
-        ? sendMute(newf.video, "video") : promise::_Void();
+        ? sendMute(!newf.video, "video") : promise::_Void();
     return when(pms1, pms2);
 }
 Promise<void> JingleSession::answer(Stanza offer)

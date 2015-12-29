@@ -448,7 +448,7 @@ public:
     void setAvState(karere::AvFlags av)
     {
         if (mAudio && mAudio->track()->enabled() != av.audio)
-                mAudio->track()->set_enabled(av.audio);
+            mAudio->track()->set_enabled(av.audio);
         if (mVideo && mVideo->track()->enabled() != av.video)
             mVideo->track()->set_enabled(av.video);
     }

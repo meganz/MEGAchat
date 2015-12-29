@@ -224,9 +224,9 @@ border-radius: 4px;</string>
           </spacer>
          </item>
          <item>
-          <widget class="QCheckBox" name="mCallGuiChk">
+          <widget class="QToolButton" name="mCallBtn">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
@@ -243,29 +243,66 @@ border-radius: 4px;</string>
              <height>16</height>
             </size>
            </property>
+           <property name="palette">
+            <palette>
+             <active>
+              <colorrole role="Button">
+               <brush brushstyle="SolidPattern">
+                <color alpha="0">
+                 <red>230</red>
+                 <green>230</green>
+                 <blue>230</blue>
+                </color>
+               </brush>
+              </colorrole>
+             </active>
+             <inactive>
+              <colorrole role="Button">
+               <brush brushstyle="SolidPattern">
+                <color alpha="0">
+                 <red>230</red>
+                 <green>230</green>
+                 <blue>230</blue>
+                </color>
+               </brush>
+              </colorrole>
+             </inactive>
+             <disabled>
+              <colorrole role="Button">
+               <brush brushstyle="SolidPattern">
+                <color alpha="0">
+                 <red>230</red>
+                 <green>230</green>
+                 <blue>230</blue>
+                </color>
+               </brush>
+              </colorrole>
+             </disabled>
+            </palette>
+           </property>
            <property name="layoutDirection">
             <enum>Qt::LeftToRight</enum>
            </property>
+           <property name="autoFillBackground">
+            <bool>true</bool>
+           </property>
            <property name="styleSheet">
-            <string notr="true">QCheckBox::indicator
-{width: 16; height: 16;}
-
-QCheckBox::indicator:checked
-{
-image: url(/Users/loki/Desktop/video-camera-icon.png);
-}
-QCheckBox::indicator:unchecked
-{
-image: url(/Users/loki/Desktop/camera.svg);
-}</string>
+            <string notr="true"/>
            </property>
            <property name="text">
             <string/>
            </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>../../../Desktop/video-camera-icon.png</normaloff>../../../Desktop/video-camera-icon.png</iconset>
+           </property>
            <property name="checkable">
-            <bool>true</bool>
+            <bool>false</bool>
            </property>
            <property name="checked">
+            <bool>false</bool>
+           </property>
+           <property name="autoRaise">
             <bool>false</bool>
            </property>
           </widget>
@@ -293,7 +330,7 @@ image: url(/Users/loki/Desktop/camera.svg);
        </widget>
       </item>
       <item>
-       <widget class="QWidget" name="textChatWidget" native="true">
+       <widget class="QWidget" name="mTextChatWidget" native="true">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
           <horstretch>0</horstretch>

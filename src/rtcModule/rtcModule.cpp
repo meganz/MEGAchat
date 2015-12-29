@@ -482,14 +482,14 @@ inline bool callTypeMatches(int type, char userType)
             ((userType == 'f') && isFtCall));
 }
 
-int RtcModule::muteUnmute(AvFlags state, const std::string& bareJid)
+int RtcModule::muteUnmute(AvFlags what, bool state, const std::string& bareJid)
 {
     size_t affected = 0;
     if (bareJid.empty())
     {
         for (auto& item: *this)
         {
-            item.second->muteUnmute(state);
+            item.second->muteUnmute(what, state);
             affected++;
         }
     }
@@ -503,7 +503,7 @@ int RtcModule::muteUnmute(AvFlags state, const std::string& bareJid)
             if (bareJid != getBareJidFromJid(peer))
                 continue;
             affected++;
-            call.second->muteUnmute(state);
+            call.second->muteUnmute(what, state);
         }
     }
 // If we are muting all calls, local video playback will be disabled by the refcounting
@@ -637,7 +637,9 @@ void Call::destroy(TermCode termcode, const char *text, bool noSessTermSend)
         ? hangupSession(termcode, text, noSessTermSend)
         : std::shared_ptr<stats::IRtcStats>(new stats::BasicStats(*this, Call::termcodeToReason(termcode))));
 
-    mLocalStream.reset();
+    mLocalPlayer.reset();
+    mRemotePlayer.reset();
+    mLocalStream.reset(); //garantees camera release, if object destroy is delayed because of shared_ptr references kept somewhere
     RTCM_EVENT(this, onCallEnded, termcode, text, stats);
     setState(kCallStateEnded);
     auto res = mRtc.erase(mSid);
@@ -653,9 +655,26 @@ void Call::destroy(TermCode termcode, const char *text, bool noSessTermSend)
                                           json->c_str(), json->size());
     })
     .then([client, json](std::shared_ptr<http::Response<std::string> > response)
+    ->promise::Promise<void>
     {
-        printf(" stats post response = '%s'\n", response->data()->c_str());
+        if (response->httpCode() != 200)
+        {
+            std::string msg = "Statserver returned non-200 code "+std::to_string(response->httpCode());
+            if (response->data())
+                msg.append(" Message: ").append(*response->data());
+            return promise::Error(msg);
+        }
+        else
+        {
+            KR_LOG_DEBUG("Callstats successfully posted");
+            return promise::_Void();
+        }
+    })
+    .fail([](const promise::Error& err)
+    {
+        KR_LOG_ERROR("Error posting stats: %s", err.what());
     });
+
     //CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
       //size_t maxRetries = rh::RetryController<Func>::kDefaultMaxAttemptCount,
       //size_t maxSingleWaitTime = rh::RetryController<Func>::kDefaultMaxSingleWaitTime,
@@ -758,45 +777,23 @@ int Call::isRelayed() const
     return mSess->mStatsRecorder->isRelay();
 }
 
-void Call::disableLocalVideo()
-{
-     if (!mLocalPlayer)
-     {
-         KR_LOG_WARNING("disableLocalVideo: There is no local player");
-         return;
-     }
-    mLocalPlayer->detachVideo();
-    RTCM_EVENT(this, onLocalVideoDisabled);
-}
 
-void Call::enableLocalVideo()
-{
-    assert(mLocalPlayer);
-    if(mLocalPlayer->isVideoAttached())
-    {
-        KR_LOG_WARNING("enableLocalVideo: local player already attached to stream");
-        return;
-    }
-    auto video = mLocalStream->video();
-    if (video)
-    {
-        mLocalPlayer->attachVideo(video);
-        RTCM_EVENT(this, onLocalVideoEnabled);
-        mLocalPlayer->start();
-    }
-}
-
-void Call::muteUnmute(AvFlags newState)
+void Call::muteUnmute(AvFlags what, bool state)
 {
 //First do the actual muting, and only then send the signalling
     auto prevAv = mLocalAv;
+    auto newState = mLocalAv;
+    if (what.audio)
+        newState.audio = state;
+    if (what.video)
+        newState.video = state;
     if (mLocalStream)
     {
         mLocalStream->setAvState(newState);
         newState = mLocalAv = mLocalStream->effectiveAv();
     }
     if (mSess)
-        mSess->sendMuteDelta(mLocalAv, prevAv);
+        mSess->sendMuteDelta(prevAv, mLocalAv);
 }
 
 std::string Call::id() const

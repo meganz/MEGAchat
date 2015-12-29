@@ -65,8 +65,7 @@ public:
     virtual size_t sampleCnt() const { return 0; }
     virtual const std::vector<Sample*>* samples() const { return nullptr; }
     virtual const IConnInfo* connInfo() const { return nullptr; }
-    virtual void toJson(std::string&) const {}
-
+    virtual void toJson(std::string&) const;
 };
 
 class Recorder: public webrtc::StatsObserver

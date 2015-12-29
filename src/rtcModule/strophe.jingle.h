@@ -51,7 +51,7 @@ protected:
     friend class JingleSession;
     friend class RtcModule;
 public:
-    virtual ~JingleCall(){ printf("call destroy\n");} //we shouldn't need it virtual, but just in case
+    virtual ~JingleCall(){ KR_LOG_DEBUG("Call %s destroy", mSid.c_str()); } //we shouldn't need it virtual, as the map type is of the actual class Call, but just in case
     void setState(CallState newState) { mHangupFunc = nullptr; mState = newState; }
 };
 class ScopedCallRemover
