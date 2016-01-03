@@ -26,9 +26,11 @@ class MainWindow : public QMainWindow, public karere::IGui, public karere::IGui:
 public:
     explicit MainWindow(karere::Client* aClient=nullptr);
     void setClient(karere::Client& client) { mClient = &client; }
+    karere::Client& client() const { return *mClient; }
     ~MainWindow();
     Ui::MainWindow ui;
     void removeItem(ITitleDisplay* item, bool isGroup);
+    static void drawAvatar(const karere::Contact& contact, QPaintDevice& image);
 //IContactList
     virtual ITitleDisplay* createContactItem(karere::Contact& contact);
     virtual ITitleDisplay* createGroupChatItem(karere::GroupChatRoom& room);
@@ -38,17 +40,20 @@ public:
     virtual karere::IGui::IContactList& contactList() { return *this; }
     virtual IChatWindow* createChatWindow(karere::ChatRoom& room);
     virtual IChatWindow& chatWindowForPeer(uint64_t handle);
+    virtual rtcModule::IEventHandler* createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+    {
+        return new CallAnswerGui(*this, ans);
+    }
 protected:
     karere::IGui::ITitleDisplay* addItem(bool front, karere::Contact* contact,
                 karere::GroupChatRoom* room);
-
 public slots:
     void onAudioInSelected();
     void onVideoInSelected();
 };
 
 extern bool inCall;
-
+extern QColor gAvatarColors[];
 class CListItem: public QWidget, public karere::IGui::ITitleDisplay
 {
 protected:
@@ -59,7 +64,10 @@ public:
     bool isGroup() const { return mIsGroup; }
 //karere::ITitleDisplay interface
     virtual void updateTitle(const std::string& title)
-    { ui.mName->setText(QString::fromUtf8(title.c_str(), title.size())); }
+    {
+        QString text = QString::fromUtf8(title.c_str(), title.size());
+        ui.mName->setText(text);
+    }
     virtual void updateOverlayCount(int count)
     {
         if (count < 0)
@@ -106,7 +114,8 @@ protected:
     karere::Contact& mContact;
 public:
     CListContactItem(QWidget* parent, karere::Contact& contact)
-        :CListItem(parent, false), mContact(contact){}
+        :CListItem(parent, false), mContact(contact)
+    {}
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
     {
         if (mContact.chatRoom())
@@ -126,6 +135,17 @@ public:
             QMessageBox::critical(nullptr, "rtctestapp",
                 "Error creating chatroom:\n"+QString::fromStdString(err.what()));
         });
+    }
+    virtual void updateTitle(const std::string &title)
+    {
+        QString text = QString::fromUtf8(title.c_str(), title.size());
+        ui.mName->setText(text);
+        ui.mAvatar->setText(QString(text[0].toUpper()));
+        ui.mAvatar->setStyleSheet(
+            "border-radius: 4px;"
+            "border: 2px solid rgba(0,0,0,0);"
+            "color: white;"
+            "background-color: "+gAvatarColors[mContact.userId() & 0x0f].name());
     }
 };
 class CListGroupChatItem: public CListItem

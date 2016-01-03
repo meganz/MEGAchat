@@ -118,7 +118,8 @@ void Jingle::onJingle(Stanza iq)
 
         call = callIt->second;
         if (call->mPeerJid != from)
-            throw std::runtime_error("onJingle: sid and sender full JID mismatch");
+            throw std::runtime_error("onJingle: sid and sender full JID mismatch: expected jid: '"
+                +call->mPeerJid+"', actual: '"+from+"'");
 
         auto sess = call->mSess;
         if (!sess)
@@ -156,12 +157,13 @@ void Jingle::onJingle(Stanza iq)
                 return;
             }
 //===
+            call->setState(kCallStateSession);
+            RTCM_EVENT(call, onSession);
+
             sess->inputQueue.reset(new StanzaQueue());
             sess->answer(jingle)
             .then([this, call]()
             {
-                call->setState(kCallStateSession);
-                RTCM_EVENT(call, onSession);
 //now handle all packets queued up while we were waiting for user's accept of the call
                 processAndDeleteInputQueue(*call->mSess);
             })
@@ -211,7 +213,7 @@ void Jingle::onJingle(Stanza iq)
             }
             catch(...){}
             code |= Call::kPeer;
-            call->destroy(code, text?text.c_str():NULL, true);
+            call->destroy(code, text?text.c_str():"", true);
         }
         else if (action == "transport-info")
         {
@@ -233,7 +235,7 @@ void Jingle::onJingle(Stanza iq)
                     current.audio = false;
                 if (av.video)
                     current.video = false;
-                RTCM_EVENT(call, onMute, av);
+                call->onPeerMute(av);
             }
             else if ((info = jingle.childByAttr("unmute", "xmlns", "urn:xmpp:jingle:apps:rtp:info:1")))
             {
@@ -243,7 +245,7 @@ void Jingle::onJingle(Stanza iq)
                 auto& current = sess->mRemoteAvState;
                 current.audio |= av.audio;
                 current.video |= av.video;
-                RTCM_EVENT(call, onUnmute, av);
+                call->onPeerUnmute(av);
             }
         }
         else
@@ -266,8 +268,8 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
     {
         Jingle& self;
         bool handledElsewhere = false;
-        unsigned elsewhereHandlerId = 0;
-        unsigned cancelHandlerId = 0;
+        xmpp_uid elsewhereHandlerId = 0;
+        xmpp_uid cancelHandlerId = 0;
         string sid;
         string from;
         string ownJid;
@@ -285,24 +287,25 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         std::shared_ptr<CallAnswerFunc> ansFunc;
         //ICallAnswer interface
         AvFlags peerMedia() const { return mPeerMedia; } //TODO: implement peer media parsing
-        bool reqStillValid() const
+        bool answeredReqStillValid() const
         {
-            if (userResponded || mCall->state() != kCallStateInReq)
+            if (mCall->state() != kCallStateInReq)
                 return false;
             Ts tsTillUser = tsReceived + self.callAnswerTimeout+10000;
             return (timestampMs() < tsTillUser);
         }
+        bool reqStillValid() const
+        {
+            return (!userResponded && answeredReqStillValid());
+        }
         bool answer(bool accept, AvFlags av)
         {
-            if (userResponded)
-                return false;
-            userResponded = true;
             return (*ansFunc)(accept, av);
         }
         std::set<std::string>* files() const { return nullptr; }
         std::shared_ptr<ICall> call() const { return std::static_pointer_cast<ICall>(mCall); }
         //==
-        bool freeHandlers(unsigned* handler=nullptr)
+        bool freeHandlers(xmpp_uid* handler=nullptr)
         {
             if (handlersFreed)
                 return false;
@@ -386,7 +389,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
 //a call-not-valid-anymore condition
 
         state->mPeerMedia = AvFlags(false,false); //TODO: Implement peerMedia parsing
-        auto hangupFunc = [this, state](TermCode termcode, const char* text)->bool
+        auto hangupFunc = [this, state](TermCode termcode, const std::string& text)->bool
         {
             if (!state->reqStillValid()) // Call was cancelled, or request timed out and handler was removed
                 return false;
@@ -399,8 +402,8 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                    .setAttr("type", "megaCallDecline")
                    .setAttr("reason", Call::termcodeToReason(termcode).c_str());
 
-            if (text)
-                declMsg.c("body").t(text);
+            if (!text.empty())
+                declMsg.c("body").t(text.c_str());
             mConn.send(declMsg);
             return true;
         };
@@ -423,7 +426,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
             when(state->pmsCrypto, state->pmsGelb)
             .then([this, state, av]()
             {
-                if (!state->reqStillValid())
+                if (!state->answeredReqStillValid())
                     return;
                 auto it = find(state->sid);
                 if (it == end())
@@ -443,8 +446,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 call->mPeerAnonId = state->callmsg.attr("anonid");
                 call->mLocalAv = av;
                 if (!call->startLocalStream(true))
-                    return;
-
+                    return; //startLocalStream() hangs up the call
 //TODO: Handle file transfer
 // This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
                 setTimeout([this, state, tsTillJingle]()
@@ -464,22 +466,23 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                    .setAttr("fprmackey",
                        mCrypto->encryptMessageForJid(
                                 state->ownFprMacKey, state->fromBare))
-                   .setAttr("anonid", mOwnAnonId.c_str());
+                   .setAttr("anonid", mOwnAnonId.c_str())
+                   .setAttr("media", call->mLocalAv.toString().c_str());
                 mConn.send(ans);
 
                 call->setState(kCallStateInReqWaitJingle);
                 //the peer must create a session immediately after receiving our answer
                 //and before reading any other data from network, otherwise it may not have
                 //as session when we send the below terminate
-                call->createSession(state->ownJid, state->from, nullptr);
+                call->createSession(state->from, state->ownJid, nullptr);
             })
             .fail([this, state](const Error& err)
             {
                 auto msg = "Error during pre-jingle call answer response: "+err.msg();
                 if (state->userResponded)
-                    hangupBySid(state->sid, Call::kInternalError, msg.c_str());
+                    hangupBySid(state->sid, Call::kInternalError, msg);
                 else //we don't want to reject the call from this client if user hasn't interacted
-                    destroyBySid(state->sid, Call::kInternalError, msg.c_str());
+                    destroyBySid(state->sid, Call::kInternalError, msg);
             });
             return true;
         }); //end answer func
@@ -493,6 +496,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
 
         auto& call = state->mCall = addCall(kCallStateInReq, false, nullptr, state->sid,
             std::move(hangupFunc), state->from, AvFlags(true, true));
+        KR_LOG_RTC_EVENT("global(%s)->onIncomingCallRequest", state->sid.c_str());
         call->mHandler = mGlobalHandler->onIncomingCallRequest(
             static_pointer_cast<ICallAnswer>(state));
         if (!call->mHandler)
@@ -507,7 +511,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
     }
 }
 
-bool Jingle::hangupBySid(const std::string& sid, TermCode termcode, const char* text)
+bool Jingle::hangupBySid(const std::string& sid, TermCode termcode, const std::string& text)
 {
     auto it = find(sid);
     if (it == end())
@@ -516,7 +520,7 @@ bool Jingle::hangupBySid(const std::string& sid, TermCode termcode, const char* 
     return true;
 }
 
-bool Jingle::destroyBySid(const std::string& sid, TermCode termcode, const char* text)
+bool Jingle::destroyBySid(const std::string& sid, TermCode termcode, const std::string& text)
 {
     auto it = find(sid);
     if (it == end())
@@ -525,7 +529,7 @@ bool Jingle::destroyBySid(const std::string& sid, TermCode termcode, const char*
     return true;
 }
 
-bool Jingle::cancelIncomingReqCall(iterator it, TermCode termcode, const char* text)
+bool Jingle::cancelIncomingReqCall(iterator it, TermCode termcode, const std::string& text)
 {
     auto& call = it->second;
 //    if (call->mIsFt && type && (type != 'f'))
@@ -553,14 +557,14 @@ void JingleCall::initiate()
     RTCM_EVENT(this, onSession);
 }
 
-void Jingle::hangupAll(TermCode termcode, const char* text)
+void Jingle::hangupAll(TermCode termcode, const std::string& text)
 {
     while(begin() != end())
     {
         begin()->second->hangup(termcode, text, false);
     }
 }
-void Jingle::destroyAll(TermCode termcode, const char* text)
+void Jingle::destroyAll(TermCode termcode, const std::string& text)
 {
     while(begin() != end())
         begin()->second->destroy(termcode, text);
@@ -604,17 +608,6 @@ string Jingle::getFingerprintsFromJingle(Stanza j)
     return result;
 }
 
-Promise<Stanza> Jingle::sendIq(Stanza iq, const string& origin, const char* sid)
-{
-    string strSid(sid?sid:"");
-    return mConn.sendIqQuery(iq)
-        .fail([this, origin, strSid](const promise::Error& err)
-        {
-            onError((strSid.empty()?nullptr:strSid.c_str()), err.msg(), "jingle-error",
-                    ("Error iq response on operation "+origin).c_str());
-            return err;
-        });
-}
 
 bool Jingle::verifyMac(const std::string& msg, const std::string& key, const std::string& actualMac)
 {
@@ -675,9 +668,20 @@ AvFlags peerMediaToObj(const char* strPeerMedia)
     }
     return ret;
 }
+
+RTCM_EXPORT IEventHandler* ICall::changeEventHandler(IEventHandler *handler)
+{
+    auto save = mHandler;
+    mHandler = handler;
+    return save;
+}
+const std::string& ICall::ownAnonId() const
+{
+    return mRtc.ownAnonId();
+}
 static const char* sTermcodeMsgs[Call::kTermLast+1] =
 {
-    "Call finished",
+    "User hangup",
     "Call request was canceled",
     "Call was answered on another device",
     "Call was rejected on another device",
@@ -689,14 +693,16 @@ static const char* sTermcodeMsgs[Call::kTermLast+1] =
     "Protocol timeout",
     "Protocol error",
     "Internal error",
-    "No camera and/or audio access"
+    "No camera and/or audio access",
+    "Disconnected from XMPP server"
 };
+
 static const char* sTermcodeReasons[Call::kTermLast+1] =
 {
     "hangup", "call-canceled", "answered-elewhere", "rejected-elsewhere",
     "answer-timeout", "reserved1", "reserved2",
     "initiate-timeout", "api-timeout", "jingle-timeout",
-    "jingle-error", "internal-error", "security", "nomedia"
+    "jingle-error", "internal-error", "security", "nomedia", "xmpp-disconnect"
 };
 
 static std::map<std::string, TermCode> sReasonNames =
@@ -708,10 +714,10 @@ static std::map<std::string, TermCode> sReasonNames =
   {"initiate-timeout", Call::kInitiateTimeout},  {"api-timeout", Call::kApiTimeout},
   {"jingle-timeout", Call::kProtoTimeout}, {"jingle-error", Call::kProtoError},
   {"internal-error", Call::kInternalError}, {"security", Call::kFprVerifFail},
-  {"nomedia", Call::kNoMediaError}
+  {"nomedia", Call::kNoMediaError}, {"xmpp-disconnect", Call::kXmppDisconnError}
 };
 
-TermCode ICall::strToTermcode(std::string event)
+RTCM_EXPORT TermCode ICall::strToTermcode(std::string event)
 {
     TermCode isPeer;
     if ((event.size() > 5) && (event.compare(0, 5, "peer-") == 0))
@@ -732,7 +738,7 @@ TermCode ICall::strToTermcode(std::string event)
     return it->second | isPeer;
 }
 
-std::string ICall::termcodeToReason(TermCode event)
+RTCM_EXPORT std::string ICall::termcodeToReason(TermCode event)
 {
     std::string result;
     if (event & kPeer)
@@ -746,7 +752,7 @@ std::string ICall::termcodeToReason(TermCode event)
         return result.append(sTermcodeReasons[event]);
 }
 
-const char* ICall::termcodeToMsg(TermCode event)
+RTCM_EXPORT const char* ICall::termcodeToMsg(TermCode event)
 {
     event &= ~kPeer;
     if (event > kTermLast)
@@ -759,10 +765,10 @@ ScopedCallRemover::ScopedCallRemover(const JingleCall &call, TermCode aCode)
     :rtc(call.rtc()), sid(call.sid()), code(aCode){}
 ScopedCallHangup::~ScopedCallHangup()
 {
-    rtc.hangupBySid(sid, code, text.empty()?nullptr:text.c_str());
+    rtc.hangupBySid(sid, code, text);
 }
 ScopedCallDestroy::~ScopedCallDestroy()
 {
-    rtc.destroyBySid(sid, code, text.empty()?nullptr:text.c_str());
+    rtc.destroyBySid(sid, code, text);
 }
 }

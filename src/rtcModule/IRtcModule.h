@@ -22,6 +22,11 @@
  */
 #include "mstrophepp.h" //only needed for IPlugin
 #include "karereCommon.h" //for AvFlags
+#ifdef _WIN32
+#define RTCM_EXPORT declspec(__dllexport)
+#else
+#define RTCM_EXPORT __attribute__((visibility("default")))
+#endif
 
 namespace rtcModule
 {
@@ -113,12 +118,16 @@ enum
     CallState state() const { return mState; }
     bool isCaller() const { return mIsCaller; }
     const std::string& peerJid() const { return mPeerJid; }
+    const std::string& peerAnonId() const { return mPeerAnonId; }
+    virtual const std::string& ownAnonId() const;
     static const char* termcodeToMsg(TermCode event);
     static std::string termcodeToReason(TermCode event);
     static TermCode strToTermcode(std::string event);
     IEventHandler& handler() const { return *mHandler; }
-    virtual bool hangup(const char* text=nullptr) = 0;
+    virtual bool hangup(const std::string& text="") = 0;
     virtual void muteUnmute(AvFlags what, bool state) = 0;
+    IEventHandler* changeEventHandler(IEventHandler* handler);
+    virtual void changeLocalRenderer(IVideoRenderer* renderer) = 0;
 };
 /**
  * Call event handler callback interface. When the call is created, the user
@@ -170,12 +179,8 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
 /**
 * @brief Fired just before a remote stream goes away, to remove
 * the video player from the GUI.
-* @param sess The session on which the remote stream goes away
-* @param videoRenderer The existing video renderer instance, as provided
-* by the app in onRemoteSdpRecv. The application can safely destroy that
-* instance.
 */
-    virtual void removeRemotePlayer(IVideoRenderer* videoRenderer) {}
+    virtual void removeRemotePlayer() {}
 /**
 * @brief Fired when remote media/data packets start actually being received.
 * This is the event that denotes a successful establishment of the incoming
@@ -202,7 +207,7 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
 * Reference to the stats object can be kept, its lifetime is not associated in any
 * way with the lifetime of the call object.
 */
-    virtual void onCallEnded(TermCode termcode, const char* text,
+    virtual void onCallEnded(TermCode termcode, const std::string& text,
                              const std::shared_ptr<stats::IRtcStats>& stats) {}
 /**
 * @brief Fired when the media and codec description of the remote side
@@ -216,15 +221,18 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
 */
     virtual void onRemoteSdpRecv(IVideoRenderer*& rendererRet) {}
     /**
-     * @brief onMute The remote has muted audio and/or video sending.
+     * @brief The remote has muted audio and/or video sending. If video was muted,
+     * it is guaranteed that the video renderer will not receive any frames until
+     * \c onPeerUnmute() for video is received. This allows the app to draw an avatar
+     * of the peer on the viewport.
      * @param what Specifies what was muted
      */
-    virtual void onMute(AvFlags what) {}
+    virtual void onPeerMute(AvFlags what) {}
     /**
      * @brief The remote has unmuted audio and/or video
-     * @param what SPecifies what has been unmuted
+     * @param what Specifies what was unmuted
      */
-    virtual void onUnmute(AvFlags what) {}
+    virtual void onPeerUnmute(AvFlags what) {}
 };
 
 class ICallAnswer
@@ -279,7 +287,7 @@ public:
     virtual int muteUnmute(AvFlags what, bool state, const std::string& jid) = 0;
     virtual void startMediaCall(IEventHandler* userHandler, const std::string& targetJid,
         AvFlags av, const char* files[]=nullptr, const std::string& myJid="") = 0;
-    virtual void hangupAll(TermCode code = ICall::kUserHangup, const char* text=nullptr) = 0;
+    virtual void hangupAll(TermCode code = ICall::kUserHangup, const std::string& text="") = 0;
     virtual std::shared_ptr<ICall> getCallBySid(const std::string& sid) = 0;
     virtual ~IRtcModule(){}
 };

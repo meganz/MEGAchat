@@ -20,7 +20,7 @@ namespace stats { class Recorder; }
 class FileTransferHandler
 {
 public:
-    void remove(const char*, const char*){}
+    void remove(const std::string&, const std::string&){}
 };
 
 typedef std::vector<strophe::Stanza> StanzaQueue;
@@ -89,7 +89,7 @@ public:
     promise::Promise<strophe::Stanza> accept();
     promise::Promise<strophe::Stanza> sendOffer();
     artc::tspMediaStream& getRemoteStream() {return mRemoteStream;}
-    void terminate(const char* reason, const char* text=NULL, bool nosend=false); //TODO: maybe can be integrated in another place
+    void terminate(const std::string& reason, const std::string& text="", bool nosend=false); //TODO: maybe can be integrated in another place
     inline bool isActive()
     {
          return (mPeerConn && (mState != SESSTATE_ENDED) && (mState != SESSTATE_ERROR)
@@ -115,11 +115,11 @@ public:
     void addIceCandidates(strophe::Stanza transportInfo);
     promise::Promise<void> sendAnswer();
     promise::Promise<void> answer(strophe::Stanza offer);
-    promise::Promise<strophe::Stanza> sendTerminate(const char *reason, const char *text);
+    promise::Promise<strophe::Stanza> sendTerminate(const std::string& reason, const std::string& text);
     promise::Promise<void> sendMute(bool unmuted, const std::string& what);
     promise::Promise<void> sendMuteDelta(AvFlags oldf, AvFlags newf);
     promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq,
-        const std::string& origin, unsigned flags=0);
+        const std::string& origin);
 };
 
 }

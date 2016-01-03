@@ -216,6 +216,8 @@ void Recorder::start()
     assert(mSession.mPeerConn);
     mStats->mIsCaller = mSession.isCaller();
     mStats->mCallId = mSession.mCall.id();
+    mStats->mOwnAnonId = mSession.mJingle.ownAnonId();
+    mStats->mPeerAnonId = mSession.mCall.peerAnonId();
     mStats->mSper = mOptions.scanPeriod;
     mStats->mStartTs = karere::timestampMs();
     mTimer = mega::setInterval([this]()
@@ -224,12 +226,12 @@ void Recorder::start()
     }, mOptions.scanPeriod);
 }
 
-void Recorder::terminate(const char* termRsn)
+void Recorder::terminate(const std::string& termRsn)
 {
     mega::cancelInterval(mTimer);
     mTimer = 0;
     mStats->mDur = karere::timestampMs() - mStats->mStartTs;
-    mStats->mTermRsn = termRsn ? termRsn : "(unknown)";
+    mStats->mTermRsn = termRsn;
     std::string json;
     mStats->toJson(json);
     printf("============== %s\n", json.c_str());
@@ -278,6 +280,8 @@ void RtcStats::toJson(std::string& json) const
     json.reserve(10240);
     json ="{";
     JSON_ADD_STR(cid, mCallId);
+    JSON_ADD_STR(caid, mIsCaller?mOwnAnonId:mPeerAnonId);
+    JSON_ADD_STR(aaid, mIsCaller?mPeerAnonId:mOwnAnonId);
     JSON_ADD_INT(isCaller, mIsCaller);
     JSON_ADD_INT(ts, mStartTs);
     JSON_ADD_INT(sper, mSper);

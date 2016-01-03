@@ -21,9 +21,6 @@ using namespace placeholders;
 
 namespace rtcModule
 {
-//===
-string avFlagsToString(const AvFlags& av);
-AvFlags parseAvString(const std::string& avString);
 
 RtcModule::RtcModule(xmpp_conn_t* conn, IGlobalEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers)
@@ -210,7 +207,7 @@ void RtcModule::onConnState(const xmpp_conn_event_t status,
         case XMPP_CONN_FAIL:
         case XMPP_CONN_DISCONNECT:
         {
-            hangupAll(Call::kXmppDisconnError, nullptr); //TODO: Maybe move to Jingle?
+            hangupAll(Call::kXmppDisconnError); //TODO: Maybe move to Jingle?
             break;
         }
         case XMPP_CONN_CONNECT:
@@ -220,7 +217,7 @@ void RtcModule::onConnState(const xmpp_conn_event_t status,
             break;
         }
     }
- }
+}
 
 void RtcModule::startMediaCall(IEventHandler* handler, const std::string& targetJid,
         AvFlags av, const char* files[], const std::string& myJid)
@@ -236,20 +233,37 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
   };
   struct StateContext
   {
+      RtcModule& mSelf;
       string sid;
       string targetJid;
       string ownFprMacKey;
       string myJid;
       bool isBroadcast;
-      unsigned ansHandler = 0;
-      unsigned declineHandler = 0;
+      xmpp_uid ansHandler = 0;
+      xmpp_uid declineHandler = 0;
       State state = kNotYetUserMedia;
       artc::tspMediaStream sessStream;
       AvFlags av = AvFlags(false, false);
       std::shared_ptr<karere::ServerList<karere::TurnServerInfo> > turnServers;
       unique_ptr<vector<string> > files;
+      StateContext(RtcModule& module): mSelf(module){}
+      void freeHandlersExcept(xmpp_uid* handler = nullptr)
+      {
+          if (handler)
+              *handler = 0;
+          if (ansHandler)
+          {
+              mSelf.mConn.removeHandler(ansHandler);
+              ansHandler = 0;
+          }
+          if (declineHandler)
+          {
+              mSelf.mConn.removeHandler(declineHandler);
+              declineHandler = 0;
+          }
+      }
   };
-  shared_ptr<StateContext> state(new StateContext);
+  shared_ptr<StateContext> state = make_shared<StateContext>(*this);
   state->av = av; //we need to remember av in cancel handler as well, for freeing the local stream
   state->isBroadcast = strophe::getResourceFromJid(targetJid).empty();
   state->ownFprMacKey = crypto().generateFprMacKey();
@@ -261,7 +275,7 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
   [this, state](Call& aCall)
   {
       auto actualAv = aCall.mLocalStream ? aCall.mLocalStream->av() : AvFlags(false,false);
-      if ((state->av.audio && !actualAv.audio) || (state->av.video && !actualAv.video))
+      if (state->av != actualAv)
       {
           KR_LOG_WARNING("startMediaCall: Could not obtain audio or video stream requested by the user");
           state->av = actualAv;
@@ -280,15 +294,14 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
                   return; //message not for us, keep handler(by default keep==true)
 
               keep = false;
+              state->freeHandlersExcept(&state->ansHandler);
+
               if (state->state != kGotUserMediaWaitingPeer)
                   return;
 
               GET_CALL(state->sid, kCallStateOutReq, return);
 
               state->state = kPeerAnsweredOrTimedout;
-              mConn.removeHandler(state->declineHandler);
-              state->declineHandler = 0;
-              state->ansHandler = 0;
               //TODO: enable when implemented in js
               auto av = AvFlags(true,true); //parseAvString(stanza.attr("media"));
               if (!av.any() && !call->mLocalStream->av().any())
@@ -342,16 +355,13 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
           if (stanza.attr("sid") != state->sid) //this message was not for us
               return;
           keep = false;
+          state->freeHandlersExcept(&state->declineHandler);
           if (state->state != kGotUserMediaWaitingPeer)
               return;
           GET_CALL(state->sid, kCallStateOutReq, return);
 
-          ScopedCallHangup remover(*call);
+          ScopedCallDestroy remover(*call, Call::kUserHangup|Call::kPeer);
           state->state = kPeerAnsweredOrTimedout;
-          mConn.removeHandler(state->ansHandler);
-          state->ansHandler = 0;
-          state->declineHandler = 0;
-          state->sessStream = nullptr;
           Stanza body = stanza.child("body", true);
           if (body)
           {
@@ -403,7 +413,7 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
               msgattrs.files = JSON.stringify(infos);
           } else {
  */
-      msg.setAttr("media", avFlagsToString(state->av).c_str());
+      msg.setAttr("media", state->av.toString().c_str());
       mConn.send(msg);
 
       if (!state->files)
@@ -419,16 +429,10 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
       };
   }); //end initiateCallback()
   //return an object with a cancel() method
-  Call::HangupFunc cancelFunc = [this, state](TermCode reason, const char* text) -> bool //call request cancel function
+  Call::HangupFunc cancelFunc = [this, state](TermCode reason, const string& text) -> bool //call request cancel function
   {
+      state->freeHandlersExcept();
       state->state = kCallCanceledByUs;
-      if (state->ansHandler)
-      {
-            mConn.removeHandler(state->ansHandler);
-            state->ansHandler = 0;
-            mConn.removeHandler(state->declineHandler);
-            state->declineHandler = 0;
-      }
       Stanza cancelMsg(mConn);
       cancelMsg.setName("message")
                .setAttr("to", getBareJidFromJid(state->targetJid).c_str())
@@ -436,8 +440,8 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
                .setAttr("type", "megaCallCancel")
                .setAttr("reason", reason==Call::kUserHangup
                         ? "user" : Call::termcodeToReason(reason).c_str());
-      if(text)
-          cancelMsg.setAttr("text", text);
+      if(!text.empty())
+          cancelMsg.setAttr("text", text.c_str());
       mConn.send(cancelMsg);
       return true;
   };
@@ -564,8 +568,8 @@ void Call::removeRemotePlayer()
         return;
     }
     mRemotePlayer->stop();
-    RTCM_EVENT(this, removeRemotePlayer, mRemotePlayer->preDestroy());
     mRemotePlayer.reset();
+    RTCM_EVENT(this, removeRemotePlayer);
 }
 //Called by the remote media player when the first frame is about to be rendered, analogous to
 //onMediaRecv in the js version
@@ -602,7 +606,7 @@ void Call::createSession(const std::string& peerJid, const std::string& ownJid,
     mSess.reset(new JingleSession(*this, ftHandler));
 }
 
-bool Call::hangup(TermCode termcode, const char* text, bool rejectIncoming)
+bool Call::hangup(TermCode termcode, const string& text, bool rejectIncoming)
 {
     if (mState == kCallStateEnded)
         return false;
@@ -615,11 +619,11 @@ bool Call::hangup(TermCode termcode, const char* text, bool rejectIncoming)
 }
 
 std::shared_ptr<stats::IRtcStats>
-Call::hangupSession(TermCode termcode, const char* text, bool nosend)
+Call::hangupSession(TermCode termcode, const string& text, bool nosend)
 {
     assert(mSess);
     auto reason = Call::termcodeToReason(termcode);
-    mSess->terminate(reason.c_str(), text, nosend);
+    mSess->terminate(reason, text, nosend);
     std::shared_ptr<stats::IRtcStats> ret(mSess->mStatsRecorder //stats are created only if onRemoteSdp occurs
         ? static_cast<stats::IRtcStats*>(mSess->mStatsRecorder->mStats.release())
         : static_cast<stats::IRtcStats*>(new stats::BasicStats(*this, reason.c_str())));
@@ -629,7 +633,7 @@ Call::hangupSession(TermCode termcode, const char* text, bool nosend)
     return ret;
 }
 
-void Call::destroy(TermCode termcode, const char *text, bool noSessTermSend)
+void Call::destroy(TermCode termcode, const std::string& text, bool noSessTermSend)
 {
     if (mState == kCallStateEnded)
         throw std::runtime_error("Call::destroy: call already destoyed");
@@ -637,15 +641,30 @@ void Call::destroy(TermCode termcode, const char *text, bool noSessTermSend)
         ? hangupSession(termcode, text, noSessTermSend)
         : std::shared_ptr<stats::IRtcStats>(new stats::BasicStats(*this, Call::termcodeToReason(termcode))));
 
+    setState(kCallStateEnded);
     mLocalPlayer.reset();
     mRemotePlayer.reset();
-    mLocalStream.reset(); //garantees camera release, if object destroy is delayed because of shared_ptr references kept somewhere
-    RTCM_EVENT(this, onCallEnded, termcode, text, stats);
-    setState(kCallStateEnded);
-    auto res = mRtc.erase(mSid);
-    if (!res)
-        KR_LOG_ERROR("Call::destroy: Call wasn't in the calls map");
+    mLocalStream.reset(); //guarantees camera release, if object destroy is delayed because of shared_ptr references kept somewhere
 
+    auto it = mRtc.find(mSid);
+    if (it == mRtc.end())
+        throw std::runtime_error("Call::destroy: BUG: Call wasn't in the calls map");
+    std::shared_ptr<Call> call(it->second);
+    mRtc.erase(it);
+//post to the end of app message queue as there may be queued events related to the
+//call that don't have a shared_ptr to the call object, such as video frames
+    ::mega::marshallCall([call, termcode, text, stats]()
+    {
+        KR_LOG_RTC_EVENT("%s -> onCallEnded: %s%s, msg: '%s'", call->mSid.c_str(),
+            termcodeToMsg(termcode), ((termcode&kPeer)?" by peer":""), text.c_str());
+        try
+        {
+            call->mHandler->onCallEnded(termcode, text, stats);
+        }
+        catch(...){}
+    });
+
+    //post stats, references to the call object end here
     auto json = std::make_shared<std::string>();
     stats->toJson(*json);
     auto client = std::make_shared<::mega::http::Client>();
@@ -714,6 +733,12 @@ void Call::onRemoteStreamRemoved(artc::tspMediaStream)
         return;
     removeRemotePlayer();
 }
+void Call::changeLocalRenderer(IVideoRenderer* renderer)
+{
+    if (!mLocalPlayer)
+        throw std::runtime_error("No local stream yet, please wait for onLocalStreamObtained");
+    mLocalPlayer->changeRenderer(renderer);
+}
 
 //void onRemoteStreamRemoved() - not interested to handle here
 
@@ -777,6 +802,14 @@ int Call::isRelayed() const
     return mSess->mStatsRecorder->isRelay();
 }
 
+void Call::onPeerMute(AvFlags affected)
+{
+    RTCM_EVENT(this, onPeerMute, affected);
+}
+void Call::onPeerUnmute(AvFlags affected)
+{
+    RTCM_EVENT(this, onPeerUnmute, affected);
+}
 
 void Call::muteUnmute(AvFlags what, bool state)
 {
@@ -792,20 +825,25 @@ void Call::muteUnmute(AvFlags what, bool state)
         mLocalStream->setAvState(newState);
         newState = mLocalAv = mLocalStream->effectiveAv();
     }
+    if (mLocalPlayer && (newState.video != prevAv.video))
+    {
+        if (newState.video)
+            mLocalPlayer->start();
+        else
+            mLocalPlayer->stop();
+    }
     if (mSess)
         mSess->sendMuteDelta(prevAv, mLocalAv);
 }
 
 std::string Call::id() const
 {
-    return mIsCaller
-        ? (mRtc.ownAnonId()+":"+mSid)
-        : (mPeerAnonId+":"+mSid);
+    return mSid;
 }
 
 bool gInitialized = false;
-__attribute__ ((visibility("default")))
-IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
+
+RTCM_EXPORT IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
                   ICryptoFunctions* crypto, const char* iceServers)
 {
     if (!gInitialized)
@@ -816,8 +854,7 @@ IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
     return new RtcModule(conn, handler, crypto, iceServers);
 }
 
-__attribute__ ((visibility("default")))
-void globalCleanup()
+RTCM_EXPORT void globalCleanup()
 {
     if (!gInitialized)
         return;
@@ -825,20 +862,5 @@ void globalCleanup()
     gInitialized = false;
 }
 
-string avFlagsToString(const AvFlags &av)
-{
-    string result;
-    if (av.audio)
-        result+='a';
-    if (av.video)
-        result+='v';
-    if (result.empty())
-        result+='_';
-    return result;
-}
-AvFlags parseAvString(const std::string& avString)
-{
-    return AvFlags(avString.find('a'), avString.find('v'));
-}
 } //end namespace
 

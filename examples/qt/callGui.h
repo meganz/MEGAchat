@@ -12,46 +12,41 @@
 #include <chatClient.h>
 
 class ChatWindow;
+class MainWindow;
 
-class CallAnswerGui: QObject, rtcModule::IEventHandler
+class CallAnswerGui: public QObject, public rtcModule::IEventHandler
 {
     Q_OBJECT
 public:
+    MainWindow& mParent;
     QAbstractButton* answerBtn;
     QAbstractButton* rejectBtn;
-    std::shared_ptr<rtcModule::CallAnswerFunc> ansFunc;
-    std::shared_ptr<rtcModule::ICall> call;
+    std::shared_ptr<rtcModule::ICallAnswer> mAns;
+    karere::Contact* mContact;
     std::unique_ptr<QMessageBox> msg;
-    CallAnswerGui(QWidget* parent, const std::shared_ptr<rtcModule::ICall>& aCall,
-            const std::shared_ptr<rtcModule::CallAnswerFunc>& ans,
-            const std::shared_ptr<std::function<bool()> >& reqStillValid,
-            karere::AvFlags peerMedia, const std::shared_ptr<std::set<std::string> >& files)
-    :QObject(parent), ansFunc(ans), call(aCall), msg(new QMessageBox(QMessageBox::Information,
-        "Incoming call", QString::fromStdString(call->peerJid()+" is calling you"),
-        QMessageBox::NoButton, parent))
+    CallAnswerGui(MainWindow& parent, const std::shared_ptr<rtcModule::ICallAnswer>& ans);
+    //IEventHandler
+    void onCallEnded(rtcModule::TermCode termcode, const std::string& text,
+                     const std::shared_ptr<rtcModule::stats::IRtcStats> &stats)
     {
-        msg->setAttribute(Qt::WA_DeleteOnClose);
-        answerBtn = msg->addButton("Answer", QMessageBox::AcceptRole);
-        rejectBtn = msg->addButton("Reject", QMessageBox::RejectRole);
-        msg->setWindowModality(Qt::NonModal);
-        QObject::connect(msg.get(), SIGNAL(buttonClicked(QAbstractButton*)),
-            this, SLOT(onBtnClick(QAbstractButton*)));
-        msg->show();
-        msg->raise();
+        KR_LOG_DEBUG("Call ended: %s, %s\n", rtcModule::ICall::termcodeToMsg(termcode), text.c_str());
+        delete this;
     }
+    void onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer);
+    void onSession();
 public slots:
     void onBtnClick(QAbstractButton* btn)
     {
         msg->close();
         if (btn == answerBtn)
         {
-            bool ret = (*ansFunc)(true, karere::AvFlags(true, true));
+            bool ret = mAns->answer(true, karere::AvFlags(true, true));
             if (!ret)
                 return;
         }
         else //decline button
         {
-            (*ansFunc)(false, rtcModule::AvFlags());
+            mAns->answer(false, rtcModule::AvFlags());
         }
     }
 };
@@ -59,8 +54,8 @@ class CallGui: public QWidget, public rtcModule::IEventHandler, public karere::I
 {
 Q_OBJECT
 protected:
-    std::shared_ptr<rtcModule::ICall> mCall;
     ChatWindow& mChatWindow;
+    std::shared_ptr<rtcModule::ICall> mCall;
 public slots:
     void onHupBtn(bool);
     void onChatBtn(bool);
@@ -68,7 +63,7 @@ public slots:
     void onMuteMic(int);
 public:
     Ui::CallGui ui;
-    CallGui(ChatWindow& parent);
+    CallGui(ChatWindow& parent, const std::shared_ptr<rtcModule::ICall>& call=nullptr);
     void call();
     virtual void onOutgoingCallCreated(const std::shared_ptr<rtcModule::ICall> &aCall)
     {mCall = aCall;}
@@ -80,7 +75,7 @@ public:
     {
         rendererRet = ui.remoteRenderer;
     }
-    virtual void onCallEnded(rtcModule::TermCode code, const char* text,
+    virtual void onCallEnded(rtcModule::TermCode code, const std::string& text,
         const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj);
     virtual void onLocalMediaFail(const std::string& err, bool* cont)
     {

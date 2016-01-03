@@ -2,10 +2,10 @@
 #define __RTCM_PRIVATE
 
 #define RTCM_EVENT(call, name, ...)                       \
-    KR_LOG_RTC_EVENT("%s->" #name, call->mSid.c_str());    \
+    KR_LOG_RTC_EVENT("%s->" #name, call->mSid.c_str());   \
     call->mHandler->name(__VA_ARGS__)
 
-#define RTCM_GLOBAL_LEVENT(handler, name, ...)    \
+#define RTCM_GLOBAL_EVENT(handler, name, ...)    \
    KR_LOG_RTC_EVENT("GlobalEvent: %s", #name);    \
     handler->event(__VA_ARGS__)
 #define GET_CALL(sid, expectedState, whatIfNot)   \

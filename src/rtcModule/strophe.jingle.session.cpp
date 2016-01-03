@@ -80,7 +80,7 @@ void JingleSession::onIceComplete()
 
 //end of event handlers
 
-void JingleSession::terminate(const char* reason, const char* text, bool nosend)
+void JingleSession::terminate(const std::string& reason, const std::string& text, bool nosend)
 {
     if (mState == SESSTATE_ENDED)
         return;
@@ -225,12 +225,12 @@ Promise<void> JingleSession::sendAnswer()
 }
 
 
-Promise<Stanza> JingleSession::sendTerminate(const char* reason, const char* text)
+Promise<Stanza> JingleSession::sendTerminate(const std::string& reason, const std::string& text)
 {
     auto term =	createJingleIq(mCall.mPeerJid, "session-terminate");
-    auto rsn = term.second.c("reason").c(reason?reason:"unknown").parent();
-    if (text)
-        rsn.c("text").t(text);
+    auto rsn = term.second.c("reason").c(reason.c_str()).parent();
+    if (!text.empty())
+        rsn.c("text").t(text.c_str());
     return sendIq(term.first, "set");
 }
 
@@ -244,10 +244,14 @@ Promise<void> JingleSession::sendMute(bool muted, const string& what)
             .then([](Stanza){});
 }
 
-promise::Promise<strophe::Stanza>
-JingleSession::sendIq(strophe::Stanza iq, const std::string &origin, unsigned flags)
+Promise<Stanza>
+JingleSession::sendIq(Stanza iq, const string& origin)
 {
-    return mJingle.sendIq(iq, origin, mSid.c_str());
+    return mJingle.mConn.sendIqQuery(iq)
+    .fail([this, origin](const promise::Error& err)
+    {
+        return promise::Error("Error iq response on operation "+origin+": "+err.msg());
+    });
 }
 
 Promise<void> JingleSession::sendMuteDelta(AvFlags oldf, AvFlags newf)

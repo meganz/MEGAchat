@@ -62,6 +62,8 @@ public:
         virtual IChatWindow& chatWindowForPeer(uint64_t handle) = 0;
     };
     virtual IContactList& contactList() = 0;
+    virtual rtcModule::IEventHandler*
+        createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
     virtual void onTerminate() {}
     virtual ~IGui() {}
 };
@@ -278,8 +280,8 @@ protected:
     PeerChatRoom* mChatRoom;
     uint64_t mUsernameAttrCbId;
     std::string mEmail;
-    IGui::ITitleDisplay* mDisplay;
     std::string mTitleString;
+    IGui::ITitleDisplay* mDisplay; //must be after mTitleString because it will read it
     void updateTitle(const std::string& str);
     void setChatRoom(PeerChatRoom& room);
 public:
@@ -289,6 +291,7 @@ public:
     PeerChatRoom* chatRoom() { return mChatRoom; }
     promise::Promise<ChatRoom *> createChatRoom();
     const std::string& titleString() const { return mTitleString; }
+    uint64_t userId() const { return mUserid; }
     friend class ContactList;
 };
 
@@ -302,6 +305,7 @@ public:
     void removeUser(const uint64_t& userid);
     void syncWithApi(mega::MegaUserList& users);
     IGui::ITitleDisplay* attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
+    Contact* contactFromJid(const std::string& jid) const;
 };
 
 class Client: public rtcModule::IGlobalEventHandler
@@ -417,8 +421,7 @@ protected:
      */
     void sendPong(const std::string& peerJid, const std::string& messageId);
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
-            const std::shared_ptr<rtcModule::ICallAnswer> &call)
-    { return nullptr;}
+            const std::shared_ptr<rtcModule::ICallAnswer> &call);
     virtual void discoAddFeature(const char *feature);
 };
 }

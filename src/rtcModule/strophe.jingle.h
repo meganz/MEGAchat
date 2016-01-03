@@ -30,7 +30,7 @@ class FileTransferHandler;
 struct JingleCall: public ICall
 {
 protected:
-    typedef std::function<bool(TermCode, const char*)> HangupFunc;
+    typedef std::function<bool(TermCode, const std::string&)> HangupFunc;
     HangupFunc mHangupFunc;
     AvFlags mLocalAv;
     std::shared_ptr<JingleSession> mSess;
@@ -121,8 +121,8 @@ protected:
     typedef karere::FallbackServerProvider<karere::TurnServerInfo> TurnServerProvider;
     std::unique_ptr<TurnServerProvider> mTurnServerProvider;
     void discoAddFeature(const char* feature);
-    bool destroyBySid(const std::string& sid, TermCode termcode, const char* text=nullptr);
-    bool hangupBySid(const std::string& sid, TermCode termcode, const char* text=nullptr);
+    bool destroyBySid(const std::string& sid, TermCode termcode, const std::string& text="");
+    bool hangupBySid(const std::string& sid, TermCode termcode, const std::string& text="");
     std::shared_ptr<ICall> getCallBySid(const std::string& sid);
     friend class ScopedCallDestroy; friend class ScopedCallHangup;
     friend class JingleSession;
@@ -135,7 +135,6 @@ public:
     artc::DeviceManager deviceManager;
     ICryptoFunctions& crypto() {return *mCrypto;}
     const std::string& ownAnonId() const { return mOwnAnonId; }
-    virtual void onError(const char* sid, const std::string& msg, const char* reason, const char* text, unsigned flags=0) {}
 //==
 /** @param iceServers the static fallback server list in json form:
  *  {"host":"turn:host:port?protocol=tcp/udp", "user":<username>,"pass": <password>}
@@ -158,11 +157,11 @@ public:
     void onJingle(strophe::Stanza iq);
 /** Incoming call request with a message stanza of type 'megaCall' */
     void onIncomingCallMsg(strophe::Stanza callmsg);
-    bool cancelIncomingReqCall(iterator it, TermCode code, const char* text=nullptr);
+    bool cancelIncomingReqCall(iterator it, TermCode code, const std::string& text="");
     void processAndDeleteInputQueue(JingleSession& sess);
     promise::Promise<std::shared_ptr<JingleSession> > initiate();
-    void hangupAll(TermCode code, const char* text=nullptr);
-    void destroyAll(TermCode code, const char* text=nullptr);
+    void hangupAll(TermCode code, const std::string& text="");
+    void destroyAll(TermCode code, const std::string& text="");
     promise::Promise<strophe::Stanza> sendIq(strophe::Stanza iq, const std::string& origin,
                                              const char* sid=nullptr);
     std::string getFingerprintsFromJingle(strophe::Stanza j);

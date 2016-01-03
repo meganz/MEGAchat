@@ -24,7 +24,7 @@ MEGAIO_EXPORT int services_http_use_ipv6 = 0;
 static void le2_onEvent(int fd, short events, void* userp);
 static inline void checkCompleted();
 static inline short curlToLe2Events(int what);
-static inline const char *le2EventsToString(short events);
+//static inline const char *le2EventsToString(short events);
 
 struct CurlEvents
 {
@@ -82,7 +82,7 @@ static inline int le2ToCurlEvents(short events)
         ret|=CURL_CSELECT_OUT;
     return ret;
 }
-
+/*
 static inline const char* le2EventsToString(short events)
 {
     if ((events & (EV_READ|EV_WRITE)) == (EV_READ|EV_WRITE))
@@ -94,7 +94,7 @@ static inline const char* le2EventsToString(short events)
     else
         return "(NONE)";
 }
-
+*/
 static void le2_onEvent(int fd, short events, void* userp)
 {
     LE2CURL_LOG("Event %s on socket %d", le2EventsToString(events), fd);

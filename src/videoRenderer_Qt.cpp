@@ -14,18 +14,52 @@ void VideoRendererQt::updateImageSlot()
 {
     repaint();
 }
+void VideoRendererQt::showEvent(QShowEvent *)
+{
+    if (mFrozen == kFrozenByHide)
+        mFrozen = kNotFrozen;
+}
+
+void VideoRendererQt::hideEvent(QHideEvent *)
+{
+    if (!mFrozen)
+        mFrozen = kFrozenByHide;
+}
+void VideoRendererQt::showStaticImage(QImage* image)
+{
+    mFrame.reset(image);
+    mFrozen = kFrozenForStaticImage;
+}
+
+void VideoRendererQt::resumeFromStaticImage()
+{
+    if (mFrozen != kFrozenForStaticImage)
+        return;
+    mFrozen = kNotFrozen;
+}
 
 void VideoRendererQt::paintEvent(QPaintEvent* event)
 {
-    QMutexLocker locker(&mMutex);
-    QPainter painter(this);
-    painter.drawImage(QRect(0, 0, width(), height()),
-      mMirrored ? mFrame->mirrored(true, false) : *mFrame);
+    if (mFrozen == kFrozenForStaticImage)
+    {
+        QPainter painter(this);
+        painter.drawImage(QRect(0, 0, width(), height()), *mFrame);
+        return;
+    }
+    else
+    {
+        QMutexLocker locker(&mMutex);
+        QPainter painter(this);
+        painter.drawImage(QRect(0, 0, width(), height()),
+            mMirrored ? mFrame->mirrored(true, false) : *mFrame);
+    }
 }
 
 //IVideoRenderer interface implementation
-unsigned char* VideoRendererQt::getImageBuffer(int size, int width, int height, void** userData)
+unsigned char* VideoRendererQt::getImageBuffer(unsigned short width, unsigned short height, void** userData)
 {
+    if (mFrozen)
+        return nullptr; //don't overwrite if there is a static image, don't bother if invisible
     QImage* bmp = new QImage(width, height, QImage::Format_ARGB32);
     *userData = static_cast<void*>(bmp);
     return bmp->bits();
@@ -45,8 +79,4 @@ void VideoRendererQt::clearViewport()
 {
     mFrame->fill(0xff000000);
     repaint();
-}
-void VideoRendererQt::onStreamDetach()
-{
-    clearViewport();
 }

@@ -25,7 +25,9 @@ public:
     StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio=nullptr,
     webrtc::VideoTrackInterface* video=nullptr)
      :mAudio(audio), mVideo(video), mRenderer(renderer)
-    {}
+    {
+        assert(mRenderer);
+    }
     StreamPlayer(IVideoRenderer *renderer, tspMediaStream stream)
         :mRenderer(renderer)
     {
@@ -78,6 +80,7 @@ public:
         if (mAudio.get())
         {}//TODO: Stop audio playback
         mPlaying = false;
+        mRenderer->clearViewport();
     }
 
     void attachAudio(webrtc::AudioTrackInterface* audio)
@@ -103,7 +106,7 @@ public:
         assert(video);
         detachVideo();
         mVideo = video;
-        mRenderer->onStreamAttach();
+        mRenderer->onVideoAttach();
         if (mPlaying)
             mVideo->AddRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
     }
@@ -115,7 +118,8 @@ public:
             return;
         if (mPlaying)
             mVideo->RemoveRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
-        mRenderer->onStreamDetach();
+        mRenderer->onVideoDetach();
+        mRenderer->clearViewport();
         mVideo = NULL;
     }
     void attachToStream(artc::tspMediaStream& stream)
@@ -130,14 +134,24 @@ public:
             attachVideo(vts[0]);
     }
 
-    IVideoRenderer* preDestroy()
+    void changeRenderer(IVideoRenderer* newRenderer)
+    {
+        assert(newRenderer);
+        mRenderer = newRenderer;
+        mRenderer->clearViewport();
+    }
+
+    void preDestroy()
     {
         stop();
         detachAudio();
         detachVideo();
-        IVideoRenderer* ret = mRenderer;
+        auto renderer = mRenderer;
+        mega::marshallCall([renderer]()
+        {
+            renderer->released();
+        });
         mRenderer = nullptr;
-        return ret;
     }
 //VideoRendererInterface implementation
     virtual void SetSize(int width, int height)
@@ -162,11 +176,13 @@ public:
                 });
             }
         }
-        int width = frame->GetWidth();
-        int height = frame->GetHeight();
+        unsigned short width = frame->GetWidth();
+        unsigned short height = frame->GetHeight();
         int bufSize = width*height*4;
         void* userData = NULL;
-        unsigned char* frameBuf = mRenderer->getImageBuffer(bufSize, width, height, &userData);
+        unsigned char* frameBuf = mRenderer->getImageBuffer(width, height, &userData);
+        if (!frameBuf)
+            return; //used by null renderer
         frame->ConvertToRgbBuffer(cricket::FOURCC_ARGB, frameBuf, bufSize, width*4);
         mRenderer->frameComplete(userData);
     }

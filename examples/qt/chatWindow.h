@@ -169,6 +169,7 @@ protected:
     std::unique_ptr<HistFetchUi> mHistFetchUi;
     CallGui* mCallGui = nullptr;
     friend class CallGui;
+    friend class CallAnswerGui;
 public slots:
     void onMsgSendBtn()
     {
@@ -297,16 +298,15 @@ public:
         QDialog::show();
     }
 protected:
-    void createCallGui()
+    void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr)
     {
         assert(!mCallGui);
         auto layout = qobject_cast<QBoxLayout*>(ui.mCentralWidget->layout());
-        mCallGui = new CallGui(*this);
+        mCallGui = new CallGui(*this, call);
         layout->insertWidget(1, mCallGui, 1);
         ui.mTitlebar->hide();
         ui.mTextChatWidget->hide();
     }
-
     void deleteCallGui()
     {
         assert(mCallGui);

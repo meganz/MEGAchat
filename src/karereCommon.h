@@ -100,8 +100,22 @@ struct AvFlags
     bool video;
     AvFlags(bool a, bool v): audio(a), video(v){}
     AvFlags(){}
-    bool operator==(const AvFlags& other) { return (audio == other.audio) && (video == other.video); }
+    AvFlags(const char* str)
+        :audio(strchr(str, 'a') != nullptr), video(strchr(str,'v') != nullptr){}
+    bool operator==(AvFlags other) { return (audio == other.audio) && (video == other.video); }
+    bool operator!=(AvFlags other) { return (audio != other.audio) || (video != other.video); }
     bool any() const { return audio || video; }
+    std::string toString() const
+    {
+        std::string result;
+        if (audio)
+            result+='a';
+        if (video)
+            result+='v';
+        if (result.empty())
+            result='-';
+        return result;
+    }
 };
 
 //logging stuff

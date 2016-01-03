@@ -1262,8 +1262,8 @@ ContactList::~ContactList()
 Contact::Contact(ContactList& clist, const uint64_t& userid,
                  const std::string& email, PeerChatRoom* room)
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),
-     mDisplay(clist.client.gui.contactList().createContactItem(*this)),
-     mTitleString(email)
+     mTitleString(email),
+     mDisplay(clist.client.gui.contactList().createContactItem(*this))
 {
     updateTitle(email);
     mUsernameAttrCbId = mClist.client.userAttrCache.getAttr(userid,
@@ -1331,10 +1331,32 @@ ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
     room.setContact(contact);
     return contact.mDisplay;
 }
+Contact* ContactList::contactFromJid(const std::string& jid) const
+{
+    auto end = jid.find('@');
+    if (end != 13)
+    {
+        KR_LOG_WARNING("contactFromJid: Invalid Mega JID '%s'", jid.c_str());
+        return nullptr;
+    }
+    uint64_t userid;
+    auto len = mega::Base32::atob(jid.c_str(), (byte*)&userid, end);
+    assert(len == 8);
+    auto it = find(userid);
+    if (it == this->end())
+        return nullptr;
+    else
+        return it->second;
+}
 
 void Client::discoAddFeature(const char *feature)
 {
     conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
+}
+rtcModule::IEventHandler* Client::onIncomingCallRequest(
+        const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+{
+    return gui.createCallAnswerGui(ans);
 }
 
 }

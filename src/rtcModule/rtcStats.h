@@ -35,6 +35,8 @@ public:
     int64_t mStartTs;
     int64_t mDur;
     std::string mCallId;
+    std::string mOwnAnonId;
+    std::string mPeerAnonId;
     std::vector<Sample*> mSamples;
     ConnInfo mConnInfo;
     //IRtcStats implementation
@@ -110,7 +112,7 @@ public:
         return !mStats->mConnInfo.mRlySvr.empty();
     }
     void start();
-    void terminate(const char* termRsn);
+    void terminate(const std::string& termRsn);
     virtual void OnComplete(const std::vector<webrtc::StatsReport>& data);
     virtual int AddRef() { return 3; }
     virtual int Release() { return 2; }
