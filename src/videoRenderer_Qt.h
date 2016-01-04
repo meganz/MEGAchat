@@ -14,7 +14,9 @@ protected:
 /** Frame buffer. Written by the webrtc thread, read and painted on the widget by the
 *  GUI thread, on receipt of \c updateImageSlot()
 */
-    std::auto_ptr<QImage> mFrame;
+    std::unique_ptr<QImage> mFrame;
+    std::unique_ptr<QImage> mStaticImage;
+
 /** Serializes access to frame buffer image from webrtc and GUI thread */
     QMutex mMutex;
     int mAspectRatio = 0;
@@ -27,6 +29,7 @@ protected:
     FrozenReason mFrozen = kNotFrozen;
     virtual void showEvent(QShowEvent *);
     virtual void hideEvent(QHideEvent *);
+    void drawStaticImageOnFrame();
 protected slots:
     void updateImageSlot();
     void paintEvent(QPaintEvent * event);
@@ -37,7 +40,8 @@ public:
     {
         mAspectRatio = ar*10;
     }
-    void showStaticImage(QImage* image);
+    void setStaticImage(QImage* image);
+    void showStaticImage();
     void resumeFromStaticImage();
     /** Set to true to mirror the image horizontally. But default the image is not flipped.
     * Must be done for local video only

@@ -283,7 +283,7 @@ promise::Promise<int> Client::init()
 // Create and register the rtcmodule plugin
 // the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
 // To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
-        rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*api), KARERE_DEFAULT_TURN_SERVERS);
+        rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*this), KARERE_DEFAULT_TURN_SERVERS);
         conn->registerPlugin("rtcmodule", rtc);
 
 // create and register text chat plugin
@@ -549,7 +549,8 @@ void UserAttrCache::dbWrite(const UserAttrPair& key, const Buffer& data)
 
 UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
 {
-    SqliteStmt stmt(mClient.db, "select userid, type, data from userattrs");
+    //load only api-supported types, skip 'virtual' types >= 128 as they can't be fetched in the normal way
+    SqliteStmt stmt(mClient.db, "select userid, type, data from userattrs where type < 128");
     while(stmt.step())
     {
         std::unique_ptr<Buffer> data(new Buffer((size_t)sqlite3_column_bytes(stmt, 2)));
@@ -1331,17 +1332,26 @@ ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
     room.setContact(contact);
     return contact.mDisplay;
 }
-Contact* ContactList::contactFromJid(const std::string& jid) const
+uint64_t Client::useridFromJid(const std::string& jid)
 {
     auto end = jid.find('@');
     if (end != 13)
     {
-        KR_LOG_WARNING("contactFromJid: Invalid Mega JID '%s'", jid.c_str());
-        return nullptr;
+        KR_LOG_WARNING("useridFromJid: Invalid Mega JID '%s'", jid.c_str());
+        return mega::UNDEF;
     }
+
     uint64_t userid;
     auto len = mega::Base32::atob(jid.c_str(), (byte*)&userid, end);
     assert(len == 8);
+    return userid;
+}
+
+Contact* ContactList::contactFromJid(const std::string& jid) const
+{
+    auto userid = Client::useridFromJid(jid);
+    if (userid == mega::UNDEF)
+        return nullptr;
     auto it = find(userid);
     if (it == this->end())
         return nullptr;

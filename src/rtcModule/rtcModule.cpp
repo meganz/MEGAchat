@@ -458,7 +458,7 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
   auto cryptoPms =
     crypto().preloadCryptoForJid(getBareJidFromJid(state->targetJid));
 
-  auto gelbPms = mTurnServerProvider->getServers()
+  auto gelbPms = mTurnServerProvider->getServers(mIceFastGetTimeout)
   .then([state](std::shared_ptr<ServerList<TurnServerInfo> > servers)
   {
       state->turnServers = servers;

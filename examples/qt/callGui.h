@@ -81,6 +81,7 @@ public:
     {
         KR_LOG_ERROR("=============LocalMediaFail: %s", err.c_str());
     }
+    virtual void onPeerMute(karere::AvFlags what);
 };
 
 #endif // MAINWINDOW_H

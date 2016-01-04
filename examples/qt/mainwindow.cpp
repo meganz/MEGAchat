@@ -68,17 +68,18 @@ QColor gAvatarColors[16] = {
     "aliceblue", "antiquewhite", "darkseagreen",
     "crimson", "firebrick", "lightsteelblue"};
 
-void MainWindow::drawAvatar(const Contact& contact, QPaintDevice& image)
+void MainWindow::drawAvatar(const Contact& contact, QImage& image)
 {
+    image.fill(Qt::black);
     auto color = gAvatarColors[contact.userId() & 0x0f];
     QChar letter = contact.titleString().empty()
         ? QChar('?')
         : QString::fromUtf8(contact.titleString().c_str(), contact.titleString().size())[0].toUpper();
     QPainter painter(&image);
-    QFont font("Helvetica", image.height()*5/6);
+    QFont font("Helvetica", image.height()/3);
     painter.setFont(font);
+    painter.setPen(QPen(QColor(Qt::white)));
     painter.setRenderHints(QPainter::TextAntialiasing|QPainter::Antialiasing);
-    painter.fillRect(QRect(0,0,image.width(),image.height()),color);
     painter.drawText(0,0, image.width(), image.height(),
                      Qt::AlignHCenter|Qt::AlignVCenter, letter);
 }

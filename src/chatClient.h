@@ -68,6 +68,8 @@ public:
     virtual ~IGui() {}
 };
 
+enum { USER_ATTR_RSA_PUBKEY = 128}; //virtual user attribute type, to be used with the common attr cache table
+
 struct UserAttrDesc
 {
     Buffer*(*getData)(const mega::MegaRequest&);
@@ -90,7 +92,7 @@ struct UserAttrPair
     UserAttrPair(uint64_t aUser, unsigned aType): user(aUser), attrType(aType)
     {
         if (attrType > mega::MegaApi::USER_ATTR_LAST_INTERACTION)
-            throw std::runtime_error("Invalid attribute id specified");
+            throw std::runtime_error("UserAttrPair: Invalid user attribute id specified");
     }
 };
 typedef void(*UserAttrReqCbFunc)(Buffer*, void*);
@@ -189,6 +191,7 @@ public:
             unsigned char shard, char ownPriv, const uint64_t& peer, char peerPriv);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     const uint64_t peer() const { return mPeer; }
+    const Contact& contact() const { return *mContact; }
     void syncOwnPriv(char priv);
     void syncPeerPriv(char priv);
     virtual void syncWithApi(const mega::MegaTextChat& chat);
@@ -334,6 +337,7 @@ public:
     std::unique_ptr<ChatRoomList> chats;
     bool isLoggedIn() const { return mIsLoggedIn; }
     const chatd::Id myHandle() const { return mMyHandle; }
+    static uint64_t useridFromJid(const std::string& jid);
     std::string getUsername() const
     {
         return strophe::getNodeFromJid(conn->fullOrBareJid());

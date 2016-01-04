@@ -25,9 +25,24 @@ void VideoRendererQt::hideEvent(QHideEvent *)
     if (!mFrozen)
         mFrozen = kFrozenByHide;
 }
-void VideoRendererQt::showStaticImage(QImage* image)
+void VideoRendererQt::setStaticImage(QImage* image)
 {
-    mFrame.reset(image);
+    if (mFrozen == kFrozenForStaticImage)
+    {
+        if (!image)
+            throw std::runtime_error("Can't delete static image while showing it");
+        mStaticImage.reset(image);
+        drawStaticImageOnFrame();
+    }
+    else
+    {
+        mStaticImage.reset(image);
+    }
+}
+void VideoRendererQt::showStaticImage()
+{
+    if (!mStaticImage)
+        throw std::runtime_error("No static image has been set");
     mFrozen = kFrozenForStaticImage;
 }
 
@@ -37,13 +52,46 @@ void VideoRendererQt::resumeFromStaticImage()
         return;
     mFrozen = kNotFrozen;
 }
+void VideoRendererQt::drawStaticImageOnFrame()
+{
+    mFrame.reset(new QImage(size(), QImage::Format_ARGB32));
+    QPainter painter(mFrame.get());
+    QRect ir;
+    ir.setX((width() - mStaticImage->width()) / 2);
+    ir.setY((height() - mStaticImage->height()) / 2);
+    if (ir.x() < 0)
+    {
+        ir.setX(0);
+        ir.setWidth(width());
+    }
+    else
+    {
+        ir.setWidth(mStaticImage->width());
+    }
+    if (ir.y() < 0)
+    {
+        ir.setY(0);
+        ir.setHeight(height());
+    }
+    else
+    {
+        ir.setHeight(mStaticImage->height());
+    }
+    if (ir.x() || ir.y())
+        painter.fillRect(rect(), Qt::black);
+
+    painter.drawImage(ir, *mStaticImage);
+}
 
 void VideoRendererQt::paintEvent(QPaintEvent* event)
 {
     if (mFrozen == kFrozenForStaticImage)
     {
+        if (mFrame->size() != size())
+            drawStaticImageOnFrame();
+
         QPainter painter(this);
-        painter.drawImage(QRect(0, 0, width(), height()), *mFrame);
+        painter.drawImage(rect(), *mFrame);
         return;
     }
     else

@@ -13,11 +13,13 @@ class MegaCryptoFuncs: public rtcModule::ICryptoFunctions
 {
 protected:
     //cache that maps user emails to jid&public key
-    std::map<std::string, mega::AsymmCipher> mKeysLoaded;
+    std::map<uint64_t, mega::AsymmCipher> mKeysLoaded;
     mega::AsymmCipher mPrivKey;
-    MyMegaApi& mMega;
+    karere::Client& mClient;
+    bool loadKey(uint64_t userid, const char* key, size_t keylen);
+    void loadCache();
 public:
-    MegaCryptoFuncs(MyMegaApi& megaApi);
+    MegaCryptoFuncs(karere::Client& client);
     //ICryptoFunctions interface implementation
     virtual std::string generateMac(const std::string& data, const std::string& key);
     virtual std::string decryptMessage(const std::string& msg);

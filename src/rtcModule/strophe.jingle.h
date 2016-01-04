@@ -116,6 +116,7 @@ protected:
     int mJingleAutoAcceptTimeout = 15000;
 /** The period within which an outgoing call can be answered by peer */
     int callAnswerTimeout = 50000;
+    unsigned mIceFastGetTimeout = 2000;
     std::unique_ptr<ICryptoFunctions> mCrypto;
     std::string mOwnAnonId;
     typedef karere::FallbackServerProvider<karere::TurnServerInfo> TurnServerProvider;

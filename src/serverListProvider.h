@@ -99,11 +99,11 @@ protected:
     std::unique_ptr<B> mBase;
 public:
     ServerProvider(B* base): mBase(base){}
-    promise::Promise<std::shared_ptr<typename B::Server> > getServer()
+    promise::Promise<std::shared_ptr<typename B::Server> > getServer(unsigned timeout=0)
     {
         if (mBase->needsUpdate())
         {
-            return mBase->fetchServers()
+            return mBase->fetchServers(timeout)
             .then([this]() -> promise::Promise<std::shared_ptr<typename B::Server> >
             {
                 if (mBase->needsUpdate())
@@ -117,11 +117,11 @@ public:
             return (*mBase)->at(mBase->mNextAssignIdx++);
         }
     }
-    promise::Promise<std::shared_ptr<ServerList<typename B::Server> > > getServers()
+    promise::Promise<std::shared_ptr<ServerList<typename B::Server> > > getServers(unsigned timeout=0)
     {
         if (mBase->needsUpdate())
         {
-            return mBase->fetchServers()
+            return mBase->fetchServers(timeout)
             .then([this]() -> promise::Promise<std::shared_ptr<ServerList<typename B::Server> > >
             {
                 if (mBase->needsUpdate())
@@ -158,7 +158,7 @@ public:
         }
         parseServerList(doc, **this);
     }
-    promise::Promise<void> fetchServers() { this->mNextAssignIdx = 0; return promise::_Void();}
+    promise::Promise<void> fetchServers(unsigned timeout=0) { this->mNextAssignIdx = 0; return promise::_Void();}
 };
 
 /** An implementation of a server data provider that gets the servers from the GeLB server */
@@ -172,10 +172,13 @@ protected:
     int64_t mLastUpdateTs = 0;
     std::unique_ptr<mega::http::Client> mClient;
     std::unique_ptr<mega::rh::IRetryController> mRetryController;
+    promise::Promise<void> mOutputPromise;
     void parseServersJson(const std::string& json);
+    promise::Promise<void> exec(int no);
+    void giveup();
 public:
     typedef S Server;
-    promise::Promise<void> fetchServers();
+    promise::Promise<void> fetchServers(unsigned timeout=0);
     GelbProvider(const char* gelbHost, const char* service, int reqCount=2, unsigned reqTimeout=4000,
         int64_t maxReuseOldServersAge=0);
     void abort()
@@ -203,18 +206,18 @@ public:
         :mGelbProvider(new GelbProvider<S>(gelbHost, service, gelbRetryCount, gelbReqTimeout, gelbMaxReuseAge)),
         mStaticProvider(new StaticProvider<S>(staticServers))
     {}
-    promise::Promise<std::shared_ptr<S> > getServer()
+    promise::Promise<std::shared_ptr<S> > getServer(unsigned timeout=0)
     {
-        return mGelbProvider.getServer()
+        return mGelbProvider.getServer(timeout)
         .fail([this](const promise::Error& err)
         {
             KR_LOG_ERROR("Gelb request failed with error '%s', falling back to static server list", err.what());
             return mStaticProvider.getServer();
         });
     }
-    promise::Promise<std::shared_ptr<ServerList<S> > > getServers()
+    promise::Promise<std::shared_ptr<ServerList<S> > > getServers(unsigned timeout = 0)
     {
-        return mGelbProvider.getServers()
+        return mGelbProvider.getServers(timeout)
         .fail([this](const promise::Error& err)
         {
             KR_LOG_ERROR("Gelb request failed with error '%s', falling back to static server list", err.what());
@@ -234,43 +237,63 @@ GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
     :mGelbHost(gelbHost), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
 {
     mRetryController.reset(mega::createRetryController(
-    [this](int no)
+        [this](int no) { return exec(no); },
+        [this]() { giveup(); },
+        reqTimeout, reqCount, 1, 1
+    ));
+}
+template <class S>
+promise::Promise<void> GelbProvider<S>::exec(int no)
+{
+    mClient.reset(new mega::http::Client);
+    return mClient->pget<std::string>(mGelbHost+"/?service="+mService)
+    .then([this](std::shared_ptr<mega::http::Response<std::string> > response)
+        -> promise::Promise<void>
     {
-        mClient.reset(new mega::http::Client);
-        return mClient->pget<std::string>(mGelbHost+"/?service="+mService)
-        .then([this](std::shared_ptr<mega::http::Response<std::string> > response)
-            -> promise::Promise<int>
+        mClient.reset();
+        if (response->httpCode() != 200)
         {
-            mClient.reset();
-            if (response->httpCode() != 200)
-            {
-                return promise::Error("Non-200 http response from GeLB server: "
-                                      +*response->data(), 0x3e9a9e1b, 1);
-            }
-            parseServersJson(*(response->data()));
-            this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
-            this->mLastUpdateTs = timestampMs();
-            return 0;
-        });
-    },
-    [this]()
-    {
-        if (mClient) //if this was the last attempt, the output promise will fail and reset() to nullptr
-            mClient->abort();
-    }, reqTimeout, reqCount, 1, 1));
+            return promise::Error("Non-200 http response from GeLB server: "
+                                  +*response->data(), 0x3e9a9e1b, 1);
+        }
+        parseServersJson(*(response->data()));
+        this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
+        this->mLastUpdateTs = timestampMs();
+        return promise::_Void();
+    });
+}
+template <class S>
+void GelbProvider<S>::giveup()
+{
+    if (mClient) //if this was the last attempt, the output promise will fail and reset() to nullptr
+        mClient->abort();
 }
 
 template <class S>
-promise::Promise<void> GelbProvider<S>::fetchServers()
+promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeout)
 {
     if (mClient)
-        throw std::runtime_error("GeLB provider: a request is already in progress");
+    {
+        return mOutputPromise;
+    }
+
     mRetryController->reset();
-    return static_cast<promise::Promise<void>& > (mRetryController->start())
+    promise::Promise<void> pms;
+    if (timeout)
+    {
+        pms = exec(0);
+        ::mega::setTimeout([this]() { giveup(); }, timeout);
+    }
+    else
+    {
+        pms = static_cast<promise::Promise<void>& > (mRetryController->start());
+    }
+
+    mOutputPromise = pms
     .fail([this](const promise::Error& err) -> promise::Promise<void>
     {
         mClient.reset();
-        if (!this->mLastUpdateTs || ((timestampMs() - mLastUpdateTs) > mMaxReuseOldServersAge))
+        if (!this->mLastUpdateTs || ((timestampMs() - mLastUpdateTs)/1000 > mMaxReuseOldServersAge))
         {
             return err;
         }
@@ -278,6 +301,7 @@ promise::Promise<void> GelbProvider<S>::fetchServers()
         KR_LOG_WARNING("Gelb client: error getting new servers, reusing not too old servers that we have from gelb");
         return promise::_Void();
     });
+    return mOutputPromise;
 }
 
 static inline const char* strOrEmpty(const char* str)

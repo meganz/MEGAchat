@@ -74,6 +74,15 @@ void CallGui::onCallEnded(rtcModule::TermCode code, const std::string& text,
     mCall.reset();
     mChatWindow.deleteCallGui();
 }
+void CallGui::onPeerMute(AvFlags what)
+{
+    if (!what.video)
+        return;
+    auto image = new QImage(ui.remoteRenderer->size(), QImage::Format_ARGB32);
+    MainWindow::drawAvatar(static_cast<PeerChatRoom&>(mChatWindow.mRoom).contact(), *image);
+    ui.remoteRenderer->setStaticImage(image);
+    ui.remoteRenderer->showStaticImage();
+}
 
 void CallGui::onChatBtn(bool)
 {

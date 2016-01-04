@@ -34,7 +34,7 @@ Jingle::Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler,
                ICryptoFunctions* crypto, const char* iceServers)
 :mConn(conn), mGlobalHandler(globalHandler), mCrypto(crypto),
   mTurnServerProvider(
-    new TurnServerProvider("https://gelb530n001.karere.mega.nz", "turn", iceServers)),
+    new TurnServerProvider("https://gelb530n001.karere.mega.nz", "turn", iceServers, 3600)),
   mIceServers(new webrtc::PeerConnectionInterface::IceServers)
 {
     mMediaConstraints.SetMandatoryReceiveAudio(true);
@@ -48,6 +48,12 @@ Jingle::Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler,
         onIncomingCallMsg(stanza);
     },
     nullptr, "message", "megaCall");
+    //preload ice servers to make calls faster
+    mTurnServerProvider->getServers()
+    .then([this](std::shared_ptr<ServerList<TurnServerInfo> > servers)
+    {
+        setIceServers(*servers);
+    });
 }
 void Jingle::discoAddFeature(const char* feature)
 {
@@ -487,7 +493,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
             return true;
         }); //end answer func
 
-        state->pmsGelb = mTurnServerProvider->getServers()
+        state->pmsGelb = mTurnServerProvider->getServers(mIceFastGetTimeout)
         .then([this, state](std::shared_ptr<ServerList<TurnServerInfo> > servers)
         {
             setIceServers(*servers);

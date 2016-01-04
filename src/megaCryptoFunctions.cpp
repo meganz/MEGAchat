@@ -5,9 +5,11 @@
 #include "sdkApi.h"
 #include "buffer.h"
 #include "base64.h"
-
+#include <chatClient.h>
+#include <db.h>
 using namespace mega;
 using namespace std;
+using namespace karere;
 
 namespace rtcModule
 {
@@ -16,10 +18,10 @@ namespace rtcModule
 enum {kFprMacKeyLen = 43};
 
 
-MegaCryptoFuncs::MegaCryptoFuncs(MyMegaApi& megaApi)
-:mMega(megaApi)
+MegaCryptoFuncs::MegaCryptoFuncs(Client& client)
+:mClient(client)
 {
-    const char* privk = mMega.userData->getPrivateKey();
+    const char* privk = mClient.api->userData->getPrivateKey();
     size_t privkLen;
     if (!privk || !(privkLen = strlen(privk)))
         throw std::runtime_error("MegaCryptoFunctions ctor: No private key available");
@@ -29,6 +31,26 @@ MegaCryptoFuncs::MegaCryptoFuncs(MyMegaApi& megaApi)
     int ret = mPrivKey.setkey(AsymmCipher::PRIVKEY, (const byte*)binprivk.buf(), binprivk.dataSize());
     if (!ret)
         throw std::runtime_error("MegaCryptoFunctions ctor: Error setting private key");
+    loadCache();
+}
+
+void MegaCryptoFuncs::loadCache()
+{
+    SqliteStmt stmt(mClient.db, "select userid, data from userattrs where type = ?");
+    stmt << karere::USER_ATTR_RSA_PUBKEY;
+    while(stmt.step())
+    {
+        uint64_t userid = stmt.uint64Col(0);
+        Buffer buf;
+        stmt.blobCol(1, buf);
+        bool ok = loadKey(userid, buf.buf(), buf.dataSize());
+        if (!ok)
+        {
+            KR_LOG_WARNING("Error loading pubkic RSA key from cache for user %d, deleting from db", userid);
+            sqliteQuery(mClient.db, "delete from usetattrs where userid=? and type=?",
+                        userid, USER_ATTR_RSA_PUBKEY);
+        }
+    }
 }
 
 std::string MegaCryptoFuncs::generateMac(const std::string& data, const std::string& key)
@@ -65,7 +87,7 @@ std::string MegaCryptoFuncs::encryptMessageForJid(const std::string& msg, const 
         throw std::runtime_error("encryptMessageForJid: Empty JID provided");
     if (msg.size() != kFprMacKeyLen)
         throw std::runtime_error("encryptMessageForJid: Message must be exactly 43 bytes long");
-    auto it = mKeysLoaded.find(bareJid);
+    auto it = mKeysLoaded.find(Client::useridFromJid(bareJid));
     if (it == mKeysLoaded.end())
         throw std::runtime_error("encryptMessageForJid: No key loaded for jid "+bareJid);
     byte buf[1024]; //8196 max RSA key len
@@ -75,29 +97,50 @@ std::string MegaCryptoFuncs::encryptMessageForJid(const std::string& msg, const 
     return base64urlencode(buf, binlen);
 }
 
+bool MegaCryptoFuncs::loadKey(uint64_t userid, const char* keydata, size_t keylen)
+{
+    auto& key = mKeysLoaded[userid];
+    int ret = key.setkey(AsymmCipher::PUBKEY, (byte*)keydata, keylen);
+    if (!ret)
+    {
+        mKeysLoaded.erase(userid);
+        return false;
+    }
+    return true;
+}
+
 promise::Promise<void> MegaCryptoFuncs::preloadCryptoForJid(const std::string& bareJid)
 {
-    auto pos = bareJid.find('@');
-    if (pos == std::string::npos)
-        return promise::Error("preloadCryptoForJid: Jid does not contain an '@'");
-    if (mKeysLoaded.find(bareJid) != mKeysLoaded.end())
-        return promise::_Void();
-    SdkString handle(MegaApi::base32ToBase64(bareJid.substr(0, pos).c_str()));
-
-    return mMega.call(&MegaApi::getUserData, handle.c_str())
-    .then([this, bareJid](ReqResult result) -> promise::Promise<void>
+    auto userid = Client::useridFromJid(bareJid);
+    if (userid == ::mega::UNDEF)
+        return promise::Error("preloadCryptoForJid: Invalid Mega jid "+bareJid);
+    if (mKeysLoaded.find(userid) != mKeysLoaded.end())
     {
-        auto& key = mKeysLoaded[bareJid];
+        KR_LOG_DEBUG("Public RSA key already in memory for user %s", bareJid.c_str());
+        return promise::_Void();
+    }
+    return mClient.api->call(&MegaApi::getUserData, base64urlencode(&userid, sizeof(userid)).c_str())
+    .then([this, userid](ReqResult result) -> promise::Promise<void>
+    {
         size_t keylen = strlen(result->getPassword());
         if (keylen < 1)
             return promise::Error("Public key returned by API is empty", -1, ERRTYPE_MEGASDK);
 
         char binkey[1024];
         int binlen = base64urldecode(result->getPassword(), keylen, binkey, 1024);
-        int ret = key.setkey(AsymmCipher::PUBKEY, (byte*)binkey, binlen);
-        if (!ret)
+        if (!loadKey(userid, binkey, binlen))
             return promise::Error("Error parsing public key", -1, ERRTYPE_MEGASDK);
+
+        sqliteQuery(mClient.db, "insert or replace into userattrs(userid, type, data) values(?,?,?)",
+            userid, karere::USER_ATTR_RSA_PUBKEY, StaticBuffer(binkey, binlen));
         return promise::_Void();
+    })
+    .fail([this, userid](const promise::Error& err)
+    {
+        KR_LOG_ERROR("Error fetching RSA pubkey for user %s: %s", base64urlencode(&userid, sizeof(userid)).c_str(), err.what());
+        sqliteQuery(mClient.db, "insert or replace into userattrs(userid, type, err) values(?,?,1)",
+                    userid, karere::USER_ATTR_RSA_PUBKEY);
+        return err;
     });
 }
 
