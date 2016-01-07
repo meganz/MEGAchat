@@ -24,6 +24,7 @@ class ChatWindow;
 }
 
 enum {kHistBatchSize = 32};
+extern QString gOnlineIndColors[karere::Presence::kLast+1];
 
 class ChatWindow;
 class MessageWidget: public QWidget
@@ -315,6 +316,13 @@ protected:
         ui.mTitlebar->show();
         ui.mTextChatWidget->show();
     }
+    void closeEvent(QCloseEvent* event)
+    {
+        if (mCallGui)
+            mCallGui->hangup();
+        event->accept();
+    }
+
     MessageWidget* widgetFromMessage(const chatd::Message& msg)
     {
         if (!msg.userp)
@@ -398,10 +406,22 @@ protected:
         mNotLinkedEdits.erase(it);
         return true;
     }
-    void setOnlineIndication(chatd::ChatState state)
+    void updateOnlineIndication(karere::Presence pres)
     {
-        ui.mOnlineStateDisplay->setText(chatd::chatStateToStr(state));
-        printf("setOnlineIndication: %s\n", chatd::chatStateToStr(state));
+        if (pres == karere::Presence::kOffline)
+        {
+            ui.mCallBtn->hide();
+            ui.mChatdStatusDisplay->setText(chatd::chatStateToStr(mMessages->onlineState()));
+            ui.mChatdStatusDisplay->show();
+        }
+        else
+        {
+            ui.mChatdStatusDisplay->hide();
+            ui.mCallBtn->show();
+        }
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("border-radius: 4px; background-color: ")+
+            gOnlineIndColors[pres.val()]);
     }
     //we are online - we need to have fetched all new messages to be able to send unsent ones,
     //because the crypto layer needs to have received the most recent keys
@@ -411,16 +431,17 @@ public:
     virtual void init(chatd::Messages* messages, chatd::DbInterface*& dbIntf)
     {
         mMessages = messages;
-        setOnlineIndication(mMessages->onlineState());
+        updateOnlineIndication(mRoom.presence()); //needs to access mMessages
+
         if (mMessages->empty())
             return;
-        printf("msg count = %d\n", mMessages->size());
         auto last = mMessages->highnum();
         for (chatd::Idx idx = mMessages->lownum(); idx<=last; idx++)
         {
             auto& msg = mMessages->at(idx);
             addMsgWidget(msg, mMessages->getMsgStatus(idx, msg.userid), false);
         }
+        //TODO: Ensure it is not possible that the window gets destroyed before the marshalled call is executed?
         mega::marshallCall([this]() { fetchMoreHistory(); });
     }
     virtual void onDestroy(){ close(); }
@@ -489,7 +510,6 @@ public:
     }
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
-        setOnlineIndication(state);
         mRoom.onOnlineStateChange(state);
     }
     virtual void onUnsentMsgLoaded(const chatd::Message& msg)

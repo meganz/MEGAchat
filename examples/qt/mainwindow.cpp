@@ -68,6 +68,9 @@ QColor gAvatarColors[16] = {
     "aliceblue", "antiquewhite", "darkseagreen",
     "crimson", "firebrick", "lightsteelblue"};
 
+QString gOnlineIndColors[karere::Presence::kLast+1] =
+{  "lightgray", "red", "orange", "lightgreen", "lightblue" };
+
 void MainWindow::drawAvatar(const Contact& contact, QImage& image)
 {
     image.fill(Qt::black);

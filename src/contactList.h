@@ -6,192 +6,147 @@
 
 namespace karere
 {
+class Contact;
 
-class DummyMember;
-class DummyGroupMember;
-
-typedef enum ePresence//sorted by 'chatty-ness'
+class Presence
 {
-    kPresenceOffline = 0,
-    kPresenceOther = 1,
-    kPresenceBusy = 2,
-    kPresenceAway = 3,
-    kPresenceOnline = 4,
-    kPresenceChatty = 5,
-} Presence;
+public:
+    enum Status//sorted by 'chatty-ness'
+    {
+        kOffline = 0,
+        kBusy = 1,
+        kAway = 2,
+        kOnline = 3,
+        kChatty = 4,
+        kLast = kChatty
+    };
+    Presence(Status pres=kOffline): mPres(pres){}
+    inline Presence(const char*str): mPres(fromString(str)){}
+    Presence(strophe::Stanza stanza): mPres(fromStanza(stanza)){}
+    operator Status() const { return mPres; }
+    Status val() const { return mPres; }
+    inline const char* toString();
+    static inline Status fromString(const char*);
+    static inline Status fromStanza(strophe::Stanza);
+protected:
+    Status mPres;
+    static const char* sStrings[Presence::kLast+1];
+};
+
+class XmppResource: public std::string
+{
+protected:
+    Presence mPresence;
+    friend class XmppContact;
+public:
+    const std::string& resource() const { return *this; }
+    Presence presence() const { return mPresence; }
+    XmppResource(const std::string& aResource, Presence aPresence)
+        :std::string(aResource), mPresence(aPresence){}
+};
+class IPresenceListener
+{
+public:
+    virtual void onPresence(Presence pres) = 0;
+    virtual ~IPresenceListener(){}
+};
 
 class XmppContact
 {
 protected:
     /*contact's bare JID*/
-    std::string bareJid;
+    std::string mBareJid;
     /*constact's presence state*/
-    Presence presence;
+    Presence mPresence;
+    typedef std::map<std::string, Presence> ResourceMap;
+    ResourceMap mResources;
+    IPresenceListener* mPresListener;
+    void calculatePresence();
+    friend class XmppContactList;
 public:
-    XmppContact(const std::string& BareJid, const Presence pre = Presence::kPresenceOffline)
-    : bareJid(BareJid)
-    , presence(pre)
-    {}
-
-    /**
-    * Setter for property `bareJid`
-    *
-    * @param val {string} contact's bare JID
-    * @returns void
-    */
-    inline void setBaseJid(const std::string& BareJid)
+    XmppContact(Presence pre, const std::string& fullJid="", IPresenceListener* listener=nullptr)
+    :mPresence(pre), mPresListener(listener)
     {
-        bareJid = BareJid;
+        if (!fullJid.empty())
+        {
+            auto resource = strophe::getResourceFromJid(fullJid);
+            mResources.emplace(resource, pre);
+        }
     }
-
-    /**
-     * Getter for property `bareJid`
-     *
-     * @returns {(string)} contact's bare JID
-     */
-    inline std::string getBareJid() const
-    {
-        return bareJid;
-    }
-
-    /**
-    * Setter for property `presence`
-    *
-    * @param val {Presence} contact's presence state
-    * @returns void
-    */
-    inline void setPresence(const Presence pre)
-    {
-        presence = pre;
-    }
-
-    /**
-     * Getter for property `presence`
-     *
-     * @returns {(Presence)} contact's presence state.
-     */
-    inline Presence getPresence() const
-    {
-        return presence;
-    }
+    Presence presence() const { return mPresence; }
+    const ResourceMap& resources() const { return mResources; }
+    void onPresence(Presence pres, const std::string& fullJid);
+    void setPresenceListener(IPresenceListener* listener) { mPresListener = listener; }
 };
 
-class XmppContactList
+class XmppContactList: protected std::map<std::string, std::shared_ptr<XmppContact>>
 {
+protected:
+    typedef std::map<std::string, std::shared_ptr<XmppContact>> Base;
+    Client& mClient;
+    xmpp_uid mHandler = 0;
+    promise::Promise<void> receivePresences();
 public:
-    typedef std::map<std::string, std::shared_ptr<XmppContact>> PresentContactMap;
-    typedef std::map<std::string, Presence> PresentContactIdentityMap;
-
-    XmppContactList(std::shared_ptr<strophe::Connection> connection);
-
+    XmppContactList(Client& client): mClient(client){}
     ~XmppContactList();
-    /*
-     * @brief convert the presence state to a text.
-     */
-    static inline Presence textToPresence(const char* text);
 
-    /*
-     * @brief convert the text to a presence state.
-     */
-    static inline std::string presenceToText(Presence presence);
-
-    /*
-     * @brief initialize the contactlist can register handler to handle the presence messages from contacts.
-     */
-    promise::Promise<int> init();
-
-
-    /**
-    * @brief Get a list of full Jids based on the give bare Jid.
-    * @param jid {string} bare JID
-    * @returns {(vector<std::string>)} A list of full Jids.
-    */
-    std::vector<std::string> getFullJidsOfJid(const std::string& jid) const;
-
-    /**
-    * @brief Add a contact to the contact list.
-    * @param userJid {string} user's bared JID
-    * @returns {(void)}
-    */
-    void addContact(const std::string& userJid);
-
-    /**
-    * @brief Get a contact from the contact list.
-    * @param userJid {string} user's bared JID
-    * @returns {(shared_ptr<XmppContact>)} a reference to the contact.
-    */
-    const XmppContact& getContact(const std::string& userJid) const;
-
-    /**
-    * @brief Get the list of contact's bare Jids from the contact list.
-    * @returns {(vector<std::string>)} A list of contact's bare Jids.
-    */
-    std::vector<std::string> getContactJids() const;
-
-    /**
-    * @brief Get the size of contacts in the contact list.
-    * @returns {(unsigned int)} size of the contacts.
-    */
-    unsigned int size() const;
-
-protected:
-    static inline Presence presenceFromStanza(strophe::Stanza pres);
-
-protected:
-    StringMap contactsFullJid;
-    /*contacts of user, and the identity of contact is BareJid*/
-    PresentContactMap contacts;
-    std::shared_ptr<strophe::Connection> connection;
-    xmpp_handler mHandler;
+    /** @brief initialize the contactlist to handle the presence messages from contacts. */
+    promise::Promise<void> init();
+    bool addContact(const std::string& fullJid, Presence pres, std::string bareJid="");
+    std::shared_ptr<XmppContact> addContact(Contact& contact);
+    XmppContact& getContact(const std::string& bareJid) const;
+    using Base::operator[];
+    using Base::size;
+    static Presence presenceFromStanza(strophe::Stanza pres);
 };
-
-inline std::string XmppContactList::presenceToText(Presence presence)
+inline const char* Presence::toString()
 {
-    if (presence == kPresenceOffline)
-        return std::string("unavailable");
-    else if (presence == kPresenceOnline)
-        return std::string("available");
-    else if (presence == kPresenceAway)
-        return std::string("away");
-    else if (presence == kPresenceBusy)
-        return std::string("dnd");
+    if (mPres == kOffline)
+        return "unavailable";
+    else if (mPres == kOnline)
+        return "available";
+    else if (mPres == kAway)
+        return "away";
+    else if (mPres == kBusy)
+        return "dnd";
     else
-    {
-        KR_LOG_WARNING("presenceToText: Unknown presence");
-        return std::string("Unknown");
-    }
+        throw std::runtime_error("Presence::toString: Unknown presence "+std::to_string(mPres));
 }
 
-inline Presence XmppContactList::textToPresence(const char* text)
+inline Presence::Status Presence::fromString(const char* text)
 {
-    assert(text);
+    if (!text)
+        throw std::runtime_error("Presence(const char*): Null text provided");
     if (!strcmp(text, "unavailable"))
-        return kPresenceOffline;
+        return kOffline;
     else if (!strcmp(text, "chat") || !strcmp(text, "available"))
-        return kPresenceOnline;
+        return kOnline;
     else if (!strcmp(text, "away"))
-        return kPresenceAway;
+        return kAway;
     else if (!strcmp(text, "dnd"))
-        return kPresenceBusy;
+        return kBusy;
     else
-    {
-        KR_LOG_WARNING("textToPresence: Unknown presence '%s', returnink kPresenceOther", text);
-        return kPresenceOther;
-    }
+        throw std::runtime_error("Presence: Unknown presence "+std::string(text));
 }
 
-inline Presence XmppContactList::presenceFromStanza(strophe::Stanza pres)
+inline Presence::Status Presence::fromStanza(strophe::Stanza pres)
 {
     assert(!strcmp(pres.name(), "presence"));
     auto rawShow = pres.rawChild("show");
-    if (rawShow != NULL) {
+    if (rawShow)
+    {
         strophe::Stanza show(rawShow);
-        auto text = show.text();
-        return textToPresence(text.c_str());
-    } else if (pres.attrOrNull("type") != NULL){
-        return textToPresence(pres.attr("type"));
-    } else {
-        return kPresenceOnline;
+        return fromString(show.text().c_str());
+    }
+
+    auto type = pres.attrOrNull("type");
+    if (type)
+    {
+        return fromString(type);
+    }
+    else
+    {
+        return Presence::kOnline;
     }
 }
 };

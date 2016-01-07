@@ -202,8 +202,7 @@
      </property>
      <property name="styleSheet">
       <string notr="true">border-radius:4px;
-background-color: lightgreen;
-</string>
+background-color: lightgray</string>
      </property>
     </widget>
    </item>

@@ -28,40 +28,6 @@ using namespace promise;
 namespace karere
 {
 
-promise::Promise<int> Client::initializeContactList()
-{
-    strophe::Stanza roster(*conn);
-    roster.setName("iq")
-          .setAttr("type", "get")
-          .setAttr("from", conn->fullJid())
-          .c("query")
-              .setAttr("xmlns", "jabber:iq:roster");
-    return conn->sendIqQuery(roster, "roster")
-    .then([this](strophe::Stanza s) mutable
-    {
-        auto query = s.child("query", true);
-        if (query)
-        {
-            query.forEachChild("item", [this](strophe::Stanza c)
-            {
-                const char* attrVal = c.attrOrNull("jid");
-                if (!attrVal)
-                    return;
-
-                xmppContactList.addContact(std::string(attrVal));
-                message_bus::SharedMessage<> busMessage(CONTACT_ADDED_EVENT);
-                busMessage->addValue(CONTACT_JID, std::string(attrVal));
-                message_bus::SharedMessageBus<>::getMessageBus()->alertListeners(CONTACT_ADDED_EVENT, busMessage);
-            });
-        }
-        return xmppContactList.init();
-    })
-    .fail([](const promise::Error& err)
-    {
-        KR_LOG_WARNING("Error receiving contact list");
-        return err;
-    });
-}
 
 
 void Client::sendPong(const std::string& peerJid, const std::string& messageId)
@@ -79,7 +45,7 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 Client::Client(IGui& aGui)
  :db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
   api(new MyMegaApi("karere-native")), userAttrCache(*this), gui(aGui),
-  xmppContactList(conn),
+  mXmppContactList(*this),
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
 {
     SqliteStmt stmt(db, "select value from vars where name='my_handle'");
@@ -292,14 +258,14 @@ promise::Promise<int> Client::init()
         KR_LOG_DEBUG("webrtc and textchat plugins initialized");
 
 // install contactlist handlers before sending initial presence so that the presences that start coming after that get processed
-        auto pms = initializeContactList();
+        auto pms = mXmppContactList.init();
 // Send initial <presence/> so that we appear online to contacts
         strophe::Stanza pres(*conn);
         pres.setName("presence");
         conn->send(pres);
         return pms;
     })
-    .then([this](int)
+    .then([this]()
     {
         KR_LOG_DEBUG("Contactlist initialized");
         //startKeepalivePings();
@@ -475,16 +441,16 @@ strophe::StanzaPromise Client::pingPeer(const char* peerJid)
     });
 }
 
-void Client::setPresence(const Presence pres, const int delay)
+void Client::setPresence(Presence pres, const int delay)
 {
     strophe::Stanza msg(*conn);
     msg.setName("presence")
        .setAttr("id", generateMessageId(std::string("presence"), std::string("")))
        .c("show")
-           .t(XmppContactList::presenceToText(pres))
+           .t(pres.toString())
            .up()
        .c("status")
-           .t(XmppContactList::presenceToText(pres))
+           .t(pres.toString())
            .up();
 
     if(delay > 0)
@@ -1078,6 +1044,21 @@ void ChatRoom::switchListenerToChatWindow()
     mMessages->setListener(*mChatWindow);
 }
 
+Presence PeerChatRoom::presence() const
+{
+    if (mMessages && mMessages->onlineState() != chatd::kChatStateOnline)
+        return Presence::kOffline;
+    return mContact->xmppContact().presence();
+}
+
+void ChatRoom::updateAllOnlineDisplays(Presence pres)
+{
+    if (mTitleDisplay)
+        mTitleDisplay->updateOnlineIndication(pres);
+    if (mChatWindow)
+        mChatWindow->updateOnlineIndication(pres);
+}
+
 void GroupChatRoom::onUserJoined(const chatd::Id &userid, char privilege)
 {
     addMember(userid, privilege, true);
@@ -1110,13 +1091,17 @@ void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newS
 {
     mTitleDisplay->updateOverlayCount(mMessages->unreadMsgCount());
 }
-void ChatRoom::onOnlineStateChange(chatd::ChatState state)
+void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
-//    if (state == chatd::kChatStateOnline)
+    if (state == chatd::kChatStateOnline)
     {
         mTitleDisplay->updateOverlayCount(mMessages->unreadMsgCount());
+        updateAllOnlineDisplays(mContact->xmppContact().presence());
     }
-    mTitleDisplay->updateOnlineIndication(state);
+    else
+    {
+        updateAllOnlineDisplays(Presence::kOffline);
+    }
 }
 
 void GroupChatRoom::syncMembers(const chatd::UserPrivMap& users)
@@ -1221,9 +1206,12 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
 {
     std::set<uint64_t> apiUsers;
     auto size = users.size();
+    auto me = client.myHandle();
     for (int i=0; i<size; i++)
     {
         auto& user = *users.get(i);
+        if (user.getHandle() == me)
+            continue;
         apiUsers.insert(user.getHandle());
         addUserFromApi(user);
     }
@@ -1237,8 +1225,7 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         }
         auto erased = it;
         it++;
-        delete erased->second;
-        erase(erased);
+        removeUser(erased);
     }
 }
 
@@ -1250,8 +1237,15 @@ void ContactList::removeUser(const uint64_t& userid)
         KR_LOG_ERROR("ContactList::removeUser: Unknown user");
         return;
     }
+    removeUser(it);
+}
+
+void ContactList::removeUser(iterator it)
+{
+    auto handle = it->first;
     delete it->second;
     erase(it);
+    sqliteQuery(client.db, "delete from contacts where userid=?", handle);
 }
 
 ContactList::~ContactList()
@@ -1277,6 +1271,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             else
                 self->updateTitle(data->buf()+1);
         });
+    mXmppContact = mClist.client.xmppContactList().addContact(*this);
 }
 void Contact::updateTitle(const std::string& str)
 {

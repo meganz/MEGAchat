@@ -54,6 +54,7 @@ public slots:
 
 extern bool inCall;
 extern QColor gAvatarColors[];
+extern QString gOnlineIndColors[karere::Presence::kLast+1];
 class CListItem: public QWidget, public karere::IGui::ITitleDisplay
 {
 protected:
@@ -87,18 +88,11 @@ public:
         }
         mLastOverlayCount = count;
     }
-    virtual void updateOnlineIndicator(int state)
+    virtual void updateOnlineIndication(karere::Presence state)
     {
-        QColor col;
-        if (state == chatd::kChatStateOffline)
-            col = QColor(Qt::gray);
-        else if (state < chatd::kChatStateOnline)
-            col = QColor(Qt::blue);
-        else
-            col = QColor(Qt::green);
-        auto palette = ui.mOnlineIndicator->palette();
-        palette.setColor(QPalette::Base, col);
-        ui.mOnlineIndicator->setPalette(palette);
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[state]+
+            ";border-radius: 4px");
     }
 //===
     CListItem(QWidget* parent, bool aIsGroup)

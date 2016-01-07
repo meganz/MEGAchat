@@ -40,7 +40,7 @@ public:
     public:
         virtual void updateTitle(const std::string& title) {}
         virtual void updateOverlayCount(int count) {}
-        virtual void updateOnlineIndication(int state) {}
+        virtual void updateOnlineIndication(Presence state) {}
     };
     class ICallGui{};
     class IChatWindow: public chatd::Listener, public ITitleDisplay
@@ -161,6 +161,8 @@ protected:
 public:
     virtual void syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual const std::string& titleString() const = 0;
+    virtual Presence presence() const = 0;
+    void updateAllOnlineDisplays(Presence pres);
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
              unsigned char shard, char ownPriv);
     virtual ~ChatRoom(){}
@@ -169,6 +171,7 @@ public:
     const std::string& url() const { return mUrl; }
     unsigned char shardNo() const { return mShardNo; }
     char ownPriv() const { return mOwnPriv; }
+    chatd::ChatState chatdOnlineState() const { return mMessages->onlineState(); }
     IGui::ITitleDisplay* titleDisplay() const { return mTitleDisplay; }
     IGui::IChatWindow& chatWindow(); /// < creates the windows if not already created
     bool hasChatWindow() const { return mChatWindow != nullptr; }
@@ -176,7 +179,6 @@ public:
     void init(chatd::Messages *messages, chatd::DbInterface *&dbIntf);
     void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
     void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
-    void onOnlineStateChange(chatd::ChatState state);
 };
 class PeerChatRoom: public ChatRoom
 {
@@ -196,9 +198,11 @@ public:
     void syncPeerPriv(char priv);
     virtual void syncWithApi(const mega::MegaTextChat& chat);
     virtual const std::string& titleString() const;
+    virtual Presence presence() const;
 //chatd::Listener interface
     virtual void onUserJoined(const chatd::Id& userid, char priv);
     virtual void onUserLeft(const chatd::Id& userid);
+    virtual void onOnlineStateChange(chatd::ChatState state);
 };
 
 class GroupChatRoom: public ChatRoom
@@ -238,6 +242,10 @@ public:
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     virtual void syncWithApi(const mega::MegaTextChat &chat);
     virtual const std::string& titleString() const { return mTitleString; }
+    virtual Presence presence() const
+    {
+        return (mMessages->onlineState() == chatd::kChatStateOnline)? Presence::kOnline:Presence::kOffline;
+    }
     void updateTitle()
     {
         if (mHasUserTitle)
@@ -275,7 +283,8 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
 };
-class Contact
+
+class Contact: public IPresenceListener
 {
 protected:
     ContactList& mClist;
@@ -285,21 +294,31 @@ protected:
     std::string mEmail;
     std::string mTitleString;
     IGui::ITitleDisplay* mDisplay; //must be after mTitleString because it will read it
+    std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
     void updateTitle(const std::string& str);
     void setChatRoom(PeerChatRoom& room);
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             PeerChatRoom* room = nullptr);
     ~Contact();
+    XmppContact& xmppContact() { return *mXmppContact; }
     PeerChatRoom* chatRoom() { return mChatRoom; }
     promise::Promise<ChatRoom *> createChatRoom();
     const std::string& titleString() const { return mTitleString; }
     uint64_t userId() const { return mUserid; }
+    virtual void onPresence(Presence pres)
+    {
+        if (mChatRoom && mChatRoom->chatdOnlineState() != chatd::kChatStateOnline)
+            return;
+        mChatRoom->updateAllOnlineDisplays(pres);
+    }
     friend class ContactList;
 };
 
 class ContactList: public std::map<uint64_t, Contact*>
 {
+protected:
+    void removeUser(iterator it);
 public:
     Client& client;
     ContactList(Client& aClient);
@@ -309,6 +328,7 @@ public:
     void syncWithApi(mega::MegaUserList& users);
     IGui::ITitleDisplay* attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     Contact* contactFromJid(const std::string& jid) const;
+    void onContactOnlineState(const std::string& jid);
 };
 
 class Client: public rtcModule::IGlobalEventHandler
@@ -382,20 +402,9 @@ public:
     * set user's presence state, which can be one of online, busy, away, online
     */
     void setPresence(const Presence pres, const int delay = 0);
-
-    /**
-    * @brief get
-    * @param roomJid {string} room's JID.
-    * @param chatState {ChatState} user's chat state.
-    * @returns {void}
-    */
-    const XmppContact& getContact(const std::string& userJid)
+    XmppContactList& xmppContactList()
     {
-        return xmppContactList.getContact(userJid);
-    }
-    XmppContactList& getContactList()
-    {
-        return xmppContactList;
+        return mXmppContactList;
     }
 protected:
     chatd::Id mMyHandle = (uint64_t)-1;
@@ -405,7 +414,7 @@ protected:
     /** our password */
     std::string mPassword;
     /** client's contact list */
-    XmppContactList xmppContactList;
+    XmppContactList mXmppContactList;
     typedef FallbackServerProvider<HostPortServerInfo> XmppServerProvider;
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
     std::unique_ptr<mega::rh::IRetryController> mReconnectController;

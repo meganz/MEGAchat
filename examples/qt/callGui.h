@@ -65,6 +65,7 @@ public:
     Ui::CallGui ui;
     CallGui(ChatWindow& parent, const std::shared_ptr<rtcModule::ICall>& call=nullptr);
     void call();
+    void hangup(const std::string& msg="") { mCall->hangup(msg); }
     virtual void onOutgoingCallCreated(const std::shared_ptr<rtcModule::ICall> &aCall)
     {mCall = aCall;}
     virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer)

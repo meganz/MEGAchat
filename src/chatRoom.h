@@ -339,7 +339,7 @@ public:
     * from="gvpsfxumnukxq@karere.mega.nz/38273057021423534212647096">
     * <x xmlns="http://jabber.org/protocol/muc"><password/></x></presence>
     */
-    promise::Promise<int> addUserToChat(const std::string& peerBareId) const
+    promise::Promise<void> addUserToChat(const std::string& peerBareId) const
     {
         strophe::Stanza grant(*client.conn);
         grant.setName("iq")
@@ -364,13 +364,20 @@ public:
                 .append(strophe::getBareJidFromJid(peerBareId)).append("\"],\"users\":{\"")
                 .append(myFullJid()).append("\":\"moderator\"");
 
-            const auto& peers = client.getContactList().getFullJidsOfJid(peerBareId);
-
-            for (auto& p: peers)
-                json.append(",\"").append(p)+="\":\"moderator\"";
-            const auto& mine = client.getContactList().getFullJidsOfJid(myFullJid());
+            const auto& resources = client.xmppContactList().getContact(peerBareId).resources();
+            for (auto& p: resources)
+            {
+                json.append(",\"").append(peerBareId)+='@';
+                json.append(KARERE_XMPP_DOMAIN)+='/';
+                json.append(p.first).append("\":\"moderator\"");
+            }
+            auto myBareJid = strophe::getBareJidFromJid(myFullJid());
+            const auto& mine = client.xmppContactList().getContact(myBareJid).resources();
             for (auto& m: mine)
-                json.append(",\"").append(m)+="\":\"moderator\"";
+            {
+                json.append(",\"").append(myBareJid)+='/';
+                json.append(m.first).append("\":\"moderator\"");
+            }
 
             json.append("},\"type\":\"private\"}");
             //printf("json = %s\n", json.c_str());
@@ -387,8 +394,7 @@ public:
                   .t(json);
 
             client.conn->sendQuery(invite, "invite");
-
-            return 0; //TODO: Invite ack?
+            //TODO: Invite ack?
          })
         .fail([](const promise::Error& err) mutable
          {
