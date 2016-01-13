@@ -271,33 +271,11 @@ public slots:
             layout->insertWidget(2, mHistFetchUi->progressBar());
         }
     }
-    void onCallBtn(bool)
-    {
-        if (mCallGui)
-            return;
-        auto uh = static_cast<karere::PeerChatRoom&>(mRoom).peer();
-        char buf[32];
-        auto len = mega::Base32::btoa((byte*)&uh, sizeof(uh), buf);
-        buf[len] = 0;
-        std::string jid(buf);
-        jid+='@';
-        jid.append(KARERE_XMPP_DOMAIN);
-        createCallGui();
-        mRoom.parent.client.rtc->startMediaCall(mCallGui, jid, karere::AvFlags(true, true));
-    }
-
+    void onVideoCallBtn(bool) { onCallBtn(true); }
+    void onAudioCallBtn(bool) { onCallBtn(false); }
 public:
-    ChatWindow(karere::ChatRoom& room, QWidget* parent): QDialog(parent), mRoom(room)
-    {
-        ui.setupUi(this);
-        ui.mMessageList->setContextMenuPolicy(Qt::CustomContextMenu);
-        connect(ui.mMsgSendBtn, SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
-        connect(ui.mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
-        connect(ui.mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
-        connect(ui.mMessageList, SIGNAL(requestHistory(int)), this, SLOT(onMsgListRequestHistory(int)));
-        connect(ui.mCallBtn, SIGNAL(clicked(bool)), this, SLOT(onCallBtn(bool)));
-        QDialog::show();
-    }
+    MainWindow& mainWindow;
+    ChatWindow(karere::ChatRoom& room, MainWindow& parent);
 protected:
     void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr)
     {
@@ -321,6 +299,20 @@ protected:
         if (mCallGui)
             mCallGui->hangup();
         event->accept();
+    }
+    void onCallBtn(bool video)
+    {
+        if (mCallGui)
+            return;
+        auto uh = static_cast<karere::PeerChatRoom&>(mRoom).peer();
+        char buf[32];
+        auto len = mega::Base32::btoa((byte*)&uh, sizeof(uh), buf);
+        buf[len] = 0;
+        std::string jid(buf);
+        jid+='@';
+        jid.append(KARERE_XMPP_DOMAIN);
+        createCallGui();
+        mRoom.parent.client.rtc->startMediaCall(mCallGui, jid, karere::AvFlags(true, video));
     }
 
     MessageWidget* widgetFromMessage(const chatd::Message& msg)
@@ -410,14 +402,13 @@ protected:
     {
         if (pres == karere::Presence::kOffline)
         {
-            ui.mCallBtn->hide();
-            ui.mChatdStatusDisplay->setText(chatd::chatStateToStr(mMessages->onlineState()));
-            ui.mChatdStatusDisplay->show();
+            ui.mAudioCallBtn->hide();
+            ui.mVideoCallBtn->hide();
         }
         else
         {
-            ui.mChatdStatusDisplay->hide();
-            ui.mCallBtn->show();
+            ui.mAudioCallBtn->show();
+            ui.mVideoCallBtn->show();
         }
         ui.mOnlineIndicator->setStyleSheet(
             QString("border-radius: 4px; background-color: ")+
@@ -431,8 +422,8 @@ public:
     virtual void init(chatd::Messages* messages, chatd::DbInterface*& dbIntf)
     {
         mMessages = messages;
-        updateOnlineIndication(mRoom.presence()); //needs to access mMessages
-
+        updateOnlineIndication(mRoom.presence());
+        updateChatdStatusDisplay(mMessages->onlineState());
         if (mMessages->empty())
             return;
         auto last = mMessages->highnum();
@@ -511,6 +502,15 @@ public:
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
         mRoom.onOnlineStateChange(state);
+        updateChatdStatusDisplay(state);
+    }
+    void updateChatdStatusDisplay(chatd::ChatState state)
+    {
+        ui.mChatdStatusDisplay->setText(chatd::chatStateToStr(mMessages->onlineState()));
+        if (state != chatd::kChatStateOnline)
+            ui.mChatdStatusDisplay->show();
+        else
+            ui.mChatdStatusDisplay->hide();
     }
     virtual void onUnsentMsgLoaded(const chatd::Message& msg)
     {
@@ -534,7 +534,7 @@ public:
         mRoom.onUserLeft(userid);
     }
     virtual karere::IGui::ICallGui* getCallGui() { return mCallGui; }
-    virtual void show() { QDialog::show(); }
+    virtual void show() { QDialog::show(); raise(); }
     virtual void hide() { QDialog::hide(); }
     virtual void updateTitle(const std::string& title)
     {

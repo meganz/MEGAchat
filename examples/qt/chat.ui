@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>376</width>
-    <height>378</height>
+    <width>605</width>
+    <height>475</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -155,21 +155,21 @@
         <property name="styleSheet">
          <string notr="true"/>
         </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1,0,0">
+        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1,0,0,0">
          <property name="spacing">
-          <number>2</number>
+          <number>6</number>
          </property>
          <property name="leftMargin">
           <number>6</number>
          </property>
          <property name="topMargin">
-          <number>0</number>
+          <number>2</number>
          </property>
          <property name="rightMargin">
-          <number>0</number>
+          <number>10</number>
          </property>
          <property name="bottomMargin">
-          <number>0</number>
+          <number>2</number>
          </property>
          <item>
           <widget class="QLabel" name="mOnlineIndicator">
@@ -181,19 +181,19 @@
            </property>
            <property name="minimumSize">
             <size>
-             <width>10</width>
-             <height>10</height>
+             <width>12</width>
+             <height>12</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>10</width>
-             <height>10</height>
+             <width>12</width>
+             <height>12</height>
             </size>
            </property>
            <property name="styleSheet">
             <string notr="true">background-color: lightgreen;
-border-radius: 4px;</string>
+border-radius: 6px;</string>
            </property>
            <property name="text">
             <string/>
@@ -202,6 +202,11 @@ border-radius: 4px;</string>
          </item>
          <item>
           <widget class="QLabel" name="mTitleLabel">
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>Donald Duck</string>
            </property>
@@ -224,134 +229,24 @@ border-radius: 4px;</string>
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="mChatdStatusDisplay">
-           <property name="autoFillBackground">
-            <bool>false</bool>
-           </property>
-           <property name="text">
-            <string>    </string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-           </property>
-           <property name="margin">
-            <number>2</number>
-           </property>
-           <property name="indent">
-            <number>6</number>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QToolButton" name="mCallBtn">
+          <widget class="QToolButton" name="mAudioCallBtn">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
            <property name="minimumSize">
             <size>
-             <width>18</width>
-             <height>18</height>
+             <width>24</width>
+             <height>20</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
              <width>16777215</width>
-             <height>16</height>
+             <height>16777215</height>
             </size>
-           </property>
-           <property name="palette">
-            <palette>
-             <active>
-              <colorrole role="Button">
-               <brush brushstyle="SolidPattern">
-                <color alpha="0">
-                 <red>0</red>
-                 <green>0</green>
-                 <blue>0</blue>
-                </color>
-               </brush>
-              </colorrole>
-              <colorrole role="Base">
-               <brush brushstyle="SolidPattern">
-                <color alpha="0">
-                 <red>0</red>
-                 <green>0</green>
-                 <blue>0</blue>
-                </color>
-               </brush>
-              </colorrole>
-              <colorrole role="Window">
-               <brush brushstyle="SolidPattern">
-                <color alpha="0">
-                 <red>0</red>
-                 <green>0</green>
-                 <blue>0</blue>
-                </color>
-               </brush>
-              </colorrole>
-             </active>
-             <inactive>
-              <colorrole role="Button">
-               <brush brushstyle="SolidPattern">
-                <color alpha="0">
-                 <red>0</red>
-                 <green>0</green>
-                 <blue>0</blue>
-                </color>
-               </brush>
-              </colorrole>
-              <colorrole role="Base">
-               <brush brushstyle="SolidPattern">
-                <color alpha="0">
-                 <red>0</red>
-                 <green>0</green>
-                 <blue>0</blue>
-                </color>
-               </brush>
-              </colorrole>
-              <colorrole role="Window">
-               <brush brushstyle="SolidPattern">
-                <color alpha="0">
-                 <red>0</red>
-                 <green>0</green>
-                 <blue>0</blue>
-                </color>
-               </brush>
-              </colorrole>
-             </inactive>
-             <disabled>
-              <colorrole role="Button">
-               <brush brushstyle="SolidPattern">
-                <color alpha="0">
-                 <red>230</red>
-                 <green>230</green>
-                 <blue>230</blue>
-                </color>
-               </brush>
-              </colorrole>
-              <colorrole role="Base">
-               <brush brushstyle="SolidPattern">
-                <color alpha="255">
-                 <red>237</red>
-                 <green>237</green>
-                 <blue>237</blue>
-                </color>
-               </brush>
-              </colorrole>
-              <colorrole role="Window">
-               <brush brushstyle="SolidPattern">
-                <color alpha="255">
-                 <red>237</red>
-                 <green>237</green>
-                 <blue>237</blue>
-                </color>
-               </brush>
-              </colorrole>
-             </disabled>
-            </palette>
            </property>
            <property name="layoutDirection">
             <enum>Qt::LeftToRight</enum>
@@ -360,18 +255,22 @@ border-radius: 4px;</string>
             <bool>false</bool>
            </property>
            <property name="styleSheet">
-            <string notr="true">QToolButton:enabled
+            <string notr="true">QToolButton
 {
-    image: url(&quot;/Users/loki/karere-native/examples/qt/videocall.png&quot;);
-    background-color: rgba(0,0,0,0);}</string>
+   border-image: url(&quot;:/audiocall.svg&quot;);
+}
+QToolButton:hover
+{
+   border-image: url(&quot;:/audiocall-hover.svg&quot;);
+}</string>
            </property>
            <property name="text">
             <string/>
            </property>
            <property name="iconSize">
             <size>
-             <width>18</width>
-             <height>18</height>
+             <width>0</width>
+             <height>0</height>
             </size>
            </property>
            <property name="checkable">
@@ -382,6 +281,54 @@ border-radius: 4px;</string>
            </property>
            <property name="autoRaise">
             <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="mVideoCallBtn">
+           <property name="minimumSize">
+            <size>
+             <width>24</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">QToolButton
+{
+   border-image: url(&quot;:/videocall.svg&quot;);
+}
+QToolButton:hover
+{
+   border-image: url(&quot;:/videocall-hover.svg&quot;);
+}</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="mChatdStatusDisplay">
+           <property name="autoFillBackground">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Connecting</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+           <property name="margin">
+            <number>0</number>
+           </property>
+           <property name="indent">
+            <number>0</number>
            </property>
           </widget>
          </item>
@@ -413,7 +360,7 @@ border-radius: 4px;</string>
           <number>2</number>
          </property>
          <item>
-          <widget class="QSplitter" name="splitter">
+          <widget class="QSplitter" name="mSplitter">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
              <horstretch>0</horstretch>
@@ -427,7 +374,7 @@ border-radius: 4px;</string>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
               <horstretch>0</horstretch>
-              <verstretch>2</verstretch>
+              <verstretch>0</verstretch>
              </sizepolicy>
             </property>
             <property name="minimumSize">
@@ -456,12 +403,12 @@ border-radius: 4px;</string>
             </property>
            </widget>
            <widget class="QWidget" name="layoutWidget">
-            <layout class="QHBoxLayout" name="typeAndSend" stretch="0,0">
+            <layout class="QHBoxLayout" name="typeAndSend" stretch="1,0">
              <property name="spacing">
               <number>0</number>
              </property>
              <property name="sizeConstraint">
-              <enum>QLayout::SetDefaultConstraint</enum>
+              <enum>QLayout::SetMinimumSize</enum>
              </property>
              <property name="topMargin">
               <number>0</number>
@@ -469,7 +416,7 @@ border-radius: 4px;</string>
              <item>
               <widget class="MsgInputBox" name="mMessageEdit">
                <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
                  <horstretch>0</horstretch>
                  <verstretch>0</verstretch>
                 </sizepolicy>
@@ -494,7 +441,7 @@ p, li { white-space: pre-wrap; }
                <item>
                 <widget class="QPushButton" name="mMsgSendBtn">
                  <property name="sizePolicy">
-                  <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+                  <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
                    <horstretch>0</horstretch>
                    <verstretch>0</verstretch>
                   </sizepolicy>
@@ -537,12 +484,12 @@ p, li { white-space: pre-wrap; }
   <customwidget>
    <class>MsgInputBox</class>
    <extends>QTextEdit</extends>
-   <header location="global">widgetSubclass.h</header>
+   <header>widgetSubclass.h</header>
   </customwidget>
   <customwidget>
    <class>MyMessageList</class>
    <extends>QListWidget</extends>
-   <header location="global">widgetSubclass.h</header>
+   <header>widgetSubclass.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

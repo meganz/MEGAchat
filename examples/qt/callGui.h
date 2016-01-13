@@ -56,11 +56,16 @@ Q_OBJECT
 protected:
     ChatWindow& mChatWindow;
     std::shared_ptr<rtcModule::ICall> mCall;
+    void setAvatarOnRemote();
+    void setAvatarOnLocal();
+    static void drawAvatar(QImage& image, QChar letter, uint64_t userid);
+    void drawOwnAvatar(QImage& image);
+    void drawPeerAvatar(QImage& image);
 public slots:
     void onHupBtn(bool);
     void onChatBtn(bool);
-    void onMuteCam(int);
-    void onMuteMic(int);
+    void onMuteCam(bool);
+    void onMuteMic(bool);
 public:
     Ui::CallGui ui;
     CallGui(ChatWindow& parent, const std::shared_ptr<rtcModule::ICall>& call=nullptr);
@@ -76,6 +81,7 @@ public:
     {
         rendererRet = ui.remoteRenderer;
     }
+    virtual void onMediaRecv(rtcModule::stats::Options&) { ui.remoteRenderer->disableStaticImage(); }
     virtual void onCallEnded(rtcModule::TermCode code, const std::string& text,
         const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj);
     virtual void onLocalMediaFail(const std::string& err, bool* cont)
@@ -83,6 +89,7 @@ public:
         KR_LOG_ERROR("=============LocalMediaFail: %s", err.c_str());
     }
     virtual void onPeerMute(karere::AvFlags what);
+    virtual void onPeerUnmute(karere::AvFlags what);
 };
 
 #endif // MAINWINDOW_H

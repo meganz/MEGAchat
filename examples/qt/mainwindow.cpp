@@ -71,21 +71,6 @@ QColor gAvatarColors[16] = {
 QString gOnlineIndColors[karere::Presence::kLast+1] =
 {  "lightgray", "red", "orange", "lightgreen", "lightblue" };
 
-void MainWindow::drawAvatar(const Contact& contact, QImage& image)
-{
-    image.fill(Qt::black);
-    auto color = gAvatarColors[contact.userId() & 0x0f];
-    QChar letter = contact.titleString().empty()
-        ? QChar('?')
-        : QString::fromUtf8(contact.titleString().c_str(), contact.titleString().size())[0].toUpper();
-    QPainter painter(&image);
-    QFont font("Helvetica", image.height()/3);
-    painter.setFont(font);
-    painter.setPen(QPen(QColor(Qt::white)));
-    painter.setRenderHints(QPainter::TextAntialiasing|QPainter::Antialiasing);
-    painter.drawText(0,0, image.width(), image.height(),
-                     Qt::AlignHCenter|Qt::AlignVCenter, letter);
-}
 
 karere::IGui::ITitleDisplay*
 MainWindow::createContactItem(karere::Contact& contact)
@@ -138,7 +123,7 @@ void MainWindow::removeContactItem(ITitleDisplay *item)
 
 karere::IGui::IChatWindow* MainWindow::createChatWindow(karere::ChatRoom& room)
 {
-    return new ChatWindow(room, this);
+    return new ChatWindow(room, *this);
 }
 karere::IGui::IChatWindow& MainWindow::chatWindowForPeer(uint64_t handle)
 {

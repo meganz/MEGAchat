@@ -175,6 +175,12 @@ promise::Promise<int> Client::init()
         }
 
         userAttrCache.onLogin();
+        userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
+        [](Buffer* buf, void* userp)
+        {
+            if (buf)
+                static_cast<Client*>(userp)->mMyName = buf->buf()+1;
+        });
         contactList->syncWithApi(*api->getContacts());
         return api->call(&mega::MegaApi::fetchChats);
     })
@@ -631,7 +637,6 @@ void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrC
 {
     if (!mClient.isLoggedIn())
         return;
-    printf("fetchattr with type %d\n", key.attrType);
     if (key.attrType != mega::MegaApi::USER_ATTR_LASTNAME)
     {
         auto& attrType = attrDesc[key.attrType];

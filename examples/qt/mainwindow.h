@@ -30,7 +30,6 @@ public:
     ~MainWindow();
     Ui::MainWindow ui;
     void removeItem(ITitleDisplay* item, bool isGroup);
-    static void drawAvatar(const karere::Contact& contact, QImage& image);
 //IContactList
     virtual ITitleDisplay* createContactItem(karere::Contact& contact);
     virtual ITitleDisplay* createGroupChatItem(karere::GroupChatRoom& room);

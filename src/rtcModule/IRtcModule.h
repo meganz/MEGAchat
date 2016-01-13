@@ -82,6 +82,7 @@ protected:
     std::string mPeerJid;
     std::string mPeerAnonId;
     bool mIsFileTransfer;
+    bool mHasReceivedMedia = false;
     ICall(RtcModule& aRtc, bool isCaller, CallState aState, IEventHandler* aHandler,
          const std::string& aSid, const std::string& aPeerJid, bool aIsFt,
          const std::string& aOwnJid)
@@ -128,6 +129,9 @@ enum
     virtual void muteUnmute(AvFlags what, bool state) = 0;
     IEventHandler* changeEventHandler(IEventHandler* handler);
     virtual void changeLocalRenderer(IVideoRenderer* renderer) = 0;
+    bool hasReceivedMedia() const { return mHasReceivedMedia; }
+    virtual AvFlags sentAv() const = 0;
+    virtual AvFlags receivedAv() const = 0;
 };
 /**
  * Call event handler callback interface. When the call is created, the user

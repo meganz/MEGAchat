@@ -49,8 +49,8 @@ protected:
     friend class JingleSession;
 public:
     using JingleCall::JingleCall;
-    AvFlags sentAv() const;
-    AvFlags receivedAv() const;
+    virtual AvFlags sentAv() const;
+    virtual AvFlags receivedAv() const;
     bool hangup(const std::string& text="") { return hangup(kUserHangup, text, true); }
     void changeLocalRenderer(IVideoRenderer* renderer);
     std::string id() const;

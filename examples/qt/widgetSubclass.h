@@ -9,7 +9,7 @@
 
 class MsgInputBox: public QTextEdit
 {
-    Q_OBJECT
+Q_OBJECT
 signals:
     void sendMsg();
     void editLastMsg();
@@ -44,7 +44,7 @@ protected:
 
 class MyMessageList: public QListWidget
 {
-    Q_OBJECT
+Q_OBJECT
 public:
     using QListWidget::QListWidget;
 signals:

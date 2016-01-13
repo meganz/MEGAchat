@@ -10,7 +10,7 @@ class VideoRendererQt: public QWidget, public rtcModule::IVideoRenderer
 {
 protected:
     Q_OBJECT
-    enum FrozenReason { kNotFrozen = 0, kFrozenByHide = 1, kFrozenForStaticImage = 2 };
+    enum FrozenReasons { kNotFrozen = 0, kFrozenByHide = 1, kFrozenForStaticImage = 2 };
 /** Frame buffer. Written by the webrtc thread, read and painted on the widget by the
 *  GUI thread, on receipt of \c updateImageSlot()
 */
@@ -26,7 +26,7 @@ protected:
  */
     bool mMirrored = false;
 /** Determines whether the video is rendered or for what reason it is not */
-    FrozenReason mFrozen = kNotFrozen;
+    unsigned char mFrozen = 0;
     virtual void showEvent(QShowEvent *);
     virtual void hideEvent(QHideEvent *);
     void drawStaticImageOnFrame();
@@ -41,8 +41,9 @@ public:
         mAspectRatio = ar*10;
     }
     void setStaticImage(QImage* image);
-    void showStaticImage();
-    void resumeFromStaticImage();
+    void clearStaticImage();
+    void enableStaticImage();
+    void disableStaticImage();
     /** Set to true to mirror the image horizontally. But default the image is not flipped.
     * Must be done for local video only
     */
@@ -60,6 +61,7 @@ public:
     virtual unsigned char* getImageBuffer(unsigned short width, unsigned short height, void** userData);
     virtual void frameComplete(void* userData);
     virtual void clearViewport();
+    virtual void onStreamDetach() { disableStaticImage(); }
 //==
 };
 

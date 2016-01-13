@@ -357,6 +357,7 @@ public:
     std::unique_ptr<ChatRoomList> chats;
     bool isLoggedIn() const { return mIsLoggedIn; }
     const chatd::Id myHandle() const { return mMyHandle; }
+    const std::string& myName() const { return mMyName; }
     static uint64_t useridFromJid(const std::string& jid);
     std::string getUsername() const
     {
@@ -408,6 +409,7 @@ public:
     }
 protected:
     chatd::Id mMyHandle = (uint64_t)-1;
+    std::string mMyName;
     bool mIsLoggedIn =false;
     /** our own email address */
     std::string mEmail;

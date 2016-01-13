@@ -14,44 +14,44 @@ void VideoRendererQt::updateImageSlot()
 {
     repaint();
 }
+
 void VideoRendererQt::showEvent(QShowEvent *)
 {
-    if (mFrozen == kFrozenByHide)
-        mFrozen = kNotFrozen;
+    mFrozen &= ~kFrozenByHide;
 }
 
 void VideoRendererQt::hideEvent(QHideEvent *)
 {
-    if (!mFrozen)
-        mFrozen = kFrozenByHide;
-}
-void VideoRendererQt::setStaticImage(QImage* image)
-{
-    if (mFrozen == kFrozenForStaticImage)
-    {
-        if (!image)
-            throw std::runtime_error("Can't delete static image while showing it");
-        mStaticImage.reset(image);
-        drawStaticImageOnFrame();
-    }
-    else
-    {
-        mStaticImage.reset(image);
-    }
-}
-void VideoRendererQt::showStaticImage()
-{
-    if (!mStaticImage)
-        throw std::runtime_error("No static image has been set");
-    mFrozen = kFrozenForStaticImage;
+    mFrozen |= kFrozenByHide;
 }
 
-void VideoRendererQt::resumeFromStaticImage()
+void VideoRendererQt::setStaticImage(QImage* image)
 {
-    if (mFrozen != kFrozenForStaticImage)
-        return;
-    mFrozen = kNotFrozen;
+    if (!image)
+        throw std::runtime_error("showStaticImage: NULL image provided");
+    mStaticImage.reset(image);
 }
+
+void VideoRendererQt::enableStaticImage()
+{
+    if (!mStaticImage)
+        throw std::runtime_error("enableStaticImage: No static image has been set");
+    mFrozen |= kFrozenForStaticImage;
+    drawStaticImageOnFrame();
+    repaint();
+}
+
+void VideoRendererQt::disableStaticImage()
+{
+    mFrozen &= ~kFrozenForStaticImage;
+}
+
+void VideoRendererQt::clearStaticImage()
+{
+    mFrozen &= ~kFrozenForStaticImage;
+    mStaticImage.reset();
+}
+
 void VideoRendererQt::drawStaticImageOnFrame()
 {
     mFrame.reset(new QImage(size(), QImage::Format_ARGB32));
@@ -85,7 +85,7 @@ void VideoRendererQt::drawStaticImageOnFrame()
 
 void VideoRendererQt::paintEvent(QPaintEvent* event)
 {
-    if (mFrozen == kFrozenForStaticImage)
+    if (mFrozen & kFrozenForStaticImage)
     {
         if (mFrame->size() != size())
             drawStaticImageOnFrame();
@@ -123,8 +123,10 @@ void VideoRendererQt::frameComplete(void* userData)
     QMetaObject::invokeMethod(this,
       "updateImageSlot", Qt::QueuedConnection);
 }
+
 void VideoRendererQt::clearViewport()
 {
-    mFrame->fill(0xff000000);
+    if ((mFrozen & kFrozenForStaticImage) == 0)
+        mFrame->fill(0xff000000);
     repaint();
 }

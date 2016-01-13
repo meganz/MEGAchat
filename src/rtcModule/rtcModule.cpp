@@ -581,6 +581,7 @@ void Call::onMediaStart()
         return;
     }
     stats::Options statOptions;
+    mHasReceivedMedia = true;
     RTCM_EVENT(this, onMediaRecv, statOptions);
     if (statOptions.enableStats)
     {
