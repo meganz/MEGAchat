@@ -129,7 +129,14 @@
              <bool>true</bool>
             </property>
             <property name="styleSheet">
-             <string notr="true">background-color:qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(100, 100, 100, 255), stop:1 rgba(200, 200, 200, 255));</string>
+             <string notr="true">QListWidget
+{
+background-color:qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(100, 100, 100, 255), stop:1 rgba(200, 200, 200, 255));
+}
+QListWdget::ContextMenu
+{
+background-color: gray;
+}</string>
             </property>
            </widget>
           </item>

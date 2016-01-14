@@ -153,7 +153,7 @@ protected:
     unsigned char mShardNo;
     bool mIsGroup;
     char mOwnPriv;
-    IGui::ITitleDisplay* mTitleDisplay;
+    IGui::ITitleDisplay* mTitleDisplay=nullptr;
     chatd::Messages* mMessages = nullptr;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat& chat);
     void switchListenerToChatWindow();
@@ -222,24 +222,22 @@ protected:
     std::map<uint64_t, Member*> mPeers;
     std::string mTitleString;
     bool mHasUserTitle = false;
-    IGui::ITitleDisplay* mTitleDisplay;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
     void syncMembers(const chatd::UserPrivMap& users);
     static chatd::UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, chatd::UserPrivMap& membs);
     void loadUserTitle();
     friend class Member;
 public:
-    GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
+    GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, const std::string& userTitle);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
                   unsigned char aShard, char aOwnPriv, const std::string& title);
-    ~GroupChatRoom()
-    {
-        for (auto& m: mPeers)
-            delete m.second;
-    }
+    ~GroupChatRoom();
     void addMember(const uint64_t& userid, char priv, bool saveToDb);
     bool removeMember(const uint64_t& userid);
+    void setUserTitle(const std::string& title);
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
+    promise::Promise<void> leave();
+    promise::Promise<void> invite(uint64_t userid, char priv);
     virtual void syncWithApi(const mega::MegaTextChat &chat);
     virtual const std::string& titleString() const { return mTitleString; }
     virtual Presence presence() const
@@ -262,13 +260,15 @@ public:
         if (!mTitleString.empty())
             mTitleString.resize(mTitleString.size()-2); //truncate last ", "
 
-        mTitleDisplay->updateTitle(mTitleString);
+        if (mTitleDisplay) //doesn't exist during construction
+            mTitleDisplay->updateTitle(mTitleString);
         if(mChatWindow)
             mChatWindow->updateTitle(mTitleString);
     }
 //chatd::Listener
     void onUserJoined(const chatd::Id& userid, char priv);
     void onUserLeft(const chatd::Id& userid);
+    void onOnlineStateChange(chatd::ChatState);
 
 };
 class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
@@ -278,7 +278,7 @@ protected:
 public:
     Client& client;
     void syncRoomsWithApi(const mega::MegaTextChatList& rooms);
-    ChatRoom& addRoom(const mega::MegaTextChat &room);
+    ChatRoom& addRoom(const mega::MegaTextChat &room, const std::string& groupRoomTitle="");
     bool removeRoom(const uint64_t& chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
@@ -301,6 +301,7 @@ public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             PeerChatRoom* room = nullptr);
     ~Contact();
+    ContactList& contactList() { return mClist; }
     XmppContact& xmppContact() { return *mXmppContact; }
     PeerChatRoom* chatRoom() { return mChatRoom; }
     promise::Promise<ChatRoom *> createChatRoom();

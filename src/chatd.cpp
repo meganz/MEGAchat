@@ -1158,6 +1158,12 @@ void Messages::setOnlineState(ChatState state)
     CALL_LISTENER(onOnlineStateChange, state);
 }
 
+void Client::leave(Id chatid)
+{
+    mConnectionForChatId.erase(chatid);
+    mMessagesForChatId.erase(chatid);
+}
+
 const char* Command::opcodeNames[] =
 {
  "KEEPALIVE","JOIN", "OLDMSG", "NEWMSG", "MSGUPD(should not be used)","SEEN",

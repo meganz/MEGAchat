@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QMessageBox>
+#include <QInputDialog>
 #include <mstrophepp.h>
 #include <IRtcModule.h>
 #include <mstrophepp.h>
@@ -103,6 +104,7 @@ public:
 };
 class CListContactItem: public CListItem
 {
+    Q_OBJECT
 protected:
     karere::Contact& mContact;
 public:
@@ -114,8 +116,6 @@ public:
         if (mContact.chatRoom())
         {
             mContact.chatRoom()->chatWindow().show();
-            printf("showing chat window for chatid %s\n", chatd::Id(mContact.chatRoom()->chatid()).toString().c_str());
-
             return;
         }
         mContact.createChatRoom()
@@ -140,14 +140,72 @@ public:
             "color: white;"
             "background-color: "+gAvatarColors[mContact.userId() & 0x0f].name());
     }
+    void contextMenuEvent(QContextMenuEvent* event)
+    {
+        QMenu menu(this);
+        auto action = menu.addAction(tr("Invite to group chat"));
+        connect(action, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
+        menu.setStyleSheet("background-color: lightgray");
+        menu.exec(event->globalPos());
+    }
+public slots:
+    void onCreateGroupChat()
+    {
+        std::string name;
+        bool again = false;
+        do
+        {
+            auto qname = QInputDialog::getText(this, tr("Invite to group chat"), tr("Enter group chat name"));
+            if (qname.isNull())
+                return;
+            name = qname.toLatin1().data();
+            for (auto& item: *mContact.contactList().client.chats)
+            {
+                auto& room = *item.second;
+                if (room.isGroup() && room.titleString().c_str() == name)
+                {
+                    QMessageBox::critical(this, "Invite to group chat", "A group chat with that name already exists");
+                    again = true;
+                    break;
+                }
+            }
+        }
+        while(again);
+
+        std::unique_ptr<mega::MegaTextChatPeerList> peers(mega::MegaTextChatPeerList::createInstance());
+        peers->addPeer(mContact.userId(), chatd::PRIV_FULL);
+        mContact.contactList().client.api->call(&mega::MegaApi::createChat, true, peers.get())
+        .then([this, name](ReqResult result)
+        {
+            auto& list = *result->getMegaTextChatList();
+            if (list.size() < 1)
+                throw std::runtime_error("Empty chat list returned from API");
+            mContact.contactList().client.chats->addRoom(*list.get(0), name);
+        })
+        .fail([this](const promise::Error& err)
+        {
+            QMessageBox::critical(this, tr("Create group chat"), tr("Error creating group chat:\n")+QString::fromStdString(err.msg()));
+        });
+    }
 };
 class CListGroupChatItem: public CListItem
 {
-protected:
-    karere::GroupChatRoom& mRoom;
+    Q_OBJECT
 public:
     CListGroupChatItem(QWidget* parent, karere::GroupChatRoom& room)
         :CListItem(parent, true), mRoom(room){}
+protected:
+    karere::GroupChatRoom& mRoom;
+    void contextMenuEvent(QContextMenuEvent* event)
+    {
+        QMenu menu(this);
+        auto action = menu.addAction(tr("Leave group chat"));
+        connect(action, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
+        menu.setStyleSheet("background-color: lightgray");
+        menu.exec(event->globalPos());
+    }
+protected slots:
+    void leaveGroupChat() { mega::marshallCall([this]() { mRoom.leave(); }); } //deletes this
 };
 
 

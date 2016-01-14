@@ -506,6 +506,7 @@ public:
     }
 
     void join(const Id& chatid, int shardNo, const std::string& url, Listener& listener);
+    void leave(Id chatid);
     friend class Connection;
     friend class Messages;
 };

@@ -25,11 +25,9 @@
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
+
 namespace karere
 {
-
-
-
 void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 {
     strophe::Stanza pong(*conn);
@@ -763,15 +761,18 @@ void ChatRoom::join()
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl, unsigned char aShard,
     char aOwnPriv, const std::string& title)
-:ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv), mTitleString(title)
+:ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv), mTitleString(title),
+  mHasUserTitle(!title.empty())
 {
-    SqliteStmt stmt(parent.client.db, "select user, priv from chat_peers where chatid=?");
+    SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
     while(stmt.step())
     {
         addMember(stmt.uint64Col(0), stmt.intCol(1), false);
     }
     mTitleDisplay = parent.client.gui.contactList().createGroupChatItem(*this);
+    if (!mTitleString.empty())
+        mTitleDisplay->updateTitle(mTitleString);
     join();
 }
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
@@ -834,21 +835,21 @@ const std::string& PeerChatRoom::titleString() const
 
 void GroupChatRoom::addMember(const uint64_t& userid, char priv, bool saveToDb)
 {
-    auto& m = mPeers[userid];
-    if (m)
+    auto it = mPeers.find(userid);
+    if (it != mPeers.end())
     {
-        if (m->mPriv == priv)
+        if (it->second->mPriv == priv)
         {
             saveToDb = false;
         }
         else
         {
-            m->mPriv = priv;
+            it->second->mPriv = priv;
         }
     }
     else
     {
-        m = new Member(*this, userid, priv); //usernames will be updated when the Member object gets the username attribute
+        mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
     }
     if (saveToDb)
     {
@@ -914,7 +915,7 @@ void ChatRoomList::syncRoomsWithApi(const mega::MegaTextChatList& rooms)
         addRoom(*rooms.get(i));
     }
 }
-ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room)
+ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room, const std::string& groupUserTitle)
 {
     auto chatid = room.getHandle();
     auto it = find(chatid);
@@ -925,7 +926,7 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room)
     }
     ChatRoom* ret;
     if(room.isGroup())
-        ret = new GroupChatRoom(*this, room); //also writes it to cache
+        ret = new GroupChatRoom(*this, room, groupUserTitle); //also writes it to cache
     else
         ret = new PeerChatRoom(*this, room);
     emplace(chatid, ret);
@@ -949,8 +950,9 @@ ChatRoomList::~ChatRoomList()
         delete room.second;
 }
 
-GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
-:ChatRoom(parent, chat.getHandle(), true, chat.getUrl(), chat.getShard(), chat.getOwnPrivilege())
+GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, const std::string &userTitle)
+:ChatRoom(parent, chat.getHandle(), true, chat.getUrl(), chat.getShard(), chat.getOwnPrivilege()),
+  mTitleString(userTitle), mHasUserTitle(!userTitle.empty())
 {
     auto peers = chat.getPeerList();
     assert(peers);
@@ -958,23 +960,33 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
     for (int i=0; i<size; i++)
     {
         auto handle = peers->getPeerHandle(i);
-        mPeers[handle] = new Member(*this, handle, peers->getPeerPrivilege(i));
+        mPeers[handle] = new Member(*this, handle, peers->getPeerPrivilege(i)); //may try to access mTitleDisplay, but we have set it to nullptr, so it's ok
     }
 //save to db
     auto db = karere::gClient->db;
     sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
-    sqliteQuery(db, "insert or replace into chats(chatid, url, shard, peer, peer_priv, own_priv) values(?,?,?,-1,0,?)",
+    if (!userTitle.empty())
+    {
+        sqliteQuery(db, "insert or replace into chats(chatid, url, shard, peer, peer_priv, own_priv, title) values(?,?,?,-1,0,?,?)",
+                mChatid, mUrl, mShardNo, mOwnPriv, userTitle);
+    }
+    else
+    {
+        sqliteQuery(db, "insert or replace into chats(chatid, url, shard, peer, peer_priv, own_priv) values(?,?,?,-1,0,?)",
                 mChatid, mUrl, mShardNo, mOwnPriv);
-
-    SqliteStmt stmt(db, "insert into chat_peers(chatid, user, priv) values(?,?,?)");
+        loadUserTitle();
+    }
+    SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
     {
         stmt << mChatid << m.first << m.second->mPriv;
         stmt.step();
         stmt.reset();
     }
-    loadUserTitle();
     mTitleDisplay = parent.client.gui.contactList().createGroupChatItem(*this);
+    if (!mTitleString.empty())
+        mTitleDisplay->updateTitle(mTitleString);
+    join();
 }
 
 void GroupChatRoom::loadUserTitle()
@@ -995,6 +1007,47 @@ void GroupChatRoom::loadUserTitle()
     }
     mTitleString = strTitle;
     mHasUserTitle = true;
+}
+
+void GroupChatRoom::setUserTitle(const std::string& title)
+{
+    mTitleString = title;
+    if (mTitleString.empty())
+    {
+        mHasUserTitle = false;
+        sqliteQuery(parent.client.db, "update chats set title=NULL where chatid=?", mChatid);
+    }
+    else
+    {
+        mHasUserTitle = true;
+        sqliteQuery(parent.client.db, "update chats set title=? where chatid=?", mTitleString, mChatid);
+    }
+}
+
+GroupChatRoom::~GroupChatRoom()
+{
+    parent.client.chatd->leave(mChatid);
+    for (auto& m: mPeers)
+        delete m.second;
+    parent.client.gui.contactList().removeGroupChatItem(mTitleDisplay);
+}
+
+promise::Promise<void> GroupChatRoom::leave()
+{
+    return parent.client.api->call(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle())
+    .then([this](ReqResult result)
+    {
+        parent.removeRoom(mChatid); //this should clear all references to the chatd Messages object
+    });
+}
+
+promise::Promise<void> GroupChatRoom::invite(uint64_t userid, char priv)
+{
+    return parent.client.api->call(&mega::MegaApi::inviteToChat, mChatid, userid, priv)
+    .then([this, userid, priv](ReqResult)
+    {
+        mPeers.emplace(userid, new Member(*this, userid, priv));
+    });
 }
 
 void ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
@@ -1089,7 +1142,6 @@ void PeerChatRoom::onUserLeft(const chatd::Id &userid)
 }
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Message::Status status)
 {
-    printf("updating overlay count to %u\n", mMessages->unreadMsgCount());
     mTitleDisplay->updateOverlayCount(mMessages->unreadMsgCount());
 }
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg)
@@ -1107,6 +1159,13 @@ void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
     {
         updateAllOnlineDisplays(Presence::kOffline);
     }
+}
+void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
+{
+    printf("group online status %d\n", state);
+    updateAllOnlineDisplays((state == chatd::kChatStateOnline)
+        ? Presence::kOnline
+        : Presence::kOffline);
 }
 
 void GroupChatRoom::syncMembers(const chatd::UserPrivMap& users)
