@@ -189,10 +189,6 @@ promise::Promise<int> Client::init()
         {
             chats->syncRoomsWithApi(*chatRooms);
         }
-        else
-        {
-            printf("NO CHATROOMS FROM API\n");
-        }
     });
 
     SHARED_STATE(server, std::shared_ptr<HostPortServerInfo>);
