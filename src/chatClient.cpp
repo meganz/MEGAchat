@@ -40,8 +40,8 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 }
 
 
-Client::Client(IGui& aGui)
- :db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
+Client::Client(IGui& aGui, const char* homedir)
+ :mAppDir(checkAppDir(homedir)), db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
   api(new MyMegaApi("karere-native")), userAttrCache(*this), gui(aGui),
   mXmppContactList(*this),
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
@@ -62,15 +62,55 @@ Client::Client(IGui& aGui)
     chats.reset(new ChatRoomList(*this));
 }
 
+std::string Client::checkAppDir(const char* dir)
+{
+    std::string path;
+    if (dir)
+    {
+        path = dir;
+    }
+    else
+    {
+        const char* homedir = getenv(
+            #ifndef _WIN32
+                    "HOME"
+            #else
+                    "HOMEPATH"
+            #endif
+        );
+        if (!homedir)
+            throw std::runtime_error("Cant get HOME env variable");
+        path = homedir;
+        path.append("/.karere");
+    }
+    struct stat info;
+    auto ret = stat(path.c_str(), &info);
+    if (ret == 0)
+    {
+        if ((info.st_mode & S_IFDIR) == 0)
+            throw std::runtime_error("Application directory path is taken by a file");
+    }
+    else
+    {
+        ret = mkdir(path.c_str(), 0700);
+        if (ret)
+        {
+            char buf[512];
+#ifdef _WIN32
+            strerror_s(buf, 511, ret);
+#else
+            strerror_r(ret, buf, 511);
+#endif
+            buf[511] = 0; //just in case
+            throw std::runtime_error(std::string("Error creating application directory: ")+buf);
+        }
+    }
+    return path;
+}
 sqlite3* Client::openDb()
 {
-    const char* homedir = getenv("HOME");
-    if (!homedir)
-        throw std::runtime_error("Cant get HOME env variable");
-
-    std::string path(homedir);
-    path.append("/.karere.db");
     sqlite3* database = nullptr;
+    std::string path = mAppDir+"/karere.db";
     int ret = sqlite3_open(path.c_str(), &database);
     if (ret != SQLITE_OK || !database)
         throw std::runtime_error("Can't access application database at "+path);
@@ -533,16 +573,21 @@ void UserAttrCache::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users)
 {
     if (!users)
         return;
+    std::shared_ptr<mega::MegaUserList> copy(users->copy());
+    mega::marshallCall([this, copy]() { onUserAttrChange(*copy);});
+}
 
-    for (auto i=0; i<users->size(); i++)
+void UserAttrCache::onUserAttrChange(mega::MegaUserList& users)
+{
+    for (auto i=0; i<users.size(); i++)
     {
-        auto user = users->get(i);
-        int changed = user->getChanges();
+        auto& user = *users.get(i);
+        int changed = user.getChanges();
         for (auto t = 0; t <= mega::MegaApi::USER_ATTR_LAST_INTERACTION; t++)
         {
             if ((changed & attrDesc[t].changeMask) == 0)
                 continue;
-            UserAttrPair key(user->getHandle(), t);
+            UserAttrPair key(user.getHandle(), t);
             auto it = find(key);
             if (it == end()) //we don't have such attribute
                 continue;
@@ -881,6 +926,7 @@ ChatRoomList::ChatRoomList(Client& aClient)
 :client(aClient)
 {
     loadFromDb();
+    client.api->addGlobalListener(this);
 }
 
 void ChatRoomList::loadFromDb()
@@ -938,6 +984,12 @@ bool ChatRoomList::removeRoom(const uint64_t &chatid)
     static_cast<GroupChatRoom*>(it->second)->deleteSelf();
     erase(it);
     return true;
+}
+
+void ChatRoomList::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
+{
+    printf("onChatsUpdated\n");
+//    syncRoomsWithApi(*rooms);
 }
 
 ChatRoomList::~ChatRoomList()

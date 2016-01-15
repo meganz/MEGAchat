@@ -152,9 +152,10 @@ public slots:
     void onCreateGroupChat()
     {
         std::string name;
-        bool again = false;
+        bool again;
         do
         {
+            again = false;
             auto qname = QInputDialog::getText(this, tr("Invite to group chat"), tr("Enter group chat name"));
             if (qname.isNull())
                 return;
@@ -203,6 +204,10 @@ protected:
         connect(action, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
         menu.setStyleSheet("background-color: lightgray");
         menu.exec(event->globalPos());
+    }
+    virtual void mouseDoubleClickEvent(QMouseEvent* event)
+    {
+        mRoom.chatWindow().show();
     }
 protected slots:
     void leaveGroupChat() { mega::marshallCall([this]() { mRoom.leave(); }); } //deletes this

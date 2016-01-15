@@ -131,6 +131,8 @@ protected:
     void dbInvalidateItem(const UserAttrPair& item);
     uint64_t addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp);
     void fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrCacheItem>& item);
+    virtual void onUserAttrChange(mega::MegaUserList& users);
+//mega::GlobalListener interface, called by worker thread
     virtual void onUsersUpdate(mega::MegaApi* api, mega::MegaUserList* users);
 public:
     UserAttrCache(Client& aClient);
@@ -271,7 +273,7 @@ public:
     void onOnlineStateChange(chatd::ChatState);
 
 };
-class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
+class ChatRoomList: public mega::MegaGlobalListener, public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
 {
 protected:
     void loadFromDb();
@@ -282,6 +284,8 @@ public:
     bool removeRoom(const uint64_t& chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
+    //MegaGlobalListener interface
+    virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* chats);
 };
 
 class Contact: public IPresenceListener
@@ -334,6 +338,8 @@ public:
 
 class Client: public rtcModule::IGlobalEventHandler
 {
+protected:
+    std::string mAppDir;
 public:
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
@@ -380,7 +386,7 @@ public:
      * This performs a request to xmpp roster server and fetch the contact list.
      * Contact list also registers a contact presence handler to update the list itself based on received presence messages.
      */
-    Client(IGui& gui);
+    Client(IGui& gui, const char *homedir=nullptr);
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
     promise::Promise<int> init();
@@ -422,6 +428,7 @@ protected:
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
     std::unique_ptr<mega::rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
+    std::string checkAppDir(const char* dir);
     sqlite3* openDb();
     void setupReconnectHandler();
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>

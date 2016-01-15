@@ -106,7 +106,7 @@ void MainWindow::removeItem(ITitleDisplay* item, bool isGroup)
         {
             if (gui->isGroup() != isGroup)
                 throw std::runtime_error("ContactList: removeItem: Asked to remove a different type of contactlist item");
-            clist->takeItem(i);
+            delete clist->takeItem(i);
             return;
         }
     }

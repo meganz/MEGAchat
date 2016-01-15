@@ -304,6 +304,11 @@ protected:
     {
         if (mCallGui)
             return;
+        if (mRoom.isGroup())
+        {
+            QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
+            return;
+        }
         auto uh = static_cast<karere::PeerChatRoom&>(mRoom).peer();
         char buf[32];
         auto len = mega::Base32::btoa((byte*)&uh, sizeof(uh), buf);

@@ -4,6 +4,8 @@
 # LIBEVENT_LIBRARIES, LibEvent libraries
 # LIBEVENT_FOUND, If false, do not try to use libevent
 
+if (NOT LIBEVENT_LIBRARIES)
+
 find_package(PkgConfig)
 pkg_check_modules(PC_LIBEVENT QUIET libevent)
 
@@ -27,3 +29,5 @@ find_package_handle_standard_args(LibEvent DEFAULT_MSG
     LIBEVENT_LIBRARIES LIBEVENT_INCLUDE_DIRS)
 
 mark_as_advanced(LIBEVENT_LIB_CORE LIBEVENT_LIB_THREADS)
+
+endif()
