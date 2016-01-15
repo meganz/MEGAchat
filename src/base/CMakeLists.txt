@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(services)
 include(../utils.cmake)
 
-set (optStrophePath "~/strophe-native" CACHE PATH "Path to our custom strophe (mstrophe) lib")
+set (optStrophePath "../../third_party/strophe-native" CACHE PATH "Path to our custom strophe (mstrophe) lib")
 set (optServicesBuildShared 1 CACHE BOOL "Build libservices as a shared lib, for use of the async services by several shared objects")
 
 set(SRCS
