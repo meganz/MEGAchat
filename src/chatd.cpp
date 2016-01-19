@@ -172,6 +172,8 @@ void Connection::websockConnectCb(ws_t ws, void* arg)
 
 void Url::parse(const std::string& url)
 {
+    if (url.empty())
+        throw std::runtime_error("Url::Parse: Url is empty");
     protocol.clear();
     port = 0;
     host.clear();
@@ -225,7 +227,8 @@ void Url::parse(const std::string& url)
     {
         port = getPortFromProtocol();
     }
-    assert(!host.empty());
+    if (host.empty())
+        throw std::runtime_error("Url::parse: Invalid URL '"+url+"', host is empty");
 }
 
 uint16_t Url::getPortFromProtocol() const

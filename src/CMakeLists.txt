@@ -23,6 +23,7 @@ set (SRCS
     textModule.cpp
     contactList.cpp
     chatd.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
     ./text_filter/text_filter.cpp
     ./text_filter/default_link_handler.cpp
     ./text_filter/default_emoticon_handler.cpp
@@ -41,6 +42,11 @@ endif()
 add_subdirectory(rtcModule)
 add_subdirectory(${MPENC_DIR} mpenc)
 add_subdirectory(${LIBWS_DIR} libws)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
+    COMMAND cmake -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dbSchema.sql
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 #===
 # The public variables, such as KARERE_INCLIDE_DIRS should not contain relative paths, as they

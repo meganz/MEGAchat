@@ -22,6 +22,7 @@
 #include <buffer.h>
 #include <chatdDb.h>
 #include <megaapi_impl.h>
+#include <autoHandle.h>
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
@@ -111,9 +112,25 @@ sqlite3* Client::openDb()
 {
     sqlite3* database = nullptr;
     std::string path = mAppDir+"/karere.db";
+    struct stat info;
+    bool existed = (stat(path.c_str(), &info) == 0);
     int ret = sqlite3_open(path.c_str(), &database);
     if (ret != SQLITE_OK || !database)
         throw std::runtime_error("Can't access application database at "+path);
+    if (!existed)
+    {
+        KR_LOG_WARNING("Initializing local database, did not exist");
+        MyAutoHandle<char*, void(void*), sqlite3_free, nullptr> errmsg;
+        ret = sqlite3_exec(database, gKarereDbSchema, nullptr, nullptr, errmsg.handlePtr());
+        if (ret)
+        {
+            sqlite3_close(database);
+            if (errmsg)
+                throw std::runtime_error("Error initializing database: "+std::string(errmsg));
+            else
+                throw std::runtime_error("Error "+std::to_string(ret)+" initializing database");
+        }
+    }
     return database;
 }
 
@@ -137,26 +154,24 @@ promise::Promise<int> Client::init()
     ApiPromise pmsMegaLogin;
     if (sid.empty())
     {
-        std::string mail, pass;
-        if (!gui.requestLoginCredentials(mail, pass))
-            return promise::Error("No local session cache, and no login credential provided by user");
-        pmsMegaLogin = api->call(&mega::MegaApi::login, mail.c_str(), pass.c_str());
+        mLoginDlg.reset(gui.createLoginDialog());
+        pmsMegaLogin = mLoginDlg->requestCredentials()
+        .then([this](const std::pair<std::string, std::string>& cred)
+        {
+            return api->call(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
+        });
     }
     else
     {
-        mHadSid = true;
-        pmsMegaLogin = api->call(&mega::MegaApi::fastLogin, sid.c_str())
-        .then([this](ReqResult result)
-        {
-            mHadSid = true;
-            return result;
-        });
+        gui.show();
+        pmsMegaLogin = api->call(&mega::MegaApi::fastLogin, sid.c_str());
     }
     pmsMegaLogin.then([this](ReqResult result) mutable
     {
         mIsLoggedIn = true;
         KR_LOG_DEBUG("Login to Mega API successful");
-//        userAttrCache.onLogin();
+        if (mLoginDlg)
+            mLoginDlg->setState(IGui::ILoginDialog::kLoggingIn);
         SdkString uh = api->getMyUserHandle();
         if (!uh.c_str() || !uh.c_str()[0])
             throw std::runtime_error("Could not get our own user handle from API");
@@ -202,17 +217,22 @@ promise::Promise<int> Client::init()
     });
     auto pmsMegaFetch = pmsMegaLogin.then([this](ReqResult result)
     {
+        if (mLoginDlg)
+            mLoginDlg->setState(IGui::ILoginDialog::kFetchingNodes);
         return api->call(&mega::MegaApi::fetchNodes);
     })
     .then([this](ReqResult result)
     {
-        if (!mHadSid)
+        if (mLoginDlg)
         {
             const char* sid = api->dumpSession();
             sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
+            mLoginDlg.reset();
+            gui.show();
         }
-
         userAttrCache.onLogin();
+        api->addGlobalListener(this);
+
         userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
         [](Buffer* buf, void* userp)
         {
@@ -311,9 +331,11 @@ promise::Promise<int> Client::init()
         //startKeepalivePings();
         return 0;
     })
-    .fail([](const promise::Error& err)
+    .fail([this](const promise::Error& err)
     {
         KR_LOG_ERROR("Error initializing client: %s", err.what());
+        if (mLoginDlg)
+            mLoginDlg.reset();
         return err;
     });
 }
@@ -569,12 +591,12 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
     mClient.api->addGlobalListener(this);
 }
 
-void UserAttrCache::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users)
+void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users)
 {
     if (!users)
         return;
     std::shared_ptr<mega::MegaUserList> copy(users->copy());
-    mega::marshallCall([this, copy]() { onUserAttrChange(*copy);});
+    mega::marshallCall([this, copy]() { userAttrCache.onUserAttrChange(*copy);});
 }
 
 void UserAttrCache::onUserAttrChange(mega::MegaUserList& users)
@@ -926,7 +948,6 @@ ChatRoomList::ChatRoomList(Client& aClient)
 :client(aClient)
 {
     loadFromDb();
-    client.api->addGlobalListener(this);
 }
 
 void ChatRoomList::loadFromDb()
@@ -985,11 +1006,39 @@ bool ChatRoomList::removeRoom(const uint64_t &chatid)
     erase(it);
     return true;
 }
-
-void ChatRoomList::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
+void Client::onChatsUpdate(mega::MegaApi *, mega::MegaTextChatList *rooms)
 {
-    printf("onChatsUpdated\n");
-//    syncRoomsWithApi(*rooms);
+    std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
+    mega::marshallCall([this, copy]() { chats->onChatsUpdate(*copy); });
+}
+
+void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
+{
+    for (auto i=0; i<rooms.size(); i++)
+    {
+        auto& room = *rooms.get(i);
+        auto chatid = room.getHandle();
+        auto it = find(chatid);
+        auto localRoom = (it != end()) ? it->second : nullptr;
+        auto priv = room.getOwnPrivilege();
+        if (localRoom)
+        {
+            if (priv == chatd::PRIV_NOTPRESENT) //we were removed by someone else
+                removeRoom(chatid);
+            else
+                localRoom->syncWithApi(room);
+        }
+        else
+        {
+            if (priv != chatd::PRIV_NOTPRESENT) //we didn't remove ourself from the room
+            {
+                auto& createdRoom = addRoom(room);
+                client.gui.notifyInvited(createdRoom);
+            }
+            else
+                printf("we should have just removed ourself from the room\n");
+        }
+    }
 }
 
 ChatRoomList::~ChatRoomList()
@@ -1003,7 +1052,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
   mTitleString(userTitle), mHasUserTitle(!userTitle.empty())
 {
     auto peers = chat.getPeerList();
-    assert(peers);
+    if (!peers)
+        throw std::runtime_error("GroupChatRoom ctor: Attempting to create a chatroom with no peers");
     auto size = peers->size();
     for (int i=0; i<size; i++)
     {

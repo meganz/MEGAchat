@@ -68,17 +68,13 @@ void sigintHandler(int)
 
 }
 
-std::string usermail;
-std::string pass;
-bool inCall = false;
+const char* appdir = nullptr;
 
 int main(int argc, char **argv)
 {
-    /* take a jid and password on the command line */
-    if (argc == 3 && argv[1] && argv[2])
+    if (argc == 2)
     {
-        usermail = argv[1];
-        pass = argv[2];
+        appdir = argv[1];
     }
     ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     QApplication a(argc, argv);
@@ -86,9 +82,8 @@ int main(int argc, char **argv)
 
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin = new MainWindow();
-    gClient.reset(new karere::Client(*mainWin));
+    gClient.reset(new karere::Client(*mainWin, appdir));
     mainWin->setClient(*gClient);
-    //    mainWin->ui.localRenderer->setMirrored(true);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 
     gClient->init()
@@ -108,9 +103,9 @@ int main(int argc, char **argv)
     {
         QMessageBox::critical(mainWin, "rtctestapp", QString::fromLatin1("Client startup failed with error:\n")+QString::fromStdString(error.msg()));
         mainWin->close();
+        exit(1);
     });
 
-    mainWin->show();
     signal(SIGINT, sigintHandler);
     return a.exec();
 }

@@ -1,12 +1,11 @@
 #include "mainwindow.h"
-#include "ui_mainwindow.h"
+#include <ui_mainwindow.h>
+#include <ui_loginDialog.h>
 #include "qmessagebox.h"
 #include <string>
 #include <videoRenderer_Qt.h>
 #include <gcm.h>
 #include "rtcModule/IRtcModule.h"
-#include <services-dns.hpp>
-#include <services-http.hpp>
 #include <iostream>
 #include <rapidjson/document.h>
 #include <sdkApi.h>
@@ -29,6 +28,56 @@ extern MainWindow* mainWin;
 using namespace std;
 using namespace mega;
 using namespace karere;
+using namespace promise;
+
+class LoginDialog: public QDialog, public karere::IGui::ILoginDialog
+{
+    Q_OBJECT
+    Ui::LoginDialog ui;
+    promise::Promise<std::pair<std::string, std::string>> mPromise;
+    static QString sLoginStageStrings[kLast+1];
+public:
+    LoginDialog(QWidget* parent): QDialog(parent)
+    {
+        ui.setupUi(this);
+        connect(ui.mOkBtn, SIGNAL(clicked(bool)), this, SLOT(onOkBtn(bool)));
+        connect(ui.mCancelBtn, SIGNAL(clicked(bool)), this, SLOT(onCancelBtn(bool)));
+    }
+    virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials()
+    {
+        if (!isVisible())
+            show();
+        else //reusing, recreate promise
+            mPromise = promise::Promise<std::pair<std::string, std::string>>();
+
+        return mPromise;
+    }
+    virtual void setState(LoginStage state)
+    {
+        ui.mLoginStateDisplay->setText(sLoginStageStrings[state]);
+    }
+
+public slots:
+    void onOkBtn(bool)
+    {
+        if (mPromise.done())
+            return;
+        ui.mOkBtn->setEnabled(false);
+        ui.mCancelBtn->setEnabled(false);
+        mPromise.resolve(make_pair(
+            ui.mEmailInput->text().toStdString(), ui.mPasswordInput->text().toStdString()));
+    }
+    void onCancelBtn(bool)
+    {
+        if (mPromise.done())
+            return;
+        mPromise.reject("Login dialog canceled by user");
+    }
+};
+QString LoginDialog::sLoginStageStrings[] = {
+    tr("Authenticating"), tr("Logging in"),
+    tr("Fetching filesystem"), tr("Login complete")
+};
 
 MainWindow::MainWindow(Client* aClient): mClient(aClient)
 {
@@ -135,3 +184,8 @@ karere::IGui::IChatWindow& MainWindow::chatWindowForPeer(uint64_t handle)
         throw std::runtime_error("chatWindowForPeer: peer contact has no chatroom");
     return room->chatWindow();
 }
+karere::IGui::ILoginDialog* MainWindow::createLoginDialog()
+{
+    return new LoginDialog(nullptr);
+}
+#include <mainwindow.moc>

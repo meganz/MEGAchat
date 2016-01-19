@@ -71,7 +71,7 @@ promise::Promise<void> XmppContactList::receivePresences()
     return pms;
 }
 XmppContactList::~XmppContactList()
- { mClient.conn->removeHandler(mHandler); }
+ { if (mHandler) mClient.conn->removeHandler(mHandler); }
 
 bool XmppContactList::addContact(const std::string& fullJid, Presence presence, std::string bareJid)
 {

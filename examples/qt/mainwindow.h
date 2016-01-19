@@ -10,9 +10,12 @@
 #include <../strophe.disco.h>
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>
+#include <ui_loginDialog.h>
 #include <IJingleSession.h>
 #include <chatClient.h>
 #include "chatWindow.h"
+#include "loginDialog.h"
+
 namespace Ui {
 class MainWindow;
 }
@@ -44,6 +47,9 @@ public:
     {
         return new CallAnswerGui(*this, ans);
     }
+    virtual karere::IGui::ILoginDialog* createLoginDialog();
+    virtual void show() { QMainWindow::show(); }
+    virtual bool visible() const { return isVisible(); }
 protected:
     karere::IGui::ITitleDisplay* addItem(bool front, karere::Contact* contact,
                 karere::GroupChatRoom* room);

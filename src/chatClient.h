@@ -50,7 +50,16 @@ public:
         virtual void show() = 0;
         virtual void hide() = 0;
     };
-    virtual bool requestLoginCredentials(std::string& user, std::string& pass){ return false; }
+    class ILoginDialog
+    {
+    public:
+        enum LoginStage { kAuthenticating, kLoggingIn, kFetchingNodes, kLoginComplete, kLast=kLoginComplete};
+        virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials() = 0;
+        virtual void setState(LoginStage state) {}
+        virtual ~ILoginDialog() {}
+    };
+    virtual ILoginDialog* createLoginDialog() = 0;
+
     virtual IChatWindow* createChatWindow(ChatRoom& room) = 0;
     class IContactList
     {
@@ -64,6 +73,9 @@ public:
     virtual IContactList& contactList() = 0;
     virtual rtcModule::IEventHandler*
         createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
+    virtual void notifyInvited(const ChatRoom& room) {}
+    virtual void show() = 0;
+    virtual bool visible() const = 0;
     virtual void onTerminate() {}
     virtual ~IGui() {}
 };
@@ -131,9 +143,9 @@ protected:
     void dbInvalidateItem(const UserAttrPair& item);
     uint64_t addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp);
     void fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrCacheItem>& item);
-    virtual void onUserAttrChange(mega::MegaUserList& users);
-//mega::GlobalListener interface, called by worker thread
-    virtual void onUsersUpdate(mega::MegaApi* api, mega::MegaUserList* users);
+    void onUserAttrChange(mega::MegaUserList& users);
+    void onLogin();
+    friend class Client;
 public:
     UserAttrCache(Client& aClient);
     ~UserAttrCache();
@@ -141,7 +153,6 @@ public:
                              UserAttrReqCbFunc cb);
     promise::Promise<Buffer*> getAttr(const uint64_t &user, unsigned attrType);
     bool removeCb(const uint64_t &cbid);
-    void onLogin();
 };
 class ChatRoomList;
 class ChatRoom: public chatd::Listener
@@ -273,7 +284,7 @@ public:
     void onOnlineStateChange(chatd::ChatState);
 
 };
-class ChatRoomList: public mega::MegaGlobalListener, public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
+class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
 {
 protected:
     void loadFromDb();
@@ -284,8 +295,7 @@ public:
     bool removeRoom(const uint64_t& chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
-    //MegaGlobalListener interface
-    virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* chats);
+    void onChatsUpdate(mega::MegaTextChatList& chats);
 };
 
 class Contact: public IPresenceListener
@@ -336,7 +346,7 @@ public:
     void onContactOnlineState(const std::string& jid);
 };
 
-class Client: public rtcModule::IGlobalEventHandler
+class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener
 {
 protected:
     std::string mAppDir;
@@ -354,7 +364,7 @@ public:
     //operates and was allocated
     rtcModule::IRtcModule* rtc = nullptr;
     TextModule* mTextModule = nullptr;
-    bool mHadSid = false;
+//    bool mHadSid = false;
     bool isTerminating = false;
     unsigned mReconnectConnStateHandler = 0;
     std::function<void()> onChatdReady;
@@ -390,6 +400,7 @@ public:
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
     promise::Promise<int> init();
+    bool loginDialogDisplayed() const { return mLoginDlg.operator bool(); }
     /** @brief Notifies the client that internet connection is again available */
     void notifyNetworkOffline();
     /** @brief Notifies the client that network connection is down */
@@ -417,7 +428,8 @@ public:
 protected:
     chatd::Id mMyHandle = (uint64_t)-1;
     std::string mMyName;
-    bool mIsLoggedIn =false;
+    std::unique_ptr<IGui::ILoginDialog> mLoginDlg;
+    bool mIsLoggedIn = false;
     /** our own email address */
     std::string mEmail;
     /** our password */
@@ -443,9 +455,13 @@ protected:
      * This performs an xmpp response to the received xmpp ping request.
      */
     void sendPong(const std::string& peerJid, const std::string& messageId);
+    //rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
             const std::shared_ptr<rtcModule::ICallAnswer> &call);
     virtual void discoAddFeature(const char *feature);
+    //mega::MegaGlobalListener interface, called by worker thread
+    virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);
+    virtual void onUsersUpdate(mega::MegaApi*, mega::MegaUserList* users);
 };
 }
 #endif // CHATCLIENT_H

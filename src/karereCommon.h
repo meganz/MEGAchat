@@ -118,6 +118,8 @@ struct AvFlags
     }
 };
 
+extern const char* gKarereDbSchema;
+
 //logging stuff
 //#define KR_LINE KR_LOG(LINE)
 //#define KR_LINE_END KR_LOG(LINE)
