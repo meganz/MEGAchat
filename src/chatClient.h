@@ -71,6 +71,7 @@ public:
         virtual IChatWindow& chatWindowForPeer(uint64_t handle) = 0;
     };
     virtual IContactList& contactList() = 0;
+    virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) {}
     virtual rtcModule::IEventHandler*
         createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
     virtual void notifyInvited(const ChatRoom& room) {}
@@ -464,6 +465,7 @@ protected:
     //mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);
     virtual void onUsersUpdate(mega::MegaApi*, mega::MegaUserList* users);
+    virtual void onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs);
 };
 }
 #endif // CHATCLIENT_H

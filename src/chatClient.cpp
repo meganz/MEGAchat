@@ -1487,6 +1487,23 @@ ContactList::~ContactList()
         delete it.second;
 }
 
+void Client::onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs)
+{
+    std::shared_ptr<mega::MegaContactRequestList> copy(reqs->copy());
+    mega::marshallCall([this, copy]()
+    {
+        auto count = copy->size();
+        for (int i=0; i<count; i++)
+        {
+            auto& req = *copy->get(i);
+            if (req.isOutgoing())
+                continue;
+            if (req.getStatus() == mega::MegaContactRequest::STATUS_UNRESOLVED)
+                gui.onIncomingContactRequest(req);
+        }
+    });
+}
+
 Contact::Contact(ContactList& clist, const uint64_t& userid,
                  const std::string& email, PeerChatRoom* room)
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),

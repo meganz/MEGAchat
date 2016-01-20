@@ -48,6 +48,7 @@ public:
         return new CallAnswerGui(*this, ans);
     }
     virtual karere::IGui::ILoginDialog* createLoginDialog();
+    virtual void onIncomingContactRequest(const mega::MegaContactRequest &req);
     virtual void show() { QMainWindow::show(); }
     virtual bool visible() const { return isVisible(); }
 protected:

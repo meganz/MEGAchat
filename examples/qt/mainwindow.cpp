@@ -29,6 +29,7 @@ using namespace std;
 using namespace mega;
 using namespace karere;
 using namespace promise;
+using namespace mega;
 
 class LoginDialog: public QDialog, public karere::IGui::ILoginDialog
 {
@@ -208,4 +209,24 @@ karere::IGui::ILoginDialog* MainWindow::createLoginDialog()
 {
     return new LoginDialog(nullptr);
 }
+
+void MainWindow::onIncomingContactRequest(const MegaContactRequest &req)
+{
+    const char* cMail = req.getSourceEmail();
+    assert(cMail); //should be already checked by the caller
+    QString mail = cMail;
+
+    auto ret = QMessageBox::question(nullptr, tr("Incoming contact request"),
+        tr("Contact request from %1, accept?").arg(mail));
+    int action = (ret == QMessageBox::Yes)
+            ? MegaContactRequest::REPLY_ACTION_ACCEPT
+            : MegaContactRequest::REPLY_ACTION_DENY;
+    client().api->call(&MegaApi::replyContactRequest, (MegaContactRequest*)&req, action)
+    .fail([this, mail](const promise::Error& err)
+    {
+        QMessageBox::critical(nullptr, tr("Accept request"), tr("Error replying to contact request from ")+mail);
+        return err;
+    });
+}
+
 #include <mainwindow.moc>
