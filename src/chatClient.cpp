@@ -41,7 +41,6 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
     conn->send(pong);
 }
 
-
 Client::Client(IGui& aGui, const char* homedir)
  :mAppDir(checkAppDir(homedir)), db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
   api(new MyMegaApi("karere-native")), userAttrCache(*this), gui(aGui),
@@ -585,11 +584,18 @@ UserAttrCache::~UserAttrCache()
     mClient.api->removeGlobalListener(this);
 }
 
-void UserAttrCache::dbWrite(const UserAttrPair& key, const Buffer& data)
+void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
+{
+        sqliteQuery(mClient.db,
+            "insert or replace into userattrs(userid, type, data) values(?,?,?)",
+            key.user, key.attrType, data);
+}
+
+void UserAttrCache::dbWriteNull(UserAttrPair key)
 {
     sqliteQuery(mClient.db,
-        "insert or replace into userattrs(userid, type, data) values(?,?,?)",
-        key.user, key.attrType, data);
+        "insert or replace into userattrs(userid, type, data) values(?,?,NULL)",
+        key.user, key.attrType);
 }
 
 UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
@@ -656,13 +662,11 @@ void UserAttrCacheItem::notify()
     {
         auto curr = it;
         it++;
-        curr->cb(data, curr->userp); //may erase curr
+        curr->cb(data.get(), curr->userp); //may erase curr
     }
 }
 UserAttrCacheItem::~UserAttrCacheItem()
 {
-    if (data)
-        delete data;
 }
 
 uint64_t UserAttrCache::addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp)
@@ -696,7 +700,7 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
         { //TODO: not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
             auto cbid = addCb(it, cb, userp);
             if (item.pending != kCacheFetchNewPending)
-                cb(item.data, userp);
+                cb(item.data.get(), userp);
             return cbid;
         }
         else
@@ -723,58 +727,85 @@ void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrC
         .then([this, &attrType, key, item](ReqResult result)
         {
             item->pending = kCacheFetchNotPending;
-            item->data = attrType.getData(*result);
+            item->data.reset(attrType.getData(*result));
             dbWrite(key, *item->data);
             item->notify();
         })
-        .fail([this, item](const promise::Error& err)
+        .fail([this, key, item](const promise::Error& err)
         {
             item->pending = kCacheFetchNotPending;
             item->data = nullptr;
+            if (err.code() == mega::API_ENOENT)
+                dbWriteNull(key);
             item->notify();
             return err;
         });
     }
     else
     {
-        item->data = new Buffer;
         std::string strUh = base64urlencode(&key.user, sizeof(key.user));
         mClient.api->call(&mega::MegaApi::getUserAttribute, strUh.c_str(),
                   (int)MyMegaApi::USER_ATTR_FIRSTNAME)
+        .fail([this, item](const promise::Error& err)
+        {
+            return ReqResult(nullptr); //silently ignore errors for the first name, in case we can still retrieve the second name
+        })
         .then([this, strUh, key, item](ReqResult result)
         {
-            const char* name = result->getText();
-            if (!name)
-                name = "(null)";
-            size_t len = strlen(name);
-            if (len > 255)
+            const char* name;
+            if (result && ((name = result->getText())))
             {
-                item->data->append<unsigned char>(255);
-                item->data->append(name, 252);
-                item->data->append("...", 3);
-            }
-            else
-            {
-                item->data->append<unsigned char>(len);
-                item->data->append(name);
+                item->data.reset(new Buffer);
+                size_t len = strlen(name);
+                if (len > 255)
+                {
+                    item->data->append<unsigned char>(255);
+                    item->data->append(name, 252);
+                    item->data->append("...", 3);
+                }
+                else
+                {
+                    item->data->append<unsigned char>(len);
+                    item->data->append(name);
+                }
             }
             return mClient.api->call(&mega::MegaApi::getUserAttribute, strUh.c_str(),
                     (int)MyMegaApi::USER_ATTR_LASTNAME);
         })
         .then([this, key, item](ReqResult result)
         {
-            Buffer* data = item->data;
-            data->append(' ');
             const char* name = result->getText();
-            data->append(name ? name : "(null)").append<char>(0);
+            if (name)
+            {
+                if (!item->data)
+                    item->data.reset(new Buffer);
+
+                auto& data = *item->data;
+                data.append(' ');
+                data.append(name).append<char>(0);
+                dbWrite(key, data);
+            }
+            else
+            {
+                dbWriteNull(key);
+            }
             item->pending = kCacheFetchNotPending;
-            dbWrite(key, *data);
             item->notify();
         })
-        .fail([this, item](const promise::Error& err)
+        .fail([this, key, item](const promise::Error& err)
         {
-            item->data = nullptr;
             item->pending = kCacheFetchNotPending;
+            if (err.code() == mega::API_ENOENT)
+            {
+                if (!item->data)
+                {
+                    dbWriteNull(key);
+                }
+                else
+                {
+                    dbWrite(key, *item->data);
+                }
+            } //event if we have error here, we don't chear item->data as we may have the first name, but won't cache it in db, so the next app run will retry
             item->notify();
         });
     }
@@ -1039,7 +1070,6 @@ void Client::onChatsUpdate(mega::MegaApi *, mega::MegaTextChatList *rooms)
 
 void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
 {
-    printf("chatsupdate\n");
     for (int i=0; i<rooms->size(); i++)
     {
         auto& room = *rooms->get(i);
@@ -1060,7 +1090,6 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                     if (it == end())
                         return;
                     room.setUrl(result->getLink());
-                    printf("url = %s\n", result->getLink());
                     it->second->syncWithApi(room);
                 });
             }
@@ -1073,8 +1102,6 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                 .then([this, chatid, rooms, &room](ReqResult result)
                 {
                     room.setUrl(result->getLink());
-                    printf("url = %s\n", result->getLink());
-
                     auto& createdRoom = addRoom(room);
                     client.gui.notifyInvited(createdRoom);
                 });
@@ -1417,6 +1444,7 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         auto& user = *users.get(i);
         if (user.getHandle() == me)
             continue;
+        printf("clist user: %s\n", user.getEmail());
         apiUsers.insert(user.getHandle());
         addUserFromApi(user);
     }

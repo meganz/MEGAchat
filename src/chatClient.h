@@ -118,7 +118,7 @@ struct UserAttrReqCb
 enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2};
 struct UserAttrCacheItem
 {
-    Buffer* data;
+    std::unique_ptr<Buffer> data;
     std::list<UserAttrReqCb> cbs;
     unsigned char pending;
     UserAttrCacheItem(Buffer* buf, bool aPending): data(buf), pending(aPending){}
@@ -139,7 +139,8 @@ protected:
     Client& mClient;
     uint64_t mCbId = 0;
     std::map<uint64_t, CbRefItem> mCallbacks;
-    void dbWrite(const UserAttrPair& key, const Buffer& data);
+    void dbWrite(UserAttrPair key, const Buffer& data);
+    void dbWriteNull(UserAttrPair key);
     void dbInvalidateItem(const UserAttrPair& item);
     uint64_t addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp);
     void fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrCacheItem>& item);
