@@ -40,30 +40,42 @@ public:
     LoginDialog(QWidget* parent): QDialog(parent)
     {
         ui.setupUi(this);
+        ui.mOkBtn->setEnabled(false);
         connect(ui.mOkBtn, SIGNAL(clicked(bool)), this, SLOT(onOkBtn(bool)));
         connect(ui.mCancelBtn, SIGNAL(clicked(bool)), this, SLOT(onCancelBtn(bool)));
+        connect(ui.mEmailInput, SIGNAL(textChanged(const QString&)), this, SLOT(onType(const QString&)));
+        connect(ui.mPasswordInput, SIGNAL(textChanged(const QString&)), this, SLOT(onType(const QString&)));
+        ui.mPasswordInput->installEventFilter(this);
+    }
+    void enableControls(bool enable)
+    {
+        ui.mOkBtn->setEnabled(enable);
+        ui.mCancelBtn->setEnabled(enable);
+        ui.mEmailInput->setEnabled(enable);
+        ui.mPasswordInput->setEnabled(enable);
     }
     virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials()
     {
         if (!isVisible())
             show();
         else //reusing, recreate promise
+        {
+            enableControls(true);
             mPromise = promise::Promise<std::pair<std::string, std::string>>();
-
+        }
         return mPromise;
     }
     virtual void setState(LoginStage state)
     {
+        ui.mLoginStateDisplay->setStyleSheet((state == kBadCredentials)?"color:red":"color:black");
         ui.mLoginStateDisplay->setText(sLoginStageStrings[state]);
     }
-
 public slots:
     void onOkBtn(bool)
     {
         if (mPromise.done())
             return;
-        ui.mOkBtn->setEnabled(false);
-        ui.mCancelBtn->setEnabled(false);
+        enableControls(false);
         mPromise.resolve(make_pair(
             ui.mEmailInput->text().toStdString(), ui.mPasswordInput->text().toStdString()));
     }
@@ -73,9 +85,17 @@ public slots:
             return;
         mPromise.reject("Login dialog canceled by user");
     }
+    void onType(const QString&)
+    {
+        QString email = ui.mEmailInput->text();
+        bool enable = !email.isEmpty() && !ui.mPasswordInput->text().isEmpty();
+        enable = enable & email.contains(QChar('@')) && email.contains(QChar('.'));
+        if (enable != ui.mOkBtn->isEnabled())
+            ui.mOkBtn->setEnabled(enable);
+    }
 };
 QString LoginDialog::sLoginStageStrings[] = {
-    tr("Authenticating"), tr("Logging in"),
+    tr("Authenticating"), tr("Bad credentials"), tr("Logging in"),
     tr("Fetching filesystem"), tr("Login complete")
 };
 

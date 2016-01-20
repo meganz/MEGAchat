@@ -53,7 +53,7 @@ public:
     class ILoginDialog
     {
     public:
-        enum LoginStage { kAuthenticating, kLoggingIn, kFetchingNodes, kLoginComplete, kLast=kLoginComplete};
+        enum LoginStage { kAuthenticating, kBadCredentials, kLoggingIn, kFetchingNodes, kLoginComplete, kLast=kLoginComplete};
         virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials() = 0;
         virtual void setState(LoginStage state) {}
         virtual ~ILoginDialog() {}
@@ -166,16 +166,15 @@ protected:
     unsigned char mShardNo;
     bool mIsGroup;
     char mOwnPriv;
-    IGui::ITitleDisplay* mTitleDisplay=nullptr;
     chatd::Messages* mMessages = nullptr;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat& chat);
     void switchListenerToChatWindow();
     void join(); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
 public:
     virtual void syncWithApi(const mega::MegaTextChat& chat) = 0;
+    virtual IGui::ITitleDisplay& titleDisplay() = 0;
     virtual const std::string& titleString() const = 0;
     virtual Presence presence() const = 0;
-    void updateAllOnlineDisplays(Presence pres);
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
              unsigned char shard, char ownPriv);
     virtual ~ChatRoom(){}
@@ -185,7 +184,6 @@ public:
     unsigned char shardNo() const { return mShardNo; }
     char ownPriv() const { return mOwnPriv; }
     chatd::ChatState chatdOnlineState() const { return mMessages->onlineState(); }
-    IGui::ITitleDisplay* titleDisplay() const { return mTitleDisplay; }
     IGui::IChatWindow& chatWindow(); /// < creates the windows if not already created
     bool hasChatWindow() const { return mChatWindow != nullptr; }
     //chatd::Listener implementation
@@ -210,6 +208,7 @@ public:
     void syncOwnPriv(char priv);
     void syncPeerPriv(char priv);
     virtual void syncWithApi(const mega::MegaTextChat& chat);
+    virtual IGui::ITitleDisplay& titleDisplay();
     virtual const std::string& titleString() const;
     virtual Presence presence() const;
 //chatd::Listener interface
@@ -233,12 +232,14 @@ protected:
         friend class GroupChatRoom;
     };
     std::map<uint64_t, Member*> mPeers;
+    IGui::ITitleDisplay* mTitleDisplay = nullptr;
     std::string mTitleString;
     bool mHasUserTitle = false;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
     void syncMembers(const chatd::UserPrivMap& users);
     static chatd::UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, chatd::UserPrivMap& membs);
     void loadUserTitle();
+    void updateAllOnlineDisplays(Presence pres);
     friend class Member;
 public:
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, const std::string& userTitle);
@@ -252,6 +253,7 @@ public:
     promise::Promise<void> leave();
     promise::Promise<void> invite(uint64_t userid, char priv);
     virtual void syncWithApi(const mega::MegaTextChat &chat);
+    virtual IGui::ITitleDisplay& titleDisplay() { return *mTitleDisplay; }
     virtual const std::string& titleString() const { return mTitleString; }
     virtual Presence presence() const
     {
@@ -295,7 +297,7 @@ public:
     bool removeRoom(const uint64_t& chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
-    void onChatsUpdate(mega::MegaTextChatList& chats);
+    void onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& chats);
 };
 
 class Contact: public IPresenceListener
@@ -320,12 +322,11 @@ public:
     PeerChatRoom* chatRoom() { return mChatRoom; }
     promise::Promise<ChatRoom *> createChatRoom();
     const std::string& titleString() const { return mTitleString; }
+    IGui::ITitleDisplay& titleDisplay() { return *mDisplay; }
     uint64_t userId() const { return mUserid; }
     virtual void onPresence(Presence pres)
     {
-        if (mChatRoom && mChatRoom->chatdOnlineState() != chatd::kChatStateOnline)
-            return;
-        mChatRoom->updateAllOnlineDisplays(pres);
+        mDisplay->updateOnlineIndication(pres);
     }
     friend class ContactList;
 };

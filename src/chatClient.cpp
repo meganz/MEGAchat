@@ -23,6 +23,7 @@
 #include <chatdDb.h>
 #include <megaapi_impl.h>
 #include <autoHandle.h>
+#include <asyncTools.h>
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
@@ -155,11 +156,27 @@ promise::Promise<int> Client::init()
     if (sid.empty())
     {
         mLoginDlg.reset(gui.createLoginDialog());
-        pmsMegaLogin = mLoginDlg->requestCredentials()
-        .then([this](const std::pair<std::string, std::string>& cred)
-        {
-            return api->call(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
-        });
+        pmsMegaLogin = asyncLoop(
+        [this](Loop& loop){
+            return mLoginDlg->requestCredentials()
+            .then([this](const std::pair<std::string, std::string>& cred)
+            {
+                return api->call(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
+            })
+            .then([&loop](ReqResult res)
+            {
+                loop.breakLoop();
+                return res;
+            })
+            .fail([this](const promise::Error& err) -> ApiPromise
+            {
+                if (err.code() != mega::API_ENOENT && err.code() != mega::API_EARGS)
+                    return err;
+
+                mLoginDlg->setState(IGui::ILoginDialog::kBadCredentials);
+                return ApiPromise(ReqResult());
+            });
+        }, [](int) { return true; });
     }
     else
     {
@@ -842,7 +859,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const s
     unsigned char aShard, char aOwnPriv, const uint64_t& peer, char peerPriv)
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer), mPeerPriv(peerPriv)
 {
-    mTitleDisplay = parent.client.contactList->attachRoomToContact(peer, *this);
+    parent.client.contactList->attachRoomToContact(peer, *this);
     join();
 }
 
@@ -861,7 +878,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
         mChatid, mUrl, mShardNo, mPeer, mPeerPriv, mOwnPriv);
 //just in case
     sqliteQuery(parent.client.db, "delete from chat_peers where chatid = ?", mChatid);
-    mTitleDisplay = parent.client.contactList->attachRoomToContact(mPeer, *this);
+    parent.client.contactList->attachRoomToContact(mPeer, *this);
     KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API", chatd::Id(mChatid).toString().c_str());
     join();
 }
@@ -961,6 +978,14 @@ void ChatRoomList::loadFromDb()
             KR_LOG_WARNING("ChatRoomList: Attempted to load from db cache a chatid that is already in memory");
             continue;
         }
+        auto url = stmt.stringCol(1);
+        if (url.empty())
+        {
+            KR_LOG_ERROR("ChatRoomList::loadFromDb: Chatroom has empty URL, ignoring and deleting from db");
+            sqliteQuery(client.db, "delete from chats where chatid = ?", chatid);
+            sqliteQuery(client.db, "delete from chat_peers where chatid = ?", chatid);
+            continue;
+        }
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
@@ -1009,14 +1034,15 @@ bool ChatRoomList::removeRoom(const uint64_t &chatid)
 void Client::onChatsUpdate(mega::MegaApi *, mega::MegaTextChatList *rooms)
 {
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
-    mega::marshallCall([this, copy]() { chats->onChatsUpdate(*copy); });
+    mega::marshallCall([this, copy]() { chats->onChatsUpdate(copy); });
 }
 
-void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
+void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
 {
-    for (auto i=0; i<rooms.size(); i++)
+    printf("chatsupdate\n");
+    for (int i=0; i<rooms->size(); i++)
     {
-        auto& room = *rooms.get(i);
+        auto& room = *rooms->get(i);
         auto chatid = room.getHandle();
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
@@ -1026,14 +1052,32 @@ void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
             if (priv == chatd::PRIV_NOTPRESENT) //we were removed by someone else
                 removeRoom(chatid);
             else
-                localRoom->syncWithApi(room);
+            {
+                client.api->call(&mega::MegaApi::getUrlChat, chatid)
+                .then([this, chatid, rooms, &room](ReqResult result)
+                {
+                    auto it = find(chatid);
+                    if (it == end())
+                        return;
+                    room.setUrl(result->getLink());
+                    printf("url = %s\n", result->getLink());
+                    it->second->syncWithApi(room);
+                });
+            }
         }
         else
         {
             if (priv != chatd::PRIV_NOTPRESENT) //we didn't remove ourself from the room
             {
-                auto& createdRoom = addRoom(room);
-                client.gui.notifyInvited(createdRoom);
+                client.api->call(&mega::MegaApi::getUrlChat, chatid)
+                .then([this, chatid, rooms, &room](ReqResult result)
+                {
+                    room.setUrl(result->getLink());
+                    printf("url = %s\n", result->getLink());
+
+                    auto& createdRoom = addRoom(room);
+                    client.gui.notifyInvited(createdRoom);
+                });
             }
             else
                 printf("we should have just removed ourself from the room\n");
@@ -1052,13 +1096,14 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
   mTitleString(userTitle), mHasUserTitle(!userTitle.empty())
 {
     auto peers = chat.getPeerList();
-    if (!peers)
-        throw std::runtime_error("GroupChatRoom ctor: Attempting to create a chatroom with no peers");
-    auto size = peers->size();
-    for (int i=0; i<size; i++)
+    if (peers)
     {
-        auto handle = peers->getPeerHandle(i);
-        mPeers[handle] = new Member(*this, handle, peers->getPeerPrivilege(i)); //may try to access mTitleDisplay, but we have set it to nullptr, so it's ok
+        auto size = peers->size();
+        for (int i=0; i<size; i++)
+        {
+            auto handle = peers->getPeerHandle(i);
+            mPeers[handle] = new Member(*this, handle, peers->getPeerPrivilege(i)); //may try to access mTitleDisplay, but we have set it to nullptr, so it's ok
+        }
     }
 //save to db
     auto db = karere::gClient->db;
@@ -1207,12 +1252,10 @@ Presence PeerChatRoom::presence() const
     return mContact->xmppContact().presence();
 }
 
-void ChatRoom::updateAllOnlineDisplays(Presence pres)
+void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
 {
     if (mTitleDisplay)
         mTitleDisplay->updateOnlineIndication(pres);
-    if (mChatWindow)
-        mChatWindow->updateOnlineIndication(pres);
 }
 
 void GroupChatRoom::onUserJoined(const chatd::Id &userid, char privilege)
@@ -1240,27 +1283,27 @@ void PeerChatRoom::onUserLeft(const chatd::Id &userid)
 }
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Message::Status status)
 {
-    mTitleDisplay->updateOverlayCount(mMessages->unreadMsgCount());
+    titleDisplay().updateOverlayCount(mMessages->unreadMsgCount());
 }
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg)
 {
-    mTitleDisplay->updateOverlayCount(mMessages->unreadMsgCount());
+    titleDisplay().updateOverlayCount(mMessages->unreadMsgCount());
 }
+
+IGui::ITitleDisplay& PeerChatRoom::titleDisplay()
+{
+    return mContact->titleDisplay();
+}
+
 void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
     if (state == chatd::kChatStateOnline)
     {
-        mTitleDisplay->updateOverlayCount(mMessages->unreadMsgCount());
-        updateAllOnlineDisplays(mContact->xmppContact().presence());
-    }
-    else
-    {
-        updateAllOnlineDisplays(Presence::kOffline);
+        mContact->titleDisplay().updateOverlayCount(mMessages->unreadMsgCount());
     }
 }
 void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
-    printf("group online status %d\n", state);
     updateAllOnlineDisplays((state == chatd::kChatStateOnline)
         ? Presence::kOnline
         : Presence::kOffline);
@@ -1310,12 +1353,12 @@ void GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 chatd::UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, chatd::UserPrivMap& membs)
 {
     auto members = chat.getPeerList();
-    if (!members)
-        throw std::runtime_error("MegaTextChat::getPeers() returned NULL");
-
-    auto size = members->size();
-    for (int i=0; i<size; i++)
-        membs.emplace(members->getPeerHandle(i), members->getPeerPrivilege(i));
+    if (members)
+    {
+        auto size = members->size();
+        for (int i=0; i<size; i++)
+            membs.emplace(members->getPeerHandle(i), members->getPeerPrivilege(i));
+    }
     return membs;
 }
 
