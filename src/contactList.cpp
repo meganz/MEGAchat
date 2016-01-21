@@ -91,7 +91,7 @@ std::shared_ptr<XmppContact> XmppContactList::addContact(Contact& contact)
     if (it != end())
     {
         auto xmppContact = it->second;
-        xmppContact->mPresListener = &contact;
+        xmppContact->setPresenceListener(&contact);
         auto pres = xmppContact->presence();
         if (pres != Presence::kOffline)
             contact.onPresence(pres);
@@ -99,7 +99,10 @@ std::shared_ptr<XmppContact> XmppContactList::addContact(Contact& contact)
     }
     else
     {
-        return emplace(bareJid, std::make_shared<XmppContact>(Presence::kOffline)).first->second;
+        auto xmppContact = std::make_shared<XmppContact>(Presence::kOffline);
+        xmppContact->setPresenceListener(&contact);
+        emplace(bareJid, xmppContact);
+        return xmppContact;
     }
 }
 

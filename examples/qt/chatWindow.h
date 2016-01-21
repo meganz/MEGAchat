@@ -438,7 +438,8 @@ public:
             addMsgWidget(msg, mMessages->getMsgStatus(idx, msg.userid), false);
         }
         //TODO: Ensure it is not possible that the window gets destroyed before the marshalled call is executed?
-        mega::marshallCall([this]() { fetchMoreHistory(); });
+         if (mMessages->onlineState() == chatd::kChatStateOnline)
+             QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection);
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -508,6 +509,14 @@ public:
     {
         mRoom.onOnlineStateChange(state);
         updateChatdStatusDisplay(state);
+
+        if ((state == chatd::kChatStateOnline) && (mMessages->size() < 2)
+        && ((mMessages->histFetchState() & chatd::kHistFetchingFlag) == 0))
+        {
+            // avoid re-entrancy - we are in a chatd callback. We could use mega::marshallCall instead,
+            // but this is safer as the window may get destroyed before the message is processed
+            QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection);
+        }
     }
     void updateChatdStatusDisplay(chatd::ChatState state)
     {

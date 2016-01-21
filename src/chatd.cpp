@@ -394,11 +394,16 @@ bool Connection::sendCommand(Command&& cmd)
 void Connection::rejoinExistingChats()
 {
     for (auto& chatid: mChatIds)
+    try
     {
         // rejoin chat and immediately set the locally buffered message range
         Messages& msgs = mClient.chatidMessages(chatid);
         msgs.join();
         msgs.range();
+    }
+    catch(std::exception& e)
+    {
+        CHATD_LOG_ERROR("rejoinExistingChats for chatid %s: Exception: %s", chatid.toString().c_str(), e.what());
     }
 }
 
@@ -751,7 +756,6 @@ Message* Messages::msgModify(const Id& oriId, bool editsXid, const char* msg, si
         currEdit = sendIt->second.edit = new Message(ownId, mConnection.mClient.mUserId, time(NULL), msg, msglen, userp, true);
         if (!ownId) //otherwise we have just loaded it from db and have a msgxid = rowid
         {
-            printf("ownId = %lld\n", ownId.val);
             CALL_DB(saveMsgToSending, *currEdit);
         }
     }
@@ -963,6 +967,8 @@ void Messages::range()
     }
     if (i < lownum()) //we have only unsent messages
         return;
+    if (i > highest)
+        i = highest;
     CHATD_LOG_DEBUG("%s: Sending RANGE calculated from memory buffer: %s - %s",
         ID_CSTR(mChatId), at(lownum()).id().toString().c_str(), at(i).id().toString().c_str());
     sendCommand(Command(OP_RANGE) + mChatId + at(lownum()).id() + at(i).id());
