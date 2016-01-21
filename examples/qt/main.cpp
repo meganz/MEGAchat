@@ -76,7 +76,7 @@ int main(int argc, char **argv)
     {
         appdir = argv[1];
     }
-    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
+//    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
 

@@ -614,40 +614,48 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
     mClient.api->addGlobalListener(this);
 }
 
-void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users)
+void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
-    if (!users)
+    if (!aUsers)
         return;
-    std::shared_ptr<mega::MegaUserList> copy(users->copy());
-    mega::marshallCall([this, copy]() { userAttrCache.onUserAttrChange(*copy);});
+    std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
+    mega::marshallCall([this, users]()
+    {
+        auto count = users->size();
+        for (int i=0; i<count; i++)
+        {
+            auto& user = *users->get(i);
+            if (user.getChanges())
+                userAttrCache.onUserAttrChange(user);
+            else
+                contactList->onUserAddRemove(user);
+        };
+    });
 }
 
-void UserAttrCache::onUserAttrChange(mega::MegaUserList& users)
+void UserAttrCache::onUserAttrChange(mega::MegaUser& user)
 {
-    for (auto i=0; i<users.size(); i++)
+    int changed = user.getChanges();
+    printf("user %s change flags: %d\n", user.getEmail(), user.getVisibility());
+    for (auto t = 0; t <= mega::MegaApi::USER_ATTR_LAST_INTERACTION; t++)
     {
-        auto& user = *users.get(i);
-        int changed = user.getChanges();
-        for (auto t = 0; t <= mega::MegaApi::USER_ATTR_LAST_INTERACTION; t++)
-        {
-            if ((changed & attrDesc[t].changeMask) == 0)
-                continue;
-            UserAttrPair key(user.getHandle(), t);
-            auto it = find(key);
-            if (it == end()) //we don't have such attribute
-                continue;
-            auto& item = it->second;
-            dbInvalidateItem(key); //immediately invalidate parsistent cache
-            if (item->cbs.empty()) //we aren't using that item atm
-            { //delete it from memory as well, forcing it to be freshly fetched if it's requested
-                erase(key);
-                continue;
-            }
-            if (item->pending)
-                continue;
-            item->pending = kCacheFetchUpdatePending;
-            fetchAttr(key, item);
+        if ((changed & attrDesc[t].changeMask) == 0)
+            continue;
+        UserAttrPair key(user.getHandle(), t);
+        auto it = find(key);
+        if (it == end()) //we don't have such attribute
+            continue;
+        auto& item = it->second;
+        dbInvalidateItem(key); //immediately invalidate parsistent cache
+        if (item->cbs.empty()) //we aren't using that item atm
+        { //delete it from memory as well, forcing it to be freshly fetched if it's requested
+            erase(key);
+            continue;
         }
+        if (item->pending)
+            continue;
+        item->pending = kCacheFetchUpdatePending;
+        fetchAttr(key, item);
     }
 }
 void UserAttrCache::dbInvalidateItem(const UserAttrPair& key)
@@ -1461,8 +1469,23 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         removeUser(erased);
     }
 }
+void ContactList::onUserAddRemove(mega::MegaUser& user)
+{
+    auto visibility = user.getVisibility();
+    if (visibility == mega::MegaUser::VISIBILITY_HIDDEN)
+    {
+        removeUser(user.getHandle());
+//        client.gui.notifyContactRemoved(user);
+    }
+    else if (visibility == mega::MegaUser::VISIBILITY_VISIBLE)
+    {
+        addUserFromApi(user);
+    }
+    else
+        KR_LOG_WARNING("ContactList::onUserAddRemove: Don't know how to process user with visibility %d", visibility);
+}
 
-void ContactList::removeUser(const uint64_t& userid)
+void ContactList::removeUser(uint64_t userid)
 {
     auto it = find(userid);
     if (it == end())
@@ -1479,6 +1502,27 @@ void ContactList::removeUser(iterator it)
     delete it->second;
     erase(it);
     sqliteQuery(client.db, "delete from contacts where userid=?", handle);
+}
+
+promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
+{
+    auto it = find(userid);
+    if (it == end())
+        return promise::Error("Userid not in contactlist");
+
+    auto& api = *client.api;
+    std::unique_ptr<mega::MegaUser> user(api.getContact(it->second->email().c_str()));
+    if (!user)
+        return promise::Error("Could not get user object from email");
+
+    return api.call(&::mega::MegaApi::removeContact, user.get())
+    .then([this, userid](ReqResult ret)->promise::Promise<void>
+    {
+//        auto erased = find(userid);
+//        if (erased != end())
+//            removeUser(erased);
+        return promise::_Void();
+    });
 }
 
 ContactList::~ContactList()
@@ -1534,6 +1578,8 @@ void Contact::updateTitle(const std::string& str)
 Contact::~Contact()
 {
     mClist.client.userAttrCache.removeCb(mUsernameAttrCbId);
+    if (mXmppContact)
+        mXmppContact->setPresenceListener(nullptr);
     mClist.client.gui.contactList().removeContactItem(mDisplay);
 }
 promise::Promise<ChatRoom*> Contact::createChatRoom()
@@ -1548,7 +1594,7 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     return mClist.client.api->call(&mega::MegaApi::createChat, false, &peers)
     .then([this](ReqResult result) -> Promise<ChatRoom*>
     {
-        auto list = *result->getMegaTextChatList();
+        auto& list = *result->getMegaTextChatList();
         if (list.size() < 1)
             return promise::Error("Empty chat list returned from API");
         auto& room = mClist.client.chats->addRoom(*list.get(0));

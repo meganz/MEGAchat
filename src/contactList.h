@@ -3,6 +3,7 @@
 #include <mstrophepp.h>
 #include <type_traits>
 #include "karereCommon.h"
+#include <mega/base64.h>
 
 namespace karere
 {
@@ -61,7 +62,7 @@ protected:
     typedef std::map<std::string, Presence> ResourceMap;
     ResourceMap mResources;
     IPresenceListener* mPresListener;
-    void calculatePresence();
+    Presence calculatePresence();
     friend class XmppContactList;
 public:
     XmppContact(Presence pre, const std::string& fullJid="", IPresenceListener* listener=nullptr)
@@ -149,5 +150,12 @@ inline Presence::Status Presence::fromStanza(strophe::Stanza pres)
         return Presence::kOnline;
     }
 }
-};
+static inline std::string useridToJid(uint64_t userid)
+{
+    char buf[32];
+    ::mega::Base32::btoa((byte*)&userid, sizeof(userid), buf);
+    return std::string(buf)+"@"+KARERE_XMPP_DOMAIN;
+}
+
+}
 #endif // CONTACTLIST_H

@@ -109,6 +109,7 @@ public:
         ui.mUnreadIndicator->hide();
     }
 };
+
 class CListContactItem: public CListItem
 {
     Q_OBJECT
@@ -150,8 +151,10 @@ public:
     void contextMenuEvent(QContextMenuEvent* event)
     {
         QMenu menu(this);
-        auto action = menu.addAction(tr("Invite to group chat"));
-        connect(action, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
+        auto chatInviteAction = menu.addAction(tr("Invite to group chat"));
+        auto removeAction = menu.addAction(tr("Remove contact"));
+        connect(chatInviteAction, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
+        connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
         menu.setStyleSheet("background-color: lightgray");
         menu.exec(event->globalPos());
     }
@@ -193,6 +196,25 @@ public slots:
         .fail([this](const promise::Error& err)
         {
             QMessageBox::critical(this, tr("Create group chat"), tr("Error creating group chat:\n")+QString::fromStdString(err.msg()));
+        });
+    }
+    void onContactRemove()
+    {
+        QString msg = tr("Are you sure you want to remove ");
+        msg.append(mContact.titleString().c_str());
+        if (mContact.titleString() != mContact.email())
+        {
+            msg.append(" (").append(mContact.email().c_str());
+        }
+        msg.append(tr(" from your contacts?"));
+
+        auto ret = QMessageBox::question(this, tr("Remove contact"), msg);
+        if (ret != QMessageBox::Yes)
+            return;
+        mContact.contactList().removeContactFromServer(mContact.userId())
+        .fail([](const promise::Error& err)
+        {
+            QMessageBox::critical(nullptr, tr("Remove contact"), tr("Error removing contact: ").append(err.what()));
         });
     }
 };

@@ -145,7 +145,7 @@ protected:
     void dbInvalidateItem(const UserAttrPair& item);
     uint64_t addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp);
     void fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrCacheItem>& item);
-    void onUserAttrChange(mega::MegaUserList& users);
+    void onUserAttrChange(mega::MegaUser& user);
     void onLogin();
     friend class Client;
 public:
@@ -326,6 +326,7 @@ public:
     const std::string& titleString() const { return mTitleString; }
     IGui::ITitleDisplay& titleDisplay() { return *mDisplay; }
     uint64_t userId() const { return mUserid; }
+    const std::string& email() const { return mEmail; }
     virtual void onPresence(Presence pres)
     {
         mDisplay->updateOnlineIndication(pres);
@@ -337,12 +338,14 @@ class ContactList: public std::map<uint64_t, Contact*>
 {
 protected:
     void removeUser(iterator it);
+    void removeUser(uint64_t userid);
 public:
     Client& client;
     ContactList(Client& aClient);
     ~ContactList();
     bool addUserFromApi(mega::MegaUser& user);
-    void removeUser(const uint64_t& userid);
+    void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
+    promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
     IGui::ITitleDisplay* attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     Contact* contactFromJid(const std::string& jid) const;

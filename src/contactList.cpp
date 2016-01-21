@@ -19,10 +19,12 @@ void XmppContact::onPresence(Presence pres, const std::string& fullJid)
         it = mResources.emplace(resource, pres).first;
     else
         it->second = pres;
-    calculatePresence();
+    mPresence = calculatePresence();
+    if (mPresListener)
+        mPresListener->onPresence(mPresence);
 }
 
-void XmppContact::calculatePresence()
+Presence XmppContact::calculatePresence()
 {
     Presence max(Presence::kOffline);
     for (auto& res: mResources)
@@ -30,11 +32,7 @@ void XmppContact::calculatePresence()
         if (res.second > max)
             max = res.second;
     }
-    if (max == mPresence)
-        return;
-    mPresence = max;
-    if (mPresListener)
-        mPresListener->onPresence(mPresence);
+    return max;
 }
 
 promise::Promise<void> XmppContactList::receivePresences()
@@ -61,6 +59,7 @@ promise::Promise<void> XmppContactList::receivePresences()
         auto it = find(bareJid);
         if (it == end())
         {
+            KR_LOG_DEBUG("Received presence for unknown XMPP contact '%s', creating contact", bareJid.c_str());
             addContact(jid, status);
         }
         else
@@ -77,23 +76,31 @@ bool XmppContactList::addContact(const std::string& fullJid, Presence presence, 
 {
     if (bareJid.empty())
         bareJid = strophe::getBareJidFromJid(fullJid);
-
-    auto res = emplace(bareJid, std::make_shared<XmppContact>(presence, fullJid));
-    return res.second;
+    auto it = find(bareJid);
+    if (it != end())
+        return false;
+    emplace(bareJid, std::make_shared<XmppContact>(presence, fullJid));
+    return true;
 }
 
 std::shared_ptr<XmppContact> XmppContactList::addContact(Contact& contact)
 {
-    char buf[32];
     uint64_t uid = contact.userId();
-    ::mega::Base32::btoa((byte*)&uid, sizeof(uid), buf);
-    std::string bareJid = std::string(buf)+"@"+KARERE_XMPP_DOMAIN;
+    auto bareJid = useridToJid(uid);
     auto it = find(bareJid);
     if (it != end())
-        return it->second;
-    auto xmppContact = emplace(bareJid, std::make_shared<XmppContact>(Presence::kOffline)).first->second;
-    xmppContact->mPresListener = &contact;
-    return xmppContact;
+    {
+        auto xmppContact = it->second;
+        xmppContact->mPresListener = &contact;
+        auto pres = xmppContact->presence();
+        if (pres != Presence::kOffline)
+            contact.onPresence(pres);
+        return xmppContact;
+    }
+    else
+    {
+        return emplace(bareJid, std::make_shared<XmppContact>(Presence::kOffline)).first->second;
+    }
 }
 
 XmppContact& XmppContactList::getContact(const std::string& bareJid) const
