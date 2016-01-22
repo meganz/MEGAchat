@@ -170,7 +170,7 @@ public:
     }
     virtual void hoverEnterEvent(QHoverEvent* event)
     {
-
+        printf("hover\n");
     }
 public slots:
     void onCreateGroupChat()
