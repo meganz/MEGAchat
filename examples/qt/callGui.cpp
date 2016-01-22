@@ -18,7 +18,7 @@ CallGui::CallGui(ChatWindow &parent, const std::shared_ptr<rtcModule::ICall>& ca
     connect(ui.mShowChatBtn, SIGNAL(clicked(bool)), this, SLOT(onChatBtn(bool)));
     connect(ui.mMuteMicChk, SIGNAL(clicked(bool)), this, SLOT(onMuteMic(bool)));
     connect(ui.mMuteCamChk, SIGNAL(clicked(bool)), this, SLOT(onMuteCam(bool)));
-    connect(ui.mFullScreenChk, SIGNAL(stateChanged(int)), this, SLOT(onFullScreenChk(int)));
+//  connect(ui.mFullScreenChk, SIGNAL(clicked(bool)), this, SLOT(onFullScreenChk(bool)));
     setAvatarOnLocal();
     setAvatarOnRemote();
     if (mCall)

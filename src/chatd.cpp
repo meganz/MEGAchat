@@ -854,7 +854,7 @@ void Messages::onLastSeen(const Id& msgid)
     if (mLastSeenIdx != CHATD_IDX_INVALID)
     {
         if (idx < mLastSeenIdx)
-            throw std::runtime_error("onLastSeen: Can't set last seen index to an older message");
+            throw std::runtime_error(mChatId.toString()+": onLastSeen: Can't set last seen index to an older message: current idx:"+to_string(mLastSeenIdx)+" new: "+to_string(idx));
         notifyOldest = mLastSeenIdx;
         mLastSeenIdx = idx;
     }
@@ -877,13 +877,13 @@ bool Messages::setMessageSeen(Idx idx)
     assert(idx != CHATD_IDX_INVALID);
     if (idx <= mLastSeenIdx)
     {
-        CHATD_LOG_DEBUG("Attempted to move the last-seen pointer backward, ignoring");
+        CHATD_LOG_DEBUG("%s: Attempted to move the last-seen pointer backward, ignoring", mChatId.toString().c_str());
         return false;
     }
     auto& msg = at(idx);
     if (msg.userid == mClient.mUserId)
     {
-        CHATD_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
+        CHATD_LOG_DEBUG("%s: Asked to mark own message %s as seen, ignoring", ID_CSTR(mChatId), ID_CSTR(msg.id()));
         return false;
     }
     sendCommand(Command(OP_SEEN) + mChatId + msg.id());
@@ -1010,7 +1010,6 @@ Idx Messages::confirm(const Id& msgxid, const Id& msgid)
     msg->setId(msgid, false);
     push_forward(msg);
     auto idx = mIdToIndexMap[msgid] = highnum();
-    printf("delete from sending: %lld\n", msgxid.val);
     CALL_DB(deleteMsgFromSending, msgxid);
     CALL_DB(addMsgToHistory, *msg, idx);
     if (edit)
@@ -1088,14 +1087,16 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     //one chance to set the idx (we receive the msg only once).
     if (msgid == mLastSeenId) //we didn't have the message when we received the last seen id
     {
-        CHATD_LOG_DEBUG("Received the message with the last-seen msgid, setting the index pointer to it");
+        CHATD_LOG_DEBUG("%s: Received the message with the last-seen msgid '%s', "
+            "setting the index pointer to it", ID_CSTR(mChatId), ID_CSTR(msgid));
         onLastSeen(msgid);
     }
     if (mLastReceivedId == msgid)
     {
         //we didn't have the message when we received the last received msgid pointer,
         //and now we just received the message - set the index pointer
-        CHATD_LOG_DEBUG("Received the message with the last-received msgid, setting the index pointer to it");
+        CHATD_LOG_DEBUG("%s: Received the message with the last-received msgid '%s', "
+            "setting the index pointer to it", ID_CSTR(mChatId), ID_CSTR(msgid));
         onLastReceived(msgid);
     }
     return idx;
@@ -1163,7 +1164,6 @@ void Messages::setOnlineState(ChatState state)
     if (state == mOnlineState)
         return;
     mOnlineState = state;
-    printf("setOnlineState: %s\n", chatStateToStr(mOnlineState));
     CALL_LISTENER(onOnlineStateChange, state);
 }
 

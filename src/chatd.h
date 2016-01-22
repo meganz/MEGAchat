@@ -532,7 +532,7 @@ public:
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
     virtual void updateMsgInSending(const Message& data) = 0;
     virtual void updateSendingEditId(const Id& msgxid, const Id& msgid) = 0;
-    virtual Idx getIdxOfMsgid(const Id& msgid) = 0;
+    virtual Idx getIdxOfMsgid(Id msgid) = 0;
     virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;
     virtual ~DbInterface(){}
 };

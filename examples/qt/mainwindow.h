@@ -54,6 +54,16 @@ public:
 protected:
     karere::IGui::ITitleDisplay* addItem(bool front, karere::Contact* contact,
                 karere::GroupChatRoom* room);
+    void contextMenuEvent(QContextMenuEvent* event)
+    {
+        QMenu menu(this);
+        auto addAction = menu.addAction(tr("Add user to contacts"));
+        connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
+        menu.setStyleSheet("background-color: lightgray");
+        menu.exec(event->globalPos());
+    }
+protected slots:
+    void onAddContact();
 public slots:
     void onAudioInSelected();
     void onVideoInSelected();
@@ -157,6 +167,10 @@ public:
         connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
         menu.setStyleSheet("background-color: lightgray");
         menu.exec(event->globalPos());
+    }
+    virtual void hoverEnterEvent(QHoverEvent* event)
+    {
+
     }
 public slots:
     void onCreateGroupChat()

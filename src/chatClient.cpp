@@ -24,6 +24,7 @@
 #include <megaapi_impl.h>
 #include <autoHandle.h>
 #include <asyncTools.h>
+#include <codecvt> //for nonWhitespaceStr()
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
@@ -632,11 +633,21 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
         };
     });
 }
+const char* nonWhitespaceStr(const char* str)
+{
+    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
+    std::u16string u16 = convert.from_bytes(str);
+    for (auto s: u16)
+    {
+        if (!iswblank(s))
+            return str;
+    }
+    return nullptr;
+}
 
 void UserAttrCache::onUserAttrChange(mega::MegaUser& user)
 {
     int changed = user.getChanges();
-    printf("user %s change flags: %d\n", user.getEmail(), user.getVisibility());
     for (auto t = 0; t <= mega::MegaApi::USER_ATTR_LAST_INTERACTION; t++)
     {
         if ((changed & attrDesc[t].changeMask) == 0)
@@ -723,6 +734,7 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
     fetchAttr(key, item);
     return cbid;
 }
+
 void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     if (!mClient.isLoggedIn())
@@ -761,7 +773,7 @@ void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrC
         .then([this, strUh, key, item](ReqResult result)
         {
             const char* name;
-            if (result && ((name = result->getText())))
+            if (result && ((name = nonWhitespaceStr(result->getText()))))
             {
                 item->data.reset(new Buffer);
                 size_t len = strlen(name);
@@ -782,7 +794,7 @@ void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrC
         })
         .then([this, key, item](ReqResult result)
         {
-            const char* name = result->getText();
+            const char* name = nonWhitespaceStr(result->getText());
             if (name)
             {
                 if (!item->data)
@@ -1452,7 +1464,6 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         auto& user = *users.get(i);
         if (user.getHandle() == me)
             continue;
-        printf("clist user: %s\n", user.getEmail());
         apiUsers.insert(user.getHandle());
         addUserFromApi(user);
     }

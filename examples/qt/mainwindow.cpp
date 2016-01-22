@@ -228,5 +228,67 @@ void MainWindow::onIncomingContactRequest(const MegaContactRequest &req)
         return err;
     });
 }
+void MainWindow::onAddContact()
+{
+    auto email = QInputDialog::getText(this, tr("Add contact"), tr("Please enter the email of the user to add"));
+    if (email.isNull())
+        return;
+    if (email == client().api->getMyEmail())
+    {
+        QMessageBox::critical(this, tr("Add contact"), tr("You can't add your own email as contact"));
+        return;
+    }
+    auto utf8 = email.toUtf8();
+    for (auto& item: *client().contactList)
+    {
+        if (item.second->email() == utf8.data())
+        {
+            QMessageBox::critical(this, tr("Add contact"),
+                tr("User with email '%1' already exists in your contactlist with screen name '%2'")
+                .arg(email).arg(QString::fromStdString(item.second->titleString())));
+            return;
+        }
+    }
+    client().api->call(&MegaApi::inviteContact, email.toUtf8().data(), tr("I'd like to add you to my contact list").toUtf8().data(), MegaContactRequest::INVITE_ACTION_ADD)
+    .fail([this, email](const promise::Error& err)
+    {
+        QString msg;
+        if (err.code() == API_ENOENT)
+            msg = tr("User with email '%1' does not exist").arg(email);
+        else if (err.code() == API_EEXIST)
+        {
+            std::unique_ptr<MegaUser> user(client().api->getContact(email.toUtf8().data()));
+            if (!user)
+            {
+                msg = tr("Bug: API said user exists in our contactlist, but SDK can't find it");
+            }
+            else
+            {
+                auto userid = user->getHandle();
+                auto it = client().contactList->find(userid);
+                if (it == client().contactList->end())
+                {
+                    msg = tr("Bug: API and SDK have the user, but karere contactlist can't find it");
+                }
+                else
+                {
+                    msg = tr("User with email '%1' already exists in your contactlist").arg(email);
+                    if (it->second->titleString() != email.toUtf8().data())
+                            msg.append(tr(" with the screen name '")).append(QString::fromStdString(it->second->titleString())).append('\'');
+                }
+            }
+        }
+        else if (err.code() == API_EARGS)
+        {
+            msg = tr("Invalid email address '%1'").arg(email);
+        }
+        else
+        {
+            msg = tr("Error inviting '")+email+tr("': ")+QLatin1String(err.what());
+        }
+        QMessageBox::critical(this, tr("Add contact"), msg);
+        return err;
+    });
+}
 
 #include <mainwindow.moc>
