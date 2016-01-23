@@ -90,7 +90,10 @@ public:
     }
     MessageWidget& setText(const chatd::Message& msg)
     {
-        ui->mMsgDisplay->setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
+        if (msg.isEncrypted)
+            ui->mMsgDisplay->setText(tr("Decrypting..."));
+        else
+            ui->mMsgDisplay->setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
         return *this;
     }
     MessageWidget& updateStatus(chatd::Message::Status newStatus)
@@ -198,7 +201,7 @@ public slots:
         {
             if (text.isEmpty())
                 return;
-            auto msg = mMessages->msgSubmit(text.data(), text.size(), nullptr);
+            auto msg = mMessages->msgSubmit(text.data(), text.size(), chatd::Message::kTypeRegularMessage, nullptr);
             msg->userp = addMsgWidget(*msg, chatd::Message::kSending, false);
             ui.mMessageList->scrollToBottom();
         }
@@ -320,11 +323,12 @@ protected:
         mRoom.parent.client.rtc->startMediaCall(mCallGui, jid, karere::AvFlags(true, video));
     }
 
-    MessageWidget* widgetFromMessage(const chatd::Message& msg)
+    static MessageWidget* widgetFromMessage(const chatd::Message& msg)
     {
         if (!msg.userp)
             return nullptr;
-        return qobject_cast<MessageWidget*>(ui.mMessageList->itemWidget(static_cast<QListWidgetItem*>(msg.userp)));
+        auto item = static_cast<QListWidgetItem*>(msg.userp);
+        return qobject_cast<MessageWidget*>(item->listWidget()->itemWidget(item));
     }
     QListWidgetItem* addMsgWidget(const chatd::Message& msg, chatd::Message::Status status,
                       bool first, QColor* color=nullptr)
@@ -449,6 +453,13 @@ public:
             addMsgEdit(msg, false);
         else
             addMsgWidget(msg, status, false);
+        if (msg.isEncrypted)
+        {
+            msg.onDecrypted = [](chatd::Message& msg)
+            {
+                widgetFromMessage(msg)->setText(msg);
+            };
+        }
         ui.mMessageList->scrollToBottom();
         if (isActiveWindow())
             mMessages->setMessageSeen(idx);
@@ -469,6 +480,13 @@ public:
         {
             addMsgWidget(msg, status, true);
             ui.mMessageList->scrollToBottom();
+        }
+        if (msg.isEncrypted)
+        {
+            msg.onDecrypted = [](chatd::Message& msg)
+            {
+                widgetFromMessage(msg)->setText(msg);
+            };
         }
     }
     virtual void onHistoryDone(bool isFromDb)

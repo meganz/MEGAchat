@@ -44,8 +44,8 @@ public:
     virtual void saveMsgToSending(chatd::Message& msg)
     {
         SqliteStmt stmt(mDb, "insert into "+mSendingTblName+
-            "(edits, chatid, ts, data, edits_is_xid) values(?,?,?,?,?)");
-        stmt << msg.edits() << mMessages.chatId() << (uint32_t)time(NULL) << msg << msg.editsIsXid();
+            "(type, edits, chatid, ts, data, edits_is_xid) values(?,?,?,?,?,?)");
+        stmt << msg.type << msg.edits() << mMessages.chatId() << (uint32_t)time(NULL) << msg << msg.editsIsXid();
         stmt.step();
         msg.setId(sqlite3_last_insert_rowid(mDb), true);
     }
@@ -57,7 +57,6 @@ public:
     }
     virtual void updateMsgInSending(const chatd::Message& msg)
     {
-        printf("update %s\n", msg.id().toString().c_str());
         SqliteStmt stmt(mDb, "update "+mSendingTblName+" set data = ?2, ts = ?3 where rowid = ?1");
         stmt << msg.id() << msg << msg.ts;
         stmt.step();
@@ -71,29 +70,31 @@ public:
 
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
-        SqliteStmt stmt(mDb, "insert into "+mHistTblName+
-            " (idx, chatid, msgid, userid, ts, edits, data) values(?1, ?2, ?3, ?4, ?5, ?6, ?7);");
-        stmt << idx << mMessages.chatId() << msg.id() << msg.userid << msg.ts << msg.edits() << msg;
+        SqliteStmt stmt(mDb, "insert or replace into "+mHistTblName+
+            " (idx, chatid, msgid, encrypted, type, userid, ts, edits, data) values(?,?,?,?,?,?,?,?,?);");
+        stmt << idx << mMessages.chatId() << msg.id() << msg.isEncrypted << msg.type
+             << msg.userid << msg.ts << msg.edits() << msg;
         stmt.step();
     }
 
     virtual void loadSendingTable(std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select rowid, edits, data, edits_is_xid from "+mSendingTblName+" where chatid=? order by rowid asc");
+        SqliteStmt stmt(mDb, "select rowid, type, edits, data, edits_is_xid from "+
+                        mSendingTblName+" where chatid=? order by rowid asc");
         stmt << mMessages.chatId();
         while(stmt.step())
         {
             Buffer buf;
-            stmt.blobCol(2, buf);
-            auto msg = new chatd::Message(stmt.uint64Col(0),
-                                mMessages.client().userId(), 0, std::move(buf), nullptr, true);
-            msg->setEdits(stmt.uint64Col(1), stmt.intCol(3));
+            stmt.blobCol(3, buf);
+            auto msg = new chatd::Message(stmt.uint64Col(0), mMessages.client().userId(),
+                0, std::move(buf), false, (chatd::Message::Type)stmt.intCol(1), nullptr, true);
+            msg->setEdits(stmt.uint64Col(2), stmt.intCol(4));
             messages.push_back(msg);
         }
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, data, idx, edits from "+
+        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, edits, encrypted from "+
             mHistTblName+" where chatid=?1 and idx <= ?2 order by idx desc limit ?3");
         stmt << mMessages.chatId() << idx << count;
         int i = 0;
@@ -104,11 +105,12 @@ public:
             chatd::Id userid(stmt.uint64Col(1));
             unsigned ts = stmt.uintCol(2);
             Buffer buf;
-            stmt.blobCol(3, buf);
-            auto idx = stmt.intCol(4);
+            stmt.blobCol(4, buf);
+            auto idx = stmt.intCol(5);
             assert(idx == mMessages.lownum()-1-messages.size());
-            auto msg = new chatd::Message(msgid, userid, ts, std::move(buf));
-            msg->setEdits(stmt.uint64Col(5), false);
+            auto msg = new chatd::Message(msgid, userid, ts, std::move(buf),
+                stmt.intCol(7), (chatd::Message::Type)stmt.intCol(3));
+            msg->setEdits(stmt.uint64Col(6), false);
             messages.push_back(msg);
         }
     }
@@ -120,7 +122,8 @@ public:
     }
     virtual chatd::Idx getPeerMsgCountAfterIdx(chatd::Idx idx)
     {
-        SqliteStmt stmt(mDb, "select count(*) from history where (chatid = ?) and (userid != ?) and (idx > ?) and edits = 0");
+        SqliteStmt stmt(mDb, "select count(*) from history where"
+            "(chatid = ?) and (userid != ?) and (idx > ?) and edits = 0");
         stmt << mMessages.chatId() << mMessages.client().userId() << idx;
         stmt.step();
         return stmt.intCol(0);

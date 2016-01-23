@@ -120,23 +120,27 @@ private:
     bool mIdIsXid = false;
     bool mEditsIsXid = false;
 public:
+    typedef void(*DecryptedCb)(Message&);
     Id userid;
     uint32_t ts;
-    unsigned char type = kTypeInvalid;
+    bool isEncrypted;
+    unsigned char type;
     mutable void* userp;
+    DecryptedCb onDecrypted = nullptr;
     const Id& id() const { return mId; }
     const Id& edits() const { return mEdits; }
     bool isSending() const { return mIdIsXid; }
     bool editsIsXid() const { return mEditsIsXid; }
     void setId(const Id& aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     void setEdits(const Id& aEdits, bool isXid) { mEdits = aEdits; mEditsIsXid = isXid; }
-    Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, Buffer&& buf,
-            void* aUserp=nullptr, bool aIsSending=false)
+    Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, Buffer&& buf, bool aEncrypted,
+          Type aType=kTypeInvalid, void* aUserp=nullptr, bool aIsSending=false)
         :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
-          ts(aTs), userp(aUserp){}
+          ts(aTs), isEncrypted(aEncrypted), type(aType), userp(aUserp){}
     Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, const char* msg, size_t msglen,
-            void* aUserp, bool aIsSending=false)
-        :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs), userp(aUserp) {}
+            bool aEncrypted, Type aType=kTypeInvalid, void* aUserp=nullptr, bool aIsSending=false)
+        :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
+            isEncrypted(aEncrypted), type(aType), userp(aUserp) {}
     static const char* statusToStr(unsigned status)
     {
         return (status > kSeen) ? "(invalid status)" : statusNames[status];
@@ -218,7 +222,18 @@ public:
 /// The crypto module \b must also set the type of the message, so that the client
 /// knows whether to pass it to the application (i.e. contains an actual message)
 /// or should not (i.e. contains a crypto system packet)
-    virtual void decrypt(Message& src) {}
+    virtual promise::Promise<void> decrypt(Message& src, Idx idx)
+    {
+        src.type = Message::kTypeRegularMessage;
+        promise::Promise<void> pms;
+        mega::setTimeout([pms, &src]() mutable
+        {
+            src.isEncrypted = false;
+            printf("resolving, size = %zu\n", src.dataSize());
+            pms.resolve();
+        }, 1000);
+        return pms;
+    }
 /// The chatroom connection (to the chatd server shard) state state has changed.
     virtual void onOnlineStateChange(ChatState state){}
 /// A user has joined the room, or their privilege has changed
@@ -386,11 +401,6 @@ protected:
     // msgid can be 0 in case of rejections
     Idx confirm(const Id& msgxid, const Id& msgid);
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
-    Idx msgIncoming(bool isNew, const Id& msgid, const Id& userid, uint32_t timestamp,
-                                 const char* msg, size_t msglen, bool isLocal=false)
-    {
-        return msgIncoming(isNew, new Message(msgid, userid, timestamp, msg, msglen, nullptr), isLocal);
-    }
     void onUserJoin(const Id& userid, char priv);
     void onJoinComplete();
     void loadAndProcessUnsent();
@@ -483,7 +493,7 @@ public:
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
 
 // Message output methods
-    Message* msgSubmit(const char* msg, size_t msglen, void* userp);
+    Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
 //Queues a message as a edit message for \c orig. \attention Will delete a previous edit if
 //the original was not yet ack-ed by the server. That is, there can be only one pending
 //edit for a not-yet-sent message, and if there was a previous one, it will be deleted.

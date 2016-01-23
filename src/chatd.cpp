@@ -9,14 +9,14 @@
 using namespace std;
 using namespace promise;
 
-//#define CHATD_LOG_LISTENER_CALLS //DB_CALLS
+#define CHATD_LOG_LISTENER_CALLS //DB_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
 
 // logging for a specific chatid - prepends the chatid and calls the normal logging macro
-#define CHATID_LOG_DEBUG(fmtString,...) CHATD_LOG_DEBUG("%s: ", ID_CSTR(chatId()), ##__VA_ARGS__)
-#define CHATID_LOG_WARNING(fmtString,...) CHATD_LOG_WARNING("%s: ", ID_CSTR(chatId()), ##__VA_ARGS__)
-#define CHATID_LOG_ERROR(fmtString,...) CHATD_LOG_ERROR("%s: ", ID_CSTR(chatId()), ##__VA_ARGS__)
+#define CHATID_LOG_DEBUG(fmtString,...) CHATD_LOG_DEBUG("%s: " fmtString, ID_CSTR(chatId()), ##__VA_ARGS__)
+#define CHATID_LOG_WARNING(fmtString,...) CHATD_LOG_WARNING("%s: " fmtString, ID_CSTR(chatId()), ##__VA_ARGS__)
+#define CHATID_LOG_ERROR(fmtString,...) CHATD_LOG_ERROR("%s: " fmtString, ID_CSTR(chatId()), ##__VA_ARGS__)
 
 #ifdef CHATD_LOG_LISTENER_CALLS
     #define CHATD_LOG_LISTENER_CALL(fmtString,...) CHATID_LOG_DEBUG(fmtString, ##__VA_ARGS__)
@@ -595,7 +595,7 @@ void Connection::execCommand(const StaticBuffer &buf)
                     ID_CSTR(userid), msglen);
 
                 mClient.chatidMessages(chatid).msgIncoming(
-                    isNewMsg, new Message(msgid, userid, ts, msg, msglen, nullptr), false);
+                    isNewMsg, new Message(msgid, userid, ts, msg, msglen, true), false);
                 break;
             }
             case OP_SEEN:
@@ -725,10 +725,11 @@ void Messages::loadAndProcessUnsent()
     }
 }
 
-Message* Messages::msgSubmit(const char* msg, size_t msglen, void* userp)
+Message* Messages::msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp)
 {
     // write the new message to the message buffer and mark as in sending state
-    Message* message = new Message(Id::null(), mConnection.mClient.mUserId, time(NULL), msg, msglen, userp, true);
+    Message* message = new Message(Id::null(), mConnection.mClient.mUserId, time(NULL),
+        msg, msglen, false, type, userp, true);
     assert(message->isSending());
     doMsgSubmit(message);
     return message;
@@ -767,7 +768,8 @@ Message* Messages::msgModify(const Id& oriId, bool editsXid, const char* msg, si
             if (original.edits())
                 throw std::runtime_error("msgModify: Can't edit an edit message");
         }
-        auto editMsg = new Message(Id::null(), mConnection.mClient.userId(), time(NULL), msg, msglen, userp, true);
+        auto editMsg = new Message(Id::null(), mConnection.mClient.userId(), time(NULL),
+            msg, msglen, false, Message::kTypeEdit, userp, true);
         editMsg->setEdits(oriId, false); //oriId is a real msgid
         doMsgSubmit(editMsg);
         return editMsg;
@@ -786,7 +788,8 @@ Message* Messages::msgModify(const Id& oriId, bool editsXid, const char* msg, si
     }
     else
     {
-        currEdit = sendIt->second.edit = new Message(ownId, mConnection.mClient.mUserId, time(NULL), msg, msglen, userp, true);
+        currEdit = sendIt->second.edit = new Message(ownId, mConnection.mClient.mUserId,
+            time(NULL), msg, msglen, false, Message::kTypeEdit, userp, true);
         if (!ownId) //otherwise we have just loaded it from db and have a msgxid = rowid
         {
             CALL_DB(saveMsgToSending, *currEdit);
@@ -1085,19 +1088,6 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     auto msgid = message->id();
     assert(msgid);
     Idx idx;
-    if (!isLocal)
-    {
-        try
-        {
-            mCrypto->decrypt(*message);
-        }
-        catch(std::exception& e)
-        {
-            CHATID_LOG_ERROR("Exception in ICrypto::decrypt: %s", e.what());
-            return CHATD_IDX_INVALID;
-        }
-    }
-    assert(message->type != Message::kTypeInvalid);
 
     if (isNew)
     {
@@ -1119,9 +1109,34 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
         idx = lownum();
     }
     mIdToIndexMap[msgid] = idx;
-    if (!isLocal)
+    if (message->isEncrypted) //isLocal may still be true, if we retry decrypting a saved encrypted msg that failed to decrypt previously
     {
-        CALL_DB(addMsgToHistory, *message, idx);
+        mCrypto->decrypt(*message, idx)
+#ifndef NDEBUG
+        .then([this, message]()
+        {
+            assert(!message->isEncrypted);
+        })
+#endif
+        .fail([this, message](const promise::Error& err)
+        {
+            CHATID_LOG_ERROR("Error decrypting message: %s", err.what());
+            message->isEncrypted = true;
+        })
+        .then([this, message, isLocal, idx]()
+        {
+            assert(message->isEncrypted || (message->type != Message::kTypeInvalid));
+            if (!message->isEncrypted) //don't save it it was from db and still not decrypted
+            {
+                CALL_DB(addMsgToHistory, *message, idx); //may overwrite a decrypted message
+                if (message->onDecrypted)
+                    message->onDecrypted(*message);
+            }
+            else if (!isLocal)
+            {
+                CALL_DB(addMsgToHistory, *message, idx); //may overwrite a decrypted message
+            }
+        });
     }
     if ((message->userid != mClient.mUserId) && !isLocal)
     {
