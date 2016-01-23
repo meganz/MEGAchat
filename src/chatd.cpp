@@ -13,14 +13,25 @@ using namespace promise;
 
 #define ID_CSTR(id) id.toString().c_str()
 
+// logging for a specific chatid - prepends the chatid and calls the normal logging macro
+#define CHATID_LOG_DEBUG(fmtString,...) CHATD_LOG_DEBUG("%s: ", ID_CSTR(chatId()), ##__VA_ARGS__)
+#define CHATID_LOG_WARNING(fmtString,...) CHATD_LOG_WARNING("%s: ", ID_CSTR(chatId()), ##__VA_ARGS__)
+#define CHATID_LOG_ERROR(fmtString,...) CHATD_LOG_ERROR("%s: ", ID_CSTR(chatId()), ##__VA_ARGS__)
+
 #ifdef CHATD_LOG_LISTENER_CALLS
-    #define CHATD_LOG_LISTENER_CALL(fmtString,...) CHATD_LOG_DEBUG("%s: " fmtString, mChatId.toString().c_str(), ##__VA_ARGS__)
+    #define CHATD_LOG_LISTENER_CALL(fmtString,...) CHATID_LOG_DEBUG(fmtString, ##__VA_ARGS__)
 #else
     #define CHATD_LOG_LISTENER_CALL(...)
 #endif
 
+#ifdef CHATD_LOG_CRYPTO_CALLS
+    #define CHATD_LOG_CRYPTO_CALL(fmtString,...) CHATID_LOG_DEBUG(fmtString, ##__VA_ARGS__)
+#else
+    #define CHATD_LOG_CRYPTO_CALL(...)
+#endif
+
 #ifdef CHATD_LOG_DB_CALLS
-    #define CHATD_LOG_DB_CALL(fmtString,...) CHATD_LOG_DEBUG(fmtString, ##__VA_ARGS__)
+    #define CHATD_LOG_DB_CALL(fmtString,...) CHATID_LOG_DEBUG(fmtString, ##__VA_ARGS__)
 #else
     #define CHATD_LOG_DB_CALL(...)
 #endif
@@ -28,20 +39,30 @@ using namespace promise;
 #define CALL_LISTENER(methodName,...)                                                           \
     do {                                                                                        \
       try {                                                                                     \
-          CHATD_LOG_LISTENER_CALL("calling " #methodName "()");                               \
+          CHATD_LOG_LISTENER_CALL("Calling Listener::" #methodName "()");                       \
           mListener->methodName(__VA_ARGS__);                                                   \
       } catch(std::exception& e) {                                                              \
-          CHATD_LOG_WARNING("Exception thrown from Listener::" #methodName "() app handler:\n%s", e.what());\
+          CHATD_LOG_WARNING("Exception thrown from Listener::" #methodName "():\n%s", e.what());\
+      }                                                                                         \
+    } while(0)
+
+#define CALL_CRYPTO(methodName,...)                                                             \
+    do {                                                                                        \
+      try {                                                                                     \
+          CHATD_LOG_CRYPTO_CALL("Calling ICrypto::" #methodName "()");                          \
+          mCrypto->methodName(__VA_ARGS__);                                                     \
+      } catch(std::exception& e) {                                                              \
+          CHATD_LOG_WARNING("Exception thrown from ICrypto::" #methodName "():\n%s", e.what()); \
       }                                                                                         \
     } while(0)
 
 #define CALL_DB(methodName,...)                                                           \
     do {                                                                                        \
       try {                                                                                     \
-          CHATD_LOG_DB_CALL("calling " #methodName "()");                               \
+          CHATD_LOG_DB_CALL("Calling DbInterface::" #methodName "()");                               \
           mDbInterface->methodName(__VA_ARGS__);                                                   \
       } catch(std::exception& e) {                                                              \
-          CHATD_LOG_WARNING("Exception thrown from DbInterface::" #methodName "():\n%s", e.what());\
+          CHATID_LOG_ERROR("Exception thrown from DbInterface::" #methodName "():\n%s", e.what());\
       }                                                                                         \
     } while(0)
 
@@ -112,7 +133,8 @@ Client::Client(const Id& userId)
     }
 
 // add a new chatd shard
-void Client::join(const Id& chatid, int shardNo, const std::string& url, Listener& listener)
+void Client::join(const Id& chatid, int shardNo, const std::string& url, Listener* listener,
+    ICrypto* crypto)
 {
     auto msgsit = mMessagesForChatId.find(chatid);
     if (msgsit != mMessagesForChatId.end())
@@ -144,7 +166,7 @@ void Client::join(const Id& chatid, int shardNo, const std::string& url, Listene
     // add chatid to the connection's chatids
     conn->mChatIds.insert(chatid);
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
-    Messages* msgs = new Messages(*conn, chatid, listener);
+    Messages* msgs = new Messages(*conn, chatid, listener, crypto);
     mMessagesForChatId.emplace(std::piecewise_construct, std::forward_as_tuple(chatid),
                                std::forward_as_tuple(msgs));
 
@@ -403,7 +425,7 @@ void Connection::rejoinExistingChats()
     }
     catch(std::exception& e)
     {
-        CHATD_LOG_ERROR("rejoinExistingChats for chatid %s: Exception: %s", chatid.toString().c_str(), e.what());
+        CHATD_LOG_ERROR("%s: rejoinExistingChats: Exception: %s", chatid.toString().c_str(), e.what());
     }
 }
 
@@ -421,7 +443,7 @@ bool Messages::sendCommand(Command&& cmd)
     auto opcode = cmd.opcode();
     bool ret = mConnection.sendCommand(std::move(cmd));
     if (ret)
-        CHATD_LOG_DEBUG("%s: send %s", ID_CSTR(mChatId), Command::opcodeToStr(opcode));
+        CHATID_LOG_DEBUG("send %s", Command::opcodeToStr(opcode));
     else
         CHATD_LOG_DEBUG("%s: Can't send %s, we are offline", ID_CSTR(mChatId), Command::opcodeToStr(opcode));
     return ret;
@@ -454,17 +476,22 @@ void Messages::requestHistoryFromServer(int32_t count)
         sendCommand(Command(OP_HIST) + mChatId + count);
 }
 
-Messages::Messages(Connection& conn, const Id& chatid, Listener& listener)
-    : mConnection(conn), mClient(conn.mClient), mChatId(chatid), mListener(&listener)
+Messages::Messages(Connection& conn, const Id& chatid, Listener* listener, ICrypto* crypto)
+    : mConnection(conn), mClient(conn.mClient), mChatId(chatid), mListener(listener),
+      mCrypto(crypto)
 {
+    assert(mChatId);
+    assert(mListener);
+    assert(mCrypto);
     Idx newestDbIdx;
     //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
-    mListener->init(this, mDbInterface);
+    mListener->init(*this, mDbInterface);
+    mCrypto->init(*this);
     assert(mDbInterface);
     mDbInterface->getHistoryInfo(mOldestKnownMsgId, mNewestKnownMsgId, newestDbIdx);
     if (!mOldestKnownMsgId)
     {
-        CHATD_LOG_WARNING("%s: Db has no local history for chat", ID_CSTR(mChatId));
+        CHATID_LOG_WARNING("Db has no local history for chat");
         mForwardStart = CHATD_IDX_RANGE_MIDDLE;
         mNewestKnownMsgId = Id::null();
     }
@@ -472,15 +499,19 @@ Messages::Messages(Connection& conn, const Id& chatid, Listener& listener)
     {
         assert(mNewestKnownMsgId); assert(newestDbIdx != CHATD_IDX_INVALID);
         mForwardStart = newestDbIdx + 1;
-        CHATD_LOG_DEBUG("Db has local history for chat %s: %s - %s (middle point: %u)",
+        CHATID_LOG_DEBUG("Db has local history: %s - %s (middle point: %u)",
             ID_CSTR(mChatId), ID_CSTR(mOldestKnownMsgId), ID_CSTR(mNewestKnownMsgId), mForwardStart);
         getHistoryFromDb(1); //to know if we have the latest message on server, we must at least load the latest db message
     }
 }
 Messages::~Messages()
 {
+    mListener->onDestroy(); //we don't delete because it may have its own idea of its lifetime (i.e. it could be a GUI class)
+    delete mCrypto;
+    mCrypto = nullptr;
     clear();
     delete mDbInterface;
+    mDbInterface = nullptr;
 }
 
 void Messages::getHistoryFromDb(unsigned count)
@@ -495,6 +526,7 @@ void Messages::getHistoryFromDb(unsigned count)
         msgIncoming(false, msg, true); //increments mLastHistFetchCount
     }
     mHistFetchState = kHistNotFetching;
+    CALL_CRYPTO(onHistoryDone);
     CALL_LISTENER(onHistoryDone, true);
     if ((messages.size() < count) && mOldestKnownMsgId)
         throw std::runtime_error("Application says no more messages in db, but we still haven't seen specified oldest message id");
@@ -657,7 +689,7 @@ void Connection::execCommand(const StaticBuffer &buf)
 void Messages::msgSend(const Message& message)
 {
     Buffer encrypted;
-    CALL_LISTENER(encryptMessage, message, encrypted);
+    mCrypto->encrypt(message, encrypted);
     sendCommand(Command(OP_NEWMSG) + mChatId + Id::null() + message.id() + message.ts + encrypted);
 }
 
@@ -665,7 +697,8 @@ void Messages::onHistDone()
 {
     assert(mHistFetchState == kHistFetchingFromServer);
     mHistFetchState = (mLastHistFetchCount > 0) ? kHistNotFetching : kHistNoMore;
-    mListener->onHistoryDone(false);
+    CALL_CRYPTO(onHistoryDone);
+    CALL_LISTENER(onHistoryDone, false);
     if(mOnlineState == kChatStateJoining)
     {
         //only on the first HISTDONE - we may have other history requests afterwards
@@ -789,8 +822,8 @@ void Messages::onLastReceived(const Id& msgid)
         return; //probably set from db
     if (at(idx).userid != mClient.mUserId)
     {
-        CHATD_LOG_WARNING("%s: Last-received pointer points to a message by a peer,"
-            " possibly the pointer was set incorrectly", ID_CSTR(mChatId));
+        CHATID_LOG_WARNING("Last-received pointer points to a message by a peer,"
+            " possibly the pointer was set incorrectly");
     }
     //notify about messages that become 'received'
     Idx notifyOldest;
@@ -837,6 +870,7 @@ void Messages::onLastSeen(const Id& msgid)
             else
             {
                 mLastSeenIdx = idx;
+                CALL_LISTENER(onUnreadChanged);
             }
         }
         return;
@@ -871,19 +905,20 @@ void Messages::onLastSeen(const Id& msgid)
             mListener->onMessageStatusChange(i, Message::kSeen, msg);
         }
     }
+    CALL_LISTENER(onUnreadChanged);
 }
 bool Messages::setMessageSeen(Idx idx)
 {
     assert(idx != CHATD_IDX_INVALID);
     if (idx <= mLastSeenIdx)
     {
-        CHATD_LOG_DEBUG("%s: Attempted to move the last-seen pointer backward, ignoring", mChatId.toString().c_str());
+        CHATID_LOG_DEBUG("Attempted to move the last-seen pointer backward, ignoring");
         return false;
     }
     auto& msg = at(idx);
     if (msg.userid == mClient.mUserId)
     {
-        CHATD_LOG_DEBUG("%s: Asked to mark own message %s as seen, ignoring", ID_CSTR(mChatId), ID_CSTR(msg.id()));
+        CHATID_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
         return false;
     }
     sendCommand(Command(OP_SEEN) + mChatId + msg.id());
@@ -895,6 +930,7 @@ bool Messages::setMessageSeen(Idx idx)
             mListener->onMessageStatusChange(i, Message::kSeen, m);
         }
     }
+    CALL_LISTENER(onUnreadChanged);
     return true;
 }
 
@@ -942,14 +978,14 @@ void Messages::range()
 {
     if (mOldestKnownMsgId)
     {
-        CHATD_LOG_DEBUG("%s: Sending RANGE based on app db: %s - %s", ID_CSTR(mChatId),
+        CHATID_LOG_DEBUG("Sending RANGE based on app db: %s - %s",
             mOldestKnownMsgId.toString().c_str(), mNewestKnownMsgId.toString().c_str());
         sendCommand(Command(OP_RANGE) + mChatId + mOldestKnownMsgId + mNewestKnownMsgId);
         return;
     }
     if (empty())
     {
-        CHATD_LOG_DEBUG("%s: No local history, no range to send", ID_CSTR(mChatId));
+        CHATID_LOG_DEBUG("No local history, no range to send");
         initialFetchHistory(Id::null());
         return;
     }
@@ -969,8 +1005,8 @@ void Messages::range()
         return;
     if (i > highest)
         i = highest;
-    CHATD_LOG_DEBUG("%s: Sending RANGE calculated from memory buffer: %s - %s",
-        ID_CSTR(mChatId), at(lownum()).id().toString().c_str(), at(i).id().toString().c_str());
+    CHATID_LOG_DEBUG("Sending RANGE calculated from memory buffer: %s - %s",
+        at(lownum()).id().toString().c_str(), at(i).id().toString().c_str());
     sendCommand(Command(OP_RANGE) + mChatId + at(lownum()).id() + at(i).id());
 }
 
@@ -1049,6 +1085,19 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     auto msgid = message->id();
     assert(msgid);
     Idx idx;
+    if (!isLocal)
+    {
+        try
+        {
+            mCrypto->decrypt(*message);
+        }
+        catch(std::exception& e)
+        {
+            CHATID_LOG_ERROR("Exception in ICrypto::decrypt: %s", e.what());
+            return CHATD_IDX_INVALID;
+        }
+    }
+    assert(message->type != Message::kTypeInvalid);
 
     if (isNew)
     {
@@ -1078,25 +1127,31 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     {
         sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
     }
-    if (isNew)
-        CALL_LISTENER(onRecvNewMessage, idx, *message, (getMsgStatus(idx, message->userid)));
-    else
-        CALL_LISTENER(onRecvHistoryMessage, idx, *message, (getMsgStatus(idx, message->userid)), isLocal);
 
+    auto status = getMsgStatus(idx, message->userid);
+    CALL_CRYPTO(onMessage, isNew, idx, *message, status);
+
+    if ((message->type & Message::kTypeInternal) == 0)
+    {
+        if (isNew)
+            CALL_LISTENER(onRecvNewMessage, idx, *message, status);
+        else
+            CALL_LISTENER(onRecvHistoryMessage, idx, *message, status, isLocal);
+    }
     //normally the indices will not be set if mLastXXXId == msgid, as there will be only
     //one chance to set the idx (we receive the msg only once).
     if (msgid == mLastSeenId) //we didn't have the message when we received the last seen id
     {
-        CHATD_LOG_DEBUG("%s: Received the message with the last-seen msgid '%s', "
-            "setting the index pointer to it", ID_CSTR(mChatId), ID_CSTR(msgid));
+        CHATID_LOG_DEBUG("Received the message with the last-seen msgid '%s', "
+            "setting the index pointer to it", ID_CSTR(msgid));
         onLastSeen(msgid);
     }
     if (mLastReceivedId == msgid)
     {
         //we didn't have the message when we received the last received msgid pointer,
         //and now we just received the message - set the index pointer
-        CHATD_LOG_DEBUG("%s: Received the message with the last-received msgid '%s', "
-            "setting the index pointer to it", ID_CSTR(mChatId), ID_CSTR(msgid));
+        CHATID_LOG_DEBUG("Received the message with the last-received msgid '%s', "
+            "setting the index pointer to it", ID_CSTR(msgid));
         onLastReceived(msgid);
     }
     return idx;
@@ -1135,7 +1190,7 @@ void Messages::initialFetchHistory(Id serverNewest)
     {
         if (at(highnum()).id() != serverNewest)
         {
-            CHATD_LOG_DEBUG("%s: There are new messages on the server, requesting them", ID_CSTR(mChatId));
+            CHATID_LOG_DEBUG("There are new messages on the server, requesting them");
 //the server has more recent msgs than the most recent in our db, retrieve all newer ones, after our RANGE
             requestHistoryFromServer(0x0fffffff);
         }
@@ -1149,9 +1204,15 @@ void Messages::initialFetchHistory(Id serverNewest)
 void Messages::onUserJoin(const Id& userid, char priv)
 {
     if (priv != PRIV_NOTPRESENT)
+    {
+        CALL_CRYPTO(onUserJoined, userid, priv);
         CALL_LISTENER(onUserJoined, userid, priv);
+    }
     else
+    {
+        CALL_CRYPTO(onUserLeft, userid);
         CALL_LISTENER(onUserLeft, userid);
+    }
 }
 
 void Messages::onJoinComplete()
@@ -1164,6 +1225,7 @@ void Messages::setOnlineState(ChatState state)
     if (state == mOnlineState)
         return;
     mOnlineState = state;
+    CALL_CRYPTO(onOnlineStateChange, state);
     CALL_LISTENER(onOnlineStateChange, state);
 }
 

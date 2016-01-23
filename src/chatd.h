@@ -100,13 +100,17 @@ public:
         kNotSeen,
         kSeen
     };
-    enum Type
+    enum Type: unsigned char
     {
+        kTypeInvalid = 255,
         //first are types encoded in the crypto/chatd protocol
         kTypeRegularMessage = 0,
-        kTypeJoin = 1,
-        kTypeLeave = 2,
-        kTypeUser = 32 //from this on are types encoded in the payload
+        kTypeEdit = 1,
+        kTypeUser = 32,//from this on, till kTypeInternal are types encoded in the payload
+        kTypeInternal = 128, //if this flag is set, the message is not passed to the application
+        kTypeJoin = kTypeInternal + 0,
+        kTypeLeave = kTypeInternal + 1,
+        kTypeKeys = kTypeInternal + 2
     };
 
 private:
@@ -118,7 +122,7 @@ private:
 public:
     Id userid;
     uint32_t ts;
-    unsigned char type = 0;
+    unsigned char type = kTypeInvalid;
     mutable void* userp;
     const Id& id() const { return mId; }
     const Id& edits() const { return mEdits; }
@@ -160,7 +164,7 @@ public:
 /// that we have in the local database
 /// @param newestDbIdx - the index of the newestDbId message, so that the message buffer indexes
 /// will be adjusted to match the ones in the local db
-    virtual void init(Messages* messages, DbInterface*& dbIntf) = 0;
+    virtual void init(Messages& messages, DbInterface*& dbIntf) = 0;
 /// Called when that chatroom instance is being destroyed (e.g. on application close)
     virtual void onDestroy(){}
 /// A new message was received. This can be just sent by a peer, or retrieved from the server.
@@ -198,16 +202,37 @@ public:
     virtual void onMessageEdited(Idx oldIdx, Idx newIdx, const Message& newmsg){}
 /// The chatroom connection (to the chatd server shard) state state has changed.
     virtual void onOnlineStateChange(ChatState state){}
-/// An user has joined the room, or their privilege has changed
+/// A user has joined the room, or their privilege has changed
     virtual void onUserJoined(const Id& userid, char privilege){}
-/// An user has left the chatroom
+/// A user has left the chatroom
     virtual void onUserLeft(const Id& userid) {}
-    virtual void encryptMessage(const Message& src, Buffer& dest)
-    {
-        if (src.edits())
-            dest.append("e:").append(src.edits().toString()).append("\n");
-        dest.append(*static_cast<const Buffer*>(&src));
-    }
+///Unread message count has changed
+    virtual void onUnreadChanged() {}
+};
+class ICrypto
+{
+public:
+    void init(Messages& messages) {}
+    virtual void encrypt(const Message& src, Buffer& dest) {}
+/// @brief Called by the client for received messages to decrypt them.
+/// The crypto module \b must also set the type of the message, so that the client
+/// knows whether to pass it to the application (i.e. contains an actual message)
+/// or should not (i.e. contains a crypto system packet)
+    virtual void decrypt(Message& src) {}
+/// The chatroom connection (to the chatd server shard) state state has changed.
+    virtual void onOnlineStateChange(ChatState state){}
+/// A user has joined the room, or their privilege has changed
+    virtual void onUserJoined(const Id& userid, char privilege){}
+/// A user has left the chatroom
+    virtual void onUserLeft(const Id& userid) {}
+/// @brief Called when a message has been received from server or read from database.
+/// The message is \b always decrypted.
+/// For encrypted messages (i.e. received from server, not loaded from db)
+/// this is called \b after \c decryptMessage()
+    virtual void onMessage(bool isNew, Idx idx, Message& msg, Message::Status status){}
+/// History fetch request finished
+    virtual void onHistoryDone() {}
+    virtual ~ICrypto(){}
 };
 
 class Command: public Buffer
@@ -343,7 +368,8 @@ protected:
     unsigned mLastHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
     HistFetchState mHistFetchState = kHistNotFetching;
     DbInterface* mDbInterface = nullptr;
-    Messages(Connection& conn, const Id& chatid, Listener& listener);
+    ICrypto* mCrypto;
+    Messages(Connection& conn, const Id& chatid, Listener* listener, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.push_back(msg); }
     void push_back(Message* msg) { mBackwardList.push_back(msg); }
     Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front() : mForwardList.back(); }
@@ -464,7 +490,7 @@ public:
 //The user is responsible to clear any reference to a previous edit to avoid a dangling pointer.
     Message* msgModify(const Id& oriId, bool isXid, const char* msg, size_t msglen, void* userp, const Id& id=Id::null());
     int unreadMsgCount() const;
-    void setListener(Listener& newListener) { mListener = &newListener; }
+    void setListener(Listener* newListener) { mListener = newListener; }
 protected:
     void doMsgSubmit(Message* msg);
 //===
@@ -505,7 +531,7 @@ public:
         return *it->second;
     }
 
-    void join(const Id& chatid, int shardNo, const std::string& url, Listener& listener);
+    void join(const Id& chatid, int shardNo, const std::string& url, Listener* listener, ICrypto* crypto);
     void leave(Id chatid);
     friend class Connection;
     friend class Messages;

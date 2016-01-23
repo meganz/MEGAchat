@@ -424,9 +424,9 @@ protected:
     chatd::Listener* listenerInterface() { return static_cast<chatd::Listener*>(this); }
 public:
     //chatd::Listener interface
-    virtual void init(chatd::Messages* messages, chatd::DbInterface*& dbIntf)
+    virtual void init(chatd::Messages& messages, chatd::DbInterface*& dbIntf)
     {
-        mMessages = messages;
+        mMessages = &messages;
         updateOnlineIndication(mRoom.presence());
         updateChatdStatusDisplay(mMessages->onlineState());
         if (mMessages->empty())

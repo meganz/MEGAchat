@@ -887,7 +887,7 @@ ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
 
 void ChatRoom::join()
 {
-    parent.client.chatd->join(mChatid, mShardNo, mUrl, *this);
+    parent.client.chatd->join(mChatid, mShardNo, mUrl, this, new chatd::ICrypto);
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl, unsigned char aShard,
@@ -1262,9 +1262,9 @@ void ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
         sqliteQuery(db, "update chats set own_priv=? where chatid=?", ownPriv, mChatid);
     }
 }
-void ChatRoom::init(chatd::Messages* msgs, chatd::DbInterface*& dbIntf)
+void ChatRoom::init(chatd::Messages& msgs, chatd::DbInterface*& dbIntf)
 {
-    mMessages = msgs;
+    mMessages = &msgs;
     dbIntf = new ChatdSqliteDb(msgs, parent.client.db);
     if (mChatWindow)
     {
@@ -1288,8 +1288,8 @@ void ChatRoom::switchListenerToChatWindow()
     if (mMessages->listener() == mChatWindow)
         return;
     chatd::DbInterface* dummyIntf = nullptr;
-    mChatWindow->init(mMessages, dummyIntf);
-    mMessages->setListener(*mChatWindow);
+    mChatWindow->init(*mMessages, dummyIntf);
+    mMessages->setListener(mChatWindow);
 }
 
 Presence PeerChatRoom::presence() const
