@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <list>
+#include <deque>
 #include <promise.h>
 #include <base/timers.h>
 #include "base64.h"
@@ -217,13 +218,27 @@ class ICrypto
 {
 public:
     void init(Messages& messages) {}
-    virtual void encrypt(const Message& src, Buffer& dest) {}
+    /**
+     * @brief encrypt Encrypts a message, putting the contents in the specified buffer
+     * @param src The message to encrypt
+     * @param dest The destination buffer where to write the encrypted data
+     * @return Whether the encryption was successful. In case keys were not available
+     * immediately, \c false must be returned. When the encrypt operation will be
+     * successful, the crypto module must call Messages::onCanEncryptAgain().
+     * This will result in encrypt() for that message called again, and for subsequent
+     * messages in the output queue, until the queue is empty, another(or this)
+     * \c encrypt() call return false, or the connection goes offline. It is possible
+     * that this method is called multiple times for the same message (regardless of
+     * its return value) in case the client reconnects. When reconnected, the client
+     * re-encrypts and resends all unconfirmed output messages in order.
+     */
+    virtual bool encrypt(const Message& src, Buffer& dest) { return true; }
 /// @brief Called by the client for received messages to decrypt them.
 /// The crypto module \b must also set the type of the message, so that the client
 /// knows whether to pass it to the application (i.e. contains an actual message)
 /// or should not (i.e. contains a crypto system packet)
     virtual promise::Promise<void> decrypt(Message& src, Idx idx)
-    {
+    { //test implementation
         src.type = Message::kTypeRegularMessage;
         promise::Promise<void> pms;
         mega::setTimeout([pms, &src]() mutable
@@ -247,6 +262,7 @@ public:
     virtual void onMessage(bool isNew, Idx idx, Message& msg, Message::Status status){}
 /// History fetch request finished
     virtual void onHistoryDone() {}
+///The crypto module is destroyed when that chatid is left or the client is destroyed
     virtual ~ICrypto(){}
 };
 
@@ -364,7 +380,10 @@ protected:
         Message* edit;
         SendingItem(Message* aMsg, Message* aEdit=nullptr): msg(aMsg), edit(aEdit){}
     };
-    std::map<Id, SendingItem> mSending;
+    typedef std::list<SendingItem> OutputQueue;
+    OutputQueue mSending;
+    OutputQueue::iterator mNextUnsent;
+    bool mIsFirstJoin = true;
     std::map<Id, Idx> mIdToIndexMap;
     Id mLastReceivedId;
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
@@ -411,25 +430,12 @@ protected:
     void onLastSeen(const Id& msgid);
     bool sendCommand(Command&& cmd);
     void join();
-    void msgSend(const Message& message);
+    bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
-    void resendPending();
+    void enqueueMsgForSend(Message* msg);
+    bool flushOutputQueue(bool fromStart=false);
     void range();
     void onHistDone(); //called upont receipt of HISTDONE from server
-    template <typename Ret, typename... Args, typename... Args2>
-    Ret callListener(Ret(Listener::*method)(Args...), const char* methodName, Args2&&... args)
-    {
-        try
-        {
-            return (mListener->*method)(args...);
-            CHATD_LOG_DEBUG("%s", methodName);
-        }
-        catch(std::exception& e)
-        {
-            CHATD_LOG_WARNING("Exception thrown from app handler %s: %s", methodName, e.what());
-            return static_cast<Ret>(0);
-        }
-    }
     friend class Connection;
     friend class Client;
 public:
@@ -491,7 +497,7 @@ public:
     bool getHistory(int count); ///@ returns whether the fetch is from network (true), or database (false), so the app knows whether to display a progress bar/ui or not
     bool setMessageSeen(Idx idx);
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
-
+    void onCanEncryptAgain() { flushOutputQueue(); }
 // Message output methods
     Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
 //Queues a message as a edit message for \c orig. \attention Will delete a previous edit if

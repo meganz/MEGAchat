@@ -110,13 +110,6 @@ Client::Client(const Id& userId)
 //        ws_set_log_level(LIBWS_TRACE);
         sWebsockCtxInitialized = true;
     }
-    /// random starting point for the new message transaction ID
-    /// FIXME: use cryptographically strong PRNG instead
-    /// CHECK: is this sufficiently collision-proof? a collision would have to occur in the same second for the same userid.
-//    for (int i = 0; i < 8; i++)
-//    {
-//        static_cast<uint8_t*>(&mMsgTransactionId.val)[i] = rand() & 0xFF;
-//    }
 }
 
 #define checkLibwsCall(call, opname) \
@@ -363,7 +356,6 @@ Promise<void> Connection::reconnect()
     .then([this]()
     {
         rejoinExistingChats();
-        resendPending();
         if (!mPingTimer)
         {
             mPingTimer = ::mega::setInterval([this]()
@@ -429,15 +421,6 @@ void Connection::rejoinExistingChats()
     }
 }
 
-// resend all unconfirmed messages (this is mandatory)
-void Connection::resendPending()
-{
-    for (auto& chatid: mChatIds)
-    {
-        mClient.chatidMessages(chatid).resendPending();
-    }
-}
-
 bool Messages::sendCommand(Command&& cmd)
 {
     auto opcode = cmd.opcode();
@@ -483,6 +466,7 @@ Messages::Messages(Connection& conn, const Id& chatid, Listener* listener, ICryp
     assert(mChatId);
     assert(mListener);
     assert(mCrypto);
+    mNextUnsent = mSending.begin();
     Idx newestDbIdx;
     //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
     mListener->init(*this, mDbInterface);
@@ -506,11 +490,15 @@ Messages::Messages(Connection& conn, const Id& chatid, Listener* listener, ICryp
 }
 Messages::~Messages()
 {
-    mListener->onDestroy(); //we don't delete because it may have its own idea of its lifetime (i.e. it could be a GUI class)
-    delete mCrypto;
+    CALL_LISTENER(onDestroy); //we don't delete because it may have its own idea of its lifetime (i.e. it could be a GUI class)
+    try { delete mCrypto; }
+    catch(std::exception& e)
+    { CHATID_LOG_ERROR("EXCEPTION from ICrypto destructor: %s", e.what()); }
     mCrypto = nullptr;
     clear();
-    delete mDbInterface;
+    try { delete mDbInterface; }
+    catch(std::exception& e)
+    { CHATID_LOG_ERROR("EXCEPTION from DbInterface destructor: %s", e.what()); }
     mDbInterface = nullptr;
 }
 
@@ -686,11 +674,12 @@ void Connection::execCommand(const StaticBuffer &buf)
     }
 }
 
-void Messages::msgSend(const Message& message)
+bool Messages::msgSend(const Message& message)
 {
     Buffer encrypted;
-    mCrypto->encrypt(message, encrypted);
-    sendCommand(Command(OP_NEWMSG) + mChatId + Id::null() + message.id() + message.ts + encrypted);
+    if (!mCrypto->encrypt(message, encrypted))
+        return false;
+    return sendCommand(Command(OP_NEWMSG) + mChatId + Id::null() + message.id() + message.ts + encrypted);
 }
 
 void Messages::onHistDone()
@@ -742,18 +731,16 @@ void Messages::doMsgSubmit(Message* message)
     else
         assert(message->isSending());
 
-    auto ret = mSending.insert(std::make_pair(message->id(), message));
-    if (!ret.second)
-        throw std::runtime_error("doMsgSubmit: provided msgxid is not unique");
-
-    //if we believe to be online, send immediately
+    for (auto& item: mSending)
+    {
+        if (item.msg->id() == message->id())
+            throw std::runtime_error("doMsgSubmit: provided msgxid is not unique");
+    }
+    enqueueMsgForSend(message);
     //we don't sent a msgStatusChange event to the listener, as the GUI should initialize the
     //message's status with something already, so it's redundant.
     //The GUI should by default show it as sending
-    if (mConnection.isOnline())
-    {
-        msgSend(*message);
-    }
+    flushOutputQueue();
 }
 
 Message* Messages::msgModify(const Id& oriId, bool editsXid, const char* msg, size_t msglen, void* userp, const Id &ownId)
@@ -775,10 +762,15 @@ Message* Messages::msgModify(const Id& oriId, bool editsXid, const char* msg, si
         return editMsg;
     }
     //oriId is a msgxid, must be in mSending
-    auto sendIt = mSending.find(oriId);
+    auto sendIt = mSending.begin();
+    for (; sendIt!=mSending.end(); sendIt++)
+    {
+        if (sendIt->msg->id() == oriId)
+            break;
+    }
     if (sendIt == mSending.end()) //It is guaranteed that the original message has already been added to mSent, as the db returns in creation order
         throw std::runtime_error("msgModify: Edited msgxid not found in mSending");
-    auto currEdit = sendIt->second.edit;
+    auto currEdit = sendIt->edit;
     if (currEdit) //if we already have a pending edit message, delete it!
     {
         CHATD_LOG_DEBUG("Replacing edit of an unsent msg");
@@ -788,7 +780,7 @@ Message* Messages::msgModify(const Id& oriId, bool editsXid, const char* msg, si
     }
     else
     {
-        currEdit = sendIt->second.edit = new Message(ownId, mConnection.mClient.mUserId,
+        currEdit = sendIt->edit = new Message(ownId, mConnection.mClient.mUserId,
             time(NULL), msg, msglen, false, Message::kTypeEdit, userp, true);
         if (!ownId) //otherwise we have just loaded it from db and have a msgxid = rowid
         {
@@ -966,14 +958,30 @@ int Messages::unreadMsgCount() const
     return mayHaveMore?-count:count;
 }
 
-void Messages::resendPending()
+void Messages::enqueueMsgForSend(Message* msg)
 {
+    mSending.emplace_back(msg, nullptr);
+    if (mNextUnsent == mSending.end())
+        mNextUnsent = mSending.begin();
+}
+
+bool Messages::flushOutputQueue(bool fromStart)
+{
+    if (fromStart)
+        mNextUnsent = mSending.begin();
     // resend all pending new messages
-    for (auto& item: mSending)
+    if(!mConnection.isOnline())
+        return false;
+    if (mNextUnsent == mSending.end())
+        return true;
+    for (; mNextUnsent!=mSending.end(); mNextUnsent++)
     {
-        assert(item.second.msg->isSending());
-        msgSend(*item.second.msg);
+        auto& msg = *mNextUnsent->msg;
+        assert(msg.isSending());
+        if (!msgSend(msg))
+            return false;
     }
+    return true;
 }
 
 // after a reconnect, we tell the chatd the oldest and newest buffered message
@@ -1021,19 +1029,24 @@ void Client::msgConfirm(const Id& msgxid, const Id& msgid)
         if (messages.second->confirm(msgxid, msgid) != CHATD_IDX_INVALID)
             return;
     }
-    throw std::runtime_error("msgConfirm: Unknown msgxid "+msgxid);
+    CHATD_LOG_ERROR("confirm: Unknown message transaction id %s", ID_CSTR(msgxid));
 }
 
 // msgid can be 0 in case of rejections
 Idx Messages::confirm(const Id& msgxid, const Id& msgid)
 {
-    auto it = mSending.find(msgxid);
-    if (it == mSending.end())
+    // as conirm() is tried on all chatids, it's normal that we don't have the message,
+    // so no error logging of error, just return invalid index
+    if (mSending.empty() || (mSending.front().msg->id() != msgxid))
+    {
         return CHATD_IDX_INVALID;
+    }
 
-    Message* msg = it->second.msg;
-    Message* edit = it->second.edit;
-    mSending.erase(it);
+    Message* msg = mSending.front().msg;
+    Message* edit = mSending.front().edit;
+    if (mNextUnsent == mSending.begin())
+        mNextUnsent++;
+    mSending.pop_front();
 
     if (!msgid)
     {
@@ -1233,7 +1246,12 @@ void Messages::onUserJoin(const Id& userid, char priv)
 void Messages::onJoinComplete()
 {
     setOnlineState(kChatStateOnline);
-    loadAndProcessUnsent();
+    if (mIsFirstJoin)
+    {
+        mIsFirstJoin = false;
+        loadAndProcessUnsent();
+    }
+    flushOutputQueue(true);
 }
 void Messages::setOnlineState(ChatState state)
 {
