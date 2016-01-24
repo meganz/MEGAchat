@@ -9,7 +9,7 @@
 using namespace std;
 using namespace promise;
 
-#define CHATD_LOG_CRYPTO_CALLS //DB_CALLS
+//#define CHATD_LOG_CRYPTO_CALLS //DB_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
 
