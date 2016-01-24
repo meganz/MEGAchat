@@ -201,6 +201,7 @@ protected:
     Contact* mContact = nullptr;
     void setContact(Contact& contact) { mContact = &contact; }
     friend class ContactList;
+    inline Presence calculatePresence(Presence pres) const;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, char ownPriv, const uint64_t& peer, char peerPriv);
@@ -212,6 +213,7 @@ public:
     virtual void syncWithApi(const mega::MegaTextChat& chat);
     virtual IGui::ITitleDisplay& titleDisplay();
     virtual const std::string& titleString() const;
+    void onXmppPresence(Presence pres);
     virtual Presence presence() const;
 //chatd::Listener interface
     virtual void onUserJoined(const chatd::Id& userid, char priv);
@@ -330,6 +332,8 @@ public:
     virtual void onPresence(Presence pres)
     {
         mDisplay->updateOnlineIndication(pres);
+        if (mChatRoom)
+            mChatRoom->onXmppPresence(pres);
     }
     friend class ContactList;
 };
@@ -470,5 +474,13 @@ protected:
     virtual void onUsersUpdate(mega::MegaApi*, mega::MegaUserList* users);
     virtual void onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs);
 };
+
+inline Presence PeerChatRoom::calculatePresence(Presence pres) const
+{
+    if (mMessages && mMessages->onlineState() != chatd::kChatStateOnline)
+        return Presence::kOffline;
+    return pres;
+}
+
 }
 #endif // CHATCLIENT_H

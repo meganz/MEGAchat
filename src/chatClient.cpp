@@ -451,6 +451,7 @@ promise::Promise<void> Client::terminate()
         mReconnectController->abort();
     if (rtc)
         rtc->hangupAll();
+    chatd.reset();
     sqlite3_close(db);
     promise::Promise<void> pms;
     conn->disconnect(2000)
@@ -1294,9 +1295,13 @@ void ChatRoom::switchListenerToChatWindow()
 
 Presence PeerChatRoom::presence() const
 {
-    if (mMessages && mMessages->onlineState() != chatd::kChatStateOnline)
-        return Presence::kOffline;
-    return mContact->xmppContact().presence();
+    return calculatePresence(mContact->xmppContact().presence());
+}
+
+void PeerChatRoom::onXmppPresence(Presence pres)
+{
+    if (mChatWindow)
+        mChatWindow->updateOnlineIndication(calculatePresence(pres));
 }
 
 void GroupChatRoom::updateAllOnlineDisplays(Presence pres)

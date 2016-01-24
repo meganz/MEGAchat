@@ -9,7 +9,7 @@
 using namespace std;
 using namespace promise;
 
-#define CHATD_LOG_LISTENER_CALLS //DB_CALLS
+#define CHATD_LOG_CRYPTO_CALLS //DB_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
 
@@ -677,8 +677,20 @@ void Connection::execCommand(const StaticBuffer &buf)
 bool Messages::msgSend(const Message& message)
 {
     Buffer encrypted;
-    if (!mCrypto->encrypt(message, encrypted))
+    CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
+    try
+    {
+        if (!mCrypto->encrypt(message, encrypted))
+        {
+            CHATID_LOG_DEBUG("Can't encrypt message, halting otput queue flush");
+            return false;
+        }
+    }
+    catch(std::runtime_error& e)
+    {
+        CHATID_LOG_ERROR("Exception from ICrypto::decrypt: %s", e.what());
         return false;
+    }
     return sendCommand(Command(OP_NEWMSG) + mChatId + Id::null() + message.id() + message.ts + encrypted);
 }
 
@@ -962,7 +974,7 @@ void Messages::enqueueMsgForSend(Message* msg)
 {
     mSending.emplace_back(msg, nullptr);
     if (mNextUnsent == mSending.end())
-        mNextUnsent = mSending.begin();
+        mNextUnsent--;
 }
 
 bool Messages::flushOutputQueue(bool fromStart)
@@ -1029,7 +1041,7 @@ void Client::msgConfirm(const Id& msgxid, const Id& msgid)
         if (messages.second->confirm(msgxid, msgid) != CHATD_IDX_INVALID)
             return;
     }
-    CHATD_LOG_ERROR("confirm: Unknown message transaction id %s", ID_CSTR(msgxid));
+    CHATD_LOG_DEBUG("confirm: Unknown message transaction id %s", ID_CSTR(msgxid));
 }
 
 // msgid can be 0 in case of rejections
@@ -1122,8 +1134,10 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
         idx = lownum();
     }
     mIdToIndexMap[msgid] = idx;
-    if (message->isEncrypted) //isLocal may still be true, if we retry decrypting a saved encrypted msg that failed to decrypt previously
+    bool wasEncrypted = message->isEncrypted;
+    if (message->isEncrypted)//isLocal may still be true, if we retry decrypting a saved encrypted msg that failed to decrypt previously
     {
+        CHATD_LOG_CRYPTO_CALL("Calling ICrypto::decrypt()");
         mCrypto->decrypt(*message, idx)
 #ifndef NDEBUG
         .then([this, message]()
@@ -1157,8 +1171,10 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     }
 
     auto status = getMsgStatus(idx, message->userid);
-    CALL_CRYPTO(onMessage, isNew, idx, *message, status);
-
+    if (!wasEncrypted)
+    { //call it only if we didn't already call decrypt() on that message
+        CALL_CRYPTO(onMessage, isNew, idx, *message, status);
+    }
     if ((message->type & Message::kTypeInternal) == 0)
     {
         if (isNew)

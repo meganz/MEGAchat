@@ -255,10 +255,10 @@ public:
     virtual void onUserJoined(const Id& userid, char privilege){}
 /// A user has left the chatroom
     virtual void onUserLeft(const Id& userid) {}
-/// @brief Called when a message has been received from server or read from database.
-/// The message is \b always decrypted.
-/// For encrypted messages (i.e. received from server, not loaded from db)
-/// this is called \b after \c decryptMessage()
+/// @brief Called when a message is received/read that was not passed to \c decrypt().
+/// In other words - called only for unencrypted messages, read from history database.
+/// In combination with \c decrypt(), the crypto module should receive all messages that
+/// the client receives/loads.
     virtual void onMessage(bool isNew, Idx idx, Message& msg, Message::Status status){}
 /// History fetch request finished
     virtual void onHistoryDone() {}

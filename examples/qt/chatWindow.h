@@ -279,6 +279,7 @@ public slots:
 public:
     MainWindow& mainWindow;
     ChatWindow(karere::ChatRoom& room, MainWindow& parent);
+    virtual ~ChatWindow();
 protected:
     void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr)
     {

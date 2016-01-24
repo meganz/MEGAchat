@@ -20,3 +20,7 @@ ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&par
     QDialog::show();
 }
 
+ChatWindow::~ChatWindow()
+{
+    mMessages->setListener(static_cast<chatd::Listener*>(&mRoom));
+}
