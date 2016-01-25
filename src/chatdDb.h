@@ -116,15 +116,21 @@ public:
     }
     virtual chatd::Idx getIdxOfMsgid(chatd::Id msgid)
     {
-        SqliteStmt stmt(mDb, "select idx from history where chatid = ? and msgid = ?");
+        SqliteStmt stmt(mDb, "select idx from "+mHistTblName+" where chatid = ? and msgid = ?");
         stmt << mMessages.chatId() << msgid;
         return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
     }
     virtual chatd::Idx getPeerMsgCountAfterIdx(chatd::Idx idx)
     {
-        SqliteStmt stmt(mDb, "select count(*) from history where"
-            "(chatid = ?) and (userid != ?) and (idx > ?) and edits = 0");
-        stmt << mMessages.chatId() << mMessages.client().userId() << idx;
+        std::string sql = "select count(*) from "+mHistTblName+" where (chatid = ?)"
+                "and (userid != ?) and (edits = 0)";
+        if (idx != CHATD_IDX_INVALID)
+            sql+=" and (idx > ?)";
+
+        SqliteStmt stmt(mDb, sql);
+        stmt << mMessages.chatId() << mMessages.client().userId();
+        if (idx != CHATD_IDX_INVALID)
+            stmt << idx;
         stmt.step();
         return stmt.intCol(0);
     }

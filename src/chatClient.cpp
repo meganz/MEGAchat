@@ -1298,10 +1298,10 @@ Presence PeerChatRoom::presence() const
     return calculatePresence(mContact->xmppContact().presence());
 }
 
-void PeerChatRoom::onXmppPresence(Presence pres)
+void PeerChatRoom::updatePresence()
 {
     if (mChatWindow)
-        mChatWindow->updateOnlineIndication(calculatePresence(pres));
+        mChatWindow->updateOnlineIndication(presence());
 }
 
 void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
@@ -1349,11 +1349,15 @@ IGui::ITitleDisplay& PeerChatRoom::titleDisplay()
 
 void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
-    if (state == chatd::kChatStateOnline)
-    {
-        mContact->titleDisplay().updateOverlayCount(mMessages->unreadMsgCount());
-    }
+ // TODO: Find a way to display that the user is online but chatd is not, so we can't receive
+ // message from him
 }
+void PeerChatRoom::onUnreadChanged()
+{
+    printf("onUnreadChanged: %s, %d", mMessages->chatId().toString().c_str(), mMessages->unreadMsgCount());
+    mContact->titleDisplay().updateOverlayCount(mMessages->unreadMsgCount());
+}
+
 void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
     updateAllOnlineDisplays((state == chatd::kChatStateOnline)
@@ -1545,6 +1549,14 @@ ContactList::~ContactList()
 {
     for (auto& it: *this)
         delete it.second;
+}
+
+const std::string* ContactList::getUserEmail(uint64_t userid) const
+{
+    auto it = find(userid);
+    if (it == end())
+        return nullptr;
+    return &(it->second->email());
 }
 
 void Client::onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs)

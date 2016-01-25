@@ -213,12 +213,13 @@ public:
     virtual void syncWithApi(const mega::MegaTextChat& chat);
     virtual IGui::ITitleDisplay& titleDisplay();
     virtual const std::string& titleString() const;
-    void onXmppPresence(Presence pres);
+    void updatePresence();
     virtual Presence presence() const;
 //chatd::Listener interface
     virtual void onUserJoined(const chatd::Id& userid, char priv);
     virtual void onUserLeft(const chatd::Id& userid);
     virtual void onOnlineStateChange(chatd::ChatState state);
+    virtual void onUnreadChanged();
 };
 
 class GroupChatRoom: public ChatRoom
@@ -333,7 +334,7 @@ public:
     {
         mDisplay->updateOnlineIndication(pres);
         if (mChatRoom)
-            mChatRoom->onXmppPresence(pres);
+            mChatRoom->updatePresence();
     }
     friend class ContactList;
 };
@@ -354,6 +355,7 @@ public:
     IGui::ITitleDisplay* attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     Contact* contactFromJid(const std::string& jid) const;
     void onContactOnlineState(const std::string& jid);
+    const std::string* getUserEmail(uint64_t userid) const;
 };
 
 class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener

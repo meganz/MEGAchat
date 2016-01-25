@@ -9,7 +9,7 @@
 using namespace std;
 using namespace promise;
 
-//#define CHATD_LOG_CRYPTO_CALLS //DB_CALLS
+#define CHATD_LOG_LISTENER_CALLS //DB_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
 
@@ -516,6 +516,11 @@ void Messages::getHistoryFromDb(unsigned count)
     mHistFetchState = kHistNotFetching;
     CALL_CRYPTO(onHistoryDone);
     CALL_LISTENER(onHistoryDone, true);
+
+    // If we haven't yet seen the message with the last-seen msgid, then all messages
+    // in the buffer are unseen
+    if (mLastSeenIdx == CHATD_IDX_INVALID) //msgIncoming calls onUnreadChanged only for encrypted messages
+        CALL_LISTENER(onUnreadChanged);
     if ((messages.size() < count) && mOldestKnownMsgId)
         throw std::runtime_error("Application says no more messages in db, but we still haven't seen specified oldest message id");
 }
@@ -700,6 +705,9 @@ void Messages::onHistDone()
     mHistFetchState = (mLastHistFetchCount > 0) ? kHistNotFetching : kHistNoMore;
     CALL_CRYPTO(onHistoryDone);
     CALL_LISTENER(onHistoryDone, false);
+    if (mLastSeenIdx == CHATD_IDX_INVALID)
+        CALL_LISTENER(onUnreadChanged);
+
     if(mOnlineState == kChatStateJoining)
     {
         //only on the first HISTDONE - we may have other history requests afterwards
@@ -873,43 +881,44 @@ void Messages::onLastSeen(const Id& msgid)
             if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx < mLastSeenIdx))
             {
                 CHATD_LOG_ERROR("onLastSeen: Can't set last seen index to an older message");
+                return;
             }
             else
             {
                 mLastSeenIdx = idx;
-                CALL_LISTENER(onUnreadChanged);
             }
         }
-        return;
-    }
-
-    auto idx = it->second;
-    if (idx == mLastSeenIdx)
-        return; //we may have set it from db already
-    if(at(idx).userid == mClient.mUserId)
-    {
-        CHATD_LOG_WARNING("Last-seen points to a message by us, possibly the pointer was not set properly");
-    }
-    //notify about messages that have become 'seen'
-    Idx notifyOldest;
-    if (mLastSeenIdx != CHATD_IDX_INVALID)
-    {
-        if (idx < mLastSeenIdx)
-            throw std::runtime_error(mChatId.toString()+": onLastSeen: Can't set last seen index to an older message: current idx:"+to_string(mLastSeenIdx)+" new: "+to_string(idx));
-        notifyOldest = mLastSeenIdx;
-        mLastSeenIdx = idx;
     }
     else
     {
-        mLastSeenIdx = idx;
-        notifyOldest = lownum();
-    }
-    for (Idx i=notifyOldest; i<=mLastSeenIdx; i++)
-    {
-        auto& msg = at(i);
-        if (msg.userid != mClient.mUserId)
+        auto idx = it->second;
+        if (idx == mLastSeenIdx)
+            return; //we may have set it from db already
+        if(at(idx).userid == mClient.mUserId)
         {
-            mListener->onMessageStatusChange(i, Message::kSeen, msg);
+            CHATD_LOG_WARNING("Last-seen points to a message by us, possibly the pointer was not set properly");
+        }
+        //notify about messages that have become 'seen'
+        Idx notifyOldest;
+        if (mLastSeenIdx != CHATD_IDX_INVALID)
+        {
+            if (idx < mLastSeenIdx)
+                throw std::runtime_error(mChatId.toString()+": onLastSeen: Can't set last seen index to an older message: current idx:"+to_string(mLastSeenIdx)+" new: "+to_string(idx));
+            notifyOldest = mLastSeenIdx;
+            mLastSeenIdx = idx;
+        }
+        else
+        {
+            mLastSeenIdx = idx;
+            notifyOldest = lownum();
+        }
+        for (Idx i=notifyOldest; i<=mLastSeenIdx; i++)
+        {
+            auto& msg = at(i);
+            if (msg.userid != mClient.mUserId)
+            {
+                mListener->onMessageStatusChange(i, Message::kSeen, msg);
+            }
         }
     }
     CALL_LISTENER(onUnreadChanged);
@@ -943,22 +952,13 @@ bool Messages::setMessageSeen(Idx idx)
 
 int Messages::unreadMsgCount() const
 {
-    Idx first;
-    bool mayHaveMore;
     if (mLastSeenIdx == CHATD_IDX_INVALID)
-    {
-        first = lownum();
-        mayHaveMore = true;
-    }
+        return -mDbInterface->getPeerMsgCountAfterIdx(CHATD_IDX_INVALID);
     else if (mLastSeenIdx < lownum())
-    {
         return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
-    }
-    else
-    {
-        first = mLastSeenIdx;
-        mayHaveMore = false;
-    }
+
+    Idx first = mLastSeenIdx;
+    bool mayHaveMore = false;
     unsigned count = 0;
     auto last = highnum();
     for (Idx i=first; i<=last; i++)
@@ -1103,6 +1103,8 @@ Message::Status Messages::getMsgStatus(Idx idx, const Id& userid)
     } //message is from a peer
     else
     {
+        if (mLastSeenIdx == CHATD_IDX_INVALID)
+            return Message::kNotSeen;
         return (idx <= mLastSeenIdx) ? Message::kSeen : Message::kNotSeen;
     }
 }
@@ -1165,7 +1167,8 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
             }
         });
     }
-    if ((message->userid != mClient.mUserId) && !isLocal)
+    if ((message->userid != mClient.mUserId) && !isLocal
+     && ((mLastReceivedIdx == CHATD_IDX_INVALID) || (idx > mLastReceivedIdx)))
     {
         sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
     }
@@ -1198,6 +1201,8 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
             "setting the index pointer to it", ID_CSTR(msgid));
         onLastReceived(msgid);
     }
+    if (isNew)
+        CALL_LISTENER(onUnreadChanged);
     return idx;
 }
 // procedure is as follows:

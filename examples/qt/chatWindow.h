@@ -31,7 +31,7 @@ class MessageWidget: public QWidget
 {
     Q_OBJECT
 protected:
-    std::unique_ptr<Ui::ChatMessage> ui;
+    Ui::ChatMessage ui;
     const chatd::Message* mMessage; //we only need this for the popup menu - Qt doesn't give the index of the clicked item, only a pointer to it
     const chatd::Message& mOriginal;
     short mEditCount = 0; //counts how many times we have edited the message, so that we can keep the edited display even after a canceled edit, in case there was a previous edit
@@ -40,16 +40,16 @@ protected:
     QColor msgColor() { return palette().color(QPalette::Base); }
     void setMsgColor(const QColor& color)
     {
-        QPalette p(ui->mMsgDisplay->palette());
+        QPalette p(ui.mMsgDisplay->palette());
         p.setColor(QPalette::Base, color);
-        ui->mMsgDisplay->setPalette(p);
+        ui.mMsgDisplay->setPalette(p);
     }
     friend class ChatWindow;
 public:
     MessageWidget(QWidget* parent, const chatd::Message& msg, chatd::Message::Status status, const chatd::Messages& chatdMsgs)
-    : QWidget(parent), ui(new Ui::ChatMessage), mMessage(&msg), mOriginal(msg), mIsMine(msg.userid == chatdMsgs.client().userId())
+    : QWidget(parent), mMessage(&msg), mOriginal(msg), mIsMine(msg.userid == chatdMsgs.client().userId())
     {
-        ui->setupUi(this);
+        ui.setupUi(this);
         setAuthor(msg.userid);
         setTimestamp(msg.ts);
         setStatus(status);
@@ -60,18 +60,24 @@ public:
     {
         if (mIsMine)
         {
-            ui->mAuthorDisplay->setText(tr("me"));
+            ui.mAuthorDisplay->setText(tr("me"));
             return *this;
         }
+        auto email = karere::gClient->contactList->getUserEmail(userid);
+        if (email)
+            ui.mAuthorDisplay->setText(QString::fromStdString(*email));
+        else
+            ui.mAuthorDisplay->setText(tr("error"));
 
         karere::gClient->userAttrCache.getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
         [](Buffer* data, void* userp)
         {
             //buffer contains an unsigned char prefix that is the strlen() of the first name
+            if (!data)
+                return;
             auto self = static_cast<MessageWidget*>(userp);
-            self->ui->mAuthorDisplay->setText(
-                QString().fromUtf8((data && (data->dataSize()>2)) ? data->buf()+1 : "error")
-            );
+            printf("set '%s'\n", data->buf()+1);
+            self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1));
         });
         return *this;
     }
@@ -80,36 +86,36 @@ public:
     {
         QDateTime t;
         t.setTime_t(ts);
-        ui->mTimestampDisplay->setText(t.toString("hh:mm:ss dd.MM.yyyy"));
+        ui.mTimestampDisplay->setText(t.toString("hh:mm:ss dd.MM.yyyy"));
         return *this;
     }
     MessageWidget& setStatus(chatd::Message::Status status)
     {
-        ui->mStatusDisplay->setText(chatd::Message::statusToStr(status));
+        ui.mStatusDisplay->setText(chatd::Message::statusToStr(status));
         return *this;
     }
     MessageWidget& setText(const chatd::Message& msg)
     {
         if (msg.isEncrypted)
-            ui->mMsgDisplay->setText(tr("Decrypting..."));
+            ui.mMsgDisplay->setText(tr("Decrypting..."));
         else
-            ui->mMsgDisplay->setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
+            ui.mMsgDisplay->setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
         return *this;
     }
     MessageWidget& updateStatus(chatd::Message::Status newStatus)
     {
-        ui->mStatusDisplay->setText(chatd::Message::statusToStr(newStatus));
+        ui.mStatusDisplay->setText(chatd::Message::statusToStr(newStatus));
         return *this;
     }
     QPushButton* startEditing()
     {
         setBgColor(Qt::yellow);
-        ui->mEditDisplay->hide();
-        ui->mStatusDisplay->hide();
+        ui.mEditDisplay->hide();
+        ui.mStatusDisplay->hide();
 
         auto btn = new QPushButton(this);
         btn->setText("Cancel edit");
-        auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
+        auto layout = static_cast<QBoxLayout*>(ui.mHeader->layout());
         layout->insertWidget(2, btn);
         this->layout();
         return btn;
@@ -117,25 +123,25 @@ public:
     MessageWidget& cancelEdit()
     {
         disableEditGui();
-        ui->mEditDisplay->setText(mEditCount?tr("(edited)"): QString());
+        ui.mEditDisplay->setText(mEditCount?tr("(edited)"): QString());
         return *this;
     }
     MessageWidget& disableEditGui()
     {
         fadeIn(QColor(Qt::yellow));
-        auto header = ui->mHeader->layout();
+        auto header = ui.mHeader->layout();
         auto btn = header->itemAt(2)->widget();
         header->removeWidget(btn);
-        ui->mEditDisplay->show();
-        ui->mStatusDisplay->show();
+        ui.mEditDisplay->show();
+        ui.mStatusDisplay->show();
         delete btn;
         return *this;
     }
     MessageWidget& setBgColor(const QColor& color)
     {
-        QPalette p = ui->mMsgDisplay->palette();
+        QPalette p = ui.mMsgDisplay->palette();
         p.setColor(QPalette::Base, color);
-        ui->mMsgDisplay->setPalette(p);
+        ui.mMsgDisplay->setPalette(p);
         return *this;
     }
     MessageWidget& fadeIn(const QColor& color, int dur=300, const QEasingCurve& curve=QEasingCurve::Linear)
@@ -150,7 +156,7 @@ public:
     }
     MessageWidget& setEdited()
     {
-        ui->mEditDisplay->setText(tr("(Edited)"));
+        ui.mEditDisplay->setText(tr("(Edited)"));
         return *this;
     }
 };
@@ -172,6 +178,7 @@ protected:
     bool mUnsentChecked = false;
     std::unique_ptr<HistFetchUi> mHistFetchUi;
     CallGui* mCallGui = nullptr;
+    bool mLastHistReqByScroll = false;
     friend class CallGui;
     friend class CallAnswerGui;
 public slots:
@@ -211,7 +218,7 @@ public slots:
     {
         auto msgWidget = qobject_cast<MessageWidget*>(QObject::sender()->parent());
         //enable edit action only if the message is ours
-        auto menu = msgWidget->ui->mMsgDisplay->createStandardContextMenu(point);
+        auto menu = msgWidget->ui.mMsgDisplay->createStandardContextMenu(point);
 
         if (msgWidget->mIsMine)
         {
@@ -254,10 +261,11 @@ public slots:
     }
     void onMsgListRequestHistory(int scrollDelta)
     {
-        fetchMoreHistory();
+        fetchMoreHistory(true);
     }
-    void fetchMoreHistory()
+    void fetchMoreHistory(bool byScroll)
     {
+        mLastHistReqByScroll = byScroll;
         auto state = mMessages->histFetchState();
         if (state & chatd::kHistFetchingFlag)
             return;
@@ -335,8 +343,8 @@ protected:
                       bool first, QColor* color=nullptr)
     {
         auto widget = new MessageWidget(this, msg, status, *mMessages);
-        connect(widget->ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
-//      connect(widget->ui->mAuthorDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMsgAuthorCtxMenu(const QPoint&)));
+        connect(widget->ui.mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
+//      connect(widget->ui.mAuthorDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMsgAuthorCtxMenu(const QPoint&)));
 
         auto* item = new QListWidgetItem;
         msg.userp = item;
@@ -442,9 +450,8 @@ public:
             auto& msg = mMessages->at(idx);
             addMsgWidget(msg, mMessages->getMsgStatus(idx, msg.userid), false);
         }
-        //TODO: Ensure it is not possible that the window gets destroyed before the marshalled call is executed?
-         if (mMessages->onlineState() == chatd::kChatStateOnline)
-             QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection);
+        if (mMessages->onlineState() == chatd::kChatStateOnline)
+            QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -480,7 +487,6 @@ public:
         else
         {
             addMsgWidget(msg, status, true);
-            ui.mMessageList->scrollToBottom();
         }
         if (msg.isEncrypted)
         {
@@ -501,12 +507,19 @@ public:
         auto idx = list.indexAt(QPoint(list.rect().left()+10, list.rect().bottom()-2));
         if (!idx.isValid() && mMessages->histFetchState() != chatd::kHistNoMore)
         {
-            fetchMoreHistory();
+            fetchMoreHistory(false);
             return;
         }
-        int last = (idx.isValid())?std::min((unsigned)idx.row(), mMessages->lastHistFetchCount()):list.count()-1;
-        for (int i=0; i<=last; i++)
-            qobject_cast<MessageWidget*>(list.itemWidget(list.item(i)))->fadeIn(QColor(250,250,250));
+        if (!mLastHistReqByScroll)
+        {
+            ui.mMessageList->scrollToBottom();
+        }
+        else
+        {
+            int last = (idx.isValid())?std::min((unsigned)idx.row(), mMessages->lastHistFetchCount()):list.count()-1;
+            for (int i=0; i<=last; i++)
+                qobject_cast<MessageWidget*>(list.itemWidget(list.item(i)))->fadeIn(QColor(250,250,250));
+        }
     }
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg)
     {
@@ -566,6 +579,7 @@ public:
     {
         mRoom.onUserLeft(userid);
     }
+    virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }
     virtual karere::IGui::ICallGui* getCallGui() { return mCallGui; }
     virtual void show() { QDialog::show(); raise(); }
     virtual void hide() { QDialog::hide(); }
