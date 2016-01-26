@@ -335,12 +335,23 @@ public:
     IGui::ITitleDisplay& titleDisplay() { return *mDisplay; }
     uint64_t userId() const { return mUserid; }
     const std::string& email() const { return mEmail; }
+    const std::string& jid() const { return mXmppContact->bareJid(); }
     int64_t since() const { return mSince; }
     virtual void onPresence(Presence pres)
     {
-        mDisplay->updateOnlineIndication(pres);
-        if (mChatRoom)
-            mChatRoom->updatePresence();
+        printf("%s: onPresence pres = %s\n", chatd::Id(mChatRoom->chatid()).toString().c_str(), pres.toString());
+        if (mChatRoom && (mChatRoom->chatdOnlineState() != chatd::kChatStateOnline))
+        {
+            printf("%s: chatd online state %s, pres = %s\n", chatd::Id(mChatRoom->chatid()).toString().c_str(), chatd::chatStateToStr(mChatRoom->chatdOnlineState()), pres.toString());
+            pres = Presence::kOffline;
+        }
+        updateAllOnlineDisplays(pres);
+    }
+    void updateAllOnlineDisplays(Presence pres)
+    {
+            mDisplay->updateOnlineIndication(pres);
+            if (mChatRoom)
+                mChatRoom->updatePresence();
     }
     friend class ContactList;
 };

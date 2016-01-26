@@ -125,12 +125,21 @@ public:
     CListContactItem(QWidget* parent, karere::Contact& contact)
         :CListItem(parent, false), mContact(contact)
     {
+        mega::marshallCall([this]() { updateToolTip(); });
+    }
+    void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
+    {
         QChar lf('\n');
         QString text = tr("Email: ");
-        text.append(QString::fromStdString(contact.email())).append(QChar('\n'));
-        auto now = time(NULL);
-        text.append(tr("User handle: ")).append(QString::fromStdString(chatd::Id(mContact.userId()).toString())).append(lf)
-            .append(tr("Friends since: ")).append(prettyInterval(now-contact.since())).append(lf);
+        text.append(QString::fromStdString(mContact.email())).append(QChar('\n'));
+        text.append(tr("User handle: ")).append(QString::fromStdString(chatd::Id(mContact.userId()).toString())).append(lf);
+        text.append(tr("XMPP jid: ")).append(QString::fromStdString(mContact.jid())).append(lf);
+        if (mContact.chatRoom())
+            text.append(tr("You have chatted with this person in the past"));
+        else
+            text.append(tr("You have never chatted with this person"));
+//        auto now = time(NULL);
+//        text.append(tr("\nFriends since: ")).append(prettyInterval(now-contact.since())).append(lf);
         setToolTip(text);
     }
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
@@ -141,8 +150,9 @@ public:
             return;
         }
         mContact.createChatRoom()
-        .then([](karere::ChatRoom* room)
+        .then([this](karere::ChatRoom* room)
         {
+            updateToolTip();
             room->chatWindow().show();
         })
         .fail([this](const promise::Error& err)
@@ -239,11 +249,15 @@ public:
     CListGroupChatItem(QWidget* parent, karere::GroupChatRoom& room)
         :CListItem(parent, true), mRoom(room)
     {
+        updateToolTip();
+    }
+    void updateToolTip()
+    {
         QString text(tr("Group chat room: "));
-        text.append(QString::fromStdString(chatd::Id(room.chatid()).toString())).append(QChar('\n'))
-            .append(tr("Own privilege: ").append(QString::number(room.ownPriv())).append(QChar('\n')))
+        text.append(QString::fromStdString(chatd::Id(mRoom.chatid()).toString())).append(QChar('\n'))
+            .append(tr("Own privilege: ").append(QString::number(mRoom.ownPriv())).append(QChar('\n')))
             .append(tr("Other participants:\n"));
-        for (const auto& item: room.peers())
+        for (const auto& item: mRoom.peers())
         {
             auto& peer = *item.second;
             const std::string* email = mRoom.parent.client.contactList->getUserEmail(item.first);
@@ -260,6 +274,7 @@ public:
     {
         QString text = tr("Group: ")+QString::fromUtf8(title.c_str(), title.size());
         ui.mName->setText(text);
+        updateToolTip();
     }
 
 protected:

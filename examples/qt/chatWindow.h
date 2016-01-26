@@ -363,7 +363,7 @@ protected:
             if (color)
                 widget->fadeIn(*color);
         }
-        QApplication::processEvents();
+//        QApplication::processEvents(); //TODO: This call makes histry fetching smooth, but causes reentrancy and random crashes, find a way to make history smooth in another way
         return item;
     }
     void addMsgEdit(const chatd::Message& msg, bool first, QColor* color=nullptr)

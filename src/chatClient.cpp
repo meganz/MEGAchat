@@ -1353,8 +1353,7 @@ IGui::ITitleDisplay& PeerChatRoom::titleDisplay()
 
 void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
- // TODO: Find a way to display that the user is online but chatd is not, so we can't receive
- // message from him
+    mContact->onPresence(mContact->xmppContact().presence());
 }
 void PeerChatRoom::onUnreadChanged()
 {
@@ -1598,6 +1597,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             else
                 self->updateTitle(data->buf()+1);
         });
+    //FIXME: Is this safe? We are passing a virtual interface to this in the ctor
     mXmppContact = mClist.client.xmppContactList().addContact(*this);
 }
 void Contact::updateTitle(const std::string& str)

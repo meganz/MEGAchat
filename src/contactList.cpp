@@ -79,7 +79,7 @@ bool XmppContactList::addContact(const std::string& fullJid, Presence presence, 
     auto it = find(bareJid);
     if (it != end())
         return false;
-    emplace(bareJid, std::make_shared<XmppContact>(presence, fullJid));
+    emplace(bareJid, std::make_shared<XmppContact>(presence, fullJid, true));
     return true;
 }
 
@@ -99,8 +99,7 @@ std::shared_ptr<XmppContact> XmppContactList::addContact(Contact& contact)
     }
     else
     {
-        auto xmppContact = std::make_shared<XmppContact>(Presence::kOffline);
-        xmppContact->setPresenceListener(&contact);
+        auto xmppContact = std::make_shared<XmppContact>(Presence::kOffline, bareJid, false, &contact);
         emplace(bareJid, xmppContact);
         return xmppContact;
     }

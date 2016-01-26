@@ -65,15 +65,21 @@ protected:
     Presence calculatePresence();
     friend class XmppContactList;
 public:
-    XmppContact(Presence pre, const std::string& fullJid="", IPresenceListener* listener=nullptr)
+    XmppContact(Presence pre, const std::string& jid, bool isFullJid, IPresenceListener* listener=nullptr)
     :mPresence(pre), mPresListener(listener)
     {
-        if (!fullJid.empty())
+        if (isFullJid)
         {
-            auto resource = strophe::getResourceFromJid(fullJid);
+            mBareJid = strophe::getBareJidFromJid(jid);
+            auto resource = strophe::getResourceFromJid(jid);
             mResources.emplace(resource, pre);
         }
+        else
+        {
+            mBareJid = jid;
+        }
     }
+    const std::string& bareJid() const { return mBareJid; }
     Presence presence() const { return mPresence; }
     const ResourceMap& resources() const { return mResources; }
     void onPresence(Presence pres, const std::string& fullJid);
