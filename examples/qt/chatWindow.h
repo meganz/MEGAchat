@@ -284,6 +284,10 @@ public slots:
     }
     void onVideoCallBtn(bool) { onCallBtn(true); }
     void onAudioCallBtn(bool) { onCallBtn(false); }
+    void onMembersBtn(bool);
+    void onMemberRemove();
+    void onMemberSetPriv();
+    void onMemberPrivateChat();
 public:
     MainWindow& mainWindow;
     ChatWindow(karere::ChatRoom& room, MainWindow& parent);
@@ -312,6 +316,7 @@ protected:
             mCallGui->hangup();
         event->accept();
     }
+    void createMembersMenu(QMenu& menu);
     void onCallBtn(bool video)
     {
         if (mCallGui)
@@ -572,6 +577,7 @@ public:
     }
     virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }
     virtual karere::IGui::ICallGui* getCallGui() { return mCallGui; }
+    //IChatWindow interface
     virtual void show() { QDialog::show(); raise(); }
     virtual void hide() { QDialog::hide(); }
     virtual void updateTitle(const std::string& title)

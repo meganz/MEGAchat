@@ -155,7 +155,7 @@
         <property name="styleSheet">
          <string notr="true"/>
         </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1,0,0,0">
+        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1,0,0,0,0">
          <property name="spacing">
           <number>6</number>
          </property>
@@ -166,7 +166,7 @@
           <number>2</number>
          </property>
          <property name="rightMargin">
-          <number>10</number>
+          <number>4</number>
          </property>
          <property name="bottomMargin">
           <number>2</number>
@@ -329,6 +329,13 @@ QToolButton:hover
            </property>
            <property name="indent">
             <number>0</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="mMembersBtn">
+           <property name="text">
+            <string>M</string>
            </property>
           </widget>
          </item>

@@ -34,12 +34,12 @@ public:
     karere::Client& client() const { return *mClient; }
     ~MainWindow();
     Ui::MainWindow ui;
-    void removeItem(ITitleDisplay* item, bool isGroup);
+    void removeItem(IContactGui* item, bool isGroup);
 //IContactList
-    virtual ITitleDisplay* createContactItem(karere::Contact& contact);
-    virtual ITitleDisplay* createGroupChatItem(karere::GroupChatRoom& room);
-    virtual void removeContactItem(ITitleDisplay* item);
-    virtual void removeGroupChatItem(ITitleDisplay* item);
+    virtual IContactGui* createContactItem(karere::Contact& contact);
+    virtual IContactGui* createGroupChatItem(karere::GroupChatRoom& room);
+    virtual void removeContactItem(IContactGui* item);
+    virtual void removeGroupChatItem(IContactGui* item);
 //IGui
     virtual karere::IGui::IContactList& contactList() { return *this; }
     virtual IChatWindow* createChatWindow(karere::ChatRoom& room);
@@ -53,7 +53,7 @@ public:
     virtual void show() { QMainWindow::show(); }
     virtual bool visible() const { return isVisible(); }
 protected:
-    karere::IGui::ITitleDisplay* addItem(bool front, karere::Contact* contact,
+    karere::IGui::IContactGui* addItem(bool front, karere::Contact* contact,
                 karere::GroupChatRoom* room);
     void contextMenuEvent(QContextMenuEvent* event)
     {
@@ -73,7 +73,7 @@ public slots:
 extern bool inCall;
 extern QColor gAvatarColors[];
 extern QString gOnlineIndColors[karere::Presence::kLast+1];
-class CListItem: public QWidget, public karere::IGui::ITitleDisplay
+class CListItem: public QWidget, public karere::IGui::IContactGui
 {
 protected:
     Ui::CListItemGui ui;
@@ -143,6 +143,11 @@ public:
         setToolTip(text);
     }
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
+    {
+        showChatWindow();
+    }
+    //IContactGui interface
+    virtual void showChatWindow()
     {
         if (mContact.chatRoom())
         {
@@ -276,7 +281,7 @@ public:
         ui.mName->setText(text);
         updateToolTip();
     }
-
+    virtual void onMembersUpdated() { printf("onMembersUpdate\n"); updateToolTip(); }
 protected:
     karere::GroupChatRoom& mRoom;
     void contextMenuEvent(QContextMenuEvent* event)
@@ -287,10 +292,8 @@ protected:
         menu.setStyleSheet("background-color: lightgray");
         menu.exec(event->globalPos());
     }
-    virtual void mouseDoubleClickEvent(QMouseEvent* event)
-    {
-        mRoom.chatWindow().show();
-    }
+    virtual void mouseDoubleClickEvent(QMouseEvent* event) { showChatWindow(); }
+    virtual void showChatWindow() { mRoom.chatWindow().show(); }
 protected slots:
     void leaveGroupChat() { mega::marshallCall([this]() { mRoom.leave(); }); } //deletes this
 };

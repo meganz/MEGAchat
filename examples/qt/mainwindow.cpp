@@ -142,7 +142,7 @@ QString gOnlineIndColors[karere::Presence::kLast+1] =
 {  "lightgray", "red", "orange", "lightgreen", "lightblue" };
 
 
-karere::IGui::ITitleDisplay*
+karere::IGui::IContactGui*
 MainWindow::createContactItem(karere::Contact& contact)
 {
     auto clist = ui.contactList;
@@ -153,7 +153,7 @@ MainWindow::createContactItem(karere::Contact& contact)
     clist->setItemWidget(item, contactGui);
     return contactGui;
 }
-karere::IGui::ITitleDisplay*
+karere::IGui::IContactGui*
 MainWindow::createGroupChatItem(karere::GroupChatRoom& room)
 {
     auto clist = ui.contactList;
@@ -165,7 +165,7 @@ MainWindow::createGroupChatItem(karere::GroupChatRoom& room)
     return chatGui;
 }
 
-void MainWindow::removeItem(ITitleDisplay* item, bool isGroup)
+void MainWindow::removeItem(IContactGui* item, bool isGroup)
 {
     auto clist = ui.contactList;
     auto size = clist->count();
@@ -182,11 +182,11 @@ void MainWindow::removeItem(ITitleDisplay* item, bool isGroup)
     }
     throw std::runtime_error("ContactList: removeItem: Item not found");
 }
-void MainWindow::removeGroupChatItem(ITitleDisplay *item)
+void MainWindow::removeGroupChatItem(IContactGui* item)
 {
     removeItem(item, true);
 }
-void MainWindow::removeContactItem(ITitleDisplay *item)
+void MainWindow::removeContactItem(IContactGui* item)
 {
     removeItem(item, false);
 }
