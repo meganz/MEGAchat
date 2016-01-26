@@ -14,6 +14,8 @@
 #include <QScrollBar>
 #include <QTimer>
 #include <QProgressBar>
+#include <QMimeData>
+#include <QToolTip>
 #include <chatdDb.h>
 #include <chatClient.h>
 #include "callGui.h"
@@ -316,6 +318,33 @@ protected:
             mCallGui->hangup();
         event->accept();
     }
+    virtual void dragEnterEvent(QDragEnterEvent* event)
+    {
+        if (event->mimeData()->hasFormat("application/mega-user-handle"))
+            event->acceptProposedAction();
+    }
+    virtual void dropEvent(QDropEvent* event)
+    {
+        printf("drop event\n");
+        const auto& data = event->mimeData()->data("application/mega-user-handle");
+        if (data.size() != sizeof(uint64_t))
+        {
+            KR_LOG_ERROR("User handle drop: Data size is no 8 bytes");
+            return;
+        }
+        mRoom.parent.client.api->call(&::mega::MegaApi::inviteToChat, mRoom.chatid(), *(const uint64_t*)(data.data()), chatd::PRIV_FULL)
+        .then([this](ReqResult)
+        {
+            QToolTip::showText(mapToGlobal(QPoint(width()/2, height()/2)), tr("User added to group chat"));
+        })
+        .fail([](const promise::Error& err)
+        {
+            QMessageBox::critical(nullptr, tr("Add user"), tr("Error adding user to group chat: ")+QString::fromStdString(err.msg()));
+            return err;
+        });
+        event->acceptProposedAction();
+    }
+
     void createMembersMenu(QMenu& menu);
     void onCallBtn(bool video)
     {

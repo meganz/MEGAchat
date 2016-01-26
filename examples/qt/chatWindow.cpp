@@ -18,6 +18,10 @@ ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&par
     ui.mAudioCallBtn->hide();
     ui.mVideoCallBtn->hide();
     ui.mChatdStatusDisplay->hide();
+    if (!mRoom.isGroup())
+        ui.mMembersBtn->hide();
+    else
+        setAcceptDrops(true);
     QDialog::show();
 }
 

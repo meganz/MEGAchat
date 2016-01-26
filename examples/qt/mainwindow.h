@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QInputDialog>
+#include <QDrag>
+#include <QMimeData>
 #include <mstrophepp.h>
 #include <IRtcModule.h>
 #include <mstrophepp.h>
@@ -121,6 +123,7 @@ class CListContactItem: public CListItem
     Q_OBJECT
 protected:
     karere::Contact& mContact;
+    QPoint mDragStartPos;
 public:
     CListContactItem(QWidget* parent, karere::Contact& contact)
         :CListItem(parent, false), mContact(contact)
@@ -187,6 +190,32 @@ public:
         menu.setStyleSheet("background-color: lightgray");
         menu.exec(event->globalPos());
     }
+    void mousePressEvent(QMouseEvent* event)
+    {
+        if (event->button() == Qt::LeftButton)
+        {
+            mDragStartPos = event->pos();
+        }
+        QWidget::mousePressEvent(event);
+    }
+    void mouseMoveEvent(QMouseEvent* event)
+    {
+        if (!(event->buttons() & Qt::LeftButton))
+            return;
+        if ((event->pos() - mDragStartPos).manhattanLength() < QApplication::startDragDistance())
+            return;
+        startDrag();
+    }
+    void startDrag()
+    {
+        QDrag drag(this);
+        QMimeData *mimeData = new QMimeData;
+        auto userid = mContact.userId();
+        mimeData->setData("application/mega-user-handle", QByteArray((const char*)(&userid), sizeof(userid)));
+        drag.setMimeData(mimeData);
+        drag.exec();
+    }
+
 public slots:
     void onCreateGroupChat()
     {
