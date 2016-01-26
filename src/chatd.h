@@ -121,13 +121,11 @@ private:
     bool mIdIsXid = false;
     bool mEditsIsXid = false;
 public:
-    typedef void(*DecryptedCb)(Message&);
     Id userid;
     uint32_t ts;
     bool isEncrypted;
     unsigned char type;
     mutable void* userp;
-    DecryptedCb onDecrypted = nullptr;
     const Id& id() const { return mId; }
     const Id& edits() const { return mEdits; }
     bool isSending() const { return mIdIsXid; }
@@ -213,6 +211,7 @@ public:
     virtual void onUserLeft(const Id& userid) {}
 ///Unread message count has changed
     virtual void onUnreadChanged() {}
+    virtual void onMsgDecrypted(Message& msg) {}
 };
 class ICrypto
 {

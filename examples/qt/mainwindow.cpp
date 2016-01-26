@@ -291,4 +291,26 @@ void MainWindow::onAddContact()
     });
 }
 
+QString prettyInterval(int64_t secs)
+{
+    enum {secsPerMonth = 86400*30, secsPerYear = 86400 * 365};
+    if (secs < 60)
+        return QObject::tr("%1 seconds").arg(secs);
+    else if (secs < 3600)
+        return QObject::tr("%1 minutes").arg(round(float(secs)/60));
+    else if (secs < 86400)
+        return QObject::tr("%1 hours").arg(secs/3600);
+    else if (secs < secsPerMonth)
+        return QObject::tr("%1 days").arg(round(float(secs)/86400));
+    else if (secs < secsPerYear)
+        return QObject::tr("%1 months %2 days").arg(secs/secsPerMonth).arg(round(secs%secsPerMonth)/86400);
+    else
+    {
+        auto years = secs/secsPerYear;
+        auto months = (secs % secsPerYear) / secsPerMonth;
+        auto days = (secs % secsPerMonth) / 86400;
+        return QObject::tr("%1 years %2 months %3 days").arg(years).arg(months).arg(days);
+    }
+}
+
 #include <mainwindow.moc>

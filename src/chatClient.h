@@ -38,9 +38,9 @@ public:
     class ITitleDisplay
     {
     public:
-        virtual void updateTitle(const std::string& title) {}
+        virtual void updateTitle(const std::string& title) = 0;
         virtual void updateOverlayCount(int count) {}
-        virtual void updateOnlineIndication(Presence state) {}
+        virtual void updateOnlineIndication(Presence state) = 0;
     };
     class ICallGui{};
     class IChatWindow: public chatd::Listener, public ITitleDisplay
@@ -71,7 +71,7 @@ public:
         virtual IChatWindow& chatWindowForPeer(uint64_t handle) = 0;
     };
     virtual IContactList& contactList() = 0;
-    virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) {}
+    virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) = 0;
     virtual rtcModule::IEventHandler*
         createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
     virtual void notifyInvited(const ChatRoom& room) {}
@@ -234,9 +234,12 @@ protected:
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, char aPriv);
         ~Member();
+        const std::string& name() const { return mName; }
+        char priv() const { return mPriv; }
         friend class GroupChatRoom;
     };
-    std::map<uint64_t, Member*> mPeers;
+    typedef std::map<uint64_t, Member*> MemberMap;
+    MemberMap mPeers;
     IGui::ITitleDisplay* mTitleDisplay = nullptr;
     std::string mTitleString;
     bool mHasUserTitle = false;
@@ -251,6 +254,7 @@ public:
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
                   unsigned char aShard, char aOwnPriv, const std::string& title);
     ~GroupChatRoom();
+    const MemberMap& peers() const { return mPeers; }
     void addMember(const uint64_t& userid, char priv, bool saveToDb);
     bool removeMember(const uint64_t& userid);
     void setUserTitle(const std::string& title);
@@ -313,6 +317,7 @@ protected:
     PeerChatRoom* mChatRoom;
     uint64_t mUsernameAttrCbId;
     std::string mEmail;
+    int64_t mSince;
     std::string mTitleString;
     IGui::ITitleDisplay* mDisplay; //must be after mTitleString because it will read it
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
@@ -320,7 +325,7 @@ protected:
     void setChatRoom(PeerChatRoom& room);
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
-            PeerChatRoom* room = nullptr);
+            int64_t since, PeerChatRoom* room = nullptr);
     ~Contact();
     ContactList& contactList() { return mClist; }
     XmppContact& xmppContact() { return *mXmppContact; }
@@ -330,6 +335,7 @@ public:
     IGui::ITitleDisplay& titleDisplay() { return *mDisplay; }
     uint64_t userId() const { return mUserid; }
     const std::string& email() const { return mEmail; }
+    int64_t since() const { return mSince; }
     virtual void onPresence(Presence pres)
     {
         mDisplay->updateOnlineIndication(pres);

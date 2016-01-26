@@ -23,7 +23,7 @@ namespace Ui
 class ChatWindow;
 }
 
-enum {kHistBatchSize = 32};
+enum {kHistBatchSize = 16};
 extern QString gOnlineIndColors[karere::Presence::kLast+1];
 
 class ChatWindow;
@@ -76,7 +76,6 @@ public:
             if (!data)
                 return;
             auto self = static_cast<MessageWidget*>(userp);
-            printf("set '%s'\n", data->buf()+1);
             self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1));
         });
         return *this;
@@ -259,8 +258,9 @@ public slots:
         mEditedWidget = nullptr;
         ui.mMessageEdit->setText(QString());
     }
-    void onMsgListRequestHistory(int scrollDelta)
+    void onMsgListRequestHistory()
     {
+        printf("scroll\n");
         fetchMoreHistory(true);
     }
     void fetchMoreHistory(bool byScroll)
@@ -363,6 +363,7 @@ protected:
             if (color)
                 widget->fadeIn(*color);
         }
+        QApplication::processEvents();
         return item;
     }
     void addMsgEdit(const chatd::Message& msg, bool first, QColor* color=nullptr)
@@ -461,13 +462,6 @@ public:
             addMsgEdit(msg, false);
         else
             addMsgWidget(msg, status, false);
-        if (msg.isEncrypted)
-        {
-            msg.onDecrypted = [](chatd::Message& msg)
-            {
-                widgetFromMessage(msg)->setText(msg);
-            };
-        }
         ui.mMessageList->scrollToBottom();
         if (isActiveWindow())
             mMessages->setMessageSeen(idx);
@@ -488,13 +482,10 @@ public:
         {
             addMsgWidget(msg, status, true);
         }
-        if (msg.isEncrypted)
-        {
-            msg.onDecrypted = [](chatd::Message& msg)
-            {
-                widgetFromMessage(msg)->setText(msg);
-            };
-        }
+    }
+    virtual void onMsgDecrypted(chatd::Message& msg)
+    {
+        widgetFromMessage(msg)->setText(msg);
     }
     virtual void onHistoryDone(bool isFromDb)
     {
@@ -547,7 +538,7 @@ public:
         {
             // avoid re-entrancy - we are in a chatd callback. We could use mega::marshallCall instead,
             // but this is safer as the window may get destroyed before the message is processed
-            QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
         }
     }
     void updateChatdStatusDisplay(chatd::ChatState state)

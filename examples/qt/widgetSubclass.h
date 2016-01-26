@@ -20,8 +20,6 @@ protected:
     {
         if (event->key() == Qt::Key_Return)
         {
-            printf("on return key\n");
-
             if ((event->modifiers() & Qt::ShiftModifier) == 0)
             {
                 event->accept();
@@ -48,7 +46,7 @@ Q_OBJECT
 public:
     using QListWidget::QListWidget;
 signals:
-    void requestHistory(int delta);
+    void requestHistory();
 protected:
     uint32_t mLastHistReqTs = 0; //the mouse wheel generates a flood of events, so we need to ingore the ones after the firs
     void wheelEvent(QWheelEvent* event)
@@ -57,10 +55,10 @@ protected:
         {
             event->accept();
             auto now = time(NULL);
-            if (now - mLastHistReqTs >= 1) //minimum two seconds between sequential hist fetches
+            if (now - mLastHistReqTs >= 2) //minimum two seconds between sequential hist fetches
             {
                 mLastHistReqTs = now;
-                emit requestHistory(event->delta());
+                emit requestHistory();
             }
         }
         else

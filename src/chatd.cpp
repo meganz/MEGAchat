@@ -66,6 +66,10 @@ using namespace promise;
       }                                                                                         \
     } while(0)
 
+#ifndef CHATD_ASYNC_MSG_CALLBACKS
+    #define CHATD_ASYNC_MSG_CALLBACKS 1
+#endif
+
 namespace chatd
 {
 
@@ -1158,8 +1162,7 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
             if (!message->isEncrypted) //don't save it it was from db and still not decrypted
             {
                 CALL_DB(addMsgToHistory, *message, idx); //may overwrite a decrypted message
-                if (message->onDecrypted)
-                    message->onDecrypted(*message);
+                CALL_LISTENER(onMsgDecrypted, *message);
             }
             else if (!isLocal)
             {

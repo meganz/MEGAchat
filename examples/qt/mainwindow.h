@@ -22,6 +22,7 @@ class MainWindow;
 namespace karere {
 class Client;
 }
+QString prettyInterval(int64_t secs);
 
 class MainWindow : public QMainWindow, public karere::IGui, public karere::IGui::IContactList
 {
@@ -81,11 +82,6 @@ protected:
 public:
     bool isGroup() const { return mIsGroup; }
 //karere::ITitleDisplay interface
-    virtual void updateTitle(const std::string& title)
-    {
-        QString text = QString::fromUtf8(title.c_str(), title.size());
-        ui.mName->setText(text);
-    }
     virtual void updateOverlayCount(int count)
     {
         if (count < 0)
@@ -128,7 +124,15 @@ protected:
 public:
     CListContactItem(QWidget* parent, karere::Contact& contact)
         :CListItem(parent, false), mContact(contact)
-    {}
+    {
+        QChar lf('\n');
+        QString text = tr("Email: ");
+        text.append(QString::fromStdString(contact.email())).append(QChar('\n'));
+        auto now = time(NULL);
+        text.append(tr("User handle: ")).append(QString::fromStdString(chatd::Id(mContact.userId()).toString())).append(lf)
+            .append(tr("Friends since: ")).append(prettyInterval(now-contact.since())).append(lf);
+        setToolTip(text);
+    }
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
     {
         if (mContact.chatRoom())
@@ -167,10 +171,6 @@ public:
         connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
         menu.setStyleSheet("background-color: lightgray");
         menu.exec(event->globalPos());
-    }
-    virtual void hoverEnterEvent(QHoverEvent* event)
-    {
-        printf("hover\n");
     }
 public slots:
     void onCreateGroupChat()
@@ -237,7 +237,31 @@ class CListGroupChatItem: public CListItem
     Q_OBJECT
 public:
     CListGroupChatItem(QWidget* parent, karere::GroupChatRoom& room)
-        :CListItem(parent, true), mRoom(room){}
+        :CListItem(parent, true), mRoom(room)
+    {
+        QString text(tr("Group chat room: "));
+        text.append(QString::fromStdString(chatd::Id(room.chatid()).toString())).append(QChar('\n'))
+            .append(tr("Own privilege: ").append(QString::number(room.ownPriv())).append(QChar('\n')))
+            .append(tr("Other participants:\n"));
+        for (const auto& item: room.peers())
+        {
+            auto& peer = *item.second;
+            const std::string* email = mRoom.parent.client.contactList->getUserEmail(item.first);
+            auto line = QString(" %1 (%2, %3): priv %4\n").arg(QString::fromStdString(peer.name()))
+                .arg(QString::fromStdString(chatd::Id(item.first).toString()))
+                .arg(email?QString::fromStdString(*email):tr("(email unknown)"))
+                .arg((int)item.second->priv());
+            text.append(line);
+        }
+        text.truncate(text.size()-1);
+        setToolTip(text);
+    }
+    virtual void updateTitle(const std::string& title)
+    {
+        QString text = tr("Group: ")+QString::fromUtf8(title.c_str(), title.size());
+        ui.mName->setText(text);
+    }
+
 protected:
     karere::GroupChatRoom& mRoom;
     void contextMenuEvent(QContextMenuEvent* event)

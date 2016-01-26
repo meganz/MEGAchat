@@ -967,6 +967,7 @@ const std::string& PeerChatRoom::titleString() const
 
 void GroupChatRoom::addMember(const uint64_t& userid, char priv, bool saveToDb)
 {
+    assert(userid != parent.client.myHandle());
     auto it = mPeers.find(userid);
     if (it != mPeers.end())
     {
@@ -1217,7 +1218,9 @@ void GroupChatRoom::setUserTitle(const std::string& title)
 
 GroupChatRoom::~GroupChatRoom()
 {
-    parent.client.chatd->leave(mChatid);
+    auto chatd = parent.client.chatd.get();
+    if (chatd)
+        chatd->leave(mChatid);
     for (auto& m: mPeers)
         delete m.second;
     parent.client.gui.contactList().removeGroupChatItem(mTitleDisplay);
@@ -1312,7 +1315,8 @@ void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
 
 void GroupChatRoom::onUserJoined(const chatd::Id &userid, char privilege)
 {
-    addMember(userid, privilege, true);
+    if (userid != parent.client.myHandle())
+        addMember(userid, privilege, true);
 }
 void GroupChatRoom::onUserLeft(const chatd::Id &userid)
 {
@@ -1354,7 +1358,7 @@ void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 }
 void PeerChatRoom::onUnreadChanged()
 {
-    printf("onUnreadChanged: %s, %d", mMessages->chatId().toString().c_str(), mMessages->unreadMsgCount());
+//    printf("onUnreadChanged: %s, %d\n", mMessages->chatId().toString().c_str(), mMessages->unreadMsgCount());
     mContact->titleDisplay().updateOverlayCount(mMessages->unreadMsgCount());
 }
 
@@ -1440,11 +1444,12 @@ GroupChatRoom::Member::~Member()
 ContactList::ContactList(Client& aClient)
 :client(aClient)
 {
-    SqliteStmt stmt(client.db, "select userid, email from contacts");
+    SqliteStmt stmt(client.db, "select userid, email, since from contacts");
     while(stmt.step())
     {
         auto userid = stmt.uint64Col(0);
-        emplace(userid, new Contact(*this, userid, stmt.stringCol(1), nullptr));
+        emplace(userid, new Contact(*this, userid, stmt.stringCol(1), stmt.int64Col(2),
+            nullptr));
     }
 }
 
@@ -1456,9 +1461,9 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
         return false;
     auto cmail = user.getEmail();
     std::string email(cmail?cmail:"");
-
-    sqliteQuery(client.db, "insert or replace into contacts(userid, email) values(?,?)", userid, email);
-    item = new Contact(*this, userid, email, nullptr);
+    auto ts = user.getTimestamp();
+    sqliteQuery(client.db, "insert or replace into contacts(userid, email, since) values(?,?,?)", userid, email, ts);
+    item = new Contact(*this, userid, email, ts, nullptr);
     KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
     return true;
 }
@@ -1577,8 +1582,8 @@ void Client::onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestLis
 }
 
 Contact::Contact(ContactList& clist, const uint64_t& userid,
-                 const std::string& email, PeerChatRoom* room)
-    :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),
+                 const std::string& email, int64_t since, PeerChatRoom* room)
+    :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email), mSince(since),
      mTitleString(email),
      mDisplay(clist.client.gui.contactList().createContactItem(*this))
 {
