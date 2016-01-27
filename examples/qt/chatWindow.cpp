@@ -1,8 +1,8 @@
 #include "chatWindow.h"
 #include "mainwindow.h"
 
-ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&parent), mRoom(room),
-    mainWindow(parent)
+ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&parent),
+    mainWindow(parent), mRoom(room), mWaitMsg(*this)
 {
     ui.setupUi(this);
     ui.mSplitter->setStretchFactor(0,1);
@@ -66,8 +66,10 @@ uint64_t handleFromAction(QObject* object)
 void ChatWindow::onMemberRemove()
 {
     uint64_t handle(handleFromAction(QObject::sender()));
+    mWaitMsg.addMsg(tr("Removing user(s), please wait..."));
+    auto waitMsgKeepalive = mWaitMsg;
     mainWindow.client().api->call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
-    .fail([this](const promise::Error& err)
+    .fail([this, waitMsgKeepalive](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Remove member from group chat"),
             tr("Error removing member from group chat: %1")
@@ -97,4 +99,76 @@ void ChatWindow::onMembersBtn(bool)
     createMembersMenu(menu);
     menu.setLayoutDirection(Qt::RightToLeft);
     menu.exec(ui.mMembersBtn->mapToGlobal(QPoint(-menu.width(), ui.mMembersBtn->height())));
+}
+void ChatWindow::dropEvent(QDropEvent* event)
+{
+    const auto& data = event->mimeData()->data("application/mega-user-handle");
+    if (data.size() != sizeof(uint64_t))
+    {
+        KR_LOG_ERROR("User handle drop: Data size is no 8 bytes");
+        return;
+    }
+    mWaitMsg.addMsg(tr("Adding user(s), please wait..."));
+    auto waitMsgKeepAlive = mWaitMsg;
+    mRoom.parent.client.api->call(&::mega::MegaApi::inviteToChat, mRoom.chatid(), *(const uint64_t*)(data.data()), chatd::PRIV_FULL)
+    .fail([waitMsgKeepAlive](const promise::Error& err)
+    {
+        QMessageBox::critical(nullptr, tr("Add user"), tr("Error adding user to group chat: ")+QString::fromStdString(err.msg()));
+        return err;
+    });
+    event->acceptProposedAction();
+}
+
+WaitMessage::WaitMessage(ChatWindow& chatWindow)
+    :mChatWindow(chatWindow){}
+void WaitMessage::addMsg(const QString &msg)
+{
+    if (!get())
+        reset(new WaitMsgWidget(mChatWindow.ui.mMessageList, msg));
+    else
+        get()->addMsg(msg);
+}
+WaitMessage::~WaitMessage()
+{
+    if (use_count() == 2)
+        mChatWindow.mWaitMsg.reset();
+}
+
+WaitMsgWidget::WaitMsgWidget(QWidget* parent, const QString& msg)
+    :QLabel(parent)
+{
+    setStyleSheet(
+        "background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1,"
+        "stop:0 rgba(100, 100, 100, 180), stop:1 rgba(180, 180, 180, 180));"
+        "border-radius: 10px; font: 16px Arial;"
+        "color: white; padding: 10px");
+    addMsg(msg);
+}
+
+void WaitMsgWidget::addMsg(const QString& msg)
+{
+    if (!mMsgs.insert(msg).second)
+        return;
+    hide();
+    updateGui();
+    show();
+}
+
+void WaitMsgWidget::updateGui()
+{
+    QString text;
+    for (auto& msg: mMsgs)
+    {
+        text.append(msg).append(QChar('\n'));
+    }
+    if (text.size() > 0)
+        text.truncate(text.size()-1);
+    setText(text);
+    adjustSize();
+}
+
+void WaitMsgWidget::show()
+{
+    move((qobject_cast<QWidget*>(parent())->width()-width())/2, 10);
+    QWidget::show();
 }

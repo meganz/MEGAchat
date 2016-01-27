@@ -166,10 +166,30 @@ struct HistFetchUi: public QProgressBar
     HistFetchUi(QWidget* parent): QProgressBar(parent) { setRange(0, kHistBatchSize); }
     QProgressBar* progressBar() { return this; }
 };
+class WaitMsgWidget: public QLabel
+{
+    std::set<QString> mMsgs;
+public:
+    WaitMsgWidget(QWidget* parent, const QString& msg);
+    void addMsg(const QString& msg);
+    void updateGui();
+    void show();
+};
+
+class WaitMessage: protected std::shared_ptr<WaitMsgWidget>
+{
+    ChatWindow& mChatWindow;
+public:
+    WaitMessage(ChatWindow& chatWindow);
+    ~WaitMessage();
+    void addMsg(const QString& msg);
+};
 
 class ChatWindow: public QDialog, public karere::IGui::IChatWindow
 {
     Q_OBJECT
+public:
+    MainWindow& mainWindow;
 protected:
     karere::ChatRoom& mRoom;
     Ui::ChatWindow ui;
@@ -180,8 +200,10 @@ protected:
     std::unique_ptr<HistFetchUi> mHistFetchUi;
     CallGui* mCallGui = nullptr;
     bool mLastHistReqByScroll = false;
+    WaitMessage mWaitMsg;
     friend class CallGui;
     friend class CallAnswerGui;
+    friend class WaitMessage;
 public slots:
     void onMsgSendBtn()
     {
@@ -291,7 +313,6 @@ public slots:
     void onMemberSetPriv();
     void onMemberPrivateChat();
 public:
-    MainWindow& mainWindow;
     ChatWindow(karere::ChatRoom& room, MainWindow& parent);
     virtual ~ChatWindow();
 protected:
@@ -323,28 +344,7 @@ protected:
         if (event->mimeData()->hasFormat("application/mega-user-handle"))
             event->acceptProposedAction();
     }
-    virtual void dropEvent(QDropEvent* event)
-    {
-        printf("drop event\n");
-        const auto& data = event->mimeData()->data("application/mega-user-handle");
-        if (data.size() != sizeof(uint64_t))
-        {
-            KR_LOG_ERROR("User handle drop: Data size is no 8 bytes");
-            return;
-        }
-        mRoom.parent.client.api->call(&::mega::MegaApi::inviteToChat, mRoom.chatid(), *(const uint64_t*)(data.data()), chatd::PRIV_FULL)
-        .then([this](ReqResult)
-        {
-            QToolTip::showText(mapToGlobal(QPoint(width()/2, height()/2)), tr("User added to group chat"));
-        })
-        .fail([](const promise::Error& err)
-        {
-            QMessageBox::critical(nullptr, tr("Add user"), tr("Error adding user to group chat: ")+QString::fromStdString(err.msg()));
-            return err;
-        });
-        event->acceptProposedAction();
-    }
-
+    virtual void dropEvent(QDropEvent* event);
     void createMembersMenu(QMenu& menu);
     void onCallBtn(bool video)
     {
