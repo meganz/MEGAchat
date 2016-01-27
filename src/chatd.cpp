@@ -295,11 +295,8 @@ void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *r
 
 void Connection::onSocketClose()
 {
-    if (mPingTimer)
-    {
-        ::mega::cancelInterval(mPingTimer);
-        mPingTimer = 0;
-    }
+    CHATD_LOG_DEBUG("Socket to shard %d closed", mShardNo);
+    disableInactivityTimer();
     for (auto& chatid: mChatIds)
     {
         mClient.chatidMessages(chatid).setOnlineState(kChatStateOffline);
@@ -322,13 +319,21 @@ void Connection::onSocketClose()
     }
 }
 
+void Connection::disableInactivityTimer()
+{
+    if (mInactivityTimer)
+    {
+        ::mega::cancelInterval(mInactivityTimer);
+        mInactivityTimer = 0;
+    }
+}
+
 Promise<void> Connection::reconnect()
 {
     int state = getState();
-    if ((state == WS_STATE_CONNECTING) || (state == WS_STATE_CONNECTED))
-    {
-        throw std::runtime_error("Connection::reconnect: Already connected/connecting");
-    }
+    if (state == WS_STATE_CONNECTING)
+        throw std::runtime_error("Connection::reconnect: Already connecting");
+
     return
     ::mega::retry([this](int no)
     {
@@ -342,6 +347,7 @@ Promise<void> Connection::reconnect()
             {
                 Connection* self = static_cast<Connection*>(arg);
                 ASSERT_NOT_ANOTHER_WS("message");
+                self->mInactivityBeats = 0;
                 self->execCommand(StaticBuffer(msg, len));
             }, this);
 
@@ -359,17 +365,25 @@ Promise<void> Connection::reconnect()
     }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
     .then([this]()
     {
+        enableInactivityTimer();
         rejoinExistingChats();
-        if (!mPingTimer)
-        {
-            mPingTimer = ::mega::setInterval([this]()
-            {
-                if (!isOnline())
-                    return;
-                sendCommand(Command(OP_KEEPALIVE));
-            }, mClient.pingIntervalSec*1000);
-        }
     });
+}
+void Connection::enableInactivityTimer()
+{
+    if (mInactivityTimer)
+        return;
+
+    mInactivityTimer = ::mega::setInterval([this]()
+    {
+        if (mInactivityBeats++ > 2)
+        {
+            disableInactivityTimer();
+            CHATD_LOG_WARNING("Connection to shard %d inactive for too long, reconnecting",
+                mShardNo);
+            reconnect();
+        }
+    }, 10000);
 }
 
 Promise<void> Connection::disconnect()
@@ -439,6 +453,8 @@ bool Messages::sendCommand(Command&& cmd)
 // send JOIN
 void Messages::join()
 {
+//also reset handshake state, as we may be reconnecting
+    mInitialFetchHistoryCalled = false;
     setOnlineState(kChatStateJoining);
     sendCommand(Command(OP_JOIN) + mChatId + mClient.mUserId + (int8_t)PRIV_NOCHANGE);
 }

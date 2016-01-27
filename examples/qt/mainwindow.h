@@ -90,7 +90,7 @@ public:
             ui.mUnreadIndicator->setText(QString::number(-count)+"+");
         else
             ui.mUnreadIndicator->setText(QString::number(count));
-
+        ui.mUnreadIndicator->adjustSize();
         if (count)
         {
             if (!mLastOverlayCount)
@@ -178,6 +178,7 @@ public:
             "border-radius: 4px;"
             "border: 2px solid rgba(0,0,0,0);"
             "color: white;"
+            "font: 24px;"
             "background-color: "+gAvatarColors[mContact.userId() & 0x0f].name());
     }
     void contextMenuEvent(QContextMenuEvent* event)
@@ -296,8 +297,8 @@ public:
             auto& peer = *item.second;
             const std::string* email = mRoom.parent.client.contactList->getUserEmail(item.first);
             auto line = QString(" %1 (%2, %3): priv %4\n").arg(QString::fromStdString(peer.name()))
-                .arg(QString::fromStdString(chatd::Id(item.first).toString()))
                 .arg(email?QString::fromStdString(*email):tr("(email unknown)"))
+                .arg(QString::fromStdString(chatd::Id(item.first).toString()))
                 .arg((int)item.second->priv());
             text.append(line);
         }

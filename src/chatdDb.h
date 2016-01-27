@@ -106,8 +106,10 @@ public:
             unsigned ts = stmt.uintCol(2);
             Buffer buf;
             stmt.blobCol(4, buf);
+#ifndef NDEBUG
             auto idx = stmt.intCol(5);
             assert(idx == mMessages.lownum()-1-messages.size());
+#endif
             auto msg = new chatd::Message(msgid, userid, ts, std::move(buf),
                 stmt.intCol(7), (chatd::Message::Type)stmt.intCol(3));
             msg->setEdits(stmt.uint64Col(6), false);

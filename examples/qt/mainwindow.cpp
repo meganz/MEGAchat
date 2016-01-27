@@ -135,8 +135,11 @@ void MainWindow::onVideoInSelected()
 MainWindow::~MainWindow()
 {}
 QColor gAvatarColors[16] = {
-    "aliceblue", "antiquewhite", "darkseagreen",
-    "crimson", "firebrick", "lightsteelblue"};
+    "aliceblue", "gold", "darkseagreen", "crimson",
+    "firebrick", "lightsteelblue", "#70a1ff", "maroon",
+    "cadetblue", "#db00d3", "darkturquoise", "lightblue",
+    "honeydew", "lightyellow", "violet", "turquoise"
+};
 
 QString gOnlineIndColors[karere::Presence::kLast+1] =
 {  "lightgray", "red", "orange", "lightgreen", "lightblue" };

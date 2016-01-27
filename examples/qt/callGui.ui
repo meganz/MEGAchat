@@ -203,19 +203,19 @@ border-image: url(':/viewchat-hover.svg');
                <property name="styleSheet">
                 <string notr="true">QToolButton
 {
-border-image: url(':/mic-mute.svg');
+border-image: url(':/mic.svg');
 }
 QToolButton:hover
 {
-border-image: url(':/mic-mute-hover.svg');
+border-image: url(':/mic-hover.svg');
 }
 QToolButton:checked
 {
-border-image: url(':/mic.svg');
+border-image: url(':/mic-mute.svg');
 }
 QToolButton:checked:hover
 {
-border-image: url(':/mic-hover.svg');
+border-image: url(':/mic-mute-hover.svg');
 }</string>
                </property>
                <property name="text">
@@ -259,19 +259,19 @@ border-image: url(':/mic-hover.svg');
                <property name="styleSheet">
                 <string notr="true">QToolButton
 {
-border-image: url(':/camera-disable.svg');
+border-image: url(':/camera.svg');
 }
 QToolButton:hover
 {
-border-image: url(':/camera-disable-hover.svg');
+border-image: url(':/camera-hover.svg');
 }
 QToolButton:checked
 {
-border-image: url(':/camera.svg');
+border-image: url(':/camera-disable.svg');
 }
 QToolButton:checked:hover
 {
-border-image: url(':/camera-hover.svg');
+border-image: url(':/camera-disable-hover.svg');
 }</string>
                </property>
                <property name="text">

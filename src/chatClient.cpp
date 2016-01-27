@@ -1321,6 +1321,8 @@ void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
 {
     if (mContactGui)
         mContactGui->updateOnlineIndication(pres);
+    if (mChatWindow)
+        mChatWindow->updateOnlineIndication(pres);
 }
 
 void GroupChatRoom::onUserJoined(const chatd::Id &userid, char privilege)

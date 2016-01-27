@@ -317,7 +317,8 @@ protected:
     std::set<Id> mChatIds;
     ws_t mWebSocket = nullptr;
     Url mUrl;
-    megaHandle mPingTimer = 0;
+    megaHandle mInactivityTimer = 0;
+    int mInactivityBeats = 0;
     bool mTerminating = false;
     std::unique_ptr<promise::Promise<void> > mConnectPromise;
     std::unique_ptr<promise::Promise<void> > mDisconnectPromise;
@@ -333,6 +334,8 @@ protected:
     void onSocketClose();
     promise::Promise<void> reconnect();
     promise::Promise<void> disconnect();
+    void enableInactivityTimer();
+    void disableInactivityTimer();
     void reset();
     bool sendCommand(Command&& cmd);
     void rejoinExistingChats();
@@ -345,8 +348,7 @@ protected:
 public:
     ~Connection()
     {
-        if (mPingTimer)
-            ::mega::cancelInterval(mPingTimer);
+        disableInactivityTimer();
     }
 };
 
@@ -534,7 +536,7 @@ protected:
     void msgConfirm(const Id& msgxid, const Id& msgid);
 public:
     static ws_base_s sWebsocketContext;
-    size_t pingIntervalSec = 30;
+    unsigned inactivityCheckIntervalSec = 20;
     const Id& userId() const { return mUserId; }
     Client(const Id& userId);
     ~Client(){}

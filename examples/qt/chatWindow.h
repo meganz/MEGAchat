@@ -611,7 +611,9 @@ public:
     virtual void hide() { QDialog::hide(); }
     virtual void updateTitle(const std::string& title)
     {
-        ui.mTitleLabel->setText(QString::fromStdString(title));
+        QString text = (mRoom.isGroup()) ? tr("Group: "): "";
+        text += QString::fromStdString(title);
+        ui.mTitleLabel->setText(text);
     }
 };
 
