@@ -63,26 +63,19 @@ void sigintHandler(int)
 {
     printf("SIGINT Received\n");
     fflush(stdout);
-//    marshallCall([]{mainWin->close();});
     marshallCall([]{appDelegate.onAppTerminate();});
 
 }
 
-const char* appdir = nullptr;
-
 int main(int argc, char **argv)
 {
-    if (argc == 2)
-    {
-        appdir = argv[1];
-    }
 //    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
 
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin = new MainWindow();
-    gClient.reset(new karere::Client(*mainWin, appdir));
+    gClient.reset(new karere::Client(*mainWin));
     mainWin->setClient(*gClient);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 

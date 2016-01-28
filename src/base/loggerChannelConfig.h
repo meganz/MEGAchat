@@ -9,9 +9,9 @@ KR_LOGGER_CONFIG_START(krLogChannel_<channel_id1>, krLogChannel_<channel_id2>,..
      ...
 //optional settings. You can call any methods of karere::Logger here, or any other code,
 //but you must enclose each line in a KR_LOG_CONFIG() macro. No semicolon required at end of line.
-    KR_LOG_CONFIG(flags = flags | krLogNoTimestamp) //modify global flags to suit your needs
-    KR_LOG_CONFIG(logToConsole()) //enable console logging, disabled by default
-    KR_LOG_CONFIG(logToFile("log.txt", <rotate_size>)) //enable file logging, disabled by default
+    KR_LOGGER_CONFIG(flags = flags | krLogNoTimestamp) //modify global flags to suit your needs
+    KR_LOGGER_CONFIG(logToConsole()) //enable console logging, disabled by default
+    KR_LOGGER_CONFIG(logToFile("log.txt"), <rotate_size>)) //enable file logging, disabled by default
 //end optional
 KR_LOGGER_CONFIG_END()
 
@@ -28,6 +28,7 @@ channel_flags - currently only the lower 4 bits are used, which define the color
 log_file - if not NULL, enables logging to that file.
 rotate_size - the maximum size of the log file, in kbytes, after which the log file is truncated in half
 */
+namespace karere { std::string checkAppDir(); }
 
 KR_LOGGER_CONFIG_START(
         krLogChannel_xmpp, krLogChannel_strophe, krLogChannel_rtcevent, krLogChannel_textchat,
@@ -46,5 +47,5 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(http, "http", Debug, 13)
     KR_LOGGER_CONFIG(setFlags(krLogNoLevel))
     KR_LOGGER_CONFIG(logToConsole())
-    KR_LOGGER_CONFIG(logToFile("log.txt", 500))
+    KR_LOGGER_CONFIG(logToFile((karere::checkAppDir()+"/log.txt").c_str(), 500))
 KR_LOGGER_CONFIG_END()

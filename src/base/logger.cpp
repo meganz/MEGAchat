@@ -178,7 +178,11 @@ void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t
     if (!mUserLoggers.empty())
     {
         for (auto& logger: mUserLoggers)
-            logger.second->log(level, msg, len, flags);
+        {
+            ILoggerBackend* backend = logger.second.get();
+            if(level <= backend->maxLogLevel)
+                backend->log(level, msg, len, flags);
+        }
     }
 }
 

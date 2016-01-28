@@ -112,7 +112,7 @@ void rotateLog()
         if (ret < 0)
             perror("ERROR: FileLogger::rotate: Error writing file:");
         else
-            fprintf(stderr, "ERROR: FileLogger::rotate: Not all data could be written to file: requested %zu, written: %d\n",
+            fprintf(stderr, "ERROR: FileLogger::rotate: Not all data could be written to file: requested %d, written: %d\n",
                 writeLen, ret);
     }
     fclose(writeFile);

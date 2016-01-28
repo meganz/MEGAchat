@@ -107,6 +107,7 @@ public:
     class ILoggerBackend
     {
         public:
+        krLogLevel maxLogLevel = krLogLevelDebugVerbose;
         virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags) = 0;
         virtual ~ILoggerBackend() {}
     };
@@ -148,7 +149,7 @@ extern Logger gLogger;
 #endif
 
 
-#include "loggerChannelConfig.h"
+#include <loggerChannelConfig.h>
 
 //The code below is plain C
 #ifdef _WIN32

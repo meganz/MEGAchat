@@ -27,6 +27,8 @@ class Buffer;
 
 namespace karere
 {
+std::string checkAppDir();
+
 class TextModule;
 class ChatRoom;
 class GroupChatRoom;
@@ -427,7 +429,7 @@ public:
      * This performs a request to xmpp roster server and fetch the contact list.
      * Contact list also registers a contact presence handler to update the list itself based on received presence messages.
      */
-    Client(IGui& gui, const char *homedir=nullptr);
+    Client(IGui& gui);
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
     promise::Promise<int> init();
@@ -471,7 +473,6 @@ protected:
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
     std::unique_ptr<mega::rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
-    std::string checkAppDir(const char* dir);
     sqlite3* openDb();
     void setupReconnectHandler();
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>

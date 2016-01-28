@@ -138,7 +138,7 @@ public:
         text.append(tr("User handle: ")).append(QString::fromStdString(chatd::Id(mContact.userId()).toString())).append(lf);
         text.append(tr("XMPP jid: ")).append(QString::fromStdString(mContact.jid())).append(lf);
         if (mContact.chatRoom())
-            text.append(tr("You have chatted with this person in the past"));
+            text.append(tr("You have a chatroom created with this person"));
         else
             text.append(tr("You have never chatted with this person"));
 //        auto now = time(NULL);
@@ -174,12 +174,16 @@ public:
         QString text = QString::fromUtf8(title.c_str(), title.size());
         ui.mName->setText(text);
         ui.mAvatar->setText(QString(text[0].toUpper()));
-        ui.mAvatar->setStyleSheet(
-            "border-radius: 4px;"
+        auto& col = gAvatarColors[mContact.userId() & 0x0f];
+
+        QString style = "border-radius: 4px;"
             "border: 2px solid rgba(0,0,0,0);"
             "color: white;"
             "font: 24px;"
-            "background-color: "+gAvatarColors[mContact.userId() & 0x0f].name());
+            "background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0,"
+            "stop:0 rgba(%1,%2,%3,180), stop:1 rgba(%1,%2,%3,255))";
+        style = style.arg(col.red()).arg(col.green()).arg(col.blue());
+        ui.mAvatar->setStyleSheet(style);
     }
     void contextMenuEvent(QContextMenuEvent* event)
     {

@@ -103,6 +103,9 @@ QString LoginDialog::sLoginStageStrings[] = {
 MainWindow::MainWindow(Client* aClient): mClient(aClient)
 {
     ui.setupUi(this);
+
+//    setWindowFlags(Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowMaximizeButtonHint
+//                   |Qt::WindowMinimizeButtonHint|Qt::WindowCloseButtonHint);
 }
 extern bool inCall;
 
