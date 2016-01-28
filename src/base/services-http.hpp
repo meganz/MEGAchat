@@ -9,6 +9,7 @@
 #define always_assert(cond) \
     if (!(cond)) SVC_LOG_ERROR("HTTP: Assertion failed: '%s' at file %s, line %d", #cond, __FILE__, __LINE__)
 #define KRHTTP_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_http, fmtString, ##__VA_ARGS__)
+#define KRHTTP_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_http, fmtString, ##__VA_ARGS__)
 #define KRHTTP_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_http, fmtString, ##__VA_ARGS__)
 
 namespace mega
@@ -110,6 +111,7 @@ public:
         :mSink(sink ? sink : std::shared_ptr<T>(new T())), mWriter(*mSink){}
     virtual ~Response(){}
     std::shared_ptr<T>& data() {return mSink;}
+    const std::shared_ptr<T>& data() const { return mSink; }
     int httpCode() const { return mHttpCode;}
 //  virtual void append(const char* data, size_t len) = 0; //This method (and only this) is called by the libevent thread for performace reasons!!!
     friend class Client;
@@ -155,6 +157,7 @@ protected:
 //    std::unique_ptr<StreamSrcBase> mReader;
 public:
     std::shared_ptr<ResponseBase> mResponse;
+    bool dontCopyPostData = false;
     const std::string& url() const { return mUrl; }
     const bool busy() const { return mBusy; }
     Client()
@@ -177,12 +180,22 @@ public:
         _curleopt(CURLOPT_SSL_CTX_FUNCTION, &sslCtxFunction);
         _curleopt(CURLOPT_SSL_VERIFYPEER, 0L);
         _curleopt(CURLOPT_SSL_VERIFYHOST, 0L);
-
     }
     ~Client()
     {
+        if (mCustomHeaders)
+            curl_slist_free_all(mCustomHeaders);
         if (mCurl)
             curl_easy_cleanup(mCurl);
+    }
+
+    /** @brief This can be used to add or override curl-generated
+     *  headers ("name: val"), as well as remove them ("name:", no val),
+     *  or add empty values ("name;") */
+    void setHeader(const char* nameVal)
+    {
+        mCustomHeaders = curl_slist_append(mCustomHeaders, nameVal);
+        _curleopt(CURLOPT_HTTPHEADER, mCustomHeaders);
     }
 protected:
     static void onTransferComplete(CurlConnection* conn, CURLcode code) //called by the CURL-libevent code
@@ -224,13 +237,13 @@ protected:
          {
             if (!mBusy || (id != mRequestId)) //stale callback, maybe request was aborted
             {
-                KRHTTP_LOG_ERROR("Stale DNS callback, ignoring");
+                KRHTTP_LOG_WARNING("Stale DNS callback, ignoring");
                 return;
             }
             if (errcode)
             {
                 mBusy = false;
-                KRHTTP_LOG_ERROR("DNS error %d on request to '%s'", errcode, mUrl.c_str());
+                KRHTTP_LOG_WARNING("DNS error %d on request to '%s'", errcode, mUrl.c_str());
                 mResponse->onTransferComplete(*this, errcode, ERRTYPE_DNS);
                 return;
             }
@@ -303,8 +316,11 @@ public:
     {
         assert(postData);
         _curleopt(CURLOPT_HTTPPOST, 1L);
-        _curleopt(CURLOPT_POSTFIELDS, postData);
         _curleopt(CURLOPT_POSTFIELDSIZE, (long)postDataSize);
+        if (dontCopyPostData)
+            _curleopt(CURLOPT_POSTFIELDS, postData);
+        else
+            _curleopt(CURLOPT_COPYPOSTFIELDS, postData);
         mResponse.reset(new ResponseWithCb<T, CB>(std::forward<CB>(cb), sink));
         setupRecvAndStart<T, CB>(url);
     }
@@ -367,7 +383,7 @@ protected:
         {
             std::string domain(url.c_str()+bounds.start, bounds.end-bounds.start);
             dnsLookup(domain.c_str(), services_http_use_ipv6?SVCF_DNS_IPV6:SVCF_DNS_IPV4,
-            [this, cb, bounds, url](int errCode, std::shared_ptr<AddrInfo>&& addrs)
+            [this, cb, bounds, url](int errCode, const std::shared_ptr<AddrInfo>& addrs)
             {
                 if (errCode)
                 {
@@ -375,20 +391,20 @@ protected:
                 }
                 size_t hostlen = bounds.end-bounds.start;
                 std::string newUrl = url;
-                if (!services_http_use_ipv6 || addrs->ip6addrs().empty())
+                if (!services_http_use_ipv6 || !addrs->ip6addrs())
                 {
-                    if (addrs->ip4addrs().empty())
+                    if (!addrs->ip4addrs())
                         return cb(SVCDNS_ENOTEXIST, nullptr); //TODO: Find proper error code
 
                     KRHTTP_LOG_DEBUG("Resolved '%.*s' -> ipv4 '%s'",
-                          bounds.end-bounds.start, url.c_str()+bounds.start, addrs->ip4addrs()[0].toString());
-                   newUrl.replace((size_t)bounds.start, hostlen, addrs->ip4addrs()[0].toString());
+                          bounds.end-bounds.start, url.c_str()+bounds.start, (*addrs->ip4addrs())[0].toString());
+                   newUrl.replace((size_t)bounds.start, hostlen, (*addrs->ip4addrs())[0].toString());
                 }
                 else
                 {
                     KRHTTP_LOG_DEBUG("Resolved '.*%s' -> ipv6 '%s'",
-                        bounds.end-bounds.start, url.c_str()+bounds.start, addrs->ip6addrs()[0].toString());
-                    newUrl.replace((size_t)bounds.start, hostlen, addrs->ip6addrs()[0].toString());
+                        bounds.end-bounds.start, url.c_str()+bounds.start, (*addrs->ip6addrs())[0].toString());
+                    newUrl.replace((size_t)bounds.start, hostlen, (*addrs->ip6addrs())[0].toString());
                 }
                 return cb(SVCDNS_ESUCCESS, newUrl);
             });
@@ -400,6 +416,27 @@ protected:
     }
 };
 
+/** @brief
+ * Post a string and get a string response. If the HTTP response code is not 200,
+ * the response is considered an error. In that case the error object contains the http
+ * code in its \c code() member, and the response string as the \c msg() member
+ */
+static promise::Promise<std::shared_ptr<std::string>>
+postString(const std::string& url, const std::string& postdata, const char* contentType=nullptr)
+{
+    auto client = std::make_shared<Client>();
+    if (contentType)
+        client->setHeader((std::string("Content-Type: ")+contentType).c_str());
+    return client->ppost<std::string>(url, postdata.c_str(), postdata.size())
+    .then([client](const std::shared_ptr<Response<std::string>>& response) -> promise::Promise<std::shared_ptr<std::string>>
+    {
+        if (response->httpCode() != 200)
+            return promise::Error(response->data()?(*response->data()):"", response->httpCode(), ERRTYPE_HTTP);
+        else
+            return response->data();
+    });
+}
+
 template <class T, class CB>
 void ResponseWithCb<T,CB>::onTransferComplete(const Client& client, int code, int type)
 {
@@ -408,9 +445,4 @@ void ResponseWithCb<T,CB>::onTransferComplete(const Client& client, int code, in
 
 }
 }
- //   void addHeader(const char* nameVal)
-//{
-//    mCustomHeaderscurl_slist hdr = curl_slist_append(NULL, nameVal);
-//    curl_easy_setopt(mCurl, CURLOPT_)
-//}
 #endif

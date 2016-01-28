@@ -36,7 +36,7 @@ struct event;
 #define SVC_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_services, fmtString, ##__VA_ARGS__)
 #define SVC_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_services, fmtString, ##__VA_ARGS__)
 #define SVC_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_services, fmtString, ##__VA_ARGS__)
-#define SVC_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_sercvices, fmtString, ##__VA_ARGS__)
+#define SVC_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_services, fmtString, ##__VA_ARGS__)
 //helper macros
 #define _MEGA_STRLITERAL(x) _MEGA_STRLITERAL2(x)
 #define _MEGA_STRLITERAL2(x) #x

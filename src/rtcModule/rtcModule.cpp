@@ -668,37 +668,18 @@ void Call::destroy(TermCode termcode, const std::string& text, bool noSessTermSe
     //post stats, references to the call object end here
     auto json = std::make_shared<std::string>();
     stats->toJson(*json);
-    auto client = std::make_shared<::mega::http::Client>();
-    ::mega::retry([client, json](int no)
+    ::mega::retry([json](int no)
     {
-        return client->ppost<std::string>("https://stats.karere.mega.nz/stats",
-                                          json->c_str(), json->size());
+        return ::mega::http::postString("https://stats.karere.mega.nz/stats", *json, "application/json");
     })
-    .then([client, json](std::shared_ptr<http::Response<std::string> > response)
-    ->promise::Promise<void>
+    .then([](const std::shared_ptr<std::string>& response)
     {
-        if (response->httpCode() != 200)
-        {
-            std::string msg = "Statserver returned non-200 code "+std::to_string(response->httpCode());
-            if (response->data())
-                msg.append(" Message: ").append(*response->data());
-            return promise::Error(msg);
-        }
-        else
-        {
-            KR_LOG_DEBUG("Callstats successfully posted");
-            return promise::_Void();
-        }
+        KR_LOG_DEBUG("Callstats successfully posted");
     })
     .fail([](const promise::Error& err)
     {
         KR_LOG_ERROR("Error posting stats: %s", err.what());
     });
-
-    //CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
-      //size_t maxRetries = rh::RetryController<Func>::kDefaultMaxAttemptCount,
-      //size_t maxSingleWaitTime = rh::RetryController<Func>::kDefaultMaxSingleWaitTime,
-      //short backoffStart = 1000)
 }
 
 //onRemoteStreamAdded -> onMediaStart() event from player -> onMediaRecv() -> addVideo()

@@ -9,6 +9,7 @@ set(SRCS
   cservices.cpp
   cservices-strophe.cpp
   cservices-dns.cpp
+  services-dns.cpp
   cservices-http.cpp
   logger.cpp
 )

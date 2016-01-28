@@ -70,6 +70,7 @@ void sigintHandler(int)
 int main(int argc, char **argv)
 {
 //    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
+    gLogger.addUserLogger("karere-remote", new RemoteLogger);
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
 

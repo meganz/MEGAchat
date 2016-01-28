@@ -149,6 +149,14 @@ extern const char* gKarereDbSchema;
 
 class Client;
 extern std::unique_ptr<Client> gClient;
+
+class RemoteLogger: public Logger::ILoggerBackend
+{
+public:
+    virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
+    RemoteLogger(): ILoggerBackend(krLogLevelError){}
+};
+
 }
 
 
