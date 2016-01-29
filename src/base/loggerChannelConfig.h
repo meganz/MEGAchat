@@ -28,7 +28,7 @@ channel_flags - currently only the lower 4 bits are used, which define the color
 log_file - if not NULL, enables logging to that file.
 rotate_size - the maximum size of the log file, in kbytes, after which the log file is truncated in half
 */
-namespace karere { std::string checkAppDir(); }
+namespace karere { std::string getAppDir(); }
 
 KR_LOGGER_CONFIG_START(
         krLogChannel_xmpp, krLogChannel_strophe, krLogChannel_rtcevent, krLogChannel_textchat,
@@ -47,5 +47,5 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(http, "http", Debug, 13)
     KR_LOGGER_CONFIG(setFlags(krLogNoLevel))
     KR_LOGGER_CONFIG(logToConsole())
-    KR_LOGGER_CONFIG(logToFile((karere::checkAppDir()+"/log.txt").c_str(), 500))
+    KR_LOGGER_CONFIG(logToFile((karere::getAppDir()+"/log.txt").c_str(), 500))
 KR_LOGGER_CONFIG_END()

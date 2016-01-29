@@ -66,6 +66,10 @@ void sigintHandler(int)
     marshallCall([]{appDelegate.onAppTerminate();});
 
 }
+namespace karere
+{
+    KARERE_EXPORT std::string getAppDir() { return karere::getAppDir_default(); }
+}
 
 int main(int argc, char **argv)
 {

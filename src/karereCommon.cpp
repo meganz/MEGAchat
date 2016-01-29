@@ -19,15 +19,15 @@ void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned f
 
     if (!msg)
         return;
-    std::string json = "{\"msg\":\"";
+    auto json = std::make_shared<std::string>("{\"msg\":\"");
     const char* start = strchr(msg, ']');
     if (!start)
         start = msg;
     else
         start++; //skip the closing bracket
-    json.append(replaceOccurrences(std::string(start, len-(start-msg+1)), "\"", "\\\"")).append("\"}");
-    json = replaceOccurrences(json, "\n", "\\n");
-    json = replaceOccurrences(json, "\t", "\\t");
+    json->append(replaceOccurrences(std::string(start, len-(start-msg+1)), "\"", "\\\"")).append("\"}");
+    *json = replaceOccurrences(*json, "\n", "\\n");
+    *json = replaceOccurrences(*json, "\t", "\\t");
     mega::marshallCall([json, level]()
     {
         mega::http::postString("https://stats.karere.mega.nz/msglog?aid=kn-asdasdsdf&t=e",

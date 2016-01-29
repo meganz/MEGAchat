@@ -670,7 +670,7 @@ void Call::destroy(TermCode termcode, const std::string& text, bool noSessTermSe
     stats->toJson(*json);
     ::mega::retry([json](int no)
     {
-        return ::mega::http::postString("https://stats.karere.mega.nz/stats", *json, "application/json");
+        return ::mega::http::postString("https://stats.karere.mega.nz/stats", json, "application/json");
     })
     .then([](const std::shared_ptr<std::string>& response)
     {

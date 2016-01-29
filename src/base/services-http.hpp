@@ -421,14 +421,18 @@ protected:
  * the response is considered an error. In that case the error object contains the http
  * code in its \c code() member, and the response string as the \c msg() member
  */
-static promise::Promise<std::shared_ptr<std::string>>
-postString(const std::string& url, const std::string& postdata, const char* contentType=nullptr)
+//TODO: making this a static inline results in clang complaining about duplicate symbols,
+//is this a compiler bug?
+inline promise::Promise<std::shared_ptr<std::string>>
+postString(const std::string& url, const std::shared_ptr<std::string>& postdata,
+           const char* contentType=nullptr)
 {
     auto client = std::make_shared<Client>();
+    client->dontCopyPostData = true;
     if (contentType)
         client->setHeader((std::string("Content-Type: ")+contentType).c_str());
-    return client->ppost<std::string>(url, postdata.c_str(), postdata.size())
-    .then([client](const std::shared_ptr<Response<std::string>>& response) -> promise::Promise<std::shared_ptr<std::string>>
+    return client->ppost<std::string>(url, postdata->c_str(), postdata->size())
+    .then([client, postdata](const std::shared_ptr<Response<std::string>>& response) -> promise::Promise<std::shared_ptr<std::string>>
     {
         if (response->httpCode() != 200)
             return promise::Error(response->data()?(*response->data()):"", response->httpCode(), ERRTYPE_HTTP);

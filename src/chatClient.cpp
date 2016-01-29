@@ -43,8 +43,8 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 }
 
 Client::Client(IGui& aGui)
- :mAppDir(checkAppDir()), db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
-  api(new MyMegaApi("karere-native")), userAttrCache(*this), gui(aGui),
+ :mAppDir(getAppDir()), db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
+  api(new MyMegaApi("karere-native", mAppDir.c_str())), userAttrCache(*this), gui(aGui),
   mXmppContactList(*this),
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
 {
@@ -64,12 +64,12 @@ Client::Client(IGui& aGui)
     chats.reset(new ChatRoomList(*this));
 }
 
-std::string checkAppDir()
+KARERE_EXPORT std::string getAppDir_default(const char *envVarName)
 {
     static std::string path;
     if (!path.empty())
         return path;
-    const char* dir = getenv("KRDIR");
+    const char* dir = getenv(envVarName);
     if (dir)
     {
         path = dir;
