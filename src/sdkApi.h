@@ -79,8 +79,8 @@ class MyMegaApi: public mega::MegaApi
 public:
     std::shared_ptr<mega::MegaRequest> userData;
     std::unique_ptr<MyMegaLogger> mLogger;
-    MyMegaApi(const char *appKey)
-        :mega::MegaApi(appKey, ".", "Karere"), mLogger(new MyMegaLogger)
+    MyMegaApi(const char *appKey, const char* appDir)
+        :mega::MegaApi(appKey, appDir, "Karere Native"), mLogger(new MyMegaLogger)
     {
         setLoggerObject(mLogger.get());
         setLogLevel(MegaApi::LOG_LEVEL_MAX);

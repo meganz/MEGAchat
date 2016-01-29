@@ -27,7 +27,21 @@ class Buffer;
 
 namespace karere
 {
-std::string checkAppDir();
+/** @brief
+ * The application implementor must define this function to create the application
+ * directory in case it does not exist, and return the path to it.
+ * The reason this function is provided at link time (rather than programmatically
+ * setting it during run time), is that it is needed by the logger, and the logger
+ * is initialized before main() is entered.
+ */
+KARERE_IMPEXP std::string getAppDir();
+
+/** @brief
+ * Builtin implementation of getAppDir() suoitable for desktop systems
+ * It reads the env variable KRDIR for a path to the app dir, and if not present,
+ * defaults to '~/.karere'.
+ */
+KARERE_IMPEXP std::string getAppDir_default(const char* envVarName="KRDIR");
 
 class TextModule;
 class ChatRoom;

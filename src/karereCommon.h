@@ -6,7 +6,26 @@
 #include <time.h>
 #include <string.h>
 #include <logger.h>
-#include <mstrophe.h>
+#include <mstrophe.h> //needed for timestampMs()
+
+#ifndef KARERE_SHARED
+    #define KARERE_EXPORT
+    #define KARERE_IMPORT
+    #define KARERE_IMPEXP
+#else
+    #ifdef _WIN32
+        #define KARERE_EXPORT __declspec(dllexport)
+        #define KARERE_IMPORT __declspec(import)
+    #else
+        #define KARERE_EXPORT __attribute__ ((visibility("default")))
+        #define KARERE_IMPORT KARERE_EXPORT
+    #endif
+    #ifdef karere_BUILDING
+        #define KARERE_IMPEXP KARERE_EXPORT
+    #else
+       #define KARERE_IMPEXP KARERE_IMPORT
+    #endif
+#endif
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -15,6 +34,7 @@
         #include <mmsystem.h>
     #endif
 #endif
+
 namespace karere { class Client; }
 
 #define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
