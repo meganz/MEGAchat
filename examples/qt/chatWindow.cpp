@@ -15,6 +15,7 @@ ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&par
     connect(ui.mVideoCallBtn, SIGNAL(clicked(bool)), this, SLOT(onVideoCallBtn(bool)));
     connect(ui.mAudioCallBtn, SIGNAL(clicked(bool)), this, SLOT(onAudioCallBtn(bool)));
     connect(ui.mMembersBtn, SIGNAL(clicked(bool)), this, SLOT(onMembersBtn(bool)));
+    connect(ui.mMessageList->verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScroll(int)));
     ui.mAudioCallBtn->hide();
     ui.mVideoCallBtn->hide();
     ui.mChatdStatusDisplay->hide();
@@ -29,6 +30,19 @@ ChatWindow::~ChatWindow()
 {
     mMessages->setListener(static_cast<chatd::Listener*>(&mRoom));
 }
+MessageWidget::MessageWidget(ChatWindow& parent, const chatd::Message& msg,
+    chatd::Message::Status status, chatd::Idx idx)
+: QWidget(&parent), mChatWindow(parent), mMessage(&msg), mOriginal(msg),
+    mIsMine(msg.userid == parent.messages().client().userId()), mIndex(idx)
+{
+    ui.setupUi(this);
+    setAuthor(msg.userid);
+    setTimestamp(msg.ts);
+    setStatus(status);
+    setText(msg);
+    show();
+}
+
 void ChatWindow::createMembersMenu(QMenu& menu)
 {
     assert(mRoom.isGroup());
@@ -125,6 +139,54 @@ void ChatWindow::dropEvent(QDropEvent* event)
         return err;
     });
     event->acceptProposedAction();
+}
+
+void ChatWindow::onScroll(int value)
+{
+    if (isVisible())
+        updateSeen();
+}
+
+void ChatWindow::updateSeen()
+{
+    auto& msglist = *ui.mMessageList;
+    if (msglist.count() < 1)
+        return;
+    int i = msglist.indexAt(QPoint(4, 1)).row();
+    if (i < 0) //message list is empty
+    {
+        printf("no visible messages\n");
+        return;
+    }
+
+    auto lastidx = mMessages->lastSeenIdx();
+    auto rect = msglist.rect();
+    chatd::Idx idx = CHATD_IDX_INVALID;
+    //find last visible message widget
+    for(; i < msglist.count(); i++)
+    {
+        auto item = msglist.item(i);
+        if (msglist.visualItemRect(item).bottom() > rect.bottom())
+            break;
+        auto lastWidget = qobject_cast<MessageWidget*>(msglist.itemWidget(item));
+        if (lastWidget->mIsMine)
+            continue;
+        auto currIdx = lastWidget->mIndex;
+        if (currIdx == CHATD_IDX_INVALID)
+            break;
+        idx = currIdx;
+    }
+    if (idx == CHATD_IDX_INVALID)
+        return;
+    else if (idx > lastidx)
+    {
+        mMessages->setMessageSeen(idx);
+//        printf("set last seen: +%d\n", idx-lastidx);
+    }
+    else
+    {
+//        printf("NOT set last seen: %d\n", idx-lastidx);
+    }
 }
 
 WaitMessage::WaitMessage(ChatWindow& chatWindow)

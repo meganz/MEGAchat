@@ -100,8 +100,7 @@ enum ErrorType
 class Call;
 class ICryptoFunctions;
 
-class Jingle: public std::map<std::string, std::shared_ptr<Call>>, strophe::IPlugin,
-        public IRtcModule
+class Jingle: public std::map<std::string, std::shared_ptr<Call>>, public IRtcModule
 {
 protected:
 /** Contains all info about an incoming call that has been accepted at the message level and needs to be autoaccepted at the jingle level */

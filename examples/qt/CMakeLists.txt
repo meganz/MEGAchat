@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.0)
 project(rtctestapp)
 
 FIND_PACKAGE(Qt5Widgets REQUIRED)
+FIND_PACKAGE(Qt5Multimedia REQUIRED)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set (SRCS
@@ -17,9 +19,12 @@ set (SRCS
      res/resources.qrc
 )
 
-add_definitions(-D_DEBUG -fvisibility=hidden -Wall -DHAVE_KARERE_LOGGER)
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    add_definitions(-Wno-unused-local-typedefs)
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    add_definitions(-D_DEBUG -fvisibility=hidden -Wall -Wno-unused-local-typedef -DHAVE_KARERE_LOGGER)
+    if (optAsanMode AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")) # defined by Karere
+        add_definitions(-fsanitize=${optAsanMode} -fno-omit-frame-pointer) #enable ASAN
+        list(APPEND CMAKE_EXE_LINKER_FLAGS_DEBUG "-fsanitize=${optAsanMode}")
+    endif()
 endif()
 
 add_subdirectory(../../src karere)
@@ -35,6 +40,7 @@ endif()
 add_executable(rtctestapp ${SRCS})
 set_target_properties(rtctestapp PROPERTIES AUTOMOC TRUE AUTOUIC TRUE AUTORCC TRUE)
 target_link_libraries(rtctestapp
+    Qt5::Multimedia
     Qt5::Widgets
     karere
     ${SYSLIBS}

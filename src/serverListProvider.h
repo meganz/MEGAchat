@@ -12,7 +12,7 @@ namespace karere
 {
 #define SRVJSON_CHECK_GET_PROP(varname, name, type)                                             \
     auto it_##varname = json.FindMember(#name);                                                 \
-    if (!it_##varname)                                                                          \
+    if (it_##varname == json.MemberEnd())                                                                          \
         throw std::runtime_error("No '" #name "' field in JSON server item");                    \
     if (!it_##varname->value.Is##type())                                                        \
         throw std::runtime_error("JSON field '" #name "' is not of type '" #type "'");            \
@@ -20,7 +20,7 @@ namespace karere
 
 #define SRVJSON_GET_OPTIONAL_PROP(varname, name, type)                                           \
     auto it_##name = json.FindMember(#name);                                                     \
-    if (it_##name)                                                                               \
+    if (it_##name != json.MemberEnd())                                                                               \
     {                                                                                            \
         if (!it_##name->value.Is##type())                                                        \
             throw std::runtime_error("JSON field '" #name "' is not of type '" #type "'");       \
@@ -150,11 +150,11 @@ public:
     StaticProvider(const char* serversJson)
     {
         rapidjson::Document doc;
-        doc.Parse<0>(serversJson);
+        doc.Parse(serversJson);
         if (doc.HasParseError())
         {
-            throw std::runtime_error(std::string("Error parsing json: ")+strOrEmpty(doc.GetParseError())
-                                     +" at position "+std::to_string(doc.GetErrorOffset()));
+            throw std::runtime_error("Error "+std::to_string(doc.GetParseError())+
+                "parsing json, at position "+std::to_string(doc.GetErrorOffset()));
         }
         parseServerList(doc, **this);
     }
@@ -319,8 +319,8 @@ void GelbProvider<S>::parseServersJson(const std::string& json)
     doc.Parse<0>(json.c_str());
     if (doc.HasParseError())
     {
-        throw std::runtime_error(std::string("Error parsing json: ")+strOrEmpty(doc.GetParseError())
-                                 +" at position "+std::to_string(doc.GetErrorOffset()));
+        throw std::runtime_error(std::string("Error ")+std::to_string(doc.GetParseError())+
+            "parsing json, at position "+std::to_string(doc.GetErrorOffset()));
     }
     auto arr = doc.FindMember(mService.c_str());
     if (arr == doc.MemberEnd())

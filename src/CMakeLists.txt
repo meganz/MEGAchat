@@ -29,14 +29,15 @@ set (SRCS
     ./text_filter/default_emoticon_handler.cpp
 )
 
-add_definitions(-fvisibility=hidden -Wall)
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    add_definitions(-Wno-unused-local-typedefs)
-endif()
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-if (CLANG_STDLIB)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
+if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
+    add_definitions(-fvisibility=hidden -Wall -Wno-unused-local-typedefs)
+    if (optAsanMode AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug"))
+        add_definitions(-fsanitize=${optAsanMode} -fno-omit-frame-pointer)
+    endif()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    if (CLANG_STDLIB)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
+    endif()
 endif()
 
 add_subdirectory(rtcModule)

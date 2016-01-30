@@ -689,7 +689,7 @@ void Connection::execCommand(const StaticBuffer &buf)
       }
       catch(BufferRangeError& e)
       {
-            CHATD_LOG_ERROR("Buffer bound check error while parsing %s: %s\nAborting command processing", Command::opcodeToStr(opcode), e.what());
+            CHATD_LOG_ERROR("Buffer bound check error while parsing %s:\n\t%s\n\tAborting command processing", Command::opcodeToStr(opcode), e.what());
             return;
       }
       catch(std::exception& e)
@@ -713,7 +713,7 @@ bool Messages::msgSend(const Message& message)
     }
     catch(std::runtime_error& e)
     {
-        CHATID_LOG_ERROR("Exception from ICrypto::decrypt: %s", e.what());
+        CHATID_LOG_ERROR("Exception from ICrypto::encrypt: %s", e.what());
         return false;
     }
     return sendCommand(Command(OP_NEWMSG) + mChatId + Id::null() + message.id() + message.ts + encrypted);
@@ -943,22 +943,23 @@ void Messages::onLastSeen(const Id& msgid)
     }
     CALL_LISTENER(onUnreadChanged);
 }
+
 bool Messages::setMessageSeen(Idx idx)
 {
     assert(idx != CHATD_IDX_INVALID);
-    if (idx <= mLastSeenIdx)
-    {
-        CHATID_LOG_DEBUG("Attempted to move the last-seen pointer backward, ignoring");
+    if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx <= mLastSeenIdx))
         return false;
-    }
+
     auto& msg = at(idx);
     if (msg.userid == mClient.mUserId)
     {
         CHATID_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
         return false;
     }
+    Idx prevLastSeen = mLastSeenIdx;
+    mLastSeenIdx = idx;
     sendCommand(Command(OP_SEEN) + mChatId + msg.id());
-    for (Idx i=mLastSeenIdx; i<=idx; i++)
+    for (Idx i=prevLastSeen+1; i<=mLastSeenIdx; i++)
     {
         auto& m = at(i);
         if (m.userid != mClient.mUserId)
@@ -970,6 +971,17 @@ bool Messages::setMessageSeen(Idx idx)
     return true;
 }
 
+bool Messages::setMessageSeen(Id msgid)
+{
+    auto it = mIdToIndexMap.find(msgid);
+    if (it == mIdToIndexMap.end())
+    {
+        CHATID_LOG_WARNING("setMessageSeen: unknown msgid '%s'", ID_CSTR(msgid));
+        return false;
+    }
+    return setMessageSeen(it->second);
+}
+
 int Messages::unreadMsgCount() const
 {
     if (mLastSeenIdx == CHATD_IDX_INVALID)
@@ -977,7 +989,7 @@ int Messages::unreadMsgCount() const
     else if (mLastSeenIdx < lownum())
         return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
 
-    Idx first = mLastSeenIdx;
+    Idx first = mLastSeenIdx+1;
     bool mayHaveMore = false;
     unsigned count = 0;
     auto last = highnum();
@@ -1160,7 +1172,19 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
     if (message->isEncrypted)//isLocal may still be true, if we retry decrypting a saved encrypted msg that failed to decrypt previously
     {
         CHATD_LOG_CRYPTO_CALL("Calling ICrypto::decrypt()");
-        mCrypto->decrypt(*message, idx)
+        promise::Promise<void> pms;
+        try
+        {
+            pms = mCrypto->decrypt(*message, idx);
+        }
+        catch(std::exception& e)
+        {
+            message->isEncrypted = true;
+            pms = promise::reject<void>(
+                std::string("Exception: ")+e.what());
+        }
+
+        pms
 #ifndef NDEBUG
         .then([this, message]()
         {
@@ -1169,7 +1193,7 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
 #endif
         .fail([this, message](const promise::Error& err)
         {
-            CHATID_LOG_ERROR("Error decrypting message: %s", err.what());
+            CHATID_LOG_ERROR("Error decrypting message:\n%s", err.what());
             message->isEncrypted = true;
         })
         .then([this, message, isLocal, idx]()

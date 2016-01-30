@@ -3,7 +3,6 @@ project(rtcModule)
 include (../utils.cmake)
 
 set(optRtcModuleBuildShared 1 CACHE BOOL "Whether to build rtcModule as a shared lib")
-
 set (SRCS
     strophe.jingle.session.cpp
     strophe.jingle.cpp
@@ -25,15 +24,19 @@ include_directories(. .. ../base ../../third-party ${CMAKE_CURRENT_BINARY_DIR}
 
 set(RTCMODULE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "rtcModule include dirs for dependent projects")
 
-add_definitions(-DRTCM_BUILDING ${WEBRTC_DEFS} -fvisibility=hidden)
+add_definitions(-DRTCM_BUILDING ${WEBRTC_DEFS})
 
 #-Wno-unused-local-typedefs suppresses a lot of warning form webrtc headers from COMPILE_ASSERT: see https://code.google.com/p/chromium/issues/detail?id=227506
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    add_definitions(-Wno-unused-local-typedefs)
+if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
+    add_definitions(-fvisibility=hidden -Wall -Wno-unused-local-typedef)
+    if (optAsanMode AND ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG"))
+        add_definitions(-fsanitize=${optAsanMode} -fno-omit-frame-pointer -Wl,-z,defs) #enable ASAN
+        list(APPEND CMAKE_EXE_LINKER_FLAGS_DEBUG "-fsanitize=${optAsanMode}")
+    endif()
 endif()
 
 if (NOT ANDROID AND NOT WIN32)
-set(SYSLIBS pthread)
+    set(SYSLIBS pthread)
 endif()
 
 if (CLANG_STDLIB)

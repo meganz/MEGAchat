@@ -4,6 +4,7 @@ include(../utils.cmake)
 
 set (optStrophePath "${CMAKE_CURRENT_SOURCE_DIR}/../../third-party/strophe-native" CACHE PATH "Path to our custom strophe (mstrophe) lib")
 set (optServicesBuildShared 1 CACHE BOOL "Build libservices as a shared lib, for use of the async services by several shared objects")
+set(optAsanMode "" CACHE STRING "Build with AddressSanitizer, in the specified mode (-fsanitize=<mode>, i.e. address,memory) Requires GCC>= 4.9 or Clang>=3.5")
 
 set(SRCS
   cservices.cpp

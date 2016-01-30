@@ -15,6 +15,8 @@
 #include <QTimer>
 #include <QProgressBar>
 #include <QMimeData>
+#include <QMediaPlayer>
+#include <QBuffer>
 #include <QToolTip>
 #include <chatdDb.h>
 #include <chatClient.h>
@@ -34,10 +36,12 @@ class MessageWidget: public QWidget
     Q_OBJECT
 protected:
     Ui::ChatMessage ui;
+    ChatWindow& mChatWindow;
     const chatd::Message* mMessage; //we only need this for the popup menu - Qt doesn't give the index of the clicked item, only a pointer to it
     const chatd::Message& mOriginal;
     short mEditCount = 0; //counts how many times we have edited the message, so that we can keep the edited display even after a canceled edit, in case there was a previous edit
     bool mIsMine;
+    chatd::Idx mIndex;
     Q_PROPERTY(QColor msgColor READ msgColor WRITE setMsgColor)
     QColor msgColor() { return palette().color(QPalette::Base); }
     void setMsgColor(const QColor& color)
@@ -48,16 +52,8 @@ protected:
     }
     friend class ChatWindow;
 public:
-    MessageWidget(QWidget* parent, const chatd::Message& msg, chatd::Message::Status status, const chatd::Messages& chatdMsgs)
-    : QWidget(parent), mMessage(&msg), mOriginal(msg), mIsMine(msg.userid == chatdMsgs.client().userId())
-    {
-        ui.setupUi(this);
-        setAuthor(msg.userid);
-        setTimestamp(msg.ts);
-        setStatus(status);
-        setText(msg);
-        show();
-    }
+    MessageWidget(ChatWindow& parent, const chatd::Message& msg,
+                  chatd::Message::Status status, chatd::Idx idx);
     MessageWidget& setAuthor(const chatd::Id& userid)
     {
         if (mIsMine)
@@ -232,7 +228,7 @@ public slots:
             if (text.isEmpty())
                 return;
             auto msg = mMessages->msgSubmit(text.data(), text.size(), chatd::Message::kTypeRegularMessage, nullptr);
-            msg->userp = addMsgWidget(*msg, chatd::Message::kSending, false);
+            msg->userp = addMsgWidget(*msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
             ui.mMessageList->scrollToBottom();
         }
         ui.mMessageEdit->setText(QString());
@@ -312,9 +308,17 @@ public slots:
     void onMemberRemove();
     void onMemberSetPriv();
     void onMemberPrivateChat();
+    void onScroll(int value);
+    void onSoundPlayStateChanged(QMediaPlayer::State state)
+    {
+        printf("sound state change: %d\n", state);
+        if (state == QMediaPlayer::StoppedState)
+            qobject_cast<QMediaPlayer*>(QObject::sender())->deleteLater();
+    }
 public:
     ChatWindow(karere::ChatRoom& room, MainWindow& parent);
     virtual ~ChatWindow();
+    chatd::Messages& messages() const { return *mMessages; }
 protected:
     void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr)
     {
@@ -332,6 +336,11 @@ protected:
         mCallGui = nullptr;
         ui.mTitlebar->show();
         ui.mTextChatWidget->show();
+    }
+    void updateSeen();
+    virtual void showEvent(QShowEvent* event)
+    {
+        mega::setTimeout([this]() { updateSeen(); }, 2000);
     }
     void closeEvent(QCloseEvent* event)
     {
@@ -373,10 +382,10 @@ protected:
         auto item = static_cast<QListWidgetItem*>(msg.userp);
         return qobject_cast<MessageWidget*>(item->listWidget()->itemWidget(item));
     }
-    QListWidgetItem* addMsgWidget(const chatd::Message& msg, chatd::Message::Status status,
+    QListWidgetItem* addMsgWidget(const chatd::Message& msg, chatd::Idx idx, chatd::Message::Status status,
                       bool first, QColor* color=nullptr)
     {
-        auto widget = new MessageWidget(this, msg, status, *mMessages);
+        auto widget = new MessageWidget(*this, msg, status, idx);
         connect(widget->ui.mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
 //      connect(widget->ui.mAuthorDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMsgAuthorCtxMenu(const QPoint&)));
 
@@ -483,7 +492,7 @@ public:
         for (chatd::Idx idx = mMessages->lownum(); idx<=last; idx++)
         {
             auto& msg = mMessages->at(idx);
-            addMsgWidget(msg, mMessages->getMsgStatus(idx, msg.userid), false);
+            addMsgWidget(msg, idx, mMessages->getMsgStatus(idx, msg.userid), false);
         }
         if (mMessages->onlineState() == chatd::kChatStateOnline)
             QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
@@ -492,13 +501,32 @@ public:
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
     {
         mRoom.onRecvNewMessage(idx, msg, status);
+        auto sbar = ui.mMessageList->verticalScrollBar();
+        bool wasAtBottom = sbar->value() == sbar->maximum();
         if (msg.edits())
             addMsgEdit(msg, false);
         else
-            addMsgWidget(msg, status, false);
-        ui.mMessageList->scrollToBottom();
-        if (isActiveWindow())
-            mMessages->setMessageSeen(idx);
+            addMsgWidget(msg, idx, status, false);
+        if (wasAtBottom)
+            ui.mMessageList->scrollToBottom();
+        if (!isVisible() || !wasAtBottom)
+        {
+            printf("Playing sound\n");
+            auto file = new QFile(":/icq-incoming-msg.mp3");
+            file->open(QIODevice::ReadOnly);
+/*            QByteArray resdata = file.readAll();
+            if (resdata.isEmpty())
+            {
+                printf("res file is empty\n");
+                return;
+            }
+            auto media = new QBuffer(&resdata);
+*/
+            auto sound = new QMediaPlayer();
+            connect(sound, SIGNAL(stateChanged(QMediaPlayer::State)), this, SLOT(onSoundPlayStateChanged(QMediaPlayer::State)));
+            sound->setMedia(QMediaContent(), file); //qrc://icq-incoming-msg.mp3"));
+            sound->play();
+        }
     }
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
     {
@@ -514,7 +542,7 @@ public:
         }
         else
         {
-            addMsgWidget(msg, status, true);
+            addMsgWidget(msg, idx, status, true);
         }
     }
     virtual void onMsgDecrypted(chatd::Message& msg)
@@ -591,7 +619,7 @@ public:
         }
         else
         {
-            auto item = addMsgWidget(msg, chatd::Message::kSending, false);
+            auto item = addMsgWidget(msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
             msg.userp = item;
         }
         ui.mMessageList->scrollToBottom();

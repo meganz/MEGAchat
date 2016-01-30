@@ -124,7 +124,7 @@ public:
     Id userid;
     uint32_t ts;
     bool isEncrypted;
-    unsigned char type;
+    Type type;
     mutable void* userp;
     const Id& id() const { return mId; }
     const Id& edits() const { return mEdits; }
@@ -231,19 +231,56 @@ public:
      * its return value) in case the client reconnects. When reconnected, the client
      * re-encrypts and resends all unconfirmed output messages in order.
      */
-    virtual bool encrypt(const Message& src, Buffer& dest) { return true; }
+    virtual bool encrypt(const Message& src, Buffer& dest)
+    {
+        Message::Type type = src.type;
+        if (type==Message::kTypeEdit)
+        {
+            printf("encrypting an edit\n");
+            dest.reserve(src.dataSize()+9);
+            dest.append<unsigned char>(type);
+            dest.append<uint8_t>(src.edits());
+        }
+        else
+        {
+            dest.append<unsigned char>(type);
+        }
+        dest.append(src.buf(), src.dataSize());
+        return true;
+    }
 /// @brief Called by the client for received messages to decrypt them.
 /// The crypto module \b must also set the type of the message, so that the client
 /// knows whether to pass it to the application (i.e. contains an actual message)
 /// or should not (i.e. contains a crypto system packet)
     virtual promise::Promise<void> decrypt(Message& src, Idx idx)
     { //test implementation
-        src.type = Message::kTypeRegularMessage;
+        auto size = src.dataSize();
+        printf("decrypt: size = %zu\n", size);
+        Message::Type type = (Message::Type)(*(src.buf()));
+        src.type = type;
+        if (type == Message::kTypeEdit)
+        {
+            if (size < 9)
+                throw std::runtime_error("Edit message is too small");
+
+            Buffer dest(size-9);
+            printf("decrypt: message is an edit\n");
+            src.setEdits(src.read<uint64_t>(1), false);
+            dest.append(src.buf()+9, size-9);
+            src.assign(std::move(dest));
+        }
+        else
+        {
+            if (size < 1)
+                throw std::runtime_error("Message is too small");
+            Buffer dest(size-1);
+            dest.append(src.buf()+1, size-1);
+            src.assign(std::move(dest));
+        }
         promise::Promise<void> pms;
         mega::setTimeout([pms, &src]() mutable
         {
             src.isEncrypted = false;
-            printf("resolving, size = %zu\n", src.dataSize());
             pms.resolve();
         }, 1000);
         return pms;
@@ -477,7 +514,9 @@ public:
         Message* msg = findOrNull(num);
         if (!msg)
         {
-            throw std::runtime_error("Messages::operator[idx]: idx = "+std::to_string(num)+" is outside of [lownum:highnum] range");
+            throw std::runtime_error("Messages::operator[idx]: idx = "+
+                std::to_string(num)+" is outside of ["+std::to_string(lownum())+":"+
+                std::to_string(highnum())+"] range");
         }
         return *msg;
     }
@@ -490,13 +529,15 @@ public:
         else
             return (num < mForwardStart + mForwardList.size());
     }
-    Idx msgIndexFromId(const Id& id)
+    Idx msgIndexFromId(Id id)
     {
         auto it = mIdToIndexMap.find(id);
         return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;
     }
     bool getHistory(int count); ///@ returns whether the fetch is from network (true), or database (false), so the app knows whether to display a progress bar/ui or not
     bool setMessageSeen(Idx idx);
+    bool setMessageSeen(Id msgid);
+    Idx lastSeenIdx() const { return mLastSeenIdx; }
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
     void onCanEncryptAgain() { flushOutputQueue(); }
 // Message output methods

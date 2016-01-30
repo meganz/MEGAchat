@@ -38,8 +38,9 @@ public:
     size_t dataSize() const { return mDataSize; }
     char* read(size_t offset, size_t len) const
     {
-        if (offset+len-1 > mDataSize)
-            throw BufferRangeError("Buffer::read: tried to read past buffer end");
+        if (offset+len > mDataSize)
+            throw BufferRangeError("Buffer::read: tried to read "+
+                std::to_string(offset+len-mDataSize)+" bytes past buffer end");
         return mBuf+offset;
     }
     template <class T>
@@ -191,7 +192,8 @@ public:
     template <class T>
     Buffer& write(size_t offset, const T& val) { return write(offset, &val, sizeof(val)); }
     void clear() { mDataSize = 0; }
-    void free() {
+    void free()
+    {
         if (!mBuf)
             return;
         ::free(mBuf);

@@ -20,5 +20,6 @@
         <file>videocall-hover.svg</file>
         <file>groupchat-members.svg</file>
         <file>groupchat-members-hover.svg</file>
+        <file>icq-incoming-msg.mp3</file>
     </qresource>
 </RCC>
