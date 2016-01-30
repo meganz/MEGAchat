@@ -103,15 +103,20 @@ public:
     };
     enum Type: unsigned char
     {
-        kTypeInvalid = 255,
+        kTypeInvalid = 127, //bit 7 is 0, good to make an invalid message not recognized as internal
         //first are types encoded in the crypto/chatd protocol
         kTypeRegularMessage = 0,
         kTypeEdit = 1,
-        kTypeUser = 32,//from this on, till kTypeInternal are types encoded in the payload
+        kTypeUser = 16,//from this on, till kTypeInternal are types encoded in the payload
         kTypeInternal = 128, //if this flag is set, the message is not passed to the application
         kTypeJoin = kTypeInternal + 0,
         kTypeLeave = kTypeInternal + 1,
         kTypeKeys = kTypeInternal + 2
+    };
+    enum EncryptedState: unsigned char
+    {
+        kEncrypted = 1,
+        kDecryptError = 3
     };
 
 private:
@@ -123,7 +128,7 @@ private:
 public:
     Id userid;
     uint32_t ts;
-    bool isEncrypted;
+    unsigned char isEncrypted;
     Type type;
     mutable void* userp;
     const Id& id() const { return mId; }
@@ -132,6 +137,7 @@ public:
     bool editsIsXid() const { return mEditsIsXid; }
     void setId(const Id& aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     void setEdits(const Id& aEdits, bool isXid) { mEdits = aEdits; mEditsIsXid = isXid; }
+    bool isForUser() const { return !(type & kTypeInternal); }
     Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, Buffer&& buf, bool aEncrypted,
           Type aType=kTypeInvalid, void* aUserp=nullptr, bool aIsSending=false)
         :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
@@ -212,6 +218,7 @@ public:
 ///Unread message count has changed
     virtual void onUnreadChanged() {}
     virtual void onMsgDecrypted(Message& msg) {}
+    virtual void onMsgDecryptError(Message& msg, const std::string& err) {}
 };
 class ICrypto
 {
@@ -236,16 +243,17 @@ public:
         Message::Type type = src.type;
         if (type==Message::kTypeEdit)
         {
-            printf("encrypting an edit\n");
             dest.reserve(src.dataSize()+9);
             dest.append<unsigned char>(type);
-            dest.append<uint8_t>(src.edits());
+            dest.append<uint64_t>(src.edits());
         }
         else
         {
             dest.append<unsigned char>(type);
         }
-        dest.append(src.buf(), src.dataSize());
+        if (!src.empty())
+            dest.append(src.buf(), src.dataSize());
+        printf("encrypted a %sedit: size: %zu\n", (src.type==Message::kTypeEdit)?"":"NON-", dest.dataSize());
         return true;
     }
 /// @brief Called by the client for received messages to decrypt them.
@@ -263,11 +271,18 @@ public:
             if (size < 9)
                 throw std::runtime_error("Edit message is too small");
 
-            Buffer dest(size-9);
             printf("decrypt: message is an edit\n");
             src.setEdits(src.read<uint64_t>(1), false);
-            dest.append(src.buf()+9, size-9);
-            src.assign(std::move(dest));
+            if (size > 9)
+            {
+                Buffer dest(size-9);
+                dest.append(src.buf()+9, size-9);
+                src.assign(std::move(dest));
+            }
+            else
+            {
+                src.clear();
+            }
         }
         else
         {

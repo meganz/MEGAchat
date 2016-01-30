@@ -841,8 +841,8 @@ void Messages::onLastReceived(const Id& msgid)
         {
             if ((mLastReceivedIdx != CHATD_IDX_INVALID) && (idx < mLastReceivedIdx))
             {
-                CHATD_LOG_ERROR("onLastReceived: Tried to set the index to an older message, ignoring");
-                CHATD_LOG_DEBUG("highnum() = %zu, mLastReceivedIdx = %zu, idx = %zu", highnum(), mLastReceivedIdx, idx);
+                CHATID_LOG_ERROR("onLastReceived: Tried to set the index to an older message, ignoring");
+                CHATID_LOG_DEBUG("highnum() = %zu, mLastReceivedIdx = %zu, idx = %zu", highnum(), mLastReceivedIdx, idx);
             }
             else
             {
@@ -923,7 +923,8 @@ void Messages::onLastSeen(const Id& msgid)
         if (mLastSeenIdx != CHATD_IDX_INVALID)
         {
             if (idx < mLastSeenIdx)
-                throw std::runtime_error(mChatId.toString()+": onLastSeen: Can't set last seen index to an older message: current idx:"+to_string(mLastSeenIdx)+" new: "+to_string(idx));
+                CHATID_LOG_ERROR("onLastSeen: Can't set last seen index to an older "
+                    "message: current idx: %u, new: %u", mLastSeenIdx, idx);
             notifyOldest = mLastSeenIdx;
             mLastSeenIdx = idx;
         }
@@ -1168,7 +1169,7 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
         idx = lownum();
     }
     mIdToIndexMap[msgid] = idx;
-    bool wasEncrypted = message->isEncrypted;
+    auto wasEncrypted = message->isEncrypted;
     if (message->isEncrypted)//isLocal may still be true, if we retry decrypting a saved encrypted msg that failed to decrypt previously
     {
         CHATD_LOG_CRYPTO_CALL("Calling ICrypto::decrypt()");
@@ -1179,7 +1180,7 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
         }
         catch(std::exception& e)
         {
-            message->isEncrypted = true;
+            message->isEncrypted = Message::kDecryptError;
             pms = promise::reject<void>(
                 std::string("Exception: ")+e.what());
         }
@@ -1193,8 +1194,13 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
 #endif
         .fail([this, message](const promise::Error& err)
         {
-            CHATID_LOG_ERROR("Error decrypting message:\n%s", err.what());
-            message->isEncrypted = true;
+            CHATID_LOG_WARNING("Error decrypting message:\n%s", err.what());
+            message->isEncrypted = Message::kDecryptError;
+            if (message->isForUser())
+            {
+                CALL_LISTENER(onMsgDecryptError, *message, err.msg());
+            }
+            //TODO: Should we continue and send a RECEIVED ack if we can't decrypt it?
         })
         .then([this, message, isLocal, idx]()
         {
@@ -1202,7 +1208,10 @@ Idx Messages::msgIncoming(bool isNew, Message* message, bool isLocal)
             if (!message->isEncrypted) //don't save it it was from db and still not decrypted
             {
                 CALL_DB(addMsgToHistory, *message, idx); //may overwrite a decrypted message
-                CALL_LISTENER(onMsgDecrypted, *message);
+                if (message->isForUser())
+                {
+                    CALL_LISTENER(onMsgDecrypted, *message);
+                }
             }
             else if (!isLocal)
             {

@@ -127,7 +127,7 @@ void ChatWindow::dropEvent(QDropEvent* event)
     const auto& data = event->mimeData()->data("application/mega-user-handle");
     if (data.size() != sizeof(uint64_t))
     {
-        KR_LOG_ERROR("ChatWindow: dropEvent() for userid: Data size is not 8 bytes");
+        GUI_LOG_ERROR("ChatWindow: dropEvent() for userid: Data size is not 8 bytes");
         return;
     }
     mWaitMsg.addMsg(tr("Adding user(s), please wait..."));
@@ -155,7 +155,7 @@ void ChatWindow::updateSeen()
     int i = msglist.indexAt(QPoint(4, 1)).row();
     if (i < 0) //message list is empty
     {
-        printf("no visible messages\n");
+//        printf("no visible messages\n");
         return;
     }
 

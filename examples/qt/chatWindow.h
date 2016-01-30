@@ -83,7 +83,7 @@ public:
     {
         QDateTime t;
         t.setTime_t(ts);
-        ui.mTimestampDisplay->setText(t.toString("hh:mm:ss dd.MM.yyyy"));
+        ui.mTimestampDisplay->setText(t.toString("hh:mm:ss"));
         return *this;
     }
     MessageWidget& setStatus(chatd::Message::Status status)
@@ -93,10 +93,23 @@ public:
     }
     MessageWidget& setText(const chatd::Message& msg)
     {
-        if (msg.isEncrypted)
-            ui.mMsgDisplay->setText(tr("Decrypting..."));
+        auto& txt = *ui.mMsgDisplay;
+        if (msg.isEncrypted == chatd::Message::kEncrypted)
+        {
+            txt.setFontItalic(true);
+            txt.setText(tr("Decrypting..."));
+        }
+        else if (msg.isEncrypted == chatd::Message::kDecryptError)
+        {
+            txt.setFontItalic(true);
+            ui.mMsgDisplay->setText(tr("Decrypt error:\n")+QString::fromLatin1(msg.buf(), msg.dataSize()));
+        }
         else
-            ui.mMsgDisplay->setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
+        {
+            assert(!msg.isEncrypted);
+            txt.setFontItalic(false);
+            txt.setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
+        }
         return *this;
     }
     MessageWidget& updateStatus(chatd::Message::Status newStatus)
@@ -280,7 +293,6 @@ public slots:
     }
     void onMsgListRequestHistory()
     {
-        printf("scroll\n");
         fetchMoreHistory(true);
     }
     void fetchMoreHistory(bool byScroll)
@@ -411,7 +423,7 @@ protected:
     }
     void addMsgEdit(const chatd::Message& msg, bool first, QColor* color=nullptr)
     {
-        assert(msg.edits());
+        assert(msg.edits() && (msg.type == chatd::Message::kTypeEdit));
         auto idx = mMessages->msgIndexFromId(msg.edits());
         if (idx == CHATD_IDX_INVALID) //maybe message is not loaded in buffer? Ignore it then
         {
@@ -419,7 +431,7 @@ protected:
             if ((it == mNotLinkedEdits.end()) || !first) //we are adding an oldest message, can't be a more recent edit, ignore
                 mNotLinkedEdits[msg.edits()] = &msg;
             msg.userp = nullptr;
-            CHATD_LOG_DEBUG("Can't find original message of edit, adding to map");
+            //GUI_LOG_DEBUG("Can't find original message of edit, adding to map", msg.dataSize(), msg.buf());
             return;
         }
         auto& targetMsg = mMessages->at(idx);
@@ -453,7 +465,7 @@ protected:
         auto it = mNotLinkedEdits.find(msg.id());
         if (it == mNotLinkedEdits.end())
             return false;
-        CHATD_LOG_DEBUG("Loaded message that had edits pending");
+        //GUI_LOG_DEBUG("Loaded message that had edits pending", msg.dataSize(), msg.buf());
         auto widget = widgetFromMessage(msg);
         auto updated = widget->mMessage = it->second;
         widget->setText(*updated).setEdited();
@@ -492,7 +504,10 @@ public:
         for (chatd::Idx idx = mMessages->lownum(); idx<=last; idx++)
         {
             auto& msg = mMessages->at(idx);
-            addMsgWidget(msg, idx, mMessages->getMsgStatus(idx, msg.userid), false);
+            if (msg.type == chatd::Message::kTypeEdit)
+                addMsgEdit(msg, false);
+            else
+                addMsgWidget(msg, idx, mMessages->getMsgStatus(idx, msg.userid), false);
         }
         if (mMessages->onlineState() == chatd::kChatStateOnline)
             QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
@@ -547,7 +562,24 @@ public:
     }
     virtual void onMsgDecrypted(chatd::Message& msg)
     {
-        widgetFromMessage(msg)->setText(msg);
+        //if original was not (yet) loaded when this message was received, it's not linked
+        //to any widget, so we don't need to update anything in the GUI
+        if (msg.userp)
+            widgetFromMessage(msg)->setText(msg);
+        else
+        {
+            assert(msg.edits());
+            GUI_LOG_DEBUG("Received an edit whose original is yet not loaded");
+        }
+    }
+    virtual void onMsgDecryptError(chatd::Message &msg, const std::string &err)
+    {
+        assert(msg.isEncrypted == chatd::Message::kDecryptError);
+        msg.clear();
+        msg.append(err.c_str(), err.size());
+        auto widget = widgetFromMessage(msg);
+        if (widget)
+            widget->setText(msg);
     }
     virtual void onHistoryDone(bool isFromDb)
     {

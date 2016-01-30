@@ -159,26 +159,28 @@ public:
     }
     Buffer& write(size_t offset, const void* data, size_t datalen)
     {
-        auto writeEnd = offset+datalen-1;
-        if (writeEnd < mDataSize)
+        if (data == 0)
+            return *this;
+        auto reqdSize = offset+datalen;
+        if (reqdSize <= mDataSize)
         {
             ::memcpy(mBuf+offset, data, datalen);
             return *this;
         }
         else
         {
-            if (writeEnd >= mBufSize)
+            if (reqdSize > mBufSize)
             {
                 auto save = mBuf;
-                mBuf = (char*)::realloc(mBuf, writeEnd+1);
+                mBuf = (char*)::realloc(mBuf, reqdSize);
                 if (!mBuf)
                 {
                     mBuf = save;
-                    throw std::runtime_error("Buffer::write: error reallocating block of size "+std::to_string(writeEnd));
+                    throw std::runtime_error("Buffer::write: error reallocating block of size "+std::to_string(reqdSize));
                 }
             }
             memcpy(mBuf+offset, data, datalen);
-            mDataSize = writeEnd+1;
+            mDataSize = reqdSize;
         }
         return *this;
     }
