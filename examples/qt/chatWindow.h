@@ -12,11 +12,9 @@
 #include <QMenu>
 #include <QMoveEvent>
 #include <QScrollBar>
-#include <QTimer>
 #include <QProgressBar>
 #include <QMimeData>
 #include <QMediaPlayer>
-#include <QBuffer>
 #include <QToolTip>
 #include <chatdDb.h>
 #include <chatClient.h>

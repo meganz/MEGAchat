@@ -1,7 +1,6 @@
 #ifndef CHATCLIENT_H
 #define CHATCLIENT_H
 #include "contactList.h"
-#include "ITypes.h" //for IPtr
 #include "karereEventObjects.h"
 #include "rtcModule/IRtcModule.h"
 #include <memory>
@@ -14,13 +13,7 @@
 #include "chatd.h"
 
 namespace strophe { class Connection; }
-//namespace chatd { class Client; class UserPrivMap; class Listener; }
 
-namespace rtcModule
-{
-    class IRtcModule;
-    class IEventHandler;
-}
 namespace mega { namespace rh { class IRetryController; } }
 struct sqlite3;
 class Buffer;
