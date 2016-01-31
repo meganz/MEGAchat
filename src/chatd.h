@@ -253,7 +253,7 @@ public:
         }
         if (!src.empty())
             dest.append(src.buf(), src.dataSize());
-        printf("encrypted a %sedit: size: %zu\n", (src.type==Message::kTypeEdit)?"":"NON-", dest.dataSize());
+        //printf("encrypted a %sedit: size: %zu\n", (src.type==Message::kTypeEdit)?"":"NON-", dest.dataSize());
         return true;
     }
 /// @brief Called by the client for received messages to decrypt them.
@@ -263,7 +263,7 @@ public:
     virtual promise::Promise<void> decrypt(Message& src, Idx idx)
     { //test implementation
         auto size = src.dataSize();
-        printf("decrypt: size = %zu\n", size);
+        //printf("decrypt: size = %zu\n", size);
         Message::Type type = (Message::Type)(*(src.buf()));
         src.type = type;
         if (type == Message::kTypeEdit)

@@ -1,10 +1,7 @@
 #ifndef KARERECOMMON_H
 #define KARERECOMMON_H
 
-#include <map>
 #include <string>
-#include <time.h>
-#include <string.h>
 #include <logger.h>
 #include <mstrophe.h> //needed for timestampMs()
 
@@ -38,9 +35,7 @@
 namespace karere { class Client; }
 
 #define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
-//#define KARERE_DEFAULT_XMPP_SERVER "xmpp234n001.developers.mega.co.nz"
 #define KARERE_XMPP_DOMAIN "karere.mega.nz"
-//#define KARERE_XMPP_DOMAIN "developers.mega.co.nz"
 #define KARERE_LOGIN_TIMEOUT 15000
 #define KARERE_RECONNECT_DELAY_MAX 10000
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
