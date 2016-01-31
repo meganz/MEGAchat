@@ -17,9 +17,15 @@
    <locale language="English" country="UnitedStates"/>
   </property>
   <widget class="QWidget" name="centralWidget">
+   <property name="autoFillBackground">
+    <bool>true</bool>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
    <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1">
     <property name="spacing">
-     <number>2</number>
+     <number>0</number>
     </property>
     <property name="leftMargin">
      <number>0</number>
@@ -34,99 +40,208 @@
      <number>0</number>
     </property>
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout" stretch="0">
-      <property name="spacing">
-       <number>0</number>
+     <widget class="QWidget" name="horizontalWidget" native="true">
+      <property name="styleSheet">
+       <string notr="true">background-color:qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(100,100,100,255), stop:1 rgba(200,200,200,255));
+
+
+</string>
       </property>
-      <property name="sizeConstraint">
-       <enum>QLayout::SetNoConstraint</enum>
-      </property>
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <item>
-       <widget class="QGroupBox" name="inputDevicesBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
-          <horstretch>1</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-        </property>
-        <layout class="QFormLayout" name="formLayout_2">
-         <property name="horizontalSpacing">
-          <number>6</number>
+      <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="0,1,0">
+       <property name="spacing">
+        <number>1</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>8</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="mOnlineDisplay">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
-         <property name="verticalSpacing">
-          <number>1</number>
+         <property name="minimumSize">
+          <size>
+           <width>24</width>
+           <height>24</height>
+          </size>
          </property>
-         <property name="leftMargin">
+         <property name="font">
+          <font>
+           <pointsize>20</pointsize>
+          </font>
+         </property>
+         <property name="autoFillBackground">
+          <bool>false</bool>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">color:lightgreen;
+background-color: rgba(0,0,0,0);</string>
+         </property>
+         <property name="lineWidth">
           <number>0</number>
          </property>
-         <property name="topMargin">
+         <property name="midLineWidth">
           <number>0</number>
          </property>
-         <property name="rightMargin">
+         <property name="text">
+          <string>♺▬●</string>
+         </property>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
+         </property>
+         <property name="scaledContents">
+          <bool>false</bool>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="indent">
           <number>0</number>
          </property>
-         <property name="bottomMargin">
-          <number>0</number>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="mStatusCombo">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
-         <item row="0" column="0">
-          <widget class="QLabel" name="audioLabel">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>1</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>Audio In:</string>
-           </property>
-          </widget>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>24</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+          </font>
+         </property>
+         <property name="autoFillBackground">
+          <bool>false</bool>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QComboBox
+{
+    color: white;
+    background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1,
+         stop:0 rgba(100,100,100,255),
+         stop:1 rgba(200,200,200,255));
+    border: 0px white;
+}
+
+QComboBox QAbstractItemView 
+{
+    background-color: red;
+    border: 0px solid;
+    margin: 0px;
+    padding: 0px 0px 0px 0px;
+}
+
+QComboBox:drop-down
+{
+    border-width: 0px; 
+}
+</string>
+         </property>
+         <property name="editable">
+          <bool>false</bool>
+         </property>
+         <property name="frame">
+          <bool>false</bool>
+         </property>
+         <item>
+          <property name="text">
+           <string>Online</string>
+          </property>
          </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="videoLabel">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>Video In:</string>
-           </property>
-          </widget>
+         <item>
+          <property name="text">
+           <string>Away</string>
+          </property>
          </item>
-         <item row="0" column="1">
-          <widget class="QComboBox" name="audioInCombo">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-          </widget>
+         <item>
+          <property name="text">
+           <string>DnD</string>
+          </property>
          </item>
-         <item row="2" column="1">
-          <widget class="QComboBox" name="videoInCombo">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-          </widget>
+         <item>
+          <property name="text">
+           <string>Offline</string>
+          </property>
          </item>
-        </layout>
-       </widget>
-      </item>
-     </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="mSettingsBtn">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>10</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>18</pointsize>
+          </font>
+         </property>
+         <property name="autoFillBackground">
+          <bool>false</bool>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QToolButton
+{
+  background-color:rgba(0,0,0,0);
+  border: 1px;
+  color: black;
+}
+QToolButton:hover
+{
+  color: white;
+}</string>
+         </property>
+         <property name="text">
+          <string>☰</string>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>10</width>
+           <height>10</height>
+          </size>
+         </property>
+         <property name="arrowType">
+          <enum>Qt::NoArrow</enum>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </item>
     <item>
      <widget class="QListWidget" name="contactList">
@@ -197,40 +312,7 @@ background-color:qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <resources/>
- <connections>
-  <connection>
-   <sender>audioInCombo</sender>
-   <signal>currentIndexChanged(int)</signal>
-   <receiver>MainWindow</receiver>
-   <slot>onAudioInSelected()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>370</x>
-     <y>20</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>402</x>
-     <y>259</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>videoInCombo</sender>
-   <signal>currentIndexChanged(QString)</signal>
-   <receiver>MainWindow</receiver>
-   <slot>onVideoInSelected()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>370</x>
-     <y>52</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>402</x>
-     <y>259</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
  <slots>
   <slot>onAudioInSelected()</slot>
   <slot>onVideoInSelected()</slot>

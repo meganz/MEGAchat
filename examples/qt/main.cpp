@@ -88,14 +88,6 @@ int main(int argc, char **argv)
     .then([](int)
     {
         KR_LOG_DEBUG("Client initialized");
-        vector<string> audio;
-        gClient->rtc->getAudioInDevices(audio);
-        for (auto& name: audio)
-            mainWin->ui.audioInCombo->addItem(name.c_str());
-        vector<string> video;
-        gClient->rtc->getVideoInDevices(video);
-        for (auto& name: video)
-            mainWin->ui.videoInCombo->addItem(name.c_str());
     })
     .fail([](const promise::Error& error)
     {

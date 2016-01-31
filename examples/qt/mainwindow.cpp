@@ -1,13 +1,14 @@
 #include "mainwindow.h"
 #include <ui_mainwindow.h>
 #include <ui_loginDialog.h>
+#include <ui_settings.h>
 #include "qmessagebox.h"
 #include <string>
 #include <videoRenderer_Qt.h>
 #include <gcm.h>
 #include "rtcModule/IRtcModule.h"
 #include <iostream>
-#include <rapidjson/document.h>
+//#include <rapidjson/document.h>
 #include <sdkApi.h>
 #include <chatClient.h>
 #include <messageBus.h>
@@ -103,17 +104,41 @@ QString LoginDialog::sLoginStageStrings[] = {
 MainWindow::MainWindow(Client* aClient): mClient(aClient)
 {
     ui.setupUi(this);
-
+    connect(ui.mSettingsBtn, SIGNAL(clicked(bool)), this, SLOT(onSettingsBtn(bool)));
 //    setWindowFlags(Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowMaximizeButtonHint
 //                   |Qt::WindowMinimizeButtonHint|Qt::WindowCloseButtonHint);
 }
-extern bool inCall;
 
-void MainWindow::onAudioInSelected()
+SettingsDialog::SettingsDialog(MainWindow &parent)
+    :QDialog(&parent), mMainWindow(parent)
+{
+    ui.setupUi(this);
+    vector<string> audio;
+    mMainWindow.client().rtc->getAudioInDevices(audio);
+    for (auto& name: audio)
+        ui.audioInCombo->addItem(name.c_str());
+    mAudioInIdx = 0;
+
+    vector<string> video;
+    mMainWindow.client().rtc->getVideoInDevices(video);
+    for (auto& name: video)
+        ui.videoInCombo->addItem(name.c_str());
+    mVideoInIdx = 0;
+}
+
+void SettingsDialog::applySettings()
+{
+    if (ui.audioInCombo->currentIndex() != mAudioInIdx)
+        selectAudioInput();
+    if (ui.videoInCombo->currentIndex() != mVideoInIdx)
+        selectVideoInput();
+}
+
+void SettingsDialog::selectAudioInput()
 {
     auto combo = ui.audioInCombo;
     string device = combo->itemText(combo->currentIndex()).toLatin1().data();
-    bool ret = mClient->rtc->selectAudioInDevice(device);
+    bool ret = mMainWindow.client().rtc->selectAudioInDevice(device);
     if (!ret)
     {
         QMessageBox::critical(this, "Error", "Selected device not present");
@@ -122,11 +147,11 @@ void MainWindow::onAudioInSelected()
     KR_LOG_DEBUG("Selected audio device '%s'", device.c_str());
 }
 
-void MainWindow::onVideoInSelected()
+void SettingsDialog::selectVideoInput()
 {
     auto combo = ui.videoInCombo;
     string device = combo->itemText(combo->currentIndex()).toLatin1().data();
-    bool ret = mClient->rtc->selectVideoInDevice(device);
+    bool ret = mMainWindow.client().rtc->selectVideoInDevice(device);
     if (!ret)
     {
         QMessageBox::critical(this, "Error", "Selected device not present");
@@ -317,6 +342,13 @@ QString prettyInterval(int64_t secs)
         auto days = (secs % secsPerMonth) / 86400;
         return QObject::tr("%1 years %2 months %3 days").arg(years).arg(months).arg(days);
     }
+}
+
+void MainWindow::onSettingsBtn(bool)
+{
+    SettingsDialog dialog(*this);
+    if (dialog.exec() == QDialog::Accepted)
+        dialog.applySettings();
 }
 
 #include <mainwindow.moc>

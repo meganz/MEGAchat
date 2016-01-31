@@ -13,6 +13,7 @@
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>
 #include <ui_loginDialog.h>
+#include <ui_settings.h>
 #include <IJingleSession.h>
 #include <chatClient.h>
 #include "chatWindow.h"
@@ -20,6 +21,7 @@
 
 namespace Ui {
 class MainWindow;
+class SettingsDialog;
 }
 namespace karere {
 class Client;
@@ -68,8 +70,23 @@ protected:
 protected slots:
     void onAddContact();
 public slots:
-    void onAudioInSelected();
-    void onVideoInSelected();
+    void onSettingsBtn(bool);
+};
+
+class SettingsDialog: public QDialog
+{
+    Q_OBJECT
+protected:
+    Ui::SettingsDialog ui;
+    int mAudioInIdx;
+    int mVideoInIdx;
+    MainWindow& mMainWindow;
+    void selectVideoInput();
+    void selectAudioInput();
+protected slots:
+public:
+    SettingsDialog(MainWindow &parent);
+    void applySettings();
 };
 
 extern bool inCall;
