@@ -52,31 +52,7 @@ protected:
 public:
     MessageWidget(ChatWindow& parent, const chatd::Message& msg,
                   chatd::Message::Status status, chatd::Idx idx);
-    MessageWidget& setAuthor(const chatd::Id& userid)
-    {
-        if (mIsMine)
-        {
-            ui.mAuthorDisplay->setText(tr("me"));
-            return *this;
-        }
-        auto email = karere::gClient->contactList->getUserEmail(userid);
-        if (email)
-            ui.mAuthorDisplay->setText(QString::fromStdString(*email));
-        else
-            ui.mAuthorDisplay->setText(tr("error"));
-
-        karere::gClient->userAttrCache.getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
-        [](Buffer* data, void* userp)
-        {
-            //buffer contains an unsigned char prefix that is the strlen() of the first name
-            if (!data)
-                return;
-            auto self = static_cast<MessageWidget*>(userp);
-            self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1));
-        });
-        return *this;
-    }
-
+    MessageWidget& setAuthor(const chatd::Id& userid);
     MessageWidget& setTimestamp(uint32_t ts)
     {
         QDateTime t;
@@ -663,7 +639,8 @@ public:
         mRoom.onUserLeft(userid);
     }
     virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }
-    virtual karere::IGui::ICallGui* getCallGui() { return mCallGui; }
+    virtual karere::IGui::ICallGui* callGui() { return mCallGui; }
+    virtual rtcModule::IEventHandler* callEventHandler() { return mCallGui; }
     //IChatWindow interface
     virtual void show() { QDialog::show(); raise(); }
     virtual void hide() { QDialog::hide(); }

@@ -27,14 +27,16 @@ namespace karere
  * setting it during run time), is that it is needed by the logger, and the logger
  * is initialized before main() is entered.
  */
-KARERE_IMPEXP std::string getAppDir();
 
+#ifndef _WIN32
+    std::string getAppDir() __attribute__ ((weak_import));
+#endif
 /** @brief
  * Builtin implementation of getAppDir() suoitable for desktop systems
  * It reads the env variable KRDIR for a path to the app dir, and if not present,
  * defaults to '~/.karere'.
  */
-KARERE_IMPEXP std::string getAppDir_default(const char* envVarName="KRDIR");
+KARERE_IMPEXP const std::string& createAppDir(const char* dirname=".karere", const char* envVarName="KRDIR");
 
 class TextModule;
 class ChatRoom;
@@ -56,7 +58,8 @@ public:
     class IChatWindow: public chatd::Listener, public ITitleDisplay
     {
     public:
-        virtual ICallGui* getCallGui() = 0;
+        virtual ICallGui* callGui() = 0;
+        virtual rtcModule::IEventHandler* callEventHandler() = 0;
         virtual void show() = 0;
         virtual void hide() = 0;
     };
@@ -439,7 +442,7 @@ public:
     Client(IGui& gui);
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
-    promise::Promise<int> init();
+    promise::Promise<void> init();
     bool loginDialogDisplayed() const { return mLoginDlg.operator bool(); }
     /** @brief Notifies the client that internet connection is again available */
     void notifyNetworkOffline();
@@ -466,7 +469,8 @@ public:
         return mXmppContactList;
     }
 protected:
-    chatd::Id mMyHandle = (uint64_t)-1;
+    chatd::Id mMyHandle = mega::UNDEF;
+    std::string mSid;
     std::string mMyName;
     std::unique_ptr<IGui::ILoginDialog> mLoginDlg;
     bool mIsLoggedIn = false;
@@ -486,7 +490,8 @@ protected:
         getOtherUserInfo(std::string &emailAddress);
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
         getThisUserInfo();
-    void setupHandlers();
+    promise::Promise<void> connectXmpp(const std::shared_ptr<HostPortServerInfo>& server);
+    void setupXmppHandlers();
     promise::Promise<int> initializeContactList();
     /**
      * @brief send response to ping request.

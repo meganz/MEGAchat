@@ -68,9 +68,9 @@ void sigintHandler(int)
 }
 namespace karere
 {
-    KARERE_EXPORT std::string getAppDir() { return karere::getAppDir_default(); }
+    APP_ALWAYS_EXPORT std::string getAppDir() { return karere::createAppDir(); }
 }
-
+std::unique_ptr<karere::Client> gClient;
 int main(int argc, char **argv)
 {
 //    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 
     gClient->init()
-    .then([](int)
+    .then([]()
     {
         KR_LOG_DEBUG("Client initialized");
     })

@@ -21,6 +21,8 @@ static const char* kNoMoreCallbacksMsg =
 
 //===
 struct _Void{};
+typedef _Void Void;
+
 template<typename V>
 struct MaskVoid { typedef V type;};
 template<>
@@ -169,6 +171,7 @@ public:
 };
 
 struct _Empty{};
+typedef _Empty Empty;
 
 template<typename T, int L=4>
 class Promise: public PromiseBase
@@ -325,10 +328,10 @@ protected:
     inline CallbackList<L, ISuccessCb>& thenCbs() {return mSharedObj->cbs().mSuccessCbs;}
     inline CallbackList<L, IFailCb>& failCbs() {return mSharedObj->cbs().mFailCbs;}
     SharedObj* mSharedObj;
-    Promise(const _Empty&) : mSharedObj(NULL){} //internal use
     template <class FT,int FL> friend class Promise;
 public:
     typedef T Type;
+    Promise(_Empty) : mSharedObj(NULL){} //Use with care - only when subsequent re-assing is guaranteed.
     Promise() : mSharedObj(new SharedObj){}
     Promise(const Promise& other):mSharedObj(NULL)
     {
@@ -375,7 +378,22 @@ public:
     }
     int done() const
     { return (mSharedObj ? (mSharedObj->mResolved) : PROMISE_RESOLV_NOT); }
-
+    template <class Ret=T>
+    const typename std::enable_if<!std::is_same<Ret, void>::value, Ret>::type& value() const
+    {
+        assert(mSharedObj);
+        auto master = mSharedObj->mMaster;
+        if (master.mSharedObj)
+        {
+            assert(master.done());
+            return master.mSharedObj->mResult;
+        }
+        else
+        {
+            assert(done() == PROMISE_RESOLV_SUCCESS);
+            return mSharedObj->mResult;
+        }
+    }
 protected:
     virtual PromiseBase* clone() const
     {    return new Promise<T>(*this);    }
@@ -513,9 +531,9 @@ public:
 
         return next;
     }
-    //V can be const& or &&
+    //val can be a by-value param, const& or &&
     template <typename V>
-    void resolve(V val)
+    void resolve(V&& val)
     {
         if (mSharedObj->mResolved)
             throw std::runtime_error("Already resolved/rejected");
@@ -525,7 +543,7 @@ public:
             doResolve(val);
         else
         {
-            mSharedObj->mResult = std::move(val);
+            mSharedObj->mResult = std::forward<V>(val);
             mSharedObj->mPending = true;
         }
     }

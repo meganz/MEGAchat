@@ -48,23 +48,32 @@ Client::Client(IGui& aGui)
   mXmppContactList(*this),
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
 {
-    SqliteStmt stmt(db, "select value from vars where name='my_handle'");
-    if (!stmt.step())
+    SqliteStmt stmt(db, "select value from vars where name='sid'");
+    if (stmt.step())
+        mSid = stmt.stringCol(0);
+
+    if (mSid.empty())
     {
-        KR_LOG_DEBUG("No own mega handle found in local db");
+        KR_LOG_DEBUG("No session id found in local db");
         return;
     }
-    auto handle = stmt.uint64Col(0);
-    if (handle == 0 || handle == mega::UNDEF)
-        throw std::runtime_error("Invalid own handle in local database");
 
-    mMyHandle = handle;
+    SqliteStmt stmt2(db, "select value from vars where name='my_handle'");
+    if (stmt2.step())
+        mMyHandle = stmt2.uint64Col(0);
+
+    if (mMyHandle.val == 0 || mMyHandle.val == mega::UNDEF)
+    {
+        mSid.clear();
+        KR_LOG_WARNING("Local db inconsisency: Session id found, but out userhandle is invalid. Invalidating session");
+        return;
+    }
     chatd.reset(new chatd::Client(mMyHandle));
     contactList.reset(new ContactList(*this));
     chats.reset(new ChatRoomList(*this));
 }
 
-KARERE_EXPORT std::string getAppDir_default(const char *envVarName)
+KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *envVarName)
 {
     static std::string path;
     if (!path.empty())
@@ -86,7 +95,7 @@ KARERE_EXPORT std::string getAppDir_default(const char *envVarName)
         if (!homedir)
             throw std::runtime_error("Cant get HOME env variable");
         path = homedir;
-        path.append("/.karere");
+        path.append("/").append(dirname);
     }
     struct stat info;
     auto ret = stat(path.c_str(), &info);
@@ -151,12 +160,10 @@ Client::~Client()
     struct TOKENPASTE(SharedState,__LINE__){membtype value;};  \
     std::shared_ptr<TOKENPASTE(SharedState, __LINE__)> varname(new TOKENPASTE(SharedState,__LINE__))
 
-promise::Promise<int> Client::init()
+promise::Promise<void> Client::init()
 {
-    SqliteStmt stmt(db, "select value from vars where name='sid'");
-    std::string sid = stmt.step() ? stmt.stringCol(0) : std::string();
-    ApiPromise pmsMegaLogin;
-    if (sid.empty())
+    ApiPromise pmsMegaLogin((promise::Empty()));
+    if (mSid.empty()) //mMyHandle is also invalid
     {
         mLoginDlg.reset(gui.createLoginDialog());
         pmsMegaLogin = asyncLoop(
@@ -184,7 +191,7 @@ promise::Promise<int> Client::init()
     else
     {
         gui.show();
-        pmsMegaLogin = api->call(&mega::MegaApi::fastLogin, sid.c_str());
+        pmsMegaLogin = api->call(&mega::MegaApi::fastLogin, mSid.c_str());
     }
     pmsMegaLogin.then([this](ReqResult result) mutable
     {
@@ -196,13 +203,9 @@ promise::Promise<int> Client::init()
         if (!uh.c_str() || !uh.c_str()[0])
             throw std::runtime_error("Could not get our own user handle from API");
         chatd::Id handle(uh.c_str());
-        if (mMyHandle != mega::UNDEF)
+        if (mLoginDlg)
         {
-            if (handle != mMyHandle)
-                throw std::runtime_error("Local DB inconsistency: Own userhandle returned from API differs from the one in local db");
-        }
-        else
-        {
+            assert(mMyHandle.val == mega::UNDEF || mMyHandle.val == 0);
             KR_LOG_DEBUG("Obtained our own handle (%s), recording to database", handle.toString().c_str());
             mMyHandle = handle;
             sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
@@ -210,22 +213,14 @@ promise::Promise<int> Client::init()
             contactList.reset(new ContactList(*this));
             chats.reset(new ChatRoomList(*this));
         }
+        else
+        {
+            assert(mMyHandle);
+            if (handle != mMyHandle)
+                throw std::runtime_error("Local DB inconsistency: Own userhandle returned from API differs from the one in local db");
+        }
 //        if (onChatdReady)
 //            onChatdReady();
-
-        SdkString xmppPass = api->dumpXMPPSession();
-        if (xmppPass.size() < 16)
-            throw std::runtime_error("Mega session id is shorter than 16 bytes");
-        ((char&)xmppPass.c_str()[16]) = 0;
-
-        //xmpp_conn_set_keepalive(*conn, 10, 4);
-        // setup authentication information
-        std::string jid = std::string(api->getMyXMPPJid())+"@" KARERE_XMPP_DOMAIN "/kn_";
-        jid.append(rtcModule::makeRandomString(10));
-        xmpp_conn_set_jid(*conn, jid.c_str());
-        xmpp_conn_set_pass(*conn, xmppPass.c_str());
-        KR_LOG_DEBUG("xmpp user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
-        setupHandlers();
     });
     auto pmsMegaGud = pmsMegaLogin.then([this](ReqResult result)
     {
@@ -238,18 +233,20 @@ promise::Promise<int> Client::init()
     auto pmsMegaFetch = pmsMegaLogin.then([this](ReqResult result)
     {
         if (mLoginDlg)
+        {
+            const char* sid = api->dumpSession();
+            assert(sid);
+            mSid = sid;
+            printf("obtained SID = %s\n", sid);
+            sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
             mLoginDlg->setState(IGui::ILoginDialog::kFetchingNodes);
+        }
         return api->call(&mega::MegaApi::fetchNodes);
     })
     .then([this](ReqResult result)
     {
-        if (mLoginDlg)
-        {
-            const char* sid = api->dumpSession();
-            sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
-            mLoginDlg.reset();
-            gui.show();
-        }
+        mLoginDlg.reset();
+        gui.show();
         userAttrCache.onLogin();
         api->addGlobalListener(this);
 
@@ -271,56 +268,79 @@ promise::Promise<int> Client::init()
         }
     });
 
-    SHARED_STATE(server, std::shared_ptr<HostPortServerInfo>);
-    auto pmsGelbReq = mXmppServerProvider->getServer()
-    .then([server](std::shared_ptr<HostPortServerInfo> aServer) mutable
+    auto pmsGelb = mXmppServerProvider->getServer()
+    .then([this](const std::shared_ptr<HostPortServerInfo>& server) mutable
     {
-        server->value = aServer;
-        return 0;
+        return server;
     });
-    return promise::when(pmsMegaGud, pmsMegaFetch, pmsGelbReq)
-    .then([this, server]()
+    auto pmsXmpp = promise::when(pmsMegaLogin, pmsGelb)
+    .then([this, pmsGelb, pmsMegaGud]()
     {
-        if (onChatdReady)
-            onChatdReady();
+        return connectXmpp(pmsGelb.value());
+    });
+    return promise::when(pmsMegaGud, pmsMegaFetch, pmsXmpp)
+    .fail([this](const promise::Error& err)
+    {
+        if (mLoginDlg)
+            mLoginDlg.reset();
+        return err;
+    });
+}
+
+promise::Promise<void> Client::connectXmpp(const std::shared_ptr<HostPortServerInfo>& server)
+{
+    assert(server);
+    SdkString xmppPass = api->dumpXMPPSession();
+    if (!xmppPass)
+        return promise::Error("SDK returned NULL session id");
+    if (xmppPass.size() < 16)
+        throw std::runtime_error("Mega session id is shorter than 16 bytes");
+    ((char&)xmppPass.c_str()[16]) = 0;
+
+    //xmpp_conn_set_keepalive(*conn, 10, 4);
+    // setup authentication information
+    std::string jid = useridToJid(mMyHandle);
+    jid.append("/kn_").append(rtcModule::makeRandomString(10));
+    xmpp_conn_set_jid(*conn, jid.c_str());
+    xmpp_conn_set_pass(*conn, xmppPass.c_str());
+    KR_LOG_DEBUG("xmpp user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
+    setupXmppHandlers();
 
 // initiate connection
-        return mega::retry([this, server](int no) -> promise::Promise<void>
+    return mega::retry([this, server](int no) -> promise::Promise<void>
+    {
+        if (no < 2)
         {
-            if (no < 2)
+            return mega::performWithTimeout([this, server]()
             {
-                return mega::performWithTimeout([this, server]()
+                KR_LOG_INFO("Connecting to xmpp server %s...", server->host.c_str());
+                return conn->connect(server->host.c_str(), 0);
+            }, KARERE_LOGIN_TIMEOUT,
+            [this]()
+            {
+                xmpp_disconnect(*conn, -1);
+            });
+        }
+        else
+        {
+            return mXmppServerProvider->getServer()
+            .then([this](std::shared_ptr<HostPortServerInfo> aServer)
+            {
+                KR_LOG_WARNING("Connecting to new xmpp server: %s...", aServer->host.c_str());
+                return mega::performWithTimeout([this, aServer]()
                 {
-                    KR_LOG_INFO("Connecting to xmpp server %s...", server->value->host.c_str());
-                    return conn->connect(server->value->host.c_str(), 0);
+                    return conn->connect(aServer->host.c_str(), 0);
                 }, KARERE_LOGIN_TIMEOUT,
                 [this]()
                 {
                     xmpp_disconnect(*conn, -1);
                 });
-            }
-            else
-            {
-                return mXmppServerProvider->getServer()
-                .then([this](std::shared_ptr<HostPortServerInfo> aServer)
-                {
-                    KR_LOG_WARNING("Connecting to new xmpp server: %s...", aServer->host.c_str());
-                    return mega::performWithTimeout([this, aServer]()
-                    {
-                        return conn->connect(aServer->host.c_str(), 0);
-                    }, KARERE_LOGIN_TIMEOUT,
-                    [this]()
-                    {
-                        xmpp_disconnect(*conn, -1);
-                    });
-                });
-            }
-        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
-    })
+            });
+        }
+    }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
     .then([this]()
     {
-        KR_LOG_INFO("Login success");
-
+        KR_LOG_INFO("XMPP login successful");
 // handle reconnect due to network errors
         setupReconnectHandler();
 // create and register disco strophe plugin
@@ -347,26 +367,17 @@ promise::Promise<int> Client::init()
     })
     .then([this]()
     {
-        KR_LOG_DEBUG("Contactlist initialized");
+        KR_LOG_DEBUG("XMPP contactlist initialized");
         //startKeepalivePings();
-        return 0;
-    })
-    .fail([this](const promise::Error& err)
-    {
-        KR_LOG_ERROR("Error initializing client: %s", err.what());
-        if (mLoginDlg)
-            mLoginDlg.reset();
-        return err;
     });
 }
 
-void Client::setupHandlers()
+void Client::setupXmppHandlers()
 {
     conn->addHandler([this](strophe::Stanza stanza, void*, bool &keep) mutable
     {
             sendPong(stanza.attr("from"), stanza.attr("id"));
     }, "urn::xmpp::ping", "iq", nullptr, nullptr);
-
 }
 
 void Client::setupReconnectHandler()
@@ -1167,7 +1178,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
         }
     }
 //save to db
-    auto db = karere::gClient->db;
+    auto db = parent.client.db;
     sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
     if (!userTitle.empty())
     {
@@ -1183,9 +1194,11 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
     {
+        printf("before\n");
         stmt << mChatid << m.first << m.second->mPriv;
+        printf("after\n");
         stmt.step();
-        stmt.reset();
+        stmt.reset().clearBind();
     }
     mContactGui = parent.client.gui.contactList().createGroupChatItem(*this);
     if (!mTitleString.empty())
@@ -1260,7 +1273,7 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
         throw std::runtime_error("syncWithApi: Shard number of chat can't change");
     if (chat.isGroup() != mIsGroup)
         throw std::runtime_error("syncWithApi: isGroup flag can't change");
-    auto db = karere::gClient->db;
+    auto db = parent.client.db;
     auto url = chat.getUrl();
     if (!url)
         throw std::runtime_error("MegaTextChat::getUrl() returned NULL");
@@ -1386,7 +1399,7 @@ void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
 bool GroupChatRoom::syncMembers(const chatd::UserPrivMap& users)
 {
     bool changed = false;
-    auto db = karere::gClient->db;
+    auto db = parent.client.db;
     for (auto ourIt=mPeers.begin(); ourIt!=mPeers.end();)
     {
         auto userid = ourIt->first;

@@ -6,8 +6,9 @@ include (utils.cmake)
 find_package(Cryptopp REQUIRED)
 find_package(Mega REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(SQLite3 REQUIRED)
 
-set(MPENC_DIR "~/mpenc_cpp" CACHE PATH "mpEnc checkout dir built within a /build subdir")
+set(optKarereBuildShared 0 CACHE BOOL "Build libkarere as a shared library")
 set(KARERE_LOGGER_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/base CACHE PATH "Karere logger include dir") #tell mpenc to use the karere logger
 set(LIBWS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../third-party/libws CACHE PATH "libws source dir, where its CMakeLists.txt is located")
 set(LIBWS_EXTERNAL_LOOP 1 CACHE BOOL "Use libws with external libevent loop")
@@ -30,10 +31,14 @@ set (SRCS
 )
 
 if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
-    add_definitions(-fvisibility=hidden -Wall -Wno-unused-local-typedefs)
+    add_definitions(-Wall -Wno-unused-local-typedefs)
     if (optAsanMode AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug"))
         add_definitions(-fsanitize=${optAsanMode} -fno-omit-frame-pointer)
+        if (optKarereBuildShared)
+            set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -fsanitize=${optAsanMode}")
+        endif()
     endif()
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-U,__ZN6karere9getAppDirEv")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
     if (CLANG_STDLIB)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
@@ -41,7 +46,7 @@ if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" S
 endif()
 
 add_subdirectory(rtcModule)
-add_subdirectory(${MPENC_DIR} mpenc)
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../third-party/mpenc_cpp" mpenc)
 add_subdirectory(${LIBWS_DIR} libws)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
     COMMAND cmake -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
@@ -68,14 +73,23 @@ set(KARERE_INCLUDE_DIRS
     CACHE STRING "Include directries needed by projects using karere lib"
 )
 
-include_directories(${KARERE_INCLUDE_DIRS})
-add_library(karere ${SRCS})
+include_directories(${KARERE_INCLUDE_DIRS} ${SQLITE3_INCLUDE_DIR})
+if (optKarereBuildShared)
+    add_library(karere SHARED ${SRCS})
+else()
+    add_library(karere ${SRCS})
+endif()
+
+# all Karere symbols can be used by th application
+set_target_properties(karere PROPERTIES COMPILE_FLAGS "-fvisibility=default")
+
 target_link_libraries(karere
     rtcmodule
     ${LIBMEGA_LIBRARIES}
     ${CRYPTOPP_LIBRARIES}
     mpEnc_cpp
     ws
+    ${SQLITE3_LIBRARIES}
 )
 
 

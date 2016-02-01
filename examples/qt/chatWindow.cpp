@@ -242,3 +242,27 @@ void WaitMsgWidget::show()
     move((qobject_cast<QWidget*>(parent())->width()-width())/2, 10);
     QWidget::show();
 }
+MessageWidget& MessageWidget::setAuthor(const chatd::Id& userid)
+{
+    if (mIsMine)
+    {
+        ui.mAuthorDisplay->setText(tr("me"));
+        return *this;
+    }
+    auto email = mChatWindow.mainWindow.client().contactList->getUserEmail(userid);
+    if (email)
+        ui.mAuthorDisplay->setText(QString::fromStdString(*email));
+    else
+        ui.mAuthorDisplay->setText(tr("error"));
+
+    mChatWindow.mainWindow.client().userAttrCache.getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    [](Buffer* data, void* userp)
+    {
+        //buffer contains an unsigned char prefix that is the strlen() of the first name
+        if (!data)
+            return;
+        auto self = static_cast<MessageWidget*>(userp);
+        self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1));
+    });
+    return *this;
+}

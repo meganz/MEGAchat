@@ -30,6 +30,7 @@ public:
             return mSize;
         return (mSize = strlen(mBuf));
     }
+    operator bool() const { return mBuf != nullptr; }
 
 };
 

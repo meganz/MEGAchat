@@ -103,26 +103,36 @@ void CallGui::onMuteCam(bool checked)
 }
 void CallGui::call()
 {
-    chatd::Id peer = static_cast<PeerChatRoom&>(
-                static_cast<ChatWindow*>(parent())->mRoom).peer();
+    chatd::Id peer = static_cast<PeerChatRoom&>(mChatWindow.mRoom).peer();
     char buf[16];
     auto len = ::mega::Base32::btoa((byte*)&peer.val, 8, buf);
     assert(len < 16);
     buf[len] = 0;
     string peerJid = string(buf)+"@"+KARERE_XMPP_DOMAIN;
-    karere::XmppChatRoom::create(*gClient, peerJid)
-    .then([this](shared_ptr<karere::XmppChatRoom> room)
+    auto& client = mChatWindow.mainWindow.client();
+    karere::XmppChatRoom::create(client, peerJid)
+    .then([&client, peer](shared_ptr<karere::XmppChatRoom> xmppRoom)
     {
+        auto it = client.contactList->find(peer);
+        if (it == client.contactList->end())
+            return;
+        auto room = it->second->chatRoom();
+        if (!room || !room->hasChatWindow())
+            return;
+        auto& win = room->chatWindow();
+        auto self = win.callEventHandler();
+        if (!self)
+            return;
         rtcModule::AvFlags av(true,true);
-        gClient->rtc->startMediaCall(this, room->peerFullJid(), av, nullptr);
-        room->addUserToChat(room->peerFullJid());
+        client.rtc->startMediaCall(self, xmppRoom->peerFullJid(), av, nullptr);
+        xmppRoom->addUserToChat(xmppRoom->peerFullJid());
     })
-    .fail([this](const promise::Error& err)
+    .fail([](const promise::Error& err)
     {
         if (err.type() == 0x3e9aab10)
-            QMessageBox::critical(this, "Error", "Callee user not recognized");
+            QMessageBox::critical(nullptr, "Error", "Callee user not recognized");
         else
-            QMessageBox::critical(this, "Error", QString("Error calling user:")+err.msg().c_str());
+            QMessageBox::critical(nullptr, "Error", QString("Error calling user:")+err.msg().c_str());
         return err;
     });
 }

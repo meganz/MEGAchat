@@ -28,9 +28,16 @@ set(SERVICES_INCLUDE_DIRS
    CACHE STRING "Include dirs for libservices dependent projects"
 )
 include_directories(${SERVICES_INCLUDE_DIRS})
-if  (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
+if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
     add_definitions(-fvisibility=hidden -fPIC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
+    if (optAsanMode AND (${CMAKE_BUILD_TYPE} STREQUAL "Debug"))
+        add_definitions(-fsanitize=${optAsanMode} -fno-omit-frame-pointer)
+        if (optServicesBuildShared)
+            set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -fsanitize=${optAsanMode}")
+        endif()
+    endif()
 endif()
 
 set(SYSLIBS z)
@@ -42,6 +49,10 @@ endif()
 
 if (optServicesBuildShared)
     add_definitions(-DMEGAIO_DLL)
+# put the application-provided std::string karere::getAppDir() function
+# (declared as a weak symbol in loggerChannelConfig.h) in the import table
+# of the libservices shared object instead of looking for its definition
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-U,__ZN6karere9getAppDirEv")
     add_library(services SHARED ${SRCS})
 else()
     add_library(services ${SRCS})

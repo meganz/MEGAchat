@@ -23,6 +23,15 @@
        #define KARERE_IMPEXP KARERE_IMPORT
     #endif
 #endif
+//we need an always-export macro to export the getAppDir() function to the services lib
+//Whether we need a dynamic export is determined not by whether we (libkarere) are
+//dynamic lib, but by whether libservices is dynamic. TO simplify things, we always
+//export this function from the executable
+#ifndef _WIN32
+    #define APP_ALWAYS_EXPORT __attribute__ ((visibility("default")))
+#else
+    #define APP_ALWAYS_EXPORT __declspec(dllexport)
+#endif
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -167,7 +176,7 @@ extern const char* gKarereDbSchema;
  } while(0)
 
 class Client;
-extern std::unique_ptr<Client> gClient;
+//extern std::unique_ptr<Client> gClient;
 
 class RemoteLogger: public Logger::ILoggerBackend
 {

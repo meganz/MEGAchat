@@ -6,7 +6,7 @@
 namespace karere
 {
 class Client;
-std::unique_ptr<Client> gClient;
+//std::unique_ptr<Client> gClient;
 
 void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned flags)
 {

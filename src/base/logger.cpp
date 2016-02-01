@@ -40,7 +40,7 @@ namespace karere
 */
 static size_t myStrncpy(char* dest, const char* src, size_t maxCount);
 
-void Logger::logToConsole(bool enable)
+KRLOGGER_DLLEXPORT void Logger::logToConsole(bool enable)
 {
     if (enable)
     {
@@ -56,7 +56,7 @@ void Logger::logToConsole(bool enable)
     }
 }
 
-void Logger::logToFile(const char* fileName, size_t rotateSizeKb)
+KRLOGGER_DLLEXPORT void Logger::logToFile(const char* fileName, size_t rotateSizeKb)
 {
     if (!fileName) //disable
     {
@@ -67,7 +67,7 @@ void Logger::logToFile(const char* fileName, size_t rotateSizeKb)
     mFileLogger.reset(new FileLogger(mFlags, fileName, rotateSizeKb*1024));
 }
 
-void Logger::setAutoFlush(bool enable)
+KRLOGGER_DLLEXPORT void Logger::setAutoFlush(bool enable)
 {
     if (enable)
         mFlags &= ~krLogNoAutoFlush;
@@ -75,7 +75,7 @@ void Logger::setAutoFlush(bool enable)
         mFlags |= krLogNoAutoFlush;
 }
 
-Logger::Logger(unsigned aFlags, const char* timeFmt)
+KRLOGGER_DLLEXPORT Logger::Logger(unsigned aFlags, const char* timeFmt)
     :mTimeFmt(timeFmt), mFlags(aFlags)
 {
     setup();
@@ -114,7 +114,7 @@ inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix,
     return bytesLogged;
 }
 
-void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const char* fmtString,
+KRLOGGER_DLLEXPORT void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const char* fmtString,
                  va_list aVaList)
 {
     flags |= (mFlags & krGlobalFlagMask);
@@ -165,7 +165,7 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
  *  of an assembled single string. We still need the log level here, because if the
  *  console color selection.
  */
-void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t len)
+KRLOGGER_DLLEXPORT void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t len)
 {
     if (len == (size_t)-1)
         len = strlen(msg);
@@ -186,7 +186,7 @@ void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t
     }
 }
 
-void Logger::log(const char* prefix, krLogLevel level, unsigned flags,
+KRLOGGER_DLLEXPORT void Logger::log(const char* prefix, krLogLevel level, unsigned flags,
                 const char* fmtString, ...)
 {
     va_list vaList;
@@ -209,12 +209,12 @@ Logger::~Logger()
         log("LOGGER", 0, 0, "========== Application terminate ===========\n");
 }
 
-void Logger::addUserLogger(const char* tag, ILoggerBackend* logger)
+KRLOGGER_DLLEXPORT void Logger::addUserLogger(const char* tag, ILoggerBackend* logger)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     mUserLoggers[tag].reset(logger);
 }
-bool Logger::removeUserLogger(const char* tag)
+KRLOGGER_DLLEXPORT bool Logger::removeUserLogger(const char* tag)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     auto item = mUserLoggers.find(tag);
@@ -292,7 +292,7 @@ void Logger::setupFromEnvVar()
     }
 }
 
-Logger gLogger;
+KRLOGGER_DLLEXPORT Logger gLogger;
 extern "C" KRLOGGER_DLLEXPORT KarereLogChannel* krLoggerChannels = gLogger.logChannels;
 extern "C" KRLOGGER_DLLEXPORT krLogLevel krLogLevelStrToNum(const char* strLevel)
 {
