@@ -89,6 +89,7 @@ public:
         virtual IChatWindow& chatWindowForPeer(uint64_t handle) = 0;
     };
     virtual IContactList& contactList() = 0;
+    virtual void onOwnPresence(Presence pres) {} //may include flags
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) = 0;
     virtual rtcModule::IEventHandler*
         createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
@@ -439,7 +440,7 @@ public:
      * This performs a request to xmpp roster server and fetch the contact list.
      * Contact list also registers a contact presence handler to update the list itself based on received presence messages.
      */
-    Client(IGui& gui);
+    Client(IGui& gui, Presence pres);
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
     promise::Promise<void> init();
@@ -463,7 +464,7 @@ public:
     * @brief set user's chat presence.
     * set user's presence state, which can be one of online, busy, away, online
     */
-    void setPresence(const Presence pres, const int delay = 0);
+    promise::Promise<void> setPresence(const Presence pres, bool always = false);
     XmppContactList& xmppContactList()
     {
         return mXmppContactList;
@@ -472,6 +473,7 @@ protected:
     chatd::Id mMyHandle = mega::UNDEF;
     std::string mSid;
     std::string mMyName;
+    Presence mOwnPresence;
     std::unique_ptr<IGui::ILoginDialog> mLoginDlg;
     bool mIsLoggedIn = false;
     /** our own email address */
@@ -485,7 +487,7 @@ protected:
     std::unique_ptr<mega::rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
     sqlite3* openDb();
-    void setupReconnectHandler();
+    void setupXmppReconnectHandler();
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
         getOtherUserInfo(std::string &emailAddress);
     promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>

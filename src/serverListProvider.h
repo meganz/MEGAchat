@@ -80,13 +80,12 @@ using ServerList = std::vector<std::shared_ptr<S> >;
  * contained in the class S
  */
 template <class S>
-class ListProvider: public std::shared_ptr<ServerList<S> >
+class ListProvider: public ServerList<S>
 {
 public: //must be protected, but because of a gcc bug, protected/private members cant be accessed from within a lambda
-    typedef std::shared_ptr<ServerList<S> > Base;
-    ListProvider():Base(new ServerList<S>()){}
+    typedef ServerList<S> Base;
     size_t mNextAssignIdx = 0;
-    bool needsUpdate() const { return ((mNextAssignIdx >= (*this)->size()) || (*this)->empty()); }
+    bool needsUpdate() const { return ((mNextAssignIdx >= Base::size()) || Base::empty()); }
 };
 
 /** The frontend server provider API class - can provide a single or multile servers,
@@ -109,31 +108,38 @@ public:
                 if (mBase->needsUpdate())
                     return promise::Error("No servers", 0x3e9a9e1b, 1);
                 else
-                    return (*mBase)->at(mBase->mNextAssignIdx++);
+                    return mBase->at(mBase->mNextAssignIdx++);
             });
         }
         else
         {
-            return (*mBase)->at(mBase->mNextAssignIdx++);
+            return mBase->at(mBase->mNextAssignIdx++);
         }
     }
-    promise::Promise<std::shared_ptr<ServerList<typename B::Server> > > getServers(unsigned timeout=0)
+    std::shared_ptr<typename B::Server> lastServer()
+    {
+        auto nextIdx = mBase->mNextAssignIdx;
+        if (nextIdx <= 0)
+            return nullptr;
+        return mBase->at(nextIdx-1);
+    }
+    promise::Promise<ServerList<typename B::Server>*> getServers(unsigned timeout=0)
     {
         if (mBase->needsUpdate())
         {
             return mBase->fetchServers(timeout)
-            .then([this]() -> promise::Promise<std::shared_ptr<ServerList<typename B::Server> > >
+            .then([this]() -> promise::Promise<ServerList<typename B::Server>*>
             {
                 if (mBase->needsUpdate())
                     return promise::Error("No servers", 0x3e9a9e1b, 1);
-                mBase->mNextAssignIdx += (*(this->mBase))->size();
-                return *(this->mBase);
+                mBase->mNextAssignIdx += mBase->size();
+                return mBase.get();
             });
         }
         else
         {
-            mBase->mNextAssignIdx += (*(this->mBase))->size();
-            return *(this->mBase);
+            mBase->mNextAssignIdx += mBase->size();
+            return mBase.get();
         }
     }
 };
@@ -156,7 +162,7 @@ public:
             throw std::runtime_error("Error "+std::to_string(doc.GetParseError())+
                 "parsing json, at position "+std::to_string(doc.GetErrorOffset()));
         }
-        parseServerList(doc, **this);
+        parseServerList(doc, *this);
     }
     promise::Promise<void> fetchServers(unsigned timeout=0) { this->mNextAssignIdx = 0; return promise::_Void();}
 };
@@ -215,7 +221,12 @@ public:
             return mStaticProvider.getServer();
         });
     }
-    promise::Promise<std::shared_ptr<ServerList<S> > > getServers(unsigned timeout = 0)
+    std::shared_ptr<S> lastServer()
+    {
+        auto server = mGelbProvider.lastServer();
+        return server ? server : mStaticProvider.lastServer();
+    }
+    promise::Promise<ServerList<S>*> getServers(unsigned timeout = 0)
     {
         return mGelbProvider.getServers(timeout)
         .fail([this](const promise::Error& err)
@@ -325,7 +336,7 @@ void GelbProvider<S>::parseServersJson(const std::string& json)
     auto arr = doc.FindMember(mService.c_str());
     if (arr == doc.MemberEnd())
         throw std::runtime_error("JSON receoved does not have a '"+mService+"' member");
-    parseServerList(arr->value, **this);
+    parseServerList(arr->value, *this);
 }
 
 template <class S>

@@ -244,7 +244,7 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
       State state = kNotYetUserMedia;
       artc::tspMediaStream sessStream;
       AvFlags av = AvFlags(false, false);
-      std::shared_ptr<karere::ServerList<karere::TurnServerInfo> > turnServers;
+      karere::ServerList<karere::TurnServerInfo> turnServers;
       unique_ptr<vector<string> > files;
       StateContext(RtcModule& module): mSelf(module){}
       void freeHandlersExcept(xmpp_uid* handler = nullptr)
@@ -459,16 +459,16 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
     crypto().preloadCryptoForJid(getBareJidFromJid(state->targetJid));
 
   auto gelbPms = mTurnServerProvider->getServers(mIceFastGetTimeout)
-  .then([state](std::shared_ptr<ServerList<TurnServerInfo> > servers)
+  .then([state](ServerList<TurnServerInfo>* servers)
   {
-      state->turnServers = servers;
+      state->turnServers = *servers;
   });
 
   //TODO: Maybe call initiateCallback in parallel with fetching crypto and querying gelb
   when(cryptoPms, gelbPms)
   .then([this, state, call, initiateCallback]()
   {
-      setIceServers(*(state->turnServers));
+      setIceServers(state->turnServers);
       (*initiateCallback)(*call);
   })
   .fail([](const Error& err)

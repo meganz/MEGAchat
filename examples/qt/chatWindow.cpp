@@ -266,3 +266,40 @@ MessageWidget& MessageWidget::setAuthor(const chatd::Id& userid)
     });
     return *this;
 }
+
+void MessageWidget::msgDeleted()
+{
+    mOriginal.userFlags |= kMsgfDeleted;
+    mMessage->userFlags |= kMsgfDeleted;
+    assert(mMessage->userp);
+    auto& list = *mChatWindow.ui.mMessageList;
+    auto visualRect = list.visualItemRect(static_cast<QListWidgetItem*>(mMessage->userp));
+    if (mChatWindow.mMessages->isFetchingHistory() || !list.rect().contains(visualRect))
+    {
+        removeFromList();
+        return;
+    }
+    auto a = new QPropertyAnimation(this, "msgColor");
+// QT BUG: the animation does not always fire the finished signal, so we use our
+// own timer with the same interval as the animation duration. Maybe it's an optimization
+// to not animate invisible stuff
+//      connect(a, SIGNAL(finished()), this, SLOT(onDeleteFadeFinished()));
+    a->setStartValue(QColor(Qt::white));
+    a->setEndValue(QColor(255,0,0,50));
+    a->setDuration(300);
+    a->setEasingCurve(QEasingCurve::Linear);
+    a->start(QAbstractAnimation::DeleteWhenStopped);
+    mega::setTimeout([this]() { removeFromList(); }, 300);
+}
+
+void MessageWidget::removeFromList()
+{
+    assert(mOriginal.userp);
+    assert(mOriginal.userp == mMessage->userp);
+    auto item = static_cast<QListWidgetItem*>(mOriginal.userp);
+    assert(item);
+    mOriginal.userp = mMessage->userp = nullptr;
+    auto& list = *mChatWindow.ui.mMessageList;
+    delete list.takeItem(list.row(item));
+    this->deleteLater();
+}

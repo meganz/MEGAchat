@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.0)
 project(rtctestapp)
 
 FIND_PACKAGE(Qt5Widgets REQUIRED)
-FIND_PACKAGE(Qt5Multimedia REQUIRED)
+
+set(CMAKE_MACOSX_RPATH 1)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -25,6 +27,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STRE
         add_definitions(-fsanitize=${optAsanMode} -fno-omit-frame-pointer) #enable ASAN
         set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=${optAsanMode}")
     endif()
+#    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 endif()
 
 add_subdirectory(../../src karere)
@@ -40,9 +43,25 @@ endif()
 add_executable(rtctestapp ${SRCS})
 set_target_properties(rtctestapp PROPERTIES AUTOMOC TRUE AUTOUIC TRUE AUTORCC TRUE)
 target_link_libraries(rtctestapp
-    Qt5::Multimedia
     Qt5::Widgets
     karere
     ${SYSLIBS}
 )
 
+set_target_properties(rtctestapp PROPERTIES
+ MACOSX_RPATH ON
+ INSTALL_RPATH "@executable_path/deps"
+)
+
+INSTALL(TARGETS rtctestapp
+    BUNDLE DESTINATION . COMPONENT Runtime
+    RUNTIME DESTINATION bin COMPONENT Runtime
+    )
+
+INSTALL(CODE "
+   include(BundleUtilities)
+   fixup_bundle(rtctestapp \"\" \"\")
+   " COMPONENT Runtime)
+
+set(CPACK_BINARY_DRAGNDROP ON)
+include(CPack)

@@ -14,7 +14,6 @@
 #include <QScrollBar>
 #include <QProgressBar>
 #include <QMimeData>
-#include <QMediaPlayer>
 #include <QToolTip>
 #include <chatdDb.h>
 #include <chatClient.h>
@@ -25,7 +24,7 @@ namespace Ui
 class ChatWindow;
 }
 
-enum {kHistBatchSize = 16};
+enum {kHistBatchSize = 16, kMsgfDeleted = 1};
 extern QString gOnlineIndColors[karere::Presence::kLast+1];
 
 class ChatWindow;
@@ -35,9 +34,9 @@ class MessageWidget: public QWidget
 protected:
     Ui::ChatMessage ui;
     ChatWindow& mChatWindow;
-    const chatd::Message* mMessage; //we only need this for the popup menu - Qt doesn't give the index of the clicked item, only a pointer to it
+    const chatd::Message* mMessage; ///Effective message (the one whose contents is displayed). In case it was not edited, it is the same as mOriginal, otherwise it's the last edit message. (we only need this for the popup menu - Qt doesn't give the index of the clicked item, only a pointer to it)
     const chatd::Message& mOriginal;
-    short mEditCount = 0; //counts how many times we have edited the message, so that we can keep the edited display even after a canceled edit, in case there was a previous edit
+    short mEditCount = 0; ///Counts how many times we have edited the message, so that we can keep the edited display even after a canceled edit, in case there was a previous edit
     bool mIsMine;
     chatd::Idx mIndex;
     Q_PROPERTY(QColor msgColor READ msgColor WRITE setMsgColor)
@@ -143,6 +142,8 @@ public:
         ui.mEditDisplay->setText(tr("(Edited)"));
         return *this;
     }
+    void msgDeleted();
+    void removeFromList();
 };
 struct HistFetchUi: public QProgressBar
 {
@@ -187,30 +188,35 @@ protected:
     friend class CallGui;
     friend class CallAnswerGui;
     friend class WaitMessage;
+    friend class MessageWidget;
 public slots:
     void onMsgSendBtn()
     {
         auto text = ui.mMessageEdit->toPlainText().toUtf8();
+        ui.mMessageEdit->setText(QString());
+
         if (mEditedWidget)
         {
             auto widget = mEditedWidget;
             auto& msg = *mEditedWidget->mMessage;
+            widget->disableEditGui();
             mEditedWidget = nullptr;
+
             if ((text.size() == msg.dataSize())
               && (memcmp(text.data(), msg.buf(), text.size()) == 0))
             { //no change
-                widget->disableEditGui();
-                ui.mMessageEdit->setText(QString());
                 return;
             }
-
             auto& original = widget->mOriginal;
             //TODO: see how to associate the edited message widget with the userp
-            auto edited = mMessages->msgModify(original.id(), original.isSending(), text.data(), text.size(), original.userp);
+            auto edited = (text.isEmpty())
+                ? mMessages->msgModify(original.id(), original.isSending(), nullptr, 0, original.userp)
+                : mMessages->msgModify(original.id(), original.isSending(), text.data(), text.size(), original.userp);
+
             addMsgEdit(*edited, original);
-            widget->disableEditGui().updateStatus(chatd::Message::kSending);
+            widget->updateStatus(chatd::Message::kSending);
         }
-        else
+        else //not edit, post new message
         {
             if (text.isEmpty())
                 return;
@@ -231,6 +237,9 @@ public slots:
             auto action = menu->addAction(tr("&Edit message"));
             action->setData(QVariant::fromValue(msgWidget));
             connect(action, SIGNAL(triggered()), this, SLOT(onMessageEditAction()));
+            auto delAction = menu->addAction(tr("Delete message"));
+            delAction->setData(QVariant::fromValue(msgWidget));
+            connect(delAction, SIGNAL(triggered()), this, SLOT(onMessageDelAction()));
         }
         menu->popup(msgWidget->mapToGlobal(point));
     }
@@ -242,15 +251,26 @@ public slots:
         auto action = qobject_cast<QAction*>(QObject::sender());
         startEditingMsgWidget(*action->data().value<MessageWidget*>());
     }
+    void onMessageDelAction()
+    {
+        auto action = qobject_cast<QAction*>(QObject::sender());
+        auto widget = action->data().value<MessageWidget*>();
+        assert(widget);
+        auto& msg = widget->mOriginal;
+        auto editMsg = mMessages->msgModify(msg.id(), msg.isSending(), nullptr, 0, msg.userp);
+        addMsgEdit(*editMsg, msg);
+    }
     void editLastMsg()
     {
+        if (mEditedWidget)
+            return;
         auto msglist = ui.mMessageList;
         int count = msglist->count();
         for(int i=count-1; i>=0; i--)
         {
             auto item = msglist->item(i);
             auto widget = qobject_cast<MessageWidget*>(msglist->itemWidget(item));
-            if (widget->mIsMine)
+            if (widget->mIsMine && !(widget->mMessage->userFlags & kMsgfDeleted))
             {
                 msglist->scrollToItem(item);
                 startEditingMsgWidget(*widget);
@@ -295,12 +315,6 @@ public slots:
     void onMemberSetPriv();
     void onMemberPrivateChat();
     void onScroll(int value);
-    void onSoundPlayStateChanged(QMediaPlayer::State state)
-    {
-        printf("sound state change: %d\n", state);
-        if (state == QMediaPlayer::StoppedState)
-            qobject_cast<QMediaPlayer*>(QObject::sender())->deleteLater();
-    }
 public:
     ChatWindow(karere::ChatRoom& room, MainWindow& parent);
     virtual ~ChatWindow();
@@ -366,7 +380,8 @@ protected:
         if (!msg.userp)
             return nullptr;
         auto item = static_cast<QListWidgetItem*>(msg.userp);
-        return qobject_cast<MessageWidget*>(item->listWidget()->itemWidget(item));
+        auto list = item->listWidget();
+        return qobject_cast<MessageWidget*>(list->itemWidget(item));
     }
     QListWidgetItem* addMsgWidget(const chatd::Message& msg, chatd::Idx idx, chatd::Message::Status status,
                       bool first, QColor* color=nullptr)
@@ -405,7 +420,7 @@ protected:
             if ((it == mNotLinkedEdits.end()) || !first) //we are adding an oldest message, can't be a more recent edit, ignore
                 mNotLinkedEdits[msg.edits()] = &msg;
             msg.userp = nullptr;
-            //GUI_LOG_DEBUG("Can't find original message of edit, adding to map", msg.dataSize(), msg.buf());
+            //GUI_LOG_DEBUG("Original message of edit not yet loaded, adding to map (%.*s)", msg.dataSize(), msg.buf());
             return;
         }
         auto& targetMsg = mMessages->at(idx);
@@ -414,12 +429,24 @@ protected:
     }
     void addMsgEdit(const chatd::Message& edited, const chatd::Message& original, QColor* color=nullptr)
     {
+        assert(!(original.userFlags & kMsgfDeleted) && !(edited.userFlags & kMsgfDeleted));
         auto widget = widgetFromMessage(original);
 //User pointer of referenced message by an edit can be null only if it's an edit itself. But edits
 //can't point to other edits, they must reference only the original message and can't be chained
         assert(widget); //Edit message points to another edit message
-        edited.userp = original.userp; //this is already done by msgModify that created the edited message
+
+        if(widget->mMessage->edits())
+        { //widget already edited, disconnect previous edit msg from widget
+            widget->mMessage->userp = nullptr;
+        }
+        edited.userp = original.userp; //this is already done by msgModify it it was called before us
         widget->mMessage = &edited;
+        if (edited.empty())
+        {
+            widgetFromMessage(edited);
+            widget->msgDeleted();
+            return;
+        }
         widget->setText(edited).setEdited();
         widget->mEditCount++;
         if (color)
@@ -427,6 +454,7 @@ protected:
     }
     void startEditingMsgWidget(MessageWidget& widget)
     {
+        assert(!mEditedWidget);
         mEditedWidget = &widget;
         auto cancelBtn = widget.startEditing();
         connect(cancelBtn, SIGNAL(clicked()), this, SLOT(cancelMsgEdit()));
@@ -439,10 +467,8 @@ protected:
         auto it = mNotLinkedEdits.find(msg.id());
         if (it == mNotLinkedEdits.end())
             return false;
-        //GUI_LOG_DEBUG("Loaded message that had edits pending", msg.dataSize(), msg.buf());
-        auto widget = widgetFromMessage(msg);
-        auto updated = widget->mMessage = it->second;
-        widget->setText(*updated).setEdited();
+        //GUI_LOG_DEBUG("Loaded message that had edits pending (ori='%.*s', edit='%.*s'", msg.dataSize(), msg.buf(), it->second->dataSize(), it->second->buf());
+        addMsgEdit(*it->second, msg);
         mNotLinkedEdits.erase(it);
         return true;
     }
@@ -501,20 +527,8 @@ public:
         if (!isVisible() || !wasAtBottom)
         {
             printf("Playing sound\n");
-            auto file = new QFile(":/icq-incoming-msg.mp3");
-            file->open(QIODevice::ReadOnly);
-/*            QByteArray resdata = file.readAll();
-            if (resdata.isEmpty())
-            {
-                printf("res file is empty\n");
-                return;
-            }
-            auto media = new QBuffer(&resdata);
-*/
-            auto sound = new QMediaPlayer();
-            connect(sound, SIGNAL(stateChanged(QMediaPlayer::State)), this, SLOT(onSoundPlayStateChanged(QMediaPlayer::State)));
-            sound->setMedia(QMediaContent(), file); //qrc://icq-incoming-msg.mp3"));
-            sound->play();
+//            auto file = new QFile(":/icq-incoming-msg.mp3");
+//            file->open(QIODevice::ReadOnly);
         }
     }
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
@@ -543,7 +557,7 @@ public:
         else
         {
             assert(msg.edits());
-            GUI_LOG_DEBUG("Received an edit whose original is yet not loaded");
+            //GUI_LOG_DEBUG("Received an edit whose original is yet not loaded");
         }
     }
     virtual void onMsgDecryptError(chatd::Message &msg, const std::string &err)
@@ -619,7 +633,7 @@ public:
     }
     virtual void onUnsentMsgLoaded(const chatd::Message& msg)
     {
-        if (msg.edits()) //the
+        if (msg.edits())
         {
             addMsgEdit(msg, false);
         }

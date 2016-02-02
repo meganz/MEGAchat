@@ -31,6 +31,15 @@ using namespace mega;
 using namespace karere;
 using namespace promise;
 using namespace mega;
+QChar kOnlineSymbol_InProgress(0x267a);
+QChar kOnlineSymbol_Set(0x25cf);
+QString kOnlineStatusBtnStyle = QStringLiteral(
+    u"color: %1;"
+    "border: 0px;"
+    "border-radius: 2px;"
+    "background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1,"
+        "stop:0 rgba(100,100,100,255),"
+        "stop:1 rgba(160,160,160,255));");
 
 class LoginDialog: public QDialog, public karere::IGui::ILoginDialog
 {
@@ -105,8 +114,71 @@ MainWindow::MainWindow(Client* aClient): mClient(aClient)
 {
     ui.setupUi(this);
     connect(ui.mSettingsBtn, SIGNAL(clicked(bool)), this, SLOT(onSettingsBtn(bool)));
+    connect(ui.mOnlineStatusBtn, SIGNAL(clicked(bool)), this, SLOT(onOnlineStatusBtn(bool)));
 //    setWindowFlags(Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowMaximizeButtonHint
 //                   |Qt::WindowMinimizeButtonHint|Qt::WindowCloseButtonHint);
+}
+void MainWindow::onOnlineStatusBtn(bool)
+{
+    printf("click\n");
+    auto list = new QMenu(this);
+    auto actOnline = list->addAction("Online");
+    actOnline->setData(QVariant(karere::Presence::kOnline));
+    connect(actOnline, SIGNAL(triggered()), this, SLOT(setOnlineStatus()));
+
+    auto actAway = list->addAction("Away");
+    actAway->setData(QVariant(karere::Presence::kAway));
+    connect(actAway, SIGNAL(triggered()), this, SLOT(setOnlineStatus()));
+
+    auto actDnd = list->addAction("Busy");
+    actDnd->setData(QVariant(karere::Presence::kBusy));
+    connect(actDnd, SIGNAL(triggered()), this, SLOT(setOnlineStatus()));
+
+    auto actOffline = list->addAction("Offline");
+    actOffline->setData(QVariant(karere::Presence::kOffline));
+    connect(actOffline, SIGNAL(triggered()), this, SLOT(setOnlineStatus()));
+
+    auto rect = ui.mOnlineStatusBtn->rect();
+    list->move(mapToGlobal(QPoint(1,rect.bottom())));
+    list->resize(rect.width(), 100);
+    list->setStyleSheet("QMenu {"
+        "background-color: qlineargradient("
+        "spread:pad, x1:0, y1:0, x2:0, y2:1,"
+            "stop:0 rgba(120,120,120,200),"
+            "stop:1 rgba(180,180,180,200));"
+        "}"
+        "QMenu::item:!selected{"
+            "color: white;"
+        "}"
+        "QMenu::item:selected{"
+            "background-color: qlineargradient("
+            "spread:pad, x1:0, y1:0, x2:0, y2:1,"
+            "stop:0 rgba(120,120,120,200),"
+            "stop:1 rgba(180,180,180,200));"
+        "}");
+    list->exec();
+}
+void MainWindow::onOwnPresence(Presence pres)
+{
+    ui.mOnlineStatusBtn->setText((pres.val() & Presence::kInProgress)
+        ?kOnlineSymbol_InProgress
+        :kOnlineSymbol_Set);
+    ui.mOnlineStatusBtn->setStyleSheet(
+        kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.status()]));
+}
+
+void MainWindow::setOnlineStatus()
+{
+    auto action = qobject_cast<QAction*>(QObject::sender());
+    assert(action);
+    bool ok;
+    auto pres = action->data().toUInt(&ok);
+    if (!ok || (pres > karere::Presence::kLast))
+    {
+        GUI_LOG_WARNING("setOnlineStatus: action data is not a valid presence code");
+        return;
+    }
+    client().setPresence(pres);
 }
 
 SettingsDialog::SettingsDialog(MainWindow &parent)

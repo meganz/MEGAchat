@@ -162,9 +162,9 @@ public:
         return mPromise;
     }
     /**
-     * @brief abort
-     * @return whether the abort was actually pefrormed or it
-     * was not needed (i.e. not yet started or already finished). When the retries
+     * @brief abort Aborts the retry attemts
+     * @return Whether the abort was actually pefrormed, or it was not needed
+     * (i.e. not yet started or already finished). When the retries
      * are aborted, the output promise is immediately rejected with an error of type
      * 1 (generic), code 2 (abort) and text "aborted".
      */

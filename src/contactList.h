@@ -12,25 +12,31 @@ class Contact;
 class Presence
 {
 public:
-    enum Status//sorted by 'chatty-ness'
+    enum _Status: unsigned char //sorted by 'chatty-ness'
     {
         kOffline = 0,
         kBusy = 1,
         kAway = 2,
         kOnline = 3,
         kChatty = 4,
-        kLast = kChatty
+        kLast = kChatty,
+        kStatusMask = 0x0f,
+//flags
+        kInProgress = 0x10,
+        kFlagsMask = 0xf0
     };
-    Presence(Status pres=kOffline): mPres(pres){}
+    Presence(unsigned char pres=kOffline): mPres(pres){}
     inline Presence(const char*str): mPres(fromString(str)){}
     Presence(strophe::Stanza stanza): mPres(fromStanza(stanza)){}
-    operator Status() const { return mPres; }
-    Status val() const { return mPres; }
+    operator unsigned char() const { return mPres; }
+    unsigned char val() const { return mPres; }
+    unsigned char status() const { return mPres & kStatusMask; }
+    unsigned char flags() const { return mPres & kFlagsMask; }
     inline const char* toString();
-    static inline Status fromString(const char*);
-    static inline Status fromStanza(strophe::Stanza);
+    static inline unsigned char fromString(const char*);
+    static inline unsigned char fromStanza(strophe::Stanza);
 protected:
-    Status mPres;
+    unsigned char mPres;
     static const char* sStrings[Presence::kLast+1];
 };
 
@@ -63,6 +69,7 @@ protected:
     ResourceMap mResources;
     IPresenceListener* mPresListener;
     Presence calculatePresence();
+    void onOffline();
     friend class XmppContactList;
 public:
     XmppContact(Presence pre, const std::string& jid, bool isFullJid, IPresenceListener* listener=nullptr)
@@ -92,13 +99,16 @@ protected:
     typedef std::map<std::string, std::shared_ptr<XmppContact>> Base;
     Client& mClient;
     xmpp_uid mHandler = 0;
-    promise::Promise<void> receivePresences();
+    void receivePresences();
+    promise::Promise<void> mReadyPromise;
 public:
+    promise::Promise<void>& ready() { return mReadyPromise; }
     XmppContactList(Client& client): mClient(client){}
     ~XmppContactList();
 
     /** @brief initialize the contactlist to handle the presence messages from contacts. */
-    promise::Promise<void> init();
+    promise::Promise<void> fetch();
+    void notifyOffline();
     bool addContact(const std::string& fullJid, Presence pres, std::string bareJid="");
     std::shared_ptr<XmppContact> addContact(Contact& contact);
     XmppContact& getContact(const std::string& bareJid) const;
@@ -120,7 +130,7 @@ inline const char* Presence::toString()
         throw std::runtime_error("Presence::toString: Unknown presence "+std::to_string(mPres));
 }
 
-inline Presence::Status Presence::fromString(const char* text)
+inline unsigned char Presence::fromString(const char* text)
 {
     if (!text)
         throw std::runtime_error("Presence(const char*): Null text provided");
@@ -136,7 +146,7 @@ inline Presence::Status Presence::fromString(const char* text)
         throw std::runtime_error("Presence: Unknown presence "+std::string(text));
 }
 
-inline Presence::Status Presence::fromStanza(strophe::Stanza pres)
+inline unsigned char Presence::fromStanza(strophe::Stanza pres)
 {
     assert(!strcmp(pres.name(), "presence"));
     auto rawShow = pres.rawChild("show");

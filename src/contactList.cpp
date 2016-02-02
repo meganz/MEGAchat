@@ -9,7 +9,7 @@
 namespace karere
 {
 const char* Presence::sStrings[Presence::kLast+1] =
-{"unavailable", "dnd", "away", "available", "chatty"};
+{"unavailable", "busy", "away", "available", "chatty"};
 
 void XmppContact::onPresence(Presence pres, const std::string& fullJid)
 {
@@ -23,6 +23,18 @@ void XmppContact::onPresence(Presence pres, const std::string& fullJid)
     if (mPresListener)
         mPresListener->onPresence(mPresence);
 }
+void XmppContact::onOffline()
+{
+    mPresence = Presence::kOffline;
+    if (mPresListener)
+        mPresListener->onPresence(Presence::kOffline);
+}
+
+void XmppContactList::notifyOffline()
+{
+    for (auto& item: *this)
+        item.second->onOffline();
+}
 
 Presence XmppContact::calculatePresence()
 {
@@ -35,10 +47,13 @@ Presence XmppContact::calculatePresence()
     return max;
 }
 
-promise::Promise<void> XmppContactList::receivePresences()
+void XmppContactList::receivePresences()
 {
-    promise::Promise<void> pms;
-    mHandler = mClient.conn->addHandler([this, pms](strophe::Stanza presence, void*, bool& keep) mutable
+    if (mHandler)
+    {
+        mReadyPromise = promise::Promise<void>();
+    }
+    mHandler = mClient.conn->addHandler([this](strophe::Stanza presence, void*, bool& keep) mutable
     {
         const char* jid = presence.attrOrNull("from");
         if(!jid)
@@ -50,8 +65,8 @@ promise::Promise<void> XmppContactList::receivePresences()
             return; //we are not interested in chatroom presences
         if (strcmp(jid, mClient.conn->fullJid()) == 0) //our own presence, this is the end of the presence list
         {
-            if (!pms.done())
-                pms.resolve();
+            if (!mReadyPromise.done())
+                mReadyPromise.resolve();
             return;
         }
         Presence status(presence);
@@ -67,8 +82,8 @@ promise::Promise<void> XmppContactList::receivePresences()
             it->second->onPresence(status, jid);
         }
     }, nullptr, "presence", nullptr, nullptr);
-    return pms;
 }
+
 XmppContactList::~XmppContactList()
  { if (mHandler) mClient.conn->removeHandler(mHandler); }
 
@@ -113,7 +128,7 @@ XmppContact& XmppContactList::getContact(const std::string& bareJid) const
     return *it->second;
 }
 
-promise::Promise<void> XmppContactList::init()
+promise::Promise<void> XmppContactList::fetch()
 {
     strophe::Stanza roster(*mClient.conn);
     roster.setName("iq")
@@ -136,7 +151,8 @@ promise::Promise<void> XmppContactList::init()
                 addContact(jid, Presence::kOffline);
             });
         }
-        return receivePresences();
+        receivePresences();
+        return mReadyPromise;
     })
     .fail([](const promise::Error& err)
     {

@@ -31,7 +31,9 @@ if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" S
     add_definitions(-fvisibility=hidden -Wall -Wno-unused-local-typedef)
     if (optAsanMode AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug"))
         add_definitions(-fsanitize=${optAsanMode} -fno-omit-frame-pointer) #enable ASAN
-        set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -fsanitize=${optAsanMode}")
+        if (optRtcModuleBuildShared)
+            set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -fsanitize=${optAsanMode}")
+        endif()
     endif()
 endif()
 

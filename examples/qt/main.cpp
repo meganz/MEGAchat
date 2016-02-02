@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin = new MainWindow();
-    gClient.reset(new karere::Client(*mainWin));
+    gClient.reset(new karere::Client(*mainWin, karere::Presence::kOnline));
     mainWin->setClient(*gClient);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 

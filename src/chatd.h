@@ -131,6 +131,7 @@ public:
     unsigned char isEncrypted;
     Type type;
     mutable void* userp;
+    mutable uint32_t userFlags = 0;
     const Id& id() const { return mId; }
     const Id& edits() const { return mEdits; }
     bool isSending() const { return mIdIsXid; }
@@ -271,7 +272,7 @@ public:
             if (size < 9)
                 throw std::runtime_error("Edit message is too small");
 
-            printf("decrypt: message is an edit\n");
+//            printf("decrypt: message is an edit\n");
             src.setEdits(src.read<uint64_t>(1), false);
             if (size > 9)
             {
@@ -292,12 +293,15 @@ public:
             dest.append(src.buf()+1, size-1);
             src.assign(std::move(dest));
         }
+        auto delay = rand() % 1000;
+        if (delay < 500)
+            delay = 0;
         promise::Promise<void> pms;
         mega::setTimeout([pms, &src]() mutable
         {
             src.isEncrypted = false;
             pms.resolve();
-        }, 1000);
+        }, delay);
         return pms;
     }
 /// The chatroom connection (to the chatd server shard) state state has changed.

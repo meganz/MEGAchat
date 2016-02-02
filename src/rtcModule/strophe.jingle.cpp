@@ -50,7 +50,7 @@ Jingle::Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler,
     nullptr, "message", "megaCall");
     //preload ice servers to make calls faster
     mTurnServerProvider->getServers()
-    .then([this](std::shared_ptr<ServerList<TurnServerInfo> > servers)
+    .then([this](ServerList<TurnServerInfo>* servers)
     {
         setIceServers(*servers);
     });
@@ -494,7 +494,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         }); //end answer func
 
         state->pmsGelb = mTurnServerProvider->getServers(mIceFastGetTimeout)
-        .then([this, state](std::shared_ptr<ServerList<TurnServerInfo> > servers)
+        .then([this, state](ServerList<TurnServerInfo>* servers)
         {
             setIceServers(*servers);
         });
