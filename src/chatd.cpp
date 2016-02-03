@@ -376,7 +376,7 @@ void Connection::enableInactivityTimer()
 
     mInactivityTimer = ::mega::setInterval([this]()
     {
-        if (mInactivityBeats++ > 2)
+        if (mInactivityBeats++ > 3)
         {
             disableInactivityTimer();
             CHATD_LOG_WARNING("Connection to shard %d inactive for too long, reconnecting",

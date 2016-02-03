@@ -4,6 +4,7 @@
 #include <string>
 #include <logger.h>
 #include <mstrophe.h> //needed for timestampMs()
+//#include <assert.h>
 
 #ifndef KARERE_SHARED
     #define KARERE_EXPORT
@@ -168,7 +169,17 @@ extern const char* gKarereDbSchema;
 #define GUI_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_gui, fmtString, ##__VA_ARGS__)
 
 #define JINGLE_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_jingle, fmtString, ##__VA_ARGS__)
-
+/*
+#ifndef NDEBUG
+#undef assert
+#define assert(cond) do { \
+    if (!(cond)) { \
+        KR_LOG_ERROR("Assertion failed: '%s', aborting application", #cond); \
+        abort(); \
+    } \
+} while(0)
+#endif
+*/
 #define KR_THROW_IF_FALSE(statement) do {\
     if (!(statement)) {\
         throw std::runtime_error(std::string("Karere: ")+#statement+" failed (returned false)\nAt file "+__FILE__+":"+std::to_string(__LINE__)); \

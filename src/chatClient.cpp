@@ -243,7 +243,6 @@ promise::Promise<void> Client::init()
             const char* sid = api->dumpSession();
             assert(sid);
             mSid = sid;
-            printf("obtained SID = %s\n", sid);
             sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
             mLoginDlg->setState(IGui::ILoginDialog::kFetchingNodes);
         }
@@ -353,7 +352,6 @@ void Client::setupXmppReconnectHandler()
     mReconnectController.reset(mega::createRetryController(
         [this](int no) -> promise::Promise<void>
     {
-        printf("xmpp connect\n");
         if (no < 2)
         {
             auto& host = mXmppServerProvider->lastServer()->host;
@@ -1175,7 +1173,9 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                 });
             }
             else
-                printf("we should have just removed ourself from the room\n");
+            {
+                KR_LOG_DEBUG("Chatroom[%s]: We should have just removed ourself from the room", chatd::Id(chatid).toString().c_str());
+            }
         }
     }
 }
@@ -1217,9 +1217,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
     {
-        printf("before\n");
         stmt << mChatid << m.first << m.second->mPriv;
-        printf("after\n");
         stmt.step();
         stmt.reset().clearBind();
     }

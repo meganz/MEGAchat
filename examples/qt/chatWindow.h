@@ -365,12 +365,7 @@ protected:
             return;
         }
         auto uh = static_cast<karere::PeerChatRoom&>(mRoom).peer();
-        char buf[32];
-        auto len = mega::Base32::btoa((byte*)&uh, sizeof(uh), buf);
-        buf[len] = 0;
-        std::string jid(buf);
-        jid+='@';
-        jid.append(KARERE_XMPP_DOMAIN);
+        auto jid = karere::useridToJid(uh);
         createCallGui();
         mRoom.parent.client.rtc->startMediaCall(mCallGui, jid, karere::AvFlags(true, video));
     }

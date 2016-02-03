@@ -27,7 +27,7 @@ RtcModule::RtcModule(xmpp_conn_t* conn, IGlobalEventHandler* handler,
 :Jingle(conn, handler, crypto, iceServers)
 {
     mOwnAnonId = crypto->scrambleJid(mConn.fullJid());
-//  logInputDevices();
+    initInputDevices();
 }
 
 void RtcModule::discoAddFeature(const char* feature)
@@ -35,9 +35,13 @@ void RtcModule::discoAddFeature(const char* feature)
     mGlobalHandler->discoAddFeature(feature);
 }
 
-void RtcModule::logInputDevices()
+void RtcModule::initInputDevices()
 {
     auto& devices = mDeviceManager.inputDevices();
+    if (!devices.audio.empty())
+        selectAudioInDevice(devices.audio[0].name);
+    if (!devices.video.empty())
+        selectVideoInDevice(devices.video[0].name);
     KR_LOG_INFO("Input devices on this system:");
     for (const auto& dev: devices.audio)
         KR_LOG_INFO("\tAudio: %s [id=%s]", dev.name.c_str(), dev.id.c_str());

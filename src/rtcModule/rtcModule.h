@@ -101,7 +101,7 @@ public:
 protected:
     //=== Implementation methods
     bool hasLocalStream() { return (mAudioInput || mVideoInput); }
-    void logInputDevices();
+    void initInputDevices();
     const cricket::Device* getDevice(const std::string& name, const artc::DeviceList& devices);
     bool selectDevice(const std::string& devname, const artc::DeviceList& devices,
                       std::string& selected);

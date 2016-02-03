@@ -16,7 +16,7 @@
 #include <sdkApi.h>
 #include <chatd.h>
 #include <mega/megaclient.h>
-
+#include <karereCommon.h>
 using namespace std;
 using namespace promise;
 using namespace mega;
