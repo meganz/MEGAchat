@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <mstrophepp.h>
 #include <QApplication>
+#include <QDir>
 #include "mainwindow.h"
 #include "chatWindow.h"
 #include <base/gcm.h>
@@ -74,7 +75,16 @@ std::unique_ptr<karere::Client> gClient;
 int main(int argc, char **argv)
 {
 //    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
-    gLogger.addUserLogger("karere-remote", new RemoteLogger);
+//    gLogger.addUserLogger("karere-remote", new RemoteLogger);
+    QDir dir(argv[0]);
+#ifdef __APPLE__
+    dir.cdUp();
+    dir.cdUp();
+    dir.cd("Plugins");
+#endif
+    printf("plugin path: %s\n", dir.absolutePath().toUtf8().data());
+    QApplication::setLibraryPaths(QStringList(dir.absolutePath()));
+
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
 

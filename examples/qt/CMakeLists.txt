@@ -3,6 +3,7 @@ project(rtctestapp)
 
 FIND_PACKAGE(Qt5Widgets REQUIRED)
 
+set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR})
 set(CMAKE_MACOSX_RPATH 1)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
@@ -40,7 +41,7 @@ if (CLANG_STDLIB)
     set(SYSLIBS ${CLANG_STDLIB})
 endif()
 
-add_executable(rtctestapp ${SRCS})
+add_executable(rtctestapp MACOSX_BUNDLE ${SRCS})
 set_target_properties(rtctestapp PROPERTIES AUTOMOC TRUE AUTOUIC TRUE AUTORCC TRUE)
 target_link_libraries(rtctestapp
     Qt5::Widgets
@@ -48,20 +49,56 @@ target_link_libraries(rtctestapp
     ${SYSLIBS}
 )
 
-set_target_properties(rtctestapp PROPERTIES
- MACOSX_RPATH ON
- INSTALL_RPATH "@executable_path/deps"
+get_target_property(QMAKE_EXECUTABLE Qt5::qmake LOCATION)
+execute_process(COMMAND ${QMAKE_EXECUTABLE} -query QT_INSTALL_PLUGINS
+    OUTPUT_VARIABLE QT_PLUGINS_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-INSTALL(TARGETS rtctestapp
-    BUNDLE DESTINATION . COMPONENT Runtime
-    RUNTIME DESTINATION bin COMPONENT Runtime
+if (APPLE)
+    set_target_properties(rtctestapp PROPERTIES
+        MACOSX_RPATH ON
+        INSTALL_RPATH "@executable_path"
     )
 
-INSTALL(CODE "
-   include(BundleUtilities)
-   fixup_bundle(rtctestapp \"\" \"\")
-   " COMPONENT Runtime)
+ set_target_properties(rtctestapp PROPERTIES
+     MACOSX_BUNDLE_INFO_STRING "${PROJECT_NAME}, Copyright 2016 Mega LTD."
+     MACOSX_BUNDLE_ICON_FILE ""
+     MACOSX_BUNDLE_GUI_IDENTIFIER "${megachat-test}"
+     MACOSX_BUNDLE_LONG_VERSION_STRING "${MACOSX_BUNDLE_INFO_STRING}"
+     MACOSX_BUNDLE_BUNDLE_NAME "${megachat-test}"
+     MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION_STRING}"
+     MACOSX_BUNDLE_BUNDLE_VERSION "${VERSION_STRING}"
+     MACOSX_BUNDLE_COPYRIGHT "Copyright 2016, MEGA Ltd. All Rights Reserved."
+     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/MacOSXBundleInfo.plist.in"
+ )
 
-set(CPACK_BINARY_DRAGNDROP ON)
-include(CPack)
+    INSTALL(FILES
+       "${QT_PLUGINS_DIR}/platforms/libqcocoa.dylib"
+       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/platforms
+       COMPONENT Runtime)
+
+    INSTALL(FILES
+       "${QT_PLUGINS_DIR}/imageformats/libqsvg.dylib"
+       "${QT_PLUGINS_DIR}/imageformats/libqicns.dylib"
+       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/imageformats
+       COMPONENT Runtime)
+
+    INSTALL(CODE "
+       include(BundleUtilities)
+       set(BU_CHMOD_BUNDLE_ITEMS ON)
+       set(plugins
+           ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/platforms/libqcocoa.dylib
+           ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/imageformats/libqsvg.dylib
+           ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/imageformats/libqicns.dylib
+       )
+
+       fixup_bundle(
+           \"${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app\" \"\${plugins}\" \"\")"
+           COMPONENT Runtime)
+
+   INSTALL(TARGETS rtctestapp BUNDLE DESTINATION . COMPONENT Runtime)
+
+    set(CPACK_BINARY_DRAGNDROP ON)
+    include(CPack)
+endif()

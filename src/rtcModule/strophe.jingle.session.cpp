@@ -45,7 +45,7 @@ void JingleSession::initiate(bool isInitiator)
     mPeerConn = artc::myPeerConnection<JingleSession>(*mJingle.mIceServers,
         *this, &mJingle.mMediaConstraints);
 
-    KR_THROW_IF_FALSE((mPeerConn->AddStream(*mCall.mLocalStream, NULL)));
+    KR_THROW_IF_FALSE((mPeerConn->AddStream(*mCall.mLocalStream)));
 }
 //PeerConnection events
 void JingleSession::onAddStream(artc::tspMediaStream stream)

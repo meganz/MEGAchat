@@ -4,6 +4,8 @@
 #include <string.h> //for memset
 #include <karereCommon.h> //for timestampMs()
 #include <rtcModule.h>
+#define RPTYPE(name) webrtc::StatsReport::kStatsReportType##name
+#define VALNAME(name) webrtc::StatsReport::kStatsValueName##name
 
 namespace rtcModule
 {
@@ -53,14 +55,14 @@ void Recorder::BwCalculator::calculate(long periodMs, long newTotalBytes)
     mBwInfo->abps = (mBwInfo->abps*4+bps)/5;
 }
 
-void Recorder::OnComplete(const std::vector<webrtc::StatsReport>& data)
+void Recorder::OnComplete(const webrtc::StatsReports& data)
 {
-    std::shared_ptr<artc::MappedStatsData> mapped(new artc::MappedStatsData(data));
-    mega::marshallCall([this, mapped]()
+    auto myData = std::make_shared<artc::MyStatsReports>(data);
+    mega::marshallCall([this, myData]()
     {
         try
         {
-            onStats(mapped);
+            onStats(myData);
         }
         catch(std::exception& e)
         {
@@ -69,20 +71,20 @@ void Recorder::OnComplete(const std::vector<webrtc::StatsReport>& data)
     });
 }
 
-void dumpStats(const artc::MappedStatsData& data)
+void dumpStats(const artc::MyStatsReports& data)
 {
     printf("====================== Stats report received\n");
     for (auto& item: data)
     {
-        printf("%s:\n", item.type.c_str());
-        for (auto& val: item.values)
-            printf("\t'%s' = '%s'\n", val.first.c_str(), val.second.c_str());
+        printf("%s:\n", item.typeStr.c_str());
+        for (auto& val: item)
+            printf("\t'%s' = '%s'\n", val.second->display_name(), val.second->ToString().c_str());
     }
 }
 
-#define AVG(name, var) var = round((float)var + item.longVal(name)) / 2
+#define AVG(name, var) var = round((float)var + item.longVal(VALNAME(name))) / 2
 
-void Recorder::onStats(const std::shared_ptr<artc::MappedStatsData>& data)
+void Recorder::onStats(const std::shared_ptr<artc::MyStatsReports>& data)
 {
 //    dumpStats(*data);
     long ts = karere::timestampMs() - mStats->mStartTs;
@@ -90,77 +92,77 @@ void Recorder::onStats(const std::shared_ptr<artc::MappedStatsData>& data)
     mCurrSample->ts = ts;
     for (auto& item: *data)
     {
-        if (item.type == "ssrc")
+        if (item.type == RPTYPE(Ssrc))
         {
             long width;
-            if (item.longVal("googFrameWidthReceived", width)) //video rx
+            if (item.longVal(VALNAME(FrameWidthReceived), width)) //video rx
             {
                 auto& sample = mCurrSample->vstats.r;
-                mVideoRxBwCalc.calculate(period, item.longVal("bytesReceived"));
-                AVG("googFrameRateReceived", sample.fps);
-                AVG("googCurrentDelayMs", sample.dly);
-                AVG("googJitterBufferMs", sample.jtr);
-                sample.pl = item.longVal("packetsLost");
+                mVideoRxBwCalc.calculate(period, item.longVal(VALNAME(BytesReceived)));
+                AVG(FrameRateReceived, sample.fps);
+                AVG(CurrentDelayMs, sample.dly);
+                AVG(JitterBufferMs, sample.jtr);
+                sample.pl = item.longVal(VALNAME(PacketsLost));
 //              vstat.fpsSent = res.stat('googFrameRateOutput'); -- this should be for screen output
                 sample.width = width;
-                sample.height = item.longVal("googFrameHeightReceived");
+                sample.height = item.longVal(VALNAME(FrameHeightReceived));
             }
-            else if (item.longVal("googFrameWidthSent", width)) //video tx
+            else if (item.longVal(VALNAME(FrameWidthSent), width)) //video tx
             {
                 auto& sample = mCurrSample->vstats.s;
-                AVG("googRtt", sample.rtt);
-                AVG("googFrameRateSent", sample.fps);
-                AVG("googFrameRateInput", sample.cfps);
-                AVG("googCaptureJitterMs", sample.cjtr);
+                AVG(Rtt, sample.rtt);
+                AVG(FrameRateSent, sample.fps);
+                AVG(FrameRateInput, sample.cfps);
+//              AVG(CaptureJitterMs, sample.cjtr); //no capture jitter stats anymore?
                 sample.width = width;
-                sample.height = item.longVal("googFrameHeightSent");
+                sample.height = item.longVal(VALNAME(FrameHeightSent));
                 if (mStats->mConnInfo.mVcodec.empty())
-                    mStats->mConnInfo.mVcodec = item.strVal("googCodecName");
+                    mStats->mConnInfo.mVcodec = item.strVal(VALNAME(CodecName));
 //              s.et = stat('googAvgEncodeMs');
-                AVG("googEncodeUsagePercent", sample.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
-                sample.lcpu = (item.strVal("googCpuLimitedResolution") == "true");
-                sample.lbw = (item.strVal("googBandwidthLimitedResolution") == "true");
-                mVideoTxBwCalc.calculate(period, item.longVal("bytesSent"));
+                AVG(EncodeUsagePercent, sample.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
+                sample.lcpu = (item.strVal(VALNAME(CpuLimitedResolution)) == "true");
+                sample.lbw = (item.strVal(VALNAME(BandwidthLimitedResolution)) == "true");
+                mVideoTxBwCalc.calculate(period, item.longVal(VALNAME(BytesSent)));
             }
-            else if (item.hasVal("audioInputLevel")) //audio rx
+            else if (item.hasVal(VALNAME(AudioInputLevel))) //audio rx
             {
-                mAudioRxBwCalc.calculate(period, item.longVal("bytesSent"));
-                AVG("googRtt", mCurrSample->astats.rtt);
+                mAudioRxBwCalc.calculate(period, item.longVal(VALNAME(BytesSent)));
+                AVG(Rtt, mCurrSample->astats.rtt);
             }
-            else if (item.hasVal("audioOutputLevel")) //audio tx
+            else if (item.hasVal(VALNAME(AudioOutputLevel))) //audio tx
             {
-                mAudioTxBwCalc.calculate(period, item.longVal("bytesReceived"));
-                AVG("googJitterReceived", mCurrSample->astats.jtr);
-                mCurrSample->astats.pl = item.longVal("packetsLost");
+                mAudioTxBwCalc.calculate(period, item.longVal(VALNAME(BytesReceived)));
+                AVG(JitterReceived, mCurrSample->astats.jtr);
+                mCurrSample->astats.pl = item.longVal(VALNAME(PacketsLost));
             }
         }
-        else if ((item.type == "googCandidatePair") && (item.strVal("googActiveConnection") == "true"))
+        else if ((item.type == RPTYPE(CandidatePair)) && (item.strVal(VALNAME(ActiveConnection)) == "true"))
         {
             if (!mHasConnInfo) //happens if peer is Firefox
             {
                 mHasConnInfo = true;
-                bool isRelay = (item.strVal("googLocalCandidateType") == "relay");
+                bool isRelay = (item.strVal(VALNAME(LocalCandidateType)) == "relay");
                 if (isRelay)
                 {
                     auto& rlySvr = mStats->mConnInfo.mRlySvr;
-                    rlySvr = item.strVal("googLocalAddress");
+                    rlySvr = item.strVal(VALNAME(LocalAddress));
                     if (rlySvr.empty())
                         rlySvr = "<error getting relay server>";
                 }
-                mStats->mConnInfo.mCtype = item.strVal("googRemoteCandidateType");
-                mStats->mConnInfo.mProto = item.strVal("googTransportType");
+                mStats->mConnInfo.mCtype = item.strVal(VALNAME(RemoteCandidateType));
+                mStats->mConnInfo.mProto = item.strVal(VALNAME(TransportType));
             }
             auto& cstat = mCurrSample->cstats;
-            AVG("googRtt", cstat.rtt);
-            mConnRxBwCalc.calculate(period, item.longVal("bytesReceived"));
-            mConnTxBwCalc.calculate(period, item.longVal("bytesSent"));
+            AVG(Rtt, cstat.rtt);
+            mConnRxBwCalc.calculate(period, item.longVal(VALNAME(BytesReceived)));
+            mConnTxBwCalc.calculate(period, item.longVal(VALNAME(BytesSent)));
         }
-        else if (item.type == "VideoBwe")
+        else if (item.type == RPTYPE(Bwe))
         {
-            mCurrSample->vstats.r.bwav = round((float)item.longVal("googAvailableReceiveBandwidth")/1024);
+            mCurrSample->vstats.r.bwav = round((float)item.longVal(VALNAME(AvailableReceiveBandwidth))/1024);
             auto& sample = mCurrSample->vstats.s;
-            sample.bwav = round((float)item.longVal("googAvailableSendBandwidth")/1024);
-            sample.gbps = round((float)item.longVal("googTransmitBitrate")/1024); //chrome returns it in bits/s, should be near our calculated bps
+            sample.bwav = round((float)item.longVal(VALNAME(AvailableSendBandwidth))/1024);
+            sample.gbps = round((float)item.longVal(VALNAME(TransmitBitrate))/1024); //chrome returns it in bits/s, should be near our calculated bps
             sample.gabps = (sample.gabps*4+sample.gbps)/5;
         }
     } //end item loop

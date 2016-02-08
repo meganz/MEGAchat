@@ -70,7 +70,7 @@ public:
     virtual void toJson(std::string&) const;
 };
 
-class Recorder: public webrtc::StatsObserver
+class Recorder: public rtc::RefCountedObject<webrtc::StatsObserver>
 {
 protected:
     struct BwCalculator
@@ -113,10 +113,8 @@ public:
     }
     void start();
     void terminate(const std::string& termRsn);
-    virtual void OnComplete(const std::vector<webrtc::StatsReport>& data);
-    virtual int AddRef() { return 3; }
-    virtual int Release() { return 2; }
-    void onStats(const std::shared_ptr<artc::MappedStatsData>& data);
+    virtual void OnComplete(const webrtc::StatsReports& data);
+    void onStats(const std::shared_ptr<artc::MyStatsReports>& data);
     std::function<void(void*, int)> onSample;
 };
 }

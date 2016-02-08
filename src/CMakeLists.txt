@@ -89,7 +89,7 @@ target_link_libraries(karere
     ${CRYPTOPP_LIBRARIES}
     mpEnc_cpp
     ws
-    ${SQLITE3_LIBRARIES}
+    ${SQLITE3_LIBRARY}
 )
 
 

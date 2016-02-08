@@ -158,61 +158,64 @@ protected:
 
 typedef std::shared_ptr<SdpText> sspSdpText;
 
-struct MappedStatsItem
+struct MyStatsReport: public webrtc::StatsReport::Values
 {
-    std::string id;
-    std::string type;
+    typedef webrtc::StatsReport::Values Base;
+    typedef webrtc::StatsReport::Value Value;
+    typedef webrtc::StatsReport::StatsType Type;
+    typedef webrtc::StatsReport::StatsValueName ValName;
+    Type type;
     double timestamp;
-    std::map<std::string, std::string> values;
-    MappedStatsItem(const std::string& aid, const std::string& atype, const double& ats): id(aid), type(atype), timestamp(ats){}
-    bool hasVal(const char* name)
+    std::string typeStr;
+    MyStatsReport(const webrtc::StatsReport& src)
+    :type(src.type()), timestamp(src.timestamp()), typeStr(src.TypeToString())
+    { copyValues(src.values()); }
+    void copyValues(const Base& values)
     {
-        return (values.find(name) != values.end());
+        for (auto& v: values)
+            emplace(v.first, v.second);
     }
-    const std::string& strVal(const std::string& name)
+    bool hasVal(ValName name)
+    {
+        return (find(name) != end());
+    }
+    std::string strVal(ValName name)
     {
         static const std::string empty;
-        auto it = values.find(name);
-        if (it == values.end())
+        auto it = find(name);
+        if (it == end())
             return empty;
-        return it->second;
+        return it->second->ToString();
     }
-    bool longVal(const std::string& name, long& ret)
+    bool longVal(ValName name, long& ret)
     {
-        auto it = values.find(name);
-        if (it == values.end())
+        auto it = find(name);
+        if (it == end())
             return false;
-        ret = std::strtol(it->second.c_str(), nullptr, 10);
-        if (errno == ERANGE)
-            throw std::runtime_error("MappedStatItem::longVal: Error converting '"+it->second+"' to long");
+        if (it->second->type() != Value::kInt)
+            throw std::runtime_error("MappedStatItem::longVal: Value with id "+std::to_string(name)+ " is not an int");
+        ret = it->second->int_val();
         return true;
     }
-    long longVal(const std::string& name)
+    long longVal(ValName name)
     {
-        auto it = values.find(name);
-        if (it == values.end())
+        auto it = find(name);
+        if (it == end())
             return 0;
-        long ret = std::strtol(it->second.c_str(), nullptr, 10);
-        if (errno == ERANGE)
-            throw std::runtime_error("MappedStatItem::longVal: Error converting '"+it->second+"' to long");
-        return ret;
+        if (it->second->type() != Value::kInt)
+            throw std::runtime_error("MappedStatItem::longVal: Value with id "+std::to_string(name)+" is not int");
+        return it->second->int_val();
     }
 };
 
-class MappedStatsData: public std::vector<MappedStatsItem>
+class MyStatsReports: public std::vector<MyStatsReport>
 {
 public:
-    MappedStatsData(const std::vector<webrtc::StatsReport>& data)
+    MyStatsReports(const webrtc::StatsReports& data)
     {
         for (const auto& item: data)
         {
-            emplace_back(item.id, item.type, item.timestamp);
-            auto& m = back().values;
-            for (const auto& val: item.values)
-            {
-                assert(m.find(val.name) == m.end());
-                m[val.name] = val.value;
-            }
+            emplace_back(*item);
         }
     }
 };
@@ -265,6 +268,12 @@ protected:
       {
           mega::marshallCall([this]() { mHandler.onRenegotiationNeeded();});
       }
+      virtual void OnDataChannel(webrtc::DataChannelInterface* data_channel)
+      {
+          rtc::scoped_refptr<webrtc::DataChannelInterface> chan(data_channel);
+          mega::marshallCall([this, chan]() {mHandler.onDataChannel(chan); });
+      }
+
     protected:
         /** own callback interface, always called by the GUI thread */
         C& mHandler;
@@ -277,13 +286,14 @@ public:
      C& handler, webrtc::MediaConstraintsInterface* options)
         :mObserver(new Observer(handler))
     {
-
         if (gLocalIdentity.isValid())
         {
 //TODO: give dtls identity to webrtc
         }
+        webrtc::PeerConnectionInterface::RTCConfiguration config;
+        config.servers = servers;
         Base::operator=(gWebrtcContext->CreatePeerConnection(
-            servers, options, NULL, NULL /*DTLS stuff*/, mObserver.get()));
+            config, options, NULL, NULL /*DTLS stuff*/, mObserver.get()));
         if (!get())
             throw std::runtime_error("Failed to create a PeerConnection object");
     }

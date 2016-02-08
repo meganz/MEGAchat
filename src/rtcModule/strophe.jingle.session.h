@@ -76,6 +76,7 @@ public:
     void onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState){}
     void onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState);
     void onRenegotiationNeeded() {}
+    void onDataChannel(const rtc::scoped_refptr<webrtc::DataChannelInterface>& channel) {}
     //first is the root (iq) stanza, second is the jingle child of the iq element
     std::pair<strophe::Stanza, strophe::Stanza>
     createJingleIq(const std::string& to, const char* action);
