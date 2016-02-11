@@ -72,7 +72,7 @@ public:
     virtual void release()
     {
         mRefCount--;
-        assert((mRefCount >= 0) || "IRefCounted: negative refCount detected, probably release() has been called without a previous addRef()");
+        assert(mRefCount >= 0);
         if (mRefCount <= 0)
             delete this;
     }
@@ -89,7 +89,7 @@ public:
     virtual void release()
     {
         mRefCount--;
-        assert((mRefCount >= 0) || "IRefCounted: negative refCount detected, probably release() has been called without a previous addRef()");
+        assert(mRefCount >= 0);
         if (mRefCount <= 0)
             destroy();
     }

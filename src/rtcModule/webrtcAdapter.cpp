@@ -1,5 +1,6 @@
 #include "webrtcAdapter.h"
 #include <webrtc/base/ssladapter.h>
+#include <timers.h>
 namespace artc
 {
 
@@ -25,6 +26,10 @@ bool init(const Identity* identity)
     gWebrtcContext = webrtc::CreatePeerConnectionFactory();
     if (!gWebrtcContext)
         throw std::runtime_error("Error creating peerconnection factory");
+    mega::setInterval([]()
+    {
+        rtc::Thread::Current()->ProcessMessages(0);
+    }, 100);
     return true;
 }
 
@@ -103,7 +108,7 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface
 {
     if (!mSource)
         return;
-    mSource->GetVideoCapturer()->Stop();
+//  mSource->GetVideoCapturer()->Stop(); //Seems this must not be called directly, but is called internally by the same webrtc worker thread that started the capture
     mSource = nullptr;
 }
 

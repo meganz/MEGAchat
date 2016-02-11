@@ -342,7 +342,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
     state->ownJid = callmsg.attr("to");
     if (state->ownJid.find('/') == std::string::npos)
     {
-        assert(state->ownJid == bareJidFromJid(mConn.fullJid()));
+        assert(state->ownJid == getBareJidFromJid(mConn.fullJid()));
         state->ownJid = mConn.fullJid();
     }
     state->fromBare = getBareJidFromJid(state->from);

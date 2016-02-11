@@ -55,6 +55,7 @@ void JingleSession::onAddStream(artc::tspMediaStream stream)
 }
 void JingleSession::onIceCandidate(std::shared_ptr<artc::IceCandText> candidate)
 {
+    KR_LOG_DEBUG("onIceCandidate");
     sendIceCandidate(candidate);
 }
 void JingleSession::onRemoveStream(artc::tspMediaStream stream)

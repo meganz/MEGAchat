@@ -604,7 +604,7 @@ void Call::createSession(const std::string& peerJid, const std::string& ownJid,
     FileTransferHandler *ftHandler)
 {
     assert(!mSess);
-    assert(!ownJid.empty());
+//  assert(!ownJid.empty());  FIXME
     assert(!peerJid.empty());
     mOwnJid = ownJid;
     mPeerJid = peerJid;

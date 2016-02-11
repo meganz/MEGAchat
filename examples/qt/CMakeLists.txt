@@ -5,7 +5,7 @@ FIND_PACKAGE(Qt5Widgets REQUIRED)
 
 set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR})
 set(CMAKE_MACOSX_RPATH 1)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+#set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -55,23 +55,22 @@ execute_process(COMMAND ${QMAKE_EXECUTABLE} -query QT_INSTALL_PLUGINS
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-if (APPLE)
+if (APPLE) # AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Release"))
     set_target_properties(rtctestapp PROPERTIES
         MACOSX_RPATH ON
-        INSTALL_RPATH "@executable_path"
-    )
+        INSTALL_RPATH "@executable_path")
 
- set_target_properties(rtctestapp PROPERTIES
-     MACOSX_BUNDLE_INFO_STRING "${PROJECT_NAME}, Copyright 2016 Mega LTD."
-     MACOSX_BUNDLE_ICON_FILE ""
-     MACOSX_BUNDLE_GUI_IDENTIFIER "${megachat-test}"
-     MACOSX_BUNDLE_LONG_VERSION_STRING "${MACOSX_BUNDLE_INFO_STRING}"
-     MACOSX_BUNDLE_BUNDLE_NAME "${megachat-test}"
-     MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION_STRING}"
-     MACOSX_BUNDLE_BUNDLE_VERSION "${VERSION_STRING}"
-     MACOSX_BUNDLE_COPYRIGHT "Copyright 2016, MEGA Ltd. All Rights Reserved."
-     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/MacOSXBundleInfo.plist.in"
- )
+    set_target_properties(rtctestapp PROPERTIES
+        MACOSX_BUNDLE_INFO_STRING "${PROJECT_NAME}, Copyright 2016 Mega LTD."
+        MACOSX_BUNDLE_ICON_FILE ""
+        MACOSX_BUNDLE_GUI_IDENTIFIER "${megachat-test}"
+        MACOSX_BUNDLE_LONG_VERSION_STRING "${MACOSX_BUNDLE_INFO_STRING}"
+        MACOSX_BUNDLE_BUNDLE_NAME "${megachat-test}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION_STRING}"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${VERSION_STRING}"
+        MACOSX_BUNDLE_COPYRIGHT "Copyright 2016, MEGA Ltd. All Rights Reserved."
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/MacOSXBundleInfo.plist.in"
+    )
 
     INSTALL(FILES
        "${QT_PLUGINS_DIR}/platforms/libqcocoa.dylib"
@@ -93,11 +92,11 @@ if (APPLE)
            ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/imageformats/libqicns.dylib
        )
 
-       fixup_bundle(
+    fixup_bundle(
            \"${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app\" \"\${plugins}\" \"\")"
            COMPONENT Runtime)
 
-   INSTALL(TARGETS rtctestapp BUNDLE DESTINATION . COMPONENT Runtime)
+    INSTALL(TARGETS rtctestapp BUNDLE DESTINATION . COMPONENT Runtime)
 
     set(CPACK_BINARY_DRAGNDROP ON)
     include(CPack)

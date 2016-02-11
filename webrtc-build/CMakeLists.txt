@@ -8,7 +8,7 @@ project(webrtc_monolithic)
 
 if (NOT WEBRTC_BUILD_TYPE)
     set(WEBRTC_BUILD_TYPE Release CACHE STRING "WebRTC build mode" FORCE)
-    set_property(CACHE WEBRTC_BUILD_TYPE PROPERTY STRINGS Release Debug RelWithDebInfo MinSizeRel)
+    set_property(CACHE WEBRTC_BUILD_TYPE PROPERTY STRINGS Release Debug)
 endif()
 
 if (NOT WEBRTC_BUILD_TYPE)
@@ -29,6 +29,7 @@ set(WEBRTC_LIBS
     ${webrtcBuild}/talk/libjingle_sound.a
     ${webrtcBuild}/talk/libjingle.a
     ${webrtcBuild}/webrtc/modules/libvideo_capture_module.a
+    ${webrtcBuild}/webrtc/modules/libvideo_capture_module_internal_impl.a
     ${webrtcBuild}/webrtc/modules/libaudio_coding_module.a
     ${webrtcBuild}/webrtc/modules/libCNG.a
     ${webrtcBuild}/webrtc/modules/libG711.a
@@ -82,6 +83,7 @@ set(WEBRTC_LIBS
 )
 else() #APPLE
     file(GLOB WEBRTC_LIBS "${webrtcBuild}/../*.a")
+    list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../libvideo_capture.a") # The external capture interface
 endif()
 
 set(WEBRTC_LIBS_X86
@@ -155,7 +157,7 @@ set(WEBRTC_DEFS_MACOS
     -DUSE_LIBPCI=1 -DUSE_OPENSSL=1
     -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS
     -DDYNAMIC_ANNOTATIONS_ENABLED=0
-    -D_FORTIFY_SOURCE=2
+#    -D_FORTIFY_SOURCE=2 #conflicts with ASAN, which defines it internally
 #===
     -DCLD_VERSION=2 -DCLD2_DATA_SOURCE=static
     -DENABLE_WIFI_BOOTSTRAPPING=1
@@ -268,7 +270,8 @@ set(WEBRTC_CXXFLAGS_MACOS
     -fobjc-call-cxx-cdtors #this applies only for obj-cxx, but cmake does not have flags specially for obj-c++
 )
 
-set(WEBRTC_LDFLAGS)
+#Clear cache entry because it will get duplicated otherwise
+set(WEBRTC_LDFLAGS "")
 
 set(WEBRTC_LDFLAGS_LINUX
     -Wl,-z,now -Wl,-z,relro -Wl,--fatal-warnings
@@ -287,7 +290,8 @@ set(WEBRTC_LDFLAGS_MACOS
     -Wl,-search_paths_first -Wl,-ObjC
     -Wl,-dead_strip -arch x86_64
 )
-set(WEBRTC_SYSLIBS)
+
+set(WEBRTC_SYSLIBS "")
 set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)
 
 set(WEBRTC_SYSLIBS_LINUX
@@ -299,7 +303,7 @@ set(WEBRTC_SYSLIBS_MACOS
     "-framework AVFoundation" "-framework WebKit" "-framework Cocoa" "-framework AudioToolbox"
     "-framework Foundation" "-framework IOKit" "-framework Security"
     "-framework SystemConfiguration" "-framework CoreAudio" "-framework CoreVideo"
-    "-framework OpenGL" "-framework QTKit"
+    "-framework CoreMedia" "-framework OpenGL" "-framework QTKit"
 )
 
 macro(appendPlatformStuff pname)
