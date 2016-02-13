@@ -7,7 +7,6 @@
 #include <map>
 #include <type_traits>
 #include <retryHandler.h>
-#include <busConstants.h>
 #include <serverListProviderForwards.h>
 #include "sdkApi.h"
 #include "chatd.h"
@@ -407,7 +406,7 @@ public:
     //delete is called from code inside the DLL, i.e. in the runtime where the class is implemented,
     //operates and was allocated
     rtcModule::IRtcModule* rtc = nullptr;
-    TextModule* mTextModule = nullptr;
+//    TextModule* mTextModule = nullptr;
 //    bool mHadSid = false;
     bool isTerminating = false;
     unsigned mReconnectConnStateHandler = 0;
@@ -488,10 +487,6 @@ protected:
     xmpp_ts mLastPingTs = 0;
     sqlite3* openDb();
     void setupXmppReconnectHandler();
-    promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
-        getOtherUserInfo(std::string &emailAddress);
-    promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
-        getThisUserInfo();
     promise::Promise<void> connectXmpp(const std::shared_ptr<HostPortServerInfo>& server);
     void setupXmppHandlers();
     promise::Promise<int> initializeContactList();

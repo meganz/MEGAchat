@@ -1,8 +1,6 @@
 #include "callGui.h"
 #include "chatWindow.h"
-#include <mega/base64.h> //for base32
 #include <chatRoom.h>
-#include "chatWindow.h"
 #include "mainwindow.h"
 #include <QPainter>
 
@@ -105,11 +103,7 @@ void CallGui::onMuteCam(bool checked)
 void CallGui::call()
 {
     chatd::Id peer = static_cast<PeerChatRoom&>(mChatWindow.mRoom).peer();
-    char buf[16];
-    auto len = ::mega::Base32::btoa((byte*)&peer.val, 8, buf);
-    assert(len < 16);
-    buf[len] = 0;
-    string peerJid = string(buf)+"@"+KARERE_XMPP_DOMAIN;
+    string peerJid = karere::useridToJid(peer.val);
     auto& client = mChatWindow.mainWindow.client();
     karere::XmppChatRoom::create(client, peerJid)
     .then([&client, peer](shared_ptr<karere::XmppChatRoom> xmppRoom)

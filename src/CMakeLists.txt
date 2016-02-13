@@ -14,20 +14,16 @@ set(LIBWS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../third-party/libws CACHE PATH "libws
 set(LIBWS_EXTERNAL_LOOP 1 CACHE BOOL "Use libws with external libevent loop")
 
 set (SRCS
-    ../third-party/murmurHash/MurmurHash3.cpp
-//    karereCommon.cpp
+#    ../third-party/murmurHash/MurmurHash3.cpp
+    karereCommon.cpp
     base64.cpp
     strophe.disco.cpp
     dummyCrypto.cpp
     megaCryptoFunctions.cpp
     chatClient.cpp
-    textModule.cpp
     contactList.cpp
     chatd.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
-    ./text_filter/text_filter.cpp
-    ./text_filter/default_link_handler.cpp
-    ./text_filter/default_emoticon_handler.cpp
 )
 
 if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
@@ -46,7 +42,6 @@ if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" S
 endif()
 
 add_subdirectory(rtcModule)
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../third-party/mpenc_cpp" mpenc)
 add_subdirectory(${LIBWS_DIR} libws)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
     COMMAND cmake -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
@@ -68,7 +63,6 @@ set(KARERE_INCLUDE_DIRS
     ${LIBMEGA_INCLUDE_DIRS}
     ${CRYPTOPP_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
-    ${MPENC_INCLUDE_DIRS}
     ${LIBWS_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/libws
     CACHE STRING "Include directries needed by projects using karere lib"
 )
@@ -76,18 +70,17 @@ set(KARERE_INCLUDE_DIRS
 include_directories(${KARERE_INCLUDE_DIRS} ${SQLITE3_INCLUDE_DIR})
 if (optKarereBuildShared)
     add_library(karere SHARED ${SRCS})
+    # all Karere symbols can be used by the application
+    # FIXME: This causes linker warnings about different visibility settings
+    set_target_properties(karere PROPERTIES COMPILE_FLAGS "-fvisibility=default")
 else()
     add_library(karere ${SRCS})
 endif()
-
-# all Karere symbols can be used by th application
-set_target_properties(karere PROPERTIES COMPILE_FLAGS "-fvisibility=default")
 
 target_link_libraries(karere
     rtcmodule
     ${LIBMEGA_LIBRARIES}
     ${CRYPTOPP_LIBRARIES}
-    mpEnc_cpp
     ws
     ${SQLITE3_LIBRARY}
 )

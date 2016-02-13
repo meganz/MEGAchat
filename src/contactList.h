@@ -155,12 +155,6 @@ inline unsigned char Presence::fromStanza(strophe::Stanza pres)
         strophe::Stanza show(rawShow);
         return fromString(show.text().c_str());
     }
-
-    auto type = pres.attrOrNull("type");
-    if (type)
-    {
-        return fromString(type);
-    }
     else
     {
         return Presence::kOnline;

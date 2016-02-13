@@ -1,7 +1,6 @@
 #include "contactList.h"
 #include <mstrophepp.h>
 #include <type_traits>
-#include "busConstants.h"
 #include "karereCommon.h"
 #include <mega/base64.h>
 #include <chatClient.h>

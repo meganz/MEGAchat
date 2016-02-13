@@ -10,7 +10,7 @@ set (SRCS
     webrtcAdapter.cpp
     rtcStats.cpp
     rtcModule.cpp
-    lib.cpp
+#   lib.cpp
 )
 
 add_subdirectory(../base base)

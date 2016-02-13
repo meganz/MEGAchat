@@ -15,7 +15,6 @@ set (SRCS
      callGui.cpp
      main.cpp
      ../../src/videoRenderer_Qt.cpp
-     ../../src/karereCommon.cpp
 #need to include also headers with Q_OBJECTs so that automoc knows to parse them
      widgetSubclass.h
 #==

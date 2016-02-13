@@ -16,7 +16,6 @@
 #include <serverListProvider.h>
 #include <memory>
 #include "chatClient.h"
-#include "textModule.h"
 #include <chatd.h>
 #include <db.h>
 #include <buffer.h>
@@ -326,10 +325,12 @@ promise::Promise<void> Client::connectXmpp(const std::shared_ptr<HostPortServerI
         rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*this), KARERE_DEFAULT_TURN_SERVERS);
         conn->registerPlugin("rtcmodule", rtc);
 
+/*
 // create and register text chat plugin
         mTextModule = new TextModule(*this);
         conn->registerPlugin("textchat", mTextModule);
-        KR_LOG_DEBUG("webrtc and textchat plugins initialized");
+*/
+        KR_LOG_DEBUG("webrtc plugin initialized");
         return mXmppContactList.ready();
     })
     .then([this]()
@@ -562,7 +563,6 @@ promise::Promise<void> Client::setPresence(Presence pres, bool force)
     gui.onOwnPresence(pres.val() | Presence::kInProgress);
     strophe::Stanza msg(*conn);
     msg.setName("presence")
-       .setAttr("id", generateMessageId(std::string("presence"), std::string("")))
        .c("show")
            .t(pres.toString())
            .up()
@@ -577,30 +577,6 @@ promise::Promise<void> Client::setPresence(Presence pres, bool force)
     });
 }
 
-
-promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
-Client::getOtherUserInfo(std::string &emailAddress)
-{
-    std::string event(USER_INFO_EVENT);
-    event.append(emailAddress);
-    message_bus::SharedMessage<M_MESS_PARAMS> userMessage(event);
-
-    return api->call(&mega::MegaApi::getUserData, emailAddress.c_str())
-    .then([this, userMessage](ReqResult result)
-    {
-        //const char *peer = result->getText();
-        //const char *pk = result->getPassword();
-
-        return userMessage;
-    });
-/*
- * //av: cant return nullptr instead of SharedMessage. This works only for a class with constructor that can take nullptr as argument, and the ctor is not marked as explicit
-   .fail([&](const promise::Error &err)
-    {
-        return nullptr;
-    });
-*/
-}
 UserAttrDesc attrDesc[mega::MegaApi::USER_ATTR_LAST_INTERACTION+1] =
 { //getData func | changeMask
   //0 - avatar
@@ -899,22 +875,6 @@ promise::Promise<Buffer*> UserAttrCache::getAttr(const uint64_t &user, unsigned 
     return state->pms;
 }
 
-promise::Promise<message_bus::SharedMessage<M_MESS_PARAMS>>
-Client::getThisUserInfo()
-{
-    std::string event(THIS_USER_INFO_EVENT);
-    message_bus::SharedMessage<M_MESS_PARAMS> userMessage(event);
-
-    return api->call(&mega::MegaApi::getUserData)
-    .then([this, userMessage](ReqResult result)
-    {
-        return userMessage; //av: was nullptr, but compile error - Promise<return type of this> must match function return type
-    })
-    .fail([&](const promise::Error &err)
-    {
-        return userMessage; //av: same here - was nullptr but compile error
-    });
-}
 
 ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup, const std::string& aUrl, unsigned char aShard,
   char aOwnPriv)

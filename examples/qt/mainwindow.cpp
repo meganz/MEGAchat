@@ -11,12 +11,10 @@
 //#include <rapidjson/document.h>
 #include <sdkApi.h>
 #include <chatClient.h>
-#include <messageBus.h>
-#include <textModule.h>
-#include <chatRoom.h>
 #include <QFont>
 #include <QPainter>
 #include <QImage>
+#include <math.h>
 
 #undef emit
 #define THROW_IF_FALSE(statement) \
