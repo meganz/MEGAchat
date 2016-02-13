@@ -267,8 +267,9 @@ const char* decToString(float v)
         for (auto sample: mSamples)    \
             json.append(conv(sample->path name))+=","; \
         json[json.size()-1]=']';       \
-        json+=',';                     \
-    }
+    }\
+    json+=',';
+
 #define JSON_ADD_SAMPLES(path, name) JSON_ADD_SAMPLES_WITH_CONV(path, name, std::to_string)
 #define JSON_ADD_DEC_SAMPLES(path, name) JSON_ADD_SAMPLES_WITH_CONV(path, name, decToString)
 

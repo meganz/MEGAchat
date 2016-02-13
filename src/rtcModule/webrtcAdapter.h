@@ -50,6 +50,24 @@ enum {kRejectType = 0x17c};
 /** The specific error codes of rejected promises */
 enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
 
+// Old webrtc versions called user callbacks directly from internal webrtc threads,
+// so we needed to marshall these callbacks to our GUI thread. New webrtc relies
+// on the main thread to process internal webrtc messages (as any other webrtc thread),
+// and using that mechanism webrtc marshalls the calls on the main/GUI thread by itself,
+// thus we don't need to do that. Define RTCM_MARSHALL_CALLBACKS if you want the callbacks
+// marshalled by Karere. This should not be needed.
+
+#ifdef RTCM_MARSHALL_CALLBACKS
+#define RTCM_DO_CALLBACK(code,...)      \
+    mega::marshallCall([__VA_ARGS__]() mutable { \
+        code;                                    \
+    })
+#else
+#define RTCM_DO_CALLBACK(code,...)                              \
+    assert(rtc::Thread::Current() == gAsyncWaiter.guiThread()); \
+    code
+#endif
+
 class SdpCreateCallbacks: public webrtc::CreateSessionDescriptionObserver
 {
 public:
@@ -60,19 +78,14 @@ public:
         :mPromise(promise){}
     virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc)
     {
-        mega::marshallCall([this, desc]() mutable
-        {
-            mPromise.resolve(desc);
-            Release();
-        });
+        RTCM_DO_CALLBACK(mPromise.resolve(desc); Release(), this, desc);
     }
     virtual void OnFailure(const std::string& error)
     {
-        mega::marshallCall([this, error]()
-        {
+        RTCM_DO_CALLBACK(
            mPromise.reject(promise::Error(error, kCreateSdpFailed, kRejectType));
            Release();
-        });
+        , this, error);
     }
 protected:
     PromiseType mPromise;
@@ -138,19 +151,14 @@ public:
 
     virtual void OnSuccess()
     {
-         mega::marshallCall([this]()
-         {
-             mPromise.resolve();
-             Release();
-         });
+        RTCM_DO_CALLBACK(mPromise.resolve(); Release(), this);
     }
     virtual void OnFailure(const std::string& error)
     {
-        mega::marshallCall([this, error]()
-        {
+        RTCM_DO_CALLBACK(
              mPromise.reject(promise::Error(error, kSetSdpDescriptionFailed, kRejectType));
              Release();
-        });
+        , this, error);
     }
 protected:
     PromiseType mPromise;
@@ -232,46 +240,43 @@ protected:
       Observer(C& handler):mHandler(handler){}
       virtual void OnError()
       {
-          mega::marshallCall([this](){mHandler.onError();});
+          RTCM_DO_CALLBACK(mHandler.onError(), this);
       }
       virtual void OnAddStream(webrtc::MediaStreamInterface* stream)
       {
           tspMediaStream spStream(stream);
-          mega::marshallCall([this, spStream] {mHandler.onAddStream(spStream);} );
+          RTCM_DO_CALLBACK(mHandler.onAddStream(spStream), this, spStream);
       }
       virtual void OnRemoveStream(webrtc::MediaStreamInterface* stream)
       {
           tspMediaStream spStream(stream);
-          mega::marshallCall([this, spStream] {mHandler.onRemoveStream(spStream);} );
+          RTCM_DO_CALLBACK(mHandler.onRemoveStream(spStream), this, spStream);
       }
       virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
       {
         std::shared_ptr<IceCandText> spCand(new IceCandText(candidate));
-        mega::marshallCall([this, spCand]()
-        {
-            mHandler.onIceCandidate(spCand);
-        });
+        RTCM_DO_CALLBACK(mHandler.onIceCandidate(spCand), this, spCand);
       }
       virtual void OnIceComplete()
       {
-          mega::marshallCall([this]() { mHandler.onIceComplete(); });
+          RTCM_DO_CALLBACK(mHandler.onIceComplete(), this);
       }
       virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
       {
-          mega::marshallCall([this, newState]() { mHandler.onSignalingChange(newState); });
+          RTCM_DO_CALLBACK(mHandler.onSignalingChange(newState), this, newState);
       }
       virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
       {
-          mega::marshallCall([this, newState]() { mHandler.onIceConnectionChange(newState);	});
+          RTCM_DO_CALLBACK(mHandler.onIceConnectionChange(newState), this, newState);
       }
       virtual void OnRenegotiationNeeded()
       {
-          mega::marshallCall([this]() { mHandler.onRenegotiationNeeded();});
+          RTCM_DO_CALLBACK(mHandler.onRenegotiationNeeded(), this);
       }
       virtual void OnDataChannel(webrtc::DataChannelInterface* data_channel)
       {
           rtc::scoped_refptr<webrtc::DataChannelInterface> chan(data_channel);
-          mega::marshallCall([this, chan]() {mHandler.onDataChannel(chan); });
+          RTCM_DO_CALLBACK(mHandler.onDataChannel(chan), this, chan);
       }
 
     protected:

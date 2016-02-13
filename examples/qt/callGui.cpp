@@ -14,6 +14,7 @@ CallGui::CallGui(ChatWindow &parent, const std::shared_ptr<rtcModule::ICall>& ca
 : QWidget(&parent), mChatWindow(parent), mCall(call)
 {
     ui.setupUi(this);
+    ui.localRenderer->setMirrored(true);
     connect(ui.mHupBtn, SIGNAL(clicked(bool)), this, SLOT(onHupBtn(bool)));
     connect(ui.mShowChatBtn, SIGNAL(clicked(bool)), this, SLOT(onChatBtn(bool)));
     connect(ui.mMuteMicChk, SIGNAL(clicked(bool)), this, SLOT(onMuteMic(bool)));

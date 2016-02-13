@@ -1,23 +1,33 @@
 #include "webrtcAdapter.h"
 #include <webrtc/base/ssladapter.h>
-#include <timers.h>
+#include "webrtcAsyncWaiter.h"
+
 namespace artc
 {
 
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
-rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
- gWebrtcContext;
+rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
 
 /** Local DTLS Identity */
 Identity gLocalIdentity;
 static bool gIsInitialized = false;
+AsyncWaiter* gAsyncWaiter = nullptr;
 
 bool init(const Identity* identity)
 {
     if (gIsInitialized)
         return false;
 
-    gIsInitialized = true;
+    rtc::ThreadManager* threadMgr = rtc::ThreadManager::Instance(); //ensure the ThreadManager singleton is created
+    assert(!rtc::Thread::Current()); //NO_MAIN_THREAD_WRAPPING must be defined when building webrtc
+// Put our custom Thread object in the main thread, so our main thread can process
+// webrtc messages, in a non-blocking way, integrated with the application's message loop
+    gAsyncWaiter = new AsyncWaiter;
+    auto thread = new rtc::Thread(gAsyncWaiter);
+    gAsyncWaiter->setThread(thread);
+    thread->SetName("Main Thread", thread);
+    threadMgr->SetCurrentThread(thread);
+
     rtc::InitializeSSL();
     if (identity)
         gLocalIdentity = *identity;
@@ -26,10 +36,7 @@ bool init(const Identity* identity)
     gWebrtcContext = webrtc::CreatePeerConnectionFactory();
     if (!gWebrtcContext)
         throw std::runtime_error("Error creating peerconnection factory");
-    mega::setInterval([]()
-    {
-        rtc::Thread::Current()->ProcessMessages(0);
-    }, 100);
+    gIsInitialized = true;
     return true;
 }
 
@@ -39,8 +46,12 @@ void cleanup()
         return;
     gWebrtcContext = NULL;
     rtc::CleanupSSL();
+    rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
+    delete gAsyncWaiter->guiThread();
+    delete gAsyncWaiter;
+    gAsyncWaiter = nullptr;
+    gIsInitialized = false;
 }
-
 
 /** Stream id and other ids generator */
 unsigned long generateId()

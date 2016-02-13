@@ -253,7 +253,7 @@ set(WEBRTC_CFLAGS_ANDROID #arm
 set(WEBRTC_CXXFLAGS_ANDROID -Wsign-compare -Wnon-virtual-dtor -Woverloaded-virtual -Wno-abi)
 
 set(WEBRTC_CFLAGS_COMMON_MACOS
-    -gdwarf-2 -Werror -Wnewline-eof
+    -gdwarf-2 -Wnewline-eof
     -arch x86_64 -Wendif-labels
     -Wno-selector-type-mismatch -Wheader-hygiene -Wno-char-subscripts
     -Wno-unneeded-internal-declaration -Wno-covered-switch-default
