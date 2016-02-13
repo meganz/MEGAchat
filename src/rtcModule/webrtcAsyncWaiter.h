@@ -5,9 +5,9 @@
 #ifdef __APPLE__
     #include <webrtc/base/scoped_autorelease_pool.h>
 #endif
-
+#define RTCM_DEBUG_ASYNC_WAITER
 #ifdef RTCM_DEBUG_ASYNC_WAITER
-    #define ASYNCWAITER_LOG_DEBUG(fmtString,...) KR_LOG_DEBUG("AsyncWaiter: " fmtString ": ", __##VA_ARGS__)
+    #define ASYNCWAITER_LOG_DEBUG(fmtString,...) KR_LOG_DEBUG("AsyncWaiter: " fmtString, ##__VA_ARGS__)
 #else
     #define ASYNCWAITER_LOG_DEBUG(fmString,...)
 #endif
@@ -26,8 +26,8 @@ class AsyncWaiter: public rtc::SocketServer
 protected:
     std::mutex mMutex;
     std::condition_variable mCondVar;
-    std::atomic<size_t> mWakeUpCtr = {0};
-    std::atomic<size_t> mWaitCtr = {0};
+    volatile size_t mWakeUpCtr = 0;
+    volatile size_t mWaitCtr = 0;
     rtc::Thread* mThread = nullptr;
     rtc::MessageQueue* mMessageQueue = nullptr;
 public:
@@ -50,49 +50,50 @@ virtual bool Wait(int waitTimeout, bool process_io) //return false means error, 
 // messages that are queued on us. This is initiated when someone calls WakeUp on us,
 // which is usually done when they posted a message on our queue. In this case the timeout
 // is 0.
-    ASYNCWAITER_LOG_DEBUG("Wait() called by %s thread with timeout %d",
+    ASYNCWAITER_LOG_DEBUG("Wait(): Called by %s thread with timeout %d",
         (rtc::Thread::Current() == mThread) ? "the GUI" : "a worker", waitTimeout);
+
     if (waitTimeout == 0)
-    {
         return false;
+
+    std::unique_lock<std::mutex> lock(mMutex);
+    if (waitTimeout == kForever)
+    {
+        //raise(SIGTRAP);
+        while(mWaitCtr == mWakeUpCtr)
+        {
+            ASYNCWAITER_LOG_DEBUG("Wait(): Waiting for signal...");
+            mCondVar.wait(lock);
+        }
     }
     else
     {
-        std::unique_lock<std::mutex> lock(mMutex);
-        if (waitTimeout == kForever)
+        KR_LOG_WARNING("Wait(): Called by %s thread with nonzero timeout."
+                       "If called by the GUI thread, GUI may freeze",
+                       (rtc::Thread::Current() == mThread) ? "the GUI" : "a worker");
+        while (mWaitCtr == mWakeUpCtr)
         {
-            //raise(SIGTRAP);
-            mCondVar.wait(lock, [this]() { return mWaitCtr != mWakeUpCtr; });
+            ASYNCWAITER_LOG_DEBUG("Wait(): Waiting for signal...");
+            mCondVar.wait_for(lock, std::chrono::milliseconds(waitTimeout));
         }
-        else
-        {
-            //GUI thread should call Wait() only with timeout 0 (when polling for new
-            //messages, via Get() in our processMessages() below) or with kForever (when
-            //waiting for a Send() to another thread to complete, which should not take
-            //long)
-            KR_LOG_WARNING("Wait() called by %s thread with nonzero timeout."
-                "If called by the GUI thread, GUI may freeze",
-                (rtc::Thread::Current() == mThread) ? "the GUI" : "a worker");
-            mCondVar.wait_for(lock, std::chrono::milliseconds(waitTimeout),
-                [this]() { return mWaitCtr != mWakeUpCtr; });
-        }
-        mWaitCtr++;
-        ASYNCWAITER_LOG_DEBUG("Wait(): Woken up, returning");
-        return true;
     }
+    mWaitCtr = mWakeUpCtr;
+    ASYNCWAITER_LOG_DEBUG("Wait(): Returning");
+    return true;
 }
 
 // Causes the current wait (if one is in progress) to wake up.
 virtual void WakeUp()
 {
-    ASYNCWAITER_LOG_DEBUG("WakeUp() called by %s thread", (rtc::Thread::Current() == mThread)?"the GUI":"a worker");
+    ASYNCWAITER_LOG_DEBUG("WakeUp(): Called by %s thread", (rtc::Thread::Current() == mThread)?"the GUI":"a worker");
     if (!mMessageQueue->empty()) //process messages and wake up waiters again
     {
         ASYNCWAITER_LOG_DEBUG("  WakeUp(): Message queue not empty, posting processMessages() call on GUI thread");
         mega::marshallCall([this]()
         {
-            if (processMessages())
+            if (mThread->ProcessMessages(0))
             { //signal once again that we have messages processed
+                std::lock_guard<std::mutex> lock(mMutex);
                 mWakeUpCtr++;
                 mCondVar.notify_all();
             }
@@ -104,29 +105,10 @@ virtual void WakeUp()
     }
     //If the GUI thread is waiting, we must wake it up to process messages if any.
     //If it processes any messages, it will signal the condvar once again
-    mWakeUpCtr++;
-    mCondVar.notify_all();
-}
-bool processMessages()
-{
-    bool hadMsg = false;
-    while (true)
     {
-    #if __has_feature(objc_arc)
-        @autoreleasepool
-    #elif defined(WEBRTC_MAC)
-      // see: http://developer.apple.com/library/mac/#documentation/Cocoa/Reference/Foundation/Classes/NSAutoreleasePool_Class/Reference/Reference.html
-      // Each thread is supposed to have an autorelease pool. Also for event loops
-      // like this, autorelease pool needs to be created and drained/released
-      // for each cycle.
-        rtc::ScopedAutoreleasePool pool;
-    #endif
-        rtc::Message msg;
-        if (!mMessageQueue->Get(&msg, 0)) //calls Wait() on us, which returns immediately
-            return hadMsg;
-        hadMsg = true;
-        ASYNCWAITER_LOG_DEBUG("AsyncWaiter: Dispatching webrtc message on GUI thread");
-        mMessageQueue->Dispatch(&msg);
+        std::lock_guard<std::mutex> lock(mMutex);
+        mWakeUpCtr++;
+        mCondVar.notify_all();
     }
 }
 };
