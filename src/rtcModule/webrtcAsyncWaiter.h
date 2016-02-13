@@ -5,7 +5,7 @@
 #ifdef __APPLE__
     #include <webrtc/base/scoped_autorelease_pool.h>
 #endif
-#define RTCM_DEBUG_ASYNC_WAITER
+
 #ifdef RTCM_DEBUG_ASYNC_WAITER
     #define ASYNCWAITER_LOG_DEBUG(fmtString,...) KR_LOG_DEBUG("AsyncWaiter: " fmtString, ##__VA_ARGS__)
 #else
@@ -59,7 +59,6 @@ virtual bool Wait(int waitTimeout, bool process_io) //return false means error, 
     std::unique_lock<std::mutex> lock(mMutex);
     if (waitTimeout == kForever)
     {
-        //raise(SIGTRAP);
         while(mWaitCtr == mWakeUpCtr)
         {
             ASYNCWAITER_LOG_DEBUG("Wait(): Waiting for signal...");
@@ -88,7 +87,7 @@ virtual void WakeUp()
     ASYNCWAITER_LOG_DEBUG("WakeUp(): Called by %s thread", (rtc::Thread::Current() == mThread)?"the GUI":"a worker");
     if (!mMessageQueue->empty()) //process messages and wake up waiters again
     {
-        ASYNCWAITER_LOG_DEBUG("  WakeUp(): Message queue not empty, posting processMessages() call on GUI thread");
+        ASYNCWAITER_LOG_DEBUG("  WakeUp(): Message queue not empty, posting ProcessMessages(0) call on GUI thread");
         mega::marshallCall([this]()
         {
             if (mThread->ProcessMessages(0))
@@ -99,7 +98,7 @@ virtual void WakeUp()
             }
             else
             {
-                ASYNCWAITER_LOG_DEBUG("  WakeUp: GUI thread: No messages in queue");
+                ASYNCWAITER_LOG_DEBUG("  WakeUp: GUI thread: No messages in queue, someone processed them before us");
             }
         });
     }

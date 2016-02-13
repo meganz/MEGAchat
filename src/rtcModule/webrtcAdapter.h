@@ -187,6 +187,11 @@ struct MyStatsReport: public webrtc::StatsReport::Values
     {
         return (find(name) != end());
     }
+    std::string valName(const Value& val)
+    {
+        const char* name = val.display_name();
+        return name?name:"(unknown)";
+    }
     std::string strVal(ValName name)
     {
         static const std::string empty;
@@ -200,19 +205,22 @@ struct MyStatsReport: public webrtc::StatsReport::Values
         auto it = find(name);
         if (it == end())
             return false;
-        if (it->second->type() != Value::kInt)
-            throw std::runtime_error("MappedStatItem::longVal: Value with id "+std::to_string(name)+ " is not an int");
-        ret = it->second->int_val();
+        auto& val = *it->second;
+        auto type = val.type();
+        if (type == Value::kInt)
+            ret = val.int_val();
+        else if (type == Value::kInt64)
+            ret = val.int64_val();
+        else
+            throw std::runtime_error("longVal: Value with id "+valName(val)+ " is not an int, but has type "+std::to_string(type));
         return true;
     }
     long longVal(ValName name)
     {
-        auto it = find(name);
-        if (it == end())
+        long ret;
+        if (!longVal(name, ret))
             return 0;
-        if (it->second->type() != Value::kInt)
-            throw std::runtime_error("MappedStatItem::longVal: Value with id "+std::to_string(name)+" is not int");
-        return it->second->int_val();
+        return ret;
     }
 };
 
