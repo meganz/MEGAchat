@@ -26,8 +26,7 @@ class AsyncWaiter: public rtc::SocketServer
 protected:
     std::mutex mMutex;
     std::condition_variable mCondVar;
-    volatile size_t mWakeUpCtr = 0;
-    volatile size_t mWaitCtr = 0;
+    volatile bool mSignalled = false;
     rtc::Thread* mThread = nullptr;
     rtc::MessageQueue* mMessageQueue = nullptr;
 public:
@@ -59,7 +58,7 @@ virtual bool Wait(int waitTimeout, bool process_io) //return false means error, 
     std::unique_lock<std::mutex> lock(mMutex);
     if (waitTimeout == kForever)
     {
-        while(mWaitCtr == mWakeUpCtr)
+        while(!mSignalled)
         {
             ASYNCWAITER_LOG_DEBUG("Wait(): Waiting for signal...");
             mCondVar.wait(lock);
@@ -70,13 +69,13 @@ virtual bool Wait(int waitTimeout, bool process_io) //return false means error, 
         KR_LOG_WARNING("Wait(): Called by %s thread with nonzero timeout."
                        "If called by the GUI thread, GUI may freeze",
                        (rtc::Thread::Current() == mThread) ? "the GUI" : "a worker");
-        while (mWaitCtr == mWakeUpCtr)
+        while (!mSignalled)
         {
             ASYNCWAITER_LOG_DEBUG("Wait(): Waiting for signal...");
             mCondVar.wait_for(lock, std::chrono::milliseconds(waitTimeout));
         }
     }
-    mWaitCtr = mWakeUpCtr;
+    mSignalled = false;
     ASYNCWAITER_LOG_DEBUG("Wait(): Returning");
     return true;
 }
@@ -93,7 +92,7 @@ virtual void WakeUp()
             if (mThread->ProcessMessages(0))
             { //signal once again that we have messages processed
                 std::lock_guard<std::mutex> lock(mMutex);
-                mWakeUpCtr++;
+                mSignalled = true;
                 mCondVar.notify_all();
             }
             else
@@ -106,7 +105,7 @@ virtual void WakeUp()
     //If it processes any messages, it will signal the condvar once again
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        mWakeUpCtr++;
+        mSignalled = true;
         mCondVar.notify_all();
     }
 }

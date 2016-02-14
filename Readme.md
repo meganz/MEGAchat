@@ -20,20 +20,26 @@ Checkout the Karere repository:
 
 ## Dependencies ##
 
- - `cmake` (and ccmake if a config GUI is required)  
- - Our version of strophe. No need to explicitly check it out and build it, it's included as a git submodule (in /third-party/strophe-native), and will be built by the Karere build system automatically.  
- - `libevent2` - version 2.0.x will *not* work, you need at least 2.1.x. You may need to build it from source, as 2.1.x is currently
-considered beta (even though it has critical bugfixes) and system packages at the time of this writing use 2.0.x  
- - `openssl` - needed by the SDK, webrtc, strophe and Karere itself.  
- - Native WebRTC stack from Chrome, see below for build instructions for it.  
- - The Mega SDK. Check out the repository, configure the SDK with --enable-chat, and in a minimalistic way - without image libs etc.
- Only the crypto and HTTP functionality is needed.  
- - libcrypto++ - needed by MegaSDK and Karere.  
- - libcurl needed by MegaSDK and Karere.  
+ - `cmake` and `ccmake` (for a config GUI).  
+ - Our version of `libstrophe`  
+No need to explicitly check it out and build it, it's included as a git submodule (in /third-party/strophe-native), and will be built by the 
+Karere build system automatically.  
+ - `libevent2.1.x`  
+Version 2.0.x will **not** work, you need at least 2.1.x. You may need to build it from source, as 2.1.x is currently
+considered beta (even though it has critical bugfixes) and system packages at the time of this writing use 2.0.x. For convenience, libevent
+is added as a git submodule in third-party/libevent, so its latest revision is automatically checked out from the official libevent
+repository.  
+ - `openssl` - Needed by the SDK, webrtc, strophe and Karere itself.  
+ - Native WebRTC stack from Chrome. See below for build instructions for it.  
+ - The Mega SDK  
+Check out the repository, configure the SDK with --enable-chat, and in a minimalistic way - without image libs etc. Only the crypto and HTTP
+functionality is needed.  
+ - `libcrypto++` - Needed by MegaSDK and Karere.  
+ - `libcurl` - Needed by MegaSDK and Karere.  
  - In the near future: libsodium - needed by MegaSDK and Karere
 
 ### For Desktop Operating Systems  
- - Qt5 - QtCore and QtWidgets required only, needed for the example app.  
+ - `Qt5` - QtCore and QtWidgets required only, needed for the example app.  
 
 * Android and iOS  
 You need to set up a cross-compile environment that can works with both aututools amd cmake. Look at the instructions
@@ -46,11 +52,12 @@ Use it for building crypto++.
 IMPORTANT: As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs. Usually
 they default to dynamic libs, so you must take care of that explicitly.
 
-* MacOS
+* MacOS  
 It is recommended to install dependencies not in the system /usr/lib and /usr/include dirs, but under a different prefix. This is because
 MacOS has custom/older versions of some opensource libs (i.e. openssl), and replacing them is likely to break the operating system. The 
 easiest way to do this is to use Mac Ports or Homebrew, and point the build system to that prefix to look for dependencies first.  
-- More on openssl  
+
+**More about openssl on MacOS**  
 Because MacOS has a built-in version of openssl, which is not compatible for some reason (causes Strophe login to stall),
 we have to install a generic version of openssl via Homebrew or mac ports. To make sure the webrtc build does not pick the
 system openssl headers, you can rename the /usr/include/openssl dir and the corresponding dir(s) in the XCode SDKs,
@@ -79,17 +86,20 @@ Make sure the path to the `depot_tools` dir is at the start of the system path, 
 of commands that may already be available on the system, and the custom ones must be picked instead of the system ones.
 
 ### Checkout the webrtc code ###
+This manual is written for revision `39be5610de61d8d3a98d516395a5e28f71edcacf` of the webrtc tree, but it should apply to later revisions,
+with the exceptions of pre-made patches.
+
 To checkout the webrtc code, do  
-`fetch --nohooks webrtc`
+`fetch --no-history --nohooks webrtc`  
+If you want to checkout the particular revision that this manual was written for (from February 2016):  
+`gclient sync src@39be5610de61d8d3a98d516395a5e28f71edcacf`  
+If you want the latest revision, just type:  
 `gclient sync`
 
 This will download more than 10GB of code (most of the Chromium codebase), and may take a lot of time.  
 
 * For Android, do:  
 `echo "target_os = ['android', 'unix']" >> .gclient`  
-
-* For MacOS, do:  
-`echo "target_os = ['mac']" >> .gclient`  
 
 Then  
 `cd src`
@@ -135,12 +145,12 @@ First, we will delete/rename the dir containing boringssl, and create our own bo
 In order to do that:  
 `rm -r third_party/boringssl`  
 `mkdir third_party/boringssl`  
-`cp /path/to/karere/webrtc-build/boringssl.gyp ./third_party/boringssl/`
+`cp /path/to/karere/webrtc-build/boringssl.gyp ./third_party/boringssl/`  
 
 This file maps all boringssl references from the webrtc build system to the prefix that we tell it, via the `DEPS_SYSROOT`
 env variable, which you need to set to the prefix where openssl is installed.
 On Linux, this is usually the system prefix `/usr` or `/usr/local`, for MacOS this is the prefix where MacPorts or Homebrew
-install, and when cross-compiling, this is normally the sysroot/buildroot directory where all depenencies are built.
+install libraries. When cross-compiling, this is normally the sysroot/buildroot directory where all depenencies are built.
 Note that on cross-build environments you cannot assign this variable to a variable set by the cross-compile environment
 env-xxx.sh script, because that script must not be sourced in this shell.
 * Android  
@@ -152,36 +162,37 @@ This path would usually be:
 
 Then, on non-Android platforms, we must tell webrtc that we want it to build with openssl. For that, we provide
 `use_openssl=1` and `use_nss=0` to the GYP_DEFINES. This is reflected in the complete GYP_DEFINES string for each platform
-below, so you don't need to to anything about that at this point. However, the webrtc build system is buggy in this regard and
-does not check only the use_xxx flags when determining the backend, but it also decides based on the target operating system.
-So we need to patch it.
+below, so you don't need to to anything about that at this point.
 
 
 ### Configure the build ###
 #### Patch build.gyp ####
-First of all, we need to patch the main .gyp file to configure the build in the way we need. For that, do
-`git apply /path/to/karere/webrtc-build/build.gyp.patch`  
+First of all, we need to patch the webrtc/base/base.gyp file to add the `NO_MAIN_THREAD_WRAPPING=1` define to the rtc_base library. For
+that, if you are using revision `39be5610de61d8d3a98d516395a5e28f71edcacf` you can use the following patch:
+`git apply /path/to/karere/webrtc-build/base.gyp.patch`  
+Otherwise you will need to manually patch base.gyp - look at the included patch to see what and where needs to be changed.
+
 #### Set GYP env variables ####  
 `export GYP_GENERATORS="ninja"`  
 
 Set the `GYP_DEFINES` env var, depending on the palfrorm:  
-* Linux:    
+* Linux    
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0 use_openssl=1 use_nss=0"`   
 
-* Mac:  
+* Mac  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64 clang_use_chrome_plugins=0 mac_deployment_target=10.7 use_openssl=1 use_nss=0"`  
 
-* Android
+* Android  
 `export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`  
 
-* iOS
+* iOS  
 No manual configuration is needed, this is done by the provided `build.sh` script, see below.
 
 #### Platform-specific operations ####
 
-*MacOS
+* MacOS
 
-** Change camera capturer **
+**Change camera capturer**
 The video capturer on macos is based on QTKit (QuickTime) and is practically unusable when capture creation and operations are
 initiated from the main thread of the app (as is the case with Karere), because a deadlock occurs.  
 

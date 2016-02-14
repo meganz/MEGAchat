@@ -1,21 +1,21 @@
-Index: talk/media/webrtc/webrtcvideocapturer.cc
-===================================================================
---- talk/media/webrtc/webrtcvideocapturer.cc	(revision 6937)
-+++ talk/media/webrtc/webrtcvideocapturer.cc	(working copy)
-@@ -199,7 +199,7 @@
- #if !defined(IOS)
+diff --git a/webrtc/media/webrtc/webrtcvideocapturer.cc b/webrtc/media/webrtc/webrtcvideocapturer.cc
+index d152124..332fcb2 100644
+--- a/webrtc/media/webrtc/webrtcvideocapturer.cc
++++ b/webrtc/media/webrtc/webrtcvideocapturer.cc
+@@ -206,7 +206,7 @@ bool WebRtcVideoCapturer::Init(const Device& device) {
+ 
    if (supported.empty()) {
      LOG(LS_ERROR) << "Failed to find usable formats for id: " << device.id;
 -    return false;
 +//    return false;
    }
- #endif
+ 
    module_ = factory_->Create(0, vcm_id);
-Index: webrtc/modules/video_capture/video_capture.gypi
-===================================================================
---- webrtc/modules/video_capture/video_capture.gypi	(revision 6937)
-+++ webrtc/modules/video_capture/video_capture.gypi	(working copy)
-@@ -44,28 +44,28 @@
+diff --git a/webrtc/modules/video_capture/video_capture.gypi b/webrtc/modules/video_capture/video_capture.gypi
+index c80f2bf..424b993 100644
+--- a/webrtc/modules/video_capture/video_capture.gypi
++++ b/webrtc/modules/video_capture/video_capture.gypi
+@@ -68,29 +68,6 @@
                  'linux/video_capture_linux.h',
                ],
              }],  # linux
@@ -35,41 +35,20 @@ Index: webrtc/modules/video_capture/video_capture.gypi
 -              'link_settings': {
 -                'xcode_settings': {
 -                  'OTHER_LDFLAGS': [
+-                    '-framework Cocoa',
 -                    '-framework CoreVideo',
 -                    '-framework QTKit',
 -                  ],
 -                },
 -              },
 -            }],  # mac
-+#            ['OS=="mac"', {
-+#              'sources': [
-+#                'mac/qtkit/video_capture_qtkit.h',
-+#                'mac/qtkit/video_capture_qtkit.mm',
-+#                'mac/qtkit/video_capture_qtkit_info.h',
-+#                'mac/qtkit/video_capture_qtkit_info.mm',
-+#                'mac/qtkit/video_capture_qtkit_info_objc.h',
-+#                'mac/qtkit/video_capture_qtkit_info_objc.mm',
-+#                'mac/qtkit/video_capture_qtkit_objc.h',
-+#                'mac/qtkit/video_capture_qtkit_objc.mm',
-+#                'mac/qtkit/video_capture_qtkit_utility.h',
-+#                'mac/video_capture_mac.mm',
-+#              ],
-+#              'link_settings': {
-+#                'xcode_settings': {
-+#                  'OTHER_LDFLAGS': [
-+#                    '-framework CoreVideo',
-+#                    '-framework QTKit',
-+#                  ],
-+#                },
-+#              },
-+#            }],  # mac
              ['OS=="win"', {
                'dependencies': [
                  '<(DEPTH)/third_party/winsdk_samples/winsdk_samples.gyp:directshow_baseclasses',
-@@ -103,16 +103,16 @@
-                 'android/video_capture_android.h',
-               ],
-             }],  # android
+@@ -133,31 +110,33 @@
+                 },
+               },
+             }],
 -            ['OS=="ios"', {
 +            ['OS=="mac"', {
                'sources': [
@@ -92,7 +71,12 @@ Index: webrtc/modules/video_capture/video_capture.gypi
                ],
                'xcode_settings': {
                  'CLANG_ENABLE_OBJC_ARC': 'YES',
-@@ -128,8 +128,7 @@
+               },
++              'cxxflags': [
++                '-Wno-partial-availability'
++              ],
+               'all_dependent_settings': {
+                 'xcode_settings': {
                    'OTHER_LDFLAGS': [
                      '-framework AVFoundation',
                      '-framework CoreMedia',
@@ -102,3 +86,8 @@ Index: webrtc/modules/video_capture/video_capture.gypi
                    ],
                  },
                },
+-            }],  # ios
++            }],  # mac
+           ], # conditions
+         },
+       ],
