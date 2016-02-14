@@ -15,8 +15,8 @@ Building of webrtc is supported only on MacOS. You need to install XCode.
 ## Get the code ##
 
 Checkout the Karere repository:  
-  `git clone --recursive https://code.developers.mega.co.nz/messenger/karere-native`.  
-  Note the `--recursive` switch - the repository contains git submodules that need to be checked out as well.
+`git clone --recursive https://code.developers.mega.co.nz/messenger/karere-native`.  
+Note the `--recursive` switch - the repository contains git submodules that need to be checked out as well.
 
 ## Dependencies ##
 
