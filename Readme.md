@@ -116,7 +116,7 @@ If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to 
 is something like that:  
 `export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
 
-* Mac  and iOS 
+* Mac and iOS 
 No Java is or any other dependencies are needed on these platforms.  
 
 * Android  
