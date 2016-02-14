@@ -86,13 +86,13 @@ Make sure the path to the `depot_tools` dir is at the start of the system path, 
 of commands that may already be available on the system, and the custom ones must be picked instead of the system ones.
 
 ### Checkout the webrtc code ###
-This manual is written for revision `39be5610de61d8d3a98d516395a5e28f71edcacf` of the webrtc tree, but it should apply to later revisions,
+This manual is written for revision `290ab41` of the webrtc tree, but it should apply to later revisions,
 with the exceptions of pre-made patches.
 
 To checkout the webrtc code, do  
 `fetch --no-history --nohooks webrtc`  
 If you want to checkout the particular revision that this manual was written for (from February 2016):  
-`gclient sync src@39be5610de61d8d3a98d516395a5e28f71edcacf`  
+`gclient sync src@290ab41`  
 If you want the latest revision, just type:  
 `gclient sync`
 
