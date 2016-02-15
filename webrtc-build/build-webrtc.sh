@@ -46,6 +46,8 @@ else
 fi
 
 echo "Syncing webrtc subtrees. This may take a lot of time..."
+# avoid error when we have already replaced the boringssl symlink with a dir
+rm -rf ./third_party/boringssl
 gclient sync --force --revision 290ab41
 
 cd src
