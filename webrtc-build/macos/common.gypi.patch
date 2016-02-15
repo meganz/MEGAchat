@@ -1,5 +1,5 @@
 diff --git a/build/common.gypi b/build/common.gypi
-index 4bc35cc..ced195413 100644
+index 4bc35cc..204473b 100644
 --- a/build/common.gypi
 +++ b/build/common.gypi
 @@ -1946,7 +1946,7 @@
@@ -19,3 +19,12 @@ index 4bc35cc..ced195413 100644
  
          # TODO(hans): Get this cleaned up, http://crbug.com/428099
          '-Wno-inconsistent-missing-override',
+@@ -2680,7 +2681,7 @@
+       ['OS=="mac"', {
+         # When compiling Objective C, warns if a method is used whose
+         # availability is newer than the deployment target.
+-        'xcode_settings': { 'WARNING_CFLAGS': ['-Wpartial-availability']},
++        #'xcode_settings': { 'WARNING_CFLAGS': ['-Wpartial-availability']},
+       }],
+       ['(OS=="mac" or OS=="ios") and asan==1', {
+         'dependencies': [
