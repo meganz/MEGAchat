@@ -1,0 +1,27 @@
+diff --git a/webrtc/base/base.gyp b/webrtc/base/base.gyp
+index 3ae76db..2fa9eff 100644
+--- a/webrtc/base/base.gyp
++++ b/webrtc/base/base.gyp
+@@ -165,6 +165,7 @@
+         'SSL_USE_OPENSSL',
+         'HAVE_OPENSSL_SSL_H',
+         'LOGGING=1',
++        'NO_MAIN_THREAD_WRAPPING=1',
+       ],
+       'sources': [
+         'arraysize.h',
+@@ -526,14 +527,6 @@
+             'windowpickerfactory.h',
+             'windowpicker.h',
+           ],
+-          'defines': [
+-            'NO_MAIN_THREAD_WRAPPING',
+-          ],
+-          'direct_dependent_settings': {
+-            'defines': [
+-              'NO_MAIN_THREAD_WRAPPING',
+-            ],
+-          },
+         }, {
+           'conditions': [
+             ['build_json==1', {
