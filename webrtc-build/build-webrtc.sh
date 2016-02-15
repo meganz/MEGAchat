@@ -10,7 +10,7 @@ fi
 echo "========================================================="
 platform=`uname`
 echo "Platform: $platform"
-karere=$(dirname "$0")
+karere=`echo "$(cd "$(dirname "$0")"; pwd)"`
 echo "Karere webrtc-build directory: $karere"
 webrtcdir=$1
 echo "Webrtc directory: $webrtcdir"
@@ -53,7 +53,7 @@ cd src
 echo "Replacing boringssl.gyp..."
 rm -rf ./third_party/boringssl
 mkdir ./third_party/boringssl
-cp "$karere/boringssl.gyp" ./third_party/boringssl/
+cp -v "$karere/boringssl.gyp" ./third_party/boringssl/
 
 echo "Setting platform-independent env variables..."
 export DEPS_SYSROOT=$deproot
