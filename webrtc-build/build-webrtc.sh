@@ -65,11 +65,15 @@ if [[ $platform == "Darwin" ]]; then
 
     echo "Setting GYP_DEFINES..."
     export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64 clang_use_chrome_plugins=0 mac_deployment_target=10.7 use_openssl=1 use_nss=0"
+
     echo "Replacing macos capturer..."
     rm -rf webrtc/modules/video_capture/mac
     cp -rv "$karere/macos/mac-capturer" "webrtc/modules/video_capture/mac"
-    echo "Applying patch for capturer and other mac-specific things"
-    git apply "$karere/macos/webrtc.patch"
+    echo "Applying patch for capturer"
+    git apply "$karere/macos/capturer.patch"
+
+    echo "Applyting patch to common.gypi"
+    git apply "$karere/macos/common.gypi.patch"
 else
     echo "Non-mac platforms are not supported by this script yet"
     exit 1
