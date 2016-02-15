@@ -52,11 +52,6 @@ gclient sync --force --revision 290ab41
 
 cd src
 
-echo "Replacing boringssl.gyp..."
-rm -rf ./third_party/boringssl
-mkdir ./third_party/boringssl
-cp -v "$karere/boringssl.gyp" ./third_party/boringssl/
-
 echo "Setting platform-independent env variables..."
 export DEPS_SYSROOT=$deproot
 export GYP_GENERATORS=ninja
@@ -82,6 +77,12 @@ fi
 
 echo "Generating ninja makefiles..."
 gclient runhooks --force
+# Can't do this earlier because setup_links.py from webrtc build system constantly complains
+# about having to delete boringssl dir, as it sees it's not a symlink as expected
+echo "Replacing boringssl.gyp..."
+rm -rf ./third_party/boringssl
+mkdir ./third_party/boringssl
+cp -v "$karere/boringssl.gyp" ./third_party/boringssl/
 
 echo "Building webrtc in release mode..."
 ninja -C out/Release
