@@ -42,7 +42,7 @@ if [ -d src ]; then
     echo "Webrtc main source tree seems already checked out"
 else
     echo "Fetching main webrtc source tree..."
-    fetch --no-history --nohooks webrtc
+    fetch --nohooks webrtc
 fi
 
 echo "Syncing webrtc subtrees. This may take a lot of time..."
