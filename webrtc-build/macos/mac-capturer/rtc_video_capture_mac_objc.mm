@@ -12,12 +12,10 @@
 #error "This file requires ARC support."
 #endif
 
-#import <cocoa/cocoa.h>
-
 #import "device_info_mac_objc.h"
 #import "rtc_video_capture_mac_objc.h"
 
-#include "webrtc/system_wrappers/interface/trace.h"
+#include "webrtc/system_wrappers/include/trace.h"
 
 using namespace webrtc;
 using namespace webrtc::videocapturemodule;
@@ -31,6 +29,7 @@ using namespace webrtc::videocapturemodule;
   webrtc::VideoCaptureCapability _capability;
   AVCaptureSession* _captureSession;
   int _captureId;
+  BOOL _orientationHasChanged;
   AVCaptureConnection* _connection;
   BOOL _captureChanging;  // Guarded by _captureChangingCondition.
   NSCondition* _captureChangingCondition;
@@ -85,10 +84,6 @@ using namespace webrtc::videocapturemodule;
                selector:@selector(onVideoError:)
                    name:AVCaptureSessionRuntimeErrorNotification
                  object:_captureSession];
-    [notify addObserver:self
-               selector:@selector(statusBarOrientationDidChange:)
-                   name:@"StatusBarOrientationDidChange"
-                 object:nil];
   }
 
   return self;
@@ -105,7 +100,8 @@ using namespace webrtc::videocapturemodule;
   [[self currentOutput] setSampleBufferDelegate:nil queue:NULL];
 }
 
-- (void)statusBarOrientationDidChange:(NSNotification*)notification {
+- (void)deviceOrientationDidChange:(NSNotification*)notification {
+  _orientationHasChanged = YES;
   [self setRelativeVideoOrientation];
 }
 
@@ -132,50 +128,42 @@ using namespace webrtc::videocapturemodule;
 - (BOOL)startCaptureWithCapability:(const VideoCaptureCapability&)capability {
   [self waitForCaptureChangeToFinish];
   if (!_captureSession) {
-      return NO;
+    return NO;
   }
+
   // check limits of the resolution
   if (capability.maxFPS < 0 || capability.maxFPS > 60) {
-      return NO;
+    return NO;
   }
-  int32_t width = capability.width;
-  int32_t height = capability.height;
-  if ((capability.width >= 1920 || capability.height >= 1080)
-      && ([_captureSession canSetSessionPreset:@"AVCaptureSessionPreset1920x1080"])) {
-          width = 1920;
-          height = 1080;
-  } else if ((capability.width >= 1280 || capability.height >= 720)
-      && ([_captureSession canSetSessionPreset:AVCaptureSessionPreset1280x720])) {
-         width = 1280;
-         height = 720;
-  } else if ((capability.width >= 640 || capability.height >= 480)
-      && ([_captureSession canSetSessionPreset:AVCaptureSessionPreset640x480])) {
-          width = 640;
-          height = 480;
-  } else if ((capability.width >= 352 || capability.height >= 288)
-      && ([_captureSession canSetSessionPreset:AVCaptureSessionPreset352x288])) {
-          width = 352;
-          height = 288;
-  } else if ((capability.width >= 320 || capability.height >= 240)
-      && ([_captureSession canSetSessionPreset:AVCaptureSessionPreset320x240])) {
-          width = 320;
-          height = 240;
-  } else {
-      printf("Video Capturer: Could not find a supported capture resolution (requested: %dx%d) at %s:%d\n",
-        capability.width, capability.height, __FILE__, __LINE__);
+
+  if ([_captureSession
+                 canSetSessionPreset:AVCaptureSessionPreset1280x720]) {
+    if (capability.width > 1280 || capability.height > 720) {
       return NO;
+    }
+  } else if ([_captureSession
+                 canSetSessionPreset:AVCaptureSessionPreset640x480]) {
+    if (capability.width > 640 || capability.height > 480) {
+      return NO;
+    }
+  } else if ([_captureSession
+                 canSetSessionPreset:AVCaptureSessionPreset352x288]) {
+    if (capability.width > 352 || capability.height > 288) {
+      return NO;
+    }
+  } else if (capability.width < 0 || capability.height < 0) {
+    return NO;
   }
 
   _capability = capability;
-  _capability.width = width;
-  _capability.height = height;
- //printf("===== decided w = %d; h = %d\n", width, height);
+
   AVCaptureVideoDataOutput* currentOutput = [self currentOutput];
   if (!currentOutput)
     return NO;
 
   [self directOutputToSelf];
 
+  _orientationHasChanged = NO;
   _captureChanging = YES;
   dispatch_async(
       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
@@ -187,47 +175,51 @@ using namespace webrtc::videocapturemodule;
   return [[_captureSession outputs] firstObject];
 }
 
-- (void)startCaptureInBackgroundWithOutput: (AVCaptureVideoDataOutput*)currentOutput {
-  NSString* preset = [NSString stringWithFormat:
-      @"AVCaptureSessionPreset%dx%d", _capability.width, _capability.height];
+- (void)startCaptureInBackgroundWithOutput:
+            (AVCaptureVideoDataOutput*)currentOutput {
+  NSString* captureQuality =
+      [NSString stringWithString:AVCaptureSessionPresetLow];
+  if (_capability.width >= 1280 || _capability.height >= 720) {
+    captureQuality = [NSString stringWithString:AVCaptureSessionPreset1280x720];
+  } else if (_capability.width >= 640 || _capability.height >= 480) {
+    captureQuality = [NSString stringWithString:AVCaptureSessionPreset640x480];
+  } else if (_capability.width >= 352 || _capability.height >= 288) {
+    captureQuality = [NSString stringWithString:AVCaptureSessionPreset352x288];
+  }
 
   // begin configuration for the AVCaptureSession
   [_captureSession beginConfiguration];
 
   // picture resolution
- [_captureSession setSessionPreset:preset];
+  [_captureSession setSessionPreset:captureQuality];
 
   // take care of capture framerate now
-  do {
-      NSArray* sessionInputs = _captureSession.inputs;
-      if ([sessionInputs count] <= 0)
-          break;
-      AVCaptureDevice* inputDevice = [sessionInputs[0] device];
-      if (!inputDevice) {
-          break;
+  NSArray* sessionInputs = _captureSession.inputs;
+  AVCaptureDeviceInput* deviceInput = [sessionInputs count] > 0 ?
+      sessionInputs[0] : nil;
+  AVCaptureDevice* inputDevice = deviceInput.device;
+  if (inputDevice) {
+    AVCaptureDeviceFormat* activeFormat = inputDevice.activeFormat;
+    NSArray* supportedRanges = activeFormat.videoSupportedFrameRateRanges;
+    AVFrameRateRange* targetRange = [supportedRanges count] > 0 ?
+        supportedRanges[0] : nil;
+    // Find the largest supported framerate less than capability maxFPS.
+    for (AVFrameRateRange* range in supportedRanges) {
+      if (range.maxFrameRate <= _capability.maxFPS &&
+          targetRange.maxFrameRate <= range.maxFrameRate) {
+        targetRange = range;
       }
-      NSArray* supportedRanges = inputDevice.activeFormat.videoSupportedFrameRateRanges;
-      if ([supportedRanges count] <= 0) {
-        break;
-      }
-      AVFrameRateRange* targetRange = supportedRanges[0];
-      // Find the largest supported framerate, but lower than capability.maxFPS.
-      for (AVFrameRateRange* range in supportedRanges) {
-          if ((range.maxFrameRate <= _capability.maxFPS) &&
-                  (range.maxFrameRate >= targetRange.maxFrameRate)) {
-              targetRange = range;
-          }
-      }
-      if (targetRange && [inputDevice lockForConfiguration:NULL]) {
-          inputDevice.activeVideoMinFrameDuration = targetRange.minFrameDuration;
-          inputDevice.activeVideoMaxFrameDuration = targetRange.minFrameDuration;
-          [inputDevice unlockForConfiguration];
-          //printf("fps = %llu\n", targetRange.minFrameDuration.timescale/targetRange.minFrameDuration.value);
-      }
-  } while(false);
+    }
+    if (targetRange && [inputDevice lockForConfiguration:NULL]) {
+      inputDevice.activeVideoMinFrameDuration = targetRange.minFrameDuration;
+      inputDevice.activeVideoMaxFrameDuration = targetRange.minFrameDuration;
+      [inputDevice unlockForConfiguration];
+    }
+  }
 
   _connection = [currentOutput connectionWithMediaType:AVMediaTypeVideo];
   [self setRelativeVideoOrientation];
+
   // finished configuring, commit settings to AVCaptureSession.
   [_captureSession commitConfiguration];
 
@@ -236,7 +228,11 @@ using namespace webrtc::videocapturemodule;
 }
 
 - (void)setRelativeVideoOrientation {
+  if (!_connection.supportsVideoOrientation) {
     return;
+  }
+
+  _connection.videoOrientation = AVCaptureVideoOrientationPortrait;
 }
 
 - (void)onVideoError:(NSNotification*)notification {
@@ -252,6 +248,7 @@ using namespace webrtc::videocapturemodule;
 }
 
 - (BOOL)stopCapture {
+  _orientationHasChanged = NO;
   [self waitForCaptureChangeToFinish];
   [self directOutputToNil];
 
@@ -352,7 +349,8 @@ using namespace webrtc::videocapturemodule;
   size_t yPlaneHeight = CVPixelBufferGetHeightOfPlane(videoFrame, kYPlaneIndex);
   size_t uvPlaneBytesPerRow =
       CVPixelBufferGetBytesPerRowOfPlane(videoFrame, kUVPlaneIndex);
-  size_t uvPlaneHeight = CVPixelBufferGetHeightOfPlane(videoFrame, kUVPlaneIndex);
+  size_t uvPlaneHeight =
+      CVPixelBufferGetHeightOfPlane(videoFrame, kUVPlaneIndex);
   size_t frameSize =
       yPlaneBytesPerRow * yPlaneHeight + uvPlaneBytesPerRow * uvPlaneHeight;
 

@@ -14,9 +14,8 @@
 
 #include "device_info_mac_objc.h"
 #include "rtc_video_capture_mac_objc.h"
-#include "webrtc/system_wrappers/interface/ref_count.h"
-#include "webrtc/system_wrappers/interface/scoped_refptr.h"
-#include "webrtc/system_wrappers/interface/trace.h"
+#include "webrtc/system_wrappers/include/ref_count.h"
+#include "webrtc/system_wrappers/include/trace.h"
 
 using namespace webrtc;
 using namespace videocapturemodule;
@@ -31,11 +30,13 @@ VideoCaptureIos::VideoCaptureIos(const int32_t capture_id)
   capability_.width = kDefaultWidth;
   capability_.height = kDefaultHeight;
   capability_.maxFPS = kDefaultFrameRate;
+  capture_device_ = nil;
 }
 
 VideoCaptureIos::~VideoCaptureIos() {
   if (is_capturing_) {
     [capture_device_ stopCapture];
+    capture_device_ = nil;
   }
 }
 
