@@ -3,7 +3,7 @@ set -e
 
 if (( $# < 2 )); then
    echo "Not enough arguments"
-   echo "Usage: $(basename $0) <webrtc-output-dir> <prefix-of-dependencies>"
+   echo "Usage: $(basename $0) <webrtc-output-dir> <prefix-of-dependencies> [--revision <rev>]"
    exit 1
 fi
 
@@ -16,11 +16,41 @@ webrtcdir=$1
 echo "Webrtc directory: $webrtcdir"
 deproot=$2
 echo "Prefix where dependencies are installed: $deproot"
-if [[ $3 != "-batch" ]]; then
+shift
+shift
+
+while [[ $# > 1 ]]
+do
+    key="$1"
+    case $key in
+    --batch)
+    batch=1
+    ;;
+    -r|--revision)
+    revision="$2"
+    shift # past argument
+    ;;
+    *)
+    echo "Unknown option '$1'"
+    exit 1
+    ;;
+    esac
+    shift # past argument or value
+done
+
+if [ -z "$revision" ]; then
+    revision="master"
+fi
+echo "WebRTC revision: '$revision'"
+
+if [[ -z $batch ]]; then
     read -n1 -r -p "Press enter to continue if these paths are ok, or ctrl+c to abort..." key
 fi
 
 echo "========================================================="
+
+export KR_WEBRTC_BUILD=$karere
+
 if [ -d $webrtcdir ]; then
     echo "Webrtc directory already exists"
 else
@@ -38,42 +68,78 @@ fi
 
 export PATH="$webrtcdir/depot_tools:$PATH"
 
-if [ -d src ]; then
-    echo "Webrtc main source tree seems already checked out"
+if [ -f src/.gclient ] && [ -f src/DEPS ]; then
+    echo "Webrtc source tree seems already checked out"
+    cd src
 else
-    echo "Fetching main webrtc source tree..."
-    fetch --nohooks webrtc
+    echo "Configuring gclient for webrtc repo..."
+    gclient config --name src --unmanaged https://dummy
+    if [ ! -d src ]; then
+        mkdir -p src
+    fi
+    cd src
+    if [ ! -d ./.git ]; then
+        git init
+        git remote add origin https://chromium.googlesource.com/external/webrtc.git
+    fi
+    echo "Fetching webrtc git repository at revision '$revision'..."
+    git fetch --depth=1 origin $revision
+    git checkout $revision
+
+    echo "Removing unneccessary deps from webrtc DEPS file..."
+    python "$karere/remove-from-DEPS.py" ./DEPS "$karere/webrtc-deps-del.txt"
 fi
 
-echo "Syncing webrtc subtrees. This may take a lot of time..."
-# avoid error when we have already replaced the boringssl symlink with a dir
-rm -rf ./src/third_party/boringssl
-gclient sync --force --revision 290ab41
+contents=$(<./DEPS)
+regex="'chromium_revision': '([^']+)',"
+[[ "$contents" =~ $regex ]]
+chromiumRev="${BASH_REMATCH[1]}"
+if [ -z "$chromiumRev" ]; then
+    echo "Error extracting required chromium revision from DEPS file"
+    exit 1
+fi
+echo "Required chromium revision for this webrtc is $chromiumRev"
 
-cd src
+echo "==========================================================="
+echo "Selecticely downloading build scripts from chromium repo..."
+$karere/get-chromium-deps.sh "$chromiumRev"
+
+echo "Replacing boringssl..."
+mkdir -p ./chromium/src/third_party/boringssl
+cp -v $karere/boringssl.gyp ./chromium/src/third_party/boringssl/
+
+python $karere/link-chromium-deps.py
+echo "==========================================================="
 
 echo "Setting platform-independent env variables..."
 export DEPS_SYSROOT=$deproot
 export GYP_GENERATORS=ninja
 
 echo "Patching base.gyp..."
-git checkout --force webrtc/base/base.gyp
+pwd
+git checkout --force ./webrtc/base/base.gyp
 git apply "$karere/base.gyp.patch"
+
 
 if [[ $platform == "Darwin" ]]; then
     echo "Performing MacOS-specific operations"
 
     echo "Setting GYP_DEFINES..."
-    export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64 clang_use_chrome_plugins=0 mac_deployment_target=10.7 use_openssl=1 use_nss=0"
+    export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64 clang_use_chrome_plugins=0 mac_deployment_target=10.7 use_openssl=1 use_nss=0 include_tests=0"
 
     echo "Replacing macos capturer..."
     rm -rf webrtc/modules/video_capture/mac
     cp -rv "$karere/macos/mac-capturer" "webrtc/modules/video_capture/mac"
-    echo "Applying patch for capturer"
-    git apply "$karere/macos/capturer.patch"
-
-    echo "Applyting patch to common.gypi"
-    git apply "$karere/macos/common.gypi.patch"
+    if [ ! -f ./.patched-mac-capturer ]; then
+        echo "Applying patch for capturer"
+        git apply "$karere/macos/capturer.patch"
+        touch ./.patched-mac-capturer
+    fi
+    if [ ! -f ./.patched-common.gypi ]; then
+        echo "Applyting patch to common.gypi"
+        git apply "$karere/macos/common.gypi.patch"
+        touch ./.patched-common.gypi
+    fi
 else
     echo "Non-mac platforms are not supported by this script yet"
     exit 1
