@@ -1499,11 +1499,10 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
 {
     std::set<uint64_t> apiUsers;
     auto size = users.size();
-    auto me = client.myHandle();
     for (int i=0; i<size; i++)
     {
         auto& user = *users.get(i);
-        if (user.getHandle() == me)
+        if (user.getVisibility() != mega::MegaUser::VISIBILITY_VISIBLE)
             continue;
         apiUsers.insert(user.getHandle());
         addUserFromApi(user);
@@ -1676,7 +1675,7 @@ ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
 {
     auto it = find(userid);
     if (it == end())
-        throw std::runtime_error("attachRoomToContact: userid not found");
+        throw std::runtime_error("attachRoomToContact: userid '"+chatd::Id(userid)+"' not found in contactlist");
     auto& contact = *it->second;
     if (contact.mChatRoom)
         throw std::runtime_error("attachRoomToContact: contact already has a chat room attached");
