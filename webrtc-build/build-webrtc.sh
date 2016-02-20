@@ -18,22 +18,30 @@ deproot=$2
 echo "Prefix where dependencies are installed: $deproot"
 shift
 shift
+buildtype="Release"
 
-while [[ $# > 1 ]]
+while [[ $# > 0 ]]
 do
     key="$1"
     case $key in
-    --batch)
-    batch=1
-    ;;
+        -b|--batch)
+        batch=1
+        ;;
     -r|--revision)
-    revision="$2"
-    shift # past argument
-    ;;
+        if [[ $# < 2 ]]; then
+           echo "No revision specified"
+           exit 1
+        fi
+        revision="$2"
+        shift # skip revision value
+        ;;
+    -d|--debug)
+        buildtype="Debug"
+        ;;
     *)
-    echo "Unknown option '$1'"
-    exit 1
-    ;;
+        echo "Unknown option '$1'"
+        exit 1
+        ;;
     esac
     shift # past argument or value
 done
@@ -42,6 +50,7 @@ if [ -z "$revision" ]; then
     revision="master"
 fi
 echo "WebRTC revision: '$revision'"
+echo "WebRTC build type: $buildtype"
 
 if [[ -z $batch ]]; then
     read -n1 -r -p "Press enter to continue if these paths are ok, or ctrl+c to abort..." key
@@ -149,7 +158,7 @@ echo "Generating ninja makefiles..."
 gclient runhooks --force
 
 echo "Building webrtc in release mode..."
-ninja -C out/Release
+ninja -C out/$buildtype
 
 echo "All done"
 

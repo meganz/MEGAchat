@@ -10,7 +10,7 @@ if os.path.exists('./.get-chromium-deps-ran'):
 def makelink(path, linked):
     if path:
         path='/'+path;
-    os.system('ln -sfv '+cwd+'./chromium/src'+path+'/'+linked+' '+cwd+path)
+    os.system('ln -sfv '+cwd+'/chromium/src'+path+'/'+linked+' '+cwd+path)
     return
 
 print("============================================================")
