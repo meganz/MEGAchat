@@ -1,15 +1,14 @@
 #pragma once
 #include <webrtc/base/common.h>
 #include <webrtc/base/scoped_ref_ptr.h>
-#include <talk/app/webrtc/peerconnectioninterface.h>
-#include <talk/app/webrtc/jsep.h>
-#include <talk/app/webrtc/peerconnectionfactory.h>
-#include <talk/app/webrtc/mediastream.h>
-#include <talk/app/webrtc/audiotrack.h>
-#include <talk/app/webrtc/videotrack.h>
-#include <talk/app/webrtc/test/fakeconstraints.h>
-#include <talk/app/webrtc/jsepsessiondescription.h>
-#include <talk/app/webrtc/jsep.h>
+#include <webrtc/api/peerconnectioninterface.h>
+#include <webrtc/api/jsep.h>
+#include <webrtc/api/peerconnectionfactory.h>
+#include <webrtc/api/mediastream.h>
+#include <webrtc/api/audiotrack.h>
+#include <webrtc/api/videotrack.h>
+#include <webrtc/api/test/fakeconstraints.h>
+#include <webrtc/api/jsepsessiondescription.h>
 #include "base/gcmpp.h"
 #include "karereCommon.h" //only for std::string on android
 #include "base/promise.h"
@@ -285,6 +284,10 @@ protected:
       {
           rtc::scoped_refptr<webrtc::DataChannelInterface> chan(data_channel);
           RTCM_DO_CALLBACK(mHandler.onDataChannel(chan), this, chan);
+      }
+      virtual void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state)
+      {
+          //TODO: Forward on GUI thread
       }
 
     protected:

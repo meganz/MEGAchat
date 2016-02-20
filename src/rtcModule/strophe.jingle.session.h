@@ -5,7 +5,7 @@
 #include "promise.h"
 #include "karereCommon.h"
 #include "webrtcAdapter.h"
-#include <talk/app/webrtc/test/fakeconstraints.h>
+#include <webrtc/api/test/fakeconstraints.h>
 #include "streamPlayer.h"
 #include "strophe.jingle.sdp.h"
 #include "IRtcModule.h"
