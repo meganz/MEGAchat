@@ -33,7 +33,7 @@ function getdir
    fi
    mkdir -p "$2"
    echo "Downloading directory $2 ($1)..."
-   wget -O - -o /dev/null "$1" | tar -x -C "$2"
+   wget -O - -o /dev/null "$1" | tar -xz -C "$2"
    touch "$2/.syncdone"
 }
 
