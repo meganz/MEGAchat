@@ -12,7 +12,7 @@ oriwd=`pwd`
 karere=$(dirname $0)
 
 set -e
-if [[ `uname` == "Darwin"]]; then
+if [[ `uname` == "Darwin" ]]; then
     b64fileopt="-o"
 fi
 
