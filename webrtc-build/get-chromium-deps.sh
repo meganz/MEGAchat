@@ -33,7 +33,7 @@ function getdir
    fi
    mkdir -p "$2"
    echo "Downloading directory $2 ($1)..."
-   wget -O - -o /dev/null "$1" | tar -xz -C "$2"
+   wget -O - -o /dev/null "$1" | tar -xzf - -C "$2"
    touch "$2/.syncdone"
 }
 
@@ -91,7 +91,7 @@ cd 'src'
 
 getPlatform
 files="BUILD.gn DEPS"
-dirs="build tools buildtools testing"
+dirs="build tools testing"
 files3p="$files"
 dirs3p=`cat $karere/third-party-deps.txt`
 if [ -f "$karere/$platform/third-party-deps.txt" ]; then

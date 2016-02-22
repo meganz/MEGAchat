@@ -3,7 +3,6 @@ expat
 jsoncpp
 libc++-static
 libjingle
-libsrtp
 libva
 libvpx_new
 libwebm
