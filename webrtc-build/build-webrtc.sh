@@ -1,5 +1,8 @@
 #!/bin/bash
 set -e
+# The default revision of the webrtc repository to use, unlesss overridded with --revision
+# This revision is giaranteed to work with the current state of the karere-native and webrtc-build codebase
+revision='e2d83d6560272ee68cf99c4fd4f78a437adeb98c'
 
 if (( $# < 2 )); then
    echo "Not enough arguments"
@@ -46,9 +49,6 @@ do
     shift # past argument or value
 done
 
-if [ -z "$revision" ]; then
-    revision="master"
-fi
 echo "WebRTC revision: '$revision'"
 echo "WebRTC build type: $buildtype"
 
@@ -149,6 +149,10 @@ if [[ $platform == "Darwin" ]]; then
         git apply "$karere/macos/common.gypi.patch"
         touch ./.patched-common.gypi
     fi
+elif [[ "$platform" == "Linux" ]]; then
+    echo "Setting GYP_DEFINES..."
+    export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0 use_openssl=1 use_nss=0"
+
 else
     echo "Non-mac platforms are not supported by this script yet"
     exit 1
