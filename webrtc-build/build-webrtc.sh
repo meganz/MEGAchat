@@ -77,7 +77,7 @@ fi
 
 export PATH="$webrtcdir/depot_tools:$PATH"
 
-if [ -f src/.gclient ] && [ -f src/DEPS ]; then
+if [ -f ./.gclient ] && [ -f src/DEPS ]; then
     echo "Webrtc source tree seems already checked out"
     cd src
 else
