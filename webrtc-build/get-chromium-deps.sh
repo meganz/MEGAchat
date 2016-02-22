@@ -12,6 +12,10 @@ oriwd=`pwd`
 karere=$(dirname $0)
 
 set -e
+if [[ `uname` == "Darwin"]]; then
+    b64fileopt="-o"
+fi
+
 function getfile
 {
 #$1 url, $2 filename
@@ -20,7 +24,7 @@ function getfile
         rm -f "$2"
     fi
     echo "Downloading file $2...($1)"
-    wget -O - -o /dev/null "$1" | base64 --decode -o "$2"
+    wget -O - -o /dev/null "$1" | base64 --decode $b64fileopt "$2"
 }
 
 function getdir
