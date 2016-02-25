@@ -7,10 +7,7 @@ libva
 libvpx_new
 libwebm
 libwebp
-libyuv
-libjpeg_turbo
 opus
-openmax_dl
 protobuf
 usrsctp
 v4l-utils

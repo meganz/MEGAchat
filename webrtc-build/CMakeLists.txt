@@ -19,70 +19,11 @@ set(webrtcRoot "~/webrtc-build/src" CACHE PATH "Path to the source&build tree of
 set(webrtcBuild "${webrtcRoot}/out/${WEBRTC_BUILD_TYPE}/obj")
 
 set(optWebrtcShared 0 CACHE BOOL "Build webrtc as shared lib")
+
+file(GLOB_RECURSE WEBRTC_LIBS "${webrtcBuild}/../*.a")
 if (NOT APPLE)
-set(WEBRTC_LIBS
-    ${webrtcBuild}/talk/libjingle_peerconnection.a
-    ${webrtcBuild}/talk/libjingle_p2p.a
-    ${webrtcBuild}/talk/libjingle_media.a
-    ${webrtcBuild}/webrtc/video_engine/libvideo_engine_core.a
-    ${webrtcBuild}/webrtc/voice_engine/libvoice_engine.a
-    ${webrtcBuild}/talk/libjingle_sound.a
-    ${webrtcBuild}/talk/libjingle.a
-    ${webrtcBuild}/webrtc/modules/libvideo_capture_module.a
-    ${webrtcBuild}/webrtc/modules/libvideo_capture_module_internal_impl.a
-    ${webrtcBuild}/webrtc/modules/libaudio_coding_module.a
-    ${webrtcBuild}/webrtc/modules/libCNG.a
-    ${webrtcBuild}/webrtc/modules/libG711.a
-    ${webrtcBuild}/webrtc/modules/libG722.a
-    ${webrtcBuild}/webrtc/modules/libiLBC.a
-    ${webrtcBuild}/webrtc/modules/libiSAC.a
-    ${webrtcBuild}/webrtc/modules/libiSACFix.a
-    ${webrtcBuild}/webrtc/modules/libPCM16B.a
-    ${webrtcBuild}/webrtc/modules/libwebrtc_opus.a
-    ${webrtcBuild}/webrtc/modules/libneteq.a
-    ${webrtcBuild}/webrtc/modules/libwebrtc_video_coding.a
-    ${webrtcBuild}/webrtc/modules/libwebrtc_i420.a
-    ${webrtcBuild}/webrtc/modules/video_coding/utility/libvideo_coding_utility.a
-    ${webrtcBuild}/webrtc/modules/video_coding/codecs/vp8/libwebrtc_vp8.a
-    ${webrtcBuild}/webrtc/modules/libvideo_render_module.a
-    ${webrtcBuild}/webrtc/modules/librtp_rtcp.a
-    ${webrtcBuild}/webrtc/modules/libpaced_sender.a
-    ${webrtcBuild}/webrtc/modules/libbitrate_controller.a
-    ${webrtcBuild}/webrtc/modules/libvideo_processing.a
-    ${webrtcBuild}/webrtc/modules/libaudio_conference_mixer.a
-    ${webrtcBuild}/webrtc/modules/libaudio_processing.a
-    ${webrtcBuild}/webrtc/modules/libaudioproc_debug_proto.a
-    ${webrtcBuild}/webrtc/modules/libaudio_device.a
-    ${webrtcBuild}/webrtc/modules/remote_bitrate_estimator/librbe_components.a
-    ${webrtcBuild}/webrtc/modules/libremote_bitrate_estimator.a
-    ${webrtcBuild}/webrtc/modules/libwebrtc_utility.a
-    ${webrtcBuild}/webrtc/modules/libmedia_file.a
-    ${webrtcBuild}/webrtc/common_audio/libcommon_audio.a
-    ${webrtcBuild}/webrtc/common_video/libcommon_video.a
-#    ${webrtcBuild}/webrtc/build/libsanitizer_options.a
-    ${webrtcBuild}/webrtc/libwebrtc.a
-    ${webrtcBuild}/webrtc/system_wrappers/source/libfield_trial_default.a
-    ${webrtcBuild}/webrtc/libwebrtc_common.a
-    ${webrtcBuild}/webrtc/base/libwebrtc_base.a
-    ${webrtcBuild}/webrtc/system_wrappers/source/libsystem_wrappers.a
-
-#    ${webrtcBuild}/third_party/libvpx/libvpx_asm_offsets_vp8.a
-#    ${webrtcBuild}/third_party/libvpx/libvpx_intrinsics_mmx.a
-#    ${webrtcBuild}/third_party/libvpx/libvpx_intrinsics_ssse3.a
-#    ${webrtcBuild}/third_party/libvpx/libvpx_intrinsics_sse2.a
-#    ${webrtcBuild}/third_party/libvpx/libvpx.a
-    ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
-
-    ${webrtcBuild}/third_party/opus/libopus.a
-    ${webrtcBuild}/../libyuv.a
-    ${webrtcBuild}/third_party/libjpeg_turbo/libjpeg_turbo.a
-    ${webrtcBuild}/third_party/usrsctp/libusrsctplib.a
-    ${webrtcBuild}/third_party/protobuf/libprotobuf_lite.a
-    ${webrtcBuild}/third_party/jsoncpp/libjsoncpp.a
-    ${webrtcBuild}/third_party/libsrtp/libsrtp.a
-)
-else() #APPLE
-    file(GLOB WEBRTC_LIBS "${webrtcBuild}/../*.a")
+    list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/webrtc/modules/libvideo_capture.a") # The external capture interface
+else()
     list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../libvideo_capture.a") # The external capture interface
 endif()
 
@@ -92,7 +33,6 @@ set(WEBRTC_LIBS_X86
     ${webrtcBuild}/webrtc/modules/libaudio_processing_sse2.a
 )
 set(WEBRTC_LIBS_LINUX
-    ${webrtcBuild}/net/third_party/nss/libcrssl.a
 )
 
 set(WEBRTC_LIBS_ARM
@@ -295,8 +235,8 @@ set(WEBRTC_SYSLIBS "")
 set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)
 
 set(WEBRTC_SYSLIBS_LINUX
-    nss3 nssutil3 smime3 plds4 plc4 nspr4
-    crypto expat pthread Xext X11 m dl
+    smime3 plds4 plc4 nspr4
+    crypto expat pthread Xext m X11 dl
 )
 
 set(WEBRTC_SYSLIBS_MACOS
@@ -352,9 +292,9 @@ if (NOT APPLE)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
     COMMAND ar crs ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
-        `find ${webrtcBuild}/third_party/libvpx/ -name '*.o'`
-        `find ${webrtcBuild}/../gen/third_party/libvpx -name '*.o'`
-    DEPENDS "${webrtcBuild}/third_party/libvpx/source/"
+        `find ${webrtcBuild}/src/chromium/third_party/libvpx_new/ -name '*.o'`
+        `find ${webrtcBuild}/../gen/third_party/libvpx_new -name '*.o'`
+    DEPENDS "${webrtcBuild}/chromium/src/third_party/libvpx_new/source/"
 )
 set(myvpx libmyvpx.a)
 endif()
@@ -362,12 +302,18 @@ endif()
 set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
 
-
 if(optWebrtcShared)
 add_library(webrtc_my SHARED dummy.cpp ${myvpx})
 else()
 add_library(webrtc_my dummy.cpp ${myvpx})
 endif()
+
+# Tell ld to not rely on library order to resolve symbols
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+    list(INSERT WEBRTC_LIBS 0 -Wl,--start-group)
+    list(APPEND WEBRTC_LIBS -Wl,--end-group)
+endif()
+
 target_link_libraries(webrtc_my ${WEBRTC_LIBS} ${WEBRTC_SYSLIBS})
 
 set(WEBRTC_CFLAGS "${WEBRTC_CFLAGS}" CACHE INTERNAL "" FORCE)

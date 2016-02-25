@@ -4,9 +4,9 @@ set -e
 # This revision is giaranteed to work with the current state of the karere-native and webrtc-build codebase
 revision='e2d83d6560272ee68cf99c4fd4f78a437adeb98c'
 
-if (( $# < 2 )); then
+if (( $# < 1 )); then
    echo "Not enough arguments"
-   echo "Usage: $(basename $0) <webrtc-output-dir> <prefix-of-dependencies> [--revision <rev>]"
+   echo "Usage: $(basename $0) <webrtc-output-dir> [--deproot <prefix-of-dependencies>>] [--revision <rev>] [--batch]"
    exit 1
 fi
 
@@ -17,9 +17,6 @@ karere=`echo "$(cd "$(dirname "$0")"; pwd)"`
 echo "Karere webrtc-build directory: $karere"
 webrtcdir=$1
 echo "Webrtc directory: $webrtcdir"
-deproot=$2
-echo "Prefix where dependencies are installed: $deproot"
-shift
 shift
 buildtype="Release"
 
@@ -27,7 +24,16 @@ while [[ $# > 0 ]]
 do
     key="$1"
     case $key in
-        -b|--batch)
+    -s|--deproot)
+        if [[ $# < 2 ]]; then
+           echo "No dependency prefix directory specified adter --deproot"
+           exit 1
+        fi
+        deproot=$2
+        shift
+        echo "Prefix where dependencies will be searched in: $deproot"
+        ;;
+    -b|--batch)
         batch=1
         ;;
     -r|--revision)
@@ -121,7 +127,10 @@ python $karere/link-chromium-deps.py
 echo "==========================================================="
 
 echo "Setting platform-independent env variables..."
-export DEPS_SYSROOT=$deproot
+if [ ! -z "$deproot" ]; then
+    export WEBRTC_DEPS_LIB=$deproot/lib
+    export WEBRTC_DEPS_INCLUDE=$deproot/include
+fi
 export GYP_GENERATORS=ninja
 
 echo "Patching base.gyp..."
@@ -151,7 +160,7 @@ if [[ $platform == "Darwin" ]]; then
     fi
 elif [[ "$platform" == "Linux" ]]; then
     echo "Setting GYP_DEFINES..."
-    export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0 use_openssl=1 use_nss=0"
+    export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0 use_openssl=1 use_nss=0 use_sysroot=0 include_tests=0"
 
 else
     echo "Non-mac platforms are not supported by this script yet"

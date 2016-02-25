@@ -66,3 +66,4 @@ h ios_canary_version
 h gyp
 h remove_stale_pyc_files
 h instrumented_libraries
+h sysroot
