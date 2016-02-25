@@ -22,7 +22,7 @@ set(optWebrtcShared 0 CACHE BOOL "Build webrtc as shared lib")
 
 file(GLOB_RECURSE WEBRTC_LIBS "${webrtcBuild}/../*.a")
 if (NOT APPLE)
-    list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/webrtc/modules/libvideo_capture.a") # The external capture interface
+    list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../obj/webrtc/modules/libvideo_capture.a") # The external capture interface
 else()
     list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../libvideo_capture.a") # The external capture interface
 endif()
