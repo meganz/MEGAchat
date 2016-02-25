@@ -24,6 +24,7 @@
 #include <autoHandle.h>
 #include <asyncTools.h>
 #include <codecvt> //for nonWhitespaceStr()
+#include <locale>
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
@@ -138,7 +139,7 @@ sqlite3* Client::openDb()
     if (!existed)
     {
         KR_LOG_WARNING("Initializing local database, did not exist");
-        MyAutoHandle<char*, void(void*), sqlite3_free, nullptr> errmsg;
+        MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
         ret = sqlite3_exec(database, gKarereDbSchema, nullptr, nullptr, errmsg.handlePtr());
         if (ret)
         {
@@ -482,7 +483,7 @@ promise::Promise<void> Client::terminate()
     {
         return api->call(&::mega::MegaApi::localLogout);
     })
-    .then([pms](ReqResult result)
+    .then([pms](ReqResult result) mutable
     {
         mega::marshallCall([pms]() mutable { pms.resolve(); });
     })

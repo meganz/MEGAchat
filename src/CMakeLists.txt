@@ -6,7 +6,7 @@ include (utils.cmake)
 find_package(Cryptopp REQUIRED)
 find_package(Mega REQUIRED)
 find_package(OpenSSL REQUIRED)
-find_package(SQLite3 REQUIRED)
+find_package(Sqlite3 REQUIRED)
 
 set(optKarereBuildShared 0 CACHE BOOL "Build libkarere as a shared library")
 set(KARERE_LOGGER_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/base CACHE PATH "Karere logger include dir") #tell mpenc to use the karere logger

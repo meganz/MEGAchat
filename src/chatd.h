@@ -516,14 +516,14 @@ public:
         if (num < mForwardStart) //look in mBackwardList
         {
             Idx idx = mForwardStart - num - 1; //always >= 0
-            if (idx >= mBackwardList.size())
+            if (static_cast<size_t>(idx) >= mBackwardList.size())
                 return nullptr;
             return mBackwardList[idx];
         }
         else
         {
             Idx idx = num - mForwardStart;
-            if (idx >= mForwardList.size())
+            if (static_cast<size_t>(idx) >= mForwardList.size())
                 return nullptr;
             return mForwardList[idx];
         }
@@ -544,9 +544,9 @@ public:
     bool hasNum(Idx num) const
     {
         if (num < mForwardStart)
-            return (mForwardStart - num <= mBackwardList.size());
+            return (static_cast<size_t>(mForwardStart - num) <= mBackwardList.size());
         else
-            return (num < mForwardStart + mForwardList.size());
+            return (num < mForwardStart + static_cast<int>(mForwardList.size()));
     }
     Idx msgIndexFromId(Id id)
     {

@@ -4,6 +4,7 @@
 #include <string>
 #include <logger.h>
 #include <mstrophe.h> //needed for timestampMs()
+#include <string.h>
 //#include <assert.h>
 
 #ifndef KARERE_SHARED

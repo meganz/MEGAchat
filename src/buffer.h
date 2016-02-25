@@ -2,6 +2,8 @@
 #define __BUFFER_H__
 #include <stdlib.h>
 #include <assert.h>
+#include <stdexcept>
+#include <string.h>
 
 class BufferRangeError: public std::runtime_error
 {

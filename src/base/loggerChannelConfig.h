@@ -28,9 +28,16 @@ channel_flags - currently only the lower 4 bits are used, which define the color
 log_file - if not NULL, enables logging to that file.
 rotate_size - the maximum size of the log file, in kbytes, after which the log file is truncated in half
 */
-#ifndef _WIN32
-namespace karere { std::string getAppDir() __attribute__ ((weak_import)); }
+#ifdef __APPLE__
+    #define KR_WEAKSYM(func) func __attribute__ ((weak_import))
+#elif defined __MSC_VER
+    #error Weak import not yet implemented for WIN32
+#else
+    #define KR_WEAKSYM(func) func __attribute__ ((weak))
 #endif
+
+namespace karere { KR_WEAKSYM(std::string getAppDir()); }
+
 //TODO: Implement weak import for windows
 
 KR_LOGGER_CONFIG_START(

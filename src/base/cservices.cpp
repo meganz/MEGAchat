@@ -9,10 +9,13 @@
 #include "cservices-thread.h"
 #include "cservices.h"
 
-struct event_base* services_eventloop = NULL;
+extern "C"
+{
+MEGAIO_EXPORT struct event_base* services_eventloop = NULL;
 MEGA_GCM_DLLEXPORT GcmPostFunc megaPostMessageToGui = NULL;
-t_svc_thread_handle libeventThread; //can't initialzie with pthreads - there is no reserved invalid value
+t_svc_thread_handle libeventThread; //can't default-initialzie with pthreads - there is no reserved invalid value
 t_svc_thread_id libeventThreadId;
+
 bool hasLibeventThread = false;
 
 static void keepalive_timer_cb(evutil_socket_t fd, short what, void *arg){}
@@ -143,4 +146,5 @@ MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle 
     }
     gHandleStore.erase(it);
     return 1;
+}
 }

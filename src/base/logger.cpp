@@ -21,15 +21,16 @@
     inline struct tm *gmtime_r(const time_t *timep, struct tm *result)
     { return gmtime(timep); }
 #endif
-
+extern "C"
+{
 //this must be in sync with the enums in logger.h
 typedef const char* KarereLogLevelName[2];
-extern "C" KRLOGGER_DLLEXPORT KarereLogLevelName krLogLevelNames[krLogLevelLast+1] =
+KRLOGGER_DLLEXPORT KarereLogLevelName krLogLevelNames[krLogLevelLast+1] =
 {
     {NULL, "off"}, {"ERR", "error"}, {"WRN", "warn"}, {"nfo", "info"},
     {"vrb", "verbose"}, {"dbg", "debug"},{"dbg", "debugv"}
 };
-
+}
 namespace karere
 {
 /** Copies maximum maxCount chars from src to dest.
@@ -292,20 +293,6 @@ void Logger::setupFromEnvVar()
     }
 }
 
-KRLOGGER_DLLEXPORT Logger gLogger;
-extern "C" KRLOGGER_DLLEXPORT KarereLogChannel* krLoggerChannels = gLogger.logChannels;
-extern "C" KRLOGGER_DLLEXPORT krLogLevel krLogLevelStrToNum(const char* strLevel)
-{
-    for (size_t n = 0; n<=krLogLevelLast; n++)
-    {
-        auto& name = krLogLevelNames[n];
-        if ((strcasecmp(strLevel, name[1]) == 0)
-         || (name[0] && (strcasecmp(strLevel, name[0]) == 0)))
-            return n;
-    }
-    return (krLogLevel)-1;
-}
-
 static size_t myStrncpy(char* dest, const char* src, size_t maxCount)
 {
     size_t count = 1;
@@ -324,9 +311,26 @@ static size_t myStrncpy(char* dest, const char* src, size_t maxCount)
     }
     return count-1;
 }
+
+KRLOGGER_DLLEXPORT Logger gLogger;
+} //end karere namespace
+
+extern "C"
+{
+KRLOGGER_DLLEXPORT KarereLogChannel* krLoggerChannels = karere::gLogger.logChannels;
+KRLOGGER_DLLEXPORT krLogLevel krLogLevelStrToNum(const char* strLevel)
+{
+    for (size_t n = 0; n<=krLogLevelLast; n++)
+    {
+        auto& name = krLogLevelNames[n];
+        if ((strcasecmp(strLevel, name[1]) == 0)
+         || (name[0] && (strcasecmp(strLevel, name[0]) == 0)))
+            return n;
+    }
+    return (krLogLevel)-1;
 }
 
-extern "C" KRLOGGER_DLLEXPORT void krLoggerLog(krLogChannelNo channel, krLogLevel level,
+KRLOGGER_DLLEXPORT void krLoggerLog(krLogChannelNo channel, krLogLevel level,
     const char* fmtString, ...)
 {
     va_list vaList;
@@ -335,3 +339,4 @@ extern "C" KRLOGGER_DLLEXPORT void krLoggerLog(krLogChannelNo channel, krLogLeve
     karere::gLogger.logv(chan.display, level, chan.flags, fmtString, vaList);
     va_end(vaList);
 }
+} //end plain-C stuff

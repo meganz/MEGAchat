@@ -11,7 +11,9 @@
 using namespace std;
 static_assert(std::is_same<evutil_addrinfo, addrinfo>::value, "evutil_addrinfo is not the same as the system's addrinfo struct");
 
-extern "C" struct event_base* services_eventloop;
+extern "C"
+{
+extern struct event_base* services_eventloop;
 MEGAIO_EXPORT struct evdns_base* services_dns_eventbase = NULL;
 
 MEGAIO_EXPORT int services_dns_init(int options)
@@ -88,3 +90,4 @@ MEGAIO_EXPORT int services_dns_host_type(const char* host, const char* end)
     //We don't check if the numbers are 0-255
     return SVC_DNS_HOST_IPV4;
 }
+} //extern "C"

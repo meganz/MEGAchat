@@ -27,9 +27,7 @@ namespace karere
  * is initialized before main() is entered.
  */
 
-#ifndef _WIN32
-    std::string getAppDir() __attribute__ ((weak_import));
-#endif
+    KR_WEAKSYM(std::string getAppDir());
 /** @brief
  * Builtin implementation of getAppDir() suoitable for desktop systems
  * It reads the env variable KRDIR for a path to the app dir, and if not present,

@@ -46,7 +46,7 @@ public:
             sqlite3_finalize(mStmt);
     }
     operator sqlite3_stmt*() { return mStmt; }
-    const operator sqlite3_stmt*() const {return mStmt; }
+    operator const sqlite3_stmt*() const {return mStmt; }
     SqliteStmt& bind(int col, int val) { check(sqlite3_bind_int(mStmt, col, val), "bind"); return *this; }
     SqliteStmt& bind(int col, int64_t val) { check(sqlite3_bind_int64(mStmt, col, val), "bind"); return *this; }
     SqliteStmt& bind(int col, const std::string& val) { check(sqlite3_bind_text(mStmt, col, val.c_str(), (int)val.size(), SQLITE_STATIC), "bind"); return *this; }

@@ -496,8 +496,8 @@ public:
     { //make sure the stream is released before the tracks
         mStream = nullptr;
     }
-    webrtc::AudioTrackInterface* audio() { return mAudio?*mAudio:nullptr; }
-    webrtc::VideoTrackInterface* video() { return mVideo?*mVideo:nullptr; }
+    webrtc::AudioTrackInterface* audio() { return mAudio?*mAudio:(webrtc::AudioTrackInterface*)nullptr; }
+    webrtc::VideoTrackInterface* video() { return mVideo?*mVideo:(webrtc::VideoTrackInterface*)nullptr; }
     operator webrtc::MediaStreamInterface*() { return mStream; }
     operator const webrtc::MediaStreamInterface*() const { return mStream; }
 };

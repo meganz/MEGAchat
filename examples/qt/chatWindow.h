@@ -4,7 +4,7 @@
 #include <QDialog>
 #include <chatd.h>
 #include <ui_chat.h>
-#include <ui_chatMessage.h>
+#include <ui_chatmessage.h>
 #include <QDateTime>
 #include <QPushButton>
 #include <QGraphicsOpacityEffect>
@@ -202,7 +202,7 @@ public slots:
             widget->disableEditGui();
             mEditedWidget = nullptr;
 
-            if ((text.size() == msg.dataSize())
+            if ((text.size() == (int)msg.dataSize())
               && (memcmp(text.data(), msg.buf(), text.size()) == 0))
             { //no change
                 return;

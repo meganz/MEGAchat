@@ -58,11 +58,11 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         if (room.ownPriv() == chatd::PRIV_OPER)
         {
             auto actRemove = entry->addAction(tr("Remove from chat"));
-            actRemove->setData(QVariant(item.first));
+            actRemove->setData(QVariant((qulonglong)item.first));
             auto actSetPriv = entry->addAction(tr("Set privilege"));
-            actSetPriv->setData(QVariant(item.first));
+            actSetPriv->setData(QVariant((qulonglong)item.first));
             auto actPrivChat = entry->addAction(tr("Send private message"));
-            actPrivChat->setData(QVariant(item.first));
+            actPrivChat->setData(QVariant((qulonglong)item.first));
             connect(actRemove, SIGNAL(triggered()), SLOT(onMemberRemove()));
             connect(actSetPriv, SIGNAL(triggered()), SLOT(onMemberSetPriv()));
             connect(actPrivChat, SIGNAL(triggered()), SLOT(onMemberPrivateChat()));

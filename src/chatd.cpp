@@ -5,6 +5,7 @@
 #include<libws_log.h>
 #include <event2/dns.h>
 #include "base64.h"
+#include <algorithm>
 
 using namespace std;
 using namespace promise;

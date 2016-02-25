@@ -5,6 +5,7 @@
 #include "addrinfo.hpp"
 #include "promise.h"
 #include "gcmpp.h"
+#include <string.h>
 
 namespace mega
 {

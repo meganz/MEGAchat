@@ -6,24 +6,21 @@
 
 struct event_base;
 struct event;
-
 #ifdef __cplusplus
-    #define MEGAIO_EXTERNC extern "C"
-#else
-    #define MEGAIO_EXTERNC
+extern "C" {
 #endif
 
 #ifdef MEGAIO_DLL
   #ifdef _WIN32
-    #define MEGAIO_EXPORT MEGAIO_EXTERNC __declspec(dllexport)
-    #define MEGAIO_IMPORT MEGAIO_EXTERNC __declspec(dllimport)
+    #define MEGAIO_EXPORT __declspec(dllexport)
+    #define MEGAIO_IMPORT __declspec(dllimport)
   #else //non-win32
-    #define MEGAIO_EXPORT MEGAIO_EXTERNC __attribute__ ((visibility ("default")))
+    #define MEGAIO_EXPORT __attribute__ ((visibility ("default")))
     #define MEGAIO_IMPORT MEGAIO_EXPORT
   #endif
 #else //not a DLL
-    #define MEGAIO_EXPORT MEGAIO_EXTERNC
-    #define MEGAIO_IMPORT MEGAIO_EXTERNC
+    #define MEGAIO_EXPORT
+    #define MEGAIO_IMPORT
 #endif
 
 #ifdef services_EXPORTS
@@ -43,6 +40,9 @@ struct event;
 
 /** Options bitmask for log flags */
 enum {SVC_OPTIONS_LOGFLAGS = 0x000000ff};
+
+/** The global, singleton eventloop object. */
+extern MEGAIO_IMPEXP struct event_base* services_eventloop;
 
 /** Initialize and start the services engine
  @param postFunc The function that posts a void* to the application's message loop
@@ -79,6 +79,10 @@ enum
 MEGAIO_IMPEXP void* services_hstore_get_handle(unsigned short type, megaHandle handle);
 MEGAIO_IMPEXP megaHandle services_hstore_add_handle(unsigned short type, void* ptr);
 MEGAIO_IMPEXP int services_hstore_remove_handle(unsigned short type, megaHandle handle);
+
+#ifdef __cplusplus
+}
+#endif
 
 //select features to include
 #ifndef SVC_DISABLE_STROPHE

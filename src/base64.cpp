@@ -1,11 +1,12 @@
 #include "base64.h"
+#include <stdexcept>
 
 static char b64enctable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 std::string base64urlencode(const void *data, size_t inlen)
 {
     std::string encoded_data;
     encoded_data.reserve(((inlen+2) / 3) * 4);
-    for (int i = 0; i < inlen;)
+    for (size_t i = 0; i < inlen;)
     {
         uint8_t octet_a = i < inlen ? static_cast<const char*>(data)[i++] : 0;
         uint8_t octet_b = i < inlen ? static_cast<const char*>(data)[i++] : 0;
