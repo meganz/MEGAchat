@@ -3,3 +3,4 @@ m {[^}]*src\/resources'[^}]*}[^,]*,
 h sync chromium
 h setup_links
 h instrumented_libraries
+h landmines
