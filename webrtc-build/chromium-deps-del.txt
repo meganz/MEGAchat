@@ -71,18 +71,18 @@ d chrome/installer/mac/third_party/xz/xz
 d third_party/pdfsqueeze
 
 #linux
-h chrome/tools/test/reference_build/chrome_linux
-h third_party/lss
-h third_party/cros_system_api
-h third_party/xdg-utils
-h third_party/freetype2/src
-h third_party/freetype-android/src
-h third_party/chromite
-h third_party/pyelftools
-h third_party/liblouis/src
-h third_party/fontconfig/src
-h third_party/deqp/src
-h third_party/minigbm/src
-h third_party/wayland/src
-h third_party/wayland-protocols/src
-h third_party/wds/src
+d chrome/tools/test/reference_build/chrome_linux
+d third_party/lss
+d third_party/cros_system_api
+d third_party/xdg-utils
+d third_party/freetype2/src
+d third_party/freetype-android/src
+d third_party/chromite
+d third_party/pyelftools
+d third_party/liblouis/src
+d third_party/fontconfig/src
+d third_party/deqp/src
+d third_party/minigbm/src
+d third_party/wayland/src
+d third_party/wayland-protocols/src
+d third_party/wds/src
