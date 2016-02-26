@@ -42,11 +42,8 @@ d third_party/dom_distiller_js/dist
 d third_party/catapult
 d third_party/openh264/src
 d third_party/re2/src
-d chrome/tools/test/reference_build/chrome_mac
-d third_party/pdfsqueeze
 d third_party/lighttpd
 d third_party/nss
-d chrome/installer/mac/third_party/xz/xz
 d testing/gmock
 d testing/gtest
 
@@ -67,3 +64,25 @@ h gyp
 h remove_stale_pyc_files
 h instrumented_libraries
 h sysroot
+
+#mac
+d chrome/tools/test/reference_build/chrome_mac
+d chrome/installer/mac/third_party/xz/xz
+d third_party/pdfsqueeze
+
+#linux
+h chrome/tools/test/reference_build/chrome_linux
+h third_party/lss
+h third_party/cros_system_api
+h third_party/xdg-utils
+h third_party/freetype2/src
+h third_party/freetype-android/src
+h third_party/chromite
+h third_party/pyelftools
+h third_party/liblouis/src
+h third_party/fontconfig/src
+h third_party/deqp/src
+h third_party/minigbm/src
+h third_party/wayland/src
+h third_party/wayland-protocols/src
+h third_party/wds/src

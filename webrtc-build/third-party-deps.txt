@@ -10,9 +10,5 @@ libwebp
 opus
 protobuf
 usrsctp
-v4l-utils
-v4l2capture
 webrtc_overrides
-x86inc
 yasm
-zlib
