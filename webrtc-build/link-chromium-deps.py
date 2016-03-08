@@ -30,6 +30,7 @@ makelink('tools', 'python')
 makelink('tools', 'protoc_wrapper')
 makelink('tools', 'win')
 makelink('tools', 'xdisplaycheck')
+makelink('tools', 'android')
 for dir in os.listdir('./chromium/src/third_party/'):
     if not os.path.isdir('./chromium/src/third_party/'+dir):
          continue

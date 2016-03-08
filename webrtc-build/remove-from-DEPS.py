@@ -31,15 +31,15 @@ for dep in deplist:
         rxdep=dep.replace('/','\/')
         rx="^\s*'src\/"+rxdep+"':[^,]+,.*\n"
         data=re.sub(rx, "", data, 0, re.M)
-        print("Remove dependency '%s': %s" % (dep, ("success" if len(data) != prevlen else "FAIL")))
+        print("Remove dependency '%s': %s" % (dep, ("success" if len(data) != prevlen else "\033[1;31mFAIL\033[0;0m")))
     elif type == 'h':
         data = re.sub("{(\s*#.*$)*\n\s*'name':\s*'"+dep+"',\s*\n[^}]+},", "", data, 0, re.M)
-        print("Remove hook '%s': %s" % (dep, ("success" if len(data) != prevlen else "FAIL")))
+        print("Remove hook '%s': %s" % (dep, ("success" if len(data) != prevlen else "\033[1;31mFAIL\033[0;0m")))
     elif type == 'm': #hook without a name, identify plain string match
         data = re.sub(dep, "", data, 0, re.M);
-        print("Remove hook by match '%s': %s" % (dep, ("success" if len(data) != prevlen else "FAIL")))
+        print("Remove hook by match '%s': %s" % (dep, ("success" if len(data) != prevlen else "\033[1;31mFAIL\033[0;0m")))
     else:
-        print("Uknown entry type '%s'" % (type))
+        print("\033[1;31mUknown entry type '%s'\033[0;0m" % (type))
 
 depfile.seek(0)
 depfile.write(data)
