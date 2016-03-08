@@ -38,7 +38,7 @@ d third_party/mesa/src
 d third_party/cld_2/src
 d third_party/pdfium
 d third_party/dom_distiller_js/dist
-#d third_party/catapult
+d third_party/catapult
 d third_party/openh264/src
 d third_party/re2/src
 d third_party/lighttpd

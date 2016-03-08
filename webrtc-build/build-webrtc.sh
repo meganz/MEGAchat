@@ -149,7 +149,6 @@ echo "Replacing boringssl..."
 mkdir -p ./chromium/src/third_party/boringssl
 cp -v $karere/boringssl.gyp ./chromium/src/third_party/boringssl/
 
-python $karere/link-chromium-deps.py
 echo "==========================================================="
 
 echo "Setting platform-independent env variables..."
@@ -199,11 +198,14 @@ elif [[ "$platform" == "android" ]]; then
     echo "Downloading required Android SDK components..."
     "$karere/android/setup-ndk-sdk.sh"
     echo "Linking Android NDK to chromium tree..."
-    ln -sfv "$ANDROID_NDK" "chromium/src/third_party/android_tools/ndk"
+    rm -f chromium/src/third_party/android_tools/ndk
+    ln -sv "$ANDROID_NDK" "chromium/src/third_party/android_tools/ndk"
 else
     echo "Platform '$platform' not supported by this script yet"
     exit 1
 fi
+
+python $karere/link-chromium-deps.py
 
 echo "Generating ninja makefiles..."
 gclient runhooks --force
