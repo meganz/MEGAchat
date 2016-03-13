@@ -27,11 +27,6 @@ else()
     list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../libvideo_capture.a") # The external capture interface
 endif()
 
-set(WEBRTC_LIBS_ANDROID
-   ${webrtcBuild}/third_party/icu/libicuuc.a
-   ${webrtcBuild}/third_party/icu/libicudata.a
-)
-
 set(WEBRTC_DEFS -DV8_DEPRECATION_WARNINGS -DUSE_LIBJPEG_TURBO=1 -DCHROMIUM_BUILD
  -DENABLE_WEBRTC=1 -DENABLE_CONFIGURATION_POLICY -DENABLE_AUTOFILL_DIALOG=1
 -DENABLE_MANAGED_USERS=1
