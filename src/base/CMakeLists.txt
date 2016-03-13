@@ -52,13 +52,14 @@ endif()
 # If the logger and the app are in the same module, no special processing is needed.
 # But if the logger is in another module (i.e. libservices is a shared lib),
 # then we need to do it via a weak symbol
-if ("${CMAKE_C_COMPILER}" MATCHES ".*ld")
+
+if ("${CMAKE_C_COMPILER}" MATCHES ".*([/-]|)ld")
     set(GET_APPDATA_DIR_WEAKLINK_FLAGS "-Wl,-u,__ZN6karere9getAppDirEv" CACHE "" INTERNAL FORCE)
-elseif("${CMAKE_C_COMPILER}" MATCHES ".*clang.*")
+elseif("${CMAKE_C_COMPILER}" MATCHES ".*([/-]|)clang[^/]*")
     set(GET_APPDATA_DIR_WEAKLINK_FLAGS "-Wl,-U,__ZN6karere9getAppDirEv" CACHE "" INTERNAL FORCE)
 else()
     set(GET_APPDATA_DIR_WEAKLINK_FLAGS CACHE "" INTERNAL FORCE)
-    message(WARNING "Don't know how to export a weak symbol on this platform, getAppDataDir() may fail to be exported by app executable")
+    message(WARNING "Don't know how to export a weak symbol on this platform, getAppDataDir() may fail to be exported by app executable if linking dynamically")
 endif()
 
 if (optServicesBuildShared)
