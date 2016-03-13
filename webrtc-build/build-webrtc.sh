@@ -6,7 +6,7 @@ revision='e2d83d6560272ee68cf99c4fd4f78a437adeb98c'
 
 if (( $# < 2 )); then
    echo "Not enough arguments"
-   echo "Usage: $(basename $0) <webrtc-output-dir> [--deproot <prefix-of-dependencies>>] [--revision <rev>] [--batch]"
+   echo "Usage: $(basename $0) <webrtc-output-dir> --platform <linux|macos|android> [--deproot <prefix-of-dependencies>>] [--revision <rev>] [--batch]"
    exit 1
 fi
 function checkPlatformValid
@@ -164,7 +164,7 @@ git checkout --force ./webrtc/base/base.gyp
 git apply "$karere/base.gyp.patch"
 
 
-if [[ $platform == "Darwin" ]]; then
+if [[ $platform == "macos" ]]; then
     echo "Performing MacOS-specific operations"
 
     echo "Setting GYP_DEFINES..."
@@ -183,7 +183,7 @@ if [[ $platform == "Darwin" ]]; then
         git apply "$karere/macos/common.gypi.patch"
         touch ./.patched-common.gypi
     fi
-elif [[ "$platform" == "Linux" ]]; then
+elif [[ "$platform" == "linux" ]]; then
     echo "Setting GYP_DEFINES for Linux..."
     export GYP_DEFINES="OS=linux   include_tests=0 build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0 use_openssl=1 use_nss=0 use_sysroot=0"
 elif [[ "$platform" == "android" ]]; then
