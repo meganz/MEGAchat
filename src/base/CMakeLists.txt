@@ -53,7 +53,7 @@ endif()
 # But if the logger is in another module (i.e. libservices is a shared lib),
 # then we need to do it via a weak symbol
 
-if ("${CMAKE_C_COMPILER}" MATCHES ".*([/-]|)ld")
+if ("${CMAKE_C_COMPILER}" MATCHES ".*([/-]|)ld[^/]*")
     set(GET_APPDATA_DIR_WEAKLINK_FLAGS "-Wl,-u,__ZN6karere9getAppDirEv" CACHE "" INTERNAL FORCE)
 elseif("${CMAKE_C_COMPILER}" MATCHES ".*([/-]|)clang[^/]*")
     set(GET_APPDATA_DIR_WEAKLINK_FLAGS "-Wl,-U,__ZN6karere9getAppDirEv" CACHE "" INTERNAL FORCE)
