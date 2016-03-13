@@ -27,22 +27,6 @@ else()
     list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../libvideo_capture.a") # The external capture interface
 endif()
 
-set(WEBRTC_LIBS_X86
-    ${webrtcBuild}/webrtc/modules/libvideo_processing_sse2.a
-    ${webrtcBuild}/webrtc/common_audio/libcommon_audio_sse2.a
-    ${webrtcBuild}/webrtc/modules/libaudio_processing_sse2.a
-)
-set(WEBRTC_LIBS_LINUX
-)
-
-set(WEBRTC_LIBS_ARM
-    ${webrtcBuild}/webrtc/modules/libisac_neon.a
-    ${webrtcBuild}/webrtc/modules/libaudio_processing_neon.a
-    ${webrtcBuild}/webrtc/common_audio/libcommon_audio_neon.a
-    ${webrtcBuild}/webrtc/modules/audio_processing/lib_core_neon_offsets.a
-    ${webrtcBuild}/../libyuv_neon.a
-
-)
 set(WEBRTC_LIBS_ANDROID
    ${webrtcBuild}/third_party/icu/libicuuc.a
    ${webrtcBuild}/third_party/icu/libicudata.a
@@ -287,25 +271,13 @@ else()
     message(FATAL_ERROR "Unknown platform")
 endif()
 
-if (NOT APPLE)
-#put together all object files of vpx in a single .a because there are circular dependencies between the original libs
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
-    COMMAND ar crs ${CMAKE_CURRENT_BINARY_DIR}/libmyvpx.a
-        `find ${webrtcBuild}/src/chromium/third_party/libvpx_new/ -name '*.o'`
-        `find ${webrtcBuild}/../gen/third_party/libvpx_new -name '*.o'`
-    DEPENDS "${webrtcBuild}/chromium/src/third_party/libvpx_new/source/"
-)
-set(myvpx libmyvpx.a)
-endif()
-
 set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
 
 if(optWebrtcShared)
-add_library(webrtc_my SHARED dummy.cpp ${myvpx})
+add_library(webrtc_my SHARED dummy.cpp)
 else()
-add_library(webrtc_my dummy.cpp ${myvpx})
+add_library(webrtc_my dummy.cpp)
 endif()
 
 # Tell ld to not rely on library order to resolve symbols
