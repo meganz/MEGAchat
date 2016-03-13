@@ -64,7 +64,7 @@ endif()
 
 if (optServicesBuildShared)
     add_definitions(-DMEGAIO_DLL)
-# put the application-provided std::string karere::getAppDir() function
+# Put the application-provided std::string karere::getAppDir() function
 # (declared as a weak symbol in loggerChannelConfig.h) in the import table
 # of the libservices shared object instead of looking for its definition
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${GET_APPDATA_DIR_WEAKLINK_FLAGS}")
