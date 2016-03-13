@@ -47,12 +47,26 @@ if (CLANG_STDLIB)
     list(APPEND SYSLIBS ${CLANG_STDLIB})
 endif()
 
+# We need to export getAppDataDir() from the app executable back to the logger lib,
+# so that the logger knows where to create the log file.
+# If the logger and the app are in the same module, no special processing is needed.
+# But if the logger is in another module (i.e. libservices is a shared lib),
+# then we need to do it via a weak symbol
+if ("${CMAKE_C_COMPILER}" MATCHES ".*ld")
+    set(GET_APPDATA_DIR_WEAKLINK_FLAGS "-Wl,-u,__ZN6karere9getAppDirEv" CACHE "" INTERNAL FORCE)
+elseif("${CMAKE_C_COMPILER}" MATCHES ".*clang.*")
+    set(GET_APPDATA_DIR_WEAKLINK_FLAGS "-Wl,-U,__ZN6karere9getAppDirEv" CACHE "" INTERNAL FORCE)
+else()
+    set(GET_APPDATA_DIR_WEAKLINK_FLAGS CACHE "" INTERNAL FORCE)
+    message(WARNING "Don't know how to export a weak symbol on this platform, getAppDataDir() may fail to be exported by app executable")
+endif()
+
 if (optServicesBuildShared)
     add_definitions(-DMEGAIO_DLL)
 # put the application-provided std::string karere::getAppDir() function
 # (declared as a weak symbol in loggerChannelConfig.h) in the import table
 # of the libservices shared object instead of looking for its definition
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-U,__ZN6karere9getAppDirEv")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${GET_APPDATA_DIR_WEAKLINK_FLAGS}")
     add_library(services SHARED ${SRCS})
 else()
     add_library(services ${SRCS})
