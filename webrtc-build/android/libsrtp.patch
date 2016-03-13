@@ -1,0 +1,32 @@
+diff --git a/srtp/crypto/include/err.h b/srtp/crypto/include/err.h
+index 4f401a6..28e4d1b 100644
+--- a/srtp/crypto/include/err.h
++++ b/srtp/crypto/include/err.h
+@@ -43,8 +43,8 @@
+  */
+ 
+ 
+-#ifndef ERR_H
+-#define ERR_H
++#ifndef SRTP_ERR_H
++#define SRTP_ERR_H
+ 
+ #include <stdio.h>
+ #include <stdarg.h>
+diff --git a/srtp/include/srtp.h b/srtp/include/srtp.h
+index 81af519..dfbb488 100644
+--- a/srtp/include/srtp.h
++++ b/srtp/include/srtp.h
+@@ -51,9 +51,9 @@ extern "C" {
+ #endif
+ 
+ #include <stdint.h>
+-#include "crypto.h" 
+-#include "crypto_types.h"
+-#include "err.h"
++#include "../crypto/include/crypto.h" 
++#include "../crypto/include/crypto_types.h"
++#include "../crypto/include/err.h"
+ 
+ /**
+  * @defgroup SRTP Secure RTP

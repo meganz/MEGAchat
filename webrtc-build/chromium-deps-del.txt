@@ -1,7 +1,6 @@
 d breakpad/src
 d sdch/open-vcdiff
 d third_party/angle
-d third_party/colorama/src
 d third_party/boringssl/src
 d third_party/icu
 d third_party/libexif/sources
@@ -49,7 +48,6 @@ d testing/gtest
 
 # Remove the following hooks
 
-h sdkextras
 h nacltools
 h lastchange_blink
 h binutils
@@ -79,7 +77,6 @@ d third_party/lss
 d third_party/cros_system_api
 d third_party/xdg-utils
 d third_party/freetype2/src
-d third_party/freetype-android/src
 d third_party/chromite
 d third_party/pyelftools
 d third_party/liblouis/src
@@ -89,3 +86,29 @@ d third_party/minigbm/src
 d third_party/wayland/src
 d third_party/wayland-protocols/src
 d third_party/wds/src
+
+#android
+d third_party/android_tools
+d third_party/apache-mime4j
+d third_party/apache-portable-runtime/src
+d third_party/appurify-python/src
+h sdkextras
+d third_party/requests/src
+d third_party/custom_tabs_client/src
+d third_party/jarjar
+d third_party/mockito/src
+d third_party/elfutils/src
+d third_party/findbugs
+d third_party/errorprone/lib
+d third_party/httpcomponents-client
+d third_party/httpcomponents-core
+d third_party/cardboard-java/src
+d third_party/freetype-android/src
+d third_party/jsr-305/src
+d third_party/junit/src
+d third_party/netty-tcnative/src
+d third_party/netty4/src
+d third_party/robolectric/lib
+d third_party/ub-uiautomator/lib
+d third_party/leakcanary/src
+
