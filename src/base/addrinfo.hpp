@@ -2,7 +2,9 @@
 #define ADDRINFO_HPP
 #include "cservices.h"
 #include <vector>
-
+#ifndef _WIN32
+    #include <netinet/ip.h>
+#endif
 namespace mega
 {
 template <int AF, typename Raw, int SLen>
