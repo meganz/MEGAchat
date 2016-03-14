@@ -417,7 +417,7 @@ enum HistFetchState
     kHistFetchingFromDb = 1 | kHistFetchingFlag ///< We are currently fetching history from db
 };
 
-typedef std::map<Id,char> UserPrivMap;
+typedef std::map<Id,Priv> UserPrivMap;
 
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
@@ -477,7 +477,7 @@ protected:
     // msgid can be 0 in case of rejections
     Idx confirm(const Id& msgxid, const Id& msgid);
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
-    void onUserJoin(const Id& userid, char priv);
+    void onUserJoin(const Id& userid, Priv priv);
     void onJoinComplete();
     void loadAndProcessUnsent();
     void initialFetchHistory(Id serverNewest);

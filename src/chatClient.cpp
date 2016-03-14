@@ -912,15 +912,16 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const s
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
-:ChatRoom(parent, chat.getHandle(), false, chat.getUrl(), chat.getShard(), chat.getOwnPrivilege()),
-    mPeer((uint64_t)-1), mPeerPriv(0)
+    :ChatRoom(parent, chat.getHandle(), false, chat.getUrl(), chat.getShard(),
+     (chatd::Priv)chat.getOwnPrivilege()),
+    mPeer((uint64_t)-1), mPeerPriv(chatd::PRIV_RDONLY)
 {
     assert(!chat.isGroup());
     auto peers = chat.getPeerList();
     assert(peers);
     assert(peers->size() == 1);
     mPeer = peers->getPeerHandle(0);
-    mPeerPriv = peers->getPeerPrivilege(0);
+    mPeerPriv = (chatd::Priv)peers->getPeerPrivilege(0);
 
     sqliteQuery(parent.client.db, "insert into chats(chatid, url, shard, peer, peer_priv, own_priv) values (?,?,?,?,?,?)",
         mChatid, mUrl, mShardNo, mPeer, mPeerPriv, mOwnPriv);
@@ -955,8 +956,8 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
 bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
 {
     bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);
-    changed |= syncOwnPriv(chat.getOwnPrivilege());
-    changed |= syncPeerPriv(chat.getPeerList()->getPeerPrivilege(0));
+    changed |= syncOwnPriv((chatd::Priv)chat.getOwnPrivilege());
+    changed |= syncPeerPriv((chatd::Priv)chat.getPeerList()->getPeerPrivilege(0));
     return changed;
 }
 
@@ -1043,9 +1044,9 @@ void ChatRoomList::loadFromDb()
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
-            room = new PeerChatRoom(*this, chatid, stmt.stringCol(1), stmt.intCol(2), stmt.intCol(3), peer, stmt.intCol(5));
+            room = new PeerChatRoom(*this, chatid, stmt.stringCol(1), stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5));
         else
-            room = new GroupChatRoom(*this, chatid, stmt.stringCol(1), stmt.intCol(2), stmt.intCol(3), stmt.stringCol(6));
+            room = new GroupChatRoom(*this, chatid, stmt.stringCol(1), stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.stringCol(6));
         emplace(chatid, room);
     }
 }
@@ -1148,7 +1149,8 @@ ChatRoomList::~ChatRoomList()
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, const std::string &userTitle)
-:ChatRoom(parent, chat.getHandle(), true, chat.getUrl(), chat.getShard(), chat.getOwnPrivilege()),
+:ChatRoom(parent, chat.getHandle(), true, chat.getUrl(), chat.getShard(),
+  (chatd::Priv)chat.getOwnPrivilege()),
   mTitleString(userTitle), mHasUserTitle(!userTitle.empty())
 {
     auto peers = chat.getPeerList();
@@ -1158,7 +1160,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
         for (int i=0; i<size; i++)
         {
             auto handle = peers->getPeerHandle(i);
-            mPeers[handle] = new Member(*this, handle, peers->getPeerPrivilege(i)); //may try to access mContactGui, but we have set it to nullptr, so it's ok
+            mPeers[handle] = new Member(*this, handle, (chatd::Priv)peers->getPeerPrivilege(i)); //may try to access mContactGui, but we have set it to nullptr, so it's ok
         }
     }
 //save to db
@@ -1265,7 +1267,7 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
         changed = true;
         sqliteQuery(db, "update chats set url=? where chatid=?", mUrl, mChatid);
     }
-    auto ownPriv = chat.getOwnPrivilege();
+    chatd::Priv ownPriv = (chatd::Priv)chat.getOwnPrivilege();
     if (ownPriv != mOwnPriv)
     {
         mOwnPriv = ownPriv;
@@ -1445,7 +1447,7 @@ chatd::UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& cha
     {
         auto size = members->size();
         for (int i=0; i<size; i++)
-            membs.emplace(members->getPeerHandle(i), members->getPeerPrivilege(i));
+            membs.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
     }
     return membs;
 }

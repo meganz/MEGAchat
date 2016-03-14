@@ -639,7 +639,7 @@ public:
         }
         ui.mMessageList->scrollToBottom();
     }
-    virtual void onUserJoined(const chatd::Id& userid, char priv)
+    virtual void onUserJoined(const chatd::Id& userid, chatd::Priv priv)
     {
         mRoom.onUserJoined(userid, priv);
     }

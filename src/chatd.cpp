@@ -569,9 +569,6 @@ void Connection::execCommand(const StaticBuffer &buf)
       try
       {
         pos++;
-#ifndef _NDEBUG
-        size_t base = pos;
-#endif
 //        CHATD_LOG_DEBUG("RECV %s", Command::opcodeToStr(opcode));
         switch (opcode)
         {
@@ -585,7 +582,7 @@ void Connection::execCommand(const StaticBuffer &buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(userid, 8);
-                char priv = buf.read<int8_t>(pos);
+                Priv priv = (Priv)buf.read<int8_t>(pos);
                 pos++;
                 CHATD_LOG_DEBUG("%s: recv JOIN - user '%s' with privilege level %d",
                                 ID_CSTR(chatid), ID_CSTR(userid), priv);
