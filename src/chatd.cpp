@@ -569,6 +569,9 @@ void Connection::execCommand(const StaticBuffer &buf)
       try
       {
         pos++;
+#ifndef _NDEBUG
+        size_t base = pos;
+#endif
 //        CHATD_LOG_DEBUG("RECV %s", Command::opcodeToStr(opcode));
         switch (opcode)
         {
