@@ -79,7 +79,7 @@ class DnsCache: protected std::map<DnsCacheKey, std::shared_ptr<DnsCacheItem>>
 {
     std::mutex mMutex;
 public:
-    unsigned mMaxTTL = 3600;
+    int mMaxTTL = 3600;
     std::shared_ptr<DnsCacheItem> lookup(const char* name, bool isIp6)
     {
         assert(name);

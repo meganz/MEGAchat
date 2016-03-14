@@ -169,7 +169,7 @@ set(WEBRTC_CFLAGS_ANDROID #arm
     -funwind-tables
 )
 
-set(WEBRTC_CXXFLAGS_ANDROID -Wsign-compare -Wnon-virtual-dtor -Woverloaded-virtual -Wno-abi)
+set(WEBRTC_CXXFLAGS_ANDROID -Wsign-compare -Wno-non-virtual-dtor -Woverloaded-virtual -Wno-abi)
 
 set(WEBRTC_CFLAGS_COMMON_MACOS
     -gdwarf-2 -Wnewline-eof
