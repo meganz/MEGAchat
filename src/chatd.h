@@ -40,7 +40,7 @@ enum Opcode
 };
 
 // privilege levels
-enum Priv
+enum Priv: signed char
 {
     PRIV_NOCHANGE = -2,
     PRIV_NOTPRESENT = -1,
@@ -213,7 +213,7 @@ public:
 /// The chatroom connection (to the chatd server shard) state state has changed.
     virtual void onOnlineStateChange(ChatState state){}
 /// A user has joined the room, or their privilege has changed
-    virtual void onUserJoined(const Id& userid, char privilege){}
+    virtual void onUserJoined(const Id& userid, Priv privilege){}
 /// A user has left the chatroom
     virtual void onUserLeft(const Id& userid) {}
 ///Unread message count has changed
@@ -307,7 +307,7 @@ public:
 /// The chatroom connection (to the chatd server shard) state state has changed.
     virtual void onOnlineStateChange(ChatState state){}
 /// A user has joined the room, or their privilege has changed
-    virtual void onUserJoined(const Id& userid, char privilege){}
+    virtual void onUserJoined(const Id& userid, Priv privilege){}
 /// A user has left the chatroom
     virtual void onUserLeft(const Id& userid) {}
 /// @brief Called when a message is received/read that was not passed to \c decrypt().

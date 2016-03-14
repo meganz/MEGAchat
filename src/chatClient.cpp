@@ -878,7 +878,7 @@ promise::Promise<Buffer*> UserAttrCache::getAttr(const uint64_t &user, unsigned 
 
 
 ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup, const std::string& aUrl, unsigned char aShard,
-  char aOwnPriv)
+  chatd::Priv aOwnPriv)
 :parent(aParent), mChatid(chatid), mUrl(aUrl), mShardNo(aShard), mIsGroup(aIsGroup), mOwnPriv(aOwnPriv)
 {}
 
@@ -888,7 +888,7 @@ void ChatRoom::join()
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl, unsigned char aShard,
-    char aOwnPriv, const std::string& title)
+    chatd::Priv aOwnPriv, const std::string& title)
 :ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv), mTitleString(title),
   mHasUserTitle(!title.empty())
 {
@@ -896,7 +896,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const
     stmt << mChatid;
     while(stmt.step())
     {
-        addMember(stmt.uint64Col(0), stmt.intCol(1), false);
+        addMember(stmt.uint64Col(0), (chatd::Priv)stmt.intCol(1), false);
     }
     mContactGui = parent.client.gui.contactList().createGroupChatItem(*this);
     if (!mTitleString.empty())
@@ -904,7 +904,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const
     join();
 }
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
-    unsigned char aShard, char aOwnPriv, const uint64_t& peer, char peerPriv)
+    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv)
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer), mPeerPriv(peerPriv)
 {
     parent.client.contactList->attachRoomToContact(peer, *this);
@@ -931,7 +931,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     join();
 }
 
-bool PeerChatRoom::syncOwnPriv(char priv)
+bool PeerChatRoom::syncOwnPriv(chatd::Priv priv)
 {
     if (mOwnPriv == priv)
         return false;
@@ -942,7 +942,7 @@ bool PeerChatRoom::syncOwnPriv(char priv)
     return true;
 }
 
-bool PeerChatRoom::syncPeerPriv(char priv)
+bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
 {
     if (mPeerPriv == priv)
         return false;
@@ -966,7 +966,7 @@ const std::string& PeerChatRoom::titleString() const
     return mContact ? mContact->titleString(): sEmptyString;
 }
 
-void GroupChatRoom::addMember(const uint64_t& userid, char priv, bool saveToDb)
+void GroupChatRoom::addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb)
 {
     assert(userid != parent.client.myHandle());
     auto it = mPeers.find(userid);
@@ -1239,7 +1239,7 @@ void GroupChatRoom::leave()
     parent.client.api->call(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle());
 }
 
-promise::Promise<void> GroupChatRoom::invite(uint64_t userid, char priv)
+promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 {
     return parent.client.api->call(&mega::MegaApi::inviteToChat, mChatid, userid, priv)
     .then([this, userid, priv](ReqResult)
@@ -1265,7 +1265,7 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
         changed = true;
         sqliteQuery(db, "update chats set url=? where chatid=?", mUrl, mChatid);
     }
-    char ownPriv = chat.getOwnPrivilege();
+    auto ownPriv = chat.getOwnPrivilege();
     if (ownPriv != mOwnPriv)
     {
         mOwnPriv = ownPriv;
@@ -1323,7 +1323,7 @@ void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
         mChatWindow->updateOnlineIndication(pres);
 }
 
-void GroupChatRoom::onUserJoined(const chatd::Id &userid, char privilege)
+void GroupChatRoom::onUserJoined(const chatd::Id &userid, chatd::Priv privilege)
 {
     if (userid != parent.client.myHandle())
         addMember(userid, privilege, true);
@@ -1333,7 +1333,7 @@ void GroupChatRoom::onUserLeft(const chatd::Id &userid)
     removeMember(userid);
 }
 
-void PeerChatRoom::onUserJoined(const chatd::Id &userid, char privilege)
+void PeerChatRoom::onUserJoined(const chatd::Id &userid, chatd::Priv privilege)
 {
     if (userid == parent.client.chatd->userId())
         syncOwnPriv(privilege);
@@ -1450,7 +1450,7 @@ chatd::UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& cha
     return membs;
 }
 
-GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, char aPriv)
+GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
 : mRoom(aRoom), mPriv(aPriv)
 {
     mNameAttrCbHandle = mRoom.parent.client.userAttrCache.getAttr(user, mega::MegaApi::USER_ATTR_LASTNAME, this,

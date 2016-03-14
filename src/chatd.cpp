@@ -1303,7 +1303,7 @@ void Messages::initialFetchHistory(Id serverNewest)
     }
 }
 
-void Messages::onUserJoin(const Id& userid, char priv)
+void Messages::onUserJoin(const Id& userid, Priv priv)
 {
     if (priv != PRIV_NOTPRESENT)
     {

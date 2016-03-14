@@ -183,7 +183,7 @@ protected:
     std::string mUrl;
     unsigned char mShardNo;
     bool mIsGroup;
-    char mOwnPriv;
+    chatd::Priv mOwnPriv;
     chatd::Messages* mMessages = nullptr;
     bool syncRoomPropertiesWithApi(const mega::MegaTextChat& chat);
     void switchListenerToChatWindow();
@@ -194,13 +194,13 @@ public:
     virtual const std::string& titleString() const = 0;
     virtual Presence presence() const = 0;
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
-             unsigned char shard, char ownPriv);
+             unsigned char shard, chatd::Priv ownPriv);
     virtual ~ChatRoom(){}
     const uint64_t& chatid() const { return mChatid; }
     bool isGroup() const { return mIsGroup; }
     const std::string& url() const { return mUrl; }
     unsigned char shardNo() const { return mShardNo; }
-    char ownPriv() const { return mOwnPriv; }
+    chatd::Priv ownPriv() const { return mOwnPriv; }
     chatd::ChatState chatdOnlineState() const { return mMessages->onlineState(); }
     IGui::IChatWindow& chatWindow(); /// < creates the windows if not already created
     bool hasChatWindow() const { return mChatWindow != nullptr; }
@@ -213,26 +213,26 @@ class PeerChatRoom: public ChatRoom
 {
 protected:
     uint64_t mPeer;
-    char mPeerPriv;
+    chatd::Priv mPeerPriv;
     Contact* mContact = nullptr;
     void setContact(Contact& contact) { mContact = &contact; }
     friend class ContactList;
     inline Presence calculatePresence(Presence pres) const;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
-            unsigned char shard, char ownPriv, const uint64_t& peer, char peerPriv);
+            unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     const uint64_t peer() const { return mPeer; }
     const Contact& contact() const { return *mContact; }
-    bool syncOwnPriv(char priv);
-    bool syncPeerPriv(char priv);
+    bool syncOwnPriv(chatd::Priv priv);
+    bool syncPeerPriv(chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
     virtual IGui::IContactGui& contactGui();
     virtual const std::string& titleString() const;
     void updatePresence();
     virtual Presence presence() const;
 //chatd::Listener interface
-    virtual void onUserJoined(const chatd::Id& userid, char priv);
+    virtual void onUserJoined(const chatd::Id& userid, chatd::Priv priv);
     virtual void onUserLeft(const chatd::Id& userid);
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUnreadChanged();
@@ -245,13 +245,13 @@ protected:
     {
         GroupChatRoom& mRoom;
         std::string mName;
-        char mPriv;
+        chatd::Priv mPriv;
         uint64_t mNameAttrCbHandle;
     public:
-        Member(GroupChatRoom& aRoom, const uint64_t& user, char aPriv);
+        Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
         const std::string& name() const { return mName; }
-        char priv() const { return mPriv; }
+        chatd::Priv priv() const { return mPriv; }
         friend class GroupChatRoom;
     };
     typedef std::map<uint64_t, Member*> MemberMap;
@@ -268,15 +268,15 @@ protected:
 public:
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, const std::string& userTitle);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
-                  unsigned char aShard, char aOwnPriv, const std::string& title);
+                  unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
     ~GroupChatRoom();
     const MemberMap& peers() const { return mPeers; }
-    void addMember(const uint64_t& userid, char priv, bool saveToDb);
+    void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(const uint64_t& userid);
     void setUserTitle(const std::string& title);
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void leave();
-    promise::Promise<void> invite(uint64_t userid, char priv);
+    promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     virtual IGui::IContactGui& contactGui() { return *mContactGui; }
     virtual const std::string& titleString() const { return mTitleString; }
@@ -306,7 +306,7 @@ public:
             mChatWindow->updateTitle(mTitleString);
     }
 //chatd::Listener
-    void onUserJoined(const chatd::Id& userid, char priv);
+    void onUserJoined(const chatd::Id& userid, chatd::Priv priv);
     void onUserLeft(const chatd::Id& userid);
     void onOnlineStateChange(chatd::ChatState);
 
