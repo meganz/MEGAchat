@@ -2,11 +2,12 @@
 set -e
 # The default revision of the webrtc repository to use, unlesss overridded with --revision
 # This revision is giaranteed to work with the current state of the karere-native and webrtc-build codebase
-revision='e2d83d6560272ee68cf99c4fd4f78a437adeb98c'
+#revision='e2d83d6560272ee68cf99c4fd4f78a437adeb98c' - on ios this requires XCode 7, so we use a revision that is a bit (1 day) older
+revision='9ac4df1ba66d39c3621cfb2e8ed08ae39658b793'
 
 if (( $# < 2 )); then
    echo "Not enough arguments"
-   echo "Usage: $(basename $0) <webrtc-output-dir> --platform <linux|macos|android> [--deproot <prefix-of-dependencies>>] [--revision <rev>] [--batch]"
+   echo "Usage: $(basename $0) <webrtc-output-dir> --platform <linux|macos|ios|android> [--deproot <prefix-of-dependencies>>] [--revision <rev>] [--batch]"
    exit 1
 fi
 function checkPlatformValid
@@ -14,9 +15,9 @@ function checkPlatformValid
   if [ -z "$platform" ]; then
       echo "No platform specified (--platform=xxx)"
       return 1
-  elif [[ "$platform" != linux ]] && [[ "$platform" != macos ]] && [[ "$platform" != "android" ]]; then
+  elif [[ "$platform" != linux ]] && [[ "$platform" != macos ]] && [[ "$platform" != "android" ]] && [[ "$platform" != "ios" ]]; then
       echo -e "Invalid platform \033[1;31m'$platform'\033[0;0m"
-      echo "Valid platforms are: linux, macos, android"
+      echo "Valid platforms are: linux, macos, ios, android"
       return 1
   fi
 }
@@ -163,12 +164,12 @@ pwd
 git checkout --force ./webrtc/base/base.gyp
 git apply "$karere/base.gyp.patch"
 
-
+export GYP_DEFINES="include_tests=0 build_with_libjingle=1 build_with_chromium=0 clang_use_chrome_plugins=0 use_openssl=1 use_nss=0 enable_tracing=1"
 if [[ $platform == "macos" ]]; then
     echo "Performing MacOS-specific operations"
 
     echo "Setting GYP_DEFINES..."
-    export GYP_DEFINES="OS=mac include_tests=0 build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64 clang_use_chrome_plugins=0 mac_deployment_target=10.7 use_openssl=1 use_nss=0"
+    export GYP_DEFINES="$GYP_DEFINES OS=mac libjingle_objc=1 target_arch=x64 mac_deployment_target=10.7"
 
     echo "Replacing macos capturer..."
     rm -rf webrtc/modules/video_capture/mac
@@ -185,14 +186,14 @@ if [[ $platform == "macos" ]]; then
     fi
 elif [[ "$platform" == "linux" ]]; then
     echo "Setting GYP_DEFINES for Linux..."
-    export GYP_DEFINES="OS=linux   include_tests=0 build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0 use_openssl=1 use_nss=0 use_sysroot=0"
+    export GYP_DEFINES="$GYP_DEFINES OS=linux clang=0 use_sysroot=0"
 elif [[ "$platform" == "android" ]]; then
     if [ -z "$ANDROID_NDK" ]; then
         echo "ERROR: ANDROID_NDK is not set. Please set it to the NDK root dir and re-run this script"
         exit 1
     fi
     echo "Setting GYP_DEFINES for Android..."
-    export GYP_DEFINES="OS=android include_tests=0 build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 target_arch=arm arm_version=7 include_examples=0 werror='' never_lint=1"
+    export GYP_DEFINES="$GYP_DEFINES OS=android target_arch=arm arm_version=7 include_examples=0 werror='' never_lint=1"
     echo "Patching libsrtp..."
     (cd chromium/src/third_party/libsrtp; git apply "$karere/android/libsrtp.patch")
     echo "Downloading required Android SDK components..."
@@ -200,6 +201,11 @@ elif [[ "$platform" == "android" ]]; then
     echo "Linking Android NDK to chromium tree..."
     rm -f chromium/src/third_party/android_tools/ndk
     ln -sv "$ANDROID_NDK" "chromium/src/third_party/android_tools/ndk"
+elif [[ "$platform" == "ios" ]]; then
+    echo "Setting GYP_DEFINES for iOS..."
+    export GYP_DEFINES="$GYP_DEFINES OS=ios target_arch=arm arm_version=7 libjingle_objc=1 use_system_libcxx=1 ios_deployment_target=7.0"
+    export GYP_CROSSCOMPILE=1
+
 else
     echo "Platform '$platform' not supported by this script yet"
     exit 1
@@ -210,8 +216,12 @@ python $karere/link-chromium-deps.py
 echo "Generating ninja makefiles..."
 gclient runhooks --force
 
-echo "Building webrtc in release mode..."
-ninja -C out/$buildtype
+echo "Building webrtc in $buildtype mode..."
+if [[ "$platform" != "ios" ]]; then
+    ninja -C out/$buildtype
+else
+    ninja -C out/$buildtype-iphoneos AppRTCDemo
+fi
 
 echo "All done"
 
