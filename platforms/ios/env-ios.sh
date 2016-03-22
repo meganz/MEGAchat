@@ -12,6 +12,7 @@ export IOSC_TARGET=iphoneos
 export IOSC_BUILDROOT=~/ios-$IOSC_TARGET-buildroot
 
 #=== End of user-set variables
+owndir=`echo "$(cd $(dirname "${BASH_SOURCE[0]}"); pwd)"`
 
 if [ "$IOSC_TARGET" == "iphoneos" ]; then
     export IOSC_ARCH=armv7
@@ -27,7 +28,7 @@ else
     export IOSC_PLATFORM_SDKNAME=iPhoneSimiulator
 fi
 
-export IOSC_CMAKE_TOOLCHAIN="$IOSC_BUILDROOT/ios.$IOSC_TARGET.toolchain.cmake"
+export IOSC_CMAKE_TOOLCHAIN="$owndir/ios.$IOSC_TARGET.toolchain.cmake"
 export IOSC_SYSROOT=`xcrun -sdk $IOSC_TARGET -show-sdk-path`
 
 find="xcrun -sdk $IOSC_TARGET -find"
