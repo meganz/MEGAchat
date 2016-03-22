@@ -1,35 +1,12 @@
 cmake_minimum_required(VERSION 2.8.8)
 
 set(optBuildShared 1 CACHE BOOL "Build as shared library")
+message("target=${TARGET_ARCH}")
 
-add_definitions(-Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
-
-if (CMAKE_C_COMPILER_ID MATCHES "icc.*$")
-    add_definitions(-wd68 -wd186 -wd279 -wd327)
-elseif (CMAKE_C_COMPILER_ID MATCHES "GNU")
-    add_definitions(-DCRYPTOPP_DISABLE_AESNI)
-elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
-    add_definitions(-Wno-tautological-compare -Wno-unused-value -DCRYPTOPP_DISABLE_ASM)
-endif()
-
-if ("${CMAKE_SYSTEM_NAME}" MATCHES ".*sun.*")
-    add_definitions(-Wa,--divide)	# allow use of "/" operator
-    add_definitions(-native -template=no%extdef -DCRYPTOPP_INCLUDE_VECTOR_CC)
-    set (SYSLIBS nsl socket)
-elseif (WIN32)
-    set(SYSLIBS ws2_32)
-elseif (IOS)
-# iOS cross-compile configuration. Works in conjunction with IS_CROSS_COMPILE.
-#   See http://www.cryptopp.com/wiki/iOS_(Command_Line).
-    add_definitions(-Os -pipe -fPIC -DCRYPTOPP_DISABLE_ASM -stdlib=libc++)
-    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -flat_namespace")
-elseif (ANDROID)
-# Android cross-compile configuration. Works in conjunction with IS_CROSS_COMPILE.
-#   See http://www.cryptopp.com/wiki/Android_(Command_Line).
-    add_definitions(-DCRYPTOPP_DISABLE_ASM)
-endif()
-
-FILE(GLOB SRCS *.cpp)
+FILE(GLOB SRCS_GLOB RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.cpp)
+LIST(REMOVE_ITEM SRCS_GLOB cryptlib.cpp cpu.cpp pch.cpp simple.cpp winpipes.cpp cryptlib_bds.cpp)
+#We need to put these 2 files first, because of static initialization order
+set(SRCS cryptlib.cpp cpu.cpp ${SRCS_GLOB})
 
 set(TEST_SRCS
 bench.cpp
@@ -45,6 +22,41 @@ fipsalgt.cpp
 dlltest.cpp
 )
 
+add_definitions(-Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
+
+if (CMAKE_C_COMPILER_ID MATCHES "icc.*$")
+    add_definitions(-wd68 -wd186 -wd279 -wd327)
+elseif (CMAKE_C_COMPILER_ID MATCHES "GNU")
+    add_definitions(-DCRYPTOPP_DISABLE_AESNI)
+elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    add_definitions(-Wno-tautological-compare -Wno-unused-value -DCRYPTOPP_DISABLE_ASM)
+endif()
+
+if ("${CMAKE_SYSTEM_NAME}" MATCHES ".*sun.*")
+    add_definitions(-Wa,--divide)	# allow use of "/" operator
+    add_definitions(-native -template=no%extdef -DCRYPTOPP_INCLUDE_VECTOR_CC)
+    set (SYSLIBS nsl socket)
+elseif ("${CMAKE_SYSTEM_NAME}" MATCHES "Linux" AND NOT ANDROID)
+    set(SYSLIBS pthread)
+elseif (WIN32)
+    list(APPEND SRCS winpipes.cpp)
+    set(SYSLIBS ws2_32)
+elseif (IOS)
+# iOS cross-compile configuration. Works in conjunction with IS_CROSS_COMPILE.
+#   See http://www.cryptopp.com/wiki/iOS_(Command_Line).
+    list(REMOVE_ITEM SRCS cpu.cpp rdrand.cpp)
+    add_definitions(-Os -pipe -fPIC -DCRYPTOPP_DISABLE_ASM -stdlib=libc++)
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -flat_namespace")
+elseif (ANDROID)
+    message("Building for Android")
+    # Android cross-compile configuration. Works in conjunction with IS_CROSS_COMPILE.
+    #   See http://www.cryptopp.com/wiki/Android_(Command_Line).
+    list(REMOVE_ITEM SRCS cpu.cpp rdrand.cpp)
+    list(REMOVE_ITEM TEST_SRCS validat1.cpp)
+    add_definitions(-DCRYPTOPP_DISABLE_ASM)
+endif()
+
+
 foreach (f ${TEST_SRCS})
     list(REMOVE_ITEM SRCS ${f})
 endforeach()
@@ -52,7 +64,8 @@ endforeach()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_custom_command(
   OUTPUT adhoc.cpp
-  COMMAND cp "${CMAKE_CURRENT_SOURCE_DIR}/adhoc.cpp.proto" "${CMAKE_CURRENT_BINARY_DIR}/adhoc.cpp"
+  COMMAND cp "${CMAKE_CURRENT_SOURCE_DIR}/adhoc.cpp.proto"          
+             "${CMAKE_CURRENT_BINARY_DIR}/adhoc.cpp"
   DEPENDS adhoc.cpp.proto
 )
 #DLLSRCS = algebra.cpp algparam.cpp asn.cpp basecode.cpp cbcmac.cpp channels.cpp cryptlib.cpp des.cpp dessp.cpp dh.cpp dll.cpp dsa.cpp ec2n.cpp eccrypto.cpp ecp.cpp eprecomp.cpp files.cpp filters.cpp fips140.cpp fipstest.cpp gf2n.cpp gfpcrypt.cpp hex.cpp hmac.cpp integer.cpp iterhash.cpp misc.cpp modes.cpp modexppc.cpp mqueue.cpp nbtheory.cpp oaep.cpp osrng.cpp pch.cpp pkcspad.cpp pubkey.cpp queue.cpp randpool.cpp rdtables.cpp rijndael.cpp rng.cpp rsa.cpp sha.cpp simple.cpp skipjack.cpp strciphr.cpp trdlocal.cpp
@@ -64,22 +77,25 @@ else()
     add_library(cryptopp STATIC ${SRCS})
 endif()
 
+file(GLOB PUBHEADERS "*.h")
+set_target_properties(cryptopp PROPERTIES PUBLIC_HEADER "${PUBHEADERS}")
 
-enable_testing()
-add_executable(cryptest ${TEST_SRCS})
-target_link_libraries(cryptest cryptopp ${SYSLIBS})
+if (!ANDROID)
+    enable_testing()
+    add_executable(cryptest ${TEST_SRCS})
+    target_link_libraries(cryptest cryptopp ${SYSLIBS})
 
-add_test(NAME tests 
+    add_test(NAME tests 
          WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
          COMMAND cryptest v)
+endif()
 
+message("CMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}")
 install(TARGETS cryptopp
             RUNTIME DESTINATION bin
             LIBRARY DESTINATION lib
-            ARCHIVE DESTINATION lib)
-
-file(GLOB HEADERS "*.h")
-install(FILES ${HEADERS} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/cryptopp)
+            ARCHIVE DESTINATION lib
+            PUBLIC_HEADER DESTINATION include/cryptopp)
 
 #cryptest.import.exe: cryptopp.dll libcryptopp.import.a $(TESTIMPORTOBJS)
 #adhoc.cpp: adhoc.cpp.proto
