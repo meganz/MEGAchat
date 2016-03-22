@@ -106,6 +106,15 @@ set(WEBRTC_DEFS_ANDROID #arm
     -DWTF_USE_DYNAMIC_ANNOTATIONS=1
 )
 
+set(WEBRTC_DEFS_IOS
+    -DWEBRTC_IOS -DWEBRTC_ARCH_ARM
+    -DWEBRTC_ARCH_ARM_V7 -DWEBRTC_HAS_NEON -DWEBRTC_POSIX -DWEBRTC_MAC
+    -DWEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE -DOPUS_FIXED_POINT
+    -DUSE_LIBPCI=1 -DUSE_OPENSSL=1 -D__STDC_CONSTANT_MACROS
+    -D__STDC_FORMAT_MACROS -DNDEBUG -DNVALGRIND
+    -DDYNAMIC_ANNOTATIONS_ENABLED=0 -DNS_BLOCK_ASSERTIONS=1
+    -D_FORTIFY_SOURCE=2
+)
 
 set(WEBRTC_INCLUDES
     ${webrtcBuild}
@@ -141,7 +150,10 @@ set(WEBRTC_SYSINCLUCES_ANDROID)
 #Override the system openssl
 set(WEBRTC_SYSINCLUDES_MACOS /usr/local/opt/openssl/include)
 
+set(WEBRTC_SYSINCLUDES_IOS)
+
 set(WEBRTC_CFLAGS
+    -Wno-unknown-warning-option
     -fstack-protector --param=ssp-buffer-size=4
     -fno-strict-aliasing -Wno-unused-parameter
     -Wno-missing-field-initializers -pipe -fPIC
@@ -151,6 +163,7 @@ if (CMAKE_COMPILER_ID STREQUAL "GNU")
 endif()
 
 set(WEBRTC_CXXFLAGS
+    -Wno-unknown-warning-option
     -fno-threadsafe-statics
     -Wno-deprecated -Wno-narrowing
     -Wno-inconsistent-missing-override
@@ -173,7 +186,7 @@ set(WEBRTC_CXXFLAGS_ANDROID -Wsign-compare -Wno-non-virtual-dtor -Woverloaded-vi
 
 set(WEBRTC_CFLAGS_COMMON_MACOS
     -gdwarf-2 -Wnewline-eof
-    -arch x86_64 -Wendif-labels
+    -Wendif-labels
     -Wno-selector-type-mismatch -Wheader-hygiene -Wno-char-subscripts
     -Wno-unneeded-internal-declaration -Wno-covered-switch-default
     -Wstring-conversion -Wno-c++11-narrowing -Wno-deprecated-register
@@ -188,6 +201,9 @@ set(WEBRTC_CXXFLAGS_MACOS
     -fno-slp-vectorize -fcolor-diagnostics -fno-strict-aliasing
     -fobjc-call-cxx-cdtors #this applies only for obj-cxx, but cmake does not have flags specially for obj-c++
 )
+
+set(WEBRTC_CFLAGS_IOS ${WEBRTC_CFLAGS_MACOS})
+set(WEBRTC_CXXFLAGS_IOS ${WEBRTC_CXXFLAGS_MACOS})
 
 #Clear cache entry because it will get duplicated otherwise
 set(WEBRTC_LDFLAGS "")
@@ -207,8 +223,9 @@ set(WEBRTC_LDFLAGS_ANDROID
 )
 set(WEBRTC_LDFLAGS_MACOS
     -Wl,-search_paths_first -Wl,-ObjC
-    -Wl,-dead_strip -arch x86_64
+    -Wl,-dead_strip
 )
+set(WEBRTC_LDFLAGS_IOS ${WEBRTC_LDFLAGS_IOS})
 
 set(WEBRTC_SYSLIBS "")
 set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)
@@ -224,6 +241,7 @@ set(WEBRTC_SYSLIBS_MACOS
     "-framework SystemConfiguration" "-framework CoreAudio" "-framework CoreVideo"
     "-framework CoreMedia" "-framework OpenGL" "-framework QTKit"
 )
+set(WEBRTC_SYSLIBS_IOS ${WEBRTC_SYSLIBS_MACOS})
 
 macro(appendPlatformStuff pname)
     list(APPEND WEBRTC_DEFS ${WEBRTC_DEFS_${pname}})
@@ -251,20 +269,27 @@ else()
 endif()
 
 if (ANDROID)
-    message(STATUS "Building rtcModule on arm Android")
+    set(platform Android)
     appendArchStuff(ARM)
     appendPlatformStuff(ANDROID)
-elseif(APPLE)
-    message(STATUS "Building rtcModule on x86 MacOSX")
+elseif(APPLE AND NOT APPLE_IOS)
+    set(platform MacOSX)
     # appendArchStuff(X86)
     appendPlatformStuff(MACOS)
-elseif(UNIX) #linux
-    message(STATUS "Building rtcModule on x86 Linux")
+elseif (APPLE_IOS)
+   set(platform iOS)
+    #appendArchStuff(ARM)
+    appendPlatformStuff(IOS)
+elseif(UNIX) #linux really
+    set(platform "x86 Linux")
     appendArchStuff(X86)
     appendPlatformStuff(LINUX)
 else()
     message(FATAL_ERROR "Unknown platform")
 endif()
+message(STATUS "========================================================")
+message(STATUS "Building rtcModule for ${platform}")
+message(STATUS "========================================================")
 
 set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${WEBRTC_LDFLAGS}")

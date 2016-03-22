@@ -58,6 +58,16 @@ export CMAKE_XCOMPILE_ARGS="-DCMAKE_TOOLCHAIN_FILE=$IOSC_CMAKE_TOOLCHAIN -DCMAKE
 # Typical configure command to build dependencies:
 export CONFIGURE_XCOMPILE_ARGS="--prefix=$IOSC_BUILDROOT/usr --host=$IOSC_HOST_TRIPLET"
 
+function xcmake
+{
+    cmake $CMAKE_XCOMPILE_ARGS $@
+}
+
+function xconfigure
+{
+   ./configure $CONFIGURE_XCOMPILE_ARGS $@
+}
+
 echo "============================================"
 echo "Envirnoment set to use the following compilers:"
 echo "CC=$CC"
@@ -65,7 +75,14 @@ echo "CXX=$CXX"
 echo "SYSROOT(sdk root)=$IOSC_SYSROOT"
 echo "BUILDROOT(user libs and headers)=$IOSC_BUILDROOT"
 echo
-echo -e "You can use\n\033[1;31meval\033[0m ./configure \$CONFIGURE_XCOMPILE_ARGS [your-args]"
-echo -e "to configure scripts. This also sets up the install prefix to the BUILDROOT/usr directory"
-echo -e "You can use \n\033[1;31meval\033[0m cmake \$CMAKE_XCOMPILE_ARGS [your-args]\nto CMake command."
-echo -e "This also sets up the install prefix to the BUILDROOT/usr directory"
+echo -e "You can use\n\
+xconfigure [your-args]\n\
+or\n\
+\033[1;31meval\033[0m ./configure \$CONFIGURE_XCOMPILE_ARGS [your-args]\n\
+to run configure scripts. This also sets up the install prefix to the BUILDROOT/usr directory"
+echo
+echo -e "You can use\n\
+xcmake [your-args]\n\
+or\n\
+\033[1;31meval\033[0m cmake \$CMAKE_XCOMPILE_ARGS [your-args]\n\
+to run a CMake command. This also sets up the install prefix to the BUILDROOT/usr directory"
