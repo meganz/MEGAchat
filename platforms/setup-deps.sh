@@ -8,6 +8,12 @@ fi
 owndir=`echo "$(cd "$(dirname "$0")"; pwd)"`
 platform=$1
 buildroot=$2
+if [[ "$platform" == "ios" ]] || [[ "$platform" == "android" ]]; then
+    cpuarch=armv7
+else
+#FIXME: Maybe support x64 as well?
+    cpuarch=i686
+fi
 
 #determine whether we will build shared or static libs
 if (( $# < 3 )) || [[ "$3" == "static" ]]; then
@@ -168,19 +174,26 @@ function buildInstall_zlib
     if [ $shared == "0" ]; then
         local static="--static"
     fi
-    ./configure --prefix="$buildroot/usr" $static --archs="-arch armv7"
+    ./configure --prefix="$buildroot/usr" $static --archs="-arch $cpuarch"
     make -j10 install
 }
-   
-buildInstall openssl   "https://www.openssl.org/source/openssl-1.0.2g.tar.gz"
-buildInstall cares     "http://c-ares.haxx.se/download/c-ares-1.11.0.tar.gz"
-buildInstall curl      "https://curl.haxx.se/download/curl-7.48.0.tar.bz2" "--disable-ftp --disable-gopher --disable-smtp --disable-imap --disable-pop --disable-smb --disable-manual --disable-tftt --disable-telnet --disable-dict --disable-rtsp --disable-ldap --disable-ldaps --disable-file --disable-sspi --disable-tls-srp --disable-ntlm-wb --disable-unix-sockets"
-buildInstall cryptopp  "https://www.cryptopp.com/cryptopp563.zip"
-buildInstall megasdk   "https://github.com/meganz/sdk.git" "--without-freeimage --without-sodium --enable-chat --disable-examples"
-
-if [[ "$platform" == ios ]]; then
-    buildInstall zlib      "http://zlib.net/zlib-1.2.8.tar.gz"
+#==============================================================
+if [[ "$platform" != linux ]]; then   
+    buildInstall openssl   "https://www.openssl.org/source/openssl-1.0.2g.tar.gz"
+    buildInstall cares     "http://c-ares.haxx.se/download/c-ares-1.11.0.tar.gz"
+    buildInstall curl      "https://curl.haxx.se/download/curl-7.48.0.tar.bz2" "--disable-ftp --disable-gopher --disable-smtp --disable-imap --disable-pop --disable-smb --disable-manual --disable-tftt --disable-telnet --disable-dict --disable-rtsp --disable-ldap --disable-ldaps --disable-file --disable-sspi --disable-tls-srp --disable-ntlm-wb --disable-unix-sockets"
+    buildInstall cryptopp  "https://www.cryptopp.com/cryptopp563.zip"
+    # android NDK ships with zlib
+    if [[ "$platform" != "android" ]]; then
+        buildInstall zlib      "http://zlib.net/zlib-1.2.8.tar.gz"
+    fi
 fi
 
+buildInstall megasdk   "https://github.com/meganz/sdk.git" "--without-freeimage --without-sodium --enable-chat --disable-examples"
+
 cd $owndir/../third-party/libevent
-buildInstall_autotools
+if [ ! -f ./.built-and-installed ]; then
+    buildInstall_autotools
+    touch ./.built-and-installed
+fi
+
