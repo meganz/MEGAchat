@@ -2,16 +2,28 @@
 
 #Source this file in the current shell to setup the cross-compile build environment
 
+if (( "$#" < 1 )); then
+    echo "Usage: env-ios.sh <buildroot-dir>"
+    return 1
+fi
+
+if [ ! -d "$1" ]; then
+    echo "Specified buildroot directory '$1' does not exist"
+   return 1
+fi
 
 # Envirnoment variables:
-#=== User-set variables
-#this is the same as the -sdk parameter to xcrun:
-# 'iphoneos' for device
-# 'iphonesimulator' for simulator
-export IOSC_TARGET=iphoneos
-export IOSC_BUILDROOT=~/ios-$IOSC_TARGET-buildroot
 
+#=== User-set variables
+# Set IOSC_TARGET env var to the either iphoneos or iphonesimulator.
+# It will be passed as the -sdk parameter to xcrun
+
+if [ -z "$IOSC_TARGET" ]; then
+    export IOSC_TARGET=iphoneos
+fi
 #=== End of user-set variables
+
+export IOSC_BUILDROOT="$1"
 owndir=`echo "$(cd $(dirname "${BASH_SOURCE[0]}"); pwd)"`
 
 if [ "$IOSC_TARGET" == "iphoneos" ]; then
@@ -34,12 +46,10 @@ export IOSC_SYSROOT=`xcrun -sdk $IOSC_TARGET -show-sdk-path`
 find="xcrun -sdk $IOSC_TARGET -find"
 compileropts="-arch $IOSC_ARCH $IOSC_OS_VERSION -stdlib=libc++"
 
-#export CFLAGS="-I$IOSC_BUILDROOT/usr/include"
-#export CXXFLAGS="-I$IOSC_BUILDROOT/usr/include"
-export LDFLAGS="--sysroot $IOSC_SYSROOT -L$IOSC_BUILDROOT/usr/lib $compileropts -lc++"
+export LDFLAGS="--sysroot $IOSC_SYSROOT -L$IOSC_BUILDROOT/lib $compileropts"
 export CFLAGS="$compileropts"
 export CXXFLAGS="$compileropts"
-export CPPFLAGS="-isysroot$IOSC_SYSROOT -I$IOSC_BUILDROOT/usr/include -arch $IOSC_ARCH"
+export CPPFLAGS="-isysroot$IOSC_SYSROOT -I$IOSC_BUILDROOT/include -arch $IOSC_ARCH"
 
 export CC="`$find clang`"
 export CXX="`$find clang++`"
@@ -53,11 +63,11 @@ export STRIP=`$find strip`
 
 # Convenience variables
 # CMake command to configure strophe build to use the android toolchain:
-export CMAKE_XCOMPILE_ARGS="-DCMAKE_TOOLCHAIN_FILE=$IOSC_CMAKE_TOOLCHAIN -DCMAKE_INSTALL_PREFIX=$IOSC_BUILDROOT/usr"
+export CMAKE_XCOMPILE_ARGS="-DCMAKE_TOOLCHAIN_FILE=$IOSC_CMAKE_TOOLCHAIN -DCMAKE_INSTALL_PREFIX=$IOSC_BUILDROOT"
 
 
 # Typical configure command to build dependencies:
-export CONFIGURE_XCOMPILE_ARGS="--prefix=$IOSC_BUILDROOT/usr --host=$IOSC_HOST_TRIPLET"
+export CONFIGURE_XCOMPILE_ARGS="--prefix=$IOSC_BUILDROOT --host=$IOSC_HOST_TRIPLET"
 
 function xcmake
 {
@@ -68,6 +78,8 @@ function xconfigure
 {
    ./configure $CONFIGURE_XCOMPILE_ARGS $@
 }
+export -f xcmake
+export -f xconfigure
 
 echo "============================================"
 echo "Envirnoment set to use the following compilers:"
@@ -80,10 +92,10 @@ echo -e "You can use\n\
 xconfigure [your-args]\n\
 or\n\
 \033[1;31meval\033[0m ./configure \$CONFIGURE_XCOMPILE_ARGS [your-args]\n\
-to run configure scripts. This also sets up the install prefix to the BUILDROOT/usr directory"
+to run configure scripts. This also sets up the install prefix to the BUILDROOT directory"
 echo
 echo -e "You can use\n\
 xcmake [your-args]\n\
 or\n\
 \033[1;31meval\033[0m cmake \$CMAKE_XCOMPILE_ARGS [your-args]\n\
-to run a CMake command. This also sets up the install prefix to the BUILDROOT/usr directory"
+to run a CMake command. This also sets up the install prefix to the BUILDROOT directory"

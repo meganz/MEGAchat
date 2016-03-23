@@ -41,18 +41,18 @@ elseif ("${CMAKE_SYSTEM_NAME}" MATCHES "Linux" AND NOT ANDROID)
 elseif (WIN32)
     list(APPEND SRCS winpipes.cpp)
     set(SYSLIBS ws2_32)
-elseif (IOS)
+elseif (APPLE_IOS)
 # iOS cross-compile configuration. Works in conjunction with IS_CROSS_COMPILE.
 #   See http://www.cryptopp.com/wiki/iOS_(Command_Line).
+    message("Building for iOS")
     list(REMOVE_ITEM SRCS cpu.cpp rdrand.cpp)
-    add_definitions(-Os -pipe -fPIC -DCRYPTOPP_DISABLE_ASM -stdlib=libc++)
+    add_definitions(-Os -pipe -fPIC -DCRYPTOPP_DISABLE_ASM)
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -flat_namespace")
 elseif (ANDROID)
     message("Building for Android")
     # Android cross-compile configuration. Works in conjunction with IS_CROSS_COMPILE.
     #   See http://www.cryptopp.com/wiki/Android_(Command_Line).
     list(REMOVE_ITEM SRCS cpu.cpp rdrand.cpp)
-    list(REMOVE_ITEM TEST_SRCS validat1.cpp)
     add_definitions(-DCRYPTOPP_DISABLE_ASM)
 endif()
 
@@ -80,7 +80,7 @@ endif()
 file(GLOB PUBHEADERS "*.h")
 set_target_properties(cryptopp PROPERTIES PUBLIC_HEADER "${PUBHEADERS}")
 
-if (!ANDROID)
+if (NOT ANDROID AND NOT APPLE_IOS)
     enable_testing()
     add_executable(cryptest ${TEST_SRCS})
     target_link_libraries(cryptest cryptopp ${SYSLIBS})
