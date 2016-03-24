@@ -129,6 +129,9 @@ function xconfigure
   eval ./configure $XENV_CONFIGURE_ARGS $@
 }
 
+export -f xcmake
+export -f xconfigure
+
 echo "============================================"
 echo "Envirnoment set to use cross-compiler toolchain:"
 echo "Toolchain path: $XENV_TOOLCHAIN_PATH"

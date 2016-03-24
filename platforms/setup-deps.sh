@@ -126,8 +126,10 @@ function buildInstall_openssl
 # multiple builds cause path too large in the below file, so remove it
     rm -rf $buildroot/usr/man/man3/*
     if [[ "$platform" == "android" ]]; then
-        ./Configure android-armv7
-        make no-asm
+        ./Configure android-armv7 no-asm --prefix="$buildroot/usr" --openssldir="$buildroot/usr"
+        sed -i.bak -e's/-mandroid//' ./Makefile
+        make depend all
+        make install_sw
     elif [[ "$platform" == "ios" ]]; then
         ./Configure iphoneos-cross --prefix="$buildroot/usr" --openssldir="$buildroot/usr"
 # The config script does not add -arch armv7 to the top makefile, so we have to patch the makefile
