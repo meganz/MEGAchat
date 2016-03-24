@@ -185,6 +185,7 @@ if [[ "$platform" != linux ]]; then
     buildInstall cares     "http://c-ares.haxx.se/download/c-ares-1.11.0.tar.gz"
     buildInstall curl      "https://curl.haxx.se/download/curl-7.48.0.tar.bz2" "--disable-ftp --disable-gopher --disable-smtp --disable-imap --disable-pop --disable-smb --disable-manual --disable-tftt --disable-telnet --disable-dict --disable-rtsp --disable-ldap --disable-ldaps --disable-file --disable-sspi --disable-tls-srp --disable-ntlm-wb --disable-unix-sockets"
     buildInstall cryptopp  "https://www.cryptopp.com/cryptopp563.zip"
+    buildInstall expat     "http://downloads.sourceforge.net/project/expat/expat/2.1.1/expat-2.1.1.tar.bz2?r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fexpat%2F&ts=1458829388&use_mirror=heanet" "" expat-2.1.1.tar.bz2
     # android NDK ships with zlib
     if [[ "$platform" != "android" ]]; then
         buildInstall zlib      "http://zlib.net/zlib-1.2.8.tar.gz"
