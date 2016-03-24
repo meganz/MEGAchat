@@ -1,3 +1,10 @@
+//we need the POSIX version of strerror_r, not the GNU one
+#ifdef _GNU_SOURCE
+    #undef _GNU_SOURCE
+    #define _POSIX_C_SOURCE=200112L
+#endif
+#include <string.h>
+
 #include "contactList.h"
 #include "ITypes.h" //for IPtr
 #ifdef _WIN32
