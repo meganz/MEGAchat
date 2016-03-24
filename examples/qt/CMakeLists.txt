@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 2.8)
+# We need cmake 3.0 at least because of the autouic feature for qt
+cmake_minimum_required(VERSION 3.0)
 
 project(rtctestapp)
 
