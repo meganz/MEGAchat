@@ -119,7 +119,7 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
 #ifdef _WIN32
             strerror_s(buf, 511, ret);
 #else
-            strerror_r(ret, buf, 511);
+            (void)strerror_r(ret, buf, 511);
 #endif
             buf[511] = 0; //just in case
             throw std::runtime_error(std::string("Error creating application directory: ")+buf);
