@@ -1,13 +1,12 @@
-# We need cmake 3.0 at least because of the autouic feature for qt
+#We need cmake 3.0 or later because of the autouic, autorcc reatures for Qt
 cmake_minimum_required(VERSION 3.0)
-
 project(rtctestapp)
 
 FIND_PACKAGE(Qt5Widgets REQUIRED)
 
-set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR})
+
 set(CMAKE_MACOSX_RPATH 1)
-#set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -100,5 +99,30 @@ if (APPLE) # AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Release"))
     INSTALL(TARGETS rtctestapp BUNDLE DESTINATION . COMPONENT Runtime)
 
     set(CPACK_BINARY_DRAGNDROP ON)
+    include(CPack)
+elseif(UNIX)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist")
+    INSTALL(TARGETS rtctestapp DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
+    INSTALL(FILES
+       "${QT_PLUGINS_DIR}/platforms/libqxcb.so"
+       DESTINATION ${CMAKE_INSTALL_PREFIX}/QtPlugins/platforms
+       COMPONENT Runtime)
+
+    INSTALL(FILES
+       "${QT_PLUGINS_DIR}/imageformats/libqsvg.so"
+       DESTINATION ${CMAKE_INSTALL_PREFIX}/QtPlugins/imageformats
+       COMPONENT Runtime)
+    INSTALL(CODE
+    "
+        include(BundleUtilities)
+        set(BU_CHMOD_BUNDLE_ITEMS ON)
+        set(plugins
+            ${CMAKE_INSTALL_PREFIX}/QtPlugins/platforms/libqxcb.so
+            ${CMAKE_INSTALL_PREFIX}/QtPlugins/imageformats/libqsvg.so
+        )
+        fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/rtctestapp\" \"\${plugins}\" \"\")
+    "
+    COMPONENT Runtime)
+
     include(CPack)
 endif()

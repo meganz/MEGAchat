@@ -84,6 +84,9 @@ int main(int argc, char **argv)
         dir.cdUp();
         dir.cdUp();
         dir.cd("Plugins");
+    #else
+        dir.cdUp();
+        dir.cd("QtPlugins");
     #endif
     QApplication::setLibraryPaths(QStringList(dir.absolutePath()));
 #endif
