@@ -77,6 +77,7 @@ int main(int argc, char **argv)
 //    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
 //    gLogger.addUserLogger("karere-remote", new RemoteLogger);
 
+#ifdef __APPLE__
 //Set qt plugin dir for release builds
 #ifdef NDEBUG
     QDir dir(argv[0]);
@@ -90,7 +91,7 @@ int main(int argc, char **argv)
     #endif
     QApplication::setLibraryPaths(QStringList(dir.absolutePath()));
 #endif
-
+#endif
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
 
