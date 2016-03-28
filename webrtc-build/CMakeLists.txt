@@ -231,7 +231,7 @@ set(WEBRTC_SYSLIBS "")
 set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)
 
 set(WEBRTC_SYSLIBS_LINUX
-    smime3 plds4 plc4 nspr4
+    plds4 plc4 nspr4
     crypto expat pthread Xext m X11 dl
 )
 

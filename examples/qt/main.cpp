@@ -78,7 +78,6 @@ int main(int argc, char **argv)
 //    gLogger.addUserLogger("karere-remote", new RemoteLogger);
 
 //Set qt plugin dir for release builds
-#ifdef NDEBUG
     QDir dir(argv[0]);
     #ifdef __APPLE__
         dir.cdUp();
@@ -89,7 +88,6 @@ int main(int argc, char **argv)
         dir.cd("QtPlugins");
     #endif
     QApplication::setLibraryPaths(QStringList(dir.absolutePath()));
-#endif
 
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
