@@ -10,14 +10,31 @@ pkg_check_modules(PC_LIBEVENT QUIET libevent)
 find_path(LIBEVENT_INCLUDE_DIRS event.h
     HINTS ${PC_LIBEVENT_INCLUDEDIR} ${PC_LIBEVENT_INCLUDE_DIRS}
 )
-find_library(LIBEVENT_LIB_CORE NAMES event
+find_library(LIBEVENT_LIB NAMES event
     HINTS ${PC_LIBEVENT_LIBDIR} ${PC_LIBEVENT_LIBRARY_DIRS}
 )
-find_library(LIBEVENT_LIB_THREADS NAMES event_pthreads event_win32
+find_library(LIBEVENT_LIB_CORE NAMES event_core
+    HINTS ${LC_LIBEVENT_LIBDIR} ${PC_LIBEVENT_LIBRARY_DIRS}
+)
+
+find_library(LIBEVENT_LIB_EXTRA NAMES event_extra
     HINTS ${PC_LIBEVENT_LIBDIR} ${PC_LIBEVENT_LIBRARY_DIRS}
 )
-if (LIBEVENT_LIB_CORE)
-    set(LIBEVENT_LIBRARIES ${LIBEVENT_LIB_CORE} ${LIBEVENT_LIB_THREADS})
+
+if (NOT WIN)
+    find_Library(LIBEVENT_LIB_PTHREADS NAMES event_pthreads
+        HINTS ${PC_LIBEVENT_LIBDIR} ${PC_LIBEVENT_LIBRARY_DIRS}
+    )
+    find_library(LIBEVENT_LIB_OPENSSL NAMES event_openssl
+        HINTS ${PC_LIBEVENT_LIBDIR} ${PC_LIBEVENT_LIBRARY_DIRS}
+    )
+endif()
+
+if (LIBEVENT_LIB AND LIBEVENT_LIB_CORE AND LIBEVENT_LIB_EXTRA)
+    set(LIBEVENT_LIBRARIES ${LIBEVENT_LIB} ${LIBEVENT_LIB_CORE} ${LIBEVENT_LIB_EXTRA})
+    message(STATUS "libevent libs found as: ${LIBEVENT_LIBRARIES}")
+else()
+    message(WARN "libevent libs not found")
 endif()
 
 include(FindPackageHandleStandardArgs)
@@ -26,5 +43,8 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(LibEvent DEFAULT_MSG
     LIBEVENT_LIBRARIES LIBEVENT_INCLUDE_DIRS)
 
-mark_as_advanced(LIBEVENT_LIB_CORE LIBEVENT_LIB_THREADS)
+mark_as_advanced(LIBEVENT_LIB LIBEVENT_LIB_CORE LIBEVENT_LIB_EXTRA)
+if (NOT WIN)
+    mark_as_advanced(LIBEVENT_LIB_OPENSSL LIBEVENT_LIB_PTHREADS)
+endif()
 

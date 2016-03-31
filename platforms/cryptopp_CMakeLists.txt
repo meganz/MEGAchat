@@ -22,7 +22,9 @@ fipsalgt.cpp
 dlltest.cpp
 )
 
-add_definitions(-Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
+if (!WIN)
+    add_definitions(-Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
+endif()
 
 if (CMAKE_C_COMPILER_ID MATCHES "icc.*$")
     add_definitions(-wd68 -wd186 -wd279 -wd327)
