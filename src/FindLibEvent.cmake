@@ -31,10 +31,10 @@ if (NOT WIN)
 endif()
 
 if (LIBEVENT_LIB AND LIBEVENT_LIB_CORE AND LIBEVENT_LIB_EXTRA)
-    set(LIBEVENT_LIBRARIES ${LIBEVENT_LIB} ${LIBEVENT_LIB_CORE} ${LIBEVENT_LIB_EXTRA})
-    message(STATUS "libevent libs found as: ${LIBEVENT_LIBRARIES}")
+    set(LIBEVENT_LIBRARIES ${LIBEVENT_LIB} ${LIBEVENT_LIB_CORE} ${LIBEVENT_LIB_EXTRA} ${LIBEVENT_LIB_OPENSSL} ${LIBEVENT_LIB_PTHREADS})
+    message(STATUS "libevent libs: ${LIBEVENT_LIBRARIES}")
 else()
-    message(WARN "libevent libs not found")
+    message(WARNING "libevent libs not found")
 endif()
 
 include(FindPackageHandleStandardArgs)
