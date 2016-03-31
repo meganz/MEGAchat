@@ -20,7 +20,7 @@ find_library(LIBEVENT_LIB_CORE NAMES event_core
 find_library(LIBEVENT_LIB_EXTRA NAMES event_extra
     HINTS ${PC_LIBEVENT_LIBDIR} ${PC_LIBEVENT_LIBRARY_DIRS}
 )
-
+# On windows for some reason there are no distinct openssl and threading libs
 if (NOT WIN)
     find_Library(LIBEVENT_LIB_PTHREADS NAMES event_pthreads
         HINTS ${PC_LIBEVENT_LIBDIR} ${PC_LIBEVENT_LIBRARY_DIRS}
@@ -31,7 +31,10 @@ if (NOT WIN)
 endif()
 
 if (LIBEVENT_LIB AND LIBEVENT_LIB_CORE AND LIBEVENT_LIB_EXTRA)
-    set(LIBEVENT_LIBRARIES ${LIBEVENT_LIB} ${LIBEVENT_LIB_CORE} ${LIBEVENT_LIB_EXTRA} ${LIBEVENT_LIB_OPENSSL} ${LIBEVENT_LIB_PTHREADS})
+    set(LIBEVENT_LIBRARIES ${LIBEVENT_LIB} ${LIBEVENT_LIB_CORE} ${LIBEVENT_LIB_EXTRA})
+    if (NOT WIN)
+        list(APPEND LIBEVENT_LIBRARIES ${LIBEVENT_LIB_OPENSSL} ${LIBEVENT_LIB_PTHREADS})
+    endif()
     message(STATUS "libevent libs: ${LIBEVENT_LIBRARIES}")
 else()
     message(WARNING "libevent libs not found")
