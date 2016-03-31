@@ -4,9 +4,9 @@ project(rtctestapp)
 
 FIND_PACKAGE(Qt5Widgets REQUIRED)
 
-
 set(CMAKE_MACOSX_RPATH 1)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+#set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -112,17 +112,17 @@ elseif(UNIX)
        "${QT_PLUGINS_DIR}/imageformats/libqsvg.so"
        DESTINATION ${CMAKE_INSTALL_PREFIX}/QtPlugins/imageformats
        COMPONENT Runtime)
-    INSTALL(CODE
-    "
-        include(BundleUtilities)
-        set(BU_CHMOD_BUNDLE_ITEMS ON)
-        set(plugins
-            ${CMAKE_INSTALL_PREFIX}/QtPlugins/platforms/libqxcb.so
-            ${CMAKE_INSTALL_PREFIX}/QtPlugins/imageformats/libqsvg.so
-        )
-        fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/rtctestapp\" \"\${plugins}\" \"\")
-    "
-    COMPONENT Runtime)
+#    INSTALL(CODE
+#    "
+#        include(BundleUtilities)
+#        set(BU_CHMOD_BUNDLE_ITEMS ON)
+#        set(plugins
+#            ${CMAKE_INSTALL_PREFIX}/QtPlugins/platforms/libqxcb.so
+#            ${CMAKE_INSTALL_PREFIX}/QtPlugins/imageformats/libqsvg.so
+#        )
+#        fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/rtctestapp\" \"\${plugins}\" \"\")
+#    "
+#    COMPONENT Runtime)
 
     include(CPack)
 endif()
