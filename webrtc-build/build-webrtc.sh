@@ -15,9 +15,9 @@ function checkPlatformValid
   if [ -z "$platform" ]; then
       echo "No platform specified (--platform=xxx)"
       return 1
-  elif [[ "$platform" != linux ]] && [[ "$platform" != macos ]] && [[ "$platform" != "android" ]] && [[ "$platform" != "ios" ]]; then
+  elif [[ "$platform" != linux ]] && [[ "$platform" != macos ]] && [[ "$platform" != "android" ]] && [[ "$platform" != "ios" ]] && [[ "$platform" != "win" ]]; then
       echo -e "Invalid platform \033[1;31m'$platform'\033[0;0m"
-      echo "Valid platforms are: linux, macos, ios, android"
+      echo "Valid platforms are: linux, macos, ios, android, win"
       return 1
   fi
 }
@@ -77,6 +77,24 @@ echo "Script directory: $karere"
 echo "WebRTC revision: '$revision'"
 echo "WebRTC build type: $buildtype"
 echo "WebRTC directory: $webrtcdir"
+
+if [[ "$platform" == "win" ]]; then
+    if [[ `uname -o` != "Cygwin" ]]; then
+	    echo "On Windows, you must run this script under Cygwin"
+		exit 1
+	fi
+#setup cygwin
+#by default, symlinks created by cygwin are only undestoob by cygwin, and we need native tools to also
+#understand them, so set symlink mode to native.NOTE: This requires that you run the cygwin shell with
+#Admin privileges
+    (id -G | grep -qE '\<(544|0)\>') || (echo "You need to run the Cygwin shell as Administrator to be able to create native symlinks" && exit 1)
+
+    if [[ -z "$CYGWIN" ]]; then
+        export CYGWIN="winsymlinks:nativerestrict"
+    else
+	    export CYGWIN="$CYGWIN winsymlinks:nativerestrict"
+    fi
+fi
 
 if [[ -z $batch ]]; then
     read -n1 -r -p "Press enter to continue if these paths are ok, or ctrl+c to abort..." key
@@ -148,7 +166,12 @@ $karere/get-chromium-deps.sh "$platform" "$chromiumRev"
 
 echo "Replacing boringssl..."
 mkdir -p ./chromium/src/third_party/boringssl
-cp -v $karere/boringssl.gyp ./chromium/src/third_party/boringssl/
+if [[ "$platform" == "win" ]]; then
+  boringSslFile=win/boringssl-win.gyp
+else
+  boringSslFile=boringssl.gyp
+fi
+cp -v $karere/$boringSslFile ./chromium/src/third_party/boringssl/boringssl.gyp
 
 echo "==========================================================="
 
@@ -205,7 +228,10 @@ elif [[ "$platform" == "ios" ]]; then
     echo "Setting GYP_DEFINES for iOS..."
     export GYP_DEFINES="$GYP_DEFINES OS=ios target_arch=arm arm_version=7 libjingle_objc=1 use_system_libcxx=1 ios_deployment_target=7.0"
     export GYP_CROSSCOMPILE=1
-
+elif [[ "$platform" == "win" ]]; then
+    export GYP_MSVS_VERSION=2015
+    export DEPOT_TOOLS_WIN_TOOLCHAIN=0
+    export GYP_LINK_CONCURRENCY=1
 else
     echo "Platform '$platform' not supported by this script yet"
     exit 1

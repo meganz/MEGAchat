@@ -110,5 +110,16 @@ d third_party/netty-tcnative/src
 d third_party/netty4/src
 d third_party/robolectric/lib
 d third_party/ub-uiautomator/lib
-d third_party/leakcanary/src
 
+#windows
+d chrome/tools/test/reference_build/chrome_win
+d third_party/cygwin
+d third_party/psyco_win32
+d third_party/bison
+d third_party/gperf
+d third_party/perl
+d third_party/pefile
+d third_party/gnu_binutils
+d third_party/mingw-w64/mingw/bin
+d third_party/nacl_sdk_binaries
+h win_toolchain
