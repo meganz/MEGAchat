@@ -2,14 +2,16 @@
 #define CSERVICESTHREAD_H
 
 #ifdef _WIN32
-typedef DWORD t_svc_thread_id;
+#include <process.h>
+
+typedef unsigned t_svc_thread_id;
 typedef HANDLE t_svc_thread_handle;
-typedef unsigned __stdcall (*t_services_thread_func)(PVOID args);
+typedef unsigned (__stdcall *t_svc_thread_func)(PVOID args);
 static inline int svc_thread_start(void* args, t_svc_thread_handle* thread,
                                    t_svc_thread_id* id, t_svc_thread_func func)
 {
-    *handle = _beginthreadex(NULL, 0, func, args, 0, id);
-    return (*handle != 0);
+    *thread = (HANDLE)_beginthreadex(NULL, 0, func, args, 0, id);
+    return (*thread != 0);
 }
 #define SVC_THREAD_FUNCDECL(func) unsigned __stdcall func(PVOID args)
 typedef unsigned t_svc_thread_funcret;
@@ -17,7 +19,7 @@ static inline void svc_thread_join(t_svc_thread_handle thread)
 {
     WaitForSingleObject(thread, INFINITE);
 }
-static inline svc_threads_ids_equal(t_svc_thread_id lhs, t_svc_thread_id rhs)
+static inline int svc_threads_ids_equal(t_svc_thread_id lhs, t_svc_thread_id rhs)
 {
     return (lhs == rhs);
 }

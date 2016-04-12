@@ -89,5 +89,5 @@ fi
 echo "==========================================================================="
 echo "Selectively downloading repos of Chromium deps"
 echo "via gclient sync --force on the stripped DEPS file..."
-gclient sync --force --no-history
+#gclient sync --force --no-history
 echo "Done"

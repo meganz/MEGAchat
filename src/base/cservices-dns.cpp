@@ -4,10 +4,11 @@
 #include <event2/util.h>
 #include <event2/event.h>
 #include <memory.h>
-#include <sys/socket.h>
 #include <assert.h>
 #include <type_traits>
-
+#ifndef _WIN32
+    #include <sys/socket.h>
+#endif
 using namespace std;
 static_assert(std::is_same<evutil_addrinfo, addrinfo>::value, "evutil_addrinfo is not the same as the system's addrinfo struct");
 

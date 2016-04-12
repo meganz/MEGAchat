@@ -2,13 +2,6 @@
 #define GUICALLMARSHALLER_H
 
 /* This is a plain C header */
-#ifdef __cplusplus
-    #define MEGA_GCM_C_FUNC extern "C"
-    #define MEGA_GCM_EXTERNC_VAR extern "C"
-#else
-    #define MEGA_GCM_C_FUNC
-    #define MEGA_GCM_EXTERNC_VAR extern
-#endif
 
 #ifdef _WIN32
     #define MEGA_GCM_DLLEXPORT __declspec(dllexport)
@@ -80,7 +73,7 @@ typedef void (*GcmPostFunc)(void*);
 * call on the main (GUI) thread.
 */
 
-MEGA_GCM_EXTERNC_VAR MEGA_GCM_IMPEXP GcmPostFunc megaPostMessageToGui;
+MEGA_GCM_IMPEXP GcmPostFunc megaPostMessageToGui;
 
 /** When the application's main (GUI) thread receives a message posted by
  * megaPostMessageToGui(), the user's code must forward the \c void* pointer

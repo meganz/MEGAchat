@@ -3,7 +3,7 @@
 #endif
 
 #include <stdarg.h>
-#include <strings.h>
+#include <string.h>
 #define KRLOGGER_BUILDING //sets DLLIMPEXPs in logger.h to 'export' mode
 #include "logger.h"
 #include "loggerFile.h"
@@ -14,6 +14,9 @@
 #if !defined(va_copy) && defined(_MSC_VER)
 	#define va_copy(d,s) ((d) = (s))
 #endif
+
+#define strcasecmp(...) stricmp(__VA_ARGS__)
+
 ///windows doesn't have the _r function, but the non _r one is thread safe.
 ///we map the _r to non _r. NOTE: The caller must use the returned pointer,
 ///not directly the passed-in struct tm, since it is a dummy here and is not
@@ -41,7 +44,7 @@ namespace karere
 */
 static size_t myStrncpy(char* dest, const char* src, size_t maxCount);
 
-KRLOGGER_DLLEXPORT void Logger::logToConsole(bool enable)
+void Logger::logToConsole(bool enable)
 {
     if (enable)
     {
@@ -57,7 +60,7 @@ KRLOGGER_DLLEXPORT void Logger::logToConsole(bool enable)
     }
 }
 
-KRLOGGER_DLLEXPORT void Logger::logToFile(const char* fileName, size_t rotateSizeKb)
+void Logger::logToFile(const char* fileName, size_t rotateSizeKb)
 {
     if (!fileName) //disable
     {
@@ -68,7 +71,7 @@ KRLOGGER_DLLEXPORT void Logger::logToFile(const char* fileName, size_t rotateSiz
     mFileLogger.reset(new FileLogger(mFlags, fileName, rotateSizeKb*1024));
 }
 
-KRLOGGER_DLLEXPORT void Logger::setAutoFlush(bool enable)
+void Logger::setAutoFlush(bool enable)
 {
     if (enable)
         mFlags &= ~krLogNoAutoFlush;
@@ -76,7 +79,7 @@ KRLOGGER_DLLEXPORT void Logger::setAutoFlush(bool enable)
         mFlags |= krLogNoAutoFlush;
 }
 
-KRLOGGER_DLLEXPORT Logger::Logger(unsigned aFlags, const char* timeFmt)
+Logger::Logger(unsigned aFlags, const char* timeFmt)
     :mTimeFmt(timeFmt), mFlags(aFlags)
 {
     setup();
@@ -115,8 +118,8 @@ inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix,
     return bytesLogged;
 }
 
-KRLOGGER_DLLEXPORT void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const char* fmtString,
-                 va_list aVaList)
+void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const char* fmtString,
+    va_list aVaList)
 {
     flags |= (mFlags & krGlobalFlagMask);
     char statBuf[LOGGER_SPRINTF_BUF_SIZE];
@@ -166,7 +169,7 @@ KRLOGGER_DLLEXPORT void Logger::logv(const char* prefix, krLogLevel level, unsig
  *  of an assembled single string. We still need the log level here, because if the
  *  console color selection.
  */
-KRLOGGER_DLLEXPORT void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t len)
+void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t len)
 {
     if (len == (size_t)-1)
         len = strlen(msg);
@@ -187,7 +190,7 @@ KRLOGGER_DLLEXPORT void Logger::logString(krLogLevel level, const char* msg, uns
     }
 }
 
-KRLOGGER_DLLEXPORT void Logger::log(const char* prefix, krLogLevel level, unsigned flags,
+ void Logger::log(const char* prefix, krLogLevel level, unsigned flags,
                 const char* fmtString, ...)
 {
     va_list vaList;
@@ -210,12 +213,12 @@ Logger::~Logger()
         log("LOGGER", 0, 0, "========== Application terminate ===========\n");
 }
 
-KRLOGGER_DLLEXPORT void Logger::addUserLogger(const char* tag, ILoggerBackend* logger)
+ void Logger::addUserLogger(const char* tag, ILoggerBackend* logger)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     mUserLoggers[tag].reset(logger);
 }
-KRLOGGER_DLLEXPORT bool Logger::removeUserLogger(const char* tag)
+ bool Logger::removeUserLogger(const char* tag)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     auto item = mUserLoggers.find(tag);
@@ -320,7 +323,7 @@ extern "C"
 KRLOGGER_DLLEXPORT KarereLogChannel* krLoggerChannels = karere::gLogger.logChannels;
 KRLOGGER_DLLEXPORT krLogLevel krLogLevelStrToNum(const char* strLevel)
 {
-    for (size_t n = 0; n<=krLogLevelLast; n++)
+    for (krLogLevel n = 0; n<=krLogLevelLast; n++)
     {
         auto& name = krLogLevelNames[n];
         if ((strcasecmp(strLevel, name[1]) == 0)

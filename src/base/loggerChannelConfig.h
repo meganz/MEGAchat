@@ -30,8 +30,9 @@ rotate_size - the maximum size of the log file, in kbytes, after which the log f
 */
 #ifdef __APPLE__
     #define KR_WEAKSYM(func) func __attribute__ ((weak_import))
-#elif defined __MSC_VER
-    #error Weak import not yet implemented for WIN32
+#elif defined _MSC_VER
+    #define KR_WEAKSYM(func) func
+//    #define KR_WEAKSYM(func) __declspec(selectany) func
 #else
     #define KR_WEAKSYM(func) func __attribute__ ((weak))
 #endif

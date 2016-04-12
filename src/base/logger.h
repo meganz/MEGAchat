@@ -2,6 +2,21 @@
 #define MEGA_LOGGER_H_INCLUDED
 #include <stdlib.h> //needed for abort()
 
+#ifdef _WIN32
+#pragma warning(disable: 4251) //Logger class exports STL classes that don't have DLL interface
+    #define KRLOGGER_DLLEXPORT __declspec(dllexport)
+    #define KRLOGGER_DLLIMPORT __declspec(dllimport)
+#else
+    #define KRLOGGER_DLLEXPORT __attribute__ ((visibility("default")))
+    #define KRLOGGER_DLLIMPORT
+#endif
+
+#ifdef KRLOGGER_BUILDING
+    #define KRLOGGER_DLLIMPEXP KRLOGGER_DLLEXPORT
+#else
+    #define KRLOGGER_DLLIMPEXP KRLOGGER_DLLIMPORT
+#endif
+
 typedef unsigned short krLogLevel;
 enum
 {
@@ -52,7 +67,7 @@ namespace karere
 class FileLogger;
 class ConsoleLogger;
 
-class Logger
+class KRLOGGER_DLLIMPEXP Logger
 {
 public:
     class ILoggerBackend;
@@ -115,7 +130,7 @@ public:
 
 };
 
-extern Logger gLogger;
+extern KRLOGGER_DLLIMPEXP Logger gLogger;
 }
 
 #endif //C++
@@ -153,19 +168,6 @@ extern Logger gLogger;
 #include <loggerChannelConfig.h>
 
 //The code below is plain C
-#ifdef _WIN32
-    #define KRLOGGER_DLLEXPORT declspec(__dllexport)
-    #define KRLOGGER_DLLIMPORT declspec(__dllimport)
-#else
-    #define KRLOGGER_DLLEXPORT __attribute__ ((visibility("default")))
-    #define KRLOGGER_DLLIMPORT
-#endif
-
-#ifdef KRLOGGER_BUILDING
-    #define KRLOGGER_DLLIMPEXP KRLOGGER_DLLEXPORT
-#else
-    #define KRLOGGER_DLLIMPEXP KRLOGGER_DLLIMPORT
-#endif
 
 extern "C" KRLOGGER_DLLIMPEXP KarereLogChannel* krLoggerChannels;
 extern "C" KRLOGGER_DLLIMPEXP void krLoggerLog(krLogChannelNo channel, krLogLevel level,

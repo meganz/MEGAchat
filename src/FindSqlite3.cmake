@@ -37,23 +37,7 @@ IF (APPLE)
   ENDIF ()
 ENDIF (APPLE)
 
-FIND_PATH(SQLITE3_INCLUDE_DIR sqlite3.h
-  "$ENV{LIB_DIR}/include"
-  "$ENV{LIB_DIR}/include/sqlite"
-  #mingw
-  c:/msys/local/include
-  NO_DEFAULT_PATH
-  )
 FIND_PATH(SQLITE3_INCLUDE_DIR sqlite3.h)
-
-FIND_LIBRARY(SQLITE3_LIBRARY NAMES sqlite3 sqlite3_i PATHS
-  $ENV{LIB} 
-  /usr/lib 
-  "$ENV{LIB_DIR}/lib"
-  #mingw
-  c:/msys/local/lib
-  NO_DEFAULT_PATH
-  )
 FIND_LIBRARY(SQLITE3_LIBRARY NAMES sqlite3)
 
 IF (SQLITE3_INCLUDE_DIR AND SQLITE3_LIBRARY)

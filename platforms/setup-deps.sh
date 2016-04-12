@@ -69,7 +69,7 @@ function downloadAndUnpack
     if [[ "$file" =~ \.tar\.[^\.]+$ ]]; then
         local base=${file%.*.*}
 		local cmd="tar -xf"
-		local type="zip"
+		local type="tar"
     elif [[ "$file" =~ \.zip$ ]]; then
         local base=${file%%.*}
 	    local cmd="unzip"
@@ -224,13 +224,10 @@ function buildInstall_openssl
 function buildInstall_curl
 {
   sed -i.bak -e"s|#endif /\* HEADER_CURL_CONFIG_WIN32_H \*/|#define HTTP_ONLY 1\n#endif|" lib/config-win32.h
-  cp -r "$owndir/win/curl-vs2015" .
-  msbuild.exe curl-vs2015/libcurl.vcxproj /t:Rebuild "/p:Configuration=Release;buildroot=$wbroot"
-  msbuild.exe curl-vs2015/curl.vcxproj /t:Rebuild "/p:Configuration=Release;buildroot=$wbroot"
-  cp -rv ./include/curl "$buildroot/usr/include"
-  cp -v ./curl-vs2015/build/Release-Win32/libcurl.* "$buildroot/usr/lib"
-  cp -v ./curl-vs2015/build/Release-Win32/curl.* "$buildroot/usr/bin"
+  cp -r "$owndir/win/curl_CMakeLists.txt" ./CMakeLists.txt
+  callBuildInstall curl standard $1
 }
+
 function buildInstall_megasdk
 {
   cp -r "$owndir/win/megasdk-vs2015" .

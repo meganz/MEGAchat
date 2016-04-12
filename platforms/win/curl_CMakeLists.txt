@@ -1,0 +1,164 @@
+cmake_minimum_required(VERSION 2.8)
+project(libcurl)
+
+option(optBuildShared "Buld libcurl as a shared library" 1)
+
+set(SRCS
+lib/asyn-thread.c
+lib/base64.c
+lib/conncache.c
+lib/connect.c
+lib/content_encoding.c
+lib/cookie.c
+lib/curl_addrinfo.c
+lib/curl_des.c
+lib/curl_endian.c
+lib/curl_fnmatch.c
+lib/curl_gethostname.c
+lib/curl_memrchr.c
+lib/curl_multibyte.c
+lib/curl_ntlm.c
+lib/curl_ntlm_core.c
+lib/curl_ntlm_msgs.c
+lib/curl_ntlm_wb.c
+lib/curl_sasl.c
+lib/curl_threads.c
+lib/dict.c
+lib/dotdot.c
+lib/easy.c
+lib/escape.c
+lib/fileinfo.c
+lib/formdata.c
+lib/getenv.c
+lib/getinfo.c
+lib/hash.c
+lib/hmac.c
+lib/hostasyn.c
+lib/hostcheck.c
+lib/hostip4.c
+lib/hostip6.c
+lib/hostip.c
+lib/hostsyn.c
+lib/http2.c
+lib/http.c
+lib/http_chunks.c
+lib/http_digest.c
+lib/http_negotiate.c
+lib/http_negotiate_sspi.c
+lib/http_proxy.c
+lib/idn_win32.c
+lib/if2ip.c
+lib/inet_ntop.c
+lib/inet_pton.c
+lib/llist.c
+lib/md4.c
+lib/md5.c
+lib/memdebug.c
+lib/mprintf.c
+lib/multi.c
+lib/netrc.c
+lib/non-ascii.c
+lib/nonblock.c
+lib/parsedate.c
+lib/pipeline.c
+lib/progress.c
+lib/rawstr.c
+lib/select.c
+lib/sendf.c
+lib/share.c
+lib/slist.c
+lib/socks.c
+lib/speedcheck.c
+lib/splay.c
+lib/strdup.c
+lib/strequal.c
+lib/strerror.c
+lib/strtok.c
+lib/strtoofft.c
+lib/timeval.c
+lib/transfer.c
+lib/url.c
+lib/version.c
+lib/vtls/vtls.c
+lib/warnless.c
+lib/wildcard.c
+lib/vtls/openssl.c
+)
+find_package(OpenSSL REQUIRED)
+include_directories(include lib ${OPENSSL_INCLUDE_DIR})
+if (optBuildShared)
+	add_library(libcurl SHARED ${SRCS})
+else()
+    add_definitions(-DCURL_STATICLIB)
+    add_library(libcurl ${SRCS})
+endif()
+target_compile_definitions(libcurl PRIVATE -DBUILDING_LIBCURL -DUSE_OPENSSL)
+if (WIN32)
+    set(SYSLIBS ws2_32.lib)
+endif()
+
+target_link_libraries(libcurl ${OPENSSL_LIBRARIES} ${SYSLIBS})
+
+file(GLOB PUBHEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/curl/*.h")
+set_target_properties(libcurl PROPERTIES PUBLIC_HEADER "${PUBHEADERS}")
+
+set(SRCS_EXE
+lib/nonblock.c
+lib/rawstr.c
+lib/strtoofft.c
+lib/warnless.c
+src/slist_wc.c
+src/tool_binmode.c
+src/tool_bname.c
+src/tool_cb_dbg.c
+src/tool_cb_hdr.c
+src/tool_cb_prg.c
+src/tool_cb_rea.c
+src/tool_cb_see.c
+src/tool_cb_wrt.c
+src/tool_cfgable.c
+src/tool_convert.c
+src/tool_dirhie.c
+src/tool_doswin.c
+src/tool_easysrc.c
+src/tool_formparse.c
+src/tool_getparam.c
+src/tool_getpass.c
+src/tool_help.c
+src/tool_helpers.c
+src/tool_homedir.c
+src/tool_hugehelp.c
+src/tool_libinfo.c
+src/tool_main.c
+src/tool_metalink.c
+src/tool_mfiles.c
+src/tool_msgs.c
+src/tool_operate.c
+src/tool_operhlp.c
+src/tool_panykey.c
+src/tool_paramhlp.c
+src/tool_parsecfg.c
+src/tool_setopt.c
+src/tool_sleep.c
+src/tool_strdup.c
+src/tool_urlglob.c
+src/tool_util.c
+src/tool_vms.c
+src/tool_writeenv.c
+src/tool_writeout.c
+src/tool_xattr.c
+)
+
+add_executable(curl ${SRCS_EXE})
+target_compile_definitions(curl PRIVATE _CONSOLE)
+target_link_libraries(curl libcurl)
+
+install(TARGETS libcurl 
+    RUNTIME DESTINATION lib
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    PUBLIC_HEADER DESTINATION include/curl
+)
+install(TARGETS curl
+    RUNTIME DESTINATION bin
+)

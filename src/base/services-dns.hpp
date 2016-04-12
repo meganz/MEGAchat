@@ -12,7 +12,7 @@ namespace mega
 enum {ERRTYPE_DNS = 0x3e9ad115}; //should resemble 'megadns'
 
 class DnsCache;
-extern DnsCache gDnsCache;
+extern MEGAIO_IMPEXP DnsCache gDnsCache;
 
 template <class CB>
 struct DnsReqMsg: public megaMessage
@@ -59,7 +59,7 @@ struct DnsCacheKey
 class DnsCacheItem: public AddrInfo
 {
 public:
-    int32_t ts;
+    time_t ts;
     DnsCacheItem(const AddrInfo& addrs): AddrInfo(addrs), ts(time(NULL)){}
     DnsCacheItem(const std::shared_ptr<Ipv4List>& ip4):ts(time(NULL)){ mIpv4Addrs = ip4; }
     DnsCacheItem(const std::shared_ptr<Ipv6List>& ip6):ts(time(NULL)){ mIpv6Addrs = ip6; }
@@ -138,7 +138,7 @@ static inline void dnsLookup(const char* name, unsigned flags, CB&& cb, const ch
     if (!name)
         throw std::runtime_error("dnsLookup: NULL name provided");
 
-    auto cached = gDnsCache.lookup(name, flags & SVCF_DNS_IPV6);
+    auto cached = gDnsCache.lookup(name, (flags & SVCF_DNS_IPV6)!=0); //compare to 0 because MSVC complains: forcing unsigned int to bool perf warning
     if (cached)
     {
         SVC_LOG_DEBUG("DNS cache hit for domain %s", name);

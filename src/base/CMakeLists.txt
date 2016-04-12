@@ -40,7 +40,11 @@ if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}"
     endif()
 endif()
 
-set(SYSLIBS z)
+if (WIN32)
+#    set(SYSLIBS zlib)
+else()
+    set(SYSLIBS z)
+endif()
 
 if (CLANG_STDLIB)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
@@ -55,11 +59,15 @@ endif()
 
 if (APPLE)
     set(GET_APPDATA_DIR_WEAKLINK_FLAGS "-Wl,-U,__ZN6karere9getAppDirEv" CACHE "" INTERNAL FORCE)
-elseif(NOT WIN)
+elseif(NOT WIN32)
     set(GET_APPDATA_DIR_WEAKLINK_FLAGS "-Wl,-u,__ZN6karere9getAppDirEv" CACHE "" INTERNAL FORCE)
 else()
     set(GET_APPDATA_DIR_WEAKLINK_FLAGS CACHE "" INTERNAL FORCE)
     message(WARNING "Don't know how to export a weak symbol on this platform, getAppDataDir() may fail to be exported by app executable if linking dynamically")
+endif()
+
+if (WIN32)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS /wd4800 /wd4996)
 endif()
 
 if (optServicesBuildShared)
