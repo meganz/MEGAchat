@@ -1,7 +1,7 @@
-diff --git a/build/common.gypi b/build/common.gypi
+diff --git a/chromium/src/build/common.gypi b/chromium/src/build/common.gypi
 index 4bc35cc..204473b 100644
---- a/build/common.gypi
-+++ b/build/common.gypi
+--- a/chromium/src/build/common.gypi
++++ b/chromium/src/build/common.gypi
 @@ -1946,7 +1946,7 @@
                'mac_deployment_target%': '10.6',
              }],
