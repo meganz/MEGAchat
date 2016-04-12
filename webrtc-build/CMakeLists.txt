@@ -20,11 +20,11 @@ set(webrtcBuild "${webrtcRoot}/out/${WEBRTC_BUILD_TYPE}/obj")
 
 set(optWebrtcShared 0 CACHE BOOL "Build webrtc as shared lib")
 
-file(GLOB_RECURSE WEBRTC_LIBS "${webrtcBuild}/../*.a")
+file(GLOB_RECURSE WEBRTC_LIBS "${webrtcBuild}/../*${CMAKE_STATIC_LIBRARY_SUFFIX}")
 if (NOT APPLE)
-    list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../obj/webrtc/modules/libvideo_capture.a") # The external capture interface
+    list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../obj/webrtc/modules/libvideo_capture${CMAKE_STATIC_LIBRARY_SUFFIX}") # The external capture interface
 else()
-    list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../libvideo_capture.a") # The external capture interface
+    list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../libvideo_capture${CMAKE_STATIC_LIBRARY_SUFFIX}") # The external capture interface
 endif()
 
 set(WEBRTC_DEFS -DV8_DEPRECATION_WARNINGS -DUSE_LIBJPEG_TURBO=1 -DCHROMIUM_BUILD
@@ -88,9 +88,7 @@ set(WEBRTC_DEFS_MACOS
 
 set(WEBRTC_DEFS_ANDROID #arm
     -D_FILE_OFFSET_BITS=64 -DNO_TCMALLOC
-    -DDISABLE_NACL -DCHROMIUM_BUILD -DUSE_LIBJPEG_TURBO=1 -DENABLE_WEBRTC=1
-    -DUSE_PROPRIETARY_CODECS -DENABLE_BROWSER_CDMS
-    -DENABLE_CONFIGURATION_POLICY
+    -DDISABLE_NACL -DUSE_PROPRIETARY_CODECS -DENABLE_BROWSER_CDMS
     -DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY
     -DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE -DENABLE_EGLIMAGE=1
     -DENABLE_AUTOFILL_DIALOG=1 -DCLD_VERSION=1 -DENABLE_PRINTING=1
@@ -114,6 +112,24 @@ set(WEBRTC_DEFS_IOS
     -D__STDC_FORMAT_MACROS -DNDEBUG -DNVALGRIND
     -DDYNAMIC_ANNOTATIONS_ENABLED=0 -DNS_BLOCK_ASSERTIONS=1
     -D_FORTIFY_SOURCE=2
+)
+set(WEBRTC_DEFS_WIN
+    -DCLD_VERSION=2 -D_WIN32_WINNT=0x0A00 -DWINVER=0x0A00 -DWIN32 -D_WINDOWS
+	-DNOMINMAX -DPSAPI_VERSION=1
+    -D_CRT_RAND_S -DCERT_CHAIN_PARA_HAS_EXTRA_FIELDS -DWIN32_LEAN_AND_MEAN
+    -D_ATL_NO_OPENGL -D_SECURE_ATL -D_HAS_EXCEPTIONS=0
+    -D_WINSOCK_DEPRECATED_NO_WARNINGS -DCR_CLANG_REVISION=259396-1 -DUSE_AURA=1
+	-DUSE_DEFAULT_RENDER_THEME=1
+    -DENABLE_MEDIA_ROUTER=1 -DENABLE_HIDPI=1
+    -DENABLE_TOPCHROME_MD=1 -DFIELDTRIAL_TESTING_ENABLED -DNO_TCMALLOC 
+    -D__STD_C -D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_DEPRECATE 
+    -DNTDDI_VERSION=0x0A000000 -D_USING_V110_SDK71_
+    -DENABLE_THEMES=1 $
+    -DENABLE_BACKGROUND=1 -DENABLE_APP_LIST=1 
+    -DENABLE_MDNS=1 -DENABLE_SERVICE_DISCOVERY=1 $
+    -DV8_USE_EXTERNAL_STARTUP_DATA -DWEBRTC_WIN -DUSE_LIBPCI=1 -DUSE_OPENSSL=1 
+    -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DNDEBUG $
+    -DNVALGRIND -DDYNAMIC_ANNOTATIONS_ENABLED=0 -D_UNICODE -DUNICODE
 )
 
 set(WEBRTC_INCLUDES
@@ -205,6 +221,15 @@ set(WEBRTC_CXXFLAGS_MACOS
 set(WEBRTC_CFLAGS_IOS ${WEBRTC_CFLAGS_MACOS})
 set(WEBRTC_CXXFLAGS_IOS ${WEBRTC_CXXFLAGS_MACOS})
 
+set(WEBRTC_CFLAGS_WIN
+    /wd4091 /wd4127 /wd4351 /wd4355 /wd4503 /wd4589 /wd4611 /wd4100 
+    /wd4121 /wd4244 /wd4505 /wd4510 /wd4512 /wd4610 /wd4838 /wd4995 /wd4996 
+    /wd4456 /wd4457 /wd4458 /wd4459 /wd4312 /wd4702 /wd4800 /O2 /Ob2 /GF 
+    /Oy- /fp:precise /W3 /WX /Zi /GR- /Gy /GS /MT /bigobj /Zc:sizedDealloc- 
+    /d2Zi+ /Zc:inline /Oy- /Gw /FS
+)
+set(WEBRTC_CXXFLAGS_WIN ${WEBRTC_CFLAGS_WIN} /TP)
+
 #Clear cache entry because it will get duplicated otherwise
 set(WEBRTC_LDFLAGS "")
 
@@ -226,6 +251,15 @@ set(WEBRTC_LDFLAGS_MACOS
     -Wl,-dead_strip
 )
 set(WEBRTC_LDFLAGS_IOS ${WEBRTC_LDFLAGS_IOS})
+set(WEBRTC_LDFLAGS_WIN
+    /MACHINE:X86 "/LIBPATH:\"C:/Program Files (x86)/Windows Kits/10/Lib/10.10240.0/ucrt/x86\""
+	/DELAYLOAD:dbghelp.dll
+    /DELAYLOAD:dwmapi.dll /DELAYLOAD:shell32.dll /DELAYLOAD:uxtheme.dll 
+    /maxilksize:0x7ff00000 /safeseh
+    /dynamicbase /ignore:4199 /ignore:4221 /nxcompat /largeaddressaware
+    /SUBSYSTEM:WINDOWS,5.01 /INCREMENTAL:NO /FIXED:NO /OPT:REF /OPT:ICF 
+    /PROFILE
+)
 
 set(WEBRTC_SYSLIBS "")
 set(WEBRTC_SYSLIBS_ANDROID log GLESv2 OpenSLES m dl)
@@ -241,6 +275,14 @@ set(WEBRTC_SYSLIBS_MACOS
     "-framework CoreMedia" "-framework OpenGL" "-framework QTKit"
 )
 set(WEBRTC_SYSLIBS_IOS ${WEBRTC_SYSLIBS_MACOS})
+set(WEBRTC_SYSLIBS_WIN ssleay32.lib libeay32.lib zlib.lib wininet.lib
+    dnsapi.lib version.lib msimg32.lib ws2_32.lib 
+    usp10.lib psapi.lib dbghelp.lib winmm.lib shlwapi.lib kernel32.lib 
+    gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib 
+    oleaut32.lib user32.lib uuid.lib odbc32.lib odbccp32.lib delayimp.lib 
+    credui.lib netapi32.lib dmoguids.lib wmcodecdspuuid.lib amstrmid.lib
+    msdmo.lib crypt32.lib iphlpapi.lib secur32.lib Strmiids.lib
+)
 
 macro(appendPlatformStuff pname)
     list(APPEND WEBRTC_DEFS ${WEBRTC_DEFS_${pname}})
@@ -283,6 +325,9 @@ elseif(UNIX) #linux really
     set(platform "x86 Linux")
     appendArchStuff(X86)
     appendPlatformStuff(LINUX)
+elseif(WIN32)
+    set(platform "x86 Windows")
+	appendPlatformStuff(WIN)
 else()
     message(FATAL_ERROR "Unknown platform")
 endif()
