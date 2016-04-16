@@ -393,7 +393,7 @@ static inline void _emptyCancelFunc(){}
    See the constructor of RetryController for more details
  */
 template <class Func, class CancelFunc=decltype(&rh::_emptyCancelFunc)>
-static inline auto retry(Func&& func, CancelFunc&& cancelFunc = rh::_emptyCancelFunc,
+static inline auto retry(Func&& func, CancelFunc&& cancelFunc = &rh::_emptyCancelFunc,
     unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,

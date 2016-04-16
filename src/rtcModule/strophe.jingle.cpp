@@ -675,7 +675,7 @@ AvFlags peerMediaToObj(const char* strPeerMedia)
     return ret;
 }
 
-RTCM_EXPORT IEventHandler* ICall::changeEventHandler(IEventHandler *handler)
+RTCM_API IEventHandler* ICall::changeEventHandler(IEventHandler *handler)
 {
     auto save = mHandler;
     mHandler = handler;
@@ -723,7 +723,7 @@ static std::map<std::string, TermCode> sReasonNames =
   {"nomedia", Call::kNoMediaError}, {"xmpp-disconnect", Call::kXmppDisconnError}
 };
 
-RTCM_EXPORT TermCode ICall::strToTermcode(std::string event)
+RTCM_API TermCode ICall::strToTermcode(std::string event)
 {
     TermCode isPeer;
     if ((event.size() > 5) && (event.compare(0, 5, "peer-") == 0))
@@ -744,7 +744,7 @@ RTCM_EXPORT TermCode ICall::strToTermcode(std::string event)
     return it->second | isPeer;
 }
 
-RTCM_EXPORT std::string ICall::termcodeToReason(TermCode event)
+RTCM_API std::string ICall::termcodeToReason(TermCode event)
 {
     std::string result;
     if (event & kPeer)
@@ -758,7 +758,7 @@ RTCM_EXPORT std::string ICall::termcodeToReason(TermCode event)
         return result.append(sTermcodeReasons[event]);
 }
 
-RTCM_EXPORT const char* ICall::termcodeToMsg(TermCode event)
+RTCM_API const char* ICall::termcodeToMsg(TermCode event)
 {
     event &= ~kPeer;
     if (event > kTermLast)

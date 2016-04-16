@@ -829,7 +829,7 @@ std::string Call::id() const
 
 bool gInitialized = false;
 
-RTCM_EXPORT IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
+RTCM_API IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
                   ICryptoFunctions* crypto, const char* iceServers)
 {
     if (!gInitialized)
@@ -840,7 +840,7 @@ RTCM_EXPORT IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
     return new RtcModule(conn, handler, crypto, iceServers);
 }
 
-RTCM_EXPORT void globalCleanup()
+RTCM_API void globalCleanup()
 {
     if (!gInitialized)
         return;

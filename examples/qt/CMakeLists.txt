@@ -23,7 +23,7 @@ set (SRCS
 )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    add_definitions(-D_DEBUG -fvisibility=hidden -Wall -Wno-unused-local-typedef -DHAVE_KARERE_LOGGER)
+    add_definitions(-D_DEBUG -fvisibility=hidden -Wall -Wno-unused-local-typedef)
     if (optAsanMode AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")) # defined by Karere
         add_definitions(-fsanitize=${optAsanMode} -fno-omit-frame-pointer) #enable ASAN
         set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=${optAsanMode}")
@@ -33,7 +33,7 @@ endif()
 
 add_subdirectory(../../src karere)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${KARERE_INCLUDE_DIRS})
-
+add_definitions(-DHAVE_KARERE_LOGGER ${LIBMEGA_DEFINES})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(SYSLIBS)
 if (CLANG_STDLIB)

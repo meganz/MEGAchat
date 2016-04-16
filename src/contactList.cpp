@@ -37,13 +37,13 @@ void XmppContactList::notifyOffline()
 
 Presence XmppContact::calculatePresence()
 {
-    Presence max(Presence::kOffline);
+    Presence maxp(Presence::kOffline);
     for (auto& res: mResources)
     {
-        if (res.second > max)
-            max = res.second;
+        if (res.second > maxp)
+            maxp = res.second;
     }
-    return max;
+    return maxp;
 }
 
 void XmppContactList::receivePresences()

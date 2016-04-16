@@ -61,23 +61,22 @@ inline megaHandle setTimer(CB&& callback, unsigned time)
           }), cb(aCb)
         {}
     };
-
-    Msg* pMsg = new Msg(std::forward<CB>(callback),
-        persist
-        ? [](void* arg)
+    megaMessageFunc cfunc = persist
+        ? (megaMessageFunc) [](void* arg)
           {
               auto msg = static_cast<Msg*>(arg);
               if (msg->canceled)
                   return;
               msg->cb();
           }
-        : [](void* arg)
+        : (megaMessageFunc) [](void* arg)
           {
               if (static_cast<Msg*>(arg)->canceled)
                   return;
               std::unique_ptr<Msg> msg(static_cast<Msg*>(arg));
               msg->cb();
-          });
+          };
+    Msg* pMsg = new Msg(std::forward<CB>(callback), cfunc);
     pMsg->timerEvent = event_new(services_get_event_loop(), -1, persist,
       [](evutil_socket_t fd, short what, void* evarg)
       {

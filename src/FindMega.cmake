@@ -24,6 +24,13 @@ if (NOT WIN32)
     #c-ares is the only megasdk dependency that we don't already include,
     #so add it to the megasdk libs
     list(APPEND _LIBMEGA_LIBRARIES ${CARES_LIB})
+    set(platdir posix)
+else()
+    if (WINPHONE)
+        set(platdir wp8)
+    else()
+        set(platdir wincurl)
+    endif()
 endif()
 
 if (APPLE)
@@ -34,17 +41,14 @@ if (APPLE)
     endif()
 endif()
 
-#add mega platform includes
-find_path(
-    LIBMEGA_PLATFORM_INCLUDES
-    NAMES megawaiter.h meganet.h
-    PATHS "${LIBMEGA_PUBLIC_INCLUDE_DIR}/mega"
-    PATH_SUFFIXES wp8 win32 posix
+set(LIBMEGA_INCLUDE_DIRS 
+    "${LIBMEGA_PUBLIC_INCLUDE_DIR}"
+    "${LIBMEGA_PUBLIC_INCLUDE_DIR}/mega/${platdir}"
+    CACHE STRING "" FORCE
 )
 
-set(LIBMEGA_INCLUDE_DIRS "${LIBMEGA_PUBLIC_INCLUDE_DIR}"
-    "${LIBMEGA_PUBLIC_INCLUDE_DIR}/mega" "${LIBMEGA_PLATFORM_INCLUDES}")
-set(LIBMEGA_LIBRARIES "${_LIBMEGA_LIBRARIES}" CACHE STRING "libmega library and dependencies")
+set(LIBMEGA_LIBRARIES "${_LIBMEGA_LIBRARIES}" CACHE STRING "libmega library and dependencies" FORCE)
+set(LIBMEGA_DEFINES "-DHAVE_CONFIG_H" CACHE STRING "libmega definitions needed for public headers" FORCE)
 
 #if (ANDROID) #android does not have glob.h in /usr/include
 #    list(APPEND MEGASDK_INCLUDES ../third_party/glob) #temporary hack until code in the sdk depending on glob.h is removed from android build

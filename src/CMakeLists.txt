@@ -41,6 +41,11 @@ if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" S
     endif()
 endif()
 
+add_definitions(${LIBMEGA_DEFINES} -Devent_EXPORTS)
+#seems _WIN32 is not seen in libevent dns header
+if (WIN32)
+    add_definitions(-D_WIN32 -DWIN32)
+endif()
 add_subdirectory(rtcModule)
 add_subdirectory(${LIBWS_DIR} libws)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp

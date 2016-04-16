@@ -15,8 +15,13 @@ set (SRCS
 
 add_subdirectory(../base base)
 add_subdirectory(../../webrtc-build webrtc)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WEBRTC_CXXFLAGS} -std=c++11")
+
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WEBRTC_CXXFLAGS}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WEBRTC_CFLAGS}")
+if (NOT WIN32 AND NOT WINPHONE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+endif()
 
 include_directories(. .. ../base ../../third-party ${CMAKE_CURRENT_BINARY_DIR}
     ${SERVICES_INCLUDE_DIRS} ${WEBRTC_INCLUDES})
@@ -36,7 +41,7 @@ if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" S
     endif()
 endif()
 
-if (NOT ANDROID AND NOT WIN32)
+if (NOT ANDROID AND NOT WIN32 AND NOT WINPHONE)
     set(SYSLIBS pthread)
 endif()
 

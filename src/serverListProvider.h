@@ -176,8 +176,8 @@ protected:
     std::string mService;
     int64_t mMaxReuseOldServersAge;
     int64_t mLastUpdateTs = 0;
-    std::unique_ptr<mega::http::Client> mClient;
-    std::unique_ptr<mega::rh::IRetryController> mRetryController;
+    std::unique_ptr<::mega::http::Client> mClient;
+    std::unique_ptr<::mega::rh::IRetryController> mRetryController;
     promise::Promise<void> mOutputPromise;
     void parseServersJson(const std::string& json);
     promise::Promise<void> exec(int no);
@@ -247,7 +247,7 @@ GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
     int reqCount, unsigned reqTimeout, int64_t maxReuseOldServersAge)
     :mGelbHost(gelbHost), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
 {
-    mRetryController.reset(mega::createRetryController(
+    mRetryController.reset(::mega::createRetryController(
         [this](int no) { return exec(no); },
         [this]() { giveup(); },
         reqTimeout, reqCount, 1, 1
@@ -256,9 +256,9 @@ GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
 template <class S>
 promise::Promise<void> GelbProvider<S>::exec(int no)
 {
-    mClient.reset(new mega::http::Client);
+    mClient.reset(new ::mega::http::Client);
     return mClient->pget<std::string>(mGelbHost+"/?service="+mService)
-    .then([this](std::shared_ptr<mega::http::Response<std::string> > response)
+    .then([this](std::shared_ptr<::mega::http::Response<std::string> > response)
         -> promise::Promise<void>
     {
         mClient.reset();

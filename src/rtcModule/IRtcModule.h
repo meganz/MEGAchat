@@ -23,9 +23,13 @@
 #include "mstrophepp.h" //only needed for IPlugin
 #include "karereCommon.h" //for AvFlags
 #ifdef _WIN32
-#define RTCM_EXPORT declspec(__dllexport)
+    #ifdef RTCM_BUILDING
+        #define RTCM_API __declspec(dllexport)
+    #else
+        #define RTCM_API __declspec(dllimport)
+    #endif
 #else
-#define RTCM_EXPORT __attribute__((visibility("default")))
+    #define RTCM_API __attribute__((visibility("default")))
 #endif
 
 namespace rtcModule
@@ -121,13 +125,13 @@ enum
     const std::string& peerJid() const { return mPeerJid; }
     const std::string& peerAnonId() const { return mPeerAnonId; }
     virtual const std::string& ownAnonId() const;
-    static const char* termcodeToMsg(TermCode event);
-    static std::string termcodeToReason(TermCode event);
-    static TermCode strToTermcode(std::string event);
+    RTCM_API static const char* termcodeToMsg(TermCode event);
+    RTCM_API static std::string termcodeToReason(TermCode event);
+    RTCM_API static TermCode strToTermcode(std::string event);
     IEventHandler& handler() const { return *mHandler; }
     virtual bool hangup(const std::string& text="") = 0;
     virtual void muteUnmute(AvFlags what, bool state) = 0;
-    IEventHandler* changeEventHandler(IEventHandler* handler);
+    RTCM_API IEventHandler* changeEventHandler(IEventHandler* handler);
     virtual void changeLocalRenderer(IVideoRenderer* renderer) = 0;
     bool hasReceivedMedia() const { return mHasReceivedMedia; }
     virtual AvFlags sentAv() const = 0;
@@ -296,9 +300,9 @@ public:
     virtual ~IRtcModule(){}
 };
 
-IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
+RTCM_API IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
                   ICryptoFunctions* crypto, const char* iceServers);
-void globalCleanup();
+RTCM_API void globalCleanup();
 
 }
 

@@ -35,7 +35,7 @@ set(WEBRTC_DEFS -DV8_DEPRECATION_WARNINGS -DUSE_LIBJPEG_TURBO=1 -DCHROMIUM_BUILD
 set(WEBRTC_DEFS_DESKTOP
     -DEXPAT_RELATIVE_PATH -DFEATURE_ENABLE_VOICEMAIL -DGTEST_RELATIVE_PATH
     -DJSONCPP_RELATIVE_PATH -DLOGGING=1 -DSRTP_RELATIVE_PATH
-    -DFEATURE_ENABLE_SSL -DFEATURE_ENABLE_PSTN -DHAVE_SRTP     -DHAVE_SCTP
+    -DFEATURE_ENABLE_SSL -DFEATURE_ENABLE_PSTN -DHAVE_SRTP -DHAVE_SCTP
     -DHAVE_WEBRTC_VIDEO -DHAVE_WEBRTC_VOICE -DUSE_WEBRTC_DEV_BRANCH
     -DENABLE_ONE_CLICK_SIGNIN -DENABLE_REMOTING=1  -DENABLE_PEPPER_CDMS
     -DENABLE_NOTIFICATIONS -DENABLE_TASK_MANAGER=1      -DENABLE_EXTENSIONS=1
@@ -124,11 +124,11 @@ set(WEBRTC_DEFS_WIN
     -DENABLE_TOPCHROME_MD=1 -DFIELDTRIAL_TESTING_ENABLED -DNO_TCMALLOC 
     -D__STD_C -D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_DEPRECATE 
     -DNTDDI_VERSION=0x0A000000 -D_USING_V110_SDK71_
-    -DENABLE_THEMES=1 $
+    -DENABLE_THEMES=1
     -DENABLE_BACKGROUND=1 -DENABLE_APP_LIST=1 
-    -DENABLE_MDNS=1 -DENABLE_SERVICE_DISCOVERY=1 $
+    -DENABLE_MDNS=1 -DENABLE_SERVICE_DISCOVERY=1
     -DV8_USE_EXTERNAL_STARTUP_DATA -DWEBRTC_WIN -DUSE_LIBPCI=1 -DUSE_OPENSSL=1 
-    -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DNDEBUG $
+    -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DNDEBUG
     -DNVALGRIND -DDYNAMIC_ANNOTATIONS_ENABLED=0 -D_UNICODE -DUNICODE
 )
 
@@ -167,23 +167,24 @@ set(WEBRTC_SYSINCLUCES_ANDROID)
 set(WEBRTC_SYSINCLUDES_MACOS /usr/local/opt/openssl/include)
 
 set(WEBRTC_SYSINCLUDES_IOS)
+if (NOT WIN32)
+    set(WEBRTC_CFLAGS
+        -Wno-unknown-warning-option
+        -fstack-protector --param=ssp-buffer-size=4
+        -fno-strict-aliasing -Wno-unused-parameter
+        -Wno-missing-field-initializers -pipe -fPIC
+    )
+    if (CMAKE_COMPILER_ID STREQUAL "GNU")
+        list(APPEND WEBRTC_CLAGS -Wno-unused-local-typedefs)
+    endif()
 
-set(WEBRTC_CFLAGS
-    -Wno-unknown-warning-option
-    -fstack-protector --param=ssp-buffer-size=4
-    -fno-strict-aliasing -Wno-unused-parameter
-    -Wno-missing-field-initializers -pipe -fPIC
-)
-if (CMAKE_COMPILER_ID STREQUAL "GNU")
-    list(APPEND WEBRTC_CLAGS -Wno-unused-local-typedefs)
+    set(WEBRTC_CXXFLAGS
+        -Wno-unknown-warning-option
+        -fno-threadsafe-statics
+        -Wno-deprecated -Wno-narrowing
+        -Wno-inconsistent-missing-override
+    )
 endif()
-
-set(WEBRTC_CXXFLAGS
-    -Wno-unknown-warning-option
-    -fno-threadsafe-statics
-    -Wno-deprecated -Wno-narrowing
-    -Wno-inconsistent-missing-override
-)
 
 set(WEBRTC_CFLAGS_ANDROID #arm
     -Wno-strict-overflow -fno-builtin-cos
@@ -224,11 +225,10 @@ set(WEBRTC_CXXFLAGS_IOS ${WEBRTC_CXXFLAGS_MACOS})
 set(WEBRTC_CFLAGS_WIN
     /wd4091 /wd4127 /wd4351 /wd4355 /wd4503 /wd4589 /wd4611 /wd4100 
     /wd4121 /wd4244 /wd4505 /wd4510 /wd4512 /wd4610 /wd4838 /wd4995 /wd4996 
-    /wd4456 /wd4457 /wd4458 /wd4459 /wd4312 /wd4702 /wd4800 /O2 /Ob2 /GF 
-    /Oy- /fp:precise /W3 /WX /Zi /GR- /Gy /GS /MT /bigobj /Zc:sizedDealloc- 
-    /d2Zi+ /Zc:inline /Oy- /Gw /FS
+    /wd4456 /wd4457 /wd4458 /wd4459 /wd4312 /wd4702 /wd4800 
+    /Oy- /fp:precise /W3 /bigobj /Zc:sizedDealloc- /Zc:inline /Gw /FS
 )
-set(WEBRTC_CXXFLAGS_WIN ${WEBRTC_CFLAGS_WIN} /TP)
+set(WEBRTC_CXXFLAGS_WIN "${WEBRTC_CFLAGS_WIN} /TP")
 
 #Clear cache entry because it will get duplicated otherwise
 set(WEBRTC_LDFLAGS "")

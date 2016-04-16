@@ -86,7 +86,7 @@ public:
         setLoggerObject(mLogger.get());
         setLogLevel(MegaApi::LOG_LEVEL_MAX);
     }
-    template <typename... Args, typename MSig=void(mega::MegaApi::*)(Args..., mega::MegaRequestListener*)>
+    template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     ApiPromise call(MSig method, Args... args)
     {
         auto listener = new MyListener;
