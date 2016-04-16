@@ -41,7 +41,6 @@ if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" S
     endif()
 endif()
 
-add_definitions(${LIBMEGA_DEFINES} -Devent_EXPORTS)
 #seems _WIN32 is not seen in libevent dns header
 if (WIN32)
     add_definitions(-D_WIN32 -DWIN32)
@@ -81,6 +80,7 @@ if (optKarereBuildShared)
 else()
     add_library(karere ${SRCS})
 endif()
+set_target_properties(karere PROPERTIES COMPILE_FLAGS "${LIBMEGA_DEFINES}")
 
 target_link_libraries(karere
     rtcmodule
