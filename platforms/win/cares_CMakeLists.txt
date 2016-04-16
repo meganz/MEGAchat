@@ -1,5 +1,7 @@
 ﻿cmake_minimum_required(VERSION 2.8)
 project(cares)
+option(optBuildShared "Build as shared library" 1)
+
 set(SRCS
     ares_cancel.c
     ares_create_query.c
@@ -63,7 +65,19 @@ foreach(flag_var
 endforeach()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-add_definitions(-DCARES_BUILDING_LIBRARY -DCARES_STATICLIB -D_WINSOCK_DEPRECATED_NO_WARNINGS)
-add_library(cares ${SRCS})
+add_definitions(-DCARES_BUILDING_LIBRARY -D_WINSOCK_DEPRECATED_NO_WARNINGS)
+
+if (optBuildShared)
+    add_library(cares SHARED ${SRCS})
+else()
+    add_definitions(-DCARES_STATICLIB)
+    add_library(cares ${SRCS})
+endif()
+target_link_libraries(cares ws2_32)
 set_target_properties(cares PROPERTIES PUBLIC_HEADER "ares.h;ares_build.h;ares_dns.h;ares_rules.h;ares_version.h")
-install(TARGETS cares LIBRARY DESTINATION lib ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include)
+install(TARGETS cares 
+   RUNTIME DESTINATION lib
+   LIBRARY DESTINATION lib
+   ARCHIVE DESTINATION lib
+   PUBLIC_HEADER DESTINATION include
+)

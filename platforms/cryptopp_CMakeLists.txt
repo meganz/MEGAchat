@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 2.8.8)
 
 set(optBuildShared 1 CACHE BOOL "Build as shared library")
-message("target=${TARGET_ARCH}")
 
 FILE(GLOB SRCS_GLOB RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.cpp)
-LIST(REMOVE_ITEM SRCS_GLOB cryptlib.cpp cpu.cpp pch.cpp simple.cpp winpipes.cpp cryptlib_bds.cpp)
+LIST(REMOVE_ITEM SRCS_GLOB adhoc.cpp cryptlib.cpp cpu.cpp pch.cpp simple.cpp winpipes.cpp cryptlib_bds.cpp)
 #We need to put these 2 files first, because of static initialization order
 set(SRCS cryptlib.cpp cpu.cpp ${SRCS_GLOB})
 
@@ -70,19 +69,35 @@ add_custom_command(
              "${CMAKE_CURRENT_BINARY_DIR}/adhoc.cpp"
   DEPENDS adhoc.cpp.proto
 )
-#DLLSRCS = algebra.cpp algparam.cpp asn.cpp basecode.cpp cbcmac.cpp channels.cpp cryptlib.cpp des.cpp dessp.cpp dh.cpp dll.cpp dsa.cpp ec2n.cpp eccrypto.cpp ecp.cpp eprecomp.cpp files.cpp filters.cpp fips140.cpp fipstest.cpp gf2n.cpp gfpcrypt.cpp hex.cpp hmac.cpp integer.cpp iterhash.cpp misc.cpp modes.cpp modexppc.cpp mqueue.cpp nbtheory.cpp oaep.cpp osrng.cpp pch.cpp pkcspad.cpp pubkey.cpp queue.cpp randpool.cpp rdtables.cpp rijndael.cpp rng.cpp rsa.cpp sha.cpp simple.cpp skipjack.cpp strciphr.cpp trdlocal.cpp
 
-if (optBuildShared)
-    add_library(cryptopp SHARED ${SRCS})
-    target_link_libraries(cryptopp ${SYSLIBS})
-else()
-    add_library(cryptopp STATIC ${SRCS})
+#DLLSRCS = algebra.cpp algparam.cpp asn.cpp basecode.cpp cbcmac.cpp channels.cpp cryptlib.cpp des.cpp dessp.cpp dh.cpp dll.cpp dsa.cpp ec2n.cpp eccrypto.cpp ecp.cpp eprecomp.cpp files.cpp filters.cpp fips140.cpp fipstest.cpp gf2n.cpp gfpcrypt.cpp hex.cpp hmac.cpp integer.cpp iterhash.cpp misc.cpp modes.cpp modexppc.cpp mqueue.cpp nbtheory.cpp oaep.cpp osrng.cpp pch.cpp pkcspad.cpp pubkey.cpp queue.cpp randpool.cpp rdtables.cpp rijndael.cpp rng.cpp rsa.cpp sha.cpp simple.cpp skipjack.cpp strciphr.cpp trdlocal.cpp
+if (WIN32)
+    set(CRYPTOPP_WINDLL_DEFINES _USRDLL=1 USE_PRECOMPILED_HEADERS=1)
 endif()
+
+# There are problems with shared build on Windows - client code ends up with undefined symbols, also the reference
+# MSVC project doesn't include all .cpp files in the DLL, which maybe masks some issues but we need at least
+# crc.cpp, which is not included by the reference msvc project
+
+#if (optBuildShared)
+#    LIST(REMOVE_ITEM SRCS ttmac.cpp 3way.cpp)
+#    add_library(cryptopp SHARED ${SRCS})
+#	set_target_properties(cryptopp PROPERTIES COMPILE_DEFINITIONS 
+#	    "CRYPTOPP_EXPORTS;_USRDLL;CRYPTOPP_ENABLE_COMPLIANCE_WITH_FIPS_140_2=0;USE_PRECOMPILED_HEADERS")
+#else()
+    add_library(cryptopp STATIC ${SRCS})
+# Make the symbols in the static lib dll-exported, so we can use them by code outside the dll in which cryptopp
+# is linked (i.e. make libmega.dll export cryptopp symbols)
+	set_target_properties(cryptopp PROPERTIES COMPILE_DEFINITIONS 
+	    "CRYPTOPP_EXPORTS;${CRYPTOPP_WINDLL_DEFINES}")
+#endif()
+
+target_link_libraries(cryptopp ${SYSLIBS})
 
 file(GLOB PUBHEADERS "*.h")
 set_target_properties(cryptopp PROPERTIES PUBLIC_HEADER "${PUBHEADERS}")
 
-if (NOT ANDROID AND NOT APPLE_IOS)
+if (NOT ANDROID AND NOT APPLE_IOS AND NOT WIN32)
     enable_testing()
     add_executable(cryptest ${TEST_SRCS})
     target_link_libraries(cryptest cryptopp ${SYSLIBS})
@@ -92,12 +107,12 @@ if (NOT ANDROID AND NOT APPLE_IOS)
          COMMAND cryptest v)
 endif()
 
-message("CMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}")
 install(TARGETS cryptopp
-            RUNTIME DESTINATION bin
+            RUNTIME DESTINATION lib
             LIBRARY DESTINATION lib
             ARCHIVE DESTINATION lib
-            PUBLIC_HEADER DESTINATION include/cryptopp)
+            PUBLIC_HEADER DESTINATION include/cryptopp
+)
 
 #cryptest.import.exe: cryptopp.dll libcryptopp.import.a $(TESTIMPORTOBJS)
 #adhoc.cpp: adhoc.cpp.proto

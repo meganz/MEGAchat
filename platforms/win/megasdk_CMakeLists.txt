@@ -1,0 +1,194 @@
+﻿cmake_minimum_required(VERSION 2.8)
+include(CheckIncludeFiles)
+include(checkFunctionExists)
+
+project(megasdk)
+set(MEGA_MAJOR_VERSION 2)
+set(MEGA_MINOR_VERSION 2)
+set(MEGA_MICRO_VERSION 2)
+
+find_package(PkgConfig)
+find_package(OpenSSL)
+if (OPENSSL_FOUND)
+    set(USE_OPENSSL 1)
+endif()
+
+find_package(CURL REQUIRED)
+set(USE_CURL 1)
+macro(findlib varprefix name header)
+    pkg_check_modules("${varprefix}" QUIET "${name}")
+    if (NOT ${name}_FOUND)
+        #look in the standard paths, can be set on the commandline via -DCMAKE_PREFIX_PATH=... or -DCMAKE_FIND_ROOT=...
+        set(flhdr "${varprefix}_HEADER")
+        find_path("${flhdr}" "${header}")
+        if ("${${flhdr}}" STREQUAL "${flhdr}-NOTFOUND")
+            message(FATAL_ERROR "ERROR: library ${name} not found")
+        else()
+            # lib header found in standard paths, possibly in CMAKE_PREFIX_PATH, so it should
+            # work out of the box as long as we add CMAKE_PREFIX_PATH to the include and library
+            # dirs that are passed to the compiler
+            message(STATUS "Found ${name}")
+        endif()
+    endif()
+endmacro()
+
+findlib(SQLITE sqlite3 sqlite3.h)
+set(USE_SQLITE 1)
+
+findlib(CRYPTOPP libcrypto++ "cryptopp/cryptlib.h")
+set(USE_CRYPTOPP 1)
+    
+findlib(CARES libcares ares.h)
+set(USE_CARES 1)
+
+set(USE_MEGAAPI 1)
+
+option(optBuildShared "Build the Mega SDK as a shared library" 1)
+option(ENABLE_SYNC "Mega: Enable Sync engine" 1)
+option(ENABLE_CHAT "Mega: Enable MegaChat functionality" 1)
+option(USE_FREEIMAGE "Mega: Use FreeImage" 0)
+option(USE_SODIUM "Mega: Use libsodium" 0)
+
+
+check_include_files(dirent.h HAVE_DIRENT_H)
+check_include_files(stdbool.h HAVE_STDBOOL_H)
+check_include_files(stddef.h HAVE_STDDEF_H)
+check_include_files(stdint.h HAVE_STDINT_H)
+check_include_files(stdlib.h HAVE_STDLIB_H)
+check_include_files(inttypes.h HAVE_INTTYPES_H)
+
+check_function_exists(fdopendir HAVE_FDOPENDIR)
+# the other packages will be assumed under CMAKE_PREFIX_PATH
+if (WIN32)
+	set(platform wincurl)
+	set(platfPrefix win32)
+else()
+    set(platform posix)
+	set(platfPrefix posix)
+    set(USE_PTHREAD 1)
+    check_include_files("glob.h" HAVE_GLOB_H)
+    check_include_files("sys/inotify.h" USE_INOTIFY)
+endif()
+
+set(SRCS
+src/attrmap.cpp
+src/backofftimer.cpp
+src/base64.cpp
+src/command.cpp
+src/commands.cpp
+src/crypto/cryptopp.cpp
+src/db.cpp
+src/db/sqlite.cpp
+src/file.cpp
+src/fileattributefetch.cpp
+src/filefingerprint.cpp
+src/filesystem.cpp
+src/gfx.cpp
+src/gfx/external.cpp
+src/http.cpp
+src/json.cpp
+src/logging.cpp
+src/megaapi.cpp
+src/megaapi_impl.cpp
+src/megaclient.cpp
+src/mega_utf8proc.cpp
+src/node.cpp
+src/pendingcontactrequest.cpp
+src/proxy.cpp
+src/pubkeyaction.cpp
+src/request.cpp
+src/serialize64.cpp
+src/share.cpp
+src/sharenodekeys.cpp
+src/sync.cpp
+src/transfer.cpp
+src/transferslot.cpp
+src/treeproc.cpp
+src/user.cpp
+src/utils.cpp
+src/waiterbase.cpp
+src/${platform}/fs.cpp
+src/${platform}/waiter.cpp
+src/${platform}/net.cpp
+src/${platform}/console.cpp
+src/${platform}/consolewaiter.cpp
+src/thread/${platfPrefix}thread.cpp
+)
+
+include_directories(
+    include include/mega/${platform} third_party/utf8proc
+    ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIR}
+)
+
+if (CMAKE_PREFIX_PATH)
+    include_directories(${CMAKE_PREFIX_PATH}/include)
+	link_directories(${CMAKE_PREFIX_PATH}/lib)
+endif()
+
+if (WIN32)
+    add_definitions(-DWIN32_LEAN_AND_MEAN -DZLIB_WINAPI -DUNICODE -DWIN32 -D_CRT_SECURE_NO_WARNINGS)
+    set(SYSLIBS shlwapi.lib winhttp.lib ws2_32.lib)
+endif()
+#TODO: The configure file must be in the build dir, but we need the other headers to find it both during
+#build and when deployed, so atm we preserve the same relative paths
+configure_file(config.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/mega/config.h")
+add_definitions(-DHAVE_CONFIG_H)
+
+if (optBuildShared)
+# Force cryptopp to export its symbols, so we can link it statically inside megasdk and we can use it from there
+	add_definitions(-DCRYPTOPP_EXPORTS -DMEGA_CREATE_SHARED_LIBRARY=1)
+    add_library(libmega SHARED ${SRCS})
+else()
+    add_definitions(-DPCRE_STATIC -DCARES_STATICLIB -DCURL_STATICLIB)
+    add_library(libmega ${SRCS})
+endif()
+
+file(GLOB MEGASDK_PUBHDR "include/*.h")
+file(GLOB MEGA_PRIVHDR "include/mega/*.h")
+# list(APPEND MEGA_PRIVHDR "${CMAKE_CURRENT_BINARY_DIR}/config.h")
+
+MACRO(SUBDIRLIST result curdir)
+  FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)
+  SET(dirlist "")
+  FOREACH(child ${children})
+    IF(IS_DIRECTORY ${curdir}/${child})
+        LIST(APPEND dirlist ${child})
+    ENDIF()
+  ENDFOREACH()
+  SET(${result} ${dirlist})
+ENDMACRO()
+
+subdirlist(MEGA_PRIVHDR_SUBDIRS "${CMAKE_CURRENT_SOURCE_DIR}/include/mega")
+if (WIN32)
+    #we need posix for curl-based meganet.h
+    set(removed wp8)
+elseif(WINPHONE)
+    set(removed posix win32 wincurl)
+else()
+    set(removed win32 wincurl wp8)
+endif()
+list(REMOVE_ITEM MEGA_PRIVHDR_SUBDIRS ${removed})
+
+
+set_target_properties(libmega PROPERTIES PUBLIC_HEADER "${MEGASDK_PUBHDR}")
+set_target_properties(libmega PROPERTIES PRIVATE_HEADER "${MEGA_PRIVHDR}")
+
+target_link_libraries(libmega ${CURL_LIBRARIES} ${OPENSSL_LIBRARIES} cryptopp cares zlib sqlite3 ${SYSLIBS})
+if (USE_SODIUM)
+    target_link_libraries(libmega sodium)
+endif()
+if (USE_FREEIMAGE)
+    target_link_libraries(libmega freeimage)
+endif()
+
+install(TARGETS libmega 
+    RUNTIME DESTINATION lib
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    PUBLIC_HEADER DESTINATION include
+    PRIVATE_HEADER DESTINATION include/mega
+)
+
+foreach(subdir ${MEGA_PRIVHDR_SUBDIRS})
+    install(DIRECTORY "include/mega/${subdir}" DESTINATION "include/mega")
+endforeach()

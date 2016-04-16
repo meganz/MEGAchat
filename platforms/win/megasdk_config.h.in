@@ -1,0 +1,71 @@
+
+/* Define to enable debug logging */
+#cmakedefine DEBUG
+
+/* Define to enable chat */
+#cmakedefine ENABLE_CHAT
+
+/* Defined if sync subsystem is enabled */
+#cmakedefine ENABLE_SYNC
+
+/* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
+   */
+#cmakedefine HAVE_DIRENT_H
+
+/* Define to 1 if you have the `fdopendir' function. */
+#cmakedefine HAVE_FDOPENDIR
+
+/* Define to 1 if you have the <glob.h> header file. */
+#cmakedefine HAVE_GLOB_H
+
+/* Define to 1 if stdbool.h conforms to C99. */
+#cmakedefine HAVE_STDBOOL_H
+
+/* Define to 1 if you have the <stddef.h> header file. */
+#cmakedefine HAVE_STDDEF_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#cmakedefine HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#cmakedefine HAVE_STDLIB_H
+
+#cmakedefine HAVE_INTTYPES
+
+/* MEGA SDK major version. */
+#define MEGA_MAJOR_VERSION @MEGA_MAJOR_VERSION@
+
+/* MEGA SDK minor version. */
+#define MEGA_MINOR_VERSION @MEGA_MINOR_VERSION@
+
+/* MEGA SDK micro version. */
+#define MEGA_MICRO_VERSION @MEGA_MICRO_VERSION@
+
+#cmakedefine USE_CURL
+
+/* Define to use c-ares */
+#cmakedefine USE_CARES
+
+/* Define to use libcryptopp */
+#cmakedefine USE_CRYPTOPP
+
+/* Define to use FreeImage library. */
+#cmakedefine USE_FREEIMAGE
+
+/* Use inotify API */
+#cmakedefine USE_INOTIFY
+
+/* Defined if MEGA API enabled */
+#cmakedefine USE_MEGAAPI
+
+/* Define to use OpenSSL */
+#cmakedefine USE_OPENSSL
+
+/* Defined if pthreads are available */
+#cmakedefine USE_PTHREAD
+
+/* Define to use libsodium */
+#cmakedefine USE_SODIUM
+
+/* Define to use SQLite */
+#cmakedefine USE_SQLITE
