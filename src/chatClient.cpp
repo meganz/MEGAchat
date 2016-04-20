@@ -1283,7 +1283,7 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
     }
     return changed;
 }
-void ChatRoom::init(chatd::Messages& msgs, chatd::DbInterface*& dbIntf)
+void ChatRoom::init(chatd::Chat& msgs, chatd::DbInterface*& dbIntf)
 {
     mMessages = &msgs;
     dbIntf = new ChatdSqliteDb(msgs, parent.client.db);

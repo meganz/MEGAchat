@@ -184,7 +184,7 @@ protected:
     unsigned char mShardNo;
     bool mIsGroup;
     chatd::Priv mOwnPriv;
-    chatd::Messages* mMessages = nullptr;
+    chatd::Chat* mMessages = nullptr;
     bool syncRoomPropertiesWithApi(const mega::MegaTextChat& chat);
     void switchListenerToChatWindow();
     void join(); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
@@ -205,7 +205,7 @@ public:
     IGui::IChatWindow& chatWindow(); /// < creates the windows if not already created
     bool hasChatWindow() const { return mChatWindow != nullptr; }
     //chatd::Listener implementation
-    void init(chatd::Messages& messages, chatd::DbInterface *&dbIntf);
+    void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
     void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
 };

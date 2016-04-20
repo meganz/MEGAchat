@@ -27,6 +27,7 @@ enum Opcode
     OP_JOIN = 1,
     OP_OLDMSG = 2,
     OP_NEWMSG = 3,
+    OP_MSGUPD = 4,
     OP_SEEN = 5,
     OP_RECEIVED = 6,
     OP_RETENTION = 7,
@@ -36,7 +37,11 @@ enum Opcode
     OP_REJECT = 11,
     OP_BROADCAST = 12,
     OP_HISTDONE = 13,
-    OP_LAST = OP_HISTDONE
+    OP_NEWKEY = 17,
+    OP_KEYID = 18,
+    OP_JOINRANGEHIST = 19,
+    OP_MSGUPDX = 20,
+    OP_LAST = OP_MSGUPDX
 };
 
 // privilege levels
@@ -73,6 +78,40 @@ public:
     static const Id null() { return static_cast<uint64_t>(0); }
 };
 
+typedef uint32_t KeyId;
+
+class Key
+{
+public:
+    enum { kMaxLen = 16 };
+    enum { kInvalidId = 0, kUnconfirmedId = 0xffffffff };
+    Id userid() const { return mUserid; }
+    uint16_t len;
+    char data[kMaxLen];
+    Key(Id aUserid, uint16_t aLen, const char* aData): mUserid(aUserid), len(aLen)
+    {
+        assert(aLen <= kMaxLen);
+        memcpy(data, aData, aLen);
+    }
+    Key(): mUserid(mega::UNDEF), len(0){}
+    bool isValid() const { return mLen > 0; }
+protected:
+    Id mUserid;
+};
+
+class KeyWithId: public Key
+{
+protected:
+    KeyId mId;
+public:
+    KeyId id() const { return mId; }
+    KeyWithId(KeyId aId, Id aUserid, uint16_t aLen, const char* aData)
+        :Key(aUserid, aLen, aData), mId(aId){}
+//  KeyWithId(): Key(), mId(CHATD_KEYID_INVALID){}
+    bool isUnconfirmed() const { return mId == Key::kUnconfirmedId; }
+    void confirm(KeyId keyid) { assert(isUnconfirmed()); mId = keyid; }
+};
+
 class Url
 {
 protected:
@@ -91,6 +130,11 @@ public:
 class Message: public Buffer
 {
 public:
+    enum Type: unsigned char
+    {
+        kNormalMsg = 0,
+        kUser = 16
+    };
     enum Status
     {
         kSending,
@@ -101,18 +145,6 @@ public:
         kNotSeen,
         kSeen
     };
-    enum Type: unsigned char
-    {
-        kTypeInvalid = 127, //bit 7 is 0, good to make an invalid message not recognized as internal
-        //first are types encoded in the crypto/chatd protocol
-        kTypeRegularMessage = 0,
-        kTypeEdit = 1,
-        kTypeUser = 16,//from this on, till kTypeInternal are types encoded in the payload
-        kTypeInternal = 128, //if this flag is set, the message is not passed to the application
-        kTypeJoin = kTypeInternal + 0,
-        kTypeLeave = kTypeInternal + 1,
-        kTypeKeys = kTypeInternal + 2
-    };
     enum EncryptedState: unsigned char
     {
         kEncrypted = 1,
@@ -122,41 +154,38 @@ public:
 private:
 //avoid setting the id and flag pairs one by one by making them accessible only by setXXX(Id,bool)
     Id mId;
-    Id mEdits;
     bool mIdIsXid = false;
-    bool mEditsIsXid = false;
 public:
     Id userid;
     uint32_t ts;
-    unsigned char isEncrypted;
+    uint16_t updated;
+    uint32_t keyId;
     Type type;
     mutable void* userp;
     mutable uint32_t userFlags = 0;
-    const Id& id() const { return mId; }
-    const Id& edits() const { return mEdits; }
+    Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
-    bool editsIsXid() const { return mEditsIsXid; }
-    void setId(const Id& aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
-    void setEdits(const Id& aEdits, bool isXid) { mEdits = aEdits; mEditsIsXid = isXid; }
-    bool isForUser() const { return !(type & kTypeInternal); }
-    Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, Buffer&& buf, bool aEncrypted,
-          Type aType=kTypeInvalid, void* aUserp=nullptr, bool aIsSending=false)
-        :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
-          ts(aTs), isEncrypted(aEncrypted), type(aType), userp(aUserp){}
-    Message(const Id& aMsgid, const Id& aUserid, uint32_t aTs, const char* msg, size_t msglen,
-            bool aEncrypted, Type aType=kTypeInvalid, void* aUserp=nullptr, bool aIsSending=false)
+    void setId(Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
+    Message(Id aMsgid, Id aUserid, uint32_t aTs, uint16_t aUpdated,
+          Buffer&& buf, Type aType=kNormalMsg, void* aUserp=nullptr,
+          bool aIsSending=false)
+      :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
+          ts(aTs), updated(aUpdated), keyId(CHATD_KEYID_INVALID), type(aType), userp(aUserp){}
+    Message(Id aMsgid, Id aUserid, uint32_t aTs, uint16_t aUpdated,
+            const char* msg, size_t msglen,
+            Type aType=kNormalMsg, void* aUserp=nullptr, bool aIsSending=false)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
-            isEncrypted(aEncrypted), type(aType), userp(aUserp) {}
+            updated(aUpdated), keyId(CHATD_KEYID_INVALID), type(aType), userp(aUserp) {}
     static const char* statusToStr(unsigned status)
     {
         return (status > kSeen) ? "(invalid status)" : statusNames[status];
     }
 protected:
     static const char* statusNames[];
-    friend class Messages;
+    friend class Chat;
 };
 
-class Messages;
+class Chat;
 
 enum ChatState
 {kChatStateOffline = 0, kChatStateConnecting, kChatStateJoining, kChatStateOnline};
@@ -168,13 +197,13 @@ class Listener
 public:
 /// This is the first call chatd makes to the Listener, passing it necessary objects and
 /// retrieving info about the local history database
-/// @param messages - the Messages object that can be used to access the message buffer etc
+/// @param messages - the Chat object that can be used to access the message buffer etc
 /// @param out - The interface for sending messages
 /// @param[out] oldestDbId, @param[out] newestDbId The range of messages
 /// that we have in the local database
 /// @param newestDbIdx - the index of the newestDbId message, so that the message buffer indexes
 /// will be adjusted to match the ones in the local db
-    virtual void init(Messages& messages, DbInterface*& dbIntf) = 0;
+    virtual void init(Chat& messages, DbInterface*& dbIntf) = 0;
 /// Called when that chatroom instance is being destroyed (e.g. on application close)
     virtual void onDestroy(){}
 /// A new message was received. This can be just sent by a peer, or retrieved from the server.
@@ -224,14 +253,14 @@ public:
 class ICrypto
 {
 public:
-    void init(Messages& messages) {}
+    void init(Chat& messages) {}
     /**
      * @brief encrypt Encrypts a message, putting the contents in the specified buffer
      * @param src The message to encrypt
      * @param dest The destination buffer where to write the encrypted data
      * @return Whether the encryption was successful. In case keys were not available
      * immediately, \c false must be returned. When the encrypt operation will be
-     * successful, the crypto module must call Messages::onCanEncryptAgain().
+     * successful, the crypto module must call Chat::onCanEncryptAgain().
      * This will result in encrypt() for that message called again, and for subsequent
      * messages in the output queue, until the queue is empty, another(or this)
      * \c encrypt() call return false, or the connection goes offline. It is possible
@@ -328,6 +357,7 @@ private:
 protected:
     static const char* opcodeNames[];
 public:
+    Command(): Buffer(){}
     Command(Command&& other): Buffer(std::forward<Buffer>(other)) {assert(!other.buf() && !other.bufSize() && !other.dataSize());}
     Command(uint8_t opcode): Buffer(64) { write(0, opcode); }
     template<class T>
@@ -400,7 +430,7 @@ protected:
     void hist(const Id& chatid, long count);
     void execCommand(const StaticBuffer& buf);
     friend class Client;
-    friend class Messages;
+    friend class Chat;
 public:
     ~Connection()
     {
@@ -418,12 +448,19 @@ enum HistFetchState
 };
 
 typedef std::map<Id,Priv> UserPrivMap;
-
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
-class Messages
+class Chat
 {
+public:
+    struct OutputQueue: public std::list<SendingItem*>
+    {
+        typedef std::list<SendingItem*> base;
+        ~OutputQueue() { clear(); }
+        void clear()
+        { for (auto item: *this) delete item; base::clear(); }
+    };
 protected:
     Connection& mConnection;
     Client& mClient;
@@ -433,11 +470,20 @@ protected:
     std::vector<Message*> mBackwardList;
     struct SendingItem
     {
-        Message* msg;
-        Message* edit;
-        SendingItem(Message* aMsg, Message* aEdit=nullptr): msg(aMsg), edit(aEdit){}
+    protected:
+        uint8_t mOpcode;
+    public:
+        uint64_t rowId;
+        std::unique_ptr<Command> cmd;
+        void* data; //can be a Message or Key, depending on opcode
+        /** When sending a message, we attach the Message object here to avoid
+         * double-converting it when queued as a raw command in Sending, and after
+         * that (when server confirms) move it as a Message object to history buffer */
+        uint8_t opcode() const { return mOpcode; }
+        SendingItem(uint8_t aOpcode, uint64_t aRowId, Command* aCmd, void* aData)
+            : mOpcode(aOpcode), rowId(aRowId), cmd(aCmd), data(aData){}
+        ~SendingItem() { assert(!data); }
     };
-    typedef std::list<SendingItem> OutputQueue;
     OutputQueue mSending;
     OutputQueue::iterator mNextUnsent;
     bool mIsFirstJoin = true;
@@ -459,8 +505,10 @@ protected:
     unsigned mLastHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
     HistFetchState mHistFetchState = kHistNotFetching;
     DbInterface* mDbInterface = nullptr;
+    std::map<uint32_t, Key> keys;
+    std::unique_ptr<KeyWithId> currentSendKey; //we use a pointer here because we may have no key yet
     ICrypto* mCrypto;
-    Messages(Connection& conn, const Id& chatid, Listener* listener, ICrypto* crypto);
+    Chat(Connection& conn, const Id& chatid, Listener* listener, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.push_back(msg); }
     void push_back(Message* msg) { mBackwardList.push_back(msg); }
     Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front() : mForwardList.back(); }
@@ -493,12 +541,13 @@ protected:
     bool flushOutputQueue(bool fromStart=false);
     void range();
     void onHistDone(); //called upont receipt of HISTDONE from server
+    void onNewKeys(StaticBuffer&& keybuf);
     friend class Connection;
     friend class Client;
 public:
     unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
 //    const UserPrivMap& users() const { return mUsers; }
-    ~Messages();
+    ~Chat();
     const Id& chatId() const { return mChatId; }
     Client& client() const { return mClient; }
     Idx lownum() const { return mForwardStart - mBackwardList.size(); }
@@ -533,7 +582,7 @@ public:
         Message* msg = findOrNull(num);
         if (!msg)
         {
-            throw std::runtime_error("Messages::operator[idx]: idx = "+
+            throw std::runtime_error("Chat::operator[idx]: idx = "+
                 std::to_string(num)+" is outside of ["+std::to_string(lownum())+":"+
                 std::to_string(highnum())+"] range");
         }
@@ -581,7 +630,7 @@ protected:
 /// maps a chatid to the handling Shard connection
     std::map<Id, Connection*> mConnectionForChatId;
 /// maps chatids to the Message object
-    std::map<Id, std::shared_ptr<Messages>> mMessagesForChatId;
+    std::map<Id, std::shared_ptr<Chat>> mChatForChatId;
     Id mUserId;
     Id mMsgTransactionId;
     static bool sWebsockCtxInitialized;
@@ -600,18 +649,18 @@ public:
     const Id& userId() const { return mUserId; }
     Client(const Id& userId);
     ~Client(){}
-    Messages& chatidMessages(const Id& chatid) const
+    Chat& chats(const Id& chatid) const
     {
-        auto it = mMessagesForChatId.find(chatid);
-        if (it == mMessagesForChatId.end())
-            throw std::runtime_error("chatidMessages: Unknown chatid "+chatid);
+        auto it = mChatForChatId.find(chatid);
+        if (it == mChatForChatId.end())
+            throw std::runtime_error("chatidChat: Unknown chatid "+chatid);
         return *it->second;
     }
 
     void join(const Id& chatid, int shardNo, const std::string& url, Listener* listener, ICrypto* crypto);
     void leave(Id chatid);
     friend class Connection;
-    friend class Messages;
+    friend class Chat;
 };
 
 class DbInterface

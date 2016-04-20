@@ -82,7 +82,7 @@ public:
         }
     }
     Buffer(const char* data, size_t datalen)
-        :StaticBuffer(nullptr, 0), mBufSize(0) { assign(data, datalen); }
+        :StaticBuffer(nullptr, 0), mBufSize(0) { if (data) assign(data, datalen); }
     Buffer(Buffer&& other)
         :StaticBuffer(other.mBuf, other.mDataSize), mBufSize(other.mBufSize) { other.zero(); }
     void assign(const void* data, size_t datalen)

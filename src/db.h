@@ -86,6 +86,10 @@ public:
         int size = sqlite3_column_bytes(mStmt, num);
         return std::string((const char*)data, size);
     }
+    bool hasBlobCol(int num)
+    {
+        return sqlite3_column_blob(mStmt, num) != nullptr;
+    }
     bool blobCol(int num, Buffer& buf)
     {
         const void* data = sqlite3_column_blob(mStmt, num);
@@ -95,6 +99,19 @@ public:
         buf.append(data, size);
         return true;
     }
+    size_t blobCol(int num, char* buf, size_t buflen)
+    {
+        const void* data = sqlite3_column_blob(mStmt, num);
+        if (!data)
+            return 0;
+        size_t size = sqlite_column_bytes(mStmt, num);
+        if (size > buflen)
+            throw std::runtime_error("blobCol: Insufficient buffer space for blob: required "+
+                std::to_string(size)+", provided "+std::to_string(buflen));
+        memcpy(buf, data, size);
+        return size;
+    }
+
     uint64_t uint64Col(int num) { return (uint64_t)sqlite3_column_int64(mStmt, num);}
     unsigned int uintCol(int num) { return (unsigned int)sqlite3_column_int(mStmt, num);}
 };

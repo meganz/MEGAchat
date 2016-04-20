@@ -10,11 +10,11 @@ class ChatdSqliteDb: public chatd::DbInterface
 {
 protected:
     sqlite3* mDb;
-    chatd::Messages& mMessages;
+    chatd::Chat& mMessages;
     std::string mSendingTblName;
     std::string mHistTblName;
 public:
-    ChatdSqliteDb(chatd::Messages& msgs, sqlite3* db, const std::string& sendingTblName="sending", const std::string& histTblName="history")
+    ChatdSqliteDb(chatd::Chat& msgs, sqlite3* db, const std::string& sendingTblName="sending", const std::string& histTblName="history")
         :mDb(db), mMessages(msgs), mSendingTblName(sendingTblName), mHistTblName(histTblName){}
     virtual void getHistoryInfo(chatd::Id& oldestDbId, chatd::Id& newestDbId, chatd::Idx& newestDbIdx)
     {
@@ -41,61 +41,111 @@ public:
             oldestDbId = 0;
         }
     }
-    virtual void saveMsgToSending(chatd::Message& msg)
+    virtual uint64_t getNextRowId()
     {
-        SqliteStmt stmt(mDb, "insert into "+mSendingTblName+
-            "(type, edits, chatid, ts, data, edits_is_xid) values(?,?,?,?,?,?)");
-        stmt << msg.type << msg.edits() << mMessages.chatId() << (uint32_t)time(NULL) << msg << msg.editsIsXid();
-        stmt.step();
-        msg.setId(sqlite3_last_insert_rowid(mDb), true);
+        return sqlite3_last_insert_rowid(mDb);
     }
-    virtual void deleteMsgFromSending(const chatd::Id& msgxid)
+    virtual void saveMsgToSending(chatd::Message& msg, uint8_t opcode, const StaticBuffer& output)
     {
-        SqliteStmt stmt(mDb, "delete from "+mSendingTblName+" where rowid = ?1");
-        stmt << msgxid;
-        stmt.step();
+        //we don't supply a Command object for the output command parameter,
+        //as it should be possible to pass an empty (NULL) buffer, which is not possible
+        //with Command
+        sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, data, out_cmd)"
+            "values(?,?,?,?,?,?,NULL)",
+            mMessages.chatId(), opcode, time(NULL), msg.id(), msg, output);
     }
+    virtual void addCommandBlobToSendingItem(uint64_t rowid, const Command& command)
+    {
+        sqliteQuery(mDb, "update sending set out_cmd=? where rowid=?", command, rowid);
+        if (sqlite3_changes(mDb) != 1)
+            throw std::runtime_error("addCommandBlobToSendingItem: No sending item with specified rowid found");
+    }
+    virtual void saveCommandToSending(const chatd::Command& cmd, uint64_t& rowid)
+    {
+        sqliteQuery(mDb, "insert into sending(chatid, opcode, ts, msgid, data, out_cmd)"
+            "values(?,?,?,0,NULL,?)", mMessages.chatId(), cmd.opcode(), time(NULL), cmd);
+        rowid = sqlite3_last_insert_rowid(mDb);
+    }
+    virtual void deleteItemFromSending(uint64_t rowid)
+    {
+        sqliteQuery(mDb, "delete from "+mSendingTblName+" where rowid = ?1", rowid);
+        if (sqlite_changes(mDb) != 1)
+            throw std::runtime_error("deleteItemFromSending: Unknown item rowid");
+    }
+    /*
     virtual void updateMsgInSending(const chatd::Message& msg)
     {
         SqliteStmt stmt(mDb, "update "+mSendingTblName+" set data = ?2, ts = ?3 where rowid = ?1");
         stmt << msg.id() << msg << msg.ts;
         stmt.step();
     }
-    virtual void updateSendingEditId(const chatd::Id& msgxid, const chatd::Id& msgid)
-    {
-        SqliteStmt stmt(mDb, "update "+mSendingTblName+" set edits=?2 where edits=?1");
-        stmt << msgxid << msgid;
-        stmt.step();
-    }
-
+    */
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
-        SqliteStmt stmt(mDb, "insert or replace into "+mHistTblName+
-            " (idx, chatid, msgid, encrypted, type, userid, ts, edits, data) values(?,?,?,?,?,?,?,?,?);");
-        stmt << idx << mMessages.chatId() << msg.id() << msg.isEncrypted << msg.type
-             << msg.userid << msg.ts << msg.edits() << msg;
-        stmt.step();
+        sqliteQuery(mDb, "insert or replace into history(idx, chatid, msgid,"
+            "type, userid, ts, data) values(?,?,?,?,?,?,?)",
+            idx, mMessages.chatId(), msg.id(), msg.type, msg.userid, msg.ts, msg);
+    }
+    virtual void addKey(const KeyWithId& key)
+    {
+        assert(key.id() != Key::kUnconfirmedId && key.id() != Key::kInvalidId);
+        sqliteQuery(mDb, "insert into keys(id, data) values(?,?)", key.id(), StaticBuffer(key.data(), key.len()));
     }
 
-    virtual void loadSendingTable(std::vector<chatd::Message*>& messages)
+    virtual void updateMsgInHistory(const chatd::Message& msg, chatd::Idx idx)
     {
-        SqliteStmt stmt(mDb, "select rowid, type, edits, data, edits_is_xid from "+
-                        mSendingTblName+" where chatid=? order by rowid asc");
+        sqliteQuery(mDb, "update history set data = ? where idx = ?", msg, idx);
+        if (sqlite3_changes(mDb) != 1)
+            throw std::runtime_error("updateMsgInHistory: Message with specific msgid not found");
+    }
+    virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
+    {
+        SqliteStmt stmt(mDb, "select rowid, opcode, data_id, data, type, ts, out_cmd from sending"
+            "where chatid=? order by rowid asc");
         stmt << mMessages.chatId();
+        queue.clear();
         while(stmt.step())
         {
-            Buffer buf;
-            stmt.blobCol(3, buf);
-            auto msg = new chatd::Message(stmt.uint64Col(0), mMessages.client().userId(),
-                0, std::move(buf), false, (chatd::Message::Type)stmt.intCol(1), nullptr, true);
-            msg->setEdits(stmt.uint64Col(2), stmt.intCol(4));
-            messages.push_back(msg);
+            uint8_t opcode = stmt.intCol(1);
+            chatd::Command* cmd;
+            if (stmt.hasBlobCol(6))
+            {
+                cmd = new chatd::Command;
+                stmt.blobCol(6, *cmd);
+                assert(cmd->opcode() == opcode);
+            }
+            else
+            {
+                cmd = nullptr;
+            }
+            void* data;
+            if (stmt.hasBlobCol(3)) //data
+            {
+                if (opcode == NEWKEY)
+                {
+                    auto key = new chatd::Key(stmt.uint64Col(2), 0);
+                    key->len = stmt.blobCol(3, key->data, chatd::Key::kMaxLen);
+                    data = key;
+                }
+                else if (opcode == NEWMSG || opcode == MSGUPD || opcode == MSGUPDX)
+                {
+                    Buffer buf;
+                    stmt.blobCol(3, buf);
+                    auto msg = new chatd::Message(stmt.int64Col(2), mMessage.userId(),
+                        stmt.intCol(4), time(NULL), buf, stmt.intCol(5), nullptr, true);
+                    data = msg;
+                }
+                else
+                    throw std::runtime_error("Don't know how to handle send item with opcode "+std::to_string(opcode));
+            }
+            auto item = new chatd::Chat::SendingItem(stmt.intCol(1), stmt.intCol(0), cmd, data);
+            queue.push_back(item);
         }
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, edits, encrypted from "+
-            mHistTblName+" where chatid=?1 and idx <= ?2 order by idx desc limit ?3");
+        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, from history "
+            "where chatid=?1 and idx <= ?2 order by idx desc limit ?3");
         stmt << mMessages.chatId() << idx << count;
         int i = 0;
         while(stmt.step())
@@ -118,14 +168,14 @@ public:
     }
     virtual chatd::Idx getIdxOfMsgid(chatd::Id msgid)
     {
-        SqliteStmt stmt(mDb, "select idx from "+mHistTblName+" where chatid = ? and msgid = ?");
+        SqliteStmt stmt(mDb, "select idx from history where chatid = ? and msgid = ?");
         stmt << mMessages.chatId() << msgid;
         return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
     }
     virtual chatd::Idx getPeerMsgCountAfterIdx(chatd::Idx idx)
     {
-        std::string sql = "select count(*) from "+mHistTblName+" where (chatid = ?)"
-                "and (userid != ?) and (edits = 0)";
+        std::string sql = "select count(*) from history where (chatid = ?)"
+                "and (userid != ?)";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
