@@ -159,7 +159,7 @@ public:
     Id userid;
     uint32_t ts;
     uint16_t updated;
-    uint32_t keyId;
+    uint32_t keyid;
     Type type;
     mutable void* userp;
     mutable uint32_t userFlags = 0;
@@ -170,12 +170,12 @@ public:
           Buffer&& buf, Type aType=kNormalMsg, void* aUserp=nullptr,
           bool aIsSending=false)
       :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
-          ts(aTs), updated(aUpdated), keyId(CHATD_KEYID_INVALID), type(aType), userp(aUserp){}
+          ts(aTs), updated(aUpdated), keyid(CHATD_KEYID_INVALID), type(aType), userp(aUserp){}
     Message(Id aMsgid, Id aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen,
             Type aType=kNormalMsg, void* aUserp=nullptr, bool aIsSending=false)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
-            updated(aUpdated), keyId(CHATD_KEYID_INVALID), type(aType), userp(aUserp) {}
+            updated(aUpdated), keyid(CHATD_KEYID_INVALID), type(aType), userp(aUserp) {}
     static const char* statusToStr(unsigned status)
     {
         return (status > kSeen) ? "(invalid status)" : statusNames[status];
@@ -219,26 +219,27 @@ public:
 /// the server
     virtual void onHistoryDone(bool isFromDb) {}
     virtual void onUnsentMsgLoaded(const Message& msg){}
-/// A message sent by us was received acknoledged by the server, assigning it a MSGID.
-/// At this stage, the message state is "received-by-server"
-/// @param msgxid - The request-response match id that we generated for the sent message. Normally
-/// the application doesn't need to care about it
-/// @param msgid - The msgid assigned by the server for that message
-/// @param idx - The buffer index of the message where the message was put
-    virtual void onMessageConfirmed(const Id& msgxid, const Id& msgid, Idx idx){}
-/// A message was rejected by the server for some reason. As the message is not yet in the buffer,
-/// has no msgid assigned from the server, the only identifier for it is the msgxid
-    virtual void onMessageRejected(const Id& msgxid){}
-/// A message was delivered, seen, etc. When the seen/received pointers are advanced,
-/// this will be called for each message of the pointer-advanced range, so the application
-/// doesn't need to iterate over ranges by itself
+/// A message sent by us was acknoledged by the server, assigning it a MSGID.
+/// At this stage, the message state is "received-by-server", and it is in the history
+/// buffer when this callback is called.
+/// @param msgxid - The request-response match id that we generated for the sent message.
+/// Normally the application doesn't need to care about it
+/// @param msg - The message object - \c id() returns a real msgid, and \c isSending() is \c false
+/// @param idx - The history buffer index at which the message was put
+    virtual void onMessageConfirmed(const Id& msgxid, const Message& msg, Idx idx){}
+/// A message was rejected by the server for some reason. As the message is not yet
+/// in the history buffer, its \c id() is a msgxid, and \c isSending() is true
+    virtual void onMessageRejected(const Message& msg){}
+/** A message was delivered, seen, etc. When the seen/received pointers are advanced,
+ * this will be called for each message of the pointer-advanced range, so the application
+ * doesn't need to iterate over ranges by itself */
     virtual void onMessageStatusChange(Idx idx, Message::Status newStatus, const Message& msg){}
-/// This method will never be called by chatd itself, as it has no notion about message editing.
-/// It should be called by crypto/message packaging filter when it receives a message that is
-///an edit of another (earlier) message. This will tell the GUI to replace that message
-/// @param oldIdx - the index of the old, edited message, @param newIdx - the index of the new message
-/// @param newmsg - The new message
-    virtual void onMessageEdited(Idx oldIdx, Idx newIdx, const Message& newmsg){}
+/** Called when a message edit is received, i.e. MSGUPD is received. The message is already
+ * updated in the history buffer and in the db, and the GUI should also update it.
+ * \attention If the edited message is not in memory, it is still updated in the database,
+ * but this callback will not be called.
+ * @param idx - the index of the edited message */
+    virtual void onMessageEdited(const Message& msg, Idx idx){}
 /// The chatroom connection (to the chatd server shard) state state has changed.
     virtual void onOnlineStateChange(ChatState state){}
 /// A user has joined the room, or their privilege has changed
@@ -378,6 +379,37 @@ public:
     {
         return (code > OP_LAST) ? "(invalid opcpde)" : opcodeNames[code];
     }
+    virutal ~Command(){}
+};
+//we need that special class because we may update key ids after keys get confirmed,
+//so in case of NEWMSG with keyxid, if the client reconnects between key confirm and
+//NEWMSG send, the NEWMSG would not use the no longer valid keyxid, but a real key id
+class MessageCommand: public Command
+{
+public:
+    MessageCommand(uint8_t opcode, Id chatid, Id userid, Id msgid,
+                   KeyId keyid=Key::kInvalidId, uint32_t ts=0, uint16_t updated=0)
+    :Command(opcode)
+    {
+        write(1, chatid);write(9, userid);write(17, msgid);write(25, ts);
+        write(29, updated);write(31, keyid);write(39, 0); //msglen
+    }
+    Id msgid() const { return read<uint64_t>(17); }
+    void setId(Id aMsgid) { write(17, aMsgid); }
+    KeyId keyId() const { return read<KeyId>(31); }
+    void setKeyId(KeyId aKeyid) { write(31, aKeyId); }
+    uint32_t msglen() const { return read<uint32_t>(39); }
+    void clearMsg()
+    {
+        if (msglen() > 0)
+            memset(buf()+43, 0, msglen()); //clear old message memory
+        write(39, (uint32_t)0);
+    }
+    void setMsg(const char* msg, uint32_t msglen)
+    {
+        write(39, msglen);
+        memcpy(writePtr(43, msglen), msg, msglen);
+    }
 };
 
 //for exception message purposes
@@ -454,20 +486,6 @@ typedef std::map<Id,Priv> UserPrivMap;
 class Chat
 {
 public:
-    struct OutputQueue: public std::list<SendingItem*>
-    {
-        typedef std::list<SendingItem*> base;
-        ~OutputQueue() { clear(); }
-        void clear()
-        { for (auto item: *this) delete item; base::clear(); }
-    };
-protected:
-    Connection& mConnection;
-    Client& mClient;
-    Id mChatId;
-    Idx mForwardStart;
-    std::vector<Message*> mForwardList;
-    std::vector<Message*> mBackwardList;
     struct SendingItem
     {
     protected:
@@ -480,10 +498,39 @@ protected:
          * double-converting it when queued as a raw command in Sending, and after
          * that (when server confirms) move it as a Message object to history buffer */
         uint8_t opcode() const { return mOpcode; }
-        SendingItem(uint8_t aOpcode, uint64_t aRowId, Command* aCmd, void* aData)
+        SendingItem(uint8_t aOpcode, Command* aCmd, void* aData, uint64_t aRowId=0)
             : mOpcode(aOpcode), rowId(aRowId), cmd(aCmd), data(aData){}
-        ~SendingItem() { assert(!data); }
+        ~SendingItem()
+        {
+            if (data)
+            {
+                if (isMessage())
+                    delete reinterpret_cast<Message*>(data);
+                else if (mOpcode == NEWKEY)
+                    delete reinterpret_cast<Key*>(data);
+                else
+                    throw std::runtime_error("SendingItem dtor: Don't know how to delete data of opcode "+std::to_string(mOpcode));
+                data = nullptr;
+            }
+        }
+        bool isMessage() { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
+        MessageCommand* msgCommand() const { assert(isMessage()); return static_cast<MessageCommand*>(cmd); }
+        Message* msg() const { assert(isMessage()); return reinterpret_cast<Message*>(data); }
+        setKeyId(KeyId keyid)
+        {
+            assert(isMessage());
+            reinterpret_cast<Message*>(data)->keyId = keyid;
+            if (cmd) static_cast<MessageCommand*>(cmd)->setKeyId(keyid);
+        }
     };
+    typedef std::list<SendingItem> OutputQueue;
+protected:
+    Connection& mConnection;
+    Client& mClient;
+    Id mChatId;
+    Idx mForwardStart;
+    std::vector<Message*> mForwardList;
+    std::vector<Message*> mBackwardList;
     OutputQueue mSending;
     OutputQueue::iterator mNextUnsent;
     bool mIsFirstJoin = true;

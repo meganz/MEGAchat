@@ -45,20 +45,35 @@ public:
     {
         return sqlite3_last_insert_rowid(mDb);
     }
-    virtual void saveMsgToSending(chatd::Message& msg, uint8_t opcode, const StaticBuffer& output)
+    void assertAffectedRowCount(int count, const char* opname=nullptr)
+    {
+        auto actual = sqlite_changes(mDb);
+        if (actual == count)
+            return;
+        std::string msg;
+        if (opname)
+            msg = opname+": ";
+        msg.append(": unexpected number of rows affected: expected ")
+           .append(std::to_string(count)).append(", actual ")
+           .append(std::to_string(actual));
+        throw std::runtime_error(msg);
+    }
+    virtual void saveMsgToSending(SendingItem& item)
     {
         //we don't supply a Command object for the output command parameter,
         //as it should be possible to pass an empty (NULL) buffer, which is not possible
         //with Command
+        auto msg = item.msg();
         sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, data, out_cmd)"
             "values(?,?,?,?,?,?,NULL)",
-            mMessages.chatId(), opcode, time(NULL), msg.id(), msg, output);
+            mMessages.chatId(), item.opcode(), time(NULL), msg()->id(), *msg,
+            item.cmd ? (*item.cmd) : StaticBuffer(nullptr, 0));
+        item.rowid = sqlite3_last_insert_rowid(mDb);
     }
     virtual void addCommandBlobToSendingItem(uint64_t rowid, const Command& command)
     {
         sqliteQuery(mDb, "update sending set out_cmd=? where rowid=?", command, rowid);
-        if (sqlite3_changes(mDb) != 1)
-            throw std::runtime_error("addCommandBlobToSendingItem: No sending item with specified rowid found");
+        assertAffectedRowCount(1,"addCommandBlobToSendingItem");
     }
     virtual void saveCommandToSending(const chatd::Command& cmd, uint64_t& rowid)
     {
@@ -69,34 +84,29 @@ public:
     virtual void deleteItemFromSending(uint64_t rowid)
     {
         sqliteQuery(mDb, "delete from "+mSendingTblName+" where rowid = ?1", rowid);
-        if (sqlite_changes(mDb) != 1)
-            throw std::runtime_error("deleteItemFromSending: Unknown item rowid");
     }
-    /*
-    virtual void updateMsgInSending(const chatd::Message& msg)
+    virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data)
     {
-        SqliteStmt stmt(mDb, "update "+mSendingTblName+" set data = ?2, ts = ?3 where rowid = ?1");
-        stmt << msg.id() << msg << msg.ts;
-        stmt.step();
-    }
-    */
-    virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
-    {
-        sqliteQuery(mDb, "insert or replace into history(idx, chatid, msgid,"
-            "type, userid, ts, data) values(?,?,?,?,?,?,?)",
-            idx, mMessages.chatId(), msg.id(), msg.type, msg.userid, msg.ts, msg);
-    }
-    virtual void addKey(const KeyWithId& key)
-    {
-        assert(key.id() != Key::kUnconfirmedId && key.id() != Key::kInvalidId);
-        sqliteQuery(mDb, "insert into keys(id, data) values(?,?)", key.id(), StaticBuffer(key.data(), key.len()));
+        sqliteQuery(mDb, "update sending set data = ? where rowid = ?", data, rowid);
+        assertAffectedRowCount(1, "updateMsgPlaintextInSending");
     }
 
-    virtual void updateMsgInHistory(const chatd::Message& msg, chatd::Idx idx)
+    virtual void updateMsgKeyIdInSending(uint64_t rowid, chatd::KeyId keyid)
     {
-        sqliteQuery(mDb, "update history set data = ? where idx = ?", msg, idx);
-        if (sqlite3_changes(mDb) != 1)
-            throw std::runtime_error("updateMsgInHistory: Message with specific msgid not found");
+        sqliteQuery(mDb, "update sending set keyid = ? where rowid = ?", keyid, rowid);
+        assertAffectedRowCount(1, "updateMsgKeyIdInSending");
+    }
+    virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
+    {
+        sqliteQuery(mDb, "insert or replace into history"
+            "(idx, chatid, msgid, keyid, type, userid, ts, data) "
+            "values(?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
+            msg.type, msg.userid, msg.ts, msg);
+    }
+    virtual void updateMsgInHistory(chatd::Id msgid, const StaticBuffer& msg)
+    {
+        sqliteQuery(mDb, "update history set data = ? where msgid = ?", msg, msgid);
+        assertAffectedRowCount(1, "updateMsgInHistory");
     }
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {

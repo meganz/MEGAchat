@@ -107,7 +107,7 @@ public:
         mDataSize = datalen;
         ::memcpy(mBuf, data, datalen);
     }
-    void copyFrom(const Buffer& src) { assign(src.buf(), src.dataSize()); }
+    void copyFrom(const StaticBuffer& src) { assign(src.buf(), src.dataSize()); }
     void reserve(size_t size)
     {
         if (!mBuf)
