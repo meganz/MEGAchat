@@ -164,7 +164,7 @@ void Client::join(const Id& chatid, int shardNo, const std::string& url, Listene
     // add chatid to the connection's chatids
     conn->mChatIds.insert(chatid);
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
-    Chat* msgs = new Chat(*conn, chatid, listener, crypto);
+    Chat* chat = new Chat(*conn, chatid, listener, crypto);
     mChatForChatId.emplace(std::piecewise_construct, std::forward_as_tuple(chatid),
                                std::forward_as_tuple(msgs));
 
@@ -173,11 +173,19 @@ void Client::join(const Id& chatid, int shardNo, const std::string& url, Listene
     {
         conn->reconnect();
     }
-    else if (conn->isOnline())
+    else
     {
-        msgs->join();
-        msgs->range();
+        if (conn->isOnline())
+            chat->login();
     }
+}
+
+void Chat::login()
+{
+    if (chat->mOldestKnownMsgId)
+        chat->joinRangeHist();
+    else
+        chat->join();
 }
 
 void Connection::websockConnectCb(ws_t ws, void* arg)
@@ -429,10 +437,8 @@ void Connection::rejoinExistingChats()
     for (auto& chatid: mChatIds)
     try
     {
-        // rejoin chat and immediately set the locally buffered message range
         Chat& msgs = mClient.chats(chatid);
-        msgs.join();
-        msgs.range();
+        msgs.login();
     }
     catch(std::exception& e)
     {
@@ -458,6 +464,7 @@ void Chat::join()
     mInitialFetchHistoryCalled = false;
     setOnlineState(kChatStateJoining);
     sendCommand(Command(OP_JOIN) + mChatId + mClient.mUserId + (int8_t)PRIV_NOCHANGE);
+    requestHistoryFromServer(-initialHistoryFetchCount);
 }
 
 bool Chat::getHistory(int count)
@@ -657,7 +664,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 mClient.msgConfirm(msgxid, msgid);
                 break;
             }
-            case OP_RANGE:
+/*            case OP_RANGE:
             {
                 READ_ID(chatid, 0);
                 READ_ID(oldest, 8);
@@ -669,15 +676,20 @@ void Connection::execCommand(const StaticBuffer& buf)
                     msgs.initialFetchHistory(newest);
                 break;
             }
+*/
             case OP_REJECT:
             {
                 READ_ID(id, 0);
                 READ_32(op, 8);
-                READ_32(code, 12); //TODO: what's this code?
-                CHATD_LOG_DEBUG("recv REJECT: id='%s', %d / %d", ID_CSTR(id), op, code);
+                READ_32(dummy, 12); //TODO: what's this code?
+                CHATD_LOG_DEBUG("recv REJECT: id='%s', %s", ID_CSTR(id), Command::opcodeToStr(op));
                 if (op == OP_NEWMSG)  // the message was rejected
                 {
                     mClient.msgConfirm(id, Id::null());
+                }
+                else if (op == OP_MSGUPD || op == OP_MSGUPDX)
+                {
+                    //TODO: Implement
                 }
                 else
                 {
@@ -763,7 +775,6 @@ void Chat::onHistDone()
 {
     assert(mHistFetchState == kHistFetchingFromServer);
     mHistFetchState = (mLastHistFetchCount > 0) ? kHistNotFetching : kHistNoMore;
-    CALL_CRYPTO(onHistoryDone);
     CALL_LISTENER(onHistoryDone, false);
     if (mLastSeenIdx == CHATD_IDX_INVALID)
         CALL_LISTENER(onUnreadChanged);
@@ -1108,40 +1119,13 @@ bool Chat::flushOutputQueue(bool fromStart)
 }
 
 // after a reconnect, we tell the chatd the oldest and newest buffered message
-void Chat::range()
+void Chat::joinRangeHist()
 {
-    if (mOldestKnownMsgId)
-    {
-        CHATID_LOG_DEBUG("Sending RANGE based on app db: %s - %s",
-            mOldestKnownMsgId.toString().c_str(), mNewestKnownMsgId.toString().c_str());
-        sendCommand(Command(OP_RANGE) + mChatId + mOldestKnownMsgId + mNewestKnownMsgId);
-        return;
-    }
-    if (empty())
-    {
-        CHATID_LOG_DEBUG("No local history, no range to send");
-        initialFetchHistory(Id::null());
-        return;
-    }
+    assert(mOldestKnownMsgId);
 
-    auto highest = highnum();
-    Idx i = lownum();
-    for (; i<=highest; i++)
-    {
-        auto& msg = at(i);
-        if (msg.isSending())
-        {
-            i--;
-            break;
-        }
-    }
-    if (i < lownum()) //we have only unsent messages
-        return;
-    if (i > highest)
-        i = highest;
-    CHATID_LOG_DEBUG("Sending RANGE calculated from memory buffer: %s - %s",
-        at(lownum()).id().toString().c_str(), at(i).id().toString().c_str());
-    sendCommand(Command(OP_RANGE) + mChatId + at(lownum()).id() + at(i).id());
+    CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
+            mOldestKnownMsgId.toString().c_str(), mNewestKnownMsgId.toString().c_str());
+    sendCommand(Command(OP_JOINRANGEHIST) + mChatId + mOldestKnownMsgId + mNewestKnownMsgId);
 }
 
 void Client::msgConfirm(const Id& msgxid, const Id& msgid)
@@ -1368,63 +1352,11 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
         CALL_LISTENER(onUnreadChanged);
     return idx;
 }
-// procedure is as follows:
-// set state as joining
-// send join
-// receive joins
-// if (we don't have anything in DB or memory)
-// {
-//      call initialFetchHistory(0) - this results in sending HIST (-initialHistFetchCount)
-// }
-// if (server has history)
-// {
-//      receive server RANGE
-//      call initialFetchHistory(rangeLast) - ignored if it was already called in prev step
-// }
-// [receive history from server, if any]
-// receive HISTDONE
-// login is complete, set state to online
-
-void Chat::initialFetchHistory(Id serverNewest)
-{
-    if (mInitialFetchHistoryCalled)
-        return;
-    mInitialFetchHistoryCalled = true;
-    assert(mOnlineState == kChatStateJoining);
-    if (empty()) //if we have messages in db, we must always have loaded some
-    {
-        assert(!mOldestKnownMsgId);
-        //we don't have messages in db, and we don't have messages in memory
-        //we haven't sent a RANGE, so we can get history only backwards
-        requestHistoryFromServer(-initialHistoryFetchCount);
-    }
-    else
-    {
-        if (at(highnum()).id() != serverNewest)
-        {
-            CHATID_LOG_DEBUG("There are new messages on the server, requesting them");
-//the server has more recent msgs than the most recent in our db, retrieve all newer ones, after our RANGE
-            requestHistoryFromServer(0x0fffffff);
-        }
-        else
-        {
-            onJoinComplete();
-        }
-    }
-}
 
 void Chat::onUserJoin(const Id& userid, Priv priv)
 {
-    if (priv != PRIV_NOTPRESENT)
-    {
-        CALL_CRYPTO(onUserJoined, userid, priv);
-        CALL_LISTENER(onUserJoined, userid, priv);
-    }
-    else
-    {
-        CALL_CRYPTO(onUserLeft, userid);
-        CALL_LISTENER(onUserLeft, userid);
-    }
+    CALL_CRYPTO(onUserJoined, userid, priv);
+    CALL_LISTENER(onUserJoined, userid, priv);
 }
 
 void Chat::onJoinComplete()
