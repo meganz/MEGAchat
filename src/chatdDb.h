@@ -41,24 +41,20 @@ public:
             oldestDbId = 0;
         }
     }
-    virtual uint64_t getNextRowId()
-    {
-        return sqlite3_last_insert_rowid(mDb);
-    }
     void assertAffectedRowCount(int count, const char* opname=nullptr)
     {
-        auto actual = sqlite_changes(mDb);
+        auto actual = sqlite3_changes(mDb);
         if (actual == count)
             return;
         std::string msg;
         if (opname)
-            msg = opname+": ";
+            msg.append(opname).append(": ");
         msg.append(": unexpected number of rows affected: expected ")
            .append(std::to_string(count)).append(", actual ")
            .append(std::to_string(actual));
         throw std::runtime_error(msg);
     }
-    virtual void saveMsgToSending(SendingItem& item)
+    void saveMsgToSending(chatd::Chat::SendingItem& item)
     {
         //we don't supply a Command object for the output command parameter,
         //as it should be possible to pass an empty (NULL) buffer, which is not possible
@@ -66,24 +62,37 @@ public:
         auto msg = item.msg();
         sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, data, out_cmd)"
             "values(?,?,?,?,?,?,NULL)",
-            mMessages.chatId(), item.opcode(), time(NULL), msg()->id(), *msg,
+            (uint64_t)mMessages.chatId(), item.opcode(), (int)time(NULL), msg->id(), *msg,
             item.cmd ? (*item.cmd) : StaticBuffer(nullptr, 0));
         item.rowid = sqlite3_last_insert_rowid(mDb);
     }
-    virtual void addCommandBlobToSendingItem(uint64_t rowid, const Command& command)
+    virtual void addCommandBlobToSendingItem(uint64_t rowid, const chatd::Command& command)
     {
         sqliteQuery(mDb, "update sending set out_cmd=? where rowid=?", command, rowid);
         assertAffectedRowCount(1,"addCommandBlobToSendingItem");
     }
-    virtual void saveCommandToSending(const chatd::Command& cmd, uint64_t& rowid)
+    void saveNewKeyToSending(chatd::Chat::SendingItem& item)
     {
-        sqliteQuery(mDb, "insert into sending(chatid, opcode, ts, msgid, data, out_cmd)"
-            "values(?,?,?,0,NULL,?)", mMessages.chatId(), cmd.opcode(), time(NULL), cmd);
-        rowid = sqlite3_last_insert_rowid(mDb);
+        assert(item.cmd && item.opcode() == chatd::OP_NEWKEY);
+        auto key = reinterpret_cast<chatd::Key*>(item.data);
+        sqliteQuery(mDb, "insert into sending(chatid, opcode, ts, data_id, data, out_cmd)"
+            "values(?,?,0,?,?,?)", mMessages.chatId(), chatd::OP_NEWKEY,
+            chatd::Key::kUnconfirmedId, StaticBuffer(key->data, key->len), *item.cmd);
+        item.rowid = sqlite3_last_insert_rowid(mDb);
+    }
+    virtual void saveItemToSending(chatd::Chat::SendingItem& item)
+    {
+        if (item.isMessage())
+            saveMsgToSending(item);
+        else if (item.opcode() == chatd::OP_NEWKEY)
+            saveNewKeyToSending(item);
+        else
+            throw std::runtime_error("Don't know how to save sending item with opcode "+std::to_string(item.opcode()));
     }
     virtual void deleteItemFromSending(uint64_t rowid)
     {
-        sqliteQuery(mDb, "delete from "+mSendingTblName+" where rowid = ?1", rowid);
+        sqliteQuery(mDb, "delete from sending where rowid = ?1", rowid);
+        assertAffectedRowCount(1, "deleteItemFromSending");
     }
     virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data)
     {
@@ -110,7 +119,7 @@ public:
     }
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
-        SqliteStmt stmt(mDb, "select rowid, opcode, data_id, data, type, ts, out_cmd from sending"
+        SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, data, type, ts, out_cmd from sending"
             "where chatid=? order by rowid asc");
         stmt << mMessages.chatId();
         queue.clear();
@@ -131,25 +140,26 @@ public:
             void* data;
             if (stmt.hasBlobCol(3)) //data
             {
-                if (opcode == NEWKEY)
+                if (opcode == chatd::OP_NEWKEY)
                 {
-                    auto key = new chatd::Key(stmt.uint64Col(2), 0);
+                    auto key = new chatd::Key(stmt.uint64Col(2));
                     key->len = stmt.blobCol(3, key->data, chatd::Key::kMaxLen);
                     data = key;
                 }
-                else if (opcode == NEWMSG || opcode == MSGUPD || opcode == MSGUPDX)
+                else if ((opcode == chatd::OP_NEWMSG) || (opcode == chatd::OP_MSGUPD)
+                         || (opcode == chatd::OP_MSGUPDX))
                 {
                     Buffer buf;
                     stmt.blobCol(3, buf);
-                    auto msg = new chatd::Message(stmt.int64Col(2), mMessage.userId(),
-                        stmt.intCol(4), time(NULL), buf, stmt.intCol(5), nullptr, true);
+                    auto msg = new chatd::Message(stmt.int64Col(2), mMessages.client().userId(),
+                        stmt.intCol(6), 0, std::move(buf), true, (chatd::KeyId)stmt.intCol(3),
+                        (chatd::Message::Type)stmt.intCol(5));
                     data = msg;
                 }
                 else
                     throw std::runtime_error("Don't know how to handle send item with opcode "+std::to_string(opcode));
             }
-            auto item = new chatd::Chat::SendingItem(stmt.intCol(1), stmt.intCol(0), cmd, data);
-            queue.push_back(item);
+            queue.emplace_back(stmt.intCol(1), cmd, data, stmt.intCol(0));
         }
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
@@ -170,9 +180,8 @@ public:
             auto idx = stmt.intCol(5);
             assert(idx == mMessages.lownum()-1-(int)messages.size());
 #endif
-            auto msg = new chatd::Message(msgid, userid, ts, std::move(buf),
-                stmt.intCol(7), (chatd::Message::Type)stmt.intCol(3));
-            msg->setEdits(stmt.uint64Col(6), false);
+            auto msg = new chatd::Message(msgid, userid, ts, 0, std::move(buf),
+                (chatd::Message::Type)stmt.intCol(3));
             messages.push_back(msg);
         }
     }

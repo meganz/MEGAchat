@@ -150,7 +150,7 @@ public:
         return mBuf+offset;
     }
     char* appendPtr(size_t dataLen) { return writePtr(mDataSize, dataLen); }
-    void assign(Buffer&& other)
+    void takeFrom(Buffer&& other)
     {
         if (mBuf)
             ::free(mBuf);
@@ -158,6 +158,10 @@ public:
         mBufSize = other.mBufSize;
         mDataSize = other.mDataSize;
         other.zero();
+    }
+    void assign(const Buffer& other)
+    {
+        assign(other.buf(), other.bufSize());
     }
     Buffer& write(size_t offset, const void* data, size_t datalen)
     {

@@ -18,6 +18,7 @@
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 
+#define CHATD_MAX_EDIT_AGE 3600
 namespace chatd
 {
 // command opcodes
@@ -78,36 +79,45 @@ public:
     static const Id null() { return static_cast<uint64_t>(0); }
 };
 
-typedef uint32_t KeyId;
+class Chat;
 
+typedef uint32_t KeyId;
 class Key
 {
+protected:
+    Id mUserid;
+    void setData(const char* aData, uint16_t aLen)
+    {
+        assert(aLen <= kMaxLen);
+        memcpy(data, aData, aLen);
+    }
+    friend class Chat;
 public:
     enum { kMaxLen = 16 };
     enum { kInvalidId = 0, kUnconfirmedId = 0xffffffff };
     Id userid() const { return mUserid; }
     uint16_t len;
     char data[kMaxLen];
-    Key(Id aUserid, uint16_t aLen, const char* aData): mUserid(aUserid), len(aLen)
+    Key(Id aUserid, uint16_t aLen, const char* aData): mUserid(aUserid)
     {
-        assert(aLen <= kMaxLen);
-        memcpy(data, aData, aLen);
+        setData(aData, aLen);
     }
-    Key(): mUserid(mega::UNDEF), len(0){}
-    bool isValid() const { return mLen > 0; }
-protected:
-    Id mUserid;
+    Key(Id aUserid): mUserid(aUserid), len(0){}
+    bool isValid() const { return len > 0; }
 };
 
 class KeyWithId: public Key
 {
 protected:
     KeyId mId;
+    void setId(KeyId aId) { mId = aId; }
+    friend class Chat;
 public:
     KeyId id() const { return mId; }
     KeyWithId(KeyId aId, Id aUserid, uint16_t aLen, const char* aData)
         :Key(aUserid, aLen, aData), mId(aId){}
-//  KeyWithId(): Key(), mId(CHATD_KEYID_INVALID){}
+    KeyWithId(Id aUserid=Id::null()): Key(aUserid), mId(Key::kInvalidId){}
+    bool isValid() const { return mId != Key::kInvalidId; }
     bool isUnconfirmed() const { return mId == Key::kUnconfirmedId; }
     void confirm(KeyId keyid) { assert(isUnconfirmed()); mId = keyid; }
 };
@@ -167,15 +177,15 @@ public:
     bool isSending() const { return mIdIsXid; }
     void setId(Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     Message(Id aMsgid, Id aUserid, uint32_t aTs, uint16_t aUpdated,
-          Buffer&& buf, Type aType=kNormalMsg, void* aUserp=nullptr,
-          bool aIsSending=false)
+          Buffer&& buf, bool aIsSending=false, KeyId aKeyid=Key::kInvalidId,
+          Type aType=kNormalMsg, void* aUserp=nullptr)
       :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
-          ts(aTs), updated(aUpdated), keyid(CHATD_KEYID_INVALID), type(aType), userp(aUserp){}
+          ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
     Message(Id aMsgid, Id aUserid, uint32_t aTs, uint16_t aUpdated,
-            const char* msg, size_t msglen,
-            Type aType=kNormalMsg, void* aUserp=nullptr, bool aIsSending=false)
+            const char* msg, size_t msglen, bool aIsSending=false,
+            KeyId aKeyid=Key::kInvalidId, Type aType=kNormalMsg, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
-            updated(aUpdated), keyid(CHATD_KEYID_INVALID), type(aType), userp(aUserp) {}
+            updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp) {}
     static const char* statusToStr(unsigned status)
     {
         return (status > kSeen) ? "(invalid status)" : statusNames[status];
@@ -184,8 +194,6 @@ protected:
     static const char* statusNames[];
     friend class Chat;
 };
-
-class Chat;
 
 enum ChatState
 {kChatStateOffline = 0, kChatStateConnecting, kChatStateJoining, kChatStateOnline};
@@ -248,106 +256,72 @@ public:
     virtual void onUserLeft(const Id& userid) {}
 ///Unread message count has changed
     virtual void onUnreadChanged() {}
-    virtual void onMsgDecrypted(Message& msg) {}
-    virtual void onMsgDecryptError(Message& msg, const std::string& err) {}
 };
+
+class MsgCommand;
 class ICrypto
 {
 public:
     void init(Chat& messages) {}
-    /**
-     * @brief encrypt Encrypts a message, putting the contents in the specified buffer
-     * @param src The message to encrypt
-     * @param dest The destination buffer where to write the encrypted data
-     * @return Whether the encryption was successful. In case keys were not available
-     * immediately, \c false must be returned. When the encrypt operation will be
-     * successful, the crypto module must call Chat::onCanEncryptAgain().
-     * This will result in encrypt() for that message called again, and for subsequent
-     * messages in the output queue, until the queue is empty, another(or this)
-     * \c encrypt() call return false, or the connection goes offline. It is possible
-     * that this method is called multiple times for the same message (regardless of
-     * its return value) in case the client reconnects. When reconnected, the client
-     * re-encrypts and resends all unconfirmed output messages in order.
-     */
-    virtual bool encrypt(const Message& src, Buffer& dest)
+/**
+ * @brief encrypt Encrypts a message, putting the contents in the specified buffer
+ * @param msg The message to encrypt. If msg.keyid is not 0, then it must be encrypted
+ * with the key with id keyid. If it is 0, then it's up to the crypto module to
+ * choose the key, and it must set msg.keyid to the id of the key used.
+ * @param cmd The Command object that will be sent for that message. The keyid
+ * of the command object is the same as msg.keyid when the callback is called,
+ * and if the crypto module updated msg.keyid, it must also update the
+ * command's keyid to the same value.
+ * The current encryption key is kept in \c Chat.currentSendKey. If the crypto module
+ * generates a new key, it must update that value and assign \c Key::kUnconfirmedId
+ * as the key's id, and post the key to the chat using \c Chat.setNewSendKey().
+ * Upon key confirmation from the server, the id of
+ * currentKeyId will be updated to the server-assigned keyid. The crypto module
+ * should not care about the key's id, it should just use whatever \c Chat.currentKeyId.id()
+ * is set to.
+ * @return Whether the encryption was successful. In case a participant's public
+ * key is not immediately available (and needs to be fetched from the API),
+ * \c false must be returned. When the key fetch is done and the encrypt operation
+ * will be successful, the crypto module must call \c Chat::onCanEncryptAgain().
+ * This will result in \c encrypt() for that same message called again,
+ * and for any subsequent messages that may have accumulated in the output queue,
+ * until the queue is empty, another(or this) \c encrypt() call return false,
+ * or the connection goes offline. Upon a subsequent call for the same message,
+ * it is not guaranteed that the keyid set via \c msg.keyid will be preserved, so
+ * it has to be set again on the message and command objects
+ * in case \c msg.keyid == Key::kUnconfirmedId.
+ */
+    virtual bool msgEncrypt(const Message& src, MsgCommand& cmd)
     {
-        Message::Type type = src.type;
-        if (type==Message::kTypeEdit)
-        {
-            dest.reserve(src.dataSize()+9);
-            dest.append<unsigned char>(type);
-            dest.append<uint64_t>(src.edits());
-        }
-        else
-        {
-            dest.append<unsigned char>(type);
-        }
-        if (!src.empty())
-            dest.append(src.buf(), src.dataSize());
-        //printf("encrypted a %sedit: size: %zu\n", (src.type==Message::kTypeEdit)?"":"NON-", dest.dataSize());
         return true;
     }
-/// @brief Called by the client for received messages to decrypt them.
-/// The crypto module \b must also set the type of the message, so that the client
-/// knows whether to pass it to the application (i.e. contains an actual message)
-/// or should not (i.e. contains a crypto system packet)
-    virtual promise::Promise<void> decrypt(Message& src, Idx idx)
+/**
+ * @brief Called by the client for received messages to decrypt them.
+ * The crypto module \b must also set the type of the message, so that the client
+ * knows whether to pass it to the application (i.e. contains an actual message)
+ * or should not (i.e. contains a crypto system packet)
+ */
+    virtual void msgDecrypt(Message& src)
     { //test implementation
-        auto size = src.dataSize();
-        //printf("decrypt: size = %zu\n", size);
-        Message::Type type = (Message::Type)(*(src.buf()));
-        src.type = type;
-        if (type == Message::kTypeEdit)
-        {
-            if (size < 9)
-                throw std::runtime_error("Edit message is too small");
-
-//            printf("decrypt: message is an edit\n");
-            src.setEdits(src.read<uint64_t>(1), false);
-            if (size > 9)
-            {
-                Buffer dest(size-9);
-                dest.append(src.buf()+9, size-9);
-                src.assign(std::move(dest));
-            }
-            else
-            {
-                src.clear();
-            }
-        }
-        else
-        {
-            if (size < 1)
-                throw std::runtime_error("Message is too small");
-            Buffer dest(size-1);
-            dest.append(src.buf()+1, size-1);
-            src.assign(std::move(dest));
-        }
-        auto delay = rand() % 1000;
-        if (delay < 500)
-            delay = 0;
-        promise::Promise<void> pms;
-        mega::setTimeout([pms, &src]() mutable
-        {
-            src.isEncrypted = false;
-            pms.resolve();
-        }, delay);
-        return pms;
     }
-/// The chatroom connection (to the chatd server shard) state state has changed.
+    virtual Key* keyDecrypt(Id userid, uint16_t keylen, const char* keybuf);
+/**
+ * @brief The chatroom connection (to the chatd server shard) state state has changed.
+ */
     virtual void onOnlineStateChange(ChatState state){}
-/// A user has joined the room, or their privilege has changed
+/**
+ * @brief A user has joined or left the room, or their privilege has changed
+ * @param privilege - the new privilege, if it is PRIV_NOTPRESENT, then the user
+ * left the chat
+ */
     virtual void onUserJoined(const Id& userid, Priv privilege){}
-/// A user has left the chatroom
-    virtual void onUserLeft(const Id& userid) {}
-/// @brief Called when a message is received/read that was not passed to \c decrypt().
-/// In other words - called only for unencrypted messages, read from history database.
-/// In combination with \c decrypt(), the crypto module should receive all messages that
-/// the client receives/loads.
-    virtual void onMessage(bool isNew, Idx idx, Message& msg, Message::Status status){}
-/// History fetch request finished
-    virtual void onHistoryDone() {}
-///The crypto module is destroyed when that chatid is left or the client is destroyed
+/**
+ * @brief A key was received from the server, and added to Chat.keys
+ */
+    virtual void onKeyReceived(const KeyWithId& key){}
+/**
+ * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
+ */
     virtual ~ICrypto(){}
 };
 
@@ -379,15 +353,15 @@ public:
     {
         return (code > OP_LAST) ? "(invalid opcpde)" : opcodeNames[code];
     }
-    virutal ~Command(){}
+    virtual ~Command(){}
 };
 //we need that special class because we may update key ids after keys get confirmed,
 //so in case of NEWMSG with keyxid, if the client reconnects between key confirm and
 //NEWMSG send, the NEWMSG would not use the no longer valid keyxid, but a real key id
-class MessageCommand: public Command
+class MsgCommand: public Command
 {
 public:
-    MessageCommand(uint8_t opcode, Id chatid, Id userid, Id msgid,
+    MsgCommand(uint8_t opcode, Id chatid, Id userid, Id msgid,
                    KeyId keyid=Key::kInvalidId, uint32_t ts=0, uint16_t updated=0)
     :Command(opcode)
     {
@@ -397,7 +371,7 @@ public:
     Id msgid() const { return read<uint64_t>(17); }
     void setId(Id aMsgid) { write(17, aMsgid); }
     KeyId keyId() const { return read<KeyId>(31); }
-    void setKeyId(KeyId aKeyid) { write(31, aKeyId); }
+    void setKeyId(KeyId aKeyid) { write(31, aKeyid); }
     uint32_t msglen() const { return read<uint32_t>(39); }
     void clearMsg()
     {
@@ -455,7 +429,14 @@ protected:
     void enableInactivityTimer();
     void disableInactivityTimer();
     void reset();
+// As sending data over libws is destructive to the buffer, we have two versions
+// of sendCommand - the one with the rvalue reference is picked by the compiler
+// whenever the command object is a temporary, avoiding copying the buffer,
+// and the const reference one is picked when the Command object has to be preserved
     bool sendCommand(Command&& cmd);
+    bool sendCommand(const Command& cmd);
+// Destroys the buffer content
+    bool sendBuf(Buffer& buf);
     void rejoinExistingChats();
     void resendPending();
     void join(const Id& chatid);
@@ -491,22 +472,22 @@ public:
     protected:
         uint8_t mOpcode;
     public:
-        uint64_t rowId;
+        uint64_t rowid;
         std::unique_ptr<Command> cmd;
         void* data; //can be a Message or Key, depending on opcode
         /** When sending a message, we attach the Message object here to avoid
          * double-converting it when queued as a raw command in Sending, and after
          * that (when server confirms) move it as a Message object to history buffer */
         uint8_t opcode() const { return mOpcode; }
-        SendingItem(uint8_t aOpcode, Command* aCmd, void* aData, uint64_t aRowId=0)
-            : mOpcode(aOpcode), rowId(aRowId), cmd(aCmd), data(aData){}
+        SendingItem(uint8_t aOpcode, Command* aCmd, void* aData, uint64_t aRowid=0)
+            : mOpcode(aOpcode), rowid(aRowid), cmd(aCmd), data(aData){}
         ~SendingItem()
         {
             if (data)
             {
                 if (isMessage())
                     delete reinterpret_cast<Message*>(data);
-                else if (mOpcode == NEWKEY)
+                else if (mOpcode == OP_NEWKEY)
                     delete reinterpret_cast<Key*>(data);
                 else
                     throw std::runtime_error("SendingItem dtor: Don't know how to delete data of opcode "+std::to_string(mOpcode));
@@ -514,13 +495,13 @@ public:
             }
         }
         bool isMessage() { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
-        MessageCommand* msgCommand() const { assert(isMessage()); return static_cast<MessageCommand*>(cmd); }
+        MsgCommand* msgCommand() const { assert(isMessage()); return static_cast<MsgCommand*>(cmd.get()); }
         Message* msg() const { assert(isMessage()); return reinterpret_cast<Message*>(data); }
-        setKeyId(KeyId keyid)
+        void setKeyId(KeyId keyid)
         {
             assert(isMessage());
-            reinterpret_cast<Message*>(data)->keyId = keyid;
-            if (cmd) static_cast<MessageCommand*>(cmd)->setKeyId(keyid);
+            reinterpret_cast<Message*>(data)->keyid = keyid;
+            if (cmd) static_cast<MsgCommand*>(cmd.get())->setKeyId(keyid);
         }
     };
     typedef std::list<SendingItem> OutputQueue;
@@ -541,20 +522,21 @@ protected:
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
-    bool mInitialFetchHistoryCalled = false;
 //    UserPrivMap mUsers;
-    /// User-supplied initial range, that we use until we see the message with mOldestKnownMsgId
-    /// Before that happens, missing messages are supposed to be in a database and
+    /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
+    /// Before that happens, missing messages are supposed to be in the database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
-    /// we disable this range and recalculate range() only from the buffer items
+    /// we disable this range by setting mOldestKnownMsgId to 0, and recalculate
+    /// range() only from the buffer items
     Id mOldestKnownMsgId;
     Id mNewestKnownMsgId;
     unsigned mLastHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
     HistFetchState mHistFetchState = kHistNotFetching;
     DbInterface* mDbInterface = nullptr;
-    std::map<uint32_t, Key> keys;
-    std::unique_ptr<KeyWithId> currentSendKey; //we use a pointer here because we may have no key yet
+    std::map<uint32_t, Key*> keys;
+    KeyWithId currentSendKey; //we use a pointer here because we may have no key yet
     ICrypto* mCrypto;
+    bool mEncryptionHalted = false;
     Chat(Connection& conn, const Id& chatid, Listener* listener, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.push_back(msg); }
     void push_back(Message* msg) { mBackwardList.push_back(msg); }
@@ -570,7 +552,7 @@ protected:
         mForwardList.clear();
     }
     // msgid can be 0 in case of rejections
-    Idx confirm(const Id& msgxid, const Id& msgid);
+    Idx msgConfirm(Id msgxid, Id msgid);
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
     void onUserJoin(const Id& userid, Priv priv);
     void onJoinComplete();
@@ -581,12 +563,14 @@ protected:
     void onLastReceived(const Id& msgid);
     void onLastSeen(const Id& msgid);
     bool sendCommand(Command&& cmd);
-    void join();
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
     void enqueueMsgForSend(Message* msg);
     bool flushOutputQueue(bool fromStart=false);
-    void range();
+    Id makeRandomId();
+    void login();
+    void join();
+    void joinRangeHist();
     void onHistDone(); //called upont receipt of HISTDONE from server
     void onNewKeys(StaticBuffer&& keybuf);
     friend class Connection;
@@ -654,18 +638,22 @@ public:
     bool setMessageSeen(Id msgid);
     Idx lastSeenIdx() const { return mLastSeenIdx; }
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
-    void onCanEncryptAgain() { flushOutputQueue(); }
+    void onCanEncryptAgain();
 // Message output methods
     Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
 //Queues a message as a edit message for \c orig. \attention Will delete a previous edit if
 //the original was not yet ack-ed by the server. That is, there can be only one pending
 //edit for a not-yet-sent message, and if there was a previous one, it will be deleted.
 //The user is responsible to clear any reference to a previous edit to avoid a dangling pointer.
-    Message* msgModify(const Id& oriId, bool isXid, const char* msg, size_t msglen, void* userp, const Id& id=Id::null());
+    Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp);
     int unreadMsgCount() const;
     void setListener(Listener* newListener) { mListener = newListener; }
 protected:
-    void doMsgSubmit(Message* msg);
+    void msgEncryptAndSend(Message* msg, uint8_t opcode);
+    void onMsgUpdated(const Message& msg);
+    void keyConfirm(KeyId keyxid, KeyId keyid);
+    void setNewSendKey(Key* key, Command* cmd);
+
 //===
 };
 
@@ -679,7 +667,6 @@ protected:
 /// maps chatids to the Message object
     std::map<Id, std::shared_ptr<Chat>> mChatForChatId;
     Id mUserId;
-    Id mMsgTransactionId;
     static bool sWebsockCtxInitialized;
     Connection& chatidConn(const Id& chatid)
     {
@@ -688,8 +675,7 @@ protected:
             throw std::runtime_error("chatidConn: Unknown chatid "+chatid);
         return *it->second;
     }
-    const Id& nextTransactionId() { mMsgTransactionId.val++; return mMsgTransactionId; }
-    void msgConfirm(const Id& msgxid, const Id& msgid);
+    void msgConfirm(Id msgxid, Id msgid);
 public:
     static ws_base_s sWebsocketContext;
     unsigned inactivityCheckIntervalSec = 20;
@@ -725,12 +711,14 @@ public:
     /// an assertion will be triggered. Therefore, the application must always try to read not less than
     /// \c count messages, in case they are avaialble in the db.
     virtual void fetchDbHistory(Idx startIdx, unsigned count, std::vector<Message*>& messages) = 0;
-    virtual void saveMsgToSending(Message& msg) = 0;
-    virtual void deleteMsgFromSending(const Id& msgxid) = 0;
-    virtual void loadSendingTable(std::vector<Message*>& messages) = 0;
+    virtual void saveItemToSending(Chat::SendingItem& msg) = 0;
+    virtual void addCommandBlobToSendingItem(uint64_t rowid, const Command& cmd) = 0;
+    virtual void deleteItemFromSending(uint64_t rowid) = 0;
+    virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data) = 0;
+    virtual void updateMsgKeyIdInSending(uint64_t rowid, KeyId keyid) = 0;
+    virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
-    virtual void updateMsgInSending(const Message& data) = 0;
-    virtual void updateSendingEditId(const Id& msgxid, const Id& msgid) = 0;
+    virtual void updateMsgInHistory(Id msgid, const StaticBuffer& newdata) = 0;
     virtual Idx getIdxOfMsgid(Id msgid) = 0;
     virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;
     virtual ~DbInterface(){}

@@ -6,6 +6,7 @@
 #include <event2/dns.h>
 #include "base64.h"
 #include <algorithm>
+#include <random>
 
 using namespace std;
 using namespace promise;
@@ -165,8 +166,7 @@ void Client::join(const Id& chatid, int shardNo, const std::string& url, Listene
     conn->mChatIds.insert(chatid);
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
     Chat* chat = new Chat(*conn, chatid, listener, crypto);
-    mChatForChatId.emplace(std::piecewise_construct, std::forward_as_tuple(chatid),
-                               std::forward_as_tuple(msgs));
+    mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
 
     // attempt a connection ONLY if this is a new shard.
     if(isNew)
@@ -182,10 +182,10 @@ void Client::join(const Id& chatid, int shardNo, const std::string& url, Listene
 
 void Chat::login()
 {
-    if (chat->mOldestKnownMsgId)
-        chat->joinRangeHist();
+    if (mOldestKnownMsgId)
+        joinRangeHist();
     else
-        chat->join();
+        join();
 }
 
 void Connection::websockConnectCb(ws_t ws, void* arg)
@@ -420,15 +420,28 @@ void Connection::reset()
     assert(!mWebSocket);
 }
 
+bool Connection::sendBuf(Buffer& buf)
+{
+//WARNING: ws_send_msg_ex() is destructive to the buffer - it applies the websocket mask directly
+//Copy the data to preserve the original
+    auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
+    bool result = (!rc && isOnline());
+    return result;
+}
 bool Connection::sendCommand(Command&& cmd)
 {
     if (!isOnline())
         return false;
-//WARNING: ws_send_msg_ex() is destructive to the buffer - it applies the websocket mask directly
-    auto rc = ws_send_msg_ex(mWebSocket, cmd.buf(), cmd.dataSize(), 1);
-    bool result = (!rc && isOnline());
+    bool result = sendBuf(cmd);
     cmd.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
     return result;
+}
+bool Connection::sendCommand(const Command& cmd)
+{
+    if (!isOnline())
+        return false;
+    Buffer buf(cmd.buf(), cmd.dataSize());
+    return sendBuf(buf);
 }
 
 // rejoin all open chats after reconnection (this is mandatory)
@@ -461,7 +474,6 @@ bool Chat::sendCommand(Command&& cmd)
 void Chat::join()
 {
 //also reset handshake state, as we may be reconnecting
-    mInitialFetchHistoryCalled = false;
     setOnlineState(kChatStateJoining);
     sendCommand(Command(OP_JOIN) + mChatId + mClient.mUserId + (int8_t)PRIV_NOCHANGE);
     requestHistoryFromServer(-initialHistoryFetchCount);
@@ -542,7 +554,6 @@ void Chat::getHistoryFromDb(unsigned count)
         msgIncoming(false, msg, true); //increments mLastHistFetchCount
     }
     mHistFetchState = kHistNotFetching;
-    CALL_CRYPTO(onHistoryDone);
     CALL_LISTENER(onHistoryDone, true);
 
     // If we haven't yet seen the message with the last-seen msgid, then all messages
@@ -603,7 +614,6 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_NEWMSG:
             case OP_MSGUPD:
             {
-                bool isNewMsg = (opcode == OP_NEWMSG);
                 READ_ID(chatid, 0);
                 READ_ID(userid, 8);
                 READ_ID(msgid, 16);
@@ -616,15 +626,16 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATD_LOG_DEBUG("%s: recv %s: '%s', from user '%s' with keyid %s",
                     ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
                     ID_CSTR(userid), keyid);
-                auto msg = new Message(msgid, userid, ts, updated, keyid, msgdata, msglen, false);
+                std::unique_ptr<Message>msg(new Message(msgid, userid, ts, updated,
+                    msgdata, msglen, keyid, false));
                 Chat& chat = mClient.chats(chatid);
                 if (opcode == OP_MSGUPD)
                 {
-                    chat.msgUpdated(msg);
+                    chat.onMsgUpdated(*msg);
                 }
                 else
                 {
-                    chat.msgIncoming((opcode == NEWMSG), msg, false);
+                    chat.msgIncoming((opcode == OP_NEWMSG), msg.release(), false);
                 }
                 break;
             }
@@ -681,7 +692,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(id, 0);
                 READ_32(op, 8);
-                READ_32(dummy, 12); //TODO: what's this code?
+//              READ_32(dummy, 12); //TODO: what's this code?
                 CHATD_LOG_DEBUG("recv REJECT: id='%s', %s", ID_CSTR(id), Command::opcodeToStr(op));
                 if (op == OP_NEWMSG)  // the message was rejected
                 {
@@ -742,33 +753,37 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
     uint16_t keylen = 0;
     for(size_t pos = 0; pos < keybuf.dataSize(); pos+=(14+keylen))
     {
-        uint64_t userid = keybuf.read<uint64_t>(pos);
+        Id userid(keybuf.read<uint64_t>(pos));
         uint32_t keyid = keybuf.read<uint32_t>(pos+8);
 
-        auto it = mPeerKeys.find(keyid);
-        if (it != mPeerKeys.end()) //we already that key, but check if it's the same
+        auto it = keys.find(keyid);
+        if (it != keys.end()) //we already that key, but check if it's the same
         {
-            auto& key = it->second;
-            if (key.userid != userid)
+            auto key = it->second;
+            if (key->userid() != userid)
                 CHAT_LOG_ERROR("NEWKEY: Key %u from user '%s' already known, but from a different user '%s', skipping",
-                    keyid, ID_CSTR(userid), ID_CSTR(key.userid));
+                    keyid, ID_CSTR(userid), ID_CSTR(key->userid()));
             else
                 CHAT_LOG_WARNING("NEWKEY: Key %u from user '%s' already known, skipping", keyid, ID_CSTR(userid));
             continue;
         }
         keylen = keybuf.read<uint16_t>(pos+12);
-        char decbuf[Key::kMaxLen];
         try
         {
-            uint16_t declen = mCrypto->decryptNewKey(keyid, userid, keylen, keybuf.read(pos+14, keylen), decbuf);
-            mPeerKeys.emplace(std::piecewise_construct, std::forward_as_tuple(keyid),
-                std::forward_as_tuple(userid, declen, decbuf));
+            keys.emplace(keyid, mCrypto->keyDecrypt(userid, keylen, keybuf.read(pos+14, keylen)));
         }
         catch(std::exception& e)
         {
             CHAT_LOG_ERROR("Error decrypting key %u from user '%s': %s", keyid, ID_CSTR(userid), e.what());
         }
     }
+}
+void Chat::setNewSendKey(Key* key, Command* cmd)
+{
+    mSending.emplace_back(OP_NEWKEY, cmd, key);
+    CALL_DB(saveItemToSending, mSending.back());
+    currentSendKey.setId(Key::kUnconfirmedId);
+    currentSendKey.setData(key->data, key->len);
 }
 
 void Chat::onHistDone()
@@ -788,48 +803,39 @@ void Chat::onHistDone()
 
 void Chat::loadAndProcessUnsent()
 {
-    std::vector<Message*> messages;
-    CALL_DB(loadSendingTable, messages);
-    for (auto msg: messages)
+    assert(mSending.empty());
+    CALL_DB(loadSendQueue, mSending);
+    for (auto& item: mSending)
     {
-        if (msg->edits())
-        {
-            std::unique_ptr<Message> autodel(msg); //in case msgModify() throws
-            msgModify(msg->edits(), msg->editsIsXid(), msg->buf(), msg->dataSize(), nullptr, msg->id());
-        }
-        else
-        {
-            doMsgSubmit(msg);
-        }
-        CALL_LISTENER(onUnsentMsgLoaded, *msg);
+        if (item.isMessage())
+            CALL_LISTENER(onUnsentMsgLoaded, *item.msg());
     }
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp)
 {
     // write the new message to the message buffer and mark as in sending state
-    Message* message = new Message(Id::null(), mConnection.mClient.mUserId, time(NULL),
-        0, 0, msg, msglen, type, userp, true);
+    Message* message = new Message(Id::null(), client().userId(), time(NULL),
+        0, msg, msglen, Key::kInvalidId, true, type, userp);
     assert(message->isSending());
     assert(message->id() == Id::null());
     assert(message->keyId == Key::kInvalidId);
-    msgEncryptAndSend(*message, OP_NEWMSG);
+    msgEncryptAndSend(message, OP_NEWMSG);
     return message;
 }
 
 void Chat::msgEncryptAndSend(Message* msg, uint8_t opcode)
 {
     //opcode can be NEWMSG, MSGUPD or MSGUPDX
-    std::unique_ptr<MessageCommand> cmd(new MessageCommand(opcode, mChatId, mUserId,
-         msg->id(), Key::kInvalidId, msg->ts, 0));
+    std::unique_ptr<MsgCommand> cmd(new MsgCommand(opcode, mChatId, client().userId(),
+         msg->id(), msg->keyid, msg->ts, 0));
 
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
-    bool encryptOk = mCrypto->encrypt(*msg, *cmd);
-    auto rowid = mDbInterface->getNextRowId();
+    bool encryptOk = mCrypto->msgEncrypt(*msg, *cmd.get());
     if (msg->id() == Id::null())
     {
         assert(opcode == OP_NEWMSG); //assure it's really a new message, not an edit
-        message.setId(makeRandomId(), true);  //set msgxid for the message
+        msg->setId(makeRandomId(), true);  //set msgxid for the message
     }
 
     if (!encryptOk)
@@ -838,13 +844,12 @@ void Chat::msgEncryptAndSend(Message* msg, uint8_t opcode)
         cmd.reset();
         CHATID_LOG_DEBUG("Can't encrypt message, halting output");
         mSending.emplace_back(opcode, nullptr, msg);
-        CALL_DB(mSending.back());
     }
     else //encrypt success
     {
         mSending.emplace_back(opcode, cmd.release(), msg);
-        CALL_DB(mSending.back());
     }
+    CALL_DB(saveItemToSending, mSending.back());
 
     if (mNextUnsent == mSending.end())
     {
@@ -871,19 +876,19 @@ void Chat::onCanEncryptAgain()
         if (it->isMessage() && !it->cmd) //this is an unencrypted message
         {
             auto& msg = *it->msg();
-            std::unique_ptr<Command> outCmd(new MessageCommand(opcode, mChatId,
-                Id::null(), msg.id(), Key::kInvalidId, msg.ts, 0));
-            bool encryptOk = mCrypto->encrypt(msg, *outCmd);
+            std::unique_ptr<MsgCommand> outCmd(new MsgCommand(it->opcode(), mChatId,
+                Id::null(), msg.id(), msg.keyid, msg.ts, 0));
+            bool encryptOk = mCrypto->msgEncrypt(msg, *outCmd);
             if (!encryptOk)
                 return;
-            it->cmd = outCmd.release();
-            CALL_DB(addCommandBlobToSendingItem, it->rowId, *it->cmd);
+            it->cmd.reset(outCmd.release());
+            CALL_DB(addCommandBlobToSendingItem, it->rowid, *it->cmd);
         }
     }
     flushOutputQueue();
 }
 //can be called for a message in history or a NEWMSG,MSGUPD,MSGUPDX message in sending queue
-Message* Chat::msgModify(const Message& msg, const char* newdata, size_t newlen, void* userp)
+Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp)
 {
     uint32_t age = time(NULL) - msg.ts;
     if (age > CHATD_MAX_EDIT_AGE)
@@ -900,25 +905,25 @@ Message* Chat::msgModify(const Message& msg, const char* newdata, size_t newlen,
             }
         }
         assert(item);
-        msg.assign(newdata, newlen);
+        msg.assign((void*)newdata, newlen);
         auto cmd = item->msgCommand();
         if (cmd) //it's already encrypted, re-encrypt
         {
             cmd->clearMsg();
-            bool encryptOk = mCrypto->encrypt(msg, *cmd);
+            bool encryptOk = mCrypto->msgEncrypt(msg, *cmd);
             if (!encryptOk)
                 throw std::runtime_error(mChatId.toString()+": msgModify: Message re-encrypt failed, and it shouldn't");
-            CALL_DB(removeItemFromSending, item->rowId);
-            CALL_DB(item);
+            CALL_DB(deleteItemFromSending, item->rowid);
+            CALL_DB(saveItemToSending, *item);
         }
         else
         {
-            CALL_DB(updateMsgPlaintextInSending, msg);
+            CALL_DB(updateMsgPlaintextInSending, item->rowid, msg);
         }
     } //end msg.isSending()
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age-1, newdata, newlen,
-        msg.type, userp, msg.isSending());
-    msgEncryptAndSend(upd, upd.isSending() ? OP_MSGUPDX : OP_MSGUPD);
+        msg.isSending(), msg.keyid, msg.type, userp);
+    msgEncryptAndSend(upd, upd->isSending() ? OP_MSGUPDX : OP_MSGUPD);
     return upd;
 }
 
@@ -1083,16 +1088,15 @@ int Chat::unreadMsgCount() const
         return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
 
     Idx first = mLastSeenIdx+1;
-    bool mayHaveMore = false;
     unsigned count = 0;
     auto last = highnum();
     for (Idx i=first; i<=last; i++)
     {
         auto& msg = at(i);
-        if ((msg.userid != mClient.userId()) && !msg.edits()) //FIXME: This is not accurate - an edit of a seen message will not be counted
+        if (msg.userid != mClient.userId())
             count++;
     }
-    return mayHaveMore?-count:count;
+    return count;
 }
 
 bool Chat::flushOutputQueue(bool fromStart)
@@ -1112,7 +1116,7 @@ bool Chat::flushOutputQueue(bool fromStart)
             assert(mNextUnsent->msg); //only not-yet-encrypted messages are allowed to have cmd=nullptr
             return false;
         }
-        if (!mConnection.sendCommand(mNextUnsent->cmd))
+        if (!mConnection.sendCommand(*mNextUnsent->cmd))
             return false;
     }
     return true;
@@ -1128,19 +1132,19 @@ void Chat::joinRangeHist()
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + mOldestKnownMsgId + mNewestKnownMsgId);
 }
 
-void Client::msgConfirm(const Id& msgxid, const Id& msgid)
+void Client::msgConfirm(Id msgxid, Id msgid)
 {
     // CHECK: is it more efficient to keep a separate mapping of msgxid to messages?
-    for (auto& messages: mChatForChatId)
+    for (auto& chat: mChatForChatId)
     {
-        if (messages.second->confirm(msgxid, msgid) != CHATD_IDX_INVALID)
+        if (chat.second->msgConfirm(msgxid, msgid) != CHATD_IDX_INVALID)
             return;
     }
     CHATD_LOG_DEBUG("confirm: Unknown message transaction id %s", ID_CSTR(msgxid));
 }
 
 // msgid can be 0 in case of rejections
-Idx Chat::msgConfirm(const Id& msgxid, const Id& msgid)
+Idx Chat::msgConfirm(Id msgxid, Id msgid)
 {
     // as msgConirm() is tried on all chatids, it's normal that we don't have the message,
     // so no error logging of error, just return invalid index
@@ -1165,7 +1169,7 @@ Idx Chat::msgConfirm(const Id& msgxid, const Id& msgid)
     item.data = nullptr;
     assert(msg);
     assert(msg->isSending());
-    CALL_DB(deleteItemFromSending, item.rowId);
+    CALL_DB(deleteItemFromSending, item.rowid);
 
     if (mNextUnsent == mSending.begin())
         mNextUnsent++; //because we remove the first element
@@ -1194,12 +1198,12 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         CHATID_LOG_ERROR("keyConfirm: Sending queue is empty");
         return;
     }
-    if (mSending.front()->opcode() != OP_NEWKEY)
+    if (mSending.front().opcode() != OP_NEWKEY)
     {
         CHATID_LOG_ERROR("keyConfirm: Front of sending queue is not a NEWKEY command");
         return;
     }
-    if (!currentSendKey || !currentSendKey->isUnconfirmed())
+    if (!currentSendKey.isUnconfirmed())
     {
         CHATID_LOG_ERROR("keyConfirm: There is no current send key, or it is already confirmed");
         return;
@@ -1209,60 +1213,73 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xffffffff, continuing anyway");
     }
     //update keyxids to keyids: if client disconnects the keyxids will become invalid
-    for (auto item: mSending)
+    for (auto& item: mSending)
     {
-        if (item->isMessage() && (item->msg()->keyid == Key::kUnconfirmedId))
+        if (item.isMessage() && (item.msg()->keyid == Key::kUnconfirmedId))
         {
-            item->msg()->keyid = keyid;
-            CALL_DB(updateMsgKeyIdInSending, item->rowid, keyid);
+            item.msg()->keyid = keyid;
+            CALL_DB(updateMsgKeyIdInSending, item.rowid, keyid);
         }
     }
     //Remove sending item and move key object to keys map
     auto& item = mSending.front();
     auto key = static_cast<Key*>(item.data);
     item.data = nullptr;
-    CALL_DB(deleteItemFromSending, item->rowId);
+    CALL_DB(deleteItemFromSending, item.rowid);
 
     if (mNextUnsent == mSending.begin())
         mNextUnsent++; //because we remove the first element
     mSending.pop_front();
 
-    currentSendKey->setId(keyid);
+    currentSendKey.setId(keyid);
 #ifndef NDEBUG
     auto ret =
 #endif
-    keys.insert(keyid, key);
+    keys.emplace(keyid, key);
     assert(ret.second);
 }
 
-void Chat::msgUpdConfirm(msgid, const StaticBuffer& msg)
+void Chat::onMsgUpdated(const Message& msg)
 {
-//remove any queued msgupds from sending, even if they are not the same edit
-//in case multiple clients edit the same msg
-    for (auto it = mSending.begin(); it != mSending.end(); )
+//first, if it was us who updated the message confirm the update by removeing any
+//queued msgupds from sending, even if they are not the same edit (i.e. a received
+//MSGUPD from another client with out user will cancel any pending edit by our client
+    if (msg.userid == client().userId())
     {
-        auto& item = *it;
-        if (item.opcode() != OP_MSGUPD) && (item.opcode() != OP_MSGUPDX))
+        for (auto it = mSending.begin(); it != mSending.end(); )
         {
+            auto& item = *it;
+            if ((item.opcode() != OP_MSGUPD) && (item.opcode() != OP_MSGUPDX))
+            {
+                it++;
+                continue;
+            }
+            //erase item
+            CALL_DB(deleteItemFromSending, item.rowid);
+            if (!item.msg()->dataEquals(msg.buf(), msg.dataSize()))
+                CHATD_LOG_WARNING("msgUpdConfirm: Discarding a different queued edit than the one received");
+            auto erased = it;
             it++;
-            continue;
+            mSending.erase(erased);
         }
-        //erase item
-        CALL_DB(deleteItemFromSending, item.rowid);
-        if (!item.msg()->dataEquals(msg.buf(), msg.dataSize()))
-             CHATD_LOG_WANRING("msgUpdConfirm: Discarding a different queued edit than the one received");
-        auto erased = it;
-        it++;
-        mSending.erase(erased);
     }
-    CALL_DB(updateMsgInHistory, msg, msgid);
-    auto msgit = mIdToIndexMap.find(msgid);
+    //update in db
+    CALL_DB(updateMsgInHistory, msg.id(), msg);
+    //update in memory, if loaded
+    auto msgit = mIdToIndexMap.find(msg.id());
     if (msgit != mIdToIndexMap.end())
     {
         auto& histmsg = at(msgit->second);
         histmsg.assign(msg);
         CALL_LISTENER(onMessageEdited, histmsg, msgit->second);
     }
+}
+
+Id Chat::makeRandomId()
+{
+    static std::uniform_int_distribution<uint64_t>distrib(0, 0xffffffffffffffff);
+    static std::random_device rd;
+    return distrib(rd);
 }
 
 Message::Status Chat::getMsgStatus(Idx idx, const Id& userid)
@@ -1318,7 +1335,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::decrypt()");
     if (!isLocal) //decrypt and save to history db
     {
-        mCrypto->decrypt(*message);
+        mCrypto->msgDecrypt(*message);
         CALL_DB(addMsgToHistory, *message, idx);
         if ((message->userid != mClient.mUserId) &&
            ((mLastReceivedIdx == CHATD_IDX_INVALID) || (idx > mLastReceivedIdx)))
