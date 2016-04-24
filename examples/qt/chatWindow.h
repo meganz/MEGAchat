@@ -34,9 +34,7 @@ class MessageWidget: public QWidget
 protected:
     Ui::ChatMessage ui;
     ChatWindow& mChatWindow;
-    const chatd::Message* mMessage; ///Effective message (the one whose contents is displayed). In case it was not edited, it is the same as mOriginal, otherwise it's the last edit message. (we only need this for the popup menu - Qt doesn't give the index of the clicked item, only a pointer to it)
-    const chatd::Message& mOriginal;
-    short mEditCount = 0; ///Counts how many times we have edited the message, so that we can keep the edited display even after a canceled edit, in case there was a previous edit
+    chatd::Message* mMessage; ///The message whose contents is displayed
     bool mIsMine;
     chatd::Idx mIndex;
     Q_PROPERTY(QColor msgColor READ msgColor WRITE setMsgColor)
@@ -49,7 +47,7 @@ protected:
     }
     friend class ChatWindow;
 public:
-    MessageWidget(ChatWindow& parent, const chatd::Message& msg,
+    MessageWidget(ChatWindow& parent, chatd::Message& msg,
                   chatd::Message::Status status, chatd::Idx idx);
     MessageWidget& setAuthor(const chatd::Id& userid);
     MessageWidget& setTimestamp(uint32_t ts)
@@ -67,22 +65,7 @@ public:
     MessageWidget& setText(const chatd::Message& msg)
     {
         auto& txt = *ui.mMsgDisplay;
-        if (msg.isEncrypted == chatd::Message::kEncrypted)
-        {
-            txt.setFontItalic(true);
-            txt.setText(tr("Decrypting..."));
-        }
-        else if (msg.isEncrypted == chatd::Message::kDecryptError)
-        {
-            txt.setFontItalic(true);
-            ui.mMsgDisplay->setText(tr("Decrypt error:\n")+QString::fromLatin1(msg.buf(), msg.dataSize()));
-        }
-        else
-        {
-            assert(!msg.isEncrypted);
-            txt.setFontItalic(false);
-            txt.setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
-        }
+        txt.setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
         return *this;
     }
     MessageWidget& updateStatus(chatd::Message::Status newStatus)
@@ -106,7 +89,7 @@ public:
     MessageWidget& cancelEdit()
     {
         disableEditGui();
-        ui.mEditDisplay->setText(mEditCount?tr("(edited)"): QString());
+        ui.mEditDisplay->setText(mMessage->updated?tr("(edited)"): QString());
         return *this;
     }
     MessageWidget& disableEditGui()
@@ -177,7 +160,7 @@ public:
 protected:
     karere::ChatRoom& mRoom;
     Ui::ChatWindow ui;
-    chatd::Messages* mMessages = nullptr;
+    chatd::Chat* mChat = nullptr;
     MessageWidget* mEditedWidget = nullptr; ///pointer to the widget being edited. Also signals whether we are editing or writing a new message (nullptr - new msg, editing otherwise)
     std::map<chatd::Id, const chatd::Message*> mNotLinkedEdits;
     bool mUnsentChecked = false;
@@ -207,20 +190,18 @@ public slots:
             { //no change
                 return;
             }
-            auto& original = widget->mOriginal;
             //TODO: see how to associate the edited message widget with the userp
-            auto edited = (text.isEmpty())
-                ? mMessages->msgModify(original.id(), original.isSending(), nullptr, 0, original.userp)
-                : mMessages->msgModify(original.id(), original.isSending(), text.data(), text.size(), original.userp);
-
-            addMsgEdit(*edited, original);
+            if (text.isEmpty())
+                mChat->msgModify(msg, nullptr, 0, msg.userp);
+            else
+                mChat->msgModify(msg, text.data(), text.size(), msg.userp);
             widget->updateStatus(chatd::Message::kSending);
         }
         else //not edit, post new message
         {
             if (text.isEmpty())
                 return;
-            auto msg = mMessages->msgSubmit(text.data(), text.size(), chatd::Message::kTypeRegularMessage, nullptr);
+            auto msg = mChat->msgSubmit(text.data(), text.size(), chatd::Message::kNormalMsg, nullptr);
             msg->userp = addMsgWidget(*msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
             ui.mMessageList->scrollToBottom();
         }
@@ -256,9 +237,9 @@ public slots:
         auto action = qobject_cast<QAction*>(QObject::sender());
         auto widget = action->data().value<MessageWidget*>();
         assert(widget);
-        auto& msg = widget->mOriginal;
-        auto editMsg = mMessages->msgModify(msg.id(), msg.isSending(), nullptr, 0, msg.userp);
-        addMsgEdit(*editMsg, msg);
+        auto& msg = widget->mMessage;
+        mChat->msgModify(*msg, nullptr, 0, msg->userp);
+        widget->updateStatus(chatd::Message::kSending);
     }
     void editLastMsg()
     {
@@ -292,7 +273,7 @@ public slots:
     void fetchMoreHistory(bool byScroll)
     {
         mLastHistReqByScroll = byScroll;
-        auto state = mMessages->histFetchState();
+        auto state = mChat->histFetchState();
         if (state & chatd::kHistFetchingFlag)
             return;
         if (state == chatd::kHistNoMore)
@@ -300,7 +281,7 @@ public slots:
             //TODO: Show in some way in the GUI that we have reached the start of history
             return;
         }
-        bool isRemote = mMessages->getHistory(kHistBatchSize);
+        bool isRemote = mChat->getHistory(kHistBatchSize);
         if (isRemote)
         {
             mHistFetchUi.reset(new HistFetchUi(this));
@@ -318,7 +299,7 @@ public slots:
 public:
     ChatWindow(karere::ChatRoom& room, MainWindow& parent);
     virtual ~ChatWindow();
-    chatd::Messages& messages() const { return *mMessages; }
+    chatd::Chat& chat() const { return *mChat; }
 protected:
     void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr)
     {
@@ -378,7 +359,7 @@ protected:
         auto list = item->listWidget();
         return qobject_cast<MessageWidget*>(list->itemWidget(item));
     }
-    QListWidgetItem* addMsgWidget(const chatd::Message& msg, chatd::Idx idx, chatd::Message::Status status,
+    QListWidgetItem* addMsgWidget(chatd::Message& msg, chatd::Idx idx, chatd::Message::Status status,
                       bool first, QColor* color=nullptr)
     {
         auto widget = new MessageWidget(*this, msg, status, idx);
@@ -397,55 +378,10 @@ protected:
             ui.mMessageList->addItem(item);
         }
         ui.mMessageList->setItemWidget(item, widget);
-        if(!checkHandleInboundEdits(msg))
-        {
-            if (color)
-                widget->fadeIn(*color);
-        }
-//        QApplication::processEvents(); //TODO: This call makes histry fetching smooth, but causes reentrancy and random crashes, find a way to make history smooth in another way
-        return item;
-    }
-    void addMsgEdit(const chatd::Message& msg, bool first, QColor* color=nullptr)
-    {
-        assert(msg.edits() && (msg.type == chatd::Message::kTypeEdit));
-        auto idx = mMessages->msgIndexFromId(msg.edits());
-        if (idx == CHATD_IDX_INVALID) //maybe message is not loaded in buffer? Ignore it then
-        {
-            auto it = mNotLinkedEdits.find(msg.edits());
-            if ((it == mNotLinkedEdits.end()) || !first) //we are adding an oldest message, can't be a more recent edit, ignore
-                mNotLinkedEdits[msg.edits()] = &msg;
-            msg.userp = nullptr;
-            //GUI_LOG_DEBUG("Original message of edit not yet loaded, adding to map (%.*s)", msg.dataSize(), msg.buf());
-            return;
-        }
-        auto& targetMsg = mMessages->at(idx);
-        assert(targetMsg.id() == msg.edits());
-        addMsgEdit(msg, targetMsg, color);
-    }
-    void addMsgEdit(const chatd::Message& edited, const chatd::Message& original, QColor* color=nullptr)
-    {
-        assert(!(original.userFlags & kMsgfDeleted) && !(edited.userFlags & kMsgfDeleted));
-        auto widget = widgetFromMessage(original);
-//User pointer of referenced message by an edit can be null only if it's an edit itself. But edits
-//can't point to other edits, they must reference only the original message and can't be chained
-        assert(widget); //Edit message points to another edit message
-
-        if(widget->mMessage->edits())
-        { //widget already edited, disconnect previous edit msg from widget
-            widget->mMessage->userp = nullptr;
-        }
-        edited.userp = original.userp; //this is already done by msgModify it it was called before us
-        widget->mMessage = &edited;
-        if (edited.empty())
-        {
-            widgetFromMessage(edited);
-            widget->msgDeleted();
-            return;
-        }
-        widget->setText(edited).setEdited();
-        widget->mEditCount++;
         if (color)
             widget->fadeIn(*color);
+//        QApplication::processEvents(); //TODO: This call makes histry fetching smooth, but causes reentrancy and random crashes, find a way to make history smooth in another way
+        return item;
     }
     void startEditingMsgWidget(MessageWidget& widget)
     {
@@ -455,17 +391,6 @@ protected:
         connect(cancelBtn, SIGNAL(clicked()), this, SLOT(cancelMsgEdit()));
         ui.mMessageEdit->setText(QString().fromUtf8(widget.mMessage->buf(), widget.mMessage->dataSize()));
         ui.mMessageEdit->moveCursor(QTextCursor::End);
-    }
-    bool checkHandleInboundEdits(const chatd::Message& msg)
-    {
-        assert(msg.userp); //message must be in the GUI already
-        auto it = mNotLinkedEdits.find(msg.id());
-        if (it == mNotLinkedEdits.end())
-            return false;
-        //GUI_LOG_DEBUG("Loaded message that had edits pending (ori='%.*s', edit='%.*s'", msg.dataSize(), msg.buf(), it->second->dataSize(), it->second->buf());
-        addMsgEdit(*it->second, msg);
-        mNotLinkedEdits.erase(it);
-        return true;
     }
     void updateOnlineIndication(karere::Presence pres)
     {
@@ -488,23 +413,20 @@ protected:
     chatd::Listener* listenerInterface() { return static_cast<chatd::Listener*>(this); }
 public:
     //chatd::Listener interface
-    virtual void init(chatd::Messages& messages, chatd::DbInterface*& dbIntf)
+    virtual void init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
     {
-        mMessages = &messages;
+        mChat = &chat;
         updateOnlineIndication(mRoom.presence());
-        updateChatdStatusDisplay(mMessages->onlineState());
-        if (mMessages->empty())
+        updateChatdStatusDisplay(mChat->onlineState());
+        if (mChat->empty())
             return;
-        auto last = mMessages->highnum();
-        for (chatd::Idx idx = mMessages->lownum(); idx<=last; idx++)
+        auto last = mChat->highnum();
+        for (chatd::Idx idx = mChat->lownum(); idx<=last; idx++)
         {
-            auto& msg = mMessages->at(idx);
-            if (msg.type == chatd::Message::kTypeEdit)
-                addMsgEdit(msg, false);
-            else
-                addMsgWidget(msg, idx, mMessages->getMsgStatus(idx, msg.userid), false);
+            auto& msg = mChat->at(idx);
+            addMsgWidget(msg, idx, mChat->getMsgStatus(idx, msg.userid), false);
         }
-        if (mMessages->onlineState() == chatd::kChatStateOnline)
+        if (mChat->onlineState() == chatd::kChatStateOnline)
             QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
     }
     virtual void onDestroy(){ close(); }
@@ -513,10 +435,7 @@ public:
         mRoom.onRecvNewMessage(idx, msg, status);
         auto sbar = ui.mMessageList->verticalScrollBar();
         bool wasAtBottom = sbar->value() == sbar->maximum();
-        if (msg.edits())
-            addMsgEdit(msg, false);
-        else
-            addMsgWidget(msg, idx, status, false);
+        addMsgWidget(msg, idx, status, false);
         if (wasAtBottom)
             ui.mMessageList->scrollToBottom();
         if (!isVisible() || !wasAtBottom)
@@ -531,49 +450,21 @@ public:
         assert(idx != CHATD_IDX_INVALID); assert(msg.id());
         if (mHistFetchUi)
         {
-            mHistFetchUi->progressBar()->setValue(mMessages->lastHistFetchCount());
+            mHistFetchUi->progressBar()->setValue(mChat->lastHistFetchCount());
             mHistFetchUi->progressBar()->repaint();
         }
-        if (msg.edits())
-        {
-            addMsgEdit(msg, true);
-        }
-        else
-        {
-            addMsgWidget(msg, idx, status, true);
-        }
-    }
-    virtual void onMsgDecrypted(chatd::Message& msg)
-    {
-        //if original was not (yet) loaded when this message was received, it's not linked
-        //to any widget, so we don't need to update anything in the GUI
-        if (msg.userp)
-            widgetFromMessage(msg)->setText(msg);
-        else
-        {
-            assert(msg.edits());
-            //GUI_LOG_DEBUG("Received an edit whose original is yet not loaded");
-        }
-    }
-    virtual void onMsgDecryptError(chatd::Message &msg, const std::string &err)
-    {
-        assert(msg.isEncrypted == chatd::Message::kDecryptError);
-        msg.clear();
-        msg.append(err.c_str(), err.size());
-        auto widget = widgetFromMessage(msg);
-        if (widget)
-            widget->setText(msg);
+        addMsgWidget(msg, idx, status, true);
     }
     virtual void onHistoryDone(bool isFromDb)
     {
         mHistFetchUi.reset();
-        if (!mMessages->lastHistFetchCount())
+        if (!mChat->lastHistFetchCount())
             return;
 
         auto& list = *ui.mMessageList;
         //chech if we have filled the window height with history, if not, fetch more
         auto idx = list.indexAt(QPoint(list.rect().left()+10, list.rect().bottom()-2));
-        if (!idx.isValid() && mMessages->histFetchState() != chatd::kHistNoMore)
+        if (!idx.isValid() && mChat->histFetchState() != chatd::kHistNoMore)
         {
             fetchMoreHistory(false);
             return;
@@ -584,7 +475,7 @@ public:
         }
         else
         {
-            int last = (idx.isValid())?std::min((unsigned)idx.row(), mMessages->lastHistFetchCount()):list.count()-1;
+            int last = (idx.isValid())?std::min((unsigned)idx.row(), mChat->lastHistFetchCount()):list.count()-1;
             for (int i=0; i<=last; i++)
                 qobject_cast<MessageWidget*>(list.itemWidget(list.item(i)))->fadeIn(QColor(250,250,250));
         }
@@ -600,7 +491,7 @@ public:
     {
         // add to history, message was just created at the server
         assert(msgxid); assert(msgid); assert(idx != CHATD_IDX_INVALID);
-        auto& msg = mMessages->at(idx);
+        auto& msg = mChat->at(idx);
         auto widget = widgetFromMessage(msg);
         if (widget)
             widget->updateStatus(chatd::Message::kServerReceived);
@@ -610,8 +501,8 @@ public:
         mRoom.onOnlineStateChange(state);
         updateChatdStatusDisplay(state);
 
-        if ((state == chatd::kChatStateOnline) && (mMessages->size() < 2)
-        && ((mMessages->histFetchState() & chatd::kHistFetchingFlag) == 0))
+        if ((state == chatd::kChatStateOnline) && (mChat->size() < 2)
+        && ((mChat->histFetchState() & chatd::kHistFetchingFlag) == 0))
         {
             // avoid re-entrancy - we are in a chatd callback. We could use mega::marshallCall instead,
             // but this is safer as the window may get destroyed before the message is processed
@@ -620,32 +511,21 @@ public:
     }
     void updateChatdStatusDisplay(chatd::ChatState state)
     {
-        ui.mChatdStatusDisplay->setText(chatd::chatStateToStr(mMessages->onlineState()));
+        ui.mChatdStatusDisplay->setText(chatd::chatStateToStr(mChat->onlineState()));
         if (state != chatd::kChatStateOnline)
             ui.mChatdStatusDisplay->show();
         else
             ui.mChatdStatusDisplay->hide();
     }
-    virtual void onUnsentMsgLoaded(const chatd::Message& msg)
+    virtual void onUnsentMsgLoaded(chatd::Message& msg)
     {
-        if (msg.edits())
-        {
-            addMsgEdit(msg, false);
-        }
-        else
-        {
-            auto item = addMsgWidget(msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
-            msg.userp = item;
-        }
+        auto item = addMsgWidget(msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
+        msg.userp = item;
         ui.mMessageList->scrollToBottom();
     }
-    virtual void onUserJoined(const chatd::Id& userid, chatd::Priv priv)
+    virtual void onUserJoinLeave(chatd::Id userid, chatd::Priv priv)
     {
-        mRoom.onUserJoined(userid, priv);
-    }
-    virtual void onUserLeft(const chatd::Id& userid)
-    {
-        mRoom.onUserLeft(userid);
+        mRoom.onUserJoinLeave(userid, priv);
     }
     virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }
     virtual karere::IGui::ICallGui* callGui() { return mCallGui; }

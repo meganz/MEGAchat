@@ -75,7 +75,7 @@ public:
     {
         assert(item.cmd && item.opcode() == chatd::OP_NEWKEY);
         auto key = reinterpret_cast<chatd::Key*>(item.data);
-        sqliteQuery(mDb, "insert into sending(chatid, opcode, ts, data_id, data, out_cmd)"
+        sqliteQuery(mDb, "insert into sending(chatid, opcode, ts, msgid, data, out_cmd)"
             "values(?,?,0,?,?,?)", mMessages.chatId(), chatd::OP_NEWKEY,
             chatd::Key::kUnconfirmedId, StaticBuffer(key->data, key->len), *item.cmd);
         item.rowid = sqlite3_last_insert_rowid(mDb);

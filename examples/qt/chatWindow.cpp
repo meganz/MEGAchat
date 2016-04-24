@@ -28,12 +28,12 @@ ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&par
 
 ChatWindow::~ChatWindow()
 {
-    mMessages->setListener(static_cast<chatd::Listener*>(&mRoom));
+    mChat->setListener(static_cast<chatd::Listener*>(&mRoom));
 }
-MessageWidget::MessageWidget(ChatWindow& parent, const chatd::Message& msg,
+MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     chatd::Message::Status status, chatd::Idx idx)
-: QWidget(&parent), mChatWindow(parent), mMessage(&msg), mOriginal(msg),
-    mIsMine(msg.userid == parent.messages().client().userId()), mIndex(idx)
+: QWidget(&parent), mChatWindow(parent), mMessage(&msg),
+    mIsMine(msg.userid == parent.chat().client().userId()), mIndex(idx)
 {
     ui.setupUi(this);
     setAuthor(msg.userid);
@@ -159,7 +159,7 @@ void ChatWindow::updateSeen()
         return;
     }
 
-    auto lastidx = mMessages->lastSeenIdx();
+    auto lastidx = mChat->lastSeenIdx();
     auto rect = msglist.rect();
     chatd::Idx idx = CHATD_IDX_INVALID;
     //find last visible message widget
@@ -180,7 +180,7 @@ void ChatWindow::updateSeen()
         return;
     else if (idx > lastidx)
     {
-        mMessages->setMessageSeen(idx);
+        mChat->setMessageSeen(idx);
 //        printf("set last seen: +%d\n", idx-lastidx);
     }
     else
@@ -269,12 +269,11 @@ MessageWidget& MessageWidget::setAuthor(const chatd::Id& userid)
 
 void MessageWidget::msgDeleted()
 {
-    mOriginal.userFlags |= kMsgfDeleted;
     mMessage->userFlags |= kMsgfDeleted;
     assert(mMessage->userp);
     auto& list = *mChatWindow.ui.mMessageList;
     auto visualRect = list.visualItemRect(static_cast<QListWidgetItem*>(mMessage->userp));
-    if (mChatWindow.mMessages->isFetchingHistory() || !list.rect().contains(visualRect))
+    if (mChatWindow.mChat->isFetchingHistory() || !list.rect().contains(visualRect))
     {
         removeFromList();
         return;
@@ -294,11 +293,10 @@ void MessageWidget::msgDeleted()
 
 void MessageWidget::removeFromList()
 {
-    assert(mOriginal.userp);
-    assert(mOriginal.userp == mMessage->userp);
-    auto item = static_cast<QListWidgetItem*>(mOriginal.userp);
+    assert(mMessage->userp);
+    auto item = static_cast<QListWidgetItem*>(mMessage->userp);
     assert(item);
-    mOriginal.userp = mMessage->userp = nullptr;
+    mMessage->userp = nullptr;
     auto& list = *mChatWindow.ui.mMessageList;
     delete list.takeItem(list.row(item));
     this->deleteLater();

@@ -276,6 +276,19 @@ promise::Promise<void> Client::init()
         auto chatRooms = result->getMegaTextChatList();
         if (chatRooms)
         {
+#ifndef NDEBUG
+            KR_LOG_DEBUG("=== Chatrooms received from API: ===");
+            for (int i=0; i<chatRooms->size(); i++)
+            {
+                auto& room = *chatRooms->get(i);
+                KR_LOG_DEBUG("%s(%s):", chatd::Id(room.getHandle()).toString().c_str(), room.isGroup()?"group":"1on1");
+                auto& peers = *room.getPeerList();
+                for (int j = 0; j<peers.size(); j++)
+                    KR_LOG_DEBUG("  %s", chatd::Id(peers.getPeerHandle(j)).toString().c_str());
+
+                KR_LOG_DEBUG("=== Chatroom list end ===");
+            }
+#endif
             chats->syncRoomsWithApi(*chatRooms);
         }
     });
@@ -1332,30 +1345,36 @@ void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
         mChatWindow->updateOnlineIndication(pres);
 }
 
-void GroupChatRoom::onUserJoined(const chatd::Id &userid, chatd::Priv privilege)
+void GroupChatRoom::onUserJoinLeave(chatd::Id userid, chatd::Priv privilege)
 {
-    if (userid != parent.client.myHandle())
-        addMember(userid, privilege, true);
-}
-void GroupChatRoom::onUserLeft(const chatd::Id &userid)
-{
-    removeMember(userid);
-}
-
-void PeerChatRoom::onUserJoined(const chatd::Id &userid, chatd::Priv privilege)
-{
-    if (userid == parent.client.chatd->userId())
-        syncOwnPriv(privilege);
-    else if (userid.val == mPeer)
-        syncPeerPriv(privilege);
+    if (privilege == chatd::PRIV_NOTPRESENT)
+    {
+        removeMember(userid);
+    }
     else
-        KR_LOG_ERROR("PeerChatRoom: Bug: Received JOIN event from chatd for a third user, ignoring");
+    {
+        if (userid != parent.client.myHandle())
+            addMember(userid, privilege, true);
+    }
 }
 
-void PeerChatRoom::onUserLeft(const chatd::Id &userid)
+void PeerChatRoom::onUserJoinLeave(chatd::Id userid, chatd::Priv privilege)
 {
-    KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
+    if (privilege == chatd::PRIV_NOTPRESENT)
+    {
+        KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
+    }
+    else
+    {
+        if (userid == parent.client.chatd->userId())
+            syncOwnPriv(privilege);
+        else if (userid.val == mPeer)
+            syncPeerPriv(privilege);
+        else
+            KR_LOG_ERROR("PeerChatRoom: Bug: Received JOIN event from chatd for a third user, ignoring");
+    }
 }
+
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Message::Status status)
 {
     contactGui().updateOverlayCount(mMessages->unreadMsgCount());
@@ -1529,6 +1548,12 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         it++;
         removeUser(erased);
     }
+#ifndef NDEBUG
+    KR_LOG_DEBUG("=== Contactlist received from API: ===");
+    for (auto c: apiUsers)
+        KR_LOG_DEBUG("%s", chatd::Id(c).toString().c_str());
+    KR_LOG_DEBUG("=== Contactlist end ===");
+#endif
 }
 void ContactList::onUserAddRemove(mega::MegaUser& user)
 {

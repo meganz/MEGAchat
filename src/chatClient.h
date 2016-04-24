@@ -232,8 +232,7 @@ public:
     void updatePresence();
     virtual Presence presence() const;
 //chatd::Listener interface
-    virtual void onUserJoined(const chatd::Id& userid, chatd::Priv priv);
-    virtual void onUserLeft(const chatd::Id& userid);
+    virtual void onUserJoinLeave(chatd::Id userid, chatd::Priv priv);
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUnreadChanged();
 };
@@ -306,8 +305,7 @@ public:
             mChatWindow->updateTitle(mTitleString);
     }
 //chatd::Listener
-    void onUserJoined(const chatd::Id& userid, chatd::Priv priv);
-    void onUserLeft(const chatd::Id& userid);
+    void onUserJoinLeave(chatd::Id userid, chatd::Priv priv);
     void onOnlineStateChange(chatd::ChatState);
 
 };

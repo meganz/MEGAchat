@@ -70,7 +70,7 @@ public:
     uint64_t val;
     std::string toString() const { return base64urlencode(&val, sizeof(val)); }
     Id(const uint64_t& from=0): val(from){}
-    Id(const char* b64, size_t len=0) { base64urldecode(b64, len?len:strlen(b64), &val, sizeof(val)); }
+    explicit Id(const char* b64, size_t len=0) { base64urldecode(b64, len?len:strlen(b64), &val, sizeof(val)); }
     bool operator==(const Id& other) const { return val == other.val; }
     Id& operator=(const Id& other) { val = other.val; return *this; }
     Id& operator=(const uint64_t& aVal) { val = aVal; return *this; }
@@ -250,10 +250,9 @@ public:
     virtual void onMessageEdited(const Message& msg, Idx idx){}
 /// The chatroom connection (to the chatd server shard) state state has changed.
     virtual void onOnlineStateChange(ChatState state){}
-/// A user has joined the room, or their privilege has changed
-    virtual void onUserJoined(const Id& userid, Priv privilege){}
-/// A user has left the chatroom
-    virtual void onUserLeft(const Id& userid) {}
+/// A user has joined or left the room, or their privilege has changed. If user has left
+/// the room priv is PRIV_NOTPRESENT
+    virtual void onUserJoinLeave(Id userid, Priv privilege){}
 ///Unread message count has changed
     virtual void onUnreadChanged() {}
 };
@@ -304,7 +303,10 @@ public:
     virtual void msgDecrypt(Message& src)
     { //test implementation
     }
-    virtual Key* keyDecrypt(Id userid, uint16_t keylen, const char* keybuf);
+    virtual Key* keyDecrypt(Id userid, uint16_t keylen, const char* keybuf)
+    {
+        return new Key(0);
+    }
 /**
  * @brief The chatroom connection (to the chatd server shard) state state has changed.
  */
@@ -314,7 +316,7 @@ public:
  * @param privilege - the new privilege, if it is PRIV_NOTPRESENT, then the user
  * left the chat
  */
-    virtual void onUserJoined(const Id& userid, Priv privilege){}
+    virtual void onUserJoinLeave(Id userid, Priv privilege){}
 /**
  * @brief A key was received from the server, and added to Chat.keys
  */
@@ -494,7 +496,7 @@ public:
                 data = nullptr;
             }
         }
-        bool isMessage() { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
+        bool isMessage() const { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
         MsgCommand* msgCommand() const { assert(isMessage()); return static_cast<MsgCommand*>(cmd.get()); }
         Message* msg() const { assert(isMessage()); return reinterpret_cast<Message*>(data); }
         void setKeyId(KeyId keyid)

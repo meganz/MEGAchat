@@ -732,8 +732,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 break;
             }
             default:
-                CHATD_LOG_ERROR("Unknown opcode %d, ignoring all subsequent comment", opcode);
+            {
+                CHATD_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
                 return;
+            }
         }
       }
       catch(BufferRangeError& e)
@@ -819,7 +821,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, voi
         0, msg, msglen, Key::kInvalidId, true, type, userp);
     assert(message->isSending());
     assert(message->id() == Id::null());
-    assert(message->keyId == Key::kInvalidId);
+    assert(message->keyid == Key::kInvalidId);
     msgEncryptAndSend(message, OP_NEWMSG);
     return message;
 }
@@ -1113,7 +1115,7 @@ bool Chat::flushOutputQueue(bool fromStart)
     {
         if (!mNextUnsent->cmd)
         {
-            assert(mNextUnsent->msg); //only not-yet-encrypted messages are allowed to have cmd=nullptr
+            assert(mNextUnsent->msg()); //only not-yet-encrypted messages are allowed to have cmd=nullptr
             return false;
         }
         if (!mConnection.sendCommand(*mNextUnsent->cmd))
@@ -1372,8 +1374,8 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
 
 void Chat::onUserJoin(const Id& userid, Priv priv)
 {
-    CALL_CRYPTO(onUserJoined, userid, priv);
-    CALL_LISTENER(onUserJoined, userid, priv);
+    CALL_CRYPTO(onUserJoinLeave, userid, priv);
+    CALL_LISTENER(onUserJoinLeave, userid, priv);
 }
 
 void Chat::onJoinComplete()
