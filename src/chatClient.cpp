@@ -32,6 +32,7 @@
 #include <asyncTools.h>
 #include <codecvt> //for nonWhitespaceStr()
 #include <locale>
+#include <chatdICrypto.h>
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
@@ -285,9 +286,8 @@ promise::Promise<void> Client::init()
                 auto& peers = *room.getPeerList();
                 for (int j = 0; j<peers.size(); j++)
                     KR_LOG_DEBUG("  %s", chatd::Id(peers.getPeerHandle(j)).toString().c_str());
-
-                KR_LOG_DEBUG("=== Chatroom list end ===");
             }
+            KR_LOG_DEBUG("=== Chatroom list end ===");
 #endif
             chats->syncRoomsWithApi(*chatRooms);
         }

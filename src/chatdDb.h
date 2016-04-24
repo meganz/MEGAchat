@@ -61,7 +61,7 @@ public:
         //with Command
         auto msg = item.msg();
         sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, data, out_cmd)"
-            "values(?,?,?,?,?,?,NULL)",
+            "values(?,?,?,?,?,?)",
             (uint64_t)mMessages.chatId(), item.opcode(), (int)time(NULL), msg->id(), *msg,
             item.cmd ? (*item.cmd) : StaticBuffer(nullptr, 0));
         item.rowid = sqlite3_last_insert_rowid(mDb);
@@ -119,18 +119,18 @@ public:
     }
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
-        SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, data, type, ts, out_cmd from sending"
-            "where chatid=? order by rowid asc");
+        SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, data, type, "
+            "ts, out_cmd from sending where chatid=? order by rowid asc");
         stmt << mMessages.chatId();
         queue.clear();
         while(stmt.step())
         {
             uint8_t opcode = stmt.intCol(1);
             chatd::Command* cmd;
-            if (stmt.hasBlobCol(6))
+            if (stmt.hasBlobCol(7))
             {
                 cmd = new chatd::Command;
-                stmt.blobCol(6, *cmd);
+                stmt.blobCol(7, *cmd);
                 assert(cmd->opcode() == opcode);
             }
             else
@@ -138,19 +138,19 @@ public:
                 cmd = nullptr;
             }
             void* data;
-            if (stmt.hasBlobCol(3)) //data
+            if (stmt.hasBlobCol(4)) //data
             {
                 if (opcode == chatd::OP_NEWKEY)
                 {
-                    auto key = new chatd::Key(stmt.uint64Col(2));
-                    key->len = stmt.blobCol(3, key->data, chatd::Key::kMaxLen);
+                    auto key = new chatd::Key(stmt.uint64Col(3));
+                    key->len = stmt.blobCol(4, key->data, chatd::Key::kMaxLen);
                     data = key;
                 }
                 else if ((opcode == chatd::OP_NEWMSG) || (opcode == chatd::OP_MSGUPD)
                          || (opcode == chatd::OP_MSGUPDX))
                 {
                     Buffer buf;
-                    stmt.blobCol(3, buf);
+                    stmt.blobCol(4, buf);
                     auto msg = new chatd::Message(stmt.int64Col(2), mMessages.client().userId(),
                         stmt.intCol(6), 0, std::move(buf), true, (chatd::KeyId)stmt.intCol(3),
                         (chatd::Message::Type)stmt.intCol(5));
@@ -164,7 +164,7 @@ public:
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, from history "
+        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx from history "
             "where chatid=?1 and idx <= ?2 order by idx desc limit ?3");
         stmt << mMessages.chatId() << idx << count;
         int i = 0;

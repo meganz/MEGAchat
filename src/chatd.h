@@ -80,6 +80,7 @@ public:
 };
 
 class Chat;
+class ICrypto;
 
 typedef uint32_t KeyId;
 class Key
@@ -234,7 +235,7 @@ public:
 /// Normally the application doesn't need to care about it
 /// @param msg - The message object - \c id() returns a real msgid, and \c isSending() is \c false
 /// @param idx - The history buffer index at which the message was put
-    virtual void onMessageConfirmed(const Id& msgxid, const Message& msg, Idx idx){}
+    virtual void onMessageConfirmed(Id msgxid, const Message& msg, Idx idx){}
 /// A message was rejected by the server for some reason. As the message is not yet
 /// in the history buffer, its \c id() is a msgxid, and \c isSending() is true
     virtual void onMessageRejected(const Message& msg){}
@@ -258,74 +259,6 @@ public:
 };
 
 class MsgCommand;
-class ICrypto
-{
-public:
-    void init(Chat& messages) {}
-/**
- * @brief encrypt Encrypts a message, putting the contents in the specified buffer
- * @param msg The message to encrypt. If msg.keyid is not 0, then it must be encrypted
- * with the key with id keyid. If it is 0, then it's up to the crypto module to
- * choose the key, and it must set msg.keyid to the id of the key used.
- * @param cmd The Command object that will be sent for that message. The keyid
- * of the command object is the same as msg.keyid when the callback is called,
- * and if the crypto module updated msg.keyid, it must also update the
- * command's keyid to the same value.
- * The current encryption key is kept in \c Chat.currentSendKey. If the crypto module
- * generates a new key, it must update that value and assign \c Key::kUnconfirmedId
- * as the key's id, and post the key to the chat using \c Chat.setNewSendKey().
- * Upon key confirmation from the server, the id of
- * currentKeyId will be updated to the server-assigned keyid. The crypto module
- * should not care about the key's id, it should just use whatever \c Chat.currentKeyId.id()
- * is set to.
- * @return Whether the encryption was successful. In case a participant's public
- * key is not immediately available (and needs to be fetched from the API),
- * \c false must be returned. When the key fetch is done and the encrypt operation
- * will be successful, the crypto module must call \c Chat::onCanEncryptAgain().
- * This will result in \c encrypt() for that same message called again,
- * and for any subsequent messages that may have accumulated in the output queue,
- * until the queue is empty, another(or this) \c encrypt() call return false,
- * or the connection goes offline. Upon a subsequent call for the same message,
- * it is not guaranteed that the keyid set via \c msg.keyid will be preserved, so
- * it has to be set again on the message and command objects
- * in case \c msg.keyid == Key::kUnconfirmedId.
- */
-    virtual bool msgEncrypt(const Message& src, MsgCommand& cmd)
-    {
-        return true;
-    }
-/**
- * @brief Called by the client for received messages to decrypt them.
- * The crypto module \b must also set the type of the message, so that the client
- * knows whether to pass it to the application (i.e. contains an actual message)
- * or should not (i.e. contains a crypto system packet)
- */
-    virtual void msgDecrypt(Message& src)
-    { //test implementation
-    }
-    virtual Key* keyDecrypt(Id userid, uint16_t keylen, const char* keybuf)
-    {
-        return new Key(0);
-    }
-/**
- * @brief The chatroom connection (to the chatd server shard) state state has changed.
- */
-    virtual void onOnlineStateChange(ChatState state){}
-/**
- * @brief A user has joined or left the room, or their privilege has changed
- * @param privilege - the new privilege, if it is PRIV_NOTPRESENT, then the user
- * left the chat
- */
-    virtual void onUserJoinLeave(Id userid, Priv privilege){}
-/**
- * @brief A key was received from the server, and added to Chat.keys
- */
-    virtual void onKeyReceived(const KeyWithId& key){}
-/**
- * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
- */
-    virtual ~ICrypto(){}
-};
 
 class Command: public Buffer
 {
@@ -368,7 +301,7 @@ public:
     :Command(opcode)
     {
         write(1, chatid);write(9, userid);write(17, msgid);write(25, ts);
-        write(29, updated);write(31, keyid);write(39, 0); //msglen
+        write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
     Id msgid() const { return read<uint64_t>(17); }
     void setId(Id aMsgid) { write(17, aMsgid); }
@@ -431,14 +364,8 @@ protected:
     void enableInactivityTimer();
     void disableInactivityTimer();
     void reset();
-// As sending data over libws is destructive to the buffer, we have two versions
-// of sendCommand - the one with the rvalue reference is picked by the compiler
-// whenever the command object is a temporary, avoiding copying the buffer,
-// and the const reference one is picked when the Command object has to be preserved
-    bool sendCommand(Command&& cmd);
-    bool sendCommand(const Command& cmd);
 // Destroys the buffer content
-    bool sendBuf(Buffer& buf);
+    bool sendBuf(Buffer&& buf);
     void rejoinExistingChats();
     void resendPending();
     void join(const Id& chatid);
@@ -522,6 +449,7 @@ protected:
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
+    bool mHasMoreHistoryInDb = false;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
 //    UserPrivMap mUsers;
@@ -564,7 +492,12 @@ protected:
     void getHistoryFromDb(unsigned count);
     void onLastReceived(const Id& msgid);
     void onLastSeen(const Id& msgid);
+    // As sending data over libws is destructive to the buffer, we have two versions
+    // of sendCommand - the one with the rvalue reference is picked by the compiler
+    // whenever the command object is a temporary, avoiding copying the buffer,
+    // and the const reference one is picked when the Command object has to be preserved
     bool sendCommand(Command&& cmd);
+    bool sendCommand(const Command& cmd);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
     void enqueueMsgForSend(Message* msg);

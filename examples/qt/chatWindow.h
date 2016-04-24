@@ -487,11 +487,10 @@ public:
         if (widget)
             widget->updateStatus(newStatus);
     }
-    virtual void onMessageConfirmed(const chatd::Id& msgxid, const chatd::Id& msgid, chatd::Idx idx)
+    virtual void onMessageConfirmed(chatd::Id msgxid, const chatd::Message& msg, chatd::Idx idx)
     {
         // add to history, message was just created at the server
-        assert(msgxid); assert(msgid); assert(idx != CHATD_IDX_INVALID);
-        auto& msg = mChat->at(idx);
+        assert(msgxid); assert(msg.id()); assert(idx != CHATD_IDX_INVALID);
         auto widget = widgetFromMessage(msg);
         if (widget)
             widget->updateStatus(chatd::Message::kServerReceived);
