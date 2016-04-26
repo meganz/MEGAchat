@@ -221,8 +221,8 @@ public:
 /// @param isFromDb Whether the history was retrieved from localDb, via fetchDbHistory() or from
 /// the server
     virtual void onHistoryDone(bool isFromDb) {}
-    virtual void onUnsentMsgLoaded(const Message& msg){}
-    virtual void onUnsentEditLoaded(const Message& msg) {}
+    virtual void onUnsentMsgLoaded(Message& msg) {}
+    virtual void onUnsentEditLoaded(Message& msg, bool oriMsgIsSending) {}
 /// A message sent by us was acknoledged by the server, assigning it a MSGID.
 /// At this stage, the message state is "received-by-server", and it is in the history
 /// buffer when this callback is called.
@@ -244,6 +244,7 @@ public:
  * but this callback will not be called.
  * @param idx - the index of the edited message */
     virtual void onMessageEdited(const Message& msg, Idx idx){}
+    virtual void onEditRejected(const Message& msg, uint8_t opcode){}
 /// The chatroom connection (to the chatd server shard) state state has changed.
     virtual void onOnlineStateChange(ChatState state){}
 /// A user has joined or left the room, or their privilege has changed. If user has left
@@ -577,7 +578,7 @@ public:
     bool setMessageSeen(Id msgid);
     Idx lastSeenIdx() const { return mLastSeenIdx; }
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
-    void onCanEncryptAgain();
+    void replayUnsentNotifications();
 // Message output methods
     Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
 //Queues a message as a edit message for \c orig. \attention Will delete a previous edit if
@@ -588,6 +589,10 @@ public:
     int unreadMsgCount() const;
     void setListener(Listener* newListener) { mListener = newListener; }
 // ==== Methods intended for the crypto module ====
+    /** @brief The crypto module must call this method when it returned \c false from
+     * \c msgEncrypt() and now it is able to successfully encrypt that message
+     */
+    void onCanEncryptAgain();
     /** @brief A map of all keys received by the client so far, including our own. */
     const std::map<KeyId, Key*>& keys() const { return mKeys; }
     /** @brief The current message encryption key that is used to send new messages.
@@ -606,6 +611,9 @@ protected:
     void msgEncryptAndSend(Message* msg, uint8_t opcode);
     void onMsgUpdated(Message&& msg);
     void keyConfirm(KeyId keyxid, KeyId keyid);
+    void rejectMsgupd(uint8_t opcode, Id id);
+    template <bool mustBeInSending=false>
+    void rejectGeneric(uint8_t opcode);
 
 //===
 };

@@ -283,9 +283,14 @@ promise::Promise<void> Client::init()
             {
                 auto& room = *chatRooms->get(i);
                 KR_LOG_DEBUG("%s(%s):", chatd::Id(room.getHandle()).toString().c_str(), room.isGroup()?"group":"1on1");
-                auto& peers = *room.getPeerList();
-                for (int j = 0; j<peers.size(); j++)
-                    KR_LOG_DEBUG("  %s", chatd::Id(peers.getPeerHandle(j)).toString().c_str());
+                auto peers = room.getPeerList();
+                if (!peers)
+                {
+                    KR_LOG_DEBUG("  (room is empty)");
+                    continue;
+                }
+                for (int j = 0; j<peers->size(); j++)
+                    KR_LOG_DEBUG("  %s", chatd::Id(peers->getPeerHandle(j)).toString().c_str());
             }
             KR_LOG_DEBUG("=== Chatroom list end ===");
 #endif
@@ -1322,8 +1327,11 @@ void ChatRoom::switchListenerToChatWindow()
     if (mMessages->listener() == mChatWindow)
         return;
     chatd::DbInterface* dummyIntf = nullptr;
-    mChatWindow->init(*mMessages, dummyIntf);
+// init() relies on some events, so we need to set mChatWindow as listener before
+// calling init(). This is safe, as and we will not get any async events before we
+//return to the event loop
     mMessages->setListener(mChatWindow);
+    mChatWindow->init(*mMessages, dummyIntf);
 }
 
 Presence PeerChatRoom::presence() const

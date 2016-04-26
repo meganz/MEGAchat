@@ -121,9 +121,9 @@ public:
         a->start(QAbstractAnimation::DeleteWhenStopped);
         return *this;
     }
-    MessageWidget& setEdited()
+    MessageWidget& setEdited(const QString& txt=QObject::tr("(Edited)"))
     {
-        ui.mEditDisplay->setText(tr("(Edited)"));
+        ui.mEditDisplay->setText(txt);
         return *this;
     }
     void msgDeleted();
@@ -163,12 +163,14 @@ protected:
     Ui::ChatWindow ui;
     chatd::Chat* mChat = nullptr;
     MessageWidget* mEditedWidget = nullptr; ///pointer to the widget being edited. Also signals whether we are editing or writing a new message (nullptr - new msg, editing otherwise)
-    std::map<chatd::Id, const chatd::Message*> mNotLinkedEdits;
-    bool mUnsentChecked = false;
     std::unique_ptr<HistFetchUi> mHistFetchUi;
     CallGui* mCallGui = nullptr;
     bool mLastHistReqByScroll = false;
     WaitMessage mWaitMsg;
+/** The position in the widget list before which is the last message in server history,
+ *  and after which are all unsent messages, in order
+ */
+    int mHistAddPos = 0;
     friend class CallGui;
     friend class CallAnswerGui;
     friend class WaitMessage;
@@ -194,32 +196,39 @@ public slots:
         auto widget = mEditedWidget;
         auto& msg = *mEditedWidget->mMessage;
         mEditedWidget = nullptr;
-
-        if ((text.size() == (int)msg.dataSize())
-            && (memcmp(text.data(), msg.buf(), text.size()) == 0))
-        { //no change
-            widget->disableEditGui();
-            return;
-        }
+        bool fadeToWhite = true;
         if (text.isEmpty()) //delete message
         {
+            if (!mChat->msgModify(msg, nullptr, 0, msg.userp))
+            {
+                showCantEditNotice();
+                goto noedit;
+            }
             widget->disableEditGui();
+            widget->setEdited("deleting");
             widget->updateStatus(chatd::Message::kSending);
-            mChat->msgModify(msg, nullptr, 0, msg.userp);
+            return;
         }
         else //try to edit message
         {
+            if (msg.dataEquals(text.data(), text.size()))  //no change
+                goto noedit;
+
             chatd::Message* edited = mChat->msgModify(msg, text.data(), text.size(), msg.userp);
             if (!edited) //can't edit, msg too old
             {
-                widget->disableEditGui();
-                return;
+                showCantEditNotice();
+                goto noedit;
             }
             //successfully edited, don't fade back to white until edit is comfirmed by server
             widget->setText(*edited);
             widget->disableEditGui(false);
             widget->setEdited();
+            widget->updateStatus(chatd::Message::kSending);
         }
+        return;
+noedit:
+        widget->disableEditGui();
     }
     void postNewMessage(const QByteArray& text)
     {
@@ -381,8 +390,8 @@ protected:
         auto list = item->listWidget();
         return qobject_cast<MessageWidget*>(list->itemWidget(item));
     }
-    QListWidgetItem* addMsgWidget(chatd::Message& msg, chatd::Idx idx, chatd::Message::Status status,
-                      bool first, QColor* color=nullptr)
+    QListWidgetItem* addMsgWidget(chatd::Message& msg, chatd::Idx idx,
+        chatd::Message::Status status, bool first, QColor* color=nullptr)
     {
         auto widget = new MessageWidget(*this, msg, status, idx);
         connect(widget->ui.mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
@@ -391,13 +400,22 @@ protected:
         auto* item = new QListWidgetItem;
         msg.userp = item;
         item->setSizeHint(widget->size());
-        if (first)
+        if (msg.isSending()) //we need to add it to the actual end of the list
         {
-            ui.mMessageList->insertItem(0, item);
+            CHAT_LOG_DEBUG("Adding unsent message widget of msgxid %s", msg.id().toString().c_str());
+            ui.mMessageList->addItem(item);
         }
         else
         {
-            ui.mMessageList->addItem(item);
+            if (first) //old message
+            {
+                ui.mMessageList->insertItem(0, item);
+            }
+            else
+            {
+                ui.mMessageList->insertItem(mHistAddPos, item);
+            }
+            mHistAddPos++; //doesn't matter if we put it at start of end, we increased the size of the history widget range
         }
         ui.mMessageList->setItemWidget(item, widget);
         if (color)
@@ -442,6 +460,7 @@ public:
         updateChatdStatusDisplay(mChat->onlineState());
         if (mChat->empty())
             return;
+        mChat->replayUnsentNotifications();
         auto last = mChat->highnum();
         for (chatd::Idx idx = mChat->lownum(); idx<=last; idx++)
         {
@@ -491,6 +510,7 @@ public:
             widget->setBgColor(QColor(Qt::yellow));
         }
     }
+    void showCantEditNotice();
     virtual void onHistoryDone(bool isFromDb)
     {
         mHistFetchUi.reset();
@@ -528,10 +548,20 @@ public:
         // add to history, message was just created at the server
         assert(msgxid); assert(msg.id()); assert(idx != CHATD_IDX_INVALID);
         auto widget = widgetFromMessage(msg);
-        if (widget)
-            widget->updateStatus(chatd::Message::kServerReceived);
+        if (!widget)
+        {
+            CHAT_LOG_ERROR("onMessageConfirmed: No widget assigned for message with msgxid %s", msgxid.toString().c_str());
+            return;
+        }
+#ifndef NDEBUG
+        auto item = static_cast<QListWidgetItem*>(msg.userp);
+        assert(item->listWidget()->row(item) == mHistAddPos);
+#endif
+        mHistAddPos++;
+        widget->updateStatus(chatd::Message::kServerReceived);
     }
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
+    virtual void onEditRejected(const chatd::Message& msg, uint8_t opcode);
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
         mRoom.onOnlineStateChange(state);
@@ -559,7 +589,7 @@ public:
         msg.userp = item;
         ui.mMessageList->scrollToBottom();
     }
-    virtual void onUnsentEditLoaded(chatd::Message& msg);
+    virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
     virtual void onUserJoinLeave(chatd::Id userid, chatd::Priv priv)
     {
         mRoom.onUserJoinLeave(userid, priv);

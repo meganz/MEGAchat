@@ -107,6 +107,15 @@ public:
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
+#if 1
+        SqliteStmt stmt(mDb, "select min(idx), max(idx) from history where chatid = ?");
+        stmt << mMessages.chatId();
+        stmt.step();
+        if ((idx != stmt.intCol(0)-1) && (idx != stmt.intCol(1)+1))
+            throw std::runtime_error("addMsgToHistory: index of added msg is not adjacent to neither end of db history: add idx="
+              +std::to_string(idx)+", histlow="+std::to_string(stmt.intCol(0))
+              +", histhigh="+std::to_string(stmt.intCol(1)));
+#endif
         sqliteQuery(mDb, "insert or replace into history"
             "(idx, chatid, msgid, keyid, type, userid, ts, data) "
             "values(?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
@@ -165,7 +174,7 @@ public:
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
         SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx from history "
-            "where chatid=?1 and idx <= ?2 order by idx desc limit ?3");
+            "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
         stmt << mMessages.chatId() << idx << count;
         int i = 0;
         while(stmt.step())
@@ -178,7 +187,7 @@ public:
             stmt.blobCol(4, buf);
 #ifndef NDEBUG
             auto idx = stmt.intCol(5);
-            assert(idx == mMessages.lownum()-1-(int)messages.size());
+            assert(idx == mMessages.lownum()-1-(int)messages.size()); //we go backward in history, hence the -messages.size()
 #endif
             auto msg = new chatd::Message(msgid, userid, ts, 0, std::move(buf),
                 (chatd::Message::Type)stmt.intCol(3));

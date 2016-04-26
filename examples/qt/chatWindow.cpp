@@ -155,15 +155,17 @@ void ChatWindow::updateSeen()
     int i = msglist.indexAt(QPoint(4, 1)).row();
     if (i < 0) //message list is empty
     {
-//        printf("no visible messages\n");
+//      printf("no visible messages\n");
         return;
     }
 
     auto lastidx = mChat->lastSeenIdx();
+    if (lastidx == CHATD_IDX_INVALID)
+        lastidx = mChat->lownum()-1;
     auto rect = msglist.rect();
     chatd::Idx idx = CHATD_IDX_INVALID;
     //find last visible message widget
-    for(; i < msglist.count(); i++)
+    for(; i < mHistAddPos; i++)
     {
         auto item = msglist.item(i);
         if (msglist.visualItemRect(item).bottom() > rect.bottom())
@@ -171,14 +173,13 @@ void ChatWindow::updateSeen()
         auto lastWidget = qobject_cast<MessageWidget*>(msglist.itemWidget(item));
         if (lastWidget->mIsMine)
             continue;
-        auto currIdx = lastWidget->mIndex;
-        if (currIdx == CHATD_IDX_INVALID)
-            break;
-        idx = currIdx;
+        idx = lastWidget->mIndex;
+        assert(idx != CHATD_IDX_INVALID);
     }
     if (idx == CHATD_IDX_INVALID)
         return;
-    else if (idx > lastidx)
+
+    if (idx > lastidx)
     {
         mChat->setMessageSeen(idx);
 //        printf("set last seen: +%d\n", idx-lastidx);
@@ -196,6 +197,11 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
         CHAT_LOG_WARNING("onMessageEdited: No widget is associated with message with idx %d", idx);
         return;
     }
+    if (msg.empty())
+    {
+        widget->msgDeleted();
+        return;
+    }
     widget->setText(msg);
     if (msg.userid == mChat->client().userId()) //edit of our own message
     {
@@ -208,21 +214,64 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     }
     widget->fadeIn(QColor(Qt::yellow));
 }
-void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg)
+
+void ChatWindow::onEditRejected(const chatd::Message& msg, uint8_t opcode)
 {
-    auto idx = mChat->msgIndexFromId(editmsg.id());
-    if (idx == CHATD_IDX_INVALID)
-        return;
-    auto& msg = mChat->at(idx);
     auto widget = widgetFromMessage(msg);
     if (!widget)
     {
-        CHAT_LOG_WARNING("onUnsentEditLoaded: No widget associated with msgid %s", msg.id().toString().c_str());
+        CHAT_LOG_ERROR("onEditRejected: No widget associated with message");
         return;
     }
-    widget->fadeIn(QColor(Qt::yellow));
+//    widget->setText(*widget->mMessage); //restore original
+    showCantEditNotice();
+}
+
+void ChatWindow::showCantEditNotice()
+{
+    WaitMessage tooltip(*this);
+    tooltip.addMsg("Can't edit - message is too old");
+    mega::setTimeout([tooltip]()
+    {}, 2000);
+}
+
+void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg, bool oriMsgIsSending)
+{
+    MessageWidget* widget;
+    if (oriMsgIsSending)
+    {
+        for (int i=mHistAddPos; i<ui.mMessageList->count(); i++)
+        {
+            auto item = ui.mMessageList->item(i);
+            widget = qobject_cast<MessageWidget*>(item->listWidget()->itemWidget(item));
+            assert(widget);
+            if (widget->mMessage->id() == editmsg.id())
+                break;
+        }
+        if (!widget)
+        {
+            CHAT_LOG_WARNING("onUnsentEditLoaded: Could not find the oriignal message among the ones being in sending state");
+            return;
+        }
+        assert(widget->mMessage->dataEquals(editmsg.buf(), editmsg.dataSize()));
+    }
+    else
+    {
+        auto idx = mChat->msgIndexFromId(editmsg.id());
+        if (idx == CHATD_IDX_INVALID)
+            return;
+
+        auto& msg = mChat->at(idx);
+        widget = widgetFromMessage(msg);
+        if (!widget)
+        {
+            CHAT_LOG_WARNING("onUnsentEditLoaded: No widget associated with msgid %s", msg.id().toString().c_str());
+            return;
+        }
+        widget->setText(msg);
+    }
+    widget->setBgColor(Qt::yellow);
     widget->setEdited();
-    widget->setText(msg);
 }
 
 WaitMessage::WaitMessage(ChatWindow& chatWindow)
@@ -312,6 +361,7 @@ void MessageWidget::msgDeleted()
     if (mChatWindow.mChat->isFetchingHistory() || !list.rect().contains(visualRect))
     {
         removeFromList();
+        mChatWindow.mHistAddPos--;
         return;
     }
     auto a = new QPropertyAnimation(this, "msgColor");
@@ -335,5 +385,6 @@ void MessageWidget::removeFromList()
     mMessage->userp = nullptr;
     auto& list = *mChatWindow.ui.mMessageList;
     delete list.takeItem(list.row(item));
+    mChatWindow.mHistAddPos--;
     this->deleteLater();
 }

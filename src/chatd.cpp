@@ -460,7 +460,7 @@ void Chat::logSend(const Command& cmd)
       case OP_NEWMSG:
       {
         auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgid: %s\n",
+        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgxid: %s\n",
             ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
         break;
       }
@@ -737,9 +737,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 {
                     chat.msgConfirm(id, Id::null());
                 }
+                else if ((op == OP_MSGUPD) || (op == OP_MSGUPDX))
+                {
+                    chat.rejectMsgupd(op, id);
+                }
                 else
                 {
-                    chat.reject(op);
+                    chat.rejectGeneric(op);
                     //TODO: Implement
                 }
                 break;
@@ -846,6 +850,11 @@ void Chat::loadAndProcessUnsent()
 {
     assert(mSending.empty());
     CALL_DB(loadSendQueue, mSending);
+    replayUnsentNotifications();
+}
+
+void Chat::replayUnsentNotifications()
+{
     for (auto it = mSending.begin(); it != mSending.end(); it++)
     {
         auto& item = *it;
@@ -857,9 +866,23 @@ void Chat::loadAndProcessUnsent()
         {
             CHATID_LOG_DEBUG("Adding a pending edit of msgid %s", ID_CSTR(item.msg()->id()));
             mPendingEdits[item.msg()->id()] = item.msg();
+            CALL_LISTENER(onUnsentEditLoaded, *item.msg(), false);
         }
-        //in case of MSGUPDX, when we posted it, msgModify must have updated anything in
-        //the send queue with that msgxid
+        else if (item.opcode() == OP_MSGUPDX)
+        {
+            //in case of MSGUPDX, when msgModify posted it, it must have updated
+            //the text of the original message with that msgxid in the send queue.
+            //So we can technically do without the this
+            //'else if (item.opcode == OP_MSGUPDX)' case. However, if we don't tell
+            //the GUI there is an actual edit pending, (although it may be a dummy one,
+            //because the pending NEWMSG in the send queue was updated with the new msg),
+            //it will display a normal pending outgoing message without any sign
+            //of an edit. Then, when it receives the MSGUPD confirmation, it will
+            //suddenly flash an indicator that the message was edited, which may be
+            //confusing to the user.
+            CHATID_LOG_DEBUG("Adding a pending edit of msgxid %s", ID_CSTR(item.msg()->id()));
+            CALL_LISTENER(onUnsentEditLoaded, *item.msg(), true);
+        }
     }
 }
 
@@ -1012,8 +1035,8 @@ void Chat::onLastReceived(const Id& msgid)
     {
         if (mLastReceivedIdx > idx)
         {
-            CHATD_LOG_ERROR("onLastReceived: Tried to set the index to an older message, ignoring");
-            CHATD_LOG_DEBUG("highnum() = %zu, mLastReceivedIdx = %zu, idx = %zu", highnum(), mLastReceivedIdx, idx);
+            CHATID_LOG_ERROR("onLastReceived: Tried to set the index to an older message, ignoring");
+            CHATID_LOG_DEBUG("highnum() = %zu, mLastReceivedIdx = %zu, idx = %zu", highnum(), mLastReceivedIdx, idx);
             return;
         }
         notifyOldest = mLastReceivedIdx;
@@ -1294,6 +1317,43 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     assert(ret.second);
 }
 
+void Chat::rejectMsgupd(uint8_t opcode, Id id)
+{
+    if (mSending.empty())
+        throw std::runtime_error("rejectMsgupd: Send queue is empty");
+    auto& front = mSending.front();
+    if (front.opcode() != opcode)
+        throw std::runtime_error(std::string("rejectMsgupd: Front of send queue does not match - expected opcode ")
+            +Command::opcodeToStr(opcode)+ ", actual opcode: "+Command::opcodeToStr(front.opcode()));
+    auto& msg = *front.msg();
+    if (msg.id() != id)
+        throw std::runtime_error("rejectMsgupd: Message msgid/msgxid does not match the one at the front of send queue");
+
+    CALL_LISTENER(onEditRejected, msg, opcode);
+    CALL_DB(deleteItemFromSending, mSending.front().rowid);
+    mSending.pop_front();
+}
+template<bool mustBeInSending>
+void Chat::rejectGeneric(uint8_t opcode)
+{
+    if (mSending.empty())
+    {
+        if (!mustBeInSending)
+            return;
+        else
+            throw std::runtime_error("rejectGeneric(mustBeInSending): Send queue is empty");
+    }
+    if (mSending.front().opcode() == opcode)
+    {
+        CALL_DB(deleteItemFromSending, mSending.front().rowid);
+        mSending.pop_front();
+    }
+    else
+    {
+        throw std::runtime_error("rejectGeneric(mustBeInSending): Rejected command is not at the front of the send queue");
+    }
+}
+
 void Chat::onMsgUpdated(Message&& msg)
 {
 //first, if it was us who updated the message confirm the update by removeing any
@@ -1378,6 +1438,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
     else
     {
         push_back(message);
+        idx = lownum();
         assert(mHistFetchState & kHistFetchingFlag);
         mLastHistFetchCount++;
         if (!mHasMoreHistoryInDb)
@@ -1390,8 +1451,6 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
             //we have just processed the oldest message from the db
             mHasMoreHistoryInDb = false;
         }
-
-        idx = lownum();
     }
     mIdToIndexMap[msgid] = idx;
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::decrypt()");
