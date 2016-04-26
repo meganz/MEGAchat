@@ -1126,10 +1126,23 @@ bool Chat::setMessageSeen(Idx idx)
         CHATID_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
         return false;
     }
-    Idx prevLastSeen = mLastSeenIdx;
-    mLastSeenIdx = idx;
     sendCommand(Command(OP_SEEN) + mChatId + msg.id());
-    for (Idx i=prevLastSeen+1; i<=mLastSeenIdx; i++)
+
+    Idx notifyStart;
+    if (mLastSeenIdx == CHATD_IDX_INVALID)
+    {
+        notifyStart = lownum()-1;
+    }
+    else
+    {
+        Idx lowest = lownum()-1;
+        notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
+    }
+    mLastSeenIdx = idx;
+    Idx highest = highnum();
+    Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
+
+    for (Idx i=notifyStart+1; i<=notifyEnd; i++)
     {
         auto& m = at(i);
         if (m.userid != mClient.mUserId)
@@ -1154,6 +1167,8 @@ bool Chat::setMessageSeen(Id msgid)
 
 int Chat::unreadMsgCount() const
 {
+    if (!mLastSeenId) //not received SEEN yet
+        return 0;
     if (mLastSeenIdx == CHATD_IDX_INVALID)
         return -mDbInterface->getPeerMsgCountAfterIdx(CHATD_IDX_INVALID);
     else if (mLastSeenIdx < lownum())

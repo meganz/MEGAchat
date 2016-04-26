@@ -161,7 +161,7 @@ void ChatWindow::updateSeen()
 
     auto lastidx = mChat->lastSeenIdx();
     if (lastidx == CHATD_IDX_INVALID)
-        lastidx = mChat->lownum()-1;
+        lastidx = mChat->lownum();
     auto rect = msglist.rect();
     chatd::Idx idx = CHATD_IDX_INVALID;
     //find last visible message widget
