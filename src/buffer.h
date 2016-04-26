@@ -161,7 +161,7 @@ public:
     }
     void assign(const Buffer& other)
     {
-        assign(other.buf(), other.bufSize());
+        assign(other.buf(), other.dataSize());
     }
     Buffer& write(size_t offset, const void* data, size_t datalen)
     {

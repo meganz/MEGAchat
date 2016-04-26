@@ -175,6 +175,10 @@ extern "C" KRLOGGER_DLLIMPEXP void krLoggerLog(krLogChannelNo channel, krLogLeve
 extern "C" KRLOGGER_DLLIMPEXP void krLoggerLogString(krLogChannelNo channel, krLogLevel level,
     const char* str);
 extern "C" KRLOGGER_DLLIMPEXP krLogLevel krLogLevelStrToNum(const char* str);
+static inline int krLoggerWouldLog(krLogChannelNo channel, krLogLevel level)
+{
+    return (level <= krLoggerChannels[channel].logLevel);
+}
 
 #define KARERE_LOG(channel, level, fmtString,...)   \
     ((level <= krLoggerChannels[channel].logLevel) ?  \

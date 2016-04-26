@@ -188,6 +188,42 @@ void ChatWindow::updateSeen()
 //        printf("NOT set last seen: %d\n", idx-lastidx);
     }
 }
+void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
+{
+    auto widget = widgetFromMessage(msg);
+    if (!widget)
+    {
+        CHAT_LOG_WARNING("onMessageEdited: No widget is associated with message with idx %d", idx);
+        return;
+    }
+    widget->setText(msg);
+    if (msg.userid == mChat->client().userId()) //edit of our own message
+    {
+        //edited state must have been set earlier, on posting the edit
+        widget->updateStatus(chatd::Message::kServerReceived);
+    }
+    else
+    {
+        widget->setEdited();
+    }
+    widget->fadeIn(QColor(Qt::yellow));
+}
+void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg)
+{
+    auto idx = mChat->msgIndexFromId(editmsg.id());
+    if (idx == CHATD_IDX_INVALID)
+        return;
+    auto& msg = mChat->at(idx);
+    auto widget = widgetFromMessage(msg);
+    if (!widget)
+    {
+        CHAT_LOG_WARNING("onUnsentEditLoaded: No widget associated with msgid %s", msg.id().toString().c_str());
+        return;
+    }
+    widget->fadeIn(QColor(Qt::yellow));
+    widget->setEdited();
+    widget->setText(msg);
+}
 
 WaitMessage::WaitMessage(ChatWindow& chatWindow)
     :mChatWindow(chatWindow){}

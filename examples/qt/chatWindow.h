@@ -92,9 +92,10 @@ public:
         ui.mEditDisplay->setText(mMessage->updated?tr("(edited)"): QString());
         return *this;
     }
-    MessageWidget& disableEditGui()
+    MessageWidget& disableEditGui(bool fadeToNormal=true)
     {
-        fadeIn(QColor(Qt::yellow));
+        if (fadeToNormal)
+            fadeIn(Qt::yellow);
         auto header = ui.mHeader->layout();
         auto btn = header->itemAt(2)->widget();
         header->removeWidget(btn);
@@ -110,7 +111,7 @@ public:
         ui.mMsgDisplay->setPalette(p);
         return *this;
     }
-    MessageWidget& fadeIn(const QColor& color, int dur=300, const QEasingCurve& curve=QEasingCurve::Linear)
+    MessageWidget& fadeIn(const QColor& color, int dur=500, const QEasingCurve& curve=QEasingCurve::Linear)
     {
         auto a = new QPropertyAnimation(this, "msgColor");
         a->setStartValue(QColor(color));
@@ -180,32 +181,53 @@ public slots:
 
         if (mEditedWidget)
         {
-            auto widget = mEditedWidget;
-            auto& msg = *mEditedWidget->mMessage;
-            widget->disableEditGui();
-            mEditedWidget = nullptr;
+            submitEdit(text);
+            assert(!mEditedWidget);
+        }
+        else
+        {
+            postNewMessage(text);
+        }
+    }
+    void submitEdit(const QByteArray& text)
+    {
+        auto widget = mEditedWidget;
+        auto& msg = *mEditedWidget->mMessage;
+        mEditedWidget = nullptr;
 
-            if ((text.size() == (int)msg.dataSize())
-              && (memcmp(text.data(), msg.buf(), text.size()) == 0))
-            { //no change
+        if ((text.size() == (int)msg.dataSize())
+            && (memcmp(text.data(), msg.buf(), text.size()) == 0))
+        { //no change
+            widget->disableEditGui();
+            return;
+        }
+        if (text.isEmpty()) //delete message
+        {
+            widget->disableEditGui();
+            widget->updateStatus(chatd::Message::kSending);
+            mChat->msgModify(msg, nullptr, 0, msg.userp);
+        }
+        else //try to edit message
+        {
+            chatd::Message* edited = mChat->msgModify(msg, text.data(), text.size(), msg.userp);
+            if (!edited) //can't edit, msg too old
+            {
+                widget->disableEditGui();
                 return;
             }
-            //TODO: see how to associate the edited message widget with the userp
-            if (text.isEmpty())
-                mChat->msgModify(msg, nullptr, 0, msg.userp);
-            else
-                mChat->msgModify(msg, text.data(), text.size(), msg.userp);
-            widget->updateStatus(chatd::Message::kSending);
+            //successfully edited, don't fade back to white until edit is comfirmed by server
+            widget->setText(*edited);
+            widget->disableEditGui(false);
+            widget->setEdited();
         }
-        else //not edit, post new message
-        {
-            if (text.isEmpty())
-                return;
-            auto msg = mChat->msgSubmit(text.data(), text.size(), chatd::Message::kNormalMsg, nullptr);
-            msg->userp = addMsgWidget(*msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
-            ui.mMessageList->scrollToBottom();
-        }
-        ui.mMessageEdit->setText(QString());
+    }
+    void postNewMessage(const QByteArray& text)
+    {
+        if (text.isEmpty())
+            return;
+        auto msg = mChat->msgSubmit(text.data(), text.size(), chatd::Message::kNormalMsg, nullptr);
+        msg->userp = addMsgWidget(*msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
+        ui.mMessageList->scrollToBottom();
     }
     void onMessageCtxMenu(const QPoint& point)
     {
@@ -389,7 +411,7 @@ protected:
         mEditedWidget = &widget;
         auto cancelBtn = widget.startEditing();
         connect(cancelBtn, SIGNAL(clicked()), this, SLOT(cancelMsgEdit()));
-        ui.mMessageEdit->setText(QString().fromUtf8(widget.mMessage->buf(), widget.mMessage->dataSize()));
+        ui.mMessageEdit->setText(widget.ui.mMsgDisplay->toPlainText());
         ui.mMessageEdit->moveCursor(QTextCursor::End);
     }
     void updateOnlineIndication(karere::Presence pres)
@@ -425,6 +447,7 @@ public:
         {
             auto& msg = mChat->at(idx);
             addMsgWidget(msg, idx, mChat->getMsgStatus(idx, msg.userid), false);
+            handlePendingEdits(msg);
         }
         if (mChat->onlineState() == chatd::kChatStateOnline)
             QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
@@ -454,6 +477,19 @@ public:
             mHistFetchUi->progressBar()->repaint();
         }
         addMsgWidget(msg, idx, status, true);
+        handlePendingEdits(msg);
+    }
+    void handlePendingEdits(const chatd::Message& msg)
+    {
+        auto edit = mChat->pendingEdits().find(msg.id());
+        if (edit != mChat->pendingEdits().end())
+        {
+            auto widget = widgetFromMessage(msg);
+            widget->setText(*edit->second);
+            widget->setStatus(chatd::Message::kSending);
+            widget->setEdited();
+            widget->setBgColor(QColor(Qt::yellow));
+        }
     }
     virtual void onHistoryDone(bool isFromDb)
     {
@@ -495,6 +531,7 @@ public:
         if (widget)
             widget->updateStatus(chatd::Message::kServerReceived);
     }
+    virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
         mRoom.onOnlineStateChange(state);
@@ -522,6 +559,7 @@ public:
         msg.userp = item;
         ui.mMessageList->scrollToBottom();
     }
+    virtual void onUnsentEditLoaded(chatd::Message& msg);
     virtual void onUserJoinLeave(chatd::Id userid, chatd::Priv priv)
     {
         mRoom.onUserJoinLeave(userid, priv);

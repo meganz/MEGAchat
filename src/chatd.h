@@ -144,7 +144,7 @@ public:
     enum Type: unsigned char
     {
         kNormalMsg = 0,
-        kUser = 16
+        kUserMsg = 16
     };
     enum Status
     {
@@ -156,12 +156,6 @@ public:
         kNotSeen,
         kSeen
     };
-    enum EncryptedState: unsigned char
-    {
-        kEncrypted = 1,
-        kDecryptError = 3
-    };
-
 private:
 //avoid setting the id and flag pairs one by one by making them accessible only by setXXX(Id,bool)
     Id mId;
@@ -173,7 +167,7 @@ public:
     uint32_t keyid;
     Type type;
     mutable void* userp;
-    mutable uint32_t userFlags = 0;
+    mutable uint16_t userFlags = 0;
     Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
     void setId(Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
@@ -228,6 +222,7 @@ public:
 /// the server
     virtual void onHistoryDone(bool isFromDb) {}
     virtual void onUnsentMsgLoaded(const Message& msg){}
+    virtual void onUnsentEditLoaded(const Message& msg) {}
 /// A message sent by us was acknoledged by the server, assigning it a MSGID.
 /// At this stage, the message state is "received-by-server", and it is in the history
 /// buffer when this callback is called.
@@ -282,11 +277,16 @@ public:
         append(msg.buf(), msg.dataSize());
         return std::move(*this);
     }
+    bool isMessage() const
+    {
+        auto op = opcode();
+        return ((op == OP_NEWMSG) || (op == OP_MSGUPD) || (op == OP_MSGUPDX));
+    }
     uint8_t opcode() const { return *reinterpret_cast<uint8_t*>(read(0,1)); }
     const char* opcodeName() const { return opcodeToStr(opcode()); }
     static const char* opcodeToStr(uint8_t code)
     {
-        return (code > OP_LAST) ? "(invalid opcpde)" : opcodeNames[code];
+        return (code > OP_LAST) ? "(invalid opcode)" : opcodeNames[code];
     }
     virtual ~Command(){}
 };
@@ -296,8 +296,8 @@ public:
 class MsgCommand: public Command
 {
 public:
-    MsgCommand(uint8_t opcode, Id chatid, Id userid, Id msgid,
-                   KeyId keyid=Key::kInvalidId, uint32_t ts=0, uint16_t updated=0)
+    explicit MsgCommand(uint8_t opcode, Id chatid, Id userid, Id msgid, uint32_t ts,
+               uint16_t updated, KeyId keyid=Key::kInvalidId)
     :Command(opcode)
     {
         write(1, chatid);write(9, userid);write(17, msgid);write(25, ts);
@@ -307,17 +307,18 @@ public:
     void setId(Id aMsgid) { write(17, aMsgid); }
     KeyId keyId() const { return read<KeyId>(31); }
     void setKeyId(KeyId aKeyid) { write(31, aKeyid); }
-    uint32_t msglen() const { return read<uint32_t>(39); }
+    uint32_t msglen() const { return read<uint32_t>(35); }
+    uint16_t updated() const { return read<uint16_t>(29); }
     void clearMsg()
     {
         if (msglen() > 0)
-            memset(buf()+43, 0, msglen()); //clear old message memory
-        write(39, (uint32_t)0);
+            memset(buf()+39, 0, msglen()); //clear old message memory
+        write(35, (uint32_t)0);
     }
     void setMsg(const char* msg, uint32_t msglen)
     {
-        write(39, msglen);
-        memcpy(writePtr(43, msglen), msg, msglen);
+        write(35, msglen);
+        memcpy(writePtr(39, msglen), msg, msglen);
     }
 };
 
@@ -463,10 +464,11 @@ protected:
     unsigned mLastHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
     HistFetchState mHistFetchState = kHistNotFetching;
     DbInterface* mDbInterface = nullptr;
-    std::map<uint32_t, Key*> keys;
-    KeyWithId currentSendKey; //we use a pointer here because we may have no key yet
+    std::map<uint32_t, Key*> mKeys;
+    KeyWithId mCurrentSendKey; //we use a pointer here because we may have no key yet
     ICrypto* mCrypto;
     bool mEncryptionHalted = false;
+    std::map<Id, Message*> mPendingEdits;
     Chat(Connection& conn, const Id& chatid, Listener* listener, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.push_back(msg); }
     void push_back(Message* msg) { mBackwardList.push_back(msg); }
@@ -508,6 +510,7 @@ protected:
     void joinRangeHist();
     void onHistDone(); //called upont receipt of HISTDONE from server
     void onNewKeys(StaticBuffer&& keybuf);
+    void logSend(const Command& cmd);
     friend class Connection;
     friend class Client;
 public:
@@ -522,6 +525,7 @@ public:
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
     ChatState onlineState() const { return mOnlineState; }
     Message::Status getMsgStatus(Idx idx, const Id& userid);
+    const std::map<Id, Message*>& pendingEdits() const { return mPendingEdits; }
     Listener* listener() const { return mListener; }
     bool isFetchingHistory() const { return mHistFetchState & kHistFetchingFlag; }
     HistFetchState histFetchState() const { return mHistFetchState; }
@@ -583,11 +587,25 @@ public:
     Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp);
     int unreadMsgCount() const;
     void setListener(Listener* newListener) { mListener = newListener; }
+// ==== Methods intended for the crypto module ====
+    /** @brief A map of all keys received by the client so far, including our own. */
+    const std::map<KeyId, Key*>& keys() const { return mKeys; }
+    /** @brief The current message encryption key that is used to send new messages.
+     * The crypto module sets it via setNewSendKey(), and the client updated its
+     * keyid when it received a confirmation from the server */
+    const KeyWithId& currentSendKey() const { return mCurrentSendKey; }
+    /** @brief Sets a new send key.
+     * Intended for use by the crypto module. The unencrypted key must be passed as the \c key object,
+     * and the encrypted form (for all current participants) must be passed as the \c cmd
+     * object. The key id will initially be set to Key::kUnconfirmedKeyId (0xffffffff), and
+     * once the client received a KEYID confirmation from the server, it will update the
+     * key id to the received one. The crypto module should not care what the key id is,
+     * it should just use it. */
+    void setNewSendKey(Key* key, Command* cmd);
 protected:
     void msgEncryptAndSend(Message* msg, uint8_t opcode);
-    void onMsgUpdated(const Message& msg);
+    void onMsgUpdated(Message&& msg);
     void keyConfirm(KeyId keyxid, KeyId keyid);
-    void setNewSendKey(Key* key, Command* cmd);
 
 //===
 };
