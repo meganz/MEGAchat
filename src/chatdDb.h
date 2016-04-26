@@ -3,7 +3,6 @@
 
 #include "db.h"
 #include "chatd.h"
-
 extern sqlite3* db;
 
 class ChatdSqliteDb: public chatd::DbInterface
@@ -187,7 +186,13 @@ public:
             stmt.blobCol(4, buf);
 #ifndef NDEBUG
             auto idx = stmt.intCol(5);
-            assert(idx == mMessages.lownum()-1-(int)messages.size()); //we go backward in history, hence the -messages.size()
+            if(idx != mMessages.lownum()-1-(int)messages.size()) //we go backward in history, hence the -messages.size()
+            {
+                CHATD_LOG_ERROR("chatid %" PRId64 ": fetchDbHistory: Buffer discontinuity detected: "
+                    "expected idx %d, retrieved from db:%d", mMessages.chatId().val,
+                    mMessages.lownum()-1-(int)messages.size(), idx);
+                abort();
+            }
 #endif
             auto msg = new chatd::Message(msgid, userid, ts, 0, std::move(buf),
                 (chatd::Message::Type)stmt.intCol(3));
