@@ -376,7 +376,7 @@ void Client::setupXmppHandlers()
 
 void Client::setupXmppReconnectHandler()
 {
-    mReconnectController.reset(mega::createRetryController(
+    mReconnectController.reset(mega::createRetryController("xmpp",
         [this](int no) -> promise::Promise<void>
     {
         if (no < 2)

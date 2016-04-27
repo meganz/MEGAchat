@@ -145,6 +145,20 @@ static inline const char* strNotNull(const char* str)
         std::to_string(ret)+" ["+strNotNull(curl_easy_strerror(ret))+"] at file "+ __FILE__+ ":"+std::to_string(__LINE__)); \
     } while(0)
 
+/** This is a heap-allocated structure that is a member of the client, but not destroyed
+ * when the client is. The pointer to this structure is passed to the DNS callback,
+ * and it is destroyed by the DNS callback, i.e. it outlives the client.
+ * In this way, the dns callback can know that if client was destroyed before it tries
+ * to access it. The structure also contains an autonicrement-generated request id that
+ * is matched with the current one in the client, so the callback knows if it's a stale
+ * callback and the client is already resolving another domain.
+ */
+struct DnsReqState
+{
+    size_t reqId;
+    volatile bool aborted = false;
+    DnsReqState(size_t aReqId): reqId(aReqId){}
+};
 
 class Client: public CurlConnection
 {
@@ -154,7 +168,8 @@ protected:
     size_t mRequestId = 0;
     std::string mUrl;
     curl_slist* mCustomHeaders = nullptr;
-//    std::unique_ptr<StreamSrcBase> mReader;
+//  std::unique_ptr<StreamSrcBase> mReader;
+    DnsReqState* mDnsReqState = nullptr;
 public:
     std::shared_ptr<ResponseBase> mResponse;
     bool dontCopyPostData = false;
@@ -183,6 +198,8 @@ public:
     }
     ~Client()
     {
+        if (mDnsReqState)
+            mDnsReqState->aborted = true;
         if (mCustomHeaders)
             curl_slist_free_all(mCustomHeaders);
         if (mCurl)
@@ -230,16 +247,29 @@ protected:
     void setupRecvAndStart(const std::string& aUrl) //mResponse must be set before calling this
     {
         mBusy = true;
-        auto id = ++mRequestId;
+        assert(!mDnsReqState);
+        DnsReqState* state = mDnsReqState = new DnsReqState(++mRequestId);
         mUrl = aUrl;
+
         resolveUrlDomain(aUrl,
-         [this, id](int errcode, const std::string& url)
+         [this, state](int errcode, const std::string& url)
          {
-            if (!mBusy || (id != mRequestId)) //stale callback, maybe request was aborted
+            if (state->aborted) //possibly client is already destroyed
             {
-                KRHTTP_LOG_WARNING("Stale DNS callback, ignoring");
+                delete state;
+                KRHTTP_LOG_DEBUG("DNS callback from an aborted client, ignoring");
                 return;
             }
+            assert(mDnsReqState);
+            bool stale = (!mBusy || (state->reqId != mRequestId)); //stale callback, maybe request was aborted
+            delete mDnsReqState;
+            mDnsReqState = nullptr;
+            if (stale)
+            {
+                KRHTTP_LOG_DEBUG("Stale DNS callback, ignoring");
+                return;
+            }
+
             if (errcode)
             {
                 mBusy = false;
@@ -264,6 +294,8 @@ protected:
 public:
     bool abort()
     {
+        if (mDnsReqState)
+            mDnsReqState->aborted = true;
         if (!mBusy)
             return false;
         auto ret = curl_multi_remove_handle(gCurlMultiHandle, mCurl);
@@ -294,9 +326,9 @@ public:
             }
             else
             {
-                if (code == ERRTYPE_HTTP)
+                if (type == ERRTYPE_HTTP)
                     pms.reject(promise::Error(curl_easy_strerror((CURLcode)code), code, type));
-                else if (code == ERRTYPE_ABORT)
+                else if (type == ERRTYPE_ABORT)
                     pms.reject(promise::Error("aborted", code, type));
                 else
                     pms.reject(code, type);
@@ -365,7 +397,7 @@ public:
 */
 protected:
     template <class CB>
-    void resolveUrlDomain(const std::string& url, const CB& cb)
+    void resolveUrlDomain(const std::string& url, CB&& cb)
     {
         auto bounds = services_http_url_get_host(url.c_str());
         auto type = services_dns_host_type(url.c_str()+bounds.start, url.c_str()+bounds.end);
@@ -383,8 +415,8 @@ protected:
         {
             std::string domain(url.c_str()+bounds.start, bounds.end-bounds.start);
             dnsLookup(domain.c_str(), services_http_use_ipv6?SVCF_DNS_IPV6:SVCF_DNS_IPV4,
-            [this, cb, bounds, url](int errCode, const std::shared_ptr<AddrInfo>& addrs)
-            {
+              [this, cb, bounds, url](int errCode, const std::shared_ptr<AddrInfo>& addrs)
+              {
                 if (errCode)
                 {
                     return cb(errCode, url);

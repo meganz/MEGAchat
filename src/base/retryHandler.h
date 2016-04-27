@@ -9,7 +9,7 @@
 #define RETRY_DEBUG_LOGGING 1
 
 #ifdef RETRY_DEBUG_LOGGING
-    #define RETRY_LOG(fmtString,...) KR_LOG_WARNING("Retry: " fmtString, ##__VA_ARGS__)
+    #define RETRY_LOG(fmtString,...) KR_LOG_WARNING("Retry[%s]: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #else
     #define RETRY_LOG(fmtString,...)
 #endif
@@ -47,7 +47,10 @@ protected:
     State mState = kStateNotStarted;
     size_t mCurrentAttemptNo = 0;
     bool mAutoDestruct = false; //used when we use this object on the heap
+    std::string mName;
 public:
+    IRetryController(const std::string& aName): mName(aName){}
+    const std::string& name() const { return mName; }
     virtual promise::PromiseBase& start(unsigned delay=0) = 0;
     virtual void restart(unsigned delay=0) = 0;
     virtual bool abort() = 0;
@@ -126,10 +129,10 @@ public:
      * then the first wait will be 120ms, the next 240ms, then 480ms and so on.
      * This can be used for high frequency initial retrying.
      */
-    RetryController(Func&& func, CancelFunc&& cancelFunc, unsigned attemptTimeout,
+    RetryController(const std::string& aName, Func&& func, CancelFunc&& cancelFunc, unsigned attemptTimeout,
         unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime,
         size_t maxAttemptCount=kDefaultMaxAttemptCount, unsigned short backoffStart=1000)
-        :mFunc(std::forward<Func>(func)), mCancelFunc(std::forward<CancelFunc>(cancelFunc)),
+        :IRetryController(aName), mFunc(std::forward<Func>(func)), mCancelFunc(std::forward<CancelFunc>(cancelFunc)),
          mMaxAttemptCount(maxAttemptCount), mAttemptTimeout(attemptTimeout),
          mMaxSingleWaitTime(maxSingleWaitTime),
          mInitialWaitTime(backoffStart)
@@ -393,14 +396,15 @@ static inline void _emptyCancelFunc(){}
    See the constructor of RetryController for more details
  */
 template <class Func, class CancelFunc=decltype(&rh::_emptyCancelFunc)>
-static inline auto retry(Func&& func, CancelFunc&& cancelFunc = &rh::_emptyCancelFunc,
+static inline auto retry(const std::string& aName, Func&& func,
+    CancelFunc&& cancelFunc = &rh::_emptyCancelFunc,
     unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
     short backoffStart = 1000)
 ->decltype(func(0))
 {
-    auto self = new rh::RetryController<Func, CancelFunc>(
+    auto self = new rh::RetryController<Func, CancelFunc>(aName,
         std::forward<Func>(func), std::forward<CancelFunc>(cancelFunc), attemptTimeout,
         maxSingleWaitTime, maxRetries, backoffStart);
     auto promise = self->getPromise();
@@ -412,12 +416,13 @@ static inline auto retry(Func&& func, CancelFunc&& cancelFunc = &rh::_emptyCance
 /** Similar to retry(), but returns a heap-allocated RetryController object */
 template <class Func, class CancelFunc=void*>
 static inline rh::RetryController<Func, CancelFunc>* createRetryController(
-    Func&& func,CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
+    const std::string& aName, Func&& func,CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
     short backoffStart = 1000)
 {
-    auto retryController = new rh::RetryController<Func, CancelFunc>(std::forward<Func>(func),
+    auto retryController = new rh::RetryController<Func, CancelFunc>(aName,
+        std::forward<Func>(func),
         std::forward<CancelFunc>(cancelFunc), attemptTimeout,
         maxSingleWaitTime, maxRetries, backoffStart);
     return retryController;

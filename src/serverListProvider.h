@@ -247,7 +247,7 @@ GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
     int reqCount, unsigned reqTimeout, int64_t maxReuseOldServersAge)
     :mGelbHost(gelbHost), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
 {
-    mRetryController.reset(::mega::createRetryController(
+    mRetryController.reset(::mega::createRetryController("gelb",
         [this](int no) { return exec(no); },
         [this]() { giveup(); },
         reqTimeout, reqCount, 1, 1
@@ -256,28 +256,37 @@ GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
 template <class S>
 promise::Promise<void> GelbProvider<S>::exec(int no)
 {
+    assert(!mClient); //don't destroy it as it may be still working, the promise handlers will destroy it when it resolves/fails the promise
     mClient.reset(new ::mega::http::Client);
     return mClient->pget<std::string>(mGelbHost+"/?service="+mService)
     .then([this](std::shared_ptr<::mega::http::Response<std::string> > response)
         -> promise::Promise<void>
     {
-        mClient.reset();
         if (response->httpCode() != 200)
         {
             return promise::Error("Non-200 http response from GeLB server: "
                                   +*response->data(), 0x3e9a9e1b, 1);
         }
+        mClient.reset();
         parseServersJson(*(response->data()));
         this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
         this->mLastUpdateTs = timestampMs();
         return promise::_Void();
+    })
+    .fail([this](const promise::Error& err)
+    {
+        mClient.reset();
+        return err;
     });
 }
 template <class S>
 void GelbProvider<S>::giveup()
 {
-    if (mClient) //if this was the last attempt, the output promise will fail and reset() to nullptr
-        mClient->abort();
+    if (!mClient)
+        return;
+    // If this was the last attempt, the output promise will fail and reset() to nullptr
+    mClient->abort();
+    assert(!mClient);
 }
 
 template <class S>
@@ -290,12 +299,12 @@ promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeout)
 
     mRetryController->reset();
     promise::Promise<void> pms;
-    if (timeout)
+    if (timeout) //if user set a timeout, execute only once (quick mode)
     {
         pms = exec(0);
         ::mega::setTimeout([this]() { giveup(); }, timeout);
     }
-    else
+    else //execute with retries
     {
         pms = static_cast<promise::Promise<void>& > (mRetryController->start());
     }
@@ -303,7 +312,6 @@ promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeout)
     mOutputPromise = pms
     .fail([this](const promise::Error& err) -> promise::Promise<void>
     {
-        mClient.reset();
         if (!this->mLastUpdateTs || ((timestampMs() - mLastUpdateTs)/1000 > mMaxReuseOldServersAge))
         {
             return err;

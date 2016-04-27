@@ -193,10 +193,10 @@ void Connection::websockConnectCb(ws_t ws, void* arg)
 {
     Connection* self = static_cast<Connection*>(arg);
     ASSERT_NOT_ANOTHER_WS("connect");
-    CHATD_LOG_DEBUG("Chatd connected");
-
-    assert(self->mConnectPromise);
-    self->mConnectPromise->resolve();
+    self->mState = kStateConnected;
+    CHATD_LOG_DEBUG("Chatd connected to shard %d", self->mShardNo);
+    assert(!self->mConnectPromise.done());
+    self->mConnectPromise.resolve();
 }
 
 void Url::parse(const std::string& url)
@@ -269,63 +269,56 @@ uint16_t Url::getPortFromProtocol() const
     else
         return 0;
 }
-void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
+void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preason,
                                 size_t reason_len, void *arg)
 {
     auto self = static_cast<Connection*>(arg);
     ASSERT_NOT_ANOTHER_WS("close/error");
-    try
+    std::string reason;
+    if (preason)
+        reason.assign(preason, reason_len);
+
+    //we don't want to initiate websocket reconnect from within a websocket callback
+    ::mega::marshallCall([self, reason, errcode, errtype]()
     {
-        CHATD_LOG_DEBUG("Socket close on connection to shard %d. Reason: %.*s",
-                        self->mShardNo, reason_len, reason);
-        if (errtype == WS_ERRTYPE_DNS)
-        {
-            CHATD_LOG_DEBUG("DNS error: forcing libevent to re-read /etc/resolv.conf");
-            //if we didn't have our network interface up at app startup, and resolv.conf is
-            //genereated dynamically, dns may never work unless we re-read the resolv.conf file
+        self->onSocketClose(errcode, errtype, reason);
+    });
+}
+
+void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
+{
+    CHATD_LOG_WARNING("Socket close on connection to shard %d. Reason: %s",
+        mShardNo, reason.c_str());
+    if (errtype == WS_ERRTYPE_DNS)
+    {
+        CHATD_LOG_WARNING("->DNS error: forcing libevent to re-read /etc/resolv.conf");
+        //if we didn't have our network interface up at app startup, and resolv.conf is
+        //genereated dynamically, dns may never work unless we re-read the resolv.conf file
 #ifndef _WIN32
-            evdns_base_clear_host_addresses(services_dns_eventbase);
-            evdns_base_resolv_conf_parse(services_dns_eventbase,
-                DNS_OPTIONS_ALL & (~DNS_OPTION_SEARCH), "/etc/resolv.conf");
+        evdns_base_clear_host_addresses(services_dns_eventbase);
+        evdns_base_resolv_conf_parse(services_dns_eventbase,
+            DNS_OPTIONS_ALL & (~DNS_OPTION_SEARCH), "/etc/resolv.conf");
 #else
         evdns_config_windows_nameservers(services_dns_eventbase);
 #endif
-        }
-        ::mega::marshallCall([self]()
-        {
-            //we don't want to initiate websocket reconnect from within a websocket callback
-            self->onSocketClose();
-        });
     }
-    catch(std::exception& e)
-    {
-        CHATD_LOG_ERROR("Exception in websocket close callback: %s", e.what());
-    }
-}
-
-void Connection::onSocketClose()
-{
-    CHATD_LOG_DEBUG("Socket to shard %d closed", mShardNo);
     disableInactivityTimer();
     for (auto& chatid: mChatIds)
     {
         mClient.chats(chatid).setOnlineState(kChatStateOffline);
     }
+    if (mTerminating)
+        return;
 
-    auto pms = mConnectPromise.get();
-    if (pms && !pms->done())
+    if (mState == kStateConnecting) //tell retry controller that the connect attempt failed
     {
-        pms->reject(getState(), 0x3e9a4a1d);
+        assert(!mConnectPromise.done());
+        mConnectPromise.reject(reason, errcode, errtype);
     }
-    pms = mDisconnectPromise.get();
-    if (pms && !pms->done())
+    else
     {
-        pms->resolve();
-    }
-    if (!mTerminating)
-    {
-        disconnect();
-        reconnect();
+        mState = kStateDisconnected;
+        reconnect(); //start retry controller
     }
 }
 
@@ -340,14 +333,14 @@ void Connection::disableInactivityTimer()
 
 Promise<void> Connection::reconnect()
 {
-    int state = getState();
-    if (state == WS_STATE_CONNECTING)
-        throw std::runtime_error("Connection::reconnect: Already connecting");
+    if (mState == kStateConnecting) //would be good to just log and return, but we have to return a promise
+        throw std::runtime_error("Connection::reconnect: Already connecting to shard %d"+std::to_string(mShardNo));
 
-    return
-    ::mega::retry([this](int no)
+    mState = kStateConnecting;
+    return ::mega::retry("chatd", [this](int no)
     {
         reset();
+        mConnectPromise = Promise<void>();
         CHATD_LOG_DEBUG("Chatd connecting to shard %d...", mShardNo);
         checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
         ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
@@ -361,7 +354,6 @@ Promise<void> Connection::reconnect()
                 self->execCommand(StaticBuffer(msg, len));
             }, this);
 
-        mConnectPromise.reset(new Promise<void>);
         if (mUrl.isSecure)
         {
              ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
@@ -371,7 +363,7 @@ Promise<void> Connection::reconnect()
             mClient.chats(chatid).setOnlineState(kChatStateConnecting);
         }
         checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str())), "connect");
-        return *mConnectPromise;
+        return mConnectPromise;
     }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
     .then([this]()
     {
@@ -388,34 +380,26 @@ void Connection::enableInactivityTimer()
     {
         if (mInactivityBeats++ > 3)
         {
+            mState = kStateDisconnected;
             disableInactivityTimer();
-            CHATD_LOG_WARNING("Connection to shard %d inactive for too long, reconnecting",
+            CHATD_LOG_WARNING("Connection to shard %d inactive for too long, reconnecting...",
                 mShardNo);
             reconnect();
         }
     }, 10000);
 }
 
-Promise<void> Connection::disconnect()
+void Connection::disconnect()
 {
-    if (!mWebSocket)
-    {
-        return promise::_Void();
-    }
-    if (!mDisconnectPromise)
-    {
-        mDisconnectPromise.reset(new Promise<void>);
-    }
-    ws_close(mWebSocket);
-    return *mDisconnectPromise;
+    if (mWebSocket)
+        ws_close(mWebSocket);
 }
 
 void Connection::reset()
 {
     if (!mWebSocket)
-    {
         return;
-    }
+
     ws_close_immediately(mWebSocket);
     ws_destroy(&mWebSocket);
     assert(!mWebSocket);
@@ -704,7 +688,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 ID_CSTR(chatid), ID_CSTR(userid), period);
                 break;
             }
-            case OP_MSGID:
+            case OP_NEWMSGID:
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
@@ -1540,8 +1524,9 @@ void Client::leave(Id chatid)
 const char* Command::opcodeNames[] =
 {
  "KEEPALIVE","JOIN", "OLDMSG", "NEWMSG", "MSGUPD","SEEN",
- "RECEIVED","RETENTION","HIST", "RANGE","MSGID","REJECT",
- "BROADCAST", "HISTDONE", "NEWKEY", "KEYID", "JOINRANGEHIST", "MGSUPDX"
+ "RECEIVED","RETENTION","HIST", "RANGE","NEWMSGID","REJECT",
+ "BROADCAST", "HISTDONE", "(invalid)", "(invalid)", "(invalid)",
+ "NEWKEY", "KEYID", "JOINRANGEHIST", "MGSUPDX", "MSGID"
 };
 const char* Message::statusNames[] =
 {

@@ -34,7 +34,7 @@ enum Opcode
     OP_RETENTION = 7,
     OP_HIST = 8,
     OP_RANGE = 9,
-    OP_MSGID = 10,
+    OP_NEWMSGID = 10,
     OP_REJECT = 11,
     OP_BROADCAST = 12,
     OP_HISTDONE = 13,
@@ -42,7 +42,8 @@ enum Opcode
     OP_KEYID = 18,
     OP_JOINRANGEHIST = 19,
     OP_MSGUPDX = 20,
-    OP_LAST = OP_MSGUPDX
+    OP_MSGID = 21,
+    OP_LAST = OP_MSGID
 };
 
 // privilege levels
@@ -340,19 +341,21 @@ class Client;
 
 class Connection
 {
+public:
+    enum State { kStateDisconnected, kStateConnecting, kStateConnected };
 protected:
     Client& mClient;
     int mShardNo;
     std::set<Id> mChatIds;
     ws_t mWebSocket = nullptr;
+    State mState = kStateDisconnected;
     Url mUrl;
     megaHandle mInactivityTimer = 0;
     int mInactivityBeats = 0;
     bool mTerminating = false;
-    std::unique_ptr<promise::Promise<void> > mConnectPromise;
-    std::unique_ptr<promise::Promise<void> > mDisconnectPromise;
+    promise::Promise<void> mConnectPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
-    int getState() { return mWebSocket ? ws_get_state(mWebSocket) : WS_STATE_CLOSED_CLEANLY; }
+    State getState() { return mState; }
     bool isOnline() const
     {
         return (mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
@@ -360,9 +363,9 @@ protected:
     static void websockConnectCb(ws_t ws, void* arg);
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
         size_t reason_len, void *arg);
-    void onSocketClose();
+    void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
-    promise::Promise<void> disconnect();
+    void disconnect();
     void enableInactivityTimer();
     void disableInactivityTimer();
     void reset();
