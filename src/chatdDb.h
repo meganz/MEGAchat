@@ -65,6 +65,15 @@ public:
             item.cmd ? (*item.cmd) : StaticBuffer(nullptr, 0));
         item.rowid = sqlite3_last_insert_rowid(mDb);
     }
+    virtual void updateMsgInSending(const chatd::Chat::SendingItem& item)
+    {
+        assert(item.isMessage());
+        assert(item.cmd);
+        sqliteQuery(mDb, "update sending set data = ?, out_cmd = ? where rowid = ?",
+            *item.msg(), *item.cmd, item.rowid);
+        assertAffectedRowCount(1, "updateMsgInSending");
+    }
+
     virtual void addCommandBlobToSendingItem(uint64_t rowid, const chatd::Command& command)
     {
         sqliteQuery(mDb, "update sending set out_cmd=? where rowid=?", command, rowid);

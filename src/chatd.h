@@ -382,6 +382,7 @@ public:
     ~Connection()
     {
         disableInactivityTimer();
+        reset();
     }
 };
 
@@ -676,6 +677,7 @@ public:
     /// \c count messages, in case they are avaialble in the db.
     virtual void fetchDbHistory(Idx startIdx, unsigned count, std::vector<Message*>& messages) = 0;
     virtual void saveItemToSending(Chat::SendingItem& msg) = 0;
+    virtual void updateMsgInSending(const chatd::Chat::SendingItem& item) = 0;
     virtual void addCommandBlobToSendingItem(uint64_t rowid, const Command& cmd) = 0;
     virtual void deleteItemFromSending(uint64_t rowid) = 0;
     virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data) = 0;

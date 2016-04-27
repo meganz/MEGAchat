@@ -389,13 +389,13 @@ void Connection::enableInactivityTimer()
     }, 10000);
 }
 
-void Connection::disconnect()
+void Connection::disconnect() //should be graceful disconnect
 {
     if (mWebSocket)
         ws_close(mWebSocket);
 }
 
-void Connection::reset()
+void Connection::reset() //immediate disconnect
 {
     if (!mWebSocket)
         return;
@@ -490,6 +490,7 @@ void Chat::join()
 {
 //also reset handshake state, as we may be reconnecting
     setOnlineState(kChatStateJoining);
+    mHistFetchState = kHistNotFetching;
     sendCommand(Command(OP_JOIN) + mChatId + mClient.mUserId + (int8_t)PRIV_NOCHANGE);
     requestHistoryFromServer(-initialHistoryFetchCount);
 }
@@ -969,8 +970,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             bool encryptOk = mCrypto->msgEncrypt(msg, *cmd);
             if (!encryptOk)
                 throw std::runtime_error(mChatId.toString()+": msgModify: Message re-encrypt failed, and it shouldn't");
-            CALL_DB(deleteItemFromSending, item->rowid);
-            CALL_DB(saveItemToSending, *item);
+            CALL_DB(updateMsgInSending, *item);
         }
         else
         {
