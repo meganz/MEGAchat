@@ -154,7 +154,7 @@ public:
             {
                 cmd = nullptr;
             }
-            void* data;
+            void* data = nullptr;
             if (stmt.hasBlobCol(4)) //data
             {
                 if (opcode == chatd::OP_NEWKEY)
