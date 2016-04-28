@@ -12,3 +12,6 @@
 	path = third-party/mpenc_cpp
 	url = git@code.developers.mega.co.nz:messenger/mpenc_cpp.git
 	branch = karere-compat
+[submodule "third-party/strongvelope_cpp"]
+	path = third-party/strongvelope_cpp
+	url = git@code.developers.mega.co.nz:messenger/strongvelope_cpp.git
