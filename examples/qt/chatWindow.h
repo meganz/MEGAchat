@@ -196,7 +196,6 @@ public slots:
         auto widget = mEditedWidget;
         auto& msg = *mEditedWidget->mMessage;
         mEditedWidget = nullptr;
-        bool fadeToWhite = true;
         if (text.isEmpty()) //delete message
         {
             if (!mChat->msgModify(msg, nullptr, 0, msg.userp))
