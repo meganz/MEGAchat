@@ -1,5 +1,5 @@
 #include "chatd.h"
-#include "chatdICRypto.h"
+#include "chatdICrypto.h"
 #include <base/cservices.h>
 #include <gcmpp.h>
 #include <retryHandler.h>
