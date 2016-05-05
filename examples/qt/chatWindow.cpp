@@ -227,10 +227,10 @@ void ChatWindow::onEditRejected(const chatd::Message& msg, uint8_t opcode)
     showCantEditNotice();
 }
 
-void ChatWindow::showCantEditNotice()
+void ChatWindow::showCantEditNotice(const QString& action)
 {
     WaitMessage tooltip(*this);
-    tooltip.addMsg("Can't edit - message is too old");
+    tooltip.addMsg(tr("Can't %1 - message is too old").arg(action));
     mega::setTimeout([tooltip]()
     {}, 2000);
 }

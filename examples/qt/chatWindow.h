@@ -268,7 +268,11 @@ noedit:
         auto widget = action->data().value<MessageWidget*>();
         assert(widget);
         auto& msg = widget->mMessage;
-        mChat->msgModify(*msg, nullptr, 0, msg->userp);
+        if (!mChat->msgModify(*msg, nullptr, 0, msg->userp))
+        {
+            showCantEditNotice(tr("delete"));
+            return;
+        }
         widget->updateStatus(chatd::Message::kSending);
     }
     void editLastMsg()
@@ -303,10 +307,9 @@ noedit:
     void fetchMoreHistory(bool byScroll)
     {
         mLastHistReqByScroll = byScroll;
-        auto state = mChat->histFetchState();
-        if (state & chatd::kHistFetchingFlag)
+        if (mChat->isFetchingHistory())
             return;
-        if (state == chatd::kHistNoMore)
+        if (mChat->histFetchState() == chatd::kHistNoMore)
         {
             //TODO: Show in some way in the GUI that we have reached the start of history
             return;
@@ -314,10 +317,17 @@ noedit:
         bool isRemote = mChat->getHistory(kHistBatchSize);
         if (isRemote)
         {
-            mHistFetchUi.reset(new HistFetchUi(this));
-            auto layout = qobject_cast<QBoxLayout*>(ui.mTitlebar->layout());
-            layout->insertWidget(2, mHistFetchUi->progressBar());
+            createHistFetchUi();
         }
+    }
+    void createHistFetchUi()
+    {
+        mHistFetchUi.reset(new HistFetchUi(this));
+        auto layout = qobject_cast<QBoxLayout*>(ui.mTitlebar->layout());
+        auto bar = mHistFetchUi->progressBar();
+        bar->setMinimum(0);
+        bar->setMaximum(mChat->lastReqdHistCount());
+        layout->insertWidget(2, bar);
     }
     void onVideoCallBtn(bool) { onCallBtn(true); }
     void onAudioCallBtn(bool) { onCallBtn(false); }
@@ -467,8 +477,15 @@ public:
             addMsgWidget(msg, idx, mChat->getMsgStatus(idx, msg.userid), false);
             handlePendingEdits(msg);
         }
-        if (mChat->onlineState() == chatd::kChatStateOnline)
+        if (mChat->isFetchingHistory())
+        {
+            createHistFetchUi();
+        }
+        else
+        {
+            if ((mChat->size() < 16) && (mChat->onlineState() == chatd::kChatStateOnline))
             QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
+        }
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -491,8 +508,9 @@ public:
         assert(idx != CHATD_IDX_INVALID); assert(msg.id());
         if (mHistFetchUi)
         {
-            mHistFetchUi->progressBar()->setValue(mChat->lastHistFetchCount());
-            mHistFetchUi->progressBar()->repaint();
+            auto bar = mHistFetchUi->progressBar();
+            bar->setValue(bar->value()+1);
+            bar->repaint();
         }
         addMsgWidget(msg, idx, status, true);
         handlePendingEdits(msg);
@@ -509,11 +527,11 @@ public:
             widget->setBgColor(QColor(Qt::yellow));
         }
     }
-    void showCantEditNotice();
+    void showCantEditNotice(const QString& action=QObject::tr("edit"));
     virtual void onHistoryDone(bool isFromDb)
     {
         mHistFetchUi.reset();
-        if (!mChat->lastHistFetchCount())
+        if (!mChat->lastHistObtainCount())
             return;
 
         auto& list = *ui.mMessageList;
@@ -530,7 +548,7 @@ public:
         }
         else
         {
-            int last = (idx.isValid())?std::min((unsigned)idx.row(), mChat->lastHistFetchCount()):list.count()-1;
+            int last = (idx.isValid())?std::min((unsigned)idx.row(), mChat->lastHistObtainCount()):list.count()-1;
             for (int i=0; i<=last; i++)
                 qobject_cast<MessageWidget*>(list.itemWidget(list.item(i)))->fadeIn(QColor(250,250,250));
         }
@@ -567,7 +585,7 @@ public:
         updateChatdStatusDisplay(state);
 
         if ((state == chatd::kChatStateOnline) && (mChat->size() < 2)
-        && ((mChat->histFetchState() & chatd::kHistFetchingFlag) == 0))
+        && ((!mChat->isFetchingHistory())))
         {
             // avoid re-entrancy - we are in a chatd callback. We could use mega::marshallCall instead,
             // but this is safer as the window may get destroyed before the message is processed

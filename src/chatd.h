@@ -149,18 +149,21 @@ public:
     };
     enum Status
     {
-        kSending,
-        kServerReceived,
-        kServerRejected,
-        kDelivered,
+        kSending, //< Message has not been sent or is not yet confirmed by the server
+        kSendingManual, //< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
+        kServerReceived, //< Message confirmed by server, but not yet delivered to recepient(s)
+        kServerRejected, //< Message is rejected by server for some reason (editing too old message for example)
+        kDelivered, //< Peer confirmed message receipt. Used only for 1on1 chats
         kLastOwnMessageStatus = kDelivered, //if a status is <= this, we created the msg, oherwise not
-        kNotSeen,
-        kSeen
+        kNotSeen, //< User hasn't read this message yet
+        kSeen //< User has read this message
     };
 private:
 //avoid setting the id and flag pairs one by one by making them accessible only by setXXX(Id,bool)
     Id mId;
     bool mIdIsXid = false;
+protected:
+    bool mIsEncrypted = false;
 public:
     Id userid;
     uint32_t ts;
@@ -171,6 +174,7 @@ public:
     mutable uint16_t userFlags = 0;
     Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
+    bool isEncrypted() const { return mIsEncrypted; }
     void setId(Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     Message(Id aMsgid, Id aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=Key::kInvalidId,
@@ -305,6 +309,7 @@ public:
         write(1, chatid);write(9, userid);write(17, msgid);write(25, ts);
         write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
+    MsgCommand(): Command() {} //for loading the buffer
     Id msgid() const { return read<uint64_t>(17); }
     void setId(Id aMsgid) { write(17, aMsgid); }
     KeyId keyId() const { return read<KeyId>(31); }
@@ -388,14 +393,36 @@ public:
 
 enum HistFetchState
 {
-    kHistNotFetching = 0, ///< History is not being fetched, and there is probably history to fetch available
-    kHistNoMore = 1, ///< History is not being fetched, and we don't have any more history neither in db nor on server
-    kHistFetchingFlag = 2, ///< Set in case we are fetching either from server or db
-    kHistFetchingFromServer = 0 | kHistFetchingFlag, ///< We are currently fetching history from server
-    kHistFetchingFromDb = 1 | kHistFetchingFlag ///< We are currently fetching history from db
+/** History is not being fetched, and we don't have any more history neither in db nor on server */
+    kHistNoMore = 0,
+/** History is not being fetched, and there is probably history to fetch available */
+    kHistNotFetching = 1,
+/** We are fetching old messages if this flag is set, i.e. ones added to the back of
+ *  the history buffer. If this flag is no set, we are fetching new messages, i.e. ones
+ *  appended to the front of the history buffer */
+    kHistOldFlag = 2,
+/** We are fetching from the server if flag is set, otherwise we are fetching from
+ * local db */
+    kHistFetchingFromServerFlag = 4,
+    kHistFetchingOldFromServer = kHistFetchingFromServerFlag | kHistOldFlag,
+    kHistFetchingNewFromServer = kHistFetchingFromServerFlag | 0,
+/** We are currently fetching history from db - always old messages */
+    kHistFetchingFromDb = 0 | kHistOldFlag,
+    kHistDecryptingFlag = 8,
+    kHistDecryptingOld = kHistDecryptingFlag | kHistOldFlag,
+    kHistDecryptingNew = kHistDecryptingFlag | 0
 };
 
 typedef std::map<Id,Priv> UserPrivMap;
+struct SetOfIds: public std::set<Id>
+{
+    template <class T>
+    SetOfIds(const T& src) { load(src); }
+    void save(Buffer& buf);
+    void load(const Buffer& buf);
+    void load(const UserPrivMap& upmap);
+};
+
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
@@ -408,35 +435,24 @@ public:
         uint8_t mOpcode;
     public:
         uint64_t rowid;
-        std::unique_ptr<Command> cmd;
-        void* data; //can be a Message or Key, depending on opcode
-        /** When sending a message, we attach the Message object here to avoid
-         * double-converting it when queued as a raw command in Sending, and after
-         * that (when server confirms) move it as a Message object to history buffer */
+ /** When sending a message, we attach the Message object here to avoid
+  * double-converting it when queued as a raw command in Sending, and after
+  * that (when server confirms) move it as a Message object to history buffer */
+        Message* msg;
+        std::unique_ptr<MsgCommand> msgCmd;
+        std::unique_ptr<Command> keyCmd;
+        SetOfIds recipients;
         uint8_t opcode() const { return mOpcode; }
-        SendingItem(uint8_t aOpcode, Command* aCmd, void* aData, uint64_t aRowid=0)
-            : mOpcode(aOpcode), rowid(aRowid), cmd(aCmd), data(aData){}
-        ~SendingItem()
-        {
-            if (data)
-            {
-                if (isMessage())
-                    delete reinterpret_cast<Message*>(data);
-                else if (mOpcode == OP_NEWKEY)
-                    delete reinterpret_cast<Key*>(data);
-                else
-                    throw std::runtime_error("SendingItem dtor: Don't know how to delete data of opcode "+std::to_string(mOpcode));
-                data = nullptr;
-            }
-        }
+        SendingItem(uint8_t aOpcode, Message* aMsg, MsgCommand* aMsgCmd,
+            Command* aKeyCmd, SetOfIds&& aRcpts, uint64_t aRowid=0)
+        : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), msgCmd(aMsgCmd), keyCmd(aKeyCmd),
+            recipients(std::forward<SetOfIds>(aRcpts)){}
+        ~SendingItem(){ if (msg) delete msg; }
         bool isMessage() const { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
-        MsgCommand* msgCommand() const { assert(isMessage()); return static_cast<MsgCommand*>(cmd.get()); }
-        Message* msg() const { assert(isMessage()); return reinterpret_cast<Message*>(data); }
         void setKeyId(KeyId keyid)
         {
-            assert(isMessage());
-            reinterpret_cast<Message*>(data)->keyid = keyid;
-            if (cmd) static_cast<MsgCommand*>(cmd.get())->setKeyId(keyid);
+            msg->keyid = keyid;
+            if (msgCmd) msgCmd->setKeyId(keyid);
         }
     };
     typedef std::list<SendingItem> OutputQueue;
@@ -458,7 +474,7 @@ protected:
     bool mHasMoreHistoryInDb = false;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
-//    UserPrivMap mUsers;
+    UserPrivMap mUsers;
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
     /// Before that happens, missing messages are supposed to be in the database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
@@ -466,13 +482,44 @@ protected:
     /// range() only from the buffer items
     Id mOldestKnownMsgId;
     Id mNewestKnownMsgId;
+    unsigned mLastReqdHistCount = 0; ///< The amount of old/new history messages last requested either from server or from db
     unsigned mLastHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
+    unsigned mLastHistObtainCount = 0; ///< Similar to mLastHistFetchCount, but reflects the current number of message passed through the decrypt process, which may be less than mLastHistFetchCount at a given moment
     HistFetchState mHistFetchState = kHistNotFetching;
     DbInterface* mDbInterface = nullptr;
     std::map<uint32_t, Key*> mKeys;
     KeyWithId mCurrentSendKey; //we use a pointer here because we may have no key yet
     ICrypto* mCrypto;
+    /** If crypto can't decrypt immediately, we set this flag and only the plaintext
+     * path of further messages to be sent is written to db, without calling encrypt().
+     * Once encryption is finished, this flag is cleared, and all queued unencrypted
+     * messages are passed to encryption, updating their command BLOB in the sending
+     * db table. This, until another (or the same) encrypt call can't encrypt immediately,
+     * in which case the flag is set again and the queue is blocked again */
     bool mEncryptionHalted = false;
+    /** If an incoming new message can't be decrypted immediately, this is set to its
+     * index in the hitory buffer, as it is already added there (in memory only!).
+     * Further received new messages are only added to memory history buffer, and
+     * not processed further until the delayed encryption of the message completes
+     * or fails. After that, mDecryptNewHaltedAt is cleared (set to CHATD_IDX_INVALID),
+     * the (supposedly, but not necessarily) decrypted message is added to db history,
+     * SEEN and RECEIVED pointers are handled, and app callbacks are called with that
+     * message. Then, processing of any newer messages, accumulated in the in-memory histiry
+     * buffer is resumed, until decryption can't happen immediately again or all messages
+     * are processed. The app may be terminated while a delayed decrypt is in progress
+     * and there are newer undecrypted messages accumulated in the memory history buffer.
+     * In that case, the app will resume its state from the point where the last message
+     * decrypted (and saved to db), re-downloading all newer messages from server again.
+     * Thus, not writing anything about queued undecrypted messages to the db allows
+     * for a clean resume from the last known good point in message history. */
+    Idx mDecryptNewHaltedAt = CHATD_IDX_INVALID;
+    /** Similar to mDecryptNewhaltedAt, but for history messages, retrieved backwards
+     * in regard to time and index in history buffer. Note that the two
+     *  mDecryptXXXHaltedAt operate independently. I.e. decryption of old messages may
+     * be blocked by delayed decryption of a message, while at the same time decryption
+     * of new messages may work synchronously and not be delayed.
+     */
+    Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
     std::map<Id, Message*> mPendingEdits;
     Chat(Connection& conn, const Id& chatid, Listener* listener, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.push_back(msg); }
@@ -491,14 +538,17 @@ protected:
     // msgid can be 0 in case of rejections
     Idx msgConfirm(Id msgxid, Id msgid);
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
-    void onUserJoin(const Id& userid, Priv priv);
+    bool msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx);
+    void msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx);
+    void onUserJoinLeave(Id userid, Priv priv);
     void onJoinComplete();
     void loadAndProcessUnsent();
     void initialFetchHistory(Id serverNewest);
     void requestHistoryFromServer(int32_t count);
     void getHistoryFromDb(unsigned count);
-    void onLastReceived(const Id& msgid);
-    void onLastSeen(const Id& msgid);
+    void onLastReceived(Id msgid);
+    void onLastSeen(Id msgid);
+    void handleLastReceivedSeen(Id msgid);
     // As sending data over libws is destructive to the buffer, we have two versions
     // of sendCommand - the one with the rvalue reference is picked by the compiler
     // whenever the command object is a temporary, avoiding copying the buffer,
@@ -507,7 +557,7 @@ protected:
     bool sendCommand(const Command& cmd);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
-    void enqueueMsgForSend(Message* msg);
+    SendingItem* postItemToSending(uint8_t opcode, Message* msg, MsgCommand* msgCmd, Command* keyCmd);
     bool flushOutputQueue(bool fromStart=false);
     Id makeRandomId();
     void login();
@@ -520,21 +570,23 @@ protected:
     friend class Client;
 public:
     unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
-//    const UserPrivMap& users() const { return mUsers; }
+    const UserPrivMap& users() const { return mUsers; }
     ~Chat();
-    const Id& chatId() const { return mChatId; }
+    Id chatId() const { return mChatId; }
     Client& client() const { return mClient; }
-    Idx lownum() const { return mForwardStart - mBackwardList.size(); }
-    Idx highnum() const { return mForwardStart + mForwardList.size()-1;}
+    Idx lownum() const { return mForwardStart - (Idx)mBackwardList.size(); }
+    Idx highnum() const { return mForwardStart + (Idx)mForwardList.size()-1;}
     Idx size() const { return mForwardList.size() + mBackwardList.size(); }
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
     ChatState onlineState() const { return mOnlineState; }
-    Message::Status getMsgStatus(Idx idx, const Id& userid);
+    Message::Status getMsgStatus(Idx idx, Id userid);
     const std::map<Id, Message*>& pendingEdits() const { return mPendingEdits; }
     Listener* listener() const { return mListener; }
-    bool isFetchingHistory() const { return mHistFetchState & kHistFetchingFlag; }
+    bool isFetchingHistory() const { return mHistFetchState > kHistNotFetching; }
+    bool isFetchingFromDb() const { return mHistFetchState & kHistFetchingFromDb; }
     HistFetchState histFetchState() const { return mHistFetchState; }
-    unsigned lastHistFetchCount() const { return mLastHistFetchCount; }
+    unsigned lastReqdHistCount() const { return mLastReqdHistCount; }
+    unsigned lastHistObtainCount() const { return mLastHistObtainCount; }
     inline Message* findOrNull(Idx num) const
     {
         if (num < mForwardStart) //look in mBackwardList
@@ -612,7 +664,7 @@ public:
      * it should just use it. */
     void setNewSendKey(Key* key, Command* cmd);
 protected:
-    void msgEncryptAndSend(Message* msg, uint8_t opcode);
+    bool msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existingItem=nullptr);
     void onMsgUpdated(Message&& msg);
     void keyConfirm(KeyId keyxid, KeyId keyid);
     void rejectMsgupd(uint8_t opcode, Id id);
@@ -676,14 +728,15 @@ public:
     /// an assertion will be triggered. Therefore, the application must always try to read not less than
     /// \c count messages, in case they are avaialble in the db.
     virtual void fetchDbHistory(Idx startIdx, unsigned count, std::vector<Message*>& messages) = 0;
-    virtual void saveItemToSending(Chat::SendingItem& msg) = 0;
+    virtual void saveMsgToSending(Chat::SendingItem& msg) = 0;
     virtual void updateMsgInSending(const chatd::Chat::SendingItem& item) = 0;
-    virtual void addCommandBlobToSendingItem(uint64_t rowid, const Command& cmd) = 0;
+    virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const Command* keyCmd) = 0;
     virtual void deleteItemFromSending(uint64_t rowid) = 0;
     virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data) = 0;
     virtual void updateMsgKeyIdInSending(uint64_t rowid, KeyId keyid) = 0;
     virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
+    virtual void confirmKeyOfSendingItem(uint64_t rowid, KeyId keyid) = 0;
     virtual void updateMsgInHistory(Id msgid, const StaticBuffer& newdata) = 0;
     virtual Idx getIdxOfMsgid(Id msgid) = 0;
     virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;

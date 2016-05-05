@@ -1,7 +1,15 @@
 #ifndef ICRYPTO_H
 #define ICRYPTO_H
+#include <timers.h>
+
 namespace chatd
 {
+enum
+{
+    ERRTYPE_CRYPTOMODULE = 0x3e9ac910, //< all errors originating from strongvelope should have this type
+    ERRCODE_NO_DECRYPT_KEY = 1 //< Can't decrypt because we can't obtain the decrypt key. May occur if a message was sent just after a user joined
+};
+
 class Chat;
 class ICrypto
 {
@@ -46,10 +54,16 @@ public:
  * the pubkey is obtained from the API, thus allowing the usage of a real keyid for
  * that message instead of the 0xffffffff keyid.
  */
-    virtual bool msgEncrypt(const Message& msg, MsgCommand& cmd)
+    virtual promise::Promise<std::pair<MsgCommand*, Command*> >
+    msgEncrypt(const Message& msg, MsgCommand* cmd)
     {
-        cmd.setMsg(msg.buf(), msg.dataSize());
-        return true;
+        promise::Promise<std::pair<MsgCommand*, Command*>> pms;
+        ::mega::setTimeout([pms, &msg, cmd]() mutable
+        {
+            cmd->setMsg(msg.buf(), msg.dataSize());
+            pms.resolve(std::make_pair(cmd, (Command*)nullptr));
+        }, 2000);
+        return pms;
     }
 /**
  * @brief Called by the client for received messages to decrypt them.
@@ -57,12 +71,15 @@ public:
  * knows whether to pass it to the application (i.e. contains an actual message)
  * or should not (i.e. contains a crypto system packet)
  */
-    virtual void msgDecrypt(Message& src)
+    virtual promise::Promise<Message*> msgDecrypt(Message* src)
     { //test implementation
-    }
-    virtual Key* keyDecrypt(Id userid, uint16_t keylen, const char* keybuf)
-    {
-        return new Key(0);
+        promise::Promise<Message*> pms;
+        int delay = rand() % 400+20;
+        ::mega::setTimeout([src, pms]() mutable
+        {
+            pms.resolve(src);
+        }, delay);
+        return pms;
     }
 /**
  * @brief The chatroom connection (to the chatd server shard) state state has changed.
@@ -77,7 +94,8 @@ public:
 /**
  * @brief A key was received from the server, and added to Chat.keys
  */
-    virtual void onKeyReceived(const KeyWithId& key){}
+    virtual void onNewKey(KeyId keyid, Id userid, uint16_t keylen, const char* keydata){}
+    virtual void onKeyId(KeyId keyxid, KeyId keyid) {}
 /**
  * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
  */
