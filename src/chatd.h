@@ -254,9 +254,12 @@ public:
     virtual void onOnlineStateChange(ChatState state){}
 /// A user has joined or left the room, or their privilege has changed. If user has left
 /// the room priv is PRIV_NOTPRESENT
-    virtual void onUserJoinLeave(Id userid, Priv privilege){}
+    virtual void onUserJoin(Id userid, Priv privilege){}
+    virtual void onUserLeave(Id userid){}
 ///Unread message count has changed
     virtual void onUnreadChanged() {}
+    //Ownership of \c msg is passed to application.
+    virtual void onManualSendRequired(Message* msg, uint64_t id, int reason) {}
 };
 
 class MsgCommand;
@@ -413,14 +416,20 @@ enum HistFetchState
     kHistDecryptingNew = kHistDecryptingFlag | 0
 };
 
-typedef std::map<Id,Priv> UserPrivMap;
+/** Reason codes passed to Listener::onManualSendRequired() */
+enum
+{
+    kManualSendUsersChanged = 1, ///< Group chat participants have changed
+    kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_AUTOSEND_AGE seconds
+};
+
 struct SetOfIds: public std::set<Id>
 {
     template <class T>
     SetOfIds(const T& src) { load(src); }
+    SetOfIds(){}
     void save(Buffer& buf);
     void load(const Buffer& buf);
-    void load(const UserPrivMap& upmap);
 };
 
 // message storage subsystem
@@ -444,11 +453,12 @@ public:
         SetOfIds recipients;
         uint8_t opcode() const { return mOpcode; }
         SendingItem(uint8_t aOpcode, Message* aMsg, MsgCommand* aMsgCmd,
-            Command* aKeyCmd, SetOfIds&& aRcpts, uint64_t aRowid=0)
+            Command* aKeyCmd, const SetOfIds& aRcpts, uint64_t aRowid=0)
         : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), msgCmd(aMsgCmd), keyCmd(aKeyCmd),
-            recipients(std::forward<SetOfIds>(aRcpts)){}
+            recipients(aRcpts){}
         ~SendingItem(){ if (msg) delete msg; }
         bool isMessage() const { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
+        bool isEdit() const { return mOpcode == OP_MSGUPD || mOpcode == OP_MSGUPDX; }
         void setKeyId(KeyId keyid)
         {
             msg->keyid = keyid;
@@ -456,6 +466,16 @@ public:
         }
     };
     typedef std::list<SendingItem> OutputQueue;
+    struct ManualSendItem
+    {
+        Message* msg;
+        uint64_t rowid;
+        uint8_t opcode;
+        uint8_t reason;
+        ManualSendItem(Message* aMsg, uint64_t aRowid, uint8_t aOpcode, uint8_t aReason)
+            :msg(aMsg), rowid(aRowid), opcode(aOpcode), reason(aReason){}
+    };
+
 protected:
     Connection& mConnection;
     Client& mClient;
@@ -474,7 +494,7 @@ protected:
     bool mHasMoreHistoryInDb = false;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
-    UserPrivMap mUsers;
+    SetOfIds mUsers;
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
     /// Before that happens, missing messages are supposed to be in the database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
@@ -540,7 +560,8 @@ protected:
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
     bool msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx);
     void msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx);
-    void onUserJoinLeave(Id userid, Priv priv);
+    void onUserJoin(Id userid, Priv priv);
+    void onUserLeave(Id userid);
     void onJoinComplete();
     void loadAndProcessUnsent();
     void initialFetchHistory(Id serverNewest);
@@ -570,7 +591,7 @@ protected:
     friend class Client;
 public:
     unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
-    const UserPrivMap& users() const { return mUsers; }
+    const SetOfIds& users() const { return mUsers; }
     ~Chat();
     Id chatId() const { return mChatId; }
     Client& client() const { return mClient; }
@@ -635,8 +656,10 @@ public:
     Idx lastSeenIdx() const { return mLastSeenIdx; }
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
     void replayUnsentNotifications();
+    void loadManualSending();
 // Message output methods
     Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
+    void msgSubmit(Message* msg);
 //Queues a message as a edit message for \c orig. \attention Will delete a previous edit if
 //the original was not yet ack-ed by the server. That is, there can be only one pending
 //edit for a not-yet-sent message, and if there was a previous one, it will be deleted.
@@ -663,6 +686,8 @@ public:
      * key id to the received one. The crypto module should not care what the key id is,
      * it should just use it. */
     void setNewSendKey(Key* key, Command* cmd);
+    bool confirmManualSend(uint64_t id, Message* msg);
+    bool cancelManualSend(uint64_t id);
 protected:
     bool msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existingItem=nullptr);
     void onMsgUpdated(Message&& msg);
@@ -670,7 +695,7 @@ protected:
     void rejectMsgupd(uint8_t opcode, Id id);
     template <bool mustBeInSending=false>
     void rejectGeneric(uint8_t opcode);
-
+    void moveItemToManualSending(OutputQueue::iterator it, int reason);
 //===
 };
 
@@ -740,6 +765,9 @@ public:
     virtual void updateMsgInHistory(Id msgid, const StaticBuffer& newdata) = 0;
     virtual Idx getIdxOfMsgid(Id msgid) = 0;
     virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;
+    virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
+    virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
+    virtual bool deleteManualSendItem(uint64_t rowid) = 0;
     virtual ~DbInterface(){}
 };
 

@@ -638,8 +638,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos++;
                 CHATD_LOG_DEBUG("%s: recv JOIN - user '%s' with privilege level %d",
                                 ID_CSTR(chatid), ID_CSTR(userid), priv);
-                auto& msgs =  mClient.chats(chatid);
-                msgs.onUserJoinLeave(userid, priv);
+                auto& chat =  mClient.chats(chatid);
+                if (priv == PRIV_NOTPRESENT)
+                    chat.onUserLeave(userid);
+                else
+                    chat.onUserJoin(userid, priv);
                 break;
             }
             case OP_OLDMSG:
@@ -877,15 +880,29 @@ void Chat::replayUnsentNotifications()
     }
 }
 
+void Chat::loadManualSending()
+{
+    std::vector<ManualSendItem> items;
+    CALL_DB(loadManualSendItems, items);
+    for (auto& item: items)
+    {
+        CALL_LISTENER(onManualSendRequired, item.msg, item.rowid, item.reason);
+    }
+}
+
 Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp)
 {
     // write the new message to the message buffer and mark as in sending state
-    Message* message = new Message(makeRandomId(), client().userId(), time(NULL),
+    auto message = new Message(makeRandomId(), client().userId(), time(NULL),
         0, msg, msglen, true, Key::kInvalidId, type, userp);
-    assert(message->isSending());
-    assert(message->keyid == Key::kInvalidId);
-    msgEncryptAndSend(message, OP_NEWMSG);
+    msgSubmit(message);
     return message;
+}
+void Chat::msgSubmit(Message* msg)
+{
+    assert(msg->isSending());
+    assert(msg->keyid == Key::kInvalidId);
+    msgEncryptAndSend(msg, OP_NEWMSG);
 }
 
 Chat::SendingItem* Chat::postItemToSending(uint8_t opcode, Message* msg, MsgCommand* msgCmd, Command* keyCmd)
@@ -1224,8 +1241,32 @@ bool Chat::flushOutputQueue(bool fromStart)
     if (fromStart)
         mNextUnsent = mSending.begin();
     // resend all pending new messages
-    for (; mNextUnsent!=mSending.end(); mNextUnsent++)
+    auto now = time(NULL);
+    while(mNextUnsent!=mSending.end())
     {
+        if ((mNextUnsent->recipients != mUsers) && !mNextUnsent->isEdit())
+        {
+            auto erased = mNextUnsent;
+            mNextUnsent++;
+            moveItemToManualSending(erased, kManualSendUsersChanged);
+            continue;
+        }
+        if (now - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE)
+        {
+            //too old message or edit, move it and all following items as well
+            for (auto it = mNextUnsent; it != mSending.end();)
+            {
+                if (mNextUnsent != mSending.begin())
+                    mNextUnsent--;
+                else
+                    mNextUnsent = mSending.end();
+
+                auto erased = it;
+                it++;
+                moveItemToManualSending(erased, kManualSendTooOld);
+            }
+            return false;
+        }
         if (!mNextUnsent->msgCmd)
         {
             //only not-yet-encrypted messages are allowed to have cmd=nullptr
@@ -1240,8 +1281,40 @@ bool Chat::flushOutputQueue(bool fromStart)
         //mNextUnsent won't be incremented and the key may be re-sent, which is ok
         if (!sendCommand(*mNextUnsent->msgCmd))
             return false;
+        mNextUnsent++;
     }
     return true;
+}
+
+void Chat::moveItemToManualSending(OutputQueue::iterator it, int reason)
+{
+    if ((it->isEdit()) && (reason == kManualSendTooOld))
+    {
+        CALL_LISTENER(onEditRejected, *it->msg, it->opcode());
+    }
+    else
+    {
+        //we save only new messages, old edits are discarded, and edits after group change are not a problem
+        assert(it->opcode() == OP_NEWMSG);
+        it->msgCmd.reset();
+        it->keyCmd.reset();
+        CALL_DB(deleteItemFromSending, it->rowid);
+        CALL_DB(saveItemToManualSending, *it, reason);
+        CALL_LISTENER(onManualSendRequired, it->msg, it->rowid, reason); //GUI should this message at end of that list of messages requiring 'manual' resend
+    }
+    mSending.erase(it);
+}
+
+bool Chat::confirmManualSend(uint64_t rowid, Message* msg)
+{
+    if (!mDbInterface->deleteManualSendItem(rowid))
+        return false;
+    msgSubmit(msg);
+    return true;
+}
+bool Chat::cancelManualSend(uint64_t rowid)
+{
+    return mDbInterface->deleteManualSendItem(rowid);
 }
 
 // after a reconnect, we tell the chatd the oldest and newest buffered message
@@ -1653,10 +1726,18 @@ void Chat::handleLastReceivedSeen(Id msgid)
     }
 }
 
-void Chat::onUserJoinLeave(Id userid, Priv priv)
+void Chat::onUserJoin(Id userid, Priv priv)
 {
-    CALL_CRYPTO(onUserJoinLeave, userid, priv);
-    CALL_LISTENER(onUserJoinLeave, userid, priv);
+    mUsers.insert(userid);
+    CALL_CRYPTO(onUserJoin, userid, priv);
+    CALL_LISTENER(onUserJoin, userid, priv);
+}
+
+void Chat::onUserLeave(Id userid)
+{
+    mUsers.erase(userid);
+    CALL_CRYPTO(onUserLeave, userid);
+    CALL_LISTENER(onUserLeave, userid);
 }
 
 void Chat::onJoinComplete()
@@ -1702,11 +1783,6 @@ void SetOfIds::load(const Buffer& buf)
     {
         emplace(*pos);
     }
-}
-void SetOfIds::load(const UserPrivMap& upmap)
-{
-    for (auto user: upmap)
-        emplace(user.first);
 }
 
 const char* Command::opcodeNames[] =

@@ -5,6 +5,7 @@
 #include <chatd.h>
 #include <ui_chat.h>
 #include <ui_chatmessage.h>
+#include <ui_manualSendMsg.h>
 #include <QDateTime>
 #include <QPushButton>
 #include <QGraphicsOpacityEffect>
@@ -152,15 +153,32 @@ public:
     ~WaitMessage();
     void addMsg(const QString& msg);
 };
+class ManualSendMsgWidget: public QWidget
+{
+    Q_OBJECT
+public:
+    Ui::ManualSendMsg ui;
+    ChatWindow& mChatWindow;
+    std::unique_ptr<chatd::Message> mMessage; ///The message whose contents is displayed
+    uint64_t mId;
+    uint8_t mReason;
+    ManualSendMsgWidget(ChatWindow& chatWin, chatd::Message* aMsg, uint64_t id, uint8_t reason);
+public slots:
+    void onSendBtn();
+    void onDiscardBtn();
+protected:
+    void removeFromListAndDelete();
+};
 
 class ChatWindow: public QDialog, public karere::IGui::IChatWindow
 {
     Q_OBJECT
 public:
     MainWindow& mainWindow;
+    Ui::ChatWindow ui;
+    QListWidget* mManualSendList = nullptr;
 protected:
     karere::ChatRoom& mRoom;
-    Ui::ChatWindow ui;
     chatd::Chat* mChat = nullptr;
     MessageWidget* mEditedWidget = nullptr; ///pointer to the widget being edited. Also signals whether we are editing or writing a new message (nullptr - new msg, editing otherwise)
     std::unique_ptr<HistFetchUi> mHistFetchUi;
@@ -469,7 +487,7 @@ public:
         updateChatdStatusDisplay(mChat->onlineState());
         if (mChat->empty())
             return;
-        mChat->replayUnsentNotifications();
+        mChat->replayUnsentNotifications(); //works synchronously
         auto last = mChat->highnum();
         for (chatd::Idx idx = mChat->lownum(); idx<=last; idx++)
         {
@@ -477,6 +495,7 @@ public:
             addMsgWidget(msg, idx, mChat->getMsgStatus(idx, msg.userid), false);
             handlePendingEdits(msg);
         }
+        mChat->loadManualSending();
         if (mChat->isFetchingHistory())
         {
             createHistFetchUi();
@@ -607,11 +626,13 @@ public:
         ui.mMessageList->scrollToBottom();
     }
     virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
-    virtual void onUserJoinLeave(chatd::Id userid, chatd::Priv priv)
+    virtual void onUserJoin(chatd::Id userid, chatd::Priv priv)
     {
-        mRoom.onUserJoinLeave(userid, priv);
+        mRoom.onUserJoin(userid, priv);
     }
+    virtual void onUserLeave(chatd::Id userid) { mRoom.onUserLeave(userid); }
     virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }
+    virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, int reason);
     virtual karere::IGui::ICallGui* callGui() { return mCallGui; }
     virtual rtcModule::IEventHandler* callEventHandler() { return mCallGui; }
     //IChatWindow interface

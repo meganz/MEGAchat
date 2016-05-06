@@ -1353,34 +1353,28 @@ void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
         mChatWindow->updateOnlineIndication(pres);
 }
 
-void GroupChatRoom::onUserJoinLeave(chatd::Id userid, chatd::Priv privilege)
+void GroupChatRoom::onUserJoin(chatd::Id userid, chatd::Priv privilege)
 {
-    if (privilege == chatd::PRIV_NOTPRESENT)
-    {
-        removeMember(userid);
-    }
-    else
-    {
-        if (userid != parent.client.myHandle())
-            addMember(userid, privilege, true);
-    }
+    if (userid != parent.client.myHandle())
+        addMember(userid, privilege, true);
+}
+void GroupChatRoom::onUserLeave(chatd::Id userid)
+{
+    removeMember(userid);
 }
 
-void PeerChatRoom::onUserJoinLeave(chatd::Id userid, chatd::Priv privilege)
+void PeerChatRoom::onUserJoin(chatd::Id userid, chatd::Priv privilege)
 {
-    if (privilege == chatd::PRIV_NOTPRESENT)
-    {
-        KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
-    }
+    if (userid == parent.client.chatd->userId())
+        syncOwnPriv(privilege);
+    else if (userid.val == mPeer)
+        syncPeerPriv(privilege);
     else
-    {
-        if (userid == parent.client.chatd->userId())
-            syncOwnPriv(privilege);
-        else if (userid.val == mPeer)
-            syncPeerPriv(privilege);
-        else
-            KR_LOG_ERROR("PeerChatRoom: Bug: Received JOIN event from chatd for a third user, ignoring");
-    }
+        KR_LOG_ERROR("PeerChatRoom: Bug: Received JOIN event from chatd for a third user, ignoring");
+}
+void PeerChatRoom::onUserLeave(chatd::Id userid)
+{
+    KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
 }
 
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Message::Status status)
@@ -1414,7 +1408,7 @@ void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
         : Presence::kOffline);
 }
 
-bool GroupChatRoom::syncMembers(const chatd::UserPrivMap& users)
+bool GroupChatRoom::syncMembers(const UserPrivMap& users)
 {
     bool changed = false;
     auto db = parent.client.db;
@@ -1462,7 +1456,7 @@ bool GroupChatRoom::syncMembers(const chatd::UserPrivMap& users)
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
     bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);
-    chatd::UserPrivMap membs;
+    UserPrivMap membs;
     changed |= syncMembers(apiMembersToMap(chat, membs));
     if (changed)
     {
@@ -1474,7 +1468,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     return changed;
 }
 
-chatd::UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, chatd::UserPrivMap& membs)
+UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs)
 {
     auto members = chat.getPeerList();
     if (members)

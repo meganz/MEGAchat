@@ -225,6 +225,34 @@ public:
         stmt.step();
         return stmt.intCol(0);
     }
+    virtual void saveItemToManualSending(const chatd::Chat::SendingItem& item, int reason)
+    {
+        auto& msg = *item.msg;
+        sqliteQuery(mDb, "insert into manual_sending(chatid, rowid, msgid, type, "
+            "ts, updated, msg, opcode, reason",
+            mMessages.chatId(), item.rowid, item.msg->id(), msg.type, msg.ts, msg,
+            item.opcode(), reason);
+    }
+    virtual void loadManualSendItems(std::vector<chatd::Chat::ManualSendItem>& items)
+    {
+        SqliteStmt stmt(mDb, "select rowid, msgid, type, ts, updated, msg, opcode, "
+            "reason from manual_sending where chatid=? order by rowid asc");
+        stmt << mMessages.chatId();
+        while(stmt.step())
+        {
+            Buffer buf;
+            stmt.blobCol(5, buf);
+            auto msg = new chatd::Message(stmt.uint64Col(1), 0,
+                stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
+                chatd::Key::kInvalidId, (chatd::Message::Type)stmt.intCol(2));
+            items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), stmt.intCol(7));
+        }
+    }
+    virtual bool deleteManualSendItem(uint64_t rowid)
+    {
+        sqliteQuery(mDb, "delete from manual_sending where rowid = ?", rowid);
+        return sqlite3_changes(mDb) != 0;
+    }
 };
 
 #endif

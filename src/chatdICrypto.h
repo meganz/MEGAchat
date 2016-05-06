@@ -6,7 +6,7 @@ namespace chatd
 {
 enum
 {
-    ERRTYPE_CRYPTOMODULE = 0x3e9ac910, //< all errors originating from strongvelope should have this type
+    ERRTYPE_CRYPTOMODULE = 0x3e9ac910, //< all promise errors originating from strongvelope should have this type
     ERRCODE_NO_DECRYPT_KEY = 1 //< Can't decrypt because we can't obtain the decrypt key. May occur if a message was sent just after a user joined
 };
 
@@ -86,11 +86,13 @@ public:
  */
     virtual void onOnlineStateChange(ChatState state){}
 /**
- * @brief A user has joined or left the room, or their privilege has changed
+ * @brief A user has joined, or their privilege has changed
  * @param privilege - the new privilege, if it is PRIV_NOTPRESENT, then the user
  * left the chat
  */
-    virtual void onUserJoinLeave(Id userid, Priv privilege){}
+    virtual void onUserJoin(Id userid, Priv privilege){}
+/**  @brief A user has left the room */
+    virtual void onUserLeave(Id userid){}
 /**
  * @brief A key was received from the server, and added to Chat.keys
  */

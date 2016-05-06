@@ -172,6 +172,7 @@ public:
     promise::Promise<Buffer*> getAttr(const uint64_t &user, unsigned attrType);
     bool removeCb(const uint64_t &cbid);
 };
+typedef std::map<chatd::Id, chatd::Priv> UserPrivMap;
 class ChatRoomList;
 class ChatRoom: public chatd::Listener
 {
@@ -232,7 +233,8 @@ public:
     void updatePresence();
     virtual Presence presence() const;
 //chatd::Listener interface
-    virtual void onUserJoinLeave(chatd::Id userid, chatd::Priv priv);
+    virtual void onUserJoin(chatd::Id userid, chatd::Priv priv);
+    virtual void onUserLeave(chatd::Id userid);
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUnreadChanged();
 };
@@ -259,8 +261,8 @@ protected:
     std::string mTitleString;
     bool mHasUserTitle = false;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
-    bool syncMembers(const chatd::UserPrivMap& users);
-    static chatd::UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, chatd::UserPrivMap& membs);
+    bool syncMembers(const UserPrivMap& users);
+    static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
     void loadUserTitle();
     void updateAllOnlineDisplays(Presence pres);
     friend class Member;
@@ -305,7 +307,8 @@ public:
             mChatWindow->updateTitle(mTitleString);
     }
 //chatd::Listener
-    void onUserJoinLeave(chatd::Id userid, chatd::Priv priv);
+    void onUserJoin(chatd::Id userid, chatd::Priv priv);
+    void onUserLeave(chatd::Id userid);
     void onOnlineStateChange(chatd::ChatState);
 
 };
