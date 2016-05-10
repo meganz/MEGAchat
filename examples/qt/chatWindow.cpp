@@ -410,6 +410,7 @@ ManualSendMsgWidget::ManualSendMsgWidget(ChatWindow& chatWin, chatd::Message* aM
     uint64_t id, uint8_t reason)
 : QWidget(&chatWin), mChatWindow(chatWin), mMessage(aMsg), mId(id), mReason(reason)
 {
+    ui.setupUi(this);
     if (reason == chatd::kManualSendTooOld)
     {
         ui.mReasonDisplay->setText(tr("Too old (%1)").arg(prettyInterval(time(NULL) - mMessage->ts)));

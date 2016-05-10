@@ -56,6 +56,38 @@ public:
             return false;
         return (memcmp(mBuf, data, datalen) == 0);
     }
+    std::string toString(int colCount=80) const
+    {
+        static const char hexChars[] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                      '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+        if (!mDataSize)
+            return "(empty)";
+        auto hexCount = mDataSize*3;
+        std::string result;
+        result.reserve(hexCount+hexCount/colCount+2);
+        unsigned colCtr = 0;
+        for (int i=0;;)
+        {
+            unsigned char val = reinterpret_cast<unsigned char*>(mBuf)[i];
+            result+=hexChars[val >> 4];
+            result+=hexChars[val & 0x0f];
+            i++;
+            if (i >= mDataSize)
+                break;
+            colCtr+=2;
+            if (colCtr >= colCount)
+            {
+                colCtr = 0;
+                result+='\n';
+            }
+            else
+            {
+                colCtr++;
+                result+=' ';
+            }
+        }
+        return result;
+    }
 };
 
 class Buffer: public StaticBuffer

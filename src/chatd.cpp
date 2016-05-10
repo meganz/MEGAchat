@@ -663,7 +663,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     ID_CSTR(userid), keyid);
 
                 std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated,
-                    msgdata, msglen, keyid, false));
+                    msgdata, msglen, false, keyid));
                 Chat& chat = mClient.chats(chatid);
                 if (opcode == OP_MSGUPD)
                 {
@@ -1359,8 +1359,6 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         return CHATD_IDX_INVALID;
     }
 
-    CHATID_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
-
     if (!item.msgCmd)
     {//don't assert as this depends on external input
         CHATID_LOG_ERROR("msgConfirm: Sending item has no associated Command object");
@@ -1383,6 +1381,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         return CHATD_IDX_INVALID;
     }
 
+    CHATID_LOG_DEBUG("recv NEWMSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
     //put into history
     msg->setId(msgid, false);
     push_forward(msg);
@@ -1538,6 +1537,7 @@ Message::Status Chat::getMsgStatus(Idx idx, Id userid)
 */
 Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
 {
+    printf("msgIncoming: %.*s\n", message->dataSize(), message->buf());
     assert((isLocal && !isNew) || !isLocal);
     auto msgid = message->id();
     assert(msgid);

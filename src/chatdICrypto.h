@@ -55,12 +55,14 @@ public:
  * that message instead of the 0xffffffff keyid.
  */
     virtual promise::Promise<std::pair<MsgCommand*, Command*> >
-    msgEncrypt(const Message& msg, MsgCommand* cmd)
+    msgEncrypt(Message& msg, MsgCommand* cmd)
     {
         promise::Promise<std::pair<MsgCommand*, Command*>> pms;
         ::mega::setTimeout([pms, &msg, cmd]() mutable
         {
             cmd->setMsg(msg.buf(), msg.dataSize());
+            cmd->setKeyId(1);
+            msg.keyid = 1;
             pms.resolve(std::make_pair(cmd, (Command*)nullptr));
         }, 2000);
         return pms;

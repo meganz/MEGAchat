@@ -86,9 +86,13 @@ public:
     virtual void addBlobsToSendingItem(uint64_t rowid,
                     const chatd::MsgCommand* msgCmd, const chatd::Command* keyCmd)
     {
+        //WARNING: Must cast *msgCmd and *keyCmd to StaticBuffer, otherwise
+        //compiler (at least clang on MacOS) seems not able to properly determine
+        //the argument type for the template parameter to sqlQuery(), which
+        //compiles without any warning, but results is corrupt data written to the db!
         sqliteQuery(mDb, "update sending set msg_cmd=?, key_cmd=? where rowid=?",
-            msgCmd?*msgCmd:StaticBuffer(nullptr, 0),
-            keyCmd?*keyCmd:StaticBuffer(nullptr, 0), rowid);
+            msgCmd?static_cast<StaticBuffer>(*msgCmd):StaticBuffer(nullptr, 0),
+            keyCmd?static_cast<StaticBuffer>(*keyCmd):StaticBuffer(nullptr, 0), rowid);
         assertAffectedRowCount(1,"addCommandBlobToSendingItem");
     }
     virtual void deleteItemFromSending(uint64_t rowid)
@@ -109,8 +113,6 @@ public:
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
-        printf("============== idx = %d\n", idx);
-
 #if 1
         SqliteStmt stmt(mDb, "select min(idx), max(idx) from history where chatid = ?");
         stmt << mMessages.chatId();
@@ -134,7 +136,7 @@ public:
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
         SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, msg, type, "
-            "ts, msg_cmd, key_cmd from sending where chatid=? order by rowid asc");
+            "ts, msg_cmd, key_cmd, recipients from sending where chatid=? order by rowid asc");
         stmt << mMessages.chatId();
         queue.clear();
         while(stmt.step())
@@ -229,9 +231,9 @@ public:
     {
         auto& msg = *item.msg;
         sqliteQuery(mDb, "insert into manual_sending(chatid, rowid, msgid, type, "
-            "ts, updated, msg, opcode, reason",
-            mMessages.chatId(), item.rowid, item.msg->id(), msg.type, msg.ts, msg,
-            item.opcode(), reason);
+            "ts, updated, msg, opcode, reason) values(?,?,?,?,?,?,?,?,?)",
+            mMessages.chatId(), item.rowid, item.msg->id(), msg.type, msg.ts,
+            msg.updated, msg, item.opcode(), reason);
     }
     virtual void loadManualSendItems(std::vector<chatd::Chat::ManualSendItem>& items)
     {

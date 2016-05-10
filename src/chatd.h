@@ -176,12 +176,12 @@ public:
     bool isSending() const { return mIdIsXid; }
     bool isEncrypted() const { return mIsEncrypted; }
     void setId(Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
-    Message(Id aMsgid, Id aUserid, uint32_t aTs, uint16_t aUpdated,
+    explicit Message(Id aMsgid, Id aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=Key::kInvalidId,
           Type aType=kNormalMsg, void* aUserp=nullptr)
       :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
           ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
-    Message(Id aMsgid, Id aUserid, uint32_t aTs, uint16_t aUpdated,
+    explicit Message(Id aMsgid, Id aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
             KeyId aKeyid=Key::kInvalidId, Type aType=kNormalMsg, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
