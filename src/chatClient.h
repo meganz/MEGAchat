@@ -172,7 +172,7 @@ public:
     promise::Promise<Buffer*> getAttr(const uint64_t &user, unsigned attrType);
     bool removeCb(const uint64_t &cbid);
 };
-typedef std::map<chatd::Id, chatd::Priv> UserPrivMap;
+typedef std::map<Id, chatd::Priv> UserPrivMap;
 class ChatRoomList;
 class ChatRoom: public chatd::Listener
 {
@@ -233,8 +233,8 @@ public:
     void updatePresence();
     virtual Presence presence() const;
 //chatd::Listener interface
-    virtual void onUserJoin(chatd::Id userid, chatd::Priv priv);
-    virtual void onUserLeave(chatd::Id userid);
+    virtual void onUserJoin(Id userid, chatd::Priv priv);
+    virtual void onUserLeave(Id userid);
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUnreadChanged();
 };
@@ -307,8 +307,8 @@ public:
             mChatWindow->updateTitle(mTitleString);
     }
 //chatd::Listener
-    void onUserJoin(chatd::Id userid, chatd::Priv priv);
-    void onUserLeave(chatd::Id userid);
+    void onUserJoin(Id userid, chatd::Priv priv);
+    void onUserLeave(Id userid);
     void onOnlineStateChange(chatd::ChatState);
 
 };
@@ -415,7 +415,7 @@ public:
     std::unique_ptr<ContactList> contactList;
     std::unique_ptr<ChatRoomList> chats;
     bool isLoggedIn() const { return mIsLoggedIn; }
-    const chatd::Id myHandle() const { return mMyHandle; }
+    const Id myHandle() const { return mMyHandle; }
     const std::string& myName() const { return mMyName; }
     static uint64_t useridFromJid(const std::string& jid);
     std::string getUsername() const
@@ -468,7 +468,7 @@ public:
         return mXmppContactList;
     }
 protected:
-    chatd::Id mMyHandle = mega::UNDEF;
+    Id mMyHandle = mega::UNDEF;
     std::string mSid;
     std::string mMyName;
     Presence mOwnPresence;

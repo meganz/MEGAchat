@@ -154,7 +154,7 @@ public:
         QChar lf('\n');
         QString text = tr("Email: ");
         text.append(QString::fromStdString(mContact.email())).append(QChar('\n'));
-        text.append(tr("User handle: ")).append(QString::fromStdString(chatd::Id(mContact.userId()).toString())).append(lf);
+        text.append(tr("User handle: ")).append(QString::fromStdString(karere::Id(mContact.userId()).toString())).append(lf);
         text.append(tr("XMPP jid: ")).append(QString::fromStdString(mContact.jid())).append(lf);
         if (mContact.chatRoom())
             text.append(tr("You have a chatroom created with this person"));
@@ -312,7 +312,7 @@ public:
     void updateToolTip()
     {
         QString text(tr("Group chat room: "));
-        text.append(QString::fromStdString(chatd::Id(mRoom.chatid()).toString())).append(QChar('\n'))
+        text.append(QString::fromStdString(karere::Id(mRoom.chatid()).toString())).append(QChar('\n'))
             .append(tr("Own privilege: ").append(QString::number(mRoom.ownPriv())).append(QChar('\n')))
             .append(tr("Other participants:\n"));
         for (const auto& item: mRoom.peers())
@@ -321,7 +321,7 @@ public:
             const std::string* email = mRoom.parent.client.contactList->getUserEmail(item.first);
             auto line = QString(" %1 (%2, %3): priv %4\n").arg(QString::fromStdString(peer.name()))
                 .arg(email?QString::fromStdString(*email):tr("(email unknown)"))
-                .arg(QString::fromStdString(chatd::Id(item.first).toString()))
+                .arg(QString::fromStdString(karere::Id(item.first).toString()))
                 .arg((int)item.second->priv());
             text.append(line);
         }

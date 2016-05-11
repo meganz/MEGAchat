@@ -344,7 +344,7 @@ void WaitMsgWidget::show()
     move((qobject_cast<QWidget*>(parent())->width()-width())/2, 10);
     QWidget::show();
 }
-MessageWidget& MessageWidget::setAuthor(const chatd::Id& userid)
+MessageWidget& MessageWidget::setAuthor(karere::Id userid)
 {
     if (mIsMine)
     {

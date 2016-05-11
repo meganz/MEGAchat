@@ -50,7 +50,7 @@ protected:
 public:
     MessageWidget(ChatWindow& parent, chatd::Message& msg,
                   chatd::Message::Status status, chatd::Idx idx);
-    MessageWidget& setAuthor(const chatd::Id& userid);
+    MessageWidget& setAuthor(karere::Id userid);
     MessageWidget& setTimestamp(uint32_t ts)
     {
         QDateTime t;
@@ -579,7 +579,7 @@ public:
         if (widget)
             widget->updateStatus(newStatus);
     }
-    virtual void onMessageConfirmed(chatd::Id msgxid, const chatd::Message& msg, chatd::Idx idx)
+    virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx)
     {
         // add to history, message was just created at the server
         assert(msgxid); assert(msg.id()); assert(idx != CHATD_IDX_INVALID);
@@ -626,11 +626,11 @@ public:
         ui.mMessageList->scrollToBottom();
     }
     virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
-    virtual void onUserJoin(chatd::Id userid, chatd::Priv priv)
+    virtual void onUserJoin(karere::Id userid, chatd::Priv priv)
     {
         mRoom.onUserJoin(userid, priv);
     }
-    virtual void onUserLeave(chatd::Id userid) { mRoom.onUserLeave(userid); }
+    virtual void onUserLeave(karere::Id userid) { mRoom.onUserLeave(userid); }
     virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, int reason);
     virtual karere::IGui::ICallGui* callGui() { return mCallGui; }

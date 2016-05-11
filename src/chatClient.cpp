@@ -216,7 +216,7 @@ promise::Promise<void> Client::init()
         SdkString uh = api->getMyUserHandle();
         if (!uh.c_str() || !uh.c_str()[0])
             throw std::runtime_error("Could not get our own user handle from API");
-        chatd::Id handle(uh.c_str());
+        Id handle(uh.c_str());
         if (mLoginDlg)
         {
             assert(mMyHandle.val == mega::UNDEF || mMyHandle.val == 0);
@@ -282,7 +282,7 @@ promise::Promise<void> Client::init()
             for (int i=0; i<chatRooms->size(); i++)
             {
                 auto& room = *chatRooms->get(i);
-                KR_LOG_DEBUG("%s(%s):", chatd::Id(room.getHandle()).toString().c_str(), room.isGroup()?"group":"1on1");
+                KR_LOG_DEBUG("%s(%s):", Id(room.getHandle()).toString().c_str(), room.isGroup()?"group":"1on1");
                 auto peers = room.getPeerList();
                 if (!peers)
                 {
@@ -290,7 +290,7 @@ promise::Promise<void> Client::init()
                     continue;
                 }
                 for (int j = 0; j<peers->size(); j++)
-                    KR_LOG_DEBUG("  %s", chatd::Id(peers->getPeerHandle(j)).toString().c_str());
+                    KR_LOG_DEBUG("  %s", Id(peers->getPeerHandle(j)).toString().c_str());
             }
             KR_LOG_DEBUG("=== Chatroom list end ===");
 #endif
@@ -953,7 +953,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 //just in case
     sqliteQuery(parent.client.db, "delete from chat_peers where chatid = ?", mChatid);
     parent.client.contactList->attachRoomToContact(mPeer, *this);
-    KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API", chatd::Id(mChatid).toString().c_str());
+    KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  Id(mChatid).toString().c_str());
     join();
 }
 
@@ -1130,7 +1130,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
         {
             if (priv == chatd::PRIV_NOTPRESENT) //we were removed by someone else
             {
-                KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed", chatd::Id(chatid).toString().c_str());
+                KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(chatid).toString().c_str());
                 removeRoom(chatid);
             }
             else
@@ -1150,7 +1150,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
         {
             if (priv != chatd::PRIV_NOTPRESENT) //we didn't remove ourself from the room
             {
-                KR_LOG_DEBUG("Chatroom[%s]: Received invite to join", chatd::Id(chatid).toString().c_str());
+                KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
                 client.api->call(&mega::MegaApi::getUrlChat, chatid)
                 .then([this, chatid, rooms, &room](ReqResult result)
                 {
@@ -1161,7 +1161,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             }
             else
             {
-                KR_LOG_DEBUG("Chatroom[%s]: We should have just removed ourself from the room", chatd::Id(chatid).toString().c_str());
+                KR_LOG_DEBUG("Chatroom[%s]: We should have just removed ourself from the room",  Id(chatid).toString().c_str());
             }
         }
     }
@@ -1353,17 +1353,17 @@ void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
         mChatWindow->updateOnlineIndication(pres);
 }
 
-void GroupChatRoom::onUserJoin(chatd::Id userid, chatd::Priv privilege)
+void GroupChatRoom::onUserJoin( Id userid, chatd::Priv privilege)
 {
     if (userid != parent.client.myHandle())
         addMember(userid, privilege, true);
 }
-void GroupChatRoom::onUserLeave(chatd::Id userid)
+void GroupChatRoom::onUserLeave( Id userid)
 {
     removeMember(userid);
 }
 
-void PeerChatRoom::onUserJoin(chatd::Id userid, chatd::Priv privilege)
+void PeerChatRoom::onUserJoin( Id userid, chatd::Priv privilege)
 {
     if (userid == parent.client.chatd->userId())
         syncOwnPriv(privilege);
@@ -1372,7 +1372,7 @@ void PeerChatRoom::onUserJoin(chatd::Id userid, chatd::Priv privilege)
     else
         KR_LOG_ERROR("PeerChatRoom: Bug: Received JOIN event from chatd for a third user, ignoring");
 }
-void PeerChatRoom::onUserLeave(chatd::Id userid)
+void PeerChatRoom::onUserLeave( Id userid)
 {
     KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
 }
@@ -1426,7 +1426,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
             delete member;
             sqliteQuery(db, "delete from chat_peers where chatid=? and userid=?", mChatid, userid);
             KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Removed member %s",
-                chatd::Id(mChatid).toString().c_str(), chatd::Id(userid).toString().c_str());
+                 Id(mChatid).toString().c_str(),  Id(userid).toString().c_str());
         }
         else
         {
@@ -1437,7 +1437,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
                     mChatid, userid, it->second);
                 ourIt->second->mPriv = it->second;
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s",
-                    chatd::Id(userid).toString().c_str());
+                     Id(userid).toString().c_str());
             }
             ourIt++;
         }
@@ -1553,7 +1553,7 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
 #ifndef NDEBUG
     KR_LOG_DEBUG("=== Contactlist received from API: ===");
     for (auto c: apiUsers)
-        KR_LOG_DEBUG("%s", chatd::Id(c).toString().c_str());
+        KR_LOG_DEBUG("%s",  Id(c).toString().c_str());
     KR_LOG_DEBUG("=== Contactlist end ===");
 #endif
 }
@@ -1712,7 +1712,7 @@ ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
 {
     auto it = find(userid);
     if (it == end())
-        throw std::runtime_error("attachRoomToContact: userid '"+chatd::Id(userid)+"' not found in contactlist");
+        throw std::runtime_error("attachRoomToContact: userid '"+ Id(userid)+"' not found in contactlist");
     auto& contact = *it->second;
     if (contact.mChatRoom)
         throw std::runtime_error("attachRoomToContact: contact already has a chat room attached");

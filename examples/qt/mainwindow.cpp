@@ -300,7 +300,7 @@ karere::IGui::IChatWindow& MainWindow::chatWindowForPeer(uint64_t handle)
 {
     auto it = mClient->contactList->find(handle);
     if (it == mClient->contactList->end())
-        throw std::runtime_error("chatWindowForPeer: peer '"+chatd::Id(handle).toString()+"' not in contact list");
+        throw std::runtime_error("chatWindowForPeer: peer '"+Id(handle).toString()+"' not in contact list");
     auto room = it->second->chatRoom();
     if (!room)
         throw std::runtime_error("chatWindowForPeer: peer contact has no chatroom");

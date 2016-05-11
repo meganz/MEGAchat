@@ -11,7 +11,7 @@
 
 using namespace std;
 using namespace promise;
-
+using namespace karere;
 #define CHATD_LOG_LISTENER_CALLS //DB_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
@@ -83,7 +83,7 @@ namespace chatd
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
-Client::Client(const Id& userId)
+Client::Client(Id userId)
 :mUserId(userId)
 {
     if (!sWebsockCtxInitialized)
@@ -133,7 +133,7 @@ Client::Client(const Id& userId)
     }
 
 // add a new chatd shard
-void Client::join(const Id& chatid, int shardNo, const std::string& url, Listener* listener,
+void Client::join(Id chatid, int shardNo, const std::string& url, Listener* listener,
     ICrypto* crypto)
 {
     auto msgsit = mChatForChatId.find(chatid);
@@ -524,7 +524,7 @@ void Chat::requestHistoryFromServer(int32_t count)
     sendCommand(Command(OP_HIST) + mChatId + count);
 }
 
-Chat::Chat(Connection& conn, const Id& chatid, Listener* listener, ICrypto* crypto)
+Chat::Chat(Connection& conn, Id chatid, Listener* listener, ICrypto* crypto)
     : mConnection(conn), mClient(conn.mClient), mChatId(chatid), mListener(listener),
       mCrypto(crypto)
 {
@@ -894,14 +894,14 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, voi
 {
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
-        0, msg, msglen, true, Key::kInvalidId, type, userp);
+        0, msg, msglen, true, CHATD_INVALID_KEY_ID, type, userp);
     msgSubmit(message);
     return message;
 }
 void Chat::msgSubmit(Message* msg)
 {
     assert(msg->isSending());
-    assert(msg->keyid == Key::kInvalidId);
+    assert(msg->keyid == CHATD_INVALID_KEY_ID);
     msgEncryptAndSend(msg, OP_NEWMSG);
 }
 
@@ -1413,7 +1413,7 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     //update keyxids to keyids, because if client disconnects the keyxids will become invalid
     for (auto it = ++mSending.begin(); it!=mSending.end(); it++)
     {
-        if (it->msg->keyid == Key::kUnconfirmedId)
+        if (it->msg->keyid == CHATD_UNCONFIRMED_KEY_ID)
         {
             it->msg->keyid = keyid;
             assert(!it->keyCmd);
@@ -1537,7 +1537,6 @@ Message::Status Chat::getMsgStatus(Idx idx, Id userid)
 */
 Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
 {
-    printf("msgIncoming: %.*s\n", message->dataSize(), message->buf());
     assert((isLocal && !isNew) || !isLocal);
     auto msgid = message->id();
     assert(msgid);

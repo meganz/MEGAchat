@@ -92,13 +92,13 @@ public:
  * @param privilege - the new privilege, if it is PRIV_NOTPRESENT, then the user
  * left the chat
  */
-    virtual void onUserJoin(Id userid, Priv privilege){}
+    virtual void onUserJoin(karere::Id userid, Priv privilege){}
 /**  @brief A user has left the room */
-    virtual void onUserLeave(Id userid){}
+    virtual void onUserLeave(karere::Id userid){}
 /**
  * @brief A key was received from the server, and added to Chat.keys
  */
-    virtual void onNewKey(KeyId keyid, Id userid, uint16_t keylen, const char* keydata){}
+    virtual void onNewKey(KeyId keyid, karere::Id userid, uint16_t keylen, const char* keydata){}
     virtual void onKeyId(KeyId keyxid, KeyId keyid) {}
 /**
  * @brief The crypto module is destroyed when that chatid is left or the client is destroyed

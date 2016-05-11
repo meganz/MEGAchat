@@ -102,7 +102,7 @@ void CallGui::onMuteCam(bool checked)
 }
 void CallGui::call()
 {
-    chatd::Id peer = static_cast<PeerChatRoom&>(mChatWindow.mRoom).peer();
+    Id peer = static_cast<PeerChatRoom&>(mChatWindow.mRoom).peer();
     string peerJid = karere::useridToJid(peer.val);
     auto& client = mChatWindow.mainWindow.client();
     karere::XmppChatRoom::create(client, peerJid)

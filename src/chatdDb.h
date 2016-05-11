@@ -15,7 +15,7 @@ protected:
 public:
     ChatdSqliteDb(chatd::Chat& msgs, sqlite3* db, const std::string& sendingTblName="sending", const std::string& histTblName="history")
         :mDb(db), mMessages(msgs), mSendingTblName(sendingTblName), mHistTblName(histTblName){}
-    virtual void getHistoryInfo(chatd::Id& oldestDbId, chatd::Id& newestDbId, chatd::Idx& newestDbIdx)
+    virtual void getHistoryInfo(karere::Id& oldestDbId, karere::Id& newestDbId, chatd::Idx& newestDbIdx)
     {
         SqliteStmt stmt(mDb, "select min(idx), max(idx) from "+mHistTblName+" where chatid=?1");
         stmt.bind(mMessages.chatId()).step(); //will always return a row, even if table empty
@@ -128,7 +128,7 @@ public:
             "values(?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
             msg.type, msg.userid, msg.ts, msg);
     }
-    virtual void updateMsgInHistory(chatd::Id msgid, const StaticBuffer& msg)
+    virtual void updateMsgInHistory(karere::Id msgid, const StaticBuffer& msg)
     {
         sqliteQuery(mDb, "update history set data = ? where msgid = ?", msg, msgid);
         assertAffectedRowCount(1, "updateMsgInHistory");
@@ -187,8 +187,8 @@ public:
         while(stmt.step())
         {
             i++;
-            chatd::Id msgid(stmt.uint64Col(0));
-            chatd::Id userid(stmt.uint64Col(1));
+            karere::Id msgid(stmt.uint64Col(0));
+            karere::Id userid(stmt.uint64Col(1));
             unsigned ts = stmt.uintCol(2);
             Buffer buf;
             stmt.blobCol(4, buf);
@@ -207,7 +207,7 @@ public:
             messages.push_back(msg);
         }
     }
-    virtual chatd::Idx getIdxOfMsgid(chatd::Id msgid)
+    virtual chatd::Idx getIdxOfMsgid(karere::Id msgid)
     {
         SqliteStmt stmt(mDb, "select idx from history where chatid = ? and msgid = ?");
         stmt << mMessages.chatId() << msgid;
@@ -246,7 +246,7 @@ public:
             stmt.blobCol(5, buf);
             auto msg = new chatd::Message(stmt.uint64Col(1), 0,
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
-                chatd::Key::kInvalidId, (chatd::Message::Type)stmt.intCol(2));
+                CHATD_INVALID_KEY_ID, (chatd::Message::Type)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), stmt.intCol(7));
         }
     }
