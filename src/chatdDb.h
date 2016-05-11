@@ -17,7 +17,7 @@ public:
         :mDb(db), mMessages(msgs), mSendingTblName(sendingTblName), mHistTblName(histTblName){}
     virtual void getHistoryInfo(karere::Id& oldestDbId, karere::Id& newestDbId, chatd::Idx& newestDbIdx)
     {
-        SqliteStmt stmt(mDb, "select min(idx), max(idx) from "+mHistTblName+" where chatid=?1");
+        SqliteStmt stmt(mDb, "select min(idx), max(idx) from history where chatid=?1");
         stmt.bind(mMessages.chatId()).step(); //will always return a row, even if table empty
         auto minIdx = stmt.intCol(0); //WARNING: the chatd implementation uses uint32_t values for idx.
         newestDbIdx = stmt.intCol(1);

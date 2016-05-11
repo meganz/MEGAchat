@@ -36,7 +36,14 @@ public:
     SqliteStmt(sqlite3* db, const char* sql) :mDb(db)
     {
         assert(db);
-        check(sqlite3_prepare_v2(db, sql, -1, &mStmt, nullptr), "create statement");
+        if (sqlite3_prepare_v2(db, sql, -1, &mStmt, nullptr) != SQLITE_OK)
+        {
+            const char* errMsg = sqlite3_errmsg(mDb);
+            if (!errMsg)
+                errMsg = "(Unknown error)";
+            throw std::runtime_error(std::string(
+                "Error creating sqlite statement with sql:\n'")+sql+"'\n"+errMsg);
+        }
         assert(mStmt);
     }
     SqliteStmt(sqlite3 *db, const std::string& sql):SqliteStmt(db, sql.c_str()){}

@@ -1433,8 +1433,8 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
             if (ourIt->second->mPriv != it->second)
             {
                 changed = true;
-                sqliteQuery(db, "update chat_peers where chatid=? and userid=? set priv=?",
-                    mChatid, userid, it->second);
+                sqliteQuery(db, "update chat_peers set priv=? where chatid=? and userid=?",
+                    it->second, mChatid, userid);
                 ourIt->second->mPriv = it->second;
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s",
                      Id(userid).toString().c_str());
