@@ -603,7 +603,7 @@ promise::Promise<void> Client::setPresence(Presence pres, bool force)
     });
 }
 
-UserAttrDesc attrDesc[mega::MegaApi::USER_ATTR_LAST_INTERACTION+1] =
+UserAttrDesc gUserAttrDescs[mega::MegaApi::USER_ATTR_LAST_INTERACTION+1] =
 { //getData func | changeMask
   //0 - avatar
    { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getFile(), strlen(req.getFile())); }, mega::MegaUser::CHANGE_TYPE_AVATAR},
@@ -648,7 +648,7 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
 
         emplace(std::piecewise_construct,
             std::forward_as_tuple(stmt.uint64Col(0), stmt.intCol(1)),
-            std::forward_as_tuple(std::make_shared<UserAttrCacheItem>(data.release(), false)));
+            std::forward_as_tuple(std::make_shared<UserAttrCacheItem>(*this, data.release(), false)));
     }
     mClient.api->addGlobalListener(this);
 }
@@ -688,7 +688,7 @@ void UserAttrCache::onUserAttrChange(mega::MegaUser& user)
     int changed = user.getChanges();
     for (auto t = 0; t <= mega::MegaApi::USER_ATTR_LAST_INTERACTION; t++)
     {
-        if ((changed & attrDesc[t].changeMask) == 0)
+        if ((changed & gUserAttrDescs[t].changeMask) == 0)
             continue;
         UserAttrPair key(user.getHandle(), t);
         auto it = find(key);
@@ -707,7 +707,7 @@ void UserAttrCache::onUserAttrChange(mega::MegaUser& user)
         fetchAttr(key, item);
     }
 }
-void UserAttrCache::dbInvalidateItem(const UserAttrPair& key)
+void UserAttrCache::dbInvalidateItem(UserAttrPair key)
 {
     sqliteQuery(mClient.db, "delete from userattrs where userid=? and type=?",
                 key.user, key.attrType);
@@ -722,8 +722,25 @@ void UserAttrCacheItem::notify()
         curr->cb(data.get(), curr->userp); //may erase curr
     }
 }
-UserAttrCacheItem::~UserAttrCacheItem()
+
+void UserAttrCacheItem::resolve(UserAttrPair key)
 {
+    pending = kCacheFetchNotPending;
+    parent.dbWrite(key, *data);
+    notify();
+}
+void UserAttrCacheItem::resolveNoDb(UserAttrPair key)
+{
+    pending = kCacheFetchNotPending;
+    notify();
+}
+void UserAttrCacheItem::error(UserAttrPair key, int errCode)
+{
+    pending = kCacheFetchNotPending;
+    data.reset();
+    if (errCode == mega::API_ENOENT)
+        parent.dbWriteNull(key);
+    notify();
 }
 
 uint64_t UserAttrCache::addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp)
@@ -766,107 +783,149 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
         }
     }
 
-    auto item = std::make_shared<UserAttrCacheItem>(nullptr, kCacheFetchNewPending);
+    auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, kCacheFetchNewPending);
     it = emplace(key, item).first;
     uint64_t cbid = cb ? addCb(it, cb, userp) : 0;
     fetchAttr(key, item);
     return cbid;
 }
 
-void UserAttrCache::fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrCacheItem>& item)
+void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     if (!mClient.isLoggedIn())
         return;
-    if (key.attrType != mega::MegaApi::USER_ATTR_LASTNAME)
+    switch (key.attrType)
     {
-        auto& attrType = attrDesc[key.attrType];
-        mClient.api->call(&mega::MegaApi::getUserAttribute,
-            base64urlencode(&key.user, sizeof(key.user)).c_str(), (int)key.attrType)
-        .then([this, &attrType, key, item](ReqResult result)
-        {
-            item->pending = kCacheFetchNotPending;
-            item->data.reset(attrType.getData(*result));
-            dbWrite(key, *item->data);
-            item->notify();
-        })
-        .fail([this, key, item](const promise::Error& err)
-        {
-            item->pending = kCacheFetchNotPending;
-            item->data = nullptr;
-            if (err.code() == mega::API_ENOENT)
-                dbWriteNull(key);
-            item->notify();
-            return err;
-        });
+        case mega::MegaApi::USER_ATTR_LASTNAME:
+            fetchUserFullName(key, item);
+            break;
+        case USER_ATTR_RSA_PUBKEY:
+            fetchRsaPubkey(key, item);
+            break;
+        default:
+            fetchStandardAttr(key, item);
+            break;
     }
-    else
+}
+void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
+{
+    mClient.api->call(&mega::MegaApi::getUserAttribute,
+        key.user.toString().c_str(), (int)key.attrType)
+    .then([this, key, item](ReqResult result)
     {
-        std::string strUh = base64urlencode(&key.user, sizeof(key.user));
-        mClient.api->call(&mega::MegaApi::getUserAttribute, strUh.c_str(),
-                  (int)MyMegaApi::USER_ATTR_FIRSTNAME)
-        .fail([this, item](const promise::Error& err)
+        item->data.reset(gUserAttrDescs[key.attrType].getData(*result));
+        item->resolve(key);
+    })
+    .fail([this, key, item](const promise::Error& err)
+    {
+        item->error(key, err.code());
+        return err;
+    });
+}
+void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
+{
+    std::string userid = key.user.toString();
+    mClient.api->call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
+            (int)::mega::MegaApi::USER_ATTR_FIRSTNAME)
+    .fail([this](const promise::Error& err)
+    {
+        return ReqResult(nullptr); //silently ignore errors for the first name, in case we can still retrieve the second name
+    })
+    .then([this, userid, item](ReqResult result)
+    {
+        //first name. Write a prefix byte with the first name data length,
+        //and then the name string in utf8
+        const char* name = nonWhitespaceStr(result->getText());
+        if (name)
         {
-            return ReqResult(nullptr); //silently ignore errors for the first name, in case we can still retrieve the second name
-        })
-        .then([this, strUh, key, item](ReqResult result)
-        {
-            const char* name;
-            if (result && ((name = nonWhitespaceStr(result->getText()))))
+            item->data.reset(new Buffer);
+            auto& data = *(item->data);
+            size_t len = strlen(name);
+            if (len > 255) //FIXME: This is utf8, so len is not accurate
             {
-                item->data.reset(new Buffer);
-                size_t len = strlen(name);
-                if (len > 255)
-                {
-                    item->data->append<unsigned char>(255);
-                    item->data->append(name, 252);
-                    item->data->append("...", 3);
-                }
-                else
-                {
-                    item->data->append<unsigned char>(len);
-                    item->data->append(name);
-                }
-            }
-            return mClient.api->call(&mega::MegaApi::getUserAttribute, strUh.c_str(),
-                    (int)MyMegaApi::USER_ATTR_LASTNAME);
-        })
-        .then([this, key, item](ReqResult result)
-        {
-            const char* name = nonWhitespaceStr(result->getText());
-            if (name)
-            {
-                if (!item->data)
-                    item->data.reset(new Buffer);
-
-                auto& data = *item->data;
-                data.append(' ');
-                data.append(name).append<char>(0);
-                dbWrite(key, data);
+                //truncate first name
+                data.append<unsigned char>(255);
+                data.append(name, 252);
+                data.append("...", 3);
             }
             else
             {
-                dbWriteNull(key);
+                data.append<unsigned char>(len);
+                data.append(name);
             }
-            item->pending = kCacheFetchNotPending;
-            item->notify();
+        }
+        return mClient.api->call(&mega::MegaApi::getUserAttribute, userid.c_str(),
+            (int)::mega::MegaApi::USER_ATTR_LASTNAME);
         })
-        .fail([this, key, item](const promise::Error& err)
+    .then([this, item, key](ReqResult result)
+    { //second name
+        const char* name = nonWhitespaceStr(result->getText());
+        if (name)
         {
-            item->pending = kCacheFetchNotPending;
-            if (err.code() == mega::API_ENOENT)
+            if (!item->data)
             {
-                if (!item->data)
-                {
-                    dbWriteNull(key);
-                }
-                else
-                {
-                    dbWrite(key, *item->data);
-                }
-            } //event if we have error here, we don't chear item->data as we may have the first name, but won't cache it in db, so the next app run will retry
-            item->notify();
-        });
-    }
+                item->data.reset(new Buffer);
+            }
+            else
+            {
+                item->data->append(' ');
+            }
+            item->data->append(name).append<char>(0);
+            item->resolve(key);
+        }
+        else //second name is NULL
+        {
+            if (item->data)
+                item->resolve(key);
+            else
+                item->error(key, mega::API_ENOENT);
+        }
+    })
+    .fail([this, key, item](const promise::Error& err)
+    {
+//even if we have error here, we don't clear item->data as we may have the
+//first name, but won't cache it in db, so the next app run will retry
+        if (err.code() == mega::API_ENOENT)
+        {
+            if (item->data) //has only one name, still good
+                item->resolve(key);
+            else
+                item->error(key, mega::API_ENOENT);
+        }
+        else //some other error
+        {
+            if (item->data)
+                item->resolveNoDb(key);
+            else
+                item->error(key, err.code());
+        }
+    });
+}
+void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
+{
+    mClient.api->call(&::mega::MegaApi::getUserData, key.user.toString().c_str())
+    .fail([this, key, item](const promise::Error& err)
+    {
+        item->error(key, err.code());
+        return err;
+    })
+    .then([this, key, item](ReqResult result) -> promise::Promise<void>
+    {
+        auto rsakey = result->getPassword();
+        size_t keylen;
+        if (!rsakey || ((keylen = strlen(rsakey)) < 1))
+        {
+            KR_LOG_WARNING("Public RSA key returned by API for user %s is null or empty", key.user.toString().c_str());
+            item->error(key, ::mega::API_ENOENT);
+            return promise::Error("No key", mega::API_ENOENT, ERRTYPE_MEGASDK);
+        }
+
+        item->data.reset(new Buffer(keylen+1));
+        int binlen = base64urldecode(rsakey, keylen, item->data->buf(), keylen);
+        item->data->setDataSize(binlen);
+        item->resolve(key);
+        return promise::_Void();
+    });
 }
 
 void UserAttrCache::onLogin()

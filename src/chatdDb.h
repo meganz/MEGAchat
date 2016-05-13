@@ -246,7 +246,7 @@ public:
             stmt.blobCol(5, buf);
             auto msg = new chatd::Message(stmt.uint64Col(1), 0,
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
-                CHATD_INVALID_KEY_ID, (chatd::Message::Type)stmt.intCol(2));
+                CHATD_KEYID_INVALID, (chatd::Message::Type)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), stmt.intCol(7));
         }
     }

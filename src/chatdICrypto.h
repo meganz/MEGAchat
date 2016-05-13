@@ -6,8 +6,8 @@ namespace chatd
 {
 enum
 {
-    ERRTYPE_CRYPTOMODULE = 0x3e9ac910, //< all promise errors originating from strongvelope should have this type
-    ERRCODE_NO_DECRYPT_KEY = 1 //< Can't decrypt because we can't obtain the decrypt key. May occur if a message was sent just after a user joined
+    SVCRYPTO_ERRTYPE = 0x3e9ac910, //< all promise errors originating from strongvelope should have this type
+    SVCRYPTO_ENOKEY = 1 //< Can't decrypt because we can't obtain the decrypt key. May occur if a message was sent just after a user joined
 };
 
 class Chat;

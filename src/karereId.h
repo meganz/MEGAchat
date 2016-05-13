@@ -12,6 +12,7 @@ class Id
 public:
     uint64_t val;
     std::string toString() const { return base64urlencode(&val, sizeof(val)); }
+    bool isValid() const { return val != ~((uint64_t)0); }
     Id(const uint64_t& from=0): val(from){}
     explicit Id(const char* b64, size_t len=0) { base64urldecode(b64, len?len:strlen(b64), &val, sizeof(val)); }
     bool operator==(const Id& other) const { return val == other.val; }
@@ -20,6 +21,7 @@ public:
     operator const uint64_t&() const { return val; }
     bool operator<(const Id& other) const { return val < other.val; }
     static const Id null() { return static_cast<uint64_t>(0); }
+    static const Id inval() { return ~((uint64_t)0); }
 };
 
 
@@ -35,6 +37,27 @@ static inline std::string& operator+(std::string&& str, const Id& id)
     str.append(id.toString());
     return str;
 }
+
+struct SetOfIds: public std::set<karere::Id>
+{
+    template <class T>
+    SetOfIds(const T& src) { load(src); }
+    SetOfIds(){}
+    void save(Buffer& buf)
+    {
+        for (auto id: *this)
+            buf.append(id.val);
+    }
+    void load(const Buffer& buf)
+    {
+        assert(buf.dataSize() % 8 == 0);
+        clear();
+        uint64_t* last = (uint64_t*)(buf.buf()+buf.dataSize());
+        for (uint64_t* pos = (uint64_t*)buf.buf(); pos < last; pos++)
+            emplace(*pos);
+    }
+    bool has(Id id) { return find(id) != end(); }
+};
 }
 
 namespace std
@@ -42,6 +65,5 @@ namespace std
     template<>
     struct hash<karere::Id> { size_t operator()(const karere::Id& id) const { return hash<uint64_t>()(id.val); } };
 }
-
 
 #endif

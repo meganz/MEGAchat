@@ -894,14 +894,14 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, voi
 {
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
-        0, msg, msglen, true, CHATD_INVALID_KEY_ID, type, userp);
+        0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
     msgSubmit(message);
     return message;
 }
 void Chat::msgSubmit(Message* msg)
 {
     assert(msg->isSending());
-    assert(msg->keyid == CHATD_INVALID_KEY_ID);
+    assert(msg->keyid == CHATD_KEYID_INVALID);
     msgEncryptAndSend(msg, OP_NEWMSG);
 }
 
@@ -1413,7 +1413,7 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     //update keyxids to keyids, because if client disconnects the keyxids will become invalid
     for (auto it = ++mSending.begin(); it!=mSending.end(); it++)
     {
-        if (it->msg->keyid == CHATD_UNCONFIRMED_KEY_ID)
+        if (it->msg->keyid == CHATD_KEYID_UNCONFIRMED)
         {
             it->msg->keyid = keyid;
             assert(!it->keyCmd);
@@ -1615,8 +1615,8 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     pms.fail([this, message](const promise::Error& err) -> promise::Promise<Message*>
     {
         message->mIsEncrypted = true;
-        if ((err.type() != ERRTYPE_CRYPTOMODULE) ||
-            (err.code() != ERRCODE_NO_DECRYPT_KEY))
+        if ((err.type() != SVCRYPTO_ERRTYPE) ||
+            (err.code() != SVCRYPTO_ENOKEY))
         {
             CHATID_LOG_ERROR("Unrecoverable decrypt error at message %s:'%s'\nMessage will not be decrypted", ID_CSTR(message->id()), err.what());
         }
@@ -1766,22 +1766,6 @@ void Client::leave(Id chatid)
 {
     mConnectionForChatId.erase(chatid);
     mChatForChatId.erase(chatid);
-}
-void SetOfIds::save(Buffer& buf)
-{
-    for (auto id: *this)
-        buf.append(id.val);
-}
-
-void SetOfIds::load(const Buffer& buf)
-{
-    assert(buf.dataSize() % 8 == 0);
-    clear();
-    uint64_t* last = (uint64_t*)(buf.buf()+buf.dataSize());
-    for (uint64_t* pos = (uint64_t*)buf.buf(); pos < last; pos++)
-    {
-        emplace(*pos);
-    }
 }
 
 const char* Command::opcodeNames[] =

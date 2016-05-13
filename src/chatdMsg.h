@@ -6,7 +6,7 @@
 #include <buffer.h>
 #include "karereId.h"
 
-enum { CHATD_INVALID_KEY_ID = 0, CHATD_UNCONFIRMED_KEY_ID = 0xffffffff };
+enum { CHATD_KEYID_INVALID = 0, CHATD_KEYID_UNCONFIRMED = 0xffffffff };
 
 namespace chatd
 {
@@ -87,13 +87,13 @@ public:
     bool isEncrypted() const { return mIsEncrypted; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
-          Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_INVALID_KEY_ID,
+          Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,
           Type aType=kNormalMsg, void* aUserp=nullptr)
       :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
           ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
-            KeyId aKeyid=CHATD_INVALID_KEY_ID, Type aType=kNormalMsg, void* aUserp=nullptr)
+            KeyId aKeyid=CHATD_KEYID_INVALID, Type aType=kNormalMsg, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
             updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp) {}
     static const char* statusToStr(unsigned status)
@@ -114,7 +114,7 @@ protected:
 public:
     Command(): Buffer(){}
     Command(Command&& other): Buffer(std::forward<Buffer>(other)) {assert(!other.buf() && !other.bufSize() && !other.dataSize());}
-    Command(uint8_t opcode): Buffer(64) { write(0, opcode); }
+    Command(uint8_t opcode, uint8_t reserve=64): Buffer(reserve) { write(0, opcode); }
     template<class T>
     Command&& operator+(const T& val)
     {
@@ -140,6 +140,26 @@ public:
     }
     virtual ~Command(){}
 };
+class KeyCommand: public Command
+{
+public:
+    explicit KeyCommand(karere::Id chatid, uint32_t keyid)
+    : Command(OP_NEWKEY)
+    {
+        append(chatid).append(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
+    }
+    KeyId keyId() const { return read<uint32_t>(9); }
+    void setKeyId(uint32_t keyid) { write(9, keyid); }
+    void addKey(karere::Id userid, void* keydata, uint16_t keylen)
+    {
+        uint32_t& payloadSize = mapRef<uint32_t>(13);
+        payloadSize+=(10+keylen); //userid.8+len.2+keydata.keylen
+        append(keydata, keylen);
+    }
+    bool hasKeys() const { return dataSize() > 17; }
+    void clearKeys() { setDataSize(17); } //opcode.1+chatid.8+keyid.4+length.4
+};
+
 //we need that special class because we may update key ids after keys get confirmed,
 //so in case of NEWMSG with keyxid, if the client reconnects between key confirm and
 //NEWMSG send, the NEWMSG would not use the no longer valid keyxid, but a real key id
@@ -147,7 +167,7 @@ class MsgCommand: public Command
 {
 public:
     explicit MsgCommand(uint8_t opcode, karere::Id chatid, karere::Id userid,
-        karere::Id msgid, uint32_t ts, uint16_t updated, KeyId keyid=CHATD_INVALID_KEY_ID)
+        karere::Id msgid, uint32_t ts, uint16_t updated, KeyId keyid=CHATD_KEYID_INVALID)
     :Command(opcode)
     {
         write(1, chatid);write(9, userid);write(17, msgid);write(25, ts);
@@ -185,6 +205,8 @@ static inline std::string& operator+(std::string&& str, karere::Id id)
     str.append(id.toString());
     return str;
 }
+
+
 }
 
 #endif

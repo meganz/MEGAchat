@@ -18,6 +18,9 @@ protected:
 public:
     StaticBuffer(const char* data, size_t datasize)
         :mBuf((char*)data), mDataSize(datasize) {}
+    //include the terminating NULL
+    StaticBuffer(const std::string& str): StaticBuffer(str.c_str(), str.size()+1){}
+
     void assign(const char* data, size_t datasize)
     {
         mBuf = (char*)data;
@@ -28,15 +31,13 @@ public:
         mBuf = nullptr;
         mDataSize = 0;
     }
-    bool empty() const
-    {
-        return !(mBuf && mDataSize);
-    }
-    operator bool() const
-    {
-        return mBuf && mDataSize;
-    }
+    bool empty() const { return !(mBuf && mDataSize); }
+    operator bool() const { return mBuf && mDataSize;    }
     const char* buf() const { return mBuf;}
+    const unsigned char* ubuf() const { return reinterpret_cast<unsigned char*>(mBuf); }
+    template<typename T>
+    T* typedBuf() const { return reinterpret_cast<T*>(mBuf); }
+
     size_t dataSize() const { return mDataSize; }
     char* read(size_t offset, size_t len) const
     {
@@ -139,6 +140,7 @@ public:
         mDataSize = datalen;
         ::memcpy(mBuf, data, datalen);
     }
+    void assign(const std::string& src) { assign(src.c_str(), src.size()+1); }
     void copyFrom(const StaticBuffer& src) { assign(src.buf(), src.dataSize()); }
     void reserve(size_t size)
     {
@@ -231,6 +233,8 @@ public:
     Buffer& append(const char* str) { return append((void*)str, strlen(str)); }
     template <class T>
     Buffer& write(size_t offset, const T& val) { return write(offset, &val, sizeof(val)); }
+    template <typename T>
+    T& mapRef(size_t offset) { return *reinterpret_cast<T*>(writePtr(offset, sizeof(T))); }
     void clear() { mDataSize = 0; }
     void free()
     {

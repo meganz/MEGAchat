@@ -105,11 +105,9 @@ struct UserAttrDesc
     int changeMask;
 };
 
-extern UserAttrDesc attrDesc[];
-
 struct UserAttrPair
 {
-    uint64_t user;
+    Id user;
     unsigned attrType;
     bool operator<(const UserAttrPair& other) const
     {
@@ -133,17 +131,24 @@ struct UserAttrReqCb
 };
 
 enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2};
+
+class UserAttrCache;
 struct UserAttrCacheItem
 {
+    UserAttrCache& parent;
     std::unique_ptr<Buffer> data;
     std::list<UserAttrReqCb> cbs;
     unsigned char pending;
-    UserAttrCacheItem(Buffer* buf, bool aPending): data(buf), pending(aPending){}
-    ~UserAttrCacheItem();
+    UserAttrCacheItem(UserAttrCache& aParent ,Buffer* buf, bool aPending)
+        : parent(aParent), data(buf), pending(aPending){}
+    void resolve(UserAttrPair key);
+    void resolveNoDb(UserAttrPair key); //same as resolve, but dont't write to cache db - used for partial results, like first name obtained, second name returned non-ENOENT error
+    void error(UserAttrPair key, int errCode);
     void notify();
 };
 
-class UserAttrCache: public std::map<UserAttrPair, std::shared_ptr<UserAttrCacheItem>>, public mega::MegaGlobalListener
+class UserAttrCache: public std::map<UserAttrPair, std::shared_ptr<UserAttrCacheItem>>,
+                     public mega::MegaGlobalListener
 {
 protected:
     struct CbRefItem
@@ -158,11 +163,17 @@ protected:
     std::map<uint64_t, CbRefItem> mCallbacks;
     void dbWrite(UserAttrPair key, const Buffer& data);
     void dbWriteNull(UserAttrPair key);
-    void dbInvalidateItem(const UserAttrPair& item);
+    void dbInvalidateItem(UserAttrPair item);
     uint64_t addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp);
-    void fetchAttr(const UserAttrPair& key, std::shared_ptr<UserAttrCacheItem>& item);
+    void fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
+//actual attrib fetch backend functions
+    void fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
+    void fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
+    void fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
+//==
     void onUserAttrChange(mega::MegaUser& user);
     void onLogin();
+    friend struct UserAttrCacheItem;
     friend class Client;
 public:
     UserAttrCache(Client& aClient);

@@ -194,15 +194,6 @@ enum
     kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_AUTOSEND_AGE seconds
 };
 
-struct SetOfIds: public std::set<karere::Id>
-{
-    template <class T>
-    SetOfIds(const T& src) { load(src); }
-    SetOfIds(){}
-    void save(Buffer& buf);
-    void load(const Buffer& buf);
-};
-
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
@@ -221,10 +212,10 @@ public:
         Message* msg;
         std::unique_ptr<MsgCommand> msgCmd;
         std::unique_ptr<Command> keyCmd;
-        SetOfIds recipients;
+        karere::SetOfIds recipients;
         uint8_t opcode() const { return mOpcode; }
         SendingItem(uint8_t aOpcode, Message* aMsg, MsgCommand* aMsgCmd,
-            Command* aKeyCmd, const SetOfIds& aRcpts, uint64_t aRowid=0)
+            Command* aKeyCmd, const karere::SetOfIds& aRcpts, uint64_t aRowid=0)
         : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), msgCmd(aMsgCmd), keyCmd(aKeyCmd),
             recipients(aRcpts){}
         ~SendingItem(){ if (msg) delete msg; }
@@ -265,7 +256,7 @@ protected:
     bool mHasMoreHistoryInDb = false;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
-    SetOfIds mUsers;
+    karere::SetOfIds mUsers;
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
     /// Before that happens, missing messages are supposed to be in the database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
@@ -360,7 +351,7 @@ protected:
     friend class Client;
 public:
     unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
-    const SetOfIds& users() const { return mUsers; }
+    const karere::SetOfIds& users() const { return mUsers; }
     ~Chat();
     karere::Id chatId() const { return mChatId; }
     Client& client() const { return mClient; }

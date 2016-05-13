@@ -119,28 +119,20 @@ promise::Promise<void> MegaCryptoFuncs::preloadCryptoForJid(const std::string& b
         KR_LOG_DEBUG("Public RSA key already in memory for user %s", bareJid.c_str());
         return promise::_Void();
     }
-    return mClient.api->call(&MegaApi::getUserData, base64urlencode(&userid, sizeof(userid)).c_str())
-    .then([this, userid](ReqResult result) -> promise::Promise<void>
+    return mClient.userAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY)
+    .then([this, userid](Buffer* binkey) -> promise::Promise<void>
     {
-        size_t keylen = strlen(result->getPassword());
-        if (keylen < 1)
+        if (!binkey || binkey->empty())
             return promise::Error("Public key returned by API is empty", -1, ERRTYPE_MEGASDK);
 
-        char binkey[1024];
-        int binlen = base64urldecode(result->getPassword(), keylen, binkey, 1024);
-        if (!loadKey(userid, binkey, binlen))
-            return promise::Error("Error parsing public key", -1, ERRTYPE_MEGASDK);
+        if (!loadKey(userid, binkey->buf(), binkey->dataSize()))
+            return promise::Error("Error parsing public key", ::mega::API_EKEY, ERRTYPE_MEGASDK);
 
-        sqliteQuery(mClient.db, "insert or replace into userattrs(userid, type, data) values(?,?,?)",
-            userid, karere::USER_ATTR_RSA_PUBKEY, StaticBuffer(binkey, binlen));
         return promise::_Void();
     })
     .fail([this, userid](const promise::Error& err)
     {
         KR_LOG_ERROR("Error fetching RSA pubkey for user %s: %s", base64urlencode(&userid, sizeof(userid)).c_str(), err.what());
-        sqliteQuery(mClient.db, "insert or replace into userattrs(userid, type, err) values(?,?,1)",
-                    userid, karere::USER_ATTR_RSA_PUBKEY);
-        return err;
     });
 }
 
