@@ -15,11 +15,16 @@ class StaticBuffer
 protected:
     char* mBuf;
     size_t mDataSize;
+    StaticBuffer(){} //used by Buffer to skip initialization
 public:
+    static const size_t kNotFound = {(size_t)-1};
     StaticBuffer(const char* data, size_t datasize)
         :mBuf((char*)data), mDataSize(datasize) {}
-    //include the terminating NULL
-    StaticBuffer(const std::string& str): StaticBuffer(str.c_str(), str.size()+1){}
+
+    //optionally include the terminating NULL
+    template <bool termNull>
+    StaticBuffer(const std::string& str)
+      : StaticBuffer(str.c_str(), termNull?(str.size()+1):str.size()){}
 
     void assign(const char* data, size_t datasize)
     {
@@ -39,7 +44,16 @@ public:
     T* typedBuf() const { return reinterpret_cast<T*>(mBuf); }
 
     size_t dataSize() const { return mDataSize; }
-    char* read(size_t offset, size_t len) const
+    size_t size() const { return mDataSize; } //alias to dataSize()
+    void checkDataSize(size_t size) const
+    {
+        if (mDataSize < size)
+            throw BufferRangeError(
+                "StaticBuffer::ensureDataSize: Data size "
+                +std::to_string(mDataSize) + " is less then the minimum expected "
+                +std::to_string(size));
+    }
+    char* readPtr(size_t offset, size_t len) const
     {
         if (offset+len > mDataSize)
             throw BufferRangeError("Buffer::read: tried to read "+
@@ -49,13 +63,20 @@ public:
     template <class T>
     T& read(size_t offset) const
     {
-        return *((T*)(read(offset, sizeof(T))));
+        return *((T*)(readPtr(offset, sizeof(T))));
     }
     bool dataEquals(const void* data, size_t datalen) const
     {
         if (datalen != mDataSize)
             return false;
         return (memcmp(mBuf, data, datalen) == 0);
+    }
+    size_t find(unsigned char val, size_t offset=0)
+    {
+        for (size_t i=offset; i<mDataSize; i++)
+            if (mBuf[i] == val)
+                return i;
+        return kNotFound;
     }
     std::string toString(int colCount=80) const
     {
@@ -106,18 +127,49 @@ public:
     char* buf() { return mBuf;}
     const char* buf() const { return mBuf;}
     size_t bufSize() const { return mBufSize;}
-    Buffer(size_t size=kMinBufSize): StaticBuffer((char*)malloc(size), 0), mBufSize(size)
+    Buffer(size_t size=kMinBufSize)
     {
-        if (!mBuf)
+        if (size)
         {
-            mBufSize = 0;
-            throw std::runtime_error("Out of memory allocating block of size "+ std::to_string(size));
+            mDataSize = 0;
+            mBuf = (char*)malloc(size);
+            if (!mBuf)
+            {
+                mBufSize = 0;
+                throw std::runtime_error("Out of memory allocating block of size "+ std::to_string(size));
+            }
+            mBufSize = size;
+        }
+        else
+        {
+            zero();
         }
     }
     Buffer(const char* data, size_t datalen)
-        :StaticBuffer(nullptr, 0), mBufSize(0) { if (data) assign(data, datalen); }
+    {
+        if (data && datalen)
+        {
+            mBuf = (char*)malloc(datalen);
+            mBufSize = datalen;
+            memcpy(mBuf, data, datalen);
+            mDataSize = datalen;
+        }
+        else
+        {
+            zero();
+        }
+    }
     Buffer(Buffer&& other)
         :StaticBuffer(other.mBuf, other.mDataSize), mBufSize(other.mBufSize) { other.zero(); }
+
+    template <bool withNull>
+    Buffer(const std::string& src)
+    {
+        mBufSize = withNull ? src.size()+1 : src.size();
+        mBuf = (char*)malloc(mBufSize);
+        memcpy(mBuf, src.c_str(), mBufSize);
+        mDataSize = mBufSize;
+    }
     void assign(const void* data, size_t datalen)
     {
         if (mBuf)
@@ -140,7 +192,8 @@ public:
         mDataSize = datalen;
         ::memcpy(mBuf, data, datalen);
     }
-    void assign(const std::string& src) { assign(src.c_str(), src.size()+1); }
+    template <bool withNull>
+    void assign(const std::string& src) { assign(src.c_str(), withNull?(src.size()+1):src.size()); }
     void copyFrom(const StaticBuffer& src) { assign(src.buf(), src.dataSize()); }
     void reserve(size_t size)
     {
@@ -235,6 +288,14 @@ public:
     Buffer& write(size_t offset, const T& val) { return write(offset, &val, sizeof(val)); }
     template <typename T>
     T& mapRef(size_t offset) { return *reinterpret_cast<T*>(writePtr(offset, sizeof(T))); }
+    void fill(size_t offset, uint8_t value, size_t count)
+    {
+        memset(writePtr(offset, count), value, count);
+    }
+    void appendFill(uint8_t value, size_t count)
+    {
+        memset(appendPtr(count), value, count);
+    }
     void clear() { mDataSize = 0; }
     void free()
     {
