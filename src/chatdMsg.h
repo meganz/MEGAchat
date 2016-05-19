@@ -132,7 +132,7 @@ public:
         auto op = opcode();
         return ((op == OP_NEWMSG) || (op == OP_MSGUPD) || (op == OP_MSGUPDX));
     }
-    uint8_t opcode() const { return *reinterpret_cast<uint8_t*>(read(0,1)); }
+    uint8_t opcode() const { return read<uint8_t>(0); }
     const char* opcodeName() const { return opcodeToStr(opcode()); }
     static const char* opcodeToStr(uint8_t code)
     {
@@ -143,12 +143,14 @@ public:
 class KeyCommand: public Command
 {
 public:
-    explicit KeyCommand(karere::Id chatid, uint32_t keyid)
-    : Command(OP_NEWKEY)
+    explicit KeyCommand(karere::Id chatid=karere::Id::null(), uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
+        size_t reserve=64)
+    : Command(OP_NEWKEY, reserve)
     {
         append(chatid).append(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
     KeyId keyId() const { return read<uint32_t>(9); }
+    void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
     void setKeyId(uint32_t keyid) { write(9, keyid); }
     void addKey(karere::Id userid, void* keydata, uint16_t keylen)
     {

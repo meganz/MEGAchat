@@ -656,7 +656,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_16(updated, 28);
                 READ_32(keyid, 30);
                 READ_32(msglen, 34);
-                const char* msgdata = buf.read(pos, msglen);
+                const char* msgdata = buf.readPtr(pos, msglen);
                 pos += msglen;
                 CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %x",
                     ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
@@ -767,7 +767,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_32(totalLen, 8);
-                const char* keys = buf.read(pos, totalLen);
+                const char* keys = buf.readPtr(pos, totalLen);
                 CHATD_LOG_DEBUG("%s: recv NEWKEY", ID_CSTR(chatid));
                 mClient.chats(chatid).onNewKeys(StaticBuffer(keys, totalLen));
                 break;
@@ -800,7 +800,7 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
         uint32_t keyid = keybuf.read<uint32_t>(pos+8);
         keylen = keybuf.read<uint16_t>(pos+12);
         CHATID_LOG_DEBUG(" sending key %x, len %hu to crypto module", keyid, keylen);
-        CALL_CRYPTO(onNewKey, keyid, userid, keylen, keybuf.read(pos+14, keylen));
+        CALL_CRYPTO(onNewKey, keyid, userid, keylen, keybuf.readPtr(pos+14, keylen));
     }
 }
 
@@ -1413,14 +1413,21 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     //update keyxids to keyids, because if client disconnects the keyxids will become invalid
     for (auto it = ++mSending.begin(); it!=mSending.end(); it++)
     {
+        if (it->keyCmd)
+        {
+            hasAnotherKey = true;
+            break;
+        }
         if (it->msg->keyid == CHATD_KEYID_UNCONFIRMED)
         {
             it->msg->keyid = keyid;
-            assert(!it->keyCmd);
             CALL_DB(updateMsgKeyIdInSending, it->rowid, keyid);
         }
     }
-    CALL_CRYPTO(onKeyId, keyxid, keyid);
+    if (!hasAnotherKey)
+    {
+        CALL_CRYPTO(onKeyId, keyxid, keyid);
+    }
 }
 
 void Chat::rejectMsgupd(uint8_t opcode, Id id)
