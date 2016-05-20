@@ -31,14 +31,16 @@ public:
         mBuf = (char*)data;
         mDataSize = datasize;
     }
-    void clear()
+    void clear() { mDataSize = 0; }
+    void setDataSize(size_t newsize)
     {
-        mBuf = nullptr;
-        mDataSize = 0;
+        if (newsize > mDataSize)
+            throw std::runtime_error("Can't increase data size of static buffer - no info about buffer capacity");
+        mDataSize = newsize;
     }
     bool empty() const { return !(mBuf && mDataSize); }
     operator bool() const { return mBuf && mDataSize;    }
-    const char* buf() const { return mBuf;}
+    const char* buf() const { return mBuf; }
     const unsigned char* ubuf() const { return reinterpret_cast<unsigned char*>(mBuf); }
     template<typename T>
     T* typedBuf() const { return reinterpret_cast<T*>(mBuf); }

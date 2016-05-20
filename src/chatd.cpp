@@ -1411,6 +1411,7 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     mSending.front().keyCmd = nullptr;
     CALL_DB(confirmKeyOfSendingItem, mSending.front().rowid, keyid);
     //update keyxids to keyids, because if client disconnects the keyxids will become invalid
+    bool hasAnotherKey = false;
     for (auto it = ++mSending.begin(); it!=mSending.end(); it++)
     {
         if (it->keyCmd)
