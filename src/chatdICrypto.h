@@ -1,6 +1,8 @@
 #ifndef ICRYPTO_H
 #define ICRYPTO_H
 #include <timers.h>
+#include <promise.h>
+#include <chatd.h>
 
 namespace chatd
 {
@@ -54,16 +56,16 @@ public:
  * the pubkey is obtained from the API, thus allowing the usage of a real keyid for
  * that message instead of the 0xffffffff keyid.
  */
-    virtual promise::Promise<std::pair<MsgCommand*, Command*> >
-    msgEncrypt(Message& msg, MsgCommand* cmd)
+    virtual promise::Promise<std::pair<MsgCommand*, KeyCommand*> >
+    msgEncrypt(Message* msg, MsgCommand* cmd)
     {
-        promise::Promise<std::pair<MsgCommand*, Command*>> pms;
-        ::mega::setTimeout([pms, &msg, cmd]() mutable
+        promise::Promise<std::pair<MsgCommand*, KeyCommand*>> pms;
+        ::mega::setTimeout([pms, msg, cmd]() mutable
         {
-            cmd->setMsg(msg.buf(), msg.dataSize());
+            cmd->setMsg(msg->buf(), msg->dataSize());
             cmd->setKeyId(1);
-            msg.keyid = 1;
-            pms.resolve(std::make_pair(cmd, (Command*)nullptr));
+            msg->keyid = 1;
+            pms.resolve(std::make_pair(cmd, (KeyCommand*)nullptr));
         }, 2000);
         return pms;
     }

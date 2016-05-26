@@ -55,7 +55,8 @@ public:
     enum Type: unsigned char
     {
         kNormalMsg = 0,
-        kUserMsg = 16
+        kUserMsg = 16,
+        kUserMsgAlterParticipants = 16
     };
     enum Status
     {
@@ -208,6 +209,18 @@ static inline std::string& operator+(std::string&& str, karere::Id id)
     return str;
 }
 
+enum ChatState
+{kChatStateOffline = 0, kChatStateConnecting, kChatStateJoining, kChatStateOnline};
+static inline const char* chatStateToStr(unsigned state)
+{
+    static const char* chatStates[] =
+    { "Offline", "Connecting", "Joining", "Online"};
+
+    if (state > chatd::kChatStateOnline)
+        return "(unkown state)";
+    else
+        return chatStates[state];
+}
 
 }
 
