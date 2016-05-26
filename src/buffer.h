@@ -22,8 +22,7 @@ public:
         :mBuf((char*)data), mDataSize(datasize) {}
 
     //optionally include the terminating NULL
-    template <bool termNull>
-    StaticBuffer(const std::string& str)
+    StaticBuffer(const std::string& str, bool termNull)
       : StaticBuffer(str.c_str(), termNull?(str.size()+1):str.size()){}
 
     void assign(const char* data, size_t datasize)
@@ -40,8 +39,8 @@ public:
     }
     bool empty() const { return !(mBuf && mDataSize); }
     operator bool() const { return mBuf && mDataSize;    }
-    const char* buf() const { return mBuf; }
-    const unsigned char* ubuf() const { return reinterpret_cast<unsigned char*>(mBuf); }
+    char* buf() const { return mBuf; }
+    unsigned char* ubuf() const { return reinterpret_cast<unsigned char*>(mBuf); }
     template<typename T>
     T* typedBuf() const { return reinterpret_cast<T*>(mBuf); }
 

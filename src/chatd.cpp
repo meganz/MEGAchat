@@ -939,7 +939,7 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
          msg->id(), msg->ts, msg->updated, msg->keyid);
 
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
-    auto pms = mCrypto->msgEncrypt(*msg, msgCmd);
+    auto pms = mCrypto->msgEncrypt(msg, msgCmd);
     if (pms.done() == pms.PROMISE_RESOLV_SUCCESS)
     {
         auto result = pms.value();
@@ -1023,7 +1023,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         if (cmd) //it's already encrypted, re-encrypt
         {
             cmd->clearMsg();
-            auto pms = mCrypto->msgEncrypt(msg, cmd);
+            auto pms = mCrypto->msgEncrypt(&msg, cmd);
             if (pms.done() != pms.PROMISE_RESOLV_SUCCESS)
             {
                 //delete the blobs of the old message, before raising the error

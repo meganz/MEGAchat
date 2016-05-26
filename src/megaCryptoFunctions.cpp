@@ -7,6 +7,8 @@
 #include "base64.h"
 #include <chatClient.h>
 #include <db.h>
+#include <userAttrCache.h>
+
 using namespace mega;
 using namespace std;
 using namespace karere;
@@ -87,11 +89,17 @@ std::string MegaCryptoFuncs::encryptMessageForJid(const std::string& msg, const 
         throw std::runtime_error("encryptMessageForJid: Empty JID provided");
     if (msg.size() != kFprMacKeyLen)
         throw std::runtime_error("encryptMessageForJid: Message must be exactly 43 bytes long");
-    auto it = mKeysLoaded.find(Client::useridFromJid(bareJid));
-    if (it == mKeysLoaded.end())
+    auto userid = Client::useridFromJid(bareJid);
+    auto pms = mClient.userAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY);
+    if (pms.done() != pms.PROMISE_RESOLV_SUCCESS)
         throw std::runtime_error("encryptMessageForJid: No key loaded for jid "+bareJid);
+    ::mega::AsymmCipher key;
+    int ret = key.setkey(::mega::AsymmCipher::PUBKEY, pms.value()->ubuf(), pms.value()->dataSize());
+    if (!ret)
+        throw std::runtime_error("encryptMessageForJid: Can't parse key for jid "+bareJid);
+
     byte buf[1024]; //8196 max RSA key len
-    int binlen = it->second.encrypt((byte*)msg.c_str(), msg.size(), buf, 1024);
+    int binlen = key.encrypt((byte*)msg.c_str(), msg.size(), buf, 1024);
     if (!binlen)
         throw std::runtime_error("encryptMessageForJid: encrypt() returned 0");
     return base64urlencode(buf, binlen);
@@ -114,19 +122,11 @@ promise::Promise<void> MegaCryptoFuncs::preloadCryptoForJid(const std::string& b
     auto userid = Client::useridFromJid(bareJid);
     if (userid == ::mega::UNDEF)
         return promise::Error("preloadCryptoForJid: Invalid Mega jid "+bareJid);
-    if (mKeysLoaded.find(userid) != mKeysLoaded.end())
-    {
-        KR_LOG_DEBUG("Public RSA key already in memory for user %s", bareJid.c_str());
-        return promise::_Void();
-    }
     return mClient.userAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY)
     .then([this, userid](Buffer* binkey) -> promise::Promise<void>
     {
         if (!binkey || binkey->empty())
             return promise::Error("Public key returned by API is empty", -1, ERRTYPE_MEGASDK);
-
-        if (!loadKey(userid, binkey->buf(), binkey->dataSize()))
-            return promise::Error("Error parsing public key", ::mega::API_EKEY, ERRTYPE_MEGASDK);
 
         return promise::_Void();
     })

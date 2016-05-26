@@ -49,9 +49,6 @@ public:
     bool isValid() const { return !host.empty(); }
 };
 
-enum ChatState
-{kChatStateOffline = 0, kChatStateConnecting, kChatStateJoining, kChatStateOnline};
-static inline const char* chatStateToStr(unsigned state);
 
 class DbInterface;
 class Listener
@@ -516,17 +513,6 @@ public:
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
     virtual ~DbInterface(){}
 };
-
-static inline const char* chatStateToStr(unsigned state)
-{
-    static const char* chatStates[] =
-    { "Offline", "Connecting", "Joining", "Online"};
-
-    if (state > chatd::kChatStateOnline)
-        return "(unkown state)";
-    else
-        return chatStates[state];
-}
 
 }
 
