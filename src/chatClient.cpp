@@ -32,7 +32,8 @@
 #include <asyncTools.h>
 #include <codecvt> //for nonWhitespaceStr()
 #include <locale>
-#include <chatdICrypto.h>
+//#include <chatdICrypto.h>
+#include "../third-party/strongvelope_cpp/src/strongvelope.h"
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
@@ -243,7 +244,20 @@ promise::Promise<void> Client::init()
     .then([this](ReqResult result)
     {
         api->userData = result;
+        return userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY);
+    })
+    .then([this](const Buffer* key) -> Promise<Buffer*>
+    {
+        if (!key || (key->dataSize() != 32))
+            return promise::Error("Our pubCu25519 key is not 32 bytes long", EINVAL, 0x3e9a0000);
+        memcpy(mMyPubCu25519, key->buf(), key->dataSize());
+        return userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY);
+    })
+    .then([this](const Buffer* key)
+    {
+
     });
+
     auto pmsMegaFetch = pmsMegaLogin.then([this](ReqResult result)
     {
         if (mLoginDlg)
@@ -262,7 +276,6 @@ promise::Promise<void> Client::init()
         gui.show();
         userAttrCache.onLogin();
         api->addGlobalListener(this);
-
         userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
         [](Buffer* buf, void* userp)
         {
@@ -603,19 +616,17 @@ promise::Promise<void> Client::setPresence(Presence pres, bool force)
     });
 }
 
-UserAttrDesc gUserAttrDescs[mega::MegaApi::USER_ATTR_LAST_INTERACTION+1] =
+UserAttrDesc gUserAttrDescs[4] =
 { //getData func | changeMask
   //0 - avatar
    { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getFile(), strlen(req.getFile())); }, mega::MegaUser::CHANGE_TYPE_AVATAR},
-  //firstname and lastname are handled specially, so we don't use a descriptor for it
   //1 - first name
    { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_FIRSTNAME},
-  //2 = last name
-   { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_LASTNAME},
-  //keyring
-   { [](const mega::MegaRequest& req)->Buffer* { throw std::runtime_error("not implemented"); }, mega::MegaUser::CHANGE_TYPE_AUTH},
-  //last interaction
-   { [](const mega::MegaRequest& req)->Buffer* { throw std::runtime_error("not implemented"); }, mega::MegaUser::CHANGE_TYPE_LSTINT}
+  //lastname is handled specially, so we don't use a descriptor for it
+  //2 - cu25519 encryption key
+  { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getPassword(), strlen(req.getPassword())); }, mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255},
+  //3 - ed25519 signing key
+  { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getPassword(), strlen(req.getPassword())); }, mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255}
 };
 
 UserAttrCache::~UserAttrCache()
@@ -686,7 +697,7 @@ const char* nonWhitespaceStr(const char* str)
 void UserAttrCache::onUserAttrChange(mega::MegaUser& user)
 {
     int changed = user.getChanges();
-    for (auto t = 0; t <= mega::MegaApi::USER_ATTR_LAST_INTERACTION; t++)
+    for (auto t = 0; t < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); t++)
     {
         if ((changed & gUserAttrDescs[t].changeMask) == 0)
             continue;
@@ -966,9 +977,20 @@ ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
 :parent(aParent), mChatid(chatid), mUrl(aUrl), mShardNo(aShard), mIsGroup(aIsGroup), mOwnPriv(aOwnPriv)
 {}
 
+strongvelope::ProtocolHandler* Client::newStrongvelope()
+{
+    char privRsa[512];
+    const char* b64privk = api->userData->getPrivateKey();
+    auto privRsaLen = base64urldecode(b64privk, strlen(b64privk), privRsa, 512);
+
+    return new strongvelope::ProtocolHandler(mMyHandle,
+        StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPubCu25519, 32),
+        StaticBuffer(mMyPrivEd25519, 32),
+        StaticBuffer(privRsa, privRsaLen), userAttrCache);
+}
 void ChatRoom::join()
 {
-    parent.client.chatd->join(mChatid, mShardNo, mUrl, this, new chatd::ICrypto);
+    parent.client.chatd->join(mChatid, mShardNo, mUrl, this, parent.client.newStrongvelope());
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl, unsigned char aShard,

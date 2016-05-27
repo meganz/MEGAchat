@@ -41,9 +41,11 @@ endmacro()
 findlib(SQLITE sqlite3 sqlite3.h sqlite3)
 findlib(CRYPTOPP libcrypto++ "cryptopp/cryptlib.h" cryptopp)
 findlib(CARES libcares ares.h cares)
+findlib(SODIUM libsodium sodium.h sodium)
+
 find_package(CURL REQUIRED)
 
-list(APPEND _LIBMEGA_LIBRARIES ${CURL_LIBRARIES} ${CARES_LIBRARIES} ${CRYPTOPP_LIBRARIES}
+list(APPEND _LIBMEGA_LIBRARIES ${CURL_LIBRARIES} ${CARES_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${SODIUM_LIBRARIES}
     ${SQLITE_LIBRARIES})
 
 if (NOT WIN32)
@@ -67,7 +69,8 @@ endif()
 set(LIBMEGA_INCLUDE_DIRS 
     "${LIBMEGA_PUBLIC_INCLUDE_DIR}"
     "${LIBMEGA_PUBLIC_INCLUDE_DIR}/mega/${platdir}"
-    "${CURL_INCLUDE_DIRS}" "${CARES_INCLUDE_DIRS}" "${CRYPTOPP_INCLUDE_DIRS}" "${SQLITE_INCLUDE_DIRS}"
+    "${CURL_INCLUDE_DIRS}" "${CARES_INCLUDE_DIRS}" "${CRYPTOPP_INCLUDE_DIRS}"
+    "${SODIUM_INCLUDE_DIRS}" "${SQLITE_INCLUDE_DIRS}"
     CACHE STRING "" FORCE
 )
 
