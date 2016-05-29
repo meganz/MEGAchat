@@ -175,105 +175,105 @@ Client::~Client()
     struct TOKENPASTE(SharedState,__LINE__){membtype value;};  \
     std::shared_ptr<TOKENPASTE(SharedState, __LINE__)> varname(new TOKENPASTE(SharedState,__LINE__))
 
+promise::Promise<void> Client::loginNewSession()
+{
+    mLoginDlg.reset(gui.createLoginDialog());
+    return asyncLoop([this](Loop& loop)
+    {
+        return mLoginDlg->requestCredentials()
+        .then([this](const std::pair<std::string, std::string>& cred)
+        {
+            mLoginDlg->setState(IGui::ILoginDialog::kLoggingIn);
+            return api->call(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
+        })
+        .then([&loop](ReqResult res)
+        {
+            loop.breakLoop();
+            return 0;
+        })
+        .fail([this](const promise::Error& err) -> Promise<int>
+        {
+            if (err.code() != mega::API_ENOENT && err.code() != mega::API_EARGS)
+                return err;
+
+            mLoginDlg->setState(IGui::ILoginDialog::kBadCredentials);
+            return 0;
+        });
+    }, [](int) { return true; })
+    .then([this](int)
+    {
+        mLoginDlg->setState(IGui::ILoginDialog::kFetchingNodes);
+        return api->call(&mega::MegaApi::fetchNodes);
+    })
+    .then([this](ReqResult)
+    {
+        loadOwnUserHandle();
+        sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
+        const char* sid = api->dumpSession();
+        assert(sid);
+        mSid = sid;
+        sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
+        return loadOwnKeysFromApi();
+    })
+    .then([this]()
+    {
+        // new session created - first time login
+        mLoginDlg.reset();
+        gui.show();
+
+        chatd.reset(new chatd::Client(mMyHandle));
+        contactList.reset(new ContactList(*this));
+        chats.reset(new ChatRoomList(*this));
+    })
+    .fail([this](const promise::Error& err)
+    {
+        mLoginDlg.reset();
+        return err;
+    });
+}
+promise::Promise<void> Client::loginExistingSession()
+{
+    gui.show();
+    return api->call(&mega::MegaApi::fastLogin, mSid.c_str())
+    .then([this](ReqResult)
+    {
+        return api->call(&mega::MegaApi::fetchNodes);
+    })
+    .then([this](ReqResult) ->Promise<void>
+    {
+        auto handle = mMyHandle;
+        loadOwnUserHandle();
+        if (handle != mMyHandle)
+            return promise::Error("BUG: Own user handle returned from SDK is not the same as the one saved in the db");
+        return promise::_Void();
+    })
+    .fail([this](const promise::Error& err) ->Promise<void>
+    {
+        if (err.type() != ERRTYPE_MEGASDK)
+            return err;
+        KR_LOG_ERROR("Network login failed, working offline");
+        return promise::_Void();
+    })
+    .then([this]()
+    {
+        return loadOwnKeysFromDb(); //may fall back to load from API
+    })
+    .then([this]()
+    {
+        chats->loadFromDb();
+    });
+}
 promise::Promise<void> Client::init()
 {
-    ApiPromise pmsMegaLogin((promise::Empty()));
-    if (mSid.empty()) //mMyHandle is also invalid
-    {
-        mLoginDlg.reset(gui.createLoginDialog());
-        pmsMegaLogin = asyncLoop(
-        [this](Loop& loop){
-            return mLoginDlg->requestCredentials()
-            .then([this](const std::pair<std::string, std::string>& cred)
-            {
-                return api->call(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
-            })
-            .then([&loop](ReqResult res)
-            {
-                loop.breakLoop();
-                return res;
-            })
-            .fail([this](const promise::Error& err) -> ApiPromise
-            {
-                if (err.code() != mega::API_ENOENT && err.code() != mega::API_EARGS)
-                    return err;
+    promise::Promise<void> pmsMegaLogin = (mSid.empty()) //mMyHandle is also invalid
+     ? loginNewSession()
+     : loginExistingSession();
 
-                mLoginDlg->setState(IGui::ILoginDialog::kBadCredentials);
-                return ApiPromise(ReqResult());
-            });
-        }, [](int) { return true; });
-    }
-    else
-    {
-        gui.show();
-        pmsMegaLogin = api->call(&mega::MegaApi::fastLogin, mSid.c_str());
-    }
-    pmsMegaLogin.then([this](ReqResult result) mutable
+    pmsMegaLogin.then([this]() mutable
     {
         mIsLoggedIn = true;
         KR_LOG_DEBUG("Login to Mega API successful");
-        if (mLoginDlg)
-            mLoginDlg->setState(IGui::ILoginDialog::kLoggingIn);
-        SdkString uh = api->getMyUserHandle();
-        if (!uh.c_str() || !uh.c_str()[0])
-            throw std::runtime_error("Could not get our own user handle from API");
-        Id handle(uh.c_str());
-        if (mLoginDlg)
-        {
-            assert(mMyHandle.val == mega::UNDEF || mMyHandle.val == 0);
-            KR_LOG_DEBUG("Obtained our own handle (%s), recording to database", handle.toString().c_str());
-            mMyHandle = handle;
-            sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
-            chatd.reset(new chatd::Client(mMyHandle));
-            contactList.reset(new ContactList(*this));
-            chats.reset(new ChatRoomList(*this));
-        }
-        else
-        {
-            assert(mMyHandle);
-            if (handle != mMyHandle)
-                throw std::runtime_error("Local DB inconsistency: Own userhandle returned from API differs from the one in local db");
-        }
-//        if (onChatdReady)
-//            onChatdReady();
-    });
-    auto pmsMegaGud = pmsMegaLogin.then([this](ReqResult result)
-    {
-        return api->call(&mega::MegaApi::getUserData);
-    })
-    .then([this](ReqResult result)
-    {
-        api->userData = result;
-        return userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY);
-    })
-    .then([this](const Buffer* key) -> Promise<Buffer*>
-    {
-        if (!key || (key->dataSize() != 32))
-            return promise::Error("Our pubCu25519 key is not 32 bytes long", EINVAL, 0x3e9a0000);
-        memcpy(mMyPubCu25519, key->buf(), key->dataSize());
-        return userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY);
-    })
-    .then([this](const Buffer* key)
-    {
 
-    });
-
-    auto pmsMegaFetch = pmsMegaLogin.then([this](ReqResult result)
-    {
-        if (mLoginDlg)
-        {
-            const char* sid = api->dumpSession();
-            assert(sid);
-            mSid = sid;
-            sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
-            mLoginDlg->setState(IGui::ILoginDialog::kFetchingNodes);
-        }
-        return api->call(&mega::MegaApi::fetchNodes);
-    })
-    .then([this](ReqResult result)
-    {
-        mLoginDlg.reset();
-        gui.show();
         userAttrCache.onLogin();
         api->addGlobalListener(this);
         userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
@@ -316,19 +316,105 @@ promise::Promise<void> Client::init()
     {
         return server;
     });
-    auto pmsXmpp = promise::when(pmsMegaLogin, pmsGelb)
-    .then([this, pmsGelb, pmsMegaGud]()
+    return promise::when(pmsMegaLogin, pmsGelb)
+    .then([this, pmsGelb]()
     {
         return connectXmpp(pmsGelb.value());
     });
-    return promise::when(pmsMegaGud, pmsMegaFetch, pmsXmpp)
-    .fail([this](const promise::Error& err)
+}
+
+void Client::loadOwnUserHandle()
+{
+    SdkString uh = api->getMyUserHandle();
+    if (!uh.c_str() || !uh.c_str()[0])
+        throw std::runtime_error("Could not get our own user handle from API");
+    Id handle(uh.c_str());
+    KR_LOG_DEBUG("Obtained our own handle (%s), recording to database", handle.toString().c_str());
+    mMyHandle = handle;
+}
+
+promise::Promise<void> Client::loadOwnKeysFromApi()
+{
+    return api->call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
+    .then([this](ReqResult result) -> ApiPromise
     {
-        if (mLoginDlg)
-            mLoginDlg.reset();
-        return err;
+        auto keys = result->getMegaStringMap();
+        auto k = keys->getKeys();
+        for (auto i=0; i<keys->size(); i++)
+            printf("key %s\n", k->get(i));
+        auto cu25519 = keys->get("prCu255");
+        if (!cu25519)
+            return promise::Error("prCu255 private key missing in keyring from API");
+        auto ed25519 = keys->get("prEd255");
+        if (!ed25519)
+            return promise::Error("prEd255 private key missing in keyring from API");
+
+        auto b64len = strlen(cu25519);
+        if (b64len != 43)
+            return promise::Error("prCu255 base64 key length is not 43 bytes");
+        base64urldecode(cu25519, b64len, mMyPrivCu25519, sizeof(mMyPrivCu25519));
+
+        b64len = strlen(ed25519);
+        if (b64len != 43)
+            return promise::Error("prEd255 base64 key length is not 43 bytes");
+        base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
+        return api->call(&mega::MegaApi::getUserData);
+    })
+    .then([this](ReqResult result) -> promise::Promise<void>
+    {
+        auto pubrsa = result->getPassword();
+        if (!pubrsa)
+            return promise::Error("No public RSA key in getUserData API response");
+        mMyPubRsaLen = base64urldecode(pubrsa, strlen(pubrsa), mMyPubRsa, sizeof(mMyPubRsa));
+        auto privrsa = result->getPrivateKey();
+        if (!privrsa)
+            return promise::Error("No private RSA key in getUserData API response");
+        mMyPrivRsaLen = base64urldecode(privrsa, strlen(privrsa), mMyPrivRsa, sizeof(mMyPrivRsa));
+        // write to db
+        sqliteQuery(db, "insert into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
+        sqliteQuery(db, "insert into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
+        sqliteQuery(db, "insert into vars(name, value) values('pub_rsa', ?)", StaticBuffer(mMyPubRsa, mMyPubRsaLen));
+        sqliteQuery(db, "insert into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
+        return promise::_Void();
     });
 }
+promise::Promise<void> Client::loadOwnKeysFromDb()
+{
+    try
+    {
+        SqliteStmt stmt(db, "select value from vars where name=?");
+
+        stmt << "pr_rsa";
+        stmt.stepMustHaveData();
+        mMyPrivRsaLen = stmt.blobCol(0, mMyPrivRsa, sizeof(mMyPrivRsa));
+        stmt.reset().clearBind();
+        stmt << "pub_rsa";
+        stmt.stepMustHaveData();
+        mMyPubRsaLen = stmt.blobCol(0, mMyPubRsa, sizeof(mMyPubRsa));
+
+        stmt.reset().clearBind();
+        stmt << "pr_cu25519";
+        stmt.stepMustHaveData();
+        auto len = stmt.blobCol(0, mMyPrivCu25519, sizeof(mMyPrivCu25519));
+        if (len != sizeof(mMyPrivCu25519))
+            throw std::runtime_error("Unexpected length of privCu25519 in database");
+        stmt.reset().clearBind();
+        stmt << "pr_ed25519";
+        stmt.stepMustHaveData();
+        len = stmt.blobCol(0, mMyPrivEd25519, sizeof(mMyPrivEd25519));
+        if (len != sizeof(mMyPrivEd25519))
+            throw std::runtime_error("Unexpected length of privEd2519 in database");
+        return promise::_Void();
+    }
+    catch(std::exception& e)
+    {
+        KR_LOG_ERROR("Error while loading own keys/data from database: %s", e.what());
+        KR_LOG_ERROR("Clearing own data from db and reloading from API");
+        sqliteQuery(db, "delete from vars where name in ('pub_rsa', 'pr_rsa', 'pr_cu25519', 'pub_ed25519')");
+        return loadOwnKeysFromApi();
+    }
+}
+
 
 promise::Promise<void> Client::connectXmpp(const std::shared_ptr<HostPortServerInfo>& server)
 {
@@ -616,17 +702,24 @@ promise::Promise<void> Client::setPresence(Presence pres, bool force)
     });
 }
 
-UserAttrDesc gUserAttrDescs[4] =
+UserAttrDesc gUserAttrDescs[8] =
 { //getData func | changeMask
   //0 - avatar
    { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getFile(), strlen(req.getFile())); }, mega::MegaUser::CHANGE_TYPE_AVATAR},
   //1 - first name
    { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_FIRSTNAME},
-  //lastname is handled specially, so we don't use a descriptor for it
-  //2 - cu25519 encryption key
-  { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getPassword(), strlen(req.getPassword())); }, mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255},
-  //3 - ed25519 signing key
-  { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getPassword(), strlen(req.getPassword())); }, mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255}
+  //2 - lastname is handled specially, so we don't use a descriptor for it
+   { [](const mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, mega::MegaUser::CHANGE_TYPE_LASTNAME},
+  //3 - authring
+  { [](const mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, mega::MegaUser::CHANGE_TYPE_AUTHRING},
+  //4 - last interaction
+  { [](const mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, mega::MegaUser::CHANGE_TYPE_LSTINT},
+  //5 - ed25519 signing key
+  { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255},
+  //6 - cu25519 encryption key
+  { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255},
+  //7 - keyring
+  { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_KEYRING}
 };
 
 UserAttrCache::~UserAttrCache()
@@ -979,14 +1072,9 @@ ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
 
 strongvelope::ProtocolHandler* Client::newStrongvelope()
 {
-    char privRsa[512];
-    const char* b64privk = api->userData->getPrivateKey();
-    auto privRsaLen = base64urldecode(b64privk, strlen(b64privk), privRsa, 512);
-
     return new strongvelope::ProtocolHandler(mMyHandle,
-        StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPubCu25519, 32),
-        StaticBuffer(mMyPrivEd25519, 32),
-        StaticBuffer(privRsa, privRsaLen), userAttrCache);
+        StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
+        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), userAttrCache);
 }
 void ChatRoom::join()
 {
@@ -1125,7 +1213,7 @@ void GroupChatRoom::deleteSelf()
 ChatRoomList::ChatRoomList(Client& aClient)
 :client(aClient)
 {
-    loadFromDb();
+//    loadFromDb();
 }
 
 void ChatRoomList::loadFromDb()

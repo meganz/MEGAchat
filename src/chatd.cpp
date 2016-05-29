@@ -1778,10 +1778,10 @@ void Client::leave(Id chatid)
 
 const char* Command::opcodeNames[] =
 {
- "KEEPALIVE","JOIN", "OLDMSG", "NEWMSG", "MSGUPD","SEEN",
+ "KEEPALIVE","JOIN", "OLDMSG", "NEWMSG", "MSGUPD", "SEEN",
  "RECEIVED","RETENTION","HIST", "RANGE","NEWMSGID","REJECT",
  "BROADCAST", "HISTDONE", "(invalid)", "(invalid)", "(invalid)",
- "NEWKEY", "KEYID", "JOINRANGEHIST", "MGSUPDX", "MSGID"
+ "NEWKEY", "KEYID", "JOINRANGEHIST", "MSGUPDX", "MSGID"
 };
 const char* Message::statusNames[] =
 {

@@ -243,7 +243,6 @@ public:
 class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
 {
 protected:
-    void loadFromDb();
 public:
     Client& client;
     void syncRoomsWithApi(const mega::MegaTextChatList& rooms);
@@ -251,6 +250,7 @@ public:
     bool removeRoom(const uint64_t& chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
+    void loadFromDb();
     void onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& chats);
 };
 
@@ -342,6 +342,13 @@ public:
     IGui& gui;
     std::unique_ptr<ContactList> contactList;
     std::unique_ptr<ChatRoomList> chats;
+    char mMyPrivCu25519[32] = {0};
+    char mMyPrivEd25519[32] = {0};
+    char mMyPrivRsa[1024] = {0};
+    unsigned short mMyPrivRsaLen = 0;
+    char mMyPubRsa[512] = {0};
+    unsigned short mMyPubRsaLen = 0;
+
     bool isLoggedIn() const { return mIsLoggedIn; }
     const Id myHandle() const { return mMyHandle; }
     const std::string& myName() const { return mMyName; }
@@ -400,10 +407,6 @@ protected:
     Id mMyHandle = mega::UNDEF;
     std::string mSid;
     std::string mMyName;
-    char mMyPrivCu25519[32] = {0};
-    char mMyPubCu25519[32] = {0};
-    char mMyPrivEd25519[32] = {0};
-    char mMyPrivRsa[256] = {0};
 
     Presence mOwnPresence;
     std::unique_ptr<IGui::ILoginDialog> mLoginDlg;
@@ -419,6 +422,11 @@ protected:
     std::unique_ptr<mega::rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
     sqlite3* openDb();
+    promise::Promise<void> loginNewSession();
+    promise::Promise<void> loginExistingSession();
+    void loadOwnUserHandle();
+    promise::Promise<void> loadOwnKeysFromApi();
+    promise::Promise<void> loadOwnKeysFromDb();
     void setupXmppReconnectHandler();
     promise::Promise<void> connectXmpp(const std::shared_ptr<HostPortServerInfo>& server);
     void setupXmppHandlers();

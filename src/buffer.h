@@ -206,8 +206,10 @@ public:
         }
         else
         {
+            size_t newsize = mDataSize+size;
+            if (newsize <= mBufSize)
+                return;
             char* save = mBuf;
-            size_t newsize = mBufSize+size;
             mBuf = (char*)::realloc(mBuf, newsize);
             if (!mBuf)
             {

@@ -194,6 +194,10 @@ public:
         write(35, msglen);
         memcpy(writePtr(39, msglen), msg, msglen);
     }
+    void updateMsgSize()
+    {
+        write<uint32_t>(35, dataSize()-39);
+    }
 };
 
 //for exception message purposes

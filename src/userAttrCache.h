@@ -21,7 +21,7 @@ struct UserAttrDesc
     int changeMask;
 };
 
-extern UserAttrDesc gUserAttrDescs[4];
+extern UserAttrDesc gUserAttrDescs[8];
 
 struct UserAttrPair
 {

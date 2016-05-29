@@ -39,11 +39,11 @@ macro(findlib varprefix name header libnames)
 endmacro()
 
 findlib(SQLITE sqlite3 sqlite3.h sqlite3)
-findlib(CRYPTOPP libcrypto++ "cryptopp/cryptlib.h" cryptopp)
 findlib(CARES libcares ares.h cares)
 findlib(SODIUM libsodium sodium.h sodium)
 
 find_package(CURL REQUIRED)
+find_package(Cryptopp REQUIRED)
 
 list(APPEND _LIBMEGA_LIBRARIES ${CURL_LIBRARIES} ${CARES_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${SODIUM_LIBRARIES}
     ${SQLITE_LIBRARIES})

@@ -23,14 +23,9 @@ enum {kFprMacKeyLen = 43};
 MegaCryptoFuncs::MegaCryptoFuncs(Client& client)
 :mClient(client)
 {
-    const char* privk = mClient.api->userData->getPrivateKey();
-    size_t privkLen;
-    if (!privk || !(privkLen = strlen(privk)))
+    if (!mClient.mMyPrivRsaLen)
         throw std::runtime_error("MegaCryptoFunctions ctor: No private key available");
-    Buffer binprivk(privkLen);
-    auto binlen = base64urldecode(privk, privkLen, binprivk.buf(), binprivk.bufSize());
-    binprivk.setDataSize(binlen);
-    int ret = mPrivKey.setkey(AsymmCipher::PRIVKEY, (const byte*)binprivk.buf(), binprivk.dataSize());
+    int ret = mPrivKey.setkey(AsymmCipher::PRIVKEY, (const byte*)mClient.mMyPrivRsa, mClient.mMyPrivRsaLen);
     if (!ret)
         throw std::runtime_error("MegaCryptoFunctions ctor: Error setting private key");
     loadCache();
