@@ -14,7 +14,6 @@ set(LIBWS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../third-party/libws CACHE PATH "libws
 set(LIBWS_EXTERNAL_LOOP 1 CACHE BOOL "Use libws with external libevent loop")
 
 set (SRCS
-#    ../third-party/murmurHash/MurmurHash3.cpp
     karereCommon.cpp
     base64.cpp
     strophe.disco.cpp

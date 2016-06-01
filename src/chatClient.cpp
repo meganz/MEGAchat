@@ -33,7 +33,7 @@
 #include <codecvt> //for nonWhitespaceStr()
 #include <locale>
 //#include <chatdICrypto.h>
-#include "../third-party/strongvelope_cpp/src/strongvelope.h"
+#include "strongvelope/strongvelope.h"
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;

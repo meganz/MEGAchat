@@ -79,7 +79,7 @@ public:
                 return i;
         return kNotFound;
     }
-    std::string toString(int colCount=47) const
+    std::string toString(unsigned colCount=47) const
     {
         static const char hexChars[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                       '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
@@ -91,7 +91,7 @@ public:
         result+="size: ";
         result.append(std::to_string(mDataSize))+='\n';
         unsigned colCtr = 0;
-        for (int i=0;;)
+        for (size_t i=0;;)
         {
             unsigned char val = reinterpret_cast<unsigned char*>(mBuf)[i];
             result+=hexChars[val >> 4];
