@@ -24,7 +24,7 @@ set (SRCS
     contactList.cpp
     chatd.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
-    ../third-party/strongvelope_cpp/src/strongvelope.cpp
+    strongvelope/strongvelope.cpp
 )
 
 if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
