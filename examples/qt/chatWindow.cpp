@@ -355,7 +355,7 @@ MessageWidget& MessageWidget::setAuthor(karere::Id userid)
     if (email)
         ui.mAuthorDisplay->setText(QString::fromStdString(*email));
     else
-        ui.mAuthorDisplay->setText(tr("error"));
+        ui.mAuthorDisplay->setText(tr("?"));
 
     mChatWindow.mainWindow.client().userAttrCache.getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* data, void* userp)

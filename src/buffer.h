@@ -79,7 +79,7 @@ public:
                 return i;
         return kNotFound;
     }
-    std::string toString(int colCount=80) const
+    std::string toString(int colCount=47) const
     {
         static const char hexChars[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                       '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
@@ -87,7 +87,9 @@ public:
             return "(empty)";
         auto hexCount = mDataSize*3;
         std::string result;
-        result.reserve(hexCount+hexCount/colCount+2);
+        result.reserve(16+hexCount+hexCount/colCount+2);
+        result+="size: ";
+        result.append(std::to_string(mDataSize))+='\n';
         unsigned colCtr = 0;
         for (int i=0;;)
         {
@@ -280,14 +282,15 @@ public:
         }
         return *this;
     }
-    Buffer& write(size_t offset, const Buffer& from) { return write(offset, from.buf(), from.dataSize()); }
+    Buffer& write(size_t offset, const StaticBuffer& from) { return write(offset, from.buf(), from.dataSize()); }
     Buffer& write(size_t offset, const std::string& str) { return write(offset, str.c_str(), str.size()); }
     Buffer& append(const void* data, size_t datalen) { return write(dataSize(), data, datalen);}
-    Buffer& append(const Buffer& from) { return append(from.buf(), from.dataSize());}
-    template <class T>
+    Buffer& append(const std::string& str) { return write(dataSize(), str.c_str(), str.size()); }
+    Buffer& append(const StaticBuffer& from) { return append(from.buf(), from.dataSize());}
+    template <class T, typename=typename std::enable_if<std::is_pod<T>::value && !std::is_pointer<T>::value>::type>
     Buffer& append(const T& val) { return write(mDataSize, val);}
     Buffer& append(const char* str) { return append((void*)str, strlen(str)); }
-    template <class T>
+    template <class T, typename=typename std::enable_if<std::is_pod<T>::value && !std::is_pointer<T>::value>::type>
     Buffer& write(size_t offset, const T& val) { return write(offset, &val, sizeof(val)); }
     template <typename T>
     T& mapRef(size_t offset) { return *reinterpret_cast<T*>(writePtr(offset, sizeof(T))); }

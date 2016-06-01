@@ -100,7 +100,8 @@ public:
 /**
  * @brief A key was received from the server, and added to Chat.keys
  */
-    virtual void onNewKey(KeyId keyid, karere::Id userid, uint16_t keylen, const char* keydata){}
+    virtual void onKeyReceived(KeyId keyid, karere::Id sender, karere::Id receiver,
+        const char* keydata, uint16_t keylen) = 0;
     virtual void onKeyId(KeyId keyxid, KeyId keyid) {}
 /**
  * @brief The crypto module is destroyed when that chatid is left or the client is destroyed

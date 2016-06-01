@@ -208,11 +208,11 @@ public:
   * that (when server confirms) move it as a Message object to history buffer */
         Message* msg;
         std::unique_ptr<MsgCommand> msgCmd;
-        std::unique_ptr<Command> keyCmd;
+        std::unique_ptr<KeyCommand> keyCmd;
         karere::SetOfIds recipients;
         uint8_t opcode() const { return mOpcode; }
         SendingItem(uint8_t aOpcode, Message* aMsg, MsgCommand* aMsgCmd,
-            Command* aKeyCmd, const karere::SetOfIds& aRcpts, uint64_t aRowid=0)
+            KeyCommand* aKeyCmd, const karere::SetOfIds& aRcpts, uint64_t aRowid=0)
         : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), msgCmd(aMsgCmd), keyCmd(aKeyCmd),
             recipients(aRcpts){}
         ~SendingItem(){ if (msg) delete msg; }
@@ -335,7 +335,8 @@ protected:
     bool sendCommand(const Command& cmd);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
-    SendingItem* postItemToSending(uint8_t opcode, Message* msg, MsgCommand* msgCmd, Command* keyCmd);
+    SendingItem* postItemToSending(uint8_t opcode, Message* msg, MsgCommand* msgCmd,
+        KeyCommand* keyCmd);
     bool flushOutputQueue(bool fromStart=false);
     karere::Id makeRandomId();
     void login();

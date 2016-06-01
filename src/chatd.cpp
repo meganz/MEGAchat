@@ -766,8 +766,10 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_NEWKEY:
             {
                 READ_ID(chatid, 0);
-                READ_32(totalLen, 8);
+                pos += 4; //skip dummy 32bit keyid
+                READ_32(totalLen, 12);
                 const char* keys = buf.readPtr(pos, totalLen);
+                pos+=totalLen;
                 CHATD_LOG_DEBUG("%s: recv NEWKEY", ID_CSTR(chatid));
                 mClient.chats(chatid).onNewKeys(StaticBuffer(keys, totalLen));
                 break;
@@ -799,8 +801,11 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
         Id userid(keybuf.read<uint64_t>(pos));
         uint32_t keyid = keybuf.read<uint32_t>(pos+8);
         keylen = keybuf.read<uint16_t>(pos+12);
-        CHATID_LOG_DEBUG(" sending key %x, len %hu to crypto module", keyid, keylen);
-        CALL_CRYPTO(onNewKey, keyid, userid, keylen, keybuf.readPtr(pos+14, keylen));
+        if (keylen != 16)
+            CHATID_LOG_ERROR("Length of received key %d is not 16", keyid);
+        CHATID_LOG_DEBUG(" sending key %d to crypto module", keyid);
+        mCrypto->onKeyReceived(keyid, userid, mClient.userId(),
+            keybuf.readPtr(pos+14, keylen), keylen);
     }
 }
 
@@ -905,7 +910,8 @@ void Chat::msgSubmit(Message* msg)
     msgEncryptAndSend(msg, OP_NEWMSG);
 }
 
-Chat::SendingItem* Chat::postItemToSending(uint8_t opcode, Message* msg, MsgCommand* msgCmd, Command* keyCmd)
+Chat::SendingItem* Chat::postItemToSending(uint8_t opcode, Message* msg,
+        MsgCommand* msgCmd, KeyCommand* keyCmd)
 {
     mSending.emplace_back(opcode, msg, msgCmd, keyCmd, mUsers);
     CALL_DB(saveMsgToSending, mSending.back());
@@ -943,6 +949,10 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
     if (pms.done() == pms.PROMISE_RESOLV_SUCCESS)
     {
         auto result = pms.value();
+        if (result.second)
+        {
+            result.second->setChatId(mChatId);
+        }
         if (existingItem)
         {
             existingItem->msgCmd.reset(result.first);
@@ -952,7 +962,7 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
         }
         else
         {
-            postItemToSending(opcode, msg, msgCmd, pms.value().first); //calls flusheOutputQueue()
+            postItemToSending(opcode, msg, result.first, result.second); //calls flusheOutputQueue()
         }
         return true;
     }
@@ -962,10 +972,14 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
     if (!existingItem)
         existingItem = postItemToSending(opcode, msg, nullptr, nullptr);
     assert(existingItem);
-    pms.then([this, existingItem](std::pair<MsgCommand*, Command*> result)
+    pms.then([this, existingItem](std::pair<MsgCommand*, KeyCommand*> result)
     {
         assert(result.first);
         assert(!existingItem->msgCmd);
+        if (result.second)
+        {
+            result.second->setChatId(mChatId);
+        }
         existingItem->msgCmd.reset(result.first);
         existingItem->keyCmd.reset(result.second);
         CALL_DB(addBlobsToSendingItem, existingItem->rowid, result.first, result.second);
@@ -1607,7 +1621,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     }
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::decrypt()");
     auto pms = mCrypto->msgDecrypt(&msg);
-    if (pms.done())
+    if (pms.done() == pms.PROMISE_RESOLV_SUCCESS)
     {
         msgIncomingAfterDecrypt(isNew, false, msg, idx);
         return true;

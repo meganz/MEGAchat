@@ -702,6 +702,18 @@ promise::Promise<void> Client::setPresence(Presence pres, bool force)
     });
 }
 
+Buffer* ecKeyBase64ToBin(const mega::MegaRequest& result)
+{
+    auto text = result.getText();
+    auto len = strlen(text);
+    if (len != 43)
+        throw std::runtime_error("ecKeyBase64ToBin: Bad EC key len in base64 - must be 43 bytes");
+    Buffer* buf = new Buffer(32);
+    buf->setDataSize(32);
+    base64urldecode(text, len, buf->buf(), 32);
+    return buf;
+}
+
 UserAttrDesc gUserAttrDescs[8] =
 { //getData func | changeMask
   //0 - avatar
@@ -715,11 +727,11 @@ UserAttrDesc gUserAttrDescs[8] =
   //4 - last interaction
   { [](const mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, mega::MegaUser::CHANGE_TYPE_LSTINT},
   //5 - ed25519 signing key
-  { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255},
+  { [](const mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); }, mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255},
   //6 - cu25519 encryption key
-  { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255},
-  //7 - keyring
-  { [](const mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, mega::MegaUser::CHANGE_TYPE_KEYRING}
+  { [](const mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); }, mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255},
+  //7 - keyring - not used by userAttrCache
+  { [](const mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implemented"); }, mega::MegaUser::CHANGE_TYPE_KEYRING}
 };
 
 UserAttrCache::~UserAttrCache()
@@ -824,6 +836,8 @@ void UserAttrCacheItem::notify()
         auto curr = it;
         it++;
         curr->cb(data.get(), curr->userp); //may erase curr
+        if (curr->oneShot)
+            cbs.erase(curr);
     }
 }
 
@@ -847,10 +861,10 @@ void UserAttrCacheItem::error(UserAttrPair key, int errCode)
     notify();
 }
 
-uint64_t UserAttrCache::addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp)
+uint64_t UserAttrCache::addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp, bool oneShot)
 {
     auto& cbs = itemit->second->cbs;
-    auto it = cbs.emplace(cbs.end(), cb, userp);
+    auto it = cbs.emplace(cbs.end(), cb, userp, oneShot);
     mCallbacks.emplace(std::piecewise_construct, std::forward_as_tuple(++mCbId),
                        std::forward_as_tuple(itemit, it));
     return mCbId;
@@ -867,19 +881,25 @@ bool UserAttrCache::removeCb(const uint64_t& cbid)
 }
 
 uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
-            void* userp, UserAttrReqCbFunc cb)
+            void* userp, UserAttrReqCbFunc cb, bool oneShot)
 {
     UserAttrPair key(userHandle, type);
     auto it = find(key);
     if (it != end())
     {
-        auto& item = *it->second;
+        auto& item = it->second;
         if (cb)
         { //TODO: not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
-            auto cbid = addCb(it, cb, userp);
-            if (item.pending != kCacheFetchNewPending)
-                cb(item.data.get(), userp);
-            return cbid;
+            if (item->pending != kCacheFetchNewPending)
+            {
+                auto cbid = oneShot ? 0 : addCb(it, cb, userp, false);
+                cb(item->data.get(), userp);
+                return cbid;
+            }
+            else
+            {
+                return addCb(it, cb, userp, oneShot);
+            }
         }
         else
         {
@@ -889,7 +909,7 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
 
     auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, kCacheFetchNewPending);
     it = emplace(key, item).first;
-    uint64_t cbid = cb ? addCb(it, cb, userp) : 0;
+    uint64_t cbid = cb ? addCb(it, cb, userp, oneShot) : 0;
     fetchAttr(key, item);
     return cbid;
 }
@@ -931,10 +951,6 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
     std::string userid = key.user.toString();
     mClient.api->call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
             (int)::mega::MegaApi::USER_ATTR_FIRSTNAME)
-    .fail([this](const promise::Error& err)
-    {
-        return ReqResult(nullptr); //silently ignore errors for the first name, in case we can still retrieve the second name
-    })
     .then([this, userid, item](ReqResult result)
     {
         //first name. Write a prefix byte with the first name data length,
@@ -945,7 +961,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
             item->data.reset(new Buffer);
             auto& data = *(item->data);
             size_t len = strlen(name);
-            if (len > 255) //FIXME: This is utf8, so len is not accurate
+            if (len > 255) //FIXME: This is utf8, so can't truncate arbitrarily
             {
                 //truncate first name
                 data.append<unsigned char>(255);
@@ -958,9 +974,20 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
                 data.append(name);
             }
         }
+    })
+    .fail([this](const promise::Error& err) -> promise::Promise<void>
+    {
+        if (err.code() != ::mega::API_EARGS)
+            return err;
+        KR_LOG_DEBUG("No first name for user, proceeding with fetching second name");
+         //silently ignore errors for the first name, in case we can still retrieve the second name
+        return promise::_Void();
+    })
+    .then([this, userid]()
+    {
         return mClient.api->call(&mega::MegaApi::getUserAttribute, userid.c_str(),
             (int)::mega::MegaApi::USER_ATTR_LASTNAME);
-        })
+    })
     .then([this, item, key](ReqResult result)
     { //second name
         const char* name = nonWhitespaceStr(result->getText());
@@ -1041,27 +1068,21 @@ void UserAttrCache::onLogin()
     }
 }
 
-promise::Promise<Buffer*> UserAttrCache::getAttr(const uint64_t &user, unsigned attrType)
+promise::Promise<Buffer*>
+UserAttrCache::getAttr(const uint64_t &user, unsigned attrType)
 {
-    struct State
+    auto pms = new Promise<Buffer*>;
+    auto ret = *pms;
+    getAttr(user, attrType, pms, [](Buffer* buf, void* userp)
     {
-        Promise<Buffer*> pms;
-        UserAttrCache* self;
-        uint64_t cbid;
-    };
-    State* state = new State;
-    state->self = this;
-    state->cbid = getAttr(user, attrType, state, [](Buffer* buf, void* userp)
-    {
-        auto s = static_cast<State*>(userp);
-        s->self->removeCb(s->cbid);
+        auto p = reinterpret_cast<Promise<Buffer*>*>(userp);
         if (buf)
-            s->pms.resolve(buf);
+            p->resolve(buf);
         else
-            s->pms.reject("failed");
-        delete s;
-    });
-    return state->pms;
+            p->reject("User attribute fetch failed");
+        delete p;
+    }, true);
+    return ret;
 }
 
 
@@ -1659,7 +1680,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         if (buf)
             self->mName.assign(buf->buf(), buf->dataSize());
         else if (self->mName.empty())
-            self->mName = "\x07(error)";
+            self->mName = "\x01?";
         self->mRoom.updateTitle();
     });
 }

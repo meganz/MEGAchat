@@ -78,7 +78,7 @@ public:
     }
     virtual void confirmKeyOfSendingItem(uint64_t rowid, chatd::KeyId keyid)
     {
-        sqliteQuery(mDb, "update sending set keyid = ?, keyCmd = NULL where rowid = ?",
+        sqliteQuery(mDb, "update sending set keyid = ?, key_cmd = NULL where rowid = ?",
                     keyid, rowid);
         assertAffectedRowCount(1, "confirmKeyOfSendingItem");
     }
@@ -162,10 +162,10 @@ public:
                     (chatd::Message::Type)stmt.intCol(5));
             stmt.blobCol(4, *msg);
 
-            chatd::Command* keyCmd;
+            chatd::KeyCommand* keyCmd;
             if (stmt.hasBlobCol(8)) //key_cmd
             {
-                keyCmd = new chatd::Command;
+                keyCmd = new chatd::KeyCommand;
                 stmt.blobCol(8, *keyCmd);
                 assert(keyCmd->opcode() == chatd::OP_NEWKEY);
             }

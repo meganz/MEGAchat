@@ -122,6 +122,11 @@ public:
         append(val);
         return std::move(*this);
     }
+    Command&& operator+(karere::Id id)
+    {
+        append(id.val);
+        return std::move(*this);
+    }
     Command&& operator+(const Buffer& msg)
     {
         append<uint32_t>(msg.dataSize());
@@ -145,18 +150,20 @@ class KeyCommand: public Command
 {
 public:
     explicit KeyCommand(karere::Id chatid=karere::Id::null(), uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
-        size_t reserve=64)
+        size_t reserve=128)
     : Command(OP_NEWKEY, reserve)
     {
-        append(chatid).append(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
+        append(chatid.val).append<uint32_t>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
     KeyId keyId() const { return read<uint32_t>(9); }
     void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
     void setKeyId(uint32_t keyid) { write(9, keyid); }
     void addKey(karere::Id userid, void* keydata, uint16_t keylen)
     {
+        assert(keydata && (keylen != 0));
         uint32_t& payloadSize = mapRef<uint32_t>(13);
         payloadSize+=(10+keylen); //userid.8+len.2+keydata.keylen
+        append(userid.val).append<uint16_t>(keylen);
         append(keydata, keylen);
     }
     bool hasKeys() const { return dataSize() > 17; }
@@ -173,12 +180,12 @@ public:
         karere::Id msgid, uint32_t ts, uint16_t updated, KeyId keyid=CHATD_KEYID_INVALID)
     :Command(opcode)
     {
-        write(1, chatid);write(9, userid);write(17, msgid);write(25, ts);
+        write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
         write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
     MsgCommand(): Command() {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
-    void setId(karere::Id aMsgid) { write(17, aMsgid); }
+    void setId(karere::Id aMsgid) { write(17, aMsgid.val); }
     KeyId keyId() const { return read<KeyId>(31); }
     void setKeyId(KeyId aKeyid) { write(31, aKeyid); }
     uint32_t msglen() const { return read<uint32_t>(35); }

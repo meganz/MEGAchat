@@ -45,7 +45,9 @@ struct UserAttrReqCb
 {
     UserAttrReqCbFunc cb;
     void* userp;
-    UserAttrReqCb(UserAttrReqCbFunc aCb, void* aUserp): cb(aCb), userp(aUserp){}
+    bool oneShot;
+    UserAttrReqCb(UserAttrReqCbFunc aCb, void* aUserp, bool aOneShot=false)
+    : cb(aCb), userp(aUserp), oneShot(aOneShot){}
 };
 
 enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2};
@@ -57,7 +59,7 @@ struct UserAttrCacheItem
     std::unique_ptr<Buffer> data;
     std::list<UserAttrReqCb> cbs;
     unsigned char pending;
-    UserAttrCacheItem(UserAttrCache& aParent ,Buffer* buf, bool aPending)
+    UserAttrCacheItem(UserAttrCache& aParent ,Buffer* buf, unsigned char aPending)
         : parent(aParent), data(buf), pending(aPending){}
     void resolve(UserAttrPair key);
     void resolveNoDb(UserAttrPair key); //same as resolve, but dont't write to cache db - used for partial results, like first name obtained, second name returned non-ENOENT error
@@ -82,7 +84,7 @@ protected:
     void dbWrite(UserAttrPair key, const Buffer& data);
     void dbWriteNull(UserAttrPair key);
     void dbInvalidateItem(UserAttrPair item);
-    uint64_t addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp);
+    uint64_t addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp, bool oneShot=false);
     void fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
 //actual attrib fetch backend functions
     void fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
@@ -97,7 +99,7 @@ public:
     UserAttrCache(Client& aClient);
     ~UserAttrCache();
     uint64_t getAttr(const uint64_t& user, unsigned attrType, void* userp,
-                             UserAttrReqCbFunc cb);
+                             UserAttrReqCbFunc cb, bool oneShot=false);
     promise::Promise<Buffer*> getAttr(const uint64_t &user, unsigned attrType);
     bool removeCb(const uint64_t &cbid);
 };

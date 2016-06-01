@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>605</width>
-    <height>475</height>
+    <width>436</width>
+    <height>368</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -40,7 +40,7 @@
    </property>
    <item>
     <widget class="QWidget" name="mCentralWidget" native="true">
-     <layout class="QVBoxLayout" name="verticalLayout_3">
+     <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,1">
       <property name="spacing">
        <number>0</number>
       </property>
@@ -202,13 +202,31 @@ border-radius: 6px;</string>
          </item>
          <item>
           <widget class="QLabel" name="mTitleLabel">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>400</width>
+             <height>16777215</height>
+            </size>
+           </property>
            <property name="font">
             <font>
              <pointsize>14</pointsize>
             </font>
            </property>
            <property name="text">
-            <string>  </string>
+            <string/>
            </property>
           </widget>
          </item>
