@@ -41,6 +41,7 @@ const char* tlvTypeToString(uint8_t type)
         case TLV_TYPE_PAYLOAD: return "TLV_PAYLOAD";
         case TLV_TYPE_INC_PARTICIPANT: return "TLV_INC_PARTICIPANT";
         case TLV_TYPE_EXC_PARTICIPANT: return "TLV_EXC_PARTICIPANT";
+        case TLV_TYPE_INVITOR: return "TLV_INVITOR";
         case TLV_TYPE_OWN_KEY: return "TLV_OWN_KEY";
         default: return "(unknown)";
     }
@@ -209,7 +210,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage)
     TlvRecord record(binaryMessage);
     while (tlv.getRecord(record))
     {
-        STRONGVELOPE_LOG_DEBUG("parse[msg %s]: read TLV record type: %s",
+        STRONGVELOPE_LOG_DEBUG("parse[msg %s]: read TLV record %s",
             binaryMessage.id().toString().c_str(), tlvTypeToString(record.type));
         switch (record.type)
     	{
@@ -245,6 +246,12 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage)
                 if (!userExcInfo)
                     userExcInfo.reset(new Buffer);
                 userExcInfo->append(binaryMessage.buf()+record.dataOffset, record.dataLen);
+                break;
+            }
+            case TLV_TYPE_INVITOR:
+            {
+                assert(record.dataLen == 8);
+                sender = binaryMessage.read<uint64_t>(record.dataOffset);
                 break;
             }
             //legacy key stuff
@@ -299,18 +306,17 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage)
     	    default:
                 throw std::runtime_error("Unknown TLV record type "+std::to_string(record.type)+" in message "+binaryMessage.id().toString());
     	}
-        if (type == SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS)
+    }
+    if (type == SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS)
+    {
+        assert(payload.empty());
+        if (userAddInfo)
         {
-            assert(payload.empty());
-            payload.append<chatd::Message::Type>(chatd::Message::kUserMsgAlterParticipants);
-            if (userAddInfo)
-            {
-                payload.append<int16_t>(userAddInfo->dataSize()/8).append(static_cast<StaticBuffer>(*userAddInfo));
-            }
-            if (userExcInfo)
-            {
-                payload.append<int16_t>(-userExcInfo->dataSize()/8).append(*userExcInfo);
-            }
+            payload.append<int16_t>(userAddInfo->dataSize()/8).append(static_cast<StaticBuffer>(*userAddInfo));
+        }
+        if (userExcInfo)
+        {
+            payload.append<int16_t>(-userExcInfo->dataSize()/8).append(*userExcInfo);
         }
     }
 }
@@ -576,15 +582,38 @@ ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMs
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, Message* msg)
 {
+    msg->type = (chatd::Message::Type)parsedMsg->type;
     switch(parsedMsg->type)
     {
         case SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS:
         {
+            msg->clear();
             //ParsedMessage filled the payload with generated app-level info about participant change
-            msg->takeFrom(std::move(parsedMsg->payload));
+            msg->userid = parsedMsg->sender; //the INVITOR
+            //temp
+            assert(parsedMsg->payload.dataSize() >= 10); //2 bytes for count, 8 bytes for at least one handle
+            auto num = parsedMsg->payload.read<int16_t>(0);
+            msg->append("User "+msg->userid.toString())
+                .append(std::string((num > 0)?" added users:\n":" removed users:\n"));
+            if (num < 0)
+                num = -num;
+            for (size_t i=0; i<num; i++)
+            {
+                msg->append(Id(parsedMsg->payload.read<uint64_t>(i*8+2)).toString());
+                msg->append(',');
+            }
+//            if (!msg->empty())
+//                msg->setDataSize(msg->dataSize()-1); //erase last ','
             return msg;
         }
-        //TODO: Add TRUNCATE support
+        case SVCRYPTO_MSGTYPE_TRUNCATE:
+        {
+            //TODO: Add proper TRUNCATE support
+            msg->assign<false>(std::string("<Chat was truncated by user "));
+            msg->append(msg->userid.toString());
+            msg->append('>');
+            return msg;
+        }
         default:
             return promise::Error("Unknown management message type "+
                 std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ERRTYPE);
@@ -607,11 +636,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
     if (message->userid == API_USER)
         return handleManagementMessage(parsedMsg, message);
 
-    printf("msgDecrypt: we have the following keys:\n");
-    for (auto& k: mKeys)
-    {
-        printf("key %d\n", k.first.key);
-    }
+    assert(parsedMsg->type == SVCRYPTO_MSGTYPE_FOLLOWUP);
     // Get sender key.
     struct Context
     {
@@ -641,7 +666,6 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             return promise::Error("Signature invalid for message "+
                 message->id().toString(), EINVAL, SVCRYPTO_ERRTYPE);
         }
-        STRONGVELOPE_LOG_DEBUG("SIGNATURE VERIFICATION OF MESSAGE FROM %s SUCCESSFUL!", message->userid.toString().c_str());
 
         if (parsedMsg->protocolVersion <= 1)
         {
@@ -768,6 +792,7 @@ promise::Promise<std::shared_ptr<SendKey>> ProtocolHandler::getKey(UserKeyId uki
     else
     {
         assert(false && "Key found but no promise not key member are set");
+        return std::shared_ptr<SendKey>(); //return something, just to mute the gcc warning
     }
 }
 

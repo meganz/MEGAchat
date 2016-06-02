@@ -102,7 +102,7 @@ public:
  */
     virtual void onKeyReceived(KeyId keyid, karere::Id sender, karere::Id receiver,
         const char* keydata, uint16_t keylen) = 0;
-    virtual void onKeyId(KeyId keyxid, KeyId keyid) {}
+    virtual void onKeyConfirmed(KeyId keyxid, KeyId keyid)  = 0;
 /**
  * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
  */

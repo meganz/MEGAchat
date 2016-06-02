@@ -72,6 +72,10 @@ public:
             return false;
         return (memcmp(mBuf, data, datalen) == 0);
     }
+    bool dataEquals(const StaticBuffer& other)
+    {
+        return dataEquals(other.buf(), other.dataSize());
+    }
     size_t find(unsigned char val, size_t offset=0)
     {
         for (size_t i=offset; i<mDataSize; i++)
@@ -251,7 +255,7 @@ public:
         mDataSize = other.mDataSize;
         other.zero();
     }
-    void assign(const Buffer& other)
+    void assign(const StaticBuffer& other)
     {
         assign(other.buf(), other.dataSize());
     }

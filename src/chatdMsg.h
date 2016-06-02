@@ -54,9 +54,10 @@ class Message: public Buffer
 public:
     enum Type: unsigned char
     {
-        kNormalMsg = 0,
-        kUserMsg = 16,
-        kUserMsgAlterParticipants = 16
+        kMsgNormal = 1,
+        kMsgAlterParticipants = 2,
+        kMsgTruncate = 3,
+        kUserMsg = 16
     };
     enum Status
     {
@@ -89,12 +90,12 @@ public:
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,
-          Type aType=kNormalMsg, void* aUserp=nullptr)
+          Type aType=kMsgNormal, void* aUserp=nullptr)
       :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
           ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
-            KeyId aKeyid=CHATD_KEYID_INVALID, Type aType=kNormalMsg, void* aUserp=nullptr)
+            KeyId aKeyid=CHATD_KEYID_INVALID, Type aType=kMsgNormal, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
             updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp) {}
     static const char* statusToStr(unsigned status)
@@ -188,6 +189,11 @@ public:
     void setId(karere::Id aMsgid) { write(17, aMsgid.val); }
     KeyId keyId() const { return read<KeyId>(31); }
     void setKeyId(KeyId aKeyid) { write(31, aKeyid); }
+    StaticBuffer msg() const
+    {
+        auto len = msglen();
+        return StaticBuffer(readPtr(39, len), len);
+    }
     uint32_t msglen() const { return read<uint32_t>(35); }
     uint16_t updated() const { return read<uint16_t>(29); }
     void clearMsg()

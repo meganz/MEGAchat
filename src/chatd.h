@@ -434,7 +434,7 @@ public:
     bool cancelManualSend(uint64_t id);
 protected:
     bool msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existingItem=nullptr);
-    void onMsgUpdated(Message&& msg);
+    void onMsgUpdated(Message* msg);
     void keyConfirm(KeyId keyxid, KeyId keyid);
     void rejectMsgupd(uint8_t opcode, karere::Id id);
     template <bool mustBeInSending=false>

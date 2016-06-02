@@ -667,7 +667,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 Chat& chat = mClient.chats(chatid);
                 if (opcode == OP_MSGUPD)
                 {
-                    chat.onMsgUpdated(std::move(*msg));
+                    chat.onMsgUpdated(msg.release());
                 }
                 else
                 {
@@ -935,7 +935,7 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
 {
     //opcode can be NEWMSG, MSGUPD or MSGUPDX
     assert(msg->id() != Id::null());
-    if (mEncryptionHalted)
+    if (mEncryptionHalted || (mOnlineState != kChatStateOnline))
     {
         assert(!existingItem);
         postItemToSending(opcode, msg, nullptr, nullptr);
@@ -1425,24 +1425,20 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     mSending.front().keyCmd = nullptr;
     CALL_DB(confirmKeyOfSendingItem, mSending.front().rowid, keyid);
     //update keyxids to keyids, because if client disconnects the keyxids will become invalid
-    bool hasAnotherKey = false;
+    //don't confirm key id to the crypto module if there is a more recent key cmd
+    //in the key queue, as the crypto module expects confirmation of the most
+    //recent one
     for (auto it = ++mSending.begin(); it!=mSending.end(); it++)
     {
         if (it->keyCmd)
-        {
-            hasAnotherKey = true;
-            break;
-        }
+            return;
         if (it->msg->keyid == CHATD_KEYID_UNCONFIRMED)
         {
             it->msg->keyid = keyid;
             CALL_DB(updateMsgKeyIdInSending, it->rowid, keyid);
         }
     }
-    if (!hasAnotherKey)
-    {
-        CALL_CRYPTO(onKeyId, keyxid, keyid);
-    }
+    CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
 }
 
 void Chat::rejectMsgupd(uint8_t opcode, Id id)
@@ -1482,41 +1478,51 @@ void Chat::rejectGeneric(uint8_t opcode)
     }
 }
 
-void Chat::onMsgUpdated(Message&& msg)
+void Chat::onMsgUpdated(Message* cipherMsg)
 {
-//first, if it was us who updated the message confirm the update by removeing any
+//first, if it was us who updated the message confirm the update by removing any
 //queued msgupds from sending, even if they are not the same edit (i.e. a received
 //MSGUPD from another client with out user will cancel any pending edit by our client
-    if (msg.userid == client().userId())
+    if (cipherMsg->userid == client().userId())
     {
         for (auto it = mSending.begin(); it != mSending.end(); )
         {
             auto& item = *it;
-            if ((item.opcode() != OP_MSGUPD) && (item.opcode() != OP_MSGUPDX))
+            if (((item.opcode() != OP_MSGUPD) && (item.opcode() != OP_MSGUPDX))
+                || (item.msg->id() != cipherMsg->id()))
             {
                 it++;
                 continue;
             }
             //erase item
             CALL_DB(deleteItemFromSending, item.rowid);
-            if (!item.msg->dataEquals(msg.buf(), msg.dataSize()))
-                CHATD_LOG_WARNING("msgUpdConfirm: Discarding a different queued edit than the one received");
+            if (!cipherMsg->dataEquals(item.msgCmd->msg()))
+                CHATD_LOG_WARNING("msgUpdConfirm: Discarding a different queued edit than the one received: %s\n%s", item.msgCmd->toString().c_str(), cipherMsg->toString().c_str());
             auto erased = it;
             it++;
-            mPendingEdits.erase(msg.id());
+            mPendingEdits.erase(cipherMsg->id());
             mSending.erase(erased);
         }
     }
-    //update in db
-    CALL_DB(updateMsgInHistory, msg.id(), msg);
-    //update in memory, if loaded
-    auto msgit = mIdToIndexMap.find(msg.id());
-    if (msgit != mIdToIndexMap.end())
+    mCrypto->msgDecrypt(cipherMsg)
+    .then([this](Message* msg)
     {
-        auto& histmsg = at(msgit->second);
-        histmsg.takeFrom(std::move(msg));
-        CALL_LISTENER(onMessageEdited, histmsg, msgit->second);
-    }
+        //update in db
+        CALL_DB(updateMsgInHistory, msg->id(), *msg);
+        //update in memory, if loaded
+        auto msgit = mIdToIndexMap.find(msg->id());
+        if (msgit != mIdToIndexMap.end())
+        {
+            auto& histmsg = at(msgit->second);
+            histmsg.takeFrom(std::move(*msg));
+            CALL_LISTENER(onMessageEdited, histmsg, msgit->second);
+        }
+    })
+    .fail([this, cipherMsg](const promise::Error& err)
+    {
+        CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
+            ID_CSTR(cipherMsg->id()), err.what());
+    });
 }
 
 Id Chat::makeRandomId()

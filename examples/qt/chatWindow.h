@@ -251,7 +251,7 @@ noedit:
     {
         if (text.isEmpty())
             return;
-        auto msg = mChat->msgSubmit(text.data(), text.size(), chatd::Message::kNormalMsg, nullptr);
+        auto msg = mChat->msgSubmit(text.data(), text.size(), chatd::Message::kMsgNormal, nullptr);
         msg->userp = addMsgWidget(*msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
         ui.mMessageList->scrollToBottom();
     }

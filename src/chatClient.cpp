@@ -263,13 +263,46 @@ promise::Promise<void> Client::loginExistingSession()
         chats->loadFromDb();
     });
 }
+void dumpChatrooms(::mega::MegaTextChatList& chatRooms)
+{
+    KR_LOG_DEBUG("=== Chatrooms received from API: ===");
+    for (int i=0; i<chatRooms.size(); i++)
+    {
+        auto& room = *chatRooms.get(i);
+        KR_LOG_DEBUG("%s(%s):", Id(room.getHandle()).toString().c_str(), room.isGroup()?"group":"1on1");
+        auto peers = room.getPeerList();
+        if (!peers)
+        {
+            KR_LOG_DEBUG("  (room is empty)");
+            continue;
+        }
+        for (int j = 0; j<peers->size(); j++)
+            KR_LOG_DEBUG("  %s", Id(peers->getPeerHandle(j)).toString().c_str());
+    }
+    KR_LOG_DEBUG("=== Chatroom list end ===");
+}
+void dumpContactList(::mega::MegaUserList& clist)
+{
+    KR_LOG_DEBUG("Contactlist received from API:");
+    for (int i=0; i< clist.size(); i++)
+    {
+        auto& user = *clist.get(i);
+        auto visibility = user.getVisibility();
+        if (visibility != ::mega::MegaUser::VISIBILITY_VISIBLE)
+            KR_LOG_DEBUG("  %s (visibility = %d)", Id(user.getHandle()).toString().c_str(), visibility);
+        else
+            KR_LOG_DEBUG("  %s", Id(user.getHandle()).toString().c_str());
+    }
+    KR_LOG_DEBUG("== Contactlist end ==");
+}
+
 promise::Promise<void> Client::init()
 {
     promise::Promise<void> pmsMegaLogin = (mSid.empty()) //mMyHandle is also invalid
      ? loginNewSession()
      : loginExistingSession();
 
-    pmsMegaLogin.then([this]() mutable
+    auto pmsChatComplete = pmsMegaLogin.then([this]() mutable
     {
         mIsLoggedIn = true;
         KR_LOG_DEBUG("Login to Mega API successful");
@@ -282,6 +315,9 @@ promise::Promise<void> Client::init()
             if (buf)
                 static_cast<Client*>(userp)->mMyName = buf->buf()+1;
         });
+#ifndef NDEBUG
+        dumpContactList(*api->getContacts());
+#endif
         contactList->syncWithApi(*api->getContacts());
         return api->call(&mega::MegaApi::fetchChats);
     })
@@ -291,21 +327,7 @@ promise::Promise<void> Client::init()
         if (chatRooms)
         {
 #ifndef NDEBUG
-            KR_LOG_DEBUG("=== Chatrooms received from API: ===");
-            for (int i=0; i<chatRooms->size(); i++)
-            {
-                auto& room = *chatRooms->get(i);
-                KR_LOG_DEBUG("%s(%s):", Id(room.getHandle()).toString().c_str(), room.isGroup()?"group":"1on1");
-                auto peers = room.getPeerList();
-                if (!peers)
-                {
-                    KR_LOG_DEBUG("  (room is empty)");
-                    continue;
-                }
-                for (int j = 0; j<peers->size(); j++)
-                    KR_LOG_DEBUG("  %s", Id(peers->getPeerHandle(j)).toString().c_str());
-            }
-            KR_LOG_DEBUG("=== Chatroom list end ===");
+            dumpChatrooms(*chatRooms);
 #endif
             chats->syncRoomsWithApi(*chatRooms);
         }
@@ -316,7 +338,7 @@ promise::Promise<void> Client::init()
     {
         return server;
     });
-    return promise::when(pmsMegaLogin, pmsGelb)
+    return promise::when(pmsChatComplete, pmsGelb)
     .then([this, pmsGelb]()
     {
         return connectXmpp(pmsGelb.value());
@@ -1284,9 +1306,15 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room, const std::strin
     }
     ChatRoom* ret;
     if(room.isGroup())
+    {
         ret = new GroupChatRoom(*this, room, groupUserTitle); //also writes it to cache
+    }
     else
+    {
+        auto& peers = *room.getPeerList();
+        assert(peers.size() == 1);
         ret = new PeerChatRoom(*this, room);
+    }
     emplace(chatid, ret);
     return *ret;
 }
@@ -1627,7 +1655,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
                     it->second, mChatid, userid);
                 ourIt->second->mPriv = it->second;
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s",
-                     Id(userid).toString().c_str());
+                     Id(chatid()).toString().c_str(), Id(userid).toString().c_str());
             }
             ourIt++;
         }
@@ -1723,8 +1751,8 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
     for (int i=0; i<size; i++)
     {
         auto& user = *users.get(i);
-        if (user.getVisibility() != mega::MegaUser::VISIBILITY_VISIBLE)
-            continue;
+//        if (user.getVisibility() != mega::MegaUser::VISIBILITY_VISIBLE)
+//            continue;
         apiUsers.insert(user.getHandle());
         addUserFromApi(user);
     }
@@ -1740,19 +1768,14 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         it++;
         removeUser(erased);
     }
-#ifndef NDEBUG
-    KR_LOG_DEBUG("=== Contactlist received from API: ===");
-    for (auto c: apiUsers)
-        KR_LOG_DEBUG("%s",  Id(c).toString().c_str());
-    KR_LOG_DEBUG("=== Contactlist end ===");
-#endif
 }
 void ContactList::onUserAddRemove(mega::MegaUser& user)
 {
     auto visibility = user.getVisibility();
     if (visibility == mega::MegaUser::VISIBILITY_HIDDEN)
     {
-        removeUser(user.getHandle());
+        return; //we need to keep the chat for history
+//        removeUser(user.getHandle());
 //        client.gui.notifyContactRemoved(user);
     }
     else if (visibility == mega::MegaUser::VISIBILITY_VISIBLE)
@@ -1903,6 +1926,7 @@ ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
     auto it = find(userid);
     if (it == end())
         throw std::runtime_error("attachRoomToContact: userid '"+ Id(userid)+"' not found in contactlist");
+
     auto& contact = *it->second;
     if (contact.mChatRoom)
         throw std::runtime_error("attachRoomToContact: contact already has a chat room attached");

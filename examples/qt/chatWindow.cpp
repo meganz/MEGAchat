@@ -361,7 +361,7 @@ MessageWidget& MessageWidget::setAuthor(karere::Id userid)
     [](Buffer* data, void* userp)
     {
         //buffer contains an unsigned char prefix that is the strlen() of the first name
-        if (!data)
+        if (!data || data->dataSize() < 2)
             return;
         auto self = static_cast<MessageWidget*>(userp);
         self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1));

@@ -111,6 +111,7 @@ enum MessageType
     SVCRYPTO_MSGTYPE_FOLLOWUP                  = 0x01,
     ///Notification form API user that user(s) have been added and/or removed
     SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS        = 0x02,
+    SVCRYPTO_MSGTYPE_TRUNCATE                  = 0x03,
     SVCRYPTO_MSGTYPES_COUNT
 };
 
