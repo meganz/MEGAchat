@@ -12,6 +12,7 @@
 #include "tlvstore.h"
 #include <userAttrCache.h>
 #include <mega.h>
+#include <db.h>
 
 namespace strongvelope
 {
@@ -329,15 +330,32 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519,
     const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,
-    karere::UserAttrCache& userAttrCache)
+    karere::UserAttrCache& userAttrCache, sqlite3* db)
 :mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
- mUserAttrCache(userAttrCache)
+ mUserAttrCache(userAttrCache), mDb(db)
 {
     myPubCu25519.setDataSize(32);
     myPubEd25519.setDataSize(32);
     getPubKeyFromPrivKey(myPrivCu25519, kKeyTypeCu25519, myPubCu25519);
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
+    loadKeysFromDb();
+}
+
+void ProtocolHandler::loadKeysFromDb()
+{
+    int oldest = time(NULL)-CHATD_MAX_EDIT_AGE-600;
+    SqliteStmt stmt(mDb, "select userid, keyid, key from sendkeys where ts > ?");
+    stmt << oldest;
+    while(stmt.step())
+    {
+        auto key = std::make_shared<SendKey>();
+        stmt.blobCol(2, *key);
+        mKeys.emplace(std::piecewise_construct,
+                      std::forward_as_tuple(stmt.uint64Col(0), stmt.intCol(1)),
+                      std::forward_as_tuple(key));
+    }
+    STRONGVELOPE_LOG_DEBUG("Loaded %zu send keys from database", mKeys.size());
 }
 
 void ProtocolHandler::msgEncryptWithKey(Buffer& src, chatd::MsgCommand& dest, const StaticBuffer& key)
@@ -766,6 +784,17 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
     else
     {
         entry.key = key;
+        try
+        {
+//            sqliteQuery(mDb, "insert into sendkeys(userid, keyid, key, ts) values(?1,?2,?3,?5) "
+//                "where not exists(select 1 from sendkeys where userid=?1 and keyid=?2)",
+//                ukid.user, ukid.key, *key, (int)time(NULL));
+        }
+        catch(std::exception& e)
+        {
+            STRONGVELOPE_LOG_ERROR("Exception while saving sendkey to db: %s", e.what());
+            throw;
+        }
     }
     if (entry.pms)
     {

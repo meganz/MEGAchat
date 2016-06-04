@@ -111,6 +111,7 @@ public:
     virtual void onUnreadChanged() {}
     //Ownership of \c msg is passed to application.
     virtual void onManualSendRequired(Message* msg, uint64_t id, int reason) {}
+    virtual void onHistoryTruncated(const Message& msg, Idx idx) {}
 };
 
 class Client;
@@ -240,8 +241,8 @@ protected:
     Client& mClient;
     karere::Id mChatId;
     Idx mForwardStart;
-    std::vector<Message*> mForwardList;
-    std::vector<Message*> mBackwardList;
+    std::vector<std::unique_ptr<Message>> mForwardList;
+    std::vector<std::unique_ptr<Message>> mBackwardList;
     OutputQueue mSending;
     OutputQueue::iterator mNextUnsent;
     bool mIsFirstJoin = true;
@@ -299,17 +300,13 @@ protected:
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
     std::map<karere::Id, Message*> mPendingEdits;
     Chat(Connection& conn, karere::Id chatid, Listener* listener, ICrypto* crypto);
-    void push_forward(Message* msg) { mForwardList.push_back(msg); }
-    void push_back(Message* msg) { mBackwardList.push_back(msg); }
-    Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front() : mForwardList.back(); }
-    Message* last() const { return (!mForwardList.empty())? mForwardList.front() : mBackwardList.back(); }
+    void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
+    void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
+    Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front().get() : mForwardList.back().get(); }
+    Message* last() const { return (!mForwardList.empty())? mForwardList.front().get() : mBackwardList.back().get(); }
     void clear()
     {
-        for (auto& msg: mBackwardList)
-            delete msg;
         mBackwardList.clear();
-        for (auto& msg: mForwardList)
-            delete msg;
         mForwardList.clear();
     }
     // msgid can be 0 in case of rejections
@@ -358,7 +355,7 @@ public:
     Idx size() const { return mForwardList.size() + mBackwardList.size(); }
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
     ChatState onlineState() const { return mOnlineState; }
-    Message::Status getMsgStatus(Idx idx, karere::Id userid);
+    Message::Status getMsgStatus(const Message& msg, Idx idx);
     const std::map<karere::Id, Message*>& pendingEdits() const { return mPendingEdits; }
     Listener* listener() const { return mListener; }
     bool isFetchingHistory() const { return mHistFetchState > kHistNotFetching; }
@@ -373,14 +370,14 @@ public:
             Idx idx = mForwardStart - num - 1; //always >= 0
             if (static_cast<size_t>(idx) >= mBackwardList.size())
                 return nullptr;
-            return mBackwardList[idx];
+            return mBackwardList[idx].get();
         }
         else
         {
             Idx idx = num - mForwardStart;
             if (static_cast<size_t>(idx) >= mForwardList.size())
                 return nullptr;
-            return mForwardList[idx];
+            return mForwardList[idx].get();
         }
     }
     Message& at(Idx num) const
@@ -440,6 +437,7 @@ protected:
     template <bool mustBeInSending=false>
     void rejectGeneric(uint8_t opcode);
     void moveItemToManualSending(OutputQueue::iterator it, int reason);
+    void deleteMessagesBefore(Idx idx);
 //===
 };
 
@@ -512,6 +510,7 @@ public:
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
     virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
+    virtual void truncateHistory(Idx idx) = 0;
     virtual ~DbInterface(){}
 };
 

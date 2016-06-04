@@ -106,6 +106,22 @@ public:
         buf.append(data, size);
         return true;
     }
+    void blobCol(int num, StaticBuffer& buf)
+    {
+        int size = sqlite3_column_bytes(mStmt, num);
+        if (buf.dataSize() < size)
+            throw std::runtime_error("blobCol: provided buffer has less space than required: has "+
+            std::to_string(buf.dataSize())+", required: "+std::to_string(size));
+        const void* data = sqlite3_column_blob(mStmt, num);
+        if (!data)
+        {
+            buf.clear();
+            return;
+        }
+        memcpy(buf.buf(), data, size);
+        buf.setDataSize(size);
+    }
+
     size_t blobCol(int num, char* buf, size_t buflen)
     {
         const void* data = sqlite3_column_blob(mStmt, num);

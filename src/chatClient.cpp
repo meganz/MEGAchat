@@ -1117,7 +1117,7 @@ strongvelope::ProtocolHandler* Client::newStrongvelope()
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
         StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), userAttrCache);
+        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), userAttrCache, db);
 }
 void ChatRoom::join()
 {
@@ -1311,8 +1311,7 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room, const std::strin
     }
     else
     {
-        auto& peers = *room.getPeerList();
-        assert(peers.size() == 1);
+        assert(room.getPeerList()->size() == 1);
         ret = new PeerChatRoom(*this, room);
     }
     emplace(chatid, ret);
@@ -1653,9 +1652,10 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
                 changed = true;
                 sqliteQuery(db, "update chat_peers set priv=? where chatid=? and userid=?",
                     it->second, mChatid, userid);
+                KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
+                     Id(chatid()).toString().c_str(), Id(userid).toString().c_str(),
+                     ourIt->second->mPriv, it->second);
                 ourIt->second->mPriv = it->second;
-                KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s",
-                     Id(chatid()).toString().c_str(), Id(userid).toString().c_str());
             }
             ourIt++;
         }

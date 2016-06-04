@@ -488,12 +488,11 @@ public:
         if (mChat->empty())
             return;
         mChat->replayUnsentNotifications(); //works synchronously
-        auto last = mChat->highnum();
-        for (chatd::Idx idx = mChat->lownum(); idx<=last; idx++)
+        auto first = mChat->lownum();
+        for (chatd::Idx idx = mChat->highnum(); idx>=first; idx--)
         {
             auto& msg = mChat->at(idx);
-            addMsgWidget(msg, idx, mChat->getMsgStatus(idx, msg.userid), false);
-            handlePendingEdits(msg);
+            handleHistoryMsg(msg, idx, mChat->getMsgStatus(msg, idx));
         }
         mChat->loadManualSending();
         if (mChat->isFetchingHistory())
@@ -510,6 +509,8 @@ public:
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
     {
         mRoom.onRecvNewMessage(idx, msg, status);
+        if (msg.empty())
+            return;
         auto sbar = ui.mMessageList->verticalScrollBar();
         bool wasAtBottom = sbar->value() == sbar->maximum();
         addMsgWidget(msg, idx, status, false);
@@ -531,9 +532,16 @@ public:
             bar->setValue(bar->value()+1);
             bar->repaint();
         }
+        handleHistoryMsg(msg, idx, status);
+    }
+    virtual void handleHistoryMsg(chatd::Message& msg, chatd::Idx idx, chatd::Message::Status status)
+    {
+        if (msg.empty())
+            return;// once a message becomes empty(i.e. deleted), it can't be edited anymore, so no pending edit handling is necessary
         addMsgWidget(msg, idx, status, true);
         handlePendingEdits(msg);
     }
+    virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
     void handlePendingEdits(const chatd::Message& msg)
     {
         auto edit = mChat->pendingEdits().find(msg.id());

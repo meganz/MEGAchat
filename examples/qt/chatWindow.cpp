@@ -290,6 +290,24 @@ void ChatWindow::onManualSendRequired(chatd::Message* msg, uint64_t id, int reas
     mManualSendList->addItem(item);
     mManualSendList->setItemWidget(item, widget);
 }
+void ChatWindow::onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx)
+{
+    for (auto i=mChat->lownum(); i<idx; i++)
+    {
+        auto& msg = mChat->at(i);
+        if (msg.userp)
+        {
+            auto item = static_cast<QListWidgetItem*>(msg.userp);
+            assert(item);
+            msg.userp = nullptr;
+            auto& list = *ui.mMessageList;
+            auto widget = static_cast<MessageWidget*>(list.itemWidget(item));
+            delete list.takeItem(list.row(item));
+            mHistAddPos--;
+            widget->deleteLater();
+        }
+    }
+}
 
 WaitMessage::WaitMessage(ChatWindow& chatWindow)
     :mChatWindow(chatWindow){}

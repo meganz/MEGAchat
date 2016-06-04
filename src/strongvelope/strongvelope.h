@@ -45,6 +45,7 @@ namespace karere
 {
     class UserAttrCache;
 }
+struct sqlite3;
 
 namespace strongvelope
 {
@@ -233,11 +234,14 @@ protected:
     Key<768> myPrivRsaKey;
     karere::UserAttrCache& mUserAttrCache;
     uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
+    sqlite3* mDb;
     std::shared_ptr<SendKey> mCurrentKey;
     struct KeyEntry
     {
         std::shared_ptr<SendKey> key;
         std::shared_ptr<promise::Promise<std::shared_ptr<SendKey>>> pms;
+        KeyEntry(){}
+        KeyEntry(const std::shared_ptr<SendKey>& aKey): key(aKey){}
     };
     std::map<UserKeyId, KeyEntry> mKeys;
     karere::SetOfIds mParticipants;
@@ -245,8 +249,10 @@ protected:
 public:
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& PrivCu25519,
         const StaticBuffer& PrivEd25519,
-        const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache);
+        const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
+        sqlite3* db);
 protected:
+    void loadKeysFromDb();
     promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid);
     void addDecryptedKey(UserKeyId ukid, const std::shared_ptr<SendKey>& key);
         /**

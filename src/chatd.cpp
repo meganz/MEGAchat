@@ -1517,6 +1517,18 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.takeFrom(std::move(*msg));
             CALL_LISTENER(onMessageEdited, histmsg, msgit->second);
         }
+        if (msg->type == Message::kMsgTruncate)
+        {
+            CALL_DB(truncateHistory, msgit->second);
+            if (msgit != mIdToIndexMap.end())
+            {
+                //GUI must detach and free any resources associated with
+                //messages older than the one specified
+                CALL_LISTENER(onHistoryTruncated, *msg, msgit->second);
+                deleteMessagesBefore(msgit->second);
+            }
+            CALL_LISTENER(onUnreadChanged);
+        }
     })
     .fail([this, cipherMsg](const promise::Error& err)
     {
@@ -1532,12 +1544,25 @@ Id Chat::makeRandomId()
     return distrib(rd);
 }
 
-Message::Status Chat::getMsgStatus(Idx idx, Id userid)
+void Chat::deleteMessagesBefore(Idx idx)
+{
+    //delete everything before idx, but not including idx
+    if (idx > mForwardStart)
+    {
+        mBackwardList.clear();
+        mForwardList.erase(mForwardList.begin(), mForwardList.begin()+idx-mForwardStart);
+    }
+    else
+    {
+        mBackwardList.erase(mBackwardList.begin()+mForwardStart-idx, mBackwardList.end());
+    }
+}
+
+Message::Status Chat::getMsgStatus(const Message& msg, Idx idx)
 {
     assert(idx != CHATD_IDX_INVALID);
-    if (userid == mClient.mUserId)
+    if (msg.userid == mClient.mUserId)
     {
-        auto& msg = at(idx);
         if (msg.isSending())
             return Message::kSending;
         else if (idx <= mLastReceivedIdx)
@@ -1723,7 +1748,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
     }
 
-    auto status = getMsgStatus(idx, msg.userid);
+    auto status = getMsgStatus(msg, idx);
     if (isNew)
         CALL_LISTENER(onRecvNewMessage, idx, msg, status);
     else

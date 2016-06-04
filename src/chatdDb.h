@@ -180,7 +180,7 @@ public:
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx from history "
+        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid from history "
             "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
         stmt << mMessages.chatId() << idx << count;
         int i = 0;
@@ -190,6 +190,7 @@ public:
             karere::Id msgid(stmt.uint64Col(0));
             karere::Id userid(stmt.uint64Col(1));
             unsigned ts = stmt.uintCol(2);
+            chatd::KeyId keyid = stmt.uintCol(6);
             Buffer buf;
             stmt.blobCol(4, buf);
 #ifndef NDEBUG
@@ -203,7 +204,7 @@ public:
             }
 #endif
             auto msg = new chatd::Message(msgid, userid, ts, 0, std::move(buf),
-                (chatd::Message::Type)stmt.intCol(3));
+                false, keyid, (chatd::Message::Type)stmt.intCol(3));
             messages.push_back(msg);
         }
     }
@@ -254,6 +255,10 @@ public:
     {
         sqliteQuery(mDb, "delete from manual_sending where rowid = ?", rowid);
         return sqlite3_changes(mDb) != 0;
+    }
+    virtual void truncateHistory(chatd::Idx idx)
+    {
+        sqliteQuery(mDb, "delete from history where idx < ?", idx);
     }
 };
 

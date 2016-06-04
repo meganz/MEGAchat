@@ -36,7 +36,8 @@ struct UserAttrPair
     }
     UserAttrPair(uint64_t aUser, unsigned aType): user(aUser), attrType(aType)
     {
-        if (attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
+        if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
+         && (attrType != USER_ATTR_RSA_PUBKEY))
             throw std::runtime_error("UserAttrPair: Invalid user attribute id specified");
     }
 };
