@@ -134,9 +134,10 @@ public:
     IGui::IChatWindow& chatWindow(); /// < creates the windows if not already created
     bool hasChatWindow() const { return mChatWindow != nullptr; }
     //chatd::Listener implementation
-    void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
-    void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
-    void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
+    virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
+    virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
+    virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
+//    virtual void onHistoryTruncated();
 };
 class PeerChatRoom: public ChatRoom
 {

@@ -437,6 +437,7 @@ protected:
     template <bool mustBeInSending=false>
     void rejectGeneric(uint8_t opcode);
     void moveItemToManualSending(OutputQueue::iterator it, int reason);
+    void handleTruncate(const Message& msg, Idx idx);
     void deleteMessagesBefore(Idx idx);
 //===
 };
@@ -510,7 +511,8 @@ public:
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
     virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
-    virtual void truncateHistory(Idx idx) = 0;
+    virtual void truncateHistory(karere::Id msgid) = 0;
+    virtual karere::Id getOldestMsgid() = 0;
     virtual ~DbInterface(){}
 };
 

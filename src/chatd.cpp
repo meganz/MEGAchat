@@ -581,7 +581,7 @@ void Chat::getHistoryFromDb(unsigned count)
     mLastHistFetchCount = mLastHistObtainCount = 0;
     for (auto msg: messages)
     {
-        msgIncoming(false, msg, true); //increments mLastHistFetch/ObtainCount
+        msgIncoming(false, msg, true); //increments mLastHistFetch/ObtainCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid
     }
     mHistFetchState = kHistNotFetching;
     CALL_LISTENER(onHistoryDone, true);
@@ -1511,23 +1511,22 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         CALL_DB(updateMsgInHistory, msg->id(), *msg);
         //update in memory, if loaded
         auto msgit = mIdToIndexMap.find(msg->id());
+        Idx idx;
         if (msgit != mIdToIndexMap.end())
         {
-            auto& histmsg = at(msgit->second);
+            idx = msgit->second;
+            auto& histmsg = at(idx);
             histmsg.takeFrom(std::move(*msg));
-            CALL_LISTENER(onMessageEdited, histmsg, msgit->second);
+            CALL_LISTENER(onMessageEdited, histmsg, idx);
         }
+        else
+        {
+            idx = CHATD_IDX_INVALID;
+        }
+
         if (msg->type == Message::kMsgTruncate)
         {
-            CALL_DB(truncateHistory, msgit->second);
-            if (msgit != mIdToIndexMap.end())
-            {
-                //GUI must detach and free any resources associated with
-                //messages older than the one specified
-                CALL_LISTENER(onHistoryTruncated, *msg, msgit->second);
-                deleteMessagesBefore(msgit->second);
-            }
-            CALL_LISTENER(onUnreadChanged);
+            handleTruncate(*msg, idx);
         }
     })
     .fail([this, cipherMsg](const promise::Error& err)
@@ -1535,6 +1534,29 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
             ID_CSTR(cipherMsg->id()), err.what());
     });
+}
+void Chat::handleTruncate(const Message& msg, Idx idx)
+{
+    CALL_DB(truncateHistory, msg.id());
+    if (idx != CHATD_IDX_INVALID)
+    {
+        //GUI must detach and free any resources associated with
+        //messages older than the one specified
+        CALL_LISTENER(onHistoryTruncated, msg, idx);
+        deleteMessagesBefore(idx);
+    }
+
+    mOldestKnownMsgId = mDbInterface->getOldestMsgid();
+    if (mOldestKnownMsgId)
+    {
+        mHasMoreHistoryInDb = (at(lownum()).id() != mOldestKnownMsgId);
+    }
+    else
+    {
+        mHasMoreHistoryInDb = false;
+    }
+    CALL_LISTENER(onUnreadChanged);
+
 }
 
 Id Chat::makeRandomId()
@@ -1549,11 +1571,15 @@ void Chat::deleteMessagesBefore(Idx idx)
     //delete everything before idx, but not including idx
     if (idx > mForwardStart)
     {
+        printf("deleteMessages before: all backward %d, mForwardStart = %u\n", idx, mForwardStart);
         mBackwardList.clear();
-        mForwardList.erase(mForwardList.begin(), mForwardList.begin()+idx-mForwardStart);
+        auto delCount = idx-mForwardStart;
+        mForwardList.erase(mForwardList.begin(), mForwardList.begin()+delCount);
+        mForwardStart += delCount;
     }
     else
     {
+        printf("deleteMessages before: partial backward %d\n", idx);
         mBackwardList.erase(mBackwardList.begin()+mForwardStart-idx, mBackwardList.end());
     }
 }

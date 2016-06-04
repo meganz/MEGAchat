@@ -626,7 +626,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         }
         case SVCRYPTO_MSGTYPE_TRUNCATE:
         {
-            //TODO: Add proper TRUNCATE support
+            msg->userid = parsedMsg->sender;
             msg->assign<false>(std::string("<Chat was truncated by user "));
             msg->append(msg->userid.toString());
             msg->append('>');
