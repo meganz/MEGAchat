@@ -801,9 +801,7 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
         Id userid(keybuf.read<uint64_t>(pos));
         uint32_t keyid = keybuf.read<uint32_t>(pos+8);
         keylen = keybuf.read<uint16_t>(pos+12);
-        if (keylen != 16)
-            CHATID_LOG_ERROR("Length of received key %d is not 16", keyid);
-        CHATID_LOG_DEBUG(" sending key %d to crypto module", keyid);
+        CHATID_LOG_DEBUG(" sending key %d with length %zu to crypto module", keyid, keybuf.dataSize());
         mCrypto->onKeyReceived(keyid, userid, mClient.userId(),
             keybuf.readPtr(pos+14, keylen), keylen);
     }

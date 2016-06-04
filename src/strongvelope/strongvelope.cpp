@@ -335,11 +335,14 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
  mUserAttrCache(userAttrCache), mDb(db)
 {
-    myPubCu25519.setDataSize(32);
-    myPubEd25519.setDataSize(32);
-    getPubKeyFromPrivKey(myPrivCu25519, kKeyTypeCu25519, myPubCu25519);
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();
+    auto var = getenv("KRCHAT_FORCE_RSA");
+    if (var)
+    {
+        mForceRsa = true;
+        STRONGVELOPE_LOG_WARNING("KRCHAT_FORCE_RSA env var detected, will force RSA for key encryption");
+    }
 }
 
 void ProtocolHandler::loadKeysFromDb()
@@ -409,16 +412,20 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::I
      * Use RSA encryption if no chat key is available.
      */
     return computeSymmetricKey(toUser)
-    .then([this, sendKey](const std::shared_ptr<SendKey>& symkey)
+    .then([this, sendKey](const std::shared_ptr<SendKey>& symkey) -> Promise<std::shared_ptr<Buffer>>
     {
+        if (mForceRsa)
+            return promise::Error("Test: Forcing RSA");
+
         assert(symkey->dataSize() == SVCRYPTO_KEY_SIZE);
         auto result = std::make_shared<Buffer>((size_t)AES::BLOCKSIZE);
         result->setDataSize(AES::BLOCKSIZE); //dataSize() is used to check available buffer space of StaticBuffers
         aesECBEncrypt(*sendKey, *symkey, *result);
         return result;
     })
-    .fail([this, toUser, sendKey](const promise::Error&)
+    .fail([this, toUser, sendKey](const promise::Error& err)
     {
+        STRONGVELOPE_LOG_DEBUG("Can't use EC encryption for user %s (error '%s'), falling back to RSA", toUser.toString().c_str(), err.what());
         return rsaEncryptTo(std::static_pointer_cast<StaticBuffer>(sendKey), toUser);
     })
     .fail([toUser](const promise::Error& err)
@@ -441,7 +448,6 @@ ProtocolHandler::rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, Id toUs
         if (!ret)
             return promise::Error("Error parsing fetched public RSA key of user "+toUser.toString(), EINVAL, SVCRYPTO_ERRTYPE);
 
-        STRONGVELOPE_LOG_DEBUG("Encrypting data for %s using RSA", toUser.toString().c_str());
         auto output = std::make_shared<Buffer>(512);
         Buffer input;
         //prepend 16-bit byte length prefix in network byte order
@@ -512,7 +518,7 @@ ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver
     }
     else
     {
-        // decrypt key using RSA
+        STRONGVELOPE_LOG_DEBUG("Decrypting key from user %s using RSA", sender.toString().c_str());
         Buffer buf; //TODO: Maybe refine this
         rsaDecrypt(*key, buf);
         if (buf.dataSize() != AES::BLOCKSIZE)
@@ -532,6 +538,7 @@ void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
         throw std::runtime_error("Error setting own RSA private key");
     auto len = data.dataSize();
     output.reserve(len);
+    output.setDataSize(len);
     key.decrypt(data.ubuf(), len, output.ubuf(), len);
     uint16_t actualLen = ntohs(output.read<uint16_t>(0));
     assert(actualLen <= myPrivRsaKey.dataSize());
@@ -759,7 +766,7 @@ void ProtocolHandler::onKeyReceived(uint32_t keyid, Id sender, Id receiver,
     });
     pms.fail([this, sender, keyid](const promise::Error& err)
     {
-        STRONGVELOPE_LOG_ERROR("Removing key entry for key %d - decryptKey() failerd with error '%s'", keyid, err.what());
+        STRONGVELOPE_LOG_ERROR("Removing key entry for key %d - decryptKey() failed with error '%s'", keyid, err.what());
         auto it = mKeys.find(UserKeyId(sender, keyid));
         assert(it != mKeys.end());
         assert(it->second.pms);

@@ -97,8 +97,6 @@ public:
 
 void addRecord(uint8_t type, const StaticBuffer& value)
 {
-    printf("========================== non-templated addrecord called\n");
-
     assert(!mEnded);
     append(type);
     if (!mLegacyMode)
@@ -127,7 +125,6 @@ void addRecord(uint8_t type, const StaticBuffer& value)
 template <typename T, typename=typename std::enable_if<std::is_pod<T>::value>::type>
 void addRecord(uint8_t type, T&& val)
 {
-    printf("========================== templated addrecord called: %d\n", std::is_class<T>::value);
     assert(!mEnded);
     append(type);
     if (mLegacyMode)

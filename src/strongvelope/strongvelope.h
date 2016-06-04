@@ -230,12 +230,12 @@ protected:
     EcKey myPrivCu25519;
     EcKey myPrivEd25519;
     EcKey myPubEd25519;
-    EcKey myPubCu25519;
     Key<768> myPrivRsaKey;
     karere::UserAttrCache& mUserAttrCache;
     uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
     sqlite3* mDb;
     std::shared_ptr<SendKey> mCurrentKey;
+    bool mForceRsa = false;
     struct KeyEntry
     {
         std::shared_ptr<SendKey> key;
