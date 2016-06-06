@@ -382,7 +382,9 @@ public:
         if (!mSharedObj)
             return kNotResolved;
         auto& master = mSharedObj->mMaster;
-        return master.mSharedObj ? master.done() : mSharedObj->mResolved;
+        return master.mSharedObj
+                ? master.mSharedObj->mResolved
+                : mSharedObj->mResolved;
     }
     bool succeeded() const { return done() == kSucceeded; }
     bool failed() const { return done() == kFailed; }
