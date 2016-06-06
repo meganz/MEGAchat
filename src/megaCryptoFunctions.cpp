@@ -86,7 +86,7 @@ std::string MegaCryptoFuncs::encryptMessageForJid(const std::string& msg, const 
         throw std::runtime_error("encryptMessageForJid: Message must be exactly 43 bytes long");
     auto userid = Client::useridFromJid(bareJid);
     auto pms = mClient.userAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY);
-    if (pms.done() != pms.PROMISE_RESOLV_SUCCESS)
+    if (pms.done() != promise::kSucceeded)
         throw std::runtime_error("encryptMessageForJid: No key loaded for jid "+bareJid);
     ::mega::AsymmCipher key;
     int ret = key.setkey(::mega::AsymmCipher::PUBKEY, pms.value()->ubuf(), pms.value()->dataSize());

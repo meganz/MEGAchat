@@ -926,6 +926,11 @@ Chat::SendingItem* Chat::postItemToSending(uint8_t opcode, Message* msg,
         flushOutputQueue();
         assert(&mSending.back() == save);
     }
+    else
+    {
+        CHATID_LOG_DEBUG("Can't send queued message, the next pending message (%s) is not yet encrypted",
+            Command::opcodeToStr(mNextUnsent->opcode()));
+    }
     return &mSending.back();
 }
 
@@ -944,7 +949,7 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
 
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
     auto pms = mCrypto->msgEncrypt(msg, msgCmd);
-    if (pms.done() == pms.PROMISE_RESOLV_SUCCESS)
+    if (pms.succeeded())
     {
         auto result = pms.value();
         if (result.second)
@@ -962,6 +967,7 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
         {
             postItemToSending(opcode, msg, result.first, result.second); //calls flusheOutputQueue()
         }
+        continueEncryptNextPending();
         return true;
     }
 
@@ -987,14 +993,7 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
         assert(mNextUnsent->msgCmd);
         mEncryptionHalted = false;
         flushOutputQueue();
-        //continue encryption of next queued messages, if any
-        ::mega::marshallCall([this]()
-        {
-            if (mNextUnsent != mSending.end() && !mNextUnsent->msgCmd)
-            {
-                msgEncryptAndSend(mNextUnsent->msg, mNextUnsent->opcode(), &(*mNextUnsent));
-            }
-        });
+        continueEncryptNextPending();
     });
 
     pms.fail([this, msg, msgCmd](const promise::Error& err)
@@ -1007,6 +1006,20 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
     //we don't sent a msgStatusChange event to the listener, as the GUI should initialize the
     //message's status with something already, so it's redundant.
     //The GUI should by default show it as sending
+}
+
+void Chat::continueEncryptNextPending()
+{
+    //continue encryption of next queued messages, if any
+    ::mega::marshallCall([this]()
+    {
+        if (mNextUnsent != mSending.end() && !mNextUnsent->msgCmd)
+        {
+//          CHATID_LOG_DEBUG("Continuing with encryption of the next msg (%s) in send queue",
+//                Command::opcodeToStr(mNextUnsent->opcode()));
+            msgEncryptAndSend(mNextUnsent->msg, mNextUnsent->opcode(), &(*mNextUnsent));
+        }
+    });
 }
 
 // Can be called for a message in history or a NEWMSG,MSGUPD,MSGUPDX message in sending queue
@@ -1036,11 +1049,18 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         {
             cmd->clearMsg();
             auto pms = mCrypto->msgEncrypt(&msg, cmd);
-            if (pms.done() != pms.PROMISE_RESOLV_SUCCESS)
+            if (!pms.succeeded())
             {
                 //delete the blobs of the old message, before raising the error
                 CALL_DB(addBlobsToSendingItem, item->rowid, nullptr, nullptr);
-                throw std::runtime_error(mChatId.toString()+": msgModify: Message re-encrypt did not succeed immediately, and it should");
+                if (pms.failed())
+                {
+                    CHATID_LOG_ERROR("msgModify: Message re-encrypt failed with error %s", pms.error().what());
+                }
+                else
+                {
+                    throw std::runtime_error(mChatId.toString()+": msgModify: Message re-encrypt did not succeed immediately, and it should");
+                }
             }
             else
             {   //updates plaintext msg and msgCmd, does not touch keyCmd
@@ -1399,6 +1419,17 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     push_forward(msg);
     auto idx = mIdToIndexMap[msgid] = highnum();
     CALL_DB(addMsgToHistory, *msg, idx);
+    //update any following MSGUPDX-s referring to this msgxid
+    for (auto& item: mSending)
+    {
+        if (item.msg->id() == msgxid)
+        {
+            assert(item.opcode() == OP_MSGUPDX);
+            CALL_DB(sendingItemMsgupdxToMsgupd, item, msgid);
+            item.msg->setId(msgid, false);
+            item.setOpcode(OP_MSGUPD);
+        }
+    }
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
     return idx;
 }
@@ -1676,7 +1707,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     }
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::decrypt()");
     auto pms = mCrypto->msgDecrypt(&msg);
-    if (pms.done() == pms.PROMISE_RESOLV_SUCCESS)
+    if (pms.succeeded())
     {
         msgIncomingAfterDecrypt(isNew, false, msg, idx);
         return true;

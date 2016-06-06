@@ -550,7 +550,8 @@ promise::Promise<std::pair<MsgCommand*, KeyCommand*>>
 ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
 {
     assert(msg->keyid == msgCmd->keyId());
-    if (msg->keyid == CHATD_KEYID_INVALID) //we have to use the current send key
+    if ((msg->keyid == CHATD_KEYID_INVALID)
+     || (msg->keyid == CHATD_KEYID_UNCONFIRMED)) //we have to use the current send key
     {
         if (!mCurrentKey || mParticipantsChanged)
         {
@@ -745,7 +746,7 @@ void ProtocolHandler::onKeyReceived(uint32_t keyid, Id sender, Id receiver,
 {
     auto encKey = std::make_shared<Buffer>(data, dataLen);
     auto pms = decryptKey(encKey, sender, receiver);
-    if (pms.done() == pms.PROMISE_RESOLV_SUCCESS)
+    if (pms.succeeded())
     {
         addDecryptedKey(UserKeyId(sender, keyid), pms.value());
         return;

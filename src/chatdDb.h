@@ -95,6 +95,14 @@ public:
             keyCmd?static_cast<StaticBuffer>(*keyCmd):StaticBuffer(nullptr, 0), rowid);
         assertAffectedRowCount(1,"addCommandBlobToSendingItem");
     }
+    virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid)
+    {
+        assert(item.opcode() == chatd::OP_MSGUPDX);
+        sqliteQuery(mDb,
+            "update sending set opcode=?, msgid=? where chatid=? and rowid=? and opcode=? and msgid=?",
+            chatd::OP_MSGUPD, msgid, mMessages.chatId(), item.rowid, chatd::OP_MSGUPDX, item.msg->id());
+        assertAffectedRowCount(1, "updateSendingItemMsgidAndOpcode");
+    }
     virtual void deleteItemFromSending(uint64_t rowid)
     {
         sqliteQuery(mDb, "delete from sending where rowid = ?1", rowid);

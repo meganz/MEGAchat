@@ -212,6 +212,7 @@ public:
         std::unique_ptr<KeyCommand> keyCmd;
         karere::SetOfIds recipients;
         uint8_t opcode() const { return mOpcode; }
+        void setOpcode(uint8_t op) { mOpcode = op; }
         SendingItem(uint8_t aOpcode, Message* aMsg, MsgCommand* aMsgCmd,
             KeyCommand* aKeyCmd, const karere::SetOfIds& aRcpts, uint64_t aRowid=0)
         : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), msgCmd(aMsgCmd), keyCmd(aKeyCmd),
@@ -426,11 +427,11 @@ public:
     /** @brief The crypto module must call this method when it returned \c false from
      * \c msgEncrypt() and now it is able to successfully encrypt that message
      */
-    void onCanEncryptAgain();
     bool confirmManualSend(uint64_t id, Message* msg);
     bool cancelManualSend(uint64_t id);
 protected:
     bool msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existingItem=nullptr);
+    void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);
     void keyConfirm(KeyId keyxid, KeyId keyid);
     void rejectMsgupd(uint8_t opcode, karere::Id id);
@@ -513,6 +514,7 @@ public:
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
     virtual void truncateHistory(karere::Id msgid) = 0;
     virtual karere::Id getOldestMsgid() = 0;
+    virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual ~DbInterface(){}
 };
 
