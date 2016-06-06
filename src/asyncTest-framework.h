@@ -6,7 +6,9 @@
 #ifndef ASYNCTEST_H
 #define ASYNCTEST_H
 
-#include<vector>
+#include <vector>
+#include <string>
+
 namespace test
 {
 //need to declare the color vars before including the event loop header
@@ -25,10 +27,10 @@ extern const char* kColorWarning;
 
 #define TESTS_INIT() \
 namespace test { \
-    int gNumFailed = 0;               \
-    int gNumTests = 0;                \
-    int gNumDisabled = 0;             \
-    int gNumTestGroups = 0;           \
+    unsigned gNumFailed = 0;          \
+    unsigned gNumTests = 0;           \
+    unsigned gNumDisabled = 0;        \
+    unsigned gNumTestGroups = 0;      \
     Ts gTotalExecTime = 0;            \
     const char* kColorTag = "";       \
     const char* kColorSuccess = "";   \
@@ -57,10 +59,10 @@ typedef long long Ts;
 struct BailoutException: public std::runtime_error
 {  BailoutException(const std::string& msg): std::runtime_error(msg){} };
 
-extern int gNumFailed;
-extern int gNumTests;
-extern int gNumDisabled;
-extern int gNumTestGroups;
+extern unsigned gNumFailed;
+extern unsigned gNumTests;
+extern unsigned gNumDisabled;
+extern unsigned gNumTestGroups;
 extern Ts gTotalExecTime;
 
 //get function/lambda return type, regardless of argument count and types
@@ -199,9 +201,9 @@ public:
 	std::string name;
     std::string errorMsg;
 	TestList tests;
-    int numErrors = 0;
-    int numDisabled = 0;
-    int numTests = 0;
+    unsigned numErrors = 0;
+    unsigned numDisabled = 0;
+    unsigned numTests = 0;
     Ts execTime = 0;
     std::function<void(Test&)> beforeEach;
     std::function<void(Test&)> afterEach;
@@ -229,7 +231,7 @@ public:
 		{
             body(*this);
             numTests = tests.size() - numDisabled;
-            TEST_LOG_NO_EOL("RUN   Group '%s%s%s' (%zu test%s", kColorTag,
+            TEST_LOG_NO_EOL("RUN   Group '%s%s%s' (%u test%s", kColorTag,
                 name.c_str(), kColorNormal, numTests, (numTests == 1) ? "" : "s");
             if (numDisabled)
             {
@@ -296,13 +298,13 @@ public:
     {
         if (!numErrors)
         {
-            TEST_LOG("%sPASS%s  Group '%s%s%s': 0 errors / %zu test%s (%lld ms)",
+            TEST_LOG("%sPASS%s  Group '%s%s%s': 0 errors / %u test%s (%" PRIu64 " ms)",
                 kColorSuccess, kColorNormal, kColorTag, name.c_str(), kColorNormal,
                 numTests, (numTests==1)?"":"s", execTime);
         }
         else
         {
-            TEST_LOG("%sFAIL%s  Group '%s%s%s': %d error%s / %d test%s (%lld ms)",
+            TEST_LOG("%sFAIL%s  Group '%s%s%s': %u error%s / %u test%s (%" PRIu64 " ms)",
                 kColorFail, kColorNormal, kColorTag, name.c_str(), kColorNormal,
                 numErrors, (numErrors==1)?"":"s", numTests,
                 (numTests==1)?"":"s", execTime);

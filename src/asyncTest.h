@@ -12,6 +12,8 @@
 #include <string.h> //for strcmp
 #include <assert.h>
 #include <unistd.h>
+#include <inttypes.h> //for PRIu64
+#include <cstdlib> //for abs
 
 /** default timeout for a done() item */
 #ifndef TESTLOOP_DEFAULT_DONE_TIMEOUT
@@ -213,11 +215,11 @@ public:
                 return;
             }
             TESTLOOP_LOG_DEBUG("done('%s') timeout handler executed with %lld ms offset from ideal", tag.c_str(), it->second.deadline-getTimeMs());
-            auto offset = abs(it->second.deadline-getTimeMs());
+            auto offset = std::abs(it->second.deadline-getTimeMs());
             if (offset > 10)
             {
                 TESTLOOP_LOG("%sWARNING%s: done('%s') "
-                "timeout handler executed with time offset of %d ms (>10ms) from required. "
+                "timeout handler executed with time offset of %" PRIu64 " ms (>10ms) from required. "
                 "NOTE: This is normal if paused in a debugger",
                 kColorWarning, kColorNormal, tag.c_str(), offset);
             }
