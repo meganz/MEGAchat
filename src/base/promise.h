@@ -9,6 +9,13 @@
 
 namespace promise
 {
+enum ResolvedState
+{
+    kNotResolved = 0,
+    kSucceeded = 1,
+    kFailed = 2
+};
+
 #define PROMISE_LOG(fmtString,...) printf("promise: " fmtString"\n", ##__VA_ARGS__)
 #ifdef PROMISE_DEBUG_REFS
     #define PROMISE_LOG_REF(fmtString,...) PROMISE_LOG(fmtString, ##__VA_ARGS__)
@@ -177,12 +184,6 @@ template<typename T, int L=4>
 class Promise: public PromiseBase
 {
 public:
-    enum ResolvedState
-    {
-        PROMISE_RESOLV_NOT = 0,
-        PROMISE_RESOLV_SUCCESS = 1,
-        PROMISE_RESOLV_FAIL = 2
-    };
 protected:
     template<class P>
     struct ICallback: public IVirtDtor
@@ -251,7 +252,7 @@ protected:
         typename MaskVoid<typename std::remove_const<T>::type>::type mResult;
         Error mError;
         SharedObj()
-        :mRefCount(1), mCbs(NULL), mResolved(PROMISE_RESOLV_NOT),
+        :mRefCount(1), mCbs(NULL), mResolved(kNotResolved),
          mPending(false), mMaster(_Empty())
         {
             PROMISE_LOG_REF("%p: addRef->1", this);
@@ -377,7 +378,23 @@ public:
         }
     }
     int done() const
-    { return (mSharedObj ? (mSharedObj->mResolved) : PROMISE_RESOLV_NOT); }
+    {
+        if (!mSharedObj)
+            return kNotResolved;
+        auto& master = mSharedObj->mMaster;
+        return master.mSharedObj ? master.done() : mSharedObj->mResolved;
+    }
+    bool succeeded() const { return done() == kSucceeded; }
+    bool failed() const { return done() == kFailed; }
+    const Error& error() const
+    {
+        assert(mSharedObj);
+        assert(done() == kFailed);
+        auto& master = mSharedObj->mMaster;
+        return master.mSharedObj
+                ? master.mSharedObj->mError
+                : mSharedObj->mError;
+    }
     template <class Ret=T>
     const typename std::enable_if<!std::is_same<Ret, void>::value, Ret>::type& value() const
     {
@@ -390,7 +407,7 @@ public:
         }
         else
         {
-            assert(done() == PROMISE_RESOLV_SUCCESS);
+            assert(done() == kSucceeded);
             return mSharedObj->mResult;
         }
     }
@@ -477,7 +494,7 @@ public:
         if (mSharedObj->mMaster.mSharedObj) //if we are a slave promise (returned by then() or fail()), forward callbacks to our master promise
             return mSharedObj->mMaster.then(std::forward<F>(cb));
 
-        if (mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
+        if (mSharedObj->mResolved == kFailed)
             return mSharedObj->mError;
 
         typedef typename RemovePromise<typename FuncTraits<F>::RetType>::Type Out;
@@ -486,13 +503,13 @@ public:
         std::unique_ptr<ISuccessCb> resolveCb(createChainedCb<typename MaskVoid<T>::type, Out,
             typename FuncTraits<F>::RetType>(std::forward<F>(cb), next));
 
-        if (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
+        if (mSharedObj->mResolved == kSucceeded)
         {
             (*resolveCb)(mSharedObj->mResult);
         }
         else
         {
-            assert((mSharedObj->mResolved == PROMISE_RESOLV_NOT));
+            assert((mSharedObj->mResolved == kNotResolved));
             thenCbs().push(resolveCb);
         }
 
@@ -514,18 +531,18 @@ public:
         if (mSharedObj->mMaster.mSharedObj) //if we are a slave promise (returned by then() or fail()), forward callbacks to our master promise
             return mSharedObj->mMaster.fail(std::forward<F>(eb));
 
-        if (mSharedObj->mResolved == PROMISE_RESOLV_SUCCESS)
+        if (mSharedObj->mResolved == kSucceeded)
             return mSharedObj->mResult;
 
         Promise<T> next;
         std::unique_ptr<IFailCb> failCb(createChainedCb<Error, T,
             typename FuncTraits<F>::RetType>(std::forward<F>(eb), next));
 
-        if(mSharedObj->mResolved == PROMISE_RESOLV_FAIL)
+        if(mSharedObj->mResolved == kFailed)
             (*failCb)(mSharedObj->mError);
         else
         {
-            assert((mSharedObj->mResolved == PROMISE_RESOLV_NOT));
+            assert((mSharedObj->mResolved == kNotResolved));
             failCbs().push(failCb);
         }
 
@@ -538,7 +555,7 @@ public:
         if (mSharedObj->mResolved)
             throw std::runtime_error("Already resolved/rejected");
 
-        mSharedObj->mResolved = PROMISE_RESOLV_SUCCESS;
+        mSharedObj->mResolved = kSucceeded;
         if (hasCallbacks())
             doResolve(val);
         else
@@ -603,7 +620,7 @@ public:
             throw std::runtime_error("Alrady resolved/rejected");
 
         mSharedObj->mError = err;
-        mSharedObj->mResolved = PROMISE_RESOLV_FAIL;
+        mSharedObj->mResolved = kFailed;
 
         if (hasCallbacks())
             doReject(err);
@@ -633,7 +650,7 @@ protected:
     void doReject(const Error& err)
     {
         assert(mSharedObj->mError);
-        assert(mSharedObj->mResolved == PROMISE_RESOLV_FAIL);
+        assert(mSharedObj->mResolved == kFailed);
         auto& ebs = failCbs();
         int cnt = ebs.count();
         if (cnt)
@@ -675,10 +692,10 @@ protected:
             return;
         assert(mSharedObj->mPending);
         auto state = mSharedObj->mResolved;
-        assert(state != PROMISE_RESOLV_NOT);
-        if (state == PROMISE_RESOLV_SUCCESS)
+        assert(state != kNotResolved);
+        if (state == kSucceeded)
             doResolve(mSharedObj->mResult);
-        else if (state == PROMISE_RESOLV_FAIL)
+        else if (state == kFailed)
             doReject(mSharedObj->mError);
         else
             throw std::runtime_error("Incorrect pending resolve type: "+std::to_string(state));

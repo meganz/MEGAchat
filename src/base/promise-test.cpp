@@ -308,7 +308,7 @@ TestGroup("Double resolve tests")
     {
         Promise<int> pms;
         pms.resolve(1);
-        check(pms.done() == Promise<int>::PROMISE_RESOLV_SUCCESS);
+        check(pms.succeeded());
         try
         {
             pms.resolve(2);
@@ -322,7 +322,7 @@ TestGroup("Double resolve tests")
     {
         Promise<int> pms;
         pms.reject("test error");
-        check(pms.done() == Promise<int>::PROMISE_RESOLV_FAIL);
+        check(pms.failed());
         try
         {
             pms.resolve(2);
@@ -336,7 +336,7 @@ TestGroup("Double resolve tests")
     {
         Promise<int> pms;
         pms.resolve(1);
-        check(pms.done() == Promise<int>::PROMISE_RESOLV_SUCCESS);
+        check(pms.succeeded());
         try
         {
             pms.reject("test");
@@ -350,7 +350,7 @@ TestGroup("Double resolve tests")
     {
         Promise<int> pms;
         pms.reject("test1");
-        check(pms.done() == Promise<int>::PROMISE_RESOLV_FAIL);
+        check(pms.failed());
         try
         {
             pms.reject("test2");
