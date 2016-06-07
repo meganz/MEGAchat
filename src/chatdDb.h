@@ -138,7 +138,8 @@ public:
     }
     virtual void updateMsgInHistory(karere::Id msgid, const StaticBuffer& msg)
     {
-        sqliteQuery(mDb, "update history set data = ? where msgid = ?", msg, msgid);
+        sqliteQuery(mDb, "update history set data = ? where chatid = ? and msgid = ?",
+            msg, mMessages.chatId(), msgid);
         assertAffectedRowCount(1, "updateMsgInHistory");
     }
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
@@ -269,12 +270,14 @@ public:
         auto idx = getIdxOfMsgid(msgid);
         if (idx == CHATD_IDX_INVALID)
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msgid.toString()+" does not exist in db");
-        sqliteQuery(mDb, "delete from history where idx < ?", idx);
+        sqliteQuery(mDb, "delete from history where chatid = ? and idx < ?", mMessages.chatId(), idx);
     }
     virtual karere::Id getOldestMsgid()
     {
-        SqliteStmt stmt(mDb, "select msgid from history where idx = (select min(idx) from history)");
-        stmt.stepMustHaveData();
+        SqliteStmt stmt(mDb, "select msgid from history where chatid = ?1 and "
+            "idx = (select min(idx) from history where chatid=?1)");
+        stmt << mMessages.chatId();
+        stmt.stepMustHaveData(__FUNCTION__);
         return stmt.uint64Col(0);
     }
 };

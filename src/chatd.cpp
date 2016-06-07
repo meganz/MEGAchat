@@ -552,7 +552,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener, ICrypto* crypto)
         mHasMoreHistoryInDb = true;
         mForwardStart = newestDbIdx + 1;
         CHATID_LOG_DEBUG("Db has local history: %s - %s (middle point: %u)",
-            ID_CSTR(mChatId), ID_CSTR(mOldestKnownMsgId), ID_CSTR(mNewestKnownMsgId), mForwardStart);
+            ID_CSTR(mOldestKnownMsgId), ID_CSTR(mNewestKnownMsgId), mForwardStart);
         loadAndProcessUnsent();
         getHistoryFromDb(1); //to know if we have the latest message on server, we must at least load the latest db message
     }
@@ -591,7 +591,7 @@ void Chat::getHistoryFromDb(unsigned count)
     if (mLastSeenIdx == CHATD_IDX_INVALID) //msgIncoming calls onUnreadChanged only for encrypted messages
         CALL_LISTENER(onUnreadChanged);
     if ((messages.size() < count) && mHasMoreHistoryInDb)
-        throw std::runtime_error("Db says it has no more messages, but we still haven't seen specified oldest message id");
+        throw std::runtime_error(mChatId.toString()+": Db says it has no more messages, but we still haven't seen mOldestKnownMsgId of "+std::to_string((int64_t)mOldestKnownMsgId.val));
 }
 
 #define READ_ID(varname, offset)\
@@ -1555,6 +1555,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
         if (msg->type == Message::kMsgTruncate)
         {
+            CHATID_LOG_DEBUG("Truncating chat history before msgid %s", ID_CSTR(msg->id()));
             handleTruncate(*msg, idx);
         }
     })

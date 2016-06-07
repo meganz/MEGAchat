@@ -44,7 +44,7 @@ namespace karere { KR_WEAKSYM(std::string getAppDir()); }
 KR_LOGGER_CONFIG_START(
         krLogChannel_xmpp, krLogChannel_strophe, krLogChannel_rtcevent, krLogChannel_textchat,
         krLogChannel_jingle, krLogChannel_megasdk, krLogChannel_services, krLogChannel_strongvelope,
-        krLogChannel_http, krLogChannel_chatd, krLogChannel_gui)
+        krLogChannel_http, krLogChannel_chatd, krLogChannel_gui, krLogChannel_uacache)
     KR_LOGCHANNEL(default, NULL, Debug, 0)
     KR_LOGCHANNEL(xmpp, "xmpp", Debug, krLogNoLevel | 7)
     KR_LOGCHANNEL(strophe, "strophe", Debug, krLogNoLeadingSpace)
@@ -57,6 +57,7 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(services, "services", Info, 0)
     KR_LOGCHANNEL(http, "http", Debug, 13)
     KR_LOGCHANNEL(gui, "gui", Debug, 10)
+    KR_LOGCHANNEL(uacache, "uacache", Warn, 2)
     KR_LOGGER_CONFIG(setFlags(krLogNoLevel))
     KR_LOGGER_CONFIG(logToConsole())
     KR_LOGGER_CONFIG(logToFile((karere::getAppDir()+"/log.txt").c_str(), 500))

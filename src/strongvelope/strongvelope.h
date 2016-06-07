@@ -160,16 +160,6 @@ public:
 typedef Key<16> SendKey;
 typedef Key<32> EcKey;
 
-/** @brief Encrypts and holds an encrypted message and its attributes - key and
- *  nonce */
-struct EncryptedMessage
-{
-    std::string ciphertext; //crypto++ does not support binary buffers in AES CTR mode, which is used for encrypting messages
-    SendKey key;
-    SendKey nonce;
-    EncryptedMessage(const std::string& clearStr, const StaticBuffer& aKey);
-};
-
 /** Class to parse an encrypted message and store its attributes and content */
 struct ParsedMessage
 {
@@ -208,6 +198,17 @@ enum
     /** Size (in bytes) of the symmetric send key */
     SVCRYPTO_SEND_KEY_SIZE = 16,
 };
+
+/** @brief Encrypts and holds an encrypted message and its attributes - key and
+ *  nonce */
+struct EncryptedMessage
+{
+    std::string ciphertext; //crypto++ does not support binary buffers in AES CTR mode, which is used for encrypting messages
+    SendKey key;
+    Key<SVCRYPTO_NONCE_SIZE> nonce;
+    EncryptedMessage(const std::string& clearStr, const StaticBuffer& aKey);
+};
+
 struct UserKeyId
 {
     karere::Id user;

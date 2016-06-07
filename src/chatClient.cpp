@@ -361,9 +361,6 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
     .then([this](ReqResult result) -> ApiPromise
     {
         auto keys = result->getMegaStringMap();
-        auto k = keys->getKeys();
-        for (auto i=0; i<keys->size(); i++)
-            printf("key %s\n", k->get(i));
         auto cu25519 = keys->get("prCu255");
         if (!cu25519)
             return promise::Error("prCu255 private key missing in keyring from API");
@@ -763,9 +760,10 @@ UserAttrCache::~UserAttrCache()
 
 void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 {
-        sqliteQuery(mClient.db,
-            "insert or replace into userattrs(userid, type, data) values(?,?,?)",
-            key.user, key.attrType, data);
+    sqliteQuery(mClient.db,
+        "insert or replace into userattrs(userid, type, data) values(?,?,?)",
+        key.user.val, key.attrType, data);
+    UACACHE_LOG_DEBUG("dbWrite attr %s", key.toString().c_str());
 }
 
 void UserAttrCache::dbWriteNull(UserAttrPair key)
@@ -773,20 +771,21 @@ void UserAttrCache::dbWriteNull(UserAttrPair key)
     sqliteQuery(mClient.db,
         "insert or replace into userattrs(userid, type, data) values(?,?,NULL)",
         key.user, key.attrType);
+    UACACHE_LOG_DEBUG("dbWriteNull attr %s as NULL", key.toString().c_str());
 }
 
 UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
 {
-    //load only api-supported types, skip 'virtual' types >= 128 as they can't be fetched in the normal way
-    SqliteStmt stmt(mClient.db, "select userid, type, data from userattrs where type < 128");
+    //load all attributes from db
+    SqliteStmt stmt(mClient.db, "select userid, type, data from userattrs");
     while(stmt.step())
     {
         std::unique_ptr<Buffer> data(new Buffer((size_t)sqlite3_column_bytes(stmt, 2)));
         stmt.blobCol(2, *data);
-
-        emplace(std::piecewise_construct,
-            std::forward_as_tuple(stmt.uint64Col(0), stmt.intCol(1)),
-            std::forward_as_tuple(std::make_shared<UserAttrCacheItem>(*this, data.release(), false)));
+        UserAttrPair key(stmt.uint64Col(0), stmt.intCol(1));
+        emplace(std::make_pair(key, std::make_shared<UserAttrCacheItem>(
+                *this, data.release(), kCacheFetchNotPending)));
+        UACACHE_LOG_DEBUG("loaded attr %s", key.toString().c_str());
     }
     mClient.api->addGlobalListener(this);
 }
@@ -821,9 +820,27 @@ const char* nonWhitespaceStr(const char* str)
     return nullptr;
 }
 
+const char* attrName(uint8_t type)
+{
+    switch (type)
+    {
+    case ::mega::MegaApi::USER_ATTR_AVATAR: return "AVATAR";
+    case ::mega::MegaApi::USER_ATTR_FIRSTNAME: return "FIRSTNAME";
+    case ::mega::MegaApi::USER_ATTR_LASTNAME: return "LASTNAME";
+    case ::mega::MegaApi::USER_ATTR_AUTHRING: return "AUTHRING";
+    case ::mega::MegaApi::USER_ATTR_LAST_INTERACTION: return "LAST_INTERACTION";
+    case ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY: return "PUB_ED25519";
+    case ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY: return "PUB_CU25519";
+    case ::mega::MegaApi::USER_ATTR_KEYRING: return "KEYRING";
+    case USER_ATTR_RSA_PUBKEY: return "PUB_RSA";
+    default: return "(invalid)";
+    }
+}
+
 void UserAttrCache::onUserAttrChange(mega::MegaUser& user)
 {
     int changed = user.getChanges();
+    printf("user %s changed %u\n", Id(user.getHandle()).toString().c_str(), changed);
     for (auto t = 0; t < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); t++)
     {
         if ((changed & gUserAttrDescs[t].changeMask) == 0)
@@ -831,16 +848,28 @@ void UserAttrCache::onUserAttrChange(mega::MegaUser& user)
         UserAttrPair key(user.getHandle(), t);
         auto it = find(key);
         if (it == end()) //we don't have such attribute
+        {
+            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(t));
             continue;
+        }
         auto& item = it->second;
         dbInvalidateItem(key); //immediately invalidate parsistent cache
         if (item->cbs.empty()) //we aren't using that item atm
         { //delete it from memory as well, forcing it to be freshly fetched if it's requested
             erase(key);
+            UACACHE_LOG_DEBUG("Attr %s change received, attr is unused -> deleted from cache",
+                key.toString().c_str());
             continue;
         }
         if (item->pending)
+        {
+            //TODO: Shouldn't we schedule a re-fetch?
+            UACACHE_LOG_DEBUG("Attr %s change received, but already fetch in progress, ignoring",
+                key.toString().c_str());
             continue;
+        }
+        UACACHE_LOG_DEBUG("Attr %s change received, invalidated and re-fetching",
+            key.toString().c_str());
         item->pending = kCacheFetchUpdatePending;
         fetchAttr(key, item);
     }
@@ -866,12 +895,14 @@ void UserAttrCacheItem::notify()
 void UserAttrCacheItem::resolve(UserAttrPair key)
 {
     pending = kCacheFetchNotPending;
+    UACACHE_LOG_DEBUG("Attr %s fetched, doing callbacks...", key.toString().c_str());
     parent.dbWrite(key, *data);
     notify();
 }
 void UserAttrCacheItem::resolveNoDb(UserAttrPair key)
 {
     pending = kCacheFetchNotPending;
+    UACACHE_LOG_DEBUG("Attr %s fetched but not writing to db, doing callbacks...", key.toString().c_str());
     notify();
 }
 void UserAttrCacheItem::error(UserAttrPair key, int errCode)
@@ -879,7 +910,14 @@ void UserAttrCacheItem::error(UserAttrPair key, int errCode)
     pending = kCacheFetchNotPending;
     data.reset();
     if (errCode == mega::API_ENOENT)
+    {
         parent.dbWriteNull(key);
+        UACACHE_LOG_DEBUG("Attr %s not found on server, clearing from db and doing callbacks...", key.toString().c_str());
+    }
+    else
+    {
+        UACACHE_LOG_DEBUG("Attr %s fetch error %d, not touching db and doing callbacks...", key.toString().c_str(), errCode);
+    }
     notify();
 }
 
@@ -928,7 +966,7 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
             return 0;
         }
     }
-
+    UACACHE_LOG_DEBUG("Attibute %s not found in cache, fetching", key.toString().c_str());
     auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, kCacheFetchNewPending);
     it = emplace(key, item).first;
     uint64_t cbid = cb ? addCb(it, cb, userp, oneShot) : 0;
@@ -1072,7 +1110,6 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
             item->error(key, ::mega::API_ENOENT);
             return promise::Error("No key", mega::API_ENOENT, ERRTYPE_MEGASDK);
         }
-
         item->data.reset(new Buffer(keylen+1));
         int binlen = base64urldecode(rsakey, keylen, item->data->buf(), keylen);
         item->data->setDataSize(binlen);

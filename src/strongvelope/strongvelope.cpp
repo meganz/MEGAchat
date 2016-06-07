@@ -908,6 +908,9 @@ void ProtocolHandler::onUserJoin(Id userid, chatd::Priv priv)
     mParticipants.insert(userid);
     mCurrentKey.reset(); //just in case
     mParticipantsChanged = true;
+//pre-fetch user attributes
+    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
+    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
 }
 
 void ProtocolHandler::onUserLeave(Id userid)

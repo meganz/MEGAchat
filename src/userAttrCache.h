@@ -1,8 +1,10 @@
 #ifndef USERATTRCACHE
 #define USERATTRCACHE
-
+#include <logger.h>
 #include "karereId.h"
 #include <megaapi.h>
+
+#define UACACHE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_uacache, fmtString, ##__VA_ARGS__)
 
 class Buffer;
 
@@ -13,6 +15,7 @@ namespace mega
 namespace karere
 {
 enum { USER_ATTR_RSA_PUBKEY = 128 }; //virtual user attribute type, to be used with the common attr cache table
+const char* attrName(uint8_t type);
 
 class Client;
 struct UserAttrDesc
@@ -39,6 +42,14 @@ struct UserAttrPair
         if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
          && (attrType != USER_ATTR_RSA_PUBKEY))
             throw std::runtime_error("UserAttrPair: Invalid user attribute id specified");
+    }
+    std::string toString()
+    {
+        std::string result;
+        result.reserve(32);
+        result.append(attrName(attrType)).append(" of user ").append(user.toString())+='(';
+        result.append(std::to_string((int64_t)user.val))+=')';
+        return result;
     }
 };
 typedef void(*UserAttrReqCbFunc)(Buffer*, void*);

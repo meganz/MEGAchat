@@ -82,7 +82,14 @@ public:
         else
             throw std::runtime_error(getLastErrorMsg(nullptr));
     }
-    void stepMustHaveData() { if (!step()) throw std::runtime_error("SqliteStmt::stepMustHaveData: No rows returned"); }
+    void stepMustHaveData(const char* opname=nullptr)
+    {
+        if (step()) return;
+        std::string errmsg = "SqliteStmt::stepMustHaveData: No rows returned";
+        if (opname)
+            errmsg.append(" on operation ").append(opname);
+        throw std::runtime_error(errmsg);
+    }
     int intCol(int num) { return sqlite3_column_int(mStmt, num); }
     int64_t int64Col(int num) { return sqlite3_column_int64(mStmt, num); }
     std::string stringCol(int num)
