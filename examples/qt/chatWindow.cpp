@@ -23,6 +23,8 @@ ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&par
         ui.mMembersBtn->hide();
     else
         setAcceptDrops(true);
+
+    setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint);
     QDialog::show();
 }
 
@@ -250,7 +252,7 @@ void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg, bool oriMsgIsSendin
         }
         if (!widget)
         {
-            CHAT_LOG_WARNING("onUnsentEditLoaded: Could not find the oriignal message among the ones being in sending state");
+            CHAT_LOG_WARNING("onUnsentEditLoaded: Could not find the orignal message among the ones being in sending state");
             return;
         }
         assert(widget->mMessage->dataEquals(editmsg.buf(), editmsg.dataSize()));
@@ -281,9 +283,15 @@ void ChatWindow::onManualSendRequired(chatd::Message* msg, uint64_t id, int reas
         ui.mSplitter->insertWidget(1, mManualSendList);
         mManualSendList->show();
     }
-    auto widget = new ManualSendMsgWidget(*this, msg, id, reason);
-//    connect(widget->ui.mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
+    if (msg->userp)
+    {
+        auto item = static_cast<QListWidgetItem*>(msg->userp);
+        MessageWidget* msgWidget = static_cast<MessageWidget*>(ui.mMessageList->itemWidget(item));
+        msgWidget->removeFromList();
+        msg->userp = nullptr;
+    }
 
+    auto widget = new ManualSendMsgWidget(*this, msg, id, reason);
     auto* item = new QListWidgetItem;
     msg->userp = item;
     item->setSizeHint(widget->size());
@@ -396,7 +404,6 @@ void MessageWidget::msgDeleted()
     if (mChatWindow.mChat->isFetchingHistory() || !list.rect().contains(visualRect))
     {
         removeFromList();
-        mChatWindow.mHistAddPos--;
         return;
     }
     auto a = new QPropertyAnimation(this, "msgColor");
@@ -419,8 +426,10 @@ void MessageWidget::removeFromList()
     assert(item);
     mMessage->userp = nullptr;
     auto& list = *mChatWindow.ui.mMessageList;
-    delete list.takeItem(list.row(item));
-    mChatWindow.mHistAddPos--;
+    auto rowNo = list.row(item);
+    delete list.takeItem(rowNo);
+    if (rowNo < mChatWindow.mHistAddPos) //if it's a history message, move mHistAddPos one position up as we shorten the history
+        mChatWindow.mHistAddPos--;
     this->deleteLater();
 }
 
@@ -428,7 +437,9 @@ ManualSendMsgWidget::ManualSendMsgWidget(ChatWindow& chatWin, chatd::Message* aM
     uint64_t id, uint8_t reason)
 : QWidget(&chatWin), mChatWindow(chatWin), mMessage(aMsg), mId(id), mReason(reason)
 {
+    assert(mMessage);
     ui.setupUi(this);
+    ui.mTextEdit->setText(QString::fromUtf8(mMessage->buf(), mMessage->dataSize()));
     if (reason == chatd::kManualSendTooOld)
     {
         ui.mReasonDisplay->setText(tr("Too old (%1)").arg(prettyInterval(time(NULL) - mMessage->ts)));
@@ -441,26 +452,32 @@ ManualSendMsgWidget::ManualSendMsgWidget(ChatWindow& chatWin, chatd::Message* aM
     {
         CHAT_LOG_ERROR("Don't know how to handle manual send reason %d", reason);
     }
+    connect(ui.mSendBtn, SIGNAL(clicked()), this, SLOT(onSendBtn()));
+    connect(ui.mDiscardBtn, SIGNAL(clicked()), this, SLOT(onDiscardBtn()));
 }
 void ManualSendMsgWidget::onSendBtn()
 {
-    mChatWindow.chat().confirmManualSend(mId, mMessage.release());
+    mChatWindow.chat().removeManualSend(mId);
+    mId = 0;
+    mChatWindow.postNewMessage(mMessage->buf(), mMessage->dataSize(), mMessage->type);
     removeFromListAndDelete();
 }
 
 void ManualSendMsgWidget::onDiscardBtn()
 {
-    mChatWindow.chat().cancelManualSend(mId);
+    mChatWindow.chat().removeManualSend(mId);
+    mId = 0;
     removeFromListAndDelete();
 }
 
 void ManualSendMsgWidget::removeFromListAndDelete()
 {
-    assert(mChatWindow.mManualSendList);
+    assert(mMessage);
     assert(mMessage->userp);
     auto item = static_cast<QListWidgetItem*>(mMessage->userp);
-    assert(item);
     mMessage->userp = nullptr;
+
+    assert(mChatWindow.mManualSendList);
     auto list = mChatWindow.mManualSendList;
     delete list->takeItem(list->row(item));
     this->deleteLater();

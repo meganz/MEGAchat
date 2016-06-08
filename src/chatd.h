@@ -18,7 +18,7 @@
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 
-#define CHATD_MAX_EDIT_AGE 3600
+#define CHATD_MAX_EDIT_AGE 1 //3600
 namespace chatd
 {
 
@@ -415,7 +415,6 @@ public:
     void loadManualSending();
 // Message output methods
     Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
-    void msgSubmit(Message* msg);
 //Queues a message as a edit message for \c orig. \attention Will delete a previous edit if
 //the original was not yet ack-ed by the server. That is, there can be only one pending
 //edit for a not-yet-sent message, and if there was a previous one, it will be deleted.
@@ -427,9 +426,9 @@ public:
     /** @brief The crypto module must call this method when it returned \c false from
      * \c msgEncrypt() and now it is able to successfully encrypt that message
      */
-    bool confirmManualSend(uint64_t id, Message* msg);
-    bool cancelManualSend(uint64_t id);
+    void removeManualSend(uint64_t id);
 protected:
+    void msgSubmit(Message* msg);
     bool msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existingItem=nullptr);
     void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);

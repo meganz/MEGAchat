@@ -785,8 +785,9 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
         UserAttrPair key(stmt.uint64Col(0), stmt.intCol(1));
         emplace(std::make_pair(key, std::make_shared<UserAttrCacheItem>(
                 *this, data.release(), kCacheFetchNotPending)));
-        UACACHE_LOG_DEBUG("loaded attr %s", key.toString().c_str());
+//        UACACHE_LOG_DEBUG("loaded attr %s", key.toString().c_str());
     }
+    UACACHE_LOG_DEBUG("loaded %zu entries from db", size());
     mClient.api->addGlobalListener(this);
 }
 
@@ -895,7 +896,7 @@ void UserAttrCacheItem::notify()
 void UserAttrCacheItem::resolve(UserAttrPair key)
 {
     pending = kCacheFetchNotPending;
-    UACACHE_LOG_DEBUG("Attr %s fetched, doing callbacks...", key.toString().c_str());
+    UACACHE_LOG_DEBUG("Attr %s fetched, writing to db and doing callbacks...", key.toString().c_str());
     parent.dbWrite(key, *data);
     notify();
 }

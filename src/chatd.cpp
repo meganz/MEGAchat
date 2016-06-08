@@ -1285,18 +1285,16 @@ bool Chat::flushOutputQueue(bool fromStart)
         }
         if (now - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE)
         {
+            auto start = mNextUnsent;
+            mNextUnsent = mSending.end();
             //too old message or edit, move it and all following items as well
-            for (auto it = mNextUnsent; it != mSending.end();)
+            for (auto it = start; it != mSending.end();)
             {
-                if (mNextUnsent != mSending.begin())
-                    mNextUnsent--;
-                else
-                    mNextUnsent = mSending.end();
-
                 auto erased = it;
                 it++;
                 moveItemToManualSending(erased, kManualSendTooOld);
             }
+            CALL_CRYPTO(resetSendKey);
             return false;
         }
         if (!mNextUnsent->msgCmd)
@@ -1333,20 +1331,15 @@ void Chat::moveItemToManualSending(OutputQueue::iterator it, int reason)
         CALL_DB(deleteItemFromSending, it->rowid);
         CALL_DB(saveItemToManualSending, *it, reason);
         CALL_LISTENER(onManualSendRequired, it->msg, it->rowid, reason); //GUI should this message at end of that list of messages requiring 'manual' resend
+        it->msg = nullptr; //don't delete the Message object, it will be owned by the app
     }
     mSending.erase(it);
 }
 
-bool Chat::confirmManualSend(uint64_t rowid, Message* msg)
+void Chat::removeManualSend(uint64_t rowid)
 {
     if (!mDbInterface->deleteManualSendItem(rowid))
-        return false;
-    msgSubmit(msg);
-    return true;
-}
-bool Chat::cancelManualSend(uint64_t rowid)
-{
-    return mDbInterface->deleteManualSendItem(rowid);
+        throw std::runtime_error("Unknown manual send id");
 }
 
 // after a reconnect, we tell the chatd the oldest and newest buffered message
@@ -1727,7 +1720,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         if ((err.type() != SVCRYPTO_ERRTYPE) ||
             (err.code() != SVCRYPTO_ENOKEY))
         {
-            CHATID_LOG_ERROR("Unrecoverable decrypt error at message %s:'%s'\nMessage will not be decrypted", ID_CSTR(message->id()), err.what());
+            CHATID_LOG_ERROR("Unrecoverable decrypt error at message %s:'%s'\nMessage will not be decrypted", ID_CSTR(message->id()), err.toString().c_str());
         }
         else
         {

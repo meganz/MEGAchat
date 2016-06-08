@@ -815,7 +815,7 @@ promise::Promise<std::shared_ptr<SendKey>> ProtocolHandler::getKey(UserKeyId uki
     auto kit = mKeys.find(ukid);
     if (kit == mKeys.end())
         return promise::Error("Key with id "+std::to_string(ukid.key)+
-            " from user "+ukid.user.toString()+" not found", ENOENT, SVCRYPTO_ERRTYPE);
+            " from user "+ukid.user.toString()+" not found", SVCRYPTO_ENOKEY, SVCRYPTO_ERRTYPE);
     auto& entry = kit->second;
     auto key = entry.key;
     if (key)
@@ -918,6 +918,12 @@ void ProtocolHandler::onUserLeave(Id userid)
     mParticipants.erase(userid);
     mCurrentKey.reset(); //just in case
     mParticipantsChanged = true;
+}
+
+void ProtocolHandler::resetSendKey()
+{
+    mCurrentKey.reset();
+    mCurrentKeyId = CHATD_KEYID_INVALID;
 }
 }
 

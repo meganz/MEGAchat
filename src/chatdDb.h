@@ -206,7 +206,7 @@ public:
             auto idx = stmt.intCol(5);
             if(idx != mMessages.lownum()-1-(int)messages.size()) //we go backward in history, hence the -messages.size()
             {
-                CHATD_LOG_ERROR("chatid %" PRId64 ": fetchDbHistory: Buffer discontinuity detected: "
+                CHATD_LOG_ERROR("chatid %" PRId64 ": fetchDbHistory: History discontinuity detected: "
                     "expected idx %d, retrieved from db:%d", mMessages.chatId().val,
                     mMessages.lownum()-1-(int)messages.size(), idx);
                 abort();

@@ -318,6 +318,7 @@ public:
         virtual void onKeyConfirmed(uint32_t keyxid, uint32_t keyid);
         virtual void onUserJoin(karere::Id userid, chatd::Priv priv);
         virtual void onUserLeave(karere::Id userid);
+        virtual void resetSendKey();
     };
 }
 

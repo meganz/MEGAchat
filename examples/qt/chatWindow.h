@@ -201,20 +201,20 @@ public slots:
 
         if (mEditedWidget)
         {
-            submitEdit(text);
+            submitEdit(text.data(), text.size());
             assert(!mEditedWidget);
         }
         else
         {
-            postNewMessage(text);
+            postNewMessage(text.data(), text.size());
         }
     }
-    void submitEdit(const QByteArray& text)
+    void submitEdit(const char* data, size_t size)
     {
         auto widget = mEditedWidget;
         auto& msg = *mEditedWidget->mMessage;
         mEditedWidget = nullptr;
-        if (text.isEmpty()) //delete message
+        if (!data) //delete message
         {
             if (!mChat->msgModify(msg, nullptr, 0, msg.userp))
             {
@@ -228,10 +228,10 @@ public slots:
         }
         else //try to edit message
         {
-            if (msg.dataEquals(text.data(), text.size()))  //no change
+            if (msg.dataEquals(data, size))  //no change
                 goto noedit;
 
-            chatd::Message* edited = mChat->msgModify(msg, text.data(), text.size(), msg.userp);
+            chatd::Message* edited = mChat->msgModify(msg, data, size, msg.userp);
             if (!edited) //can't edit, msg too old
             {
                 showCantEditNotice();
@@ -247,11 +247,12 @@ public slots:
 noedit:
         widget->disableEditGui();
     }
-    void postNewMessage(const QByteArray& text)
+    void postNewMessage(const char* data, size_t size, chatd::Message::Type type=chatd::Message::kMsgNormal)
     {
-        if (text.isEmpty())
-            return;
-        auto msg = mChat->msgSubmit(text.data(), text.size(), chatd::Message::kMsgNormal, nullptr);
+        if (!data)
+            throw std::runtime_error("postNewMessage: Can't post message with NULL data");
+
+        auto msg = mChat->msgSubmit(data, size, type, nullptr);
         msg->userp = addMsgWidget(*msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
         ui.mMessageList->scrollToBottom();
     }
