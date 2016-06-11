@@ -113,10 +113,10 @@ protected:
     unsigned char mShardNo;
     bool mIsGroup;
     chatd::Priv mOwnPriv;
-    chatd::Chat* mMessages = nullptr;
+    chatd::Chat* mChat = nullptr;
     bool syncRoomPropertiesWithApi(const mega::MegaTextChat& chat);
     void switchListenerToChatWindow();
-    void join(); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
+    void chatdJoin(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IGui::IContactGui& contactGui() = 0;
@@ -130,7 +130,7 @@ public:
     const std::string& url() const { return mUrl; }
     unsigned char shardNo() const { return mShardNo; }
     chatd::Priv ownPriv() const { return mOwnPriv; }
-    chatd::ChatState chatdOnlineState() const { return mMessages->onlineState(); }
+    chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
     IGui::IChatWindow& chatWindow(); /// < creates the windows if not already created
     bool hasChatWindow() const { return mChatWindow != nullptr; }
     //chatd::Listener implementation
@@ -161,6 +161,7 @@ public:
     virtual const std::string& titleString() const;
     void updatePresence();
     virtual Presence presence() const;
+    void join();
 //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
     virtual void onUserLeave(Id userid);
@@ -212,7 +213,7 @@ public:
     virtual const std::string& titleString() const { return mTitleString; }
     virtual Presence presence() const
     {
-        return (mMessages->onlineState() == chatd::kChatStateOnline)? Presence::kOnline:Presence::kOffline;
+        return (mChat->onlineState() == chatd::kChatStateOnline)? Presence::kOnline:Presence::kOffline;
     }
     void updateTitle()
     {
@@ -235,6 +236,7 @@ public:
         if(mChatWindow)
             mChatWindow->updateTitle(mTitleString);
     }
+    void join();
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
     void onUserLeave(Id userid);
@@ -427,7 +429,7 @@ protected:
     promise::Promise<void> loginExistingSession();
     void loadOwnUserHandle();
     promise::Promise<void> loadOwnKeysFromApi();
-    promise::Promise<void> loadOwnKeysFromDb();
+    void loadOwnKeysFromDb();
     void setupXmppReconnectHandler();
     promise::Promise<void> connectXmpp(const std::shared_ptr<HostPortServerInfo>& server);
     void setupXmppHandlers();
@@ -450,7 +452,7 @@ protected:
 
 inline Presence PeerChatRoom::calculatePresence(Presence pres) const
 {
-    if (mMessages && mMessages->onlineState() != chatd::kChatStateOnline)
+    if (mChat && mChat->onlineState() != chatd::kChatStateOnline)
         return Presence::kOffline;
     return pres;
 }

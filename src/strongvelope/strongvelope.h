@@ -245,7 +245,7 @@ protected:
         KeyEntry(const std::shared_ptr<SendKey>& aKey): key(aKey){}
     };
     std::map<UserKeyId, KeyEntry> mKeys;
-    karere::SetOfIds mParticipants;
+    karere::SetOfIds* mParticipants = nullptr;
     bool mParticipantsChanged = true;
 public:
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& PrivCu25519,
@@ -316,7 +316,8 @@ public:
         virtual void onKeyReceived(uint32_t keyid, karere::Id sender,
             karere::Id receiver, const char* data, uint16_t dataLen);
         virtual void onKeyConfirmed(uint32_t keyxid, uint32_t keyid);
-        virtual void onUserJoin(karere::Id userid, chatd::Priv priv);
+        virtual void setUsers(karere::SetOfIds* users);
+        virtual void onUserJoin(karere::Id userid);
         virtual void onUserLeave(karere::Id userid);
         virtual void resetSendKey();
     };

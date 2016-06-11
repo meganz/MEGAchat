@@ -18,7 +18,7 @@
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 
-#define CHATD_MAX_EDIT_AGE 1 //3600
+#define CHATD_MAX_EDIT_AGE 3600
 namespace chatd
 {
 
@@ -256,6 +256,7 @@ protected:
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     karere::SetOfIds mUsers;
+    karere::SetOfIds mUserDump; //< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
     /// Before that happens, missing messages are supposed to be in the database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
@@ -300,7 +301,8 @@ protected:
      */
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
     std::map<karere::Id, Message*> mPendingEdits;
-    Chat(Connection& conn, karere::Id chatid, Listener* listener, ICrypto* crypto);
+    Chat(Connection& conn, karere::Id chatid, Listener* listener,
+         const karere::SetOfIds& users, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
     Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front().get() : mForwardList.back().get(); }
@@ -413,6 +415,7 @@ public:
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
     void replayUnsentNotifications();
     void loadManualSending();
+    ICrypto* crypto() const { return mCrypto; }
 // Message output methods
     Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
 //Queues a message as a edit message for \c orig. \attention Will delete a previous edit if
@@ -475,7 +478,8 @@ public:
         return *it->second;
     }
 
-    void join(karere::Id chatid, int shardNo, const std::string& url, Listener* listener, ICrypto* crypto);
+    void join(karere::Id chatid, int shardNo, const std::string& url,
+        Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
     void leave(karere::Id chatid);
     friend class Connection;
     friend class Chat;
@@ -514,6 +518,8 @@ public:
     virtual void truncateHistory(karere::Id msgid) = 0;
     virtual karere::Id getOldestMsgid() = 0;
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
+    virtual void addUser(karere::Id userid, Priv priv) = 0;
+    virtual void removeUser(karere::Id userid) = 0;
     virtual ~DbInterface(){}
 };
 

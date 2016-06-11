@@ -134,7 +134,7 @@ Client::Client(Id userId)
 
 // add a new chatd shard
 void Client::join(Id chatid, int shardNo, const std::string& url, Listener* listener,
-    ICrypto* crypto)
+    const karere::SetOfIds& users, ICrypto* crypto)
 {
     auto msgsit = mChatForChatId.find(chatid);
     if (msgsit != mChatForChatId.end())
@@ -150,8 +150,8 @@ void Client::join(Id chatid, int shardNo, const std::string& url, Listener* list
     {
         isNew = true;
         conn = new Connection(*this, shardNo);
-        mConnections.emplace(std::piecewise_construct, std::forward_as_tuple(shardNo),
-                             std::forward_as_tuple(conn));
+        mConnections.emplace(std::piecewise_construct,
+            std::forward_as_tuple(shardNo), std::forward_as_tuple(conn));
     }
     else
     {
@@ -166,7 +166,7 @@ void Client::join(Id chatid, int shardNo, const std::string& url, Listener* list
     // add chatid to the connection's chatids
     conn->mChatIds.insert(chatid);
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
-    Chat* chat = new Chat(*conn, chatid, listener, crypto);
+    Chat* chat = new Chat(*conn, chatid, listener, users, crypto);
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
 
     // attempt a connection ONLY if this is a new shard.
@@ -489,6 +489,7 @@ void Connection::rejoinExistingChats()
 void Chat::join()
 {
 //also reset handshake state, as we may be reconnecting
+    mUserDump.clear();
     setOnlineState(kChatStateJoining);
     mHistFetchState = kHistNotFetching;
     sendCommand(Command(OP_JOIN) + mChatId + mClient.mUserId + (int8_t)PRIV_NOCHANGE);
@@ -524,18 +525,20 @@ void Chat::requestHistoryFromServer(int32_t count)
     sendCommand(Command(OP_HIST) + mChatId + count);
 }
 
-Chat::Chat(Connection& conn, Id chatid, Listener* listener, ICrypto* crypto)
-    : mConnection(conn), mClient(conn.mClient), mChatId(chatid), mListener(listener),
-      mCrypto(crypto)
+Chat::Chat(Connection& conn, Id chatid, Listener* listener,
+    const karere::SetOfIds& initialUsers, ICrypto* crypto)
+    : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
+      mListener(listener), mUsers(initialUsers), mCrypto(crypto)
 {
     assert(mChatId);
     assert(mListener);
     assert(mCrypto);
+    assert(!mUsers.empty());
     mNextUnsent = mSending.begin();
     Idx newestDbIdx;
     //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
     mListener->init(*this, mDbInterface);
-    mCrypto->init(*this);
+    CALL_CRYPTO(setUsers, &mUsers);
     assert(mDbInterface);
     mDbInterface->getHistoryInfo(mOldestKnownMsgId, mNewestKnownMsgId, newestDbIdx);
     if (!mOldestKnownMsgId)
@@ -1278,6 +1281,12 @@ bool Chat::flushOutputQueue(bool fromStart)
     {
         if ((mNextUnsent->recipients != mUsers) && !mNextUnsent->isEdit())
         {
+            assert(!mNextUnsent->recipients.empty());
+            for (auto user: mUsers)
+                printf("user: %s\n", user.toString().c_str());
+            for (auto user: mNextUnsent->recipients)
+                printf("msg user: %s\n", user.toString().c_str());
+
             auto erased = mNextUnsent;
             mNextUnsent++;
             moveItemToManualSending(erased, kManualSendUsersChanged);
@@ -1346,6 +1355,7 @@ void Chat::removeManualSend(uint64_t rowid)
 void Chat::joinRangeHist()
 {
     assert(mOldestKnownMsgId && mNewestKnownMsgId);
+    mUserDump.clear();
     setOnlineState(kChatStateJoining);
     mHistFetchState = kHistFetchingOldFromServer;
     CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
@@ -1829,20 +1839,43 @@ void Chat::handleLastReceivedSeen(Id msgid)
 
 void Chat::onUserJoin(Id userid, Priv priv)
 {
-    mUsers.insert(userid);
-    CALL_CRYPTO(onUserJoin, userid, priv);
-    CALL_LISTENER(onUserJoin, userid, priv);
+    if (mOnlineState == kChatStateJoining)
+    {
+        mUserDump.insert(userid);
+    }
+    else if (mOnlineState == kChatStateOnline)
+    {
+        mUsers.insert(userid);
+        CALL_DB(addUser, userid, priv);
+        CALL_CRYPTO(onUserJoin, userid);
+        CALL_LISTENER(onUserJoin, userid, priv);
+    }
+    else
+    {
+        throw std::runtime_error("onUserJoin received while not joining and not online");
+    }
 }
 
 void Chat::onUserLeave(Id userid)
 {
+    if (mOnlineState != kChatStateOnline)
+        throw std::runtime_error("onUserLeave received while not online");
+
     mUsers.erase(userid);
+    CALL_DB(removeUser, userid);
     CALL_CRYPTO(onUserLeave, userid);
     CALL_LISTENER(onUserLeave, userid);
 }
 
 void Chat::onJoinComplete()
 {
+    if (mUsers != mUserDump)
+    {
+        mUsers.swap(mUserDump);
+        CALL_CRYPTO(setUsers, &mUsers);
+    }
+    mUserDump.clear();
+
     setOnlineState(kChatStateOnline);
     if (mIsFirstJoin)
     {

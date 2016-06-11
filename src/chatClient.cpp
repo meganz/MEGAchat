@@ -83,6 +83,7 @@ Client::Client(IGui& aGui, Presence pres)
         KR_LOG_WARNING("Local db inconsisency: Session id found, but out userhandle is invalid. Invalidating session");
         return;
     }
+    loadOwnKeysFromDb();
     chatd.reset(new chatd::Client(mMyHandle));
     contactList.reset(new ContactList(*this));
     chats.reset(new ChatRoomList(*this));
@@ -253,16 +254,9 @@ promise::Promise<void> Client::loginExistingSession()
             return err;
         KR_LOG_ERROR("Network login failed, working offline");
         return promise::_Void();
-    })
-    .then([this]()
-    {
-        return loadOwnKeysFromDb(); //may fall back to load from API
-    })
-    .then([this]()
-    {
-        chats->loadFromDb();
     });
 }
+
 void dumpChatrooms(::mega::MegaTextChatList& chatRooms)
 {
     KR_LOG_DEBUG("=== Chatrooms received from API: ===");
@@ -351,7 +345,7 @@ void Client::loadOwnUserHandle()
     if (!uh.c_str() || !uh.c_str()[0])
         throw std::runtime_error("Could not get our own user handle from API");
     Id handle(uh.c_str());
-    KR_LOG_DEBUG("Obtained our own handle (%s), recording to database", handle.toString().c_str());
+    KR_LOG_INFO("Our user handle is %s", handle.toString().c_str());
     mMyHandle = handle;
 }
 
@@ -397,41 +391,31 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         return promise::_Void();
     });
 }
-promise::Promise<void> Client::loadOwnKeysFromDb()
+
+void Client::loadOwnKeysFromDb()
 {
-    try
-    {
-        SqliteStmt stmt(db, "select value from vars where name=?");
+    SqliteStmt stmt(db, "select value from vars where name=?");
 
-        stmt << "pr_rsa";
-        stmt.stepMustHaveData();
-        mMyPrivRsaLen = stmt.blobCol(0, mMyPrivRsa, sizeof(mMyPrivRsa));
-        stmt.reset().clearBind();
-        stmt << "pub_rsa";
-        stmt.stepMustHaveData();
-        mMyPubRsaLen = stmt.blobCol(0, mMyPubRsa, sizeof(mMyPubRsa));
+    stmt << "pr_rsa";
+    stmt.stepMustHaveData();
+    mMyPrivRsaLen = stmt.blobCol(0, mMyPrivRsa, sizeof(mMyPrivRsa));
+    stmt.reset().clearBind();
+    stmt << "pub_rsa";
+    stmt.stepMustHaveData();
+    mMyPubRsaLen = stmt.blobCol(0, mMyPubRsa, sizeof(mMyPubRsa));
 
-        stmt.reset().clearBind();
-        stmt << "pr_cu25519";
-        stmt.stepMustHaveData();
-        auto len = stmt.blobCol(0, mMyPrivCu25519, sizeof(mMyPrivCu25519));
-        if (len != sizeof(mMyPrivCu25519))
-            throw std::runtime_error("Unexpected length of privCu25519 in database");
-        stmt.reset().clearBind();
-        stmt << "pr_ed25519";
-        stmt.stepMustHaveData();
-        len = stmt.blobCol(0, mMyPrivEd25519, sizeof(mMyPrivEd25519));
-        if (len != sizeof(mMyPrivEd25519))
-            throw std::runtime_error("Unexpected length of privEd2519 in database");
-        return promise::_Void();
-    }
-    catch(std::exception& e)
-    {
-        KR_LOG_ERROR("Error while loading own keys/data from database: %s", e.what());
-        KR_LOG_ERROR("Clearing own data from db and reloading from API");
-        sqliteQuery(db, "delete from vars where name in ('pub_rsa', 'pr_rsa', 'pr_cu25519', 'pub_ed25519')");
-        return loadOwnKeysFromApi();
-    }
+    stmt.reset().clearBind();
+    stmt << "pr_cu25519";
+    stmt.stepMustHaveData();
+    auto len = stmt.blobCol(0, mMyPrivCu25519, sizeof(mMyPrivCu25519));
+    if (len != sizeof(mMyPrivCu25519))
+        throw std::runtime_error("Unexpected length of privCu25519 in database");
+    stmt.reset().clearBind();
+    stmt << "pr_ed25519";
+    stmt.stepMustHaveData();
+    len = stmt.blobCol(0, mMyPrivEd25519, sizeof(mMyPrivEd25519));
+    if (len != sizeof(mMyPrivEd25519))
+        throw std::runtime_error("Unexpected length of privEd2519 in database");
 }
 
 
@@ -793,6 +777,7 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
 
 void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
+    printf("onUsersUpdate: %p\n", aUsers);
     if (!aUsers)
         return;
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
@@ -1157,9 +1142,17 @@ strongvelope::ProtocolHandler* Client::newStrongvelope()
         StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
         StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), userAttrCache, db);
 }
-void ChatRoom::join()
+void ChatRoom::chatdJoin(const karere::SetOfIds& initialUsers)
 {
-    parent.client.chatd->join(mChatid, mShardNo, mUrl, this, parent.client.newStrongvelope());
+    parent.client.chatd->join(mChatid, mShardNo, mUrl, this, initialUsers,
+        parent.client.newStrongvelope());
+}
+void PeerChatRoom::join()
+{
+    karere::SetOfIds users;
+    users.insert(mPeer);
+    users.insert(parent.client.myHandle());
+    chatdJoin(users);
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl, unsigned char aShard,
@@ -1178,6 +1171,17 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const
         mContactGui->updateTitle(mTitleString);
     join();
 }
+void GroupChatRoom::join()
+{
+    karere::SetOfIds users;
+    users.insert(parent.client.myHandle());
+    for (auto& peer: mPeers)
+    {
+        users.insert(peer.first);
+    }
+    chatdJoin(users);
+}
+
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
     unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv)
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer), mPeerPriv(peerPriv)
@@ -1294,7 +1298,7 @@ void GroupChatRoom::deleteSelf()
 ChatRoomList::ChatRoomList(Client& aClient)
 :client(aClient)
 {
-//    loadFromDb();
+    loadFromDb();
 }
 
 void ChatRoomList::loadFromDb()
@@ -1556,10 +1560,10 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
     }
     return changed;
 }
-void ChatRoom::init(chatd::Chat& msgs, chatd::DbInterface*& dbIntf)
+void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
 {
-    mMessages = &msgs;
-    dbIntf = new ChatdSqliteDb(msgs, parent.client.db);
+    mChat = &chat;
+    dbIntf = new ChatdSqliteDb(*mChat, parent.client.db);
     if (mChatWindow)
     {
         switchListenerToChatWindow();
@@ -1579,14 +1583,14 @@ IGui::IChatWindow &ChatRoom::chatWindow()
 
 void ChatRoom::switchListenerToChatWindow()
 {
-    if (mMessages->listener() == mChatWindow)
+    if (mChat->listener() == mChatWindow)
         return;
     chatd::DbInterface* dummyIntf = nullptr;
 // init() relies on some events, so we need to set mChatWindow as listener before
 // calling init(). This is safe, as and we will not get any async events before we
 //return to the event loop
-    mMessages->setListener(mChatWindow);
-    mChatWindow->init(*mMessages, dummyIntf);
+    mChat->setListener(mChatWindow);
+    mChatWindow->init(*mChat, dummyIntf);
 }
 
 Presence PeerChatRoom::presence() const
@@ -1608,17 +1612,17 @@ void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
         mChatWindow->updateOnlineIndication(pres);
 }
 
-void GroupChatRoom::onUserJoin( Id userid, chatd::Priv privilege)
+void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
     if (userid != parent.client.myHandle())
-        addMember(userid, privilege, true);
+        addMember(userid, privilege, false);
 }
-void GroupChatRoom::onUserLeave( Id userid)
+void GroupChatRoom::onUserLeave(Id userid)
 {
     removeMember(userid);
 }
 
-void PeerChatRoom::onUserJoin( Id userid, chatd::Priv privilege)
+void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
     if (userid == parent.client.chatd->userId())
         syncOwnPriv(privilege);
@@ -1627,18 +1631,18 @@ void PeerChatRoom::onUserJoin( Id userid, chatd::Priv privilege)
     else
         KR_LOG_ERROR("PeerChatRoom: Bug: Received JOIN event from chatd for a third user, ignoring");
 }
-void PeerChatRoom::onUserLeave( Id userid)
+void PeerChatRoom::onUserLeave(Id userid)
 {
     KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
 }
 
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Message::Status status)
 {
-    contactGui().updateOverlayCount(mMessages->unreadMsgCount());
+    contactGui().updateOverlayCount(mChat->unreadMsgCount());
 }
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg)
 {
-    contactGui().updateOverlayCount(mMessages->unreadMsgCount());
+    contactGui().updateOverlayCount(mChat->unreadMsgCount());
 }
 
 IGui::IContactGui& PeerChatRoom::contactGui()
@@ -1653,7 +1657,7 @@ void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 void PeerChatRoom::onUnreadChanged()
 {
 //    printf("onUnreadChanged: %s, %d\n", mMessages->chatId().toString().c_str(), mMessages->unreadMsgCount());
-    mContact->gui().updateOverlayCount(mMessages->unreadMsgCount());
+    mContact->gui().updateOverlayCount(mChat->unreadMsgCount());
 }
 
 void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)

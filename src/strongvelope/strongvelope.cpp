@@ -857,7 +857,7 @@ ProtocolHandler::updateSenderKey()
 
 	// Assemble the output for all recipients.
 
-    assert(!mParticipants.empty());
+    assert(mParticipants && !mParticipants->empty());
 
     // Users and send key may change while we are getting pubkeys of current
     // users, so make a snapshot
@@ -894,7 +894,7 @@ ProtocolHandler::updateSenderKey()
             });
         }
         Context(ProtocolHandler& aSelf)
-        : self(aSelf), users(self.mParticipants), userIt(users.begin()),
+        : self(aSelf), users(*self.mParticipants), userIt(users.begin()),
           sendKey(self.mCurrentKey), keyCmd(new KeyCommand){}
     };
     auto context = new Context(*this);
@@ -903,27 +903,38 @@ ProtocolHandler::updateSenderKey()
     return pms;
 }
 
-void ProtocolHandler::onUserJoin(Id userid, chatd::Priv priv)
+void ProtocolHandler::onUserJoin(Id userid)
 {
-    mParticipants.insert(userid);
-    mCurrentKey.reset(); //just in case
     mParticipantsChanged = true;
-//pre-fetch user attributes
-    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
-    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
+    resetSendKey(); //just in case
 }
 
 void ProtocolHandler::onUserLeave(Id userid)
 {
-    mParticipants.erase(userid);
-    mCurrentKey.reset(); //just in case
     mParticipantsChanged = true;
+    resetSendKey(); //just in case
 }
 
 void ProtocolHandler::resetSendKey()
 {
     mCurrentKey.reset();
     mCurrentKeyId = CHATD_KEYID_INVALID;
+}
+
+void ProtocolHandler::setUsers(karere::SetOfIds* users)
+{
+    assert(users);
+    mParticipants = users;
+    mParticipantsChanged = true;
+    resetSendKey(); //just in case
+
+    //pre-fetch user attributes
+    for (auto userid: *users)
+    {
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
+        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
+    }
 }
 }
 

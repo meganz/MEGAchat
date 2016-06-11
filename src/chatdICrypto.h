@@ -16,7 +16,7 @@ class Chat;
 class ICrypto
 {
 public:
-    void init(Chat& messages) {}
+    virtual void setUsers(karere::SetOfIds* users) = 0;
 /**
  * @brief msgEncrypt Encrypts a message, putting the contents in the specified
  * \c msgCommand object.
@@ -94,7 +94,7 @@ public:
  * @param privilege - the new privilege, if it is PRIV_NOTPRESENT, then the user
  * left the chat
  */
-    virtual void onUserJoin(karere::Id userid, Priv privilege){}
+    virtual void onUserJoin(karere::Id userid){}
 /**  @brief A user has left the room */
     virtual void onUserLeave(karere::Id userid){}
 /**
