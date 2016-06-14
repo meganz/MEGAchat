@@ -107,8 +107,6 @@ void addRecord(uint8_t type, const StaticBuffer& value)
     }
     else
     {
-        assert(value.dataSize() <= 0xffff);
-        append<uint8_t>(0);
         append<uint16_t>(htons(value.dataSize()));
     }
     append(value);

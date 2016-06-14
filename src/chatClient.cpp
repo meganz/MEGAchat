@@ -777,7 +777,6 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
 
 void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
-    printf("onUsersUpdate: %p\n", aUsers);
     if (!aUsers)
         return;
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
@@ -788,7 +787,12 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
         {
             auto& user = *users->get(i);
             if (user.getChanges())
-                userAttrCache.onUserAttrChange(user);
+            {
+                if (user.isOwnChange() == 0)
+                {
+                    userAttrCache.onUserAttrChange(user);
+                }
+            }
             else
                 contactList->onUserAddRemove(user);
         };
