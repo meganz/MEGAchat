@@ -133,8 +133,12 @@ void ProtocolHandler::signMessage(const StaticBuffer& message, const StaticBuffe
     Buffer key(myPrivEd25519.dataSize()+myPubEd25519.dataSize());
     key.append(myPrivEd25519).append(myPubEd25519);
 
-    Buffer toSign(keyToInclude.dataSize()+message.dataSize()+SVCRYPTO_SIG.size());
-    toSign.append(SVCRYPTO_SIG).append(keyToInclude).append(message);
+    Buffer toSign(keyToInclude.dataSize()+message.dataSize()+SVCRYPTO_SIG.size()+2);
+    toSign.append(SVCRYPTO_SIG)
+          .append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION)
+          .append<uint8_t>(SVCRYPTO_MSGTYPE_FOLLOWUP)
+          .append(keyToInclude)
+          .append(message);
 
     crypto_sign_detached((unsigned char*)signature.writePtr(0, crypto_sign_BYTES),
         NULL, toSign.ubuf(), toSign.dataSize(),
@@ -145,8 +149,13 @@ bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& s
 {
     assert(sendKey.dataSize() == 16);
     assert(pubKey.dataSize() == 32);
-    Buffer messageStr(SVCRYPTO_SIG.size()+sendKey.dataSize()+signedContent.dataSize());
-    messageStr.append(SVCRYPTO_SIG.c_str(), SVCRYPTO_SIG.size()).append(sendKey).append(signedContent);
+    Buffer messageStr(SVCRYPTO_SIG.size()+sendKey.dataSize()+signedContent.dataSize()+2);
+
+    messageStr.append(SVCRYPTO_SIG.c_str(), SVCRYPTO_SIG.size())
+    .append<uint8_t>(protocolVersion)
+    .append<uint8_t>(type)
+    .append(sendKey)
+    .append(signedContent);
 
 //    STRONGVELOPE_LOG_DEBUG("signature:\n%s", signature.toString().c_str());
 //    STRONGVELOPE_LOG_DEBUG("message:\n%s", messageStr.toString().c_str());
@@ -367,7 +376,7 @@ void ProtocolHandler::msgEncryptWithKey(Buffer& src, chatd::MsgCommand& dest, co
     if (!src.empty())
         text.assign(src.buf(), src.dataSize());
     EncryptedMessage encryptedMessage(text, key);
-    TlvWriter tlv; //only signed content goes here
+    TlvWriter tlv(encryptedMessage.ciphertext.size()+128); //only signed content goes here
     // Assemble message content.
     tlv.addRecord(TLV_TYPE_NONCE, encryptedMessage.nonce);
     // Only include ciphertext if it's not empty (non-blind message).

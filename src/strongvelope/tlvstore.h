@@ -85,7 +85,7 @@ protected:
     bool mEnded = false;
 #endif
 public:
-    TlvWriter(bool legacyMode=false, size_t reserve=128): Buffer(reserve), mLegacyMode(legacyMode){}
+    explicit TlvWriter(size_t reserve=128, bool legacyMode=false): Buffer(reserve), mLegacyMode(legacyMode){}
 
 /**
  * Generates a binary encoded TLV record from a key-value pair.
