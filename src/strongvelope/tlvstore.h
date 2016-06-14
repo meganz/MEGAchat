@@ -80,12 +80,11 @@ public:
 class TlvWriter: public Buffer
 {
 protected:
-    bool mLegacyMode;
 #ifndef NDEBUG
     bool mEnded = false;
 #endif
 public:
-    explicit TlvWriter(size_t reserve=128, bool legacyMode=false): Buffer(reserve), mLegacyMode(legacyMode){}
+    explicit TlvWriter(size_t reserve=128): Buffer(reserve){}
 
 /**
  * Generates a binary encoded TLV record from a key-value pair.
@@ -99,19 +98,12 @@ void addRecord(uint8_t type, const StaticBuffer& value)
 {
     assert(!mEnded);
     append(type);
-    if (!mLegacyMode)
+    if (value.dataSize() >= 0xffff)
     {
-        if (value.dataSize() >= 0xffff)
-        {
-            append<uint16_t>(0xffff);
+        append<uint16_t>(0xffff);
 #ifdef NODEBUG
-            mEnded = true;
+        mEnded = true;
 #endif
-        }
-        else
-        {
-            append<uint16_t>(htons(value.dataSize()));
-        }
     }
     else
     {
@@ -127,10 +119,6 @@ void addRecord(uint8_t type, T&& val)
 {
     assert(!mEnded);
     append(type);
-    if (mLegacyMode)
-    {
-        append<uint8_t>(0);
-    }
     append<uint16_t>(htons(sizeof(val))).append(val);
 }
 };
