@@ -12,7 +12,7 @@
 using namespace std;
 using namespace promise;
 using namespace karere;
-#define CHATD_LOG_LISTENER_CALLS //DB_CALLS
+#define CHATD_LOG_LISTENER_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
 
@@ -599,6 +599,9 @@ void Chat::getHistoryFromDb(unsigned count)
 
 #define READ_ID(varname, offset)\
     assert(offset==pos-base); Id varname(buf.read<uint64_t>(pos)); pos+=sizeof(uint64_t)
+#define READ_CHATID(offset)\
+    assert(offset==pos-base); chatid = buf.read<uint64_t>(pos); pos+=sizeof(uint64_t)
+
 #define READ_32(varname, offset)\
     assert(offset==pos-base); uint32_t varname(buf.read<uint32_t>(pos)); pos+=4
 #define READ_16(varname, offset)\
@@ -618,6 +621,7 @@ void Connection::execCommand(const StaticBuffer& buf)
     while (pos < buf.dataSize())
     {
       char opcode = buf.buf()[pos];
+      Id chatid;
       try
       {
         pos++;
@@ -635,7 +639,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_JOIN:
             {
-                READ_ID(chatid, 0);
+                READ_CHATID(0);
                 READ_ID(userid, 8);
                 Priv priv = (Priv)buf.read<int8_t>(pos);
                 pos++;
@@ -652,7 +656,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_NEWMSG:
             case OP_MSGUPD:
             {
-                READ_ID(chatid, 0);
+                READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_ID(msgid, 16);
                 READ_32(ts, 24);
@@ -682,7 +686,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
             //TODO: why do we test the whole buffer's len to determine the current command's len?
             //buffer may contain other commands following it
-                READ_ID(chatid, 0);
+                READ_CHATID(0);
                 READ_ID(msgid, 8);
                 CHATD_LOG_DEBUG("%s: recv SEEN - msgid: '%s'",
                                 ID_CSTR(chatid), ID_CSTR(msgid));
@@ -691,7 +695,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_RECEIVED:
             {
-                READ_ID(chatid, 0);
+                READ_CHATID(0);
                 READ_ID(msgid, 8);
                 CHATD_LOG_DEBUG("%s: recv RECEIVED - msgid: '%s'", ID_CSTR(chatid), ID_CSTR(msgid));
                 mClient.chats(chatid).onLastReceived(msgid);
@@ -699,7 +703,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_RETENTION:
             {
-                READ_ID(chatid, 0);
+                READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_32(period, 16);
                 CHATD_LOG_DEBUG("%s: recv RETENTION by user '%s' to %u second(s)",
@@ -715,7 +719,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
 /*            case OP_RANGE:
             {
-                READ_ID(chatid, 0);
+                READ_CHATID(0);
                 READ_ID(oldest, 8);
                 READ_ID(newest, 16);
                 CHATD_LOG_DEBUG("%s: recv RANGE - (%s - %s)",
@@ -728,7 +732,7 @@ void Connection::execCommand(const StaticBuffer& buf)
 */
             case OP_REJECT:
             {
-                READ_ID(chatid, 0);
+                READ_CHATID(0);
                 READ_ID(id, 8);
                 READ_8(op, 16);
                 READ_8(reason, 17);
@@ -752,14 +756,14 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_HISTDONE:
             {
-                READ_ID(chatid, 0);
+                READ_CHATID(0);
                 CHATD_LOG_DEBUG("%s: recv HISTDONE - history retrieval finished", ID_CSTR(chatid));
                 mClient.chats(chatid).onHistDone();
                 break;
             }
             case OP_KEYID:
             {
-                READ_ID(chatid, 0);
+                READ_CHATID(0);
                 READ_32(keyxid, 8);
                 READ_32(keyid, 12);
                 CHATD_LOG_DEBUG("%s: recv KEYID %u", ID_CSTR(chatid), keyid);
@@ -768,7 +772,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_NEWKEY:
             {
-                READ_ID(chatid, 0);
+                READ_CHATID(0);
                 pos += 4; //skip dummy 32bit keyid
                 READ_32(totalLen, 12);
                 const char* keys = buf.readPtr(pos, totalLen);
@@ -786,12 +790,12 @@ void Connection::execCommand(const StaticBuffer& buf)
       }
       catch(BufferRangeError& e)
       {
-            CHATD_LOG_ERROR("Buffer bound check error while parsing %s:\n\t%s\n\tAborting command processing", Command::opcodeToStr(opcode), e.what());
+            CHATD_LOG_ERROR("%s: Buffer bound check error while parsing %s:\n\t%s\n\tAborting command processing", ID_CSTR(chatid), Command::opcodeToStr(opcode), e.what());
             return;
       }
       catch(std::exception& e)
       {
-            CHATD_LOG_ERROR("Exception while processing incoming %s: %s", Command::opcodeToStr(opcode), e.what());
+            CHATD_LOG_ERROR("%s: Exception while processing incoming %s: %s", ID_CSTR(chatid), Command::opcodeToStr(opcode), e.what());
       }
     }
 }
@@ -1693,6 +1697,15 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         return true;
     }
 
+    try
+    {
+        mCrypto->handleLegacyKeys(msg);
+    }
+    catch(std::exception& e)
+    {
+        CHATID_LOG_WARNING("handleLegacyKeys threw error: %s, ignoring", e.what());
+    }
+
     if (isNew)
     {
         if (mDecryptNewHaltedAt != CHATD_IDX_INVALID)
@@ -1705,7 +1718,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     {
         if (mDecryptOldHaltedAt != CHATD_IDX_INVALID)
         {
-            CHATD_LOG_DEBUG("Decryption of old messages is halted, message queued for decryption");
+            CHATID_LOG_DEBUG("Decryption of old messages is halted, message queued for decryption");
             return false;
         }
     }

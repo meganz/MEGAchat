@@ -380,7 +380,7 @@ public:
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
     promise::Promise<void> init();
-    strongvelope::ProtocolHandler* newStrongvelope();
+    strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
     bool loginDialogDisplayed() const { return mLoginDlg.operator bool(); }
     /** @brief Notifies the client that internet connection is again available */
     void notifyNetworkOffline();

@@ -24,5 +24,5 @@ CREATE TABLE history(idx int not null, chatid int64 not null, msgid int64 primar
     userid int64, keyid int not null, type tinyint, updated smallint, ts int,
     is_encrypted tinyint, data blob);
 
-CREATE TABLE sendkeys(userid int64 not null, keyid int not null, key blob not null,
-    ts int not null, UNIQUE(userid, keyid));
+CREATE TABLE sendkeys(chatid int64 not null, userid int64 not null, keyid int64 not null, key blob not null,
+    ts int not null, UNIQUE(chatid, userid, keyid));

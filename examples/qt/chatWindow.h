@@ -326,8 +326,8 @@ noedit:
     void fetchMoreHistory(bool byScroll)
     {
         mLastHistReqByScroll = byScroll;
-        if (mChat->isFetchingHistory())
-            return;
+//        if (mChat->isFetchingHistory() && !mChat->isFetchDecrypting())
+//            return;
         if (mChat->histFetchState() == chatd::kHistNoMore)
         {
             //TODO: Show in some way in the GUI that we have reached the start of history
@@ -489,8 +489,8 @@ public:
         if (mChat->empty())
             return;
         mChat->replayUnsentNotifications(); //works synchronously
-        auto first = mChat->lownum();
-        for (chatd::Idx idx = mChat->highnum(); idx>=first; idx--)
+        auto first = mChat->decryptedLownum();
+        for (chatd::Idx idx = mChat->decryptedHighnum(); idx>=first; idx--)
         {
             auto& msg = mChat->at(idx);
             handleHistoryMsg(msg, idx, mChat->getMsgStatus(msg, idx));

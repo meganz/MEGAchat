@@ -114,9 +114,15 @@ public:
  * to a real one.
  */
     virtual void resetSendKey() = 0;
+/** @brief Extract keys from legacy messages.
+ * Must be called for every received message, even if decryption of a previous
+ * message is not completed yet, as it may depend on this key.
+ */
+    virtual bool handleLegacyKeys(chatd::Message& msg) = 0;
+
 /**
  * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
- */
+ */    
     virtual ~ICrypto(){}
 };
 }

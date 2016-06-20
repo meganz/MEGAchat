@@ -1140,16 +1140,16 @@ ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
 :parent(aParent), mChatid(chatid), mUrl(aUrl), mShardNo(aShard), mIsGroup(aIsGroup), mOwnPriv(aOwnPriv)
 {}
 
-strongvelope::ProtocolHandler* Client::newStrongvelope()
+strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
         StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), userAttrCache, db);
+        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), userAttrCache, db, chatid);
 }
 void ChatRoom::chatdJoin(const karere::SetOfIds& initialUsers)
 {
     parent.client.chatd->join(mChatid, mShardNo, mUrl, this, initialUsers,
-        parent.client.newStrongvelope());
+        parent.client.newStrongvelope(chatid()));
 }
 void PeerChatRoom::join()
 {
@@ -1918,7 +1918,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             if (!data || data->dataSize() < 2)
                 self->updateTitle(self->mEmail);
             else
-                self->updateTitle(data->buf()+1);
+                self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
         });
     //FIXME: Is this safe? We are passing a virtual interface to this in the ctor
     mXmppContact = mClist.client.xmppContactList().addContact(*this);
@@ -1976,6 +1976,7 @@ ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
     auto& contact = *it->second;
     if (contact.mChatRoom)
         throw std::runtime_error("attachRoomToContact: contact already has a chat room attached");
+    CHAT_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", Id(room.chatid()).toString().c_str(), Id(userid).toString().c_str());
     contact.setChatRoom(room);
     room.setContact(contact);
     return contact.mDisplay;

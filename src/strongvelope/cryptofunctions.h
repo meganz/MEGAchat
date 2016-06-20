@@ -77,9 +77,9 @@ static inline void aesCBCDecrypt(const StaticBuffer& cipherText,
     assert(iv.dataSize() == CryptoPP::AES::BLOCKSIZE);
     assert(derivedKey.dataSize() == CryptoPP::AES::BLOCKSIZE);
     assert(cipherText.dataSize() % CryptoPP::AES::BLOCKSIZE == 0);
-
+    output.setDataSize(cipherText.dataSize());
     CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption aesdec(derivedKey.ubuf(), derivedKey.dataSize(), iv.ubuf());
-    aesdec.ProcessData((unsigned char*)output.writePtr(0, cipherText.dataSize()), cipherText.ubuf(), cipherText.dataSize());
+    aesdec.ProcessData(output.ubuf(), cipherText.ubuf(), cipherText.dataSize());
 }
 
 //CTR mode is used for message content

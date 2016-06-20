@@ -50,7 +50,7 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(strophe, "strophe", Warn, krLogNoLeadingSpace)
     KR_LOGCHANNEL(rtcevent, "rtcevent", Debug, krLogNoLevel | 10)
     KR_LOGCHANNEL(jingle, NULL, Warn, krLogNoLevel | 14)
-    KR_LOGCHANNEL(strongvelope, "strongvelope", Debug, 4)
+    KR_LOGCHANNEL(strongvelope, "sv", Debug, 4)
     KR_LOGCHANNEL(chatd, "chatd", Debug, 4)
     KR_LOGCHANNEL(textchat, "chat", Warn, 4)
     KR_LOGCHANNEL(megasdk, "sdk", Debug, 12)

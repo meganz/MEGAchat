@@ -147,17 +147,17 @@ public:
     CListContactItem(QWidget* parent, karere::Contact& contact)
         :CListItem(parent, false), mContact(contact)
     {
-        mega::marshallCall([this]() { updateToolTip(); });
+        mega::setTimeout([this]() { updateToolTip(); }, 10000);
     }
     void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
     {
         QChar lf('\n');
         QString text = tr("Email: ");
-        text.append(QString::fromStdString(mContact.email())).append(QChar('\n'));
+        text.append(QString::fromStdString(mContact.email())).append(lf);
         text.append(tr("User handle: ")).append(QString::fromStdString(karere::Id(mContact.userId()).toString())).append(lf);
         text.append(tr("XMPP jid: ")).append(QString::fromStdString(mContact.jid())).append(lf);
         if (mContact.chatRoom())
-            text.append(tr("You have a chatroom created with this person"));
+            text.append(tr("Chat handle: ")).append(QString::fromStdString(karere::Id(mContact.chatRoom()->chatid()).toString()));
         else
             text.append(tr("You have never chatted with this person"));
 //        auto now = time(NULL);

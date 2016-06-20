@@ -357,6 +357,16 @@ public:
     Idx highnum() const { return mForwardStart + (Idx)mForwardList.size()-1;}
     Idx size() const { return mForwardList.size() + mBackwardList.size(); }
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
+    Idx decryptedLownum() const
+    {
+        return (mDecryptOldHaltedAt == CHATD_IDX_INVALID)
+            ? lownum() : mDecryptOldHaltedAt+1;
+    }
+    Idx decryptedHighnum() const
+    {
+        return(mDecryptNewHaltedAt == CHATD_IDX_INVALID)
+            ? highnum() : mDecryptNewHaltedAt-1;
+    }
     ChatState onlineState() const { return mOnlineState; }
     Message::Status getMsgStatus(const Message& msg, Idx idx);
     const std::map<karere::Id, Message*>& pendingEdits() const { return mPendingEdits; }
@@ -364,6 +374,7 @@ public:
     bool isFetchingHistory() const { return mHistFetchState > kHistNotFetching; }
     bool isFetchingFromDb() const { return mHistFetchState & kHistFetchingFromDb; }
     HistFetchState histFetchState() const { return mHistFetchState; }
+    bool isFetchDecrypting() const { return ((mHistFetchState > kHistNotFetching) && (mHistFetchState < kHistDecryptingFlag)); }
     unsigned lastReqdHistCount() const { return mLastReqdHistCount; }
     unsigned lastHistObtainCount() const { return mLastHistObtainCount; }
     inline Message* findOrNull(Idx num) const

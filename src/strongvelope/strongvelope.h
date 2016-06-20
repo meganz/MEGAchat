@@ -19,7 +19,7 @@
 #include <promise.h>
 #include <logger.h>
 
-#define STRONGVELOPE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_strongvelope, fmtString, ##__VA_ARGS__)
+#define STRONGVELOPE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
 #define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, fmtString, ##__VA_ARGS__)
 #define STRONGVELOPE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_strongvelope, fmtString, ##__VA_ARGS__)
 
@@ -160,6 +160,7 @@ public:
 typedef Key<16> SendKey;
 typedef Key<32> EcKey;
 
+class ProtocolHandler;
 /** Class to parse an encrypted message and store its attributes and content */
 struct ParsedMessage
 {
@@ -175,7 +176,7 @@ struct ParsedMessage
     uint64_t keyId;
     uint64_t prevKeyId;
     Buffer encryptedKey; //may contain also the prev key, concatenated
-    ParsedMessage(const chatd::Message& src);
+    ParsedMessage(const chatd::Message& src, ProtocolHandler& protoHandler);
     bool verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey);
 };
 
@@ -212,8 +213,8 @@ struct EncryptedMessage
 struct UserKeyId
 {
     karere::Id user;
-    uint32_t key;
-    explicit UserKeyId(karere::Id aUser, uint32_t aKey): user(aUser), key(aKey){}
+    uint64_t key;
+    explicit UserKeyId(karere::Id aUser, uint64_t aKey): user(aUser), key(aKey){}
     bool operator<(UserKeyId other) const
     {
 
@@ -248,13 +249,14 @@ protected:
     karere::SetOfIds* mParticipants = nullptr;
     bool mParticipantsChanged = true;
 public:
+    karere::Id chatid;
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& PrivCu25519,
         const StaticBuffer& PrivEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
-        sqlite3* db);
+        sqlite3* db, karere::Id aChatId);
 protected:
     void loadKeysFromDb();
-    promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid);
+    promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);
     void addDecryptedKey(UserKeyId ukid, const std::shared_ptr<SendKey>& key);
         /**
          * Updates our own sender key. Done when a message is sent and users
@@ -285,14 +287,15 @@ protected:
 
     promise::Promise<std::shared_ptr<Buffer>>
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
-
+    void symmetricDecryptMessage(const std::string& cipher, const StaticBuffer& key,
+                                  const StaticBuffer& nonce, chatd::Message& outMsg);
     void msgEncryptWithKey(Buffer& src, chatd::MsgCommand& dest, const StaticBuffer& key);
 
     promise::Promise<chatd::Message*> handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, chatd::Message* msg);
 
-    promise::Promise<chatd::Message*>
-        legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg, chatd::Message* msg);
+    chatd::Message* legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
+        chatd::Message* msg, const SendKey& key);
 
     promise::Promise<std::shared_ptr<Buffer>>
         rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, karere::Id toUser);
@@ -320,6 +323,7 @@ public:
         virtual void onUserJoin(karere::Id userid);
         virtual void onUserLeave(karere::Id userid);
         virtual void resetSendKey();
+        virtual bool handleLegacyKeys(chatd::Message& msg);
     };
 }
 
