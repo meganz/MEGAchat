@@ -276,7 +276,7 @@ function buildInstall_autotools
     make -j10 install
 }
 
-function bulndInstall_standard
+function buildInstall_standard
 {
     buildInstall_autotools $@
 }
