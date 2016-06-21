@@ -73,7 +73,9 @@ enum {
     RTCM_SESSIONID_LEN = 16
 };
 
-
+/** @brief A class represending a media call. The protected members are internal
+ stuff, protected stuff is internal, and is here for performance reasons, to
+not have virtual methods for every property */
 class ICall
 {
 protected:
@@ -92,7 +94,8 @@ protected:
          const std::string& aOwnJid)
     : mRtc(aRtc), mIsCaller(isCaller), mState(aState), mHandler(aHandler), mSid(aSid),
       mOwnJid(aOwnJid), mPeerJid(aPeerJid), mIsFileTransfer(aIsFt) {}
-public: //TermCode (call termination reason) codes
+public:
+    //TermCode (call termination reason) codes
 enum
 {
     kNormalHangupFirst = 0,
@@ -117,7 +120,7 @@ enum
     kTermLast = 14,
     kPeer = 128
 };
-    const std::string& sid() const { return mSid; }
+    const std::string& sid() const { return mSid; } /// The jingle session id of the call
 
     RtcModule& rtc() const { return mRtc; }
     CallState state() const { return mState; }
@@ -134,9 +137,10 @@ enum
     RTCM_API IEventHandler* changeEventHandler(IEventHandler* handler);
     virtual void changeLocalRenderer(IVideoRenderer* renderer) = 0;
     bool hasReceivedMedia() const { return mHasReceivedMedia; }
-    virtual AvFlags sentAv() const = 0;
-    virtual AvFlags receivedAv() const = 0;
+    virtual AvFlags sentAv() const = 0; ///<whether we send audio and/or video
+    virtual AvFlags receivedAv() const = 0;///<whether we receive audio and/or video
 };
+
 /**
  * Call event handler callback interface. When the call is created, the user
  * provides this interface to receive further events from the call.
@@ -243,10 +247,14 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
     virtual void onPeerUnmute(AvFlags what) {}
 };
 
+/** @brief The interface to answer or reject a call */
 class ICallAnswer
 {
 public:
+    /** The call object */
     virtual std::shared_ptr<ICall> call() const = 0;
+ /**This method shows whether the call can still be answered or rejected, i.e.
+    The call may have already been canceled */
     virtual bool reqStillValid() const = 0;
     virtual std::set<std::string>* files() const = 0;
     virtual AvFlags peerMedia() const = 0;
