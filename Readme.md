@@ -26,7 +26,7 @@ Then, you need to prepare a cross-compile environment for android. For this purp
 For Linux and MacOS, you need to install all dependencies using a package manager (the operating system's package manager for Linux, and MacPorts or Homebrew on MacOS). For cross-compiled targets (android, ios), and for Windows, an automated system is provided to download, build and install all dependencies under a specific prefix. See below for details.
 
 ### List of dependencies
-  - `cmake` and `ccmake` (for a config GUI).  
+ - `cmake` and `ccmake` (for a config GUI).  
  - `libevent2.1.x`  
 Version 2.0.x will **not** work, you need at least 2.1.x. You may need to build it from source, as 2.1.x is currently considered beta (even though it has critical bugfixes) and system packages at the time of this writing use 2.0.x. For convenience, libevent is added as a git submodule in third-party/libevent, so its latest revision is automatically checked out from the official libevent repository.  
  - `openssl` - Needed by the SDK, webrtc, strophe and Karere itself.  
