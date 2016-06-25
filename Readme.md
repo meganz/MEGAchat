@@ -13,7 +13,7 @@ Install the android NDK, and create a standalone CLang toolchain, using the `mak
 `./android-ndk-r11b/build/tools/make-standalone-toolchain.sh --toolchain=arm-linux-androideabi-clang --install-dir=/home/user/android-dev/toolchain --stl=libc++ --platform=android-21`
 Then, you need to prepare a cross-compile environment for android. For this purpose, you need to use the `/platforms/android/env-android.sh` shell script. Please read the Readme.md in the same directory no how to use that script.
 
-- Notes on building webrtc with Android    
+*Notes on building webrtc with Android*    
 Building of webrtc is supported only on Linux. This is a limitation of Google's webrtc/chromium build system.  
 Although webrtc comes with its own copy of the NDK, we are going to use the standard one for building the karere-native code, and let webrtc build with its own NDK. Both compilers are binary compatible. Forcing webrtc to build with an external NDK will not work. For some operations, like assembly code transformations, a host compiler is used, which is the clang version that comes with webrtc. To use an external NDK, we would need to specify explicitly specify the `--sysroot` path of the external NDK, which also gets passed to the clang host compiler, causing errors. 
 
