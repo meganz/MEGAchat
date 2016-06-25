@@ -256,8 +256,16 @@ public:
  /**This method shows whether the call can still be answered or rejected, i.e.
     The call may have already been canceled */
     virtual bool reqStillValid() const = 0;
+ /** The list of files, in case of a data call */
     virtual std::set<std::string>* files() const = 0;
+    /** What media the caller will send to us initially. This determined whether
+     * this is an audio or video call. Note that for example an audio call can
+     * subsequently add video */
     virtual AvFlags peerMedia() const = 0;
+    /** Answer or reject the call.
+     * @param accept - if true, answers the call, if false - rejects it
+     * @param ownMedia - when answering the call, specified whether we send
+     * audio and/or video */
     virtual bool answer(bool accept, AvFlags ownMedia) = 0;
 };
 

@@ -900,11 +900,20 @@ void Chat::loadManualSending()
     }
 }
 
+uint64_t Chat::generateRefId()
+{
+    uint64_t ts = time(nullptr);
+    uint64_t rand;
+    mCrypto->randomBytes(&rand, sizeof(rand));
+    return (ts << 48) | (rand & 0x0000ffffffffffff);
+}
+
 Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp)
 {
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
+    message->backRefId = generateRefId();
     msgSubmit(message);
     return message;
 }
@@ -913,6 +922,36 @@ void Chat::msgSubmit(Message* msg)
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
     msgEncryptAndSend(msg, OP_NEWMSG);
+}
+
+void Chat::createMsgBackRefs(Message& msg)
+{
+    SetOfIds unrefdUsers = mUsers;
+    if (!mSending.empty())
+    {
+        msg.backRefs.push_back(mSending.back().msg->backRefId);
+        unrefdUsers.erase(client().userId());
+    }
+    for (Idx i = mForwardList.size()-1; i>=0; i--)
+    {
+        auto& m = *mForwardList[i];
+        if (unrefdUsers.find(m.userid) == unrefdUsers.end())
+            continue; //we have referenced a msg from that user already
+        if (msg.backRefs.size() > kMaxBackRefs) //reached maximum refs
+            return;
+        msg.backRefs.push_back(m.backRefId);
+        unrefdUsers.erase(m.userid);
+    }
+    for (Idx i = 0; i < mBackwardList.size(); i++)
+    {
+        auto& m = *mBackwardList[i];
+        if (unrefdUsers.find(m.userid) == unrefdUsers.end())
+            continue;
+        if (msg.backRefs.size() > kMaxBackRefs)
+            return;
+        msg.backRefs.push_back(m.backRefId);
+        unrefdUsers.erase(m.userid);
+    }
 }
 
 Chat::SendingItem* Chat::postItemToSending(uint8_t opcode, Message* msg,
@@ -1812,6 +1851,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     auto msgid = msg.id();
     if (!isLocal)
     {
+        verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
         if ((msg.userid != mClient.mUserId) &&
            ((mLastReceivedIdx == CHATD_IDX_INVALID) || (idx > mLastReceivedIdx)))
@@ -1828,6 +1868,27 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
     if (isNew)
         CALL_LISTENER(onUnreadChanged);
+}
+
+void Chat::verifyMsgOrder(const Message& msg, Idx idx)
+{
+    if (!mRefidToIdxMap.emplace(msg.backRefId, idx).second)
+    {
+        CALL_LISTENER(onMsgOrderVerificationFail, msg, idx);
+        throw std::runtime_error("verifyMsgOrder: A message with that backrefId already exists");
+    }
+    for (auto refid: msg.backRefs)
+    {
+        auto it = mRefidToIdxMap.find(refid);
+        if (it == mRefidToIdxMap.end())
+            continue;
+        Idx targetIdx = it->second;
+        if (targetIdx >= idx)
+        {
+            CALL_LISTENER(onMsgOrderVerificationFail, msg, idx);
+            throw std::runtime_error("Message order verification failed, possible history tampering");
+        }
+    }
 }
 
 void Chat::handleLastReceivedSeen(Id msgid)

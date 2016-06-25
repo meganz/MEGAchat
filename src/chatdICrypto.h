@@ -119,7 +119,7 @@ public:
  * message is not completed yet, as it may depend on this key.
  */
     virtual bool handleLegacyKeys(chatd::Message& msg) = 0;
-
+    virtual void randomBytes(void* buf, size_t bufsize) = 0;
 /**
  * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
  */    

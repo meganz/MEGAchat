@@ -100,6 +100,7 @@ enum
  * history messages. (legacy only) */
     TLV_TYPE_OWN_KEY            = 0x0a,
     TLV_TYPE_INVITOR            = 0x0b,
+    TLV_TYPE_BACKREFS           = 0x0c,
     TLV_TYPES_COUNT
 };
 
@@ -172,6 +173,8 @@ struct ParsedMessage
     Buffer signedContent;
     Buffer signature;
     MessageType type;
+    chatd::BackRefId backRefId = 0;
+    std::vector<chatd::BackRefId> backRefs;
     //legacy key stuff
     uint64_t keyId;
     uint64_t prevKeyId;
@@ -206,8 +209,9 @@ struct EncryptedMessage
 {
     std::string ciphertext; //crypto++ does not support binary buffers in AES CTR mode, which is used for encrypting messages
     SendKey key;
+    chatd::BackRefId backRefId;
     Key<SVCRYPTO_NONCE_SIZE> nonce;
-    EncryptedMessage(const std::string& clearStr, const StaticBuffer& aKey);
+    EncryptedMessage(const chatd::Message& msg, const StaticBuffer& aKey);
 };
 
 struct UserKeyId
@@ -224,6 +228,8 @@ struct UserKeyId
             return key < other.key;
     }
 };
+
+class TlvWriter;
 
 class ProtocolHandler: public chatd::ICrypto
 {
@@ -274,7 +280,7 @@ protected:
          * @param signature [out] Message signature.
          */
     void signMessage(const StaticBuffer& msg,
-            const StaticBuffer& keyToInclude, Buffer& signature);
+            const EncryptedMessage& encMsg, StaticBuffer& signature);
         /**
           * Derives a symmetric key for encrypting a message to a contact.  It is
           * derived using a Curve25519 key agreement.
@@ -289,11 +295,11 @@ protected:
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
     void symmetricDecryptMessage(const std::string& cipher, const StaticBuffer& key,
                                   const StaticBuffer& nonce, chatd::Message& outMsg);
-    void msgEncryptWithKey(Buffer& src, chatd::MsgCommand& dest, const StaticBuffer& key);
-
+    void msgEncryptWithKey(chatd::Message &src, chatd::MsgCommand& dest,
+        const StaticBuffer& key);
     promise::Promise<chatd::Message*> handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, chatd::Message* msg);
-
+    void parsePayload(const StaticBuffer& data, chatd::Message& msg);
     chatd::Message* legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
         chatd::Message* msg, const SendKey& key);
 
@@ -324,6 +330,7 @@ public:
         virtual void onUserLeave(karere::Id userid);
         virtual void resetSendKey();
         virtual bool handleLegacyKeys(chatd::Message& msg);
+        virtual void randomBytes(void* buf, size_t bufsize);
     };
 }
 

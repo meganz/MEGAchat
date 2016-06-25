@@ -63,12 +63,6 @@ export XENV_SYSROOT="$XENV_TOOLCHAIN_PATH/sysroot"
 export CFLAGS="--sysroot=$XENV_SYSROOT -march=$XENV_TARGET_ARCH$XENV_TARGET_SUBARCH"
 export CXXFLAGS="--sysroot=$XENV_SYSROOT -march=$XENV_TARGET_ARCH$XENV_TARGET_SUBARCH"
 
-#Seems the crosscompiler has the C++ system include paths broken, so we need to
-#give them manually with -isystem. Note that this is automatically done by CMake, so
-#has to be taken care of only with autotools configure scripts
-#export CPPFLAGS="--sysroot=$SYSROOT -isystem /home/dbserver/android-ndk-r10d/platforms/android-14/arch-arm/usr/include -isystem /home/dbserver/android-ndk-r10d/sources/cxx-stl/gnu-libstdc++/4.8/include -isystem /home/dbserver/android-ndk-r10d/sources/cxx-stl/gnu-libstdc++/4.8/libs/armeabi-v7a/include -isystem /home/dbserver/android-ndk-r10d/sources/cxx-stl/gnu-libstdc++/4.8/include/backward"
-#export LDFLAGS=--sysroot=$SYSROOT
-
 exportTool CC "$XENV_CC_NAME"
 exportTool CXX "$XENV_CXX_NAME"
 exportTool CPP "cpp"

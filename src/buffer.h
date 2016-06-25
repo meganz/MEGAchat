@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdexcept>
 #include <string.h>
+#include <vector>
 
 class BufferRangeError: public std::runtime_error
 {
@@ -66,6 +67,21 @@ public:
     {
         return *((T*)(readPtr(offset, sizeof(T))));
     }
+    template <class T>
+    void read(size_t offset, std::vector<T>& output, int count)
+    {
+        T* end = (T*)(mBuf+offset+count*sizeof(T));
+        for (T* pitem = (T*)(mBuf+offset); pitem < end; pitem++)
+            output.push_back(*pitem);
+    }
+    template <class T>
+    void read(size_t offset, std::vector<T>& output)
+    {
+        assert((mDataSize-offset) % sizeof(T) == 0);
+        size_t count = (mDataSize-offset)/sizeof(T);
+        read(offset, output, count);
+    }
+
     bool dataEquals(const void* data, size_t datalen) const
     {
         if (datalen != mDataSize)

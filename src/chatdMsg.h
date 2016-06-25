@@ -11,8 +11,11 @@ enum { CHATD_KEYID_INVALID = 0, CHATD_KEYID_UNCONFIRMED = 0xffffffff };
 namespace chatd
 {
 
-//typedef karere::Id Id;
 typedef uint32_t KeyId;
+typedef uint64_t BackRefId;
+
+enum { kMaxBackRefs = 32 };
+
 // command opcodes
 enum Opcode
 {
@@ -82,6 +85,8 @@ public:
     uint16_t updated;
     uint32_t keyid;
     Type type;
+    BackRefId backRefId;
+    std::vector<BackRefId> backRefs;
     mutable void* userp;
     mutable uint16_t userFlags = 0;
     karere::Id id() const { return mId; }
@@ -97,11 +102,12 @@ public:
             const char* msg, size_t msglen, bool aIsSending=false,
             KeyId aKeyid=CHATD_KEYID_INVALID, Type aType=kMsgNormal, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
-            updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp) {}
+            updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
     static const char* statusToStr(unsigned status)
     {
         return (status > kSeen) ? "(invalid status)" : statusNames[status];
     }
+    void generateRefId();
 protected:
     static const char* statusNames[];
     friend class Chat;

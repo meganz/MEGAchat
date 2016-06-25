@@ -145,7 +145,7 @@ public:
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
         SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, msg, type, "
-            "ts, msg_cmd, key_cmd, recipients from sending where chatid=? order by rowid asc");
+            "ts, backrefid, backrefs, msg_cmd, key_cmd, recipients from sending where chatid=? order by rowid asc");
         stmt << mMessages.chatId();
         queue.clear();
         while(stmt.step())
@@ -170,12 +170,18 @@ public:
                     stmt.intCol(6), 0, nullptr, 0, true, (chatd::KeyId)stmt.intCol(3),
                     (chatd::Message::Type)stmt.intCol(5));
             stmt.blobCol(4, *msg);
-
+            msg->backRefId = stmt.uint64Col(7);
+            if (stmt.hasBlobCol(8))
+            {
+                Buffer refs;
+                stmt.blobCol(8, refs);
+                refs.read(0, msg->backRefs);
+            }
             chatd::KeyCommand* keyCmd;
-            if (stmt.hasBlobCol(8)) //key_cmd
+            if (stmt.hasBlobCol(10)) //key_cmd
             {
                 keyCmd = new chatd::KeyCommand;
-                stmt.blobCol(8, *keyCmd);
+                stmt.blobCol(10, *keyCmd);
                 assert(keyCmd->opcode() == chatd::OP_NEWKEY);
             }
             else
@@ -183,13 +189,13 @@ public:
                 keyCmd = nullptr;
             }
             Buffer recpts;
-            stmt.blobCol(9, recpts);
+            stmt.blobCol(11, recpts);
             queue.emplace_back(opcode, msg, msgCmd, keyCmd, recpts, stmt.intCol(0));
         }
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid from history "
+        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, backrefs from history "
             "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
         stmt << mMessages.chatId() << idx << count;
         int i = 0;
@@ -214,6 +220,13 @@ public:
 #endif
             auto msg = new chatd::Message(msgid, userid, ts, 0, std::move(buf),
                 false, keyid, (chatd::Message::Type)stmt.intCol(3));
+            msg->backRefId = stmt.uint64Col(7);
+            buf.clear();
+            if (stmt.hasBlobCol(8))
+            {
+                stmt.blobCol(8, buf);
+                buf.read(0, msg->backRefs);
+            }
             messages.push_back(msg);
         }
     }

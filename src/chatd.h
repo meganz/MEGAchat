@@ -112,6 +112,7 @@ public:
     //Ownership of \c msg is passed to application.
     virtual void onManualSendRequired(Message* msg, uint64_t id, int reason) {}
     virtual void onHistoryTruncated(const Message& msg, Idx idx) {}
+    virtual void onMsgOrderVerificationFail(const Message& msg, Idx idx){}
 };
 
 class Client;
@@ -301,6 +302,7 @@ protected:
      */
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
     std::map<karere::Id, Message*> mPendingEdits;
+    std::map<BackRefId, Idx> mRefidToIdxMap;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
          const karere::SetOfIds& users, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
@@ -453,6 +455,9 @@ protected:
     void moveItemToManualSending(OutputQueue::iterator it, int reason);
     void handleTruncate(const Message& msg, Idx idx);
     void deleteMessagesBefore(Idx idx);
+    void createMsgBackRefs(Message& msg);
+    uint64_t generateRefId();
+    void verifyMsgOrder(const Message& msg, Idx idx);
 //===
 };
 

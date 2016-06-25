@@ -19,6 +19,7 @@ struct TlvRecord
         if (dataLen != expected)
             throw std::runtime_error("parseMessageContent: Unexpected length of TLV record with type "+std::to_string(type)+ ": expected "+std::to_string(expected)+" actual: "+std::to_string(dataLen));
     }
+    char* buf() const { return sourceBuf.buf()+dataOffset; }
     template <class T>
     T read() { validateDataLen(sizeof(T)); return sourceBuf.read<T>(dataOffset); }
     template <class T>
@@ -27,7 +28,7 @@ struct TlvRecord
     void appendToVector(std::vector<T>& v) { v.push_back(sourceBuf.read<T>()); }
     void appendToBufVector(std::vector<Buffer>& v)
     {
-        v.emplace_back(sourceBuf.buf()+dataOffset, dataLen);
+        v.emplace_back(buf(), dataLen);
     }
 };
 

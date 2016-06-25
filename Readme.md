@@ -1,16 +1,4 @@
 #  Building karere-native #
-## Toolchains ##
-
-* Android  
-Building of webrtc is supported only on Linux.This is a limitation of Google's webrtc/chromium build system.  
-Install the android NDK. Although webrtc comes with its own copy of the NDK, we are going to use the standard one for building
-the karere-native code, and let webrtc build with its own NDK. Both compilers are gcc 4.8 so they are binary compatible.  
-Forcing webrtc to build with an external NDK will not work. For some operations, like assembly code transformations, a host
-compiler is used, which is the clang version that comes with webrtc. To use an external NDK, we need to specify explicitly
-specify the `--sysroot` path of the external NDK, which also gets passed to the clang host compiler, causing errors. 
-
-* iOS  
-Building of webrtc is supported only on MacOS. You need to install XCode.  
 
 ## Get the code ##
 
@@ -18,236 +6,48 @@ Checkout the Karere repository:
 `git clone --recursive https://code.developers.mega.co.nz/messenger/karere-native`.  
 Note the `--recursive` switch - the repository contains git submodules that need to be checked out as well.
 
-## Dependencies ##
+## Toolchains ##
 
- - `cmake` and `ccmake` (for a config GUI).  
- - Our version of `libstrophe`  
-No need to explicitly check it out and build it, it's included as a git submodule (in /third-party/strophe-native), and will be built by the 
-Karere build system automatically.  
+* Android  
+Install the android NDK, and create a standalone CLang toolchain, using the `make-standalone-toolchain.sh` scrpt included in the NDK, using following example commandline:  
+`./android-ndk-r11b/build/tools/make-standalone-toolchain.sh --toolchain=arm-linux-androideabi-clang --install-dir=/home/user/android-dev/toolchain --stl=libc++ --platform=android-21`
+Then, you need to prepare a cross-compile environment for android. For this purpose, you need to use the `/platforms/android/env-android.sh` shell script. Please read the Readme.md in the same directory no how to use that script.
+
+= Notes on building webrtc
+
+Building of webrtc is supported only on Linux. This is a limitation of Google's webrtc/chromium build system.  
+
+Although webrtc comes with its own copy of the NDK, we are going to use the standard one for building the karere-native code, and let webrtc build with its own NDK. Both compilers are binary compatible. Forcing webrtc to build with an external NDK will not work. For some operations, like assembly code transformations, a host compiler is used, which is the clang version that comes with webrtc. To use an external NDK, we would need to specify explicitly specify the `--sysroot` path of the external NDK, which also gets passed to the clang host compiler, causing errors. 
+
+* iOS  
+Building of webrtc and karere is supported only on MacOS. XCode is required.
+Then, you need to prepare a cross-compile environment for android. For this purpose, you need to use the `/platforms/ios/env-ios.sh` shell script. Please read the Readme.md in the same directory no how to use that script.
+
+
+## Build dependencies ##
+For Linux and MacOS, you need to install all dependencies using a package manager (the operating system's package manager for Linux, and MacPorts or Homebrew on MacOS). For cross-compiled targets (android, ios), and for Windows, an automated system is provided to download, build and install all dependencies under a specific prefix. See below for details.
+
+### List of dependencies
+  - `cmake` and `ccmake` (for a config GUI).  
  - `libevent2.1.x`  
-Version 2.0.x will **not** work, you need at least 2.1.x. You may need to build it from source, as 2.1.x is currently
-considered beta (even though it has critical bugfixes) and system packages at the time of this writing use 2.0.x. For convenience, libevent
-is added as a git submodule in third-party/libevent, so its latest revision is automatically checked out from the official libevent
-repository.  
+Version 2.0.x will **not** work, you need at least 2.1.x. You may need to build it from source, as 2.1.x is currently considered beta (even though it has critical bugfixes) and system packages at the time of this writing use 2.0.x. For convenience, libevent is added as a git submodule in third-party/libevent, so its latest revision is automatically checked out from the official libevent repository.  
  - `openssl` - Needed by the SDK, webrtc, strophe and Karere itself.  
  - Native WebRTC stack from Chrome. See below for build instructions for it.  
  - The Mega SDK  
-Check out the repository, configure the SDK with --enable-chat, and in a minimalistic way - without image libs etc. Only the crypto and HTTP
-functionality is needed.  
- - `libcrypto++` - Needed by MegaSDK and Karere.  
+Check out the repository, configure the SDK with --enable-chat, and in a minimalistic way - without image libs etc. Only the crypto and HTTP functionality is needed.  
+ - `libcrypto++` - Needed by MegaSDK and Karere.
+ - `libsodium` - Needed by MegaSDK and Karere.
  - `libcurl` - Needed by MegaSDK and Karere.  
- - In the near future: libsodium - needed by MegaSDK and Karere
+ - `Qt5` - QtCore and QtWidgets required only, needed only for the desktop example app.  
 
-### For Desktop Operating Systems  
- - `Qt5` - QtCore and QtWidgets required only, needed for the example app.  
+### Automated dependency build system
+This is supported only for android, ios, and Windows (for now). The script works in tandem with the cross-compile build environment when building for mobile, so you need that encironemnt set up, as described in the previous sections.
+You just need to run `/platforms/setup-deps.sh` script without arguments to get help on how to use it, and then run it with arguments to download, build and install all dependencies.
 
-* Android and iOS  
-You need to set up a cross-compile environment that can works with both aututools amd cmake. Look at the instructions
-in `platforms/android|ios/Readme.md`. Using these instructions, build and install the karere-native dependencies for Android/iOS.
-Using this environment, build all third-party dependencies listed above. For crypto++, its makefile is broken for
-cross-compilation, that's why a cmake build script is prtovided for it in `platforms/cryptopp_CMakeLists.txt`.
-Use it for building crypto++.
+IMPORTANT for iOS: As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs, so you need to tell the dependency build system to build everything as static libs.
 
-* iOS  
-IMPORTANT: As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs. Usually
-they default to dynamic libs, so you must take care of that explicitly.
-
-* MacOS  
-It is recommended to install dependencies not in the system /usr/lib and /usr/include dirs, but under a different prefix. This is because
-MacOS has custom/older versions of some opensource libs (i.e. openssl), and replacing them is likely to break the operating system. The 
-easiest way to do this is to use Mac Ports or Homebrew, and point the build system to that prefix to look for dependencies first.  
-
-**More about openssl on MacOS**  
-Because MacOS has a built-in version of openssl, which is not compatible for some reason (causes Strophe login to stall),
-we have to install a generic version of openssl via Homebrew or mac ports. To make sure the webrtc build does not pick the
-system openssl headers, you can rename the /usr/include/openssl dir and the corresponding dir(s) in the XCode SDKs,
-temporarily until you build webrtc. These header dirs are needed only for development, correspond to old versions of openssl
-0.9.7 or 0.9.8, and the headers generate tons of depracation warnings, so you may want to consider keeping them renamed
-and linking against an up to date version of openssl when building software.   
-
-## Building webrtc ##
-
-* Android  
-Start a fresh new shell for building webrtc. You must NOT use a shell where `env-android.sh` has been sourced, because
-that script sets the CC, CXX etc variables to the NDK compiler that you installed. However we don't want to build webrtc with
-that compiler, but rather with its own version (reasons explained above). Therefore, you must not use here the shell that you
-used to build the dependencies.However it will be used later to build the karere codebase.  
-* iOS  
-Start a fresh new shell for bulding webrtc.  You must NOT use a shell where `env-ios.sh` has been sourced.  
-
-First, create a directory where all webrtc stuff will go, and `cd` to it. All instructions in this section assume that the
-current directory is that one.  
-
-### Install depot_tools ###
-We need to install Google's `depot_tools`, as per these instructions:  
-https://sites.google.com/a/chromium.org/dev/developers/how-tos/install-depot-tools  
-
-Make sure the path to the `depot_tools` dir is at the start of the system path, because the tools provide custom versions
-of commands that may already be available on the system, and the custom ones must be picked instead of the system ones.
-
-### Checkout the webrtc code ###
-This manual is written for revision `290ab41` of the webrtc tree, but it should apply to later revisions,
-with the exceptions of pre-made patches.
-
-To checkout the webrtc code, do  
-`fetch --no-history --nohooks webrtc`  
-If you want to checkout the particular revision that this manual was written for (from February 2016):  
-`gclient sync src@290ab41`  
-If you want the latest revision, just type:  
-`gclient sync`
-
-This will download more than 10GB of code (most of the Chromium codebase), and may take a lot of time.  
-
-* For Android, do:  
-`echo "target_os = ['android', 'unix']" >> .gclient`  
-
-Then  
-`cd src`
-
-### Install dependencies ###
-WebRTC on all platforms requires `openssl` libs and headers, see below for details.  
-
-* Linux  
-There are various packages required by the webrtc build, most of them are checked out by gclient, but there are
-some that need to be installed on the system. To do that on linux, you can run:  
-`build/install-build-deps.sh`  
-Also you need Java JDK 6 or 7 (for something related to android, but seems to be run unconditionally):  
-If you don't have JDK installed, install `openjdk-7-jdk`. Export `JAVA_HOME` to point to your JDK installation, on Ubuntu
-is something like that:  
-`export JAVA_HOME=/usr/lib/jvm/java-7-openjdk`   
-
-* Mac and iOS 
-No Java is or any other dependencies are needed on these platforms.  
-
-* Android  
-JDK 7 will not work for this particular revision (some warnings are triggered and the build is
-configured to treat warnings as errors). Therefore you need to install JDK 6 (unless already done).  
-Export `JAVA_HOME` to point to the JDK installation:  
-`export JAVA_HOME=/usr/lib/jvm/java-6-openjdk`   
-Install dependencies by running  
-`build/install-build-deps-android.sh`  
-However this script seems to install far too many unnecessary packages such as apache2 or firefox localization packs.
-So you may want to try to manually install dependencies, especially if you have done a native platform build before
-on this machine, in which case you may already have most dependencies.
-
-### Replace the openssl version ###
-
-WebRTC supports two backends for ssl - `openssl` and `nss`, and it ships the source code of both. On all platfrorms except
-for Android, it builds with `nss` as its ssl backend. Tha bad thing is that nss and openssl cannot be both included in one
-application, because they have internal symbols with the same names which get mixed up resulting in e.g. openssl calling into nss
-resulting in spectacular segfaults. On the other hand, we do not support nss for the rest of the codebase (SDK, strophe),
-and of the two backends supported by webrtc we can use only openssl. Therefore, we must force webrtc to build with openssl on all
-platforms. Then we hit another problem - webrtc wants to build with Google's own version of openssl, called boringssl
-(shipped within the webrtc source tree). It is not binary compatible with the standard openssl and this will result again in
-segfaults. So we need to force webrtc to build against the openssl version that we use for the rest of the code as well.
-To do that, we need to replace the .gyp file responsible for building and linking webrtc against the boringssl lib.
-First, we will delete/rename the dir containing boringssl, and create our own boringssl dir with the special .gyp file.
-In order to do that:  
-`rm -r third_party/boringssl`  
-`mkdir third_party/boringssl`  
-`cp /path/to/karere/webrtc-build/boringssl.gyp ./third_party/boringssl/`  
-
-This file maps all boringssl references from the webrtc build system to the prefix that we tell it, via the `DEPS_SYSROOT`
-env variable, which you need to set to the prefix where openssl is installed.
-On Linux, this is usually the system prefix `/usr` or `/usr/local`, for MacOS this is the prefix where MacPorts or Homebrew
-install libraries. When cross-compiling, this is normally the sysroot/buildroot directory where all depenencies are built.
-Note that on cross-build environments you cannot assign this variable to a variable set by the cross-compile environment
-env-xxx.sh script, because that script must not be sourced in this shell.
-* Android  
-This path would be:  
-`export DEPS_SYSROOT="<path-to-android-ndk-you-installed>/platforms/android-14/arch-arm/usr"`  
-* iOS  
-This path would usually be:
-`export DEPS_SYSROOT="/path/to/ios-iphoneos-buildroot/usr"`
-
-Then, on non-Android platforms, we must tell webrtc that we want it to build with openssl. For that, we provide
-`use_openssl=1` and `use_nss=0` to the GYP_DEFINES. This is reflected in the complete GYP_DEFINES string for each platform
-below, so you don't need to to anything about that at this point.
-
-
-### Configure the build ###
-#### Patch build.gyp ####
-First of all, we need to patch the webrtc/base/base.gyp file to add the `NO_MAIN_THREAD_WRAPPING=1` define to the rtc_base library. For
-that, if you are using revision `39be5610de61d8d3a98d516395a5e28f71edcacf` you can use the following patch:
-`git apply /path/to/karere/webrtc-build/base.gyp.patch`  
-Otherwise you will need to manually patch base.gyp - look at the included patch to see what and where needs to be changed.
-
-#### Set GYP env variables ####  
-`export GYP_GENERATORS="ninja"`  
-
-Set the `GYP_DEFINES` env var, depending on the palfrorm:  
-* Linux    
-`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 clang=0 use_openssl=1 use_nss=0"`   
-
-* Mac  
-`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 libjingle_objc=1 OS=mac target_arch=x64 clang_use_chrome_plugins=0 mac_deployment_target=10.7 use_openssl=1 use_nss=0"`  
-
-* Android  
-`export GYP_DEFINES="build_with_libjingle=1 build_with_chromium=0 enable_tracing=1 OS=android target_arch=arm arm_version=7"`  
-
-* iOS  
-No manual configuration is needed, this is done by the provided `build.sh` script, see below.
-
-#### Platform-specific operations ####
-
-* MacOS
-
-**Change camera capturer**
-The video capturer on macos is based on QTKit (QuickTime) and is practically unusable when capture creation and operations are
-initiated from the main thread of the app (as is the case with Karere), because a deadlock occurs.  
-
-*Details*  
-The reason is that the main thread queues the operations on a worker thread and waits until the operation is executed in
-order to return its result. However the qtkit capturer code does several performSelectorOnMainThread-s and waits for the result.
-The main thread however is waiting for us, so a deadlock occurs.
-It seems the the execution on the main thread is a workaround for some bugs that were found when using the QTKit API, although
-the doc says QTKit API is thread-safe. The explicit calls on the main thread are solvable by replacing them with
-performSelectorInBackground, which successfully starts camera capture, but stopping it calls the main thread internally from
-within the framework, so it's not fixable. Moreover, QTKit is deprecated by Apple. So the capturer is completely replaced with
-a modified version of the iOS capturer, which uses AVFoundation - the recommended way to do capture.  
-*End Details*  
-
-The code for the capturer is in `karere-native/webrtc-build/macos/mac-capturer`. You need to delete the following directory in
-the webrtc tree:  
-`rm webrtc/modules/video_capture/mac`  
-and then copy `mac-capturer` at the place of the deleted dir, again with the name `mac`. Also, you need to patch the webrtc tree via:  
-`git apply /path/to/karere-native/webrtc-build/macos/webrtc.patch`  
-This will do some modifications to the build system to use the new capturer and also a small modification to a source file.
-
-* Android:  
-Run a script to setup the environment to use the built-in android NDK:  
-`build/android/envsetup.sh`  
-We need to hack the webrtc build system to use the gnustl C++ runtime instead of stlport. This is important because we
-have to use the same runtime at least in the webrtc module of Karere, and stlport does not have good support for C++11, exceptions
-are disabled and we use them a lot. To apply the gnustl patch (to the build/common.gypi file),
-verify that you are in the webrtc trunk directory:  
-`cd build && svn patch /path/to/karere/webrtc-build/android/common.gypi.patch`  
-Also, some small fixes need to be applies to the webrtc code to be able to build with gnustl.
-To make these changes easy, apply the following patch, which and also fixes the sanitized_options build issue
-(described below). Verify that you are in the webrtc trunk directory, and do:  
-`svn patch /path/to/karere-native/webrtc-build/android/webrtc.patch`  
-Note that the patches are valid only for the 6937 revision of webrtc. The reason why the patches are two and not one combined
-is that these are two separate svn repos, and not one.  
-
-### Generate the makefiles ###
-
-* Non-iOS  
-Issue the command:  
-`gclient runhooks --force`  
-This will run the config scripts and generate ninja files from the gyp projects.
-
-### Build ###
-* Non-iOS  
-Run:  
-`ninja -C out/Release`  
-or  
-`ninja -C out/Debug`  
-to build webrtc in the corresponding mode. Go get a coffee.  
-
-* iOS  
-The configure and build steps are automated by a shell script. Run:  
-`/path/to/karere/webrtc-build/ios/build.sh`  
-from within the `src` directory.
+## Build webrtc ##
+Karere provides an autmated system for building webrtc for any of the supported desktop and mobile platforms. This is made very easy by using the `webrtc-build/build-webrtc.sh` script. Run it without arguments to see help on usage. This system is generally an addon to the stock webrtc (actually chromium) build sustem, but it strips it down to download only a few hundred megabytes of source code and tools instead of 10-12GB. It also patches webrtc to fix several issues (use normal openssl instead of its own included boringssl lib, replace macos capturer that uses obsolete API and problematic threading model with modified iOS capturer, etc).
 
 ### Verify the build ###
 * Cd to build directory
@@ -271,46 +71,36 @@ from within the `src` directory.
 
 ### Using the webrtc stack with CMake ###
 Unfortunately the webrtc build does not generate a single lib and config header file (for specific C defines
- to configure the code). Rather, it creates a lot of smaller static libs that can be used only from within the chrome/webrtc
- build system, which takes care of include paths, linking libs, setting proper defines (and there are quite a few of them).
- So we either need to build our code within the webrtc/chrome build system, rewrite the build system to something more
- universal, or do a combination of both. That's what we do currently. Fortunately, the Chrome build system generates
- a webrtc test app that links in the whole webrtc stack - the app is called `peerconnection_client`. We can get the ninja file
- generated for this executable and translate it to CMake.
- The file is located at `trunk/out/Release|Debug/obj/talk/peerconnection_client.ninja`. The webrtc-build/CMakeLists.txt file
- is basically a translation of this ninja for different platforms, and allows linking webrtc in a higher level
- CMake file with just a few lines. You do not need to run that cmake script directly, but rather include it from the actual
- application that links to it. THis is already done by the rtcModule build system.
- This will be described in more detail in the webrtc module build procedure.
+ to configure the code). Rather, it creates a lot of smaller static libs that can be used only from within the chromium/webrtc build system, which takes care of include paths, linking libs, setting proper defines (and there are quite a few of them). So we either need to build our code within the webrtc/chrome build system, rewrite the build system to something more universal, or do a combination of both. That's what we do currently. Fortunately, the Chrome build system generates a webrtc test app that links in the whole webrtc stack - the app is called `peerconnection_client`. We can get the ninja file generated for this executable and translate it to CMake. The file is located at `trunk/out/Release|Debug/obj/talk/peerconnection_client.ninja`. The webrtc-build/CMakeLists.txt file is basically a translation of this ninja for different platforms, and allows linking webrtc in a higher level CMake file with just a few lines. You do not need to run that cmake script directly, but rather include it from the actual application or library that links to it. This is already done by the rtcModule build system. This will be described in more detail in the webrtc module build procedure.
 
-## Building the Karere codebase, including a test app ##
+## Build the Karere codebase, including a test app ##
 Change directory to the root of the karere-native checkout  
 `mkdir build`  
 `cd build`  
 
+### Invoke ccmake config menu
+
 * Desktop OS-es  
-If you installed dependencies in non-system prefixes (recommended on MacOS), you need to provide these prefixes to cmake. They will be 
-searched before the system paths, in the order provided:
+If you installed dependencies in non-system prefixes (recommended on MacOS), you need to provide these prefixes to cmake. They will be searched before the system paths, in the order provided:
 `ccmake ../examples/qt -DCMAKE_PREFIX_PATH="path/to/prefix1;path/to/prefix2..."`
 If you don't need to provide custom prefixes, just issue:
 `ccmake ../examples/qt`  
 
-* iOS  
-You need to have `env-ios.sh` sourced in the shell, as explained above. Then, run *ccmake* in cross-compile mode as per the instructions
-for cmake in the env script:  
+* iOS and Android  
+You need to have `env-ios.sh/env-android.sh` sourced in the shell, as explained above. Then, run *ccmake* in cross-compile mode as per the instructions
+For example:  
+`eval ccmake $CMAKE_XCOMPILE_ARGS ../src`  
+This (after configuring via the menu) will cross-compile the Karere SDK for Android or iOS, depending on the cross-compile environment you have set up.  
 `eval ccmake -GXcode $CMAKE_XCOMPILE_ARGS ../examples/objc`  
-This (after configuring via the menu) will not build the app but generate a XCode project linking all dependencies (including webrtc).
+This will not build the iOS app but generate a XCode project linking all dependencies (including webrtc).
 You can build that project with XCode.  
 
 ### Configure Karere ###
 In the ccmake menu that appeared in the previous step, first hit 'c'. The config parameters will get populated.
 Then you need to setup the following paths:  
-`webrtcRoot` - path to the trunk directory of the webrtc source tree  
-`WEBRTC_BUILD_TYPE` - the build mode of the webrtc code, as built with ninja. This is the dir name specified to ninja with
-the -C option after `out/`. If you built with `-C opt/Release`, then specify `Release` here, similarly for Debug.
-* iOS  
-This dir is normally `Release-iphoneos` or `Debug-iphoneos` to differentiate from simulator builds.  
-
+`webrtcRoot` - path to the `src` directory of the webrtc source tree, as you have specified to `build-webrtc.sh`  
+`WEBRTC_BUILD_TYPE` - the build mode of the webrtc code, as specified to `build-webrtc.sh`  
+This is either `Release` or `Debug` for non-iOS, or `Release-iphoneos` or `Debug-iphoneos` for iOS (to differentiate from simulator builds).  
 `CMAKE_BUILD_TYPE` - Set the build mode for the example app, Karere and all its submodules - `Debug` or `Release`.
 `optStropheSslLib` - Set to OpenSSL, if not already set.
 `optStropheXmlLib` - Can be set to `EXPAT`, `LibXml2` or `Detect` for autodetecting. Tested mostly with expat.
@@ -336,16 +126,11 @@ From within the build directory of the previous step, provided that you generate
 
 # Getting familiar with the codebase #
 ## Basic knlowledge ##
-  * Strophe: https://code.developers.mega.co.nz/messenger/strophe-native  
-The public headers are:
-    - The plain C interface is mstrophe.h
-    - The C++ interface is mstrophepp.h and mstrophepp-conn.h 
-    - study bot-libevent.cpp example in /examples
+  * The core eventloop mechanism in base/gcm.h, base/gcm.hpp
   * The Promise lib in base/promise.h and example usage for example in /src/test-promise.cpp
-  * The Conversation/Chatroom management code in /src/chatRoom.h;.cpp
-  * The overall client structure in /src/chatClient.h;.cpp
   * The setTimeout() and setInterval() timer functions in /src/base/timers.h  
-
+  * The overall client structure in /src/chatClient.h;.cpp
+  * The video module public interface in src/rtcModile/IRtcModule.h and related headers
 ## Video renderer widgets ##
 Karere provides platform-specific video renderer widgets for Qt and iOS (probably will work also for MacOS with no or minimal changes).
 These widgets are implemented as subclasses of standard widgets. Their code is in src/videoRenderer_xxx.cpp;mm;h. They can be used directly

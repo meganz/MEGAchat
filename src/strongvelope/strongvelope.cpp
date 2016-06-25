@@ -59,9 +59,8 @@ uint32_t getKeyIdLength(uint32_t protocolVersion)
     return (protocolVersion == 1) ? 8 : 4;
 }
 
-EncryptedMessage::EncryptedMessage(const std::string& clearStr,
-    const StaticBuffer& aKey)
-: key(aKey)
+EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
+: key(aKey), backRefId(msg.backRefId)
 {
     assert(!key.empty());
     randombytes_buf(nonce.buf(), nonce.bufSize());
@@ -71,10 +70,18 @@ EncryptedMessage::EncryptedMessage(const std::string& clearStr,
 
     *reinterpret_cast<uint32_t*>(derivedNonce.buf()+SVCRYPTO_NONCE_SIZE) = 0; //zero the 32-bit counter
     assert(derivedNonce.dataSize() == AES::BLOCKSIZE);
-    if (!clearStr.empty())
-    {
-        ciphertext = aesCTREncrypt(clearStr, key, derivedNonce);
-    }
+
+    size_t refsSize = msg.backRefs.size()*8;
+    Buffer buf(10+refsSize+msg.dataSize());
+    buf.append<uint64_t>(msg.backRefId)
+       .append<uint16_t>(msg.backRefs.size());
+    if (refsSize > 0)
+        buf.append((const char*)(&msg.backRefs[0]), refsSize);
+
+    if (!msg.empty())
+        buf.append(msg.buf(), msg.dataSize());
+
+    ciphertext = aesCTREncrypt(std::string(buf.buf(), buf.dataSize()), key, derivedNonce);
 }
 
 /**
@@ -100,7 +107,7 @@ void ProtocolHandler::symmetricDecryptMessage(const std::string& cipher, const S
     *reinterpret_cast<uint32_t*>(derivedNonce+SVCRYPTO_NONCE_SIZE) = 0;
     std::string cleartext = aesCTRDecrypt(cipher, key,
                                 StaticBuffer(derivedNonce, AES::BLOCKSIZE));
-    outMsg.assign<false>(cleartext);
+    parsePayload(StaticBuffer(cleartext, false), outMsg);
 }
 
 /**
@@ -133,24 +140,24 @@ void deriveNonceSecret(const StaticBuffer& masterNonce, const StaticBuffer& resu
     hmac_sha256_bytes(recipientStr, masterNonce, result);
 }
 
-void ProtocolHandler::signMessage(const StaticBuffer& message, const StaticBuffer& keyToInclude,
-                 Buffer& signature)
+void ProtocolHandler::signMessage(const StaticBuffer& signedData,
+        const EncryptedMessage& encMsg, StaticBuffer& signature)
 {
+    assert(signature.dataSize() == crypto_sign_BYTES);
 // To save space, myPrivEd25519 holds only the 32-bit seed of the priv key,
 // without the pubkey part, so we add it here
     Buffer key(myPrivEd25519.dataSize()+myPubEd25519.dataSize());
     key.append(myPrivEd25519).append(myPubEd25519);
 
-    Buffer toSign(keyToInclude.dataSize()+message.dataSize()+SVCRYPTO_SIG.size()+2);
+    Buffer toSign(encMsg.key.dataSize()+signedData.dataSize()+SVCRYPTO_SIG.size()+10);
     toSign.append(SVCRYPTO_SIG)
           .append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION)
           .append<uint8_t>(SVCRYPTO_MSGTYPE_FOLLOWUP)
-          .append(keyToInclude)
-          .append(message);
+          .append(encMsg.key)
+          .append(signedData);
 
-    crypto_sign_detached((unsigned char*)signature.writePtr(0, crypto_sign_BYTES),
-        NULL, toSign.ubuf(), toSign.dataSize(),
-        key.ubuf());
+    crypto_sign_detached(signature.ubuf(), NULL, toSign.ubuf(),
+        toSign.dataSize(), key.ubuf());
 }
 
 bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey)
@@ -357,6 +364,24 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             binaryMessage.id().toString().c_str(), recordNames.c_str());
     }
 }
+void ProtocolHandler::parsePayload(const StaticBuffer& data, Message& msg)
+{
+    assert(data.dataSize() >= 10);
+    msg.backRefId = data.read<uint64_t>(0);
+    uint16_t count = data.read<uint16_t>(8);
+    assert(msg.backRefs.empty());
+    msg.backRefs.reserve(count);
+    size_t refsSize = 10+count*8;
+    assert(refsSize <= data.dataSize());
+    uint64_t* end = (uint64_t*)(data.buf()+refsSize);
+    for (uint64_t* prefid = (uint64_t*)data.buf()+10; prefid < end; prefid++)
+        msg.backRefs.push_back(*prefid);
+    if (data.dataSize() >= refsSize)
+    {
+        size_t s = data.dataSize()-refsSize;
+        msg.assign(data.readPtr(refsSize, s), s);
+    }
+}
 
 /***************************************************************************************************************/
 /*************************************Strongvelope::ProtocolHandler*********************************************/
@@ -398,22 +423,17 @@ void ProtocolHandler::loadKeysFromDb()
     STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu send keys from database", chatid, mKeys.size());
 }
 
-void ProtocolHandler::msgEncryptWithKey(Buffer& src, chatd::MsgCommand& dest, const StaticBuffer& key)
+void ProtocolHandler::msgEncryptWithKey(Message& src, chatd::MsgCommand& dest,
+    const StaticBuffer& key)
 {
-    std::string text;
-    if (!src.empty())
-        text.assign(src.buf(), src.dataSize());
-    EncryptedMessage encryptedMessage(text, key);
+    EncryptedMessage encryptedMessage(src, key);
+    assert(!encryptedMessage.ciphertext.empty());
     TlvWriter tlv(encryptedMessage.ciphertext.size()+128); //only signed content goes here
     // Assemble message content.
     tlv.addRecord(TLV_TYPE_NONCE, encryptedMessage.nonce);
-    // Only include ciphertext if it's not empty (non-blind message).
-    if (!encryptedMessage.ciphertext.empty())
-    {
-        tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(encryptedMessage.ciphertext, false));
-    }
-    Buffer signature;
-    signMessage(tlv, key, signature);
+    tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(encryptedMessage.ciphertext, false));
+    Key<64> signature;
+    signMessage(tlv, encryptedMessage, signature);
     TlvWriter sigTlv;
     sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
 
@@ -424,7 +444,6 @@ void ProtocolHandler::msgEncryptWithKey(Buffer& src, chatd::MsgCommand& dest, co
         .append(tlv.buf(), tlv.dataSize()); //tlv must always be last, and the payload must always be last within the tlv, because the payload may span till end of message, (len code = 0xffff)
     dest.updateMsgSize();
 }
-
 
 promise::Promise<std::shared_ptr<SendKey>>
 ProtocolHandler::computeSymmetricKey(karere::Id userid)
@@ -1020,6 +1039,10 @@ bool ProtocolHandler::handleLegacyKeys(chatd::Message& msg)
         }
     }
     return false;
+}
+void ProtocolHandler::randomBytes(void* buf, size_t bufsize)
+{
+    randombytes_buf(buf, bufsize);
 }
 }
 
