@@ -1,6 +1,7 @@
 CREATE TABLE sending(rowid integer primary key autoincrement, msgid int64, keyid int,
     chatid int64 not null, type tinyint, ts int, updated smallint, msg blob,
-    opcode smallint not null, msg_cmd blob, key_cmd blob, recipients blob not null);
+    opcode smallint not null, msg_cmd blob, key_cmd blob, recipients blob not null,
+    backrefid int64 not null, backrefs blob);
 
 CREATE TABLE manual_sending(rowid integer primary key autoincrement, msgid int64,
     chatid int64 not null, type tinyint, ts int, updated smallint, msg blob,
@@ -22,7 +23,7 @@ CREATE TABLE chat_peers(chatid int64, userid int64, priv tinyint,
 
 CREATE TABLE history(idx int not null, chatid int64 not null, msgid int64 primary key,
     userid int64, keyid int not null, type tinyint, updated smallint, ts int,
-    is_encrypted tinyint, data blob);
+    is_encrypted tinyint, data blob, backrefid int64 not null, backrefs blob);
 
 CREATE TABLE sendkeys(chatid int64 not null, userid int64 not null, keyid int64 not null, key blob not null,
     ts int not null, UNIQUE(chatid, userid, keyid));

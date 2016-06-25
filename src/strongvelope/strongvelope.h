@@ -100,7 +100,6 @@ enum
  * history messages. (legacy only) */
     TLV_TYPE_OWN_KEY            = 0x0a,
     TLV_TYPE_INVITOR            = 0x0b,
-    TLV_TYPE_BACKREFS           = 0x0c,
     TLV_TYPES_COUNT
 };
 

@@ -61,9 +61,9 @@ public:
         Buffer rcpts;
         item.recipients.save(rcpts);
         sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, msg, "
-                         "recipients, msg_cmd, key_cmd) values(?,?,?,?,?,?,?,?)",
+                         "recipients, backrefid, backrefs, msg_cmd, key_cmd) values(?,?,?,?,?,?,?,?,?,?)",
             (uint64_t)mMessages.chatId(), item.opcode(), (int)time(NULL), msg->id(),
-            *msg, rcpts,
+            *msg, rcpts, msg->backRefId, msg->backrefBuf(),
             item.msgCmd ? (*item.msgCmd) : StaticBuffer(nullptr, 0),
             item.keyCmd ? (*item.keyCmd) : StaticBuffer(nullptr, 0));
         item.rowid = sqlite3_last_insert_rowid(mDb);
@@ -132,9 +132,9 @@ public:
 #endif
 
         sqliteQuery(mDb, "insert or replace into history"
-            "(idx, chatid, msgid, keyid, type, userid, ts, data) "
-            "values(?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
-            msg.type, msg.userid, msg.ts, msg);
+            "(idx, chatid, msgid, keyid, type, userid, ts, data, backrefid, backrefs) "
+            "values(?,?,?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
+            msg.type, msg.userid, msg.ts, msg, msg.backRefId, msg.backrefBuf());
     }
     virtual void updateMsgInHistory(karere::Id msgid, const StaticBuffer& msg)
     {
@@ -152,10 +152,10 @@ public:
         {
             uint8_t opcode = stmt.intCol(1);
             chatd::MsgCommand* msgCmd;
-            if (stmt.hasBlobCol(7))
+            if (stmt.hasBlobCol(9))
             {
                 msgCmd = new chatd::MsgCommand;
-                stmt.blobCol(7, *msgCmd);
+                stmt.blobCol(9, *msgCmd);
                 assert(msgCmd->opcode() == opcode);
             }
             else

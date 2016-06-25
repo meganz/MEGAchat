@@ -108,6 +108,12 @@ public:
         return (status > kSeen) ? "(invalid status)" : statusNames[status];
     }
     void generateRefId();
+    StaticBuffer backrefBuf() const
+    {
+        return backRefs.empty()
+            ?StaticBuffer(nullptr, 0)
+            :StaticBuffer((const char*)&backRefs[0], backRefs.size()*8);
+    }
 protected:
     static const char* statusNames[];
     friend class Chat;
