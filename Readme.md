@@ -38,11 +38,11 @@ Check out the repository, configure the SDK with --enable-chat, and in a minimal
  - `libcurl` - Needed by MegaSDK and Karere.  
  - `Qt5` - QtCore and QtWidgets required only, needed only for the desktop example app.  
 
-### Automated dependency build system
-This is supported only for android, ios, and Windows (for now). The script works in tandem with the cross-compile build environment when building for mobile, so you need that encironemnt set up, as described in the previous sections.
-You just need to run `/platforms/setup-deps.sh` script without arguments to get help on how to use it, and then run it with arguments to download, build and install all dependencies.
+### Automated dependency build system ###
+This is supported only for android, ios, and Windows (for now). The script works in tandem with the cross-compile build environment when building for mobile, so you need that environement set up, as described in the previous sections. You just need to run `/platforms/setup-deps.sh` script without arguments to get help on how to use it, and then run it with arguments to download, build and install all dependencies.
 
-IMPORTANT for iOS: As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs, so you need to tell the dependency build system to build everything as static libs.
+*IMPORTANT for iOS*  
+As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs, so you need to tell the dependency build system to build everything as static libs.
 
 ## Build webrtc ##
 Karere provides an autmated system for building webrtc for any of the supported desktop and mobile platforms. This is made very easy by using the `webrtc-build/build-webrtc.sh` script. Run it without arguments to see help on usage. This system is generally an addon to the stock webrtc (actually chromium) build sustem, but it strips it down to download only a few hundred megabytes of source code and tools instead of 10-12GB. It also patches webrtc to fix several issues (use normal openssl instead of its own included boringssl lib, replace macos capturer that uses obsolete API and problematic threading model with modified iOS capturer, etc).
@@ -76,7 +76,7 @@ Change directory to the root of the karere-native checkout
 `mkdir build`  
 `cd build`  
 
-### Invoke ccmake config menu
+### Invoke ccmake config menu ###
 
 * Desktop OS-es  
 If you installed dependencies in non-system prefixes (recommended on MacOS), you need to provide these prefixes to cmake. They will be searched before the system paths, in the order provided:
