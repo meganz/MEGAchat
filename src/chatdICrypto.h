@@ -1,6 +1,6 @@
 #ifndef ICRYPTO_H
 #define ICRYPTO_H
-#include <timers.h>
+#include <timers.hpp>
 #include <promise.h>
 #include <chatd.h>
 

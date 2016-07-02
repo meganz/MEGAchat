@@ -9,8 +9,8 @@
 #include <set>
 #include <list>
 #include <deque>
-#include <promise.h>
-#include <base/timers.h>
+#include <base/promise.h>
+#include <base/timers.hpp>
 #include "chatdMsg.h"
 
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)

@@ -3,7 +3,7 @@
 #include "webrtcAdapter.h"
 #include "IRtcStats.h"
 #include "ITypesImpl.h"
-#include <timers.h>
+#include <timers.hpp>
 #include <strophe.jingle.session.h>
 
 namespace rtcModule

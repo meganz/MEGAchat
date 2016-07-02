@@ -1,6 +1,6 @@
 #include "rtcStats.h"
 #include "strophe.jingle.session.h"
-#include <timers.h>
+#include <timers.hpp>
 #include <string.h> //for memset
 #include <karereCommon.h> //for timestampMs()
 #include <rtcModule.h>
