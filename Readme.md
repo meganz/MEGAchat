@@ -145,9 +145,11 @@ The same channel can be configured multiple times, and only the last setting wil
 
   * The Promise lib in base/promise.h and example usage for example in /src/test-promise.cpp
   * The setTimeout() and setInterval() timer functions in /src/base/timers.hpp  
+  * The marshallCall() function marshalls lambda calls from a worker thread to the GUI thread. Examples of use can be seen for example in /src/webrtcAdapter.h and in many different places. This mechanism should not be directly needed in high-level code that runs in the GUI thread.
   * The overall client structure in /src/chatClient.h;.cpp
   * The test app main.cpp file in examples/qt - shows how to implement megaPostMessageToGui(), how to start the 'services', and how to instantiate the karere client. Also shows how to implement the getAppDir() method, which is a weak symbol needed by the karere library in order to create the log file and start logging as early as possible, before main() is entered. 
-  * The video module public interface in src/rtcModile/IRtcModule.h and related headers
+  * The video module public interface in src/rtcModile/IRtcModule.h and related headers  
+
 ## Video renderer widgets ##
 Karere provides platform-specific video renderer widgets for Qt and iOS (probably will work also for MacOS with no or minimal changes).
 These widgets are implemented as subclasses of standard widgets. Their code is in src/videoRenderer_xxx.cpp;mm;h. They can be used directly
@@ -166,7 +168,7 @@ The test apps are:
 ## For application implementors ##
   * The rtctestapp above is the reference app. Build it, study it, experiment with it.
 Note theat there is one critical and platform-dependent function that each app that uses Karere must provide, which will be
-referenced as `megaPostMessageToGui()`, but it can have any name ,provided that the signature is `extern "C" void(void*)`.
+referenced as `megaPostMessageToGui()`, but it can have any name, provided that the signature is `extern "C" void(void*)`.
 This function is the heart of the message passing mechanism (called the Gui Call Marshaller, or GCM) that Karere relies on.
 You must pass a pointer to this function to `services_init()`.  
 For more details, read the comments in base/gcm.h, and for reference implementation study rtctestapp/main.cpp
@@ -177,10 +179,5 @@ For more details, read the comments in base/gcm.h, and for reference implementat
 
 ## If Mega API calls are required ##
   * To integrate with the environment, a simple bridge class called MyMegaApi is implemented in /src/sdkApi.h.
-    Example usage of it is in /src/chatClient.cpp and in /src/megaCryptoFuncs.cpp. 
+    Example usage of it is in /src/chatClient.cpp. 
 
-## More advanced things that should not be needed but are good to know in order to understand the underlying environment better ##
-  * The function call marshalling mechanims in /src/base/gcm.h and /src/base/gcmpp.h. The code is documented in detail.
-    The mechanism marshalls lambda calls from a worker thread to the GUI thread. Examples of use of
-    marshallCall() can be seen for example in /src/webrtcAdapter.h and in many different places.
-    This mechanism should not be directly needed in high-level code that runs in the GUI thread.
