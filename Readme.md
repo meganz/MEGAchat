@@ -137,9 +137,9 @@ Karere has an advanced logging facility that supports file and console logging w
         ```KRLOG=<chan name>=<log level>,<chan name2>=<log level2>...```    
     Log levels are 'off', 'error', 'warn', 'info', 'verbose', 'debug', 'debugv'.
     There is one special channel name - 'all'. Setting the log level of this channel sets the log levels of all channels. This allows for example to easily silence all channels except one (or few), by:
-       ```KRLOG=all=warn,mychannel=debug,myotherchannel=info```
-The same channel can be configured multiple times, and only the last setting will be effective, which makes the above trick possible.  
-    Karere requires the function karere::getAppDir() to be defined by the application at compile time, in order to know where to create the log file and start logging as early as possible, before main() is entered. If karere is build as a static lib, this is not a problem. In case of dynamic lib, this function has to be a weak symbol, so that karere itself can compile without the function implementation, and the implementation to be linked when the karere shared lib is loaded at app startup. Weak symbols are not really portable across compilers, and this may be a problem. However they are supported by both gcc and clang. If no weak symbols are supported, karer ehas to be built as static lib.
+       ```KRLOG=all=warn,mychannel=debug,myotherchannel=info```   
+    The same channel can be configured multiple times, and only the last setting will be effective, which makes the above trick possible.  
+Karere requires the function karere::getAppDir() to be defined by the application at compile time, in order to know where to create the log file and start logging as early as possible, before main() is entered. If karere is build as a static lib, this is not a problem. In case of dynamic lib, this function has to be a weak symbol, so that karere itself can compile without the function implementation, and the implementation to be linked when the karere shared lib is loaded at app startup. Weak symbols are not really portable across compilers, and this may be a problem. However they are supported by both gcc and clang. If no weak symbols are supported, karer ehas to be built as static lib.
 
 ## Files of interest ##
 
