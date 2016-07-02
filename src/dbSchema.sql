@@ -23,7 +23,7 @@ CREATE TABLE chat_peers(chatid int64, userid int64, priv tinyint,
 
 CREATE TABLE history(idx int not null, chatid int64 not null, msgid int64 primary key,
     userid int64, keyid int not null, type tinyint, updated smallint, ts int,
-    is_encrypted tinyint, data blob, backrefid int64 not null, backrefs blob);
+    is_encrypted tinyint, data blob, backrefid int64 not null);
 
 CREATE TABLE sendkeys(chatid int64 not null, userid int64 not null, keyid int64 not null, key blob not null,
     ts int not null, UNIQUE(chatid, userid, keyid));

@@ -132,9 +132,9 @@ public:
 #endif
 
         sqliteQuery(mDb, "insert or replace into history"
-            "(idx, chatid, msgid, keyid, type, userid, ts, data, backrefid, backrefs) "
-            "values(?,?,?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
-            msg.type, msg.userid, msg.ts, msg, msg.backRefId, msg.backrefBuf());
+            "(idx, chatid, msgid, keyid, type, userid, ts, data, backrefid) "
+            "values(?,?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
+            msg.type, msg.userid, msg.ts, msg, msg.backRefId);
     }
     virtual void updateMsgInHistory(karere::Id msgid, const StaticBuffer& msg)
     {
@@ -152,10 +152,10 @@ public:
         {
             uint8_t opcode = stmt.intCol(1);
             chatd::MsgCommand* msgCmd;
-            if (stmt.hasBlobCol(9))
+            if (stmt.hasBlobCol(7))
             {
                 msgCmd = new chatd::MsgCommand;
-                stmt.blobCol(9, *msgCmd);
+                stmt.blobCol(7, *msgCmd);
                 assert(msgCmd->opcode() == opcode);
             }
             else
@@ -195,7 +195,7 @@ public:
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, backrefs from history "
+        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid from history "
             "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
         stmt << mMessages.chatId() << idx << count;
         int i = 0;
@@ -221,12 +221,6 @@ public:
             auto msg = new chatd::Message(msgid, userid, ts, 0, std::move(buf),
                 false, keyid, (chatd::Message::Type)stmt.intCol(3));
             msg->backRefId = stmt.uint64Col(7);
-            buf.clear();
-            if (stmt.hasBlobCol(8))
-            {
-                stmt.blobCol(8, buf);
-                buf.read(0, msg->backRefs);
-            }
             messages.push_back(msg);
         }
     }

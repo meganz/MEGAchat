@@ -3,7 +3,7 @@
 ## Get the code ##
 
 Checkout the Karere repository:  
-`git clone --recursive https://code.developers.mega.co.nz/messenger/karere-native`.  
+`git clone --recursive https://code.developers.mega.co.nz/messenger/karere-native`    
 Note the `--recursive` switch - the repository contains git submodules that need to be checked out as well.
 
 ## Toolchains ##
@@ -21,18 +21,22 @@ Although webrtc comes with its own copy of the NDK, we are going to use the stan
 Building of webrtc and karere is supported only on MacOS. XCode is required.
 Then, you need to prepare a cross-compile environment for android. For this purpose, you need to use the `/platforms/ios/env-ios.sh` shell script. Please read the Readme.md in the same directory no how to use that script.
 
+* Windows
+Microsoft Visual Studio 2015 or later (only C++ compiler), and the Cygwin environment are required. You need to setup the start shortcut/batfile of the Cygwin shell to run the vcvars32.bat with the cmd.exe shell inside the cygwin shell, in order to add the compiler and system library paths to the Cygwin shell. Building of Karere, webrtc and dependencies will be done under the Cygwin shell.
+
 
 ## Build dependencies ##
 For Linux and MacOS, you need to install all dependencies using a package manager (the operating system's package manager for Linux, and MacPorts or Homebrew on MacOS). For cross-compiled targets (android, ios), and for Windows, an automated system is provided to download, build and install all dependencies under a specific prefix. See below for details.
 
 ### List of dependencies
- - `cmake` and `ccmake` (for a config GUI).  
+ - `cmake` and `ccmake` (for a config GUI).
+ * Windows
+Under Windows, the cygwin version of cmake will not be sufficient, you need to install the native cmake for Windows from the official site, and instead of ccmake use cmake-gui. You will also need to add the path to Cmake to Cygwin.
  - `libevent2.1.x`  
 Version 2.0.x will **not** work, you need at least 2.1.x. You may need to build it from source, as 2.1.x is currently considered beta (even though it has critical bugfixes) and system packages at the time of this writing use 2.0.x. For convenience, libevent is added as a git submodule in third-party/libevent, so its latest revision is automatically checked out from the official libevent repository.  
  - `openssl` - Needed by the SDK, webrtc, strophe and Karere itself.  
  - Native WebRTC stack from Chrome. See below for build instructions for it.  
- - The Mega SDK  
-Check out the repository, configure the SDK with --enable-chat, and in a minimalistic way - without image libs etc. Only the crypto and HTTP functionality is needed.  
+ - The Mega SDK - Check out the repository, configure the SDK with --enable-chat, and in a minimalistic way - without image libs etc. Only the crypto and HTTP functionality is needed.  
  - `libcrypto++` - Needed by MegaSDK and Karere.
  - `libsodium` - Needed by MegaSDK and Karere.
  - `libcurl` - Needed by MegaSDK and Karere.  
@@ -45,15 +49,14 @@ This is supported only for android, ios, and Windows (for now). The script works
 As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs, so you need to tell the dependency build system to build everything as static libs.
 
 ## Build webrtc ##
-Karere provides an autmated system for building webrtc for any of the supported desktop and mobile platforms. This is made very easy by using the `webrtc-build/build-webrtc.sh` script. Run it without arguments to see help on usage. This system is generally an addon to the stock webrtc (actually chromium) build sustem, but it strips it down to download only a few hundred megabytes of source code and tools instead of 10-12GB. It also patches webrtc to fix several issues (use normal openssl instead of its own included boringssl lib, replace macos capturer that uses obsolete API and problematic threading model with modified iOS capturer, etc).
+Karere provides an autmated system for building webrtc for any of the supported desktop and mobile platforms. This is made very easy by using the `/webrtc-build/build-webrtc.sh` script. Run it without arguments to see help on usage. This system is generally an addon to the stock webrtc (actually chromium) build sustem, but it strips it down to download only a few hundred megabytes of source code and tools instead of 10-12GB. It also patches webrtc to fix several issues (use normal openssl instead of its own included boringssl lib, replace macos capturer that uses obsolete API and problematic threading model with modified iOS capturer, etc).
 
 ### Verify the build ###
-* Cd to build directory
+* Cd to the directory you passed to build-webrtc.sh, and then:  
    - non-iOS  
-  `cd out/Release|Debug`
-
+  `cd src/out/Release|Debug`  
   - iOS  
-  `cd out/Release-iphoneos|Debug-iphoneos`
+  `cd src/out/Release-iphoneos|Debug-iphoneos`  
 
 * Built executables  
 
@@ -69,7 +72,7 @@ Karere provides an autmated system for building webrtc for any of the supported 
 
 ### Using the webrtc stack with CMake ###
 Unfortunately the webrtc build does not generate a single lib and config header file (for specific C defines
- to configure the code). Rather, it creates a lot of smaller static libs that can be used only from within the chromium/webrtc build system, which takes care of include paths, linking libs, setting proper defines (and there are quite a few of them). So we either need to build our code within the webrtc/chrome build system, rewrite the build system to something more universal, or do a combination of both. That's what we do currently. Fortunately, the Chrome build system generates a webrtc test app that links in the whole webrtc stack - the app is called `peerconnection_client`. We can get the ninja file generated for this executable and translate it to CMake. The file is located at `trunk/out/Release|Debug/obj/talk/peerconnection_client.ninja`. The webrtc-build/CMakeLists.txt file is basically a translation of this ninja for different platforms, and allows linking webrtc in a higher level CMake file with just a few lines. You do not need to run that cmake script directly, but rather include it from the actual application or library that links to it. This is already done by the rtcModule build system. This will be described in more detail in the webrtc module build procedure.
+ to configure the code). Rather, it creates a lot of smaller static libs that can be used only from within the chromium/webrtc build system, which takes care of include paths, linking libs, setting proper defines (and there are quite a few of them). So we either need to build our code within the webrtc/chrome build system, rewrite the build system to something more universal, or do a combination of both. That's what we do currently. Fortunately, the Chrome build system generates a webrtc test app that links in the whole webrtc stack - the app is called `peerconnection_client`. We can get the ninja file generated for this executable and translate it to CMake. The file is located at `src/out/Release|Debug/obj/talk/peerconnection_client.ninja`. The webrtc-build/CMakeLists.txt file is basically a translation of this ninja for different platforms, and allows linking webrtc in a higher level CMake file with just a few lines. You do not need to run that cmake script directly, but rather include it from the actual application or library that links to it. This is already done by the rtcModule build system. This will be described in more detail in the webrtc module build procedure.
 
 ## Build the Karere codebase, including a test app ##
 Change directory to the root of the karere-native checkout  
@@ -123,8 +126,14 @@ From within the build directory of the previous step, provided that you generate
 `make doc`  
 
 # Getting familiar with the codebase #
+## Introduction to the threading model ##
+The karere threading model is similar to the javascript threading model - everything runs in the main (GUI) thread, blocking is never allowed, and external events (network, timers etc, webrtc events etc), trigger callbacks on the main thread. For this to work, karere-native must be able to interact with the application's event loop - this is usually the event/message loop of the GUI framework in case of a GUI application, or a custom message loop in case of a console application. As this message loop is very platform-specific, it is the application developer's responsibility to implement the interface between it and karere-native. This may sound more complicated than it is in reality - the interface consists of two parts - the implementation of megaPostMessageToGui(void*) function posts an opaque void* pointer to the application's message loop. This function is normally called by threads other than the main thread, but can also be called by the GUI thread itself. The other part is the part of the application's message loop that recognizes this type of messages and passes them back to karere, by calling megaProcessMessage(void*) with that same pointer - this time in the context of the main (GUI) thread. All this is implemented in /src/base/gcm.h and /src/base/gcm.hpp. These files contain detiled documentation.    
+Karere-native relies on libevent, running in its own dedicated thread, to monitor multiple sockets for raw I/O events, and to implement timers. It also relies on the higher-level I/O functionality of libevent such as DNS resolution and SSL sockets. A thin layer on top of libevent, called 'services' (/src/base/?services*.*)is implemented on top of libevent and the GCM to have very simple, javascript-like async C++11 APIs for timers(src/base/timer.hpp), dns resolution (/src/base/services-dns.hpp), http client (/src/base/services-http.hpp). This layer was originally designed to have a lower-level component with plain C interface (cservices*.cpp/h files), so that the services can be used by several DLLs built with different compilers, and a high-level header-only layer that is the frontend and contains the public C++11 API - these are the .hpp files.    
+All network libraries in karere-native (libstrophe, libws, libcurl) use libevent for network operation and timers (C libraries use libevent directly, C++ code uses the C++11 layer, i.e. timers.hpp). It is strongly recommended that the SDK user also does the same, although it is possible for example to have a worker thread blocking on a socket, and posting events to the GUI thread via the GCM.
+The usage pattern is as follows: a callback is registered for a certain event (socket I/O event, timer, etc), and that callback is called by *the libevent thread* when the event occurs. If the event may propagate outside the library whose callback is called, and especially to the GUI, then, at some point, the event must be marshalled to the GUI thread, using the GCM mechanism. However, if the event is internal and never propagates outside the library then it can be handled directly in the context of the libevent thread (provided that it never blocks it). This saves the performance cost of marshalling it to the GUI thread, and is recommended if the event occurs at a high frequency, e.g. an incoming data chunk event that only needs the data appended to a buffer. When the transfer is complete, a completon event can be marshalled on the GUI thread once per transfer, combining the advantages of both approaches.
+
 ## Basic knlowledge ##
-  * The core eventloop mechanism in base/gcm.h, base/gcm.hpp
+
   * The Promise lib in base/promise.h and example usage for example in /src/test-promise.cpp
   * The setTimeout() and setInterval() timer functions in /src/base/timers.h  
   * The overall client structure in /src/chatClient.h;.cpp

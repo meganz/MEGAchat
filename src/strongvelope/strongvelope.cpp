@@ -372,7 +372,8 @@ void ProtocolHandler::parsePayload(const StaticBuffer& data, Message& msg)
     assert(msg.backRefs.empty());
     msg.backRefs.reserve(count);
     size_t refsSize = 10+count*8;
-    assert(refsSize <= data.dataSize());
+    if (refsSize > data.dataSize())
+        throw std::runtime_error(chatid.toString()+": parsePayload: Payload size is less than size of backrefs");
     uint64_t* end = (uint64_t*)(data.buf()+refsSize);
     for (uint64_t* prefid = (uint64_t*)data.buf()+10; prefid < end; prefid++)
         msg.backRefs.push_back(*prefid);
