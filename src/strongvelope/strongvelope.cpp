@@ -393,16 +393,12 @@ void ProtocolHandler::parsePayload(const StaticBuffer& u8data, Message& msg)
     uint64_t* end = (uint64_t*)(data.buf()+binsize);
     for (uint64_t* prefid = (uint64_t*)data.buf()+10; prefid < end; prefid++)
         msg.backRefs.push_back(*prefid);
-    if (data.dataSize() >= binsize)
+    if (data.dataSize() > binsize)
     {
         std::string text = convert.to_bytes(u16.c_str()+binsize);
         msg.assign<false>(text);
     }
 }
-
-/***************************************************************************************************************/
-/*************************************Strongvelope::ProtocolHandler*********************************************/
-/***************************************************************************************************************/
 
 ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519,
