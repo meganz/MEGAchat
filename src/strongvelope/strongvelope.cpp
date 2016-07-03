@@ -13,6 +13,7 @@
 #include <userAttrCache.h>
 #include <mega.h>
 #include <db.h>
+#include <codecvt>
 #ifdef __APPLE__
     #include <libkern/OSByteOrder.h>
     #define betoh64(x) OSSwapBigToHostInt64(x)
@@ -71,17 +72,23 @@ EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
     *reinterpret_cast<uint32_t*>(derivedNonce.buf()+SVCRYPTO_NONCE_SIZE) = 0; //zero the 32-bit counter
     assert(derivedNonce.dataSize() == AES::BLOCKSIZE);
 
-    size_t refsSize = msg.backRefs.size()*8;
-    Buffer buf(10+refsSize+msg.dataSize());
+    size_t binsize = 10+msg.backRefs.size()*8;
+    Buffer buf(binsize);
     buf.append<uint64_t>(msg.backRefId)
        .append<uint16_t>(msg.backRefs.size());
-    if (refsSize > 0)
-        buf.append((const char*)(&msg.backRefs[0]), refsSize);
+    if (!msg.backRefs.empty())
+        buf.append((const char*)(&msg.backRefs[0]), msg.backRefs.size()*sizeof(msg.backRefs[0]));
 
+    std::u16string u16;
+    u16.reserve(binsize);
+    for (size_t i=0; i<buf.dataSize(); i++)
+        u16 += wchar_t(*(buf.buf()+i));
+
+    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert;
+    std::string u8 = convert.to_bytes(&u16[0], &u16[0]+u16.size());
     if (!msg.empty())
-        buf.append(msg.buf(), msg.dataSize());
-
-    ciphertext = aesCTREncrypt(std::string(buf.buf(), buf.dataSize()), key, derivedNonce);
+        u8.append(msg.buf(), msg.dataSize());
+    ciphertext = aesCTREncrypt(u8, key, derivedNonce);
 }
 
 /**
@@ -364,23 +371,32 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             binaryMessage.id().toString().c_str(), recordNames.c_str());
     }
 }
-void ProtocolHandler::parsePayload(const StaticBuffer& data, Message& msg)
+void ProtocolHandler::parsePayload(const StaticBuffer& u8data, Message& msg)
 {
-    assert(data.dataSize() >= 10);
+    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert;
+    std::u16string u16 = convert.from_bytes(u8data.buf(), u8data.buf()+u8data.dataSize());
+    size_t len = u16.size();
+    if(len < 10)
+        throw std::runtime_error("parsePayload: payload is less than backrefs minimum size");
+
+    Buffer data(len);
+    data.setDataSize(len);
+    for (size_t i=0; i< len; i++)
+        *(data.buf()+i) =  u16[i];
     msg.backRefId = data.read<uint64_t>(0);
-    uint16_t count = data.read<uint16_t>(8);
+    uint16_t refsSize = data.read<uint16_t>(8);
     assert(msg.backRefs.empty());
-    msg.backRefs.reserve(count);
-    size_t refsSize = 10+count*8;
-    if (refsSize > data.dataSize())
-        throw std::runtime_error(chatid.toString()+": parsePayload: Payload size is less than size of backrefs");
-    uint64_t* end = (uint64_t*)(data.buf()+refsSize);
+    msg.backRefs.reserve(refsSize/8);
+    size_t binsize = 10+refsSize;
+    if (binsize > data.dataSize())
+        throw std::runtime_error(chatid.toString()+": parsePayload: Payload size "+std::to_string(data.dataSize())+" is less than size of backrefs "+std::to_string(binsize));
+    uint64_t* end = (uint64_t*)(data.buf()+binsize);
     for (uint64_t* prefid = (uint64_t*)data.buf()+10; prefid < end; prefid++)
         msg.backRefs.push_back(*prefid);
-    if (data.dataSize() >= refsSize)
+    if (data.dataSize() >= binsize)
     {
-        size_t s = data.dataSize()-refsSize;
-        msg.assign(data.readPtr(refsSize, s), s);
+        std::string text = convert.to_bytes(u16.c_str()+binsize);
+        msg.assign<false>(text);
     }
 }
 
