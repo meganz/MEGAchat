@@ -5,6 +5,14 @@
  *      Author: admin2
  */
 
+#define _DEFAULT_SOURCE 1
+#ifdef __APPLE__
+    #include <libkern/OSByteOrder.h>
+    #define be64toh(x) OSSwapBigToHostInt64(x)
+#else
+    #include <endian.h>
+#endif
+
 #include "strongvelope.h"
 #include "cryptofunctions.h"
 #include <ctime>
@@ -14,12 +22,7 @@
 #include <mega.h>
 #include <db.h>
 #include <codecvt>
-#ifdef __APPLE__
-    #include <libkern/OSByteOrder.h>
-    #define betoh64(x) OSSwapBigToHostInt64(x)
-#else
-    #include <endian.h>
-#endif
+#include <locale>
 
 namespace strongvelope
 {
@@ -332,9 +335,9 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 }
                 else if (keyIdLength == 8)
                 {
-                    keyId = betoh64(binaryMessage.read<uint64_t>(record.dataOffset));
+                    keyId = be64toh(binaryMessage.read<uint64_t>(record.dataOffset));
                     prevKeyId = (record.dataLen > 8)
-                        ? betoh64(binaryMessage.read<uint64_t>(record.dataOffset+8))
+                        ? be64toh(binaryMessage.read<uint64_t>(record.dataOffset+8))
                         : 0;
                 }
     	    	break;
