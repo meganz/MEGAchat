@@ -48,7 +48,7 @@ endif()
 add_subdirectory(rtcModule)
 add_subdirectory(${LIBWS_DIR} libws)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
-    COMMAND cmake -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
+    COMMAND ${CMAKE_COMMAND} -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dbSchema.sql
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -81,7 +81,6 @@ else()
     add_library(karere ${SRCS})
 endif()
 set_target_properties(karere PROPERTIES COMPILE_FLAGS "${LIBMEGA_DEFINES}")
-
 target_link_libraries(karere
     rtcmodule
     ${LIBMEGA_LIBRARIES}

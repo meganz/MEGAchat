@@ -38,14 +38,16 @@ macro(findlib varprefix name header libnames)
     endif()
 endmacro()
 
-findlib(SQLITE sqlite3 sqlite3.h sqlite3)
+#findlib(SQLITE sqlite3 sqlite3.h sqlite3)
 findlib(CARES libcares ares.h cares)
-findlib(SODIUM libsodium sodium.h sodium)
+#findlib(SODIUM libsodium sodium.h sodium)
 
 find_package(CURL REQUIRED)
 find_package(Cryptopp REQUIRED)
+find_package(Sodium REQUIRED)
+find_package(sqlite3 REQUIRED)
 
-list(APPEND _LIBMEGA_LIBRARIES ${CURL_LIBRARIES} ${CARES_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${SODIUM_LIBRARIES}
+list(APPEND _LIBMEGA_LIBRARIES ${CURL_LIBRARIES} ${CARES_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${LIBSODIUM_LIBRARIES}
     ${SQLITE_LIBRARIES}
 )
 
@@ -71,18 +73,13 @@ set(LIBMEGA_INCLUDE_DIRS
     "${LIBMEGA_PUBLIC_INCLUDE_DIR}"
     "${LIBMEGA_PUBLIC_INCLUDE_DIR}/mega/${platdir}"
     "${CURL_INCLUDE_DIRS}" "${CARES_INCLUDE_DIRS}" "${CRYPTOPP_INCLUDE_DIRS}"
-    "${SODIUM_INCLUDE_DIRS}" "${SQLITE_INCLUDE_DIRS}"
-    "${CMAKE_FIND_ROOT}/include"
+    "${LIBSODIUM_INCLUDE_DIRS}" "${SQLITE_INCLUDE_DIRS}"
     CACHE STRING "" FORCE
 )
-if (CMAKE_PREFIX_PATH)
-    list(APPEND _LIBMEGA_LIBRARIES "${CMAKE_PREFIX_PATH}/lib")
-    list(APPEND LIBMEGA_INCLUDE_DIRS "${CMAKE_PREFIX_PATH}/include")
-endif()
 
 set(LIBMEGA_LIBRARIES "${_LIBMEGA_LIBRARIES}" CACHE STRING "libmega library and dependencies" FORCE)
 set(LIBMEGA_DEFINES "-DHAVE_CONFIG_H" CACHE STRING "libmega definitions needed for public headers" FORCE)
-
+message(STATUS "Found LibMega")
 #if (ANDROID) #android does not have glob.h in /usr/include
 #    list(APPEND MEGASDK_INCLUDES ../third_party/glob) #temporary hack until code in the sdk depending on glob.h is removed from android build
 #endif()
