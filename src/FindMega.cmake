@@ -45,7 +45,7 @@ findlib(CARES libcares ares.h cares)
 find_package(CURL REQUIRED)
 find_package(Cryptopp REQUIRED)
 find_package(Sodium REQUIRED)
-find_package(sqlite3 REQUIRED)
+find_package(Sqlite3 REQUIRED)
 
 list(APPEND _LIBMEGA_LIBRARIES ${CURL_LIBRARIES} ${CARES_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${LIBSODIUM_LIBRARIES}
     ${SQLITE_LIBRARIES}
