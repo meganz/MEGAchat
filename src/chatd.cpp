@@ -926,31 +926,26 @@ void Chat::msgSubmit(Message* msg)
 
 void Chat::createMsgBackRefs(Message& msg)
 {
-    SetOfIds unrefdUsers = mUsers;
-    if (!mSending.empty())
+    static std::uniform_int_distribution<uint8_t>distrib(0, 0xff);
+    static std::random_device rd;
+    Idx maxOffset = mSending.size()+size()-1;
+    if (maxOffset < 0)
+        return;
+    Idx start = -1;
+    for (size_t i=0; i<7; i++)
     {
-        msg.backRefs.push_back(mSending.back().msg->backRefId);
-        unrefdUsers.erase(client().userId());
-    }
-    for (Idx i = mForwardList.size()-1; i>=0; i--)
-    {
-        auto& m = *mForwardList[i];
-        if (unrefdUsers.find(m.userid) == unrefdUsers.end())
-            continue; //we have referenced a msg from that user already
-        if (msg.backRefs.size() > kMaxBackRefs) //reached maximum refs
+        Idx end = 1 << i;
+        if (end > maxOffset)
+            end = maxOffset;
+        //range is (start - end]
+        Idx idx = start + (distrib(rd) % (end - start)) - 1;
+        uint64_t backref = (idx < mSending.size()) //reference a not-yet confirmed message
+            ? (mSending[mSending.size()-1-idx]->msg->backRefId)
+            : (at(size()-1-(idx-mSending.size())).backRefId);
+        printf("backref: %lld\n", backref);
+        msg.backRefs.push_back(backref);
+        if (end == maxOffset)
             return;
-        msg.backRefs.push_back(m.backRefId);
-        unrefdUsers.erase(m.userid);
-    }
-    for (Idx i = 0; i < mBackwardList.size(); i++)
-    {
-        auto& m = *mBackwardList[i];
-        if (unrefdUsers.find(m.userid) == unrefdUsers.end())
-            continue;
-        if (msg.backRefs.size() > kMaxBackRefs)
-            return;
-        msg.backRefs.push_back(m.backRefId);
-        unrefdUsers.erase(m.userid);
     }
 }
 
