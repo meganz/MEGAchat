@@ -392,14 +392,15 @@ void ProtocolHandler::parsePayload(const StaticBuffer& u8data, Message& msg)
     msg.backRefs.reserve(refsSize/8);
     size_t binsize = 10+refsSize;
     if (binsize > data.dataSize())
-        throw std::runtime_error(chatid.toString()+": parsePayload: Payload size "+std::to_string(data.dataSize())+" is less than size of backrefs "+std::to_string(binsize));
+        throw std::runtime_error("parsePayload: Payload size "+std::to_string(data.dataSize())+" is less than size of backrefs "+std::to_string(binsize));
     uint64_t* end = (uint64_t*)(data.buf()+binsize);
     for (uint64_t* prefid = (uint64_t*)data.buf()+10; prefid < end; prefid++)
         msg.backRefs.push_back(*prefid);
     if (data.dataSize() > binsize)
     {
-        std::string text = convert.to_bytes(u16.c_str()+binsize);
-        msg.assign<false>(text);
+        //convert back to utf8 the binary part, only to determine its ut8 len
+        size_t binlen8 = convert.to_bytes(&u16[0], &u16[binsize]).size();
+        msg.assign(u8data.buf()+binlen8, u8data.dataSize()-binlen8);
     }
 }
 
