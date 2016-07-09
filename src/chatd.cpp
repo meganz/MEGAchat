@@ -928,24 +928,35 @@ void Chat::createMsgBackRefs(Message& msg)
 {
     static std::uniform_int_distribution<uint8_t>distrib(0, 0xff);
     static std::random_device rd;
-    Idx maxOffset = mSending.size()+size()-1;
-    if (maxOffset < 0)
+    std::vector<SendingItem*> sendingIdx;
+    sendingIdx.reserve(mSending.size());
+    for (auto& item: mSending)
+    {
+        sendingIdx.push_back(&item);
+    }
+    Idx maxEnd = mSending.size()+size();
+    if (maxEnd <= 0)
         return;
-    Idx start = -1;
+    Idx start = 0;
     for (size_t i=0; i<7; i++)
     {
         Idx end = 1 << i;
-        if (end > maxOffset)
-            end = maxOffset;
-        //range is (start - end]
-        Idx idx = start + (distrib(rd) % (end - start)) - 1;
-        uint64_t backref = (idx < mSending.size()) //reference a not-yet confirmed message
-            ? (mSending[mSending.size()-1-idx]->msg->backRefId)
-            : (at(size()-1-(idx-mSending.size())).backRefId);
-        printf("backref: %lld\n", backref);
+        if (end > maxEnd)
+            end = maxEnd;
+        //backward offset range is [start - end)
+        Idx range = (end - start);
+        assert(range >= 0);
+        Idx back =  (range > 1)
+            ? (start + (distrib(rd) % range))
+            : (start);
+//        printf("back = %d\n", back);
+        uint64_t backref = (back < mSending.size()) //reference a not-yet confirmed message
+            ? (sendingIdx[mSending.size()-1-back]->msg->backRefId)
+            : (at(highnum()-(back-mSending.size())).backRefId);
         msg.backRefs.push_back(backref);
-        if (end == maxOffset)
+        if (end == maxEnd)
             return;
+        start = end;
     }
 }
 
@@ -979,6 +990,8 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
 {
     //opcode can be NEWMSG, MSGUPD or MSGUPDX
     assert(msg->id() != Id::null());
+    if (opcode == OP_NEWMSG)
+        createMsgBackRefs(*msg);
     if (mEncryptionHalted || (mOnlineState != kChatStateOnline))
     {
         assert(!existingItem);

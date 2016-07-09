@@ -75,12 +75,13 @@ EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
     *reinterpret_cast<uint32_t*>(derivedNonce.buf()+SVCRYPTO_NONCE_SIZE) = 0; //zero the 32-bit counter
     assert(derivedNonce.dataSize() == AES::BLOCKSIZE);
 
-    size_t binsize = 10+msg.backRefs.size()*8;
+    size_t brsize = msg.backRefs.size()*8;
+    size_t binsize = 10+brsize;
     Buffer buf(binsize);
     buf.append<uint64_t>(msg.backRefId)
-       .append<uint16_t>(msg.backRefs.size());
+       .append<uint16_t>(brsize);
     if (!msg.backRefs.empty())
-        buf.append((const char*)(&msg.backRefs[0]), msg.backRefs.size()*sizeof(msg.backRefs[0]));
+        buf.append((const char*)(&msg.backRefs[0]), brsize);
 
     std::u16string u16;
     u16.reserve(binsize);
@@ -216,7 +217,7 @@ bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& s
 void deriveSharedKey(const StaticBuffer& sharedSecret, SendKey& output)
 {
     assert(output.dataSize() == AES::BLOCKSIZE);
-	// Equivalent to first block of HKDF, see RFC 5869.
+    // Equivalent to first block of HKDF, see RFC 5869.
     Key<32> sharedSecretKey;
     hmac_sha256_bytes(sharedSecret, StaticBuffer(nullptr, 0), sharedSecretKey); //step 1 - extract
     std::string infoStr = PAIRWISE_KEY+(char)0x01u; //For efficiency the 0x01u can be appended to the constant definition itself
@@ -258,27 +259,27 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
     {
         recordNames.append(tlvTypeToString(record.type))+=", ";
         switch (record.type)
-    	{
+        {
             case TLV_TYPE_SIGNATURE:
-    	    {
+            {
                 signature.assign(
                     binaryMessage.buf()+record.dataOffset, record.dataLen);
                 auto nextOffset = record.dataOffset+record.dataLen;
                 signedContent.assign(binaryMessage.buf()+nextOffset, binaryMessage.dataSize()-nextOffset);
                 break;
-    	    }
+            }
             case TLV_TYPE_NONCE:
             {
                 nonce.assign(binaryMessage.buf()+record.dataOffset, record.dataLen);
                 break;
             }
             case TLV_TYPE_MESSAGE_TYPE:
-    	    {
+            {
                 record.validateDataLen(1);
                 // if MESSAGE_TYPE, get the first byte from the record value.
                 type = (MessageType)binaryMessage.read<uint8_t>(record.dataOffset);
-    	    	break;
-    	    }
+                break;
+            }
             case TLV_TYPE_INC_PARTICIPANT:
             {
                 if (!userAddInfo)
@@ -287,7 +288,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 break;
             }
             case TLV_TYPE_EXC_PARTICIPANT:
-    	    {
+            {
                 if (!userExcInfo)
                     userExcInfo.reset(new Buffer);
                 userExcInfo->append(binaryMessage.buf()+record.dataOffset, record.dataLen);
@@ -309,12 +310,12 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 break;
             }
             case TLV_TYPE_KEYS:
-    	    {
+            {
 //KEYS, not KEY, because these can be pairs of current+previous key, concatenated and encrypted together
                 encryptedKey.assign(binaryMessage.buf()+record.dataOffset,
                     record.dataLen);
                 break;
-    	    }
+            }
             case TLV_TYPE_KEY_IDS:
             {
 //KEY_IDS, not KEY_ID, because the record may contain the previous keyid appended as well
@@ -340,8 +341,8 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                         ? be64toh(binaryMessage.read<uint64_t>(record.dataOffset+8))
                         : 0;
                 }
-    	    	break;
-    	    }
+                break;
+            }
             //===
             case TLV_TYPE_PAYLOAD:
             {
@@ -350,9 +351,9 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 payload.assign(binaryMessage.buf()+record.dataOffset, record.dataLen);
                 break;
             }
-    	    default:
+            default:
                 throw std::runtime_error("Unknown TLV record type "+std::to_string(record.type)+" in message "+binaryMessage.id().toString());
-    	}
+        }
     }
     if (type == SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS)
     {
@@ -398,7 +399,7 @@ void ProtocolHandler::parsePayload(const StaticBuffer& u8data, Message& msg)
         msg.backRefs.push_back(*prefid);
     if (data.dataSize() > binsize)
     {
-        //convert back to utf8 the binary part, only to determine its ut8 len
+        //convert back to utf8 the binary part, only to determine its utf8 len
         size_t binlen8 = convert.to_bytes(&u16[0], &u16[binsize]).size();
         msg.assign(u8data.buf()+binlen8, u8data.dataSize()-binlen8);
     }
@@ -952,7 +953,7 @@ ProtocolHandler::updateSenderKey()
     randombytes_buf(mCurrentKey->ubuf(), AES::BLOCKSIZE);
     mParticipantsChanged = false;
 
-	// Assemble the output for all recipients.
+    // Assemble the output for all recipients.
 
     assert(mParticipants && !mParticipants->empty());
 
