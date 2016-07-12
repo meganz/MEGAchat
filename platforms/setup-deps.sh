@@ -193,7 +193,7 @@ function cloneGitRepo
         echo "->Cloning git repo $1..."
         rm -rf "./$dir"
         git clone $1
-        if [ ! -z "$2" ]; then
+        if [[ ! -z "$2" ]]; then
             echo "Switching git repo '$1' to branch $2..."
             git checkout -b $2
         fi
