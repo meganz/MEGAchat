@@ -456,7 +456,7 @@ if [[ "$platform" != linux ]]; then
     fetchInstall cryptopp  "https://www.cryptopp.com/cryptopp563.zip" "" "" "cryptopp563"
     fetchInstall libsodium "https://download.libsodium.org/libsodium/releases/libsodium-1.0.10.tar.gz"
     fetchInstall expat     "http://downloads.sourceforge.net/project/expat/expat/2.1.1/expat-2.1.1.tar.bz2?r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fexpat%2F&ts=1458829388&use_mirror=heanet" "" expat-2.1.1.tar.bz2
-    fetchInstall readline  "ftp://ftp.cwru.edu/pub/bash/readline-6.3.tar.gz"
+    fetchInstall readline  "http://git.savannah.gnu.org/cgit/readline.git/snapshot/readline-master.tar.gz"
     fetchInstall sqlite    "https://www.sqlite.org/2016/sqlite-amalgamation-3130000.zip"
     # android NDK ships with zlib
     if [[ "$platform" != "android" ]]; then
