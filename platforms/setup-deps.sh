@@ -319,7 +319,7 @@ function buildInstall_sqlite
         cp -v ./sqlite3.so "$buildroot/usr/lib"
     else
         gcc sqlite3.c -c -O2 -D NDEBUG -o ./sqlite3.o
-        ar -rcs ./sqlite3.o ./sqlite3.a
+        ar -rcs ./sqlite3.a ./sqlite3.o
         cp -v ./sqlite3.lib "$buildroot/usr/lib"
     fi
     cp -v ./sqlite3.h ./sqlite3ext.h "$buildroot/usr/include"
