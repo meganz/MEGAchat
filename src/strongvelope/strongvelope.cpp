@@ -296,8 +296,16 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_INVITOR:
             {
-                assert(record.dataLen == 8);
+                if (record.dataLen != 8)
+                    throw std::runtime_error("TLV_TYPE_INVITOR: record data is not 8 bytes");
                 sender = binaryMessage.read<uint64_t>(record.dataOffset);
+                break;
+            }
+            case TLV_TYPE_PRIVILEGE:
+            {
+                if (record.dataLen != 1)
+                    throw std::runtime_error("TLV_TYPE_PRIVILEGE: record data is not 1 byte");
+                privilege = (chatd::Priv)binaryMessage.read<uint8_t>(record.dataOffset);
                 break;
             }
             //legacy key stuff
@@ -377,7 +385,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
 }
 void ProtocolHandler::parsePayload(const StaticBuffer& u8data, Message& msg)
 {
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert;
+    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert("parsePayload: Error doing utf8/16 conversion");
     std::u16string u16 = convert.from_bytes(u8data.buf(), u8data.buf()+u8data.dataSize());
     size_t len = u16.size();
     if(len < 10)
@@ -397,11 +405,15 @@ void ProtocolHandler::parsePayload(const StaticBuffer& u8data, Message& msg)
     uint64_t* end = (uint64_t*)(data.buf()+binsize);
     for (uint64_t* prefid = (uint64_t*)data.buf()+10; prefid < end; prefid++)
         msg.backRefs.push_back(*prefid);
-    if (data.dataSize() > binsize)
+    //convert back to utf8 the binary part, only to determine its utf8 len
+    size_t binlen8 = convert.to_bytes(&u16[0], &u16[binsize]).size();
+    if (u8data.dataSize() > binlen8)
     {
-        //convert back to utf8 the binary part, only to determine its utf8 len
-        size_t binlen8 = convert.to_bytes(&u16[0], &u16[binsize]).size();
         msg.assign(u8data.buf()+binlen8, u8data.dataSize()-binlen8);
+    }
+    else
+    {
+        msg.clear();
     }
 }
 
@@ -537,7 +549,6 @@ ProtocolHandler::rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, Id toUs
 
 promise::Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedMsg)
-//    const std::string& nonce, karere::Id otherParty, bool iAmSender)
 {
     // Check if sender key is encrypted using RSA.
     if (parsedMsg->encryptedKey.dataSize() < SVCRYPTO_RSA_ENCRYPTION_THRESHOLD)
@@ -708,6 +719,18 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
             msg->assign<false>(std::string("<Chat was truncated by user "));
             msg->append(msg->userid.toString());
             msg->append('>');
+            return msg;
+        }
+        case SVCRYPTO_MSGTYPE_PRIVCHANGE:
+        {
+            msg->userid = parsedMsg->sender;
+            msg->assign<false>(std::string("<Privilege of user "));
+            msg->append(parsedMsg->receiver.toString());
+            msg->append(std::string(" was changed to "))
+                .append(chatd::privToString(parsedMsg->privilege))
+                .append(std::string(" by "))
+                .append(parsedMsg->sender.toString())
+                .append(">");
             return msg;
         }
         default:

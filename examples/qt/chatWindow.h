@@ -196,7 +196,10 @@ protected:
 public slots:
     void onMsgSendBtn()
     {
-        auto text = ui.mMessageEdit->toPlainText().toUtf8();
+        QString qtext = ui.mMessageEdit->toPlainText();
+        if (qtext.isEmpty())
+            return;
+        auto text = qtext.toUtf8();
         ui.mMessageEdit->setText(QString());
 
         if (mEditedWidget)

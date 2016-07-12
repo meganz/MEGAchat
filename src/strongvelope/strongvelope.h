@@ -100,6 +100,7 @@ enum
  * history messages. (legacy only) */
     TLV_TYPE_OWN_KEY            = 0x0a,
     TLV_TYPE_INVITOR            = 0x0b,
+    TLV_TYPE_PRIVILEGE          = 0x0c,
     TLV_TYPES_COUNT
 };
 
@@ -113,6 +114,7 @@ enum MessageType
     ///Notification form API user that user(s) have been added and/or removed
     SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS        = 0x02,
     SVCRYPTO_MSGTYPE_TRUNCATE                  = 0x03,
+    SVCRYPTO_MSGTYPE_PRIVCHANGE                = 0x04,
     SVCRYPTO_MSGTYPES_COUNT
 };
 
@@ -178,6 +180,7 @@ struct ParsedMessage
     uint64_t keyId;
     uint64_t prevKeyId;
     Buffer encryptedKey; //may contain also the prev key, concatenated
+    chatd::Priv privilege;
     ParsedMessage(const chatd::Message& src, ProtocolHandler& protoHandler);
     bool verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey);
 };

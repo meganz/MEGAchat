@@ -289,7 +289,7 @@ public:
     }
     virtual void addUser(karere::Id userid, chatd::Priv priv)
     {
-        sqliteQuery(mDb, "insert ot replace into chat_peers(chatid, userid, priv) values(?,?,?)",
+        sqliteQuery(mDb, "insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",
             mMessages.chatId(), userid, priv);
         assertAffectedRowCount(1);
     }

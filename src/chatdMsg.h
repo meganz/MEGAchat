@@ -251,6 +251,25 @@ static inline const char* chatStateToStr(unsigned state)
         return chatStates[state];
 }
 
+static inline const char* privToString(Priv priv)
+{
+    switch (priv)
+    {
+    case PRIV_NOCHANGE:
+        return "No change";
+    case PRIV_NOTPRESENT:
+        return "Not present";
+    case PRIV_RDONLY:
+        return "Read-only";
+    case PRIV_RDWR:
+        return "Read-write";
+    case PRIV_FULL:
+        return "Full";
+    case PRIV_OPER:
+        return "Operator";
+    default:
+        return "(unknown privilege)";
+    }
 }
-
+}
 #endif
