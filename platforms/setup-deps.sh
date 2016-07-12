@@ -200,7 +200,7 @@ function cloneGitRepo
     cd "$dir"
     if [[ ! -z "$2" ]]; then
         echo "Switching git repo '$1' to branch $2..."
-        git checkout -b $2
+        git checkout "$2"
     fi
 }
 
