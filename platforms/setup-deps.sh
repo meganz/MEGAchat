@@ -197,11 +197,11 @@ function cloneGitRepo
     else
         echo "->Repository $1 already cloned"
     fi
+    cd "$dir"
     if [[ ! -z "$2" ]]; then
         echo "Switching git repo '$1' to branch $2..."
         git checkout -b $2
     fi
-    cd "$dir"
 }
 
 cd "$buildroot/home"
