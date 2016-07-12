@@ -282,14 +282,14 @@ function buildInstall_autotools
 
 function buildInstall_standard
 {
-    buildInstall_autotools $@
+    buildInstall_autotools "$@"
 }
 
 function buildInstall_cryptopp
 {
     cp -v "$owndir/cryptopp_CMakeLists.txt" ./CMakeLists.txt
     sed -i.bak -e"s/#if CRYPTOPP_BOOL_X86 || CRYPTOPP_BOOL_X32 || CRYPTOPP_BOOL_X64/#if CRYPTOPP_BOOL_X86 || (CRYPTOPP_BOOL_X32 \&\& \\!defined(_arm) \&\& \\!defined(__arm__)) || CRYPTOPP_BOOL_X64/" ./cpu.h
-    buildInstall_cmake $@
+    buildInstall_cmake "$@"
 }
 
 function buildInstall_cmake
@@ -349,14 +349,14 @@ function buildInstall_curl
 {
   sed -i.bak -e"s|#endif /\* HEADER_CURL_CONFIG_WIN32_H \*/|#define HTTP_ONLY 1\n#endif|" lib/config-win32.h
   cp -v "$owndir/win/curl_CMakeLists.txt" ./CMakeLists.txt
-  buildInstall_cmake $@
+  buildInstall_cmake "$@"
 }
 
 function buildInstall_megasdk
 {
   cp -v "$owndir/win/megasdk_CMakeLists.txt" ./CMakeLists.txt
   cp -v "$owndir/win/megasdk_config.h.in" ./config.h.in
-  buildInstall_cmake $@
+  buildInstall_cmake "$@"
   #cp -rv ./include/mega "$buildroot/usr/include"
   #cp -v ./include/*.h "$buildroot/usr/include"
   #cp -v ./megasdk-vs2015/Release/mega.lib "$buildroot/usr/lib"
