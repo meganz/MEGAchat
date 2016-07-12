@@ -255,12 +255,12 @@ function buildInstall_openssl
 # The config script does not add -arch armv7 to the top makefile, so we have to patch the makefile
         sed -i.bak -e's/^CFLAG=\(.*\)$/CFLAG=\1 -arch armv7/' ./Makefile
         sed -i.bak -e"s|\$(CROSS_TOP)/SDKs/\$(CROSS_SDK)|$IOSC_SYSROOT|" ./Makefile
-        make -j10 depend all
-        make -j10 install_sw
+        make -j4 depend all
+        make -j4 install_sw
     else
         echo "Configuring openssl in a generic way"
         ./Configure
-        make -j10
+        make -j4
     fi
 }
 
@@ -277,7 +277,7 @@ function buildInstall_autotools
     fi
     xconfigure $configure_static_shared $1
     make clean
-    make -j10 install
+    make -j4 install
 }
 
 function buildInstall_standard
@@ -298,7 +298,7 @@ function buildInstall_cmake
     mkdir ./build
     cd ./build
     xcmake $1 ..
-    make -j10 install
+    make -j4 install
     cd ..
 }
 
@@ -309,7 +309,7 @@ function buildInstall_zlib
         local static="--static"
     fi
     ./configure --prefix="$buildroot/usr" $static --archs="-arch $cpuarch"
-    make -j10 install
+    make -j4 install
 }
 
 function buildInstall_sqlite
@@ -464,7 +464,7 @@ if [[ "$platform" != linux ]]; then
     fi
 fi
 
-fetchInstall megasdk "https://github.com/meganz/sdk.git" "--without-freeimage --enable-chat --disable-examples --disable-test" "" develop
+fetchInstall megasdk "https://github.com/meganz/sdk.git" "--without-freeimage --enable-chat --enable-sync --disable-examples --disable-tests" "" develop
 
 cd $owndir/../third-party/libevent
 callBuildInstall libevent cmake "-DEVENT__DISABLE_REGRESS=1 -DEVENT__DISABLE_TESTS=1 -DBUILD_TESTING=0"
