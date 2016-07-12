@@ -464,7 +464,7 @@ if [[ "$platform" != linux ]]; then
     fi
 fi
 
-fetchInstall megasdk "https://github.com/meganz/sdk.git" "--without-freeimage --enable-chat --disable-examples" "" develop
+fetchInstall megasdk "https://github.com/meganz/sdk.git" "--without-freeimage --enable-chat --disable-examples --disable-test" "" develop
 
 cd $owndir/../third-party/libevent
 callBuildInstall libevent cmake "-DEVENT__DISABLE_REGRESS=1 -DEVENT__DISABLE_TESTS=1 -DBUILD_TESTING=0"
