@@ -311,6 +311,20 @@ function buildInstall_zlib
     ./configure --prefix="$buildroot/usr" $static --archs="-arch $cpuarch"
     make -j10 install
 }
+
+function buildInstall_sqlite
+{
+    if [[ $shared == "1" ]]; then
+        gcc sqlite3.c -DSQLITE_API= -O2 -shared -D NDEBUG -o ./sqlite3.so
+        cp -v ./sqlite3.so "$buildroot/usr/lib"
+    else
+        gcc sqlite3.c -c -O2 -D NDEBUG -o ./sqlite3.o
+        ar -rcs ./sqlite3.o ./sqlite3.a
+        cp -v ./sqlite3.lib "$buildroot/usr/lib"
+    fi
+    cp -v ./sqlite3.h ./sqlite3ext.h "$buildroot/usr/include"
+}
+
 else
 #Windows builds
 #TODO Shared library builds are not fully supported yet, static mode must be used
@@ -442,7 +456,7 @@ if [[ "$platform" != linux ]]; then
     fetchInstall cryptopp  "https://www.cryptopp.com/cryptopp563.zip" "" "" "cryptopp563"
     fetchInstall libsodium "https://download.libsodium.org/libsodium/releases/libsodium-1.0.10.tar.gz"
     fetchInstall expat     "http://downloads.sourceforge.net/project/expat/expat/2.1.1/expat-2.1.1.tar.bz2?r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fexpat%2F&ts=1458829388&use_mirror=heanet" "" expat-2.1.1.tar.bz2
-    fetchInstall sqlite    "https://www.sqlite.org/2016/sqlite-autoconf-3130000.tar.gz" "" "" "sqlite"
+    fetchInstall sqlite    "https://www.sqlite.org/2016/sqlite-amalgamation-3130000.zip"
     # android NDK ships with zlib
     if [[ "$platform" != "android" ]]; then
         fetchInstall zlib      "http://zlib.net/zlib-1.2.8.tar.gz"
