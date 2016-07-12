@@ -195,7 +195,7 @@ function cloneGitRepo
         git clone $1
         if [ ! -z "$2" ]; then
             echo "Switching git repo '$1' to branch $2..."
-            git checkout $2
+            git checkout -b $2
         fi
         touch "./$dir.downloaded"
     else
@@ -464,7 +464,7 @@ if [[ "$platform" != linux ]]; then
     fi
 fi
 
-fetchInstall megasdk "https://github.com/meganz/sdk.git" "--without-freeimage --enable-chat --enable-sync --disable-examples --disable-tests" "" develop
+fetchInstall megasdk "https://github.com/meganz/sdk.git" "--without-freeimage --enable-sync --disable-examples --disable-tests" "" develop
 
 cd $owndir/../third-party/libevent
 callBuildInstall libevent cmake "-DEVENT__DISABLE_REGRESS=1 -DEVENT__DISABLE_TESTS=1 -DBUILD_TESTING=0"
