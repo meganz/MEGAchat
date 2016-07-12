@@ -404,13 +404,13 @@ function buildInstall_cmake
 function buildInstall_standard
 {
 # assume standard build on windows is a cmake build
-  buildInstall_cmake $@
+  buildInstall_cmake "$@"
 }
 
 function buildInstall_cares
 {
     cp "$owndir/win/cares_CMakeLists.txt" ./CMakeLists.txt
-    buildInstall_cmake $@
+    buildInstall_cmake "$@"
 }
 function buildInstall_sqlite
 {
@@ -430,7 +430,7 @@ function buildInstall_cryptopp
     cp -v "$owndir/cryptopp_CMakeLists.txt" ./CMakeLists.txt
     sed -i.bak -e"s/#if CRYPTOPP_BOOL_X86 || CRYPTOPP_BOOL_X32 || CRYPTOPP_BOOL_X64/#if CRYPTOPP_BOOL_X86 || (CRYPTOPP_BOOL_X32 \&\& \\!defined(_arm) \&\& \\!defined(__arm__)) || CRYPTOPP_BOOL_X64/" ./cpu.h
     sed -i.bak -e"s/#if MASM_RDRAND_ASM_AVAILABLE/#if 0/" -e "s/#if MASM_RDSEED_ASM_AVAILABLE/#if 0/" ./rdrand.cpp
-    buildInstall_cmake $@
+    buildInstall_cmake "$@"
 }
 function buildInstall_qt
 {
