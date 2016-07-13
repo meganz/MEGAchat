@@ -468,7 +468,7 @@ if [[ -z "$MEGASDK_BRANCH" ]]; then
     MEGASDK_BRANCH=develop
 fi
 
-fetchInstall megasdk "https://github.com/meganz/sdk.git" "--without-freeimage --enable-sync --disable-examples --disable-tests" $MEGASDK_BRANCH
+fetchInstall megasdk "https://github.com/meganz/sdk.git" "--enable-chat --without-freeimage --enable-sync --disable-examples --disable-tests" $MEGASDK_BRANCH
 
 cd $owndir/../third-party/libevent
 if [[ "$platform" == "win" ]]; then
