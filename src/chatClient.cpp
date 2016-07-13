@@ -830,8 +830,8 @@ const char* attrName(uint8_t type)
 void UserAttrCache::onUserAttrChange(mega::MegaUser& user)
 {
     int changed = user.getChanges();
-    printf("user %s changed %u\n", Id(user.getHandle()).toString().c_str(), changed);
-    for (auto t = 0; t < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); t++)
+//  printf("user %s changed %u\n", Id(user.getHandle()).toString().c_str(), changed);
+    for (size_t t = 0; t < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); t++)
     {
         if ((changed & gUserAttrDescs[t].changeMask) == 0)
             continue;

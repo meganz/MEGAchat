@@ -950,7 +950,7 @@ void Chat::createMsgBackRefs(Message& msg)
             ? (start + (distrib(rd) % range))
             : (start);
 //        printf("back = %d\n", back);
-        uint64_t backref = (back < mSending.size()) //reference a not-yet confirmed message
+        uint64_t backref = (back < (Idx)mSending.size()) //reference a not-yet confirmed message
             ? (sendingIdx[mSending.size()-1-back]->msg->backRefId)
             : (at(highnum()-(back-mSending.size())).backRefId);
         msg.backRefs.push_back(backref);

@@ -480,3 +480,5 @@ fi
 if [[ "$buildqt" == '1' ]]; then
   fetchInstall qt "http://download.qt.io/official_releases/qt/5.6/5.6.0/single/qt-everywhere-opensource-src-5.6.0.zip"
 fi
+
+echo "============== All done ==================="

@@ -2,9 +2,9 @@
 #define SDKAPI_H
 
 //the megaapi.h header needs this defined externally
-#ifndef ENABLE_CHAT
-    #define ENABLE_CHAT 1
-#endif
+//#ifndef ENABLE_CHAT
+//    #define ENABLE_CHAT 1
+//#endif
 #include <megaapi.h>
 #include "base/promise.h"
 #include "base/gcmpp.h"
