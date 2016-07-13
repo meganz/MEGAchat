@@ -704,13 +704,13 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
                 .append(std::string((num > 0)?" added users:\n":" removed users:\n"));
             if (num < 0)
                 num = -num;
-            for (size_t i=0; i<num; i++)
+            for (int i=0; i<num; i++)
             {
                 msg->append(Id(parsedMsg->payload.read<uint64_t>(i*8+2)).toString());
                 msg->append(',');
             }
-//            if (!msg->empty())
-//                msg->setDataSize(msg->dataSize()-1); //erase last ','
+            if (num > 0)
+                msg->setDataSize(msg->dataSize()-1); //erase last ','
             return msg;
         }
         case SVCRYPTO_MSGTYPE_TRUNCATE:
