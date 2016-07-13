@@ -464,7 +464,11 @@ if [[ "$platform" != linux ]]; then
     fi
 fi
 
-fetchInstall megasdk "https://github.com/meganz/sdk.git" "--without-freeimage --enable-sync --disable-examples --disable-tests" develop
+if [[ -z "$MEGASDK_BRANCH" ]]; then
+    MEGASDK_BRANCH=develop
+fi
+
+fetchInstall megasdk "https://github.com/meganz/sdk.git" "--without-freeimage --enable-sync --disable-examples --disable-tests" $MEGASDK_BRANCH
 
 cd $owndir/../third-party/libevent
 callBuildInstall libevent cmake "-DEVENT__DISABLE_REGRESS=1 -DEVENT__DISABLE_TESTS=1 -DBUILD_TESTING=0"
