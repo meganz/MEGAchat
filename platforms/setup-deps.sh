@@ -471,7 +471,11 @@ fi
 fetchInstall megasdk "https://github.com/meganz/sdk.git" "--without-freeimage --enable-sync --disable-examples --disable-tests" $MEGASDK_BRANCH
 
 cd $owndir/../third-party/libevent
-callBuildInstall libevent cmake "-DEVENT__DISABLE_REGRESS=1 -DEVENT__DISABLE_TESTS=1 -DBUILD_TESTING=0"
+if [[ "$platform" == "win" ]]; then
+    callBuildInstall libevent cmake "-DEVENT__DISABLE_REGRESS=1 -DEVENT__DISABLE_TESTS=1 -DBUILD_TESTING=0"
+else
+    callBuildInstall libevent autotools "--disable-libevent-regress --disable-tests"
+fi
 
 if [[ "$buildqt" == '1' ]]; then
   fetchInstall qt "http://download.qt.io/official_releases/qt/5.6/5.6.0/single/qt-everywhere-opensource-src-5.6.0.zip"
