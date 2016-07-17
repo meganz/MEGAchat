@@ -1766,11 +1766,11 @@ GroupChatRoom::Member::~Member()
 ContactList::ContactList(Client& aClient)
 :client(aClient)
 {
-    SqliteStmt stmt(client.db, "select userid, email, since from contacts");
+    SqliteStmt stmt(client.db, "select userid, email, visibility, since from contacts");
     while(stmt.step())
     {
         auto userid = stmt.uint64Col(0);
-        emplace(userid, new Contact(*this, userid, stmt.stringCol(1), stmt.int64Col(2),
+        emplace(userid, new Contact(*this, userid, stmt.stringCol(1), stmt.intCol(2), stmt.int64Col(3),
             nullptr));
     }
 }
@@ -1780,12 +1780,25 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
     auto userid = user.getHandle();
     auto& item = (*this)[userid];
     if (item)
-        return false;
+    {
+        int newVisibility = user.getVisibility();
+
+        if (item->visibility() == newVisibility)
+        {
+            return false;
+        }
+        sqliteQuery(client.db, "update contacts set visibility = ? where userid = ?",
+            newVisibility, userid);
+        item->onVisibilityChanged(newVisibility);
+        return true;
+    }
     auto cmail = user.getEmail();
     std::string email(cmail?cmail:"");
+    int visibility = user.getVisibility();
     auto ts = user.getTimestamp();
-    sqliteQuery(client.db, "insert or replace into contacts(userid, email, since) values(?,?,?)", userid, email, ts);
-    item = new Contact(*this, userid, email, ts, nullptr);
+    sqliteQuery(client.db, "insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
+            userid, email, visibility, ts);
+    item = new Contact(*this, userid, email, visibility, ts, nullptr);
     KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
     return true;
 }
@@ -1797,8 +1810,6 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
     for (int i=0; i<size; i++)
     {
         auto& user = *users.get(i);
-//        if (user.getVisibility() != mega::MegaUser::VISIBILITY_VISIBLE)
-//            continue;
         apiUsers.insert(user.getHandle());
         addUserFromApi(user);
     }
@@ -1817,19 +1828,7 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
 }
 void ContactList::onUserAddRemove(mega::MegaUser& user)
 {
-    auto visibility = user.getVisibility();
-    if (visibility == mega::MegaUser::VISIBILITY_HIDDEN)
-    {
-        return; //we need to keep the chat for history
-//        removeUser(user.getHandle());
-//        client.gui.notifyContactRemoved(user);
-    }
-    else if (visibility == mega::MegaUser::VISIBILITY_VISIBLE)
-    {
-        addUserFromApi(user);
-    }
-    else
-        KR_LOG_WARNING("ContactList::onUserAddRemove: Don't know how to process user with visibility %d", visibility);
+    addUserFromApi(user);
 }
 
 void ContactList::removeUser(uint64_t userid)
@@ -1904,9 +1903,10 @@ void Client::onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestLis
 }
 
 Contact::Contact(ContactList& clist, const uint64_t& userid,
-                 const std::string& email, int64_t since, PeerChatRoom* room)
+                 const std::string& email, int visibility,
+                 int64_t since, PeerChatRoom* room)
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email), mSince(since),
-     mTitleString(email),
+     mTitleString(email), mVisibility(visibility),
      mDisplay(clist.client.gui.contactList().createContactItem(*this))
 {
     updateTitle(email);

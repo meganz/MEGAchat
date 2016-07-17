@@ -394,7 +394,11 @@ void ProtocolHandler::parsePayload(const StaticBuffer& u8data, Message& msg)
     Buffer data(len);
     data.setDataSize(len);
     for (size_t i=0; i< len; i++)
-        *(data.buf()+i) =  u16[i];
+    {
+        if (u16[i] > 255)
+            printf("char > 255: 0x%x, at offset %zu\n", u16[i], i);
+        *(data.buf()+i) = u16[i];
+    }
     msg.backRefId = data.read<uint64_t>(0);
     uint16_t refsSize = data.read<uint16_t>(8);
     assert(msg.backRefs.empty());
@@ -445,9 +449,12 @@ void ProtocolHandler::loadKeysFromDb()
     {
         auto key = std::make_shared<SendKey>();
         stmt.blobCol(2, *key);
-        auto ret = mKeys.emplace(std::piecewise_construct,
-                      std::forward_as_tuple(stmt.uint64Col(0), stmt.uint64Col(1)),
-                      std::forward_as_tuple(key));
+#ifndef NDEBUG
+        auto ret =
+#endif
+        mKeys.emplace(std::piecewise_construct,
+            std::forward_as_tuple(stmt.uint64Col(0), stmt.uint64Col(1)),
+            std::forward_as_tuple(key));
         assert(ret.second);
     }
     STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu send keys from database", chatid, mKeys.size());

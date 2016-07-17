@@ -115,6 +115,7 @@ MainWindow::MainWindow(Client* aClient): mClient(aClient)
     connect(ui.mOnlineStatusBtn, SIGNAL(clicked(bool)), this, SLOT(onOnlineStatusBtn(bool)));
 //    setWindowFlags(Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowMaximizeButtonHint
 //                   |Qt::WindowMinimizeButtonHint|Qt::WindowCloseButtonHint);
+    ui.contactList->setSortingEnabled(true);
 }
 void MainWindow::onOnlineStatusBtn(bool)
 {
@@ -342,7 +343,7 @@ void MainWindow::onAddContact()
     auto utf8 = email.toUtf8();
     for (auto& item: *client().contactList)
     {
-        if (item.second->email() == utf8.data())
+        if ((item.second->email() == utf8.data()) && (item.second->visibility() != ::mega::MegaUser::VISIBILITY_HIDDEN))
         {
             QMessageBox::critical(this, tr("Add contact"),
                 tr("User with email '%1' already exists in your contactlist with screen name '%2'")

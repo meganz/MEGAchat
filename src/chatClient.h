@@ -77,6 +77,7 @@ public:
     {
     public:
         virtual void showChatWindow() = 0;
+        virtual void onVisibilityChanged(int newVisibility) = 0;
     };
     class IContactList
     {
@@ -267,13 +268,14 @@ protected:
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
+    int mVisibility;
     IGui::IContactGui* mDisplay; //must be after mTitleString because it will read it
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
     void updateTitle(const std::string& str);
     void setChatRoom(PeerChatRoom& room);
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
-            int64_t since, PeerChatRoom* room = nullptr);
+            int visibility, int64_t since, PeerChatRoom* room = nullptr);
     ~Contact();
     ContactList& contactList() { return mClist; }
     XmppContact& xmppContact() { return *mXmppContact; }
@@ -291,12 +293,18 @@ public:
             pres = Presence::kOffline;
         updateAllOnlineDisplays(pres);
     }
+    void onVisibilityChanged(int newVisibility)
+    {
+        mVisibility = newVisibility;
+        mDisplay->onVisibilityChanged(newVisibility);
+    }
     void updateAllOnlineDisplays(Presence pres)
     {
             mDisplay->updateOnlineIndication(pres);
             if (mChatRoom)
                 mChatRoom->updatePresence();
     }
+    int visibility() const { return mVisibility; }
     friend class ContactList;
 };
 

@@ -85,7 +85,8 @@
       <bool>false</bool>
      </property>
      <property name="styleSheet">
-      <string notr="true">color: white;</string>
+      <string notr="true">color: white;
+</string>
      </property>
      <property name="frameShape">
       <enum>QFrame::NoFrame</enum>

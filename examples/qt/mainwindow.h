@@ -147,12 +147,27 @@ public:
     CListContactItem(QWidget* parent, karere::Contact& contact)
         :CListItem(parent, false), mContact(contact)
     {
-        mega::setTimeout([this]() { updateToolTip(); }, 10000);
+        if (contact.visibility() == mega::MegaUser::VISIBILITY_HIDDEN)
+        {
+            showAsHidden();
+        }
+        mega::setTimeout([this]() { updateToolTip(); }, 100);
+    }
+    void showAsHidden()
+    {
+        ui.mName->setStyleSheet("color: rgba(0,0,0,128)\n");
+    }
+    void unshowAsHidden()
+    {
+        ui.mName->setStyleSheet("color: rgba(255,255,255,255)\n");
     }
     void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
     {
         QChar lf('\n');
-        QString text = tr("Email: ");
+        QString text;
+        if (mContact.visibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
+            text = "INVISIBLE\n";
+        text.append(tr("Email: "));
         text.append(QString::fromStdString(mContact.email())).append(lf);
         text.append(tr("User handle: ")).append(QString::fromStdString(karere::Id(mContact.userId()).toString())).append(lf);
         text.append(tr("XMPP jid: ")).append(QString::fromStdString(mContact.jid())).append(lf);
@@ -238,6 +253,16 @@ public:
         mimeData->setData("application/mega-user-handle", QByteArray((const char*)(&userid), sizeof(userid)));
         drag.setMimeData(mimeData);
         drag.exec();
+    }
+    virtual void onVisibilityChanged(int newVisibility)
+    {
+        GUI_LOG_DEBUG("onVisibilityChanged for contact %s: new visibility is %d",
+               karere::Id(mContact.userId()).toString().c_str(), newVisibility);
+        if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
+            showAsHidden();
+        else
+            unshowAsHidden();
+        updateToolTip();
     }
 
 public slots:
@@ -335,6 +360,7 @@ public:
         updateToolTip();
     }
     virtual void onMembersUpdated() { printf("onMembersUpdate\n"); updateToolTip(); }
+    virtual void onVisibilityChanged(int newVisibility) {}
 protected:
     karere::GroupChatRoom& mRoom;
     void contextMenuEvent(QContextMenuEvent* event)

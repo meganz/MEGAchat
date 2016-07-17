@@ -1226,7 +1226,7 @@ void Chat::onLastSeen(Id msgid)
         {
             if (idx < mLastSeenIdx)
                 CHATID_LOG_ERROR("onLastSeen: Can't set last seen index to an older "
-                    "message: current idx: %u, new: %u", mLastSeenIdx, idx);
+                    "message: current idx: %d, new: %d", mLastSeenIdx, idx);
             notifyOldest = mLastSeenIdx;
             mLastSeenIdx = idx;
         }
@@ -1880,10 +1880,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
 {
+    printf("%s: verify: %s -> %llu\n", chatId().toString().c_str(), msg.id().toString().c_str(), msg.backRefId);
     if (!mRefidToIdxMap.emplace(msg.backRefId, idx).second)
     {
-        CALL_LISTENER(onMsgOrderVerificationFail, msg, idx);
-        throw std::runtime_error("verifyMsgOrder: A message with that backrefId already exists");
+        CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
+        return;
     }
     for (auto refid: msg.backRefs)
     {
@@ -1893,8 +1894,8 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
         Idx targetIdx = it->second;
         if (targetIdx >= idx)
         {
-            CALL_LISTENER(onMsgOrderVerificationFail, msg, idx);
-            throw std::runtime_error("Message order verification failed, possible history tampering");
+            CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "Message order verification failed, possible history tampering");
+            return;
         }
     }
 }

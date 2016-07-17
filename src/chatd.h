@@ -112,7 +112,10 @@ public:
     //Ownership of \c msg is passed to application.
     virtual void onManualSendRequired(Message* msg, uint64_t id, int reason) {}
     virtual void onHistoryTruncated(const Message& msg, Idx idx) {}
-    virtual void onMsgOrderVerificationFail(const Message& msg, Idx idx){}
+    virtual void onMsgOrderVerificationFail(const Message& msg, Idx idx, const std::string& errmsg)
+    {
+        CHATD_LOG_ERROR("msgOrderFail[msgid %s]: %s", msg.id().toString().c_str(), errmsg.c_str());
+    }
 };
 
 class Client;
