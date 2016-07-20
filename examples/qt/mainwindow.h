@@ -17,7 +17,6 @@
 #include <IJingleSession.h>
 #include <chatClient.h>
 #include "chatWindow.h"
-#include "loginDialog.h"
 
 namespace Ui {
 class MainWindow;
