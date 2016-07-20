@@ -448,6 +448,8 @@ protected:
      * This performs an xmpp response to the received xmpp ping request.
      */
     void sendPong(const std::string& peerJid, const std::string& messageId);
+    void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
+    void dumpContactList(::mega::MegaUserList& clist);
     //rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
             const std::shared_ptr<rtcModule::ICallAnswer> &call);

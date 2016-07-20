@@ -178,6 +178,7 @@ Client::~Client()
 
 promise::Promise<void> Client::loginNewSession()
 {
+    ReqResult chatsSave;
     mLoginDlg.reset(gui.createLoginDialog());
     return asyncLoop([this](Loop& loop)
     {
@@ -201,13 +202,37 @@ promise::Promise<void> Client::loginNewSession()
             return 0;
         });
     }, [](int) { return true; })
-    .then([this](int)
+    .then([this](int) mutable
     {
         mLoginDlg->setState(IGui::ILoginDialog::kFetchingNodes);
-        return api->call(&mega::MegaApi::fetchNodes);
+        return api->call(&mega::MegaApi::fetchChats);
     })
-    .then([this](ReqResult)
+    .then([this](ReqResult chatsResponse)
     {
+        return api->call(&mega::MegaApi::fetchNodes)
+        .then([chatsResponse](ReqResult)
+        {
+            return chatsResponse;
+        });
+    })
+    .then([this](ReqResult chatsResponse)
+    {
+        contactList.reset(new ContactList(*this));
+#ifndef NDEBUG
+        dumpContactList(*api->getContacts());
+#endif
+        contactList->syncWithApi(*api->getContacts());
+
+        chatd.reset(new chatd::Client(mMyHandle));
+        chats.reset(new ChatRoomList(*this));
+        auto chatRooms = chatsResponse->getMegaTextChatList();
+        if (chatRooms)
+        {
+#ifndef NDEBUG
+            dumpChatrooms(*chatRooms);
+#endif
+            chats->syncRoomsWithApi(*chatRooms);
+        }
         loadOwnUserHandle();
         sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
         const char* sid = api->dumpSession();
@@ -222,9 +247,6 @@ promise::Promise<void> Client::loginNewSession()
         mLoginDlg.reset();
         gui.show();
 
-        chatd.reset(new chatd::Client(mMyHandle));
-        contactList.reset(new ContactList(*this));
-        chats.reset(new ChatRoomList(*this));
     })
     .fail([this](const promise::Error& err)
     {
@@ -257,7 +279,7 @@ promise::Promise<void> Client::loginExistingSession()
     });
 }
 
-void dumpChatrooms(::mega::MegaTextChatList& chatRooms)
+void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
 {
     KR_LOG_DEBUG("=== Chatrooms received from API: ===");
     for (int i=0; i<chatRooms.size(); i++)
@@ -275,7 +297,7 @@ void dumpChatrooms(::mega::MegaTextChatList& chatRooms)
     }
     KR_LOG_DEBUG("=== Chatroom list end ===");
 }
-void dumpContactList(::mega::MegaUserList& clist)
+void Client::dumpContactList(::mega::MegaUserList& clist)
 {
     KR_LOG_DEBUG("Contactlist received from API:");
     for (int i=0; i< clist.size(); i++)
@@ -296,7 +318,7 @@ promise::Promise<void> Client::init()
      ? loginNewSession()
      : loginExistingSession();
 
-    auto pmsChatComplete = pmsMegaLogin.then([this]() mutable
+    auto pmsLoginComplete = pmsMegaLogin.then([this]() mutable
     {
         mIsLoggedIn = true;
         KR_LOG_DEBUG("Login to Mega API successful");
@@ -309,30 +331,13 @@ promise::Promise<void> Client::init()
             if (buf)
                 static_cast<Client*>(userp)->mMyName = buf->buf()+1;
         });
-#ifndef NDEBUG
-        dumpContactList(*api->getContacts());
-#endif
-        contactList->syncWithApi(*api->getContacts());
-        return api->call(&mega::MegaApi::fetchChats);
-    })
-    .then([this](ReqResult result)
-    {
-        auto chatRooms = result->getMegaTextChatList();
-        if (chatRooms)
-        {
-#ifndef NDEBUG
-            dumpChatrooms(*chatRooms);
-#endif
-            chats->syncRoomsWithApi(*chatRooms);
-        }
     });
-
     auto pmsGelb = mXmppServerProvider->getServer()
     .then([this](const std::shared_ptr<HostPortServerInfo>& server) mutable
     {
         return server;
     });
-    return promise::when(pmsChatComplete, pmsGelb)
+    return promise::when(pmsLoginComplete, pmsGelb)
     .then([this, pmsGelb]()
     {
         return connectXmpp(pmsGelb.value());
