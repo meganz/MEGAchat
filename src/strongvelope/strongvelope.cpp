@@ -80,12 +80,16 @@ EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
     Buffer buf(binsize+msg.dataSize());
     buf.append<uint64_t>(msg.backRefId)
        .append<uint16_t>(brsize);
-    if (!msg.backRefs.empty())
+    if (brsize)
+    {
         buf.append((const char*)(&msg.backRefs[0]), brsize);
-
+    }
     if (!msg.empty())
-        buf.append(msg.buf(), msg.dataSize());
-    ciphertext = aesCTREncrypt(buf, key, derivedNonce);
+    {
+        buf.append(msg);
+    }
+    ciphertext = aesCTREncrypt(std::string(buf.buf(), buf.dataSize()),
+        key, derivedNonce);
 }
 
 /**
@@ -434,7 +438,7 @@ void ParsedMessage::parsePayload(const StaticBuffer &data, Message &msg)
     if (data.dataSize() < binsize)
         throw std::runtime_error("parsePayload: Payload size "+std::to_string(data.dataSize())+" is less than size of backrefs "+std::to_string(binsize));
     uint64_t* end = (uint64_t*)(data.buf()+binsize);
-    for (uint64_t* prefid = (uint64_t*)data.buf()+10; prefid < end; prefid++)
+    for (uint64_t* prefid = (uint64_t*)(data.buf()+10); prefid < end; prefid++)
         msg.backRefs.push_back(*prefid);
     if (data.dataSize() > binsize)
     {

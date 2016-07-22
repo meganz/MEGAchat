@@ -42,10 +42,11 @@ MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     setTimestamp(msg.ts);
     setStatus(status);
     setText(msg);
-    auto tooltip = QString("msgid: %1\nkeyid: %2\nuserid: %3\nchatid: %4")
+    auto tooltip = QString("msgid: %1\nkeyid: %2\nuserid: %3\nchatid: %4\nbackrefs: %5")
            .arg(QString::fromStdString(mMessage->id().toString()))
            .arg(mMessage->keyid).arg(QString::fromStdString(mMessage->userid.toString()))
-           .arg(QString::fromStdString(parent.chat().chatId().toString()));
+           .arg(QString::fromStdString(parent.chat().chatId().toString()))
+           .arg(mMessage->backRefs.size());
     ui.mHeader->setToolTip(tooltip);
     show();
 }
