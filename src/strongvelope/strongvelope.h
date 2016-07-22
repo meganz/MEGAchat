@@ -166,6 +166,7 @@ class ProtocolHandler;
 /** Class to parse an encrypted message and store its attributes and content */
 struct ParsedMessage
 {
+    ProtocolHandler& mProtoHandler;
     uint8_t protocolVersion;
     karere::Id sender;
     karere::Id receiver = 0;
@@ -183,6 +184,9 @@ struct ParsedMessage
     chatd::Priv privilege;
     ParsedMessage(const chatd::Message& src, ProtocolHandler& protoHandler);
     bool verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey);
+    void parsePayload(const StaticBuffer& data, chatd::Message& msg);
+    void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
+    void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
 };
 
 
@@ -295,13 +299,10 @@ protected:
 
     promise::Promise<std::shared_ptr<Buffer>>
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
-    void symmetricDecryptMessage(const std::string& cipher, const StaticBuffer& key,
-                                  const StaticBuffer& nonce, chatd::Message& outMsg);
     void msgEncryptWithKey(chatd::Message &src, chatd::MsgCommand& dest,
         const StaticBuffer& key);
     promise::Promise<chatd::Message*> handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, chatd::Message* msg);
-    void parsePayload(const StaticBuffer& data, chatd::Message& msg);
     chatd::Message* legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
         chatd::Message* msg, const SendKey& key);
 

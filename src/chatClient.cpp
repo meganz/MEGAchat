@@ -210,7 +210,17 @@ promise::Promise<void> Client::loginNewSession()
     .then([this](ReqResult chatsResponse)
     {
         return api->call(&mega::MegaApi::fetchNodes)
-        .then([chatsResponse](ReqResult)
+        .then([this](ReqResult)
+        {
+            loadOwnUserHandle();
+            sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
+            const char* sid = api->dumpSession();
+            assert(sid);
+            mSid = sid;
+            sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
+            return loadOwnKeysFromApi();
+        })
+        .then([chatsResponse]()
         {
             return chatsResponse;
         });
@@ -233,13 +243,6 @@ promise::Promise<void> Client::loginNewSession()
 #endif
             chats->syncRoomsWithApi(*chatRooms);
         }
-        loadOwnUserHandle();
-        sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
-        const char* sid = api->dumpSession();
-        assert(sid);
-        mSid = sid;
-        sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
-        return loadOwnKeysFromApi();
     })
     .then([this]()
     {
@@ -289,7 +292,7 @@ void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
         auto peers = room.getPeerList();
         if (!peers)
         {
-            KR_LOG_DEBUG("  (room is empty)");
+            KR_LOG_DEBUG("  (room has no peers)");
             continue;
         }
         for (int j = 0; j<peers->size(); j++)

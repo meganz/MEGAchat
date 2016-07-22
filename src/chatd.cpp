@@ -736,7 +736,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(id, 8);
                 READ_8(op, 16);
                 READ_8(reason, 17);
-                CHATD_LOG_DEBUG("%s: recv REJECT of %s: id='%s', reason: %hu",
+                CHATD_LOG_WARNING("%s: recv REJECT of %s: id='%s', reason: %hu",
                     ID_CSTR(chatid), Command::opcodeToStr(op), ID_CSTR(id), reason);
                 auto& chat = mClient.chats(chatid);
                 if (op == OP_NEWMSG) // the message was rejected
