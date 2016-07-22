@@ -77,22 +77,15 @@ EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
 
     size_t brsize = msg.backRefs.size()*8;
     size_t binsize = 10+brsize;
-    Buffer buf(binsize);
+    Buffer buf(binsize+msg.dataSize());
     buf.append<uint64_t>(msg.backRefId)
        .append<uint16_t>(brsize);
     if (!msg.backRefs.empty())
         buf.append((const char*)(&msg.backRefs[0]), brsize);
 
-    std::u16string u16;
-    u16.reserve(binsize);
-    for (size_t i=0; i<buf.dataSize(); i++)
-        u16 += wchar_t(*(buf.buf()+i));
-
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert;
-    std::string u8 = convert.to_bytes(&u16[0], &u16[0]+u16.size());
     if (!msg.empty())
-        u8.append(msg.buf(), msg.dataSize());
-    ciphertext = aesCTREncrypt(u8, key, derivedNonce);
+        buf.append(msg.buf(), msg.dataSize());
+    ciphertext = aesCTREncrypt(buf, key, derivedNonce);
 }
 
 /**

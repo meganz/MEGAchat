@@ -204,7 +204,7 @@ enum
      */
     SVCRYPTO_RSA_ENCRYPTION_THRESHOLD = 128,
     /** Version 0 of the protocol implemented. */
-    SVCRYPTO_PROTOCOL_VERSION = 0x02,
+    SVCRYPTO_PROTOCOL_VERSION = 0x03,
     /** Size (in bytes) of the symmetric send key */
     SVCRYPTO_SEND_KEY_SIZE = 16,
 };
