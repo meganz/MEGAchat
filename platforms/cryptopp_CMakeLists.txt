@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.8)
 set(optBuildShared 1 CACHE BOOL "Build as shared library")
 
 FILE(GLOB SRCS_GLOB RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.cpp)
-LIST(REMOVE_ITEM SRCS_GLOB adhoc.cpp cryptlib.cpp cpu.cpp pch.cpp simple.cpp winpipes.cpp cryptlib_bds.cpp)
+LIST(REMOVE_ITEM SRCS_GLOB adhoc.cpp cryptlib.cpp cpu.cpp pch.cpp simple.cpp winpipes.cpp cryptlib_bds.cpp dll.cpp)
 #We need to put these 2 files first, because of static initialization order
 set(SRCS cryptlib.cpp cpu.cpp ${SRCS_GLOB})
 
