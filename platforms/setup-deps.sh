@@ -315,12 +315,12 @@ function buildInstall_zlib
 function buildInstall_sqlite
 {
     if [[ $shared == "1" ]]; then
-        gcc sqlite3.c -fPIC -DSQLITE_API= -O2 -shared -D NDEBUG -o ./sqlite3.so
-        cp -v ./sqlite3.so "$buildroot/usr/lib"
+        gcc sqlite3.c -fPIC -DSQLITE_API= -O2 -shared -D NDEBUG -o ./libsqlite3.so
+        cp -v ./libsqlite3.so "$buildroot/usr/lib"
     else
         gcc sqlite3.c -c -O2 -D NDEBUG -o ./sqlite3.o
-        ar -rcs ./sqlite3.a ./sqlite3.o
-        cp -v ./sqlite3.lib "$buildroot/usr/lib"
+        ar -rcs ./libsqlite3.a ./sqlite3.o
+        cp -v ./libsqlite3.lib "$buildroot/usr/lib"
     fi
     cp -v ./sqlite3.h ./sqlite3ext.h "$buildroot/usr/include"
 }
