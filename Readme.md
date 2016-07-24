@@ -58,7 +58,17 @@ If you get a libtool error that a tag is missing, you can try setting this env v
 export LIBTOOLFLAGS ="--tag CXX"
 
 ## Build webrtc ##
-Karere provides an autmated system for building webrtc for any of the supported desktop and mobile platforms. This is made very easy by using the `/webrtc-build/build-webrtc.sh` script. Run it without arguments to see help on usage. This system is generally an addon to the stock webrtc (actually chromium) build sustem, but it strips it down to download only a few hundred megabytes of source code and tools instead of 10-12GB. It also patches webrtc to fix several issues (use normal openssl instead of its own included boringssl lib, replace macos capturer that uses obsolete API and problematic threading model with modified iOS capturer, etc).
+Karere provides an autmated system for building webrtc for any of the supported
+desktop and mobile platforms. This is made very easy by using the
+`/webrtc-build/build-webrtc.sh` script. Run it without arguments to see help on
+usage. This system is generally an addon to the stock webrtc (actually chromium)
+build sustem, but it strips it down to download only a few hundred megabytes
+of source code and tools instead of 10-12GB. It also patches webrtc to fix
+several issues (use normal openssl instead of its own included boringssl
+lib, replace macos capturer that uses obsolete API and problematic threading
+model with modified iOS capturer, etc).
+*IMPORTANT*
+Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh
 
 ### Verify the build ###
 * Cd to the directory you passed to build-webrtc.sh, and then:  
