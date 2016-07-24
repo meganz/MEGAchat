@@ -147,7 +147,7 @@ function downloadAndUnpack
     else
         echo "->Downloading $file..."
         rm -rf "./$file"
-        wget -O "./$file" -q --show-progress "$1"
+        wget -O "./$file" -q "$1"
         touch "./$file.downloaded"
     fi
     if [[ ! -z "$3" ]]; then
