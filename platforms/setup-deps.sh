@@ -475,7 +475,7 @@ cd $owndir/../third-party/libevent
 if [[ "$platform" == "win" ]]; then
     callBuildInstall libevent cmake "-DEVENT__DISABLE_REGRESS=1 -DEVENT__DISABLE_TESTS=1 -DBUILD_TESTING=0"
 else
-    callBuildInstall libevent autotools "--disable-libevent-regress --disable-tests"
+    callBuildInstall libevent autotools "--disable-libevent-regress --disable-tests --disable-samples"
 fi
 
 if [[ "$buildqt" == '1' ]]; then
