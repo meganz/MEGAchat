@@ -71,6 +71,10 @@ model with modified iOS capturer, etc).
 *IMPORTANT*
 Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh
 
+*Android*
+You need to set ANDROID_NDK to an NDK installation. THe current webrtc revision
+has been tested with NDK r10d.
+
 ### Verify the build ###
 * Cd to the directory you passed to build-webrtc.sh, and then:  
    - non-iOS  
