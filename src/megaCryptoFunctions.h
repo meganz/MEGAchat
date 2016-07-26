@@ -2,9 +2,12 @@
 #define MEGACRYPTOFUNCTIONS_H
 #include <map>
 #include "ICryptoFunctions.h"
-//#define USE_CRYPTOPP 1
+
+#ifndef ENABLE_CHAT
+    #define ENABLE_CHAT 1
+#endif
+
 #include <mega.h>
-//#include <mega/crypto/cryptopp.h>
 
 class MyMegaApi;
 namespace rtcModule
