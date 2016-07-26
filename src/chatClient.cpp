@@ -1346,7 +1346,13 @@ void ChatRoomList::syncRoomsWithApi(const mega::MegaTextChatList& rooms)
     auto size = rooms.size();
     for (int i=0; i<size; i++)
     {
-        addRoom(*rooms.get(i));
+        auto& room = *rooms.get(i);
+        if (room.getOwnPrivilege() == -1)
+        {
+            KR_LOG_DEBUG("Chatroom %s is inactive, skipping", Id(room.getHandle()).toString().c_str());
+            continue;
+        }
+        addRoom(room);
     }
 }
 ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room, const std::string& groupUserTitle)
