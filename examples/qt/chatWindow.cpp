@@ -215,6 +215,7 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     {
         //edited state must have been set earlier, on posting the edit
         widget->updateStatus(chatd::Message::kServerReceived);
+        widget->setEdited();
     }
     else
     {
