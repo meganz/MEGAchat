@@ -905,7 +905,7 @@ uint64_t Chat::generateRefId()
     uint64_t ts = time(nullptr);
     uint64_t rand;
     mCrypto->randomBytes(&rand, sizeof(rand));
-    return (ts << 48) | (rand & 0x0000ffffffffffff);
+    return (ts & 0x0000000000ffffff) | (rand << 40);
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp)
