@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8)
 include(CheckIncludeFiles)
 include(checkFunctionExists)
 
@@ -47,7 +47,7 @@ option(optBuildShared "Build the Mega SDK as a shared library" 1)
 option(ENABLE_SYNC "Mega: Enable Sync engine" 1)
 option(ENABLE_CHAT "Mega: Enable MegaChat functionality" 1)
 option(USE_FREEIMAGE "Mega: Use FreeImage" 0)
-option(USE_SODIUM "Mega: Use libsodium" 0)
+option(USE_SODIUM "Mega: Use libsodium" 1)
 
 
 check_include_files(dirent.h HAVE_DIRENT_H)

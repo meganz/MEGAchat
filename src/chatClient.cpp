@@ -34,6 +34,7 @@
 #include <locale>
 //#include <chatdICrypto.h>
 #include "strongvelope/strongvelope.h"
+#include "base64.h"
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
