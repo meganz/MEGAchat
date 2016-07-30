@@ -381,6 +381,22 @@ function buildInstall_zlib
     fi
     cp -v ./zconf.h ./zlib.h "$buildroot/usr/include"
 }
+function buildInstall_libsodium
+{
+    if [[ "$shared" == 1 ]]; then
+        local conf=ReleaseDLL
+        local dllname=build/ReleaseDLL/Win32/libsodium.dll
+    else
+        local conf=Release
+        local dllname=
+    fi
+
+    local libname=build/$conf/Win32/libsodium.lib
+    msbuild.exe libsodium.vcxproj /p:configuration=$conf
+    cp -v "$libname" "$dllname" "$buildroot/usr/lib"
+    cp -v src/libsodium/include/sodium.h "$buildroot/usr/include"
+    cp -rfv src/libsodium/include/sodium $buildroot/usr/include"
+}
 
 function buildInstall_cmake
 {
