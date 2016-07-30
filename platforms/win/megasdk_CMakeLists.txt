@@ -8,10 +8,8 @@ set(MEGA_MINOR_VERSION 2)
 set(MEGA_MICRO_VERSION 2)
 
 find_package(PkgConfig)
-find_package(OpenSSL)
-if (OPENSSL_FOUND)
-    set(USE_OPENSSL 1)
-endif()
+find_package(OpenSSL REQUIRED)
+set(USE_OPENSSL 1)
 
 find_package(CURL REQUIRED)
 set(USE_CURL 1)
@@ -35,7 +33,7 @@ endmacro()
 findlib(SQLITE sqlite3 sqlite3.h)
 set(USE_SQLITE 1)
 
-findlib(CRYPTOPP libcrypto++ "cryptopp/cryptlib.h")
+find_package(Cryptopp REQUIRED)
 set(USE_CRYPTOPP 1)
     
 findlib(CARES libcares ares.h)
@@ -114,6 +112,9 @@ src/${platform}/console.cpp
 src/${platform}/consolewaiter.cpp
 src/thread/${platfPrefix}thread.cpp
 )
+if (USE_SODIUM)
+    list(APPEND SRCS src/crypto/sodium.cpp)
+endif()
 
 include_directories(
     include include/mega/${platform} third_party/utf8proc
@@ -175,7 +176,8 @@ set_target_properties(libmega PROPERTIES PRIVATE_HEADER "${MEGA_PRIVHDR}")
 
 target_link_libraries(libmega ${CURL_LIBRARIES} ${OPENSSL_LIBRARIES} cryptopp cares zlib sqlite3 ${SYSLIBS})
 if (USE_SODIUM)
-    target_link_libraries(libmega sodium)
+    find_package(Sodium REQUIRED)
+    target_link_libraries(libmega ${LIBSODIUM_LIBRARIES})
 endif()
 if (USE_FREEIMAGE)
     target_link_libraries(libmega freeimage)
