@@ -5,10 +5,14 @@
 #endif
 #include <string.h>
 
+#include "chatClient.h"
+
 #include "contactList.h"
 #include "ITypes.h" //for IPtr
 #ifdef _WIN32
     #include <winsock2.h>
+    #include <direct.h>
+    #define mkdir(dir, mode) _mkdir(dir)
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +26,6 @@
 #include "megaCryptoFunctions.h"
 #include <serverListProvider.h>
 #include <memory>
-#include "chatClient.h"
 #include <chatd.h>
 #include <db.h>
 #include <buffer.h>
@@ -35,6 +38,8 @@
 //#include <chatdICrypto.h>
 #include "strongvelope/strongvelope.h"
 #include "base64.h"
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
