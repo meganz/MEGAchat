@@ -395,7 +395,7 @@ function buildInstall_libsodium
     msbuild.exe libsodium.vcxproj /p:configuration=$conf
     cp -v "$libname" "$dllname" "$buildroot/usr/lib"
     cp -v src/libsodium/include/sodium.h "$buildroot/usr/include"
-    cp -rfv src/libsodium/include/sodium $buildroot/usr/include"
+    cp -rfv src/libsodium/include/sodium "$buildroot/usr/include"
 }
 
 function buildInstall_cmake
