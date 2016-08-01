@@ -24,6 +24,8 @@ set (SRCS
     chatd.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
     strongvelope/strongvelope.cpp
+    megachatapi.cpp
+    megachatapi_impl.cpp
 )
 
 if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
