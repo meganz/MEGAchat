@@ -24,12 +24,20 @@
 
 
 #include "megachatapi.h"
-#include <megaapi.h>
 
-#include "../src/chatClient.h"
-#include "../src/rtcModule/IRtcModule.h"
-#include "../src/rtcModule/IVideoRenderer.h"
-#include "../src/rtcModule/IJingleSession.h"
+//the megaapi.h header needs this defined externally
+//#ifndef ENABLE_CHAT
+//    #define ENABLE_CHAT 1
+//#endif
+#include <megaapi.h>
+#include <megaapi_impl.h>
+
+#include <IRtcModule.h>
+#include <IVideoRenderer.h>
+#include <IJingleSession.h>
+#include <chatClient.h>
+#include <sdkApi.h>
+#include <mstrophepp.h>
 
 namespace megachat
 {
@@ -127,6 +135,20 @@ protected:
 };
 
 
+class EventQueue
+{
+protected:
+    std::deque<void *> events;
+    MegaMutex mutex;
+
+public:
+    EventQueue();
+    void push(void* event);
+    void push_front(void *event);
+    void* pop();
+};
+
+
 class MegaChatApiImpl : public rtcModule::IEventHandler, public IGui, public IGui::IContactList
 {
 public:
@@ -134,6 +156,30 @@ public:
     MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi);
     MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir);
     virtual ~MegaChatApiImpl();
+
+private:
+    MegaChatApi *chatApi;
+    MegaApi *megaApi;
+    Client *mClient;
+
+    void init(MegaChatApi *chatApi, MegaApi *megaApi);
+
+
+//    MegaChatRequestQueue requestQueue;
+    std::map<int, MegaChatRequestPrivate *> requestMap;
+
+    EventQueue eventQueue;
+
+    std::set<MegaChatListener *> chatListeners;
+    std::set<MegaChatVideoListener *> chatLocalVideoListeners;
+    std::set<MegaChatVideoListener *> chatRemoteVideoListeners;
+    std::map<int, MegaChatCallPrivate *> chatCallMap;
+    MegaChatVideoReceiver *localVideoReceiver;
+
+
+public:    
+    static void megaApiPostMessage(void* msg);
+    void postMessage(void *msg);
 
     void sendPendingRequests();
     void sendPendingEvents();
@@ -152,24 +198,6 @@ public:
     void fireOnChatRequestTemporaryError(MegaChatRequestPrivate *request, MegaError e);
 
     MegaChatCallPrivate *getChatCallByPeer(const char* jid);
-
-    MegaChatApi *chatApi;
-    MegaApi *megaApi;
-
-//    MegaChatRequestQueue requestQueue;
-    std::map<int, MegaChatRequestPrivate *> requestMap;
-
-//    EventQueue eventQueue;
-    std::map<int, void*> eventMap;
-
-    karere::Client *mClient;
-
-    std::set<MegaChatListener *> chatListeners;
-    std::set<MegaChatVideoListener *> chatLocalVideoListeners;
-    std::set<MegaChatVideoListener *> chatRemoteVideoListeners;
-    std::map<int, MegaChatCallPrivate *> chatCallMap;
-    MegaChatVideoReceiver *localVideoReceiver;
-
 
     void setChatStatus(int status, MegaChatRequestListener *listener = NULL);
 
