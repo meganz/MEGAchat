@@ -13,7 +13,6 @@
 #include <base/gcm.h>
 #include <base/services.h>
 #include <chatClient.h>
-#include <rtcModule/lib.h>
 #include <sdkApi.h>
 #include <chatd.h>
 #include <mega/megaclient.h>

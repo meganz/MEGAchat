@@ -19,12 +19,14 @@
  * program.
  */
 
-#include "../include/megachatapi.h"
-#include "../include/megachatapi_impl.h"
-#include <megaapi.h>
 
-using namespace megachat;
+#include <megaapi_impl.h>
+#include <megaapi.h>
+#include "megachatapi.h"
+#include "megachatapi_impl.h"
+
 using namespace mega;
+using namespace megachat;
 
 void MegaChatListener::onChatCallStart(MegaChatApi *chatApi, MegaChatCall *call)
 {

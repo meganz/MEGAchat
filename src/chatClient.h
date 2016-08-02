@@ -13,7 +13,7 @@
 #include "chatd.h"
 namespace strophe { class Connection; }
 
-namespace mega { namespace rh { class IRetryController; } }
+namespace mega { namespace rh { class IRetryController; } class MegaTextChat; class MegaTextChatList; }
 namespace strongvelope { class ProtocolHandler; }
 
 struct sqlite3;
