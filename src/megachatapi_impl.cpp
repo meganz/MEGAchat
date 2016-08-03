@@ -36,6 +36,9 @@
 #include <base/cservices.h>
 #include <base/logger.h>
 
+#ifndef _WIN32
+#include <signal.h>
+#endif
 
 using namespace karere;
 using namespace megachat;
@@ -66,6 +69,24 @@ void MegaChatApiImpl::init(megachat::MegaChatApi *chatApi, megachat::MegaApi *me
     this->waiter = new MegaWaiter();
     this->mClient = NULL;   // created at loop()
 
+    //Start blocking thread
+    threadExit = 0;
+    thread.start(threadEntryPoint, this);
+}
+
+//Entry point for the blocking thread
+void *MegaChatApiImpl::threadEntryPoint(void *param)
+{
+#ifndef _WIN32
+    struct sigaction noaction;
+    memset(&noaction, 0, sizeof(noaction));
+    noaction.sa_handler = SIG_IGN;
+    ::sigaction(SIGPIPE, &noaction, 0);
+#endif
+
+    MegaChatApiImpl *chatApiImpl = (MegaChatApiImpl *)param;
+    chatApiImpl->loop();
+    return 0;
 }
 
 void MegaChatApiImpl::loop()
@@ -103,6 +124,8 @@ void MegaChatApiImpl::loop()
             sendPendingRequests();
             sendPendingEvents();
 
+            if(threadExit)
+                break;
         }
     }
 

@@ -181,6 +181,11 @@ private:
     Client *mClient;
 
     MegaWaiter *waiter;
+    MegaThread thread;
+    int threadExit;
+    static void *threadEntryPoint(void *param);
+    void loop();
+
     void init(MegaChatApi *chatApi, MegaApi *megaApi);
 
 
