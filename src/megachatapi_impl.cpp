@@ -339,23 +339,23 @@ void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaError 
     delete megaError;
 }
 
-void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer, int size)
+void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer)
 {
     KR_LOG_INFO("Remote video data");
 
     for(set<MegaChatVideoListener *>::iterator it = remoteVideoListeners.begin(); it != remoteVideoListeners.end() ; it++)
     {
-        (*it)->onChatVideoData(chatApi, call, width, height, buffer, size);
+        (*it)->onChatVideoData(chatApi, call, width, height, buffer);
     }
 }
 
-void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer, int size)
+void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer)
 {
     KR_LOG_INFO("Local video data");
 
     for(set<MegaChatVideoListener *>::iterator it = localVideoListeners.begin(); it != localVideoListeners.end() ; it++)
     {
-        (*it)->onChatVideoData(chatApi, call, width, height, buffer, size);
+        (*it)->onChatVideoData(chatApi, call, width, height, buffer);
     }
 }
 

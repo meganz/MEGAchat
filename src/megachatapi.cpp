@@ -28,26 +28,6 @@
 using namespace mega;
 using namespace megachat;
 
-void MegaChatCallListener::onChatCallStart(MegaChatApi *chatApi, MegaChatCall *call)
-{
-}
-
-void MegaChatCallListener::onChatCallStateChange(MegaChatApi *chatApi, MegaChatCall *call)
-{
-}
-
-void MegaChatCallListener::onChatCallTemporaryError(MegaChatApi *chatApi, MegaChatCall *call, MegaError *error)
-{
-}
-
-void MegaChatCallListener::onChatCallFinish(MegaChatApi *chatApi, MegaChatCall *call, MegaError *error)
-{
-}
-
-void MegaChatVideoListener::onChatVideoData(MegaChatApi *chatApi, MegaChatCall *chatCall, int width, int height, char *buffer, int size)
-{
-}
-
 MegaChatCall::~MegaChatCall()
 {
 }

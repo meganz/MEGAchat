@@ -119,23 +119,23 @@ public:
 class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
 {
 public:
-    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, MegaChatCallPrivate *chatCall, bool local);
+    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, MegaChatCallPrivate *call, bool local);
     ~MegaChatVideoReceiver();
 
     void setWidth(int width);
     void setHeight(int height);
 
-    // IVideoRenderer
-    virtual unsigned char* getImageBuffer(int width, int height, void** userData);
+    // rtcModule::IVideoRenderer implementation
+    virtual unsigned char* getImageBuffer(unsigned short width, unsigned short height, void** userData);
     virtual void frameComplete(void* userData);
-    virtual void onVideoAttach() {}
+    virtual void onVideoAttach();
     virtual void onVideoDetach();
     virtual void clearViewport();
-    virtual void released() {}
+    virtual void released();
 
 protected:
     MegaChatApiImpl *chatApi;
-    MegaChatCallPrivate *chatCall;
+    MegaChatCallPrivate *call;
     bool local;
 };
 
@@ -222,8 +222,8 @@ public:
     void fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaError *e);
     void fireOnChatCallFinish(MegaChatCallPrivate *call, MegaError *e);
 
-    void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer, int size);
-    void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer, int size);
+    void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
+    void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
 
     MegaChatCallPrivate *getChatCallByPeer(const char* jid);
 

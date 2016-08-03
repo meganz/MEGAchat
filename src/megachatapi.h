@@ -62,7 +62,7 @@ public:
 class MegaChatVideoListener
 {
 public:
-    virtual void onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char*buffer, int size);
+    virtual void onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char*buffer);
 };
 
 class MegaChatCallListener
