@@ -251,6 +251,7 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
 class ICallAnswer
 {
 public:
+    virtual ~ICallAnswer(){}
     /** The call object */
     virtual std::shared_ptr<ICall> call() const = 0;
  /**This method shows whether the call can still be answered or rejected, i.e.
