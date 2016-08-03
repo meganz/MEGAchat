@@ -37,7 +37,7 @@ class MegaChatApiImpl;
 class MegaChatRequest;
 class MegaChatRequestListener;
 class MegaChatCall;
-class MegaChatListener;
+class MegaChatCallListener;
 class MegaChatVideoListener;
 
 class MegaChatCall
@@ -65,7 +65,7 @@ public:
     virtual void onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char*buffer, int size);
 };
 
-class MegaChatListener
+class MegaChatCallListener
 {
 public:
     virtual void onChatCallStart(MegaChatApi* api, MegaChatCall *call);
@@ -175,6 +175,11 @@ public:
      */
     virtual long long getNumber() const;
 
+    /**
+     * @brief Return the number of times that a request has temporarily failed
+     * @return Number of times that a request has temporarily failed
+     */
+    virtual int getNumRetry() const;
 };
 
 /**
@@ -320,8 +325,8 @@ public:
     void hangAllChatCalls();
 
     // Listeners
-    void addChatListener(MegaChatListener *listener);
-    void removeChatListener(MegaChatListener *listener);
+    void addChatCallListener(MegaChatCallListener *listener);
+    void removeChatCallListener(MegaChatCallListener *listener);
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);

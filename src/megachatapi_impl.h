@@ -61,10 +61,12 @@ public:
     virtual const char* __toString() const;
     virtual int getTag() const;
     virtual long long getNumber() const;
+    virtual int getNumRetry() const;
 
     void setTag(int tag);
-    void setNumber(long long number);
     void setListener(MegaChatRequestListener *listener);
+    void setNumber(long long number);
+    void setNumRetry(int retry);
 
 protected:
     int type;
@@ -72,6 +74,7 @@ protected:
     MegaChatRequestListener *listener;
 
     long long number;
+    int retry;
 };
 
 class MegaChatVideoReceiver;
@@ -188,17 +191,17 @@ private:
 
     void init(MegaChatApi *chatApi, MegaApi *megaApi);
 
-
     ChatRequestQueue requestQueue;
-    std::map<int, MegaChatRequestPrivate *> requestMap;
-    int reqtag;
-
     EventQueue eventQueue;
 
-    std::set<MegaChatListener *> chatListeners;
-    std::set<MegaChatVideoListener *> chatLocalVideoListeners;
-    std::set<MegaChatVideoListener *> chatRemoteVideoListeners;
-    std::map<int, MegaChatCallPrivate *> chatCallMap;
+    std::set<MegaChatRequestListener *> requestListeners;
+    std::set<MegaChatCallListener *> callListeners;
+    std::set<MegaChatVideoListener *> localVideoListeners;
+    std::set<MegaChatVideoListener *> remoteVideoListeners;
+
+    int reqtag;
+    std::map<int, MegaChatRequestPrivate *> requestMap;
+    std::map<int, MegaChatCallPrivate *> callMap;
     MegaChatVideoReceiver *localVideoReceiver;
 
 
@@ -209,23 +212,18 @@ public:
     void sendPendingRequests();
     void sendPendingEvents();
 
-    void fireOnRequestStart(MegaChatRequestPrivate *request);
-    void fireOnRequestFinish(MegaChatRequestPrivate *request, MegaError e);
-    void fireOnRequestUpdate(MegaChatRequestPrivate *request);
-    void fireOnRequestTemporaryError(MegaChatRequestPrivate *request, MegaError e);
-
-    void fireOnChatCallStart(MegaChatCallPrivate *call);
-    void fireOnChatCallStateChange(MegaChatCallPrivate *call);
-    void fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaError *error);
-    void fireOnChatCallFinish(MegaChatCallPrivate *call, MegaError *error);
-
-    void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer, int size);
-    void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer, int size);
-
     void fireOnChatRequestStart(MegaChatRequestPrivate *request);
     void fireOnChatRequestFinish(MegaChatRequestPrivate *request, MegaError e);
     void fireOnChatRequestUpdate(MegaChatRequestPrivate *request);
     void fireOnChatRequestTemporaryError(MegaChatRequestPrivate *request, MegaError e);
+
+    void fireOnChatCallStart(MegaChatCallPrivate *call);
+    void fireOnChatCallStateChange(MegaChatCallPrivate *call);
+    void fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaError *e);
+    void fireOnChatCallFinish(MegaChatCallPrivate *call, MegaError *e);
+
+    void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer, int size);
+    void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer, int size);
 
     MegaChatCallPrivate *getChatCallByPeer(const char* jid);
 
@@ -243,14 +241,14 @@ public:
     void hangAllChatCalls();
 
     // Listeners
-    void addChatListener(MegaChatListener *listener);
+    void addChatCallListener(MegaChatCallListener *listener);
+    void addChatRequestListener(MegaChatRequestListener *listener);
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void removeChatListener(MegaChatListener *listener);
+    void removeChatCallListener(MegaChatCallListener *listener);
+    void removeChatRequestListener(MegaChatRequestListener *listener);
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void addChatRequestListener(MegaChatRequestListener *listener);
-    void removeChatRequestListener(MegaChatRequestListener *listener);
 
     // rtcModule::IEventHandler implementation
     virtual void onLocalStreamObtained(rtcModule::IVideoRenderer** renderer);

@@ -143,15 +143,21 @@ void MegaChatApiImpl::sendPendingRequests()
 
     while((request = requestQueue.pop()))
     {
+//        sdkMutex.lock();
         nextTag = ++reqtag;
         request->setTag(nextTag);
         requestMap[nextTag]=request;
         e = API_OK;
 
-        fireOnRequestStart(request);
+        fireOnChatRequestStart(request);
 
         switch (request->getType())
         {
+        case MegaChatRequest::TYPE_DELETE:
+        {
+            threadExit = 1;
+            break;
+        }
         case MegaChatRequest::TYPE_SET_CHAT_STATUS:
         {
             mClient->setPresence(request->getNumber(), true);
@@ -169,15 +175,17 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             e = API_EINTERNAL;
         }
-        }   // end switch(request->getType())
+        }   // end of switch(request->getType())
 
 
         if(e)
         {
             MegaError err(e);
             KR_LOG_WARNING("Error starting request: %s", err.getErrorString());
-            fireOnRequestFinish(request, err);
+            fireOnChatRequestFinish(request, err);
         }
+
+//        sdkMutex.unlock();
     }
 }
 
@@ -186,7 +194,168 @@ void MegaChatApiImpl::sendPendingEvents()
     void *msg;
     while((msg = eventQueue.pop()))
     {
+//        sdkMutex.lock();
         megaProcessMessage(msg);
+//		sdkMutex.unlock();
+    }
+}
+
+void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
+{
+    KR_LOG_INFO("Request (%s) starting", request->getRequestString());
+
+    for (set<MegaChatRequestListener *>::iterator it = requestListeners.begin(); it != requestListeners.end() ; it++)
+    {
+        (*it)->onRequestStart(chatApi, request);
+    }
+
+    MegaChatRequestListener* listener = request->getListener();
+    if (listener)
+    {
+        listener->onRequestStart(chatApi, request);
+    }
+}
+
+void MegaChatApiImpl::fireOnChatRequestFinish(MegaChatRequestPrivate *request, MegaError e)
+{
+    MegaError *megaError = new MegaError(e);
+
+    if(e.getErrorCode())
+    {
+        KR_LOG_INFO("Request (%s) finished with error: %s", request->getRequestString(), e.getErrorString());
+    }
+    else
+    {
+        KR_LOG_INFO("Request (%s) finished", request->getRequestString());
+    }
+
+    for (set<MegaChatRequestListener *>::iterator it = requestListeners.begin(); it != requestListeners.end() ; it++)
+    {
+        (*it)->onRequestFinish(chatApi, request, megaError);
+    }
+
+    MegaChatRequestListener* listener = request->getListener();
+    if (listener)
+    {
+        listener->onRequestFinish(chatApi, request, megaError);
+    }
+
+    requestMap.erase(request->getTag());
+
+    delete request;
+    delete megaError;
+}
+
+void MegaChatApiImpl::fireOnChatRequestUpdate(MegaChatRequestPrivate *request)
+{
+    for (set<MegaChatRequestListener *>::iterator it = requestListeners.begin(); it != requestListeners.end() ; it++)
+    {
+        (*it)->onRequestUpdate(chatApi, request);
+    }
+
+    MegaChatRequestListener* listener = request->getListener();
+    if (listener)
+    {
+        listener->onRequestUpdate(chatApi, request);
+    }
+}
+
+void MegaChatApiImpl::fireOnChatRequestTemporaryError(MegaChatRequestPrivate *request, MegaError e)
+{
+    MegaError *megaError = new MegaError(e);
+
+    request->setNumRetry(request->getNumRetry() + 1);
+
+    for (set<MegaChatRequestListener *>::iterator it = requestListeners.begin(); it != requestListeners.end() ; it++)
+    {
+        (*it)->onRequestTemporaryError(chatApi, request, megaError);
+    }
+
+    MegaChatRequestListener* listener = request->getListener();
+    if (listener)
+    {
+        listener->onRequestTemporaryError(chatApi, request, megaError);
+    }
+
+    delete megaError;
+}
+
+void MegaChatApiImpl::fireOnChatCallStart(MegaChatCallPrivate *call)
+{
+    KR_LOG_INFO("Starting chat call");
+
+    for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
+    {
+        (*it)->onChatCallStart(chatApi, call);
+    }
+
+    fireOnChatCallStateChange(call);
+}
+
+void MegaChatApiImpl::fireOnChatCallStateChange(MegaChatCallPrivate *call)
+{
+    KR_LOG_INFO("Chat call state changed to %s", call->getStatus());
+
+    for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
+    {
+        (*it)->onChatCallStateChange(chatApi, call);
+    }
+}
+
+void MegaChatApiImpl::fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaError *e)
+{
+    KR_LOG_INFO("Chat call temporary error: %s", e->getErrorString());
+
+    for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
+    {
+        (*it)->onChatCallTemporaryError(chatApi, call, e);
+    }
+}
+
+void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaError *e)
+{
+    if(e->getErrorCode())
+    {
+        KR_LOG_INFO("Chat call finished with error: %s", e->getErrorString());
+    }
+    else
+    {
+        KR_LOG_INFO("Chat call finished");
+    }
+
+    call->setStatus(MegaChatCall::CALL_STATUS_DISCONNECTED);
+    fireOnChatCallStateChange(call);
+
+    MegaError *megaError = new MegaError(*e);
+
+    for (set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
+    {
+        (*it)->onChatCallFinish(chatApi, call, megaError);
+    }
+
+    callMap.erase(call->getTag());
+
+    delete call;
+    delete megaError;
+}
+
+void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer, int size)
+{
+    KR_LOG_INFO("Remote video data");
+
+    for(set<MegaChatVideoListener *>::iterator it = remoteVideoListeners.begin(); it != remoteVideoListeners.end() ; it++)
+    {
+        (*it)->onChatVideoData(chatApi, call, width, height, buffer, size);
+    }
+}
+
+void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer, int size)
+{
+    KR_LOG_INFO("Local video data");
+
+    for(set<MegaChatVideoListener *>::iterator it = localVideoListeners.begin(); it != localVideoListeners.end() ; it++)
+    {
+        (*it)->onChatVideoData(chatApi, call, width, height, buffer, size);
     }
 }
 
@@ -196,6 +365,117 @@ void MegaChatApiImpl::setChatStatus(int status, MegaChatRequestListener *listene
     request->setNumber(status);
     requestQueue.push(request);
     waiter->notify();
+}
+
+void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    callListeners.insert(listener);
+    //    sdkMutex.unlock();
+
+}
+
+void MegaChatApiImpl::addChatRequestListener(MegaChatRequestListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    requestListeners.insert(listener);
+    //    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::addChatLocalVideoListener(MegaChatVideoListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    localVideoListeners.insert(listener);
+    //    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::addChatRemoteVideoListener(MegaChatVideoListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    remoteVideoListeners.insert(listener);
+    //    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    callListeners.insert(listener);
+    //    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatRequestListener(MegaChatRequestListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    requestListeners.erase(listener);
+
+    std::map<int,MegaChatRequestPrivate*>::iterator it = requestMap.begin();
+    while (it != requestMap.end())
+    {
+        MegaChatRequestPrivate* request = it->second;
+        if(request->getListener() == listener)
+        {
+            request->setListener(NULL);
+        }
+
+        it++;
+    }
+
+    requestQueue.removeListener(listener);
+    //    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatLocalVideoListener(MegaChatVideoListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    localVideoListeners.insert(listener);
+    //    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    remoteVideoListeners.insert(listener);
+    //    sdkMutex.unlock();
 }
 
 ChatRequestQueue::ChatRequestQueue()
@@ -287,6 +567,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->listener = listener;
 
     this->number = 0;
+    this->retry = 0;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
@@ -296,6 +577,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setTag(request.getTag());
 
     this->setNumber(request.getNumber());
+    this->setNumRetry(request.getNumRetry());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -334,6 +616,11 @@ long long MegaChatRequestPrivate::getNumber() const
     return number;
 }
 
+int MegaChatRequestPrivate::getNumRetry() const
+{
+    return retry;
+}
+
 int MegaChatRequestPrivate::getTag() const
 {
     return tag;
@@ -352,4 +639,9 @@ void MegaChatRequestPrivate::setTag(int tag)
 void MegaChatRequestPrivate::setNumber(long long number)
 {
     this->number = number;
+}
+
+void MegaChatRequestPrivate::setNumRetry(int retry)
+{
+    this->retry = retry;
 }

@@ -28,19 +28,19 @@
 using namespace mega;
 using namespace megachat;
 
-void MegaChatListener::onChatCallStart(MegaChatApi *chatApi, MegaChatCall *call)
+void MegaChatCallListener::onChatCallStart(MegaChatApi *chatApi, MegaChatCall *call)
 {
 }
 
-void MegaChatListener::onChatCallStateChange(MegaChatApi *chatApi, MegaChatCall *call)
+void MegaChatCallListener::onChatCallStateChange(MegaChatApi *chatApi, MegaChatCall *call)
 {
 }
 
-void MegaChatListener::onChatCallTemporaryError(MegaChatApi *chatApi, MegaChatCall *call, MegaError *error)
+void MegaChatCallListener::onChatCallTemporaryError(MegaChatApi *chatApi, MegaChatCall *call, MegaError *error)
 {
 }
 
-void MegaChatListener::onChatCallFinish(MegaChatApi *chatApi, MegaChatCall *call, MegaError *error)
+void MegaChatCallListener::onChatCallFinish(MegaChatApi *chatApi, MegaChatCall *call, MegaError *error)
 {
 }
 
@@ -122,14 +122,14 @@ void MegaChatApi::hangAllChatCalls()
     pImpl->hangAllChatCalls();
 }
 
-void MegaChatApi::addChatListener(MegaChatListener *listener)
+void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
 {
-    pImpl->addChatListener(listener);
+    pImpl->addChatCallListener(listener);
 }
 
-void MegaChatApi::removeChatListener(MegaChatListener *listener)
+void MegaChatApi::removeChatCallListener(MegaChatCallListener *listener)
 {
-    pImpl->removeChatListener(listener);
+    pImpl->removeChatCallListener(listener);
 }
 
 void MegaChatApi::addChatLocalVideoListener(MegaChatVideoListener *listener)
@@ -199,6 +199,11 @@ int MegaChatRequest::getTag() const
 }
 
 long long MegaChatRequest::getNumber() const
+{
+    return 0;
+}
+
+int MegaChatRequest::getNumRetry() const
 {
     return 0;
 }
