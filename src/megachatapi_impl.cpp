@@ -645,3 +645,139 @@ void MegaChatRequestPrivate::setNumRetry(int retry)
 {
     this->retry = retry;
 }
+
+
+MegaChatCallPrivate::MegaChatCallPrivate(const char *peer)
+{
+    this->peer = mega::MegaApi::strdup(peer);
+    status = 0;
+    tag = 0;
+    videoReceiver = NULL;
+    answerObject = NULL;
+}
+
+MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
+{
+    this->peer = mega::MegaApi::strdup(call.getPeer());
+    this->status = call.getStatus();
+    this->tag = call.getTag();
+    this->videoReceiver = NULL;
+    answerObject = NULL;
+}
+
+MegaChatCallPrivate::~MegaChatCallPrivate()
+{
+    delete [] peer;
+    delete answerObject;
+    // videoReceiver is deleted on onVideoDetach, because it's called after the call is finished
+}
+
+MegaChatCall *MegaChatCallPrivate::copy()
+{
+    return new MegaChatCallPrivate(*this);
+}
+
+int MegaChatCallPrivate::getStatus() const
+{
+    return status;
+}
+
+int MegaChatCallPrivate::getTag() const
+{
+    return tag;
+}
+
+MegaHandle MegaChatCallPrivate::getContactHandle() const
+{
+    if(!peer)
+    {
+        return INVALID_HANDLE;
+    }
+
+    MegaHandle userHandle = INVALID_HANDLE;
+    string tmp = peer;
+    tmp.resize(13);
+    Base32::atob(tmp.data(), (byte *)&userHandle, sizeof(userHandle));
+    return userHandle;
+}
+
+rtcModule::ICallAnswer *MegaChatCallPrivate::getAnswerObject()
+{
+    return answerObject;
+}
+
+const char *MegaChatCallPrivate::getPeer() const
+{
+    return peer;
+}
+
+void MegaChatCallPrivate::setStatus(int status)
+{
+    this->status = status;
+}
+
+void MegaChatCallPrivate::setTag(int tag)
+{
+    this->tag = tag;
+}
+
+void MegaChatCallPrivate::setVideoReceiver(MegaChatVideoReceiver *videoReceiver)
+{
+    delete this->videoReceiver;
+    this->videoReceiver = videoReceiver;
+}
+
+void MegaChatCallPrivate::setAnswerObject(rtcModule::ICallAnswer *answerObject)
+{
+    this->answerObject = answerObject;
+}
+
+MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, MegaChatCallPrivate *call, bool local)
+{
+    this->chatApi = chatApi;
+    this->call = call;
+    this->local = local;
+}
+
+MegaChatVideoReceiver::~MegaChatVideoReceiver()
+{
+}
+
+unsigned char *MegaChatVideoReceiver::getImageBuffer(unsigned short width, unsigned short height, void **userData)
+{
+    MegaChatVideoFrame *frame = new MegaChatVideoFrame;
+    frame->width = width;
+    frame->height = height;
+    frame->buffer = new byte[width * height * 4];  // in format ARGB: 4 bytes per pixel
+    *userData = frame;
+    return frame->buffer;
+}
+
+void MegaChatVideoReceiver::frameComplete(void *userData)
+{
+    MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
+    if(local)
+    {
+        chatApi->fireOnChatLocalVideoData(call, frame->width, frame->height, (char *)frame->buffer);
+    }
+    else
+    {
+        chatApi->fireOnChatRemoteVideoData(call, frame->width, frame->height, (char *)frame->buffer);
+    }
+    delete frame->buffer;
+    delete frame;
+}
+
+void MegaChatVideoReceiver::onVideoAttach()
+{
+
+}
+
+void MegaChatVideoReceiver::onVideoDetach()
+{
+    delete this;
+}
+
+void MegaChatVideoReceiver::clearViewport()
+{
+}
