@@ -154,7 +154,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_SET_CHAT_STATUS:
         {
-
+            mClient->setPresence(request->getNumber(), true);
             break;
         }
         case MegaChatRequest::TYPE_START_CHAT_CALL:
@@ -190,6 +190,13 @@ void MegaChatApiImpl::sendPendingEvents()
     }
 }
 
+void MegaChatApiImpl::setChatStatus(int status, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CHAT_STATUS, listener);
+    request->setNumber(status);
+    requestQueue.push(request);
+    waiter->notify();
+}
 
 ChatRequestQueue::ChatRequestQueue()
 {

@@ -265,6 +265,15 @@ class MegaChatApi
 {
 
 public:
+    enum
+    {
+        PRESENCE_OFFLINE = 0,
+        PRESENCE_BUSY,
+        PRESENCE_AWAY,
+        PRESENCE_ONLINE
+    };
+
+
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     MegaChatApi(MegaApi *megaApi);
 
@@ -273,7 +282,30 @@ public:
 
     virtual ~MegaChatApi();
 
-    // Status management
+    /**
+     * @brief Set your online status.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CHAT_STATUS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaRequest::getNumber - Returns the new status of the user in chat.
+     *
+     * @param status Online status in the chat.
+     *
+     * It can be one of the following values:
+     * - PRESENCE_OFFLINE = 1
+     * The user appears as being offline
+     *
+     * - PRESENCE_BUSY = 2
+     * The user is busy and don't want to be disturbed.
+     *
+     * - PRESENCE_AWAY = 3
+     * The user is away and might not answer.
+     *
+     * - PRESENCE_ONLINE = 4
+     * The user is connected and online.
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
     void setChatStatus(int status, MegaChatRequestListener *listener = NULL);
 
     // Audio/Video device management
