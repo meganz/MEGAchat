@@ -34,6 +34,8 @@
 
 #include "megachatapi_impl.h"
 #include <base/cservices.h>
+#include <base/logger.h>
+
 
 using namespace karere;
 using namespace megachat;
@@ -49,36 +51,124 @@ MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const
     init(chatApi, (MegaApi*) new MyMegaApi(appKey, appDir));
 }
 
-void megachat::MegaChatApiImpl::init(megachat::MegaChatApi *chatApi, megachat::MegaApi *megaApi)
+MegaChatApiImpl::~MegaChatApiImpl()
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DELETE);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::init(megachat::MegaChatApi *chatApi, megachat::MegaApi *megaApi)
 {
     this->chatApi = chatApi;
     this->megaApi = megaApi;
 
+    this->waiter = new MegaWaiter();
+    this->mClient = NULL;   // created at loop()
+
+}
+
+void MegaChatApiImpl::loop()
+{
+    // karere initialization
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
-    mClient = new Client(*this, Presence::kOnline);
-    mClient->init()
+    this->mClient = new Client(*this, Presence::kOnline);
+    this->mClient->init()
     .then([]()
     {
         KR_LOG_DEBUG("Client initialized");
     })
     .fail([](const promise::Error& error)
     {
-        QMessageBox::critical(this, "rtctestapp", QString::fromLatin1("Client startup failed with error:\n")+QString::fromStdString(error.msg()));
-//        this->close();
-        exit(1);
+        KR_LOG_ERROR("Client startup failed with error: %s\n", error.msg());
+        exit(-1);
     });
+
+    while (true)
+    {
+        waiter->init(NEVER);
+
+        // set subsystem wakeup criteria:
+        // TODO: set wakeupby(events from karere) and wakeupby(requests from GUI)
+
+        int r = waiter->wait();
+
+        // process results
+        // TODO: check if we are awake due to events or requests
+        // (something like r |= fsaccess->checkevents(waiter); )
+
+        if(r & Waiter::NEEDEXEC)
+        {
+            sendPendingRequests();
+            sendPendingEvents();
+
+        }
+    }
+
+//    sdkMutex.lock();
+    delete mClient;
+//    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg)
 {
-    // create event with "msg"
+    // Add the message to the queue of events
+    // TODO: decide if a singleton is suitable to retrieve instance of MegaChatApi
+//    MegaChatApiImpl *chatApi = MegaChatApiImpl::getMegaChatApi();
+//    chatApi->postMessage(msg);
 }
 
 void MegaChatApiImpl::postMessage(void *msg)
 {
     eventQueue.push(msg);
-    // notify waiter to trigger a call to sendPendingEvents()
+    waiter->notify();
+}
+
+void MegaChatApiImpl::sendPendingRequests()
+{
+    MegaChatRequestPrivate *request;
+    error e;
+    int nextTag = 0;
+
+    while((request = requestQueue.pop()))
+    {
+        nextTag = ++reqtag;
+        request->setTag(nextTag);
+        requestMap[nextTag]=request;
+        e = API_OK;
+
+        fireOnRequestStart(request);
+
+        switch (request->getType())
+        {
+        case MegaChatRequest::TYPE_SET_CHAT_STATUS:
+        {
+
+            break;
+        }
+        case MegaChatRequest::TYPE_START_CHAT_CALL:
+        {
+            break;
+        }
+        case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
+        {
+            break;
+        }
+        default:
+        {
+            e = API_EINTERNAL;
+        }
+        }   // end switch(request->getType())
+
+
+        if(e)
+        {
+            MegaError err(e);
+            KR_LOG_WARNING("Error starting request: %s", err.getErrorString());
+            fireOnRequestFinish(request, err);
+        }
+    }
 }
 
 void MegaChatApiImpl::sendPendingEvents()
@@ -86,10 +176,58 @@ void MegaChatApiImpl::sendPendingEvents()
     void *msg;
     while((msg = eventQueue.pop()))
     {
-//        sdkMutex.lock();
         megaProcessMessage(msg);
-//        sdkMutex.unlock();
     }
+}
+
+
+ChatRequestQueue::ChatRequestQueue()
+{
+    mutex.init(false);
+}
+
+void ChatRequestQueue::push(MegaChatRequestPrivate *request)
+{
+    mutex.lock();
+    requests.push_back(request);
+    mutex.unlock();
+}
+
+void ChatRequestQueue::push_front(MegaChatRequestPrivate *request)
+{
+    mutex.lock();
+    requests.push_front(request);
+    mutex.unlock();
+}
+
+MegaChatRequestPrivate *ChatRequestQueue::pop()
+{
+    mutex.lock();
+    if(requests.empty())
+    {
+        mutex.unlock();
+        return NULL;
+    }
+    MegaChatRequestPrivate *request = requests.front();
+    requests.pop_front();
+    mutex.unlock();
+    return request;
+}
+
+void ChatRequestQueue::removeListener(MegaChatRequestListener *listener)
+{
+    mutex.lock();
+
+    std::deque<MegaChatRequestPrivate *>::iterator it = requests.begin();
+    while(it != requests.end())
+    {
+        MegaChatRequestPrivate *request = (*it);
+        if(request->getListener()==listener)
+            request->setListener(NULL);
+        it++;
+    }
+
+    mutex.unlock();
 }
 
 EventQueue::EventQueue()
@@ -123,4 +261,78 @@ void* EventQueue::pop()
     events.pop_front();
     mutex.unlock();
     return event;
+}
+
+MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener *listener)
+{
+    this->type = type;
+    this->tag = 0;
+    this->listener = listener;
+
+    this->number = 0;
+}
+
+MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
+{
+    this->type = request.getType();
+    this->listener = request.getListener();
+    this->setTag(request.getTag());
+
+    this->setNumber(request.getNumber());
+}
+
+MegaChatRequestPrivate::~MegaChatRequestPrivate()
+{
+}
+
+MegaChatRequest *MegaChatRequestPrivate::copy()
+{
+    return new MegaChatRequestPrivate(*this);
+}
+
+const char *MegaChatRequestPrivate::getRequestString() const
+{
+    switch(type)
+    {
+        case TYPE_DELETE: return "DELETE";
+        case TYPE_SET_CHAT_STATUS: return "SET_CHAT_STATUS";
+        case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
+        case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
+    }
+    return "UNKNOWN";
+}
+
+MegaChatRequestListener *MegaChatRequestPrivate::getListener() const
+{
+    return listener;
+}
+
+int MegaChatRequestPrivate::getType() const
+{
+    return type;
+}
+
+long long MegaChatRequestPrivate::getNumber() const
+{
+    return number;
+}
+
+int MegaChatRequestPrivate::getTag() const
+{
+    return tag;
+}
+
+void MegaChatRequestPrivate::setListener(MegaChatRequestListener *listener)
+{
+    this->listener = listener;
+}
+
+void MegaChatRequestPrivate::setTag(int tag)
+{
+    this->tag = tag;
+}
+
+void MegaChatRequestPrivate::setNumber(long long number)
+{
+    this->number = number;
 }

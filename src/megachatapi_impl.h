@@ -59,8 +59,10 @@ public:
     virtual const char* toString() const;
     virtual const char* __str__() const;
     virtual const char* __toString() const;
+    virtual int getTag() const;
     virtual long long getNumber() const;
 
+    void setTag(int tag);
     void setNumber(long long number);
     void setListener(MegaChatRequestListener *listener);
 
@@ -134,7 +136,22 @@ protected:
     bool local;
 };
 
+//Thread safe request queue
+class ChatRequestQueue
+{
+    protected:
+        std::deque<MegaChatRequestPrivate *> requests;
+        MegaMutex mutex;
 
+    public:
+        ChatRequestQueue();
+        void push(MegaChatRequestPrivate *request);
+        void push_front(MegaChatRequestPrivate *request);
+        MegaChatRequestPrivate * pop();
+        void removeListener(MegaChatRequestListener *listener);
+};
+
+//Thread safe transfer queue
 class EventQueue
 {
 protected:
@@ -160,13 +177,16 @@ public:
 private:
     MegaChatApi *chatApi;
     MegaApi *megaApi;
+
     Client *mClient;
 
+    MegaWaiter *waiter;
     void init(MegaChatApi *chatApi, MegaApi *megaApi);
 
 
-//    MegaChatRequestQueue requestQueue;
+    ChatRequestQueue requestQueue;
     std::map<int, MegaChatRequestPrivate *> requestMap;
+    int reqtag;
 
     EventQueue eventQueue;
 
@@ -183,6 +203,11 @@ public:
 
     void sendPendingRequests();
     void sendPendingEvents();
+
+    void fireOnRequestStart(MegaChatRequestPrivate *request);
+    void fireOnRequestFinish(MegaChatRequestPrivate *request, MegaError e);
+    void fireOnRequestUpdate(MegaChatRequestPrivate *request);
+    void fireOnRequestTemporaryError(MegaChatRequestPrivate *request, MegaError e);
 
     void fireOnChatCallStart(MegaChatCallPrivate *call);
     void fireOnChatCallStateChange(MegaChatCallPrivate *call);
