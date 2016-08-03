@@ -109,29 +109,16 @@ void MegaChatApiImpl::loop()
     while (true)
     {
         waiter->init(NEVER);
+        waiter->wait();         // waken up directly by Waiter::notify()
 
-        // set subsystem wakeup criteria:
-        // TODO: set wakeupby(events from karere) and wakeupby(requests from GUI)
+        sendPendingRequests();
+        sendPendingEvents();
 
-        int r = waiter->wait();
-
-        // process results
-        // TODO: check if we are awake due to events or requests
-        // (something like r |= fsaccess->checkevents(waiter); )
-
-        if(r & Waiter::NEEDEXEC)
-        {
-            sendPendingRequests();
-            sendPendingEvents();
-
-            if(threadExit)
-                break;
-        }
+        if(threadExit)
+            break;
     }
 
-//    sdkMutex.lock();
     delete mClient;
-//    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg)
