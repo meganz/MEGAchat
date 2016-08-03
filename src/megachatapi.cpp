@@ -162,3 +162,44 @@ void MegaChatApi::removeChatRequestListener(MegaChatRequestListener *listener)
     pImpl->removeChatRequestListener(listener);
 }
 
+MegaChatRequest::~MegaChatRequest() { }
+MegaChatRequest *MegaChatRequest::copy()
+{
+    return NULL;
+}
+
+int MegaChatRequest::getType() const
+{
+    return 0;
+}
+
+const char *MegaChatRequest::getRequestString() const
+{
+    return NULL;
+}
+
+const char *MegaChatRequest::toString() const
+{
+    return NULL;
+}
+
+const char *MegaChatRequest::__str__() const
+{
+    return NULL;
+}
+
+const char *MegaChatRequest::__toString() const
+{
+    return NULL;
+}
+
+int MegaChatRequest::getTag() const
+{
+    return 0;
+}
+
+long long MegaChatRequest::getNumber() const
+{
+    return 0;
+}
+

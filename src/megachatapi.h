@@ -94,6 +94,7 @@ class MegaChatRequest
 {
 public:
     enum {
+        TYPE_DELETE,
         TYPE_SET_CHAT_STATUS,
         TYPE_START_CHAT_CALL, TYPE_ANSWER_CHAT_CALL
     };
@@ -158,6 +159,15 @@ public:
      * @return Readable string showing the type of request
      */
     virtual const char* __toString() const;
+
+    /**
+     * @brief Returns the tag that identifies this request
+     *
+     * The tag is unique for the MegaChatApi object that has generated it only
+     *
+     * @return Unique tag that identifies this request
+     */
+    virtual int getTag() const;
 
     /**
      * @brief Returns a number related to this request
