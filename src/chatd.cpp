@@ -5,6 +5,7 @@
 #include <retryHandler.h>
 #include <libws_log.h>
 #include <event2/dns.h>
+#include <event2/dns_compat.h>
 #include "base64.h"
 #include <algorithm>
 #include <random>
@@ -299,7 +300,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         evdns_base_resolv_conf_parse(services_dns_eventbase,
             DNS_OPTIONS_ALL & (~DNS_OPTION_SEARCH), "/etc/resolv.conf");
 #else
-        evdns_config_windows_nameservers(services_dns_eventbase);
+        evdns_config_windows_nameservers();
 #endif
     }
     disableInactivityTimer();
@@ -474,14 +475,16 @@ void Chat::logSend(const Command& cmd)
 void Connection::rejoinExistingChats()
 {
     for (auto& chatid: mChatIds)
-    try
     {
-        Chat& msgs = mClient.chats(chatid);
-        msgs.login();
-    }
-    catch(std::exception& e)
-    {
-        CHATD_LOG_ERROR("%s: rejoinExistingChats: Exception: %s", chatid.toString().c_str(), e.what());
+        try
+        {
+            Chat& msgs = mClient.chats(chatid);
+            msgs.login();
+        }
+        catch(std::exception& e)
+        {
+            CHATD_LOG_ERROR("%s: rejoinExistingChats: Exception: %s", chatid.toString().c_str(), e.what());
+        }
     }
 }
 
