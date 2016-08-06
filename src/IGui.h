@@ -1,6 +1,11 @@
 #ifndef IGUI_H
 #define IGUI_H
 
+namespace karere
+{
+class ChatRoom;
+class GroupChatRoom;
+
 class IGui
 {
 public:
@@ -9,7 +14,7 @@ public:
     public:
         virtual void updateTitle(const std::string& title) = 0;
         virtual void updateOverlayCount(int count) {}
-        virtual void updateOnlineIndication(Presence state) = 0;
+        virtual void updateOnlineIndication(karere::Presence state) = 0;
         virtual void onMembersUpdated() {} //Used only for group chats
     };
     class ICallGui{};
@@ -31,7 +36,7 @@ public:
     };
     virtual ILoginDialog* createLoginDialog() = 0;
 
-    virtual IChatWindow* createChatWindow(ChatRoom& room) = 0;
+    virtual IChatWindow* createChatWindow(karere::ChatRoom& room) = 0;
     class IContactGui: public ITitleDisplay
     {
     public:
@@ -58,6 +63,7 @@ public:
     virtual void onTerminate() {}
     virtual ~IGui() {}
 };
+}
 
 #endif // IGUI
 

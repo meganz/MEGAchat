@@ -11,6 +11,8 @@
 #include "sdkApi.h"
 #include "userAttrCache.h"
 #include "chatd.h"
+#include "IGui.h"
+
 namespace strophe { class Connection; }
 
 namespace mega { namespace rh { class IRetryController; } }
@@ -42,7 +44,6 @@ class ChatRoom;
 class GroupChatRoom;
 class Contact;
 class ContactList;
-
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 class ChatRoomList;
