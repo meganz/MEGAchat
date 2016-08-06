@@ -16,7 +16,7 @@ class StaticBuffer
 protected:
     char* mBuf;
     size_t mDataSize;
-    StaticBuffer(){} //used by Buffer to skip initialization
+    StaticBuffer() {} //used by Buffer to skip initialization
 public:
     static const size_t kNotFound = {(size_t)-1};
     StaticBuffer(const char* data, size_t datasize)
