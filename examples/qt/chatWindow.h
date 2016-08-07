@@ -580,7 +580,7 @@ public:
         else
         {
             int last = idx.isValid()
-              ?(min((unsigned)idx.row(), mChat->lastHistObtainCount()))
+              ?(std::min((unsigned)idx.row(), mChat->lastHistObtainCount()))
               :list.count()-1;
             for (int i=0; i<=last; i++)
                 qobject_cast<MessageWidget*>(list.itemWidget(list.item(i)))->fadeIn(QColor(250,250,250));
