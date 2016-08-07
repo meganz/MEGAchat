@@ -163,7 +163,7 @@ class KeyCommand: public Command
 {
 public:
     explicit KeyCommand(karere::Id chatid=karere::Id::null(), uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
-        size_t reserve=128)
+        uint8_t reserve=128)
     : Command(OP_NEWKEY, reserve)
     {
         append(chatid.val).append<uint32_t>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty

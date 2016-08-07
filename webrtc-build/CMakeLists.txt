@@ -275,7 +275,7 @@ set(WEBRTC_SYSLIBS_MACOS
     "-framework CoreMedia" "-framework OpenGL" "-framework QTKit"
 )
 set(WEBRTC_SYSLIBS_IOS ${WEBRTC_SYSLIBS_MACOS})
-set(WEBRTC_SYSLIBS_WIN zlib.lib wininet.lib
+set(WEBRTC_SYSLIBS_WIN wininet.lib
     dnsapi.lib version.lib msimg32.lib ws2_32.lib 
     usp10.lib psapi.lib dbghelp.lib winmm.lib shlwapi.lib kernel32.lib 
     gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib 

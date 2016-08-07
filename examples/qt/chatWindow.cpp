@@ -238,7 +238,7 @@ void ChatWindow::onEditRejected(const chatd::Message& msg, uint8_t opcode)
 
 void ChatWindow::showCantEditNotice(const QString& action)
 {
-    WaitMessage tooltip(*this);
+    WaitMsg tooltip(*this);
     tooltip.addMsg(tr("Can't %1 - message is too old").arg(action));
     mega::setTimeout([tooltip]()
     {}, 2000);
@@ -324,16 +324,16 @@ void ChatWindow::onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx)
     }
 }
 
-WaitMessage::WaitMessage(ChatWindow& chatWindow)
+WaitMsg::WaitMsg(ChatWindow& chatWindow)
     :mChatWindow(chatWindow){}
-void WaitMessage::addMsg(const QString &msg)
+void WaitMsg::addMsg(const QString &msg)
 {
     if (!get())
         reset(new WaitMsgWidget(mChatWindow.ui.mMessageList, msg));
     else
         get()->addMsg(msg);
 }
-WaitMessage::~WaitMessage()
+WaitMsg::~WaitMsg()
 {
     if (use_count() == 2)
         mChatWindow.mWaitMsg.reset();

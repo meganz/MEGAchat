@@ -66,7 +66,7 @@ class MyMegaLogger: public ::mega::MegaLogger
 {
     virtual void log(const char *time, int loglevel, const char *source, const char *message)
     {
-        static int sdkToKarereLogLevels[mega::MegaApi::LOG_LEVEL_MAX+1] =
+        static krLogLevel sdkToKarereLogLevels[mega::MegaApi::LOG_LEVEL_MAX+1] =
         {
             krLogLevelError, krLogLevelError, krLogLevelWarn,
             krLogLevelInfo, krLogLevelDebug, krLogLevelDebugVerbose

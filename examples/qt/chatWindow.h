@@ -145,12 +145,12 @@ public:
     void show();
 };
 
-class WaitMessage: protected std::shared_ptr<WaitMsgWidget>
+class WaitMsg: protected std::shared_ptr<WaitMsgWidget>
 {
     ChatWindow& mChatWindow;
 public:
-    WaitMessage(ChatWindow& chatWindow);
-    ~WaitMessage();
+    WaitMsg(ChatWindow& chatWindow);
+    ~WaitMsg();
     void addMsg(const QString& msg);
 };
 class ManualSendMsgWidget: public QWidget
@@ -184,14 +184,14 @@ protected:
     std::unique_ptr<HistFetchUi> mHistFetchUi;
     CallGui* mCallGui = nullptr;
     bool mLastHistReqByScroll = false;
-    WaitMessage mWaitMsg;
+    WaitMsg mWaitMsg;
 /** The position in the widget list before which is the last message in server history,
  *  and after which are all unsent messages, in order
  */
     int mHistAddPos = 0;
     friend class CallGui;
     friend class CallAnswerGui;
-    friend class WaitMessage;
+    friend class WaitMsg;
     friend class MessageWidget;
 public slots:
     void onMsgSendBtn()
@@ -579,7 +579,9 @@ public:
         }
         else
         {
-            int last = (idx.isValid())?std::min((unsigned)idx.row(), mChat->lastHistObtainCount()):list.count()-1;
+            int last = idx.isValid()
+              ?(min((unsigned)idx.row(), mChat->lastHistObtainCount()))
+              :list.count()-1;
             for (int i=0; i<=last; i++)
                 qobject_cast<MessageWidget*>(list.itemWidget(list.item(i)))->fadeIn(QColor(250,250,250));
         }

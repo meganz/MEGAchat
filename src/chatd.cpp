@@ -929,7 +929,13 @@ void Chat::msgSubmit(Message* msg)
 
 void Chat::createMsgBackRefs(Message& msg)
 {
+#ifndef _MSC_VER
     static std::uniform_int_distribution<uint8_t>distrib(0, 0xff);
+#else
+//MSVC has a bug - no char template argument allowed
+    static std::uniform_int_distribution<uint32_t>distrib(0,0xff);
+#endif
+
     static std::random_device rd;
     std::vector<SendingItem*> sendingIdx;
     sendingIdx.reserve(mSending.size());
