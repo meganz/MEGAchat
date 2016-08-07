@@ -246,7 +246,7 @@ void ChatWindow::showCantEditNotice(const QString& action)
 
 void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg, bool oriMsgIsSending)
 {
-    MessageWidget* widget;
+    MessageWidget* widget=nullptr;
     if (oriMsgIsSending)
     {
         for (int i=mHistAddPos; i<ui.mMessageList->count(); i++)
