@@ -177,8 +177,13 @@ echo "==========================================================="
 
 echo "Setting platform-independent env variables..."
 if [ ! -z "$deproot" ]; then
-    export WEBRTC_DEPS_LIB=$deproot/lib
-    export WEBRTC_DEPS_INCLUDE=$deproot/include
+    if [[ "$platform" == "win" ]]; then
+      export WEBRTC_DEPS_LIB=`cygpath -w $deproot/lib`
+      export WEBRTC_DEPS_INCLUDE=`cygpath -w $deproot/include`
+    else
+      export WEBRTC_DEPS_LIB=$deproot/lib
+      export WEBRTC_DEPS_INCLUDE=$deproot/include
+    fi
 fi
 export GYP_GENERATORS=ninja
 
