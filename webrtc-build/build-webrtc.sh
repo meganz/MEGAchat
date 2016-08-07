@@ -115,9 +115,22 @@ webrtcdir=`pwd`
 if [ ! -d ./depot_tools ]; then
     echo "Checking out depot_tools..."
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+    if [[ "$platform" == "win" ]]; then
+       echo "Downloading native python..."
+       $karere/win/getpython.sh `pwd`/depot_tools
+       #some native stuff needs to call native python, but we don't want native
+       #python in the unix path - the bat file is ignored by bash, but picked
+       #by native shell
+       cp -v $karere/win/python.bat `pwd`/depot_tools
+       echo "Patching gclient to use native python..."
+       cd depot_tools
+       git apply $karere/win/gclient.patch
+       cd ..
+    fi
 else
     echo "depot_tools seems already downloaded"
 fi
+
 
 export PATH="$webrtcdir/depot_tools:$PATH"
 if [[ "$platform" == "android" ]]; then
