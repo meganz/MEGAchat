@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.8)
 set(optBuildShared 1 CACHE BOOL "Build as shared library")
 
 FILE(GLOB SRCS_GLOB RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.cpp)
-LIST(REMOVE_ITEM SRCS_GLOB adhoc.cpp cryptlib.cpp cpu.cpp pch.cpp simple.cpp winpipes.cpp cryptlib_bds.cpp)
+LIST(REMOVE_ITEM SRCS_GLOB adhoc.cpp cryptlib.cpp cpu.cpp pch.cpp simple.cpp winpipes.cpp cryptlib_bds.cpp dll.cpp)
 #We need to put these 2 files first, because of static initialization order
 set(SRCS cryptlib.cpp cpu.cpp ${SRCS_GLOB})
 
@@ -70,8 +70,9 @@ add_custom_command(
   DEPENDS adhoc.cpp.proto
 )
 
-#DLLSRCS = algebra.cpp algparam.cpp asn.cpp basecode.cpp cbcmac.cpp channels.cpp cryptlib.cpp des.cpp dessp.cpp dh.cpp dll.cpp dsa.cpp ec2n.cpp eccrypto.cpp ecp.cpp eprecomp.cpp files.cpp filters.cpp fips140.cpp fipstest.cpp gf2n.cpp gfpcrypt.cpp hex.cpp hmac.cpp integer.cpp iterhash.cpp misc.cpp modes.cpp modexppc.cpp mqueue.cpp nbtheory.cpp oaep.cpp osrng.cpp pch.cpp pkcspad.cpp pubkey.cpp queue.cpp randpool.cpp rdtables.cpp rijndael.cpp rng.cpp rsa.cpp sha.cpp simple.cpp skipjack.cpp strciphr.cpp trdlocal.cpp
+#DLLSRCS = algebra.cpp algparam.cpp asn.cpp basecode.cpp cbcmac.cpp channels.cpp cryptlib.cpp des.cpp dessp.cpp dh.cpp dsa.cpp ec2n.cpp eccrypto.cpp ecp.cpp eprecomp.cpp files.cpp filters.cpp fips140.cpp fipstest.cpp gf2n.cpp gfpcrypt.cpp hex.cpp hmac.cpp integer.cpp iterhash.cpp misc.cpp modes.cpp modexppc.cpp mqueue.cpp nbtheory.cpp oaep.cpp osrng.cpp pch.cpp pkcspad.cpp pubkey.cpp queue.cpp randpool.cpp rdtables.cpp rijndael.cpp rng.cpp rsa.cpp sha.cpp simple.cpp skipjack.cpp strciphr.cpp trdlocal.cpp
 if (WIN32)
+    list(APPEND SRCS dll.cpp)
     set(CRYPTOPP_WINDLL_DEFINES _USRDLL=1 USE_PRECOMPILED_HEADERS=1)
 endif()
 

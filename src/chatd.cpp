@@ -5,6 +5,7 @@
 #include <retryHandler.h>
 #include <libws_log.h>
 #include <event2/dns.h>
+#include <event2/dns_compat.h>
 #include "base64.h"
 #include <algorithm>
 #include <random>
@@ -299,7 +300,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         evdns_base_resolv_conf_parse(services_dns_eventbase,
             DNS_OPTIONS_ALL & (~DNS_OPTION_SEARCH), "/etc/resolv.conf");
 #else
-        evdns_config_windows_nameservers(services_dns_eventbase);
+        evdns_config_windows_nameservers();
 #endif
     }
     disableInactivityTimer();
@@ -474,14 +475,16 @@ void Chat::logSend(const Command& cmd)
 void Connection::rejoinExistingChats()
 {
     for (auto& chatid: mChatIds)
-    try
     {
-        Chat& msgs = mClient.chats(chatid);
-        msgs.login();
-    }
-    catch(std::exception& e)
-    {
-        CHATD_LOG_ERROR("%s: rejoinExistingChats: Exception: %s", chatid.toString().c_str(), e.what());
+        try
+        {
+            Chat& msgs = mClient.chats(chatid);
+            msgs.login();
+        }
+        catch(std::exception& e)
+        {
+            CHATD_LOG_ERROR("%s: rejoinExistingChats: Exception: %s", chatid.toString().c_str(), e.what());
+        }
     }
 }
 
@@ -736,7 +739,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(id, 8);
                 READ_8(op, 16);
                 READ_8(reason, 17);
-                CHATD_LOG_DEBUG("%s: recv REJECT of %s: id='%s', reason: %hu",
+                CHATD_LOG_WARNING("%s: recv REJECT of %s: id='%s', reason: %hu",
                     ID_CSTR(chatid), Command::opcodeToStr(op), ID_CSTR(id), reason);
                 auto& chat = mClient.chats(chatid);
                 if (op == OP_NEWMSG) // the message was rejected
@@ -905,7 +908,7 @@ uint64_t Chat::generateRefId()
     uint64_t ts = time(nullptr);
     uint64_t rand;
     mCrypto->randomBytes(&rand, sizeof(rand));
-    return (ts << 48) | (rand & 0x0000ffffffffffff);
+    return (ts & 0x0000000000ffffff) | (rand << 40);
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp)
@@ -926,7 +929,13 @@ void Chat::msgSubmit(Message* msg)
 
 void Chat::createMsgBackRefs(Message& msg)
 {
+#ifndef _MSC_VER
     static std::uniform_int_distribution<uint8_t>distrib(0, 0xff);
+#else
+//MSVC has a bug - no char template argument allowed
+    static std::uniform_int_distribution<uint32_t>distrib(0,0xff);
+#endif
+
     static std::random_device rd;
     std::vector<SendingItem*> sendingIdx;
     sendingIdx.reserve(mSending.size());
@@ -1880,7 +1889,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
 {
-    printf("%s: verify: %s -> %llu\n", chatId().toString().c_str(), msg.id().toString().c_str(), msg.backRefId);
     if (!mRefidToIdxMap.emplace(msg.backRefId, idx).second)
     {
         CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");

@@ -2,9 +2,9 @@
 #define SDKAPI_H
 
 //the megaapi.h header needs this defined externally
-//#ifndef ENABLE_CHAT
-//    #define ENABLE_CHAT 1
-//#endif
+#ifndef ENABLE_CHAT
+    #define ENABLE_CHAT 1
+#endif
 #include <megaapi.h>
 #include "base/promise.h"
 #include "base/gcmpp.h"
@@ -66,7 +66,7 @@ class MyMegaLogger: public ::mega::MegaLogger
 {
     virtual void log(const char *time, int loglevel, const char *source, const char *message)
     {
-        static int sdkToKarereLogLevels[mega::MegaApi::LOG_LEVEL_MAX+1] =
+        static krLogLevel sdkToKarereLogLevels[mega::MegaApi::LOG_LEVEL_MAX+1] =
         {
             krLogLevelError, krLogLevelError, krLogLevelWarn,
             krLogLevelInfo, krLogLevelDebug, krLogLevelDebugVerbose

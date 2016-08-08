@@ -29,7 +29,7 @@ extern UserAttrDesc gUserAttrDescs[8];
 struct UserAttrPair
 {
     Id user;
-    unsigned attrType;
+    uint8_t attrType;
     bool operator<(const UserAttrPair& other) const
     {
         if (user == other.user)
@@ -37,7 +37,7 @@ struct UserAttrPair
         else
             return user < other.user;
     }
-    UserAttrPair(uint64_t aUser, unsigned aType): user(aUser), attrType(aType)
+    UserAttrPair(uint64_t aUser, uint8_t aType): user(aUser), attrType(aType)
     {
         if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
          && (attrType != USER_ATTR_RSA_PUBKEY))

@@ -2,19 +2,24 @@
 #define MEGA_LOGGER_H_INCLUDED
 #include <stdlib.h> //needed for abort()
 
-#ifdef _WIN32
-#pragma warning(disable: 4251) //Logger class exports STL classes that don't have DLL interface
-    #define KRLOGGER_DLLEXPORT __declspec(dllexport)
-    #define KRLOGGER_DLLIMPORT __declspec(dllimport)
+#ifdef KRLOGGER_SHARED
+    #ifdef _WIN32
+        #pragma warning(disable: 4251) //Logger class exports STL classes that don't have DLL interface
+        #define KRLOGGER_DLLEXPORT __declspec(dllexport)
+        #define KRLOGGER_DLLIMPORT __declspec(dllimport)
+    #else
+        #define KRLOGGER_DLLEXPORT __attribute__ ((visibility("default")))
+        #define KRLOGGER_DLLIMPORT
+    #endif
+    #ifdef KRLOGGER_BUILDING
+        #define KRLOGGER_DLLIMPEXP KRLOGGER_DLLEXPORT
+    #else
+        #define KRLOGGER_DLLIMPEXP KRLOGGER_DLLIMPORT
+    #endif
 #else
-    #define KRLOGGER_DLLEXPORT __attribute__ ((visibility("default")))
+    #define KRLOGGER_DLLEXPORT
     #define KRLOGGER_DLLIMPORT
-#endif
-
-#ifdef KRLOGGER_BUILDING
-    #define KRLOGGER_DLLIMPEXP KRLOGGER_DLLEXPORT
-#else
-    #define KRLOGGER_DLLIMPEXP KRLOGGER_DLLIMPORT
+    #define KRLOGGER_DLLIMPEXP
 #endif
 
 typedef unsigned short krLogLevel;

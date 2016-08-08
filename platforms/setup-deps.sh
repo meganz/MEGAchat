@@ -147,7 +147,7 @@ function downloadAndUnpack
     else
         echo "->Downloading $file..."
         rm -rf "./$file"
-        wget -O "./$file" -q --show-progress "$1"
+        wget -O "./$file" -q "$1"
         touch "./$file.downloaded"
     fi
     if [[ ! -z "$3" ]]; then
@@ -315,12 +315,13 @@ function buildInstall_zlib
 function buildInstall_sqlite
 {
     if [[ $shared == "1" ]]; then
-        gcc sqlite3.c -DSQLITE_API= -O2 -shared -D NDEBUG -o ./sqlite3.so
-        cp -v ./sqlite3.so "$buildroot/usr/lib"
+        $CC sqlite3.c -fPIC -DSQLITE_API= -O2 -shared -D NDEBUG -o ./libsqlite3.so
+        chmod a+x ./libsqlite3.so
+        cp -v ./libsqlite3.so "$buildroot/usr/lib"
     else
-        gcc sqlite3.c -c -O2 -D NDEBUG -o ./sqlite3.o
-        ar -rcs ./sqlite3.a ./sqlite3.o
-        cp -v ./sqlite3.lib "$buildroot/usr/lib"
+        $CC sqlite3.c -c -O2 -D NDEBUG -o ./sqlite3.o
+        ar -rcs ./libsqlite3.a ./sqlite3.o
+        cp -v ./libsqlite3.a "$buildroot/usr/lib"
     fi
     cp -v ./sqlite3.h ./sqlite3ext.h "$buildroot/usr/include"
 }
@@ -379,6 +380,11 @@ function buildInstall_zlib
         cp -v ./zlib.pdb "$buildroot/usr/lib/libz.pdb"
     fi
     cp -v ./zconf.h ./zlib.h "$buildroot/usr/include"
+}
+function buildInstall_libsodium
+{
+    cp -v "$owndir/libsodium_CMakeLists.txt" ./CMakeLists.txt
+    buildInstall_cmake "$@"
 }
 
 function buildInstall_cmake
@@ -474,7 +480,7 @@ cd $owndir/../third-party/libevent
 if [[ "$platform" == "win" ]]; then
     callBuildInstall libevent cmake "-DEVENT__DISABLE_REGRESS=1 -DEVENT__DISABLE_TESTS=1 -DBUILD_TESTING=0"
 else
-    callBuildInstall libevent autotools "--disable-libevent-regress --disable-tests"
+    callBuildInstall libevent autotools "--disable-libevent-regress --disable-tests --disable-samples"
 fi
 
 if [[ "$buildqt" == '1' ]]; then

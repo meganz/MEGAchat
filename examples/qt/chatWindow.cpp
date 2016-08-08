@@ -42,10 +42,11 @@ MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     setTimestamp(msg.ts);
     setStatus(status);
     setText(msg);
-    auto tooltip = QString("msgid: %1\nkeyid: %2\nuserid: %3\nchatid: %4")
+    auto tooltip = QString("msgid: %1\nkeyid: %2\nuserid: %3\nchatid: %4\nbackrefs: %5")
            .arg(QString::fromStdString(mMessage->id().toString()))
            .arg(mMessage->keyid).arg(QString::fromStdString(mMessage->userid.toString()))
-           .arg(QString::fromStdString(parent.chat().chatId().toString()));
+           .arg(QString::fromStdString(parent.chat().chatId().toString()))
+           .arg(mMessage->backRefs.size());
     ui.mHeader->setToolTip(tooltip);
     show();
 }
@@ -214,6 +215,7 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     {
         //edited state must have been set earlier, on posting the edit
         widget->updateStatus(chatd::Message::kServerReceived);
+        widget->setEdited();
     }
     else
     {
@@ -236,7 +238,7 @@ void ChatWindow::onEditRejected(const chatd::Message& msg, uint8_t opcode)
 
 void ChatWindow::showCantEditNotice(const QString& action)
 {
-    WaitMessage tooltip(*this);
+    WaitMsg tooltip(*this);
     tooltip.addMsg(tr("Can't %1 - message is too old").arg(action));
     mega::setTimeout([tooltip]()
     {}, 2000);
@@ -244,7 +246,7 @@ void ChatWindow::showCantEditNotice(const QString& action)
 
 void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg, bool oriMsgIsSending)
 {
-    MessageWidget* widget;
+    MessageWidget* widget=nullptr;
     if (oriMsgIsSending)
     {
         for (int i=mHistAddPos; i<ui.mMessageList->count(); i++)
@@ -322,16 +324,16 @@ void ChatWindow::onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx)
     }
 }
 
-WaitMessage::WaitMessage(ChatWindow& chatWindow)
+WaitMsg::WaitMsg(ChatWindow& chatWindow)
     :mChatWindow(chatWindow){}
-void WaitMessage::addMsg(const QString &msg)
+void WaitMsg::addMsg(const QString &msg)
 {
     if (!get())
         reset(new WaitMsgWidget(mChatWindow.ui.mMessageList, msg));
     else
         get()->addMsg(msg);
 }
-WaitMessage::~WaitMessage()
+WaitMsg::~WaitMsg()
 {
     if (use_count() == 2)
         mChatWindow.mWaitMsg.reset();

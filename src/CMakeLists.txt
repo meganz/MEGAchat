@@ -86,7 +86,6 @@ set_target_properties(karere PROPERTIES COMPILE_FLAGS "${LIBMEGA_DEFINES}")
 target_link_libraries(karere
     rtcmodule
     ${LIBMEGA_LIBRARIES}
-    ${CRYPTOPP_LIBRARIES}
     ws
     ${SQLITE3_LIBRARY}
 )

@@ -1,0 +1,11 @@
+diff --git a/gclient b/gclient
+index a8cab46..f679271 100755
+--- a/gclient
++++ b/gclient
+@@ -19,4 +19,5 @@ if [[ "#grep#fetch#cleanup#diff#" != *"#$1#"* ]]; then
+   esac
+ fi
+ 
+-PYTHONDONTWRITEBYTECODE=1 exec python "$base_dir/gclient.py" "$@"
++dtdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
++PYTHONDONTWRITEBYTECODE=1 exec $dtdir/python276_bin/python.exe `cygpath -w "$base_dir/gclient.py"` "$@"

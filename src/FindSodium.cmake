@@ -4,7 +4,7 @@ pkg_check_modules(PC_SODIUM QUIET libsodium)
 find_path(LIBSODIUM_INCLUDE_DIRS sodium.h
     HINTS ${PC_SODIUM_INCLUDEDIR} ${PC_SODIUM_INCLUDE_DIRS}
 )
-find_library(LIBSODIUM_LIBRARIES NAMES sodium
+find_library(LIBSODIUM_LIBRARIES NAMES sodium libsodium.lib
     HINTS ${PC_SODIUM_LIBDIR} ${PC_SODIUM_LIBRARY_DIRS}
 )
 

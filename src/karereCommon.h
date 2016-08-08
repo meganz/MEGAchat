@@ -32,7 +32,7 @@
 #ifndef _WIN32
     #define APP_ALWAYS_EXPORT __attribute__ ((visibility("default")))
 #else
-    #define APP_ALWAYS_EXPORT __declspec(dllexport)
+    #define APP_ALWAYS_EXPORT //__declspec(dllexport)
 #endif
 
 #ifdef _WIN32

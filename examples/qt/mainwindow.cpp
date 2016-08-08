@@ -55,6 +55,12 @@ public:
         connect(ui.mEmailInput, SIGNAL(textChanged(const QString&)), this, SLOT(onType(const QString&)));
         connect(ui.mPasswordInput, SIGNAL(textChanged(const QString&)), this, SLOT(onType(const QString&)));
         ui.mPasswordInput->installEventFilter(this);
+        const char* user = getenv("KRUSER");
+        if (user)
+            ui.mEmailInput->setText(user);
+        const char* pass = getenv("KRPASS");
+        if (pass)
+            ui.mPasswordInput->setText(pass);
     }
     void enableControls(bool enable)
     {

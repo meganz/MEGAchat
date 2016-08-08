@@ -4,11 +4,14 @@
  *  Created on: 17/11/2015
  *      Author: admin2
  */
-
+#include <stdint.h>
 #define _DEFAULT_SOURCE 1
 #ifdef __APPLE__
     #include <libkern/OSByteOrder.h>
-    #define be64toh(x) OSSwapBigToHostInt64(x)
+    static inline uint64_t be64toh(uint64_t x) { return OSSwapBigToHostInt64(x); }
+#elif defined(WIN32)
+    #include <stdlib.h>
+    static inline uint64_t be64toh(uint64_t x) { return _byteswap_uint64(x); }
 #else
     #include <endian.h>
 #endif
@@ -77,22 +80,19 @@ EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
 
     size_t brsize = msg.backRefs.size()*8;
     size_t binsize = 10+brsize;
-    Buffer buf(binsize);
+    Buffer buf(binsize+msg.dataSize());
     buf.append<uint64_t>(msg.backRefId)
        .append<uint16_t>(brsize);
-    if (!msg.backRefs.empty())
+    if (brsize)
+    {
         buf.append((const char*)(&msg.backRefs[0]), brsize);
-
-    std::u16string u16;
-    u16.reserve(binsize);
-    for (size_t i=0; i<buf.dataSize(); i++)
-        u16 += wchar_t(*(buf.buf()+i));
-
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert;
-    std::string u8 = convert.to_bytes(&u16[0], &u16[0]+u16.size());
+    }
     if (!msg.empty())
-        u8.append(msg.buf(), msg.dataSize());
-    ciphertext = aesCTREncrypt(u8, key, derivedNonce);
+    {
+        buf.append(msg);
+    }
+    ciphertext = aesCTREncrypt(std::string(buf.buf(), buf.dataSize()),
+        key, derivedNonce);
 }
 
 /**
@@ -105,19 +105,22 @@ EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
  * @param nonce {String} Nonce to decrypt a message with in a binary string.
  * @returns {String} Clear text of message content.
  */
-void ProtocolHandler::symmetricDecryptMessage(const std::string& cipher, const StaticBuffer& key,
-                              const StaticBuffer& nonce, Message& outMsg)
+void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
 {
-    STRONGVELOPE_LOG_DEBUG("%s: Decrypting msg %s", chatid.toString().c_str(), outMsg.id().toString().c_str());
-    char derivedNonce[32];
+    if (payload.empty())
+        return;
+    Id chatid = mProtoHandler.chatid;
+    STRONGVELOPE_LOG_DEBUG("%s: Decrypting msg %s", chatid.toString().c_str(),
+        outMsg.id().toString().c_str());
+    Key<32> derivedNonce;
     // deriveNonceSecret() needs at least 32 bytes output buffer
-    deriveNonceSecret(nonce, StaticBuffer(derivedNonce, 32));
-
+    deriveNonceSecret(nonce, derivedNonce);
+    derivedNonce.setDataSize(AES::BLOCKSIZE);
     // For AES CRT mode, we take the first 12 bytes as the nonce,
     // and the remaining 4 bytes as the counter, which is initialized to zero
-    *reinterpret_cast<uint32_t*>(derivedNonce+SVCRYPTO_NONCE_SIZE) = 0;
-    std::string cleartext = aesCTRDecrypt(cipher, key,
-                                StaticBuffer(derivedNonce, AES::BLOCKSIZE));
+    *reinterpret_cast<uint32_t*>(derivedNonce.buf()+SVCRYPTO_NONCE_SIZE) = 0;
+    std::string cleartext = aesCTRDecrypt(std::string(payload.buf(), payload.dataSize()),
+        key, derivedNonce);
     parsePayload(StaticBuffer(cleartext, false), outMsg);
 }
 
@@ -227,6 +230,7 @@ void deriveSharedKey(const StaticBuffer& sharedSecret, SendKey& output)
 }
 
 ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& protoHandler)
+: mProtoHandler(protoHandler)
 {
     if(binaryMessage.empty())
     {
@@ -383,37 +387,65 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             binaryMessage.id().toString().c_str(), recordNames.c_str());
     }
 }
-void ProtocolHandler::parsePayload(const StaticBuffer& u8data, Message& msg)
+
+void ParsedMessage::parsePayloadWithUtfBackrefs(const StaticBuffer &data, Message &msg)
 {
+    Id chatid = mProtoHandler.chatid;
+    if (data.empty())
+    {
+        STRONGVELOPE_LOG_DEBUG("Empty message payload");
+        return;
+    }
     std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert("parsePayload: Error doing utf8/16 conversion");
-    std::u16string u16 = convert.from_bytes(u8data.buf(), u8data.buf()+u8data.dataSize());
+    std::u16string u16 = convert.from_bytes(data.buf(), data.buf()+data.dataSize());
     size_t len = u16.size();
     if(len < 10)
         throw std::runtime_error("parsePayload: payload is less than backrefs minimum size");
 
-    Buffer data(len);
-    data.setDataSize(len);
-    for (size_t i=0; i< len; i++)
+    Buffer data8(len);
+    data8.setDataSize(10);
+    for (size_t i=0; i<10; i++)
     {
-        if (u16[i] > 255)
-            printf("char > 255: 0x%x, at offset %zu\n", u16[i], i);
-        *(data.buf()+i) = u16[i];
+//            if (u16[i] > 255)
+//                  printf("char > 255: 0x%x, at offset %zu\n", u16[i], i);
+        *(data8.buf()+i) = u16[i] & 0xff;
     }
+    msg.backRefId = data8.read<uint64_t>(0);
+    uint16_t refsSize = data8.read<uint16_t>(8);
+
+    //convert back to utf8 the binary part, only to determine its utf8 len
+    size_t binlen8 = convert.to_bytes(&u16[0], &u16[refsSize+10]).size();
+    if (data.dataSize() > binlen8)
+        msg.assign(data.buf()+binlen8, data.dataSize()-binlen8);
+    else
+    {
+        msg.clear();
+    }
+}
+void ParsedMessage::parsePayload(const StaticBuffer &data, Message &msg)
+{
+    if (this->protocolVersion < 3)
+    {
+        parsePayloadWithUtfBackrefs(data, msg);
+        return;
+    }
+
+    if(data.dataSize() < 10)
+        throw std::runtime_error("parsePayload: payload is less than backrefs minimum size");
+
     msg.backRefId = data.read<uint64_t>(0);
     uint16_t refsSize = data.read<uint16_t>(8);
     assert(msg.backRefs.empty());
     msg.backRefs.reserve(refsSize/8);
     size_t binsize = 10+refsSize;
-    if (binsize > data.dataSize())
+    if (data.dataSize() < binsize)
         throw std::runtime_error("parsePayload: Payload size "+std::to_string(data.dataSize())+" is less than size of backrefs "+std::to_string(binsize));
     uint64_t* end = (uint64_t*)(data.buf()+binsize);
-    for (uint64_t* prefid = (uint64_t*)data.buf()+10; prefid < end; prefid++)
+    for (uint64_t* prefid = (uint64_t*)(data.buf()+10); prefid < end; prefid++)
         msg.backRefs.push_back(*prefid);
-    //convert back to utf8 the binary part, only to determine its utf8 len
-    size_t binlen8 = convert.to_bytes(&u16[0], &u16[binsize]).size();
-    if (u8data.dataSize() > binlen8)
+    if (data.dataSize() > binsize)
     {
-        msg.assign(u8data.buf()+binlen8, u8data.dataSize()-binlen8);
+        msg.assign(data.buf()+binsize, data.dataSize()-binsize);
     }
     else
     {
@@ -680,16 +712,7 @@ ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
 Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
     Message* msg, const SendKey& key)
 {
-    if (!parsedMsg->payload.empty())
-    {
-        symmetricDecryptMessage(
-            std::string(parsedMsg->payload.buf(), parsedMsg->payload.size()),
-                key, parsedMsg->nonce, *msg);
-    }
-    else
-    {
-        msg->clear();
-    }
+    parsedMsg->symmetricDecrypt(key, *msg);
     return msg;
 }
 
@@ -808,16 +831,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
 
         // Decrypt message payload.
-        if (!parsedMsg->payload.empty())
-        {
-            symmetricDecryptMessage(std::string(parsedMsg->payload.buf(), parsedMsg->payload.size()),
-                *ctx->sendKey, parsedMsg->nonce, *message);
-        }
-        else
-        {
-            STRONGVELOPE_LOG_DEBUG("Message %s has no payload", message->id().toString().c_str());
-            message->clear();
-        }
+        parsedMsg->symmetricDecrypt(*ctx->sendKey, *message);
         return message;
     });
 }

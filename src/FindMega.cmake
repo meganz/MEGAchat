@@ -38,18 +38,19 @@ macro(findlib varprefix name header libnames)
     endif()
 endmacro()
 
-#findlib(SQLITE sqlite3 sqlite3.h sqlite3)
-findlib(CARES libcares ares.h cares)
-#findlib(SODIUM libsodium sodium.h sodium)
-
+find_package(Cares REQUIRED)
 find_package(CURL REQUIRED)
 find_package(Cryptopp REQUIRED)
 find_package(Sodium REQUIRED)
 find_package(Sqlite3 REQUIRED)
 
-list(APPEND _LIBMEGA_LIBRARIES ${CURL_LIBRARIES} ${CARES_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${LIBSODIUM_LIBRARIES}
+list(APPEND _LIBMEGA_LIBRARIES ${CURL_LIBRARIES} ${CARES_LIBRARIES} ${LIBSODIUM_LIBRARIES}
     ${SQLITE_LIBRARIES}
 )
+#Under MSVC we can't build cryptopp as a dll
+if (NOT WIN32)
+    list(APPEND _LIBMEGA_LIBRARIES ${CRYPTOPP_LIBRARIES})
+endif()
 
 if (NOT WIN32)
     set(platdir posix)
