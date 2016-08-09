@@ -57,9 +57,9 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
     conn->send(pong);
 }
 
-Client::Client(IGui& aGui, Presence pres)
+Client::Client(::mega::MegaApi& sdk, IGui& aGui, Presence pres)
  :mAppDir(getAppDir()), db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
-  api(new MyMegaApi("karere-native", mAppDir.c_str())), userAttrCache(*this), gui(aGui),
+  api(sdk), userAttrCache(*this), gui(aGui),
   mOwnPresence(pres),
   mXmppContactList(*this),
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
@@ -68,31 +68,6 @@ Client::Client(IGui& aGui, Presence pres)
     {
         gui.onOwnPresence(Presence::kOffline);
     } catch(...){}
-
-    SqliteStmt stmt(db, "select value from vars where name='sid'");
-    if (stmt.step())
-        mSid = stmt.stringCol(0);
-
-    if (mSid.empty())
-    {
-        KR_LOG_DEBUG("No session id found in local db");
-        return;
-    }
-
-    SqliteStmt stmt2(db, "select value from vars where name='my_handle'");
-    if (stmt2.step())
-        mMyHandle = stmt2.uint64Col(0);
-
-    if (mMyHandle.val == 0 || mMyHandle.val == mega::UNDEF)
-    {
-        mSid.clear();
-        KR_LOG_WARNING("Local db inconsisency: Session id found, but out userhandle is invalid. Invalidating session");
-        return;
-    }
-    loadOwnKeysFromDb();
-    chatd.reset(new chatd::Client(mMyHandle));
-    contactList.reset(new ContactList(*this));
-    chats.reset(new ChatRoomList(*this));
 }
 
 KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *envVarName)
@@ -182,9 +157,9 @@ Client::~Client()
     struct TOKENPASTE(SharedState,__LINE__){membtype value;};  \
     std::shared_ptr<TOKENPASTE(SharedState, __LINE__)> varname(new TOKENPASTE(SharedState,__LINE__))
 
-promise::Promise<void> Client::loginNewSession()
+//This is a convenience method to log in the SDK in case the app does not do it.
+promise::Promise<ReqResult> Client::sdkLoginNewSession()
 {
-    ReqResult chatsSave;
     mLoginDlg.reset(gui.createLoginDialog());
     return asyncLoop([this](Loop& loop)
     {
@@ -192,7 +167,7 @@ promise::Promise<void> Client::loginNewSession()
         .then([this](const std::pair<std::string, std::string>& cred)
         {
             mLoginDlg->setState(IGui::ILoginDialog::kLoggingIn);
-            return api->call(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
+            return api.call(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
         })
         .then([&loop](ReqResult res)
         {
@@ -208,40 +183,64 @@ promise::Promise<void> Client::loginNewSession()
             return 0;
         });
     }, [](int) { return true; })
-    .then([this](int) mutable
+    .then([this](int)
     {
         mLoginDlg->setState(IGui::ILoginDialog::kFetchingNodes);
-        return api->call(&mega::MegaApi::fetchChats);
+        return api.call(&::mega::MegaApi::fetchNodes);
     })
-    .then([this](ReqResult chatsResponse)
+    .then([this](ReqResult ret)
     {
-        return api->call(&mega::MegaApi::fetchNodes)
+        mLoginDlg.reset();
+        return ret;
+    });
+}
+promise::Promise<ReqResult> Client::sdkLoginExistingSession(const std::string& sid)
+{
+    return api.call(&::mega::MegaApi::fastLogin, sid.c_str());
+}
+promise::Promise<void> Client::initWithSdk()
+{
+    SqliteStmt stmt(db, "select value from vars where name='sid'");
+    if (stmt.step())
+        mSid = stmt.stringCol(0);
+
+    if (mSid.empty())
+    {
+        return sdkLoginNewSession()
         .then([this](ReqResult)
         {
-            loadOwnUserHandle();
-            sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
-            const char* sid = api->dumpSession();
+            const char* sid = api.sdk.dumpSession();
             assert(sid);
             mSid = sid;
             sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
-            return loadOwnKeysFromApi();
-        })
-        .then([chatsResponse]()
-        {
-            return chatsResponse;
+            loginNewSession();
         });
-    })
-    .then([this](ReqResult chatsResponse)
+    }
+    else
+    {
+        return sdkLoginExistingSession(mSid)
+        .then([this](ReqResult)
+        {
+            loginExistingSession();
+        });
+    }
+}
+
+promise::Promise<void> Client::loginNewSession()
+{
+    loadOwnUserHandle();
+    return loadOwnKeysFromApi()
+    .then([this]()
     {
         contactList.reset(new ContactList(*this));
 #ifndef NDEBUG
-        dumpContactList(*api->getContacts());
+        dumpContactList(*api.sdk.getContacts());
 #endif
-        contactList->syncWithApi(*api->getContacts());
+        contactList->syncWithApi(*api.sdk.getContacts());
 
         chatd.reset(new chatd::Client(mMyHandle));
         chats.reset(new ChatRoomList(*this));
-        auto chatRooms = chatsResponse->getMegaTextChatList();
+        ::mega::MegaTextChatList* chatRooms = nullptr; //api.sdk.getChatList();
         if (chatRooms)
         {
 #ifndef NDEBUG
@@ -249,43 +248,20 @@ promise::Promise<void> Client::loginNewSession()
 #endif
             chats->syncRoomsWithApi(*chatRooms);
         }
-    })
-    .then([this]()
-    {
-        // new session created - first time login
-        mLoginDlg.reset();
         gui.show();
-
-    })
-    .fail([this](const promise::Error& err)
-    {
-        mLoginDlg.reset();
-        return err;
+        return postLoginInit();
     });
 }
+
 promise::Promise<void> Client::loginExistingSession()
 {
     gui.show();
-    return api->call(&mega::MegaApi::fastLogin, mSid.c_str())
-    .then([this](ReqResult)
-    {
-        return api->call(&mega::MegaApi::fetchNodes);
-    })
-    .then([this](ReqResult) ->Promise<void>
-    {
-        auto handle = mMyHandle;
-        loadOwnUserHandle();
-        if (handle != mMyHandle)
-            return promise::Error("BUG: Own user handle returned from SDK is not the same as the one saved in the db");
-        return promise::_Void();
-    })
-    .fail([this](const promise::Error& err) ->Promise<void>
-    {
-        if (err.type() != ERRTYPE_MEGASDK)
-            return err;
-        KR_LOG_ERROR("Network login failed, working offline");
-        return promise::_Void();
-    });
+    loadOwnUserHandleFromDb();
+    loadOwnKeysFromDb();
+    chatd.reset(new chatd::Client(mMyHandle));
+    contactList.reset(new ContactList(*this));
+    chats.reset(new ChatRoomList(*this));
+    return postLoginInit();
 }
 
 void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
@@ -321,51 +297,57 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::init()
+promise::Promise<void> Client::postLoginInit()
 {
-    promise::Promise<void> pmsMegaLogin = (mSid.empty()) //mMyHandle is also invalid
-     ? loginNewSession()
-     : loginExistingSession();
+    mIsLoggedIn = true;
+    KR_LOG_DEBUG("Login to Mega API successful");
 
-    auto pmsLoginComplete = pmsMegaLogin.then([this]() mutable
+    userAttrCache.onLogin();
+    api.sdk.addGlobalListener(this);
+    userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    [](Buffer* buf, void* userp)
     {
-        mIsLoggedIn = true;
-        KR_LOG_DEBUG("Login to Mega API successful");
-
-        userAttrCache.onLogin();
-        api->addGlobalListener(this);
-        userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
-        [](Buffer* buf, void* userp)
-        {
-            if (buf)
-                static_cast<Client*>(userp)->mMyName = buf->buf()+1;
-        });
+        if (buf)
+            static_cast<Client*>(userp)->mMyName = buf->buf()+1;
     });
-    auto pmsGelb = mXmppServerProvider->getServer()
+
+    return mXmppServerProvider->getServer()
     .then([this](const std::shared_ptr<HostPortServerInfo>& server) mutable
     {
-        return server;
+        return connectXmpp(server);
     });
-    return promise::when(pmsLoginComplete, pmsGelb)
-    .then([this, pmsGelb]()
-    {
-        return connectXmpp(pmsGelb.value());
-    });
+}
+
+karere::Id Client::getMyHandleFromSdk()
+{
+    SdkString uh = api.sdk.getMyUserHandle();
+    if (!uh.c_str() || !uh.c_str()[0])
+        throw std::runtime_error("Could not get our own user handle from API");
+    return karere::Id(uh.c_str());
 }
 
 void Client::loadOwnUserHandle()
 {
-    SdkString uh = api->getMyUserHandle();
-    if (!uh.c_str() || !uh.c_str()[0])
-        throw std::runtime_error("Could not get our own user handle from API");
-    Id handle(uh.c_str());
-    KR_LOG_INFO("Our user handle is %s", handle.toString().c_str());
-    mMyHandle = handle;
+    mMyHandle = getMyHandleFromSdk();
+    KR_LOG_INFO("Our user handle is %s", mMyHandle.toString().c_str());
+}
+
+void Client::loadOwnUserHandleFromDb(bool verifyWithSdk)
+{
+    SqliteStmt stmt(db, "select value from vars where name='my_handle'");
+    if (stmt.step())
+        mMyHandle = stmt.uint64Col(0);
+
+    if (mMyHandle.val == 0 || mMyHandle.val == mega::UNDEF)
+        throw std::runtime_error("loadOwnUserHandleFromDb: Own handle in db is invalid");
+
+    if (verifyWithSdk && (mMyHandle != getMyHandleFromSdk()))
+        throw std::runtime_error("loadOwnUserHandleFromDb: Own handle from SDK and db mismatch");
 }
 
 promise::Promise<void> Client::loadOwnKeysFromApi()
 {
-    return api->call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
+    return api.call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
     .then([this](ReqResult result) -> ApiPromise
     {
         auto keys = result->getMegaStringMap();
@@ -385,7 +367,7 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         if (b64len != 43)
             return promise::Error("prEd255 base64 key length is not 43 bytes");
         base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
-        return api->call(&mega::MegaApi::getUserData);
+        return api.call(&mega::MegaApi::getUserData);
     })
     .then([this](ReqResult result) -> promise::Promise<void>
     {
@@ -438,7 +420,7 @@ promise::Promise<void> Client::connectXmpp(const std::shared_ptr<HostPortServerI
 //we assume gui.onOwnPresence(Presence::kOffline) has been called at application start
     gui.onOwnPresence(mOwnPresence.val() | Presence::kInProgress);
     assert(server);
-    SdkString xmppPass = api->dumpXMPPSession();
+    SdkString xmppPass = api.sdk.dumpXMPPSession();
     if (!xmppPass)
         return promise::Error("SDK returned NULL session id");
     if (xmppPass.size() < 16)
@@ -462,7 +444,7 @@ promise::Promise<void> Client::connectXmpp(const std::shared_ptr<HostPortServerI
         conn->registerPlugin("disco", new disco::DiscoPlugin(*conn, "Karere Native"));
 
 // Create and register the rtcmodule plugin
-// the MegaCryptoFuncs object needs api->userData (to initialize the private key etc)
+// the MegaCryptoFuncs object needs api.userData (to initialize the private key etc)
 // To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
         rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*this), KARERE_DEFAULT_TURN_SERVERS);
         conn->registerPlugin("rtcmodule", rtc);
@@ -622,7 +604,7 @@ promise::Promise<void> Client::terminate()
     //that tries to access the client will crash
     .then([this, pms](int) mutable
     {
-        return api->call(&::mega::MegaApi::localLogout);
+        return api.call(&::mega::MegaApi::localLogout);
     })
     .then([pms](ReqResult result) mutable
     {
@@ -1014,7 +996,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             }
             else
             {
-                client.api->call(&mega::MegaApi::getUrlChat, chatid)
+                client.api.call(&mega::MegaApi::getUrlChat, chatid)
                 .then([this, chatid, rooms, &room](ReqResult result)
                 {
                     auto it = find(chatid);
@@ -1030,7 +1012,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             if (priv != chatd::PRIV_NOTPRESENT) //we didn't remove ourself from the room
             {
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
-                client.api->call(&mega::MegaApi::getUrlChat, chatid)
+                client.api.call(&mega::MegaApi::getUrlChat, chatid)
                 .then([this, chatid, rooms, &room](ReqResult result)
                 {
                     room.setUrl(result->getLink());
@@ -1142,12 +1124,12 @@ GroupChatRoom::~GroupChatRoom()
 void GroupChatRoom::leave()
 {
     //rely on actionpacket to do the actual removal of the group
-    parent.client.api->call(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle());
+    parent.client.api.call(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle());
 }
 
 promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 {
-    return parent.client.api->call(&mega::MegaApi::inviteToChat, mChatid, userid, priv)
+    return parent.client.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv)
     .then([this, userid, priv](ReqResult)
     {
         mPeers.emplace(userid, new Member(*this, userid, priv));
@@ -1472,8 +1454,8 @@ promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
     if (it == end())
         return promise::Error("Userid not in contactlist");
 
-    auto& api = *client.api;
-    std::unique_ptr<mega::MegaUser> user(api.getContact(it->second->email().c_str()));
+    auto& api = client.api;
+    std::unique_ptr<mega::MegaUser> user(api.sdk.getContact(it->second->email().c_str()));
     if (!user)
         return promise::Error("Could not get user object from email");
 
@@ -1563,7 +1545,7 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     }
     mega::MegaTextChatPeerListPrivate peers;
     peers.addPeer(mUserid, chatd::PRIV_FULL);
-    return mClist.client.api->call(&mega::MegaApi::createChat, false, &peers)
+    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers)
     .then([this](ReqResult result) -> Promise<ChatRoom*>
     {
         auto& list = *result->getMegaTextChatList();

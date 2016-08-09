@@ -54,7 +54,7 @@ UserAttrDesc gUserAttrDescs[8] =
 
 UserAttrCache::~UserAttrCache()
 {
-    mClient.api->removeGlobalListener(this);
+    mClient.api.sdk.removeGlobalListener(this);
 }
 
 void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
@@ -87,7 +87,7 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
 //        UACACHE_LOG_DEBUG("loaded attr %s", key.toString().c_str());
     }
     UACACHE_LOG_DEBUG("loaded %zu entries from db", size());
-    mClient.api->addGlobalListener(this);
+    mClient.api.sdk.addGlobalListener(this);
 }
 
 const char* attrName(uint8_t type)
@@ -263,7 +263,7 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
 }
 void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    mClient.api->call(&::mega::MegaApi::getUserAttribute,
+    mClient.api.call(&::mega::MegaApi::getUserAttribute,
         key.user.toString().c_str(), (int)key.attrType)
     .then([this, key, item](ReqResult result)
     {
@@ -279,7 +279,7 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
 void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     std::string userid = key.user.toString();
-    mClient.api->call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
+    mClient.api.call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
             (int)::mega::MegaApi::USER_ATTR_FIRSTNAME)
     .then([this, userid, item](ReqResult result)
     {
@@ -315,7 +315,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
     })
     .then([this, userid]()
     {
-        return mClient.api->call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
+        return mClient.api.call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
             (int)::mega::MegaApi::USER_ATTR_LASTNAME);
     })
     .then([this, item, key](ReqResult result)
@@ -364,7 +364,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
 }
 void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    mClient.api->call(&::mega::MegaApi::getUserData, key.user.toString().c_str())
+    mClient.api.call(&::mega::MegaApi::getUserData, key.user.toString().c_str())
     .fail([this, key, item](const promise::Error& err)
     {
         item->error(key, err.code());

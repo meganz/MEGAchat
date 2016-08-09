@@ -34,7 +34,7 @@ public:
          */
         virtual void onMembersUpdated() {}
     };
-    class ICallGui{};
+    class ICallGui: public rtcModule::IEventHandler {};
     /** This interface must be implemented by chat windows. It inherits
      * chatd::Listener in order to receive chatd events, and ITitleDisplay,
      * in order to receive chat title/online status events

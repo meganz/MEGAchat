@@ -94,7 +94,7 @@ void ChatWindow::onMemberRemove()
     uint64_t handle(handleFromAction(QObject::sender()));
     mWaitMsg.addMsg(tr("Removing user(s), please wait..."));
     auto waitMsgKeepalive = mWaitMsg;
-    mainWindow.client().api->call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
+    mainWindow.client().api.call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
     .fail([this, waitMsgKeepalive](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Remove member from group chat"),
@@ -141,7 +141,7 @@ void ChatWindow::dropEvent(QDropEvent* event)
     }
     mWaitMsg.addMsg(tr("Adding user(s), please wait..."));
     auto waitMsgKeepAlive = mWaitMsg;
-    mRoom.parent.client.api->call(&::mega::MegaApi::inviteToChat, mRoom.chatid(), *(const uint64_t*)(data.data()), chatd::PRIV_FULL)
+    mRoom.parent.client.api.call(&::mega::MegaApi::inviteToChat, mRoom.chatid(), *(const uint64_t*)(data.data()), chatd::PRIV_FULL)
     .fail([waitMsgKeepAlive](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Add user"), tr("Error adding user to group chat: ")+QString::fromStdString(err.msg()));

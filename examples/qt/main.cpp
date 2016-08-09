@@ -72,6 +72,7 @@ namespace karere
     APP_ALWAYS_EXPORT std::string getAppDir() { return karere::createAppDir(); }
 }
 std::unique_ptr<karere::Client> gClient;
+std::unique_ptr<::mega::MegaApi> gSdk;
 int main(int argc, char **argv)
 {
     ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
@@ -97,11 +98,12 @@ int main(int argc, char **argv)
 
     services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin = new MainWindow();
-    gClient.reset(new karere::Client(*mainWin, karere::Presence::kOnline));
+    gSdk.reset(new ::mega::MegaApi("karere-native", karere::getAppDir().c_str(), "Karere Native"));
+    gClient.reset(new karere::Client(*gSdk, *mainWin, karere::Presence::kOnline));
     mainWin->setClient(*gClient);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 
-    gClient->init()
+    gClient->initWithSdk()
     .then([]()
     {
         KR_LOG_DEBUG("Client initialized");

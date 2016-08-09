@@ -291,7 +291,7 @@ public slots:
 
         std::unique_ptr<mega::MegaTextChatPeerList> peers(mega::MegaTextChatPeerList::createInstance());
         peers->addPeer(mContact.userId(), chatd::PRIV_FULL);
-        mContact.contactList().client.api->call(&mega::MegaApi::createChat, true, peers.get())
+        mContact.contactList().client.api.call(&mega::MegaApi::createChat, true, peers.get())
         .then([this, name](ReqResult result)
         {
             auto& list = *result->getMegaTextChatList();

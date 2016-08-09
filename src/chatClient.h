@@ -281,7 +281,7 @@ public:
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
     std::unique_ptr<chatd::Client> chatd;
-    std::unique_ptr<MyMegaApi> api;
+    MyMegaApi api;
     //we use IPtr smart pointers instead of std::unique_ptr because we want to delete not via the
     //destructor, but via a destroy() method. This is to support cross-DLL loading of plugins,
     //where operator delete would try to deallocate memory via the memory manager/runtime of the caller,
@@ -290,8 +290,6 @@ public:
     //delete is called from code inside the DLL, i.e. in the runtime where the class is implemented,
     //operates and was allocated
     rtcModule::IRtcModule* rtc = nullptr;
-//    TextModule* mTextModule = nullptr;
-//    bool mHadSid = false;
     bool isTerminating = false;
     unsigned mReconnectConnStateHandler = 0;
     std::function<void()> onChatdReady;
@@ -305,7 +303,7 @@ public:
     unsigned short mMyPrivRsaLen = 0;
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
-
+    std::unique_ptr<IGui::ILoginDialog> mLoginDlg;
     bool isLoggedIn() const { return mIsLoggedIn; }
     const Id myHandle() const { return mMyHandle; }
     const std::string& myName() const { return mMyName; }
@@ -330,12 +328,16 @@ public:
      * This performs a request to xmpp roster server and fetch the contact list.
      * Contact list also registers a contact presence handler to update the list itself based on received presence messages.
      */
-    Client(IGui& gui, Presence pres);
+    Client(::mega::MegaApi& sdk, IGui& gui, Presence pres);
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
-    promise::Promise<void> init();
+    promise::Promise<ReqResult> sdkLoginNewSession();
+    promise::Promise<ReqResult> sdkLoginExistingSession(const std::string& sid);
+    promise::Promise<void> loginExistingSession();
+    promise::Promise<void> loginNewSession();
+    promise::Promise<void> initWithSdk();
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
-    bool loginDialogDisplayed() const { return mLoginDlg.operator bool(); }
+//    bool loginDialogDisplayed() const { return mLoginDlg.operator bool(); }
     /** @brief Notifies the client that internet connection is again available */
     void notifyNetworkOffline();
     /** @brief Notifies the client that network connection is down */
@@ -366,7 +368,6 @@ protected:
     std::string mMyName;
 
     Presence mOwnPresence;
-    std::unique_ptr<IGui::ILoginDialog> mLoginDlg;
     bool mIsLoggedIn = false;
     /** our own email address */
     std::string mEmail;
@@ -379,9 +380,10 @@ protected:
     std::unique_ptr<rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
     sqlite3* openDb();
-    promise::Promise<void> loginNewSession();
-    promise::Promise<void> loginExistingSession();
+    promise::Promise<void> postLoginInit();
     void loadOwnUserHandle();
+    void loadOwnUserHandleFromDb(bool verifyWithSdk=true);
+    karere::Id getMyHandleFromSdk();
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
     void setupXmppReconnectHandler();

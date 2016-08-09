@@ -62,6 +62,11 @@ public:
         if (pass)
             ui.mPasswordInput->setText(pass);
     }
+    ~LoginDialog()
+    {
+        printf("LoginDialog dtor\n");
+    }
+
     void enableControls(bool enable)
     {
         ui.mOkBtn->setEnabled(enable);
@@ -329,7 +334,7 @@ void MainWindow::onIncomingContactRequest(const MegaContactRequest &req)
     int action = (ret == QMessageBox::Yes)
             ? MegaContactRequest::REPLY_ACTION_ACCEPT
             : MegaContactRequest::REPLY_ACTION_DENY;
-    client().api->call(&MegaApi::replyContactRequest, (MegaContactRequest*)&req, action)
+    client().api.call(&MegaApi::replyContactRequest, (MegaContactRequest*)&req, action)
     .fail([this, mail](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Accept request"), tr("Error replying to contact request from ")+mail);
@@ -341,7 +346,7 @@ void MainWindow::onAddContact()
     auto email = QInputDialog::getText(this, tr("Add contact"), tr("Please enter the email of the user to add"));
     if (email.isNull())
         return;
-    if (email == client().api->getMyEmail())
+    if (email == client().api.sdk.getMyEmail())
     {
         QMessageBox::critical(this, tr("Add contact"), tr("You can't add your own email as contact"));
         return;
@@ -357,7 +362,7 @@ void MainWindow::onAddContact()
             return;
         }
     }
-    client().api->call(&MegaApi::inviteContact, email.toUtf8().data(), tr("I'd like to add you to my contact list").toUtf8().data(), MegaContactRequest::INVITE_ACTION_ADD)
+    client().api.call(&MegaApi::inviteContact, email.toUtf8().data(), tr("I'd like to add you to my contact list").toUtf8().data(), MegaContactRequest::INVITE_ACTION_ADD)
     .fail([this, email](const promise::Error& err)
     {
         QString msg;
@@ -365,7 +370,7 @@ void MainWindow::onAddContact()
             msg = tr("User with email '%1' does not exist").arg(email);
         else if (err.code() == API_EEXIST)
         {
-            std::unique_ptr<MegaUser> user(client().api->getContact(email.toUtf8().data()));
+            std::unique_ptr<MegaUser> user(client().api.sdk.getContact(email.toUtf8().data()));
             if (!user)
             {
                 msg = tr("Bug: API said user exists in our contactlist, but SDK can't find it");
