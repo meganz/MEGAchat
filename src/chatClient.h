@@ -1,5 +1,7 @@
 #ifndef CHATCLIENT_H
 #define CHATCLIENT_H
+#include "karereCommon.h"
+#include "sdkApi.h"
 #include "contactList.h"
 #include "karereEventObjects.h"
 #include "rtcModule/IRtcModule.h"
@@ -8,14 +10,11 @@
 #include <type_traits>
 #include <retryHandler.h>
 #include <serverListProviderForwards.h>
-#include "sdkApi.h"
 #include "userAttrCache.h"
 #include "chatd.h"
 #include "IGui.h"
 
 namespace strophe { class Connection; }
-
-namespace mega { namespace rh { class IRetryController; } }
 namespace strongvelope { class ProtocolHandler; }
 
 struct sqlite3;
@@ -23,6 +22,8 @@ class Buffer;
 
 namespace karere
 {
+namespace rh { class IRetryController; }
+
 /** @brief
  * The application implementor must define this function to create the application
  * directory in case it does not exist, and return the path to it.
@@ -60,7 +61,7 @@ protected:
     bool mIsGroup;
     chatd::Priv mOwnPriv;
     chatd::Chat* mChat = nullptr;
-    bool syncRoomPropertiesWithApi(const mega::MegaTextChat& chat);
+    bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToChatWindow();
     void chatdJoin(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
 public:
@@ -375,7 +376,7 @@ protected:
     XmppContactList mXmppContactList;
     typedef FallbackServerProvider<HostPortServerInfo> XmppServerProvider;
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
-    std::unique_ptr<mega::rh::IRetryController> mReconnectController;
+    std::unique_ptr<rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
     sqlite3* openDb();
     promise::Promise<void> loginNewSession();

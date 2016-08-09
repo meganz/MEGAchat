@@ -1,5 +1,6 @@
 #include "chatWindow.h"
 #include "mainwindow.h"
+using namespace karere;
 
 ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&parent),
     mainWindow(parent), mRoom(room), mWaitMsg(*this)
@@ -120,7 +121,7 @@ void ChatWindow::onMemberPrivateChat()
 }
 void ChatWindow::onMembersBtn(bool)
 {
-    mega::marshallCall([this]()
+    marshallCall([this]()
     {
         QMenu menu(this);
         createMembersMenu(menu);
@@ -240,7 +241,7 @@ void ChatWindow::showCantEditNotice(const QString& action)
 {
     WaitMsg tooltip(*this);
     tooltip.addMsg(tr("Can't %1 - message is too old").arg(action));
-    mega::setTimeout([tooltip]()
+    setTimeout([tooltip]()
     {}, 2000);
 }
 
@@ -423,7 +424,7 @@ void MessageWidget::msgDeleted()
     a->setDuration(300);
     a->setEasingCurve(QEasingCurve::Linear);
     a->start(QAbstractAnimation::DeleteWhenStopped);
-    mega::setTimeout([this]() { removeFromList(); }, 300);
+    setTimeout([this]() { removeFromList(); }, 300);
 }
 
 void MessageWidget::removeFromList()

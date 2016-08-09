@@ -1,5 +1,5 @@
 #include <services-dns.hpp>
-namespace mega
+namespace karere
 {
 MEGAIO_EXPORT DnsCache gDnsCache;
 }

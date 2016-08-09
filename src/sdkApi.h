@@ -9,7 +9,7 @@
 #include "base/promise.h"
 #include "base/gcmpp.h"
 #include <logger.h>
-
+#include "karereCommon.h"
 
 typedef std::shared_ptr<::mega::MegaRequest> ReqResult;
 typedef promise::Promise<ReqResult> ApiPromise;
@@ -42,7 +42,7 @@ public:
     {
         std::shared_ptr<::mega::MegaRequest> req(request->copy());
         int errCode = e->getErrorCode();
-        mega::marshallCall([this, req, errCode]()
+        karere::marshallCall([this, req, errCode]()
         {
             if (mPromise.done())
                 return; //a timeout timer may resolve it before the actual callback
@@ -97,7 +97,7 @@ public:
     {
         //we need to destroy the logger after the base mega::MegaApi, because the MegaApi dtor uses the logger
         MyMegaLogger* logger = mLogger.release();
-        mega::marshallCall([logger]()
+        karere::marshallCall([logger]()
         {
             delete logger;
             KR_LOG_DEBUG("Deleted SDK logger");

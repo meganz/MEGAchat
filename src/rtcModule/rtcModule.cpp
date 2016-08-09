@@ -15,7 +15,6 @@
 using namespace std;
 using namespace promise;
 using namespace strophe;
-using namespace mega;
 using namespace karere;
 using namespace placeholders;
 
@@ -658,7 +657,7 @@ void Call::destroy(TermCode termcode, const std::string& text, bool noSessTermSe
     mRtc.erase(it);
 //post to the end of app message queue as there may be queued events related to the
 //call that don't have a shared_ptr to the call object, such as video frames
-    ::mega::marshallCall([call, termcode, text, stats]()
+    marshallCall([call, termcode, text, stats]()
     {
         KR_LOG_RTC_EVENT("%s -> onCallEnded: %s%s, msg: '%s'", call->mSid.c_str(),
             termcodeToMsg(termcode), ((termcode&kPeer)?" by peer":""), text.c_str());
@@ -672,9 +671,9 @@ void Call::destroy(TermCode termcode, const std::string& text, bool noSessTermSe
     //post stats, references to the call object end here
     auto json = std::make_shared<std::string>();
     stats->toJson(*json);
-    ::mega::retry("stats", [json](int no)
+    retry("stats", [json](int no)
     {
-        return ::mega::http::postString("https://stats.karere.mega.nz/stats", json, "application/json");
+        return http::postString("https://stats.karere.mega.nz/stats", json, "application/json");
     })
     .then([](const std::shared_ptr<std::string>& response)
     {

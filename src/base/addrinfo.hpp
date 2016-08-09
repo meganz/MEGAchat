@@ -5,7 +5,7 @@
 #ifndef _WIN32
     #include <netinet/ip.h>
 #endif
-namespace mega
+namespace karere
 {
 template <int AF, typename Raw, int SLen>
 class IpAddr

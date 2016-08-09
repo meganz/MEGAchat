@@ -87,7 +87,7 @@ virtual void WakeUp()
     if (!mMessageQueue->empty()) //process messages and wake up waiters again
     {
         ASYNCWAITER_LOG_DEBUG("  WakeUp(): Message queue not empty, posting ProcessMessages(0) call on GUI thread");
-        mega::marshallCall([this]()
+        karere::marshallCall([this]()
         {
             if (mThread->ProcessMessages(0))
             { //signal once again that we have messages processed

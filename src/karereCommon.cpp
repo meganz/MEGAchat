@@ -28,9 +28,9 @@ void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned f
     json->append(replaceOccurrences(std::string(start, len-(start-msg+1)), "\"", "\\\"")).append("\"}");
     *json = replaceOccurrences(*json, "\n", "\\n");
     *json = replaceOccurrences(*json, "\t", "\\t");
-    mega::marshallCall([json, level]()
+    marshallCall([json, level]()
     {
-        mega::http::postString("https://stats.karere.mega.nz/msglog?aid=kn-asdasdsdf&t=e",
+        http::postString("https://stats.karere.mega.nz/msglog?aid=kn-asdasdsdf&t=e",
             json, "application/json")
         .fail([](const promise::Error& err)
         {

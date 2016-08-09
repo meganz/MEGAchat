@@ -7,7 +7,7 @@
 #include <memory>
 #include <assert.h>
 
-namespace mega
+namespace karere
 {
 /** This function uses the plain C Gui Call Marshaller mechanism (see gcm.h) to
  * marshal a C++11 lambda function call on the main (GUI) thread. Also it could

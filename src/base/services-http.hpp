@@ -12,7 +12,7 @@
 #define KRHTTP_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_http, fmtString, ##__VA_ARGS__)
 #define KRHTTP_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_http, fmtString, ##__VA_ARGS__)
 
-namespace mega
+namespace karere
 {
 enum
 {

@@ -60,7 +60,7 @@ public:
     msgEncrypt(Message* msg, MsgCommand* cmd)
     {
         promise::Promise<std::pair<MsgCommand*, KeyCommand*>> pms;
-        ::mega::setTimeout([pms, msg, cmd]() mutable
+        karere::setTimeout([pms, msg, cmd]() mutable
         {
             cmd->setMsg(msg->buf(), msg->dataSize());
             cmd->setKeyId(1);
@@ -79,7 +79,7 @@ public:
     { //test implementation
         promise::Promise<Message*> pms;
         int delay = rand() % 400+20;
-        ::mega::setTimeout([src, pms]() mutable
+        karere::setTimeout([src, pms]() mutable
         {
             pms.resolve(src);
         }, delay);

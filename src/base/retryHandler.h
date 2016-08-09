@@ -14,7 +14,7 @@
     #define RETRY_LOG(fmtString,...)
 #endif
 
-namespace mega
+namespace karere
 {
 namespace rh
 {
@@ -152,7 +152,7 @@ public:
         if (delay)
         {
             mState = kStateRetryWait;
-            mTimer = ::mega::setTimeout([this]()
+            mTimer = setTimeout([this]()
             {
                 mTimer = 0;
                 nextTry();
@@ -453,7 +453,7 @@ auto performWithTimeout(CB&& cb, unsigned timeout, CCB&& cancelCb=nullptr)
 {
     typedef typename promise::FuncTraits<CB>::RetType::Type Type;
     promise::Promise<Type> pms;
-    ::mega::setTimeout([pms, cancelCb]() mutable
+    setTimeout([pms, cancelCb]() mutable
     {
         if (pms.done())
             return;

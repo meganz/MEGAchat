@@ -25,7 +25,6 @@ namespace rtcModule
 using namespace std;
 using namespace strophe;
 using namespace karere;
-using namespace mega; //In clang there is a class named mega, so using the mega:: qualifier causes a compile error about ambiguous identifier
 
 AvFlags peerMediaToObj(const char* strPeerMedia);
 //==

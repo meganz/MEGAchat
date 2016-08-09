@@ -7,7 +7,7 @@
 #include "gcmpp.h"
 #include <string.h>
 
-namespace mega
+namespace karere
 {
 enum {ERRTYPE_DNS = 0x3e9ad115}; //should resemble 'megadns'
 
@@ -142,7 +142,7 @@ static inline void dnsLookup(const char* name, unsigned flags, CB&& cb, const ch
     if (cached)
     {
         SVC_LOG_DEBUG("DNS cache hit for domain %s", name);
-        ::mega::marshallCall([cached, cb]() mutable{cb(0, cached); });
+        karere::marshallCall([cached, cb]() mutable{cb(0, cached); });
         return;
     }
     evutil_addrinfo hints;
