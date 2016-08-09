@@ -47,6 +47,7 @@ class ContactList;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 class ChatRoomList;
+
 class ChatRoom: public chatd::Listener
 {
 public:
