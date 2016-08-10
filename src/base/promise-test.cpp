@@ -222,6 +222,17 @@ TestGroup("General")
       });
       pms.resolve(1);
   });
+  asyncTest("Should hold the resolved value even if handlers alerady attached")
+  {
+     Promise<int> pms;
+     pms.then([](int a){});
+     when(pms)
+     .then([&]()
+     {
+         doneOrError(pms.value() == 123,);
+     });
+     pms.resolve(123);
+  });
 });
 
 TestGroup("Exception tests")

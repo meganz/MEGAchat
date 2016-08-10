@@ -557,14 +557,13 @@ public:
         if (mSharedObj->mResolved)
             throw std::runtime_error("Already resolved/rejected");
 
+        mSharedObj->mResult = std::forward<V>(val);
         mSharedObj->mResolved = kSucceeded;
+
         if (hasCallbacks())
             doResolve(val);
         else
-        {
-            mSharedObj->mResult = std::forward<V>(val);
             mSharedObj->mPending = true;
-        }
     }
     template <typename V=T, class=typename std::enable_if<std::is_same<V,void>::value, int>::type>
     void resolve()
