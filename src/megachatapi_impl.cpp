@@ -35,12 +35,12 @@
 #include "megachatapi_impl.h"
 #include <base/cservices.h>
 #include <base/logger.h>
+#include <IGui.h>
 
 #ifndef _WIN32
 #include <signal.h>
 #endif
 
-using namespace karere;
 using namespace megachat;
 using namespace mega;
 
@@ -94,7 +94,7 @@ void MegaChatApiImpl::loop()
     // karere initialization
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
-    this->mClient = new Client(*this, Presence::kOnline);
+    this->mClient = new karere::Client(*this, karere::Presence::kOnline, this->megaApi);
     this->mClient->init()
     .then([]()
     {
@@ -476,6 +476,56 @@ void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *liste
 //    sdkMutex.lock();
     remoteVideoListeners.insert(listener);
     //    sdkMutex.unlock();
+}
+
+karere::IGui::ILoginDialog *MegaChatApiImpl::createLoginDialog()
+{
+    return this;
+}
+
+karere::IGui::IChatWindow *MegaChatApiImpl::createChatWindow(karere::ChatRoom &room)
+{
+    return this;
+}
+
+karere::IGui::IContactList &MegaChatApiImpl::contactList()
+{
+
+}
+
+void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
+{
+
+}
+
+rtcModule::IEventHandler *MegaChatApiImpl::createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+{
+
+}
+
+void MegaChatApiImpl::show()
+{
+
+}
+
+bool MegaChatApiImpl::visible() const
+{
+
+}
+
+promise::Promise<std::pair<string, string> > MegaChatApiImpl::requestCredentials()
+{
+    promise::Promise<std::pair<std::string, std::string>> mPromise;
+    mPromise = promise::Promise<std::pair<std::string, std::string>>();
+
+    return mPromise;
+
+    // TODO: ask the user for credentials and later...
+    // OK       --> mPromise.resolve(make_pair(email, pwd));
+    // or
+    // Cancel   --> mPromise.reject("Login canceled by user");
+    
+    // if OK, then 
 }
 
 ChatRequestQueue::ChatRequestQueue()

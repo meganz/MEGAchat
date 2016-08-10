@@ -36,14 +36,12 @@
 #include <IVideoRenderer.h>
 #include <IJingleSession.h>
 #include <chatClient.h>
+#include <chatd.h>
 #include <sdkApi.h>
 #include <mstrophepp.h>
 
 namespace megachat
 {
-
-using namespace mega;
-using namespace karere;
 
 class MegaChatRequestPrivate : public MegaChatRequest
 {
@@ -169,7 +167,10 @@ public:
 };
 
 
-class MegaChatApiImpl : public rtcModule::IEventHandler, public IGui, public IGui::IContactList
+class MegaChatApiImpl :
+        public karere::IGui,
+        public karere::IGui::ILoginDialog,
+        public karere::IGui::IChatWindow //: public rtcModule::IEventHandler, public IGui, public IGui::IContactList
 {
 public:
 
@@ -181,7 +182,8 @@ private:
     MegaChatApi *chatApi;
     MegaApi *megaApi;
 
-    Client *mClient;
+    karere::Client *mClient;
+    chatd::Chat *mChat;
 
     MegaWaiter *waiter;
     MegaThread thread;
@@ -268,21 +270,24 @@ public:
     virtual void onLocalVideoDisabled();
     virtual void onLocalVideoEnabled();
 
-    // rtcModule::IGui implementation
-    virtual ILoginDialog* createLoginDialog();
-    virtual IChatWindow* createChatWindow(ChatRoom &room);
-    virtual IGui::IContactList& contactList();
-    virtual void onIncomingContactRequest();
+    // karere::IGui implementation
+    virtual karere::IGui::ILoginDialog *createLoginDialog();
+    virtual karere::IGui::IChatWindow* createChatWindow(karere::ChatRoom &room);
+    virtual karere::IGui::IContactList& contactList();
+    virtual void onIncomingContactRequest(const MegaContactRequest& req);
     virtual rtcModule::IEventHandler* createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer> &ans);
     virtual void show();
     virtual bool visible() const;
 
-    // rtcModule::IContactList implementation
-    virtual IContactGui* createContactItem(Contact& contact);
-    virtual IContactGui* createGroupChatItem(GroupChatRoom& room);
-    virtual void removeContactItem(IContactGui* item);
-    virtual void removeGroupChatItem(IContactGui* item);
-    virtual IChatWindow& chatWindowForPeer(uint64_t handle);
+    // karere::ILoginDialog
+    virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials();
+
+//    // rtcModule::IContactList implementation
+//    virtual IContactGui* createContactItem(Contact& contact);
+//    virtual IContactGui* createGroupChatItem(GroupChatRoom& room);
+//    virtual void removeContactItem(IContactGui* item);
+//    virtual void removeGroupChatItem(IContactGui* item);
+//    virtual IChatWindow& chatWindowForPeer(uint64_t handle);
 
 };
 
