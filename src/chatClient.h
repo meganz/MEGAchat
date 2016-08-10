@@ -263,6 +263,7 @@ public:
     Client& client;
     ContactList(Client& aClient);
     ~ContactList();
+    void loadFromDb();
     bool addUserFromApi(mega::MegaUser& user);
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
@@ -304,6 +305,8 @@ public:
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
     std::unique_ptr<IGui::ILoginDialog> mLoginDlg;
+    bool mChatsLoaded = false;
+    std::shared_ptr<::mega::MegaTextChatList> mInitialChats;
     bool isLoggedIn() const { return mIsLoggedIn; }
     const Id myHandle() const { return mMyHandle; }
     const std::string& myName() const { return mMyName; }
@@ -336,6 +339,7 @@ public:
     promise::Promise<void> loginExistingSession();
     promise::Promise<void> loginNewSession();
     promise::Promise<void> initWithSdk();
+    void loadContactlistFromSdk();
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
 //    bool loginDialogDisplayed() const { return mLoginDlg.operator bool(); }
     /** @brief Notifies the client that internet connection is again available */
