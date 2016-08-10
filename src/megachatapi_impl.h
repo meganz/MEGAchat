@@ -175,12 +175,12 @@ class MegaChatApiImpl :
 public:
 
     MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi);
-    MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir);
+//    MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir);
     virtual ~MegaChatApiImpl();
 
 private:
     MegaChatApi *chatApi;
-    MegaApi *megaApi;
+    mega::MegaApi *megaApi;
 
     karere::Client *mClient;
     chatd::Chat *mChat;
@@ -196,6 +196,7 @@ private:
     ChatRequestQueue requestQueue;
     EventQueue eventQueue;
 
+    std::set<MegaChatListener *> listeners;
     std::set<MegaChatRequestListener *> requestListeners;
     std::set<MegaChatCallListener *> callListeners;
     std::set<MegaChatVideoListener *> localVideoListeners;
@@ -227,6 +228,8 @@ public:
     void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
     void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
 
+    void fireOnChatStatusUpdate(karere::Presence pres);
+
     MegaChatCallPrivate *getChatCallByPeer(const char* jid);
 
     void setChatStatus(int status, MegaChatRequestListener *listener = NULL);
@@ -243,10 +246,12 @@ public:
     void hangAllChatCalls();
 
     // Listeners
+    void addChatListener(MegaChatListener *listener);
     void addChatCallListener(MegaChatCallListener *listener);
     void addChatRequestListener(MegaChatRequestListener *listener);
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
+    void removeChatListener(MegaChatListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
     void removeChatRequestListener(MegaChatRequestListener *listener);
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
@@ -278,9 +283,23 @@ public:
     virtual rtcModule::IEventHandler* createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer> &ans);
     virtual void show();
     virtual bool visible() const;
+    virtual void onOwnPresence(karere::Presence pres);
 
-    // karere::ILoginDialog
+    // karere::ILoginDialog implementation
     virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials();
+
+    // karere::ITitleDisplay implementation
+    virtual void updateTitle(const std::string& title);
+    virtual void updateOnlineIndication(karere::Presence state);
+
+    // karere::IGui::IChatWindow implementation
+    virtual ICallGui* callGui();
+    virtual rtcModule::IEventHandler* callEventHandler();
+//    virtual void show();    // clash with IGui::show()
+    virtual void hide();
+    virtual void init(chatd::Chat& messages, chatd::DbInterface*& dbIntf);
+
+
 
 //    // rtcModule::IContactList implementation
 //    virtual IContactGui* createContactItem(Contact& contact);

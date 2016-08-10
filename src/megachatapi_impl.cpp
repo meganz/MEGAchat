@@ -49,10 +49,10 @@ MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
     init(chatApi, megaApi);
 }
 
-MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir)
-{
-    init(chatApi, (MegaApi*) new MyMegaApi(appKey, appDir));
-}
+//MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir)
+//{
+//    init(chatApi, (MegaApi*) new MyMegaApi(appKey, appDir));
+//}
 
 MegaChatApiImpl::~MegaChatApiImpl()
 {
@@ -61,7 +61,7 @@ MegaChatApiImpl::~MegaChatApiImpl()
     waiter->notify();
 }
 
-void MegaChatApiImpl::init(megachat::MegaChatApi *chatApi, megachat::MegaApi *megaApi)
+void MegaChatApiImpl::init(megachat::MegaChatApi *chatApi, mega::MegaApi *megaApi)
 {
     this->chatApi = chatApi;
     this->megaApi = megaApi;
@@ -94,8 +94,8 @@ void MegaChatApiImpl::loop()
     // karere initialization
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
-    this->mClient = new karere::Client(*this, karere::Presence::kOnline, this->megaApi);
-    this->mClient->init()
+    this->mClient = new karere::Client(*this->megaApi, *this, karere::Presence::kOnline);
+    this->mClient->initWithSdk()
     .then([]()
     {
         KR_LOG_DEBUG("Client initialized");
@@ -359,12 +359,36 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int wi
     }
 }
 
+void MegaChatApiImpl::fireOnChatStatusUpdate(karere::Presence pres)
+{
+    KR_LOG_INFO("Online state changed");
+
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        int status = (megachat::MegaChatApi::Presence)(pres.val());
+        (*it)->onChatStatusUpdate(chatApi, status);
+    }
+
+}
+
 void MegaChatApiImpl::setChatStatus(int status, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CHAT_STATUS, listener);
     request->setNumber(status);
     requestQueue.push(request);
     waiter->notify();
+}
+
+void MegaChatApiImpl::addChatListener(MegaChatListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    listeners.insert(listener);
+//    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
@@ -376,7 +400,7 @@ void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
 
 //    sdkMutex.lock();
     callListeners.insert(listener);
-    //    sdkMutex.unlock();
+//    sdkMutex.unlock();
 
 }
 
@@ -389,7 +413,7 @@ void MegaChatApiImpl::addChatRequestListener(MegaChatRequestListener *listener)
 
 //    sdkMutex.lock();
     requestListeners.insert(listener);
-    //    sdkMutex.unlock();
+//    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::addChatLocalVideoListener(MegaChatVideoListener *listener)
@@ -401,7 +425,7 @@ void MegaChatApiImpl::addChatLocalVideoListener(MegaChatVideoListener *listener)
 
 //    sdkMutex.lock();
     localVideoListeners.insert(listener);
-    //    sdkMutex.unlock();
+//    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::addChatRemoteVideoListener(MegaChatVideoListener *listener)
@@ -413,7 +437,19 @@ void MegaChatApiImpl::addChatRemoteVideoListener(MegaChatVideoListener *listener
 
 //    sdkMutex.lock();
     remoteVideoListeners.insert(listener);
-    //    sdkMutex.unlock();
+//    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    listeners.erase(listener);
+//    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
@@ -424,8 +460,8 @@ void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
     }
 
 //    sdkMutex.lock();
-    callListeners.insert(listener);
-    //    sdkMutex.unlock();
+    callListeners.erase(listener);
+//    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatRequestListener(MegaChatRequestListener *listener)
@@ -451,7 +487,7 @@ void MegaChatApiImpl::removeChatRequestListener(MegaChatRequestListener *listene
     }
 
     requestQueue.removeListener(listener);
-    //    sdkMutex.unlock();
+//    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatLocalVideoListener(MegaChatVideoListener *listener)
@@ -462,8 +498,8 @@ void MegaChatApiImpl::removeChatLocalVideoListener(MegaChatVideoListener *listen
     }
 
 //    sdkMutex.lock();
-    localVideoListeners.insert(listener);
-    //    sdkMutex.unlock();
+    localVideoListeners.erase(listener);
+//    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
@@ -474,8 +510,8 @@ void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *liste
     }
 
 //    sdkMutex.lock();
-    remoteVideoListeners.insert(listener);
-    //    sdkMutex.unlock();
+    remoteVideoListeners.erase(listener);
+//    sdkMutex.unlock();
 }
 
 karere::IGui::ILoginDialog *MegaChatApiImpl::createLoginDialog()
@@ -513,6 +549,11 @@ bool MegaChatApiImpl::visible() const
 
 }
 
+void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
+{
+    fireOnChatStatusUpdate(pres);
+}
+
 promise::Promise<std::pair<string, string> > MegaChatApiImpl::requestCredentials()
 {
     promise::Promise<std::pair<std::string, std::string>> mPromise;
@@ -525,7 +566,17 @@ promise::Promise<std::pair<string, string> > MegaChatApiImpl::requestCredentials
     // or
     // Cancel   --> mPromise.reject("Login canceled by user");
     
-    // if OK, then 
+    // if OK, then
+}
+
+void MegaChatApiImpl::updateTitle(const string &title)
+{
+
+}
+
+void MegaChatApiImpl::updateOnlineIndication(karere::Presence state)
+{
+
 }
 
 ChatRequestQueue::ChatRequestQueue()

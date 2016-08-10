@@ -52,15 +52,15 @@ MegaHandle MegaChatCall::getContactHandle() const
     return INVALID_HANDLE;
 }
 
-MegaChatApi::MegaChatApi(MegaApi *megaApi)
+MegaChatApi::MegaChatApi(mega::MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
 }
 
-MegaChatApi::MegaChatApi(const char *appKey, const char *appDir)
-{
-    this->pImpl = new MegaChatApiImpl(this, appKey, appDir);
-}
+//MegaChatApi::MegaChatApi(const char *appKey, const char *appDir)
+//{
+//    this->pImpl = new MegaChatApiImpl(this, appKey, appDir);
+//}
 
 void MegaChatApi::setChatStatus(int status, MegaChatRequestListener *listener)
 {

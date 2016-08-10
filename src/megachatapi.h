@@ -25,13 +25,12 @@
 
 #include <megaapi.h>
 
+namespace mega { class MegaApi; }
+using namespace mega;
+
 namespace megachat
 {
 
-using namespace mega;
-
-
-class MegaApi;
 class MegaChatApi;
 class MegaChatApiImpl;
 class MegaChatRequest;
@@ -39,6 +38,7 @@ class MegaChatRequestListener;
 class MegaChatCall;
 class MegaChatCallListener;
 class MegaChatVideoListener;
+class MegaChatListener;
 
 class MegaChatCall
 {
@@ -72,6 +72,12 @@ public:
     virtual void onChatCallStateChange(MegaChatApi *api, MegaChatCall *call);
     virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaError* error);
     virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaError* error);
+};
+
+class MegaChatListener
+{
+public:
+    virtual void onChatStatusUpdate(MegaChatApi* api, int status);
 };
 
 /**
@@ -278,20 +284,21 @@ class MegaChatApi
 {
 
 public:
-    enum
+    enum Presence
     {
-        PRESENCE_OFFLINE = 0,
-        PRESENCE_BUSY,
-        PRESENCE_AWAY,
-        PRESENCE_ONLINE
+        PRESENCE_OFFLINE    = 0,
+        PRESENCE_BUSY       = 1,
+        PRESENCE_AWAY       = 2,
+        PRESENCE_ONLINE     = 3,
+        PRESENCE_CHATTY     = 4
     };
 
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     MegaChatApi(MegaApi *megaApi);
 
-    // chat will use its own megaApi, a new instance
-    MegaChatApi(const char *appKey, const char* appDir);
+//    // chat will use its own megaApi, a new instance
+//    MegaChatApi(const char *appKey, const char* appDir);
 
     virtual ~MegaChatApi();
 
