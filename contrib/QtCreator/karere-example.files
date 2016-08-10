@@ -171,3 +171,4 @@ videoRenderer_Qt.h
 ../../src/megachatapi_impl.cpp
 ../../src/megachatapi.h
 ../../src/megachatapi.cpp
+../../src/IGui.h
