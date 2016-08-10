@@ -45,7 +45,7 @@ asyncLoop(F&& func, C&& cond, size_t initial=0)
                 mCount++;
                 if (mCondition(mCount))
                 {
-                    mega::marshallCall([this](){nextIter();});
+                    karere::marshallCall([this](){nextIter();});
                     return;
                 }
 bail:

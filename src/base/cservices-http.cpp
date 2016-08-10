@@ -136,7 +136,7 @@ static void checkCompleted()
             CurlConnection* conn;
             curl_easy_getinfo(easy, CURLINFO_PRIVATE, &conn);
             curl_multi_remove_handle(gCurlMultiHandle, easy);
-            mega::marshallCall([conn, res](){conn->connOnComplete(conn, res);});
+            karere::marshallCall([conn, res](){conn->connOnComplete(conn, res);});
         }
     }
 }

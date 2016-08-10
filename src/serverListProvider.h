@@ -7,9 +7,10 @@
 #include <base/services-http.hpp>
 #include "retryHandler.h"
 
-namespace mega { namespace http { class Client; } }
 namespace karere
 {
+namespace http { class Client; }
+
 #define SRVJSON_CHECK_GET_PROP(varname, name, type)                                             \
     auto it_##varname = json.FindMember(#name);                                                 \
     if (it_##varname == json.MemberEnd())                                                                          \
@@ -176,8 +177,8 @@ protected:
     std::string mService;
     int64_t mMaxReuseOldServersAge;
     int64_t mLastUpdateTs = 0;
-    std::unique_ptr<::mega::http::Client> mClient;
-    std::unique_ptr<::mega::rh::IRetryController> mRetryController;
+    std::unique_ptr<http::Client> mClient;
+    std::unique_ptr<rh::IRetryController> mRetryController;
     promise::Promise<void> mOutputPromise;
     void parseServersJson(const std::string& json);
     promise::Promise<void> exec(int no);
@@ -247,7 +248,7 @@ GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
     int reqCount, unsigned reqTimeout, int64_t maxReuseOldServersAge)
     :mGelbHost(gelbHost), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
 {
-    mRetryController.reset(::mega::createRetryController("gelb",
+    mRetryController.reset(::karere::createRetryController("gelb",
         [this](int no) { return exec(no); },
         [this]() { giveup(); },
         reqTimeout, reqCount, 1, 1
@@ -257,9 +258,9 @@ template <class S>
 promise::Promise<void> GelbProvider<S>::exec(int no)
 {
     assert(!mClient); //don't destroy it as it may be still working, the promise handlers will destroy it when it resolves/fails the promise
-    mClient.reset(new ::mega::http::Client);
+    mClient.reset(new http::Client);
     return mClient->pget<std::string>(mGelbHost+"/?service="+mService)
-    .then([this](std::shared_ptr<::mega::http::Response<std::string> > response)
+    .then([this](std::shared_ptr<http::Response<std::string> > response)
         -> promise::Promise<void>
     {
         if (response->httpCode() != 200)
@@ -302,7 +303,7 @@ promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeout)
     if (timeout) //if user set a timeout, execute only once (quick mode)
     {
         pms = exec(0);
-        ::mega::setTimeout([this]() { giveup(); }, timeout);
+        setTimeout([this]() { giveup(); }, timeout);
     }
     else //execute with retries
     {

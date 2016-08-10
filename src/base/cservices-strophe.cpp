@@ -17,7 +17,7 @@ static bool processMessage(void* arg, int what)
 static void eventcb(void* arg, int what)
 {
 //    printf("posted a message: %s\n", xmpp_events_to_str(what));
-    mega::marshallCall([arg, what]() {processMessage(arg, what);});
+    karere::marshallCall([arg, what]() {processMessage(arg, what);});
 }
 
 static xmpp_ctx_t* gStropheContext = NULL;

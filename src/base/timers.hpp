@@ -27,7 +27,7 @@
 #include <memory>
 #include <assert.h>
 
-namespace mega
+namespace karere
 {
 struct TimerMsg: public megaMessage
 {

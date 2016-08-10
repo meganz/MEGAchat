@@ -383,7 +383,7 @@ protected:
     void updateSeen();
     virtual void showEvent(QShowEvent* event)
     {
-        mega::setTimeout([this]() { updateSeen(); }, 2000);
+        karere::setTimeout([this]() { updateSeen(); }, 2000);
     }
     void closeEvent(QCloseEvent* event)
     {

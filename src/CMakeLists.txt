@@ -20,6 +20,7 @@ set (SRCS
     dummyCrypto.cpp
     megaCryptoFunctions.cpp
     chatClient.cpp
+    userAttrCache.cpp
     contactList.cpp
     chatd.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp

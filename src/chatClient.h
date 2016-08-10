@@ -1,5 +1,7 @@
 #ifndef CHATCLIENT_H
 #define CHATCLIENT_H
+#include "karereCommon.h"
+#include "sdkApi.h"
 #include "contactList.h"
 #include "karereEventObjects.h"
 #include "rtcModule/IRtcModule.h"
@@ -8,14 +10,14 @@
 #include <type_traits>
 #include <retryHandler.h>
 #include <serverListProviderForwards.h>
-#include "sdkApi.h"
 #include "userAttrCache.h"
 #include "chatd.h"
 #include "IGui.h"
 
 namespace strophe { class Connection; }
 
-namespace mega { namespace rh { class IRetryController; } class MegaTextChat; class MegaTextChatList; }
+namespace mega { class MegaTextChat; class MegaTextChatList; }
+
 namespace strongvelope { class ProtocolHandler; }
 
 struct sqlite3;
@@ -23,6 +25,8 @@ class Buffer;
 
 namespace karere
 {
+namespace rh { class IRetryController; }
+
 /** @brief
  * The application implementor must define this function to create the application
  * directory in case it does not exist, and return the path to it.
@@ -47,6 +51,7 @@ class ContactList;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 class ChatRoomList;
+
 class ChatRoom: public chatd::Listener
 {
 public:
@@ -59,7 +64,7 @@ protected:
     bool mIsGroup;
     chatd::Priv mOwnPriv;
     chatd::Chat* mChat = nullptr;
-    bool syncRoomPropertiesWithApi(const mega::MegaTextChat& chat);
+    bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToChatWindow();
     void chatdJoin(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
 public:
@@ -279,7 +284,7 @@ public:
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
     std::unique_ptr<chatd::Client> chatd;
-    std::unique_ptr<MyMegaApi> api;
+    MyMegaApi api;
     //we use IPtr smart pointers instead of std::unique_ptr because we want to delete not via the
     //destructor, but via a destroy() method. This is to support cross-DLL loading of plugins,
     //where operator delete would try to deallocate memory via the memory manager/runtime of the caller,
@@ -288,8 +293,6 @@ public:
     //delete is called from code inside the DLL, i.e. in the runtime where the class is implemented,
     //operates and was allocated
     rtcModule::IRtcModule* rtc = nullptr;
-//    TextModule* mTextModule = nullptr;
-//    bool mHadSid = false;
     bool isTerminating = false;
     unsigned mReconnectConnStateHandler = 0;
     std::function<void()> onChatdReady;
@@ -303,7 +306,7 @@ public:
     unsigned short mMyPrivRsaLen = 0;
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
-
+    std::unique_ptr<IGui::ILoginDialog> mLoginDlg;
     bool isLoggedIn() const { return mIsLoggedIn; }
     const Id myHandle() const { return mMyHandle; }
     const std::string& myName() const { return mMyName; }
@@ -328,12 +331,16 @@ public:
      * This performs a request to xmpp roster server and fetch the contact list.
      * Contact list also registers a contact presence handler to update the list itself based on received presence messages.
      */
-    Client(IGui& gui, Presence pres);
+    Client(::mega::MegaApi& sdk, IGui& gui, Presence pres);
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
-    promise::Promise<void> init();
+    promise::Promise<ReqResult> sdkLoginNewSession();
+    promise::Promise<ReqResult> sdkLoginExistingSession(const std::string& sid);
+    promise::Promise<void> loginExistingSession();
+    promise::Promise<void> loginNewSession();
+    promise::Promise<void> initWithSdk();
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
-    bool loginDialogDisplayed() const { return mLoginDlg.operator bool(); }
+//    bool loginDialogDisplayed() const { return mLoginDlg.operator bool(); }
     /** @brief Notifies the client that internet connection is again available */
     void notifyNetworkOffline();
     /** @brief Notifies the client that network connection is down */
@@ -364,7 +371,6 @@ protected:
     std::string mMyName;
 
     Presence mOwnPresence;
-    std::unique_ptr<IGui::ILoginDialog> mLoginDlg;
     bool mIsLoggedIn = false;
     /** our own email address */
     std::string mEmail;
@@ -374,12 +380,13 @@ protected:
     XmppContactList mXmppContactList;
     typedef FallbackServerProvider<HostPortServerInfo> XmppServerProvider;
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
-    std::unique_ptr<mega::rh::IRetryController> mReconnectController;
+    std::unique_ptr<rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
     sqlite3* openDb();
-    promise::Promise<void> loginNewSession();
-    promise::Promise<void> loginExistingSession();
+    promise::Promise<void> postLoginInit();
     void loadOwnUserHandle();
+    void loadOwnUserHandleFromDb(bool verifyWithSdk=true);
+    karere::Id getMyHandleFromSdk();
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
     void setupXmppReconnectHandler();

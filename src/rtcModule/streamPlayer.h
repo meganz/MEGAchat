@@ -147,7 +147,7 @@ public:
         detachAudio();
         detachVideo();
         auto renderer = mRenderer;
-        mega::marshallCall([renderer]()
+        karere::marshallCall([renderer]()
         {
             renderer->released();
         });
@@ -170,7 +170,7 @@ public:
             if (mOnMediaStart)
             {
                 auto callback = mOnMediaStart;
-                mega::marshallCall([callback]()
+                karere::marshallCall([callback]()
                 {
                     callback();
                 });

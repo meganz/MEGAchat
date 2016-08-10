@@ -1,5 +1,6 @@
 #include "chatWindow.h"
 #include "mainwindow.h"
+using namespace karere;
 
 ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&parent),
     mainWindow(parent), mRoom(room), mWaitMsg(*this)
@@ -93,7 +94,7 @@ void ChatWindow::onMemberRemove()
     uint64_t handle(handleFromAction(QObject::sender()));
     mWaitMsg.addMsg(tr("Removing user(s), please wait..."));
     auto waitMsgKeepalive = mWaitMsg;
-    mainWindow.client().api->call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
+    mainWindow.client().api.call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
     .fail([this, waitMsgKeepalive](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Remove member from group chat"),
@@ -120,7 +121,7 @@ void ChatWindow::onMemberPrivateChat()
 }
 void ChatWindow::onMembersBtn(bool)
 {
-    mega::marshallCall([this]()
+    marshallCall([this]()
     {
         QMenu menu(this);
         createMembersMenu(menu);
@@ -140,7 +141,7 @@ void ChatWindow::dropEvent(QDropEvent* event)
     }
     mWaitMsg.addMsg(tr("Adding user(s), please wait..."));
     auto waitMsgKeepAlive = mWaitMsg;
-    mRoom.parent.client.api->call(&::mega::MegaApi::inviteToChat, mRoom.chatid(), *(const uint64_t*)(data.data()), chatd::PRIV_FULL)
+    mRoom.parent.client.api.call(&::mega::MegaApi::inviteToChat, mRoom.chatid(), *(const uint64_t*)(data.data()), chatd::PRIV_FULL)
     .fail([waitMsgKeepAlive](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Add user"), tr("Error adding user to group chat: ")+QString::fromStdString(err.msg()));
@@ -240,7 +241,7 @@ void ChatWindow::showCantEditNotice(const QString& action)
 {
     WaitMsg tooltip(*this);
     tooltip.addMsg(tr("Can't %1 - message is too old").arg(action));
-    mega::setTimeout([tooltip]()
+    setTimeout([tooltip]()
     {}, 2000);
 }
 
@@ -423,7 +424,7 @@ void MessageWidget::msgDeleted()
     a->setDuration(300);
     a->setEasingCurve(QEasingCurve::Linear);
     a->start(QAbstractAnimation::DeleteWhenStopped);
-    mega::setTimeout([this]() { removeFromList(); }, 300);
+    setTimeout([this]() { removeFromList(); }, 300);
 }
 
 void MessageWidget::removeFromList()

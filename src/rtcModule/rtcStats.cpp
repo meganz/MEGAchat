@@ -11,6 +11,8 @@ namespace rtcModule
 {
 using namespace artc;
 using namespace std::placeholders;
+using namespace karere;
+
 namespace stats
 {
 BasicStats::BasicStats(const Call& call, const std::string& aTermRsn)
@@ -58,7 +60,7 @@ void Recorder::BwCalculator::calculate(long periodMs, long newTotalBytes)
 void Recorder::OnComplete(const webrtc::StatsReports& data)
 {
     auto myData = std::make_shared<artc::MyStatsReports>(data);
-    mega::marshallCall([this, myData]()
+    marshallCall([this, myData]()
     {
         try
         {
@@ -222,7 +224,7 @@ void Recorder::start()
     mStats->mPeerAnonId = mSession.mCall.peerAnonId();
     mStats->mSper = mOptions.scanPeriod;
     mStats->mStartTs = karere::timestampMs();
-    mTimer = mega::setInterval([this]()
+    mTimer = setInterval([this]()
     {
         mSession.mPeerConn->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
     }, mOptions.scanPeriod);
@@ -230,7 +232,7 @@ void Recorder::start()
 
 void Recorder::terminate(const std::string& termRsn)
 {
-    mega::cancelInterval(mTimer);
+    cancelInterval(mTimer);
     mTimer = 0;
     mStats->mDur = karere::timestampMs() - mStats->mStartTs;
     mStats->mTermRsn = termRsn;
@@ -241,7 +243,7 @@ void Recorder::terminate(const std::string& termRsn)
 Recorder::~Recorder()
 {
     if (mTimer)
-        mega::cancelInterval(mTimer);
+        cancelInterval(mTimer);
 }
 
 const char* decToString(float v)

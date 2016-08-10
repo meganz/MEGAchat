@@ -77,7 +77,7 @@ set(LIBMEGA_INCLUDE_DIRS
     "${LIBSODIUM_INCLUDE_DIRS}" "${SQLITE_INCLUDE_DIRS}"
     CACHE STRING "" FORCE
 )
-
+add_definitions(-DENABLE_CHAT=1 -DENABLE_SYNC=1)
 set(LIBMEGA_LIBRARIES "${_LIBMEGA_LIBRARIES}" CACHE STRING "libmega library and dependencies" FORCE)
 set(LIBMEGA_DEFINES "-DHAVE_CONFIG_H" CACHE STRING "libmega definitions needed for public headers" FORCE)
 message(STATUS "Found LibMega")

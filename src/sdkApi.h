@@ -9,7 +9,7 @@
 #include "base/promise.h"
 #include "base/gcmpp.h"
 #include <logger.h>
-
+#include "karereCommon.h"
 
 typedef std::shared_ptr<::mega::MegaRequest> ReqResult;
 typedef promise::Promise<ReqResult> ApiPromise;
@@ -42,7 +42,7 @@ public:
     {
         std::shared_ptr<::mega::MegaRequest> req(request->copy());
         int errCode = e->getErrorCode();
-        mega::marshallCall([this, req, errCode]()
+        karere::marshallCall([this, req, errCode]()
         {
             if (mPromise.done())
                 return; //a timeout timer may resolve it before the actual callback
@@ -75,29 +75,29 @@ class MyMegaLogger: public ::mega::MegaLogger
     }
 };
 
-class MyMegaApi: public mega::MegaApi
+class MyMegaApi
 {
 public:
-    std::shared_ptr<mega::MegaRequest> userData;
-    std::unique_ptr<MyMegaLogger> mLogger;
-    MyMegaApi(const char *appKey, const char* appDir)
-        :mega::MegaApi(appKey, appDir, "Karere Native"), mLogger(new MyMegaLogger)
+    ::mega::MegaApi& sdk;
+    std::unique_ptr<MyMegaLogger> mLogger;    
+    MyMegaApi(::mega::MegaApi& aSdk)
+    :sdk(aSdk), mLogger(new MyMegaLogger)
     {
-        setLoggerObject(mLogger.get());
-        setLogLevel(MegaApi::LOG_LEVEL_MAX);
+        sdk.setLoggerObject(mLogger.get());
+        sdk.setLogLevel(::mega::MegaApi::LOG_LEVEL_MAX);
     }
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     ApiPromise call(MSig method, Args... args)
     {
         auto listener = new MyListener;
-        (this->*method)(args..., listener);
+        (sdk.*method)(args..., listener);
         return listener->mPromise;
     }
     ~MyMegaApi()
     {
         //we need to destroy the logger after the base mega::MegaApi, because the MegaApi dtor uses the logger
         MyMegaLogger* logger = mLogger.release();
-        mega::marshallCall([logger]()
+        karere::marshallCall([logger]()
         {
             delete logger;
             KR_LOG_DEBUG("Deleted SDK logger");

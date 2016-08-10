@@ -146,11 +146,11 @@ public:
     CListContactItem(QWidget* parent, karere::Contact& contact)
         :CListItem(parent, false), mContact(contact)
     {
-        if (contact.visibility() == mega::MegaUser::VISIBILITY_HIDDEN)
+        if (contact.visibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
         {
             showAsHidden();
         }
-        mega::setTimeout([this]() { updateToolTip(); }, 100);
+        karere::setTimeout([this]() { updateToolTip(); }, 100);
     }
     void showAsHidden()
     {
@@ -291,7 +291,7 @@ public slots:
 
         std::unique_ptr<mega::MegaTextChatPeerList> peers(mega::MegaTextChatPeerList::createInstance());
         peers->addPeer(mContact.userId(), chatd::PRIV_FULL);
-        mContact.contactList().client.api->call(&mega::MegaApi::createChat, true, peers.get())
+        mContact.contactList().client.api.call(&mega::MegaApi::createChat, true, peers.get())
         .then([this, name](ReqResult result)
         {
             auto& list = *result->getMegaTextChatList();
@@ -373,7 +373,7 @@ protected:
     virtual void mouseDoubleClickEvent(QMouseEvent* event) { showChatWindow(); }
     virtual void showChatWindow() { mRoom.chatWindow().show(); }
 protected slots:
-    void leaveGroupChat() { mega::marshallCall([this]() { mRoom.leave(); }); } //deletes this
+    void leaveGroupChat() { karere::marshallCall([this]() { mRoom.leave(); }); } //deletes this
 };
 
 

@@ -92,7 +92,7 @@ Client::Client(Id userId)
         ws_global_init(&sWebsocketContext, services_get_event_loop(), services_dns_eventbase,
         [](struct bufferevent* bev, void* userp)
         {
-            ::mega::marshallCall([bev, userp]()
+            marshallCall([bev, userp]()
             {
                 //CHATD_LOG_DEBUG("Read event");
                 ws_read_callback(bev, userp);
@@ -100,7 +100,7 @@ Client::Client(Id userId)
         },
         [](struct bufferevent* bev, short events, void* userp)
         {
-            ::mega::marshallCall([bev, events, userp]()
+            marshallCall([bev, events, userp]()
             {
                 //CHATD_LOG_DEBUG("Buffer event 0x%x", events);
                 ws_event_callback(bev, events, userp);
@@ -108,7 +108,7 @@ Client::Client(Id userId)
         },
         [](int fd, short events, void* userp)
         {
-            ::mega::marshallCall([events, userp]()
+            marshallCall([events, userp]()
             {
                 //CHATD_LOG_DEBUG("Timer %p event", userp);
                 ws_handle_marshall_timer_cb(0, events, userp);
@@ -280,7 +280,7 @@ void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *p
         reason.assign(preason, reason_len);
 
     //we don't want to initiate websocket reconnect from within a websocket callback
-    ::mega::marshallCall([self, reason, errcode, errtype]()
+    marshallCall([self, reason, errcode, errtype]()
     {
         self->onSocketClose(errcode, errtype, reason);
     });
@@ -327,7 +327,7 @@ void Connection::disableInactivityTimer()
 {
     if (mInactivityTimer)
     {
-        ::mega::cancelInterval(mInactivityTimer);
+        cancelInterval(mInactivityTimer);
         mInactivityTimer = 0;
     }
 }
@@ -338,7 +338,7 @@ Promise<void> Connection::reconnect()
         throw std::runtime_error("Connection::reconnect: Already connecting to shard %d"+std::to_string(mShardNo));
 
     mState = kStateConnecting;
-    return ::mega::retry("chatd", [this](int no)
+    return retry("chatd", [this](int no)
     {
         reset();
         mConnectPromise = Promise<void>();
@@ -377,7 +377,7 @@ void Connection::enableInactivityTimer()
     if (mInactivityTimer)
         return;
 
-    mInactivityTimer = ::mega::setInterval([this]()
+    mInactivityTimer = setInterval([this]()
     {
         if (mInactivityBeats++ > 3)
         {
@@ -1074,7 +1074,7 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
 void Chat::continueEncryptNextPending()
 {
     //continue encryption of next queued messages, if any
-    ::mega::marshallCall([this]()
+    marshallCall([this]()
     {
         if (mNextUnsent != mSending.end() && !mNextUnsent->msgCmd)
         {

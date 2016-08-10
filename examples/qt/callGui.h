@@ -50,7 +50,7 @@ public slots:
         }
     }
 };
-class CallGui: public QWidget, public rtcModule::IEventHandler, public karere::IGui::ICallGui
+class CallGui: public QWidget, public karere::IGui::ICallGui
 {
 Q_OBJECT
 protected:

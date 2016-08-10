@@ -3,6 +3,8 @@
 #include <logger.h>
 #include "karereId.h"
 #include <megaapi.h>
+#include <list>
+#include <promise.h>
 
 #define UACACHE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_uacache, fmtString, ##__VA_ARGS__)
 
