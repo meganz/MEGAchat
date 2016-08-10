@@ -3,6 +3,7 @@
 #include "chatClient.h"
 #include "db.h"
 #include <codecvt>
+#include <locale>
 
 using namespace promise;
 using namespace std;
