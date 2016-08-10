@@ -561,7 +561,7 @@ public:
         mSharedObj->mResolved = kSucceeded;
 
         if (hasCallbacks())
-            doResolve(val);
+            doResolve(mSharedObj->mResult);
         else
             mSharedObj->mPending = true;
     }

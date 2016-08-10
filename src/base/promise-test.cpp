@@ -224,14 +224,14 @@ TestGroup("General")
   });
   asyncTest("Should hold the resolved value even if handlers alerady attached")
   {
-     Promise<int> pms;
-     pms.then([](int a){});
+     Promise<std::pair<std::string, std::string>> pms;
+     pms.then([](const std::pair<std::string, std::string>& val){});
      when(pms)
      .then([&]()
      {
-         doneOrError(pms.value() == 123,);
+         doneOrError(pms.value().first == "test123",);
      });
-     pms.resolve(123);
+     pms.resolve(std::make_pair<std::string,std::string>("test123", "fubar"));
   });
 });
 
