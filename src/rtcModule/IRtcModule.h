@@ -342,6 +342,7 @@ public:
  */
     virtual void discoAddFeature(const char* feature) {}
 };
+
 /** This is the public interface of the RtcModule */
 class IRtcModule: public strophe::IPlugin
 {
