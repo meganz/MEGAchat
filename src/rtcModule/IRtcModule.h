@@ -44,8 +44,6 @@ enum {
     RTCM_ENONE = -4
 };
 
-//forward declarations
-//class Call;
 typedef unsigned char TermCode;
 typedef enum
 {
