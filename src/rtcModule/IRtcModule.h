@@ -107,8 +107,8 @@ enum
     kAnsweredElsewhere = 2, ///< Call was answered on another device of ours
     kRejectedElsewhere = 3, ///< Call was rejected on another device of ours
     kAnswerTimeout = 4, ///< Call was not answered in a timely manner
-    kNormalHangupLast = 4, ///< Last enum specifying a normal call termination
     kAppTerminating = 5, ///< The application is terminating
+    kNormalHangupLast = 5, ///< Last enum specifying a normal call termination
     kReserved1 = 6,
     kReserved2 = 7,
     kErrorFirst = 8, ///< First enum specifying call termination due to error
@@ -145,7 +145,7 @@ enum
     ///@endcond
 /** The current call event handler */
     IEventHandler& handler() const { return *mHandler; }
-/** Hangs up the call.
+/** Hangs up the call. Always uses kNormalHangup reason code.
   * @param text An optional textual reason for hanging up the call. This reason
   * is sent to the peer. Normally not used.
   */
@@ -370,7 +370,10 @@ public:
  * @param targetJid - the bare or full JID of the callee. If the JID is bare,
  * the call request is broadcasted to all devices of that user. If the JID is
  * full (includes the xmpp resource), then only that device will receive the call request.
- * @param
+ * @param av What streams to send - audio and/or video or none.
+ * @param files - used for file transfer calls, not implemented yet.
+ * @param myJid - used when in a XMPP conference chatroom to specify our room-specific jid
+ */
     virtual void startMediaCall(IEventHandler* userHandler, const std::string& targetJid,
         AvFlags av, const char* files[]=nullptr, const std::string& myJid="") = 0;
 /** Hangs up all current calls.
