@@ -74,10 +74,12 @@ enum {
 };
 
 /** @brief A class represending a media call. The protected members are internal
- stuff, protected stuff is internal, and is here for performance reasons, to
-not have virtual methods for every property */
+ stuff, and are here only for performance reasons, to not have virtual methods
+ for every property
+*/
 class ICall
 {
+///@cond PRIVATE
 protected:
     RtcModule& mRtc;
     bool mIsCaller;
@@ -94,50 +96,76 @@ protected:
          const std::string& aOwnJid)
     : mRtc(aRtc), mIsCaller(isCaller), mState(aState), mHandler(aHandler), mSid(aSid),
       mOwnJid(aOwnJid), mPeerJid(aPeerJid), mIsFileTransfer(aIsFt) {}
+///@endcond
 public:
     //TermCode (call termination reason) codes
 enum
 {
-    kNormalHangupFirst = 0,
-    kUserHangup = 0,
-    kCallReqCancel = 1,
-    kAnsweredElsewhere = 2,
-    kRejectedElsewhere = 3,
-    kAnswerTimeout = 4,
-    kNormalHangupLast = 4,
+    kNormalHangupFirst = 0, ///< First enum specifying a normal call termination
+    kUserHangup = 0, ///< Normal user hangup
+    kCallReqCancel = 1, ///< Call request was canceled before call was answered
+    kAnsweredElsewhere = 2, ///< Call was answered on another device of ours
+    kRejectedElsewhere = 3, ///< Call was rejected on another device of ours
+    kAnswerTimeout = 4, ///< Call was not answered in a timely manner
+    kNormalHangupLast = 4, ///< Last enum specifying a normal call termination
     kReserved1 = 5,
     kReserved2 = 6,
-    kErrorFirst = 7,
-    kInitiateTimeout = 7,
-    kApiTimeout = 8,
-    kFprVerifFail = 9,
-    kProtoTimeout = 10,
-    kProtoError = 11,
-    kInternalError = 12,
-    kNoMediaError = 13,
-    kXmppDisconnError = 14,
-    kErrorLast = 14,
-    kTermLast = 14,
-    kPeer = 128
+    kErrorFirst = 7, ///< First enum specifying call termination due to error
+    kInitiateTimeout = 7, ///< The calling side did not initiate the Jingle session in a timely manner after the call received accepted the call
+    kApiTimeout = 8, ///< Mega API timed out on some request (usually for RSA keys)
+    kFprVerifFail = 9, ///< Peer DTLS-SRTP fingerprint verification failed, posible MiTM attack
+    kProtoTimeout = 10, ///< Protocol timeout - one if the peers did not send something that was expected, in a timely manner
+    kProtoError = 11, ///< General protocol error
+    kInternalError = 12, ///< Internal error in the client
+    kNoMediaError = 13, ///< There is no media to be exchanged - both sides don't have audio/video to send
+    kXmppDisconnError = 14, ///< XMPP client was disconnected
+    kErrorLast = 14, ///< Last enum indicating call termination due to error
+    kTermLast = 14, ///< Last call terminate enum value
+    kPeer = 128 ///< If this flag is set, the condition specified by the code happened at the peer, not at our side
 };
-    const std::string& sid() const { return mSid; } /// The jingle session id of the call
+    const std::string& sid() const { return mSid; } ///< The jingle session id of the call
 
     RtcModule& rtc() const { return mRtc; }
-    CallState state() const { return mState; }
-    bool isCaller() const { return mIsCaller; }
+    CallState state() const { return mState; } ///< The call state
+    bool isCaller() const { return mIsCaller; } ///< Whether we initiated the call
     const std::string& peerJid() const { return mPeerJid; }
     const std::string& peerAnonId() const { return mPeerAnonId; }
     virtual const std::string& ownAnonId() const;
+    /// @cond PRIVATE
     RTCM_API static const char* termcodeToMsg(TermCode event);
     RTCM_API static std::string termcodeToReason(TermCode event);
     RTCM_API static TermCode strToTermcode(std::string event);
+    ///@endcond
+    /** The current call event handler */
     IEventHandler& handler() const { return *mHandler; }
+    /** Hangs up the call.
+     * @param text An optional textual reason for hanging up the call. This reason
+     * is sent to the peer. Normally not used.
+     */
     virtual bool hangup(const std::string& text="") = 0;
+    /** Mutes/unmutes the spefified channel (audio and/or video) */
     virtual void muteUnmute(AvFlags what, bool state) = 0;
+    /** Changes the event handler that receives call events.
+     * This may be necessary when the app initially displays a call answer gui,
+     * and after the call is established, displays a call GUI that should
+     * receive further events about the call
+     */
     RTCM_API IEventHandler* changeEventHandler(IEventHandler* handler);
+    /** Changes the instance that received local video stream. This may be
+     * convenient for example if the app displays local video in a different GUI
+     * before the call is answered and after that
+     */
     virtual void changeLocalRenderer(IVideoRenderer* renderer) = 0;
+    /** Returns \c true if we have already received media packets from the peer,
+     * \c false otherwise.
+     */
     bool hasReceivedMedia() const { return mHasReceivedMedia; }
+    /** Specifies what streams we currently send - audio and/or video */
     virtual AvFlags sentAv() const = 0; ///<whether we send audio and/or video
+    /** Specifies what streams we currently (should) receive - audio and/or video.
+      * Note that this does not mean that we are actually receiving them, but only that
+      * the peer has declared that it will send them
+      */
     virtual AvFlags receivedAv() const = 0;///<whether we receive audio and/or video
 };
 
