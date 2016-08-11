@@ -161,7 +161,7 @@ enum
      */
     bool hasReceivedMedia() const { return mHasReceivedMedia; }
     /** Specifies what streams we currently send - audio and/or video */
-    virtual AvFlags sentAv() const = 0; ///<whether we send audio and/or video
+    virtual AvFlags sentAv() const = 0;
     /** Specifies what streams we currently (should) receive - audio and/or video.
       * Note that this does not mean that we are actually receiving them, but only that
       * the peer has declared that it will send them
