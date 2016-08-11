@@ -70,9 +70,7 @@ class IRtcModule;
 class RtcModule;
 
 /** Length of Jingle session id strings */
-enum {
-    RTCM_SESSIONID_LEN = 16
-};
+enum { RTCM_SESSIONID_LEN = 16 };
 
 /** @brief A class represending a media call. The protected members are internal
  stuff, and are here only for performance reasons, to not have virtual methods
