@@ -716,6 +716,7 @@ static std::map<std::string, TermCode> sReasonNames =
   {"handled-elsewhere", Call::kAnsweredElsewhere},
   {"rejected-elsewhere", Call::kRejectedElsewhere},
   {"answer-timeout", Call::kAnswerTimeout},
+  {"app-terminating", Call::kAppTerminating},
   {"initiate-timeout", Call::kInitiateTimeout},  {"api-timeout", Call::kApiTimeout},
   {"jingle-timeout", Call::kProtoTimeout}, {"jingle-error", Call::kProtoError},
   {"internal-error", Call::kInternalError}, {"security", Call::kFprVerifFail},

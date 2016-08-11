@@ -222,6 +222,26 @@ TestGroup("General")
       });
       pms.resolve(1);
   });
+  asyncTest("Should hold the resolved value even if handlers alerady attached")
+  {
+     Promise<std::pair<std::string, std::string>> pms;
+     pms.then([&](const std::pair<std::string, std::string>& val)
+     {
+         //Fix doResolve() being called with already moved value instead of
+         //mSharedObj->mResult
+         check(val.first == "test123");
+     });
+     when(pms)
+     .then([&]()
+     {
+         //Fix resolve() calling doResolve() with the value without saving
+         //the value mSharedObj->mResult. This worked before we added the value()
+         //method, as the only way we could access the promise value was in
+         //the .then() callbacks.
+         doneOrError(pms.value().first == "test123",);
+     });
+     pms.resolve(std::make_pair<std::string,std::string>("test123", "fubar"));
+  });
 });
 
 TestGroup("Exception tests")

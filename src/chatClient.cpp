@@ -60,6 +60,8 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 Client::Client(::mega::MegaApi& sdk, IGui& aGui, Presence pres)
  :mAppDir(getAppDir()), db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
   api(sdk), userAttrCache(*this), gui(aGui),
+  contactList(new ContactList(*this)),
+  chats(new ChatRoomList(*this)),
   mOwnPresence(pres),
   mXmppContactList(*this),
   mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
@@ -68,6 +70,7 @@ Client::Client(::mega::MegaApi& sdk, IGui& aGui, Presence pres)
     {
         gui.onOwnPresence(Presence::kOffline);
     } catch(...){}
+    api.sdk.addGlobalListener(this);
 }
 
 KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *envVarName)
@@ -209,10 +212,6 @@ promise::Promise<void> Client::initWithSdk()
         return sdkLoginNewSession()
         .then([this](ReqResult)
         {
-            const char* sid = api.sdk.dumpSession();
-            assert(sid);
-            mSid = sid;
-            sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
             loginNewSession();
         });
     }
@@ -225,28 +224,34 @@ promise::Promise<void> Client::initWithSdk()
         });
     }
 }
-
-promise::Promise<void> Client::loginNewSession()
+void Client::loadContactlistFromSdk()
 {
-    loadOwnUserHandle();
-    return loadOwnKeysFromApi()
-    .then([this]()
-    {
-        contactList.reset(new ContactList(*this));
 #ifndef NDEBUG
         dumpContactList(*api.sdk.getContacts());
 #endif
         contactList->syncWithApi(*api.sdk.getContacts());
+}
 
+promise::Promise<void> Client::loginNewSession()
+{
+    const char* sid = api.sdk.dumpSession();
+    assert(sid);
+    mSid = sid;
+    sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
+
+    mMyHandle = getMyHandleFromSdk();
+    sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
+
+    return loadOwnKeysFromApi()
+    .then([this]()
+    {
+        auto contacts = api.sdk.getContacts();
+        assert(contacts);
+        contactList->syncWithApi(*contacts);
         chatd.reset(new chatd::Client(mMyHandle));
-        chats.reset(new ChatRoomList(*this));
-        ::mega::MegaTextChatList* chatRooms = nullptr; //api.sdk.getChatList();
-        if (chatRooms)
+        if (mInitialChats)
         {
-#ifndef NDEBUG
-            dumpChatrooms(*chatRooms);
-#endif
-            chats->syncRoomsWithApi(*chatRooms);
+            chats->syncRoomsWithApi(*mInitialChats);
         }
         gui.show();
         return postLoginInit();
@@ -255,12 +260,12 @@ promise::Promise<void> Client::loginNewSession()
 
 promise::Promise<void> Client::loginExistingSession()
 {
-    gui.show();
     loadOwnUserHandleFromDb();
     loadOwnKeysFromDb();
+    contactList->loadFromDb();
     chatd.reset(new chatd::Client(mMyHandle));
-    contactList.reset(new ContactList(*this));
-    chats.reset(new ChatRoomList(*this));
+    chats->loadFromDb();
+    gui.show();
     return postLoginInit();
 }
 
@@ -303,7 +308,6 @@ promise::Promise<void> Client::postLoginInit()
     KR_LOG_DEBUG("Login to Mega API successful");
 
     userAttrCache.onLogin();
-    api.sdk.addGlobalListener(this);
     userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* buf, void* userp)
     {
@@ -323,13 +327,8 @@ karere::Id Client::getMyHandleFromSdk()
     SdkString uh = api.sdk.getMyUserHandle();
     if (!uh.c_str() || !uh.c_str()[0])
         throw std::runtime_error("Could not get our own user handle from API");
+    KR_LOG_INFO("Our user handle is %s", uh.c_str());
     return karere::Id(uh.c_str());
-}
-
-void Client::loadOwnUserHandle()
-{
-    mMyHandle = getMyHandleFromSdk();
-    KR_LOG_INFO("Our user handle is %s", mMyHandle.toString().c_str());
 }
 
 void Client::loadOwnUserHandleFromDb(bool verifyWithSdk)
@@ -706,6 +705,7 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
     if (!aUsers)
         return;
+
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
     marshallCall([this, users]()
     {
@@ -893,9 +893,7 @@ void GroupChatRoom::deleteSelf()
 
 ChatRoomList::ChatRoomList(Client& aClient)
 :client(aClient)
-{
-    loadFromDb();
-}
+{}
 
 void ChatRoomList::loadFromDb()
 {
@@ -972,14 +970,32 @@ bool ChatRoomList::removeRoom(const uint64_t &chatid)
     erase(it);
     return true;
 }
-void Client::onChatsUpdate(mega::MegaApi *, mega::MegaTextChatList *rooms)
+void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 {
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
-    marshallCall([this, copy]() { chats->onChatsUpdate(copy); });
+#ifndef NDEBUG
+    dumpChatrooms(*copy);
+#endif
+    if (!mChatsLoaded)
+    {
+        mChatsLoaded = true;
+        marshallCall([this, copy]()
+        {
+            mInitialChats = copy;
+        });
+    }
+    else
+    {
+        marshallCall([this, copy]()
+        {
+            chats->onChatsUpdate(copy);
+        });
+    }
 }
 
 void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
 {
+    syncRoomsWithApi(*rooms);
     for (int i=0; i<rooms->size(); i++)
     {
         auto& room = *rooms->get(i);
@@ -1363,6 +1379,9 @@ GroupChatRoom::Member::~Member()
 
 ContactList::ContactList(Client& aClient)
 :client(aClient)
+{}
+
+void ContactList::loadFromDb()
 {
     SqliteStmt stmt(client.db, "select userid, email, visibility, since from contacts");
     while(stmt.step())
@@ -1462,6 +1481,7 @@ promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
     return api.call(&::mega::MegaApi::removeContact, user.get())
     .then([this, userid](ReqResult ret)->promise::Promise<void>
     {
+//we don't remove it, we just set visibility to HIDDEN
 //        auto erased = find(userid);
 //        if (erased != end())
 //            removeUser(erased);
@@ -1518,7 +1538,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             else
                 self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
         });
-    //FIXME: Is this safe? We are passing a virtual interface to this in the ctor
+    //FIXME: Is this safe? We are passing a virtual interface to 'this' in the ctor
     mXmppContact = mClist.client.xmppContactList().addContact(*this);
 }
 void Contact::updateTitle(const std::string& str)
