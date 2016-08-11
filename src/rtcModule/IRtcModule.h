@@ -108,65 +108,72 @@ enum
     kRejectedElsewhere = 3, ///< Call was rejected on another device of ours
     kAnswerTimeout = 4, ///< Call was not answered in a timely manner
     kNormalHangupLast = 4, ///< Last enum specifying a normal call termination
-    kReserved1 = 5,
-    kReserved2 = 6,
-    kErrorFirst = 7, ///< First enum specifying call termination due to error
-    kInitiateTimeout = 7, ///< The calling side did not initiate the Jingle session in a timely manner after the call received accepted the call
-    kApiTimeout = 8, ///< Mega API timed out on some request (usually for RSA keys)
-    kFprVerifFail = 9, ///< Peer DTLS-SRTP fingerprint verification failed, posible MiTM attack
-    kProtoTimeout = 10, ///< Protocol timeout - one if the peers did not send something that was expected, in a timely manner
-    kProtoError = 11, ///< General protocol error
-    kInternalError = 12, ///< Internal error in the client
-    kNoMediaError = 13, ///< There is no media to be exchanged - both sides don't have audio/video to send
-    kXmppDisconnError = 14, ///< XMPP client was disconnected
-    kErrorLast = 14, ///< Last enum indicating call termination due to error
-    kTermLast = 14, ///< Last call terminate enum value
+    kAppTerminating = 5, ///< The application is terminating
+    kReserved1 = 6,
+    kReserved2 = 7,
+    kErrorFirst = 8, ///< First enum specifying call termination due to error
+    kInitiateTimeout = 8, ///< The calling side did not initiate the Jingle session in a timely manner after the call received accepted the call
+    kApiTimeout = 9, ///< Mega API timed out on some request (usually for RSA keys)
+    kFprVerifFail = 10, ///< Peer DTLS-SRTP fingerprint verification failed, posible MiTM attack
+    kProtoTimeout = 11, ///< Protocol timeout - one if the peers did not send something that was expected, in a timely manner
+    kProtoError = 12, ///< General protocol error
+    kInternalError = 13, ///< Internal error in the client
+    kNoMediaError = 14, ///< There is no media to be exchanged - both sides don't have audio/video to send
+    kXmppDisconnError = 15, ///< XMPP client was disconnected
+    kErrorLast = 15, ///< Last enum indicating call termination due to error
+    kTermLast = 15, ///< Last call terminate enum value
     kPeer = 128 ///< If this flag is set, the condition specified by the code happened at the peer, not at our side
 };
-    const std::string& sid() const { return mSid; } ///< The jingle session id of the call
-
+/** The Jingle session id of the call */
+    const std::string& sid() const { return mSid; }
+/** The RtcModule instance that manages the call */
     RtcModule& rtc() const { return mRtc; }
-    CallState state() const { return mState; } ///< The call state
-    bool isCaller() const { return mIsCaller; } ///< Whether we initiated the call
+/** The state of the call at the moment */
+    CallState state() const { return mState; }
+/** Whether we initiated the call */
+    bool isCaller() const { return mIsCaller; }
+/** The jid of the peer */
     const std::string& peerJid() const { return mPeerJid; }
+/** The anonymous Id of the peer. Used only for (anonymous) stats and logging */
     const std::string& peerAnonId() const { return mPeerAnonId; }
+/** Our own anonymoud Id. Used only for (aonymous) stats and logging */
     virtual const std::string& ownAnonId() const;
     /// @cond PRIVATE
     RTCM_API static const char* termcodeToMsg(TermCode event);
     RTCM_API static std::string termcodeToReason(TermCode event);
     RTCM_API static TermCode strToTermcode(std::string event);
     ///@endcond
-    /** The current call event handler */
+/** The current call event handler */
     IEventHandler& handler() const { return *mHandler; }
-    /** Hangs up the call.
-     * @param text An optional textual reason for hanging up the call. This reason
-     * is sent to the peer. Normally not used.
-     */
+/** Hangs up the call.
+  * @param text An optional textual reason for hanging up the call. This reason
+  * is sent to the peer. Normally not used.
+  */
     virtual bool hangup(const std::string& text="") = 0;
-    /** Mutes/unmutes the spefified channel (audio and/or video) */
+/** Mutes/unmutes the spefified channel (audio and/or video) */
     virtual void muteUnmute(AvFlags what, bool state) = 0;
-    /** Changes the event handler that receives call events.
-     * This may be necessary when the app initially displays a call answer gui,
-     * and after the call is established, displays a call GUI that should
-     * receive further events about the call
-     */
+/** Changes the event handler that receives call events.
+  * This may be necessary when the app initially displays a call answer gui,
+  * and after the call is established, displays a call GUI that should
+  * receive further events about the call
+  */
     RTCM_API IEventHandler* changeEventHandler(IEventHandler* handler);
-    /** Changes the instance that received local video stream. This may be
-     * convenient for example if the app displays local video in a different GUI
-     * before the call is answered and after that
-     */
+/** Changes the instance that received local video stream. This may be
+  * convenient for example if the app displays local video in a different GUI
+  * before the call is answered and after that
+  */
     virtual void changeLocalRenderer(IVideoRenderer* renderer) = 0;
-    /** Returns \c true if we have already received media packets from the peer,
-     * \c false otherwise.
-     */
+/** Returns \c true if we have already received media packets from the peer,
+  * \c false otherwise.
+  */
     bool hasReceivedMedia() const { return mHasReceivedMedia; }
-    /** Specifies what streams we currently send - audio and/or video */
+/** Specifies what streams we currently send - audio and/or video */
     virtual AvFlags sentAv() const = 0;
-    /** Specifies what streams we currently (should) receive - audio and/or video.
-      * Note that this does not mean that we are actually receiving them, but only that
-      * the peer has declared that it will send them
-      */
-    virtual AvFlags receivedAv() const = 0;///<whether we receive audio and/or video
+/** Specifies what streams we currently (should) receive - audio and/or video.
+  * Note that this does not mean that we are actually receiving them, but only that
+  * the peer has declared that it will send them
+  */
+    virtual AvFlags receivedAv() const = 0;
 };
 
 /**
@@ -260,18 +267,18 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
 * as it may enable video sending during the call.
 */
     virtual void onRemoteSdpRecv(IVideoRenderer*& rendererRet) {}
-    /**
-     * @brief The remote has muted audio and/or video sending. If video was muted,
-     * it is guaranteed that the video renderer will not receive any frames until
-     * \c onPeerUnmute() for video is received. This allows the app to draw an avatar
-     * of the peer on the viewport.
-     * @param what Specifies what was muted
-     */
+/**
+ * @brief The remote has muted audio and/or video sending. If video was muted,
+ * it is guaranteed that the video renderer will not receive any frames until
+ * \c onPeerUnmute() for video is received. This allows the app to draw an avatar
+ * of the peer on the viewport.
+ * @param what Specifies what was muted
+ */
     virtual void onPeerMute(AvFlags what) {}
-    /**
-     * @brief The remote has unmuted audio and/or video
-     * @param what Specifies what was unmuted
-     */
+/**
+ * @brief The remote has unmuted audio and/or video
+ * @param what Specifies what was unmuted
+ */
     virtual void onPeerUnmute(AvFlags what) {}
 };
 
@@ -279,73 +286,112 @@ virtual void onCallAnswered(const std::string& peerFullJid) {}
 class ICallAnswer
 {
 public:
-    /** The call object */
+/** The call object */
     virtual std::shared_ptr<ICall> call() const = 0;
- /**This method shows whether the call can still be answered or rejected, i.e.
-    The call may have already been canceled */
+/** Shows whether the call can still be answered or rejected, i.e.
+  * the call may have already been canceled
+  */
     virtual bool reqStillValid() const = 0;
- /** The list of files, in case of a data call */
+/** The list of files, in case of a data call */
     virtual std::set<std::string>* files() const = 0;
-    /** What media the caller will send to us initially. This determined whether
-     * this is an audio or video call. Note that for example an audio call can
-     * subsequently add video */
+/** What media the caller will send to us initially. This determines whether
+ * this is an audio or video call. Note that for example an audio call can
+ * subsequently add video
+ */
     virtual AvFlags peerMedia() const = 0;
-    /** Answer or reject the call.
-     * @param accept - if true, answers the call, if false - rejects it
-     * @param ownMedia - when answering the call, specified whether we send
-     * audio and/or video */
+/** Answer or reject the call.
+ * @param accept - if true, answers the call, if false - rejects it
+ * @param ownMedia - when answering the call, specified whether we send
+ * audio and/or video
+ */
     virtual bool answer(bool accept, AvFlags ownMedia) = 0;
 };
-
+/** This is the event handler that receives events not related to a specific
+ * call, such as an incoming call (that is not yet known). Also it is used to
+ * implement publishing XMPP disco features, as the rtcModule does not use
+ * a specific disco xmpp module. However, a disco plugin is shipped with karere
+ * and it should be used for this purpose.
+ */
 class IGlobalEventHandler
 {
 public:
 /**
-* @brief Fired when an incoming call request is received.
-* @param call The call object
-* @param ans The function that the user should call to answer or reject the call
-* @param reqStillValid Can be called at any time to determine if the call request
-* is still valid
-* @param peerMedia Flags showing whether the caller has audio and video enabled for
-* the call
-* @param files Will be non-empty if this is a file transfer call.
-* Call methods of this object to answer/decline the call, check if the request
-* is still valid, or examine details about the call request.
-* @returns The user should return an event handler that will handle any further events
-* on that call, even if the call is not answered. This can be initially set to an
-* 'incoming call' GUI and if the call is actually answered, reset to an actual call
-* event handler.
-*/
+ * @brief Fired when an incoming call request is received.
+ * @param call The call object
+ * @param ans The function that the user should call to answer or reject the call
+ * @param reqStillValid Can be called at any time to determine if the call request
+ * is still valid
+ * @param peerMedia Flags showing whether the caller has audio and video enabled for
+ * the call
+ * @param files Will be non-empty if this is a file transfer call.
+ * Call methods of this object to answer/decline the call, check if the request
+ * is still valid, or examine details about the call request.
+ * @returns The user should return an event handler that will handle any further events
+ * on that call, even if the call is not answered. This can be initially set to an
+ * 'incoming call' GUI and if the call is actually answered, reset to an actual call
+ * event handler.
+ */
     virtual IEventHandler* onIncomingCallRequest(const std::shared_ptr<ICallAnswer>& ans) = 0;
 /**
-* @brief discoAddFeature Called when rtcModule wants to add a disco feature
-* to the xmpp client. The implementation should normally have instantiated
-* the disco plugin on the connection, and this method should forward the call
-* to the addFeature() method of the plugin. This is to abstract the disco
-* interface, so that the rtcModule does not care how disco is implemented.
-* @param feature The disco feature string to add
-*/
+ * @brief discoAddFeature Called when rtcModule wants to add a disco feature
+ * to the xmpp client. The implementation should normally have instantiated
+ * the disco plugin on the connection, and this method should forward the call
+ * to the addFeature() method of the plugin. This is to abstract the disco
+ * interface, so that the rtcModule does not care how disco is implemented.
+ * @param feature The disco feature string to add
+ */
     virtual void discoAddFeature(const char* feature) {}
 };
-
+/** This is the public interface of the RtcModule */
 class IRtcModule: public strophe::IPlugin
 {
 public:
+/** Returns a list of all detected audio input devices on the system */
     virtual void getAudioInDevices(std::vector<std::string>& devices) const = 0;
+/** Returns a list of all detected video input devices on the system */
     virtual void getVideoInDevices(std::vector<std::string>& devices) const = 0;
-
+/** Selects a video input device to be used for subsequent calls. This can be
+ * changed just before a call is made, to allow different calls to use different
+ * devices
+ */
     virtual bool selectVideoInDevice(const std::string& devname) = 0;
+/** Selects an audio input device to be used for subsequent calls. This can be
+ * changed just before a call is made, to allow different calls to use different
+ * devices
+ */
     virtual bool selectAudioInDevice(const std::string& devname) = 0;
+/** Globally mutes/unmutes audio and/or video for all current calls, or for
+ * all calls with the specified bare JID
+ */
     virtual int muteUnmute(AvFlags what, bool state, const std::string& jid) = 0;
+/** Initiates a call to the specified JID.
+ * @param userHandler - the event handler interface that will receive further events
+ * about the call
+ * @param targetJid - the bare or full JID of the callee. If the JID is bare,
+ * the call request is broadcasted to all devices of that user. If the JID is
+ * full (includes the xmpp resource), then only that device will receive the call request.
+ * @param
     virtual void startMediaCall(IEventHandler* userHandler, const std::string& targetJid,
         AvFlags av, const char* files[]=nullptr, const std::string& myJid="") = 0;
+/** Hangs up all current calls.
+ * @param code Optional reason to specify for the hangup, like 'kAppTerminating'.
+ * @param text Optional descriptive text for the hangup reason.
+ */
     virtual void hangupAll(TermCode code = ICall::kUserHangup, const std::string& text="") = 0;
+/** Returns the call object for the specified Jingle session id, or \c NULL if no such call exists */
     virtual std::shared_ptr<ICall> getCallBySid(const std::string& sid) = 0;
     virtual ~IRtcModule(){}
 };
 
+/** Creates the RTC module
+ * @param conn The XMPP client to attach to
+ * @param handler Global event handler to receive events not related to specific calls,
+ * and to implement publishing of XMPP disco features
+ */
 RTCM_API IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
                   ICryptoFunctions* crypto, const char* iceServers);
+
+/** Needs to be called after the application is done with using this library */
 RTCM_API void globalCleanup();
 
 }
