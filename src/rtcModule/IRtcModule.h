@@ -56,11 +56,13 @@ typedef enum
 
 typedef karere::AvFlags AvFlags;
 typedef std::function<bool(bool, AvFlags)> CallAnswerFunc;
+
 namespace stats
 {
-class IRtcStats;
-struct Options;
+    class IRtcStats;
+    struct Options;
 }
+
 class IVideoRenderer;
 class IEventHandler;
 class ICryptoFunctions;
