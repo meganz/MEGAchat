@@ -3,7 +3,6 @@
 #include "karereCommon.h"
 #include "sdkApi.h"
 #include "contactList.h"
-#include "karereEventObjects.h"
 #include "rtcModule/IRtcModule.h"
 #include <memory>
 #include <map>

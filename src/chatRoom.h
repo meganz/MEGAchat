@@ -215,18 +215,6 @@ public:
             return err;
          });
     }
-
-    void sendUserChatState(const std::string& userJid, const ChatState::STATE_TYPE chatState)
-    {
-        strophe::Stanza stateStanza(*client.conn);
-        stateStanza.setName("message")
-            .setAttr("from", userJid)
-            .setAttr("to", roomJid())
-		    .setAttr("type", "groupchat")
-            .c(ChatState::convertStateToString(chatState).c_str())
-            .setAttr("xmlns", "http://jabber.org/protocol/chatstates");
-        client.conn->send(stateStanza);
-    }
 public:
 
     /**
