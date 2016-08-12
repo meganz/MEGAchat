@@ -26,7 +26,9 @@ public:
          * and possibly more. In that case the indicator should show e.g. '2+' */
         virtual void updateOverlayCount(int count) {}
         /** Tells the GUI to update the indicator that shows the online status
-         * of the contact/groupchat (online, offline, busy, etc) */
+         * of the contact/groupchat (online, offline, busy, etc)
+         * @param state The presence code
+         */
         virtual void updateOnlineIndication(karere::Presence state) = 0;
         /** For group chats, tells the GUI that there has been a change in the
          * group composition. \c updateTitle() will be received as well, so this
@@ -34,15 +36,24 @@ public:
          */
         virtual void onMembersUpdated() {}
     };
+
+    /** This is the interface of the call GUI instance, created when a call
+     * is created. It receives events about the call, and hence it inherits
+     * rtcModule::IEventHandler. CUrrently there are no additional methods besides
+     * IEventHandler, so the class is empty.
+     */
     class ICallGui: public rtcModule::IEventHandler {};
+
     /** This interface must be implemented by chat windows. It inherits
      * chatd::Listener in order to receive chatd events, and ITitleDisplay,
-     * in order to receive chat title/online status events
+     * in order to receive chat title and online status change events
      */
     class IChatWindow: public chatd::Listener, public ITitleDisplay
     {
     public:
-        /** Returns the ICallGui instance associated with that chat window */
+        /** Returns the ICallGui instance associated with that chat window, in
+         * case there is an ongoing call. If there is no call, NULL should be returned
+         */
         virtual ICallGui* callGui() = 0;
         /** Returns the RTC call event handler associated with that chat window */
         virtual rtcModule::IEventHandler* callEventHandler() = 0;
@@ -51,9 +62,14 @@ public:
         /** The app should hide the chat window when this is called */
         virtual void hide() = 0;
     };
-    /** This is the interafce that must be implemented by the class implementing
-     * the login dialog, shown when the app is run the first time and there is no
-     * persisted login session */
+
+    /** This is the interafce that must be implemented by the
+     * login dialog implementation, in case the app uses karere to login the
+     * SDK instance via \c karere::Client::sdkLoginNewSession()
+     * If that method is never used, then the application does not need to
+     * implement this interface, and can return NULL from
+     * \c karere::IGui::createLoginDialog()
+     */
     class ILoginDialog
     {
     public:
@@ -69,10 +85,15 @@ public:
         virtual void setState(LoginStage state) {}
         virtual ~ILoginDialog() {}
     };
-    /** Called when karere needs to create a login dialog */
+    /** Called when karere needs to create a login dialog. This is only needed
+     * if the app uses karere to log in the SDK instance, by calling
+     * \c  \c karere::Client::sdkLoginNewSession(). This method can just return
+     * NULL if the app never calls \c karere::Client::sdkLoginNewSession()
+     */
     virtual ILoginDialog* createLoginDialog() = 0;
     /** Called when karere needs to instantiate a chat window for that 1on1 or
      * group chatroom
+     * @param room The chat room object.
      */
     virtual IChatWindow* createChatWindow(karere::ChatRoom& room) = 0;
     /** Implemented by contactlist items, including groupchat items */
@@ -86,6 +107,8 @@ public:
          * itself is never removed from the contactlist, because it is hard-linked
          * with its chatroom, which must exist even if the contact is removed (for
          * viewing the history in read-only mode)
+         * @param newVisibility The new visibility code, as defined in the Mega SDK
+         * class mega::MegaUser
          */
         virtual void onVisibilityChanged(int newVisibility) = 0;
     };
@@ -101,18 +124,19 @@ public:
         virtual void removeContactItem(IContactGui* item) = 0;
         /** Called when a groupchat GUI item to be removed from the GUI contactlist */
         virtual void removeGroupChatItem(IContactGui* item) = 0;
-        /** Must retirn the 1on1 chat window instance for the specified user handle.
+        /** Must return the 1on1 chat window instance for the specified user handle.
          * If one does not exist, it must be created and returned
          */
         virtual IChatWindow& chatWindowForPeer(uint64_t handle) = 0;
     };
-    /** Returns the contactlist interface */
+    /** Returns the intetrface to the contactlist GUI */
     virtual IContactList& contactList() = 0;
     /** Called by karere when our own online state/presence has changed. */
     virtual void onOwnPresence(Presence pres) {} //may include flags
     /** Called when an incoming contact request has been received. To accept
       * or decline the request, the GUI should call
-      * \c MegaApi::replyContactRequest with the \c req object
+      * \c mega::MegaApi::replyContactRequest() with the \c req object
+      * @param req The mega SDK contact request object
       */
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) = 0;
     /** Called by karere when there is an incoming call. The app must create
@@ -121,13 +145,12 @@ public:
      * Normally this rtcModule::IEventHandler instance is a class that displays
      * an incoming call GUI, that has a shared pointer to the rtcModule::ICallAnswer
      * object that is used to answer or reject the call.
+     * @param ans The \c rtcModule::ICallAnswer object that is used to answer or
+     * reject the call
      */
     virtual rtcModule::IEventHandler*
         createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
     /** Called by karere when we become participants in a 1on1 or a group chat.
-     * This may happen upon startup when the chat list or updates of it are
-     * received, after we have become contacts with someone, or when a group chat
-     * invite has been accepted by the other party, etc.
      */
     virtual void notifyInvited(const ChatRoom& room) {}
     /** Implements showing of the client GUI */
