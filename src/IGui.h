@@ -12,7 +12,7 @@ class GroupChatRoom;
 class IGui
 {
 public:
-/** Interface that received contact name updates. Each contactlist item
+/** Interface that receives contact name updates. Each contactlist item
  * implements it, as well as each chat window */
     class ITitleDisplay
     {
