@@ -45,12 +45,19 @@ enum {
 };
 
 typedef unsigned char TermCode;
+/** The call state */
 typedef enum
 {
+    /** We are calling the peer, and the call is waiting for peer to answer or reject the request */
     kCallStateOutReq = 0,
+    /** We have received a call request */
     kCallStateInReq,
+    /** We have received a call request and accepted the call, and we are waiting
+     * for the peer to initiate the Jingle session */
     kCallStateInReqWaitJingle,
+    /** Call is in progress (a Jingle session is established and in progress) */
     kCallStateSession,
+    /** Call has ended, but is not yet deleted */
     kCallStateEnded
 } CallState;
 
@@ -97,11 +104,12 @@ protected:
       mOwnJid(aOwnJid), mPeerJid(aPeerJid), mIsFileTransfer(aIsFt) {}
 ///@endcond
 public:
-    //TermCode (call termination reason) codes
+
+/** @brief Call termination reason codes */
 enum
 {
     kNormalHangupFirst = 0, ///< First enum specifying a normal call termination
-    kUserHangup = 0, ///< Normal user hangup
+    kUserHangup = 0, ///< Normal user hangup or peer rejected the call request
     kCallReqCancel = 1, ///< Call request was canceled before call was answered
     kAnsweredElsewhere = 2, ///< Call was answered on another device of ours
     kRejectedElsewhere = 3, ///< Call was rejected on another device of ours
@@ -123,52 +131,54 @@ enum
     kTermLast = 15, ///< Last call terminate enum value
     kPeer = 128 ///< If this flag is set, the condition specified by the code happened at the peer, not at our side
 };
-    /** The Jingle session id of the call */
+    /** @brief The Jingle session id of the call */
     const std::string& sid() const { return mSid; }
-    /** The RtcModule instance that manages the call */
+    /** @brief The RtcModule instance that manages the call */
     RtcModule& rtc() const { return mRtc; }
-    /** The state of the call at the moment */
+    /** @brief The state of the call at the moment */
     CallState state() const { return mState; }
-    /** Whether we initiated the call */
+    /** @brief Whether we initiated the call */
     bool isCaller() const { return mIsCaller; }
-    /** The jid of the peer */
+    /** @brief The jid of the peer */
     const std::string& peerJid() const { return mPeerJid; }
-    /** The anonymous Id of the peer. Used only for (anonymous) stats and logging */
+    /** @brief The anonymous Id of the peer. Used only for (anonymous) stats and logging */
     const std::string& peerAnonId() const { return mPeerAnonId; }
-    /** Our own anonymoud Id. Used only for (aonymous) stats and logging */
+    /** @brief Our own anonymoud Id. Used only for (aonymous) stats and logging */
     virtual const std::string& ownAnonId() const;
     /// @cond PRIVATE
     RTCM_API static const char* termcodeToMsg(TermCode event);
     RTCM_API static std::string termcodeToReason(TermCode event);
     RTCM_API static TermCode strToTermcode(std::string event);
     ///@endcond
-    /** The current call event handler */
+    /** @brief The current call event handler */
     IEventHandler& handler() const { return *mHandler; }
-    /** Hangs up the call. Always uses kNormalHangup reason code.
+    /** @brief Hangs up the call. Always uses kNormalHangup reason code.
       * @param text An optional textual reason for hanging up the call. This reason
       * is sent to the peer. Normally not used.
       */
     virtual bool hangup(const std::string& text="") = 0;
-    /** Mutes/unmutes the spefified channel (audio and/or video) */
+    /** @brief Mutes/unmutes the spefified channel (audio and/or video) */
     virtual void muteUnmute(AvFlags what, bool state) = 0;
-    /** Changes the event handler that receives call events.
+    /** @brief Changes the event handler that receives call events.
+      *
       * This may be necessary when the app initially displays a call answer gui,
       * and after the call is established, displays a call GUI that should
       * receive further events about the call
       */
     RTCM_API IEventHandler* changeEventHandler(IEventHandler* handler);
-    /** Changes the instance that received local video stream. This may be
-      * convenient for example if the app displays local video in a different GUI
-      * before the call is answered and after that
-      */
+    /** @brief Changes the instance that received local video stream.
+     *
+     * This may be convenient for example if the app displays local
+     * video in a different GUI before the call is answered and after that
+     */
     virtual void changeLocalRenderer(IVideoRenderer* renderer) = 0;
-    /** Returns \c true if we have already received media packets from the peer,
+    /** @brief Returns \c true if we have already received media packets from the peer,
       * \c false otherwise.
       */
     bool hasReceivedMedia() const { return mHasReceivedMedia; }
-    /** Specifies what streams we currently send - audio and/or video */
+    /** @brief Specifies what streams we currently send - audio and/or video */
     virtual AvFlags sentAv() const = 0;
-    /** Specifies what streams we currently (should) receive - audio and/or video.
+    /** @brief Specifies what streams we currently (should) receive - audio and/or video.
       * Note that this does not mean that we are actually receiving them, but only that
       * the peer has declared that it will send them
       */
@@ -182,7 +192,7 @@ enum
 class IEventHandler
 {
 public:
-    /**
+    /** @brief
      * Fired when there was an error obtaining local audio and/or video streams
      * @param errMsg The error message
      * @param cont In some situations it may be possible to continue and establish
@@ -193,6 +203,7 @@ public:
      * set it to \c false to terminate the call.
      */
     virtual void onLocalMediaFail(const std::string& errMsg, bool* cont) {}
+
     /**
      * @brief Fired when an _outgoing_ call has just been created, via
      * \c startMediaCall(). This is a chance for the app to associate the call object
@@ -200,21 +211,15 @@ public:
      * @param call The Call object for which events will be received on this handler
      */
     virtual void onOutgoingCallCreated(const std::shared_ptr<ICall>& call) {}
-    /**
-    * @brief A call requested by us was declined by the remote
-    * @param fullPeerJid The full jid of the peer endpoint that declined the call
-    * @param reason - The one-word reason for the decline, as specified by the remote
-    * @param text - Verbose message why the call was declined. May be NULL
-    * @param isDataCall - denotes if the call is media or data call
-    */
 
-    /** Called when a session for the call has just been created */
+    /** @brief Called when a session for the call has just been created */
     virtual void onSession() {}
 
-    /** Called when out outgoing call was answered
+    /** @brief Called when out outgoing call was answered
      * @param peerJid - the full jid of the answerer
      */
     virtual void onCallAnswered(const std::string& peerFullJid) {}
+
     /**
      * @brief Fired when the local audio/video stream has just been obtained.
      * @param [out] localVidRenderer The API user must return an IVideoRenderer
@@ -222,11 +227,13 @@ public:
      * of this interface usually renders the frames in the application's GUI.
      */
     virtual void onLocalStreamObtained(IVideoRenderer*& localVidRenderer) {}
+
     /**
      * @brief Fired just before a remote stream goes away, to remove
      * the video player from the GUI.
      */
     virtual void removeRemotePlayer() {}
+
     /**
      * @brief Fired when remote media/data packets start actually being received.
      * This is the event that denotes a successful establishment of the incoming
@@ -237,6 +244,7 @@ public:
      * for this call session.
      */
     virtual void onMediaRecv(stats::Options& statOptions) {}
+
     /**
      * @brief A call is about to be deleted. The call has ended either normally by user
      * hangup, or because of an error, or it was never established.
@@ -246,7 +254,8 @@ public:
      * It is guaranteed that this event handler will not be called anymore, so it's safe
      * to delete it as well, even from within this method.
      * @param reason The reason for which the call is terminated.
-     * If the peer terminated the call, the reason will have the ICall::kPeer bit set.
+     * If the peer terminated or rejected the call, the reason will have the
+     * \c ICall::kPeer bit set.
      * @param text A more detailed description of the reason, or \c nullptr. Can be an error
      * message. For fingerprint verification failure it is "fingerprint verification failed"
      * @param stats A stats object thet contains full or basic statistics for the call.
@@ -255,6 +264,7 @@ public:
      */
     virtual void onCallEnded(TermCode termcode, const std::string& text,
                              const std::shared_ptr<stats::IRtcStats>& stats) {}
+
     /**
      * @brief Fired when the media and codec description of the remote side
      * has been received and parsed by webRTC. At this point it is known exactly
@@ -266,6 +276,7 @@ public:
      * as it may enable video sending during the call.
      */
     virtual void onRemoteSdpRecv(IVideoRenderer*& rendererRet) {}
+
     /**
      * @brief The remote has muted audio and/or video sending. If video was muted,
      * it is guaranteed that the video renderer will not receive any frames until
@@ -274,6 +285,7 @@ public:
      * @param what Specifies what was muted
      */
     virtual void onPeerMute(AvFlags what) {}
+
     /**
      * @brief The remote has unmuted audio and/or video
      * @param what Specifies what was unmuted
@@ -285,20 +297,25 @@ public:
 class ICallAnswer
 {
 public:
-    /** The call object */
+    /** @brief The call object */
     virtual std::shared_ptr<ICall> call() const = 0;
-    /** Shows whether the call can still be answered or rejected, i.e.
+
+    /** @brief Shows whether the call can still be answered or rejected, i.e.
      * the call may have already been canceled
      */
     virtual bool reqStillValid() const = 0;
-    /** The list of files, in case of a data call */
+
+    /** @brief The list of files, in case of a data call */
     virtual std::set<std::string>* files() const = 0;
-    /** What media the caller will send to us initially. This determines whether
-     * this is an audio or video call. Note that for example an audio call can
-     * subsequently add video
+
+    /** @brief What media the caller will send to us initially. This determines whether
+     * this is an audio or video call.
+     *
+     * Note that for example an audio call can subsequently add video
      */
     virtual AvFlags peerMedia() const = 0;
-    /** Answer or reject the call.
+
+    /** @brief Answer or reject the call.
      * @param accept - if true, answers the call, if false - rejects it
      * @param ownMedia - when answering the call, specified whether we send
      * audio and/or video
@@ -306,8 +323,10 @@ public:
     virtual bool answer(bool accept, AvFlags ownMedia) = 0;
 };
 
-/** This is the event handler that receives events not related to a specific
- * call, such as an incoming call (that is not yet known). Also it is used to
+/** @brief This is the event handler that receives events not related to a specific
+ * call, such as an incoming call (that is not yet known).
+ *
+ * Also it is used to
  * implement publishing XMPP disco features, as the rtcModule does not use
  * a specific disco xmpp module. However, a disco plugin is shipped with karere
  * and it should be used for this purpose.
@@ -332,6 +351,7 @@ public:
      * event handler.
      */
     virtual IEventHandler* onIncomingCallRequest(const std::shared_ptr<ICallAnswer>& ans) = 0;
+
     /**
      * @brief discoAddFeature Called when rtcModule wants to add a disco feature
      * to the xmpp client. The implementation should normally have instantiated
@@ -343,29 +363,34 @@ public:
     virtual void discoAddFeature(const char* feature) {}
 };
 
-/** This is the public interface of the RtcModule */
+/** @brief This is the public interface of the RtcModule */
 class IRtcModule: public strophe::IPlugin
 {
 public:
-    /** Returns a list of all detected audio input devices on the system */
+    /** @brief Returns a list of all detected audio input devices on the system */
     virtual void getAudioInDevices(std::vector<std::string>& devices) const = 0;
-    /** Returns a list of all detected video input devices on the system */
+
+    /** @brief Returns a list of all detected video input devices on the system */
     virtual void getVideoInDevices(std::vector<std::string>& devices) const = 0;
-    /** Selects a video input device to be used for subsequent calls. This can be
+
+    /** @brief Selects a video input device to be used for subsequent calls. This can be
      * changed just before a call is made, to allow different calls to use different
      * devices
      */
     virtual bool selectVideoInDevice(const std::string& devname) = 0;
-    /** Selects an audio input device to be used for subsequent calls. This can be
+
+    /** @brief Selects an audio input device to be used for subsequent calls. This can be
      * changed just before a call is made, to allow different calls to use different
      * devices
      */
     virtual bool selectAudioInDevice(const std::string& devname) = 0;
-    /** Globally mutes/unmutes audio and/or video for all current calls, or for
+
+    /** @brief Globally mutes/unmutes audio and/or video for all current calls, or for
      * all calls with the specified bare JID
      */
     virtual int muteUnmute(AvFlags what, bool state, const std::string& jid) = 0;
-    /** Initiates a call to the specified JID.
+
+    /** @brief Initiates a call to the specified JID.
      * @param userHandler - the event handler interface that will receive further events
      * about the call
      * @param targetJid - the bare or full JID of the callee. If the JID is bare,
@@ -377,17 +402,19 @@ public:
      */
     virtual void startMediaCall(IEventHandler* userHandler, const std::string& targetJid,
         AvFlags av, const char* files[]=nullptr, const std::string& myJid="") = 0;
-    /** Hangs up all current calls.
+
+    /** @brief Hangs up all current calls.
      * @param code Optional reason to specify for the hangup, like 'kAppTerminating'.
      * @param text Optional descriptive text for the hangup reason.
      */
     virtual void hangupAll(TermCode code = ICall::kUserHangup, const std::string& text="") = 0;
-    /** Returns the call object for the specified Jingle session id, or \c NULL if no such call exists */
+
+    /** @brief Returns the call object for the specified Jingle session id, or \c NULL if no such call exists */
     virtual std::shared_ptr<ICall> getCallBySid(const std::string& sid) = 0;
     virtual ~IRtcModule(){}
 };
 
-/** Creates the RTC module
+/** @brief Creates the RTC module
  * @param conn The XMPP client to attach to
  * @param handler Global event handler to receive events not related to specific calls,
  * and to implement publishing of XMPP disco features
@@ -395,7 +422,7 @@ public:
 RTCM_API IRtcModule* create(xmpp_conn_t* conn, IGlobalEventHandler* handler,
                   ICryptoFunctions* crypto, const char* iceServers);
 
-/** Needs to be called after the application is done with using this library */
+/** @brief Needs to be called after the application is done with using this library */
 RTCM_API void globalCleanup();
 
 }
