@@ -53,7 +53,7 @@ class ChatRoom: public chatd::Listener
 public:
     ChatRoomList& parent;
 protected:
-    IGui::IChatWindow* mChatWindow = nullptr;
+    IApp::IChatHandler* mAppChatHandler = nullptr;
     uint64_t mChatid;
     std::string mUrl;
     unsigned char mShardNo;
@@ -61,11 +61,11 @@ protected:
     chatd::Priv mOwnPriv;
     chatd::Chat* mChat = nullptr;
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
-    void switchListenerToChatWindow();
+    void switchListenerToApp();
     void chatdJoin(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
-    virtual IGui::IContactGui& contactGui() = 0;
+    virtual IApp::IContactListItem& contactGui() = 0;
     virtual const std::string& titleString() const = 0;
     virtual Presence presence() const = 0;
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
@@ -77,8 +77,8 @@ public:
     unsigned char shardNo() const { return mShardNo; }
     chatd::Priv ownPriv() const { return mOwnPriv; }
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
-    IGui::IChatWindow& chatWindow(); /// < creates the windows if not already created
-    bool hasChatWindow() const { return mChatWindow != nullptr; }
+    IApp::IChatHandler& appChatHandler(); /// < creates the windows if not already created
+    bool hasAppChatHandler() const { return mAppChatHandler != nullptr; }
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
@@ -103,7 +103,7 @@ public:
     bool syncOwnPriv(chatd::Priv priv);
     bool syncPeerPriv(chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
-    virtual IGui::IContactGui& contactGui();
+    virtual IApp::IContactListItem& contactGui();
     virtual const std::string& titleString() const;
     void updatePresence();
     virtual Presence presence() const;
@@ -133,7 +133,7 @@ protected:
     };
     typedef std::map<uint64_t, Member*> MemberMap;
     MemberMap mPeers;
-    IGui::IContactGui* mContactGui = nullptr;
+    IApp::IContactListItem* mContactGui = nullptr;
     std::string mTitleString;
     bool mHasUserTitle = false;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
@@ -155,7 +155,7 @@ public:
     void leave();
     promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
-    virtual IGui::IContactGui& contactGui() { return *mContactGui; }
+    virtual IApp::IContactListItem& contactGui() { return *mContactGui; }
     virtual const std::string& titleString() const { return mTitleString; }
     virtual Presence presence() const
     {
@@ -178,9 +178,9 @@ public:
             mTitleString.resize(mTitleString.size()-2); //truncate last ", "
 
         if (mContactGui) //doesn't exist during construction
-            mContactGui->updateTitle(mTitleString);
-        if(mChatWindow)
-            mChatWindow->updateTitle(mTitleString);
+            mContactGui->onTitleChanged(mTitleString);
+        if(mAppChatHandler)
+            mAppChatHandler->onTitleChanged(mTitleString);
     }
     void join();
 //chatd::Listener
@@ -214,7 +214,7 @@ protected:
     int64_t mSince;
     std::string mTitleString;
     int mVisibility;
-    IGui::IContactGui* mDisplay; //must be after mTitleString because it will read it
+    IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
     void updateTitle(const std::string& str);
     void setChatRoom(PeerChatRoom& room);
@@ -227,7 +227,7 @@ public:
     PeerChatRoom* chatRoom() { return mChatRoom; }
     promise::Promise<ChatRoom *> createChatRoom();
     const std::string& titleString() const { return mTitleString; }
-    IGui::IContactGui& gui() { return *mDisplay; }
+    IApp::IContactListItem& gui() { return *mDisplay; }
     uint64_t userId() const { return mUserid; }
     const std::string& email() const { return mEmail; }
     const std::string& jid() const { return mXmppContact->bareJid(); }
@@ -245,7 +245,7 @@ public:
     }
     void updateAllOnlineDisplays(Presence pres)
     {
-            mDisplay->updateOnlineIndication(pres);
+            mDisplay->onPresenceChanged(pres);
             if (mChatRoom)
                 mChatRoom->updatePresence();
     }
@@ -267,7 +267,7 @@ public:
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
-    IGui::IContactGui* attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
+    IApp::IContactListItem* attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     Contact* contactFromJid(const std::string& jid) const;
     void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
@@ -294,7 +294,7 @@ public:
     unsigned mReconnectConnStateHandler = 0;
     std::function<void()> onChatdReady;
     UserAttrCache userAttrCache;
-    IGui& gui;
+    IApp& app;
     std::unique_ptr<ContactList> contactList;
     std::unique_ptr<ChatRoomList> chats;
     char mMyPrivCu25519[32] = {0};
@@ -303,7 +303,7 @@ public:
     unsigned short mMyPrivRsaLen = 0;
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
-    std::unique_ptr<IGui::ILoginDialog> mLoginDlg;
+    std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
     bool mChatsLoaded = false;
     std::shared_ptr<::mega::MegaTextChatList> mInitialChats;
     bool isLoggedIn() const { return mIsLoggedIn; }
@@ -330,7 +330,7 @@ public:
      * This performs a request to xmpp roster server and fetch the contact list.
      * Contact list also registers a contact presence handler to update the list itself based on received presence messages.
      */
-    Client(::mega::MegaApi& sdk, IGui& gui, Presence pres);
+    Client(::mega::MegaApi& sdk, IApp& app, Presence pres);
     virtual ~Client();
     void registerRtcHandler(rtcModule::IEventHandler* rtcHandler);
     promise::Promise<ReqResult> sdkLoginNewSession();

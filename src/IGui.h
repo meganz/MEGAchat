@@ -1,81 +1,80 @@
-#ifndef IGUI_H
-#define IGUI_H
+#ifndef IAPP_H
+#define IAPP_H
 
 namespace karere
 {
 class ChatRoom;
 class GroupChatRoom;
 
-/** @brief The karere chat application GUI interface class, that the app needs to
- * implement. Usually this interface is implemented by the main app window.
+/** @brief The karere chat application class that the app needs to
+ * implement in order to receive (mostly GUI) events.
  */
-class IGui
+class IApp
 {
 public:
 /** @brief
  * Interface that receives contact name updates. Each contactlist item
  * implements it, as well as each chat window */
-    class ITitleDisplay
+    class ITitleHandler
     {
     public:
         /** @brief
-         * Tells the GUI to update the displayed contact/groupchat name */
-        virtual void updateTitle(const std::string& title) = 0;
+         * Called by karere when the title has changed. It can be used to e.g.
+         * to update the displayed contact/groupchat name */
+        virtual void onTitleChanged(const std::string& title) = 0;
+
         /** @brief
-         * Tells the GUI to show/remove an unread message counter next to the
-         * contact/groupchat name.
+         * The number of unread messages for that chat has changed. It can be used
+         * to display an unread message counter next to the contact/groupchat
+         * name.
          *
          * If count == 0, then the indicator should be
          * removed, if count > 0, the indicator should show the exact value of
          * count, if count < 0, then there are *at least* \c count unread messages,
          * and possibly more. In that case the indicator should show e.g. '2+' */
-        virtual void updateOverlayCount(int count) {}
+        virtual void onUnreadCountChanged(int count) {}
+
         /** @brief
-         * Tells the GUI to update the indicator that shows the online status
+         * The online state of the person/chatroom has changed. This can be used
+         * to update the indicator that shows the online status
          * of the contact/groupchat (online, offline, busy, etc)
          * @param state The presence code
          */
-        virtual void updateOnlineIndication(karere::Presence state) = 0;
+        virtual void onPresenceChanged(karere::Presence state) = 0;
+
         /** @brief
-         * For group chats, tells the GUI that there has been a change in the
-         * group composition. \c updateTitle() will be received as well, so this
-         * event is not critical for name display updates
-         */
+         * For group chats, tells the application that there has been a change
+         * in the group composition. \c onTitleChanged() will be received as well,
+         * so this event is not critical for name display updates
+        */
         virtual void onMembersUpdated() {}
     };
 
     /** @brief
-     * This is the interface of the call GUI, created when a call
-     * is created.
+     * This is the interface that receives events about an ongoing call.
      *
-     * It receives events about the call, and hence it inherits
-     * rtcModule::IEventHandler. CUrrently there are no additional methods besides
-     * IEventHandler, so the class is empty.
+     * As currently there are no additional methods besides the inherited from
+     * \c  IEventHandler, the class is empty.
      */
-    class ICallGui: public rtcModule::IEventHandler {};
+    class ICallHandler: public rtcModule::IEventHandler {};
 
     /** @brief
      * This interface must be implemented by chat windows. It inherits
      * chatd::Listener in order to receive chatd events, and ITitleDisplay,
      * in order to receive chat title and online status change events
      */
-    class IChatWindow: public chatd::Listener, public ITitleDisplay
+    class IChatHandler: public chatd::Listener, public ITitleHandler
     {
     public:
         /** @brief
-         * Returns the ICallGui instance associated with that chat window, in
-         * case there is an ongoing call. If there is no call, NULL should be returned
+         * Returns the ICallHandler instance associated with that chat, in
+         * case there is an ongoing call. If there is no call,
+         * NULL should be returned
          */
-        virtual ICallGui* callGui() = 0;
-        /** @brief
-         * Returns the RTC call event handler associated with that chat window */
-        virtual rtcModule::IEventHandler* callEventHandler() = 0;
-        /** @brief
-         * The app should show the chat window when this is called */
-        virtual void show() = 0;
-        /** @brief
-         * The app should hide the chat window when this is called */
-        virtual void hide() = 0;
+        virtual ICallHandler* callHandler() = 0;
+
+        /** @brief Returns an optionally associated user data pointer */
+        virtual void* userp() { return nullptr; }
     };
 
     /** @brief
@@ -113,22 +112,20 @@ public:
      * \c karere::Client::sdkLoginNewSession()
      */
     virtual ILoginDialog* createLoginDialog() = 0;
+
     /** @brief
      * Called when karere needs to instantiate a chat window for that 1on1 or
      * group chatroom
      * @param room The chat room object.
      */
-    virtual IChatWindow* createChatWindow(karere::ChatRoom& room) = 0;
+    virtual IChatHandler* createChatHandler(karere::ChatRoom& room) = 0;
 
     /** @brief
      * Implemented by contactlist items, including groupchat items
      */
-    class IContactGui: public ITitleDisplay
+    class IContactListItem: public ITitleHandler
     {
     public:
-        /** @brief
-         * Called when the chat window with that contact/groupchat must be shown */
-        virtual void showChatWindow() = 0;
         /** @brief Called when the contact's visibility has changed, i.e. the
          * contact was removed or added. Used only for contacts (not groupchats).
          *
@@ -140,30 +137,44 @@ public:
          * class mega::MegaUser
          */
         virtual void onVisibilityChanged(int newVisibility) = 0;
+
+        /** @brief Returns a user data pointer */
+        void* userp() { return nullptr; }
     };
 
-    /** @brief Manages a GUI contactlist implementation */
-    class IContactList
+    /** @brief Manages contactlist items that in turn receive events
+      *
+      * Note that both contacts and group chatrooms are considered contactlist
+      * items. However the app may choose to present them separately to the user,
+      * i.e. a contact list and a chat list view. In that case, a contact's 1on1
+      * chatroom can be obtained by
+      * \c PeerChatRoom* karere::Contact::chatRoom()
+      * which will return NULL in case there is no existing chat with that contact.
+      */
+    class IContactListHandler
     {
     public:
-        /** @brief Called when a contact GUI item needs to be added to the GUI contactlist */
-        virtual IContactGui* createContactItem(Contact& contact) = 0;
-        /** @brief Called when a groupchat GUI item needs to be added to the GUI contactlist */
-        virtual IContactGui* createGroupChatItem(GroupChatRoom& room) = 0;
-        /** @brief Called when a contact GUI item has to be removed from the GUI contactlist */
-        virtual void removeContactItem(IContactGui* item) = 0;
-        /** @brief Called when a groupchat GUI item to be removed from the GUI contactlist */
-        virtual void removeGroupChatItem(IContactGui* item) = 0;
-        /** @brief Must return the 1on1 chat window instance for the specified user handle.
-         * If one does not exist, it must be created and returned
+        /** @brief Called when a contact is added to the contactlist */
+        virtual IContactListItem* addContactItem(Contact& contact) = 0;
+        /** @brief Called when a groupchat is added to the contactlist */
+        virtual IContactListItem* addGroupChatItem(GroupChatRoom& room) = 0;
+        /** @brief Called when a contact is removed from contactlist */
+        virtual void removeContactItem(IContactListItem* item) = 0;
+        /** @brief Called when a groupchat is removed from the contactlist */
+        virtual void removeGroupChatItem(IContactListItem* item) = 0;
+
+        /** @brief Must return the 1on1 IChatHandler instance for the specified
+         * user handle. If one does not exist, it must be created and returned
          */
-        virtual IChatWindow& chatWindowForPeer(uint64_t handle) = 0;
+        virtual IChatHandler& chatHandlerForPeer(uint64_t handle) = 0;
     };
 
-    /** @brief Returns the intetrface to the contactlist GUI */
-    virtual IContactList& contactList() = 0;
+    /** @brief Returns the interface to the contactlist */
+    virtual IContactListHandler& contactList() = 0;
+
     /** @brief Called by karere when our own online state/presence has changed. */
     virtual void onOwnPresence(Presence pres) {} //may include flags
+
     /** @brief Called when an incoming contact request has been received.
      *
      *  To accept or decline the request, the GUI should call
@@ -171,10 +182,11 @@ public:
      * @param req The mega SDK contact request object
      */
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) = 0;
+
     /** @brief Called by karere when there is an incoming call.
      *
      * The app must create a rtcModule::IEventHandler to handle events related to
-     * that incoming call request (such as cancel of the call request).
+     * that incoming call request (such as cancel or timeout of the call request).
      * Normally this rtcModule::IEventHandler instance is a class that displays
      * an incoming call GUI, that has a shared pointer to the rtcModule::ICallAnswer
      * object that is used to answer or reject the call.
@@ -182,18 +194,19 @@ public:
      * reject the call
      */
     virtual rtcModule::IEventHandler*
-        createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
+        onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
+
     /** @brief Called by karere when we become participants
      * in a 1on1 or a group chat.
      */
     virtual void notifyInvited(const ChatRoom& room) {}
-    /** @brief Implements showing of the client GUI */
-    virtual void show() = 0;
-    /** @brief Returns whether the client GUI is visible */
-    virtual bool visible() const = 0;
+
+    /** @brief Called when karere init is complete and the app can show it  UI */
+    virtual void onInitComplete() = 0;
+
     /** @brief Called when karere is about to terminate */
     virtual void onTerminate() {}
-    virtual ~IGui() {}
+    virtual ~IApp() {}
 };
 }
 

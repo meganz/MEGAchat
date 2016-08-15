@@ -39,7 +39,7 @@ QString kOnlineStatusBtnStyle = QStringLiteral(
         "stop:0 rgba(100,100,100,255),"
         "stop:1 rgba(160,160,160,255));");
 
-class LoginDialog: public QDialog, public karere::IGui::ILoginDialog
+class LoginDialog: public QDialog, public karere::IApp::ILoginDialog
 {
     Q_OBJECT
     Ui::LoginDialog ui;
@@ -255,8 +255,8 @@ QString gOnlineIndColors[karere::Presence::kLast+1] =
 {  "lightgray", "red", "orange", "lightgreen", "lightblue" };
 
 
-karere::IGui::IContactGui*
-MainWindow::createContactItem(karere::Contact& contact)
+karere::IApp::IContactListItem*
+MainWindow::addContactItem(karere::Contact& contact)
 {
     auto clist = ui.contactList;
     auto contactGui = new CListContactItem(clist, contact);
@@ -266,8 +266,8 @@ MainWindow::createContactItem(karere::Contact& contact)
     clist->setItemWidget(item, contactGui);
     return contactGui;
 }
-karere::IGui::IContactGui*
-MainWindow::createGroupChatItem(karere::GroupChatRoom& room)
+karere::IApp::IContactListItem*
+MainWindow::addGroupChatItem(karere::GroupChatRoom& room)
 {
     auto clist = ui.contactList;
     auto chatGui = new CListGroupChatItem(clist, room);
@@ -278,7 +278,7 @@ MainWindow::createGroupChatItem(karere::GroupChatRoom& room)
     return chatGui;
 }
 
-void MainWindow::removeItem(IContactGui* item, bool isGroup)
+void MainWindow::removeItem(IContactListItem* item, bool isGroup)
 {
     auto clist = ui.contactList;
     auto size = clist->count();
@@ -295,20 +295,20 @@ void MainWindow::removeItem(IContactGui* item, bool isGroup)
     }
     throw std::runtime_error("ContactList: removeItem: Item not found");
 }
-void MainWindow::removeGroupChatItem(IContactGui* item)
+void MainWindow::removeGroupChatItem(IContactListItem* item)
 {
     removeItem(item, true);
 }
-void MainWindow::removeContactItem(IContactGui* item)
+void MainWindow::removeContactItem(IContactListItem* item)
 {
     removeItem(item, false);
 }
 
-karere::IGui::IChatWindow* MainWindow::createChatWindow(karere::ChatRoom& room)
+karere::IApp::IChatHandler* MainWindow::createChatHandler(karere::ChatRoom& room)
 {
     return new ChatWindow(room, *this);
 }
-karere::IGui::IChatWindow& MainWindow::chatWindowForPeer(uint64_t handle)
+karere::IApp::IChatHandler& MainWindow::chatHandlerForPeer(uint64_t handle)
 {
     auto it = mClient->contactList->find(handle);
     if (it == mClient->contactList->end())
@@ -316,9 +316,9 @@ karere::IGui::IChatWindow& MainWindow::chatWindowForPeer(uint64_t handle)
     auto room = it->second->chatRoom();
     if (!room)
         throw std::runtime_error("chatWindowForPeer: peer contact has no chatroom");
-    return room->chatWindow();
+    return room->appChatHandler();
 }
-karere::IGui::ILoginDialog* MainWindow::createLoginDialog()
+karere::IApp::ILoginDialog* MainWindow::createLoginDialog()
 {
     return new LoginDialog(nullptr);
 }
