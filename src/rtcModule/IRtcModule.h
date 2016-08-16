@@ -119,7 +119,7 @@ enum
     kReserved1 = 6,
     kReserved2 = 7,
     kErrorFirst = 8, ///< First enum specifying call termination due to error
-    kInitiateTimeout = 8, ///< The calling side did not initiate the Jingle session in a timely manner after the call received accepted the call
+    kInitiateTimeout = 8, ///< The calling side did not initiate the Jingle session in a timely manner after the callee accepted the call
     kApiTimeout = 9, ///< Mega API timed out on some request (usually for RSA keys)
     kFprVerifFail = 10, ///< Peer DTLS-SRTP fingerprint verification failed, posible MiTM attack
     kProtoTimeout = 11, ///< Protocol timeout - one if the peers did not send something that was expected, in a timely manner
