@@ -48,6 +48,12 @@ class ContactList;
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 class ChatRoomList;
 
+/** @brief An abstract class representing a chatd chatroom. It has two
+ * descendants - \c PeerChatRoom, representing a 1on1 chatroom,
+ * and \c GroupChatRoom, representing a group chat room. This class also
+ * serves as a chat event handler for the chatroom, until the application creates
+ * one via \c IApp::createChatHandler()
+ */
 class ChatRoom: public chatd::Listener
 {
     //@cond PRIVATE
@@ -104,6 +110,7 @@ public:
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
 //  virtual void onHistoryTruncated();
 };
+/** @brief Represents a 1on1 chatd chatroom */
 class PeerChatRoom: public ChatRoom
 {
 //  @cond PRIVATE
@@ -146,11 +153,11 @@ public:
     virtual void onUnreadChanged();
 //@endcond
 };
-
+/** Represents a chatd chatroom that is a groupchat */
 class GroupChatRoom: public ChatRoom
 {
-//    @cond PRIVATE
-protected:
+public:
+    /** @brief Represents a single chatroom member */
     class Member
     {
         GroupChatRoom& mRoom;
@@ -160,11 +167,16 @@ protected:
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
+        /** @brief The current display name of the member */
         const std::string& name() const { return mName; }
+        /** @brief The current provilege of the member within the groupchat */
         chatd::Priv priv() const { return mPriv; }
         friend class GroupChatRoom;
     };
+    /** @brief A map that holds all the members of a group chat room, keyed by the userid */
     typedef std::map<uint64_t, Member*> MemberMap;
+    /** @cond PRIVATE */
+    protected:
     MemberMap mPeers;
     IApp::IContactListItem* mContactGui = nullptr;
     std::string mTitleString;
@@ -180,7 +192,9 @@ public:
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
                   unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
     ~GroupChatRoom();
+    /** @brief Returns the map of the users in the chatroom, except our own user */
     const MemberMap& peers() const { return mPeers; }
+    /** @cond PRIVATE */
     void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(const uint64_t& userid);
     void setUserTitle(const std::string& title);
@@ -189,6 +203,7 @@ public:
     promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     virtual IApp::IContactListItem& contactGui() { return *mContactGui; }
+    /** @endcond PRIVATE */
     virtual const std::string& titleString() const { return mTitleString; }
     virtual Presence presence() const
     {
@@ -222,9 +237,13 @@ public:
     void onOnlineStateChange(chatd::ChatState);
 
 };
+/** @brief Represents all chatd chatrooms that we are members of at the moment,
+ * keyed by the chatid of the chatroom. This object can be obtained
+ * via \c Client::chats
+ */
 class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
 {
-protected:
+/** @cond PRIAVATE
 public:
     Client& client;
     void syncRoomsWithApi(const mega::MegaTextChatList& rooms);
@@ -234,10 +253,13 @@ public:
     ~ChatRoomList();
     void loadFromDb();
     void onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& chats);
+/** @endcond */
 };
 
+/** @brief Represents a karere contact. Also handles presence change events. */
 class Contact: public IPresenceListener
 {
+/** @cond PRIVATE */
 protected:
     ContactList& mClist;
     uint64_t mUserid;
@@ -255,16 +277,41 @@ public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
     ~Contact();
-    ContactList& contactList() { return mClist; }
-    XmppContact& xmppContact() { return *mXmppContact; }
-    PeerChatRoom* chatRoom() { return mChatRoom; }
-    promise::Promise<ChatRoom *> createChatRoom();
-    const std::string& titleString() const { return mTitleString; }
     IApp::IContactListItem& gui() { return *mDisplay; }
+/** @endcond PRIVATE */
+    /** The contactlist object which this contact is member of */
+    ContactList& contactList() { return mClist; }
+    /** The XMPP contact associated with this Mega contact. It provides
+     * the presence notifications
+     */
+    XmppContact& xmppContact() { return *mXmppContact; }
+    /** Returns the 1on1 chatroom with this contact, if one exists.
+     * Otherwise returns NULL
+     */
+    PeerChatRoom* chatRoom() { return mChatRoom; }
+    /** @brief Creates a 1on1 chatroom with this contact, if one does not exist,
+     * otherwise returns the existing one.
+     * @returns a promise containing the 1on1 chatroom object
+     */
+    promise::Promise<ChatRoom *> createChatRoom();
+    /** @brief Returns the current screen name of this contact */
+    const std::string& titleString() const { return mTitleString; }
+    /** @brief Returns the userid of this contact */
     uint64_t userId() const { return mUserid; }
+    /** @brief Returns the email of this contact */
     const std::string& email() const { return mEmail; }
+    /** @brief Retutns the bare JID, representing this contact in XMPP */
     const std::string& jid() const { return mXmppContact->bareJid(); }
+    /** @brief Returns the time since this contact was added */
     int64_t since() const { return mSince; }
+    /** @brief The visibility of this contact, as returned by
+     * mega::MegaUser::getVisibility(). If it is \c MegaUser::VISIBILITY_HIDDEN,
+     * then this contact is not a contact anymore, but kept in the contactlist
+     * to be able to access archived chat history etc.
+     */
+    int visibility() const { return mVisibility; }
+
+    /** @cond PRIVATE */
     virtual void onPresence(Presence pres)
     {
         if (mChatRoom && (mChatRoom->chatdOnlineState() != chatd::kChatStateOnline))
@@ -282,17 +329,25 @@ public:
             if (mChatRoom)
                 mChatRoom->updatePresence();
     }
-    int visibility() const { return mVisibility; }
     friend class ContactList;
 };
 
+/** @brief This is the karere contactlist class. It maps user ids
+ * to Contact objects
+ */
 class ContactList: public std::map<uint64_t, Contact*>
 {
 protected:
     void removeUser(iterator it);
     void removeUser(uint64_t userid);
 public:
+    /** @brief The Client object that this contactlist belongs to */
     Client& client;
+    /** @brief Returns the contact object from the specified XMPP jid if one exists,
+     * otherwise returns NULL
+     */
+    Contact* contactFromJid(const std::string& jid) const;
+/** @cond PRIVATE
     ContactList(Client& aClient);
     ~ContactList();
     void loadFromDb();
@@ -301,9 +356,9 @@ public:
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
     IApp::IContactListItem* attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
-    Contact* contactFromJid(const std::string& jid) const;
     void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
+/** @endcond */
 };
 
 class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener
@@ -351,10 +406,12 @@ public:
     std::string getNickname() const { return getUsername() + "__" + getResource(); }
 
     /**
-     * @brief Initialize the contact list.
+     * @brief Creates a karere Client.
      *
-     * This performs a request to xmpp roster server and fetch the contact list.
-     * Contact list also registers a contact presence handler to update the list itself based on received presence messages.
+     * @param sdk The Mega SDK instance that this client will use.
+     * @param app The IApp interface that the client will use to access
+     * services/objects implemented by the application.
+     * @param pres The initial presence that will be set when we log in.
      */
     Client(::mega::MegaApi& sdk, IApp& app, Presence pres);
     virtual ~Client();
