@@ -50,6 +50,7 @@ class ChatRoomList;
 
 class ChatRoom: public chatd::Listener
 {
+    //@cond PRIVATE
 public:
     ChatRoomList& parent;
 protected:
@@ -66,27 +67,46 @@ protected:
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IContactListItem& contactGui() = 0;
+    //@endcond
+    /** @brief The text that will be displayed on the chat list for that chat */
     virtual const std::string& titleString() const = 0;
+    /** @brief The current presence status of the chat. If this is a 1on1 chat, this is
+     * the same as the presence of the peer. If it is a groupchat, it is
+     *  derived from the chatd chatroom status */
     virtual Presence presence() const = 0;
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
              unsigned char shard, chatd::Priv ownPriv);
     virtual ~ChatRoom(){}
+    /** @brief The chatid of the chatroom */
     const uint64_t& chatid() const { return mChatid; }
+    /** @brief Whether this chatroom is a groupchat or 1on1 chat */
     bool isGroup() const { return mIsGroup; }
+    /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
+    /** @brief The chatd shart number for that chatroom */
     unsigned char shardNo() const { return mShardNo; }
+    /** @brief Our own privilege within this chat */
     chatd::Priv ownPriv() const { return mOwnPriv; }
+    /** @brief The online state reported by chatd for that chatroom */
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
-    IApp::IChatHandler& appChatHandler(); /// < creates the windows if not already created
+    /** @brief The application-side event handler that received events from chatd
+     * and events about title change, online status change. If such an event
+     * handler does not exist, this method asks IApp to create it */
+    IApp::IChatHandler& appChatHandler();
+    /** @brief Returns whether appChatHandler exists. Call this method before
+     * \c appChatHandler() if you don't want to create such a handler
+     * in case it does not exist
+     */
     bool hasAppChatHandler() const { return mAppChatHandler != nullptr; }
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
-//    virtual void onHistoryTruncated();
+//  virtual void onHistoryTruncated();
 };
 class PeerChatRoom: public ChatRoom
 {
+//  @cond PRIVATE
 protected:
     uint64_t mPeer;
     chatd::Priv mPeerPriv;
@@ -98,25 +118,38 @@ public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
-    const uint64_t peer() const { return mPeer; }
-    const Contact& contact() const { return *mContact; }
     bool syncOwnPriv(chatd::Priv priv);
     bool syncPeerPriv(chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
     virtual IApp::IContactListItem& contactGui();
-    virtual const std::string& titleString() const;
     void updatePresence();
-    virtual Presence presence() const;
     void join();
-//chatd::Listener interface
+    //@endcond
+    /** @brief The userid of the other person in the 1on1 chat */
+    const uint64_t peer() const { return mPeer; }
+    /** @brief The contact object representing the peer of the 1on1 chat */
+    const Contact& contact() const { return *mContact; }
+    /** @brief The screen name of the peer */
+    virtual const std::string& titleString() const;
+    /** @brief The presence status of the chatroom. Derived from the presence
+     * of the peer and the status of the chatroom reported by chatd. For example,
+     * the peer may be online, but the chatd connection may be offline or there may
+     * be a problem joining the chatroom on chatd. In such a case, the presence
+     * will be `offline`
+     */
+    virtual Presence presence() const;
+//@cond PRIVATE
+    //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
     virtual void onUserLeave(Id userid);
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUnreadChanged();
+//@endcond
 };
 
 class GroupChatRoom: public ChatRoom
 {
+//    @cond PRIVATE
 protected:
     class Member
     {
