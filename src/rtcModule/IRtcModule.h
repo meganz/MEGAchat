@@ -324,7 +324,7 @@ public:
 };
 
 /** @brief This is the event handler that receives events not related to a specific
- * call, such as an incoming call (that is not yet known). THis is interface
+ * call, such as an incoming call request. This is interface
  * is implemented by karere::Client and is not used directly by the app.
  *
  * This interface is also used to implement publishing XMPP disco features,
