@@ -441,9 +441,9 @@ public:
      * code that logs in the Mega SDK.
      */
     promise::Promise<void> loginWithSdk();
-    /** @brief Notifies the client that internet connection is again available */
-    void notifyNetworkOffline();
     /** @brief Notifies the client that network connection is down */
+    void notifyNetworkOffline();
+    /** @brief Notifies the client that internet connection is again available */
     void notifyNetworkOnline();
     void startKeepalivePings();
     /** Terminates the karere client, logging it out, hanging up calls,
