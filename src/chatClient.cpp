@@ -201,7 +201,7 @@ promise::Promise<ReqResult> Client::sdkLoginExistingSession(const std::string& s
 {
     return api.call(&::mega::MegaApi::fastLogin, sid.c_str());
 }
-promise::Promise<void> Client::initWithSdk()
+promise::Promise<void> Client::loginWithSdk()
 {
     SqliteStmt stmt(db, "select value from vars where name='sid'");
     if (stmt.step())
