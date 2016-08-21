@@ -324,10 +324,11 @@ public:
 };
 
 /** @brief This is the event handler that receives events not related to a specific
- * call, such as an incoming call (that is not yet known).
+ * call, such as an incoming call (that is not yet known). THis is interface
+ * is implemented by karere::Client and is not used directly by the app.
  *
- * Also it is used to
- * implement publishing XMPP disco features, as the rtcModule does not use
+ * This interface is also used to implement publishing XMPP disco features,
+ * as the rtcModule does not use
  * a specific disco xmpp module. However, a disco plugin is shipped with karere
  * and it should be used for this purpose.
  */
