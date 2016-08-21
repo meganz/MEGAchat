@@ -73,7 +73,7 @@ protected:
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IContactListItem& contactGui() = 0;
-    //@endcond
+    /** @endcond PRIVATE */
     /** @brief The text that will be displayed on the chat list for that chat */
     virtual const std::string& titleString() const = 0;
     /** @brief The current presence status of the chat. If this is a 1on1 chat, this is
@@ -95,7 +95,7 @@ public:
     chatd::Priv ownPriv() const { return mOwnPriv; }
     /** @brief The online state reported by chatd for that chatroom */
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
-    /** @brief The application-side event handler that received events from chatd
+    /** @brief The application-side event handler that receives events from chatd
      * and events about title change, online status change. If such an event
      * handler does not exist, this method asks IApp to create it */
     IApp::IChatHandler& appChatHandler();
@@ -192,6 +192,8 @@ public:
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
                   unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
     ~GroupChatRoom();
+    /** @endcond PRIVATE */
+
     /** @brief Returns the map of the users in the chatroom, except our own user */
     const MemberMap& peers() const { return mPeers; }
     /** @cond PRIVATE */
@@ -243,7 +245,7 @@ public:
  */
 class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
 {
-/** @cond PRIAVATE
+/** @cond PRIAVATE */
 public:
     Client& client;
     void syncRoomsWithApi(const mega::MegaTextChatList& rooms);
@@ -347,7 +349,7 @@ public:
      * otherwise returns NULL
      */
     Contact* contactFromJid(const std::string& jid) const;
-/** @cond PRIVATE
+/** @cond PRIVATE */
     ContactList(Client& aClient);
     ~ContactList();
     void loadFromDb();
@@ -376,7 +378,9 @@ public:
     std::function<void()> onChatdReady;
     UserAttrCache userAttrCache;
     IApp& app;
+    /** @brief The contact list */
     std::unique_ptr<ContactList> contactList;
+    /** @brief The list of chats that we are member of */
     std::unique_ptr<ChatRoomList> chats;
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};
@@ -389,22 +393,14 @@ public:
     std::shared_ptr<::mega::MegaTextChatList> mInitialChats;
     bool isLoggedIn() const { return mIsLoggedIn; }
     const Id myHandle() const { return mMyHandle; }
+    /** @brief Our own display name */
     const std::string& myName() const { return mMyName; }
     static uint64_t useridFromJid(const std::string& jid);
-    std::string getUsername() const
-    {
-        return strophe::getNodeFromJid(conn->fullOrBareJid());
-    }
-    std::string getResource() const /// < Get resource of current connection.
+    /** @brief The XMPP resource of our XMPP connection */
+    std::string getResource() const
     {
         return strophe::getResourceFromJid(conn->fullJid());
     }
-    /**
-    * @Get a unique nickname based on current connection.
-    * @returns {string} nickname based on current connection.
-    */
-    std::string getNickname() const { return getUsername() + "__" + getResource(); }
-
     /**
      * @brief Creates a karere Client.
      *
