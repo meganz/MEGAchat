@@ -353,7 +353,7 @@ public:
     virtual IEventHandler* onIncomingCallRequest(const std::shared_ptr<ICallAnswer>& ans) = 0;
 
     /**
-     * @brief discoAddFeature Called when rtcModule wants to add a disco feature
+     * @brief Called when rtcModule wants to add a disco feature
      * to the xmpp client. The implementation should normally have instantiated
      * the disco plugin on the connection, and this method should forward the call
      * to the addFeature() method of the plugin. This is to abstract the disco
