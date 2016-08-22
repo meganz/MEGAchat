@@ -101,6 +101,7 @@ enum
     TLV_TYPE_OWN_KEY            = 0x0a,
     TLV_TYPE_INVITOR            = 0x0b,
     TLV_TYPE_PRIVILEGE          = 0x0c,
+    TLV_TYPE_KEYBLOB            = 0x0d,
     TLV_TYPES_COUNT
 };
 
@@ -115,6 +116,7 @@ enum MessageType
     SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS        = 0x02,
     SVCRYPTO_MSGTYPE_TRUNCATE                  = 0x03,
     SVCRYPTO_MSGTYPE_PRIVCHANGE                = 0x04,
+    SVCRYPTO_MSGTYPE_CHAT_TOPIC                = 0x05,
     SVCRYPTO_MSGTYPES_COUNT
 };
 
@@ -187,6 +189,7 @@ struct ParsedMessage
     void parsePayload(const StaticBuffer& data, chatd::Message& msg);
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
     void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
+    promise::Promise<chatd::Message*> decryptChatTopic(chatd::Message* msg);
 };
 
 
@@ -262,6 +265,7 @@ protected:
     bool mParticipantsChanged = true;
 public:
     karere::Id chatid;
+    karere::Id ownHandle() const { return mOwnHandle; }
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& PrivCu25519,
         const StaticBuffer& PrivEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
@@ -286,7 +290,7 @@ protected:
          * @param signature [out] Message signature.
          */
     void signMessage(const StaticBuffer& msg,
-            const EncryptedMessage& encMsg, StaticBuffer& signature);
+            const SendKey &msgKey, StaticBuffer& signature);
         /**
           * Derives a symmetric key for encrypting a message to a contact.  It is
           * derived using a Curve25519 key agreement.
@@ -299,6 +303,9 @@ protected:
 
     promise::Promise<std::shared_ptr<Buffer>>
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
+    promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
+    encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key);
+
     void msgEncryptWithKey(chatd::Message &src, chatd::MsgCommand& dest,
         const StaticBuffer& key);
     promise::Promise<chatd::Message*> handleManagementMessage(
@@ -310,9 +317,6 @@ protected:
         rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, karere::Id toUser);
 
     void rsaDecrypt(const StaticBuffer& data, Buffer& output);
-
-    promise::Promise<std::shared_ptr<SendKey>>
-        decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
 
     promise::Promise<std::shared_ptr<Buffer>>
         legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedMsg);
@@ -334,6 +338,12 @@ public:
         virtual void resetSendKey();
         virtual bool handleLegacyKeys(chatd::Message& msg);
         virtual void randomBytes(void* buf, size_t bufsize);
+        //====
+        promise::Promise<std::shared_ptr<SendKey>>
+            decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
+
+        promise::Promise<std::shared_ptr<Buffer>>
+        encryptChatTopic(const std::string& data);
     };
 }
 
