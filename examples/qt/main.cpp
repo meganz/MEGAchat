@@ -102,7 +102,7 @@ int main(int argc, char **argv)
     mainWin->setClient(*gClient);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 
-    gClient->initWithSdk()
+    gClient->loginWithSdk()
     .then([]()
     {
         KR_LOG_DEBUG("Client initialized");

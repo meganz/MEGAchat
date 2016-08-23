@@ -170,7 +170,7 @@ protected:
     void removeFromListAndDelete();
 };
 
-class ChatWindow: public QDialog, public karere::IGui::IChatWindow
+class ChatWindow: public QDialog, public karere::IApp::IChatHandler
 {
     Q_OBJECT
 public:
@@ -463,7 +463,7 @@ protected:
         ui.mMessageEdit->setText(widget.ui.mMsgDisplay->toPlainText());
         ui.mMessageEdit->moveCursor(QTextCursor::End);
     }
-    void updateOnlineIndication(karere::Presence pres)
+    void onPresenceChanged(karere::Presence pres)
     {
         if (pres == karere::Presence::kOffline)
         {
@@ -487,7 +487,7 @@ public:
     virtual void init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
     {
         mChat = &chat;
-        updateOnlineIndication(mRoom.presence());
+        onPresenceChanged(mRoom.presence());
         updateChatdStatusDisplay(mChat->onlineState());
         if (mChat->empty())
             return;
@@ -612,7 +612,7 @@ public:
     }
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onEditRejected(const chatd::Message& msg, uint8_t opcode);
-    virtual void onOnlineStateChange(chatd::ChatState state)
+    virtual void onOnlineStateChanged(chatd::ChatState state)
     {
         mRoom.onOnlineStateChange(state);
         updateChatdStatusDisplay(state);
@@ -645,19 +645,24 @@ public:
         mRoom.onUserJoin(userid, priv);
     }
     virtual void onUserLeave(karere::Id userid) { mRoom.onUserLeave(userid); }
-    virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, int reason);
-    virtual karere::IGui::ICallGui* callGui() { return mCallGui; }
-    virtual rtcModule::IEventHandler* callEventHandler() { return mCallGui; }
     //IChatWindow interface
-    virtual void show() { QDialog::show(); raise(); }
-    virtual void hide() { QDialog::hide(); }
-    virtual void updateTitle(const std::string& title)
+    virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }
+    virtual void onTitleChanged(const std::string& title)
     {
         QString text = (mRoom.isGroup()) ? tr("Group: "): "";
         text += QString::fromStdString(title);
         ui.mTitleLabel->setText(text);
     }
+    virtual karere::IApp::ICallHandler* callHandler() { return mCallGui; }
+    virtual void* userp()
+    {  //access the window from the IApp::ChatHandler instance
+        return this;
+    }
+    //===
+    void show() { QDialog::show(); raise(); }
+    void hide() { QDialog::hide(); }
+
 };
 
 #endif // CHATWINDOW_H

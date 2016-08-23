@@ -168,9 +168,11 @@ public:
 
 
 class MegaChatApiImpl :
-        public karere::IGui,
-        public karere::IGui::ILoginDialog,
-        public karere::IGui::IChatWindow //: public rtcModule::IEventHandler, public IGui, public IGui::IContactList
+        public karere::IApp,
+        public karere::IApp::IContactListHandler
+
+        //public karere::IApp::IChatHandler
+        // public rtcModule::IEventHandler
 {
 public:
 
@@ -257,58 +259,54 @@ public:
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
 
-    // rtcModule::IEventHandler implementation
-    virtual void onLocalStreamObtained(rtcModule::IVideoRenderer** renderer);
-    virtual void onRemoteSdpRecv(rtcModule::IJingleSession* sess, rtcModule::IVideoRenderer** rendererRet);
-    virtual void onCallIncomingRequest(rtcModule::ICallAnswer* ctrl);
-    virtual void onIncomingCallCanceled(const char *sid, const char *event, const char *by, int accepted, void **userp);
-    virtual void onCallEnded(rtcModule::IJingleSession *sess, const char* reason, const char* text, rtcModule::stats::IRtcStats *stats);
-    virtual void discoAddFeature(const char *feature);
-    virtual void onLocalMediaFail(const char* err, int* cont = nullptr);
-    virtual void onCallInit(rtcModule::IJingleSession* sess, int isDataCall);
-    virtual void onCallDeclined(const char* fullPeerJid, const char* sid, const char* reason, const char* text, int isDataCall);
-    virtual void onCallAnswerTimeout(const char* peer);
-    virtual void onCallAnswered(rtcModule::IJingleSession* sess);
-    virtual void remotePlayerRemove(rtcModule::IJingleSession* sess, rtcModule::IVideoRenderer* videoRenderer);
-    virtual void onMediaRecv(rtcModule::IJingleSession* sess, rtcModule::stats::Options* statOptions);
-    virtual void onJingleError(rtcModule::IJingleSession* sess, const char* origin, const char* stanza, const char* origXml, char type);
-    virtual void onLocalVideoDisabled();
-    virtual void onLocalVideoEnabled();
-
-    // karere::IGui implementation
-    virtual karere::IGui::ILoginDialog *createLoginDialog();
-    virtual karere::IGui::IChatWindow* createChatWindow(karere::ChatRoom &room);
-    virtual karere::IGui::IContactList& contactList();
+    // karere::IApp implementation
+    //virtual ILoginDialog* createLoginDialog();
+    virtual IChatHandler* createChatHandler(karere::ChatRoom &room);
+    virtual IApp::IContactListHandler& contactListHandler();
+    //virtual void onOwnPresence(karere::Presence pres);
     virtual void onIncomingContactRequest(const MegaContactRequest& req);
-    virtual rtcModule::IEventHandler* createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer> &ans);
-    virtual void show();
-    virtual bool visible() const;
-    virtual void onOwnPresence(karere::Presence pres);
+    virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
+    //virtual void notifyInvited(const ChatRoom& room);
+    virtual void onInitComplete();
+    //virtual void onTerminate();
 
-    // karere::ILoginDialog implementation
-    virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials();
+    // rtcModule::IContactListHandler implementation
+    virtual IContactListItem* addContactItem(karere::Contact& contact);
+    virtual IContactListItem* addGroupChatItem(karere::GroupChatRoom& room);
+    virtual void removeContactItem(IContactListItem* item);
+    virtual void removeGroupChatItem(IContactListItem* item);
+    virtual IChatHandler& chatHandlerForPeer(uint64_t handle);
 
-    // karere::ITitleDisplay implementation
-    virtual void updateTitle(const std::string& title);
-    virtual void updateOnlineIndication(karere::Presence state);
-
-    // karere::IGui::IChatWindow implementation
-    virtual ICallGui* callGui();
-    virtual rtcModule::IEventHandler* callEventHandler();
-//    virtual void show();    // clash with IGui::show()
-    virtual void hide();
-    virtual void init(chatd::Chat& messages, chatd::DbInterface*& dbIntf);
-
-
-
-//    // rtcModule::IContactList implementation
-//    virtual IContactGui* createContactItem(Contact& contact);
-//    virtual IContactGui* createGroupChatItem(GroupChatRoom& room);
-//    virtual void removeContactItem(IContactGui* item);
-//    virtual void removeGroupChatItem(IContactGui* item);
-//    virtual IChatWindow& chatWindowForPeer(uint64_t handle);
-
+    // karere::ITitleDisplay implementation (for the name of contacts and groupchats in the list)
+    virtual void onTitleChanged(const std::string& title);
+    //virtual void onUnreadCountChanged(int count);
+    virtual void onPresenceChanged(karere::Presence state);
+    //virtual void onMembersUpdated();
 };
+
+
+// rtcModule::IEventHandler implementation
+//    virtual void onLocalStreamObtained(rtcModule::IVideoRenderer** renderer);
+//    virtual void onRemoteSdpRecv(rtcModule::IJingleSession* sess, rtcModule::IVideoRenderer** rendererRet);
+//    virtual void onCallIncomingRequest(rtcModule::ICallAnswer* ctrl);
+//    virtual void onIncomingCallCanceled(const char *sid, const char *event, const char *by, int accepted, void **userp);
+//    virtual void onCallEnded(rtcModule::IJingleSession *sess, const char* reason, const char* text, rtcModule::stats::IRtcStats *stats);
+//    virtual void discoAddFeature(const char *feature);
+//    virtual void onLocalMediaFail(const char* err, int* cont = nullptr);
+//    virtual void onCallInit(rtcModule::IJingleSession* sess, int isDataCall);
+//    virtual void onCallDeclined(const char* fullPeerJid, const char* sid, const char* reason, const char* text, int isDataCall);
+//    virtual void onCallAnswerTimeout(const char* peer);
+//    virtual void onCallAnswered(rtcModule::IJingleSession* sess);
+//    virtual void remotePlayerRemove(rtcModule::IJingleSession* sess, rtcModule::IVideoRenderer* videoRenderer);
+//    virtual void onMediaRecv(rtcModule::IJingleSession* sess, rtcModule::stats::Options* statOptions);
+//    virtual void onJingleError(rtcModule::IJingleSession* sess, const char* origin, const char* stanza, const char* origXml, char type);
+//    virtual void onLocalVideoDisabled();
+//    virtual void onLocalVideoEnabled();
+
+// karere::IApp::IChatHandler implementation
+//    virtual ICallGui* callGui();
+//    virtual rtcModule::IEventHandler* callEventHandler();
+//    virtual void init(chatd::Chat& messages, chatd::DbInterface*& dbIntf);
 
 
 }

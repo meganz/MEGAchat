@@ -117,8 +117,9 @@ void ChatWindow::onMemberPrivateChat()
         QMessageBox::critical(this, tr("Send private message"), tr("Person is not a contact of ours"));
         return;
     }
-    it->second->gui().showChatWindow();
+    static_cast<CListItem*>(it->second->gui().userp())->showChatWindow();
 }
+
 void ChatWindow::onMembersBtn(bool)
 {
     marshallCall([this]()

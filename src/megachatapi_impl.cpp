@@ -95,7 +95,7 @@ void MegaChatApiImpl::loop()
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
     this->mClient = new karere::Client(*this->megaApi, *this, karere::Presence::kOnline);
-    this->mClient->initWithSdk()
+    this->mClient->loginWithSdk()
     .then([]()
     {
         KR_LOG_DEBUG("Client initialized");
@@ -514,19 +514,15 @@ void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *liste
 //    sdkMutex.unlock();
 }
 
-karere::IGui::ILoginDialog *MegaChatApiImpl::createLoginDialog()
+karere::IApp::IChatHandler *MegaChatApiImpl::createChatHandler(karere::ChatRoom &room)
 {
-    return this;
+    // TODO: create the chat handler and add listeners to it
+    // TODO: return the object implementing IChatHandler
 }
 
-karere::IGui::IChatWindow *MegaChatApiImpl::createChatWindow(karere::ChatRoom &room)
+karere::IApp::IContactListHandler& MegaChatApiImpl::contactListHandler()
 {
-    return this;
-}
-
-karere::IGui::IContactList &MegaChatApiImpl::contactList()
-{
-
+    return *this;
 }
 
 void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
@@ -534,47 +530,27 @@ void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
 
 }
 
-rtcModule::IEventHandler *MegaChatApiImpl::createCallAnswerGui(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+{
+    // TODO: create the call object implementing IEventHandler and return it
+}
+
+void MegaChatApiImpl::onInitComplete()
 {
 
 }
 
-void MegaChatApiImpl::show()
+//void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
+//{
+//    fireOnChatStatusUpdate(pres);
+//}
+
+void MegaChatApiImpl::onTitleChanged(const string &title)
 {
 
 }
 
-bool MegaChatApiImpl::visible() const
-{
-
-}
-
-void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
-{
-    fireOnChatStatusUpdate(pres);
-}
-
-promise::Promise<std::pair<string, string> > MegaChatApiImpl::requestCredentials()
-{
-    promise::Promise<std::pair<std::string, std::string>> mPromise;
-    mPromise = promise::Promise<std::pair<std::string, std::string>>();
-
-    return mPromise;
-
-    // TODO: ask the user for credentials and later...
-    // OK       --> mPromise.resolve(make_pair(email, pwd));
-    // or
-    // Cancel   --> mPromise.reject("Login canceled by user");
-    
-    // if OK, then
-}
-
-void MegaChatApiImpl::updateTitle(const string &title)
-{
-
-}
-
-void MegaChatApiImpl::updateOnlineIndication(karere::Presence state)
+void MegaChatApiImpl::onPresenceChanged(karere::Presence state)
 {
 
 }

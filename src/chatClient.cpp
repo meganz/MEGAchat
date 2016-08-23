@@ -57,9 +57,9 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
     conn->send(pong);
 }
 
-Client::Client(::mega::MegaApi& sdk, IGui& aGui, Presence pres)
+Client::Client(::mega::MegaApi& sdk, IApp& aApp, Presence pres)
  :mAppDir(getAppDir()), db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
-  api(sdk), userAttrCache(*this), gui(aGui),
+  api(sdk), userAttrCache(*this), app(aApp),
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
   mOwnPresence(pres),
@@ -68,7 +68,7 @@ Client::Client(::mega::MegaApi& sdk, IGui& aGui, Presence pres)
 {
     try
     {
-        gui.onOwnPresence(Presence::kOffline);
+        app.onOwnPresence(Presence::kOffline);
     } catch(...){}
     api.sdk.addGlobalListener(this);
 }
@@ -163,13 +163,13 @@ Client::~Client()
 //This is a convenience method to log in the SDK in case the app does not do it.
 promise::Promise<ReqResult> Client::sdkLoginNewSession()
 {
-    mLoginDlg.reset(gui.createLoginDialog());
+    mLoginDlg.reset(app.createLoginDialog());
     return asyncLoop([this](Loop& loop)
     {
         return mLoginDlg->requestCredentials()
         .then([this](const std::pair<std::string, std::string>& cred)
         {
-            mLoginDlg->setState(IGui::ILoginDialog::kLoggingIn);
+            mLoginDlg->setState(IApp::ILoginDialog::kLoggingIn);
             return api.call(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
         })
         .then([&loop](ReqResult res)
@@ -182,13 +182,13 @@ promise::Promise<ReqResult> Client::sdkLoginNewSession()
             if (err.code() != mega::API_ENOENT && err.code() != mega::API_EARGS)
                 return err;
 
-            mLoginDlg->setState(IGui::ILoginDialog::kBadCredentials);
+            mLoginDlg->setState(IApp::ILoginDialog::kBadCredentials);
             return 0;
         });
     }, [](int) { return true; })
     .then([this](int)
     {
-        mLoginDlg->setState(IGui::ILoginDialog::kFetchingNodes);
+        mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
         return api.call(&::mega::MegaApi::fetchNodes);
     })
     .then([this](ReqResult ret)
@@ -201,7 +201,7 @@ promise::Promise<ReqResult> Client::sdkLoginExistingSession(const std::string& s
 {
     return api.call(&::mega::MegaApi::fastLogin, sid.c_str());
 }
-promise::Promise<void> Client::initWithSdk()
+promise::Promise<void> Client::loginWithSdk()
 {
     SqliteStmt stmt(db, "select value from vars where name='sid'");
     if (stmt.step())
@@ -253,7 +253,7 @@ promise::Promise<void> Client::loginNewSession()
         {
             chats->syncRoomsWithApi(*mInitialChats);
         }
-        gui.show();
+        app.onInitComplete();
         return postLoginInit();
     });
 }
@@ -265,7 +265,7 @@ promise::Promise<void> Client::loginExistingSession()
     contactList->loadFromDb();
     chatd.reset(new chatd::Client(mMyHandle));
     chats->loadFromDb();
-    gui.show();
+    app.onInitComplete();
     return postLoginInit();
 }
 
@@ -417,7 +417,7 @@ void Client::loadOwnKeysFromDb()
 promise::Promise<void> Client::connectXmpp(const std::shared_ptr<HostPortServerInfo>& server)
 {
 //we assume gui.onOwnPresence(Presence::kOffline) has been called at application start
-    gui.onOwnPresence(mOwnPresence.val() | Presence::kInProgress);
+    app.onOwnPresence(mOwnPresence.val() | Presence::kInProgress);
     assert(server);
     SdkString xmppPass = api.sdk.dumpXMPPSession();
     if (!xmppPass)
@@ -480,7 +480,7 @@ void Client::setupXmppReconnectHandler()
         {
             auto& host = mXmppServerProvider->lastServer()->host;
             KR_LOG_INFO("Connecting to xmpp server %s...", host.c_str());
-            gui.onOwnPresence(mOwnPresence.val()|Presence::kInProgress);
+            app.onOwnPresence(mOwnPresence.val()|Presence::kInProgress);
             return conn->connect(host.c_str(), 0);
         }
         else
@@ -489,7 +489,7 @@ void Client::setupXmppReconnectHandler()
             .then([this](std::shared_ptr<HostPortServerInfo> server)
             {
                 KR_LOG_WARNING("Connecting to new xmpp server: %s...", server->host.c_str());
-                gui.onOwnPresence(mOwnPresence | Presence::kInProgress);
+                app.onOwnPresence(mOwnPresence | Presence::kInProgress);
                 return conn->connect(server->host.c_str(), 0);
             });
         }
@@ -497,7 +497,7 @@ void Client::setupXmppReconnectHandler()
     [this]()
     {
         xmpp_disconnect(*conn, -1);
-        gui.onOwnPresence(Presence::kOffline);
+        app.onOwnPresence(Presence::kOffline);
     },
     KARERE_LOGIN_TIMEOUT, 60000, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
 
@@ -514,14 +514,14 @@ void Client::setupXmppReconnectHandler()
                 mXmppContactList.ready()
                 .then([this]()
                 {
-                    gui.onOwnPresence(mOwnPresence);
+                    app.onOwnPresence(mOwnPresence);
                 });
             });
             return;
         }
         //we have a disconnect
         xmppContactList().notifyOffline();
-        gui.onOwnPresence(Presence::kOffline);
+        app.onOwnPresence(Presence::kOffline);
 
         if (mOwnPresence.status() == Presence::kOffline) //user wants to be offline
             return;
@@ -674,16 +674,16 @@ promise::Promise<void> Client::setPresence(Presence pres, bool force)
     {
         mReconnectController->abort();
         conn->disconnect(4000);
-        gui.onOwnPresence(Presence::kOffline);
+        app.onOwnPresence(Presence::kOffline);
         return promise::Void();
     }
     if (previous.status() == Presence::kOffline) //we were disconnected
     {
         mReconnectController->reset();
-        gui.onOwnPresence(pres.val() | Presence::kInProgress);
+        app.onOwnPresence(pres.val() | Presence::kInProgress);
         return static_cast<promise::Promise<void>&>(mReconnectController->start());
     }
-    gui.onOwnPresence(pres.val() | Presence::kInProgress);
+    app.onOwnPresence(pres.val() | Presence::kInProgress);
     strophe::Stanza msg(*conn);
     msg.setName("presence")
        .c("show")
@@ -696,7 +696,7 @@ promise::Promise<void> Client::setPresence(Presence pres, bool force)
     return conn->sendQuery(msg)
     .then([this, pres](strophe::Stanza)
     {
-        gui.onOwnPresence(pres.status());
+        app.onOwnPresence(pres.status());
     });
 }
 
@@ -762,9 +762,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const
     {
         addMember(stmt.uint64Col(0), (chatd::Priv)stmt.intCol(1), false);
     }
-    mContactGui = parent.client.gui.contactList().createGroupChatItem(*this);
+    mContactGui = parent.client.app.contactListHandler().addGroupChatItem(*this);
     if (!mTitleString.empty())
-        mContactGui->updateTitle(mTitleString);
+        mContactGui->onTitleChanged(mTitleString);
     join();
 }
 void GroupChatRoom::join()
@@ -1033,7 +1033,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                 {
                     room.setUrl(result->getLink());
                     auto& createdRoom = addRoom(room);
-                    client.gui.notifyInvited(createdRoom);
+                    client.app.notifyInvited(createdRoom);
                 });
             }
             else
@@ -1086,9 +1086,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
         stmt.step();
         stmt.reset().clearBind();
     }
-    mContactGui = parent.client.gui.contactList().createGroupChatItem(*this);
+    mContactGui = parent.client.app.contactListHandler().addGroupChatItem(*this);
     if (!mTitleString.empty())
-        mContactGui->updateTitle(mTitleString);
+        mContactGui->onTitleChanged(mTitleString);
     join();
 }
 
@@ -1134,7 +1134,7 @@ GroupChatRoom::~GroupChatRoom()
         chatd->leave(mChatid);
     for (auto& m: mPeers)
         delete m.second;
-    parent.client.gui.contactList().removeGroupChatItem(mContactGui);
+    parent.client.app.contactListHandler().removeGroupChatItem(mContactGui);
 }
 
 void GroupChatRoom::leave()
@@ -1182,33 +1182,33 @@ void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
 {
     mChat = &chat;
     dbIntf = new ChatdSqliteDb(*mChat, parent.client.db);
-    if (mChatWindow)
+    if (mAppChatHandler)
     {
-        switchListenerToChatWindow();
+        switchListenerToApp();
     }
 }
 
-IGui::IChatWindow &ChatRoom::chatWindow()
+IApp::IChatHandler &ChatRoom::appChatHandler()
 {
-    if (!mChatWindow)
+    if (!mAppChatHandler)
     {
-        mChatWindow = parent.client.gui.createChatWindow(*this);
-        mChatWindow->updateTitle(titleString());
-        switchListenerToChatWindow();
+        mAppChatHandler = parent.client.app.createChatHandler(*this);
+        mAppChatHandler->onTitleChanged(titleString());
+        switchListenerToApp();
     }
-    return *mChatWindow;
+    return *mAppChatHandler;
 }
 
-void ChatRoom::switchListenerToChatWindow()
+void ChatRoom::switchListenerToApp()
 {
-    if (mChat->listener() == mChatWindow)
+    if (mChat->listener() == mAppChatHandler)
         return;
     chatd::DbInterface* dummyIntf = nullptr;
 // init() relies on some events, so we need to set mChatWindow as listener before
 // calling init(). This is safe, as and we will not get any async events before we
 //return to the event loop
-    mChat->setListener(mChatWindow);
-    mChatWindow->init(*mChat, dummyIntf);
+    mChat->setListener(mAppChatHandler);
+    mAppChatHandler->init(*mChat, dummyIntf);
 }
 
 Presence PeerChatRoom::presence() const
@@ -1218,16 +1218,16 @@ Presence PeerChatRoom::presence() const
 
 void PeerChatRoom::updatePresence()
 {
-    if (mChatWindow)
-        mChatWindow->updateOnlineIndication(presence());
+    if (mAppChatHandler)
+        mAppChatHandler->onPresenceChanged(presence());
 }
 
 void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
 {
     if (mContactGui)
-        mContactGui->updateOnlineIndication(pres);
-    if (mChatWindow)
-        mChatWindow->updateOnlineIndication(pres);
+        mContactGui->onPresenceChanged(pres);
+    if (mAppChatHandler)
+        mAppChatHandler->onPresenceChanged(pres);
 }
 
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
@@ -1256,14 +1256,14 @@ void PeerChatRoom::onUserLeave(Id userid)
 
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Message::Status status)
 {
-    contactGui().updateOverlayCount(mChat->unreadMsgCount());
+    contactGui().onUnreadCountChanged(mChat->unreadMsgCount());
 }
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg)
 {
-    contactGui().updateOverlayCount(mChat->unreadMsgCount());
+    contactGui().onUnreadCountChanged(mChat->unreadMsgCount());
 }
 
-IGui::IContactGui& PeerChatRoom::contactGui()
+IApp::IContactListItem& PeerChatRoom::contactGui()
 {
     return mContact->gui();
 }
@@ -1275,7 +1275,7 @@ void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 void PeerChatRoom::onUnreadChanged()
 {
 //    printf("onUnreadChanged: %s, %d\n", mMessages->chatId().toString().c_str(), mMessages->unreadMsgCount());
-    mContact->gui().updateOverlayCount(mChat->unreadMsgCount());
+    mContact->gui().onUnreadCountChanged(mChat->unreadMsgCount());
 }
 
 void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
@@ -1340,8 +1340,8 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         if (mContactGui)
             mContactGui->onMembersUpdated();
-        if (mChatWindow)
-            mChatWindow->onMembersUpdated();
+        if (mAppChatHandler)
+            mAppChatHandler->onMembersUpdated();
     }
     return changed;
 }
@@ -1515,7 +1515,7 @@ void Client::onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestLis
             if (req.isOutgoing())
                 continue;
             if (req.getStatus() == mega::MegaContactRequest::STATUS_UNRESOLVED)
-                gui.onIncomingContactRequest(req);
+                app.onIncomingContactRequest(req);
         }
     });
 }
@@ -1525,7 +1525,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
                  int64_t since, PeerChatRoom* room)
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email), mSince(since),
      mTitleString(email), mVisibility(visibility),
-     mDisplay(clist.client.gui.contactList().createContactItem(*this))
+     mDisplay(clist.client.app.contactListHandler().addContactItem(*this))
 {
     updateTitle(email);
     mUsernameAttrCbId = mClist.client.userAttrCache.getAttr(userid,
@@ -1544,9 +1544,9 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
 void Contact::updateTitle(const std::string& str)
 {
     mTitleString = str;
-    mDisplay->updateTitle(str);
-    if (mChatRoom && mChatRoom->hasChatWindow())
-        mChatRoom->chatWindow().updateTitle(str);
+    mDisplay->onTitleChanged(str);
+    if (mChatRoom && mChatRoom->hasAppChatHandler())
+        mChatRoom->appChatHandler().onTitleChanged(str);
 }
 
 Contact::~Contact()
@@ -1554,7 +1554,7 @@ Contact::~Contact()
     mClist.client.userAttrCache.removeCb(mUsernameAttrCbId);
     if (mXmppContact)
         mXmppContact->setPresenceListener(nullptr);
-    mClist.client.gui.contactList().removeContactItem(mDisplay);
+    mClist.client.app.contactListHandler().removeContactItem(mDisplay);
 }
 promise::Promise<ChatRoom*> Contact::createChatRoom()
 {
@@ -1580,11 +1580,11 @@ void Contact::setChatRoom(PeerChatRoom& room)
 {
     assert(!mChatRoom);
     mChatRoom = &room;
-    if (room.hasChatWindow())
-        room.chatWindow().updateTitle(mTitleString);
+    if (room.hasAppChatHandler())
+        room.appChatHandler().onTitleChanged(mTitleString);
 }
 
-IGui::IContactGui*
+IApp::IContactListItem*
 ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
 {
     auto it = find(userid);
@@ -1633,10 +1633,11 @@ void Client::discoAddFeature(const char *feature)
 {
     conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
 }
+
 rtcModule::IEventHandler* Client::onIncomingCallRequest(
         const std::shared_ptr<rtcModule::ICallAnswer> &ans)
 {
-    return gui.createCallAnswerGui(ans);
+    return app.onIncomingCall(ans);
 }
 
 }

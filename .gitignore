@@ -2,4 +2,6 @@
 deps/
 build/
 .DS_Store
+deps/
+build/
 

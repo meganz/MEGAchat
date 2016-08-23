@@ -112,10 +112,10 @@ void CallGui::call()
         if (it == client.contactList->end())
             return;
         auto room = it->second->chatRoom();
-        if (!room || !room->hasChatWindow())
+        if (!room || !room->hasAppChatHandler())
             return;
-        auto& win = room->chatWindow();
-        auto self = win.callEventHandler();
+        auto& win = room->appChatHandler();
+        auto self = win.callHandler();
         if (!self)
             return;
         rtcModule::AvFlags av(true,true);
@@ -198,6 +198,6 @@ void CallAnswerGui::onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer)
 void CallAnswerGui::onSession()
 {
 //handover event handling and local video renderer to chat window
-    static_cast<ChatWindow&>(mParent.chatWindowForPeer(mContact->userId())).createCallGui(mAns->call());
+    static_cast<ChatWindow&>(mParent.chatHandlerForPeer(mContact->userId())).createCallGui(mAns->call());
     delete this;
 }
