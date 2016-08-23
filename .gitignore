@@ -1,3 +1,5 @@
 *.user
 .DS_Store
+deps/
+build/
 

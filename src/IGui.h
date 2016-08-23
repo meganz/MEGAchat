@@ -12,9 +12,9 @@ class GroupChatRoom;
 class IApp
 {
 public:
-/** @brief
- * Interface that receives contact name updates. Each contactlist item
- * implements it, as well as each chat window */
+    /** @brief
+    * Interface that receives contact name updates and groupchat name updates.
+    * Each contactlist item implements it, as well as each chat view */
     class ITitleHandler
     {
     public:
@@ -58,10 +58,9 @@ public:
      */
     class ICallHandler: public rtcModule::IEventHandler {};
 
-    /** @brief
-     * This interface must be implemented by chat windows. It inherits
-     * chatd::Listener in order to receive chatd events, and ITitleDisplay,
-     * in order to receive chat title and online status change events
+    /** @brief This interface must be implemented to receive events related to a chat.
+     * It inherits chatd::Listener in order to receive chatd events,
+     * and ITitleHandler, in order to receive chat title and online status change events
      */
     class IChatHandler: public chatd::Listener, public ITitleHandler
     {
@@ -170,7 +169,7 @@ public:
     };
 
     /** @brief Returns the interface to the contactlist */
-    virtual IContactListHandler& contactList() = 0;
+    virtual IContactListHandler& contactListHandler() = 0;
 
     /** @brief Called by karere when our own online state/presence has changed. */
     virtual void onOwnPresence(Presence pres) {} //may include flags

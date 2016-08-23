@@ -762,7 +762,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const
     {
         addMember(stmt.uint64Col(0), (chatd::Priv)stmt.intCol(1), false);
     }
-    mContactGui = parent.client.app.contactList().addGroupChatItem(*this);
+    mContactGui = parent.client.app.contactListHandler().addGroupChatItem(*this);
     if (!mTitleString.empty())
         mContactGui->onTitleChanged(mTitleString);
     join();
@@ -1086,7 +1086,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
         stmt.step();
         stmt.reset().clearBind();
     }
-    mContactGui = parent.client.app.contactList().addGroupChatItem(*this);
+    mContactGui = parent.client.app.contactListHandler().addGroupChatItem(*this);
     if (!mTitleString.empty())
         mContactGui->onTitleChanged(mTitleString);
     join();
@@ -1134,7 +1134,7 @@ GroupChatRoom::~GroupChatRoom()
         chatd->leave(mChatid);
     for (auto& m: mPeers)
         delete m.second;
-    parent.client.app.contactList().removeGroupChatItem(mContactGui);
+    parent.client.app.contactListHandler().removeGroupChatItem(mContactGui);
 }
 
 void GroupChatRoom::leave()
@@ -1525,7 +1525,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
                  int64_t since, PeerChatRoom* room)
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email), mSince(since),
      mTitleString(email), mVisibility(visibility),
-     mDisplay(clist.client.app.contactList().addContactItem(*this))
+     mDisplay(clist.client.app.contactListHandler().addContactItem(*this))
 {
     updateTitle(email);
     mUsernameAttrCbId = mClist.client.userAttrCache.getAttr(userid,
@@ -1554,7 +1554,7 @@ Contact::~Contact()
     mClist.client.userAttrCache.removeCb(mUsernameAttrCbId);
     if (mXmppContact)
         mXmppContact->setPresenceListener(nullptr);
-    mClist.client.app.contactList().removeContactItem(mDisplay);
+    mClist.client.app.contactListHandler().removeContactItem(mDisplay);
 }
 promise::Promise<ChatRoom*> Contact::createChatRoom()
 {

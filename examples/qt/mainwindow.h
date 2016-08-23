@@ -44,7 +44,7 @@ public:
     virtual void removeContactItem(IContactListItem* item);
     virtual void removeGroupChatItem(IContactListItem* item);
 //IApp
-    virtual karere::IApp::IContactListHandler& contactList() { return *this; }
+    virtual karere::IApp::IContactListHandler& contactListHandler() { return *this; }
     virtual IChatHandler* createChatHandler(karere::ChatRoom& room);
     virtual IChatHandler& chatHandlerForPeer(uint64_t handle);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
