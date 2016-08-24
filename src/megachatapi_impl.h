@@ -76,9 +76,12 @@ protected:
 };
 
 class MegaChatVideoReceiver;
-class MegaChatCallPrivate : public MegaChatCall
+class MegaChatCallPrivate :
+        public MegaChatCall,
+        public karere::IApp::ICallHandler
 {
 public:
+    MegaChatCallPrivate(const std::shared_ptr<rtcModule::ICallAnswer> &ans);
     MegaChatCallPrivate(const char *peer);
     MegaChatCallPrivate(const MegaChatCallPrivate &call);
 
@@ -90,20 +93,22 @@ public:
     virtual int getTag() const;
     virtual MegaHandle getContactHandle() const;
 
-    rtcModule::ICallAnswer *getAnswerObject();
+//    shared_ptr<rtcModule::ICallAnswer> getAnswerObject();
 
     const char* getPeer() const;
     void setStatus(int status);
     void setTag(int tag);
     void setVideoReceiver(MegaChatVideoReceiver *videoReceiver);
-    void setAnswerObject(rtcModule::ICallAnswer *answerObject);
+    //void setAnswerObject(rtcModule::ICallAnswer *answerObject);
+
+    // rtcModule::ICallHandler implementation (empty)
 
 protected:
     int tag;
     int status;
     const char *peer;
     MegaChatVideoReceiver *videoReceiver;
-    rtcModule::ICallAnswer *answerObject;
+    std::shared_ptr<rtcModule::ICallAnswer> mAns;
 };
 
 class MegaChatVideoFrame
@@ -135,6 +140,47 @@ protected:
     MegaChatApiImpl *chatApi;
     MegaChatCallPrivate *call;
     bool local;
+};
+
+class MegaChatRoomHandler :public karere::IApp::IChatHandler
+
+{
+public:
+
+    // karere::IApp::IChatHandler implementation
+    virtual karere::IApp::ICallHandler* callHandler();
+    //virtual void* userp();
+
+    // karere::IApp::IChatHandler::ITitleHandler implementation
+    virtual void onTitleChanged(const std::string& title);
+    //virtual void onUnreadCountChanged(int count);
+    virtual void onPresenceChanged(karere::Presence state);
+    //virtual void onMembersUpdated();
+
+    // karere::IApp::IChatHandler::chatd::Listener implementation
+    virtual void init(chatd::Chat& messages, chatd::DbInterface*& dbIntf);
+    //virtual void onDestroy();
+    //virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status);
+    //virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isFromDb);
+    //virtual void onHistoryDone(bool isFromDb) ;
+    //virtual void onUnsentMsgLoaded(Message& msg) ;
+    //virtual void onUnsentEditLoaded(Message& msg, bool oriMsgIsSending) ;
+    //virtual void onMessageConfirmed(karere::Id msgxid, const Message& msg, Idx idx);
+    //virtual void onMessageRejected(const Message& msg);
+    //virtual void onMessageStatusChange(Idx idx, Message::Status newStatus, const Message& msg);
+    //virtual void onMessageEdited(const Message& msg, Idx idx);
+    //virtual void onEditRejected(const Message& msg, uint8_t opcode);
+    //virtual void onOnlineStateChange(ChatState state);
+    //virtual void onUserJoin(karere::Id userid, Priv privilege);
+    //virtual void onUserLeave(karere::Id userid);
+    //virtual void onUnreadChanged();
+    //virtual void onManualSendRequired(Message* msg, uint64_t id, int reason);
+    //virtual void onHistoryTruncated(const Message& msg, Idx idx);
+    //virtual void onMsgOrderVerificationFail(const Message& msg, Idx idx, const std::string& errmsg);
+
+
+protected:
+
 };
 
 //Thread safe request queue
@@ -170,9 +216,6 @@ public:
 class MegaChatApiImpl :
         public karere::IApp,
         public karere::IApp::IContactListHandler
-
-        //public karere::IApp::IChatHandler
-        // public rtcModule::IEventHandler
 {
 public:
 
@@ -198,17 +241,20 @@ private:
     ChatRequestQueue requestQueue;
     EventQueue eventQueue;
 
-    std::set<MegaChatListener *> listeners;
+    std::set<MegaChatGlobalListener *> listeners;
     std::set<MegaChatRequestListener *> requestListeners;
     std::set<MegaChatCallListener *> callListeners;
     std::set<MegaChatVideoListener *> localVideoListeners;
     std::set<MegaChatVideoListener *> remoteVideoListeners;
+    std::set<MegaChatRoomListener *> chatRoomListeners;
 
     int reqtag;
     std::map<int, MegaChatRequestPrivate *> requestMap;
     std::map<int, MegaChatCallPrivate *> callMap;
     MegaChatVideoReceiver *localVideoReceiver;
 
+    // online status of user
+    MegaChatApi::Status status;
 
 public:    
     static void megaApiPostMessage(void* msg);
@@ -216,6 +262,22 @@ public:
 
     void sendPendingRequests();
     void sendPendingEvents();
+
+
+    // ============= Listeners ================
+
+    void addChatGlobalListener(MegaChatGlobalListener *listener);
+    void addChatCallListener(MegaChatCallListener *listener);
+    void addChatRequestListener(MegaChatRequestListener *listener);
+    void addChatLocalVideoListener(MegaChatVideoListener *listener);
+    void addChatRemoteVideoListener(MegaChatVideoListener *listener);
+    void addChatRoomListener(MegaChatRoomListener *listener);
+    void removeChatGlobalListener(MegaChatGlobalListener *listener);
+    void removeChatCallListener(MegaChatCallListener *listener);
+    void removeChatRequestListener(MegaChatRequestListener *listener);
+    void removeChatLocalVideoListener(MegaChatVideoListener *listener);
+    void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
+    void removeChatRoomListener(MegaChatRoomListener *listener);
 
     void fireOnChatRequestStart(MegaChatRequestPrivate *request);
     void fireOnChatRequestFinish(MegaChatRequestPrivate *request, MegaError e);
@@ -230,10 +292,13 @@ public:
     void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
     void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
 
-    void fireOnChatStatusUpdate(karere::Presence pres);
+    void fireOnChatStatusUpdate(MegaChatApi::Status status);
 
-    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
 
+    // ============= API requests ================
+
+    // General chat methods
+    void connect(MegaChatRequestListener *listener = NULL);
     void setChatStatus(int status, MegaChatRequestListener *listener = NULL);
 
     // Audio/Video devices
@@ -247,23 +312,16 @@ public:
     void answerChatCall(MegaChatCall *call, bool accept, MegaChatRequestListener *listener = NULL);
     void hangAllChatCalls();
 
-    // Listeners
-    void addChatListener(MegaChatListener *listener);
-    void addChatCallListener(MegaChatCallListener *listener);
-    void addChatRequestListener(MegaChatRequestListener *listener);
-    void addChatLocalVideoListener(MegaChatVideoListener *listener);
-    void addChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void removeChatListener(MegaChatListener *listener);
-    void removeChatCallListener(MegaChatCallListener *listener);
-    void removeChatRequestListener(MegaChatRequestListener *listener);
-    void removeChatLocalVideoListener(MegaChatVideoListener *listener);
-    void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
+//    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
+
+
+    // ============= karere API implementation ================
 
     // karere::IApp implementation
     //virtual ILoginDialog* createLoginDialog();
     virtual IChatHandler* createChatHandler(karere::ChatRoom &room);
     virtual IApp::IContactListHandler& contactListHandler();
-    //virtual void onOwnPresence(karere::Presence pres);
+    virtual void onOwnPresence(karere::Presence pres);
     virtual void onIncomingContactRequest(const MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
     //virtual void notifyInvited(const ChatRoom& room);
@@ -284,6 +342,9 @@ public:
     //virtual void onMembersUpdated();
 };
 
+
+//public karere::IApp::IChatHandler
+// public rtcModule::IEventHandler
 
 // rtcModule::IEventHandler implementation
 //    virtual void onLocalStreamObtained(rtcModule::IVideoRenderer** renderer);

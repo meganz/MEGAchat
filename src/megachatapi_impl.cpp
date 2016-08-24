@@ -41,8 +41,10 @@
 #include <signal.h>
 #endif
 
+using namespace std;
 using namespace megachat;
 using namespace mega;
+using namespace karere;
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 {
@@ -68,6 +70,8 @@ void MegaChatApiImpl::init(megachat::MegaChatApi *chatApi, mega::MegaApi *megaAp
 
     this->waiter = new MegaWaiter();
     this->mClient = NULL;   // created at loop()
+
+    this->status = MegaChatApi::STATUS_OFFLINE;
 
     //Start blocking thread
     threadExit = 0;
@@ -359,16 +363,21 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int wi
     }
 }
 
-void MegaChatApiImpl::fireOnChatStatusUpdate(karere::Presence pres)
+void MegaChatApiImpl::fireOnChatStatusUpdate(MegaChatApi::Status status)
 {
     KR_LOG_INFO("Online state changed");
 
-    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    for(set<MegaChatGlobalListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
-        int status = (megachat::MegaChatApi::Presence)(pres.val());
         (*it)->onChatStatusUpdate(chatApi, status);
     }
+}
 
+void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 void MegaChatApiImpl::setChatStatus(int status, MegaChatRequestListener *listener)
@@ -379,7 +388,7 @@ void MegaChatApiImpl::setChatStatus(int status, MegaChatRequestListener *listene
     waiter->notify();
 }
 
-void MegaChatApiImpl::addChatListener(MegaChatListener *listener)
+void MegaChatApiImpl::addChatGlobalListener(MegaChatGlobalListener *listener)
 {
     if (!listener)
     {
@@ -437,10 +446,22 @@ void MegaChatApiImpl::addChatRemoteVideoListener(MegaChatVideoListener *listener
 
 //    sdkMutex.lock();
     remoteVideoListeners.insert(listener);
-//    sdkMutex.unlock();
+    //    sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)
+void MegaChatApiImpl::addChatRoomListener(MegaChatRoomListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    chatRoomListeners.insert(listener);
+    //    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatGlobalListener(MegaChatGlobalListener *listener)
 {
     if (!listener)
     {
@@ -511,7 +532,19 @@ void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *liste
 
 //    sdkMutex.lock();
     remoteVideoListeners.erase(listener);
-//    sdkMutex.unlock();
+    //    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatRoomListener(MegaChatRoomListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    chatRoomListeners.erase(listener);
+    //    sdkMutex.unlock();
 }
 
 karere::IApp::IChatHandler *MegaChatApiImpl::createChatHandler(karere::ChatRoom &room)
@@ -527,12 +560,13 @@ karere::IApp::IContactListHandler& MegaChatApiImpl::contactListHandler()
 
 void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
 {
-
+    // it is notified to the app by the existing MegaApi
 }
 
 rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
 {
     // TODO: create the call object implementing IEventHandler and return it
+    return new MegaChatCallPrivate(ans);
 }
 
 void MegaChatApiImpl::onInitComplete()
@@ -540,10 +574,11 @@ void MegaChatApiImpl::onInitComplete()
 
 }
 
-//void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
-//{
-//    fireOnChatStatusUpdate(pres);
-//}
+void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
+{
+    this->status = (MegaChatApi::Status) pres.status();
+    fireOnChatStatusUpdate(status);
+}
 
 void MegaChatApiImpl::onTitleChanged(const string &title)
 {
@@ -724,13 +759,22 @@ void MegaChatRequestPrivate::setNumRetry(int retry)
 }
 
 
+MegaChatCallPrivate::MegaChatCallPrivate(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+{
+    mAns = ans;
+    this->peer = mAns->call()->peerJid().c_str();
+    status = 0;
+    tag = 0;
+    videoReceiver = NULL;
+}
+
 MegaChatCallPrivate::MegaChatCallPrivate(const char *peer)
 {
     this->peer = mega::MegaApi::strdup(peer);
     status = 0;
     tag = 0;
     videoReceiver = NULL;
-    answerObject = NULL;
+    mAns = NULL;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
@@ -739,13 +783,13 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->status = call.getStatus();
     this->tag = call.getTag();
     this->videoReceiver = NULL;
-    answerObject = NULL;
+    mAns = NULL;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
 {
     delete [] peer;
-    delete answerObject;
+//    delete mAns;  it's a shared pointer, no need to delete
     // videoReceiver is deleted on onVideoDetach, because it's called after the call is finished
 }
 
@@ -778,10 +822,10 @@ MegaHandle MegaChatCallPrivate::getContactHandle() const
     return userHandle;
 }
 
-rtcModule::ICallAnswer *MegaChatCallPrivate::getAnswerObject()
-{
-    return answerObject;
-}
+//shared_ptr<rtcModule::ICallAnswer> MegaChatCallPrivate::getAnswerObject()
+//{
+//    return mAns;
+//}
 
 const char *MegaChatCallPrivate::getPeer() const
 {
@@ -804,10 +848,10 @@ void MegaChatCallPrivate::setVideoReceiver(MegaChatVideoReceiver *videoReceiver)
     this->videoReceiver = videoReceiver;
 }
 
-void MegaChatCallPrivate::setAnswerObject(rtcModule::ICallAnswer *answerObject)
-{
-    this->answerObject = answerObject;
-}
+//void MegaChatCallPrivate::setAnswerObject(rtcModule::ICallAnswer *answerObject)
+//{
+//    this->mAns = answerObject;
+//}
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, MegaChatCallPrivate *call, bool local)
 {
@@ -857,4 +901,25 @@ void MegaChatVideoReceiver::onVideoDetach()
 
 void MegaChatVideoReceiver::clearViewport()
 {
+}
+
+
+IApp::ICallHandler *MegaChatRoomHandler::callHandler()
+{
+    // TODO: create a MegaChatCallPrivate() with the peer information and return it
+}
+
+void MegaChatRoomHandler::onTitleChanged(const string &title)
+{
+
+}
+
+void MegaChatRoomHandler::onPresenceChanged(karere::Presence state)
+{
+
+}
+
+void MegaChatRoomHandler::init(chatd::Chat &messages, chatd::DbInterface *&dbIntf)
+{
+
 }
