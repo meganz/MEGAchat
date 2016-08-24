@@ -35,10 +35,11 @@ class MegaChatApi;
 class MegaChatApiImpl;
 class MegaChatRequest;
 class MegaChatRequestListener;
+class MegaChatRoom;
 class MegaChatCall;
 class MegaChatCallListener;
 class MegaChatVideoListener;
-class MegaChatListener;
+class MegaChatGlobalListener;
 
 class MegaChatCall
 {
@@ -62,21 +63,40 @@ public:
 class MegaChatVideoListener
 {
 public:
+    virtual ~MegaChatVideoListener() {}
+
     virtual void onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char*buffer);
 };
 
 class MegaChatCallListener
 {
 public:
+    virtual ~MegaChatCallListener() {}
+
     virtual void onChatCallStart(MegaChatApi* api, MegaChatCall *call);
     virtual void onChatCallStateChange(MegaChatApi *api, MegaChatCall *call);
     virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaError* error);
     virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaError* error);
 };
 
-class MegaChatListener
+class MegaChatRoom : public MegaTextChat
 {
 public:
+    virtual ~MegaChatRoom() {}
+};
+
+class MegaChatRoomListener
+{
+public:
+    virtual ~MegaChatRoomListener() {}
+
+
+};
+
+class MegaChatGlobalListener
+{
+public:
+    // notifies when the online status has changed
     virtual void onChatStatusUpdate(MegaChatApi* api, int status);
 };
 
@@ -100,6 +120,7 @@ class MegaChatRequest
 {
 public:
     enum {
+        TYPE_CONNECT,   // connect to chatd, after login+fetchnodes
         TYPE_DELETE,    // delete MegaChatApi instance
         TYPE_SET_CHAT_STATUS,
         TYPE_START_CHAT_CALL, TYPE_ANSWER_CHAT_CALL,
@@ -284,13 +305,13 @@ class MegaChatApi
 {
 
 public:
-    enum Presence
+    enum Status
     {
-        PRESENCE_OFFLINE    = 0,
-        PRESENCE_BUSY       = 1,
-        PRESENCE_AWAY       = 2,
-        PRESENCE_ONLINE     = 3,
-        PRESENCE_CHATTY     = 4
+        STATUS_OFFLINE    = 0,
+        STATUS_BUSY       = 1,
+        STATUS_AWAY       = 2,
+        STATUS_ONLINE     = 3,
+        STATUS_CHATTY     = 4
     };
 
 
@@ -303,6 +324,19 @@ public:
     virtual ~MegaChatApi();
 
     /**
+     * @brief Establish connection with chatd servers and XMPP servers.
+     *
+     * This function must be called only after MegaApi::login and MegaApi::fetchNodes
+     * have finished, since Karere needs the own user handle and other other additional
+     * information to be able to log into chat servers.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void connect(MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Set your online status.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHAT_STATUS
@@ -312,16 +346,16 @@ public:
      * @param status Online status in the chat.
      *
      * It can be one of the following values:
-     * - PRESENCE_OFFLINE = 1
+     * - STATUS_OFFLINE = 1
      * The user appears as being offline
      *
-     * - PRESENCE_BUSY = 2
+     * - STATUS_BUSY = 2
      * The user is busy and don't want to be disturbed.
      *
-     * - PRESENCE_AWAY = 3
+     * - STATUS_AWAY = 3
      * The user is away and might not answer.
      *
-     * - PRESENCE_ONLINE = 4
+     * - STATUS_ONLINE = 4
      * The user is connected and online.
      *
      * @param listener MegaChatRequestListener to track this request
@@ -346,6 +380,8 @@ public:
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
+    void addChatRoomListener(MegaChatRoomListener *listener);
+    void removeChatRoomListener(MegaChatRoomListener *listener);
 
     /**
      * @brief Register a listener to receive all events about requests

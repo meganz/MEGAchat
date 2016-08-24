@@ -57,6 +57,11 @@ MegaChatApi::MegaChatApi(mega::MegaApi *megaApi)
     this->pImpl = new MegaChatApiImpl(this, megaApi);
 }
 
+void MegaChatApi::connect(MegaChatRequestListener *listener)
+{
+    pImpl->connect(listener);
+}
+
 //MegaChatApi::MegaChatApi(const char *appKey, const char *appDir)
 //{
 //    this->pImpl = new MegaChatApiImpl(this, appKey, appDir);
@@ -130,6 +135,16 @@ void MegaChatApi::addChatRemoteVideoListener(MegaChatVideoListener *listener)
 void MegaChatApi::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
 {
     pImpl->removeChatRemoteVideoListener(listener);
+}
+
+void MegaChatApi::addChatRoomListener(MegaChatRoomListener *listener)
+{
+    pImpl->addChatRoomListener(listener);
+}
+
+void MegaChatApi::removeChatRoomListener(MegaChatRoomListener *listener)
+{
+    pImpl->removeChatRoomListener(listener);
 }
 
 void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)
