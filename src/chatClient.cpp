@@ -1505,6 +1505,8 @@ const std::string* ContactList::getUserEmail(uint64_t userid) const
 
 void Client::onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs)
 {
+    if (!reqs)
+        return;
     std::shared_ptr<mega::MegaContactRequestList> copy(reqs->copy());
     marshallCall([this, copy]()
     {

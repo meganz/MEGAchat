@@ -332,7 +332,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_KEYBLOB:
             {
-                encryptedKey.assign(record.buf()+record.dataOffset, record.dataLen);
+                encryptedKey.assign(binaryMessage.buf()+record.dataOffset, record.dataLen);
                 break;
             }
             //legacy key stuff
@@ -347,8 +347,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             case TLV_TYPE_KEYS:
             {
 //KEYS, not KEY, because these can be pairs of current+previous key, concatenated and encrypted together
-                encryptedKey.assign(binaryMessage.buf()+record.dataOffset,
-                    record.dataLen);
+                encryptedKey.assign(record.buf(), record.dataLen);
                 break;
             }
             case TLV_TYPE_KEY_IDS:
@@ -543,7 +542,8 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid)
     return mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
     .then([this, userid](const StaticBuffer* pubKey)
     {
-        assert(!pubKey->empty() && "BUG: No cached Cu25519 chat key for user, and still someone tried to use it!");
+        if (pubKey->empty())
+            throw std::runtime_error("Empty Cu25519 chat key for user "+userid.toString());
         Key<crypto_scalarmult_BYTES> sharedSecret;
         sharedSecret.setDataSize(crypto_scalarmult_BYTES);
         crypto_scalarmult(sharedSecret.ubuf(), myPrivCu25519.ubuf(), pubKey->ubuf());
@@ -1118,6 +1118,7 @@ ProtocolHandler::encryptChatTopic(const std::string& data)
         std::string ciphertext = aesCTREncrypt(data, *key, derivedNonce);
         chatd::KeyCommand& keyCmd = *result.first;
         assert(keyCmd.dataSize() >= 17);
+        printf("send: userid: %s\n", karere::Id(*(uint64_t*)(keyCmd.buf()+17)).toString().c_str());
         TlvWriter tlv;
         tlv.addRecord(TLV_TYPE_INVITOR, mOwnHandle.val);
         tlv.addRecord(TLV_TYPE_NONCE, StaticBuffer(nonce));
@@ -1136,6 +1137,7 @@ ProtocolHandler::encryptChatTopic(const std::string& data)
 promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTopic(chatd::Message* msg)
 {
+    msg->userid = sender;
     const char* pos = encryptedKey.buf();
     const char* end = encryptedKey.buf()+encryptedKey.dataSize();
     karere::Id receiver;
@@ -1158,13 +1160,15 @@ ParsedMessage::decryptChatTopic(chatd::Message* msg)
         if (pos >= end)
             throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
     }
-    if (end-pos != 26) //userid.8+keylen.2+key.16
-        throw std::runtime_error("Unexpected key entry length - must be 26 bytes");
+    if (end-pos < 16)
+        throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
     auto buf = std::make_shared<Buffer>(16);
+    buf->assign(pos, 16);
+    printf("sender: %s, receiver: %s\n", sender.toString().c_str(), receiver.toString().c_str());
     return mProtoHandler.decryptKey(buf, sender, receiver)
     .then([this, msg](const std::shared_ptr<SendKey>& key)
     {
-        symmetricDecrypt(*key, *msg);
+        symmetricDecrypt(*key, *msg, false);
         return msg;
     });
 }

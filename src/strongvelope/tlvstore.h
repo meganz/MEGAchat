@@ -114,7 +114,7 @@ void addRecord(uint8_t type, const StaticBuffer& value)
 }
 
 template <typename T, typename=typename std::enable_if<std::is_pod<T>::value>::type>
-void addRecord(uint8_t type, T&& val)
+void addRecord(uint8_t type, T val)
 {
     assert(!mEnded);
     append(type);
