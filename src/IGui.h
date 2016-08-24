@@ -13,6 +13,7 @@ class GroupChatRoom;
 class IApp
 {
 public:
+
     /**
      * @brief Interface that receives contact name updates and groupchat name updates.
      * Each contactlist item implements it, as well as each chat view
@@ -20,6 +21,9 @@ public:
     class ITitleHandler
     {
     public:
+
+        virtual ~ITitleHandler() {}
+
         /**
          * @brief Called by karere when the title has changed. It can be used to e.g.
          * to update the displayed contact/groupchat name
@@ -61,7 +65,11 @@ public:
      * As currently there are no additional methods besides the inherited from
      * \c  IEventHandler, the class is empty.
      */
-    class ICallHandler: public rtcModule::IEventHandler {};
+    class ICallHandler: public rtcModule::IEventHandler
+    {
+    public:
+        virtual ~ICallHandler() {}
+    };
 
     /** @brief This interface must be implemented to receive events related to a chat.
      * It inherits chatd::Listener in order to receive chatd events,
@@ -70,6 +78,9 @@ public:
     class IChatHandler: public chatd::Listener, public ITitleHandler
     {
     public:
+
+        virtual ~IChatHandler() {}
+
         /**
          * @brief Returns the ICallHandler instance associated with that chat, in
          * case there is an ongoing call. If there is no call,
@@ -93,6 +104,7 @@ public:
     class ILoginDialog
     {
     public:
+
         enum LoginStage {
             kAuthenticating,
             kBadCredentials,
@@ -128,6 +140,9 @@ public:
     class IContactListItem: public ITitleHandler
     {
     public:
+
+        virtual ~IContactListItem() {}
+
         /** @brief Called when the contact's visibility has changed, i.e. the
          * contact was removed or added. Used only for contacts (not groupchats).
          *
@@ -156,6 +171,7 @@ public:
     class IContactListHandler
     {
     public:
+        virtual ~IContactListHandler() {}
 
         /**
          * @brief Called when a contact is added to the contactlist

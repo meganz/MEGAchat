@@ -109,6 +109,8 @@ protected:
 ///@endcond
 public:
 
+    virtual ~ICall() {}
+
 /** @brief Call termination reason codes */
 enum
 {
@@ -228,6 +230,8 @@ enum
 class IEventHandler
 {
 public:
+    virtual ~IEventHandler() {}
+
     /** @brief
      * Fired when there was an error obtaining local audio and/or video streams
      * @param errMsg The error message
@@ -375,7 +379,9 @@ public:
  */
 class IGlobalEventHandler
 {
-public:
+public:    
+    virtual ~IGlobalEventHandler() {}
+
     /**
      * @brief Fired when an incoming call request is received.
      * @param call The call object
@@ -409,6 +415,7 @@ public:
 class IRtcModule: public strophe::IPlugin
 {
 public:
+
     /** @brief Returns a list of all detected audio input devices on the system */
     virtual void getAudioInDevices(std::vector<std::string>& devices) const = 0;
 
