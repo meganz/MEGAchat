@@ -57,6 +57,7 @@ const char* tlvTypeToString(uint8_t type)
         case TLV_TYPE_EXC_PARTICIPANT: return "TLV_EXC_PARTICIPANT";
         case TLV_TYPE_INVITOR: return "TLV_INVITOR";
         case TLV_TYPE_OWN_KEY: return "TLV_OWN_KEY";
+        case TLV_TYPE_KEYBLOB: return "TLV_TYPE_KEYBLOB";
         default: return "(unknown)";
     }
 }
@@ -105,10 +106,13 @@ EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
  * @param nonce {String} Nonce to decrypt a message with in a binary string.
  * @returns {String} Clear text of message content.
  */
-void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
+void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg, bool hasBackrefs)
 {
     if (payload.empty())
+    {
+        outMsg.clear();
         return;
+    }
     Id chatid = mProtoHandler.chatid;
     STRONGVELOPE_LOG_DEBUG("%s: Decrypting msg %s", chatid.toString().c_str(),
         outMsg.id().toString().c_str());
@@ -121,7 +125,21 @@ void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
     *reinterpret_cast<uint32_t*>(derivedNonce.buf()+SVCRYPTO_NONCE_SIZE) = 0;
     std::string cleartext = aesCTRDecrypt(std::string(payload.buf(), payload.dataSize()),
         key, derivedNonce);
-    parsePayload(StaticBuffer(cleartext, false), outMsg);
+    if (hasBackrefs)
+    {
+        parsePayload(StaticBuffer(cleartext, false), outMsg);
+    }
+    else
+    {
+        if (cleartext.empty())
+        {
+            outMsg.clear();
+        }
+        else
+        {
+            outMsg.assign<false>(cleartext);
+        }
+    }
 }
 
 /**
@@ -363,8 +381,8 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             //===
             case TLV_TYPE_PAYLOAD:
             {
-                if (type != SVCRYPTO_MSGTYPE_KEYED && type != SVCRYPTO_MSGTYPE_FOLLOWUP)
-                    throw std::runtime_error("Payload record found in a non-regular message");
+//                if (type != SVCRYPTO_MSGTYPE_KEYED && type != SVCRYPTO_MSGTYPE_FOLLOWUP)
+//                    throw std::runtime_error("Payload record found in a non-regular message");
                 payload.assign(binaryMessage.buf()+record.dataOffset, record.dataLen);
                 break;
             }
@@ -721,6 +739,20 @@ Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>&
     return msg;
 }
 
+promise::Promise<std::string>
+ProtocolHandler::decryptChatTopic(const Buffer& data)
+{
+    Buffer copy(data.dataSize());
+    copy.copyFrom(data);
+    chatd::Message* msg = new chatd::Message(karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
+    auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
+    return parsedMsg->decryptChatTopic(msg)
+    .then([](Message* retMsg)
+    {
+        return std::string(retMsg->buf(), retMsg->dataSize());
+    });
+}
+
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, Message* msg)
 {
@@ -1066,8 +1098,9 @@ ProtocolHandler::encryptChatTopic(const std::string& data)
     randombytes_buf(key->buf(), key->bufSize());
     assert(!key->empty());
     auto blob = std::make_shared<Buffer>(512);
-    blob->append(SVCRYPTO_PROTOCOL_VERSION);
-    blob->append(SVCRYPTO_MSGTYPE_CHAT_TOPIC);
+    blob->clear();
+    blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
+    blob->append<uint8_t>(SVCRYPTO_MSGTYPE_CHAT_TOPIC);
 
     return encryptKeyToAllParticipants(key)
     .then([this, blob, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
@@ -1086,6 +1119,8 @@ ProtocolHandler::encryptChatTopic(const std::string& data)
         chatd::KeyCommand& keyCmd = *result.first;
         assert(keyCmd.dataSize() >= 17);
         TlvWriter tlv;
+        tlv.addRecord(TLV_TYPE_INVITOR, mOwnHandle.val);
+        tlv.addRecord(TLV_TYPE_NONCE, StaticBuffer(nonce));
         tlv.addRecord(TLV_TYPE_KEYBLOB, StaticBuffer(keyCmd.buf()+17, keyCmd.dataSize()-17));
         tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(ciphertext, false));
         Key<64> signature;
@@ -1101,19 +1136,32 @@ ProtocolHandler::encryptChatTopic(const std::string& data)
 promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTopic(chatd::Message* msg)
 {
-    const char* end = encryptedKey.buf()+encryptedKey.dataSize();
     const char* pos = encryptedKey.buf();
-    while (pos < end)
+    const char* end = encryptedKey.buf()+encryptedKey.dataSize();
+    karere::Id receiver;
+    if (sender == mProtoHandler.ownHandle())
     {
-        if (*(uint64_t*)pos != mProtoHandler.ownHandle())
-            continue;
+        receiver = *(uint64_t*)(pos);
+        pos += 10; //any version is ok
     }
-    if (pos >= end)
-        throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
+    else
+    {
+        while (pos < end)
+        {
+            receiver = *(uint64_t*)(pos);
+            if (receiver == mProtoHandler.ownHandle())
+                break;
+            pos+=8;
+            pos+=2+*(uint16_t*)(pos);
+        }
+
+        if (pos >= end)
+            throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
+    }
     if (end-pos != 26) //userid.8+keylen.2+key.16
         throw std::runtime_error("Unexpected key entry length - must be 26 bytes");
     auto buf = std::make_shared<Buffer>(16);
-    return mProtoHandler.decryptKey(buf, sender, mProtoHandler.ownHandle())
+    return mProtoHandler.decryptKey(buf, sender, receiver)
     .then([this, msg](const std::shared_ptr<SendKey>& key)
     {
         symmetricDecrypt(*key, *msg);

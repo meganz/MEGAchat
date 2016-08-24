@@ -188,7 +188,7 @@ struct ParsedMessage
     bool verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey);
     void parsePayload(const StaticBuffer& data, chatd::Message& msg);
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
-    void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
+    void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg, bool hasBackrefs=true);
     promise::Promise<chatd::Message*> decryptChatTopic(chatd::Message* msg);
 };
 
@@ -338,12 +338,13 @@ public:
         virtual void resetSendKey();
         virtual bool handleLegacyKeys(chatd::Message& msg);
         virtual void randomBytes(void* buf, size_t bufsize);
+        virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTopic(const std::string& data);
+        virtual promise::Promise<std::string> decryptChatTopic(const Buffer& data);
+
         //====
         promise::Promise<std::shared_ptr<SendKey>>
             decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
 
-        promise::Promise<std::shared_ptr<Buffer>>
-        encryptChatTopic(const std::string& data);
     };
 }
 
