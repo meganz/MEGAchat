@@ -367,6 +367,8 @@ protected:
         QMenu menu(this);
         auto action = menu.addAction(tr("Leave group chat"));
         connect(action, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
+        auto topicAction = menu.addAction(tr("Set chat topic"));
+        connect(topicAction, SIGNAL(triggered()), this, SLOT(setTopic()));
         menu.setStyleSheet("background-color: lightgray");
         menu.exec(event->globalPos());
     }
@@ -377,6 +379,7 @@ protected:
     }
 protected slots:
     void leaveGroupChat() { karere::marshallCall([this]() { mRoom.leave(); }); } //deletes this
+    void setTopic();
 };
 
 
