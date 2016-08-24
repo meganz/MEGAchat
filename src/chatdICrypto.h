@@ -120,6 +120,13 @@ public:
  */
     virtual bool handleLegacyKeys(chatd::Message& msg) = 0;
     virtual void randomBytes(void* buf, size_t bufsize) = 0;
+
+    virtual promise::Promise<std::shared_ptr<Buffer>>
+    encryptChatTopic(const std::string& data) = 0;
+
+    virtual promise::Promise<std::string>
+    decryptChatTopic(const Buffer& data) = 0;
+
 /**
  * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
  */    

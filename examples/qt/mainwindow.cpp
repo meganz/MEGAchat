@@ -15,6 +15,7 @@
 #include <QPainter>
 #include <QImage>
 #include <math.h>
+#include "chatdICrypto.h"
 
 #undef emit
 #define THROW_IF_FALSE(statement) \
@@ -431,6 +432,27 @@ void MainWindow::onSettingsBtn(bool)
     SettingsDialog dialog(*this);
     if (dialog.exec() == QDialog::Accepted)
         dialog.applySettings();
+}
+void CListGroupChatItem::setTopic()
+{
+    auto topic = QInputDialog::getText(this, tr("Set chat topic"), tr("Please enter chat topic"));
+    if (topic.isNull())
+        return;
+
+    mRoom.chat().crypto()->encryptChatTopic(topic.toStdString())
+    .then([this](std::shared_ptr<Buffer> buf)
+    {
+        printf("Chat topic blob: %s\n", buf->toString().c_str());
+        return mRoom.chat().crypto()->decryptChatTopic(*buf);
+    })
+    .then([this](const std::string& topic)
+    {
+        printf("decrypted topic: %s\n", topic.c_str());
+    })
+    .fail([](const promise::Error& err)
+    {
+        printf("error: %s\n", err.what());
+    });
 }
 
 #include <mainwindow.moc>

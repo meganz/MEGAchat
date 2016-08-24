@@ -176,7 +176,7 @@ public:
         assert(keydata && (keylen != 0));
         uint32_t& payloadSize = mapRef<uint32_t>(13);
         payloadSize+=(10+keylen); //userid.8+len.2+keydata.keylen
-        append(userid.val).append<uint16_t>(keylen);
+        append<uint64_t>(userid.val).append<uint16_t>(keylen);
         append(keydata, keylen);
     }
     bool hasKeys() const { return dataSize() > 17; }

@@ -86,6 +86,8 @@ public:
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
              unsigned char shard, chatd::Priv ownPriv);
     virtual ~ChatRoom(){}
+    /** @brief returns the chatd::Chat chat object associated with the room */
+    chatd::Chat& chat() { return *mChat; }
     /** @brief The chatid of the chatroom */
     const uint64_t& chatid() const { return mChatid; }
     /** @brief Whether this chatroom is a groupchat or 1on1 chat */
