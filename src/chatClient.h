@@ -403,6 +403,7 @@ public:
     {
         return strophe::getResourceFromJid(conn->fullJid());
     }
+
     /**
      * @brief Creates a karere Client.
      *
@@ -412,7 +413,9 @@ public:
      * @param pres The initial presence that will be set when we log in.
      */
     Client(::mega::MegaApi& sdk, IApp& app, Presence pres);
+
     virtual ~Client();
+
     /** @brief A convenience method to log in the associated Mega SDK instance,
      *  using IApp::ILoginDialog to ask the user/app for credentials. This
      * method is to be used in a standalone chat app where the SDK instance is not
@@ -423,19 +426,23 @@ public:
      * bad credentials etc. This is just a convenience method.
      */
     promise::Promise<ReqResult> sdkLoginNewSession();
+
     /** @brief A convenience method to log the sdk in using an existing session,
      * identified by \c sid. This is to be used in a standalone chat app where
      * there is no existing code that logs in the Mega SDK instance.
      */
     promise::Promise<ReqResult> sdkLoginExistingSession(const std::string& sid);
+
     /** @brief Performs karere-only login, assuming the Mega SDK is already logged in
      * with an existing session.
      */
     promise::Promise<void> loginExistingSession();
+
     /** @brief Performs karere-only login, assuming the Mega SDK is already logged
      * in with a new session
      */
     promise::Promise<void> loginNewSession();
+
     /** @brief A convenience method that logs in the Mega SDK and karere, by checking
      * the karere cache if there is a cached session - if there is, it calls
      * \c sdkLoginExistingSession(), otherwise \c sdkLoginNewSession(). This
@@ -443,17 +450,23 @@ public:
      * code that logs in the Mega SDK.
      */
     promise::Promise<void> loginWithSdk();
+
     /** @brief Notifies the client that network connection is down */
     void notifyNetworkOffline();
+
     /** @brief Notifies the client that internet connection is again available */
     void notifyNetworkOnline();
+
     void startKeepalivePings();
+
     /** Terminates the karere client, logging it out, hanging up calls,
      * and cleaning up state
      */
     promise::Promise<void> terminate();
+
     /**
      * @brief Ping a target peer to check whether he/she is alive
+     *
      * @param [peerJid] {const char*} peer's Jid. If NULL, then no 'to'
      * attribute will be included in the stanza, effectively sending the ping to the server
      * @param [intervalSec] {int} optional with default value as 100, interval in seconds to do ping.
@@ -461,19 +474,24 @@ public:
      * This performs a xmpp ping to the target jid to check if the user is alive or not.
      */
     strophe::StanzaPromise pingPeer(const char* peerJid);
+
     /**
     * @brief set user's chat presence.
     * Set user's presence state
+    *
     * @param force Forces re-setting the presence, even if the current presence
     * is the same. Normally is \c false
     */
     promise::Promise<void> setPresence(const Presence pres, bool force = false);
+
     /** Returns the XMPP contactlist, as obtained from the XMPP server */
     XmppContactList& xmppContactList()
     {
         return mXmppContactList;
     }
+
 /** @cond PRIVATE */
+
 protected:
     Id mMyHandle = mega::UNDEF;
     std::string mSid;
@@ -504,12 +522,14 @@ protected:
     promise::Promise<void> connectXmpp(const std::shared_ptr<HostPortServerInfo>& server);
     void setupXmppHandlers();
     promise::Promise<int> initializeContactList();
+
     /**
      * @brief send response to ping request.
      *
      * This performs an xmpp response to the received xmpp ping request.
      */
     void sendPong(const std::string& peerJid, const std::string& messageId);
+
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
     //rtcModule::IGlobalEventHandler interface
