@@ -97,6 +97,17 @@ public:
 class MegaChatGlobalListener
 {
 public:
+
+    /**
+     * @brief This function is called when the chat engine is fully initialized
+     *
+     * At this moment, the list of chats is up to date and it can be retrieved by the app.
+     *
+     * Note that the chat engine is able to work while being offline, so the connection to the
+     * the chat servers is not guaranteed when the function is called.
+     */
+    virtual void onChatCurrent();
+
     // notifies when the online status has changed
     virtual void onChatStatusUpdate(MegaChatApi* api, int status);
 };
@@ -121,9 +132,9 @@ class MegaChatRequest
 {
 public:
     enum {
-        TYPE_CONNECT,   // connect to chatd, after login+fetchnodes
+        TYPE_CONNECT,   // connect to chatd (call it after login+fetchnodes with MegaApi)
         TYPE_DELETE,    // delete MegaChatApi instance
-        TYPE_SET_CHAT_STATUS,
+        TYPE_SET_ONLINE_STATUS,
         TYPE_START_CHAT_CALL, TYPE_ANSWER_CHAT_CALL,
         TYPE_MUTE_CHAT_CALL, TYPE_HANG_CHAT_CALL,
         TYPE_SEND_MESSAGE, TYPE_EDIT_MESSAGE, TYPE_DELETE_MESSAGE,
@@ -175,26 +186,6 @@ public:
      * @return Readable string showing the type of request
      */
     virtual const char* toString() const;
-
-    /**
-     * @brief Returns a readable string that shows the type of request
-     *
-     * This function provides exactly the same result as MegaChatRequest::getRequestString.
-     * It's provided for a better Python compatibility
-     *
-     * @return Readable string showing the type of request
-     */
-    virtual const char* __str__() const;
-
-    /**
-     * @brief Returns a readable string that shows the type of request
-     *
-     * This function provides exactly the same result as MegaChatRequest::getRequestString.
-     * It's provided for a better PHP compatibility
-     *
-     * @return Readable string showing the type of request
-     */
-    virtual const char* __toString() const;
 
     /**
      * @brief Returns the tag that identifies this request
@@ -311,7 +302,8 @@ class MegaChatError
 public:
     enum {
         ERROR_OK = 0,
-        ERROR_UNKNOWN = -1
+        ERROR_UNKNOWN = -1,
+        ERROR_ARGS = -2
     };
 
     MegaChatError() {}
@@ -406,7 +398,7 @@ public:
      *
      * @param listener MegaChatRequestListener to track this request
      */
-    void setChatStatus(int status, MegaChatRequestListener *listener = NULL);
+    void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
 
     // Audio/Video device management
     MegaStringList *getChatAudioInDevices();

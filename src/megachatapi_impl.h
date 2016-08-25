@@ -311,6 +311,7 @@ public:
 
     // ============= Listeners ================
 
+    // Registration
     void addChatGlobalListener(MegaChatGlobalListener *listener);
     void addChatCallListener(MegaChatCallListener *listener);
     void addChatRequestListener(MegaChatRequestListener *listener);
@@ -324,19 +325,24 @@ public:
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
     void removeChatRoomListener(MegaChatRoomListener *listener);
 
+    // MegaChatRequestListener callbacks
     void fireOnChatRequestStart(MegaChatRequestPrivate *request);
     void fireOnChatRequestFinish(MegaChatRequestPrivate *request, MegaChatError *e);
     void fireOnChatRequestUpdate(MegaChatRequestPrivate *request);
     void fireOnChatRequestTemporaryError(MegaChatRequestPrivate *request, MegaChatError *e);
 
+    // MegaChatCallListener callbacks
     void fireOnChatCallStart(MegaChatCallPrivate *call);
     void fireOnChatCallStateChange(MegaChatCallPrivate *call);
     void fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e);
     void fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatError *e);
 
+    // MegaChatVideoListener callbacks
     void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
     void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
 
+    // MegaChatGlobalListener callbacks
+    void fireOnChatCurrent();
     void fireOnChatStatusUpdate(MegaChatApi::Status status);
 
 
@@ -344,7 +350,7 @@ public:
 
     // General chat methods
     void connect(MegaChatRequestListener *listener = NULL);
-    void setChatStatus(int status, MegaChatRequestListener *listener = NULL);
+    void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
 
     // Audio/Video devices
     MegaStringList *getChatAudioInDevices();
@@ -380,11 +386,11 @@ public:
     virtual void removeGroupChatItem(IContactListItem* item);
     virtual IChatHandler& chatHandlerForPeer(uint64_t handle);
 
-    // karere::ITitleDisplay implementation (for the name of contacts and groupchats in the list)
-    virtual void onTitleChanged(const std::string& title);
-    //virtual void onUnreadCountChanged(int count);
-    virtual void onPresenceChanged(karere::Presence state);
-    //virtual void onMembersUpdated();
+//    // karere::ITitleDisplay implementation (for the name of contacts and groupchats in the list)
+//    virtual void onTitleChanged(const std::string& title);
+//    //virtual void onUnreadCountChanged(int count);
+//    virtual void onPresenceChanged(karere::Presence state);
+//    //virtual void onMembersUpdated();
 };
 
 

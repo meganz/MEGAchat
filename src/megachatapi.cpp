@@ -67,9 +67,9 @@ void MegaChatApi::connect(MegaChatRequestListener *listener)
 //    this->pImpl = new MegaChatApiImpl(this, appKey, appDir);
 //}
 
-void MegaChatApi::setChatStatus(int status, MegaChatRequestListener *listener)
+void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
 {
-    pImpl->setChatStatus(status, listener);
+    pImpl->setOnlineStatus(status, listener);
 }
 
 MegaStringList *MegaChatApi::getChatAudioInDevices()
@@ -174,16 +174,6 @@ const char *MegaChatRequest::getRequestString() const
 }
 
 const char *MegaChatRequest::toString() const
-{
-    return NULL;
-}
-
-const char *MegaChatRequest::__str__() const
-{
-    return NULL;
-}
-
-const char *MegaChatRequest::__toString() const
 {
     return NULL;
 }

@@ -168,8 +168,15 @@ void MegaChatApiImpl::sendPendingRequests()
             threadExit = 1;
             break;
         }
-        case MegaChatRequest::TYPE_SET_CHAT_STATUS:
+        case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
         {
+            MegaChatApi::Status status = (MegaChatApi::Status) request->getNumber();
+            if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_CHATTY)
+            {
+                fireOnChatRequestFinish(request, new MegaChatErrorPrivate("Invalid online status", MegaChatError::ERROR_ARGS));
+                break;
+            }
+
             mClient->setPresence(request->getNumber(), true);
             break;
         }
@@ -363,9 +370,19 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int wi
     }
 }
 
+void MegaChatApiImpl::fireOnChatCurrent()
+{
+    KR_LOG_INFO("Initialization complete");
+
+    for(set<MegaChatGlobalListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatCurrent();
+    }
+}
+
 void MegaChatApiImpl::fireOnChatStatusUpdate(MegaChatApi::Status status)
 {
-    KR_LOG_INFO("Online state changed");
+    KR_LOG_INFO("Online status changed");
 
     for(set<MegaChatGlobalListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
@@ -380,9 +397,9 @@ void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
-void MegaChatApiImpl::setChatStatus(int status, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CHAT_STATUS, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_ONLINE_STATUS, listener);
     request->setNumber(status);
     requestQueue.push(request);
     waiter->notify();
@@ -571,24 +588,15 @@ rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const std::shared_ptr<
 
 void MegaChatApiImpl::onInitComplete()
 {
-    // own user, own keys, contactlist and chats are loaded
-    // still not connected to XMPP server
+    // own user, own keys, contactlist and chats are loaded and up to date
+    // karere could be not connected to XMPP server yet
+    fireOnChatCurrent();
 }
 
 void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
 {
     this->status = (MegaChatApi::Status) pres.status();
     fireOnChatStatusUpdate(status);
-}
-
-void MegaChatApiImpl::onTitleChanged(const string &title)
-{
-
-}
-
-void MegaChatApiImpl::onPresenceChanged(karere::Presence state)
-{
-
 }
 
 ChatRequestQueue::ChatRequestQueue()
@@ -707,7 +715,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
     switch(type)
     {
         case TYPE_DELETE: return "DELETE";
-        case TYPE_SET_CHAT_STATUS: return "SET_CHAT_STATUS";
+        case TYPE_SET_ONLINE_STATUS: return "SET_CHAT_STATUS";
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
     }
