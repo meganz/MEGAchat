@@ -183,6 +183,51 @@ protected:
 
 };
 
+class MegaChatErrorPrivate :
+        public MegaChatError,
+        public promise::Error
+{
+public:
+
+    MegaChatErrorPrivate(const std::string& msg, int code=ERROR_OK, int type=promise::kErrorTypeGeneric);
+    MegaChatErrorPrivate(int code=ERROR_OK, int type=promise::kErrorTypeGeneric);
+    virtual ~MegaChatErrorPrivate() {}
+
+
+
+
+    // MegaChatError interface
+public:
+    MegaChatError *copy();
+    int getErrorCode() const;
+    int getErrorType() const;
+    const char *getErrorString() const;
+    const char *toString() const;
+};
+
+int MegaChatErrorPrivate::getErrorCode() const
+{
+    return code();
+}
+
+int MegaChatErrorPrivate::getErrorType() const
+{
+    return type();
+}
+
+const char *MegaChatErrorPrivate::getErrorString() const
+{
+    return what();
+}
+
+const char *MegaChatErrorPrivate::toString() const
+{
+    char *errorString = new char[msg().size()+1];
+    strcpy(errorString, what());
+    return errorString;
+
+}
+
 //Thread safe request queue
 class ChatRequestQueue
 {
@@ -280,14 +325,14 @@ public:
     void removeChatRoomListener(MegaChatRoomListener *listener);
 
     void fireOnChatRequestStart(MegaChatRequestPrivate *request);
-    void fireOnChatRequestFinish(MegaChatRequestPrivate *request, MegaError e);
+    void fireOnChatRequestFinish(MegaChatRequestPrivate *request, MegaChatError *e);
     void fireOnChatRequestUpdate(MegaChatRequestPrivate *request);
-    void fireOnChatRequestTemporaryError(MegaChatRequestPrivate *request, MegaError e);
+    void fireOnChatRequestTemporaryError(MegaChatRequestPrivate *request, MegaChatError *e);
 
     void fireOnChatCallStart(MegaChatCallPrivate *call);
     void fireOnChatCallStateChange(MegaChatCallPrivate *call);
-    void fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaError *e);
-    void fireOnChatCallFinish(MegaChatCallPrivate *call, MegaError *e);
+    void fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e);
+    void fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatError *e);
 
     void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
     void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);

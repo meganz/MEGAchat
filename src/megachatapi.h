@@ -35,6 +35,7 @@ class MegaChatApi;
 class MegaChatApiImpl;
 class MegaChatRequest;
 class MegaChatRequestListener;
+class MegaChatError;
 class MegaChatRoom;
 class MegaChatCall;
 class MegaChatCallListener;
@@ -75,8 +76,8 @@ public:
 
     virtual void onChatCallStart(MegaChatApi* api, MegaChatCall *call);
     virtual void onChatCallStateChange(MegaChatApi *api, MegaChatCall *call);
-    virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaError* error);
-    virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaError* error);
+    virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
+    virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
 };
 
 class MegaChatRoom : public MegaTextChat
@@ -264,7 +265,7 @@ public:
      * @param request Information about the request
      * @param e Error information
      */
-    virtual void onRequestFinish(MegaChatApi* api, MegaChatRequest *request, MegaError* e);
+    virtual void onRequestFinish(MegaChatApi* api, MegaChatRequest *request, MegaChatError* e);
 
     /**
      * @brief This function is called to inform about the progres of a request
@@ -297,8 +298,53 @@ public:
      * @param request Information about the request
      * @param error Error information
      */
-    virtual void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaError* error);
+    virtual void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaChatError* error);
     virtual ~MegaChatRequestListener();
+};
+
+
+/**
+ * @brief Provides information about an error
+ */
+class MegaChatError
+{
+public:
+    enum {
+        ERROR_OK = 0,
+        ERROR_UNKNOWN = -1
+    };
+
+    MegaChatError() {}
+    virtual ~MegaChatError() {}
+
+    /**
+     * @brief Returns the error code associated with this MegaChatError
+     * @return Error code associated with this MegaChatError
+     */
+    virtual int getErrorCode() const = 0;
+
+    /**
+     * @brief Returns the type of the error associated with this MegaChatError
+     * @return Type of the error associated with this MegaChatError
+     */
+    virtual int getErrorType() const = 0;
+
+    /**
+     * @brief Returns a readable description of the error
+     *
+     * @return Readable description of the error
+     */
+    virtual const char* getErrorString() const = 0;
+
+    /**
+     * @brief Returns a readable description of the error
+     *
+     * This function provides exactly the same result as MegaChatError::getErrorString.
+     * It's provided for a better Java compatibility
+     *
+     * @return Readable description of the error
+     */
+    virtual const char* toString() const = 0;
 };
 
 class MegaChatApi

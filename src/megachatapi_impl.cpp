@@ -99,16 +99,6 @@ void MegaChatApiImpl::loop()
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
     this->mClient = new karere::Client(*this->megaApi, *this, karere::Presence::kOnline);
-    this->mClient->loginWithSdk()
-    .then([]()
-    {
-        KR_LOG_DEBUG("Client initialized");
-    })
-    .fail([](const promise::Error& error)
-    {
-        KR_LOG_ERROR("Client startup failed with error: %s\n", error.msg());
-        exit(-1);
-    });
 
     while (true)
     {
@@ -142,7 +132,7 @@ void MegaChatApiImpl::postMessage(void *msg)
 void MegaChatApiImpl::sendPendingRequests()
 {
     MegaChatRequestPrivate *request;
-    error e;
+    int errorCode = MegaChatError::ERROR_OK;
     int nextTag = 0;
 
     while((request = requestQueue.pop()))
@@ -151,12 +141,28 @@ void MegaChatApiImpl::sendPendingRequests()
         nextTag = ++reqtag;
         request->setTag(nextTag);
         requestMap[nextTag]=request;
-        e = API_OK;
+        errorCode = MegaChatError::ERROR_OK;
 
         fireOnChatRequestStart(request);
 
         switch (request->getType())
         {
+        case MegaChatRequest::TYPE_CONNECT:
+        {
+            mClient->loginExistingSession()
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megachatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megachatError);
+            })
+            .fail([request, errorCode, this](const promise::Error& e)
+            {
+                MegaChatErrorPrivate *megachatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                fireOnChatRequestFinish(request, megachatError);
+            });
+
+            break;
+        }
         case MegaChatRequest::TYPE_DELETE:
         {
             threadExit = 1;
@@ -177,16 +183,16 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         default:
         {
-            e = API_EINTERNAL;
+            errorCode = MegaChatError::ERROR_UNKNOWN;
         }
         }   // end of switch(request->getType())
 
 
-        if(e)
+        if(errorCode)
         {
-            MegaError err(e);
-            KR_LOG_WARNING("Error starting request: %s", err.getErrorString());
-            fireOnChatRequestFinish(request, err);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
+            KR_LOG_WARNING("Error starting request: %s", megaChatError->msg());
+            fireOnChatRequestFinish(request, megaChatError);
         }
 
 //        sdkMutex.unlock();
@@ -220,13 +226,11 @@ void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
     }
 }
 
-void MegaChatApiImpl::fireOnChatRequestFinish(MegaChatRequestPrivate *request, MegaError e)
+void MegaChatApiImpl::fireOnChatRequestFinish(MegaChatRequestPrivate *request, MegaChatError *e)
 {
-    MegaError *megaError = new MegaError(e);
-
-    if(e.getErrorCode())
+    if(e->getErrorCode())
     {
-        KR_LOG_INFO("Request (%s) finished with error: %s", request->getRequestString(), e.getErrorString());
+        KR_LOG_INFO("Request (%s) finished with error: %s", request->getRequestString(), e->getErrorString());
     }
     else
     {
@@ -235,19 +239,19 @@ void MegaChatApiImpl::fireOnChatRequestFinish(MegaChatRequestPrivate *request, M
 
     for (set<MegaChatRequestListener *>::iterator it = requestListeners.begin(); it != requestListeners.end() ; it++)
     {
-        (*it)->onRequestFinish(chatApi, request, megaError);
+        (*it)->onRequestFinish(chatApi, request, e);
     }
 
     MegaChatRequestListener* listener = request->getListener();
     if (listener)
     {
-        listener->onRequestFinish(chatApi, request, megaError);
+        listener->onRequestFinish(chatApi, request, e);
     }
 
     requestMap.erase(request->getTag());
 
     delete request;
-    delete megaError;
+    delete e;
 }
 
 void MegaChatApiImpl::fireOnChatRequestUpdate(MegaChatRequestPrivate *request)
@@ -264,24 +268,22 @@ void MegaChatApiImpl::fireOnChatRequestUpdate(MegaChatRequestPrivate *request)
     }
 }
 
-void MegaChatApiImpl::fireOnChatRequestTemporaryError(MegaChatRequestPrivate *request, MegaError e)
+void MegaChatApiImpl::fireOnChatRequestTemporaryError(MegaChatRequestPrivate *request, MegaChatError *e)
 {
-    MegaError *megaError = new MegaError(e);
-
     request->setNumRetry(request->getNumRetry() + 1);
 
     for (set<MegaChatRequestListener *>::iterator it = requestListeners.begin(); it != requestListeners.end() ; it++)
     {
-        (*it)->onRequestTemporaryError(chatApi, request, megaError);
+        (*it)->onRequestTemporaryError(chatApi, request, e);
     }
 
     MegaChatRequestListener* listener = request->getListener();
     if (listener)
     {
-        listener->onRequestTemporaryError(chatApi, request, megaError);
+        listener->onRequestTemporaryError(chatApi, request, e);
     }
 
-    delete megaError;
+    delete e;
 }
 
 void MegaChatApiImpl::fireOnChatCallStart(MegaChatCallPrivate *call)
@@ -306,7 +308,7 @@ void MegaChatApiImpl::fireOnChatCallStateChange(MegaChatCallPrivate *call)
     }
 }
 
-void MegaChatApiImpl::fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaError *e)
+void MegaChatApiImpl::fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e)
 {
     KR_LOG_INFO("Chat call temporary error: %s", e->getErrorString());
 
@@ -316,7 +318,7 @@ void MegaChatApiImpl::fireOnChatCallTemporaryError(MegaChatCallPrivate *call, Me
     }
 }
 
-void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaError *e)
+void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatError *e)
 {
     if(e->getErrorCode())
     {
@@ -330,17 +332,15 @@ void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaError 
     call->setStatus(MegaChatCall::CALL_STATUS_DISCONNECTED);
     fireOnChatCallStateChange(call);
 
-    MegaError *megaError = new MegaError(*e);
-
     for (set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
-        (*it)->onChatCallFinish(chatApi, call, megaError);
+        (*it)->onChatCallFinish(chatApi, call, e);
     }
 
     callMap.erase(call->getTag());
 
     delete call;
-    delete megaError;
+    delete e;
 }
 
 void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer)
@@ -571,7 +571,8 @@ rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const std::shared_ptr<
 
 void MegaChatApiImpl::onInitComplete()
 {
-
+    // own user, own keys, contactlist and chats are loaded
+    // still not connected to XMPP server
 }
 
 void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
@@ -920,6 +921,19 @@ void MegaChatRoomHandler::onPresenceChanged(karere::Presence state)
 }
 
 void MegaChatRoomHandler::init(chatd::Chat &messages, chatd::DbInterface *&dbIntf)
+{
+
+}
+
+
+MegaChatErrorPrivate::MegaChatErrorPrivate(const string &msg, int code, int type)
+    : promise::Error(msg, code, type)
+{
+
+}
+
+MegaChatErrorPrivate::MegaChatErrorPrivate(int code, int type)
+    : promise::Error(nullptr, code, type)
 {
 
 }
