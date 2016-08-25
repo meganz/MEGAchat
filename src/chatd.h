@@ -54,16 +54,18 @@ class DbInterface;
 class Listener
 {
 public:
-/** @brief
- *  This is the first call chatd makes to the Listener, passing it necessary objects and
- * retrieving info about the local history database
- * @param chat - the Chat object that can be used to access the message buffer etc
- * @param dbIntf[out] reference to the internal pointer to the database abstraction
- * layer interface. Set this pointer to a newly created instance of a db abstraction
- * instance. @note The dbIntf creation is handled by karere, and in the app interface,
- * this callback should not change this pointer (which is set to NULL)
- */
+    /**
+     * @brief This is the first call chatd makes to the Listener, passing it necessary objects and
+     * retrieving info about the local history database
+     *
+     * @param chat - the Chat object that can be used to access the message buffer etc
+     * @param dbIntf[out] reference to the internal pointer to the database abstraction
+     * layer interface. Set this pointer to a newly created instance of a db abstraction
+     * instance. @note The dbIntf creation is handled by karere, and in the app interface,
+     * this callback should not change this pointer (which is set to NULL)
+     */
     virtual void init(Chat& chat, DbInterface*& dbIntf) = 0;
+
 /// Called when that chatroom instance is being destroyed (e.g. on application close)
     virtual void onDestroy(){}
 /// A new message was received. This can be just sent by a peer, or retrieved from the server.
