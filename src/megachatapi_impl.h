@@ -39,6 +39,7 @@
 #include <chatd.h>
 #include <sdkApi.h>
 #include <mstrophepp.h>
+#include <karereCommon.h>
 
 namespace megachat
 {
@@ -76,9 +77,11 @@ protected:
 };
 
 class MegaChatVideoReceiver;
+
 class MegaChatCallPrivate :
         public MegaChatCall,
-        public karere::IApp::ICallHandler
+        public karere::IApp::ICallHandler,
+        public rtcModule::ICallAnswer
 {
 public:
     MegaChatCallPrivate(const std::shared_ptr<rtcModule::ICallAnswer> &ans);
@@ -101,7 +104,28 @@ public:
     void setVideoReceiver(MegaChatVideoReceiver *videoReceiver);
     //void setAnswerObject(rtcModule::ICallAnswer *answerObject);
 
-    // rtcModule::ICallHandler implementation (empty)
+    // IApp::ICallHandler implementation (empty)
+
+    // rtcModule::IEventHandler implementation (inherit from ICallHandler)
+//    virtual void onLocalMediaFail(const std::string& errMsg, bool* cont);
+//    virtual void onOutgoingCallCreated(const std::shared_ptr<ICall>& call);
+//    virtual void onCallAnswered(const std::string& peerFullJid);
+//    virtual void onLocalStreamObtained(IVideoRenderer*& localVidRenderer);
+//    virtual void removeRemotePlayer();
+//    virtual void onMediaRecv(stats::Options& statOptions);
+//    virtual void onCallEnded(TermCode termcode, const std::string& text,
+//                             const std::shared_ptr<stats::IRtcStats>& stats);
+//    virtual void onRemoteSdpRecv(IVideoRenderer*& rendererRet);
+//    virtual void onPeerMute(AvFlags what);
+//    virtual void onPeerUnmute(AvFlags what);
+
+    // rtcModule::ICallAnswer implementation
+    virtual std::shared_ptr<rtcModule::ICall> call() const;
+    virtual bool reqStillValid() const;
+    virtual std::set<std::string>* files() const;
+    virtual karere::AvFlags peerMedia() const;
+    virtual bool answer(bool accept, karere::AvFlags ownMedia);
+
 
 protected:
     int tag;
@@ -192,8 +216,6 @@ public:
     MegaChatErrorPrivate(const std::string& msg, int code=ERROR_OK, int type=promise::kErrorTypeGeneric);
     MegaChatErrorPrivate(int code=ERROR_OK, int type=promise::kErrorTypeGeneric);
     virtual ~MegaChatErrorPrivate() {}
-
-
 
 
     // MegaChatError interface
@@ -342,8 +364,8 @@ public:
     void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
 
     // MegaChatGlobalListener callbacks
-    void fireOnChatCurrent();
-    void fireOnChatStatusUpdate(MegaChatApi::Status status);
+    void fireOnChatRoomUpdate(MegaChatRoomList *chats);
+    void fireOnOnlineStatusUpdate(MegaChatApi::Status status);
 
 
     // ============= API requests ================
@@ -351,6 +373,7 @@ public:
     // General chat methods
     void connect(MegaChatRequestListener *listener = NULL);
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
+    MegaChatRoomList* getChatRooms();
 
     // Audio/Video devices
     MegaStringList *getChatAudioInDevices();

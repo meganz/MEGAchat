@@ -72,6 +72,11 @@ void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
     pImpl->setOnlineStatus(status, listener);
 }
 
+mega::MegaTextChatList *MegaChatApi::getChatRooms()
+{
+    return pImpl->getChatRooms();
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();

@@ -80,7 +80,7 @@ public:
     virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
 };
 
-class MegaChatRoom : public MegaTextChat
+class MegaChatRoom : protected MegaTextChat
 {
 public:
     virtual ~MegaChatRoom() {}
@@ -94,23 +94,13 @@ public:
 
 };
 
-class MegaChatGlobalListener
+class MegaChatRoomList : protected MegaTextChatList
 {
 public:
+    virtual ~MegaChatRoomList() {}
 
-    /**
-     * @brief This function is called when the chat engine is fully initialized
-     *
-     * At this moment, the list of chats is up to date and it can be retrieved by the app.
-     *
-     * Note that the chat engine is able to work while being offline, so the connection to the
-     * the chat servers is not guaranteed when the function is called.
-     */
-    virtual void onChatCurrent();
-
-    // notifies when the online status has changed
-    virtual void onChatStatusUpdate(MegaChatApi* api, int status);
 };
+
 
 /**
  * @brief Provides information about an asynchronous request
@@ -361,6 +351,9 @@ public:
 
     virtual ~MegaChatApi();
 
+
+    // ============= Requests ================
+
     /**
      * @brief Establish connection with chatd servers and XMPP servers.
      *
@@ -399,6 +392,8 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
+
+    mega::MegaTextChatList* getChatRooms();
 
     // Audio/Video device management
     MegaStringList *getChatAudioInDevices();
@@ -443,6 +438,52 @@ public:
 private:
     MegaChatApiImpl *pImpl;
 };
+
+class MegaChatGlobalListener
+{
+public:
+
+    /**
+     * @brief onOnlineStatusUpdate
+     *
+     * @param api MegaChatApi connected to the account
+     * @param status New status of the account
+     *
+     * It can be one of the following values:
+     * - STATUS_OFFLINE = 1
+     * The user appears as being offline
+     *
+     * - STATUS_BUSY = 2
+     * The user is busy and don't want to be disturbed.
+     *
+     * - STATUS_AWAY = 3
+     * The user is away and might not answer.
+     *
+     * - STATUS_ONLINE = 4
+     * The user is connected and online.
+     *
+     */
+    virtual void onOnlineStatusUpdate(MegaChatApi* api, MegaChatApi::Status status);
+
+    /**
+     * @brief This funtion is called when there are new or updated chats in the account
+     *
+     * When the chat engine is fully initialized, this function is also called, but
+     * the second parameter will be NULL. @note that it can work offline, so the
+     * connection to the chat servers may not have been established yet. Wait for
+     * MegaChatRequestListener::onRequestFinish response to ensure the connection is established.
+     *
+     * The SDK retains the ownership of the MegaChatRoomList in the second parameter. The list
+     * and all the MegaChatRoom objects that it contains will be valid until this function returns.
+     * If you want to save the list, use MegaChatRoomList::copy. If you want to save only some of
+     * the MegaChatRoom objects, use MegaChatRoom::copy for those chats.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chats List that contains the new or updated chats
+     */
+    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoomList *chats);
+};
+
 
 }
 

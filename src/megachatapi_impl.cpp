@@ -370,23 +370,23 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int wi
     }
 }
 
-void MegaChatApiImpl::fireOnChatCurrent()
+void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoomList *chats)
 {
     KR_LOG_INFO("Initialization complete");
 
     for(set<MegaChatGlobalListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
-        (*it)->onChatCurrent();
+        (*it)->onChatRoomUpdate(chatApi, chats);
     }
 }
 
-void MegaChatApiImpl::fireOnChatStatusUpdate(MegaChatApi::Status status)
+void MegaChatApiImpl::fireOnOnlineStatusUpdate(MegaChatApi::Status status)
 {
     KR_LOG_INFO("Online status changed");
 
     for(set<MegaChatGlobalListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
-        (*it)->onChatStatusUpdate(chatApi, status);
+        (*it)->onOnlineStatusUpdate(chatApi, status);
     }
 }
 
@@ -403,6 +403,11 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
     request->setNumber(status);
     requestQueue.push(request);
     waiter->notify();
+}
+
+MegaChatRoomList *MegaChatApiImpl::getChatRooms()
+{
+    // TODO: get the chatlist from mClient and create the corresponding MegaChatRoom's
 }
 
 void MegaChatApiImpl::addChatGlobalListener(MegaChatGlobalListener *listener)
@@ -590,13 +595,13 @@ void MegaChatApiImpl::onInitComplete()
 {
     // own user, own keys, contactlist and chats are loaded and up to date
     // karere could be not connected to XMPP server yet
-    fireOnChatCurrent();
+    fireOnChatRoomUpdate(NULL);
 }
 
 void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
 {
     this->status = (MegaChatApi::Status) pres.status();
-    fireOnChatStatusUpdate(status);
+    fireOnOnlineStatusUpdate(status);
 }
 
 ChatRequestQueue::ChatRequestQueue()
@@ -855,6 +860,31 @@ void MegaChatCallPrivate::setVideoReceiver(MegaChatVideoReceiver *videoReceiver)
 {
     delete this->videoReceiver;
     this->videoReceiver = videoReceiver;
+}
+
+std::shared_ptr<rtcModule::ICall> MegaChatCallPrivate::call() const
+{
+
+}
+
+bool MegaChatCallPrivate::reqStillValid() const
+{
+
+}
+
+std::set<string> *MegaChatCallPrivate::files() const
+{
+
+}
+
+AvFlags MegaChatCallPrivate::peerMedia() const
+{
+
+}
+
+bool MegaChatCallPrivate::answer(bool accept, AvFlags ownMedia)
+{
+
 }
 
 //void MegaChatCallPrivate::setAnswerObject(rtcModule::ICallAnswer *answerObject)
