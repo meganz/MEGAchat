@@ -86,11 +86,20 @@ public:
     virtual ~MegaChatRoom() {}
 };
 
-class MegaChatRoomListener
+/**
+ * @brief Interface to get all information related to chats of a MEGA account
+ *
+ * Implementations of this interface can receive all events (request, global, call, video).
+ *
+ * Multiple inheritance isn't used for compatibility with other programming languages
+ *
+ * The implementation will receive callbacks from an internal worker thread.
+ *
+ */
+class MegaChatListener
 {
 public:
-    virtual ~MegaChatRoomListener() {}
-
+    virtual ~MegaChatListener() {}
 
 };
 
@@ -457,8 +466,8 @@ public:
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void addChatRoomListener(MegaChatRoomListener *listener);
-    void removeChatRoomListener(MegaChatRoomListener *listener);
+    void addChatListener(MegaChatListener *listener);
+    void removeChatListener(MegaChatListener *listener);
 
     /**
      * @brief Register a listener to receive all events about requests

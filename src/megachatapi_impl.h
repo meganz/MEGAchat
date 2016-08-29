@@ -304,12 +304,12 @@ private:
     ChatRequestQueue requestQueue;
     EventQueue eventQueue;
 
-    std::set<MegaChatGlobalListener *> listeners;
+    std::set<MegaChatListener *> listeners;
+    std::set<MegaChatGlobalListener *> globalListeners;
     std::set<MegaChatRequestListener *> requestListeners;
     std::set<MegaChatCallListener *> callListeners;
     std::set<MegaChatVideoListener *> localVideoListeners;
     std::set<MegaChatVideoListener *> remoteVideoListeners;
-    std::set<MegaChatRoomListener *> chatRoomListeners;
 
     int reqtag;
     std::map<int, MegaChatRequestPrivate *> requestMap;
@@ -335,13 +335,13 @@ public:
     void addChatRequestListener(MegaChatRequestListener *listener);
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void addChatRoomListener(MegaChatRoomListener *listener);
+    void addChatListener(MegaChatListener *listener);
     void removeChatGlobalListener(MegaChatGlobalListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
     void removeChatRequestListener(MegaChatRequestListener *listener);
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void removeChatRoomListener(MegaChatRoomListener *listener);
+    void removeChatListener(MegaChatListener *listener);
 
     // MegaChatRequestListener callbacks
     void fireOnChatRequestStart(MegaChatRequestPrivate *request);

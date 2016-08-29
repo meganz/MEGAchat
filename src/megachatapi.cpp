@@ -147,14 +147,14 @@ void MegaChatApi::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
     pImpl->removeChatRemoteVideoListener(listener);
 }
 
-void MegaChatApi::addChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApi::addChatListener(MegaChatListener *listener)
 {
-    pImpl->addChatRoomListener(listener);
+    pImpl->addChatListener(listener);
 }
 
-void MegaChatApi::removeChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApi::removeChatListener(MegaChatListener *listener)
 {
-    pImpl->removeChatRoomListener(listener);
+    pImpl->removeChatListener(listener);
 }
 
 void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)

@@ -391,7 +391,7 @@ void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoomList *chats)
 {
     KR_LOG_INFO("Initialization complete");
 
-    for(set<MegaChatGlobalListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    for(set<MegaChatGlobalListener *>::iterator it = globalListeners.begin(); it != globalListeners.end() ; it++)
     {
         (*it)->onChatRoomUpdate(chatApi, chats);
     }
@@ -401,7 +401,7 @@ void MegaChatApiImpl::fireOnOnlineStatusUpdate(MegaChatApi::Status status)
 {
     KR_LOG_INFO("Online status changed");
 
-    for(set<MegaChatGlobalListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    for(set<MegaChatGlobalListener *>::iterator it = globalListeners.begin(); it != globalListeners.end() ; it++)
     {
         (*it)->onOnlineStatusUpdate(chatApi, status);
     }
@@ -451,7 +451,7 @@ void MegaChatApiImpl::addChatGlobalListener(MegaChatGlobalListener *listener)
     }
 
 //    sdkMutex.lock();
-    listeners.insert(listener);
+    globalListeners.insert(listener);
 //    sdkMutex.unlock();
 }
 
@@ -504,7 +504,7 @@ void MegaChatApiImpl::addChatRemoteVideoListener(MegaChatVideoListener *listener
     //    sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::addChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApiImpl::addChatListener(MegaChatListener *listener)
 {
     if (!listener)
     {
@@ -512,7 +512,7 @@ void MegaChatApiImpl::addChatRoomListener(MegaChatRoomListener *listener)
     }
 
 //    sdkMutex.lock();
-    chatRoomListeners.insert(listener);
+    listeners.insert(listener);
     //    sdkMutex.unlock();
 }
 
@@ -524,7 +524,7 @@ void MegaChatApiImpl::removeChatGlobalListener(MegaChatGlobalListener *listener)
     }
 
 //    sdkMutex.lock();
-    listeners.erase(listener);
+    globalListeners.erase(listener);
 //    sdkMutex.unlock();
 }
 
@@ -590,7 +590,7 @@ void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *liste
     //    sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::removeChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)
 {
     if (!listener)
     {
@@ -598,7 +598,7 @@ void MegaChatApiImpl::removeChatRoomListener(MegaChatRoomListener *listener)
     }
 
 //    sdkMutex.lock();
-    chatRoomListeners.erase(listener);
+    listeners.erase(listener);
     //    sdkMutex.unlock();
 }
 
