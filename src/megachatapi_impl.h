@@ -209,7 +209,7 @@ protected:
 
 class MegaChatErrorPrivate :
         public MegaChatError,
-        public promise::Error
+        private promise::Error
 {
 public:
 
@@ -217,6 +217,8 @@ public:
     MegaChatErrorPrivate(int code=ERROR_OK, int type=promise::kErrorTypeGeneric);
     virtual ~MegaChatErrorPrivate() {}
 
+private:
+    MegaChatErrorPrivate(const MegaChatErrorPrivate *);
 
     // MegaChatError interface
 public:
@@ -227,28 +229,18 @@ public:
     const char *toString() const;
 };
 
-int MegaChatErrorPrivate::getErrorCode() const
+class MegaChatRoomPrivate : public MegaChatRoom, private mega::MegaTextChat
 {
-    return code();
-}
+public:
+    virtual ~MegaChatRoomPrivate();
+};
 
-int MegaChatErrorPrivate::getErrorType() const
+class MegaChatRoomListPrivate :  public MegaChatRoomList, private mega::MegaTextChatList
 {
-    return type();
-}
+public:
+    virtual ~MegaChatRoomListPrivate();
+};
 
-const char *MegaChatErrorPrivate::getErrorString() const
-{
-    return what();
-}
-
-const char *MegaChatErrorPrivate::toString() const
-{
-    char *errorString = new char[msg().size()+1];
-    strcpy(errorString, what());
-    return errorString;
-
-}
 
 //Thread safe request queue
 class ChatRequestQueue

@@ -198,7 +198,7 @@ void MegaChatApiImpl::sendPendingRequests()
         if(errorCode)
         {
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
-            KR_LOG_WARNING("Error starting request: %s", megaChatError->msg());
+            KR_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
             fireOnChatRequestFinish(request, megaChatError);
         }
 
@@ -408,6 +408,15 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 {
     // TODO: get the chatlist from mClient and create the corresponding MegaChatRoom's
+    MegaChatRoomList *chats = new MegaChatRoomListPrivate();
+
+    ChatRoomList::iterator it;
+    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+        chats->add(new MegaChatRoomPrivate(it->second));
+    }
+
+    return chats;
 }
 
 void MegaChatApiImpl::addChatGlobalListener(MegaChatGlobalListener *listener)
@@ -972,6 +981,39 @@ MegaChatErrorPrivate::MegaChatErrorPrivate(const string &msg, int code, int type
 
 MegaChatErrorPrivate::MegaChatErrorPrivate(int code, int type)
     : promise::Error(nullptr, code, type)
+{
+
+}
+
+MegaChatErrorPrivate::MegaChatErrorPrivate(const MegaChatErrorPrivate *error)
+    : promise::Error(error->getErrorString(), error->getErrorCode(), error->getErrorType())
+{
+
+}
+
+int MegaChatErrorPrivate::getErrorCode() const
+{
+    return code();
+}
+
+int MegaChatErrorPrivate::getErrorType() const
+{
+    return type();
+}
+
+const char *MegaChatErrorPrivate::getErrorString() const
+{
+    return what();
+}
+
+const char *MegaChatErrorPrivate::toString() const
+{
+    char *errorString = new char[msg().size()+1];
+    strcpy(errorString, what());
+    return errorString;
+}
+
+MegaChatError *MegaChatErrorPrivate::copy()
 {
 
 }

@@ -80,7 +80,7 @@ public:
     virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
 };
 
-class MegaChatRoom : protected MegaTextChat
+class MegaChatRoom
 {
 public:
     virtual ~MegaChatRoom() {}
@@ -94,10 +94,40 @@ public:
 
 };
 
-class MegaChatRoomList : protected MegaTextChatList
+/**
+ * @brief List of MegaChatRoom objects
+ *
+ * A MegaChatRoomList has the ownership of the MegaChatRoom objects that it contains, so they will be
+ * only valid until the MegaChatRoomList is deleted. If you want to retain a MegaChatRoom returned by
+ * a MegaChatRoomList, use MegaChatRoom::copy.
+ *
+ * Objects of this class are immutable.
+ */
+class MegaChatRoomList
 {
 public:
     virtual ~MegaChatRoomList() {}
+
+    virtual MegaChatRoomList *copy() const;
+
+    /**
+     * @brief Returns the MegaChatRoom at the position i in the MegaChatRoomList
+     *
+     * The MegaChatRoomList retains the ownership of the returned MegaChatRoom. It will be only valid until
+     * the MegaChatRoomList is deleted.
+     *
+     * If the index is >= the size of the list, this function returns NULL.
+     *
+     * @param i Position of the MegaChatRoom that we want to get for the list
+     * @return MegaChatRoom at the position i in the list
+     */
+    virtual const MegaChatRoom *get(unsigned int i)  const;
+
+    /**
+     * @brief Returns the number of MegaChatRooms in the list
+     * @return Number of MegaChatRooms in the list
+     */
+    virtual int size() const;
 
 };
 
@@ -393,7 +423,7 @@ public:
      */
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
 
-    mega::MegaTextChatList* getChatRooms();
+    MegaChatRoomList* getChatRooms();
 
     // Audio/Video device management
     MegaStringList *getChatAudioInDevices();
@@ -442,6 +472,18 @@ private:
 class MegaChatGlobalListener
 {
 public:
+
+//    /**
+//     * @brief This function is called when the chat engine is fully initialized
+//     *
+//     * At this moment, the list of chats is up to date and it can be retrieved by the app.
+//     *
+//     * @note The chat engine is able to work offline, so the connection to the
+//     * the chat servers is not necessarily established when this function is called.
+//     *
+//     * @param api MegaChatApi connected to the account
+//     */
+//    virtual void onChatCurrent(MegaChatApi* api);
 
     /**
      * @brief onOnlineStatusUpdate

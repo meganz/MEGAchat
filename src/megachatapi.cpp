@@ -72,7 +72,7 @@ void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
     pImpl->setOnlineStatus(status, listener);
 }
 
-mega::MegaTextChatList *MegaChatApi::getChatRooms()
+MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();
 }
@@ -198,3 +198,12 @@ int MegaChatRequest::getNumRetry() const
     return 0;
 }
 
+const MegaChatRoom *MegaChatRoomList::get(unsigned int i) const
+{
+    return NULL;
+}
+
+int MegaChatRoomList::size() const
+{
+    return 0;
+}
