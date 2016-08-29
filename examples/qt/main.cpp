@@ -102,10 +102,12 @@ int main(int argc, char **argv)
     mainWin->setClient(*gClient);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 
-    gClient->loginWithSdk()
+    gClient->loginSdkAndInit()
     .then([]()
     {
         KR_LOG_DEBUG("Client initialized");
+        mainWin->show();
+        gClient->connect();
     })
     .fail([](const promise::Error& error)
     {

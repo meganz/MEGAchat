@@ -1399,7 +1399,7 @@ void Chat::moveItemToManualSending(OutputQueue::iterator it, int reason)
         it->keyCmd.reset();
         CALL_DB(deleteItemFromSending, it->rowid);
         CALL_DB(saveItemToManualSending, *it, reason);
-        CALL_LISTENER(onManualSendRequired, it->msg, it->rowid, reason); //GUI should this message at end of that list of messages requiring 'manual' resend
+        CALL_LISTENER(onManualSendRequired, it->msg, it->rowid, (ManualSendReason)reason); //GUI should this message at end of that list of messages requiring 'manual' resend
         it->msg = nullptr; //don't delete the Message object, it will be owned by the app
     }
     mSending.erase(it);
