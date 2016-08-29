@@ -57,6 +57,11 @@ MegaChatApi::MegaChatApi(mega::MegaApi *megaApi)
     this->pImpl = new MegaChatApiImpl(this, megaApi);
 }
 
+void MegaChatApi::init()
+{
+    pImpl->init();
+}
+
 void MegaChatApi::connect(MegaChatRequestListener *listener)
 {
     pImpl->connect(listener);

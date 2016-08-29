@@ -149,16 +149,16 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_CONNECT:
         {
-            mClient->loginExistingSession()
+            mClient->connect()
             .then([request, this]()
             {
-                MegaChatErrorPrivate *megachatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megachatError);
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, errorCode, this](const promise::Error& e)
+            .fail([request, this](const promise::Error& e)
             {
-                MegaChatErrorPrivate *megachatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                fireOnChatRequestFinish(request, megachatError);
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                fireOnChatRequestFinish(request, megaChatError);
             });
 
             break;
@@ -390,6 +390,13 @@ void MegaChatApiImpl::fireOnOnlineStatusUpdate(MegaChatApi::Status status)
     }
 }
 
+void MegaChatApiImpl::init()
+{
+//    sdkMutex.lock();
+    mClient->initWithExistingSession();
+//    sdkMutex.unlock();
+}
+
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
@@ -408,12 +415,12 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 {
     // TODO: get the chatlist from mClient and create the corresponding MegaChatRoom's
-    MegaChatRoomList *chats = new MegaChatRoomListPrivate();
+    MegaChatRoomListPrivate *chats = new MegaChatRoomListPrivate();
 
     ChatRoomList::iterator it;
     for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
     {
-        chats->add(new MegaChatRoomPrivate(it->second));
+        chats->addChatRoom(new MegaChatRoomPrivate(it->second));
     }
 
     return chats;

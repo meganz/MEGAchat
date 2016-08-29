@@ -232,6 +232,8 @@ public:
 class MegaChatRoomPrivate : public MegaChatRoom, private mega::MegaTextChat
 {
 public:
+    MegaChatRoomPrivate(karere::ChatRoom*);
+
     virtual ~MegaChatRoomPrivate();
 };
 
@@ -239,6 +241,8 @@ class MegaChatRoomListPrivate :  public MegaChatRoomList, private mega::MegaText
 {
 public:
     virtual ~MegaChatRoomListPrivate();
+
+    void addChatRoom(MegaChatRoom*);
 };
 
 
@@ -363,6 +367,7 @@ public:
     // ============= API requests ================
 
     // General chat methods
+    void init();
     void connect(MegaChatRequestListener *listener = NULL);
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     MegaChatRoomList* getChatRooms();

@@ -385,11 +385,25 @@ public:
     // ============= Requests ================
 
     /**
-     * @brief Establish connection with chatd servers and XMPP servers.
+     * @brief Performs karere-only login, assuming the Mega SDK is already logged in
+     * with an existing session.
      *
-     * This function must be called only after MegaApi::login and MegaApi::fetchNodes
-     * have finished, since Karere needs the own user handle and other other additional
-     * information to be able to log into chat servers.
+     * After calling this function, the chat-engine is fully initialized (despite it's
+     * not connected yet, call MegaChatApi::connect) and the application can request the
+     * required objects, such as MegaChatApi::getChatRooms, to show the GUI to the user.
+     *
+     * @note: until the MegaChatApi::connect function is called, MegaChatApi will operate
+     * in offline mode (cannot send/receive any message or call)
+     */
+    void init();
+
+    /**
+     * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).
+     *
+     * This function must be called only after calling:
+     *  - MegaApi::login to login in MEGA
+     *  - MegaApi::fetchNodes to retrieve current state of the account
+     *  - MegaChatApi::init to initialize the chat engine
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
      *
