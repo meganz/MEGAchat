@@ -113,6 +113,9 @@ void MegaChatApiImpl::loop()
     }
 
     delete mClient;
+
+    rtcModule::globalCleanup();
+    services_shutdown();
 }
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg)
@@ -165,6 +168,20 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_DELETE:
         {
+            mClient->terminate()
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                KR_LOG_ERROR("Error logging out the Mega client: ", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+
             threadExit = 1;
             break;
         }
