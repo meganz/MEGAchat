@@ -54,7 +54,6 @@ public:
     virtual karere::IApp::ILoginDialog* createLoginDialog();
     virtual void onOwnPresence(karere::Presence pres);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest &req);
-    virtual void onInitComplete() { QWidget::show(); }
 protected:
     karere::IApp::IContactListItem* addItem(bool front, karere::Contact* contact,
                 karere::GroupChatRoom* room);

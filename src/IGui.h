@@ -232,9 +232,6 @@ public:
      */
     virtual void notifyInvited(const ChatRoom& room) {}
 
-    /** @brief Called when karere init is complete and the app can show it  UI */
-    virtual void onInitComplete() = 0;
-
     /** @brief Called when karere is about to terminate */
     virtual void onTerminate() {}
     virtual ~IApp() {}

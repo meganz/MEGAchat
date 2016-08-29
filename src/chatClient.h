@@ -80,6 +80,8 @@ public:
      * the same as the presence of the peer. If it is a groupchat, it is
      *  derived from the chatd chatroom status */
     virtual Presence presence() const = 0;
+    /** @brief Connects to the chatd chatroom */
+    virtual void join() = 0;
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
              unsigned char shard, chatd::Priv ownPriv);
     virtual ~ChatRoom(){}
@@ -132,7 +134,7 @@ public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
     virtual IApp::IContactListItem& contactGui();
     void updatePresence();
-    void join();
+    virtual void join();
     //@endcond
     /** @brief The userid of the other person in the 1on1 chat */
     const uint64_t peer() const { return mPeer; }
@@ -234,7 +236,7 @@ public:
         if(mAppChatHandler)
             mAppChatHandler->onTitleChanged(mTitleString);
     }
-    void join();
+    virtual void join();
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
     void onUserLeave(Id userid);
@@ -436,20 +438,26 @@ public:
     /** @brief Performs karere-only login, assuming the Mega SDK is already logged in
      * with an existing session.
      */
-    promise::Promise<void> loginExistingSession();
+    void initWithExistingSession();
 
     /** @brief Performs karere-only login, assuming the Mega SDK is already logged
      * in with a new session
      */
-    promise::Promise<void> loginNewSession();
+    promise::Promise<void> initWithNewSession();
+    /** @brief Does the actual connection to chatd, xmpp and gelb. Assumes the
+     * Mega SDK is already logged in. This must be called after
+     * \c initNewSession() or \c initExistingSession() completes */
+    promise::Promise<void> connect();
 
-    /** @brief A convenience method that logs in the Mega SDK and karere, by checking
+    /** @brief A convenience method that logs in the Mega SDK, by checking
      * the karere cache if there is a cached session - if there is, it calls
-     * \c sdkLoginExistingSession(), otherwise \c sdkLoginNewSession(). This
-     * can be used when building a standalone chat app where there is no app
+     * \c sdkLoginExistingSession(), otherwise \c sdkLoginNewSession(). Then inits
+     * the karere client in the corresponding way (with or without existing
+     * session).
+     * This can be used when building a standalone chat app where there is no app
      * code that logs in the Mega SDK.
      */
-    promise::Promise<void> loginWithSdk();
+    promise::Promise<void> loginSdkAndInit();
 
     /** @brief Notifies the client that network connection is down */
     void notifyNetworkOffline();
@@ -510,7 +518,7 @@ protected:
     std::unique_ptr<rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
     sqlite3* openDb();
-    promise::Promise<void> postLoginInit();
+    void connectToChatd();
     void loadOwnUserHandle();
     void loadOwnUserHandleFromDb(bool verifyWithSdk=true);
     karere::Id getMyHandleFromSdk();
