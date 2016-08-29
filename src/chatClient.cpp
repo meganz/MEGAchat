@@ -201,7 +201,7 @@ promise::Promise<ReqResult> Client::sdkLoginExistingSession(const std::string& s
 {
     return api.call(&::mega::MegaApi::fastLogin, sid.c_str());
 }
-promise::Promise<void> Client::loginWithSdk()
+promise::Promise<void> Client::loginSdkAndInit()
 {
     SqliteStmt stmt(db, "select value from vars where name='sid'");
     if (stmt.step())
@@ -212,7 +212,7 @@ promise::Promise<void> Client::loginWithSdk()
         return sdkLoginNewSession()
         .then([this](ReqResult)
         {
-            loginNewSession();
+            return initWithNewSession();
         });
     }
     else
@@ -220,7 +220,7 @@ promise::Promise<void> Client::loginWithSdk()
         return sdkLoginExistingSession(mSid)
         .then([this](ReqResult)
         {
-            loginExistingSession();
+            initWithExistingSession();
         });
     }
 }
@@ -232,7 +232,7 @@ void Client::loadContactlistFromSdk()
         contactList->syncWithApi(*api.sdk.getContacts());
 }
 
-promise::Promise<void> Client::loginNewSession()
+promise::Promise<void> Client::initWithNewSession()
 {
     const char* sid = api.sdk.dumpSession();
     assert(sid);
@@ -253,20 +253,16 @@ promise::Promise<void> Client::loginNewSession()
         {
             chats->syncRoomsWithApi(*mInitialChats);
         }
-        app.onInitComplete();
-        return postLoginInit();
     });
 }
 
-promise::Promise<void> Client::loginExistingSession()
+void Client::initWithExistingSession()
 {
     loadOwnUserHandleFromDb();
     loadOwnKeysFromDb();
     contactList->loadFromDb();
     chatd.reset(new chatd::Client(mMyHandle));
     chats->loadFromDb();
-    app.onInitComplete();
-    return postLoginInit();
 }
 
 void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
@@ -302,11 +298,10 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::postLoginInit()
+promise::Promise<void> Client::connect()
 {
     mIsLoggedIn = true;
     KR_LOG_DEBUG("Login to Mega API successful");
-
     userAttrCache.onLogin();
     userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* buf, void* userp)
@@ -314,6 +309,8 @@ promise::Promise<void> Client::postLoginInit()
         if (buf)
             static_cast<Client*>(userp)->mMyName = buf->buf()+1;
     });
+
+    connectToChatd();
 
     return mXmppServerProvider->getServer()
     .then([this](const std::shared_ptr<HostPortServerInfo>& server) mutable
@@ -765,7 +762,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const
     mContactGui = parent.client.app.contactListHandler().addGroupChatItem(*this);
     if (!mTitleString.empty())
         mContactGui->onTitleChanged(mTitleString);
-    join();
 }
 void GroupChatRoom::join()
 {
@@ -783,7 +779,6 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const s
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer), mPeerPriv(peerPriv)
 {
     parent.client.contactList->attachRoomToContact(peer, *this);
-    join();
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
@@ -804,7 +799,6 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     sqliteQuery(parent.client.db, "delete from chat_peers where chatid = ?", mChatid);
     parent.client.contactList->attachRoomToContact(mPeer, *this);
     KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  Id(mChatid).toString().c_str());
-    join();
 }
 
 bool PeerChatRoom::syncOwnPriv(chatd::Priv priv)
@@ -1089,7 +1083,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
     mContactGui = parent.client.app.contactListHandler().addGroupChatItem(*this);
     if (!mTitleString.empty())
         mContactGui->onTitleChanged(mTitleString);
-    join();
 }
 
 void GroupChatRoom::loadUserTitle()
@@ -1375,6 +1368,14 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
 GroupChatRoom::Member::~Member()
 {
     mRoom.parent.client.userAttrCache.removeCb(mNameAttrCbHandle);
+}
+
+void Client::connectToChatd()
+{
+    for (auto& chatItem: *chats)
+    {
+        chatItem.second->join();
+    }
 }
 
 ContactList::ContactList(Client& aClient)

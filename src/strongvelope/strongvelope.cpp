@@ -1118,7 +1118,6 @@ ProtocolHandler::encryptChatTopic(const std::string& data)
         std::string ciphertext = aesCTREncrypt(data, *key, derivedNonce);
         chatd::KeyCommand& keyCmd = *result.first;
         assert(keyCmd.dataSize() >= 17);
-        printf("send: userid: %s\n", karere::Id(*(uint64_t*)(keyCmd.buf()+17)).toString().c_str());
         TlvWriter tlv;
         tlv.addRecord(TLV_TYPE_INVITOR, mOwnHandle.val);
         tlv.addRecord(TLV_TYPE_NONCE, StaticBuffer(nonce));
@@ -1164,7 +1163,6 @@ ParsedMessage::decryptChatTopic(chatd::Message* msg)
         throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
     auto buf = std::make_shared<Buffer>(16);
     buf->assign(pos, 16);
-    printf("sender: %s, receiver: %s\n", sender.toString().c_str(), receiver.toString().c_str());
     return mProtoHandler.decryptKey(buf, sender, receiver)
     .then([this, msg](const std::shared_ptr<SendKey>& key)
     {
