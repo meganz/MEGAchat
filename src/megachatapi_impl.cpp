@@ -624,13 +624,6 @@ rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const std::shared_ptr<
     return new MegaChatCallPrivate(ans);
 }
 
-void MegaChatApiImpl::onInitComplete()
-{
-    // own user, own keys, contactlist and chats are loaded and up to date
-    // karere could be not connected to XMPP server yet
-    fireOnChatRoomUpdate(NULL);
-}
-
 void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
 {
     this->status = (MegaChatApi::Status) pres.status();

@@ -396,7 +396,6 @@ public:
     virtual void onIncomingContactRequest(const MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
     //virtual void notifyInvited(const ChatRoom& room);
-    virtual void onInitComplete();
     //virtual void onTerminate();
 
     // rtcModule::IContactListHandler implementation
