@@ -164,8 +164,24 @@ protected:
     bool local;
 };
 
-class MegaChatRoomHandler :public karere::IApp::IChatHandler
 
+class MegaChatListItemHandler :public karere::IApp::IContactListItem
+{
+public:
+
+    // karere::IApp::IContactListItem implementation
+    virtual void onVisibilityChanged(int newVisibility);
+//    void* userp();
+
+    // karere::IApp::IChatHandler::ITitleHandler implementation
+    virtual void onTitleChanged(const std::string& title);
+    //virtual void onUnreadCountChanged(int count);
+    virtual void onPresenceChanged(karere::Presence state);
+    //virtual void onMembersUpdated();
+};
+
+
+class MegaChatRoomHandler :public karere::IApp::IChatHandler
 {
 public:
 

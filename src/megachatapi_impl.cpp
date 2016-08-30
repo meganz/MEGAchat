@@ -663,22 +663,24 @@ rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const std::shared_ptr<
 
 karere::IApp::IContactListItem *MegaChatApiImpl::addContactItem(karere::Contact &contact)
 {
-    return NULL;
+    // TODO: create the object MegaChatListItemHandler, save it in a list and return it
+    return new MegaChatListItemHandler();
 }
 
 karere::IApp::IContactListItem *MegaChatApiImpl::addGroupChatItem(karere::GroupChatRoom &room)
 {
-    return NULL;
+    // TODO: create the object MegaChatListItemHandler, save it in a list and return it
+    return new MegaChatListItemHandler();
 }
 
 void MegaChatApiImpl::removeContactItem(IContactListItem *item)
 {
-
+    // TODO: remove the corresponding MegaChatListItemHandler from the list
 }
 
 void MegaChatApiImpl::removeGroupChatItem(IContactListItem *item)
 {
-
+    // TODO: remove the corresponding MegaChatListItemHandler from the list
 }
 
 karere::IApp::IChatHandler& MegaChatApiImpl::chatHandlerForPeer(uint64_t handle)
@@ -1172,6 +1174,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
 MegaChatRoomPrivate::MegaChatRoomPrivate(karere::ChatRoom *chat)
 {
     // TODO
+    this->id = chat->chatid();
+    this->priv = chat->ownPriv();
+
+    this->group = chat->isGroup();
+//    this->title = chat->
 }
 
 MegaChatHandle MegaChatRoomPrivate::getHandle() const
@@ -1220,4 +1227,20 @@ bool MegaChatRoomPrivate::isGroup() const
 const char *MegaChatRoomPrivate::getTitle() const
 {
     return title.c_str();
+}
+
+
+void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
+{
+
+}
+
+void MegaChatListItemHandler::onTitleChanged(const string &title)
+{
+
+}
+
+void MegaChatListItemHandler::onPresenceChanged(karere::Presence state)
+{
+
 }
