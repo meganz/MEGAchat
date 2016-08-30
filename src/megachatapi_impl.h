@@ -326,6 +326,8 @@ public:
 //    MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir);
     virtual ~MegaChatApiImpl();
 
+    static MegaChatApiImpl *megaChatApiRef;
+
 private:
     MegaChatApi *chatApi;
     mega::MegaApi *megaApi;

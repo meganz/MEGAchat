@@ -46,9 +46,13 @@ using namespace megachat;
 using namespace mega;
 using namespace karere;
 
+MegaChatApiImpl *MegaChatApiImpl::megaChatApiRef = NULL;
+
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 {
     init(chatApi, megaApi);
+
+    MegaChatApiImpl::megaChatApiRef = this;
 }
 
 //MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir)
@@ -121,9 +125,10 @@ void MegaChatApiImpl::loop()
 void MegaChatApiImpl::megaApiPostMessage(void* msg)
 {
     // Add the message to the queue of events
-    // TODO: decide if a singleton is suitable to retrieve instance of MegaChatApi
+    // TODO: decide if a singleton is suitable to retrieve instance of MegaChatApi,
+    // or it's better to change karere to pass the instance of the MegaChatApi as parameter
 //    MegaChatApiImpl *chatApi = MegaChatApiImpl::getMegaChatApi();
-//    chatApi->postMessage(msg);
+    megaChatApiRef->postMessage(msg);
 }
 
 void MegaChatApiImpl::postMessage(void *msg)
@@ -813,6 +818,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
     switch(type)
     {
         case TYPE_DELETE: return "DELETE";
+        case TYPE_CONNECT: return "CONNECT";
         case TYPE_SET_ONLINE_STATUS: return "SET_CHAT_STATUS";
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
