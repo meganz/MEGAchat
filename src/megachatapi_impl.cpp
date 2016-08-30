@@ -443,6 +443,41 @@ MegaChatRoomList *MegaChatApiImpl::getChatRooms()
     return chats;
 }
 
+MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
+{
+    return NULL;
+}
+
+MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
+{
+    return NULL;
+}
+
+bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
+{
+    return true;
+}
+
+bool MegaChatApiImpl::setChatVideoInDevice(const char *device)
+{
+    return true;
+}
+
+void MegaChatApiImpl::startChatCall(MegaUser *peer, bool enableVideo, MegaChatRequestListener *listener)
+{
+
+}
+
+void MegaChatApiImpl::answerChatCall(MegaChatCall *call, bool accept, MegaChatRequestListener *listener)
+{
+
+}
+
+void MegaChatApiImpl::hangAllChatCalls()
+{
+
+}
+
 void MegaChatApiImpl::addChatGlobalListener(MegaChatGlobalListener *listener)
 {
     if (!listener)
@@ -606,6 +641,8 @@ karere::IApp::IChatHandler *MegaChatApiImpl::createChatHandler(karere::ChatRoom 
 {
     // TODO: create the chat handler and add listeners to it
     // TODO: return the object implementing IChatHandler
+
+    return NULL;
 }
 
 karere::IApp::IContactListHandler& MegaChatApiImpl::contactListHandler()
@@ -622,6 +659,34 @@ rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const std::shared_ptr<
 {
     // TODO: create the call object implementing IEventHandler and return it
     return new MegaChatCallPrivate(ans);
+}
+
+karere::IApp::IContactListItem *MegaChatApiImpl::addContactItem(karere::Contact &contact)
+{
+    return NULL;
+}
+
+karere::IApp::IContactListItem *MegaChatApiImpl::addGroupChatItem(karere::GroupChatRoom &room)
+{
+    return NULL;
+}
+
+void MegaChatApiImpl::removeContactItem(IContactListItem *item)
+{
+
+}
+
+void MegaChatApiImpl::removeGroupChatItem(IContactListItem *item)
+{
+
+}
+
+karere::IApp::IChatHandler& MegaChatApiImpl::chatHandlerForPeer(uint64_t handle)
+{
+    // TODO: create a new chatroomhandler and keep the reference, so events can
+    // be processed and notified to the app
+    MegaChatRoomHandler *chatroomHandler = new MegaChatRoomHandler();
+    return *chatroomHandler;
 }
 
 void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
@@ -751,6 +816,11 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
     }
     return "UNKNOWN";
+}
+
+const char *MegaChatRequestPrivate::toString() const
+{
+    return getRequestString();
 }
 
 MegaChatRequestListener *MegaChatRequestPrivate::getListener() const
@@ -890,27 +960,28 @@ void MegaChatCallPrivate::setVideoReceiver(MegaChatVideoReceiver *videoReceiver)
 
 std::shared_ptr<rtcModule::ICall> MegaChatCallPrivate::call() const
 {
-
+    return nullptr;
 }
 
 bool MegaChatCallPrivate::reqStillValid() const
 {
-
+    return false;
 }
 
 std::set<string> *MegaChatCallPrivate::files() const
 {
-
+    return NULL;
 }
 
 AvFlags MegaChatCallPrivate::peerMedia() const
 {
-
+    AvFlags ret;
+    return ret;
 }
 
 bool MegaChatCallPrivate::answer(bool accept, AvFlags ownMedia)
 {
-
+    return false;
 }
 
 //void MegaChatCallPrivate::setAnswerObject(rtcModule::ICallAnswer *answerObject)
@@ -968,10 +1039,16 @@ void MegaChatVideoReceiver::clearViewport()
 {
 }
 
+void MegaChatVideoReceiver::released()
+{
+
+}
+
 
 IApp::ICallHandler *MegaChatRoomHandler::callHandler()
 {
     // TODO: create a MegaChatCallPrivate() with the peer information and return it
+    return NULL;
 }
 
 void MegaChatRoomHandler::onTitleChanged(const string &title)
@@ -1032,5 +1109,115 @@ const char *MegaChatErrorPrivate::toString() const
 
 MegaChatError *MegaChatErrorPrivate::copy()
 {
+    return new MegaChatErrorPrivate(this);
+}
 
+
+MegaChatRoomListPrivate::MegaChatRoomListPrivate()
+{
+
+}
+
+MegaChatRoomListPrivate::MegaChatRoomListPrivate(const MegaChatRoomListPrivate *list)
+{
+    MegaChatRoomPrivate *chat;
+
+    for (unsigned int i = 0; i < list->size(); i++)
+    {
+        chat = new MegaChatRoomPrivate(list->get(i));
+        this->list.push_back(chat);
+    }
+}
+
+MegaChatRoomList *MegaChatRoomListPrivate::copy() const
+{
+    return new MegaChatRoomListPrivate(this);
+}
+
+const MegaChatRoom *MegaChatRoomListPrivate::get(unsigned int i) const
+{
+    if (i >= size())
+    {
+        return NULL;
+    }
+    else
+    {
+        return list.at(i);
+    }
+}
+
+unsigned int MegaChatRoomListPrivate::size() const
+{
+    return list.size();
+}
+
+void MegaChatRoomListPrivate::addChatRoom(MegaChatRoom *chat)
+{
+    list.push_back(chat);
+}
+
+
+MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
+{
+    this->id = chat->getHandle();
+    this->priv = chat->getOwnPrivilege();
+    for (unsigned int i = 0; i < chat->getPeerCount(); i++)
+    {
+        peers.push_back(userpriv_pair(chat->getPeerHandle(i), (privilege_t) chat->getPeerPrivilege(i)));
+    }
+    this->group = chat->isGroup();
+    this->title = chat->getTitle();
+}
+
+MegaChatRoomPrivate::MegaChatRoomPrivate(karere::ChatRoom *chat)
+{
+    // TODO
+}
+
+MegaChatHandle MegaChatRoomPrivate::getHandle() const
+{
+    return id;
+}
+
+int MegaChatRoomPrivate::getOwnPrivilege() const
+{
+    return priv;
+}
+
+int MegaChatRoomPrivate::getPeerPrivilege(MegaChatHandle userhandle) const
+{
+    for (unsigned int i = 0; i < peers.size(); i++)
+    {
+        if (peers.at(i).first == userhandle)
+        {
+            return peers.at(i).second;
+        }
+    }
+
+    return PRIV_UNKNOWN;
+}
+
+int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
+{
+    return peers.at(i).second;
+}
+
+unsigned int MegaChatRoomPrivate::getPeerCount() const
+{
+    return peers.size();
+}
+
+MegaChatHandle MegaChatRoomPrivate::getPeerHandle(unsigned int i) const
+{
+    return peers.at(i).first;
+}
+
+bool MegaChatRoomPrivate::isGroup() const
+{
+    return group;
+}
+
+const char *MegaChatRoomPrivate::getTitle() const
+{
+    return title.c_str();
 }

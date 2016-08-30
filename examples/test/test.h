@@ -20,8 +20,11 @@
  */
 
 #include "mega.h"
-#include "../include/megaapi.h"
+#include "../../third-party/sdk/include/megaapi.h"
 #include "../../src/megachatapi.h"
+
+#include <iostream>
+#include <fstream>
 
 using namespace mega;
 using namespace megachat;
@@ -102,4 +105,4 @@ public:
 //#ifdef ENABLE_CHAT
 //    void onChatsUpdate(MegaApi *api, MegaTextChatList *chats);
 //#endif
-}
+};

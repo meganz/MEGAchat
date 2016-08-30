@@ -3,6 +3,8 @@
 #include "../include/megaapi.h"
 #include "../../src/megachatapi.h"
 
+#include <signal.h>
+
 void sigintHandler(int)
 {
     printf("SIGINT Received\n");
@@ -54,11 +56,30 @@ void MegaSdkTest::start()
 
     // 2. Create MegaChatApi instance
     megaChatApi[0] = new MegaChatApi(megaApi[0]);
-    megaChatApi[0]->addRequestListener(this);
+    megaChatApi[0]->addChatRequestListener(this);
     signal(SIGINT, sigintHandler);
 
     // 3. Login into the user account and fetchnodes (launched in the login callback)
     megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
+}
+
+MegaLoggerSDK::MegaLoggerSDK(const char *filename)
+{
+    sdklog.open(filename, ios::out | ios::app);
+}
+
+MegaLoggerSDK::~MegaLoggerSDK()
+{
+    sdklog.close();
+}
+
+void MegaLoggerSDK::log(const char *time, int loglevel, const char *source, const char *message)
+{
+    sdklog << "[" << time << "] " << SimpleLogger::toStr((LogLevel)loglevel) << ": ";
+    sdklog << message << " (" << source << ")" << endl;
+
+//    bool errorLevel = ((loglevel == logError) && !testingInvalidArgs);
+//    ASSERT_FALSE(errorLevel) << "Test aborted due to an SDK error.";
 }
 
 void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, MegaChatError *e)
@@ -66,7 +87,7 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
 
 }
 
-void SdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
+void MegaSdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
 {
     unsigned int apiIndex;
     if (api == megaApi[0])
@@ -91,11 +112,11 @@ void SdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
     case MegaRequest::TYPE_LOGIN:
         if (e->getErrorCode() == API_OK)
         {
-            megaApi[apiIndex]->fetchnodes();
+            megaApi[apiIndex]->fetchNodes();
         }
         break;
 
-    case MegaRequest::TYPE_FETCHNODES:
+    case MegaRequest::TYPE_FETCH_NODES:
         if (e->getErrorCode() == API_OK)
         {
             megaChatApi[apiIndex]->init();

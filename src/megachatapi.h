@@ -31,6 +31,17 @@ using namespace mega;
 namespace megachat
 {
 
+typedef uint64_t MegaChatHandle;
+
+/**
+ * @brief INVALID_HANDLE Invalid value for a handle
+ *
+ * This value is used to represent an invalid handle. Several MEGA objects can have
+ * a handle but it will never be megachat::INVALID_HANDLE
+ *
+ */
+const MegaChatHandle INVALID_HANDLE = ~(MegaChatHandle)0;
+
 class MegaChatApi;
 class MegaChatApiImpl;
 class MegaChatRequest;
@@ -83,7 +94,100 @@ public:
 class MegaChatRoom
 {
 public:
+    enum {
+        PRIV_UNKNOWN = -2,
+        PRIV_RM = -1,
+        PRIV_RO = 0,
+        PRIV_STANDARD = 2,
+        PRIV_MODERATOR = 3
+    };
+
     virtual ~MegaChatRoom() {}
+
+    /**
+     * @brief Returns the MegaChatHandle of the chat.
+     * @return MegaChatHandle of the chat.
+     */
+    virtual MegaChatHandle getHandle() const;
+
+    /**
+     * @brief Returns your privilege level in this chat
+     * @return
+     */
+    virtual int getOwnPrivilege() const;
+
+    /**
+     * @brief Returns the privilege level of the user in this chat.
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns PRIV_UNKNOWN.
+     *
+     * @param Handle of the peer whose privilege is requested.
+     * @return Privilege level of the chat peer with the handle specified.
+     * Valid values are:
+     * - MegaTextChatPeerList::PRIV_UNKNOWN = -2
+     * - MegaTextChatPeerList::PRIV_RM = -1
+     * - MegaTextChatPeerList::PRIV_RO = 0
+     * - MegaTextChatPeerList::PRIV_STANDARD = 2
+     * - MegaTextChatPeerList::PRIV_MODERATOR = 3
+     */
+    virtual int getPeerPrivilege(MegaChatHandle userhandle) const;
+
+    /**
+     * @brief Returns the number of participants in the chat
+     * @return Number of participants in the chat
+     */
+    virtual unsigned int getPeerCount() const;
+
+    /**
+     * @brief Returns the handle of the user
+     *
+     * If the index is >= the number of participants in this chat, this function
+     * will return INVALID_HANDLE.
+     *
+     * @param i Position of the peer whose handle is requested
+     * @return Handle of the peer in the position i.
+     */
+    virtual MegaChatHandle getPeerHandle(unsigned int i) const;
+
+    /**
+     * @brief Returns the privilege level of the user in this chat.
+     *
+     * If the index is >= the number of participants in this chat, this function
+     * will return PRIV_UNKNOWN.
+     *
+     * @param i Position of the peer whose handle is requested
+     * @return Privilege level of the chat peer with the handle specified.
+     * Valid values are:
+     * - MegaTextChatPeerList::PRIV_UNKNOWN = -2
+     * - MegaTextChatPeerList::PRIV_RM = -1
+     * - MegaTextChatPeerList::PRIV_RO = 0
+     * - MegaTextChatPeerList::PRIV_STANDARD = 2
+     * - MegaTextChatPeerList::PRIV_MODERATOR = 3
+     */
+    virtual int getPeerPrivilege(unsigned int i) const;
+
+    /**
+     * @brief isGroup Returns whether this chat is a group chat or not
+     * @return True if this chat is a group chat. Only chats with more than 2 peers are groupal chats.
+     */
+    virtual bool isGroup() const;
+
+//    /**
+//     * @brief getOriginatingUser Returns the user that originated the chat notification
+//     *
+//     * @note This value is only relevant for new or updated chats notified by MegaGlobalListener::onChatsUpdate or
+//     * MegaListener::onChatsUpdate.
+//     *
+//     * @return The handle of the user who originated the chat notification.
+//     */
+//    virtual MegaHandle getOriginatingUser() const;
+
+    /**
+     * @brief getTitle Returns the title of the chat, if any.
+     *
+     * @return The title of the chat as a null-terminated char array.
+     */
+    virtual const char *getTitle() const;
 };
 
 /**
@@ -136,7 +240,7 @@ public:
      * @brief Returns the number of MegaChatRooms in the list
      * @return Number of MegaChatRooms in the list
      */
-    virtual int size() const;
+    virtual unsigned int size() const;
 
 };
 
@@ -289,17 +393,17 @@ public:
 
     /**
      * @brief This function is called to inform about the progres of a request
-         *
-         * The SDK retains the ownership of the request parameter.
-         * Don't use it after this functions returns.
-         *
-         * The api object is the one created by the application, it will be valid until
-         * the application deletes it.
-         *
-         * @param api MegaChatApi object that started the request
-         * @param request Information about the request
-         * @see MegaChatRequest::getTotalBytes MegaChatRequest::getTransferredBytes
-         */
+     *
+     * The SDK retains the ownership of the request parameter.
+     * Don't use it after this functions returns.
+     *
+     * The api object is the one created by the application, it will be valid until
+     * the application deletes it.
+     *
+     * @param api MegaChatApi object that started the request
+     * @param request Information about the request
+     * @see MegaChatRequest::getTotalBytes MegaChatRequest::getTransferredBytes
+     */
     virtual void onRequestUpdate(MegaChatApi*api, MegaChatRequest *request);
 
     /**
@@ -388,7 +492,7 @@ public:
 //    // chat will use its own megaApi, a new instance
 //    MegaChatApi(const char *appKey, const char* appDir);
 
-    virtual ~MegaChatApi();
+    virtual ~MegaChatApi() {}
 
 
     // ============= Requests ================

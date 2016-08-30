@@ -56,8 +56,6 @@ public:
     virtual MegaChatRequestListener *getListener() const;
     virtual const char *getRequestString() const;
     virtual const char* toString() const;
-    virtual const char* __str__() const;
-    virtual const char* __toString() const;
     virtual int getTag() const;
     virtual long long getNumber() const;
     virtual int getNumRetry() const;
@@ -229,20 +227,46 @@ public:
     const char *toString() const;
 };
 
-class MegaChatRoomPrivate : public MegaChatRoom, private mega::MegaTextChat
+class MegaChatRoomPrivate : public MegaChatRoom
 {
 public:
+    MegaChatRoomPrivate(const MegaChatRoom *);
     MegaChatRoomPrivate(karere::ChatRoom*);
 
-    virtual ~MegaChatRoomPrivate();
+    virtual ~MegaChatRoomPrivate() {}
+
+    virtual MegaChatHandle getHandle() const;
+    virtual int getOwnPrivilege() const;
+    virtual int getPeerPrivilege(MegaChatHandle userhandle) const;
+    virtual int getPeerPrivilege(unsigned int i) const;
+    virtual unsigned int getPeerCount() const;
+    virtual MegaChatHandle getPeerHandle(unsigned int i) const;
+    virtual bool isGroup() const;
+    virtual const char *getTitle() const;
+
+private:
+    handle id;
+    int priv;
+    userpriv_vector peers;
+    bool group;
+    string title;
 };
 
-class MegaChatRoomListPrivate :  public MegaChatRoomList, private mega::MegaTextChatList
+class MegaChatRoomListPrivate :  public MegaChatRoomList
 {
 public:
-    virtual ~MegaChatRoomListPrivate();
+    MegaChatRoomListPrivate();
+    virtual ~MegaChatRoomListPrivate() {}
+    virtual MegaChatRoomList *copy() const;
+
+    virtual const MegaChatRoom *get(unsigned int i) const;
+    virtual unsigned int size() const;
 
     void addChatRoom(MegaChatRoom*);
+
+private:
+    MegaChatRoomListPrivate(const MegaChatRoomListPrivate *list);
+    vector<MegaChatRoom*> list;
 };
 
 
@@ -400,7 +424,7 @@ public:
 
     // rtcModule::IContactListHandler implementation
     virtual IContactListItem* addContactItem(karere::Contact& contact);
-    virtual IContactListItem* addGroupChatItem(karere::GroupChatRoom& room);
+    virtual IContactListItem *addGroupChatItem(karere::GroupChatRoom& room);
     virtual void removeContactItem(IContactListItem* item);
     virtual void removeGroupChatItem(IContactListItem* item);
     virtual IChatHandler& chatHandlerForPeer(uint64_t handle);

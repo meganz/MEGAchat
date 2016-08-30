@@ -52,7 +52,7 @@ MegaHandle MegaChatCall::getContactHandle() const
     return INVALID_HANDLE;
 }
 
-MegaChatApi::MegaChatApi(mega::MegaApi *megaApi)
+MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
 }
@@ -203,12 +203,69 @@ int MegaChatRequest::getNumRetry() const
     return 0;
 }
 
+MegaChatRoomList *MegaChatRoomList::copy() const
+{
+    return NULL;
+}
+
 const MegaChatRoom *MegaChatRoomList::get(unsigned int i) const
 {
     return NULL;
 }
 
-int MegaChatRoomList::size() const
+unsigned int MegaChatRoomList::size() const
 {
     return 0;
+}
+
+//Request callbacks
+void MegaChatRequestListener::onRequestStart(MegaChatApi *, MegaChatRequest *)
+{ }
+void MegaChatRequestListener::onRequestFinish(MegaChatApi *, MegaChatRequest *, MegaChatError *)
+{ }
+void MegaChatRequestListener::onRequestUpdate(MegaChatApi *, MegaChatRequest *)
+{ }
+void MegaChatRequestListener::onRequestTemporaryError(MegaChatApi *, MegaChatRequest *, MegaChatError *)
+{ }
+MegaChatRequestListener::~MegaChatRequestListener() {}
+
+
+MegaChatHandle MegaChatRoom::getHandle() const
+{
+    return INVALID_HANDLE;
+}
+
+int MegaChatRoom::getOwnPrivilege() const
+{
+    return PRIV_UNKNOWN;
+}
+
+int MegaChatRoom::getPeerPrivilege(MegaChatHandle userhandle) const
+{
+    return PRIV_UNKNOWN;
+}
+
+unsigned int MegaChatRoom::getPeerCount() const
+{
+    return 0;
+}
+
+MegaChatHandle MegaChatRoom::getPeerHandle(unsigned int i) const
+{
+    return INVALID_HANDLE;
+}
+
+int MegaChatRoom::getPeerPrivilege(unsigned int i) const
+{
+    return PRIV_UNKNOWN;
+}
+
+bool MegaChatRoom::isGroup() const
+{
+    return false;
+}
+
+const char *MegaChatRoom::getTitle() const
+{
+    return NULL;
 }
