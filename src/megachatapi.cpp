@@ -25,6 +25,15 @@
 #include "megachatapi.h"
 #include "megachatapi_impl.h"
 
+#include <chatClient.h>
+#include <karereCommon.h>
+
+// define the weak symbol for Logger to know where to create the log file
+namespace karere
+{
+    APP_ALWAYS_EXPORT std::string getAppDir() { return karere::createAppDir(); }
+}
+
 using namespace mega;
 using namespace megachat;
 
