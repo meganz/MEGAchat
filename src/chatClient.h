@@ -77,40 +77,57 @@ public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IContactListItem& contactGui() = 0;
     /** @endcond PRIVATE */
+
     /** @brief The text that will be displayed on the chat list for that chat */
     virtual const std::string& titleString() const = 0;
-    /** @brief The current presence status of the chat. If this is a 1on1 chat, this is
+
+    /**
+     * @brief The current presence status of the chat. If this is a 1on1 chat, this is
      * the same as the presence of the peer. If it is a groupchat, it is
-     *  derived from the chatd chatroom status */
+     * derived from the chatd chatroom status
+     */
     virtual Presence presence() const = 0;
+
     /** @brief Connects to the chatd chatroom */
     virtual void join() = 0;
+
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
              unsigned char shard, chatd::Priv ownPriv);
     virtual ~ChatRoom(){}
+
     /** @brief returns the chatd::Chat chat object associated with the room */
     chatd::Chat& chat() { return *mChat; }
+
     /** @brief The chatid of the chatroom */
     const uint64_t& chatid() const { return mChatid; }
+
     /** @brief Whether this chatroom is a groupchat or 1on1 chat */
     bool isGroup() const { return mIsGroup; }
+
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
+
     /** @brief The chatd shart number for that chatroom */
     unsigned char shardNo() const { return mShardNo; }
+
     /** @brief Our own privilege within this chat */
     chatd::Priv ownPriv() const { return mOwnPriv; }
+
     /** @brief The online state reported by chatd for that chatroom */
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
+
     /** @brief The application-side event handler that receives events from chatd
      * and events about title change, online status change. If such an event
      * handler does not exist, this method asks IApp to create it */
     IApp::IChatHandler& appChatHandler();
-    /** @brief Returns whether appChatHandler exists. Call this method before
+
+    /**
+     * @brief Returns whether appChatHandler exists. Call this method before
      * \c appChatHandler() if you don't want to create such a handler
      * in case it does not exist
      */
     bool hasAppChatHandler() const { return mAppChatHandler != nullptr; }
+
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
