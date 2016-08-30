@@ -5,6 +5,8 @@
 
 #include <signal.h>
 
+#include "../../src/karereCommon.h" // for logging with karere facility
+
 void sigintHandler(int)
 {
     printf("SIGINT Received\n");
@@ -34,13 +36,19 @@ MegaSdkTest::MegaSdkTest()
     if (buf)
         email[0].assign(buf);
     if (!email[0].length())
-        log("Set your username at the environment variable $MEGA_EMAIL");
+    {
+        cout << "Set your username at the environment variable $MEGA_EMAIL" << endl;
+        exit(-1);
+    }
 
     buf = getenv("MEGA_PWD");
     if (buf)
         pwd[0].assign(buf);
     if (!pwd[0].length())
-        log("Set your password at the environment variable $MEGA_PWD");
+    {
+        cout << "Set your password at the environment variable $MEGA_PWD" << endl;
+        exit(-1);
+    }
 }
 
 void MegaSdkTest::start()
@@ -84,7 +92,37 @@ void MegaLoggerSDK::log(const char *time, int loglevel, const char *source, cons
 
 void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, MegaChatError *e)
 {
+    unsigned int apiIndex;
+    if (api == megaChatApi[0])
+    {
+        apiIndex = 0;
+    }
+    else if (api == megaChatApi[1])
+    {
+        apiIndex = 1;
+    }
+    else
+    {
+        LOG_err << "Instance of megaChatApi not recognized";
+        return;
+    }
 
+    requestFlags[apiIndex][request->getType()] = true;
+    lastError[apiIndex] = e->getErrorCode();
+
+    switch(request->getType())
+    {
+    case MegaChatRequest::TYPE_CONNECT:
+        if (e->getErrorCode() == API_OK)
+        {
+            KR_LOG_DEBUG("Connection to chat servers established!");
+        }
+        else
+        {
+            KR_LOG_ERROR("Connection to chat servers error: %s (%d)", e->getErrorString(), e->getErrorCode());
+        }
+        break;
+    }
 }
 
 void MegaSdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
