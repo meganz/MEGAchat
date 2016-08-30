@@ -1173,12 +1173,25 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(karere::ChatRoom *chat)
 {
-    // TODO
     this->id = chat->chatid();
     this->priv = chat->ownPriv();
 
     this->group = chat->isGroup();
-//    this->title = chat->
+    this->title = chat->titleString();
+
+    if (group)
+    {
+        karere::GroupChatRoom *groupchat = (GroupChatRoom*) chat;
+
+        karere::GroupChatRoom::MemberMap peers = groupchat->peers();
+
+        karere::GroupChatRoom::MemberMap::iterator it;
+        for (it = peers.begin(); it != peers.end(); it++)
+        {
+            this->peers.push_back(userpriv_pair(it->first,
+                                          (privilege_t) it->second->priv()));
+        }
+    }
 }
 
 MegaChatHandle MegaChatRoomPrivate::getHandle() const
