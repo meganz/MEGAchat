@@ -492,7 +492,7 @@ public:
 //    // chat will use its own megaApi, a new instance
 //    MegaChatApi(const char *appKey, const char* appDir);
 
-    virtual ~MegaChatApi() {}
+    virtual ~MegaChatApi();
 
 
     // ============= Requests ================
@@ -534,22 +534,29 @@ public:
      * @param status Online status in the chat.
      *
      * It can be one of the following values:
-     * - STATUS_OFFLINE = 1
+     * - MegaChatApi::STATUS_OFFLINE = 1
      * The user appears as being offline
      *
-     * - STATUS_BUSY = 2
+     * - MegaChatApi::STATUS_BUSY = 2
      * The user is busy and don't want to be disturbed.
      *
-     * - STATUS_AWAY = 3
+     * - MegaChatApi::STATUS_AWAY = 3
      * The user is away and might not answer.
      *
-     * - STATUS_ONLINE = 4
+     * - MegaChatApi::STATUS_ONLINE = 4
      * The user is connected and online.
      *
      * @param listener MegaChatRequestListener to track this request
      */
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
 
+    /**
+     * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
+     *
+     * You take the ownership of the returned value
+     *
+     * @return List of MegaChatRoom objects with all chatrooms of this account.
+     */
     MegaChatRoomList* getChatRooms();
 
     // Audio/Video device management

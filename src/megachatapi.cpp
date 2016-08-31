@@ -66,6 +66,11 @@ MegaChatApi::MegaChatApi(MegaApi *megaApi)
     this->pImpl = new MegaChatApiImpl(this, megaApi);
 }
 
+MegaChatApi::~MegaChatApi()
+{
+    delete pImpl;
+}
+
 void MegaChatApi::init()
 {
     pImpl->init();
