@@ -903,11 +903,11 @@ void Chat::loadManualSending()
     }
 }
 
-uint64_t Chat::generateRefId()
+uint64_t Chat::generateRefId(const ICrypto* aCrypto)
 {
     uint64_t ts = time(nullptr);
     uint64_t rand;
-    mCrypto->randomBytes(&rand, sizeof(rand));
+    aCrypto->randomBytes(&rand, sizeof(rand));
     return (ts & 0x0000000000ffffff) | (rand << 40);
 }
 
@@ -916,7 +916,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, voi
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
-    message->backRefId = generateRefId();
+    message->backRefId = generateRefId(mCrypto);
     msgSubmit(message);
     return message;
 }
@@ -1630,7 +1630,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)
 {
-    CALL_DB(truncateHistory, msg.id());
+    CALL_DB(truncateHistory, msg);
     if (idx != CHATD_IDX_INVALID)
     {
         //GUI must detach and free any resources associated with
@@ -1889,6 +1889,8 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
 {
+    if (!msg.backRefId)
+        return;
     if (!mRefidToIdxMap.emplace(msg.backRefId, idx).second)
     {
         CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");

@@ -20,6 +20,7 @@
 #include <chatClient.h>
 #include "callGui.h"
 #include <mega/base64.h> //for jid base32 conversion
+#include <strongvelope/strongvelope.h>
 namespace Ui
 {
 class ChatWindow;
@@ -66,7 +67,21 @@ public:
     MessageWidget& setText(const chatd::Message& msg)
     {
         auto& txt = *ui.mMsgDisplay;
-        txt.setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
+        printf("msg.type = %d\n", msg.type);
+        if (msg.type == (int)strongvelope::SVCRYPTO_MSGTYPE_CHAT_TITLE)
+        {
+            printf("title = %s\nmsg: '%.*s'\n", msg.toString().c_str(), msg.dataSize(), msg.buf());
+            std::string display = "<Chat title was set by user ";
+            display.append(msg.userid.toString());
+            display.append(" to '").append(msg.buf(), msg.dataSize())
+            .append("'>");
+
+            txt.setText(QString::fromStdString(display));
+        }
+        else
+        {
+            txt.setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
+        }
         return *this;
     }
     MessageWidget& updateStatus(chatd::Message::Status newStatus)
@@ -355,7 +370,8 @@ noedit:
     void onAudioCallBtn(bool) { onCallBtn(false); }
     void onMembersBtn(bool);
     void onMemberRemove();
-    void onMemberSetPriv();
+    void onMemberSetPrivFull();
+    void onMemberSetPrivReadOnly();
     void onMemberPrivateChat();
     void onScroll(int value);
 public:

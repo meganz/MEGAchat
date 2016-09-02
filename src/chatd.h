@@ -599,6 +599,12 @@ public:
     /** @brief Removes the specified manual-send message, from the manual send queue.
      * Normally should be called when the user opts to not retry sending the message */
     void removeManualSend(uint64_t id);
+    /** @brief Generates a backreference id. Must be public because strongvelope
+     *  uses it to generate chat title messages
+     * @param aCrypto - the crypto module interface to use for random number
+     * generation.
+     */
+    static uint64_t generateRefId(const ICrypto* aCrypto);
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existingItem=nullptr);
@@ -612,7 +618,6 @@ protected:
     void handleTruncate(const Message& msg, Idx idx);
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(Message& msg);
-    uint64_t generateRefId();
     void verifyMsgOrder(const Message& msg, Idx idx);
 //===
 };
@@ -691,7 +696,7 @@ public:
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
     virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
-    virtual void truncateHistory(karere::Id msgid) = 0;
+    virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual karere::Id getOldestMsgid() = 0;
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void addUser(karere::Id userid, Priv priv) = 0;
