@@ -61,6 +61,9 @@ public:
     virtual int getNumRetry() const;
     virtual bool getFlag() const;
     virtual MegaChatPeerList *getMegaChatPeerList();
+    virtual MegaChatHandle getChatHandle();
+    virtual MegaChatHandle getUserHandle();
+    virtual int getPrivilege();
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -68,6 +71,9 @@ public:
     void setNumRetry(int retry);
     void setFlag(bool flag);
     void setMegaChatPeerList(MegaChatPeerList *peerList);
+    void setChatHandle(MegaChatHandle chatid);
+    void setUserHandle(MegaChatHandle userhandle);
+    void setPrivilege(int priv);
 
 protected:
     int type;
@@ -78,6 +84,9 @@ protected:
     int retry;
     bool flag;
     MegaChatPeerList *peerList;
+    MegaChatHandle chatid;
+    MegaChatHandle userHandle;
+    int privilege;
 };
 
 class MegaChatVideoReceiver;
@@ -443,6 +452,7 @@ public:
 
     // Chatrooms management
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener);
+    void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener);
 
     // Audio/Video devices
     MegaStringList *getChatAudioInDevices();

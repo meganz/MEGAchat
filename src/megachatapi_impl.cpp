@@ -216,7 +216,7 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatPeerList *peersList = request->getMegaChatPeerList();
             if (!peersList)   // refuse to create chats without participants
             {
-                errorCode = API_EARGS;
+                errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
@@ -224,7 +224,7 @@ void MegaChatApiImpl::sendPendingRequests()
             const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
             if (!userpriv || (!group && peersList->size() > 1))
             {
-                errorCode = API_EARGS;
+                errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
@@ -245,8 +245,51 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-        case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
+        case MegaChatRequest::TYPE_INVITE_TO_CHATROOM:
         {
+            handle chatid = request->getChatHandle();
+            handle uh = request->getUserHandle();
+            chatd::Priv privilege = (chatd::Priv) request->getPrivilege();
+
+            if (chatid == INVALID_HANDLE || uh == INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            karere::ChatRoomList::iterator it = mClient->chats->find(chatid);
+            if (it == mClient->chats->end())
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+            karere::ChatRoom *chatroom = it->second;
+            if (chatroom->ownPriv() != (chatd::Priv) MegaChatPeerList::PRIV_MODERATOR)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+            if (!chatroom->isGroup())   // invite only for group chats
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            ((karere::GroupChatRoom *)chatroom)->invite(uh, privilege)
+//            mClient->api.call(&::mega::MegaApi::inviteToChat, chatid, uid, privilege)
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                KR_LOG_ERROR("Error adding user to group chat: ", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+
             break;
         }
         default:
@@ -492,6 +535,16 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaCha
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
     request->setFlag(group);
     request->setMegaChatPeerList(peerList);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_INVITE_TO_CHATROOM, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(uh);
+    request->setPrivilege(privilege);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -842,6 +895,9 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->retry = 0;
     this->flag = false;
     this->peerList = NULL;
+    this->chatid = INVALID_HANDLE;
+    this->userHandle = INVALID_HANDLE;
+    this->privilege = MegaChatPeerList::PRIV_UNKNOWN;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
@@ -854,6 +910,9 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setNumRetry(request.getNumRetry());
     this->setFlag(request.getFlag());
     this->setMegaChatPeerList(request.getMegaChatPeerList());
+    this->setChatHandle(request.getChatHandle());
+    this->setUserHandle(request.getUserHandle());
+    this->setPrivilege(request.getPrivilege());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -872,6 +931,9 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_DELETE: return "DELETE";
         case TYPE_CONNECT: return "CONNECT";
         case TYPE_SET_ONLINE_STATUS: return "SET_CHAT_STATUS";
+        case TYPE_CREATE_CHATROOM: return "CREATE CHATROOM";
+        case TYPE_INVITE_TO_CHATROOM: return "INVITE_TO_CHATROOM";
+
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
     }
@@ -913,6 +975,21 @@ MegaChatPeerList *MegaChatRequestPrivate::getMegaChatPeerList()
     return peerList;
 }
 
+MegaChatHandle MegaChatRequestPrivate::getChatHandle()
+{
+    return chatid;
+}
+
+MegaChatHandle MegaChatRequestPrivate::getUserHandle()
+{
+    return userHandle;
+}
+
+int MegaChatRequestPrivate::getPrivilege()
+{
+    return privilege;
+}
+
 int MegaChatRequestPrivate::getTag() const
 {
     return tag;
@@ -949,6 +1026,21 @@ void MegaChatRequestPrivate::setMegaChatPeerList(MegaChatPeerList *peerList)
         delete this->peerList;
 
     this->peerList = peerList->copy();
+}
+
+void MegaChatRequestPrivate::setChatHandle(MegaChatHandle chatid)
+{
+    this->chatid = chatid;
+}
+
+void MegaChatRequestPrivate::setUserHandle(MegaChatHandle userhandle)
+{
+    this->userHandle = userhandle;
+}
+
+void MegaChatRequestPrivate::setPrivilege(int priv)
+{
+    this->privilege = priv;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const std::shared_ptr<rtcModule::ICallAnswer> &ans)

@@ -101,6 +101,11 @@ void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatReques
     pImpl->createChat(group, peers, listener);
 }
 
+void MegaChatApi::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener)
+{
+    pImpl->inviteToChat(chatid, uh, privilege, listener);
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();
@@ -230,6 +235,21 @@ bool MegaChatRequest::getFlag() const
 MegaChatPeerList *MegaChatRequest::getMegaChatPeerList()
 {
     return NULL;
+}
+
+MegaHandle MegaChatRequest::getChatHandle()
+{
+    return INVALID_HANDLE;
+}
+
+MegaHandle MegaChatRequest::getUserHandle()
+{
+    return INVALID_HANDLE;
+}
+
+int MegaChatRequest::getPrivilege()
+{
+    return MegaChatPeerList::PRIV_UNKNOWN;
 }
 
 MegaChatRoomList *MegaChatRoomList::copy() const

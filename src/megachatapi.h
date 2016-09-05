@@ -446,6 +446,24 @@ public:
      * @return List of peers of a chat
      */
     virtual MegaChatPeerList *getMegaChatPeerList();
+
+    /**
+     * @brief Returns the handle that identifies the chat
+     * @return The handle of the chat
+     */
+    virtual MegaHandle getChatHandle();
+
+    /**
+     * @brief Returns the handle that identifies the user
+     * @return The handle of the user
+     */
+    virtual MegaHandle getUserHandle();
+
+    /**
+     * @brief Returns the privilege level
+     * @return The access level of the user in the chat
+     */
+    virtual int getPrivilege();
 };
 
 /**
@@ -542,7 +560,9 @@ public:
     enum {
         ERROR_OK = 0,
         ERROR_UNKNOWN = -1,
-        ERROR_ARGS = -2
+        ERROR_ARGS = -2,
+        ERROR_ACCESS = -3,
+        ERROR_NOENT = -4
     };
 
     MegaChatError() {}
@@ -681,7 +701,7 @@ public:
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::API_OK:
+     * is MegaError::ERROR_OK:
      * - MegaRequest::getMegaChatPeerList - Returns the new chat's information
      *
      * @note If you are trying to create a chat with more than 1 other person, then it will be forced
@@ -697,6 +717,31 @@ public:
      */
     void createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
 
+    /**
+     * @brief Adds a user to an existing chat. To do this you must have the
+     * moderator privilege in the chat, and the chat must be a group chat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_INVITE_TO_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the MegaChatHandle of the user to be invited
+     * - MegaChatRequest::getPrivilege - Returns the privilege level wanted for the user
+     *
+     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param uh MegaChatHandle that identifies the user
+     * @param privilege Privilege level for the new peers. Valid values are:
+     * - MegaChatPeerList::PRIV_UNKNOWN = -2
+     * - MegaChatPeerList::PRIV_RM = -1
+     * - MegaChatPeerList::PRIV_RO = 0
+     * - MegaChatPeerList::PRIV_STANDARD = 2
+     * - MegaChatPeerList::PRIV_MODERATOR = 3
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
 
     // Audio/Video device management
     MegaStringList *getChatAudioInDevices();
