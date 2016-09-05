@@ -251,7 +251,7 @@ promise::Promise<void> Client::initWithNewSession()
         chatd.reset(new chatd::Client(mMyHandle));
         if (mInitialChats)
         {
-            chats->syncRoomsWithApi(*mInitialChats);
+            chats->addMissingRoomsFromApi(*mInitialChats);
         }
     });
 }
@@ -751,7 +751,7 @@ void PeerChatRoom::join()
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl, unsigned char aShard,
     chatd::Priv aOwnPriv, const std::string& title)
 :ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv), mTitleString(title),
-  mHasUserTitle(!title.empty())
+  mHasTitle(!title.empty())
 {
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
@@ -772,6 +772,7 @@ void GroupChatRoom::join()
         users.insert(peer.first);
     }
     chatdJoin(users);
+    decryptTitle();
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
@@ -860,7 +861,10 @@ void GroupChatRoom::addMember(const uint64_t& userid, chatd::Priv priv, bool sav
         sqliteQuery(parent.client.db, "insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",
             mChatid, userid, priv);
     }
+    if (!mHasTitle)
+        makeTitleFromMemberNames();
 }
+
 bool GroupChatRoom::removeMember(const uint64_t& userid)
 {
     auto it = mPeers.find(userid);
@@ -873,8 +877,14 @@ bool GroupChatRoom::removeMember(const uint64_t& userid)
     mPeers.erase(it);
     sqliteQuery(parent.client.db, "delete from chat_peers where chatid=? and userid=?",
                 mChatid, userid);
-    updateTitle();
+    if (!mHasTitle)
+        makeTitleFromMemberNames();
     return true;
+}
+
+promise::Promise<ReqResult> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
+{
+    return parent.client.api.call(&::mega::MegaApi::updateChatPermissions, chatid(), userid.val, priv);
 }
 
 void GroupChatRoom::deleteSelf()
@@ -917,7 +927,7 @@ void ChatRoomList::loadFromDb()
         emplace(chatid, room);
     }
 }
-void ChatRoomList::syncRoomsWithApi(const mega::MegaTextChatList& rooms)
+void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
 {
     auto size = rooms.size();
     for (int i=0; i<size; i++)
@@ -931,7 +941,7 @@ void ChatRoomList::syncRoomsWithApi(const mega::MegaTextChatList& rooms)
         addRoom(room);
     }
 }
-ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room, const std::string& groupUserTitle)
+ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room)
 {
     auto chatid = room.getHandle();
     auto it = find(chatid);
@@ -943,7 +953,7 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room, const std::strin
     ChatRoom* ret;
     if(room.isGroup())
     {
-        ret = new GroupChatRoom(*this, room, groupUserTitle); //also writes it to cache
+        ret = new GroupChatRoom(*this, room); //also writes it to cache
     }
     else
     {
@@ -975,6 +985,7 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
         mChatsLoaded = true;
         marshallCall([this, copy]()
         {
+            printf("onChatsUpdate: initial\n");
             mInitialChats = copy;
         });
     }
@@ -989,7 +1000,9 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 
 void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
 {
-    syncRoomsWithApi(*rooms);
+    printf("onChatsUpdate - not initial\n");
+    client.dumpChatrooms(*rooms);
+    addMissingRoomsFromApi(*rooms);
     for (int i=0; i<rooms->size(); i++)
     {
         auto& room = *rooms->get(i);
@@ -1005,7 +1018,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                 removeRoom(chatid);
             }
             else
-            {
+            {   //we have the room, there maybe is some change on room properties
                 client.api.call(&mega::MegaApi::getUrlChat, chatid)
                 .then([this, chatid, rooms, &room](ReqResult result)
                 {
@@ -1018,9 +1031,10 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             }
         }
         else
-        {
-            if (priv != chatd::PRIV_NOTPRESENT) //we didn't remove ourself from the room
+        {   //we don't have the room locally
+            if (priv != chatd::PRIV_NOTPRESENT)
             {
+                //we are in the room, add it to local cache
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
                 client.api.call(&mega::MegaApi::getUrlChat, chatid)
                 .then([this, chatid, rooms, &room](ReqResult result)
@@ -1031,7 +1045,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                 });
             }
             else
-            {
+            {   //we don't have the room, and we are not in the room - we have just removed ourselves from it, and deleted it locally
                 KR_LOG_DEBUG("Chatroom[%s]: We should have just removed ourself from the room",  Id(chatid).toString().c_str());
             }
         }
@@ -1044,12 +1058,11 @@ ChatRoomList::~ChatRoomList()
         delete room.second;
 }
 
-GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, const std::string &userTitle)
-:ChatRoom(parent, chat.getHandle(), true, chat.getUrl(), chat.getShard(),
-  (chatd::Priv)chat.getOwnPrivilege()),
-  mTitleString(userTitle), mHasUserTitle(!userTitle.empty())
+GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
+:ChatRoom(parent, aChat.getHandle(), true, aChat.getUrl(), aChat.getShard(),
+  (chatd::Priv)aChat.getOwnPrivilege()), mHasTitle(false)
 {
-    auto peers = chat.getPeerList();
+    auto peers = aChat.getPeerList();
     if (peers)
     {
         auto size = peers->size();
@@ -1062,17 +1075,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
 //save to db
     auto db = parent.client.db;
     sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
-    if (!userTitle.empty())
-    {
-        sqliteQuery(db, "insert or replace into chats(chatid, url, shard, peer, peer_priv, own_priv, title) values(?,?,?,-1,0,?,?)",
-                mChatid, mUrl, mShardNo, mOwnPriv, userTitle);
-    }
-    else
-    {
-        sqliteQuery(db, "insert or replace into chats(chatid, url, shard, peer, peer_priv, own_priv) values(?,?,?,-1,0,?)",
-                mChatid, mUrl, mShardNo, mOwnPriv);
-        loadUserTitle();
-    }
+    sqliteQuery(db, "insert or replace into chats(chatid, url, shard, peer, peer_priv, own_priv) values(?,?,?,-1,0,?)",
+        mChatid, mUrl, mShardNo, mOwnPriv);
+
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
     {
@@ -1081,43 +1086,106 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& cha
         stmt.reset().clearBind();
     }
     mContactGui = parent.client.app.contactListHandler().addGroupChatItem(*this);
-    if (!mTitleString.empty())
-        mContactGui->onTitleChanged(mTitleString);
+    auto title = aChat.getTitle();
+    if (title)
+        mEncryptedTitle = title;
 }
 
-void GroupChatRoom::loadUserTitle()
+promise::Promise<void> GroupChatRoom::decryptTitle()
+{
+    if (mEncryptedTitle.empty())
+        return promise::_Void();
+    Buffer buf(mEncryptedTitle.size());
+    auto decLen = base64urldecode(mEncryptedTitle.c_str(), mEncryptedTitle.size(),
+        buf.buf(), buf.bufSize());
+    buf.setDataSize(decLen);
+    return this->chat().crypto()->decryptChatTitle(buf)
+    .then([this](const std::string& title)
+    {
+        if (mTitleString == title)
+            return;
+        mTitleString = title;
+        mHasTitle = true;
+        mContactGui->onTitleChanged(mTitleString);
+        if (mAppChatHandler)
+            mAppChatHandler->onTitleChanged(mTitleString);
+    })
+    .fail([this](const promise::Error& err)
+    {
+        KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", karere::Id(chatid()).toString().c_str(), err.what());
+        mHasTitle = false;
+        loadTitleFromDb(); //if it existed before in db, the title will be preserved
+    });
+}
+
+void GroupChatRoom::makeTitleFromMemberNames()
+{
+    mHasTitle = false;
+    mTitleString.clear();
+    for (auto& m: mPeers)
+    {
+        auto& name = m.second->mName;
+        if (name.size() <= 1)
+            mTitleString.append("...,");
+        else
+            mTitleString.append(name.c_str()+1, name.size()-1).append(", ");
+    }
+    if (!mTitleString.empty())
+        mTitleString.resize(mTitleString.size()-2); //truncate last ", "
+
+    if (mContactGui) //doesn't exist during construction
+        mContactGui->onTitleChanged(mTitleString);
+    if(mAppChatHandler)
+        mAppChatHandler->onTitleChanged(mTitleString);
+}
+
+void GroupChatRoom::loadTitleFromDb()
 {
     //load user title if set
     SqliteStmt stmt(parent.client.db, "select title from chats where chatid = ?");
     stmt << mChatid;
     if (!stmt.step())
     {
-        mHasUserTitle = false;
+        makeTitleFromMemberNames();
         return;
     }
     std::string strTitle = stmt.stringCol(0);
     if (strTitle.empty())
     {
-        mHasUserTitle = false;
+        makeTitleFromMemberNames();
         return;
     }
     mTitleString = strTitle;
-    mHasUserTitle = true;
+    mHasTitle = true;
 }
 
-void GroupChatRoom::setUserTitle(const std::string& title)
+promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 {
-    mTitleString = title;
-    if (mTitleString.empty())
+    return chat().crypto()->encryptChatTitle(title)
+    .then([this](const std::shared_ptr<Buffer>& buf)
     {
-        mHasUserTitle = false;
-        sqliteQuery(parent.client.db, "update chats set title=NULL where chatid=?", mChatid);
-    }
-    else
+        auto b64 = base64urlencode(buf->buf(), buf->dataSize());
+        return parent.client.api.call(&::mega::MegaApi::setChatTitle, chatid(),
+            b64.c_str());
+    })
+    .then([this, title](const ReqResult&)
     {
-        mHasUserTitle = true;
-        sqliteQuery(parent.client.db, "update chats set title=? where chatid=?", mTitleString, mChatid);
-    }
+        mTitleString = title;
+        if (mTitleString.empty())
+        {
+            mHasTitle = false;
+            sqliteQuery(parent.client.db, "update chats set title=NULL where chatid=?", mChatid);
+            makeTitleFromMemberNames();
+        }
+        else
+        {
+            mHasTitle = true;
+            sqliteQuery(parent.client.db, "update chats set title=? where chatid=?", mTitleString, mChatid);
+            mContactGui->onTitleChanged(mTitleString);
+            if (mAppChatHandler)
+                mAppChatHandler->onTitleChanged(mTitleString);
+        }
+    });
 }
 
 GroupChatRoom::~GroupChatRoom()
@@ -1138,7 +1206,20 @@ void GroupChatRoom::leave()
 
 promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 {
-    return parent.client.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv)
+    promise::Promise<std::string> pms = mHasTitle
+        ? chat().crypto()->encryptChatTitle(mTitleString)
+          .then([](const std::shared_ptr<Buffer>& buf)
+          {
+               return base64urlencode(buf->buf(), buf->dataSize());
+          })
+        : promise::Promise<std::string>(std::string());
+
+    return pms
+    .then([this, userid, priv](const std::string& title)
+    {
+        return parent.client.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
+            title.empty() ? nullptr: title.c_str());
+    })
     .then([this, userid, priv](ReqResult)
     {
         mPeers.emplace(userid, new Member(*this, userid, priv));
@@ -1329,13 +1410,9 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);
     UserPrivMap membs;
     changed |= syncMembers(apiMembersToMap(chat, membs));
-    if (changed)
-    {
-        if (mContactGui)
-            mContactGui->onMembersUpdated();
-        if (mAppChatHandler)
-            mAppChatHandler->onMembersUpdated();
-    }
+    auto title = chat.getTitle();
+    if (title)
+        mEncryptedTitle = title;
     return changed;
 }
 
@@ -1362,7 +1439,10 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
             self->mName.assign(buf->buf(), buf->dataSize());
         else if (self->mName.empty())
             self->mName = "\x01?";
-        self->mRoom.updateTitle();
+            if (!self->mRoom.hasTitle())
+            {
+                self->mRoom.makeTitleFromMemberNames();
+            }
     });
 }
 GroupChatRoom::Member::~Member()

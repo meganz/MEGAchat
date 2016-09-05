@@ -296,7 +296,10 @@ public slots:
             auto& list = *result->getMegaTextChatList();
             if (list.size() < 1)
                 throw std::runtime_error("Empty chat list returned from API");
-            mContact.contactList().client.chats->addRoom(*list.get(0), name);
+            auto& room = mContact.contactList().client.chats->addRoom(*list.get(0));
+            assert(room.isGroup());
+            room.join();
+            static_cast<karere::GroupChatRoom&>(room).setTitle(name);
         })
         .fail([this](const promise::Error& err)
         {
@@ -353,7 +356,7 @@ public:
     }
     virtual void onTitleChanged(const std::string& title)
     {
-        QString text = tr("Group: ")+QString::fromUtf8(title.c_str(), title.size());
+        QString text = QString::fromUtf8(title.c_str(), title.size());
         ui.mName->setText(text);
         updateToolTip();
     }
@@ -364,10 +367,12 @@ protected:
     void contextMenuEvent(QContextMenuEvent* event)
     {
         QMenu menu(this);
-        auto action = menu.addAction(tr("Leave group chat"));
-        connect(action, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
-        auto topicAction = menu.addAction(tr("Set chat topic"));
-        connect(topicAction, SIGNAL(triggered()), this, SLOT(setTopic()));
+        auto actLeave = menu.addAction(tr("Leave group chat"));
+        connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
+        auto actTopic = menu.addAction(tr("Set chat topic"));
+        connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
+        auto actTruncate = menu.addAction(tr("Truncate chat"));
+        connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
         menu.setStyleSheet("background-color: lightgray");
         menu.exec(event->globalPos());
     }
@@ -378,7 +383,8 @@ protected:
     }
 protected slots:
     void leaveGroupChat() { karere::marshallCall([this]() { mRoom.leave(); }); } //deletes this
-    void setTopic();
+    void setTitle();
+    void truncateChat();
 };
 
 

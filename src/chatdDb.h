@@ -272,12 +272,13 @@ public:
         sqliteQuery(mDb, "delete from manual_sending where rowid = ?", rowid);
         return sqlite3_changes(mDb) != 0;
     }
-    virtual void truncateHistory(karere::Id msgid)
+    virtual void truncateHistory(const chatd::Message& msg)
     {
-        auto idx = getIdxOfMsgid(msgid);
+        auto idx = getIdxOfMsgid(msg.id());
         if (idx == CHATD_IDX_INVALID)
-            throw std::runtime_error("dbInterface::truncateHistory: msgid "+msgid.toString()+" does not exist in db");
+            throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
         sqliteQuery(mDb, "delete from history where chatid = ? and idx < ?", mMessages.chatId(), idx);
+        sqliteQuery(mDb, "update history set type=?, userid=? where chatid=? and msgid=?", msg.type, msg.userid, mMessages.chatId(), msg.id());
     }
     virtual karere::Id getOldestMsgid()
     {

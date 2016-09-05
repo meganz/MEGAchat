@@ -33,7 +33,7 @@ namespace rh { class IRetryController; }
 
     KR_WEAKSYM(std::string getAppDir());
 /** @brief
- * Builtin implementation of getAppDir() suoitable for desktop systems
+ * Builtin implementation of getAppDir() suitable for desktop systems
  * It reads the env variable KRDIR for a path to the app dir, and if not present,
  * defaults to '~/.karere'.
  */
@@ -184,15 +184,17 @@ public:
     MemberMap mPeers;
     IApp::IContactListItem* mContactGui = nullptr;
     std::string mTitleString;
-    bool mHasUserTitle = false;
+    bool mHasTitle;
+    std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
     bool syncMembers(const UserPrivMap& users);
     static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
-    void loadUserTitle();
+    void loadTitleFromDb();
+    promise::Promise<void> decryptTitle();
     void updateAllOnlineDisplays(Presence pres);
     friend class Member;
 public:
-    GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, const std::string& userTitle);
+    GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
                   unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
     ~GroupChatRoom();
@@ -203,45 +205,36 @@ public:
     /** @cond PRIVATE */
     void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(const uint64_t& userid);
-    void setUserTitle(const std::string& title);
+    promise::Promise<ReqResult> setPrivilege(karere::Id userid, chatd::Priv priv);
+    promise::Promise<void> setTitle(const std::string& title);
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void leave();
     promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     virtual IApp::IContactListItem& contactGui() { return *mContactGui; }
     /** @endcond PRIVATE */
+    /** @brief Returns whether the group chatroom has a title set. If not, then
+      * its title string will be composed from the first names of the room members
+      */
+    bool hasTitle() const { return mHasTitle; }
+    /** @brief The title of the chatroom */
     virtual const std::string& titleString() const { return mTitleString; }
+    /** @brief The 'presence' of the chatroom - it's actually the online state,
+     * and can be only online or offline, depending on whether we are connected
+     * to the chatd chatroom
+     */
     virtual Presence presence() const
     {
         return (mChat->onlineState() == chatd::kChatStateOnline)? Presence::kOnline:Presence::kOffline;
     }
-    void updateTitle()
-    {
-        if (mHasUserTitle)
-            return;
-        mTitleString.clear();
-        for (auto& m: mPeers)
-        {
-            auto& name = m.second->mName;
-            if (name.size() <= 1)
-                mTitleString.append("...,");
-            else
-                mTitleString.append(name.c_str()+1, name.size()-1).append(", ");
-        }
-        if (!mTitleString.empty())
-            mTitleString.resize(mTitleString.size()-2); //truncate last ", "
-
-        if (mContactGui) //doesn't exist during construction
-            mContactGui->onTitleChanged(mTitleString);
-        if(mAppChatHandler)
-            mAppChatHandler->onTitleChanged(mTitleString);
-    }
+    /** @cond PRIVATE */
+    void makeTitleFromMemberNames();
     virtual void join();
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
     void onUserLeave(Id userid);
     void onOnlineStateChange(chatd::ChatState);
-
+    /** @endcond PRIVATE */
 };
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
  * keyed by the chatid of the chatroom. This object can be obtained
@@ -252,8 +245,8 @@ class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr 
 /** @cond PRIVATE */
 public:
     Client& client;
-    void syncRoomsWithApi(const mega::MegaTextChatList& rooms);
-    ChatRoom& addRoom(const mega::MegaTextChat &room, const std::string& groupRoomTitle="");
+    void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms);
+    ChatRoom& addRoom(const mega::MegaTextChat &room);
     bool removeRoom(const uint64_t& chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
@@ -499,6 +492,8 @@ public:
     }
 
 /** @cond PRIVATE */
+    void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
+    void dumpContactList(::mega::MegaUserList& clist);
 
 protected:
     Id mMyHandle = mega::UNDEF;
@@ -538,8 +533,6 @@ protected:
      */
     void sendPong(const std::string& peerJid, const std::string& messageId);
 
-    void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
-    void dumpContactList(::mega::MegaUserList& clist);
     //rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
             const std::shared_ptr<rtcModule::ICallAnswer> &call);
