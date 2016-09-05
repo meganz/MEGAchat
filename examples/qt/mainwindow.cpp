@@ -433,26 +433,27 @@ void MainWindow::onSettingsBtn(bool)
     if (dialog.exec() == QDialog::Accepted)
         dialog.applySettings();
 }
-void CListGroupChatItem::setTopic()
+
+void CListGroupChatItem::setTitle()
 {
-    auto topic = QInputDialog::getText(this, tr("Set chat topic"), tr("Please enter chat topic"));
+    auto topic = QInputDialog::getText(this, tr("Change chat title"), tr("Please enter chat title"));
     if (topic.isNull())
         return;
 
-    mRoom.chat().crypto()->encryptChatTopic(topic.toStdString())
-    .then([this](std::shared_ptr<Buffer> buf)
-    {
-        printf("Chat topic blob: %s\n", buf->toString().c_str());
-        return mRoom.chat().crypto()->decryptChatTopic(*buf);
-    })
-    .then([this](const std::string& topic)
-    {
-        printf("decrypted topic: %s\n", topic.c_str());
-    })
+    mRoom.setTitle(topic.toStdString())
     .fail([](const promise::Error& err)
     {
         printf("error: %s\n", err.what());
     });
+}
+void CListGroupChatItem::truncateChat()
+{
+    if (mRoom.chat().empty())
+        return;
+    mRoom.parent.client.api.call(
+        &::mega::MegaApi::truncateChat,
+        mRoom.chatid(),
+        mRoom.chat().at(mRoom.chat().highnum()).id().val);
 }
 
 #include <mainwindow.moc>

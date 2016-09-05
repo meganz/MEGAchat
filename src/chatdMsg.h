@@ -47,7 +47,6 @@ enum Priv: signed char
     PRIV_NOCHANGE = -2,
     PRIV_NOTPRESENT = -1,
     PRIV_RDONLY = 0,
-    PRIV_RDWR = 1,
     PRIV_FULL = 2,
     PRIV_OPER = 3
 };
@@ -261,8 +260,6 @@ static inline const char* privToString(Priv priv)
         return "Not present";
     case PRIV_RDONLY:
         return "Read-only";
-    case PRIV_RDWR:
-        return "Read-write";
     case PRIV_FULL:
         return "Full";
     case PRIV_OPER:

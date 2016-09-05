@@ -68,12 +68,18 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         {
             auto actRemove = entry->addAction(tr("Remove from chat"));
             actRemove->setData(QVariant((qulonglong)item.first));
-            auto actSetPriv = entry->addAction(tr("Set privilege"));
-            actSetPriv->setData(QVariant((qulonglong)item.first));
+            auto menuSetPriv = entry->addMenu(tr("Set privilege"));
+
+            auto actSetPrivFull = menuSetPriv->addAction(tr("Full access"));
+            actSetPrivFull->setData(QVariant((qulonglong)item.first));
+            auto actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
+            actSetPrivReadOnly->setData(QVariant((qulonglong)item.first));
+
             auto actPrivChat = entry->addAction(tr("Send private message"));
             actPrivChat->setData(QVariant((qulonglong)item.first));
             connect(actRemove, SIGNAL(triggered()), SLOT(onMemberRemove()));
-            connect(actSetPriv, SIGNAL(triggered()), SLOT(onMemberSetPriv()));
+            connect(actSetPrivFull, SIGNAL(triggered()), SLOT(onMemberSetPrivFull()));
+            connect(actSetPrivReadOnly, SIGNAL(triggered()), SLOT(onMemberSetPrivReadOnly()));
             connect(actPrivChat, SIGNAL(triggered()), SLOT(onMemberPrivateChat()));
         }
     }
@@ -103,11 +109,15 @@ void ChatWindow::onMemberRemove()
         return err;
     });
 }
-void ChatWindow::onMemberSetPriv()
+void ChatWindow::onMemberSetPrivFull()
 {
-//    static_cast<karere::GroupChatRoom&>(mRoom).setPriv(handleFromAction(QObject::sender()));
-    QMessageBox::critical(this, tr("Set member privilege"), tr("Not implemented yet"));
+    static_cast<karere::GroupChatRoom&>(mRoom).setPrivilege(handleFromAction(QObject::sender()), chatd::PRIV_OPER);
 }
+void ChatWindow::onMemberSetPrivReadOnly()
+{
+    static_cast<karere::GroupChatRoom&>(mRoom).setPrivilege(handleFromAction(QObject::sender()), chatd::PRIV_RDONLY);
+}
+
 void ChatWindow::onMemberPrivateChat()
 {
     auto& clist = *mainWindow.client().contactList;
@@ -142,7 +152,7 @@ void ChatWindow::dropEvent(QDropEvent* event)
     }
     mWaitMsg.addMsg(tr("Adding user(s), please wait..."));
     auto waitMsgKeepAlive = mWaitMsg;
-    mRoom.parent.client.api.call(&::mega::MegaApi::inviteToChat, mRoom.chatid(), *(const uint64_t*)(data.data()), chatd::PRIV_FULL)
+    static_cast<GroupChatRoom&>(mRoom).invite(*(const uint64_t*)(data.data()), chatd::PRIV_FULL)
     .fail([waitMsgKeepAlive](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Add user"), tr("Error adding user to group chat: ")+QString::fromStdString(err.msg()));

@@ -101,7 +101,7 @@ enum
     TLV_TYPE_OWN_KEY            = 0x0a,
     TLV_TYPE_INVITOR            = 0x0b,
     TLV_TYPE_PRIVILEGE          = 0x0c,
-    TLV_TYPE_KEYBLOB            = 0x0d,
+    TLV_TYPE_KEYBLOB            = 0x0f,
     TLV_TYPES_COUNT
 };
 
@@ -116,7 +116,7 @@ enum MessageType
     SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS        = 0x02,
     SVCRYPTO_MSGTYPE_TRUNCATE                  = 0x03,
     SVCRYPTO_MSGTYPE_PRIVCHANGE                = 0x04,
-    SVCRYPTO_MSGTYPE_CHAT_TOPIC                = 0x05,
+    SVCRYPTO_MSGTYPE_CHAT_TITLE                = 0x05,
     SVCRYPTO_MSGTYPES_COUNT
 };
 
@@ -188,8 +188,8 @@ struct ParsedMessage
     bool verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey);
     void parsePayload(const StaticBuffer& data, chatd::Message& msg);
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
-    void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg, bool hasBackrefs=true);
-    promise::Promise<chatd::Message*> decryptChatTopic(chatd::Message* msg);
+    void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
+    promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg);
 };
 
 
@@ -290,7 +290,8 @@ protected:
          * @param signature [out] Message signature.
          */
     void signMessage(const StaticBuffer& msg,
-            const SendKey &msgKey, StaticBuffer& signature);
+         uint8_t protoVersion, uint8_t msgType, const SendKey& msgKey,
+        StaticBuffer& signature);
         /**
           * Derives a symmetric key for encrypting a message to a contact.  It is
           * derived using a Curve25519 key agreement.
@@ -337,9 +338,9 @@ public:
         virtual void onUserLeave(karere::Id userid);
         virtual void resetSendKey();
         virtual bool handleLegacyKeys(chatd::Message& msg);
-        virtual void randomBytes(void* buf, size_t bufsize);
-        virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTopic(const std::string& data);
-        virtual promise::Promise<std::string> decryptChatTopic(const Buffer& data);
+        virtual void randomBytes(void* buf, size_t bufsize) const;
+        virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data);
+        virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
 
         //====
         promise::Promise<std::shared_ptr<SendKey>>
