@@ -264,14 +264,14 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
             karere::ChatRoom *chatroom = it->second;
-            if (chatroom->ownPriv() != (chatd::Priv) MegaChatPeerList::PRIV_MODERATOR)
-            {
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
             if (!chatroom->isGroup())   // invite only for group chats
             {
                 errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+            if (chatroom->ownPriv() != (chatd::Priv) MegaChatPeerList::PRIV_MODERATOR)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 

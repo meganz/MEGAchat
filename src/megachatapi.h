@@ -730,6 +730,7 @@ public:
      * On the onTransferFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot invite peers)
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param uh MegaChatHandle that identifies the user
