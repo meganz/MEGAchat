@@ -59,11 +59,15 @@ public:
     virtual int getTag() const;
     virtual long long getNumber() const;
     virtual int getNumRetry() const;
+    virtual bool getFlag() const;
+    virtual MegaChatPeerList *getMegaChatPeerList();
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
     void setNumber(long long number);
     void setNumRetry(int retry);
+    void setFlag(bool flag);
+    void setMegaChatPeerList(MegaChatPeerList *peerList);
 
 protected:
     int type;
@@ -72,6 +76,8 @@ protected:
 
     long long number;
     int retry;
+    bool flag;
+    MegaChatPeerList *peerList;
 };
 
 class MegaChatVideoReceiver;
@@ -92,7 +98,7 @@ public:
 
     virtual int getStatus() const;
     virtual int getTag() const;
-    virtual MegaHandle getContactHandle() const;
+    virtual MegaChatHandle getContactHandle() const;
 
 //    shared_ptr<rtcModule::ICallAnswer> getAnswerObject();
 
@@ -233,6 +239,7 @@ public:
 
 private:
     MegaChatErrorPrivate(const MegaChatErrorPrivate *);
+    static const char* getGenericErrorString(int errorCode);
 
     // MegaChatError interface
 public:
@@ -241,6 +248,26 @@ public:
     int getErrorType() const;
     const char *getErrorString() const;
     const char *toString() const;
+};
+
+class MegaChatPeerListPrivate : public MegaChatPeerList
+{
+public:
+    MegaChatPeerListPrivate();
+    MegaChatPeerListPrivate(userpriv_vector *);
+
+    virtual ~MegaChatPeerListPrivate();
+    virtual MegaChatPeerList *copy() const;
+    virtual void addPeer(MegaChatHandle h, int priv);
+    virtual MegaChatHandle getPeerHandle(int i) const;
+    virtual int getPeerPrivilege(int i) const;
+    virtual int size() const;
+
+    // returns the list of user-privilege (this object keeps the ownership)
+    const userpriv_vector * getList() const;
+
+private:
+    userpriv_vector list;
 };
 
 class MegaChatRoomPrivate : public MegaChatRoom
@@ -413,6 +440,9 @@ public:
     void connect(MegaChatRequestListener *listener = NULL);
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     MegaChatRoomList* getChatRooms();
+
+    // Chatrooms management
+    void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener);
 
     // Audio/Video devices
     MegaStringList *getChatAudioInDevices();

@@ -210,8 +210,39 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-        case MegaChatRequest::TYPE_START_CHAT_CALL:
+
+        case MegaChatRequest::TYPE_CREATE_CHATROOM:
         {
+            MegaChatPeerList *peersList = request->getMegaChatPeerList();
+            if (!peersList)   // refuse to create chats without participants
+            {
+                errorCode = API_EARGS;
+                break;
+            }
+
+            bool group = request->getFlag();
+            const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
+            if (!userpriv || (!group && peersList->size() > 1))
+            {
+                errorCode = API_EARGS;
+                break;
+            }
+
+            mega::MegaTextChatPeerListPrivate peers;
+            peers.addPeer(mClient->myHandle(), MegaChatRoom::PRIV_STANDARD);
+            mClient->api.call(&mega::MegaApi::createChat, group, &peers)
+            .then([request, this](ReqResult result)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                KR_LOG_ERROR("Error creating chatroom: ", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
             break;
         }
         case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
@@ -454,6 +485,15 @@ MegaChatRoomList *MegaChatApiImpl::getChatRooms()
     }
 
     return chats;
+}
+
+void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
+    request->setFlag(group);
+    request->setMegaChatPeerList(peerList);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
@@ -800,6 +840,8 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
 
     this->number = 0;
     this->retry = 0;
+    this->flag = false;
+    this->peerList = NULL;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
@@ -810,6 +852,8 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
 
     this->setNumber(request.getNumber());
     this->setNumRetry(request.getNumRetry());
+    this->setFlag(request.getFlag());
+    this->setMegaChatPeerList(request.getMegaChatPeerList());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -859,6 +903,16 @@ int MegaChatRequestPrivate::getNumRetry() const
     return retry;
 }
 
+bool MegaChatRequestPrivate::getFlag() const
+{
+    return flag;
+}
+
+MegaChatPeerList *MegaChatRequestPrivate::getMegaChatPeerList()
+{
+    return peerList;
+}
+
 int MegaChatRequestPrivate::getTag() const
 {
     return tag;
@@ -884,6 +938,18 @@ void MegaChatRequestPrivate::setNumRetry(int retry)
     this->retry = retry;
 }
 
+void MegaChatRequestPrivate::setFlag(bool flag)
+{
+    this->flag = flag;
+}
+
+void MegaChatRequestPrivate::setMegaChatPeerList(MegaChatPeerList *peerList)
+{
+    if (this->peerList)
+        delete this->peerList;
+
+    this->peerList = peerList->copy();
+}
 
 MegaChatCallPrivate::MegaChatCallPrivate(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
 {
@@ -934,14 +1000,14 @@ int MegaChatCallPrivate::getTag() const
     return tag;
 }
 
-MegaHandle MegaChatCallPrivate::getContactHandle() const
+MegaChatHandle MegaChatCallPrivate::getContactHandle() const
 {
     if(!peer)
     {
         return INVALID_HANDLE;
     }
 
-    MegaHandle userHandle = INVALID_HANDLE;
+    MegaChatHandle userHandle = INVALID_HANDLE;
     string tmp = peer;
     tmp.resize(13);
     Base32::atob(tmp.data(), (byte *)&userHandle, sizeof(userHandle));
@@ -1090,10 +1156,24 @@ MegaChatErrorPrivate::MegaChatErrorPrivate(const string &msg, int code, int type
 }
 
 MegaChatErrorPrivate::MegaChatErrorPrivate(int code, int type)
-    : promise::Error(nullptr, code, type)
+    : promise::Error(MegaChatErrorPrivate::getGenericErrorString(code), code, type)
 {
-
 }
+
+const char* MegaChatErrorPrivate::getGenericErrorString(int errorCode)
+{
+    switch(errorCode)
+    {
+    case ERROR_OK:
+        return "No error";
+    case ERROR_ARGS:
+        return "Invalid argument";
+    case ERROR_UNKNOWN:
+    default:
+        return "Unknown error";
+    }
+}
+
 
 MegaChatErrorPrivate::MegaChatErrorPrivate(const MegaChatErrorPrivate *error)
     : promise::Error(error->getErrorString(), error->getErrorCode(), error->getErrorType())
@@ -1270,4 +1350,79 @@ void MegaChatListItemHandler::onTitleChanged(const string &title)
 void MegaChatListItemHandler::onPresenceChanged(karere::Presence state)
 {
 
+}
+
+MegaChatPeerListPrivate::MegaChatPeerListPrivate()
+{
+
+}
+
+MegaChatPeerListPrivate::~MegaChatPeerListPrivate()
+{
+
+}
+
+MegaChatPeerList *MegaChatPeerListPrivate::copy() const
+{
+    MegaChatPeerListPrivate *ret = new MegaChatPeerListPrivate;
+
+    for (int i = 0; i < size(); i++)
+    {
+        ret->addPeer(list.at(i).first, list.at(i).second);
+    }
+
+    return ret;
+}
+
+void MegaChatPeerListPrivate::addPeer(MegaChatHandle h, int priv)
+{
+    list.push_back(userpriv_pair(h, (privilege_t) priv));
+}
+
+MegaChatHandle MegaChatPeerListPrivate::getPeerHandle(int i) const
+{
+    if (i > size())
+    {
+        return INVALID_HANDLE;
+    }
+    else
+    {
+        return list.at(i).first;
+    }
+}
+
+int MegaChatPeerListPrivate::getPeerPrivilege(int i) const
+{
+    if (i > size())
+    {
+        return PRIV_UNKNOWN;
+    }
+    else
+    {
+        return list.at(i).second;
+    }
+}
+
+int MegaChatPeerListPrivate::size() const
+{
+    return list.size();
+}
+
+const userpriv_vector *MegaChatPeerListPrivate::getList() const
+{
+    return &list;
+}
+
+MegaChatPeerListPrivate::MegaChatPeerListPrivate(userpriv_vector *userpriv)
+{
+    handle uh;
+    privilege_t priv;
+
+    for (unsigned i = 0; i < userpriv->size(); i++)
+    {
+        uh = userpriv->at(i).first;
+        priv = userpriv->at(i).second;
+
+        this->addPeer(uh, priv);
+    }
 }

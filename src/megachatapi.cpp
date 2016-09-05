@@ -56,7 +56,7 @@ int MegaChatCall::getTag() const
     return 0;
 }
 
-MegaHandle MegaChatCall::getContactHandle() const
+MegaChatHandle MegaChatCall::getContactHandle() const
 {
     return INVALID_HANDLE;
 }
@@ -94,6 +94,11 @@ void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
 MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();
+}
+
+void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener)
+{
+    pImpl->createChat(group, peers, listener);
 }
 
 MegaStringList *MegaChatApi::getChatAudioInDevices()
@@ -217,6 +222,16 @@ int MegaChatRequest::getNumRetry() const
     return 0;
 }
 
+bool MegaChatRequest::getFlag() const
+{
+    return false;
+}
+
+MegaChatPeerList *MegaChatRequest::getMegaChatPeerList()
+{
+    return NULL;
+}
+
 MegaChatRoomList *MegaChatRoomList::copy() const
 {
     return NULL;
@@ -282,4 +297,43 @@ bool MegaChatRoom::isGroup() const
 const char *MegaChatRoom::getTitle() const
 {
     return NULL;
+}
+
+MegaChatPeerList * MegaChatPeerList::createInstance()
+{
+    return new MegaChatPeerListPrivate();
+}
+
+MegaChatPeerList::MegaChatPeerList()
+{
+
+}
+
+MegaChatPeerList::~MegaChatPeerList()
+{
+
+}
+
+MegaChatPeerList *MegaChatPeerList::copy() const
+{
+    return NULL;
+}
+
+void MegaChatPeerList::addPeer(MegaChatHandle, int)
+{
+}
+
+MegaChatHandle MegaChatPeerList::getPeerHandle(int) const
+{
+    return INVALID_HANDLE;
+}
+
+int MegaChatPeerList::getPeerPrivilege(int) const
+{
+    return PRIV_UNKNOWN;
+}
+
+int MegaChatPeerList::size() const
+{
+    return 0;
 }

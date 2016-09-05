@@ -69,7 +69,7 @@ public:
 
     virtual int getStatus() const;
     virtual int getTag() const;
-    virtual MegaHandle getContactHandle() const;
+    virtual MegaChatHandle getContactHandle() const;
 };
 
 class MegaChatVideoListener
@@ -89,6 +89,89 @@ public:
     virtual void onChatCallStateChange(MegaChatApi *api, MegaChatCall *call);
     virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
     virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
+};
+
+class MegaChatPeerList
+{
+public:
+    enum {
+        PRIV_UNKNOWN = -2,
+        PRIV_RM = -1,
+        PRIV_RO = 0,
+        PRIV_STANDARD = 2,
+        PRIV_MODERATOR = 3
+    };
+
+    /**
+     * @brief Creates a new instance of MegaChatPeerList
+     * @return A pointer to the superclass of the private object
+     */
+    static MegaChatPeerList * createInstance();
+
+    virtual ~MegaChatPeerList();
+
+    /**
+     * @brief Creates a copy of this MegaChatPeerList object
+     *
+     * The resulting object is fully independent of the source MegaChatPeerList,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You are the owner of the returned object
+     *
+     * @return Copy of the MegaChatPeerList object
+     */
+    virtual MegaChatPeerList *copy() const;
+
+    /**
+     * @brief addPeer Adds a new chat peer to the list
+     *
+     * @param h MegaChatHandle of the user to be added
+     * @param priv Privilege level of the user to be added
+     * Valid values are:
+     * - MegaChatPeerList::PRIV_UNKNOWN = -2
+     * - MegaChatPeerList::PRIV_RM = -1
+     * - MegaChatPeerList::PRIV_RO = 0
+     * - MegaChatPeerList::PRIV_STANDARD = 2
+     * - MegaChatPeerList::PRIV_MODERATOR = 3
+     */
+    virtual void addPeer(MegaChatHandle h, int priv);
+
+    /**
+     * @brief Returns the MegaChatHandle of the chat peer at the position i in the list
+     *
+     * If the index is >= the size of the list, this function returns INVALID_HANDLE.
+     *
+     * @param i Position of the chat peer that we want to get from the list
+     * @return MegaChatHandle of the chat peer at the position i in the list
+     */
+    virtual MegaChatHandle getPeerHandle(int i) const;
+
+    /**
+     * @brief Returns the privilege of the chat peer at the position i in the list
+     *
+     * If the index is >= the size of the list, this function returns PRIV_UNKNOWN.
+     *
+     * @param i Position of the chat peer that we want to get from the list
+     * @return Privilege level of the chat peer at the position i in the list.
+     * Valid values are:
+     * - MegaChatPeerList::PRIV_UNKNOWN = -2
+     * - MegaChatPeerList::PRIV_RM = -1
+     * - MegaChatPeerList::PRIV_RO = 0
+     * - MegaChatPeerList::PRIV_STANDARD = 2
+     * - MegaChatPeerList::PRIV_MODERATOR = 3
+     */
+    virtual int getPeerPrivilege(int i) const;
+
+    /**
+     * @brief Returns the number of chat peer in the list
+     * @return Number of chat peers in the list
+     */
+    virtual int size() const;
+
+protected:
+    MegaChatPeerList();
+
 };
 
 class MegaChatRoom
@@ -124,11 +207,11 @@ public:
      * @param Handle of the peer whose privilege is requested.
      * @return Privilege level of the chat peer with the handle specified.
      * Valid values are:
-     * - MegaTextChatPeerList::PRIV_UNKNOWN = -2
-     * - MegaTextChatPeerList::PRIV_RM = -1
-     * - MegaTextChatPeerList::PRIV_RO = 0
-     * - MegaTextChatPeerList::PRIV_STANDARD = 2
-     * - MegaTextChatPeerList::PRIV_MODERATOR = 3
+     * - MegaChatPeerList::PRIV_UNKNOWN = -2
+     * - MegaChatPeerList::PRIV_RM = -1
+     * - MegaChatPeerList::PRIV_RO = 0
+     * - MegaChatPeerList::PRIV_STANDARD = 2
+     * - MegaChatPeerList::PRIV_MODERATOR = 3
      */
     virtual int getPeerPrivilege(MegaChatHandle userhandle) const;
 
@@ -158,11 +241,11 @@ public:
      * @param i Position of the peer whose handle is requested
      * @return Privilege level of the chat peer with the handle specified.
      * Valid values are:
-     * - MegaTextChatPeerList::PRIV_UNKNOWN = -2
-     * - MegaTextChatPeerList::PRIV_RM = -1
-     * - MegaTextChatPeerList::PRIV_RO = 0
-     * - MegaTextChatPeerList::PRIV_STANDARD = 2
-     * - MegaTextChatPeerList::PRIV_MODERATOR = 3
+     * - MegaChatPeerList::PRIV_UNKNOWN = -2
+     * - MegaChatPeerList::PRIV_RM = -1
+     * - MegaChatPeerList::PRIV_RO = 0
+     * - MegaChatPeerList::PRIV_STANDARD = 2
+     * - MegaChatPeerList::PRIV_MODERATOR = 3
      */
     virtual int getPeerPrivilege(unsigned int i) const;
 
@@ -180,7 +263,7 @@ public:
 //     *
 //     * @return The handle of the user who originated the chat notification.
 //     */
-//    virtual MegaHandle getOriginatingUser() const;
+//    virtual MegaChatHandle getOriginatingUser() const;
 
     /**
      * @brief getTitle Returns the title of the chat, if any.
@@ -340,6 +423,29 @@ public:
      * @return Number of times that a request has temporarily failed
      */
     virtual int getNumRetry() const;
+
+    /**
+     * @brief Returns a flag related to the request
+     *
+     * This value is valid for these requests:
+     * - MegaChatApi::createChat - Creates a chat for one or more participants
+     *
+     * @return Flag related to the request
+     */
+    virtual bool getFlag() const;
+
+    /**
+     * @brief Returns the list of peers in a chat.
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * This value is valid for these requests:
+     * - MegaChatApi::createChat - Returns the list of peers and their privilege level
+     *
+     * @return List of peers of a chat
+     */
+    virtual MegaChatPeerList *getMegaChatPeerList();
 };
 
 /**
@@ -558,6 +664,39 @@ public:
      * @return List of MegaChatRoom objects with all chatrooms of this account.
      */
     MegaChatRoomList* getChatRooms();
+
+    /**
+     * @brief Creates a chat for one or more participants, allowing you to specify their
+     * permissions and if the chat should be a group chat or not (when it is just for 2 participants).
+     *
+     * There are two types of chat: permanent an group. A permanent chat is between two people, and
+     * participants can not leave it.
+     *
+     * The creator of the chat will have moderator level privilege and should not be included in the
+     * list of peers.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns if the new chat is a group chat or permanent chat
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::API_OK:
+     * - MegaRequest::getMegaChatPeerList - Returns the new chat's information
+     *
+     * @note If you are trying to create a chat with more than 1 other person, then it will be forced
+     * to be a group chat.
+     *
+     * @note If peers list contains only one person, group chat is not set and a permament chat already
+     * exists with that person, then this call will return the information for the existing chat, rather
+     * than a new chat.
+     *
+     * @param group Flag to indicate if the chat is a group chat or not
+     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
+
 
     // Audio/Video device management
     MegaStringList *getChatAudioInDevices();
