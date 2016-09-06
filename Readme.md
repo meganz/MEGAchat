@@ -10,8 +10,10 @@ Note the `--recursive` switch - the repository contains git submodules that need
 
 * Android  
 Install the android NDK, and create a standalone CLang toolchain, using the `make-standalone-toolchain.sh` scrpt included in the NDK, using following example commandline:  
-`./android-ndk-r11b/build/tools/make-standalone-toolchain.sh --toolchain=arm-linux-androideabi-clang --install-dir=/home/user/android-dev/toolchain --stl=libc++ --platform=android-21`
-Then, you need to prepare a cross-compile environment for android. For this purpose, you need to use the `/platforms/android/env-android.sh` shell script. Please read the Readme.md in the same directory on how to use that script.
+`./android-ndk-r11b/build/tools/make-standalone-toolchain.sh --toolchain=arm-linux-androideabi-clang
+   --install-dir=/home/user/android-dev/toolchain --stl=libc++ --platform=android-21`  
+Then, you need to prepare a cross-compile environment for android. For this purpose, you need to use the
+`/platforms/android/env-android.sh` shell script. Please read the Readme.md in the same directory on how to use that script.
 
 *Notes on building webrtc with Android*    
 Building of webrtc is supported only on Linux. This is a limitation of Google's webrtc/chromium build system.  
@@ -72,7 +74,7 @@ model with modified iOS capturer, etc).
 Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh
 
 *Android*
-You need to set ANDROID_NDK to an NDK installation. THe current webrtc revision
+You need to set ANDROID_NDK to an NDK installation. The current webrtc revision
 has been tested with NDK r10d.
 
 ### Verify the build ###
