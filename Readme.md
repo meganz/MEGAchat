@@ -55,9 +55,9 @@ and install all dependencies.
 *IMPORTANT for iOS*  
 As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs, so you need to tell the dependency build system to build everything as static libs.
 
-*Note for Android*
-If you get a libtool error that a tag is missing, you can try setting this env var:
-export LIBTOOLFLAGS ="--tag CXX"
+*Note for Android*  
+If you get a libtool error that a tag is missing, you can try setting this env var:  
+`export LIBTOOLFLAGS ="--tag CXX"`
 
 ## Build webrtc ##
 Karere provides an autmated system for building webrtc for any of the supported
