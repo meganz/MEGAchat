@@ -51,10 +51,10 @@ for mobile, so you need that environement set up, as described in the previous
 sections. You just need to run `/platforms/setup-deps.sh` script without arguments
 to get help on how to use it, and then run it with arguments to download, build
 and install all dependencies.  
-
+  
 *IMPORTANT for iOS*  
 As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs, so you need to tell the dependency build system to build everything as static libs.  
-
+  
 *Note for Android*  
 If you get a libtool error that a tag is missing, you can try setting this env var:  
 `export LIBTOOLFLAGS ="--tag CXX"`  
