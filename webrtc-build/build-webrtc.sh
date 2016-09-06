@@ -22,7 +22,7 @@ fi
 function checkPlatformValid
 {
   if [ -z "$platform" ]; then
-      echo "No platform specified (--platform=xxx)"
+      echo "No platform specified (--platform xxx)"
       return 1
   elif [[ "$platform" != linux ]] && [[ "$platform" != macos ]] && [[ "$platform" != "android" ]] && [[ "$platform" != "ios" ]] && [[ "$platform" != "win" ]]; then
       echo -e "Invalid platform \033[1;31m'$platform'\033[0;0m"
