@@ -10,8 +10,10 @@ Note the `--recursive` switch - the repository contains git submodules that need
 
 * Android  
 Install the android NDK, and create a standalone CLang toolchain, using the `make-standalone-toolchain.sh` scrpt included in the NDK, using following example commandline:  
-`./android-ndk-r11b/build/tools/make-standalone-toolchain.sh --toolchain=arm-linux-androideabi-clang --install-dir=/home/user/android-dev/toolchain --stl=libc++ --platform=android-21`
-Then, you need to prepare a cross-compile environment for android. For this purpose, you need to use the `/platforms/android/env-android.sh` shell script. Please read the Readme.md in the same directory on how to use that script.
+`./android-ndk-r11b/build/tools/make-standalone-toolchain.sh --toolchain=arm-linux-androideabi-clang
+   --install-dir=/home/user/android-dev/toolchain --stl=libc++ --platform=android-21`  
+Then, you need to prepare a cross-compile environment for android. For this purpose, you need to use the
+`/platforms/android/env-android.sh` shell script. Please read the Readme.md in the same directory on how to use that script.
 
 *Notes on building webrtc with Android*    
 Building of webrtc is supported only on Linux. This is a limitation of Google's webrtc/chromium build system.  
@@ -48,14 +50,14 @@ The script works in tandem with the cross-compile build environment when buildin
 for mobile, so you need that environement set up, as described in the previous
 sections. You just need to run `/platforms/setup-deps.sh` script without arguments
 to get help on how to use it, and then run it with arguments to download, build
-and install all dependencies.
-
+and install all dependencies.  
+  
 *IMPORTANT for iOS*  
-As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs, so you need to tell the dependency build system to build everything as static libs.
-
-*Note for Android*
-If you get a libtool error that a tag is missing, you can try setting this env var:
-export LIBTOOLFLAGS ="--tag CXX"
+As Apple does not allow dynamic libraries in iOS apps, you must build all third-party dependencies as static libs, so you need to tell the dependency build system to build everything as static libs.  
+  
+*Note for Android*  
+If you get a libtool error that a tag is missing, you can try setting this env var:  
+`export LIBTOOLFLAGS ="--tag CXX"`  
 
 ## Build webrtc ##
 Karere provides an autmated system for building webrtc for any of the supported
@@ -68,11 +70,11 @@ several issues (use normal openssl instead of its own included boringssl
 lib, replace macos capturer that uses obsolete API and problematic threading
 model with modified iOS capturer, etc).
 
-*IMPORTANT*
+*IMPORTANT*  
 Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh
 
-*Android*
-You need to set ANDROID_NDK to an NDK installation. THe current webrtc revision
+*Android*  
+You need to set ANDROID_NDK to an NDK installation. The current webrtc revision
 has been tested with NDK r10d.
 
 ### Verify the build ###
@@ -157,11 +159,11 @@ All network libraries in karere-native (libstrophe, libws, libcurl) use libevent
 The usage pattern is as follows: a callback is registered for a certain event (socket I/O event, timer, etc), and that callback is called by *the libevent thread* when the event occurs. If the event may propagate outside the library whose callback is called, and especially to the GUI, then, at some point, event processing must be marshalled to the GUI thread, using the GCM mechanism. However, if the event is internal and never propagates outside the library then it can be handled directly in the context of the libevent thread (provided that it never blocks it). This saves the performance cost of marshalling it to the GUI thread, and is recommended if the event occurs at a high frequency, e.g. an incoming data chunk event that only needs the data appended to a buffer. When the transfer is complete, a completion event can be marshalled on the GUI thread once per transfer, combining the advantages of both approaches.
 
 ## Logger ##
-Karere has an advanced logging facility that supports file and console logging with color, log file rotation, multiple log channels, each with individual log level. Log levels are configured at runtime (at startup), and not at compile time (i.e. not by disabling log macros). This allows a release-built app to enable full debug logging for any channels. Log channels are defined and default-configured in src/base/loggerChannelConfig.h. The file contains detailed documentation. For convenience, dedicated logging macros for each channel are usually defined in the code that uses it - see the XXX_LOG_DEBUG/WARN/ERROR macros in karereCommon.h for examples. The SDK user is free to create additional log channels if needed. A GUI log channel is already  defined. Log channel configuration can be overriden at runtime by the KRLOG environment variable. Its format is as follows:    
-        ```KRLOG=<chan name>=<log level>,<chan name2>=<log level2>...```    
-    Log levels are 'off', 'error', 'warn', 'info', 'verbose', 'debug', 'debugv'.
-    There is one special channel name - 'all'. Setting the log level of this channel sets the log levels of all channels. This allows for example to easily silence all channels except one (or few), by:
-       ```KRLOG=all=warn,mychannel=debug,myotherchannel=info```   
+Karere has an advanced logging facility that supports file and console logging with color, log file rotation, multiple log channels, each with individual log level. Log levels are configured at runtime (at startup), and not at compile time (i.e. not by disabling log macros). This allows a release-built app to enable full debug logging for any channels. Log channels are defined and default-configured in src/base/loggerChannelConfig.h. The file contains detailed documentation. For convenience, dedicated logging macros for each channel are usually defined in the code that uses it - see the XXX_LOG_DEBUG/WARN/ERROR macros in karereCommon.h for examples. The SDK user is free to create additional log channels if needed. A GUI log channel is already  defined. Log channel configuration can be overriden at runtime by the KRLOG environment variable. Its format is as follows:  
+    ```KRLOG=<chan name>=<log level>,<chan name2>=<log level2>...```  
+    Log levels are 'off', 'error', 'warn', 'info', 'verbose', 'debug', 'debugv'.    
+    There is one special channel name - 'all'. Setting the log level of this channel sets the log levels of all channels. This allows for example to easily silence all channels except one (or few), by:  
+    ```KRLOG=all=warn,mychannel=debug,myotherchannel=info```   
     The same channel can be configured multiple times, and only the last setting will be effective, which makes the above trick possible.  
 Karere requires the function karere::getAppDir() to be defined by the application at compile time, in order to know where to create the log file and start logging as early as possible, before main() is entered. If karere is build as a static lib, this is not a problem. In case of dynamic lib, this function has to be a weak symbol, so that karere itself can compile without the function implementation, and the implementation to be linked when the karere shared lib is loaded at app startup. Weak symbols are not really portable across compilers, and this may be a problem. However they are supported by both gcc and clang. If no weak symbols are supported, karer ehas to be built as static lib.
 
