@@ -3,11 +3,20 @@ set -e
 # The default revision of the webrtc repository to use, unlesss overridded with --revision
 # This revision is giaranteed to work with the current state of the karere-native and webrtc-build codebase
 #revision='e2d83d6560272ee68cf99c4fd4f78a437adeb98c' - on ios this requires XCode 7, so we use a revision that is a bit (1 day) older
+
 revision='9ac4df1ba66d39c3621cfb2e8ed08ae39658b793'
 
 if (( $# < 2 )); then
-   echo "Not enough arguments"
-   echo "Usage: $(basename $0) <webrtc-output-dir> --platform <linux|macos|ios|android> [--deproot <prefix-of-dependencies>>] [--revision <rev>] [--batch]"
+   echo -e "\n\033[1;31mNot enough arguments\033[1;0m\n\n\
+Usage: $(basename $0) <webrtc-output-dir> --platform <linux|macos|ios|android>\n\
+                      [--deproot <prefix-of-dependencies>>] [--revision <rev>] [--batch]\n\n\
+\033[1;31mIMPORTANT\033[1;0m:\n\
+In case you have any of the required libs in a nonstandard location\n\
+(i.e. not automatically picked up by the compiler) you must set\n\
+WEBRTC_DEPS_INCLUDE and WEBRTC_DEPS_LIB environment variables\n\
+to the include and lib directory that contain these libs\n\
+For example, when building for android, you will probably need to set\n\
+these variables to the sysroot/usr/include and sysroot/usr/lib respectively"
    exit 1
 fi
 function checkPlatformValid
