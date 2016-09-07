@@ -242,7 +242,7 @@ public:
  */
 class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
 {
-/** @cond PRIAVATE */
+/** @cond PRIVATE */
 public:
     Client& client;
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms);
