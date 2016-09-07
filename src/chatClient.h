@@ -364,6 +364,7 @@ class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener
 {
 protected:
     std::string mAppDir;
+    bool mContactsLoaded = false;
 public:
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
@@ -386,8 +387,8 @@ public:
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
     std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
-    bool mChatsLoaded = false;
-    std::shared_ptr<::mega::MegaTextChatList> mInitialChats;
+    bool contactsLoaded() const { return mContactsLoaded; }
+    std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
     bool isLoggedIn() const { return mIsLoggedIn; }
     const Id myHandle() const { return mMyHandle; }
     /** @brief Our own display name */
@@ -519,7 +520,7 @@ protected:
     karere::Id getMyHandleFromSdk();
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
-    void loadContactlistFromSdk();
+    void loadContactListFromApi();
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
     void setupXmppReconnectHandler();
     promise::Promise<void> connectXmpp(const std::shared_ptr<HostPortServerInfo>& server);

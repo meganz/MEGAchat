@@ -70,7 +70,6 @@ public:
         printf("msg.type = %d\n", msg.type);
         if (msg.type == (int)strongvelope::SVCRYPTO_MSGTYPE_CHAT_TITLE)
         {
-            printf("title = %s\nmsg: '%.*s'\n", msg.toString().c_str(), msg.dataSize(), msg.buf());
             std::string display = "<Chat title was set by user ";
             display.append(msg.userid.toString());
             display.append(" to '").append(msg.buf(), msg.dataSize())
@@ -661,7 +660,7 @@ public:
         mRoom.onUserJoin(userid, priv);
     }
     virtual void onUserLeave(karere::Id userid) { mRoom.onUserLeave(userid); }
-    virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, int reason);
+    virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //IChatWindow interface
     virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }
     virtual void onTitleChanged(const std::string& title)
