@@ -357,3 +357,41 @@ int MegaChatPeerList::size() const
 {
     return 0;
 }
+
+
+void MegaChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char *buffer)
+{
+
+}
+
+
+void MegaChatCallListener::onChatCallStart(MegaChatApi *api, MegaChatCall *call)
+{
+
+}
+
+void MegaChatCallListener::onChatCallStateChange(MegaChatApi *api, MegaChatCall *call)
+{
+
+}
+
+void MegaChatCallListener::onChatCallTemporaryError(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
+{
+
+}
+
+void MegaChatCallListener::onChatCallFinish(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
+{
+
+}
+
+
+void MegaChatGlobalListener::onOnlineStatusUpdate(MegaChatApi *api, MegaChatApi::Status status)
+{
+
+}
+
+void MegaChatGlobalListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoomList *chats)
+{
+
+}
