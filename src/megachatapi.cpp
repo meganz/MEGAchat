@@ -106,6 +106,26 @@ void MegaChatApi::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int pri
     pImpl->inviteToChat(chatid, uh, privilege, listener);
 }
 
+void MegaChatApi::removeFromChat(MegaChatHandle chatid, MegaChatHandle uh, MegaChatRequestListener *listener)
+{
+    pImpl->removeFromChat(chatid, uh, listener);
+}
+
+void MegaChatApi::updateChatPermissions(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener)
+{
+    pImpl->updateChatPermissions(chatid, uh, privilege, listener);
+}
+
+void MegaChatApi::truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener)
+{
+    pImpl->truncateChat(chatid, messageid, listener);
+}
+
+void MegaChatApi::setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener)
+{
+    pImpl->setChatTitle(chatid, title, listener);
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();
@@ -250,6 +270,11 @@ MegaHandle MegaChatRequest::getUserHandle()
 int MegaChatRequest::getPrivilege()
 {
     return MegaChatPeerList::PRIV_UNKNOWN;
+}
+
+const char *MegaChatRequest::getText() const
+{
+    return NULL;
 }
 
 MegaChatRoomList *MegaChatRoomList::copy() const

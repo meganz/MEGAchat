@@ -353,12 +353,12 @@ public:
         TYPE_START_CHAT_CALL, TYPE_ANSWER_CHAT_CALL,
         TYPE_MUTE_CHAT_CALL, TYPE_HANG_CHAT_CALL,
         TYPE_SEND_MESSAGE, TYPE_EDIT_MESSAGE, TYPE_DELETE_MESSAGE,
-        TYPE_CREATE_CHATROOM, TYPE_REMOVE_CHATROOM,
+        TYPE_CREATE_CHATROOM, TYPE_REMOVE_FROM_CHATROOM,
         TYPE_INVITE_TO_CHATROOM, TYPE_UPDATE_PEER_PERMISSIONS,
-        TYPE_GRANT_ACCESS, TYPE_REMOVE_ACCESS,
-        TYPE_GET_HISTORY, TYPE_CHAT_TRUNCATE,
-        TYPE_SHARE_CONTACT,
-        TYPE_EDIT_CHATROOM_NAME, TYPE_EDIT_CHATROOM_PIC
+        TYPE_EDIT_CHATROOM_NAME, TYPE_EDIT_CHATROOM_PIC,
+        TYPE_TRUNCATE_HISTORY, TYPE_GET_HISTORY,
+//        TYPE_GRANT_ACCESS, TYPE_REMOVE_ACCESS,
+        TYPE_SHARE_CONTACT
     };
 
     virtual ~MegaChatRequest();
@@ -463,6 +463,16 @@ public:
      * @return The access level of the user in the chat
      */
     virtual int getPrivilege();
+
+    /**
+     * @brief Returns a text relative to this request
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * @return Text relative to this request
+     */
+    virtual const char *getText() const;
 };
 
 /**
@@ -734,14 +744,102 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param uh MegaChatHandle that identifies the user
      * @param privilege Privilege level for the new peers. Valid values are:
-     * - MegaChatPeerList::PRIV_UNKNOWN = -2
-     * - MegaChatPeerList::PRIV_RM = -1
      * - MegaChatPeerList::PRIV_RO = 0
      * - MegaChatPeerList::PRIV_STANDARD = 2
      * - MegaChatPeerList::PRIV_MODERATOR = 3
      * @param listener MegaChatRequestListener to track this request
      */
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Remove yourself or another user from a chat. To remove a user other than
+     * yourself you need to have the operator/moderator privilege. Only a group chat may be left.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the MegaChatHandle of the user to be removed
+     *
+     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to remove peers.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot remove peers)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param uh MegaChatHandle that identifies the user. If not provided (INVALID_HANDLE), the requester is removed
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allows a logged in operator/moderator to adjust the permissions on any other user
+     * in their group chat. This does not work for a 1:1 chat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the MegaChatHandle of the user whose permission
+     * is to be upgraded
+     * - MegaChatRequest::getPrivilege - Returns the privilege level wanted for the user
+     *
+     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to update the privilege level.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param uh MegaChatHandle that identifies the user
+     * @param privilege Privilege level for the existing peer. Valid values are:
+     * - MegaChatPeerList::PRIV_RO = 0
+     * - MegaChatPeerList::PRIV_STANDARD = 2
+     * - MegaChatPeerList::PRIV_MODERATOR = 3
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void updateChatPermissions(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allows a logged in operator/moderator to truncate their chat, i.e. to clear
+     * the entire chat history up to a certain message. All earlier messages are wiped,
+     * but his specific message gets overridden with an API message.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the message identifier to truncate from.
+     *
+     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param messageid MegaChatHandle that identifies the message to truncate from
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allows to set the title of a group chat
+     *
+     * Only participants with privilege level MegaChatPeerList::PRIV_MODERATOR are allowed to
+     * set the title of a chat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_EDIT_CHATROOM_NAME
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     *
+     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers.
+     * - MegaChatError::ERROR_ARGS - If there's a title and it's not Base64url encoded.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param title Null-terminated character string with the title that wants to be set.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
+
+
 
     // Audio/Video device management
     mega::MegaStringList *getChatAudioInDevices();

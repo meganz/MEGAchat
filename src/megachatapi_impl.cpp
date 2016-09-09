@@ -276,7 +276,6 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             ((GroupChatRoom *)chatroom)->invite(uh, privilege)
-//            mClient->api.call(&::MegaApi::inviteToChat, chatid, uid, privilege)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -289,7 +288,181 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
+            break;
+        }
+        case MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS:
+        {
+            handle chatid = request->getChatHandle();
+            handle uh = request->getUserHandle();
+            int privilege = request->getPrivilege();
 
+            if (chatid == INVALID_HANDLE || uh == INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            ChatRoomList::iterator it = mClient->chats->find(chatid);
+            if (it == mClient->chats->end())
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+            ChatRoom *chatroom = it->second;
+            if (chatroom->ownPriv() != (chatd::Priv) MegaChatPeerList::PRIV_MODERATOR)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            mClient->api.call(&MegaApi::updateChatPermissions, chatid, uh, privilege)
+            .then([request, this](ReqResult result)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                KR_LOG_ERROR("Error updating peer privileges: ", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
+        case MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM:
+        {
+            handle chatid = request->getChatHandle();
+            handle uh = request->getUserHandle();
+
+            if (chatid == INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            ChatRoomList::iterator it = mClient->chats->find(chatid);
+            if (it == mClient->chats->end())
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+            ChatRoom *chatroom = it->second;
+            if (!chatroom->isGroup())   // only for group chats can be left
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            if (chatroom->ownPriv() != (chatd::Priv) MegaChatPeerList::PRIV_MODERATOR)
+            {
+                if (uh != INVALID_HANDLE)
+                {
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+                else    // uh is optional. If not provided, own user wants to leave the chat
+                {
+                    uh = mClient->myHandle();
+                }
+            }
+
+            mClient->api.call(&MegaApi::removeFromChat, chatid, uh)
+            .then([request, this](ReqResult result)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                KR_LOG_ERROR("Error removing peer from chat: ", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
+        case MegaChatRequest::TYPE_TRUNCATE_HISTORY:
+        {
+            handle chatid = request->getChatHandle();
+            handle messageid = request->getUserHandle();
+            if (chatid == INVALID_HANDLE || messageid == INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            ChatRoomList::iterator it = mClient->chats->find(chatid);
+            if (it == mClient->chats->end())
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+            ChatRoom *chatroom = it->second;
+            if (chatroom->ownPriv() != (chatd::Priv) MegaChatPeerList::PRIV_MODERATOR)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            mClient->api.call(&MegaApi::truncateChat, chatid, messageid)
+            .then([request, this](ReqResult result)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                KR_LOG_ERROR("Error truncating chat history: ", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
+        case MegaChatRequest::TYPE_EDIT_CHATROOM_NAME:
+        {
+            handle chatid = request->getChatHandle();
+            const char *title = request->getText();
+            if (chatid == INVALID_HANDLE || title == NULL)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            ChatRoomList::iterator it = mClient->chats->find(chatid);
+            if (it == mClient->chats->end())
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+            ChatRoom *chatroom = it->second;
+            if (!chatroom->isGroup())   // only for group chats have a title
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            if (chatroom->ownPriv() != (chatd::Priv) MegaChatPeerList::PRIV_MODERATOR)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            string strTitle(title);
+            ((GroupChatRoom *)chatroom)->setTitle(strTitle)
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                KR_LOG_ERROR("Error editing chat title: ", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
             break;
         }
         default:
@@ -545,6 +718,43 @@ void MegaChatApiImpl::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int
     request->setChatHandle(chatid);
     request->setUserHandle(uh);
     request->setPrivilege(privilege);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::removeFromChat(MegaChatHandle chatid, MegaChatHandle uh, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(uh);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::updateChatPermissions(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(uh);
+    request->setPrivilege(privilege);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_TRUNCATE_HISTORY, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(messageid);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_EDIT_CHATROOM_NAME, listener);
+    request->setChatHandle(chatid);
+    request->setText(title);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -898,6 +1108,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->chatid = INVALID_HANDLE;
     this->userHandle = INVALID_HANDLE;
     this->privilege = MegaChatPeerList::PRIV_UNKNOWN;
+    this->text = NULL;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
@@ -913,10 +1124,13 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setChatHandle(request.getChatHandle());
     this->setUserHandle(request.getUserHandle());
     this->setPrivilege(request.getPrivilege());
+    this->setText(request.getText());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
 {
+    delete peerList;
+    delete [] text;
 }
 
 MegaChatRequest *MegaChatRequestPrivate::copy()
@@ -933,6 +1147,10 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_ONLINE_STATUS: return "SET_CHAT_STATUS";
         case TYPE_CREATE_CHATROOM: return "CREATE CHATROOM";
         case TYPE_INVITE_TO_CHATROOM: return "INVITE_TO_CHATROOM";
+        case TYPE_REMOVE_FROM_CHATROOM: return "REMOVE_FROM_CHATROOM";
+        case TYPE_UPDATE_PEER_PERMISSIONS: return "UPDATE_PEER_PERMISSIONS";
+        case TYPE_TRUNCATE_HISTORY: return "TRUNCATE_HISTORY";
+        case TYPE_EDIT_CHATROOM_NAME: return "EDIT_CHATROOM_NAME";
 
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
@@ -990,6 +1208,11 @@ int MegaChatRequestPrivate::getPrivilege()
     return privilege;
 }
 
+const char *MegaChatRequestPrivate::getText() const
+{
+    return text;
+}
+
 int MegaChatRequestPrivate::getTag() const
 {
     return tag;
@@ -1041,6 +1264,15 @@ void MegaChatRequestPrivate::setUserHandle(MegaChatHandle userhandle)
 void MegaChatRequestPrivate::setPrivilege(int priv)
 {
     this->privilege = priv;
+}
+
+void MegaChatRequestPrivate::setText(const char *text)
+{
+    if(this->text)
+    {
+        delete [] this->text;
+    }
+    this->text = MegaApi::strdup(text);
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const shared_ptr<rtcModule::ICallAnswer> &ans)

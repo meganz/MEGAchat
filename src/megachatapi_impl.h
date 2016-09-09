@@ -64,6 +64,7 @@ public:
     virtual MegaChatHandle getChatHandle();
     virtual MegaChatHandle getUserHandle();
     virtual int getPrivilege();
+    virtual const char *getText() const;
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -74,6 +75,7 @@ public:
     void setChatHandle(MegaChatHandle chatid);
     void setUserHandle(MegaChatHandle userhandle);
     void setPrivilege(int priv);
+    void setText(const char *text);
 
 protected:
     int type;
@@ -87,6 +89,7 @@ protected:
     MegaChatHandle chatid;
     MegaChatHandle userHandle;
     int privilege;
+    const char* text;
 };
 
 class MegaChatVideoReceiver;
@@ -451,8 +454,13 @@ public:
     MegaChatRoomList* getChatRooms();
 
     // Chatrooms management
-    void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener);
-    void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener);
+    void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
+    void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
+    void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void updateChatPermissions(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
+    void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
+    void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
+
 
     // Audio/Video devices
     mega::MegaStringList *getChatAudioInDevices();
