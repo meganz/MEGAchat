@@ -68,7 +68,7 @@ MegaChatApiImpl::~MegaChatApiImpl()
     thread.join();
 }
 
-void MegaChatApiImpl::init(megachat::MegaChatApi *chatApi, mega::MegaApi *megaApi)
+void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
 {
     this->chatApi = chatApi;
     this->megaApi = megaApi;
@@ -103,7 +103,7 @@ void MegaChatApiImpl::loop()
     // karere initialization
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
-    this->mClient = new karere::Client(*this->megaApi, *this, karere::Presence::kOnline);
+    this->mClient = new Client(*this->megaApi, *this, Presence::kOnline);
 
     while (true)
     {
@@ -228,9 +228,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            mega::MegaTextChatPeerListPrivate peers;
+            MegaTextChatPeerListPrivate peers;
             peers.addPeer(mClient->myHandle(), MegaChatRoom::PRIV_STANDARD);
-            mClient->api.call(&mega::MegaApi::createChat, group, &peers)
+            mClient->api.call(&MegaApi::createChat, group, &peers)
             .then([request, this](ReqResult result)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -257,13 +257,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            karere::ChatRoomList::iterator it = mClient->chats->find(chatid);
+            ChatRoomList::iterator it = mClient->chats->find(chatid);
             if (it == mClient->chats->end())
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
-            karere::ChatRoom *chatroom = it->second;
+            ChatRoom *chatroom = it->second;
             if (!chatroom->isGroup())   // invite only for group chats
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -275,8 +275,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            ((karere::GroupChatRoom *)chatroom)->invite(uh, privilege)
-//            mClient->api.call(&::mega::MegaApi::inviteToChat, chatid, uid, privilege)
+            ((GroupChatRoom *)chatroom)->invite(uh, privilege)
+//            mClient->api.call(&::MegaApi::inviteToChat, chatid, uid, privilege)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -691,7 +691,7 @@ void MegaChatApiImpl::removeChatRequestListener(MegaChatRequestListener *listene
 //    sdkMutex.lock();
     requestListeners.erase(listener);
 
-    std::map<int,MegaChatRequestPrivate*>::iterator it = requestMap.begin();
+    map<int,MegaChatRequestPrivate*>::iterator it = requestMap.begin();
     while (it != requestMap.end())
     {
         MegaChatRequestPrivate* request = it->second;
@@ -743,7 +743,7 @@ void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)
     //    sdkMutex.unlock();
 }
 
-karere::IApp::IChatHandler *MegaChatApiImpl::createChatHandler(karere::ChatRoom &room)
+IApp::IChatHandler *MegaChatApiImpl::createChatHandler(ChatRoom &room)
 {
     // TODO: create the chat handler and add listeners to it
     // TODO: return the object implementing IChatHandler
@@ -751,7 +751,7 @@ karere::IApp::IChatHandler *MegaChatApiImpl::createChatHandler(karere::ChatRoom 
     return NULL;
 }
 
-karere::IApp::IContactListHandler& MegaChatApiImpl::contactListHandler()
+IApp::IContactListHandler& MegaChatApiImpl::contactListHandler()
 {
     return *this;
 }
@@ -761,19 +761,19 @@ void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
     // it is notified to the app by the existing MegaApi
 }
 
-rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const shared_ptr<rtcModule::ICallAnswer> &ans)
 {
     // TODO: create the call object implementing IEventHandler and return it
     return new MegaChatCallPrivate(ans);
 }
 
-karere::IApp::IContactListItem *MegaChatApiImpl::addContactItem(karere::Contact &contact)
+IApp::IContactListItem *MegaChatApiImpl::addContactItem(Contact &contact)
 {
     // TODO: create the object MegaChatListItemHandler, save it in a list and return it
     return new MegaChatListItemHandler();
 }
 
-karere::IApp::IContactListItem *MegaChatApiImpl::addGroupChatItem(karere::GroupChatRoom &room)
+IApp::IContactListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
 {
     // TODO: create the object MegaChatListItemHandler, save it in a list and return it
     return new MegaChatListItemHandler();
@@ -789,7 +789,7 @@ void MegaChatApiImpl::removeGroupChatItem(IContactListItem *item)
     // TODO: remove the corresponding MegaChatListItemHandler from the list
 }
 
-karere::IApp::IChatHandler& MegaChatApiImpl::chatHandlerForPeer(uint64_t handle)
+IApp::IChatHandler& MegaChatApiImpl::chatHandlerForPeer(uint64_t handle)
 {
     // TODO: create a new chatroomhandler and keep the reference, so events can
     // be processed and notified to the app
@@ -797,7 +797,7 @@ karere::IApp::IChatHandler& MegaChatApiImpl::chatHandlerForPeer(uint64_t handle)
     return *chatroomHandler;
 }
 
-void MegaChatApiImpl::onOwnPresence(karere::Presence pres)
+void MegaChatApiImpl::onOwnPresence(Presence pres)
 {
     this->status = (MegaChatApi::Status) pres.status();
     fireOnOnlineStatusUpdate(status);
@@ -840,7 +840,7 @@ void ChatRequestQueue::removeListener(MegaChatRequestListener *listener)
 {
     mutex.lock();
 
-    std::deque<MegaChatRequestPrivate *>::iterator it = requests.begin();
+    deque<MegaChatRequestPrivate *>::iterator it = requests.begin();
     while(it != requests.end())
     {
         MegaChatRequestPrivate *request = (*it);
@@ -1043,7 +1043,7 @@ void MegaChatRequestPrivate::setPrivilege(int priv)
     this->privilege = priv;
 }
 
-MegaChatCallPrivate::MegaChatCallPrivate(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+MegaChatCallPrivate::MegaChatCallPrivate(const shared_ptr<rtcModule::ICallAnswer> &ans)
 {
     mAns = ans;
     this->peer = mAns->call()->peerJid().c_str();
@@ -1054,7 +1054,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const std::shared_ptr<rtcModule::ICallA
 
 MegaChatCallPrivate::MegaChatCallPrivate(const char *peer)
 {
-    this->peer = mega::MegaApi::strdup(peer);
+    this->peer = MegaApi::strdup(peer);
     status = 0;
     tag = 0;
     videoReceiver = NULL;
@@ -1063,7 +1063,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const char *peer)
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
 {
-    this->peer = mega::MegaApi::strdup(call.getPeer());
+    this->peer = MegaApi::strdup(call.getPeer());
     this->status = call.getStatus();
     this->tag = call.getTag();
     this->videoReceiver = NULL;
@@ -1132,7 +1132,7 @@ void MegaChatCallPrivate::setVideoReceiver(MegaChatVideoReceiver *videoReceiver)
     this->videoReceiver = videoReceiver;
 }
 
-std::shared_ptr<rtcModule::ICall> MegaChatCallPrivate::call() const
+shared_ptr<rtcModule::ICall> MegaChatCallPrivate::call() const
 {
     return nullptr;
 }
@@ -1142,7 +1142,7 @@ bool MegaChatCallPrivate::reqStillValid() const
     return false;
 }
 
-std::set<string> *MegaChatCallPrivate::files() const
+set<string> *MegaChatCallPrivate::files() const
 {
     return NULL;
 }
@@ -1230,7 +1230,7 @@ void MegaChatRoomHandler::onTitleChanged(const string &title)
 
 }
 
-void MegaChatRoomHandler::onPresenceChanged(karere::Presence state)
+void MegaChatRoomHandler::onPresenceChanged(Presence state)
 {
 
 }
@@ -1357,7 +1357,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->title = chat->getTitle();
 }
 
-MegaChatRoomPrivate::MegaChatRoomPrivate(karere::ChatRoom *chat)
+MegaChatRoomPrivate::MegaChatRoomPrivate(ChatRoom *chat)
 {
     this->id = chat->chatid();
     this->priv = chat->ownPriv();
@@ -1367,11 +1367,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(karere::ChatRoom *chat)
 
     if (group)
     {
-        karere::GroupChatRoom *groupchat = (GroupChatRoom*) chat;
+        GroupChatRoom *groupchat = (GroupChatRoom*) chat;
 
-        karere::GroupChatRoom::MemberMap peers = groupchat->peers();
+        GroupChatRoom::MemberMap peers = groupchat->peers();
 
-        karere::GroupChatRoom::MemberMap::iterator it;
+        GroupChatRoom::MemberMap::iterator it;
         for (it = peers.begin(); it != peers.end(); it++)
         {
             this->peers.push_back(userpriv_pair(it->first,
@@ -1439,7 +1439,7 @@ void MegaChatListItemHandler::onTitleChanged(const string &title)
 
 }
 
-void MegaChatListItemHandler::onPresenceChanged(karere::Presence state)
+void MegaChatListItemHandler::onPresenceChanged(Presence state)
 {
 
 }
