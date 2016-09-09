@@ -1,3 +1,5 @@
+#!/usr/bin/python2
+
 # Links chromium stuff onto the webrtc tree. Must be run in webrtc tree's src directory
 import subprocess
 import os

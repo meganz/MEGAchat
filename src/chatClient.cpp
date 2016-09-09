@@ -199,7 +199,11 @@ promise::Promise<ReqResult> Client::sdkLoginNewSession()
 }
 promise::Promise<ReqResult> Client::sdkLoginExistingSession(const std::string& sid)
 {
-    return api.call(&::mega::MegaApi::fastLogin, sid.c_str());
+    return api.call(&::mega::MegaApi::fastLogin, sid.c_str())
+    .then([this](ReqResult)
+    {
+        return api.call(&::mega::MegaApi::fetchNodes);
+    });
 }
 promise::Promise<void> Client::loginSdkAndInit()
 {
@@ -224,12 +228,15 @@ promise::Promise<void> Client::loginSdkAndInit()
         });
     }
 }
-void Client::loadContactlistFromSdk()
+void Client::loadContactListFromApi()
 {
+    auto contacts = api.sdk.getContacts();
+    assert(contacts);
 #ifndef NDEBUG
-        dumpContactList(*api.sdk.getContacts());
+    dumpContactList(*contacts);
 #endif
-        contactList->syncWithApi(*api.sdk.getContacts());
+    contactList->syncWithApi(*contacts);
+    mContactsLoaded = true;
 }
 
 promise::Promise<void> Client::initWithNewSession()
@@ -245,13 +252,15 @@ promise::Promise<void> Client::initWithNewSession()
     return loadOwnKeysFromApi()
     .then([this]()
     {
-        auto contacts = api.sdk.getContacts();
-        assert(contacts);
-        contactList->syncWithApi(*contacts);
+        loadContactListFromApi();
         chatd.reset(new chatd::Client(mMyHandle));
-        if (mInitialChats)
+        if (!mInitialChats.empty())
         {
-            chats->addMissingRoomsFromApi(*mInitialChats);
+            for (auto& list: mInitialChats)
+            {
+                chats->onChatsUpdate(list);
+            }
+            mInitialChats.clear();
         }
     });
 }
@@ -261,6 +270,7 @@ void Client::initWithExistingSession()
     loadOwnUserHandleFromDb();
     loadOwnKeysFromDb();
     contactList->loadFromDb();
+    loadContactListFromApi();
     chatd.reset(new chatd::Client(mMyHandle));
     chats->loadFromDb();
 }
@@ -271,21 +281,33 @@ void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
     for (int i=0; i<chatRooms.size(); i++)
     {
         auto& room = *chatRooms.get(i);
-        KR_LOG_DEBUG("%s(%s):", Id(room.getHandle()).toString().c_str(), room.isGroup()?"group":"1on1");
+        if (room.isGroup())
+        {
+            KR_LOG_DEBUG("%s(group, ownPriv: %d):", Id(room.getHandle()).toString().c_str(), room.getOwnPrivilege());
+        }
+        else
+        {
+            KR_LOG_DEBUG("%s(1on1)", Id(room.getHandle()).toString().c_str());
+        }
         auto peers = room.getPeerList();
         if (!peers)
         {
             KR_LOG_DEBUG("  (room has no peers)");
             continue;
         }
+        auto url = room.getUrl();
+        if (!url || (url[0] == 0))
+        {
+            KR_LOG_DEBUG("(Room has no url)");
+        }
         for (int j = 0; j<peers->size(); j++)
-            KR_LOG_DEBUG("  %s", Id(peers->getPeerHandle(j)).toString().c_str());
+            KR_LOG_DEBUG("  %s: %d", Id(peers->getPeerHandle(j)).toString().c_str(), peers->getPeerPrivilege(j));
     }
     KR_LOG_DEBUG("=== Chatroom list end ===");
 }
 void Client::dumpContactList(::mega::MegaUserList& clist)
 {
-    KR_LOG_DEBUG("Contactlist received from API:");
+    KR_LOG_DEBUG("== Contactlist received from API: ==");
     for (int i=0; i< clist.size(); i++)
     {
         auto& user = *clist.get(i);
@@ -380,6 +402,7 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         sqliteQuery(db, "insert into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
         sqliteQuery(db, "insert into vars(name, value) values('pub_rsa', ?)", StaticBuffer(mMyPubRsa, mMyPubRsaLen));
         sqliteQuery(db, "insert into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
+        KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });
 }
@@ -980,13 +1003,12 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
-    if (!mChatsLoaded)
+    if (!mContactsLoaded)
     {
-        mChatsLoaded = true;
         marshallCall([this, copy]()
         {
-            printf("onChatsUpdate: initial\n");
-            mInitialChats = copy;
+            KR_LOG_DEBUG("onChatsUpdate: no contactlist yet, caching the update info");
+            mInitialChats.push_back(copy);
         });
     }
     else
@@ -1000,8 +1022,6 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 
 void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
 {
-    printf("onChatsUpdate - not initial\n");
-    client.dumpChatrooms(*rooms);
     addMissingRoomsFromApi(*rooms);
     for (int i=0; i<rooms->size(); i++)
     {
@@ -1407,12 +1427,23 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
+    KR_LOG_DEBUG("Syncing group chatroom %s with API...", Id(mChatid).toString().c_str());
     bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);
     UserPrivMap membs;
     changed |= syncMembers(apiMembersToMap(chat, membs));
     auto title = chat.getTitle();
     if (title)
+    {
         mEncryptedTitle = title;
+        if (parent.client.contactsLoaded())
+        {
+            decryptTitle();
+        }
+    }
+    if (changed)
+        KR_LOG_DEBUG("...room updated");
+    else
+        KR_LOG_ERROR("...no changes");
     return changed;
 }
 
@@ -1552,7 +1583,7 @@ promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
 {
     auto it = find(userid);
     if (it == end())
-        return promise::Error("Userid not in contactlist");
+        return promise::Error("User "+karere::Id(userid).toString()+" not in contactlist");
 
     auto& api = client.api;
     std::unique_ptr<mega::MegaUser> user(api.sdk.getContact(it->second->email().c_str()));
@@ -1672,11 +1703,12 @@ ContactList::attachRoomToContact(const uint64_t& userid, PeerChatRoom& room)
 {
     auto it = find(userid);
     if (it == end())
-        throw std::runtime_error("attachRoomToContact: userid '"+ Id(userid)+"' not found in contactlist");
+        throw std::runtime_error("attachRoomToContact[room "+Id(room.chatid()).toString()+ "]: user "+ Id(userid).toString()+" not found in contactlist");
 
     auto& contact = *it->second;
     if (contact.mChatRoom)
-        throw std::runtime_error("attachRoomToContact: contact already has a chat room attached");
+        throw std::runtime_error("attachRoomToContact[room "+Id(room.chatid()).toString()+ "]: contact "+
+            Id(userid).toString()+" already has a chat room attached");
     CHAT_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", Id(room.chatid()).toString().c_str(), Id(userid).toString().c_str());
     contact.setChatRoom(room);
     room.setContact(contact);

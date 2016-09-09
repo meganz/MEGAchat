@@ -1,3 +1,5 @@
+#!/usr/bin/python2
+
 # This script edits a gclient DEPS file and removed the specified dependencies and hooks.
 
 import re
