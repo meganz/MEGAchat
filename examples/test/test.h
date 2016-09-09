@@ -45,7 +45,7 @@ protected:
     void log(const char *time, int loglevel, const char *source, const char *message);
 };
 
-class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener
+class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaChatGlobalListener
 {
 public:
     MegaSdkTest();
@@ -90,6 +90,11 @@ public:
     void onRequestFinish(MegaChatApi* api, MegaChatRequest *request, MegaChatError* e);
     void onRequestUpdate(MegaChatApi*api, MegaChatRequest *request) {}
     void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaChatError* error) {}
+
+    // implementation for MegaChatGlobalListener
+    void onOnlineStatusUpdate(MegaChatApi* api, MegaChatApi::Status status);
+    void onChatRoomUpdate(MegaChatApi* api, MegaChatRoomList *chats);
+
 
 //    void onUsersUpdate(MegaApi* api, MegaUserList *users);
 //    void onNodesUpdate(MegaApi* api, MegaNodeList *nodes);

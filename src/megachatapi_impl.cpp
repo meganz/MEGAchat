@@ -649,8 +649,6 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int wi
 
 void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoomList *chats)
 {
-    KR_LOG_INFO("Initialization complete");
-
     for(set<MegaChatGlobalListener *>::iterator it = globalListeners.begin(); it != globalListeners.end() ; it++)
     {
         (*it)->onChatRoomUpdate(chatApi, chats);
@@ -669,9 +667,11 @@ void MegaChatApiImpl::fireOnOnlineStatusUpdate(MegaChatApi::Status status)
 
 void MegaChatApiImpl::init()
 {
-//    sdkMutex.lock();
     mClient->initWithExistingSession();
-//    sdkMutex.unlock();
+
+    KR_LOG_INFO("Initialization complete");
+
+    fireOnChatRoomUpdate(NULL);
 }
 
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)

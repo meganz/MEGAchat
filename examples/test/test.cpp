@@ -125,6 +125,16 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
     }
 }
 
+void MegaSdkTest::onOnlineStatusUpdate(MegaChatApi *api, MegaChatApi::Status status)
+{
+    KR_LOG_DEBUG("Online status has been updated: %d", status);
+}
+
+void MegaSdkTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoomList *chats)
+{
+    KR_LOG_DEBUG("%s chats added or updated", chats->size());
+}
+
 void MegaSdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
 {
     unsigned int apiIndex;

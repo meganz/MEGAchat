@@ -927,9 +927,11 @@ public:
      * @brief This funtion is called when there are new or updated chats in the account
      *
      * When the chat engine is fully initialized, this function is also called, but
-     * the second parameter will be NULL. @note that it can work offline, so the
-     * connection to the chat servers may not have been established yet. Wait for
-     * MegaChatRequestListener::onRequestFinish response to ensure the connection is established.
+     * the second parameter will be NULL.
+     *
+     * @note that it can work offline, so the connection to the chat servers may not
+     * have been established yet (wait for completion of MegaChatApi::connect in order to
+     * ensure the connection is established).
      *
      * The SDK retains the ownership of the MegaChatRoomList in the second parameter. The list
      * and all the MegaChatRoom objects that it contains will be valid until this function returns.
