@@ -263,7 +263,7 @@ class MegaChatPeerListPrivate : public MegaChatPeerList
 {
 public:
     MegaChatPeerListPrivate();
-    MegaChatPeerListPrivate(userpriv_vector *);
+    MegaChatPeerListPrivate(mega::userpriv_vector *);
 
     virtual ~MegaChatPeerListPrivate();
     virtual MegaChatPeerList *copy() const;
@@ -273,10 +273,10 @@ public:
     virtual int size() const;
 
     // returns the list of user-privilege (this object keeps the ownership)
-    const userpriv_vector * getList() const;
+    const mega::userpriv_vector * getList() const;
 
 private:
-    userpriv_vector list;
+    mega::userpriv_vector list;
 };
 
 class MegaChatRoomPrivate : public MegaChatRoom
@@ -297,11 +297,11 @@ public:
     virtual const char *getTitle() const;
 
 private:
-    handle id;
+    mega::handle id;
     int priv;
-    userpriv_vector peers;
+    mega::userpriv_vector peers;
     bool group;
-    string title;
+    std::string title;
 };
 
 class MegaChatRoomListPrivate :  public MegaChatRoomList
@@ -318,7 +318,7 @@ public:
 
 private:
     MegaChatRoomListPrivate(const MegaChatRoomListPrivate *list);
-    vector<MegaChatRoom*> list;
+    std::vector<MegaChatRoom*> list;
 };
 
 
@@ -327,7 +327,7 @@ class ChatRequestQueue
 {
     protected:
         std::deque<MegaChatRequestPrivate *> requests;
-        MegaMutex mutex;
+        mega::MegaMutex mutex;
 
     public:
         ChatRequestQueue();
@@ -342,7 +342,7 @@ class EventQueue
 {
 protected:
     std::deque<void *> events;
-    MegaMutex mutex;
+    mega::MegaMutex mutex;
 
 public:
     EventQueue();
@@ -358,7 +358,7 @@ class MegaChatApiImpl :
 {
 public:
 
-    MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi);
+    MegaChatApiImpl(MegaChatApi *chatApi, mega::MegaApi *megaApi);
 //    MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir);
     virtual ~MegaChatApiImpl();
 
@@ -371,13 +371,13 @@ private:
     karere::Client *mClient;
     chatd::Chat *mChat;
 
-    MegaWaiter *waiter;
-    MegaThread thread;
+    mega::MegaWaiter *waiter;
+    mega::MegaThread thread;
     int threadExit;
     static void *threadEntryPoint(void *param);
     void loop();
 
-    void init(MegaChatApi *chatApi, MegaApi *megaApi);
+    void init(MegaChatApi *chatApi, mega::MegaApi *megaApi);
 
     ChatRequestQueue requestQueue;
     EventQueue eventQueue;
@@ -455,13 +455,13 @@ public:
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener);
 
     // Audio/Video devices
-    MegaStringList *getChatAudioInDevices();
-    MegaStringList *getChatVideoInDevices();
+    mega::MegaStringList *getChatAudioInDevices();
+    mega::MegaStringList *getChatVideoInDevices();
     bool setChatAudioInDevice(const char *device);
     bool setChatVideoInDevice(const char *device);
 
     // Calls
-    void startChatCall(MegaUser *peer, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+    void startChatCall(mega::MegaUser *peer, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
     void answerChatCall(MegaChatCall *call, bool accept, MegaChatRequestListener *listener = NULL);
     void hangAllChatCalls();
 
@@ -475,7 +475,7 @@ public:
     virtual IChatHandler* createChatHandler(karere::ChatRoom &room);
     virtual IApp::IContactListHandler& contactListHandler();
     virtual void onOwnPresence(karere::Presence pres);
-    virtual void onIncomingContactRequest(const MegaContactRequest& req);
+    virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
     //virtual void notifyInvited(const ChatRoom& room);
     //virtual void onTerminate();

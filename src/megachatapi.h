@@ -26,7 +26,6 @@
 #include <megaapi.h>
 
 namespace mega { class MegaApi; }
-using namespace mega;
 
 namespace megachat
 {
@@ -451,13 +450,13 @@ public:
      * @brief Returns the handle that identifies the chat
      * @return The handle of the chat
      */
-    virtual MegaHandle getChatHandle();
+    virtual MegaChatHandle getChatHandle();
 
     /**
      * @brief Returns the handle that identifies the user
      * @return The handle of the user
      */
-    virtual MegaHandle getUserHandle();
+    virtual MegaChatHandle getUserHandle();
 
     /**
      * @brief Returns the privilege level
@@ -613,7 +612,7 @@ public:
 
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
-    MegaChatApi(MegaApi *megaApi);
+    MegaChatApi(mega::MegaApi *megaApi);
 
 //    // chat will use its own megaApi, a new instance
 //    MegaChatApi(const char *appKey, const char* appDir);
@@ -745,13 +744,13 @@ public:
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
 
     // Audio/Video device management
-    MegaStringList *getChatAudioInDevices();
-    MegaStringList *getChatVideoInDevices();
+    mega::MegaStringList *getChatAudioInDevices();
+    mega::MegaStringList *getChatVideoInDevices();
     bool setChatAudioInDevice(const char *device);
     bool setChatVideoInDevice(const char *device);
 
     // Call management
-    void startChatCall(MegaUser *peer, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+    void startChatCall(mega::MegaUser *peer, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
     void answerChatCall(MegaChatCall *call, bool accept, MegaChatRequestListener *listener = NULL);
     void hangAllChatCalls();
 
