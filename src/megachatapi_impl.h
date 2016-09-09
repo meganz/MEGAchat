@@ -289,7 +289,7 @@ public:
 
     virtual MegaChatHandle getHandle() const;
     virtual int getOwnPrivilege() const;
-    virtual int getPeerPrivilege(MegaChatHandle userhandle) const;
+    virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
     virtual int getPeerPrivilege(unsigned int i) const;
     virtual unsigned int getPeerCount() const;
     virtual MegaChatHandle getPeerHandle(unsigned int i) const;

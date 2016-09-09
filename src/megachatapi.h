@@ -212,7 +212,7 @@ public:
      * - MegaChatPeerList::PRIV_STANDARD = 2
      * - MegaChatPeerList::PRIV_MODERATOR = 3
      */
-    virtual int getPeerPrivilege(MegaChatHandle userhandle) const;
+    virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
 
     /**
      * @brief Returns the number of participants in the chat

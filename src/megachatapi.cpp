@@ -289,7 +289,7 @@ int MegaChatRoom::getOwnPrivilege() const
     return PRIV_UNKNOWN;
 }
 
-int MegaChatRoom::getPeerPrivilege(MegaChatHandle userhandle) const
+int MegaChatRoom::getPeerPrivilegeByHandle(MegaChatHandle userhandle) const
 {
     return PRIV_UNKNOWN;
 }
