@@ -529,8 +529,7 @@ protected:
     sqlite3* reinitDb();
     void createDatabase(sqlite3*& database);
     void connectToChatd();
-    void loadOwnUserHandle();
-    void loadOwnUserHandleFromDb(bool verifyWithSdk=true);
+    karere::Id getMyHandleFromDb();
     karere::Id getMyHandleFromSdk();
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();

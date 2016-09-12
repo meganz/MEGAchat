@@ -285,7 +285,19 @@ promise::Promise<void> Client::initWithNewSession()
 
 void Client::initWithExistingSession()
 {
-    loadOwnUserHandleFromDb();
+    const char* sid = api.sdk.dumpSession();
+    assert(sid);
+    if (mSid != sid)
+        throw std::runtime_error("initWithExistingSession: sid from db does not match the one from SDK");
+
+    Id sdkHandle = getMyHandleFromSdk();
+    Id dbHandle = getMyHandleFromDb();
+    if (sdkHandle != dbHandle)
+        throw std::runtime_error("initWithExistingSession: own handle from db does not matche the one from SDK");
+
+    mSid = sid;
+    mMyHandle = sdkHandle;
+
     loadOwnKeysFromDb();
     contactList->loadFromDb();
     loadContactListFromApi();
@@ -297,21 +309,6 @@ promise::Promise<void> Client::init()
 {
     if (mCacheExisted)
     {  //sid in db, verify it
-        const char* sid = api.sdk.dumpSession();
-        assert(sid);
-        const char* strHandle = api.sdk.getMyUserHandle();
-        assert(strHandle);
-        karere::Id handle(strHandle);
-        SqliteStmt stmt(db, "select value from vars where name='sid'");
-        if ((stmt.stringCol(0) != sid) || (mMyHandle != handle))
-        {
-            KR_LOG_WARNING("Session id or own handle in karere cache does not match the one from SDK, recreating cache");
-            mSid.clear(); //should be empty, but just in case
-            reinitDb();
-            return initWithNewSession();
-        }
-        mSid = sid;
-        initWithExistingSession();
         return promise::Void();
     }
     else
@@ -414,20 +411,23 @@ karere::Id Client::getMyHandleFromSdk()
     if (!uh.c_str() || !uh.c_str()[0])
         throw std::runtime_error("Could not get our own user handle from API");
     KR_LOG_INFO("Our user handle is %s", uh.c_str());
-    return karere::Id(uh.c_str());
+    karere::Id result(uh.c_str());
+    if (result == Id::null() || result.val == ::mega::UNDEF)
+        throw std::runtime_error("Own handle returned by the SDK is NULL");
+    return result;
 }
 
-void Client::loadOwnUserHandleFromDb(bool verifyWithSdk)
+karere::Id Client::getMyHandleFromDb()
 {
     SqliteStmt stmt(db, "select value from vars where name='my_handle'");
-    if (stmt.step())
-        mMyHandle = stmt.uint64Col(0);
+    if (!stmt.step())
+        throw std::runtime_error("No own user handle in database");
 
-    if (mMyHandle.val == 0 || mMyHandle.val == mega::UNDEF)
+    karere::Id result = stmt.uint64Col(0);
+
+    if (result == Id::null() || result.val == mega::UNDEF)
         throw std::runtime_error("loadOwnUserHandleFromDb: Own handle in db is invalid");
-
-    if (verifyWithSdk && (mMyHandle != getMyHandleFromSdk()))
-        throw std::runtime_error("loadOwnUserHandleFromDb: Own handle from SDK and db mismatch");
+    return result;
 }
 
 promise::Promise<void> Client::loadOwnKeysFromApi()
@@ -1266,16 +1266,6 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
             sqliteQuery(parent.client.db, "update chats set title=NULL where chatid=?", mChatid);
             makeTitleFromMemberNames();
         }
-        /*
-        else
-        {
-            mHasTitle = true;
-            sqliteQuery(parent.client.db, "update chats set title=? where chatid=?", mTitleString, mChatid);
-            mContactGui->onTitleChanged(mTitleString);
-            if (mAppChatHandler)
-                mAppChatHandler->onTitleChanged(mTitleString);
-        }
-        */
     });
 }
 
