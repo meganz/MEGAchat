@@ -309,6 +309,7 @@ promise::Promise<void> Client::init()
 {
     if (mCacheExisted)
     {  //sid in db, verify it
+        initWithExistingSession();
         return promise::Void();
     }
     else
