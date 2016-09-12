@@ -438,6 +438,13 @@ public:
      * in with a new session
      */
     promise::Promise<void> initWithNewSession();
+    /**
+     * @brief init INitializes karere via calling initWithNewSession() or initWithExistingSession();
+     * depending on whether there is a karere cache existing and matches the
+     * sid of the SDK
+     */
+    promise::Promise<void> init();
+
     /** @brief Does the actual connection to chatd, xmpp and gelb. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initNewSession() or \c initExistingSession() completes */
@@ -514,6 +521,8 @@ protected:
     std::unique_ptr<rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
     sqlite3* openDb();
+    void reinitDb();
+    void createDatabase(sqlite3*& database);
     void connectToChatd();
     void loadOwnUserHandle();
     void loadOwnUserHandleFromDb(bool verifyWithSdk=true);
