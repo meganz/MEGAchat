@@ -19,8 +19,8 @@
  * program.
  */
 
-#include "mega.h"
-#include "../../third-party/sdk/include/megaapi.h"
+#include <mega.h>
+#include <megaapi.h>
 #include "../../src/megachatapi.h"
 
 #include <iostream>

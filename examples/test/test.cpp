@@ -1,11 +1,10 @@
 #include "test.h"
 
-#include "../include/megaapi.h"
+#include <megaapi.h>
 #include "../../src/megachatapi.h"
+#include "../../src/karereCommon.h" // for logging with karere facility
 
 #include <signal.h>
-
-#include "../../src/karereCommon.h" // for logging with karere facility
 
 void sigintHandler(int)
 {
@@ -118,6 +117,12 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
             KR_LOG_DEBUG("Initialization of local cache successfully.");
 
             MegaChatRoomList *chats = megaChatApi[apiIndex]->getChatRooms();
+            KR_LOG_DEBUG("Chats: ");
+            for (int i = 0; i < chats->size(); i++)
+            {
+                KR_LOG_DEBUG("Chat %d", chats->get(i)->getHandle());
+            }
+
             megaChatApi[apiIndex]->connect();
         }
         else
@@ -145,6 +150,10 @@ void MegaSdkTest::onOnlineStatusUpdate(MegaChatApi *api, MegaChatApi::Status sta
 
 void MegaSdkTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoomList *chats)
 {
+    if (chats == NULL)
+    {
+        chats = megaChatApi[0]->getChatRooms();
+    }
     KR_LOG_DEBUG("%s chats added or updated", chats->size());
 }
 
