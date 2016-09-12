@@ -182,10 +182,43 @@ protected:
     bool local;
 };
 
+class MegaChatListItemPrivate : public MegaChatListItem
+{
+public:
+    MegaChatListItemPrivate(MegaChatHandle chatid);
+    ~MegaChatListItemPrivate();
+
+private:
+    int changed;
+
+    MegaChatHandle chatid;
+
+    mega::visibility_t visibility;
+    const char *title;
+    int unreadCount;
+    MegaChatApi::Status status;
+
+public:
+    int getChanges() const;
+    bool hasChanged(int changeType) const;
+
+    MegaChatHandle getChatId() const;
+    const char *getTitle() const;
+    mega::visibility_t getVisibility() const;
+    int getUnreadCount() const;
+    MegaChatApi::Status getOnlineStatus() const;
+
+    void setVisibility(mega::visibility_t visibility);
+    void setTitle(const char *title);
+    void setUnreadCount(int count);
+    void setOnlineStatus(MegaChatApi::Status status);
+    void setMembersUpdated();
+};
 
 class MegaChatListItemHandler :public karere::IApp::IContactListItem
 {
 public:
+    MegaChatListItemHandler(MegaChatApiImpl*, MegaChatHandle chatid);
 
     // karere::IApp::IContactListItem implementation
     virtual void onVisibilityChanged(int newVisibility);
@@ -193,15 +226,19 @@ public:
 
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
-    //virtual void onUnreadCountChanged(int count);
+    virtual void onUnreadCountChanged(int count);
     virtual void onPresenceChanged(karere::Presence state);
-    //virtual void onMembersUpdated();
-};
+    virtual void onMembersUpdated();
 
+protected:
+    MegaChatApiImpl *chatApi;
+    MegaChatHandle chatid;
+};
 
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
 {
 public:
+
 
     // karere::IApp::IChatHandler implementation
     virtual karere::IApp::ICallHandler* callHandler();
@@ -391,6 +428,8 @@ private:
     std::set<MegaChatVideoListener *> localVideoListeners;
     std::set<MegaChatVideoListener *> remoteVideoListeners;
 
+    std::set<karere::IApp::IContactListItem *> chatListItemHandler;
+
     int reqtag;
     std::map<int, MegaChatRequestPrivate *> requestMap;
     std::map<int, MegaChatCallPrivate *> callMap;
@@ -437,9 +476,9 @@ public:
     void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
     void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
 
-    // MegaChatGlobalListener callbacks
+    // MegaChatListener callbacks
     void fireOnChatRoomUpdate(MegaChatRoomList *chats);
-    void fireOnOnlineStatusUpdate(MegaChatApi::Status status);
+    void fireOnChatListItemUpdate(MegaChatListItem *item);
 
 
     // ============= API requests ================

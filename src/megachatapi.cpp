@@ -411,7 +411,7 @@ void MegaChatCallListener::onChatCallFinish(MegaChatApi *api, MegaChatCall *call
 }
 
 
-void MegaChatListener::onOnlineStatusUpdate(MegaChatApi *api, MegaChatApi::Status status)
+void MegaChatListener::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *item)
 {
 
 }
@@ -419,4 +419,50 @@ void MegaChatListener::onOnlineStatusUpdate(MegaChatApi *api, MegaChatApi::Statu
 void MegaChatListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoomList *chats)
 {
 
+}
+
+
+MegaChatListItem::MegaChatListItem()
+{
+
+}
+
+MegaChatListItem::~MegaChatListItem()
+{
+
+}
+
+int MegaChatListItem::getChanges() const
+{
+    return 0;
+}
+
+bool MegaChatListItem::hasChanged(int changeType) const
+{
+    return 0;
+}
+
+MegaChatHandle MegaChatListItem::getChatId() const
+{
+    return INVALID_HANDLE;
+}
+
+const char *MegaChatListItem::getTitle() const
+{
+    return NULL;
+}
+
+mega::visibility_t MegaChatListItem::getVisibility() const
+{
+    return mega::VISIBILITY_UNKNOWN;
+}
+
+int MegaChatListItem::getUnreadCount() const
+{
+    return 0;
+}
+
+MegaChatApi::Status MegaChatListItem::getOnlineStatus() const
+{
+    return MegaChatApi::STATUS_OFFLINE;
 }

@@ -869,6 +869,33 @@ private:
     MegaChatApiImpl *pImpl;
 };
 
+class MegaChatListItem
+{
+public:
+
+    enum
+    {
+        CHANGE_TYPE_STATUS          = 0x01,
+        CHANGE_TYPE_VISIBILITY      = 0x02,
+        CHANGE_TYPE_UNREAD_COUNT    = 0x04,
+        CHANGE_TYPE_PARTICIPANTS    = 0x08,
+        CHANGE_TYPE_TITLE           = 0x10
+    };
+
+    MegaChatListItem();
+    virtual ~MegaChatListItem();
+
+    virtual int getChanges() const;
+    virtual bool hasChanged(int changeType) const;
+
+    virtual MegaChatHandle getChatId() const;
+
+    virtual const char *getTitle() const;
+    virtual mega::visibility_t getVisibility() const;
+    virtual int getUnreadCount() const;
+    virtual MegaChatApi::Status getOnlineStatus() const;
+};
+
 /**
  * @brief Interface to get all information related to chats of a MEGA account
  *
@@ -898,26 +925,12 @@ public:
     //    virtual void onChatCurrent(MegaChatApi* api);
 
         /**
-         * @brief onOnlineStatusUpdate
+         * @brief onChatListItemUpdate
          *
          * @param api MegaChatApi connected to the account
-         * @param status New status of the account
-         *
-         * It can be one of the following values:
-         * - STATUS_OFFLINE = 1
-         * The user appears as being offline
-         *
-         * - STATUS_BUSY = 2
-         * The user is busy and don't want to be disturbed.
-         *
-         * - STATUS_AWAY = 3
-         * The user is away and might not answer.
-         *
-         * - STATUS_ONLINE = 4
-         * The user is connected and online.
-         *
+         * /// TODO: document the item param
          */
-        virtual void onOnlineStatusUpdate(MegaChatApi* api, MegaChatApi::Status status);
+        virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
 
         /**
          * @brief This funtion is called when there are new or updated chats in the account
