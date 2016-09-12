@@ -112,6 +112,19 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
 
     switch(request->getType())
     {
+    case MegaChatRequest::TYPE_INITIALIZE:
+        if (e->getErrorCode() == API_OK)
+        {
+            KR_LOG_DEBUG("Initialization of local cache successfully.");
+
+            MegaChatRoomList *chats = megaChatApi[apiIndex]->getChatRooms();
+            megaChatApi[apiIndex]->connect();
+        }
+        else
+        {
+            KR_LOG_ERROR("Initialization of local cache failed. Error: %s (%d)", e->getErrorString(), e->getErrorCode());
+        }
+        break;
     case MegaChatRequest::TYPE_CONNECT:
         if (e->getErrorCode() == API_OK)
         {
@@ -167,9 +180,7 @@ void MegaSdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError 
     case MegaRequest::TYPE_FETCH_NODES:
         if (e->getErrorCode() == API_OK)
         {
-            megaChatApi[apiIndex]->init();
-            MegaChatRoomList *chats = megaChatApi[apiIndex]->getChatRooms();
-            megaChatApi[apiIndex]->connect();
+            megaChatApi[apiIndex]->init(true);
         }
         break;
     }

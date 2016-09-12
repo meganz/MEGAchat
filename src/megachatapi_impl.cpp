@@ -156,6 +156,35 @@ void MegaChatApiImpl::sendPendingRequests()
 
         switch (request->getType())
         {
+        case MegaChatRequest::TYPE_INITIALIZE:
+        {
+            if (request->getFlag()) // new session
+            {
+                mClient->initWithNewSession()
+                .then([request, this]()
+                {
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                })
+                .fail([request, this](const promise::Error& e)
+                {
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
+            }
+            else
+            {
+                mClient->initWithExistingSession();
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            }
+
+            KR_LOG_INFO("Initialization complete");
+            fireOnChatRoomUpdate(NULL);
+
+            break;
+        }
         case MegaChatRequest::TYPE_CONNECT:
         {
             mClient->connect()
@@ -665,13 +694,12 @@ void MegaChatApiImpl::fireOnOnlineStatusUpdate(MegaChatApi::Status status)
     }
 }
 
-void MegaChatApiImpl::init()
+void MegaChatApiImpl::init(bool createDb, MegaChatRequestListener *listener)
 {
-    mClient->initWithExistingSession();
-
-    KR_LOG_INFO("Initialization complete");
-
-    fireOnChatRoomUpdate(NULL);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_INITIALIZE, listener);
+    request->setFlag(createDb);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
@@ -1144,6 +1172,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
     {
         case TYPE_DELETE: return "DELETE";
         case TYPE_CONNECT: return "CONNECT";
+        case TYPE_INITIALIZE: return "INITIALIZE";
         case TYPE_SET_ONLINE_STATUS: return "SET_CHAT_STATUS";
         case TYPE_CREATE_CHATROOM: return "CREATE CHATROOM";
         case TYPE_INVITE_TO_CHATROOM: return "INVITE_TO_CHATROOM";

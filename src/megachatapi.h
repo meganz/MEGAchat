@@ -347,6 +347,7 @@ class MegaChatRequest
 {
 public:
     enum {
+        TYPE_INITIALIZE,// initialize local cache with SDK cache and loads chats
         TYPE_CONNECT,   // connect to chatd (call it after login+fetchnodes with MegaApi)
         TYPE_DELETE,    // delete MegaChatApi instance
         TYPE_SET_ONLINE_STATUS,
@@ -642,8 +643,10 @@ public:
      *
      * @note: until the MegaChatApi::connect function is called, MegaChatApi will operate
      * in offline mode (cannot send/receive any message or call)
+     * @param createDb When a new session is created by the Mega SDK, this paramenter must
+     * be true in order to initialize the Karere local cache. Afterwards, set it to false.
      */
-    void init();
+    void init(bool createDb = false, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).

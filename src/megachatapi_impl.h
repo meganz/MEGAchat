@@ -448,7 +448,7 @@ public:
     // ============= API requests ================
 
     // General chat methods
-    void init();
+    void init(bool createDb = false, MegaChatRequestListener *listener = NULL);
     void connect(MegaChatRequestListener *listener = NULL);
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     MegaChatRoomList* getChatRooms();
