@@ -384,8 +384,11 @@ class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener
 {
 protected:
     std::string mAppDir;
-    bool mContactsLoaded = false;
+//these must be before the db member, because they are initialized during the init of db member
+    Id mMyHandle = mega::UNDEF;
+    std::string mSid;
 public:
+    bool mCacheExisted;
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
     std::unique_ptr<chatd::Client> chatd;
@@ -427,8 +430,12 @@ public:
      * @param app The IApp interface that the client will use to access
      * services/objects implemented by the application.
      * @param pres The initial presence that will be set when we log in.
+     * @param existingCache Whether the karere cache db exists and karere should
+     * try to use it, or not. If \c true is specifieb but the db is unreadable or
+     * inconsistent, karere will behave as if \c false was specified - will
+     * delete the karere.db file and re-create it from scratch.
      */
-    Client(::mega::MegaApi& sdk, IApp& app, Presence pres);
+    Client(::mega::MegaApi& sdk, IApp& app, Presence pres, bool existingCache);
 
     virtual ~Client();
 
@@ -462,9 +469,14 @@ public:
      * in with a new session
      */
     promise::Promise<void> initWithNewSession();
-
     /**
-     * @brief Does the actual connection to chatd, xmpp and gelb. Assumes the
+     * @brief init Initializes karere via calling initWithNewSession() or initWithExistingSession();
+     * depending on whether there is a karere cache existing and matches the
+     * sid of the SDK
+     */
+    promise::Promise<void> init();
+
+    /** @brief Does the actual connection to chatd, xmpp and gelb. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initNewSession() or \c initExistingSession() completes */
     promise::Promise<void> connect();
@@ -524,10 +536,8 @@ public:
     void dumpContactList(::mega::MegaUserList& clist);
 
 protected:
-    Id mMyHandle = mega::UNDEF;
-    std::string mSid;
     std::string mMyName;
-
+    bool mContactsLoaded = false;
     Presence mOwnPresence;
     bool mIsLoggedIn = false;
     /** our own email address */
@@ -541,9 +551,10 @@ protected:
     std::unique_ptr<rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
     sqlite3* openDb();
+    sqlite3* reinitDb();
+    void createDatabase(sqlite3*& database);
     void connectToChatd();
-    void loadOwnUserHandle();
-    void loadOwnUserHandleFromDb(bool verifyWithSdk=true);
+    karere::Id getMyHandleFromDb();
     karere::Id getMyHandleFromSdk();
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();

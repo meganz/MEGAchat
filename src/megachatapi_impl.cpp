@@ -103,7 +103,7 @@ void MegaChatApiImpl::loop()
     // karere initialization
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
-    this->mClient = new Client(*this->megaApi, *this, Presence::kOnline);
+    this->mClient = new Client(*this->megaApi, *this, Presence::kOnline, true);
 
     while (true)
     {
@@ -158,27 +158,17 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_INITIALIZE:
         {
-            if (request->getFlag()) // new session
+            mClient->init()
+            .then([request, this]()
             {
-                mClient->initWithNewSession()
-                .then([request, this]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request, this](const promise::Error& e)
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
-            }
-            else
-            {
-                mClient->initWithExistingSession();
-
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
-            }
+            })
+            .fail([request, this](const promise::Error& e)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
 
             KR_LOG_INFO("Initialization complete");
             fireOnChatRoomUpdate(NULL);
@@ -694,10 +684,9 @@ void MegaChatApiImpl::fireOnOnlineStatusUpdate(MegaChatApi::Status status)
     }
 }
 
-void MegaChatApiImpl::init(bool createDb, MegaChatRequestListener *listener)
+void MegaChatApiImpl::init(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_INITIALIZE, listener);
-    request->setFlag(createDb);
     requestQueue.push(request);
     waiter->notify();
 }

@@ -71,9 +71,9 @@ MegaChatApi::~MegaChatApi()
     delete pImpl;
 }
 
-void MegaChatApi::init(bool createDb, MegaChatRequestListener *listener)
+void MegaChatApi::init(MegaChatRequestListener *listener)
 {
-    pImpl->init(createDb, listener);
+    pImpl->init(listener);
 }
 
 void MegaChatApi::connect(MegaChatRequestListener *listener)

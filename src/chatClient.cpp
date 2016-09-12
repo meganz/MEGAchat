@@ -57,8 +57,10 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
     conn->send(pong);
 }
 
-Client::Client(::mega::MegaApi& sdk, IApp& aApp, Presence pres)
- :mAppDir(getAppDir()), db(openDb()), conn(new strophe::Connection(services_strophe_get_ctx())),
+Client::Client(::mega::MegaApi& sdk, IApp& aApp, Presence pres, bool existingCache)
+ :mAppDir(getAppDir()), mCacheExisted(existingCache),
+  db(mCacheExisted ? openDb() : reinitDb()),
+  conn(new strophe::Connection(services_strophe_get_ctx())),
   api(sdk), userAttrCache(*this), app(aApp),
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
@@ -121,30 +123,46 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
     }
     return path;
 }
+
 sqlite3* Client::openDb()
 {
-    sqlite3* database = nullptr;
     std::string path = mAppDir+"/karere.db";
     struct stat info;
     bool existed = (stat(path.c_str(), &info) == 0);
-    int ret = sqlite3_open(path.c_str(), &database);
-    if (ret != SQLITE_OK || !database)
+    int ret = sqlite3_open(path.c_str(), &db);
+    if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+path);
     if (!existed)
     {
         KR_LOG_WARNING("Initializing local database, did not exist");
-        MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
-        ret = sqlite3_exec(database, gKarereDbSchema, nullptr, nullptr, errmsg.handlePtr());
-        if (ret)
+        createDatabase(db);
+    }
+    else
+    {
+        SqliteStmt stmt(db, "select value from vars where name='sid'");
+        if (!stmt.step() || (mSid = stmt.stringCol(0)).empty())
         {
-            sqlite3_close(database);
-            if (errmsg)
-                throw std::runtime_error("Error initializing database: "+std::string(errmsg));
-            else
-                throw std::runtime_error("Error "+std::to_string(ret)+" initializing database");
+            KR_LOG_ERROR("No sid in local cache database, re-creating it");
+            reinitDb();
         }
     }
-    return database;
+    return db;
+}
+
+void Client::createDatabase(sqlite3*& database)
+{
+    mCacheExisted = false;
+    mSid.clear();
+    mMyHandle = Id::null();
+    MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
+    int ret = sqlite3_exec(database, gKarereDbSchema, nullptr, nullptr, errmsg.handlePtr());
+    if (ret)
+    {
+        if (errmsg)
+            throw std::runtime_error("Error initializing database: "+std::string(errmsg));
+        else
+            throw std::runtime_error("Error "+std::to_string(ret)+" initializing database");
+    }
 }
 
 
@@ -205,13 +223,10 @@ promise::Promise<ReqResult> Client::sdkLoginExistingSession(const std::string& s
         return api.call(&::mega::MegaApi::fetchNodes);
     });
 }
+
 promise::Promise<void> Client::loginSdkAndInit()
 {
-    SqliteStmt stmt(db, "select value from vars where name='sid'");
-    if (stmt.step())
-        mSid = stmt.stringCol(0);
-
-    if (mSid.empty())
+    if (!mCacheExisted)
     {
         return sdkLoginNewSession()
         .then([this](ReqResult)
@@ -221,6 +236,7 @@ promise::Promise<void> Client::loginSdkAndInit()
     }
     else
     {
+        assert(!mSid.empty());
         return sdkLoginExistingSession(mSid)
         .then([this](ReqResult)
         {
@@ -243,6 +259,8 @@ promise::Promise<void> Client::initWithNewSession()
 {
     const char* sid = api.sdk.dumpSession();
     assert(sid);
+
+    reinitDb();
     mSid = sid;
     sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
 
@@ -267,12 +285,58 @@ promise::Promise<void> Client::initWithNewSession()
 
 void Client::initWithExistingSession()
 {
-    loadOwnUserHandleFromDb();
+    const char* sid = api.sdk.dumpSession();
+    assert(sid);
+    if (mSid != sid)
+        throw std::runtime_error("initWithExistingSession: sid from db does not match the one from SDK");
+
+    Id sdkHandle = getMyHandleFromSdk();
+    Id dbHandle = getMyHandleFromDb();
+    if (sdkHandle != dbHandle)
+        throw std::runtime_error("initWithExistingSession: own handle from db does not matche the one from SDK");
+
+    mSid = sid;
+    mMyHandle = sdkHandle;
+
     loadOwnKeysFromDb();
     contactList->loadFromDb();
     loadContactListFromApi();
     chatd.reset(new chatd::Client(mMyHandle));
     chats->loadFromDb();
+}
+
+promise::Promise<void> Client::init()
+{
+    if (mCacheExisted)
+    {  //sid in db, verify it
+        initWithExistingSession();
+        return promise::Void();
+    }
+    else
+    {
+        //no sid in db
+        return initWithNewSession();
+    }
+}
+
+sqlite3 *Client::reinitDb()
+{
+    if (db)
+    {
+        sqlite3_close(db);
+        db = nullptr;
+    }
+    std::string path = mAppDir+"/karere.db";
+    remove(path.c_str());
+    struct stat info;
+    if (stat(path.c_str(), &info) == 0)
+        throw std::runtime_error("reinitDb: Could not delete old database file "+path);
+
+    int ret = sqlite3_open(path.c_str(), &db);
+    if (ret != SQLITE_OK || !db)
+        throw std::runtime_error("Can't access application database at "+path);
+    createDatabase(db);
+    return db;
 }
 
 void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
@@ -283,7 +347,12 @@ void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
         auto& room = *chatRooms.get(i);
         if (room.isGroup())
         {
-            KR_LOG_DEBUG("%s(group, ownPriv: %d):", Id(room.getHandle()).toString().c_str(), room.getOwnPrivilege());
+            auto url = room.getUrl();
+            const char* noUrlMsg = (!url || (url[0] == 0) ? ", no url":"");
+            KR_LOG_DEBUG("%s(group, ownPriv=%s%s):",
+                Id(room.getHandle()).toString().c_str(),
+                privToString((chatd::Priv)room.getOwnPrivilege()),
+                noUrlMsg);
         }
         else
         {
@@ -295,13 +364,9 @@ void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
             KR_LOG_DEBUG("  (room has no peers)");
             continue;
         }
-        auto url = room.getUrl();
-        if (!url || (url[0] == 0))
-        {
-            KR_LOG_DEBUG("(Room has no url)");
-        }
         for (int j = 0; j<peers->size(); j++)
-            KR_LOG_DEBUG("  %s: %d", Id(peers->getPeerHandle(j)).toString().c_str(), peers->getPeerPrivilege(j));
+            KR_LOG_DEBUG("  %s: %s", Id(peers->getPeerHandle(j)).toString().c_str(),
+                privToString((chatd::Priv)peers->getPeerPrivilege(j)));
     }
     KR_LOG_DEBUG("=== Chatroom list end ===");
 }
@@ -347,20 +412,23 @@ karere::Id Client::getMyHandleFromSdk()
     if (!uh.c_str() || !uh.c_str()[0])
         throw std::runtime_error("Could not get our own user handle from API");
     KR_LOG_INFO("Our user handle is %s", uh.c_str());
-    return karere::Id(uh.c_str());
+    karere::Id result(uh.c_str());
+    if (result == Id::null() || result.val == ::mega::UNDEF)
+        throw std::runtime_error("Own handle returned by the SDK is NULL");
+    return result;
 }
 
-void Client::loadOwnUserHandleFromDb(bool verifyWithSdk)
+karere::Id Client::getMyHandleFromDb()
 {
     SqliteStmt stmt(db, "select value from vars where name='my_handle'");
-    if (stmt.step())
-        mMyHandle = stmt.uint64Col(0);
+    if (!stmt.step())
+        throw std::runtime_error("No own user handle in database");
 
-    if (mMyHandle.val == 0 || mMyHandle.val == mega::UNDEF)
+    karere::Id result = stmt.uint64Col(0);
+
+    if (result == Id::null() || result.val == mega::UNDEF)
         throw std::runtime_error("loadOwnUserHandleFromDb: Own handle in db is invalid");
-
-    if (verifyWithSdk && (mMyHandle != getMyHandleFromSdk()))
-        throw std::runtime_error("loadOwnUserHandleFromDb: Own handle from SDK and db mismatch");
+    return result;
 }
 
 promise::Promise<void> Client::loadOwnKeysFromApi()
@@ -970,7 +1038,6 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& room)
     auto it = find(chatid);
     if (it != end()) //we already have that room
     {
-        it->second->syncWithApi(room);
         return *it->second;
     }
     ChatRoom* ret;
@@ -1123,9 +1190,13 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     .then([this](const std::string& title)
     {
         if (mTitleString == title)
+        {
+            KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
             return;
+        }
         mTitleString = title;
         mHasTitle = true;
+        sqliteQuery(parent.client.db, "update chats set title=? where chatid=?", mTitleString, mChatid);
         mContactGui->onTitleChanged(mTitleString);
         if (mAppChatHandler)
             mAppChatHandler->onTitleChanged(mTitleString);
@@ -1190,20 +1261,11 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
     })
     .then([this, title](const ReqResult&)
     {
-        mTitleString = title;
-        if (mTitleString.empty())
+        if (title.empty())
         {
             mHasTitle = false;
             sqliteQuery(parent.client.db, "update chats set title=NULL where chatid=?", mChatid);
             makeTitleFromMemberNames();
-        }
-        else
-        {
-            mHasTitle = true;
-            sqliteQuery(parent.client.db, "update chats set title=? where chatid=?", mTitleString, mChatid);
-            mContactGui->onTitleChanged(mTitleString);
-            if (mAppChatHandler)
-                mAppChatHandler->onTitleChanged(mTitleString);
         }
     });
 }
@@ -1427,7 +1489,6 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
-    KR_LOG_DEBUG("Syncing group chatroom %s with API...", Id(mChatid).toString().c_str());
     bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);
     UserPrivMap membs;
     changed |= syncMembers(apiMembersToMap(chat, membs));
@@ -1441,9 +1502,9 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         }
     }
     if (changed)
-        KR_LOG_DEBUG("...room updated");
+        KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
     else
-        KR_LOG_ERROR("...no changes");
+        KR_LOG_DEBUG("Sync group chatroom %s with API: no changes", Id(mChatid).toString().c_str());
     return changed;
 }
 

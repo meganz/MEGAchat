@@ -643,10 +643,8 @@ public:
      *
      * @note: until the MegaChatApi::connect function is called, MegaChatApi will operate
      * in offline mode (cannot send/receive any message or call)
-     * @param createDb When a new session is created by the Mega SDK, this paramenter must
-     * be true in order to initialize the Karere local cache. Afterwards, set it to false.
      */
-    void init(bool createDb = false, MegaChatRequestListener *listener = NULL);
+    void init(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).

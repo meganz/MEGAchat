@@ -259,11 +259,11 @@ static inline const char* privToString(Priv priv)
     case PRIV_NOTPRESENT:
         return "Not present";
     case PRIV_RDONLY:
-        return "Read-only";
+        return "READONLY";
     case PRIV_FULL:
-        return "Full";
+        return "READ_WRITE";
     case PRIV_OPER:
-        return "Operator";
+        return "OPERATOR";
     default:
         return "(unknown privilege)";
     }

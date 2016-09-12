@@ -189,7 +189,7 @@ void MegaSdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError 
     case MegaRequest::TYPE_FETCH_NODES:
         if (e->getErrorCode() == API_OK)
         {
-            megaChatApi[apiIndex]->init(true);
+            megaChatApi[apiIndex]->init();
         }
         break;
     }
