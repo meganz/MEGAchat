@@ -45,7 +45,7 @@ protected:
     void log(const char *time, int loglevel, const char *source, const char *message);
 };
 
-class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaChatGlobalListener
+class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener
 {
 public:
     MegaSdkTest();

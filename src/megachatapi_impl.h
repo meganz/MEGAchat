@@ -386,7 +386,6 @@ private:
     EventQueue eventQueue;
 
     std::set<MegaChatListener *> listeners;
-    std::set<MegaChatGlobalListener *> globalListeners;
     std::set<MegaChatRequestListener *> requestListeners;
     std::set<MegaChatCallListener *> callListeners;
     std::set<MegaChatVideoListener *> localVideoListeners;
@@ -411,13 +410,11 @@ public:
     // ============= Listeners ================
 
     // Registration
-    void addChatGlobalListener(MegaChatGlobalListener *listener);
     void addChatCallListener(MegaChatCallListener *listener);
     void addChatRequestListener(MegaChatRequestListener *listener);
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
     void addChatListener(MegaChatListener *listener);
-    void removeChatGlobalListener(MegaChatGlobalListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
     void removeChatRequestListener(MegaChatRequestListener *listener);
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);

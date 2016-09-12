@@ -64,6 +64,7 @@ void MegaSdkTest::start()
     // 2. Create MegaChatApi instance
     megaChatApi[0] = new MegaChatApi(megaApi[0]);
     megaChatApi[0]->addChatRequestListener(this);
+    megaChatApi[0]->addChatListener(this);
     signal(SIGINT, sigintHandler);
 
     // 3. Login into the user account and fetchnodes (launched in the login callback)

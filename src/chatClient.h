@@ -431,7 +431,7 @@ public:
      * services/objects implemented by the application.
      * @param pres The initial presence that will be set when we log in.
      * @param existingCache Whether the karere cache db exists and karere should
-     * try to use it, or not. If \c true is specifieb but the db is unreadable or
+     * try to use it, or not. If \c true is specified but the db is unreadable or
      * inconsistent, karere will behave as if \c false was specified - will
      * delete the karere.db file and re-create it from scratch.
      */

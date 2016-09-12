@@ -411,12 +411,12 @@ void MegaChatCallListener::onChatCallFinish(MegaChatApi *api, MegaChatCall *call
 }
 
 
-void MegaChatGlobalListener::onOnlineStatusUpdate(MegaChatApi *api, MegaChatApi::Status status)
+void MegaChatListener::onOnlineStatusUpdate(MegaChatApi *api, MegaChatApi::Status status)
 {
 
 }
 
-void MegaChatGlobalListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoomList *chats)
+void MegaChatListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoomList *chats)
 {
 
 }

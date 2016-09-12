@@ -103,7 +103,7 @@ void MegaChatApiImpl::loop()
     // karere initialization
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
-    this->mClient = new Client(*this->megaApi, *this, Presence::kOnline, true);
+    this->mClient = new Client(*this->megaApi, *this, Presence::kOnline, false);
 
     while (true)
     {
@@ -668,7 +668,7 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int wi
 
 void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoomList *chats)
 {
-    for(set<MegaChatGlobalListener *>::iterator it = globalListeners.begin(); it != globalListeners.end() ; it++)
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
         (*it)->onChatRoomUpdate(chatApi, chats);
     }
@@ -678,7 +678,7 @@ void MegaChatApiImpl::fireOnOnlineStatusUpdate(MegaChatApi::Status status)
 {
     KR_LOG_INFO("Online status changed");
 
-    for(set<MegaChatGlobalListener *>::iterator it = globalListeners.begin(); it != globalListeners.end() ; it++)
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
         (*it)->onOnlineStatusUpdate(chatApi, status);
     }
@@ -811,18 +811,6 @@ void MegaChatApiImpl::hangAllChatCalls()
 
 }
 
-void MegaChatApiImpl::addChatGlobalListener(MegaChatGlobalListener *listener)
-{
-    if (!listener)
-    {
-        return;
-    }
-
-//    sdkMutex.lock();
-    globalListeners.insert(listener);
-//    sdkMutex.unlock();
-}
-
 void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
 {
     if (!listener)
@@ -882,18 +870,6 @@ void MegaChatApiImpl::addChatListener(MegaChatListener *listener)
 //    sdkMutex.lock();
     listeners.insert(listener);
     //    sdkMutex.unlock();
-}
-
-void MegaChatApiImpl::removeChatGlobalListener(MegaChatGlobalListener *listener)
-{
-    if (!listener)
-    {
-        return;
-    }
-
-//    sdkMutex.lock();
-    globalListeners.erase(listener);
-//    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
