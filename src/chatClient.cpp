@@ -57,8 +57,10 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
     conn->send(pong);
 }
 
-Client::Client(::mega::MegaApi& sdk, IApp& aApp, Presence pres)
- :mAppDir(getAppDir()), db(nullptr), conn(new strophe::Connection(services_strophe_get_ctx())),
+Client::Client(::mega::MegaApi& sdk, IApp& aApp, Presence pres, bool existingCache)
+ :mAppDir(getAppDir()), mCacheExisted(existingCache),
+  db(mCacheExisted ? openDb() : reinitDb()),
+  conn(new strophe::Connection(services_strophe_get_ctx())),
   api(sdk), userAttrCache(*this), app(aApp),
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
@@ -121,25 +123,37 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
     }
     return path;
 }
+
 sqlite3* Client::openDb()
 {
-    sqlite3* database = nullptr;
     std::string path = mAppDir+"/karere.db";
     struct stat info;
     bool existed = (stat(path.c_str(), &info) == 0);
-    int ret = sqlite3_open(path.c_str(), &database);
-    if (ret != SQLITE_OK || !database)
+    int ret = sqlite3_open(path.c_str(), &db);
+    if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+path);
     if (!existed)
     {
         KR_LOG_WARNING("Initializing local database, did not exist");
-        createDatabase(database);
+        createDatabase(db);
     }
-    return database;
+    else
+    {
+        SqliteStmt stmt(db, "select value from vars where name='sid'");
+        if (!stmt.step() || (mSid = stmt.stringCol(0)).empty())
+        {
+            KR_LOG_ERROR("No sid in local cache database, re-creating it");
+            reinitDb();
+        }
+    }
+    return db;
 }
 
 void Client::createDatabase(sqlite3*& database)
 {
+    mCacheExisted = false;
+    mSid.clear();
+    mMyHandle = Id::null();
     MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
     int ret = sqlite3_exec(database, gKarereDbSchema, nullptr, nullptr, errmsg.handlePtr());
     if (ret)
@@ -212,11 +226,7 @@ promise::Promise<ReqResult> Client::sdkLoginExistingSession(const std::string& s
 
 promise::Promise<void> Client::loginSdkAndInit()
 {
-    SqliteStmt stmt(db, "select value from vars where name='sid'");
-    if (stmt.step())
-        mSid = stmt.stringCol(0);
-
-    if (mSid.empty())
+    if (!mCacheExisted)
     {
         return sdkLoginNewSession()
         .then([this](ReqResult)
@@ -226,6 +236,7 @@ promise::Promise<void> Client::loginSdkAndInit()
     }
     else
     {
+        assert(!mSid.empty());
         return sdkLoginExistingSession(mSid)
         .then([this](ReqResult)
         {
@@ -246,7 +257,6 @@ void Client::loadContactListFromApi()
 
 promise::Promise<void> Client::initWithNewSession()
 {
-    assert(!db);
     const char* sid = api.sdk.dumpSession();
     assert(sid);
 
@@ -275,8 +285,6 @@ promise::Promise<void> Client::initWithNewSession()
 
 void Client::initWithExistingSession()
 {
-    assert(!db);
-    db = openDb();
     loadOwnUserHandleFromDb();
     loadOwnKeysFromDb();
     contactList->loadFromDb();
@@ -287,19 +295,14 @@ void Client::initWithExistingSession()
 
 promise::Promise<void> Client::init()
 {
-    SqliteStmt stmt(db, "select value from vars where name='sid'");
-    if (!stmt.step())
-    {
-        //no sid in db
-        return initWithNewSession();
-    }
-    else
+    if (mCacheExisted)
     {  //sid in db, verify it
         const char* sid = api.sdk.dumpSession();
         assert(sid);
         const char* strHandle = api.sdk.getMyUserHandle();
         assert(strHandle);
         karere::Id handle(strHandle);
+        SqliteStmt stmt(db, "select value from vars where name='sid'");
         if ((stmt.stringCol(0) != sid) || (mMyHandle != handle))
         {
             KR_LOG_WARNING("Session id or own handle in karere cache does not match the one from SDK, recreating cache");
@@ -311,9 +314,14 @@ promise::Promise<void> Client::init()
         initWithExistingSession();
         return promise::Void();
     }
+    else
+    {
+        //no sid in db
+        return initWithNewSession();
+    }
 }
 
-void Client::reinitDb()
+sqlite3 *Client::reinitDb()
 {
     if (db)
     {
@@ -330,6 +338,7 @@ void Client::reinitDb()
     if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+path);
     createDatabase(db);
+    return db;
 }
 
 void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
