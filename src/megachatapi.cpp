@@ -454,7 +454,7 @@ const char *MegaChatListItem::getTitle() const
 
 int MegaChatListItem::getVisibility() const
 {
-    return mega::VISIBILITY_UNKNOWN;
+    return VISIBILITY_UNKNOWN;
 }
 
 int MegaChatListItem::getUnreadCount() const
