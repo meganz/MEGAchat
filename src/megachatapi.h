@@ -561,6 +561,8 @@ public:
     MegaChatError() {}
     virtual ~MegaChatError() {}
 
+    virtual MegaChatError *copy() = 0;
+
     /**
      * @brief Returns the error code associated with this MegaChatError
      * @return Error code associated with this MegaChatError
