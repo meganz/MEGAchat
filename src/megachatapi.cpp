@@ -304,7 +304,7 @@ void MegaChatRequestListener::onRequestTemporaryError(MegaChatApi *, MegaChatReq
 MegaChatRequestListener::~MegaChatRequestListener() {}
 
 
-MegaChatHandle MegaChatRoom::getHandle() const
+MegaChatHandle MegaChatRoom::getChatId() const
 {
     return INVALID_HANDLE;
 }
@@ -342,6 +342,26 @@ bool MegaChatRoom::isGroup() const
 const char *MegaChatRoom::getTitle() const
 {
     return NULL;
+}
+
+int MegaChatRoom::getChanges() const
+{
+    return 0;
+}
+
+bool MegaChatRoom::hasChanged(int changeType) const
+{
+    return false;
+}
+
+int MegaChatRoom::getUnreadCount() const
+{
+    return 0;
+}
+
+MegaChatApi::Status MegaChatRoom::getOnlineStatus() const
+{
+    return MegaChatApi::STATUS_OFFLINE;
 }
 
 MegaChatPeerList * MegaChatPeerList::createInstance()

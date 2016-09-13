@@ -121,7 +121,7 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
             KR_LOG_DEBUG("Chats: ");
             for (int i = 0; i < chats->size(); i++)
             {
-                KR_LOG_DEBUG("Chat %d", chats->get(i)->getHandle());
+                KR_LOG_DEBUG("Chat %d", chats->get(i)->getChatId());
             }
 
             megaChatApi[apiIndex]->connect();

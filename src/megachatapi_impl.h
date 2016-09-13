@@ -192,21 +192,21 @@ private:
     int changed;
 
     MegaChatHandle chatid;
-
     mega::visibility_t visibility;
     const char *title;
     int unreadCount;
     MegaChatApi::Status status;
 
 public:
-    int getChanges() const;
-    bool hasChanged(int changeType) const;
+    virtual int getChanges() const;
+    virtual bool hasChanged(int changeType) const;
 
-    MegaChatHandle getChatId() const;
-    const char *getTitle() const;
-    int getVisibility() const;
-    int getUnreadCount() const;
-    MegaChatApi::Status getOnlineStatus() const;
+    virtual MegaChatHandle getChatId() const;
+    virtual const char *getTitle() const;
+    virtual int getVisibility() const;
+    virtual int getUnreadCount() const;
+    virtual MegaChatApi::Status getOnlineStatus() const;
+
 
     void setVisibility(mega::visibility_t visibility);
     void setTitle(const char *title);
@@ -246,9 +246,9 @@ public:
 
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
-    //virtual void onUnreadCountChanged(int count);
+    virtual void onUnreadCountChanged(int count);
     virtual void onPresenceChanged(karere::Presence state);
-    //virtual void onMembersUpdated();
+    virtual void onMembersUpdated();
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface*& dbIntf);
@@ -330,7 +330,7 @@ public:
 
     virtual ~MegaChatRoomPrivate() {}
 
-    virtual MegaChatHandle getHandle() const;
+    virtual MegaChatHandle getChatId() const;
     virtual int getOwnPrivilege() const;
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
     virtual int getPeerPrivilege(unsigned int i) const;
@@ -339,12 +339,29 @@ public:
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
 
+    virtual int getChanges() const;
+    virtual bool hasChanged(int changeType) const;
+
+    virtual int getUnreadCount() const;
+    virtual MegaChatApi::Status getOnlineStatus() const;
+
+    void setTitle(const char *title);
+    void setUnreadCount(int count);
+    void setOnlineStatus(MegaChatApi::Status status);
+    void setMembersUpdated();
+
 private:
-    mega::handle id;
+    int changed;
+
+    MegaChatHandle chatid;
     int priv;
     mega::userpriv_vector peers;
     bool group;
-    std::string title;
+
+    const char *title;
+    int unreadCount;
+    MegaChatApi::Status status;
+
 };
 
 class MegaChatRoomListPrivate :  public MegaChatRoomList
@@ -492,6 +509,7 @@ public:
     void connect(MegaChatRequestListener *listener = NULL);
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     MegaChatRoomList* getChatRooms();
+    MegaChatRoom* getChatRoom(MegaChatHandle chatid);
 
     // Chatrooms management
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);

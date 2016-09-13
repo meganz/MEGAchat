@@ -173,105 +173,6 @@ protected:
 
 };
 
-class MegaChatRoom
-{
-public:
-    enum {
-        PRIV_UNKNOWN = -2,
-        PRIV_RM = -1,
-        PRIV_RO = 0,
-        PRIV_STANDARD = 2,
-        PRIV_MODERATOR = 3
-    };
-
-    virtual ~MegaChatRoom() {}
-
-    /**
-     * @brief Returns the MegaChatHandle of the chat.
-     * @return MegaChatHandle of the chat.
-     */
-    virtual MegaChatHandle getHandle() const;
-
-    /**
-     * @brief Returns your privilege level in this chat
-     * @return
-     */
-    virtual int getOwnPrivilege() const;
-
-    /**
-     * @brief Returns the privilege level of the user in this chat.
-     *
-     * If the user doesn't participate in this MegaChatRoom, this function returns PRIV_UNKNOWN.
-     *
-     * @param Handle of the peer whose privilege is requested.
-     * @return Privilege level of the chat peer with the handle specified.
-     * Valid values are:
-     * - MegaChatPeerList::PRIV_UNKNOWN = -2
-     * - MegaChatPeerList::PRIV_RM = -1
-     * - MegaChatPeerList::PRIV_RO = 0
-     * - MegaChatPeerList::PRIV_STANDARD = 2
-     * - MegaChatPeerList::PRIV_MODERATOR = 3
-     */
-    virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
-
-    /**
-     * @brief Returns the number of participants in the chat
-     * @return Number of participants in the chat
-     */
-    virtual unsigned int getPeerCount() const;
-
-    /**
-     * @brief Returns the handle of the user
-     *
-     * If the index is >= the number of participants in this chat, this function
-     * will return INVALID_HANDLE.
-     *
-     * @param i Position of the peer whose handle is requested
-     * @return Handle of the peer in the position i.
-     */
-    virtual MegaChatHandle getPeerHandle(unsigned int i) const;
-
-    /**
-     * @brief Returns the privilege level of the user in this chat.
-     *
-     * If the index is >= the number of participants in this chat, this function
-     * will return PRIV_UNKNOWN.
-     *
-     * @param i Position of the peer whose handle is requested
-     * @return Privilege level of the chat peer with the handle specified.
-     * Valid values are:
-     * - MegaChatPeerList::PRIV_UNKNOWN = -2
-     * - MegaChatPeerList::PRIV_RM = -1
-     * - MegaChatPeerList::PRIV_RO = 0
-     * - MegaChatPeerList::PRIV_STANDARD = 2
-     * - MegaChatPeerList::PRIV_MODERATOR = 3
-     */
-    virtual int getPeerPrivilege(unsigned int i) const;
-
-    /**
-     * @brief isGroup Returns whether this chat is a group chat or not
-     * @return True if this chat is a group chat. Only chats with more than 2 peers are groupal chats.
-     */
-    virtual bool isGroup() const;
-
-//    /**
-//     * @brief getOriginatingUser Returns the user that originated the chat notification
-//     *
-//     * @note This value is only relevant for new or updated chats notified by MegaGlobalListener::onChatsUpdate or
-//     * MegaListener::onChatsUpdate.
-//     *
-//     * @return The handle of the user who originated the chat notification.
-//     */
-//    virtual MegaChatHandle getOriginatingUser() const;
-
-    /**
-     * @brief getTitle Returns the title of the chat, if any.
-     *
-     * @return The title of the chat as a null-terminated char array.
-     */
-    virtual const char *getTitle() const;
-};
-
 /**
  * @brief List of MegaChatRoom objects
  *
@@ -894,6 +795,111 @@ public:
 
     virtual const char *getTitle() const;
     virtual int getVisibility() const;
+    virtual int getUnreadCount() const;
+    virtual MegaChatApi::Status getOnlineStatus() const;
+};
+
+class MegaChatRoom
+{
+public:
+
+    enum
+    {
+        CHANGE_TYPE_STATUS          = 0x01,
+        CHANGE_TYPE_UNREAD_COUNT    = 0x02,
+        CHANGE_TYPE_PARTICIPANTS    = 0x04,
+        CHANGE_TYPE_TITLE           = 0x08
+//        CHANGE_TYPE_TITLE           = 0x10
+    };
+
+    enum {
+        PRIV_UNKNOWN    = -2,
+        PRIV_RM         = -1,
+        PRIV_RO         = 0,
+        PRIV_STANDARD   = 2,
+        PRIV_MODERATOR  = 3
+    };
+
+    virtual ~MegaChatRoom() {}
+
+    /**
+     * @brief Returns the MegaChatHandle of the chat.
+     * @return MegaChatHandle of the chat.
+     */
+    virtual MegaChatHandle getChatId() const;
+
+    /**
+     * @brief Returns your privilege level in this chat
+     * @return
+     */
+    virtual int getOwnPrivilege() const;
+
+    /**
+     * @brief Returns the privilege level of the user in this chat.
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns PRIV_UNKNOWN.
+     *
+     * @param Handle of the peer whose privilege is requested.
+     * @return Privilege level of the chat peer with the handle specified.
+     * Valid values are:
+     * - MegaChatPeerList::PRIV_UNKNOWN = -2
+     * - MegaChatPeerList::PRIV_RM = -1
+     * - MegaChatPeerList::PRIV_RO = 0
+     * - MegaChatPeerList::PRIV_STANDARD = 2
+     * - MegaChatPeerList::PRIV_MODERATOR = 3
+     */
+    virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
+
+    /**
+     * @brief Returns the number of participants in the chat
+     * @return Number of participants in the chat
+     */
+    virtual unsigned int getPeerCount() const;
+
+    /**
+     * @brief Returns the handle of the user
+     *
+     * If the index is >= the number of participants in this chat, this function
+     * will return INVALID_HANDLE.
+     *
+     * @param i Position of the peer whose handle is requested
+     * @return Handle of the peer in the position i.
+     */
+    virtual MegaChatHandle getPeerHandle(unsigned int i) const;
+
+    /**
+     * @brief Returns the privilege level of the user in this chat.
+     *
+     * If the index is >= the number of participants in this chat, this function
+     * will return PRIV_UNKNOWN.
+     *
+     * @param i Position of the peer whose handle is requested
+     * @return Privilege level of the chat peer with the handle specified.
+     * Valid values are:
+     * - MegaChatPeerList::PRIV_UNKNOWN = -2
+     * - MegaChatPeerList::PRIV_RM = -1
+     * - MegaChatPeerList::PRIV_RO = 0
+     * - MegaChatPeerList::PRIV_STANDARD = 2
+     * - MegaChatPeerList::PRIV_MODERATOR = 3
+     */
+    virtual int getPeerPrivilege(unsigned int i) const;
+
+    /**
+     * @brief isGroup Returns whether this chat is a group chat or not
+     * @return True if this chat is a group chat. Only chats with more than 2 peers are groupal chats.
+     */
+    virtual bool isGroup() const;
+
+    /**
+     * @brief getTitle Returns the title of the chat, if any.
+     *
+     * @return The title of the chat as a null-terminated char array.
+     */
+    virtual const char *getTitle() const;
+
+    virtual int getChanges() const;
+    virtual bool hasChanged(int changeType) const;
+
     virtual int getUnreadCount() const;
     virtual MegaChatApi::Status getOnlineStatus() const;
 };

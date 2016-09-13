@@ -710,7 +710,6 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
 
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 {
-    // TODO: get the chatlist from mClient and create the corresponding MegaChatRoom's
     MegaChatRoomListPrivate *chats = new MegaChatRoomListPrivate();
 
     ChatRoomList::iterator it;
@@ -720,6 +719,22 @@ MegaChatRoomList *MegaChatApiImpl::getChatRooms()
     }
 
     return chats;
+}
+
+MegaChatRoom *MegaChatApiImpl::getChatRoom(MegaChatHandle chatid)
+{
+    MegaChatRoomPrivate *chat = NULL;
+
+    ChatRoomList::iterator it;
+    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+        if (it->second->chatid() == chatid)
+        {
+            return new MegaChatRoomPrivate(*it->second);
+        }
+    }
+
+    return chat;
 }
 
 void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener)
@@ -1476,12 +1491,34 @@ IApp::ICallHandler *MegaChatRoomHandler::callHandler()
 
 void MegaChatRoomHandler::onTitleChanged(const string &title)
 {
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setTitle(title.c_str());
 
+    chatApi->fireOnChatRoomUpdate(chat);
+}
+
+void MegaChatRoomHandler::onUnreadCountChanged(int count)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setUnreadCount(count);
+
+    chatApi->fireOnChatRoomUpdate(chat);
 }
 
 void MegaChatRoomHandler::onPresenceChanged(Presence state)
 {
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setOnlineStatus((MegaChatApi::Status) state.status());
 
+    chatApi->fireOnChatRoomUpdate(chat);
+}
+
+void MegaChatRoomHandler::onMembersUpdated()
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setMembersUpdated();
+
+    chatApi->fireOnChatRoomUpdate(chat);
 }
 
 void MegaChatRoomHandler::init(chatd::Chat &messages, chatd::DbInterface *&dbIntf)
@@ -1596,7 +1633,7 @@ void MegaChatRoomListPrivate::addChatRoom(MegaChatRoom *chat)
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
 {
-    this->id = chat->getHandle();
+    this->chatid = chat->getChatId();
     this->priv = chat->getOwnPrivilege();
     for (unsigned int i = 0; i < chat->getPeerCount(); i++)
     {
@@ -1608,11 +1645,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 {
-    this->id = chat.chatid();
+    this->chatid = chat.chatid();
     this->priv = chat.ownPriv();
 
     this->group = chat.isGroup();
-    this->title = chat.titleString();
+    this->title = chat.titleString().c_str();
 
     if (group)
     {
@@ -1629,9 +1666,9 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     }
 }
 
-MegaChatHandle MegaChatRoomPrivate::getHandle() const
+MegaChatHandle MegaChatRoomPrivate::getChatId() const
 {
-    return id;
+    return chatid;
 }
 
 int MegaChatRoomPrivate::getOwnPrivilege() const
@@ -1674,7 +1711,54 @@ bool MegaChatRoomPrivate::isGroup() const
 
 const char *MegaChatRoomPrivate::getTitle() const
 {
-    return title.c_str();
+    return title;
+}
+
+int MegaChatRoomPrivate::getChanges() const
+{
+    return changed;
+}
+
+bool MegaChatRoomPrivate::hasChanged(int changeType) const
+{
+    return (changed & changeType);
+}
+
+int MegaChatRoomPrivate::getUnreadCount() const
+{
+    return unreadCount;
+}
+
+MegaChatApi::Status MegaChatRoomPrivate::getOnlineStatus() const
+{
+    return status;
+}
+
+void MegaChatRoomPrivate::setTitle(const char *title)
+{
+    if(this->title)
+    {
+        delete [] this->title;
+    }
+    this->title = MegaApi::strdup(title);
+    this->changed |= MegaChatRoom::CHANGE_TYPE_TITLE;
+}
+
+void MegaChatRoomPrivate::setUnreadCount(int count)
+{
+    this->unreadCount = count;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_UNREAD_COUNT;
+}
+
+void MegaChatRoomPrivate::setOnlineStatus(MegaChatApi::Status status)
+{
+    this->status = status;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_STATUS;
+}
+
+void MegaChatRoomPrivate::setMembersUpdated()
+{
+    this->changed |= MegaChatRoom::CHANGE_TYPE_PARTICIPANTS;
 }
 
 void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
