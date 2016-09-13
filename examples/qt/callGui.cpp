@@ -197,7 +197,14 @@ void CallAnswerGui::onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer)
 
 void CallAnswerGui::onSession()
 {
+    auto it = mParent.client().contactList->find(mContact->userId());
+    if (it == mParent.client().contactList->end())
+        throw std::runtime_error("chatWindowForPeer: peer '"+Id(mContact->userId()).toString()+"' not in contact list");
+    auto room = it->second->chatRoom();
+    if (!room)
+        throw std::runtime_error("chatWindowForPeer: peer contact has no chatroom");
+
 //handover event handling and local video renderer to chat window
-    static_cast<ChatWindow&>(mParent.chatHandlerForPeer(mContact->userId())).createCallGui(mAns->call());
+    static_cast<ChatWindow&>(room->appChatHandler()).createCallGui(mAns->call());
     delete this;
 }

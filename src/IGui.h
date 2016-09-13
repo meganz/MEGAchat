@@ -6,7 +6,8 @@ namespace karere
 class ChatRoom;
 class GroupChatRoom;
 
-/** @brief The karere chat application class that the app needs to
+/**
+ * @brief The karere chat application class that the app needs to
  * implement in order to receive (mostly GUI) events.
  */
 class IApp
@@ -29,35 +30,37 @@ public:
          */
         virtual void onTitleChanged(const std::string& title) = 0;
 
-        /** @brief
-         * The number of unread messages for that chat has changed. It can be used
+        /**
+         * @brief The number of unread messages for that chat has changed. It can be used
          * to display an unread message counter next to the contact/groupchat
          * name.
          *
-         * If count == 0, then the indicator should be
+         * @param count If count == 0, then the indicator should be
          * removed, if count > 0, the indicator should show the exact value of
          * count, if count < 0, then there are *at least* \c count unread messages,
-         * and possibly more. In that case the indicator should show e.g. '2+' */
+         * and possibly more. In that case the indicator should show e.g. '2+'
+         */
         virtual void onUnreadCountChanged(int count) {}
 
-        /** @brief
-         * The online state of the person/chatroom has changed. This can be used
+        /**
+         * @brief The online state of the person/chatroom has changed. This can be used
          * to update the indicator that shows the online status
          * of the contact/groupchat (online, offline, busy, etc)
+         *
          * @param state The presence code
          */
         virtual void onPresenceChanged(karere::Presence state) = 0;
 
-        /** @brief
-         * For group chats, tells the application that there has been a change
+        /**
+         * @brief For group chats, tells the application that there has been a change
          * in the group composition. \c onTitleChanged() will be received as well,
          * so this event is not critical for name display updates
-        */
+         */
         virtual void onMembersUpdated() {}
     };
 
-    /** @brief
-     * This is the interface that receives events about an ongoing call.
+    /**
+     * @brief This is the interface that receives events about an ongoing call.
      *
      * As currently there are no additional methods besides the inherited from
      * \c  IEventHandler, the class is empty.
@@ -89,8 +92,8 @@ public:
         virtual void* userp() { return nullptr; }
     };
 
-    /** @brief
-     * This is the interafce that must be implemented by the
+    /**
+     * @brief This is the interafce that must be implemented by the
      * login dialog implementation, in case the app uses karere to login the
      * SDK instance via \c karere::Client::sdkLoginNewSession()
      *
@@ -115,31 +118,21 @@ public:
          * @brief This is the method that karere calls when it needs the dialog shown
          * and credentials entered. It should return the username and password
          * via the returned promise
+         *
+         * @return
          */
         virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials() = 0;
-        /** @brief
-         * Called when the state of the login operation changes,
+
+        /**
+         * @brief Called when the state of the login operation changes,
          * to inform the user about the progress of the login operation.
+         *
+         * @param state
          */
         virtual void setState(LoginStage state) {}
+
         virtual ~ILoginDialog() {}
     };
-    /** @brief
-     * Called when karere needs to create a login dialog.
-     *
-     * This is only needed if the app uses karere to log in the SDK instance,
-     * by calling \c karere::Client::sdkLoginNewSession().
-     * This method can just return NULL if the app never calls
-     * \c karere::Client::sdkLoginNewSession()
-     */
-    virtual ILoginDialog* createLoginDialog() = 0;
-
-    /** @brief
-     * Called when karere needs to instantiate a chat window for that 1on1 or
-     * group chatroom
-     * @param room The chat room object.
-     */
-    virtual IChatHandler* createChatHandler(karere::ChatRoom& room) = 0;
 
     /** @brief
      * Implemented by contactlist items, including groupchat items
@@ -187,26 +180,58 @@ public:
          * @return
          */
         virtual IContactListItem* addContactItem(Contact& contact) = 0;
-        /** @brief Called when a groupchat is added to the contactlist */
-        virtual IContactListItem* addGroupChatItem(GroupChatRoom& room) = 0;
-        /** @brief Called when a contact is removed from contactlist */
-        virtual void removeContactItem(IContactListItem* item) = 0;
-        /** @brief Called when a groupchat is removed from the contactlist */
-        virtual void removeGroupChatItem(IContactListItem* item) = 0;
 
-        /** @brief Must return the 1on1 IChatHandler instance for the specified
-         * user handle. If one does not exist, it must be created and returned
+        /**
+         * @brief @brief Called when a groupchat is added to the contactlist
+         *
+         * @param room
+         * @return
          */
-        virtual IChatHandler& chatHandlerForPeer(uint64_t handle) = 0;
+        virtual IContactListItem* addGroupChatItem(GroupChatRoom& room) = 0;
+
+        /**
+         * @brief Called when a contact is removed from contactlist
+         *
+         * @param item
+         */
+        virtual void removeContactItem(IContactListItem* item) = 0;
+
+        /**
+         * @brief Called when a groupchat is removed from the contactlist
+         * @param item
+         */
+        virtual void removeGroupChatItem(IContactListItem* item) = 0;
     };
+
+    /**
+     * @brief Called when karere needs to create a login dialog.
+     *
+     * This is only needed if the app uses karere to log in the SDK instance,
+     * by calling \c karere::Client::sdkLoginNewSession().
+     * This method can just return NULL if the app never calls
+     * \c karere::Client::sdkLoginNewSession()
+     */
+    virtual ILoginDialog* createLoginDialog() { return nullptr; }
+
+    /**
+     * @brief Called when karere needs to instantiate a chat window for that 1on1 or
+     * group chatroom
+     *
+     * @param room The chat room object.
+     */
+    virtual IChatHandler* createChatHandler(karere::ChatRoom& room) = 0;
 
     /** @brief Returns the interface to the contactlist */
     virtual IContactListHandler& contactListHandler() = 0;
 
-    /** @brief Called by karere when our own online state/presence has changed. */
+    /**
+     * @brief Called by karere when our own online state/presence has changed.
+     * @param pres
+     */
     virtual void onOwnPresence(Presence pres) {} //may include flags
 
-    /** @brief Called when an incoming contact request has been received.
+    /**
+     * @brief Called when an incoming contact request has been received.
      *
      *  To accept or decline the request, the GUI should call
      * \c mega::MegaApi::replyContactRequest() with the \c req object
@@ -214,7 +239,8 @@ public:
      */
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) = 0;
 
-    /** @brief Called by karere when there is an incoming call.
+    /**
+     * @brief Called by karere when there is an incoming call.
      *
      * The app must create a rtcModule::IEventHandler to handle events related to
      * that incoming call request (such as cancel or timeout of the call request).
@@ -227,8 +253,9 @@ public:
     virtual rtcModule::IEventHandler*
         onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
 
-    /** @brief Called by karere when we become participants
-     * in a 1on1 or a group chat.
+    /**
+     * @brief Called by karere when we become participants in a 1on1 or a group chat.
+     * @param room The chat room object.
      */
     virtual void notifyInvited(const ChatRoom& room) {}
 
