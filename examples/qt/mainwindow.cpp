@@ -309,16 +309,7 @@ karere::IApp::IChatHandler* MainWindow::createChatHandler(karere::ChatRoom& room
 {
     return new ChatWindow(room, *this);
 }
-karere::IApp::IChatHandler& MainWindow::chatHandlerForPeer(uint64_t handle)
-{
-    auto it = mClient->contactList->find(handle);
-    if (it == mClient->contactList->end())
-        throw std::runtime_error("chatWindowForPeer: peer '"+Id(handle).toString()+"' not in contact list");
-    auto room = it->second->chatRoom();
-    if (!room)
-        throw std::runtime_error("chatWindowForPeer: peer contact has no chatroom");
-    return room->appChatHandler();
-}
+
 karere::IApp::ILoginDialog* MainWindow::createLoginDialog()
 {
     return new LoginDialog(nullptr);
