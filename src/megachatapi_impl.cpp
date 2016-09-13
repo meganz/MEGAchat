@@ -1667,7 +1667,7 @@ const char *MegaChatRoomPrivate::getTitle() const
 void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
-    item->setVisibility((mega::visibility_t) newVisibility);
+    item->setVisibility((visibility_t) newVisibility);
 
     chatApi->fireOnChatListItemUpdate(item);
 }
