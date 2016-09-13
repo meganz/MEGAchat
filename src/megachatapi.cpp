@@ -416,7 +416,7 @@ void MegaChatListener::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *
 
 }
 
-void MegaChatListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoomList *chats)
+void MegaChatListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chats)
 {
 
 }

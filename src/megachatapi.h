@@ -927,9 +927,14 @@ public:
     //    virtual void onChatCurrent(MegaChatApi* api);
 
         /**
-         * @brief onChatListItemUpdate
+         * @brief This function is called when there are relevant changes related to the chats.
+         *
+         * The SDK retains the ownership of the MegaChatListItem in the second parameter.
+         * The MegaChatListItem object will be valid until this function returns. If you
+         * want to save the MegaChatListItem, use MegaChatListItem::copy
          *
          * @param api MegaChatApi connected to the account
+         * @param item MegaChatListItem representing a 1on1 or groupchat.
          * /// TODO: document the item param
          */
         virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
@@ -944,15 +949,14 @@ public:
          * have been established yet (wait for completion of MegaChatApi::connect in order to
          * ensure the connection is established).
          *
-         * The SDK retains the ownership of the MegaChatRoomList in the second parameter. The list
-         * and all the MegaChatRoom objects that it contains will be valid until this function returns.
-         * If you want to save the list, use MegaChatRoomList::copy. If you want to save only some of
-         * the MegaChatRoom objects, use MegaChatRoom::copy for those chats.
+         * The SDK retains the ownership of the MegaChatRoom in the second parameter.
+         * The MegaChatRoom object will be valid until this function returns. If you want to
+         * save the MegaChatRoom object, use MegaChatRoom::copy.
          *
          * @param api MegaChatApi connected to the account
-         * @param chats List that contains the new or updated chats
+         * @param chat MegaChatRoom that contains the new or updated chat
          */
-        virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoomList *chats);
+        virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
 };
 
 }

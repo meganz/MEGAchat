@@ -666,14 +666,14 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int wi
     }
 }
 
-void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoomList *chats)
+void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoom *chat)
 {
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
-        (*it)->onChatRoomUpdate(chatApi, chats);
+        (*it)->onChatRoomUpdate(chatApi, chat);
     }
 
-    delete chats;
+    delete chat;
 }
 
 void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
@@ -716,7 +716,7 @@ MegaChatRoomList *MegaChatApiImpl::getChatRooms()
     ChatRoomList::iterator it;
     for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
     {
-        chats->addChatRoom(new MegaChatRoomPrivate(it->second));
+        chats->addChatRoom(new MegaChatRoomPrivate(*it->second));
     }
 
     return chats;
@@ -950,10 +950,10 @@ void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)
 
 IApp::IChatHandler *MegaChatApiImpl::createChatHandler(ChatRoom &room)
 {
-    // TODO: create the chat handler and add listeners to it
-    // TODO: return the object implementing IChatHandler
+    MegaChatRoomHandler *chatHandler = new MegaChatRoomHandler(this, room.chatid());
+    chatRoomHandler.insert(chatHandler);
 
-    return NULL;
+    return chatHandler;
 }
 
 IApp::IContactListHandler& MegaChatApiImpl::contactListHandler()
@@ -970,6 +970,13 @@ rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const shared_ptr<rtcMo
 {
     // TODO: create the call object implementing IEventHandler and return it
     return new MegaChatCallPrivate(ans);
+}
+
+void MegaChatApiImpl::notifyInvited(const ChatRoom &room)
+{
+    MegaChatRoomPrivate *chat = new MegaChatRoomPrivate(room);
+
+    fireOnChatRoomUpdate(chat);
 }
 
 IApp::IContactListItem *MegaChatApiImpl::addContactItem(Contact &contact)
@@ -1455,6 +1462,12 @@ void MegaChatVideoReceiver::released()
 }
 
 
+MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApi, MegaChatHandle chatid)
+{
+    this->chatApi = chatApi;
+    this->chatid = chatid;
+}
+
 IApp::ICallHandler *MegaChatRoomHandler::callHandler()
 {
     // TODO: create a MegaChatCallPrivate() with the peer information and return it
@@ -1593,19 +1606,19 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->title = chat->getTitle();
 }
 
-MegaChatRoomPrivate::MegaChatRoomPrivate(ChatRoom *chat)
+MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 {
-    this->id = chat->chatid();
-    this->priv = chat->ownPriv();
+    this->id = chat.chatid();
+    this->priv = chat.ownPriv();
 
-    this->group = chat->isGroup();
-    this->title = chat->titleString();
+    this->group = chat.isGroup();
+    this->title = chat.titleString();
 
     if (group)
     {
-        GroupChatRoom *groupchat = (GroupChatRoom*) chat;
+        GroupChatRoom &groupchat = (GroupChatRoom&) chat;
 
-        GroupChatRoom::MemberMap peers = groupchat->peers();
+        GroupChatRoom::MemberMap peers = groupchat.peers();
 
         GroupChatRoom::MemberMap::iterator it;
         for (it = peers.begin(); it != peers.end(); it++)

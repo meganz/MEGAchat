@@ -230,15 +230,15 @@ public:
     virtual void onPresenceChanged(karere::Presence state);
     virtual void onMembersUpdated();
 
-protected:
+private:
     MegaChatApiImpl *chatApi;
     MegaChatHandle chatid;
 };
 
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
 {
-public:
-
+public:    
+    MegaChatRoomHandler(MegaChatApiImpl*, MegaChatHandle chatid);
 
     // karere::IApp::IChatHandler implementation
     virtual karere::IApp::ICallHandler* callHandler();
@@ -274,6 +274,9 @@ public:
 
 protected:
 
+private:
+    MegaChatApiImpl *chatApi;
+    MegaChatHandle chatid;
 };
 
 class MegaChatErrorPrivate :
@@ -323,7 +326,7 @@ class MegaChatRoomPrivate : public MegaChatRoom
 {
 public:
     MegaChatRoomPrivate(const MegaChatRoom *);
-    MegaChatRoomPrivate(karere::ChatRoom*);
+    MegaChatRoomPrivate(const karere::ChatRoom&);
 
     virtual ~MegaChatRoomPrivate() {}
 
@@ -429,6 +432,7 @@ private:
     std::set<MegaChatVideoListener *> remoteVideoListeners;
 
     std::set<karere::IApp::IContactListItem *> chatListItemHandler;
+    std::set<karere::IApp::IChatHandler *> chatRoomHandler;
 
     int reqtag;
     std::map<int, MegaChatRequestPrivate *> requestMap;
@@ -477,7 +481,7 @@ public:
     void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
 
     // MegaChatListener callbacks
-    void fireOnChatRoomUpdate(MegaChatRoomList *chats);
+    void fireOnChatRoomUpdate(MegaChatRoom *chat);
     void fireOnChatListItemUpdate(MegaChatListItem *item);
 
 
@@ -521,7 +525,7 @@ public:
     virtual void onOwnPresence(karere::Presence pres);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
-    //virtual void notifyInvited(const ChatRoom& room);
+    virtual void notifyInvited(const karere::ChatRoom& room);
     //virtual void onTerminate();
 
     // rtcModule::IContactListHandler implementation
