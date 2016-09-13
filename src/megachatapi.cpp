@@ -452,7 +452,7 @@ const char *MegaChatListItem::getTitle() const
     return NULL;
 }
 
-mega::visibility_t MegaChatListItem::getVisibility() const
+int MegaChatListItem::getVisibility() const
 {
     return mega::VISIBILITY_UNKNOWN;
 }

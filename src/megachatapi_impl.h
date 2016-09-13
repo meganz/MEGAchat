@@ -204,7 +204,7 @@ public:
 
     MegaChatHandle getChatId() const;
     const char *getTitle() const;
-    mega::visibility_t getVisibility() const;
+    int getVisibility() const;
     int getUnreadCount() const;
     MegaChatApi::Status getOnlineStatus() const;
 

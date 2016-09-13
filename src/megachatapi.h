@@ -893,7 +893,7 @@ public:
     virtual MegaChatHandle getChatId() const;
 
     virtual const char *getTitle() const;
-    virtual mega::visibility_t getVisibility() const;
+    virtual int getVisibility() const;
     virtual int getUnreadCount() const;
     virtual MegaChatApi::Status getOnlineStatus() const;
 };

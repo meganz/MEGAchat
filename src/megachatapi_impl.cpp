@@ -1816,7 +1816,7 @@ const char *MegaChatListItemPrivate::getTitle() const
     return title;
 }
 
-mega::visibility_t MegaChatListItemPrivate::getVisibility() const
+int MegaChatListItemPrivate::getVisibility() const
 {
     return visibility;
 }
