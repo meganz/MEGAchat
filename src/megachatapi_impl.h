@@ -551,7 +551,6 @@ public:
     virtual IContactListItem *addGroupChatItem(karere::GroupChatRoom& room);
     virtual void removeContactItem(IContactListItem* item);
     virtual void removeGroupChatItem(IContactListItem* item);
-    virtual IChatHandler& chatHandlerForPeer(uint64_t handle);
 
 //    // karere::ITitleDisplay implementation (for the name of contacts and groupchats in the list)
 //    virtual void onTitleChanged(const std::string& title);

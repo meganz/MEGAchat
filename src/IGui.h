@@ -201,15 +201,6 @@ public:
          * @param item
          */
         virtual void removeGroupChatItem(IContactListItem* item) = 0;
-
-        /**
-         * @brief Must return the 1on1 IChatHandler instance for the specified
-         * user handle. If one does not exist, it must be created and returned
-         *
-         * @param handle
-         * @return
-         */
-        virtual IChatHandler& chatHandlerForPeer(uint64_t handle) = 0;
     };
 
     /**

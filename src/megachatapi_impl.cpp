@@ -1020,14 +1020,6 @@ void MegaChatApiImpl::removeGroupChatItem(IContactListItem *item)
     chatListItemHandler.erase(item);
 }
 
-IApp::IChatHandler& MegaChatApiImpl::chatHandlerForPeer(uint64_t handle)
-{
-    // TODO: create a new chatroomhandler and keep the reference, so events can
-    // be processed and notified to the app
-    MegaChatRoomHandler *chatroomHandler = new MegaChatRoomHandler();
-    return *chatroomHandler;
-}
-
 void MegaChatApiImpl::onOwnPresence(Presence pres)
 {
     this->status = (MegaChatApi::Status) pres.status();
