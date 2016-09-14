@@ -4,6 +4,7 @@
 namespace karere
 {
 class ChatRoom;
+class PeerChatRoom;
 class GroupChatRoom;
 
 /**
@@ -31,6 +32,14 @@ public:
         virtual void onTitleChanged(const std::string& title) = 0;
 
         /**
+         * @brief The online state of the person/chatroom has changed. This can be used
+         * to update the indicator that shows the online status
+         * of the contact/groupchat (online, offline, busy, etc)
+         *
+         * @param state The presence code
+         */
+        virtual void onPresenceChanged(karere::Presence state) = 0;
+        /**
          * @brief The number of unread messages for that chat has changed. It can be used
          * to display an unread message counter next to the contact/groupchat
          * name.
@@ -41,22 +50,6 @@ public:
          * and possibly more. In that case the indicator should show e.g. '2+'
          */
         virtual void onUnreadCountChanged(int count) {}
-
-        /**
-         * @brief The online state of the person/chatroom has changed. This can be used
-         * to update the indicator that shows the online status
-         * of the contact/groupchat (online, offline, busy, etc)
-         *
-         * @param state The presence code
-         */
-        virtual void onPresenceChanged(karere::Presence state) = 0;
-
-        /**
-         * @brief For group chats, tells the application that there has been a change
-         * in the group composition. \c onTitleChanged() will be received as well,
-         * so this event is not critical for name display updates
-         */
-        virtual void onMembersUpdated() {}
     };
 
     /**
@@ -89,7 +82,7 @@ public:
         virtual ICallHandler* callHandler() = 0;
 
         /** @brief Returns an optionally associated user data pointer */
-        virtual void* userp() { return nullptr; }
+        void* userp = nullptr;
     };
 
     /**
@@ -135,13 +128,12 @@ public:
     };
 
     /** @brief
-     * Implemented by contactlist items, including groupchat items
+     * Implemented by contactlist and chat list items
      */
-    class IContactListItem: public ITitleHandler
+    class IListItem: public virtual ITitleHandler
     {
     public:
-
-        virtual ~IContactListItem() {}
+        virtual ~IListItem() {}
 
         /** @brief Called when the contact's visibility has changed, i.e. the
          * contact was removed or added. Used only for contacts (not groupchats).
@@ -156,7 +148,47 @@ public:
         virtual void onVisibilityChanged(int newVisibility) = 0;
 
         /** @brief Returns a user data pointer */
-        void* userp() { return nullptr; }
+        void* userp = nullptr;
+    };
+    /**
+     * @brief The IContactListItem class represents an interface to a contact display
+     * in the application's contactlist
+     */
+    class IContactListItem: public virtual IListItem {};
+    /**
+     * @brief The IChatListItem class represents an interface to a 1on1 or group
+     * chat entry displayed in the application's chat list
+     */
+    class IChatListItem: public virtual IListItem
+    {
+        /**
+         * @brief Returns whether the item represents a group chat or a 1on1 chat.
+         * Based on that, it can be cast to \c IPeerChatListItem or
+         * \c IGroupChatListItem
+         */
+        virtual bool isGroup() const = 0;
+        /**
+         * @brief For group chats, tells the application that there has been a change
+         * in the group composition. \c onTitleChanged() will be received as well,
+         * so this event is not critical for name display updates
+         */
+        virtual void onMembersUpdated() {}
+    };
+    /**
+     * @brief The IPeerChatListItem class is a specialization of IChatListItem for
+     * 1on1 chat item
+     */
+    class IPeerChatListItem: public virtual IChatListItem
+    {
+        virtual bool isGroup() const { return false; }
+    };
+    /**
+     * @brief The IPeerChatListItem class is a specialization of IChatListItem for
+     * group chat item
+     */
+    class IGroupChatListItem: public virtual IChatListItem
+    {
+        virtual bool isGroup() const { return true; }
     };
 
     /** @brief Manages contactlist items that in turn receive events
@@ -175,34 +207,39 @@ public:
 
         /**
          * @brief Called when a contact is added to the contactlist
-         *
-         * @param contact
-         * @return
          */
-        virtual IContactListItem* addContactItem(Contact& contact) = 0;
-
-        /**
-         * @brief @brief Called when a groupchat is added to the contactlist
-         *
-         * @param room
-         * @return
-         */
-        virtual IContactListItem* addGroupChatItem(GroupChatRoom& room) = 0;
+        virtual IContactListItem& addContactItem(Contact& contact) = 0;
 
         /**
          * @brief Called when a contact is removed from contactlist
-         *
-         * @param item
          */
-        virtual void removeContactItem(IContactListItem* item) = 0;
+        virtual void removeContactItem(IContactListItem& item) = 0;
 
         /**
          * @brief Called when a groupchat is removed from the contactlist
-         * @param item
          */
-        virtual void removeGroupChatItem(IContactListItem* item) = 0;
     };
-
+    class IChatListHandler
+    {
+    public:
+        virtual ~IChatListHandler() {}
+        /**
+         * @brief Called when a groupchat is added to the contactlist
+         */
+        virtual IGroupChatListItem& addGroupChatItem(GroupChatRoom& room) = 0;
+        /**
+         * @brief Called when a group chat needs to be added to the list
+         */
+        virtual void removeGroupChatItem(IGroupChatListItem& item) = 0;
+        /**
+         * @brief Called when a 1on1 chat needs to be added to the chatroom list
+         */
+        virtual IPeerChatListItem& addPeerChatItem(PeerChatRoom& room) = 0;
+        /**
+         * @brief Called when a 1on1 chat needs to be removed from the list
+         */
+        virtual void removePeerChatItem(IPeerChatListItem& item) = 0;
+    };
     /**
      * @brief Called when karere needs to create a login dialog.
      *
@@ -223,6 +260,8 @@ public:
 
     /** @brief Returns the interface to the contactlist */
     virtual IContactListHandler& contactListHandler() = 0;
+    /** @brief Returns the interface to the chat list */
+    virtual IChatListHandler& chatListHandler() = 0;
 
     /**
      * @brief Called by karere when our own online state/presence has changed.

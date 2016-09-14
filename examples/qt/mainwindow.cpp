@@ -256,7 +256,7 @@ QString gOnlineIndColors[karere::Presence::kLast+1] =
 {  "lightgray", "red", "orange", "lightgreen", "lightblue" };
 
 
-karere::IApp::IContactListItem*
+karere::IApp::IContactListItem&
 MainWindow::addContactItem(karere::Contact& contact)
 {
     auto clist = ui.contactList;
@@ -265,9 +265,10 @@ MainWindow::addContactItem(karere::Contact& contact)
     item->setSizeHint(contactGui->size());
     clist->addItem(item);
     clist->setItemWidget(item, contactGui);
-    return contactGui;
+    contactGui->userp = static_cast<QWidget*>(contactGui);
+    return *contactGui;
 }
-karere::IApp::IContactListItem*
+karere::IApp::IGroupChatListItem&
 MainWindow::addGroupChatItem(karere::GroupChatRoom& room)
 {
     auto clist = ui.contactList;
@@ -276,33 +277,51 @@ MainWindow::addGroupChatItem(karere::GroupChatRoom& room)
     item->setSizeHint(chatGui->size());
     clist->insertItem(0, item);
     clist->setItemWidget(item, chatGui);
-    return chatGui;
+    chatGui->userp = static_cast<QWidget*>(chatGui);
+    return *chatGui;
 }
 
-void MainWindow::removeItem(IContactListItem* item, bool isGroup)
+karere::IApp::IPeerChatListItem&
+MainWindow::addPeerChatItem(karere::PeerChatRoom& room)
+{
+    auto clist = ui.contactList;
+    auto chatGui = new CListPeerChatItem(clist, room);
+    auto item = new QListWidgetItem;
+    item->setSizeHint(chatGui->size());
+    clist->insertItem(0, item);
+    clist->setItemWidget(item, chatGui);
+    chatGui->userp = static_cast<QWidget*>(chatGui);
+    return *chatGui;
+}
+
+void MainWindow::removePeerChatItem(IPeerChatListItem &item)
+{
+    removeItem(item);
+}
+
+void MainWindow::removeItem(IListItem& item)
 {
     auto clist = ui.contactList;
     auto size = clist->count();
+    QWidget* widget = static_cast<QWidget*>(item.userp);
     for (int i=0; i<size; i++)
     {
-        auto gui = static_cast<CListItem*>(clist->itemWidget(clist->item(i)));
-        if (item == gui)
+        auto gui = (clist->itemWidget(clist->item(i)));
+        if (widget == gui)
         {
-            if (gui->isGroup() != isGroup)
-                throw std::runtime_error("ContactList: removeItem: Asked to remove a different type of contactlist item");
             delete clist->takeItem(i);
             return;
         }
     }
-    throw std::runtime_error("ContactList: removeItem: Item not found");
+    throw std::runtime_error("MainWindow::removeItem: Item not found");
 }
-void MainWindow::removeGroupChatItem(IContactListItem* item)
+void MainWindow::removeGroupChatItem(karere::IApp::IGroupChatListItem& item)
 {
-    removeItem(item, true);
+    removeItem(item);
 }
-void MainWindow::removeContactItem(IContactListItem* item)
+void MainWindow::removeContactItem(IContactListItem& item)
 {
-    removeItem(item, false);
+    removeItem(item);
 }
 
 karere::IApp::IChatHandler* MainWindow::createChatHandler(karere::ChatRoom& room)
@@ -434,17 +453,18 @@ void CListGroupChatItem::setTitle()
     mRoom.setTitle(topic.toStdString())
     .fail([](const promise::Error& err)
     {
-        printf("error: %s\n", err.what());
+        GUI_LOG_ERROR("Error setting chat title: %s", err.what());
     });
 }
-void CListGroupChatItem::truncateChat()
+void CListChatItem::truncateChat()
 {
-    if (mRoom.chat().empty())
+    auto& thisroom = room();
+    if (thisroom.chat().empty())
         return;
-    mRoom.parent.client.api.call(
+    thisroom.parent.client.api.call(
         &::mega::MegaApi::truncateChat,
-        mRoom.chatid(),
-        mRoom.chat().at(mRoom.chat().highnum()).id().val);
+        thisroom.chatid(),
+        thisroom.chat().at(thisroom.chat().highnum()).id().val);
 }
 
 #include <mainwindow.moc>

@@ -72,7 +72,7 @@ protected:
     void chatdJoin(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
-    virtual IApp::IContactListItem& contactGui() = 0;
+    virtual IApp::IChatListItem& roomGui() = 0;
     /** @endcond PRIVATE */
     /** @brief The text that will be displayed on the chat list for that chat */
     virtual const std::string& titleString() const = 0;
@@ -121,8 +121,8 @@ class PeerChatRoom: public ChatRoom
 protected:
     uint64_t mPeer;
     chatd::Priv mPeerPriv;
-    Contact* mContact = nullptr;
-    void setContact(Contact& contact) { mContact = &contact; }
+    Contact& mContact;
+    IApp::IPeerChatListItem& mRoomGui;
     friend class ContactList;
     inline Presence calculatePresence(Presence pres) const;
 public:
@@ -132,14 +132,15 @@ public:
     bool syncOwnPriv(chatd::Priv priv);
     bool syncPeerPriv(chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
-    virtual IApp::IContactListItem& contactGui();
+    virtual IApp::IChatListItem& roomGui();
     void updatePresence();
     virtual void join();
+    static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     //@endcond
     /** @brief The userid of the other person in the 1on1 chat */
     const uint64_t peer() const { return mPeer; }
     /** @brief The contact object representing the peer of the 1on1 chat */
-    const Contact& contact() const { return *mContact; }
+    Contact& contact() const { return mContact; }
     /** @brief The screen name of the peer */
     virtual const std::string& titleString() const;
     /** @brief The presence status of the chatroom. Derived from the presence
@@ -182,7 +183,7 @@ public:
     /** @cond PRIVATE */
     protected:
     MemberMap mPeers;
-    IApp::IContactListItem* mContactGui = nullptr;
+    IApp::IGroupChatListItem& mRoomGui;
     std::string mTitleString;
     bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
@@ -211,7 +212,7 @@ public:
     void leave();
     promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
-    virtual IApp::IContactListItem& contactGui() { return *mContactGui; }
+    virtual IApp::IChatListItem& roomGui() { return mRoomGui; }
     /** @endcond PRIVATE */
     /** @brief Returns whether the group chatroom has a title set. If not, then
       * its title string will be composed from the first names of the room members
@@ -268,7 +269,7 @@ protected:
     int64_t mSince;
     std::string mTitleString;
     int mVisibility;
-    IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
+    IApp::IContactListItem& mDisplay; //must be after mTitleString because it will read it
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
     void updateTitle(const std::string& str);
     void setChatRoom(PeerChatRoom& room);
@@ -276,10 +277,11 @@ public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
     ~Contact();
-    IApp::IContactListItem& gui() { return *mDisplay; }
+    IApp::IContactListItem& appItem() const { return mDisplay; }
+    IApp::IContactListItem& attachChatRoom(PeerChatRoom& room);
 /** @endcond PRIVATE */
     /** The contactlist object which this contact is member of */
-    ContactList& contactList() { return mClist; }
+    ContactList& contactList() const { return mClist; }
     /** The XMPP contact associated with this Mega contact. It provides
      * the presence notifications
      */
@@ -320,11 +322,11 @@ public:
     void onVisibilityChanged(int newVisibility)
     {
         mVisibility = newVisibility;
-        mDisplay->onVisibilityChanged(newVisibility);
+        mDisplay.onVisibilityChanged(newVisibility);
     }
     void updateAllOnlineDisplays(Presence pres)
     {
-            mDisplay->onPresenceChanged(pres);
+            mDisplay.onPresenceChanged(pres);
             if (mChatRoom)
                 mChatRoom->updatePresence();
     }
@@ -346,6 +348,7 @@ public:
      * otherwise returns NULL
      */
     Contact* contactFromJid(const std::string& jid) const;
+    Contact& contactFromUserId(uint64_t userid) const;
 /** @cond PRIVATE */
     ContactList(Client& aClient);
     ~ContactList();
@@ -354,7 +357,7 @@ public:
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
-    IApp::IContactListItem* attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
+    IApp::IContactListItem& attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
 /** @endcond */
