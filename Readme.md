@@ -68,7 +68,14 @@ build sustem, but it strips it down to download only a few hundred megabytes
 of source code and tools instead of 10-12GB. It also patches webrtc to fix
 several issues (use normal openssl instead of its own included boringssl
 lib, replace macos capturer that uses obsolete API and problematic threading
-model with modified iOS capturer, etc).
+model with modified iOS capturer, etc).  
+On any platform other than Linux, set the following two env vars, to make the webrtc build system
+find libs not located in standard system paths:  
+`export WEBRTC_DEPS_INCLUDE=/path/to/prefix/include`
+`export WEBRTC_DEPS_LIB=/path/to/prefix/lib`  
+Depending on the plaform, `/path/to/prefix` will be:  
+- iOS, Android, Windows: `$builddir/usr`, where `$builddir` is the builddir parameter that you passed to the `setup-deps.sh` script.
+- MacOS: The prefix where MacPorts/HomeBrew installs libraries.  
 
 *IMPORTANT*  
 Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh
