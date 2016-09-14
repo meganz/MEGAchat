@@ -549,8 +549,10 @@ public:
     // rtcModule::IContactListHandler implementation
     virtual IContactListItem* addContactItem(karere::Contact& contact);
     virtual IContactListItem *addGroupChatItem(karere::GroupChatRoom& room);
+    virtual IContactListItem *addPeerChatItem(karere::PeerChatRoom& room);
     virtual void removeContactItem(IContactListItem* item);
     virtual void removeGroupChatItem(IContactListItem* item);
+    virtual void removePeerChatItem(IContactListItem* item);
 
 //    // karere::ITitleDisplay implementation (for the name of contacts and groupchats in the list)
 //    virtual void onTitleChanged(const std::string& title);

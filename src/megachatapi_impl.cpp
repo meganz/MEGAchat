@@ -994,12 +994,9 @@ void MegaChatApiImpl::notifyInvited(const ChatRoom &room)
     fireOnChatRoomUpdate(chat);
 }
 
-IApp::IContactListItem *MegaChatApiImpl::addContactItem(Contact &contact)
+IApp::IContactListItem *MegaChatApiImpl::addContactItem(Contact &)
 {
-    MegaChatListItemHandler *itemHandler = new MegaChatListItemHandler(this, contact.chatRoom()->chatid());
-    chatListItemHandler.insert(itemHandler);
-
-    return itemHandler;
+    return NULL;
 }
 
 IApp::IContactListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
@@ -1010,12 +1007,24 @@ IApp::IContactListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
     return itemHandler;
 }
 
+IApp::IContactListItem *MegaChatApiImpl::addPeerChatItem(PeerChatRoom &room)
+{
+    MegaChatListItemHandler *itemHandler = new MegaChatListItemHandler(this, room.chatid());
+    chatListItemHandler.insert(itemHandler);
+
+    return itemHandler;
+}
+
 void MegaChatApiImpl::removeContactItem(IContactListItem *item)
+{
+}
+
+void MegaChatApiImpl::removeGroupChatItem(IContactListItem *item)
 {
     chatListItemHandler.erase(item);
 }
 
-void MegaChatApiImpl::removeGroupChatItem(IContactListItem *item)
+void MegaChatApiImpl::removePeerChatItem(IContactListItem *item)
 {
     chatListItemHandler.erase(item);
 }
