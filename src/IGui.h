@@ -144,6 +144,16 @@ public:
     public:
         virtual ~IListItem() {}
 
+        /** @brief Returns a user data pointer */
+        void* userp = nullptr;
+    };
+    /**
+     * @brief The IContactListItem class represents an interface to a contact display
+     * in the application's contactlist
+     */
+    class IContactListItem: public virtual IListItem
+    {
+    public:
         /** @brief Called when the contact's visibility has changed, i.e. the
          * contact was removed or added. Used only for contacts (not groupchats).
          *
@@ -155,15 +165,7 @@ public:
          * class mega::MegaUser
          */
         virtual void onVisibilityChanged(int newVisibility) = 0;
-
-        /** @brief Returns a user data pointer */
-        void* userp = nullptr;
     };
-    /**
-     * @brief The IContactListItem class represents an interface to a contact display
-     * in the application's contactlist
-     */
-    class IContactListItem: public virtual IListItem {};
     /**
      * @brief The IChatListItem class represents an interface to a 1on1 or group
      * chat entry displayed in the application's chat list
