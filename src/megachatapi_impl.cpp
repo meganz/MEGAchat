@@ -994,9 +994,13 @@ void MegaChatApiImpl::notifyInvited(const ChatRoom &room)
     fireOnChatRoomUpdate(chat);
 }
 
-IApp::IContactListItem *MegaChatApiImpl::addContactItem(Contact &)
+IApp::IContactListItem *MegaChatApiImpl::addContactItem(Contact &c)
 {
-    return NULL;
+    //TODO: Change this implementation when the related feature is finished on the MEGAchat SDK
+    MegaChatListItemHandler *itemHandler = new MegaChatListItemHandler(this, 0);
+    chatListItemHandler.insert(itemHandler);
+
+    return itemHandler;
 }
 
 IApp::IContactListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
@@ -1139,10 +1143,12 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
 {
+    this->text = NULL;
+    this->peerList = NULL;
+
     this->type = request.getType();
     this->listener = request.getListener();
     this->setTag(request.getTag());
-
     this->setNumber(request.getNumber());
     this->setNumRetry(request.getNumRetry());
     this->setFlag(request.getFlag());
@@ -1275,7 +1281,7 @@ void MegaChatRequestPrivate::setMegaChatPeerList(MegaChatPeerList *peerList)
     if (this->peerList)
         delete this->peerList;
 
-    this->peerList = peerList->copy();
+    this->peerList = peerList ? peerList->copy() : NULL;
 }
 
 void MegaChatRequestPrivate::setChatHandle(MegaChatHandle chatid)
