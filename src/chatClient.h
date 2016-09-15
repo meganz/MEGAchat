@@ -569,11 +569,11 @@ protected:
     bool mContactsLoaded = false;
     Presence mOwnPresence;
     bool mIsLoggedIn = false;
-    /** our own email address */
+    /** @brief Our own email address */
     std::string mEmail;
-    /** our password */
+    /** @brief Our password */
     std::string mPassword;
-    /** client's contact list */
+    /** @brief Client's contact list */
     XmppContactList mXmppContactList;
     typedef FallbackServerProvider<HostPortServerInfo> XmppServerProvider;
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
