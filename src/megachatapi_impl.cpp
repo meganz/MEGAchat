@@ -1522,8 +1522,10 @@ void MegaChatRoomHandler::onMembersUpdated()
     chatApi->fireOnChatRoomUpdate(chat);
 }
 
-void MegaChatRoomHandler::init(chatd::Chat &messages, chatd::DbInterface *&dbIntf)
+void MegaChatRoomHandler::init(chatd::Chat &chat, chatd::DbInterface *&)
 {
+    mChat = &chat;
+
 
 }
 

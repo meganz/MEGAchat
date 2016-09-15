@@ -229,6 +229,7 @@ public:
     virtual void onUnreadCountChanged(int count);
     virtual void onPresenceChanged(karere::Presence state);
     virtual void onMembersUpdated();
+//    virtual void onLastMessageUpdate();   // TBD in IGui.h
 
 private:
     MegaChatApiImpl *chatApi;
@@ -249,9 +250,10 @@ public:
     virtual void onUnreadCountChanged(int count);
     virtual void onPresenceChanged(karere::Presence state);
     virtual void onMembersUpdated();
+//    virtual void onLastMessageUpdate();   // TBD in IGui.h
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
-    virtual void init(chatd::Chat& messages, chatd::DbInterface*& dbIntf);
+    virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
     //virtual void onDestroy();
     //virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status);
     //virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isFromDb);
@@ -277,6 +279,8 @@ protected:
 private:
     MegaChatApiImpl *chatApi;
     MegaChatHandle chatid;
+
+    chatd::Chat *mChat;
 };
 
 class MegaChatErrorPrivate :
@@ -553,12 +557,6 @@ public:
     virtual void removeContactItem(IContactListItem* item);
     virtual void removeGroupChatItem(IContactListItem* item);
     virtual void removePeerChatItem(IContactListItem* item);
-
-//    // karere::ITitleDisplay implementation (for the name of contacts and groupchats in the list)
-//    virtual void onTitleChanged(const std::string& title);
-//    //virtual void onUnreadCountChanged(int count);
-//    virtual void onPresenceChanged(karere::Presence state);
-//    //virtual void onMembersUpdated();
 };
 
 
