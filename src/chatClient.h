@@ -141,7 +141,6 @@ protected:
     Contact& mContact;
     IApp::IPeerChatListItem& mRoomGui;
     friend class ContactList;
-    inline Presence calculatePresence(Presence pres) const;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
@@ -612,13 +611,6 @@ protected:
     friend class ChatRoom;
 /** @endcond PRIVATE */
 };
-
-inline Presence PeerChatRoom::calculatePresence(Presence pres) const
-{
-    if (mChat && mChat->onlineState() != chatd::kChatStateOnline)
-        return Presence::kOffline;
-    return pres;
-}
 
 }
 #endif // CHATCLIENT_H

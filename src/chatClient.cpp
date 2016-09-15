@@ -1381,7 +1381,9 @@ void ChatRoom::switchListenerToApp()
 
 Presence PeerChatRoom::presence() const
 {
-    return calculatePresence(mContact.xmppContact().presence());
+    return (mChat && mChat->onlineState() == chatd::kChatStateOnline)
+        ? Presence::kOnline
+        : Presence::kOffline;
 }
 
 void PeerChatRoom::updatePresence()
