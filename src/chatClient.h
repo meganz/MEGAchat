@@ -392,7 +392,8 @@ public:
      */
     Contact* contactFromJid(const std::string& jid) const;
     Contact& contactFromUserId(uint64_t userid) const;
-/** @cond PRIVATE */
+
+    /** @cond PRIVATE */
     ContactList(Client& aClient);
     ~ContactList();
     void loadFromDb();
