@@ -256,7 +256,7 @@ QString gOnlineIndColors[karere::Presence::kLast+1] =
 {  "lightgray", "red", "orange", "lightgreen", "lightblue" };
 
 
-karere::IApp::IContactListItem&
+karere::IApp::IContactListItem*
 MainWindow::addContactItem(karere::Contact& contact)
 {
     auto clist = ui.contactList;
@@ -266,7 +266,7 @@ MainWindow::addContactItem(karere::Contact& contact)
     clist->addItem(item);
     clist->setItemWidget(item, contactGui);
     contactGui->userp = static_cast<QWidget*>(contactGui);
-    return *contactGui;
+    return contactGui;
 }
 karere::IApp::IGroupChatListItem&
 MainWindow::addGroupChatItem(karere::GroupChatRoom& room)

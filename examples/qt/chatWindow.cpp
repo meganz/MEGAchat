@@ -5,6 +5,7 @@ using namespace karere;
 ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&parent),
     mainWindow(parent), mRoom(room), mWaitMsg(*this)
 {
+    userp = this;
     ui.setupUi(this);
     ui.mSplitter->setStretchFactor(0,1);
     ui.mSplitter->setStretchFactor(1,0);
@@ -127,7 +128,7 @@ void ChatWindow::onMemberPrivateChat()
         QMessageBox::critical(this, tr("Send private message"), tr("Person is not a contact of ours"));
         return;
     }
-    static_cast<CListChatItem*>(it->second->appItem().userp)->showChatWindow();
+    static_cast<CListChatItem*>(it->second->appItem()->userp)->showChatWindow();
 }
 
 void ChatWindow::onMembersBtn(bool)

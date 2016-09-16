@@ -42,7 +42,7 @@ public:
     Ui::MainWindow ui;
     void removeItem(IListItem& item);
 //IContactList
-    virtual IContactListItem& addContactItem(karere::Contact& contact);
+    virtual IContactListItem* addContactItem(karere::Contact& contact);
     virtual void removeContactItem(IContactListItem& item);
 //IChatListItem
     virtual IGroupChatListItem& addGroupChatItem(karere::GroupChatRoom& room);
@@ -50,7 +50,7 @@ public:
     virtual IPeerChatListItem& addPeerChatItem(karere::PeerChatRoom& room);
     virtual void removePeerChatItem(IPeerChatListItem& item);
 //IApp
-    virtual karere::IApp::IContactListHandler& contactListHandler() { return *this; }
+    virtual karere::IApp::IContactListHandler* contactListHandler() { return this; }
     virtual karere::IApp::IChatListHandler& chatListHandler() { return *this; }
     virtual IChatHandler* createChatHandler(karere::ChatRoom& room);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
@@ -410,11 +410,11 @@ class CListPeerChatItem: public CListChatItem, public virtual karere::IApp::IPee
 {
 protected:
     karere::PeerChatRoom& mRoom;
-    CListContactItem& mContactItem;
+    CListContactItem* mContactItem;
 public:
     CListPeerChatItem(QWidget* parent, karere::PeerChatRoom& room)
         : CListChatItem(parent), mRoom(room),
-          mContactItem(dynamic_cast<CListContactItem&>(room.contact().appItem()))
+          mContactItem(dynamic_cast<CListContactItem*>(room.contact().appItem()))
     {
         ui.mAvatar->setText("1");
         updateToolTip();

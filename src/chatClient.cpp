@@ -1403,12 +1403,16 @@ void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
 
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
-    if (userid != parent.client.myHandle())
-        addMember(userid, privilege, false);
+    if (userid == parent.client.myHandle())
+        return;
+    addMember(userid, privilege, false);
+    mRoomGui.onUserJoin(userid, privilege);
 }
+
 void GroupChatRoom::onUserLeave(Id userid)
 {
     removeMember(userid);
+    mRoomGui.onUserLeave(userid);
 }
 
 void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
@@ -1448,7 +1452,8 @@ void PeerChatRoom::onUnreadChanged()
 {
     auto count = mChat->unreadMsgCount();
     mRoomGui.onUnreadCountChanged(count);
-    mContact.appItem().onUnreadCountChanged(count);
+    if (mContact.appItem())
+        mContact.appItem()->onUnreadCountChanged(count);
 }
 
 void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
@@ -1723,10 +1728,11 @@ void Client::onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestLis
 Contact::Contact(ContactList& clist, const uint64_t& userid,
                  const std::string& email, int visibility,
                  int64_t since, PeerChatRoom* room)
-    :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email), mSince(since),
-     mTitleString(email), mVisibility(visibility),
-     mDisplay(clist.client.app.contactListHandler().addContactItem(*this))
+    :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),
+     mSince(since), mTitleString(email), mVisibility(visibility)
 {
+    auto appClist = clist.client.app.contactListHandler();
+    mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
     updateTitle(email);
     mUsernameAttrCbId = mClist.client.userAttrCache.getAttr(userid,
         mega::MegaApi::USER_ATTR_LASTNAME, this,
@@ -1744,7 +1750,10 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
 void Contact::updateTitle(const std::string& str)
 {
     mTitleString = str;
-    mDisplay.onTitleChanged(str);
+    if (mDisplay)
+    {
+        mDisplay->onTitleChanged(str);
+    }
     if (mChatRoom)
     {
         mChatRoom->roomGui().onTitleChanged(str);
@@ -1758,8 +1767,11 @@ Contact::~Contact()
     mClist.client.userAttrCache.removeCb(mUsernameAttrCbId);
     if (mXmppContact)
         mXmppContact->setPresenceListener(nullptr);
-    mClist.client.app.contactListHandler().removeContactItem(mDisplay);
+
+    if (mDisplay)
+        mClist.client.app.contactListHandler()->removeContactItem(*mDisplay);
 }
+
 promise::Promise<ChatRoom*> Contact::createChatRoom()
 {
     if (mChatRoom)
@@ -1789,14 +1801,13 @@ void Contact::setChatRoom(PeerChatRoom& room)
         room.appChatHandler().onTitleChanged(mTitleString);
 }
 
-IApp::IContactListItem& Contact::attachChatRoom(PeerChatRoom& room)
+void Contact::attachChatRoom(PeerChatRoom& room)
 {
     if (mChatRoom)
         throw std::runtime_error("attachChatRoom[room "+Id(room.chatid()).toString()+ "]: contact "+
             Id(mUserid).toString()+" already has a chat room attached");
     CHAT_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", Id(room.chatid()).toString().c_str(), Id(mUserid).toString().c_str());
     setChatRoom(room);
-    return mDisplay;
 }
 uint64_t Client::useridFromJid(const std::string& jid)
 {

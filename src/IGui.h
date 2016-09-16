@@ -172,34 +172,40 @@ public:
      */
     class IChatListItem: public virtual IListItem
     {
+    public:
         /**
          * @brief Returns whether the item represents a group chat or a 1on1 chat.
          * Based on that, it can be cast to \c IPeerChatListItem or
          * \c IGroupChatListItem
          */
         virtual bool isGroup() const = 0;
-        /**
-         * @brief For group chats, tells the application that there has been a change
-         * in the group composition. \c onTitleChanged() will be received as well,
-         * so this event is not critical for name display updates
-         */
-        virtual void onMembersUpdated() {}
     };
+
     /**
      * @brief The IPeerChatListItem class is a specialization of IChatListItem for
      * 1on1 chat item
      */
     class IPeerChatListItem: public virtual IChatListItem
     {
+    public:
         virtual bool isGroup() const { return false; }
     };
+
     /**
      * @brief The IPeerChatListItem class is a specialization of IChatListItem for
      * group chat item
      */
     class IGroupChatListItem: public virtual IChatListItem
     {
+    public:
         virtual bool isGroup() const { return true; }
+        /**
+         * @brief Called when a user has joined the group chatroom
+         * @param userid The handle of the user
+         * @param priv The privilege of the joined user - look at chatd::Priv
+         */
+        virtual void onUserJoin(uint64_t userid, chatd::Priv priv) {}
+        virtual void onUserLeave(uint64_t userid) {}
     };
 
     /** @brief Manages contactlist items that in turn receive events
@@ -219,7 +225,7 @@ public:
         /**
          * @brief Called when a contact is added to the contactlist
          */
-        virtual IContactListItem& addContactItem(Contact& contact) = 0;
+        virtual IContactListItem* addContactItem(Contact& contact) = 0;
 
         /**
          * @brief Called when a contact is removed from contactlist
@@ -270,7 +276,7 @@ public:
     virtual IChatHandler* createChatHandler(karere::ChatRoom& room) = 0;
 
     /** @brief Returns the interface to the contactlist */
-    virtual IContactListHandler& contactListHandler() = 0;
+    virtual IContactListHandler* contactListHandler() = 0;
     /** @brief Returns the interface to the chat list */
     virtual IChatListHandler& chatListHandler() = 0;
 

@@ -300,7 +300,8 @@ protected:
     int64_t mSince;
     std::string mTitleString;
     int mVisibility;
-    IApp::IContactListItem& mDisplay; //must be after mTitleString because it will read it
+    IApp::IContactListHandler* mAppClist; //cached, because we often need to check if it's null
+    IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
     void updateTitle(const std::string& str);
     void setChatRoom(PeerChatRoom& room);
@@ -308,8 +309,8 @@ public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
     ~Contact();
-    IApp::IContactListItem& appItem() const { return mDisplay; }
-    IApp::IContactListItem& attachChatRoom(PeerChatRoom& room);
+    IApp::IContactListItem* appItem() const { return mDisplay; }
+    void attachChatRoom(PeerChatRoom& room);
 /** @endcond PRIVATE */
 
     /** @brief The contactlist object which this contact is member of */
@@ -363,13 +364,15 @@ public:
     void onVisibilityChanged(int newVisibility)
     {
         mVisibility = newVisibility;
-        mDisplay.onVisibilityChanged(newVisibility);
+        if (mDisplay)
+            mDisplay->onVisibilityChanged(newVisibility);
     }
     void updateAllOnlineDisplays(Presence pres)
     {
-            mDisplay.onPresenceChanged(pres);
-            if (mChatRoom)
-                mChatRoom->updatePresence();
+        if (mDisplay)
+            mDisplay->onPresenceChanged(pres);
+        if (mChatRoom)
+            mChatRoom->updatePresence();
     }
     friend class ContactList;
 };
