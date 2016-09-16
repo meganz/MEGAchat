@@ -311,6 +311,11 @@ void MegaChatRequestListener::onRequestTemporaryError(MegaChatApi *, MegaChatReq
 MegaChatRequestListener::~MegaChatRequestListener() {}
 
 
+MegaChatRoom *MegaChatRoom::copy() const
+{
+    return NULL;
+}
+
 MegaChatHandle MegaChatRoom::getChatId() const
 {
     return INVALID_HANDLE;
@@ -448,15 +453,9 @@ void MegaChatListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chats)
 
 }
 
-
-MegaChatListItem::MegaChatListItem()
+MegaChatListItem *MegaChatListItem::copy() const
 {
-
-}
-
-MegaChatListItem::~MegaChatListItem()
-{
-
+    return NULL;
 }
 
 int MegaChatListItem::getChanges() const

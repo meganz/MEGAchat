@@ -1675,6 +1675,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     }
 }
 
+MegaChatRoom *MegaChatRoomPrivate::copy() const
+{
+    return new MegaChatRoomPrivate(this);
+}
+
 MegaChatHandle MegaChatRoomPrivate::getChatId() const
 {
     return chatid;
@@ -1900,6 +1905,11 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(MegaChatHandle chatid)
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
 {
     delete [] title;
+}
+
+MegaChatListItem *MegaChatListItemPrivate::copy() const
+{
+    return new MegaChatListItemPrivate(chatid);
 }
 
 int MegaChatListItemPrivate::getChanges() const

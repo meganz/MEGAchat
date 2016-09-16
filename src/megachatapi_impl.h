@@ -186,7 +186,8 @@ class MegaChatListItemPrivate : public MegaChatListItem
 {
 public:
     MegaChatListItemPrivate(MegaChatHandle chatid);
-    ~MegaChatListItemPrivate();
+    virtual ~MegaChatListItemPrivate();
+    virtual MegaChatListItem *copy() const;
 
 private:
     int changed;
@@ -314,6 +315,7 @@ public:
 
     virtual ~MegaChatPeerListPrivate();
     virtual MegaChatPeerList *copy() const;
+
     virtual void addPeer(MegaChatHandle h, int priv);
     virtual MegaChatHandle getPeerHandle(int i) const;
     virtual int getPeerPrivilege(int i) const;
@@ -333,6 +335,7 @@ public:
     MegaChatRoomPrivate(const karere::ChatRoom&);
 
     virtual ~MegaChatRoomPrivate() {}
+    virtual MegaChatRoom *copy() const;
 
     virtual MegaChatHandle getChatId() const;
     virtual int getOwnPrivilege() const;

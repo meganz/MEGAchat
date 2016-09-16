@@ -785,8 +785,8 @@ public:
         CHANGE_TYPE_TITLE           = 0x10
     };
 
-    MegaChatListItem();
-    virtual ~MegaChatListItem();
+    virtual ~MegaChatListItem() {}
+    virtual MegaChatListItem *copy() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -821,6 +821,7 @@ public:
     };
 
     virtual ~MegaChatRoom() {}
+    virtual MegaChatRoom *copy() const;
 
     /**
      * @brief Returns the MegaChatHandle of the chat.
