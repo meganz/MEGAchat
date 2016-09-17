@@ -46,6 +46,7 @@ using namespace promise;
 
 namespace karere
 {
+
 void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 {
     strophe::Stanza pong(*conn);
@@ -57,8 +58,9 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
     conn->send(pong);
 }
 
-Client::Client(::mega::MegaApi& sdk, IApp& aApp, Presence pres, bool existingCache)
- :mAppDir(getAppDir()), mCacheExisted(existingCache),
+Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir,
+               Presence pres, bool existingCache)
+ :mAppDir(appDir), mCacheExisted(existingCache),
   db(mCacheExisted ? openDb() : reinitDb()),
   conn(new strophe::Connection(services_strophe_get_ctx())),
   api(sdk), userAttrCache(*this), app(aApp),

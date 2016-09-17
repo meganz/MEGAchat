@@ -24,16 +24,7 @@ namespace karere
 namespace rh { class IRetryController; }
 
 /** @brief
- * The application implementor must define this function to create the application
- * directory in case it does not exist, and return the path to it.
- * The reason this function is provided at link time (rather than programmatically
- * setting it during run time), is that it is needed by the logger, and the logger
- * is initialized before main() is entered.
- */
-
-    KR_WEAKSYM(std::string getAppDir());
-/** @brief
- * Builtin implementation of getAppDir() suitable for desktop systems
+ * Utulity function to create an application directory, suitable for desktop systems.
  * It reads the env variable KRDIR for a path to the app dir, and if not present,
  * defaults to '~/.karere'.
  */
@@ -471,7 +462,8 @@ public:
      * inconsistent, karere will behave as if \c false was specified - will
      * delete the karere.db file and re-create it from scratch.
      */
-    Client(::mega::MegaApi& sdk, IApp& app, Presence pres, bool existingCache);
+    Client(::mega::MegaApi& sdk, IApp& app, const std::string& appDir,
+           Presence pres, bool existingCache);
 
     virtual ~Client();
 

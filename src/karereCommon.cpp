@@ -6,7 +6,17 @@
 namespace karere
 {
 class Client;
-//std::unique_ptr<Client> gClient;
+void globalInit(const std::string& logPath, size_t logSize, void(*postFunc)(void*), uint32_t options)
+{
+    gLogger.logToFile(logPath.c_str(), logSize);
+    services_init(postFunc, options);
+}
+
+void globalCleanup()
+{
+    rtcModule::globalCleanup();
+    services_shutdown();
+}
 
 void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned flags)
 {
