@@ -252,7 +252,7 @@ class MegaChatPeerListItemHandler :
         public virtual karere::IApp::IPeerChatListItem
 {
 public:
-    MegaChatPeerListItemHandler(MegaChatApiImpl chatApi, MegaChatHandle chatid);
+    MegaChatPeerListItemHandler(MegaChatApiImpl &, MegaChatHandle chatid);
 
     // karere::IApp::IListItem::IPeerChatListItem implementation
     // (empty - no methods to implement yet)
