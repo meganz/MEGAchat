@@ -384,12 +384,16 @@ public:
     /** @brief Selects a video input device to be used for subsequent calls. This can be
      * changed just before a call is made, to allow different calls to use different
      * devices
+     * @returns \c true if the specified device was successfully selected,
+     * \c false if a device with that name does not exist or could not be selected
      */
     virtual bool selectVideoInDevice(const std::string& devname) = 0;
 
     /** @brief Selects an audio input device to be used for subsequent calls. This can be
      * changed just before a call is made, to allow different calls to use different
      * devices
+     * @returns \c true if the specified device was successfully selected,
+     * \c false if a device with that name does not exist or could not be selected
      */
     virtual bool selectAudioInDevice(const std::string& devname) = 0;
 
