@@ -93,7 +93,7 @@ public:
 
     // implementation for MegaChatListener
     void onOnlineStatusUpdate(MegaChatApi* api, MegaChatApi::Status status);
-    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoomList *chats);
+    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
     virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
 
 

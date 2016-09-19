@@ -162,16 +162,16 @@ void MegaChatApiImpl::sendPendingRequests()
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
+                fireOnChatRequestFinish(request, megaChatError);                
+                KR_LOG_INFO("Initialization complete");
+                fireOnChatRoomUpdate(NULL);
             })
             .fail([request, this](const promise::Error& e)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
                 fireOnChatRequestFinish(request, megaChatError);
+                KR_LOG_INFO("Initialization failed");
             });
-
-            KR_LOG_INFO("Initialization complete");
-            fireOnChatRoomUpdate(NULL);
 
             break;
         }

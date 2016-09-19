@@ -149,13 +149,17 @@ void MegaSdkTest::onOnlineStatusUpdate(MegaChatApi *api, MegaChatApi::Status sta
     KR_LOG_DEBUG("Online status has been updated: %d", status);
 }
 
-void MegaSdkTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoomList *chats)
+void MegaSdkTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
 {
-    if (chats == NULL)
+    if (chat != NULL)
     {
-        chats = megaChatApi[0]->getChatRooms();
+        KR_LOG_DEBUG("Chat added or updated (handle: %d)", chat->getChatId());
     }
-    KR_LOG_DEBUG("%s chats added or updated", chats->size());
+    else
+    {
+        MegaChatRoomList *chats = megaChatApi[0]->getChatRooms();
+        KR_LOG_DEBUG("%d chat/s received", chats->size());
+    }
 }
 
 void MegaSdkTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *item)
