@@ -14,7 +14,7 @@ void sigintHandler(int)
 
 int main(int argc, char **argv)
 {
-    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
+//    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
 
     MegaSdkTest test;
     test.start();
@@ -156,6 +156,14 @@ void MegaSdkTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoomList *chats)
         chats = megaChatApi[0]->getChatRooms();
     }
     KR_LOG_DEBUG("%s chats added or updated", chats->size());
+}
+
+void MegaSdkTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *item)
+{
+    if (item)
+    {
+        KR_LOG_DEBUG("Chat list item added or updated");
+    }
 }
 
 void MegaSdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)

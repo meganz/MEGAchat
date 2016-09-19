@@ -473,7 +473,8 @@ private:
     std::set<MegaChatVideoListener *> localVideoListeners;
     std::set<MegaChatVideoListener *> remoteVideoListeners;
 
-    std::set<karere::IApp::IChatListItem *> chatListItemHandler;
+    std::set<karere::IApp::IPeerChatListItem *> chatPeerListItemHandler;
+    std::set<karere::IApp::IGroupChatListItem *> chatGroupListItemHandler;
     std::set<karere::IApp::IChatHandler *> chatRoomHandler;
 
     int reqtag;

@@ -1007,7 +1007,7 @@ void MegaChatApiImpl::onTerminate()
 IApp::IGroupChatListItem &MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
 {
     MegaChatGroupListItemHandler *itemHandler = new MegaChatGroupListItemHandler(this, room.chatid());
-    chatListItemHandler.insert(itemHandler);
+    chatGroupListItemHandler.insert(itemHandler);
 
     return *itemHandler;
 }
@@ -1015,19 +1015,19 @@ IApp::IGroupChatListItem &MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
 IApp::IPeerChatListItem &MegaChatApiImpl::addPeerChatItem(PeerChatRoom &room)
 {
     MegaChatPeerListItemHandler *itemHandler = new MegaChatPeerListItemHandler(this, room.chatid());
-    chatListItemHandler.insert(itemHandler);
+    chatPeerListItemHandler.insert(itemHandler);
 
     return *itemHandler;
 }
 
 void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
 {
-    chatListItemHandler.erase(&item);
+    chatGroupListItemHandler.erase(&item);
 }
 
 void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
 {
-    chatListItemHandler.erase(&item);
+    chatPeerListItemHandler.erase(&item);
 }
 
 void MegaChatApiImpl::onOwnPresence(Presence pres)
@@ -1886,6 +1886,7 @@ MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl *chatApi, MegaC
 }
 
 MegaChatListItemPrivate::MegaChatListItemPrivate(MegaChatHandle chatid)
+    : MegaChatListItem()
 {
     this->chatid = chatid;
     this->title = NULL;

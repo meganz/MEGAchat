@@ -80,20 +80,22 @@ private:
 
 public:
     // implementation for MegaRequestListener
-    void onRequestStart(MegaApi *api, MegaRequest *request) {}
-    void onRequestUpdate(MegaApi*api, MegaRequest *request) {}
-    void onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e);
-    void onRequestTemporaryError(MegaApi *api, MegaRequest *request, MegaError* error) {}
+    virtual void onRequestStart(MegaApi *api, MegaRequest *request) {}
+    virtual void onRequestUpdate(MegaApi*api, MegaRequest *request) {}
+    virtual void onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e);
+    virtual void onRequestTemporaryError(MegaApi *api, MegaRequest *request, MegaError* error) {}
 
     // implementation for MegaChatRequestListener
-    void onRequestStart(MegaChatApi* api, MegaChatRequest *request) {}
-    void onRequestFinish(MegaChatApi* api, MegaChatRequest *request, MegaChatError* e);
-    void onRequestUpdate(MegaChatApi*api, MegaChatRequest *request) {}
-    void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaChatError* error) {}
+    virtual void onRequestStart(MegaChatApi* api, MegaChatRequest *request) {}
+    virtual void onRequestFinish(MegaChatApi* api, MegaChatRequest *request, MegaChatError* e);
+    virtual void onRequestUpdate(MegaChatApi*api, MegaChatRequest *request) {}
+    virtual void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaChatError* error) {}
 
-    // implementation for MegaChatGlobalListener
+    // implementation for MegaChatListener
     void onOnlineStatusUpdate(MegaChatApi* api, MegaChatApi::Status status);
-    void onChatRoomUpdate(MegaChatApi* api, MegaChatRoomList *chats);
+    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoomList *chats);
+    virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
+
 
 
 //    void onUsersUpdate(MegaApi* api, MegaUserList *users);

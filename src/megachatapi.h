@@ -941,8 +941,7 @@ public:
          * want to save the MegaChatListItem, use MegaChatListItem::copy
          *
          * @param api MegaChatApi connected to the account
-         * @param item MegaChatListItem representing a 1on1 or groupchat.
-         * /// TODO: document the item param
+         * @param item MegaChatListItem representing a 1on1 or groupchat in the list.
          */
         virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
 
