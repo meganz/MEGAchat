@@ -37,8 +37,6 @@ rotate_size - the maximum size of the log file, in kbytes, after which the log f
     #define KR_WEAKSYM(func) func __attribute__ ((weak))
 #endif
 
-namespace karere { KR_WEAKSYM(std::string getAppDir()); }
-
 //TODO: Implement weak import for windows
 
 KR_LOGGER_CONFIG_START(
@@ -60,5 +58,4 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(uacache, "uacache", Warn, 2)
     KR_LOGGER_CONFIG(setFlags(krLogNoLevel))
     KR_LOGGER_CONFIG(logToConsole())
-    KR_LOGGER_CONFIG(logToFile((karere::getAppDir()+"/log.txt").c_str(), 500))
 KR_LOGGER_CONFIG_END()

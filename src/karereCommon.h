@@ -5,7 +5,8 @@
 #include <logger.h>
 #include <mstrophe.h> //needed for timestampMs()
 #include <string.h>
-//#include <assert.h>
+
+/** @cond PRIVATE */
 
 #ifndef KARERE_SHARED
     #define KARERE_EXPORT
@@ -42,8 +43,6 @@
         #include <mmsystem.h>
     #endif
 #endif
-
-namespace karere { class Client; }
 
 #define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
 #define KARERE_XMPP_DOMAIN "karere.mega.nz"
@@ -88,30 +87,32 @@ static inline string to_string(const T& t)
         throw std::runtime_error(std::string(__FUNCTION__)+": Assertion failed: Argument '"+#name+"' is NULL"); \
     } while(0)
 
+/** @endcond PRIVATE */
+
 namespace karere
 {
-///////////// MPENC TEMP SIGNING KEYS //////////////////////
-
-// while waiting for the addition of code for the keys to be added to the
-// SDK/client, we are using hard-coded keys.
-
-static const unsigned char PUB_KEY[32] = {20, 122, 218,  85, 160, 200,   4, 178,
-        54,  71, 120, 167, 152,  18,  92, 104,
-       114, 167, 231, 210, 198,  30,  82, 154,
-       107, 244,  82,  27, 105, 132,  57, 135 };
-
-static const unsigned char SEC_KEY[64] = {165,  20,  21, 140,  82,  46,  73,  10,
-        108, 212, 186,  39,  71,  31, 119, 135,
-        155,   1, 255,  38, 139, 184,  68, 223,
-         70,  18, 206, 232, 186, 165,  69, 225,
-         20, 122, 218,  85, 160, 200,   4, 178,
-         54,  71, 120, 167, 152,  18,  92, 104,
-        114, 167, 231, 210, 198,  30,  82, 154,
-        107, 244,  82,  27, 105, 132,  57, 135,};
-
-////////////////////////////////////////////////////////////
-
+class Client;
 typedef std::map<std::string, std::string> StringMap;
+
+/** @brief Globally initializes the karere library and starts the services
+ * subsystem. Must be called before any karere code is used.
+ * @param logPath The full path to the log file.
+ * @param logSize The rotate size of the log file, in kilobytes. Once the log
+ * file reaches this size, its first half is truncated. So the log size at
+ * any moment is at least logSize / 2, and at most logSize
+ * @param postFunc The function that posts a void* to the application's message loop.
+ * See the documentation in gcm.h for details about this function
+ * @param options Various flags that modify the behaviour of the karere
+ * services subsystem. Normally this is 0
+ */
+void globalInit(const std::string& logPath, size_t logSize, void(*postFunc)(void*), uint32_t options=0);
+
+/** @brief Stops the karere services susbsystem and frees global resources
+ * used by Karere
+ */
+void globalCleanup();
+
+/** @cond PRIVATE */
 
 //time function
 typedef xmpp_ts Ts;
@@ -147,12 +148,6 @@ struct AvFlags
 extern const char* gKarereDbSchema;
 
 //logging stuff
-//#define KR_LINE KR_LOG(LINE)
-//#define KR_LINE_END KR_LOG(LINE)
-#define MPENC_HEADER "?mpENCv1?"
-#define MP_LOG(fmt, b) KR_LOG(LINE); \
-                  KR_LOG(fmt, b); \
-                  KR_LOG(LINE);
 
 #define KR_LOG_RTC_EVENT(fmtString,...) KARERE_LOG_INFO(krLogChannel_rtcevent, fmtString, ##__VA_ARGS__)
 #define KR_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_default, fmtString, ##__VA_ARGS__)
@@ -188,8 +183,15 @@ extern const char* gKarereDbSchema;
  } while(0)
 
 class Client;
-//extern std::unique_ptr<Client> gClient;
+/** @endcond PRIVATE */
 
+/** @brief A logger backend that sends the log output of error messages
+ * to a remote server. Can be used by the application to send errors to
+ * a remote server.
+ *
+ *  Usage:
+ * \c gLogger.addUserLogger("karere-remote", new RemoteLogger);
+ */
 class RemoteLogger: public Logger::ILoggerBackend
 {
 public:
@@ -198,6 +200,5 @@ public:
 };
 
 }
-
 
 #endif

@@ -26,8 +26,11 @@ namespace karere {
 class Client;
 }
 QString prettyInterval(int64_t secs);
+class CListItem;
 
-class MainWindow : public QMainWindow, public karere::IApp, public karere::IApp::IContactListHandler
+class MainWindow : public QMainWindow, public karere::IApp,
+        public karere::IApp::IContactListHandler,
+        public karere::IApp::IChatListHandler
 {
     Q_OBJECT
     karere::Client* mClient;
@@ -37,14 +40,18 @@ public:
     karere::Client& client() const { return *mClient; }
     ~MainWindow();
     Ui::MainWindow ui;
-    void removeItem(IContactListItem* item, bool isGroup);
+    void removeItem(IListItem& item);
 //IContactList
     virtual IContactListItem* addContactItem(karere::Contact& contact);
-    virtual IContactListItem* addGroupChatItem(karere::GroupChatRoom& room);
-    virtual void removeContactItem(IContactListItem* item);
-    virtual void removeGroupChatItem(IContactListItem* item);
+    virtual void removeContactItem(IContactListItem& item);
+//IChatListItem
+    virtual IGroupChatListItem& addGroupChatItem(karere::GroupChatRoom& room);
+    virtual void removeGroupChatItem(IGroupChatListItem& item);
+    virtual IPeerChatListItem& addPeerChatItem(karere::PeerChatRoom& room);
+    virtual void removePeerChatItem(IPeerChatListItem& item);
 //IApp
-    virtual karere::IApp::IContactListHandler& contactListHandler() { return *this; }
+    virtual karere::IApp::IContactListHandler* contactListHandler() { return this; }
+    virtual karere::IApp::IChatListHandler& chatListHandler() { return *this; }
     virtual IChatHandler* createChatHandler(karere::ChatRoom& room);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
     {
@@ -90,15 +97,12 @@ public:
 extern bool inCall;
 extern QColor gAvatarColors[];
 extern QString gOnlineIndColors[karere::Presence::kLast+1];
-class CListItem: public QWidget, public karere::IApp::IContactListItem
+class CListItem: public QWidget, public virtual karere::IApp::IListItem
 {
 protected:
     Ui::CListItemGui ui;
     int mLastOverlayCount = 0;
-    bool mIsGroup;
 public:
-    bool isGroup() const { return mIsGroup; }
-    virtual void showChatWindow() = 0;
 //karere::ITitleDisplay interface
     virtual void onUnreadCountChanged(int count)
     {
@@ -119,7 +123,6 @@ public:
         }
         mLastOverlayCount = count;
     }
-    virtual void* userp() { return this; }
     virtual void onPresenceChanged(karere::Presence state)
     {
         ui.mOnlineIndicator->setStyleSheet(
@@ -127,15 +130,38 @@ public:
             ";border-radius: 4px");
     }
 //===
-    CListItem(QWidget* parent, bool aIsGroup)
-    : QWidget(parent), mIsGroup(aIsGroup)
+    CListItem(QWidget* parent)
+    : QWidget(parent)
     {
         ui.setupUi(this);
         ui.mUnreadIndicator->hide();
     }
 };
 
-class CListContactItem: public CListItem
+class CListChatItem: public CListItem, public virtual karere::IApp::IChatListItem
+{
+    Q_OBJECT
+public:
+    virtual void showChatWindow() = 0;
+    CListChatItem(QWidget* parent): CListItem(parent){}
+//ITitleHandler intefrace
+    virtual void onTitleChanged(const std::string& title)
+    {
+        QString text = QString::fromUtf8(title.c_str(), title.size());
+        ui.mName->setText(text);
+    }
+    virtual void onVisibilityChanged(int newVisibility) {}
+//==
+    virtual void mouseDoubleClickEvent(QMouseEvent* event)
+    {
+        showChatWindow();
+    }
+    virtual karere::ChatRoom& room() const = 0;
+protected slots:
+    void truncateChat();
+};
+
+class CListContactItem: public CListItem, public virtual karere::IApp::IContactListItem
 {
     Q_OBJECT
 protected:
@@ -143,7 +169,7 @@ protected:
     QPoint mDragStartPos;
 public:
     CListContactItem(QWidget* parent, karere::Contact& contact)
-        :CListItem(parent, false), mContact(contact)
+        :CListItem(parent), mContact(contact)
     {
         if (contact.visibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
         {
@@ -177,22 +203,18 @@ public:
 //        text.append(tr("\nFriends since: ")).append(prettyInterval(now-contact.since())).append(lf);
         setToolTip(text);
     }
-    virtual void mouseDoubleClickEvent(QMouseEvent* event)
-    {
-        showChatWindow();
-    }
     virtual void showChatWindow()
     {
         if (mContact.chatRoom())
         {
-            static_cast<ChatWindow*>(mContact.chatRoom()->appChatHandler().userp())->show();
+            static_cast<ChatWindow*>(mContact.chatRoom()->appChatHandler().userp)->show();
             return;
         }
         mContact.createChatRoom()
         .then([this](karere::ChatRoom* room)
         {
             updateToolTip();
-            static_cast<ChatWindow*>(mContact.chatRoom()->appChatHandler().userp())->show();
+            static_cast<ChatWindow*>(mContact.chatRoom()->appChatHandler().userp)->show();
         })
         .fail([this](const promise::Error& err)
         {
@@ -261,6 +283,10 @@ public:
             unshowAsHidden();
         updateToolTip();
     }
+    virtual void mouseDoubleClickEvent(QMouseEvent* event)
+    {
+        showChatWindow();
+    }
 
 public slots:
     void onCreateGroupChat()
@@ -325,13 +351,14 @@ public slots:
         });
     }
 };
-class CListGroupChatItem: public CListItem
+class CListGroupChatItem: public CListChatItem, public virtual karere::IApp::IGroupChatListItem
 {
     Q_OBJECT
 public:
     CListGroupChatItem(QWidget* parent, karere::GroupChatRoom& room)
-        :CListItem(parent, true), mRoom(room)
+        :CListChatItem(parent), mRoom(room)
     {
+        ui.mAvatar->setText("G");
         updateToolTip();
     }
     void updateToolTip()
@@ -353,14 +380,7 @@ public:
         text.truncate(text.size()-1);
         setToolTip(text);
     }
-    virtual void onTitleChanged(const std::string& title)
-    {
-        QString text = QString::fromUtf8(title.c_str(), title.size());
-        ui.mName->setText(text);
-        updateToolTip();
-    }
-    virtual void onMembersUpdated() { printf("onMembersUpdate\n"); updateToolTip(); }
-    virtual void onVisibilityChanged(int newVisibility) {}
+    virtual void onMembersUpdated() { updateToolTip(); }
 protected:
     karere::GroupChatRoom& mRoom;
     void contextMenuEvent(QContextMenuEvent* event)
@@ -378,13 +398,50 @@ protected:
     virtual void mouseDoubleClickEvent(QMouseEvent* event) { showChatWindow(); }
     virtual void showChatWindow()
     {
-        static_cast<ChatWindow*>(mRoom.appChatHandler().userp())->show();
+        static_cast<ChatWindow*>(mRoom.appChatHandler().userp)->show();
     }
+    virtual karere::ChatRoom& room() const { return mRoom; }
 protected slots:
     void leaveGroupChat() { karere::marshallCall([this]() { mRoom.leave(); }); } //deletes this
     void setTitle();
-    void truncateChat();
 };
 
+class CListPeerChatItem: public CListChatItem, public virtual karere::IApp::IPeerChatListItem
+{
+protected:
+    karere::PeerChatRoom& mRoom;
+    CListContactItem* mContactItem;
+public:
+    CListPeerChatItem(QWidget* parent, karere::PeerChatRoom& room)
+        : CListChatItem(parent), mRoom(room),
+          mContactItem(dynamic_cast<CListContactItem*>(room.contact().appItem()))
+    {
+        ui.mAvatar->setText("1");
+        updateToolTip();
+    }
+    virtual void showChatWindow()
+    {
+        static_cast<ChatWindow*>(mRoom.appChatHandler().userp)->show();
+    }
+    void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
+    {
+        QChar lf('\n');
+        QString text(tr("1on1 Chat room: "));
+        text.append(QString::fromStdString(karere::Id(mRoom.chatid()).toString())).append(lf);
+        text.append(tr("Email: "));
+        text.append(QString::fromStdString(mRoom.contact().email())).append(lf);
+        text.append(tr("User handle: ")).append(QString::fromStdString(karere::Id(mRoom.contact().userId()).toString()));
+        setToolTip(text);
+    }
+    void contextMenuEvent(QContextMenuEvent* event)
+    {
+        QMenu menu(this);
+        auto actTruncate = menu.addAction(tr("Truncate chat"));
+        connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
+        menu.setStyleSheet("background-color: lightgray");
+        menu.exec(event->globalPos());
+    }
+    virtual karere::ChatRoom& room() const { return mRoom; }
+};
 
 #endif // MAINWINDOW_H

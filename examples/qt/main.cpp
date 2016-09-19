@@ -66,15 +66,14 @@ void sigintHandler(int)
     marshallCall([]{appDelegate.onAppTerminate();});
 
 }
-namespace karere
-{
-    APP_ALWAYS_EXPORT std::string getAppDir() { return karere::createAppDir(); }
-}
+
+std::string gAppDir = karere::createAppDir();
 std::unique_ptr<karere::Client> gClient;
 std::unique_ptr<::mega::MegaApi> gSdk;
 int main(int argc, char **argv)
 {
-    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
+    karere::globalInit(gAppDir+"/log.txt", 500, myMegaPostMessageToGui);
+//    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
 //    gLogger.addUserLogger("karere-remote", new RemoteLogger);
 
 #ifdef __APPLE__
@@ -95,10 +94,9 @@ int main(int argc, char **argv)
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
 
-    services_init(myMegaPostMessageToGui, SVC_STROPHE_LOG);
     mainWin = new MainWindow();
-    gSdk.reset(new ::mega::MegaApi("karere-native", karere::getAppDir().c_str(), "Karere Native"));
-    gClient.reset(new karere::Client(*gSdk, *mainWin, karere::Presence::kOnline, true));
+    gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));
+    gClient.reset(new karere::Client(*gSdk, *mainWin, gAppDir, karere::Presence::kOnline, true));
     mainWin->setClient(*gClient);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
 

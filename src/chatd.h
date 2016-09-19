@@ -300,11 +300,14 @@ enum HistFetchState
     kHistDecryptingNew = kHistDecryptingFlag | 0
 };
 
-// message storage subsystem
-// the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
-// there is no guarantee as to ordering
+/** @brief Represents a single chatroom together with the message history.
+ * Message sending is done by calling methods on this class.
+ * The history buffer can grow in two directions and is always contiguous, i.e.
+ * there are no "holes".
+ */
 class Chat
 {
+///@cond PRIVATE
 public:
     struct SendingItem
     {
@@ -456,6 +459,7 @@ protected:
     void logSend(const Command& cmd);
     friend class Connection;
     friend class Client;
+/// @endcond PRIVATE
 public:
     unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
     /** @brief users The current set of users in the chatroom */

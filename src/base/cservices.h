@@ -44,14 +44,17 @@ enum {SVC_OPTIONS_LOGFLAGS = 0x000000ff};
 /** The global, singleton eventloop object. */
 extern MEGAIO_IMPEXP struct event_base* services_eventloop;
 
-/** Initialize and start the services engine
- @param postFunc The function that posts a void* to the application's message loop
- @param options Misc flags. The LS byte is reserved for logging bits
- (SVC_OPTIONS_LOGFLAGS mask). Currently supported flags:
-     SVC_STROPHE_LOG: enabled logging of sent and received strophe stanzas.
-*/
+/**
+ * @brief Initialize and start the services engine
+ * @param postFunc The function that posts a void* to the application's message loop
+ * @param options Misc flags. The LS byte is reserved for logging bits
+ * (SVC_OPTIONS_LOGFLAGS mask).
+ */
 MEGAIO_IMPEXP int services_init(void(*postFunc)(void*), unsigned options);
+
 MEGAIO_IMPEXP struct event_base* services_get_event_loop();
+
+/** @brief Shuts down the services engine. Call this before terminating the application */
 MEGAIO_IMPEXP int services_shutdown();
 
 //Handle store
@@ -64,15 +67,18 @@ enum
     MEGA_HTYPE_DNSREQ = 2
 };
 
-/** Any common flags used for more than one service */
+/** @brief Service configuration flags that are common for all services */
 enum
 {
-/** Speficies that callbacks can be called by any thread,
-* bypassing the Gui call marshalling mechanism. Normally for services-internal use
-* only. \attention USE WITH CAUTION AND ONLY IF YOU KNOW WHAT YOU ARE DOING! */
+    /** @brief Speficies that callbacks can be called by any thread,
+     * bypassing the Gui call marshalling mechanism. Normally for services-internal use
+     * only. \attention USE WITH CAUTION AND ONLY IF YOU KNOW WHAT YOU ARE DOING!
+     */
     SVCF_NO_MARSHALL = 1,
-/** Flags in bit positions higher than this can overlap across services.
- *  This should not be a problem if they are used only in the context of one service */
+
+    /** @brief Flags in bit positions higher than this can overlap across services.
+    *  This should not be a problem if they are used only in the context of one service
+    */
     SVCF_LAST = 1
 };
 

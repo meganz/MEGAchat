@@ -27,16 +27,7 @@ namespace karere
 namespace rh { class IRetryController; }
 
 /** @brief
- * The application implementor must define this function to create the application
- * directory in case it does not exist, and return the path to it.
- * The reason this function is provided at link time (rather than programmatically
- * setting it during run time), is that it is needed by the logger, and the logger
- * is initialized before main() is entered.
- */
-
-    KR_WEAKSYM(std::string getAppDir());
-/** @brief
- * Builtin implementation of getAppDir() suitable for desktop systems
+ * Utulity function to create an application directory, suitable for desktop systems.
  * It reads the env variable KRDIR for a path to the app dir, and if not present,
  * defaults to '~/.karere'.
  */
@@ -75,7 +66,7 @@ protected:
     void chatdJoin(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
-    virtual IApp::IContactListItem& contactGui() = 0;
+    virtual IApp::IChatListItem& roomGui() = 0;
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
@@ -93,6 +84,7 @@ public:
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
              unsigned char shard, chatd::Priv ownPriv);
+
     virtual ~ChatRoom(){}
 
     /** @brief returns the chatd::Chat chat object associated with the room */
@@ -115,6 +107,9 @@ public:
 
     /** @brief The online state reported by chatd for that chatroom */
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
+
+    /** @brief send a notification to the chatroom that the user is typing. */
+    virtual void sendTypingNotification() {}
 
     /** @brief The application-side event handler that receives events from chatd
      * and events about title change, online status change. If such an event
@@ -141,10 +136,9 @@ class PeerChatRoom: public ChatRoom
 protected:
     uint64_t mPeer;
     chatd::Priv mPeerPriv;
-    Contact* mContact = nullptr;
-    void setContact(Contact& contact) { mContact = &contact; }
+    Contact& mContact;
+    IApp::IPeerChatListItem& mRoomGui;
     friend class ContactList;
-    inline Presence calculatePresence(Presence pres) const;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
@@ -152,16 +146,21 @@ public:
     bool syncOwnPriv(chatd::Priv priv);
     bool syncPeerPriv(chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
-    virtual IApp::IContactListItem& contactGui();
+    virtual IApp::IChatListItem& roomGui();
     void updatePresence();
     virtual void join();
+    static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     //@endcond
+
     /** @brief The userid of the other person in the 1on1 chat */
     const uint64_t peer() const { return mPeer; }
+
     /** @brief The contact object representing the peer of the 1on1 chat */
-    const Contact& contact() const { return *mContact; }
+    Contact& contact() const { return mContact; }
+
     /** @brief The screen name of the peer */
     virtual const std::string& titleString() const;
+
     /** @brief The presence status of the chatroom. Derived from the presence
      * of the peer and the status of the chatroom reported by chatd. For example,
      * the peer may be online, but the chatd connection may be offline or there may
@@ -191,18 +190,23 @@ public:
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
+
         /** @brief The current display name of the member */
         const std::string& name() const { return mName; }
+
         /** @brief The current provilege of the member within the groupchat */
         chatd::Priv priv() const { return mPriv; }
         friend class GroupChatRoom;
     };
-    /** @brief A map that holds all the members of a group chat room, keyed by the userid */
+    /**
+     * @brief A map that holds all the members of a group chat room, keyed by the userid */
     typedef std::map<uint64_t, Member*> MemberMap;
+
+
     /** @cond PRIVATE */
     protected:
     MemberMap mPeers;
-    IApp::IContactListItem* mContactGui = nullptr;
+    IApp::IGroupChatListItem& mRoomGui;
     std::string mTitleString;
     bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
@@ -222,6 +226,7 @@ public:
 
     /** @brief Returns the map of the users in the chatroom, except our own user */
     const MemberMap& peers() const { return mPeers; }
+
     /** @cond PRIVATE */
     void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(const uint64_t& userid);
@@ -231,14 +236,17 @@ public:
     void leave();
     promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
-    virtual IApp::IContactListItem& contactGui() { return *mContactGui; }
+    virtual IApp::IChatListItem& roomGui() { return mRoomGui; }
     /** @endcond PRIVATE */
+
     /** @brief Returns whether the group chatroom has a title set. If not, then
       * its title string will be composed from the first names of the room members
       */
     bool hasTitle() const { return mHasTitle; }
+
     /** @brief The title of the chatroom */
     virtual const std::string& titleString() const { return mTitleString; }
+
     /** @brief The 'presence' of the chatroom - it's actually the online state,
      * and can be only online or offline, depending on whether we are connected
      * to the chatd chatroom
@@ -247,6 +255,7 @@ public:
     {
         return (mChat->onlineState() == chatd::kChatStateOnline)? Presence::kOnline:Presence::kOffline;
     }
+
     /** @cond PRIVATE */
     void makeTitleFromMemberNames();
     virtual void join();
@@ -256,6 +265,7 @@ public:
     void onOnlineStateChange(chatd::ChatState);
     /** @endcond PRIVATE */
 };
+
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
  * keyed by the chatid of the chatroom. This object can be obtained
  * via \c Client::chats
@@ -288,6 +298,7 @@ protected:
     int64_t mSince;
     std::string mTitleString;
     int mVisibility;
+    IApp::IContactListHandler* mAppClist; //cached, because we often need to check if it's null
     IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
     void updateTitle(const std::string& str);
@@ -296,33 +307,44 @@ public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
     ~Contact();
-    IApp::IContactListItem& gui() { return *mDisplay; }
+    IApp::IContactListItem* appItem() const { return mDisplay; }
+    void attachChatRoom(PeerChatRoom& room);
 /** @endcond PRIVATE */
-    /** The contactlist object which this contact is member of */
-    ContactList& contactList() { return mClist; }
-    /** The XMPP contact associated with this Mega contact. It provides
+
+    /** @brief The contactlist object which this contact is member of */
+    ContactList& contactList() const { return mClist; }
+
+    /** @brief The XMPP contact associated with this Mega contact. It provides
      * the presence notifications
      */
     XmppContact& xmppContact() { return *mXmppContact; }
-    /** Returns the 1on1 chatroom with this contact, if one exists.
+
+    /** @brief Returns the 1on1 chatroom with this contact, if one exists.
      * Otherwise returns NULL
      */
     PeerChatRoom* chatRoom() { return mChatRoom; }
+
     /** @brief Creates a 1on1 chatroom with this contact, if one does not exist,
      * otherwise returns the existing one.
      * @returns a promise containing the 1on1 chatroom object
      */
     promise::Promise<ChatRoom *> createChatRoom();
+
     /** @brief Returns the current screen name of this contact */
     const std::string& titleString() const { return mTitleString; }
+
     /** @brief Returns the userid of this contact */
     uint64_t userId() const { return mUserid; }
+
     /** @brief Returns the email of this contact */
     const std::string& email() const { return mEmail; }
+
     /** @brief Retutns the bare JID, representing this contact in XMPP */
     const std::string& jid() const { return mXmppContact->bareJid(); }
+
     /** @brief Returns the time since this contact was added */
     int64_t since() const { return mSince; }
+
     /** @brief The visibility of this contact, as returned by
      * mega::MegaUser::getVisibility(). If it is \c MegaUser::VISIBILITY_HIDDEN,
      * then this contact is not a contact anymore, but kept in the contactlist
@@ -340,13 +362,15 @@ public:
     void onVisibilityChanged(int newVisibility)
     {
         mVisibility = newVisibility;
-        mDisplay->onVisibilityChanged(newVisibility);
+        if (mDisplay)
+            mDisplay->onVisibilityChanged(newVisibility);
     }
     void updateAllOnlineDisplays(Presence pres)
     {
+        if (mDisplay)
             mDisplay->onPresenceChanged(pres);
-            if (mChatRoom)
-                mChatRoom->updatePresence();
+        if (mChatRoom)
+            mChatRoom->updatePresence();
     }
     friend class ContactList;
 };
@@ -362,11 +386,14 @@ protected:
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
+
     /** @brief Returns the contact object from the specified XMPP jid if one exists,
      * otherwise returns NULL
      */
     Contact* contactFromJid(const std::string& jid) const;
-/** @cond PRIVATE */
+    Contact& contactFromUserId(uint64_t userid) const;
+
+    /** @cond PRIVATE */
     ContactList(Client& aClient);
     ~ContactList();
     void loadFromDb();
@@ -374,10 +401,10 @@ public:
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
-    IApp::IContactListItem* attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
+    IApp::IContactListItem& attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
-/** @endcond */
+    /** @endcond */
 };
 
 class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener
@@ -399,10 +426,13 @@ public:
     std::function<void()> onChatdReady;
     UserAttrCache userAttrCache;
     IApp& app;
+
     /** @brief The contact list */
     std::unique_ptr<ContactList> contactList;
+
     /** @brief The list of chats that we are member of */
     std::unique_ptr<ChatRoomList> chats;
+
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};
     char mMyPrivRsa[1024] = {0};
@@ -414,9 +444,13 @@ public:
     std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
     bool isLoggedIn() const { return mIsLoggedIn; }
     const Id myHandle() const { return mMyHandle; }
+
     /** @brief Our own display name */
     const std::string& myName() const { return mMyName; }
+
+    /** @brief Utulity function to convert a jid to a user handle */
     static uint64_t useridFromJid(const std::string& jid);
+
     /** @brief The XMPP resource of our XMPP connection */
     std::string getResource() const
     {
@@ -435,7 +469,8 @@ public:
      * inconsistent, karere will behave as if \c false was specified - will
      * delete the karere.db file and re-create it from scratch.
      */
-    Client(::mega::MegaApi& sdk, IApp& app, Presence pres, bool existingCache);
+    Client(::mega::MegaApi& sdk, IApp& app, const std::string& appDir,
+           Presence pres, bool existingCache);
 
     virtual ~Client();
 
@@ -540,11 +575,11 @@ protected:
     bool mContactsLoaded = false;
     Presence mOwnPresence;
     bool mIsLoggedIn = false;
-    /** our own email address */
+    /** @brief Our own email address */
     std::string mEmail;
-    /** our password */
+    /** @brief Our password */
     std::string mPassword;
-    /** client's contact list */
+    /** @brief Client's contact list */
     XmppContactList mXmppContactList;
     typedef FallbackServerProvider<HostPortServerInfo> XmppServerProvider;
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
@@ -583,13 +618,6 @@ protected:
     friend class ChatRoom;
 /** @endcond PRIVATE */
 };
-
-inline Presence PeerChatRoom::calculatePresence(Presence pres) const
-{
-    if (mChat && mChat->onlineState() != chatd::kChatStateOnline)
-        return Presence::kOffline;
-    return pres;
-}
 
 }
 #endif // CHATCLIENT_H

@@ -3,12 +3,18 @@
 #Source this file in the current shell to setup the cross-compile build environment
 
 if (( "$#" < 1 )); then
-    echo "Usage: env-ios.sh <buildroot-dir>"
+    echo -e "\n\
+Usage: env-ios.sh <prefix-dir>\n\
+       Where prefix-dir is the prefix (a directory containing include\n\
+       and lib subdirectories) for building and searching for non-system\n\
+       libraries. This is in contrast with the sysroot, which is provided by
+       the iOS SDK, is detected automatically, and provides the SDK's system
+       headers and libraries"
     return 1
 fi
 
 if [ ! -d "$1" ]; then
-    echo "Specified buildroot directory '$1' does not exist"
+    echo "Specified prefix directory '$1' does not exist"
    return 1
 fi
 
@@ -23,7 +29,7 @@ if [ -z "$IOSC_TARGET" ]; then
 fi
 #=== End of user-set variables
 
-export IOSC_BUILDROOT="$1"
+export IOSC_PREFIX="$1"
 owndir=`echo "$(cd $(dirname "${BASH_SOURCE[0]}"); pwd)"`
 
 if [ "$IOSC_TARGET" == "iphoneos" ]; then
@@ -46,10 +52,10 @@ export IOSC_SYSROOT=`xcrun -sdk $IOSC_TARGET -show-sdk-path`
 find="xcrun -sdk $IOSC_TARGET -find"
 compileropts="-arch $IOSC_ARCH $IOSC_OS_VERSION -stdlib=libc++"
 
-export LDFLAGS="--sysroot $IOSC_SYSROOT -L$IOSC_BUILDROOT/lib $compileropts"
+export LDFLAGS="--sysroot $IOSC_SYSROOT -L$IOSC_PREFIX/lib $compileropts"
 export CFLAGS="$compileropts"
 export CXXFLAGS="$compileropts"
-export CPPFLAGS="-isysroot$IOSC_SYSROOT -I$IOSC_BUILDROOT/include -arch $IOSC_ARCH"
+export CPPFLAGS="-isysroot$IOSC_SYSROOT -I$IOSC_PREFIX/include -arch $IOSC_ARCH"
 
 export CC="`$find clang`"
 export CXX="`$find clang++`"
@@ -63,11 +69,11 @@ export STRIP=`$find strip`
 
 # Convenience variables
 # CMake command to configure strophe build to use the android toolchain:
-export CMAKE_XCOMPILE_ARGS="-DCMAKE_TOOLCHAIN_FILE=$IOSC_CMAKE_TOOLCHAIN -DCMAKE_INSTALL_PREFIX=$IOSC_BUILDROOT"
+export CMAKE_XCOMPILE_ARGS="-DCMAKE_TOOLCHAIN_FILE=$IOSC_CMAKE_TOOLCHAIN -DCMAKE_INSTALL_PREFIX=$IOSC_PREFIX"
 
 
 # Typical configure command to build dependencies:
-export CONFIGURE_XCOMPILE_ARGS="--prefix=$IOSC_BUILDROOT --host=$IOSC_HOST_TRIPLET"
+export CONFIGURE_XCOMPILE_ARGS="--prefix=$IOSC_PREFIX --host=$IOSC_HOST_TRIPLET"
 
 function xcmake
 {
@@ -86,16 +92,16 @@ echo "Envirnoment set to use the following compilers:"
 echo "CC=$CC"
 echo "CXX=$CXX"
 echo "SYSROOT(sdk root)=$IOSC_SYSROOT"
-echo "BUILDROOT(user libs and headers)=$IOSC_BUILDROOT"
+echo "PREFIX(user libs and headers)=$IOSC_PREFIX"
 echo
 echo -e "You can use\n\
 xconfigure [your-args]\n\
 or\n\
 \033[1;31meval\033[0m ./configure \$CONFIGURE_XCOMPILE_ARGS [your-args]\n\
-to run configure scripts. This also sets up the install prefix to the BUILDROOT directory"
+to run configure scripts. This also sets up the install prefix to the PREFIX directory"
 echo
 echo -e "You can use\n\
 xcmake [your-args]\n\
 or\n\
 \033[1;31meval\033[0m cmake \$CMAKE_XCOMPILE_ARGS [your-args]\n\
-to run a CMake command. This also sets up the install prefix to the BUILDROOT directory"
+to run a CMake command. This also sets up the install prefix to the PREFIX directory"

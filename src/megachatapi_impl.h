@@ -216,25 +216,43 @@ public:
     void setMembersUpdated();
 };
 
-class MegaChatListItemHandler :public karere::IApp::IContactListItem
+class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
 {
 public:
     MegaChatListItemHandler(MegaChatApiImpl*, MegaChatHandle chatid);
 
-    // karere::IApp::IContactListItem implementation
+    // karere::IApp::IListItem implementation
     virtual void onVisibilityChanged(int newVisibility);
-//    void* userp();
 
-    // karere::IApp::IChatHandler::ITitleHandler implementation
+    // karere::IApp::IListItem::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
     virtual void onPresenceChanged(karere::Presence state);
-    virtual void onMembersUpdated();
 //    virtual void onLastMessageUpdate();   // TBD in IGui.h
 
-private:
+protected:
     MegaChatApiImpl *chatApi;
     MegaChatHandle chatid;
+};
+
+class MegaChatGroupListItemHandler :
+        public MegaChatListItemHandler,
+        public virtual karere::IApp::IGroupChatListItem
+{
+public:
+    MegaChatGroupListItemHandler(MegaChatApiImpl*, MegaChatHandle chatid);
+
+    // karere::IApp::IListItem::IGroupChatListItem implementation
+    virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
+    virtual void onUserLeave(uint64_t userid);
+};
+
+class MegaChatPeerListItemHandler :
+        public MegaChatListItemHandler,
+        public virtual karere::IApp::IPeerChatListItem
+{
+public:
+    MegaChatPeerListItemHandler(MegaChatApiImpl*, MegaChatHandle chatid);
 };
 
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
@@ -421,7 +439,7 @@ public:
 
 class MegaChatApiImpl :
         public karere::IApp,
-        public karere::IApp::IContactListHandler
+        public karere::IApp::IChatListHandler
 {
 public:
 
@@ -455,7 +473,7 @@ private:
     std::set<MegaChatVideoListener *> localVideoListeners;
     std::set<MegaChatVideoListener *> remoteVideoListeners;
 
-    std::set<karere::IApp::IContactListItem *> chatListItemHandler;
+    std::set<karere::IApp::IChatListItem *> chatListItemHandler;
     std::set<karere::IApp::IChatHandler *> chatRoomHandler;
 
     int reqtag;
@@ -545,21 +563,20 @@ public:
 
     // karere::IApp implementation
     //virtual ILoginDialog* createLoginDialog();
-    virtual IChatHandler* createChatHandler(karere::ChatRoom &room);
-    virtual IApp::IContactListHandler& contactListHandler();
+    virtual IApp::IChatHandler *createChatHandler(karere::ChatRoom &room);
+    virtual IApp::IContactListHandler *contactListHandler();
+    virtual IApp::IChatListHandler &chatListHandler();
     virtual void onOwnPresence(karere::Presence pres);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
     virtual void notifyInvited(const karere::ChatRoom& room);
-    //virtual void onTerminate();
+    virtual void onTerminate();
 
-    // rtcModule::IContactListHandler implementation
-    virtual IContactListItem* addContactItem(karere::Contact& contact);
-    virtual IContactListItem *addGroupChatItem(karere::GroupChatRoom& room);
-    virtual IContactListItem *addPeerChatItem(karere::PeerChatRoom& room);
-    virtual void removeContactItem(IContactListItem* item);
-    virtual void removeGroupChatItem(IContactListItem* item);
-    virtual void removePeerChatItem(IContactListItem* item);
+    // rtcModule::IChatListHandler implementation
+    virtual IApp::IGroupChatListItem &addGroupChatItem(karere::GroupChatRoom &room);
+    virtual void removeGroupChatItem(IApp::IGroupChatListItem& item);
+    virtual IApp::IPeerChatListItem &addPeerChatItem(karere::PeerChatRoom& room);
+    virtual void removePeerChatItem(IApp::IPeerChatListItem& item);
 };
 
 

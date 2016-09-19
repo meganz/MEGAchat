@@ -670,10 +670,6 @@ public:
         ui.mTitleLabel->setText(text);
     }
     virtual karere::IApp::ICallHandler* callHandler() { return mCallGui; }
-    virtual void* userp()
-    {  //access the window from the IApp::ChatHandler instance
-        return this;
-    }
     //===
     void show() { QDialog::show(); raise(); }
     void hide() { QDialog::hide(); }
