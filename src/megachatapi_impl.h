@@ -219,7 +219,7 @@ public:
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
 {
 public:
-    MegaChatListItemHandler(MegaChatApiImpl*, MegaChatHandle chatid);
+    MegaChatListItemHandler(MegaChatApiImpl&, MegaChatHandle chatid);
 
     // karere::IApp::IListItem implementation
     virtual void onVisibilityChanged(int newVisibility);
@@ -231,7 +231,7 @@ public:
 //    virtual void onLastMessageUpdate();   // TBD in IGui.h
 
 protected:
-    MegaChatApiImpl *chatApi;
+    MegaChatApiImpl &chatApi;
     MegaChatHandle chatid;
 };
 
@@ -240,7 +240,7 @@ class MegaChatGroupListItemHandler :
         public virtual karere::IApp::IGroupChatListItem
 {
 public:
-    MegaChatGroupListItemHandler(MegaChatApiImpl*, MegaChatHandle chatid);
+    MegaChatGroupListItemHandler(MegaChatApiImpl&, MegaChatHandle chatid);
 
     // karere::IApp::IListItem::IGroupChatListItem implementation
     virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
@@ -252,7 +252,10 @@ class MegaChatPeerListItemHandler :
         public virtual karere::IApp::IPeerChatListItem
 {
 public:
-    MegaChatPeerListItemHandler(MegaChatApiImpl*, MegaChatHandle chatid);
+    MegaChatPeerListItemHandler(MegaChatApiImpl chatApi, MegaChatHandle chatid);
+
+    // karere::IApp::IListItem::IPeerChatListItem implementation
+    // (empty - no methods to implement yet)
 };
 
 class MegaChatRoomHandler :public karere::IApp::IChatHandler

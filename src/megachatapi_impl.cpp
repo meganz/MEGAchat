@@ -1006,7 +1006,7 @@ void MegaChatApiImpl::onTerminate()
 
 IApp::IGroupChatListItem &MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
 {
-    MegaChatGroupListItemHandler *itemHandler = new MegaChatGroupListItemHandler(this, room.chatid());
+    MegaChatGroupListItemHandler *itemHandler = new MegaChatGroupListItemHandler(*this, room.chatid());
     chatGroupListItemHandler.insert(itemHandler);
 
     return *itemHandler;
@@ -1014,7 +1014,7 @@ IApp::IGroupChatListItem &MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
 
 IApp::IPeerChatListItem &MegaChatApiImpl::addPeerChatItem(PeerChatRoom &room)
 {
-    MegaChatPeerListItemHandler *itemHandler = new MegaChatPeerListItemHandler(this, room.chatid());
+    MegaChatPeerListItemHandler *itemHandler = new MegaChatPeerListItemHandler(*this, room.chatid());
     chatPeerListItemHandler.insert(itemHandler);
 
     return *itemHandler;
@@ -1777,7 +1777,7 @@ void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
     item->setVisibility((visibility_t) newVisibility);
 
-    chatApi->fireOnChatListItemUpdate(item);
+    chatApi.fireOnChatListItemUpdate(item);
 }
 
 void MegaChatListItemHandler::onTitleChanged(const string &title)
@@ -1785,7 +1785,7 @@ void MegaChatListItemHandler::onTitleChanged(const string &title)
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
     item->setTitle(title.c_str());
 
-    chatApi->fireOnChatListItemUpdate(item);
+    chatApi.fireOnChatListItemUpdate(item);
 }
 
 void MegaChatListItemHandler::onUnreadCountChanged(int count)
@@ -1793,7 +1793,7 @@ void MegaChatListItemHandler::onUnreadCountChanged(int count)
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
     item->setUnreadCount(count);
 
-    chatApi->fireOnChatListItemUpdate(item);
+    chatApi.fireOnChatListItemUpdate(item);
 }
 
 void MegaChatListItemHandler::onPresenceChanged(Presence state)
@@ -1801,7 +1801,7 @@ void MegaChatListItemHandler::onPresenceChanged(Presence state)
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
     item->setOnlineStatus((MegaChatApi::Status) state.status());
 
-    chatApi->fireOnChatListItemUpdate(item);
+    chatApi.fireOnChatListItemUpdate(item);
 }
 
 MegaChatPeerListPrivate::MegaChatPeerListPrivate()
@@ -1879,10 +1879,9 @@ MegaChatPeerListPrivate::MegaChatPeerListPrivate(userpriv_vector *userpriv)
 }
 
 
-MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl *chatApi, MegaChatHandle chatid)
+MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl &chatApi, MegaChatHandle chatid)
+    :chatApi(chatApi), chatid(chatid)
 {
-    this->chatApi = chatApi;
-    this->chatid = chatid;
 }
 
 MegaChatListItemPrivate::MegaChatListItemPrivate(MegaChatHandle chatid)
@@ -1971,7 +1970,7 @@ void MegaChatListItemPrivate::setMembersUpdated()
 }
 
 
-MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl *chatApi, MegaChatHandle chatid)
+MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chatApi, MegaChatHandle chatid)
     : MegaChatListItemHandler(chatApi, chatid)
 {
 
@@ -1982,7 +1981,7 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t, chatd::Priv)
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
     item->setMembersUpdated();
 
-    chatApi->fireOnChatListItemUpdate(item);
+    chatApi.fireOnChatListItemUpdate(item);
 }
 
 void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
@@ -1990,11 +1989,11 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
     item->setMembersUpdated();
 
-    chatApi->fireOnChatListItemUpdate(item);
+    chatApi.fireOnChatListItemUpdate(item);
 }
 
 
-MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl *, MegaChatHandle chatid)
+MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, MegaChatHandle chatid)
     : MegaChatListItemHandler(chatApi, chatid)
 {
 
