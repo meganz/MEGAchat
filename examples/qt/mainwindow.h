@@ -45,14 +45,14 @@ public:
     virtual IContactListItem* addContactItem(karere::Contact& contact);
     virtual void removeContactItem(IContactListItem& item);
 //IChatListItem
-    virtual IGroupChatListItem& addGroupChatItem(karere::GroupChatRoom& room);
+    virtual IGroupChatListItem* addGroupChatItem(karere::GroupChatRoom& room);
     virtual void removeGroupChatItem(IGroupChatListItem& item);
-    virtual IPeerChatListItem& addPeerChatItem(karere::PeerChatRoom& room);
+    virtual IPeerChatListItem* addPeerChatItem(karere::PeerChatRoom& room);
     virtual void removePeerChatItem(IPeerChatListItem& item);
 //IApp
     virtual karere::IApp::IContactListHandler* contactListHandler() { return this; }
-    virtual karere::IApp::IChatListHandler& chatListHandler() { return *this; }
-    virtual IChatHandler* createChatHandler(karere::ChatRoom& room);
+    virtual karere::IApp::IChatListHandler* chatListHandler() { return this; }
+    IChatHandler* createChatHandler(karere::ChatRoom& room);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
     {
         return new CallAnswerGui(*this, ans);
@@ -136,13 +136,36 @@ public:
         ui.setupUi(this);
         ui.mUnreadIndicator->hide();
     }
+    virtual void showChatWindow() = 0;
+    void showAsHidden()
+    {
+        ui.mName->setStyleSheet("color: rgba(0,0,0,128)\n");
+    }
+    void unshowAsHidden()
+    {
+        ui.mName->setStyleSheet("color: rgba(255,255,255,255)\n");
+    }
 };
 
 class CListChatItem: public CListItem, public virtual karere::IApp::IChatListItem
 {
     Q_OBJECT
 public:
-    virtual void showChatWindow() = 0;
+    void showChatWindow()
+    {
+        ChatWindow* window;
+        auto& thisRoom = room();
+        if (!thisRoom.appChatHandler())
+        {
+            window = new ChatWindow(this, thisRoom);
+            thisRoom.setAppChatHandler(window);
+        }
+        else
+        {
+            window = static_cast<ChatWindow*>(thisRoom.appChatHandler()->userp);
+        }
+        window->show();
+    }
     CListChatItem(QWidget* parent): CListItem(parent){}
 //ITitleHandler intefrace
     virtual void onTitleChanged(const std::string& title)
@@ -177,14 +200,6 @@ public:
         }
         karere::setTimeout([this]() { updateToolTip(); }, 100);
     }
-    void showAsHidden()
-    {
-        ui.mName->setStyleSheet("color: rgba(0,0,0,128)\n");
-    }
-    void unshowAsHidden()
-    {
-        ui.mName->setStyleSheet("color: rgba(255,255,255,255)\n");
-    }
     void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
     {
         QChar lf('\n');
@@ -205,21 +220,26 @@ public:
     }
     virtual void showChatWindow()
     {
-        if (mContact.chatRoom())
+        auto room = mContact.chatRoom();
+        if (room)
         {
-            static_cast<ChatWindow*>(mContact.chatRoom()->appChatHandler().userp)->show();
+            auto chatItem = static_cast<CListChatItem*>(room->roomGui()->userp);
+            if (chatItem) //may be null if app returned null from IChatListHandler::addXXXChatItem()
+                chatItem->showChatWindow();
             return;
         }
         mContact.createChatRoom()
         .then([this](karere::ChatRoom* room)
         {
             updateToolTip();
-            static_cast<ChatWindow*>(mContact.chatRoom()->appChatHandler().userp)->show();
+            auto window = new ChatWindow(this, *room);
+            room->setAppChatHandler(window);
+            window->show();
         })
         .fail([this](const promise::Error& err)
         {
             QMessageBox::critical(nullptr, "rtctestapp",
-                "Error creating chatroom:\n"+QString::fromStdString(err.what()));
+                    "Error creating chatroom:\n"+QString::fromStdString(err.what()));
         });
     }
     virtual void onTitleChanged(const std::string &title)
@@ -277,10 +297,22 @@ public:
     {
         GUI_LOG_DEBUG("onVisibilityChanged for contact %s: new visibility is %d",
                karere::Id(mContact.userId()).toString().c_str(), newVisibility);
+        auto chat = mContact.chatRoom()
+            ? static_cast<CListChatItem*>(mContact.chatRoom()->roomGui()->userp)
+            : nullptr;
+
         if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
+        {
             showAsHidden();
+            if (chat)
+                chat->showAsHidden();
+        }
         else
+        {
             unshowAsHidden();
+            if (chat)
+                chat->unshowAsHidden();
+        }
         updateToolTip();
     }
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
@@ -292,40 +324,11 @@ public slots:
     void onCreateGroupChat()
     {
         std::string name;
-        bool again;
-        do
-        {
-            again = false;
-            auto qname = QInputDialog::getText(this, tr("Invite to group chat"), tr("Enter group chat name"));
-            if (qname.isNull())
-                return;
-            name = qname.toLatin1().data();
-            for (auto& item: *mContact.contactList().client.chats)
-            {
-                auto& room = *item.second;
-                if (room.isGroup() && room.titleString().c_str() == name)
-                {
-                    QMessageBox::critical(this, "Invite to group chat", "A group chat with that name already exists");
-                    again = true;
-                    break;
-                }
-            }
-        }
-        while(again);
+        auto qname = QInputDialog::getText(this, tr("Invite to group chat"), tr("Enter group chat name"));
+        if (!qname.isNull())
+            name = qname.toStdString();
 
-        std::unique_ptr<mega::MegaTextChatPeerList> peers(mega::MegaTextChatPeerList::createInstance());
-        peers->addPeer(mContact.userId(), chatd::PRIV_FULL);
-        mContact.contactList().client.api.call(&mega::MegaApi::createChat, true, peers.get())
-        .then([this, name](ReqResult result)
-        {
-            auto& list = *result->getMegaTextChatList();
-            if (list.size() < 1)
-                throw std::runtime_error("Empty chat list returned from API");
-            auto& room = mContact.contactList().client.chats->addRoom(*list.get(0));
-            assert(room.isGroup());
-            room.join();
-            static_cast<karere::GroupChatRoom&>(room).setTitle(name);
-        })
+        mContact.contactList().client.createGroupChat({std::make_pair(mContact.userId(), chatd::PRIV_FULL)}, name)
         .fail([this](const promise::Error& err)
         {
             QMessageBox::critical(this, tr("Create group chat"), tr("Error creating group chat:\n")+QString::fromStdString(err.msg()));
@@ -396,10 +399,6 @@ protected:
         menu.exec(event->globalPos());
     }
     virtual void mouseDoubleClickEvent(QMouseEvent* event) { showChatWindow(); }
-    virtual void showChatWindow()
-    {
-        static_cast<ChatWindow*>(mRoom.appChatHandler().userp)->show();
-    }
     virtual karere::ChatRoom& room() const { return mRoom; }
 protected slots:
     void leaveGroupChat() { karere::marshallCall([this]() { mRoom.leave(); }); } //deletes this
@@ -416,12 +415,10 @@ public:
         : CListChatItem(parent), mRoom(room),
           mContactItem(dynamic_cast<CListContactItem*>(room.contact().appItem()))
     {
+        if(mRoom.contact().visibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
+            showAsHidden();
         ui.mAvatar->setText("1");
         updateToolTip();
-    }
-    virtual void showChatWindow()
-    {
-        static_cast<ChatWindow*>(mRoom.appChatHandler().userp)->show();
     }
     void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
     {

@@ -243,7 +243,7 @@ public:
         /**
          * @brief Called when a groupchat is added to the contactlist
          */
-        virtual IGroupChatListItem& addGroupChatItem(GroupChatRoom& room) = 0;
+        virtual IGroupChatListItem* addGroupChatItem(GroupChatRoom& room) = 0;
         /**
          * @brief Called when a group chat needs to be added to the list
          */
@@ -251,7 +251,7 @@ public:
         /**
          * @brief Called when a 1on1 chat needs to be added to the chatroom list
          */
-        virtual IPeerChatListItem& addPeerChatItem(PeerChatRoom& room) = 0;
+        virtual IPeerChatListItem* addPeerChatItem(PeerChatRoom& room) = 0;
         /**
          * @brief Called when a 1on1 chat needs to be removed from the list
          */
@@ -267,18 +267,11 @@ public:
      */
     virtual ILoginDialog* createLoginDialog() { return nullptr; }
 
-    /**
-     * @brief Called when karere needs to instantiate a chat window for that 1on1 or
-     * group chatroom
-     *
-     * @param room The chat room object.
-     */
-    virtual IChatHandler* createChatHandler(karere::ChatRoom& room) = 0;
-
     /** @brief Returns the interface to the contactlist */
     virtual IContactListHandler* contactListHandler() = 0;
+
     /** @brief Returns the interface to the chat list */
-    virtual IChatListHandler& chatListHandler() = 0;
+    virtual IChatListHandler* chatListHandler() = 0;
 
     /**
      * @brief Called by karere when our own online state/presence has changed.

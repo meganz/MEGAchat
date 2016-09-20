@@ -188,7 +188,7 @@ class ChatWindow: public QDialog, public karere::IApp::IChatHandler
 {
     Q_OBJECT
 public:
-    MainWindow& mainWindow;
+    karere::Client& client;
     Ui::ChatWindow ui;
     QListWidget* mManualSendList = nullptr;
 protected:
@@ -374,7 +374,7 @@ noedit:
     void onMemberPrivateChat();
     void onScroll(int value);
 public:
-    ChatWindow(karere::ChatRoom& room, MainWindow& parent);
+    ChatWindow(QWidget* parent, karere::ChatRoom& room);
     virtual ~ChatWindow();
     chatd::Chat& chat() const { return *mChat; }
 protected:
@@ -422,10 +422,8 @@ protected:
             QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
             return;
         }
-        auto uh = static_cast<karere::PeerChatRoom&>(mRoom).peer();
-        auto jid = karere::useridToJid(uh);
         createCallGui();
-        mRoom.parent.client.rtc->startMediaCall(mCallGui, jid, karere::AvFlags(true, video));
+        mRoom.mediaCall(karere::AvFlags(true, video));
     }
 
     static MessageWidget* widgetFromMessage(const chatd::Message& msg)
