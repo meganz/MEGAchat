@@ -148,11 +148,11 @@ protected:
     Contact& mContact;
     IApp::IPeerChatListItem* mRoomGui;
     friend class ContactList;
+    IApp::IPeerChatListItem* addAppItem();
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
-    IApp::IPeerChatListItem* addAppItem();
     bool syncOwnPriv(chatd::Priv priv);
     bool syncPeerPriv(chatd::Priv priv);
     virtual bool syncWithApi(const mega::MegaTextChat& chat);

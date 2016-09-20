@@ -832,7 +832,10 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, con
         auto& room = chats->addRoom(*list.get(0));
         assert(room.isGroup());
         room.join();
-        static_cast<karere::GroupChatRoom&>(room).setTitle(title);
+        if (!title.empty())
+        {
+            static_cast<karere::GroupChatRoom&>(room).setTitle(title);
+        }
     });
 }
 
