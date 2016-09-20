@@ -586,7 +586,7 @@ public:
      * the participants.
      */
     promise::Promise<void>
-    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, const std::string& title);
+    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, const std::string& title=std::string());
 
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
