@@ -50,6 +50,7 @@ class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaCha
 public:
     MegaSdkTest();
     void start();
+    void terminate();
 
 private:
     MegaApi* megaApi[2];

@@ -196,7 +196,7 @@ void MegaChatApiImpl::sendPendingRequests()
             mClient->terminate()
             .then([this]()
             {
-                KR_LOG_ERROR("Chat engine closed!");
+                KR_LOG_INFO("Chat engine closed!");
                 threadExit = 1;
             })
             .fail([](const promise::Error& err)

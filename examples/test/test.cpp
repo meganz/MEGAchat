@@ -19,7 +19,12 @@ int main(int argc, char **argv)
     MegaSdkTest test;
     test.start();
 
-    sleep(3000000);
+    sleep(15);
+
+    test.terminate();
+
+    sleep(15);
+
     return 0;
 }
 
@@ -69,6 +74,12 @@ void MegaSdkTest::start()
 
     // 3. Login into the user account and fetchnodes (launched in the login callback)
     megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
+}
+
+void MegaSdkTest::terminate()
+{
+    delete megaChatApi[0];
+    delete megaApi[0];
 }
 
 MegaLoggerSDK::MegaLoggerSDK(const char *filename)
@@ -131,14 +142,28 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
             KR_LOG_ERROR("Initialization of local cache failed. Error: %s (%d)", e->getErrorString(), e->getErrorCode());
         }
         break;
+
     case MegaChatRequest::TYPE_CONNECT:
         if (e->getErrorCode() == API_OK)
         {
             KR_LOG_DEBUG("Connection to chat servers established!");
+
+            megaChatApi[apiIndex]->setOnlineStatus(MegaChatApi::STATUS_AWAY);
         }
         else
         {
             KR_LOG_ERROR("Connection to chat servers error: %s (%d)", e->getErrorString(), e->getErrorCode());
+        }
+        break;
+
+    case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
+        if (e->getErrorCode() == API_OK)
+        {
+            KR_LOG_DEBUG("Online status changed successfully.");
+        }
+        else
+        {
+            KR_LOG_ERROR("Online status change error: %s (%d)", e->getErrorString(), e->getErrorCode());
         }
         break;
     }
