@@ -233,7 +233,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_CREATE_CHATROOM:
         {
             MegaChatPeerList *peersList = request->getMegaChatPeerList();
-            if (!peersList)   // refuse to create chats without participants
+            if (!peersList || !peersList->size())   // refuse to create chats without participants
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -241,27 +241,42 @@ void MegaChatApiImpl::sendPendingRequests()
 
             bool group = request->getFlag();
             const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
-            if (!userpriv || (!group && peersList->size() > 1))
+            if (!userpriv)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
-            MegaTextChatPeerListPrivate peers;
-            peers.addPeer(mClient->myHandle(), MegaChatRoom::PRIV_STANDARD);
-            mClient->api.call(&MegaApi::createChat, group, &peers)
-            .then([request, this](ReqResult result)
+            if (!group && peersList->size() > 1)
             {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const promise::Error& err)
-            {
-                KR_LOG_ERROR("Error creating chatroom: ", err.what());
+                group = true;
+                request->setFlag(group);
+                KR_LOG_INFO("Forcing group chat due to more than 2 participants");
+            }
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+            if (group)
+            {
+
+            }
+            else    // 1on1 chat
+            {
+                karere::ContactList::iterator it = mClient->contactList->find(peersList->getPeerHandle(0));
+                it->second->createChatRoom()
+                .then([request,this](ChatRoom* room)
+                {
+                    request->setChatHandle(room->chatid());
+
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                })
+                .fail([request,this](const promise::Error& err)
+                {
+                    KR_LOG_ERROR("Error creating chatroom: ", err.what());
+
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
+            }
             break;
         }
         case MegaChatRequest::TYPE_INVITE_TO_CHATROOM:

@@ -600,7 +600,7 @@ public:
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaRequest::getMegaChatPeerList - Returns the new chat's information
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
      *
      * @note If you are trying to create a chat with more than 1 other person, then it will be forced
      * to be a group chat.
