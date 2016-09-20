@@ -149,17 +149,18 @@ protected:
     IApp::IPeerChatListItem* mRoomGui;
     friend class ContactList;
     IApp::IPeerChatListItem* addAppItem();
+    virtual bool syncWithApi(const mega::MegaTextChat& chat);
+    bool syncOwnPriv(chatd::Priv priv);
+    bool syncPeerPriv(chatd::Priv priv);
+    static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
+    void updatePresence();
+    virtual void join();
+    friend class Contact;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
-    bool syncOwnPriv(chatd::Priv priv);
-    bool syncPeerPriv(chatd::Priv priv);
-    virtual bool syncWithApi(const mega::MegaTextChat& chat);
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
-    void updatePresence();
-    virtual void join();
-    static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     //@endcond
 
     /** @brief The userid of the other person in the 1on1 chat */
@@ -229,22 +230,24 @@ public:
     void updateAllOnlineDisplays(Presence pres);
     void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(const uint64_t& userid);
+    virtual bool syncWithApi(const mega::MegaTextChat &chat);
+    IApp::IGroupChatListItem* addAppItem();
+    virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
+    void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
+    void makeTitleFromMemberNames();
+    virtual void join();
+
+    friend class ChatRoomList;
     friend class Member;
 public:
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
                   unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
     ~GroupChatRoom();
-    IApp::IGroupChatListItem* addAppItem();
     promise::Promise<ReqResult> setPrivilege(karere::Id userid, chatd::Priv priv);
     promise::Promise<void> setTitle(const std::string& title);
-    void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
-    void leave();
+    promise::Promise<ReqResult> leave();
     promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
-    virtual bool syncWithApi(const mega::MegaTextChat &chat);
-    virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
-    void makeTitleFromMemberNames();
-    virtual void join();
     virtual promise::Promise<void> mediaCall(AvFlags av);
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
@@ -317,12 +320,12 @@ protected:
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
     void updateTitle(const std::string& str);
     void setChatRoom(PeerChatRoom& room);
+    void attachChatRoom(PeerChatRoom& room);
+    friend class PeerChatRoom;
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
     ~Contact();
-    IApp::IContactListItem* appItem() const { return mDisplay; }
-    void attachChatRoom(PeerChatRoom& room);
 /** @endcond PRIVATE */
 
     /** @brief The contactlist object which this contact is member of */
@@ -337,6 +340,11 @@ public:
      * Otherwise returns NULL
      */
     PeerChatRoom* chatRoom() { return mChatRoom; }
+    /** @brief The \c IApp::IContactListItem that is associated with this
+     * contact. Can be NULL if there is no IContactListHandler or it returned
+     * NULL from \c addContactListItem()
+     */
+    IApp::IContactListItem* appItem() const { return mDisplay; }
 
     /** @brief Creates a 1on1 chatroom with this contact, if one does not exist,
      * otherwise returns the existing one.

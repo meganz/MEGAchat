@@ -1351,10 +1351,10 @@ GroupChatRoom::~GroupChatRoom()
         parent.client.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 }
 
-void GroupChatRoom::leave()
+promise::Promise<ReqResult> GroupChatRoom::leave()
 {
     //rely on actionpacket to do the actual removal of the group
-    parent.client.api.call(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle());
+    return parent.client.api.call(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle());
 }
 
 promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
