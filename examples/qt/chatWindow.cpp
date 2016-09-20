@@ -27,13 +27,21 @@ ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
         setAcceptDrops(true);
 
     setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint);
+    setAttribute(Qt::WA_DeleteOnClose);
     QDialog::show();
 }
 
 ChatWindow::~ChatWindow()
 {
-    mChat->setListener(static_cast<chatd::Listener*>(&mRoom));
+    GUI_LOG_DEBUG("Destroying chat window for chat %s", Id(mRoom.chatid()).toString().c_str());
+    if (mUpdateSeenTimer)
+    {
+        cancelTimeout(mUpdateSeenTimer);
+        mUpdateSeenTimer = 0;
+    }
+    mRoom.removeAppChatHandler();
 }
+
 MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     chatd::Message::Status status, chatd::Idx idx)
 : QWidget(&parent), mChatWindow(parent), mMessage(&msg),

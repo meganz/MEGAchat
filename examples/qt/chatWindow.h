@@ -203,6 +203,7 @@ protected:
  *  and after which are all unsent messages, in order
  */
     int mHistAddPos = 0;
+    megaHandle mUpdateSeenTimer = 0;
     friend class CallGui;
     friend class CallAnswerGui;
     friend class WaitMsg;
@@ -398,7 +399,7 @@ protected:
     void updateSeen();
     virtual void showEvent(QShowEvent* event)
     {
-        karere::setTimeout([this]() { updateSeen(); }, 2000);
+        mUpdateSeenTimer = karere::setTimeout([this]() { updateSeen(); }, 2000);
     }
     void closeEvent(QCloseEvent* event)
     {
@@ -415,15 +416,19 @@ protected:
     void createMembersMenu(QMenu& menu);
     void onCallBtn(bool video)
     {
-        if (mCallGui)
-            return;
         if (mRoom.isGroup())
         {
             QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
             return;
         }
+        if (mCallGui)
+            return;
         createCallGui();
-        mRoom.mediaCall(karere::AvFlags(true, video));
+        mRoom.mediaCall(karere::AvFlags(true, video))
+        .fail([this](const promise::Error& err)
+        {
+            QMessageBox::critical(this, "Call", QString::fromStdString(err.msg()));
+        });
     }
 
     static MessageWidget* widgetFromMessage(const chatd::Message& msg)
