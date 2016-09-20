@@ -46,7 +46,9 @@ class MegaChatApiImpl;
 class MegaChatRequest;
 class MegaChatRequestListener;
 class MegaChatError;
+class MegaChatMessage;
 class MegaChatRoom;
+class MegaChatRoomListener;
 class MegaChatCall;
 class MegaChatCallListener;
 class MegaChatVideoListener;
@@ -740,14 +742,18 @@ public:
     void hangAllChatCalls();
 
     // Listeners
+    void addChatListener(MegaChatListener *listener);
+    void removeChatListener(MegaChatListener *listener);
+    void addChatRoomListener(MegaChatRoomListener *listener);
+    void removeChatRoomListener(MegaChatRoomListener *listener);
+
     void addChatCallListener(MegaChatCallListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void addChatListener(MegaChatListener *listener);
-    void removeChatListener(MegaChatListener *listener);
+
 
     /**
      * @brief Register a listener to receive all events about requests
@@ -963,6 +969,24 @@ public:
          * @param chat MegaChatRoom that contains the new or updated chat
          */
         virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
+};
+
+class MegaChatMessage
+{
+public:
+    virtual ~MegaChatMessage() {}
+
+
+};
+
+class MegaChatRoomListener
+{
+public:
+    virtual ~MegaChatRoomListener() {}
+
+    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
+
+    virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);
 };
 
 }

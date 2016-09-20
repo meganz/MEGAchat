@@ -889,6 +889,19 @@ void MegaChatApiImpl::addChatListener(MegaChatListener *listener)
     //    sdkMutex.unlock();
 }
 
+void MegaChatApiImpl::addChatRoomListener(MegaChatRoomListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    roomListeners.insert(listener);
+    //    sdkMutex.unlock();
+
+}
+
 void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
 {
     if (!listener)
@@ -960,6 +973,18 @@ void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)
 
 //    sdkMutex.lock();
     listeners.erase(listener);
+    //    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatRoomListener(MegaChatRoomListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+//    sdkMutex.lock();
+    roomListeners.erase(listener);
     //    sdkMutex.unlock();
 }
 

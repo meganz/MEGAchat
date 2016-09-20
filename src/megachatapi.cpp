@@ -208,6 +208,16 @@ void MegaChatApi::removeChatListener(MegaChatListener *listener)
     pImpl->removeChatListener(listener);
 }
 
+void MegaChatApi::addChatRoomListener(MegaChatRoomListener *listener)
+{
+    pImpl->addChatRoomListener(listener);
+}
+
+void MegaChatApi::removeChatRoomListener(MegaChatRoomListener *listener)
+{
+    pImpl->removeChatRoomListener(listener);
+}
+
 void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)
 {
     pImpl->addChatRequestListener(listener);
