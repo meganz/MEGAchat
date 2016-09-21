@@ -892,21 +892,23 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
 
 void MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {    
-//    sdkMutex.lock();
-//    mClient->setAppChatHandler(getChatRoomHandler(chatid));
-//    sdkMutex.unlock();
+    sdkMutex.lock();
 
+    chatRoom(chatid)->setAppChatHandler(getChatRoomHandler(chatid));
     addChatRoomListener(chatid, listener);
+
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
-//    sdkMutex.lock();
-//    mClient->removeAppChatHandler();
-//    sdkMutex.unlock();
-    removeChatRoomHandler(chatid);
+    sdkMutex.lock();
 
+    chatRoom(chatid)->removeAppChatHandler();
+    removeChatRoomHandler(chatid);
     removeChatRoomListener(listener);
+
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
