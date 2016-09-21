@@ -2,8 +2,8 @@
 #include "mainwindow.h"
 using namespace karere;
 
-ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&parent),
-    mainWindow(parent), mRoom(room), mWaitMsg(*this)
+ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
+    : QDialog(parent), client(room.parent.client), mRoom(room), mWaitMsg(*this)
 {
     userp = this;
     ui.setupUi(this);
@@ -27,13 +27,21 @@ ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&par
         setAcceptDrops(true);
 
     setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint);
+    setAttribute(Qt::WA_DeleteOnClose);
     QDialog::show();
 }
 
 ChatWindow::~ChatWindow()
 {
-    mChat->setListener(static_cast<chatd::Listener*>(&mRoom));
+    GUI_LOG_DEBUG("Destroying chat window for chat %s", Id(mRoom.chatid()).toString().c_str());
+    if (mUpdateSeenTimer)
+    {
+        cancelTimeout(mUpdateSeenTimer);
+        mUpdateSeenTimer = 0;
+    }
+    mRoom.removeAppChatHandler();
 }
+
 MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     chatd::Message::Status status, chatd::Idx idx)
 : QWidget(&parent), mChatWindow(parent), mMessage(&msg),
@@ -101,7 +109,7 @@ void ChatWindow::onMemberRemove()
     uint64_t handle(handleFromAction(QObject::sender()));
     mWaitMsg.addMsg(tr("Removing user(s), please wait..."));
     auto waitMsgKeepalive = mWaitMsg;
-    mainWindow.client().api.call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
+    client.api.call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
     .fail([this, waitMsgKeepalive](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Remove member from group chat"),
@@ -121,7 +129,7 @@ void ChatWindow::onMemberSetPrivReadOnly()
 
 void ChatWindow::onMemberPrivateChat()
 {
-    auto& clist = *mainWindow.client().contactList;
+    auto& clist = *client.contactList;
     auto it = clist.find(handleFromAction(QObject::sender()));
     if (it == clist.end())
     {
@@ -397,13 +405,13 @@ MessageWidget& MessageWidget::setAuthor(karere::Id userid)
         ui.mAuthorDisplay->setText(tr("me"));
         return *this;
     }
-    auto email = mChatWindow.mainWindow.client().contactList->getUserEmail(userid);
+    auto email = mChatWindow.client.contactList->getUserEmail(userid);
     if (email)
         ui.mAuthorDisplay->setText(QString::fromStdString(*email));
     else
         ui.mAuthorDisplay->setText(tr("?"));
 
-    mChatWindow.mainWindow.client().userAttrCache.getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    mChatWindow.client.userAttrCache.getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* data, void* userp)
     {
         //buffer contains an unsigned char prefix that is the strlen() of the first name

@@ -188,7 +188,7 @@ class ChatWindow: public QDialog, public karere::IApp::IChatHandler
 {
     Q_OBJECT
 public:
-    MainWindow& mainWindow;
+    karere::Client& client;
     Ui::ChatWindow ui;
     QListWidget* mManualSendList = nullptr;
 protected:
@@ -203,6 +203,7 @@ protected:
  *  and after which are all unsent messages, in order
  */
     int mHistAddPos = 0;
+    megaHandle mUpdateSeenTimer = 0;
     friend class CallGui;
     friend class CallAnswerGui;
     friend class WaitMsg;
@@ -374,7 +375,7 @@ noedit:
     void onMemberPrivateChat();
     void onScroll(int value);
 public:
-    ChatWindow(karere::ChatRoom& room, MainWindow& parent);
+    ChatWindow(QWidget* parent, karere::ChatRoom& room);
     virtual ~ChatWindow();
     chatd::Chat& chat() const { return *mChat; }
 protected:
@@ -398,7 +399,7 @@ protected:
     void updateSeen();
     virtual void showEvent(QShowEvent* event)
     {
-        karere::setTimeout([this]() { updateSeen(); }, 2000);
+        mUpdateSeenTimer = karere::setTimeout([this]() { updateSeen(); }, 2000);
     }
     void closeEvent(QCloseEvent* event)
     {
@@ -415,17 +416,19 @@ protected:
     void createMembersMenu(QMenu& menu);
     void onCallBtn(bool video)
     {
-        if (mCallGui)
-            return;
         if (mRoom.isGroup())
         {
             QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
             return;
         }
-        auto uh = static_cast<karere::PeerChatRoom&>(mRoom).peer();
-        auto jid = karere::useridToJid(uh);
+        if (mCallGui)
+            return;
         createCallGui();
-        mRoom.parent.client.rtc->startMediaCall(mCallGui, jid, karere::AvFlags(true, video));
+        mRoom.mediaCall(karere::AvFlags(true, video))
+        .fail([this](const promise::Error& err)
+        {
+            QMessageBox::critical(this, "Call", QString::fromStdString(err.msg()));
+        });
     }
 
     static MessageWidget* widgetFromMessage(const chatd::Message& msg)

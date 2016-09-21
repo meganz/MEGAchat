@@ -93,6 +93,7 @@ protected:
             :itemit(aItemIt), cbit(aCbIt){}
     };
     Client& mClient;
+    bool mIsLoggedIn = false;
     uint64_t mCbId = 0;
     std::map<uint64_t, CbRefItem> mCallbacks;
     void dbWrite(UserAttrPair key, const Buffer& data);
