@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     MegaSdkTest test;
     test.start();
 
-    sleep(15);
+    sleep(60);
 
     test.terminate();
 
@@ -55,6 +55,20 @@ MegaSdkTest::MegaSdkTest()
     }
 }
 
+/**
+ * This test currently chains several actions in a row. When a request finishes with success, it
+ * calls the next one. The list of actions tested are:
+ *
+ * - Create a MegaApi
+ * - Create a MegaChatApi
+ * - MegaApi::login(user, pwd)
+ * - MegaApi::fetchNodes()
+ * - MegaChatApi::init()
+ * - MegaChatApi::connect()
+ * - MegaChatApi::setOnlineStatus(away)
+ * - MegaChatApi::getChatRooms() - sync call
+ * - MegaApi::getContacts() - sync call
+ */
 void MegaSdkTest::start()
 {
     // 1. Create MegaApi instance

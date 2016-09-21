@@ -16,6 +16,70 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
+  <property name="palette">
+   <palette>
+    <active>
+     <colorrole role="Base">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Window">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+    </active>
+    <inactive>
+     <colorrole role="Base">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Window">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+    </inactive>
+    <disabled>
+     <colorrole role="Base">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Window">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+    </disabled>
+   </palette>
+  </property>
   <property name="windowTitle">
    <string>Chat</string>
   </property>
@@ -40,6 +104,9 @@
    </property>
    <item>
     <widget class="QWidget" name="mCentralWidget" native="true">
+     <property name="autoFillBackground">
+      <bool>true</bool>
+     </property>
      <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,1">
       <property name="spacing">
        <number>0</number>
@@ -431,8 +498,11 @@ border-image: url(':/groupchat-members-hover.svg')
               <height>0</height>
              </size>
             </property>
+            <property name="autoFillBackground">
+             <bool>false</bool>
+            </property>
             <property name="styleSheet">
-             <string notr="true"/>
+             <string notr="true">QListView {background-color: white; }</string>
             </property>
             <property name="verticalScrollMode">
              <enum>QAbstractItemView::ScrollPerPixel</enum>

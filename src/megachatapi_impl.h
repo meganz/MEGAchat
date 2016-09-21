@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file megachatapi_impl.h
  * @brief Private header file of the intermediate layer for the MEGA Chat C++ SDK.
  *
@@ -40,6 +40,7 @@
 #include <sdkApi.h>
 #include <mstrophepp.h>
 #include <karereCommon.h>
+
 
 namespace megachat
 {
@@ -278,7 +279,7 @@ public:
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
     //virtual void onDestroy();
     //virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status);
-    //virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isFromDb);
+    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb);
     //virtual void onHistoryDone(bool isFromDb) ;
     //virtual void onUnsentMsgLoaded(Message& msg) ;
     //virtual void onUnsentEditLoaded(Message& msg, bool oriMsgIsSending) ;
@@ -409,6 +410,15 @@ private:
     std::vector<MegaChatRoom*> list;
 };
 
+class MegaChatMessagePrivate : public MegaChatMessage
+{
+public:
+    MegaChatMessagePrivate(const MegaChatMessage *msg);
+    MegaChatMessagePrivate(const chatd::Message &msg);
+
+    virtual ~MegaChatMessagePrivate();
+    virtual MegaChatMessage *copy() const;
+};
 
 //Thread safe request queue
 class ChatRequestQueue
@@ -457,8 +467,8 @@ private:
     mega::MegaApi *megaApi;
 
     karere::Client *mClient;
-    chatd::Chat *mChat;
 
+    mega::MegaMutex sdkMutex;
     mega::MegaWaiter *waiter;
     mega::MegaThread thread;
     int threadExit;
@@ -479,7 +489,7 @@ private:
 
     std::set<karere::IApp::IPeerChatListItem *> chatPeerListItemHandler;
     std::set<karere::IApp::IGroupChatListItem *> chatGroupListItemHandler;
-    std::set<karere::IApp::IChatHandler *> chatRoomHandler;
+    std::map<MegaChatHandle, MegaChatRoomHandler*> chatRoomHandler;
 
     int reqtag;
     std::map<int, MegaChatRequestPrivate *> requestMap;
@@ -496,6 +506,11 @@ public:
     void sendPendingRequests();
     void sendPendingEvents();
 
+    MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
+    void removeChatRoomHandler(MegaChatHandle chatid);
+
+    karere::ChatRoom *chatRoom(MegaChatHandle chatid);
+
 
     // ============= Listeners ================
 
@@ -505,7 +520,7 @@ public:
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
     void addChatListener(MegaChatListener *listener);
-    void addChatRoomListener(MegaChatRoomListener *listener);
+    void addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
     void removeChatRequestListener(MegaChatRequestListener *listener);
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
@@ -529,10 +544,12 @@ public:
     void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
     void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
 
-    // MegaChatListener callbacks
+    // MegaChatRoomListener callbacks
     void fireOnChatRoomUpdate(MegaChatRoom *chat);
-    void fireOnChatListItemUpdate(MegaChatListItem *item);
+    void fireOnMessageLoaded(MegaChatMessage *msg);
 
+    // MegaChatRoomListener callbacks (specific ones)
+    void fireOnChatListItemUpdate(MegaChatListItem *item);
 
     // ============= API requests ================
 
@@ -551,6 +568,11 @@ public:
     void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
 
+    void openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
+    void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
+
+    void getMessages(MegaChatHandle chatid, int count);
+    MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
     // Audio/Video devices
     mega::MegaStringList *getChatAudioInDevices();
@@ -572,7 +594,7 @@ public:
     //virtual ILoginDialog* createLoginDialog();
     virtual IApp::IChatHandler *createChatHandler(karere::ChatRoom &room);
     virtual IApp::IContactListHandler *contactListHandler();
-    virtual IApp::IChatListHandler &chatListHandler();
+    virtual IApp::IChatListHandler *chatListHandler();
     virtual void onOwnPresence(karere::Presence pres);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
@@ -580,9 +602,9 @@ public:
     virtual void onTerminate();
 
     // rtcModule::IChatListHandler implementation
-    virtual IApp::IGroupChatListItem &addGroupChatItem(karere::GroupChatRoom &room);
+    virtual IApp::IGroupChatListItem *addGroupChatItem(karere::GroupChatRoom &room);
     virtual void removeGroupChatItem(IApp::IGroupChatListItem& item);
-    virtual IApp::IPeerChatListItem &addPeerChatItem(karere::PeerChatRoom& room);
+    virtual IApp::IPeerChatListItem *addPeerChatItem(karere::PeerChatRoom& room);
     virtual void removePeerChatItem(IApp::IPeerChatListItem& item);
 };
 

@@ -36,6 +36,7 @@
 #include <base/cservices.h>
 #include <base/logger.h>
 #include <IGui.h>
+#include <chatClient.h>
 
 #ifndef _WIN32
 #include <signal.h>
@@ -73,6 +74,8 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->chatApi = chatApi;
     this->megaApi = megaApi;
 
+    sdkMutex.init(true);
+
     this->waiter = new MegaWaiter();
     this->mClient = NULL;   // created at loop()
 
@@ -107,8 +110,12 @@ void MegaChatApiImpl::loop()
 
     while (true)
     {
+        sdkMutex.unlock();
+
         waiter->init(NEVER);
         waiter->wait();         // waken up directly by Waiter::notify()
+
+        sdkMutex.lock();
 
         sendPendingRequests();
         sendPendingEvents();
@@ -117,7 +124,9 @@ void MegaChatApiImpl::loop()
             break;
     }
 
+    sdkMutex.lock();
     delete mClient;
+    sdkMutex.unlock();
 
     rtcModule::globalCleanup();
     services_shutdown();
@@ -256,11 +265,32 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (group)
             {
+                vector<std::pair<handle, chatd::Priv>> peers;
+                for (unsigned int i = 0; i < userpriv->size(); i++)
+                {
+                    peers.push_back(std::make_pair(userpriv->at(i).first, (chatd::Priv) userpriv->at(i).second));
+                }
+
+                mClient->createGroupChat(peers)
+//                .then([request,this](ChatRoom* room)
+//                {
+//                    request->setChatHandle(room->chatid());
+
+//                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+//                    fireOnChatRequestFinish(request, megaChatError);
+//                })
+                .fail([request,this](const promise::Error& err)
+                {
+                    KR_LOG_ERROR("Error creating group chat: ", err.what());
+
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
 
             }
             else    // 1on1 chat
             {
-                karere::ContactList::iterator it = mClient->contactList->find(peersList->getPeerHandle(0));
+                ContactList::iterator it = mClient->contactList->find(peersList->getPeerHandle(0));
                 it->second->createChatRoom()
                 .then([request,this](ChatRoom* room)
                 {
@@ -271,7 +301,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 })
                 .fail([request,this](const promise::Error& err)
                 {
-                    KR_LOG_ERROR("Error creating chatroom: ", err.what());
+                    KR_LOG_ERROR("Error creating 1on1 chat: ", err.what());
 
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                     fireOnChatRequestFinish(request, megaChatError);
@@ -291,13 +321,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            ChatRoomList::iterator it = mClient->chats->find(chatid);
-            if (it == mClient->chats->end())
+            ChatRoom *chatroom = chatRoom(chatid);
+            if (!chatroom)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
-            ChatRoom *chatroom = it->second;
             if (!chatroom->isGroup())   // invite only for group chats
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -336,13 +365,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            ChatRoomList::iterator it = mClient->chats->find(chatid);
-            if (it == mClient->chats->end())
+            ChatRoom *chatroom = chatRoom(chatid);
+            if (!chatroom)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
-            ChatRoom *chatroom = it->second;
             if (chatroom->ownPriv() != (chatd::Priv) MegaChatPeerList::PRIV_MODERATOR)
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
@@ -375,13 +403,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            ChatRoomList::iterator it = mClient->chats->find(chatid);
-            if (it == mClient->chats->end())
+            ChatRoom *chatroom = chatRoom(chatid);
+            if (!chatroom)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
-            ChatRoom *chatroom = it->second;
             if (!chatroom->isGroup())   // only for group chats can be left
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -401,7 +428,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 }
             }
 
-            mClient->api.call(&MegaApi::removeFromChat, chatid, uh)
+            ((GroupChatRoom *)chatroom)->excludeMember(uh)
             .then([request, this](ReqResult result)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -426,13 +453,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            ChatRoomList::iterator it = mClient->chats->find(chatid);
-            if (it == mClient->chats->end())
+            ChatRoom *chatroom = chatRoom(chatid);
+            if (!chatroom)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
-            ChatRoom *chatroom = it->second;
             if (chatroom->ownPriv() != (chatd::Priv) MegaChatPeerList::PRIV_MODERATOR)
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
@@ -464,13 +490,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            ChatRoomList::iterator it = mClient->chats->find(chatid);
-            if (it == mClient->chats->end())
+            ChatRoom *chatroom = chatRoom(chatid);
+            if (!chatroom)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
-            ChatRoom *chatroom = it->second;
             if (!chatroom->isGroup())   // only for group chats have a title
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -526,6 +551,39 @@ void MegaChatApiImpl::sendPendingEvents()
         megaProcessMessage(msg);
 //		sdkMutex.unlock();
     }
+}
+
+MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
+{
+    map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
+    if (it == chatRoomHandler.end())
+    {
+        chatRoomHandler[chatid] = new MegaChatRoomHandler(this, chatid);
+    }
+
+    return chatRoomHandler[chatid];
+}
+
+void MegaChatApiImpl::removeChatRoomHandler(MegaChatHandle chatid)
+{
+    chatRoomHandler.erase(chatid);
+}
+
+ChatRoom *MegaChatApiImpl::chatRoom(MegaChatHandle chatid)
+{
+    ChatRoom *chatroom = NULL;
+
+    sdkMutex.lock();
+
+    ChatRoomList::iterator it = mClient->chats->find(chatid);
+    if (it != mClient->chats->end())
+    {
+        chatroom = it->second;
+    }
+
+    sdkMutex.unlock();
+
+    return chatroom;
 }
 
 void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
@@ -683,12 +741,27 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int wi
 
 void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoom *chat)
 {
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onChatRoomUpdate(chatApi, chat);
+    }
+
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
         (*it)->onChatRoomUpdate(chatApi, chat);
     }
 
     delete chat;
+}
+
+void MegaChatApiImpl::fireOnMessageLoaded(MegaChatMessage *msg)
+{
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onMessageLoaded(chatApi, msg);
+    }
+
+    delete msg;
 }
 
 void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
@@ -727,11 +800,15 @@ MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 {
     MegaChatRoomListPrivate *chats = new MegaChatRoomListPrivate();
 
+    sdkMutex.lock();
+
     ChatRoomList::iterator it;
     for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
     {
         chats->addChatRoom(new MegaChatRoomPrivate(*it->second));
     }
+
+    sdkMutex.unlock();
 
     return chats;
 }
@@ -740,14 +817,19 @@ MegaChatRoom *MegaChatApiImpl::getChatRoom(MegaChatHandle chatid)
 {
     MegaChatRoomPrivate *chat = NULL;
 
+    sdkMutex.lock();
+
     ChatRoomList::iterator it;
     for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
     {
         if (it->second->chatid() == chatid)
         {
-            return new MegaChatRoomPrivate(*it->second);
+            chat = new MegaChatRoomPrivate(*it->second);
+            break;
         }
     }
+
+    sdkMutex.unlock();
 
     return chat;
 }
@@ -808,6 +890,84 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
     waiter->notify();
 }
 
+void MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
+{    
+//    sdkMutex.lock();
+//    mClient->setAppChatHandler(getChatRoomHandler(chatid));
+//    sdkMutex.unlock();
+
+    addChatRoomListener(chatid, listener);
+}
+
+void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
+{
+//    sdkMutex.lock();
+//    mClient->removeAppChatHandler();
+//    sdkMutex.unlock();
+    removeChatRoomHandler(chatid);
+
+    removeChatRoomListener(listener);
+}
+
+void MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
+{
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = chatRoom(chatid);
+    if (!chatroom)
+    {
+        sdkMutex.unlock();
+        return;
+    }
+
+    chatd::Chat &chat = chatroom->chat();
+
+    // first notify about messages already loaded in RAM
+    chatd::Idx newest = chat.decryptedLownum();
+    chatd::Idx oldest = chat.decryptedHighnum();
+
+    for (chatd::Idx i = newest; i < oldest; i++)
+    {
+        MegaChatMessagePrivate *msg = new MegaChatMessagePrivate(chat.at(i));
+        fireOnMessageLoaded(msg);
+    }
+
+    // then fetch more messages if requested
+    if (oldest - newest < count)
+    {
+        chat.getHistory(oldest - newest);
+    }
+
+    sdkMutex.unlock();
+}
+
+MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = chatRoom(chatid);
+    if (!chatroom)
+    {
+        sdkMutex.unlock();
+        return NULL;
+    }
+
+    chatd::Chat &chat = chatroom->chat();
+
+    chatd::Message *msg = chat.findOrNull(msgid);
+    if (!msg)
+    {
+        sdkMutex.unlock();
+        return NULL;
+    }
+
+    MegaChatMessagePrivate *megaMsg = new MegaChatMessagePrivate(*msg);
+
+    sdkMutex.unlock();
+
+    return megaMsg;
+}
+
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
     return NULL;
@@ -850,9 +1010,9 @@ void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     callListeners.insert(listener);
-//    sdkMutex.unlock();
+    sdkMutex.unlock();
 
 }
 
@@ -863,9 +1023,9 @@ void MegaChatApiImpl::addChatRequestListener(MegaChatRequestListener *listener)
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     requestListeners.insert(listener);
-//    sdkMutex.unlock();
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::addChatLocalVideoListener(MegaChatVideoListener *listener)
@@ -875,9 +1035,9 @@ void MegaChatApiImpl::addChatLocalVideoListener(MegaChatVideoListener *listener)
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     localVideoListeners.insert(listener);
-//    sdkMutex.unlock();
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::addChatRemoteVideoListener(MegaChatVideoListener *listener)
@@ -887,9 +1047,9 @@ void MegaChatApiImpl::addChatRemoteVideoListener(MegaChatVideoListener *listener
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     remoteVideoListeners.insert(listener);
-    //    sdkMutex.unlock();
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::addChatListener(MegaChatListener *listener)
@@ -899,22 +1059,21 @@ void MegaChatApiImpl::addChatListener(MegaChatListener *listener)
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     listeners.insert(listener);
-    //    sdkMutex.unlock();
+    sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::addChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApiImpl::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
-    if (!listener)
+    if (!listener || chatid == INVALID_HANDLE)
     {
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     roomListeners.insert(listener);
-    //    sdkMutex.unlock();
-
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
@@ -924,9 +1083,9 @@ void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     callListeners.erase(listener);
-//    sdkMutex.unlock();
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatRequestListener(MegaChatRequestListener *listener)
@@ -936,7 +1095,7 @@ void MegaChatApiImpl::removeChatRequestListener(MegaChatRequestListener *listene
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     requestListeners.erase(listener);
 
     map<int,MegaChatRequestPrivate*>::iterator it = requestMap.begin();
@@ -952,7 +1111,7 @@ void MegaChatApiImpl::removeChatRequestListener(MegaChatRequestListener *listene
     }
 
     requestQueue.removeListener(listener);
-//    sdkMutex.unlock();
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatLocalVideoListener(MegaChatVideoListener *listener)
@@ -962,9 +1121,9 @@ void MegaChatApiImpl::removeChatLocalVideoListener(MegaChatVideoListener *listen
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     localVideoListeners.erase(listener);
-//    sdkMutex.unlock();
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
@@ -974,9 +1133,9 @@ void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *liste
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     remoteVideoListeners.erase(listener);
-    //    sdkMutex.unlock();
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)
@@ -986,9 +1145,9 @@ void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     listeners.erase(listener);
-    //    sdkMutex.unlock();
+    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatRoomListener(MegaChatRoomListener *listener)
@@ -998,17 +1157,16 @@ void MegaChatApiImpl::removeChatRoomListener(MegaChatRoomListener *listener)
         return;
     }
 
-//    sdkMutex.lock();
+    sdkMutex.lock();
     roomListeners.erase(listener);
-    //    sdkMutex.unlock();
+    sdkMutex.unlock();
 }
 
 IApp::IChatHandler *MegaChatApiImpl::createChatHandler(ChatRoom &room)
 {
-    MegaChatRoomHandler *chatHandler = new MegaChatRoomHandler(this, room.chatid());
-    chatRoomHandler.insert(chatHandler);
+    MegaChatRoomHandler *chatHandler = getChatRoomHandler(room.chatid());
 
-    return chatHandler;
+    return getChatRoomHandler(room.chatid());
 }
 
 IApp::IContactListHandler *MegaChatApiImpl::contactListHandler()
@@ -1016,9 +1174,9 @@ IApp::IContactListHandler *MegaChatApiImpl::contactListHandler()
     return nullptr;
 }
 
-IApp::IChatListHandler &MegaChatApiImpl::chatListHandler()
+IApp::IChatListHandler *MegaChatApiImpl::chatListHandler()
 {
-    return *this;
+    return this;
 }
 
 void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
@@ -1044,20 +1202,20 @@ void MegaChatApiImpl::onTerminate()
     KR_LOG_DEBUG("Karere is about to terminate (call onTerminate())");
 }
 
-IApp::IGroupChatListItem &MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
+IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
 {
     MegaChatGroupListItemHandler *itemHandler = new MegaChatGroupListItemHandler(*this, room.chatid());
     chatGroupListItemHandler.insert(itemHandler);
 
-    return *itemHandler;
+    return itemHandler;
 }
 
-IApp::IPeerChatListItem &MegaChatApiImpl::addPeerChatItem(PeerChatRoom &room)
+IApp::IPeerChatListItem *MegaChatApiImpl::addPeerChatItem(PeerChatRoom &room)
 {
     MegaChatPeerListItemHandler *itemHandler = new MegaChatPeerListItemHandler(*this, room.chatid());
     chatPeerListItemHandler.insert(itemHandler);
 
-    return *itemHandler;
+    return itemHandler;
 }
 
 void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
@@ -1572,6 +1730,11 @@ void MegaChatRoomHandler::init(chatd::Chat &chat, chatd::DbInterface *&)
 
 }
 
+void MegaChatRoomHandler::onRecvHistoryMessage(chatd::Idx idx, chatd::Message &msg, chatd::Message::Status status, bool isFromDb)
+{
+    chatApi->fireOnMessageLoaded(new MegaChatMessagePrivate(msg));
+}
+
 
 MegaChatErrorPrivate::MegaChatErrorPrivate(const string &msg, int code, int type)
     : promise::Error(msg, code, type)
@@ -2037,4 +2200,25 @@ MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatAp
     : MegaChatListItemHandler(chatApi, chatid)
 {
 
+}
+
+
+MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
+{
+
+}
+
+MegaChatMessagePrivate::MegaChatMessagePrivate(const chatd::Message &msg)
+{
+
+}
+
+MegaChatMessagePrivate::~MegaChatMessagePrivate()
+{
+
+}
+
+MegaChatMessage *MegaChatMessagePrivate::copy() const
+{
+    return new MegaChatMessagePrivate(this);
 }

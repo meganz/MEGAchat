@@ -728,6 +728,56 @@ public:
      */
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
 
+    /**
+     * @brief This method should be called when a chat is opened.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
+
+    /**
+     * @brief This method should be called when a chat is closed.
+     *
+     * It automatically unregisters the listener to stop receiving the related events.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRoomListener to be unregistered.
+     */
+    void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
+
+    /**
+     * @brief Initiates fetching more history of the specified chatroom.
+     *
+     * The loaded messages will be notified one by one through the MegaChatRoomListener
+     * specified at MegaChatApi::openChatRoom (and through any other listener you have
+     * registered by calling MegaChatApi::addChatRoomListener).
+     *
+     * The corresponding callback is MegaChatRoomListener::onMessageLoaded.
+     *
+     * @note The actual number of messages loaded can be less than this. One reason is
+     * the history being shorter than requested, the other is due to internal protocol
+     * messages that are not intended to be displayed to the user.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param count The number of requested messages to load.
+     */
+    void getMessages(MegaChatHandle chatid, int count);
+
+    /**
+     * @brief Returns the MegaChatMessage specified from the chat room.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     * @return The MegaChatMessage object, or NULL if not found.
+     *
+     * @note Only the messages that are already loaded and notified
+     * by MegaChatRoomListener::onMessageLoaded can be requested. For any
+     * other message, this function returns NULL.
+     */
+    MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
 
     // Audio/Video device management
@@ -742,18 +792,42 @@ public:
     void hangAllChatCalls();
 
     // Listeners
+    /**
+     * @brief Register a listener to receive global events
+     *
+     * You can use MegaChatApi::removeChatListener to stop receiving events.
+     *
+     * @param listener Listener that will receive global events
+     */
     void addChatListener(MegaChatListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
     void removeChatListener(MegaChatListener *listener);
-    void addChatRoomListener(MegaChatRoomListener *listener);
+
+    /**
+     * @brief Register a listener to receive all events about an specific chat
+     *
+     * You can use MegaChatApi::removeChatRoomListener to stop receiving events.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener Listener that will receive all events about an specific chat
+     */
+    void addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatRoomListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
     void removeChatRoomListener(MegaChatRoomListener *listener);
-
-    void addChatCallListener(MegaChatCallListener *listener);
-    void removeChatCallListener(MegaChatCallListener *listener);
-    void addChatLocalVideoListener(MegaChatVideoListener *listener);
-    void removeChatLocalVideoListener(MegaChatVideoListener *listener);
-    void addChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
-
 
     /**
      * @brief Register a listener to receive all events about requests
@@ -773,6 +847,12 @@ public:
      */
     void removeChatRequestListener(MegaChatRequestListener* listener);
 
+    void addChatCallListener(MegaChatCallListener *listener);
+    void removeChatCallListener(MegaChatCallListener *listener);
+    void addChatLocalVideoListener(MegaChatVideoListener *listener);
+    void removeChatLocalVideoListener(MegaChatVideoListener *listener);
+    void addChatRemoteVideoListener(MegaChatVideoListener *listener);
+    void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
 
 private:
     MegaChatApiImpl *pImpl;
@@ -946,6 +1026,9 @@ public:
          * The MegaChatListItem object will be valid until this function returns. If you
          * want to save the MegaChatListItem, use MegaChatListItem::copy
          *
+         * @note If the handle returned by MegaChatListItem::getChatId is INVALID_HANDLE, it
+         * means the notification is for the own user rather than a chat in the list.
+         *
          * @param api MegaChatApi connected to the account
          * @param item MegaChatListItem representing a 1on1 or groupchat in the list.
          */
@@ -975,8 +1058,6 @@ class MegaChatMessage
 {
 public:
     virtual ~MegaChatMessage() {}
-
-
 };
 
 class MegaChatRoomListener
@@ -986,7 +1067,8 @@ public:
 
     virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
 
-    virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);
+    virtual void onMessageLoaded(MegaChatApi* api, MegaChatMessage *msg);   // loaded by getMessages()
+    virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);   // new or updated
 };
 
 }

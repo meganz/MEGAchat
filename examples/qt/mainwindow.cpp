@@ -268,7 +268,7 @@ MainWindow::addContactItem(karere::Contact& contact)
     contactGui->userp = static_cast<QWidget*>(contactGui);
     return contactGui;
 }
-karere::IApp::IGroupChatListItem&
+karere::IApp::IGroupChatListItem*
 MainWindow::addGroupChatItem(karere::GroupChatRoom& room)
 {
     auto clist = ui.contactList;
@@ -278,10 +278,10 @@ MainWindow::addGroupChatItem(karere::GroupChatRoom& room)
     clist->insertItem(0, item);
     clist->setItemWidget(item, chatGui);
     chatGui->userp = static_cast<QWidget*>(chatGui);
-    return *chatGui;
+    return chatGui;
 }
 
-karere::IApp::IPeerChatListItem&
+karere::IApp::IPeerChatListItem*
 MainWindow::addPeerChatItem(karere::PeerChatRoom& room)
 {
     auto clist = ui.contactList;
@@ -291,7 +291,7 @@ MainWindow::addPeerChatItem(karere::PeerChatRoom& room)
     clist->insertItem(0, item);
     clist->setItemWidget(item, chatGui);
     chatGui->userp = static_cast<QWidget*>(chatGui);
-    return *chatGui;
+    return chatGui;
 }
 
 void MainWindow::removePeerChatItem(IPeerChatListItem &item)
@@ -322,11 +322,6 @@ void MainWindow::removeGroupChatItem(karere::IApp::IGroupChatListItem& item)
 void MainWindow::removeContactItem(IContactListItem& item)
 {
     removeItem(item);
-}
-
-karere::IApp::IChatHandler* MainWindow::createChatHandler(karere::ChatRoom& room)
-{
-    return new ChatWindow(room, *this);
 }
 
 karere::IApp::ILoginDialog* MainWindow::createLoginDialog()

@@ -133,6 +133,26 @@ void MegaChatApi::setChatTitle(MegaChatHandle chatid, const char *title, MegaCha
     pImpl->setChatTitle(chatid, title, listener);
 }
 
+void MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
+{
+    pImpl->openChatRoom(chatid, listener);
+}
+
+void MegaChatApi::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
+{
+    pImpl->closeChatRoom(chatid, listener);
+}
+
+void MegaChatApi::getMessages(MegaChatHandle chatid, int count)
+{
+    pImpl->getMessages(chatid, count);
+}
+
+MegaChatMessage *MegaChatApi::getMessage(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    return pImpl->getMessage(chatid, msgid);
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();
@@ -208,9 +228,9 @@ void MegaChatApi::removeChatListener(MegaChatListener *listener)
     pImpl->removeChatListener(listener);
 }
 
-void MegaChatApi::addChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApi::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
-    pImpl->addChatRoomListener(listener);
+    pImpl->addChatRoomListener(chatid, listener);
 }
 
 void MegaChatApi::removeChatRoomListener(MegaChatRoomListener *listener)
@@ -501,4 +521,20 @@ int MegaChatListItem::getUnreadCount() const
 MegaChatApi::Status MegaChatListItem::getOnlineStatus() const
 {
     return MegaChatApi::STATUS_OFFLINE;
+}
+
+
+void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
+{
+
+}
+
+void MegaChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *msg)
+{
+
+}
+
+void MegaChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
+{
+
 }

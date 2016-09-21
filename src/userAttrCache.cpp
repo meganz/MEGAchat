@@ -247,7 +247,7 @@ uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
 
 void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    if (!mClient.isLoggedIn())
+    if (!mIsLoggedIn)
         return;
     switch (key.attrType)
     {
@@ -391,6 +391,7 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
 
 void UserAttrCache::onLogin()
 {
+    mIsLoggedIn = true;
     for (auto& item: *this)
     {
         if (item.second->pending != kCacheFetchNotPending)

@@ -66,7 +66,7 @@ protected:
     void chatdJoin(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
-    virtual IApp::IChatListItem& roomGui() = 0;
+    virtual IApp::IChatListItem* roomGui() = 0;
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
@@ -111,17 +111,28 @@ public:
     /** @brief send a notification to the chatroom that the user is typing. */
     virtual void sendTypingNotification() {}
 
-    /** @brief The application-side event handler that receives events from chatd
-     * and events about title change, online status change. If such an event
-     * handler does not exist, this method asks IApp to create it */
-    IApp::IChatHandler& appChatHandler();
-
-    /**
-     * @brief Returns whether appChatHandler exists. Call this method before
-     * \c appChatHandler() if you don't want to create such a handler
-     * in case it does not exist
+    /** @brief The application-side event handler that receives events from
+     * the chatd chatroom and events about title, online status and unread
+     * message count change.
      */
-    bool hasAppChatHandler() const { return mAppChatHandler != nullptr; }
+    IApp::IChatHandler* appChatHandler() { return mAppChatHandler; }
+    /** @brief Attaches an app-provided event handler to the chatroom
+     * The handler must forward some events to the chatroom in order to
+     * have the chat list item still receive events. The events that need
+     * to be forwarded are:
+     * \c onUserJoin, \c onUserLeave, \c onUnreadChanged,
+     * \c onOnlineStateChange, \c onRecvNewMessage, \c onRecvOldMessage.
+     * @param handler The application-provided chat event handler.
+     * The chatroom object does not take owhership of the handler,
+     * so, on removal, the app should take care to free it if needed.
+     */
+    void setAppChatHandler(IApp::IChatHandler* handler);
+    /** @brief Removes the application-supplied chat event handler from the
+     * room. It is up to the aplication to destroy it if needed.
+     */
+    void removeAppChatHandler();
+
+    virtual promise::Promise<void> mediaCall(AvFlags av) = 0;
 
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
@@ -137,19 +148,21 @@ protected:
     uint64_t mPeer;
     chatd::Priv mPeerPriv;
     Contact& mContact;
-    IApp::IPeerChatListItem& mRoomGui;
+    IApp::IPeerChatListItem* mRoomGui;
     friend class ContactList;
+    IApp::IPeerChatListItem* addAppItem();
+    virtual bool syncWithApi(const mega::MegaTextChat& chat);
+    bool syncOwnPriv(chatd::Priv priv);
+    bool syncPeerPriv(chatd::Priv priv);
+    static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
+    void updatePresence();
+    virtual void join();
+    friend class Contact;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
-    bool syncOwnPriv(chatd::Priv priv);
-    bool syncPeerPriv(chatd::Priv priv);
-    virtual bool syncWithApi(const mega::MegaTextChat& chat);
-    virtual IApp::IChatListItem& roomGui();
-    void updatePresence();
-    virtual void join();
-    static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
+    virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     //@endcond
 
     /** @brief The userid of the other person in the 1on1 chat */
@@ -168,15 +181,17 @@ public:
      * will be `offline`
      */
     virtual Presence presence() const;
-//@cond PRIVATE
+    promise::Promise<void> mediaCall(AvFlags av);
+/** @cond PRIVATE */
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
     virtual void onUserLeave(Id userid);
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUnreadChanged();
-//@endcond
+/** @endcond */
 };
-/** Represents a chatd chatroom that is a groupchat */
+
+/** @brief Represents a chatd chatroom that is a groupchat */
 class GroupChatRoom: public ChatRoom
 {
 public:
@@ -202,11 +217,10 @@ public:
      * @brief A map that holds all the members of a group chat room, keyed by the userid */
     typedef std::map<uint64_t, Member*> MemberMap;
 
-
     /** @cond PRIVATE */
     protected:
     MemberMap mPeers;
-    IApp::IGroupChatListItem& mRoomGui;
+    IApp::IGroupChatListItem* mRoomGui;
     std::string mTitleString;
     bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
@@ -216,28 +230,35 @@ public:
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void updateAllOnlineDisplays(Presence pres);
+    void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
+    bool removeMember(const uint64_t& userid);
+    virtual bool syncWithApi(const mega::MegaTextChat &chat);
+    IApp::IGroupChatListItem* addAppItem();
+    virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
+    void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
+    void makeTitleFromMemberNames();
+    virtual void join();
+
+    friend class ChatRoomList;
     friend class Member;
 public:
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
                   unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
     ~GroupChatRoom();
+    promise::Promise<ReqResult> setPrivilege(karere::Id userid, chatd::Priv priv);
+    promise::Promise<void> setTitle(const std::string& title);
+    promise::Promise<ReqResult> leave();
+    promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
+    virtual promise::Promise<void> mediaCall(AvFlags av);
+//chatd::Listener
+    void onUserJoin(Id userid, chatd::Priv priv);
+    void onUserLeave(Id userid);
+    void onOnlineStateChange(chatd::ChatState);
     /** @endcond PRIVATE */
 
     /** @brief Returns the map of the users in the chatroom, except our own user */
     const MemberMap& peers() const { return mPeers; }
-
-    /** @cond PRIVATE */
-    void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
-    bool removeMember(const uint64_t& userid);
-    promise::Promise<ReqResult> setPrivilege(karere::Id userid, chatd::Priv priv);
-    promise::Promise<void> setTitle(const std::string& title);
-    void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
-    void leave();
-    promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
-    virtual bool syncWithApi(const mega::MegaTextChat &chat);
-    virtual IApp::IChatListItem& roomGui() { return mRoomGui; }
-    /** @endcond PRIVATE */
 
     /** @brief Returns whether the group chatroom has a title set. If not, then
       * its title string will be composed from the first names of the room members
@@ -256,14 +277,12 @@ public:
         return (mChat->onlineState() == chatd::kChatStateOnline)? Presence::kOnline:Presence::kOffline;
     }
 
-    /** @cond PRIVATE */
-    void makeTitleFromMemberNames();
-    virtual void join();
-//chatd::Listener
-    void onUserJoin(Id userid, chatd::Priv priv);
-    void onUserLeave(Id userid);
-    void onOnlineStateChange(chatd::ChatState);
-    /** @endcond PRIVATE */
+    /** @brief Removes the specifid user from the chatroom. You must have
+     * operator privileges to do that.
+     * @param user The handle of the user to remove from the chatroom.
+     * @returns A promise with the MegaRequest result, returned by the mega SDK.
+     */
+    promise::Promise<ReqResult> excludeMember(uint64_t user);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -282,7 +301,7 @@ public:
     ~ChatRoomList();
     void loadFromDb();
     void onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& chats);
-/** @endcond */
+/** @endcond PRIVATE */
 };
 
 /** @brief Represents a karere contact. Also handles presence change events. */
@@ -303,12 +322,12 @@ protected:
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
     void updateTitle(const std::string& str);
     void setChatRoom(PeerChatRoom& room);
+    void attachChatRoom(PeerChatRoom& room);
+    friend class PeerChatRoom;
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
     ~Contact();
-    IApp::IContactListItem* appItem() const { return mDisplay; }
-    void attachChatRoom(PeerChatRoom& room);
 /** @endcond PRIVATE */
 
     /** @brief The contactlist object which this contact is member of */
@@ -323,6 +342,11 @@ public:
      * Otherwise returns NULL
      */
     PeerChatRoom* chatRoom() { return mChatRoom; }
+    /** @brief The \c IApp::IContactListItem that is associated with this
+     * contact. Can be NULL if there is no IContactListHandler or it returned
+     * NULL from \c addContactListItem()
+     */
+    IApp::IContactListItem* appItem() const { return mDisplay; }
 
     /** @brief Creates a 1on1 chatroom with this contact, if one does not exist,
      * otherwise returns the existing one.
@@ -409,6 +433,7 @@ public:
 
 class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener
 {
+/** @cond PRIVATE */
 protected:
     std::string mAppDir;
 //these must be before the db member, because they are initialized during the init of db member
@@ -426,13 +451,6 @@ public:
     std::function<void()> onChatdReady;
     UserAttrCache userAttrCache;
     IApp& app;
-
-    /** @brief The contact list */
-    std::unique_ptr<ContactList> contactList;
-
-    /** @brief The list of chats that we are member of */
-    std::unique_ptr<ChatRoomList> chats;
-
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};
     char mMyPrivRsa[1024] = {0};
@@ -442,7 +460,14 @@ public:
     std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
     bool contactsLoaded() const { return mContactsLoaded; }
     std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
-    bool isLoggedIn() const { return mIsLoggedIn; }
+    /** @endcond PRIVATE */
+
+    /** @brief The contact list of the client */
+    std::unique_ptr<ContactList> contactList;
+
+    /** @brief The list of chats that we are member of */
+    std::unique_ptr<ChatRoomList> chats;
+
     const Id myHandle() const { return mMyHandle; }
 
     /** @brief Our own display name */
@@ -566,6 +591,18 @@ public:
         return mXmppContactList;
     }
 
+    /** @brief Creates a group chatroom with the specified peers, privileges
+     * and title.
+     * @param peers A vector of userhandle and privilege pairs for each of
+     * the peer users. Our own handle is implicitly added to the groupchat
+     * with operator privilega
+     * @param title The title of the group chat. If set to an empty string,
+     * no title will be set and the room will be shown with the names of
+     * the participants.
+     */
+    promise::Promise<void>
+    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, const std::string& title=std::string());
+
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
@@ -574,7 +611,6 @@ protected:
     std::string mMyName;
     bool mContactsLoaded = false;
     Presence mOwnPresence;
-    bool mIsLoggedIn = false;
     /** @brief Our own email address */
     std::string mEmail;
     /** @brief Our password */
