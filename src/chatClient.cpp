@@ -815,8 +815,8 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
     });
 }
 
-promise::Promise<void>
-Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, const std::string& title)
+promise::Promise<karere::Id>
+Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
 {
     std::unique_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
     for (auto& peer: peers)
@@ -824,7 +824,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, con
         sdkPeers->addPeer(peer.first, peer.second);
     }
     return api.call(&mega::MegaApi::createChat, true, sdkPeers.get())
-    .then([this, title](ReqResult result)
+    .then([this](ReqResult result)
     {
         auto& list = *result->getMegaTextChatList();
         if (list.size() < 1)
@@ -832,10 +832,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, con
         auto& room = chats->addRoom(*list.get(0));
         assert(room.isGroup());
         room.join();
-        if (!title.empty())
-        {
-            static_cast<karere::GroupChatRoom&>(room).setTitle(title);
-        }
+        return karere::Id(room.chatid());
     });
 }
 
