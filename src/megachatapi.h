@@ -780,7 +780,7 @@ public:
      *
      * @note Only the messages that are already loaded and notified
      * by MegaChatRoomListener::onMessageLoaded can be requested. For any
-     * other message, this function returns NULL.
+     * other message, this function will return NULL.
      */
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
@@ -1100,12 +1100,23 @@ public:
     /**
      * @brief Returns the identifier of the message.
      *
-     * The higher is the value of the identifier, the newer is the chat message.
-     * The lower is the value of the identifier, the older is the chat message.
-     *
      * @return MegaChatHandle that identifies the message in this chatroom
      */
     virtual MegaChatHandle getMsgHandle() const;
+
+    /**
+     * @brief Returns the index of the message in the history
+     *
+     * The higher is the value of the identifier, the newer is the chat message.
+     * The lower is the value of the identifier, the older is the chat message.
+     *
+     * @note This index is can grow on both direction: increments are due to new
+     * messages in the history, and decrements are due to old messages being loaded
+     * in the history buffer.
+     *
+     * @return Index of the message in the history.
+     */
+    virtual int32_t getMsgIndex() const;
 
     /**
      * @brief Returns the handle of the user.

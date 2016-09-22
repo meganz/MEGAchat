@@ -414,7 +414,7 @@ class MegaChatMessagePrivate : public MegaChatMessage
 {
 public:
     MegaChatMessagePrivate(const MegaChatMessage &msg);
-    MegaChatMessagePrivate(const chatd::Message &msg, chatd::Message::Status status);
+    MegaChatMessagePrivate(const chatd::Message &msg, chatd::Message::Status status, chatd::Idx index);
 
     virtual ~MegaChatMessagePrivate();
     virtual MegaChatMessage *copy() const;
@@ -422,17 +422,17 @@ public:
     // MegaChatMessage interface
     virtual Status getStatus() const;
     virtual MegaChatHandle getMsgHandle() const;
+    virtual int32_t getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual Type getType() const;
     virtual int64_t getTimestamp() const;
-
-    void setStatus(Status status);
 
 private:
     Type type;
     Status status;
     MegaChatHandle msgId;
     MegaChatHandle uh;
+    int32_t index;
     int64_t ts;
     char *msg;
 };

@@ -936,7 +936,7 @@ void MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
         Message &msg = chat.at(i);
         Message::Status status = chat.getMsgStatus(msg, i);
 
-        MegaChatMessagePrivate *megaMsg = new MegaChatMessagePrivate(msg, status);
+        MegaChatMessagePrivate *megaMsg = new MegaChatMessagePrivate(msg, status, i);
         fireOnMessageLoaded(megaMsg);
     }
 
@@ -965,7 +965,7 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
             Message *msg = chat.findOrNull(index);
             if (msg)    // probably redundant
             {
-                megaMsg = new MegaChatMessagePrivate(*msg, chat.getMsgStatus(*msg, index));
+                megaMsg = new MegaChatMessagePrivate(*msg, chat.getMsgStatus(*msg, index), index);
             }
             else
             {
@@ -1743,7 +1743,7 @@ void MegaChatRoomHandler::init(Chat &chat, DbInterface *&)
 
 void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isFromDb)
 {
-    chatApi->fireOnMessageLoaded(new MegaChatMessagePrivate(msg, status));
+    chatApi->fireOnMessageLoaded(new MegaChatMessagePrivate(msg, status, idx));
 }
 
 
@@ -2219,20 +2219,21 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage &msg)
     this->msg = MegaApi::strdup(msg.getContent());
     this->uh = msg.getUserHandle();
     this->msgId = msg.getMsgHandle();
+    this->index = msg.getMsgIndex();
     this->status = msg.getStatus();
     this->ts = msg.getTimestamp();
     this->type = msg.getType();
 }
 
-MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status)
+MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
 {
     this->msg = MegaApi::strdup(msg.buf());
     this->uh = msg.userid;
     this->msgId = msg.id();
     this->type = (MegaChatMessage::Type) msg.type;
     this->ts = msg.ts;
-
     this->status = (MegaChatMessage::Status) status;
+    this->index = index;
 }
 
 MegaChatMessagePrivate::~MegaChatMessagePrivate()
@@ -2255,6 +2256,11 @@ MegaChatHandle MegaChatMessagePrivate::getMsgHandle() const
     return msgId;
 }
 
+int32_t MegaChatMessagePrivate::getMsgIndex() const
+{
+    return index;
+}
+
 MegaChatHandle MegaChatMessagePrivate::getUserHandle() const
 {
     return uh;
@@ -2268,9 +2274,4 @@ MegaChatMessage::Type MegaChatMessagePrivate::getType() const
 int64_t MegaChatMessagePrivate::getTimestamp() const
 {
     return ts;
-}
-
-void MegaChatMessagePrivate::setStatus(MegaChatMessage::Status status)
-{
-    this->status = status;
 }
