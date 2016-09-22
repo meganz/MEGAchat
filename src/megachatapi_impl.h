@@ -413,11 +413,28 @@ private:
 class MegaChatMessagePrivate : public MegaChatMessage
 {
 public:
-    MegaChatMessagePrivate(const MegaChatMessage *msg);
-    MegaChatMessagePrivate(const chatd::Message &msg);
+    MegaChatMessagePrivate(const MegaChatMessage &msg);
+    MegaChatMessagePrivate(const chatd::Message &msg, chatd::Message::Status status);
 
     virtual ~MegaChatMessagePrivate();
     virtual MegaChatMessage *copy() const;
+
+    // MegaChatMessage interface
+    virtual Status getStatus() const;
+    virtual MegaChatHandle getMsgHandle() const;
+    virtual MegaChatHandle getUserHandle() const;
+    virtual Type getType() const;
+    virtual int64_t getTimestamp() const;
+
+    void setStatus(Status status);
+
+private:
+    Type type;
+    Status status;
+    MegaChatHandle msgId;
+    MegaChatHandle uh;
+    int64_t ts;
+    char *msg;
 };
 
 //Thread safe request queue
@@ -509,8 +526,7 @@ public:
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
     void removeChatRoomHandler(MegaChatHandle chatid);
 
-    karere::ChatRoom *chatRoom(MegaChatHandle chatid);
-
+    karere::ChatRoom *findChatRoom(MegaChatHandle chatid);
 
     // ============= Listeners ================
 

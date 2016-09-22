@@ -1057,7 +1057,83 @@ public:
 class MegaChatMessage
 {
 public:
+    enum Status {
+        STATUS_UNKNOWN              = -1,   /// Invalid status
+        // for outgoing messages
+        STATUS_SENDING              = 0,    /// Message has not been sent or is not yet confirmed by the server
+        STATUS_SENDING_MANUAL       = 1,    /// Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
+        STATUS_SERVER_RECEIVED      = 2,    /// Message confirmed by server, but not yet delivered to recepient(s)
+        STATUS_SERVER_REJECTED      = 3,    /// Message is rejected by server for some reason (editing too old message for example)
+        STATUS_DELIVERED            = 4,    /// Peer confirmed message receipt. Used only for 1on1 chats
+        // for incoming messages
+        STATUS_NOT_SEEN             = 5,    /// User hasn't read this message yet
+        STATUS_SEEN                 = 6     /// User has read this message
+    };
+
+    enum Type {
+        TYPE_UNKNOWN                = -1,   /// Invalid type
+        TYPE_NORMAL                 = 1,    /// Regular text message
+        TYPE_ALTER_PARTICIPANTS     = 2,    /// Management message indicating the participants in the chat have changed
+        TYPE_TRUNCATE               = 3,    /// Management message indicating the history of the chat has been truncated
+        TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
+        TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
+        TYPE_USER_MSG               = 16    /// User-specific message: links, share, picture, etc.
+    };
+
     virtual ~MegaChatMessage() {}
+    virtual MegaChatMessage *copy() const;
+
+    /**
+     * @brief Returns the status of the message.
+     *
+     * @see \c MegaChatMessage::Status for the possible values and its meaning.
+     *
+     * @return Returns the status of the message.
+     */
+    virtual Status getStatus() const;
+
+    /**
+     * @brief Returns the identifier of the message.
+     *
+     * The higher is the value of the identifier, the newer is the chat message.
+     * The lower is the value of the identifier, the older is the chat message.
+     *
+     * @return MegaChatHandle that identifies the message in this chatroom
+     */
+    virtual MegaChatHandle getMsgHandle() const;
+
+    /**
+     * @brief Returns the handle of the user.
+     *
+     * @return For outgoing messages, it returns the handle of the target user.
+     * For incoming messages, it returns the handle of the sender.
+     */
+    virtual MegaChatHandle getUserHandle() const;
+
+    /**
+     * @brief Returns the type of message.
+     *
+     * @see \c MegaChatMessage::Type for the possible values and its meaning.
+     *
+     * @return Returns the Type of message.
+     */
+    virtual Type getType() const;
+
+    /**
+     * @brief Returns the timestamp of the message.
+     * @return Returns the timestamp of the message.
+     */
+    virtual int64_t getTimestamp() const;
+
+    /**
+     * @brief Returns the content of the message
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatMessage object is deleted.
+     *
+     * @return Content of the message
+     */
+    virtual const char *getContent() const;
 };
 
 class MegaChatRoomListener

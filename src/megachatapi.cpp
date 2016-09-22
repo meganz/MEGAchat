@@ -538,3 +538,38 @@ void MegaChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 {
 
 }
+
+MegaChatMessage *MegaChatMessage::copy() const
+{
+    return NULL;
+}
+
+MegaChatMessage::Status MegaChatMessage::getStatus() const
+{
+    return MegaChatMessage::STATUS_UNKNOWN;
+}
+
+MegaChatHandle MegaChatMessage::getMsgHandle() const
+{
+    return INVALID_HANDLE;
+}
+
+MegaChatHandle MegaChatMessage::getUserHandle() const
+{
+    return INVALID_HANDLE;
+}
+
+MegaChatMessage::Type MegaChatMessage::getType() const
+{
+    return MegaChatMessage::TYPE_UNKNOWN;
+}
+
+int64_t MegaChatMessage::getTimestamp() const
+{
+    return 0;
+}
+
+const char *MegaChatMessage::getContent() const
+{
+    return NULL;
+}
