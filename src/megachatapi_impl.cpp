@@ -509,7 +509,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            string strTitle(title);
+            string strTitle(title, 30);
+            request->setText(strTitle.c_str()); // update, in case it's been truncated
+
             ((GroupChatRoom *)chatroom)->setTitle(strTitle)
             .then([request, this]()
             {

@@ -722,8 +722,13 @@ public:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers.
      * - MegaChatError::ERROR_ARGS - If there's a title and it's not Base64url encoded.
      *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param title Null-terminated character string with the title that wants to be set.
+     * @param title Null-terminated character string with the title that wants to be set. If the
+     * title is longer than 30 characters, it will be truncated to that maximum length.
      * @param listener MegaChatRequestListener to track this request
      */
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
