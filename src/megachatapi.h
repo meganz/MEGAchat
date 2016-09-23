@@ -496,6 +496,28 @@ public:
     virtual const char* toString() const = 0;
 };
 
+
+/**
+ * @brief Allows to manage the chat-related features of a MEGA account
+ *
+ * You must provide an appKey to use this SDK. You can generate an appKey for your app for free here:
+ * - https://mega.nz/#sdk
+ *
+ * To properly initialize the chat engine and start using the chat features, you should follow this sequence:
+ *     1. Create an object of MegaApi class (see https://github.com/meganz/sdk/tree/master#usage)
+ *     2. Create an object of MegaChatApi class: passing the MegaApi instance to the constructor,
+ * so the chat SDK can create its client and register listeners to receive the own handle, list of users and chats
+ *     3. Call MegaApi::login() and wait for completion
+ *     4. Call MegaApi::fetchnodes() and wait for completion
+ *         [at this stage, cloud storage apps show the main GUI but, with chat-enabled, they are not ready yet]
+ *     5. Call MegaChatApi::init() to initialize the chat engine.
+ *         [at this stage, the app can retrieve chatrooms and can operate in offline mode]
+ *     6. Call MegaChatApi::connect() and wait for completion
+ *     7. The app is ready to operate
+ *
+ * Some functions in this class return a pointer and give you the ownership. In all of them, memory allocations
+ * are made using new (for single objects) and new[] (for arrays) so you should use delete and delete[] to free them.
+ */
 class MegaChatApi
 {
 
@@ -772,15 +794,16 @@ public:
     /**
      * @brief Returns the MegaChatMessage specified from the chat room.
      *
+     * Only the messages that are already loaded and notified
+     * by MegaChatRoomListener::onMessageLoaded can be requested. For any
+     * other message, this function will return NULL.
+     *
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param msgid MegaChatHandle that identifies the message
      * @return The MegaChatMessage object, or NULL if not found.
      *
-     * @note Only the messages that are already loaded and notified
-     * by MegaChatRoomListener::onMessageLoaded can be requested. For any
-     * other message, this function will return NULL.
      */
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
@@ -1105,18 +1128,18 @@ public:
     virtual MegaChatHandle getMsgHandle() const;
 
     /**
-     * @brief Returns the index of the message in the history
+     * @brief Returns the index of the message in the loaded history
      *
-     * The higher is the value of the identifier, the newer is the chat message.
-     * The lower is the value of the identifier, the older is the chat message.
+     * The higher is the value of the index, the newer is the chat message.
+     * The lower is the value of the index, the older is the chat message.
      *
      * @note This index is can grow on both direction: increments are due to new
      * messages in the history, and decrements are due to old messages being loaded
      * in the history buffer.
      *
-     * @return Index of the message in the history.
+     * @return Index of the message in the loaded history.
      */
-    virtual int32_t getMsgIndex() const;
+    virtual int getMsgIndex() const;
 
     /**
      * @brief Returns the handle of the user.

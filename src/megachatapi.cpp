@@ -554,7 +554,7 @@ MegaChatHandle MegaChatMessage::getMsgHandle() const
     return INVALID_HANDLE;
 }
 
-int32_t MegaChatMessage::getMsgIndex() const
+int MegaChatMessage::getMsgIndex() const
 {
     return 0;
 }

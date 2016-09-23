@@ -422,7 +422,7 @@ public:
     // MegaChatMessage interface
     virtual Status getStatus() const;
     virtual MegaChatHandle getMsgHandle() const;
-    virtual int32_t getMsgIndex() const;
+    virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual Type getType() const;
     virtual int64_t getTimestamp() const;
@@ -432,7 +432,7 @@ private:
     Status status;
     MegaChatHandle msgId;
     MegaChatHandle uh;
-    int32_t index;
+    int index;
     int64_t ts;
     char *msg;
 };

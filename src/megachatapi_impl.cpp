@@ -2254,7 +2254,7 @@ MegaChatHandle MegaChatMessagePrivate::getMsgHandle() const
     return msgId;
 }
 
-int32_t MegaChatMessagePrivate::getMsgIndex() const
+int MegaChatMessagePrivate::getMsgIndex() const
 {
     return index;
 }
