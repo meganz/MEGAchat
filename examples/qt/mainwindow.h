@@ -328,10 +328,21 @@ public slots:
         if (!qname.isNull())
             name = qname.toStdString();
 
-        mContact.contactList().client.createGroupChat({std::make_pair(mContact.userId(), chatd::PRIV_FULL)}, name)
+        mContact.contactList().client.createGroupChat({std::make_pair(mContact.userId(), chatd::PRIV_FULL)})
         .fail([this](const promise::Error& err)
         {
             QMessageBox::critical(this, tr("Create group chat"), tr("Error creating group chat:\n")+QString::fromStdString(err.msg()));
+            return err;
+        })
+        .then([this, name](karere::Id chatid) -> promise::Promise<void>
+        {
+            auto& chats = *mContact.contactList().client.chats;
+            auto it = chats.find(chatid);
+            if (it == chats.end())
+                return promise::Error("The group chat that we just created does not exist in the chat list");
+            auto& room = *it->second;
+            assert(room.isGroup());
+            return static_cast<karere::GroupChatRoom&>(room).setTitle(name);
         });
     }
     void onContactRemove()
