@@ -599,11 +599,29 @@ public:
     /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
      *
+     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * before calling this function.
+     *
      * You take the ownership of the returned value
      *
      * @return List of MegaChatRoom objects with all chatrooms of this account.
      */
-    MegaChatRoomList* getChatRooms();
+    MegaChatRoomList *getChatRooms();
+
+    /**
+     * @brief Get the MegaChatRoom that has a specific handle
+     *
+     * You can get the handle of a MegaChatRoom using MegaChatRoom::getChatId or
+     * MegaChatListItem::getChatId.
+     *
+     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * before calling this function.
+     *
+     * You take the ownership of the returned value
+     *
+     * @return List of MegaChatRoom objects with all chatrooms of this account.
+     */
+    MegaChatRoom *getChatRoom(MegaChatHandle chatid);
 
     /**
      * @brief Creates a chat for one or more participants, allowing you to specify their

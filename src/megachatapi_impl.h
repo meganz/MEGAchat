@@ -272,7 +272,6 @@ public:
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
     virtual void onPresenceChanged(karere::Presence state);
-    virtual void onMembersUpdated();
 //    virtual void onLastMessageUpdate();   // TBD in IGui.h
 
     // karere::IApp::IChatHandler::chatd::Listener implementation

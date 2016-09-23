@@ -822,14 +822,10 @@ MegaChatRoom *MegaChatApiImpl::getChatRoom(MegaChatHandle chatid)
 
     sdkMutex.lock();
 
-    ChatRoomList::iterator it;
-    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    ChatRoom *chatRoom = findChatRoom(chatid);
+    if (chatRoom)
     {
-        if (it->second->chatid() == chatid)
-        {
-            chat = new MegaChatRoomPrivate(*it->second);
-            break;
-        }
+        chat = new MegaChatRoomPrivate(*chatRoom);
     }
 
     sdkMutex.unlock();
@@ -1721,14 +1717,6 @@ void MegaChatRoomHandler::onPresenceChanged(Presence state)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
     chat->setOnlineStatus((MegaChatApi::Status) state.status());
-
-    chatApi->fireOnChatRoomUpdate(chat);
-}
-
-void MegaChatRoomHandler::onMembersUpdated()
-{
-    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
-    chat->setMembersUpdated();
 
     chatApi->fireOnChatRoomUpdate(chat);
 }

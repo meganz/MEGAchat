@@ -103,6 +103,11 @@ MegaChatRoomList *MegaChatApi::getChatRooms()
     return pImpl->getChatRooms();
 }
 
+MegaChatRoom *MegaChatApi::getChatRoom(MegaChatHandle chatid)
+{
+    return pImpl->getChatRoom(chatid);
+}
+
 void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener)
 {
     pImpl->createChat(group, peers, listener);
