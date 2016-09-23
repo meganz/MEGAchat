@@ -45,6 +45,19 @@ protected:
     void log(const char *time, int loglevel, const char *source, const char *message);
 };
 
+class MegaChatLoggerSDK : public MegaChatLogger {
+
+public:
+    MegaChatLoggerSDK(const char *filename);
+    ~MegaChatLoggerSDK();
+
+private:
+    ofstream sdklog;
+
+protected:
+    void log(int loglevel, const char *message);
+};
+
 class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener
 {
 public:
@@ -78,6 +91,7 @@ private:
 #endif
 
     MegaLoggerSDK *logger;
+    MegaChatLoggerSDK *chatLogger;
 
 public:
     // implementation for MegaRequestListener

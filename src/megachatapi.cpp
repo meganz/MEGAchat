@@ -78,6 +78,16 @@ MegaChatApi::~MegaChatApi()
     delete pImpl;
 }
 
+void MegaChatApi::setLoggerObject(MegaChatLogger *megaLogger)
+{
+    MegaChatApiImpl::setLoggerClass(megaLogger);
+}
+
+void MegaChatApi::setLogLevel(int logLevel)
+{
+    MegaChatApiImpl::setLogLevel(logLevel);
+}
+
 void MegaChatApi::init(MegaChatRequestListener *listener)
 {
     pImpl->init(listener);
@@ -582,4 +592,10 @@ int64_t MegaChatMessage::getTimestamp() const
 const char *MegaChatMessage::getContent() const
 {
     return NULL;
+}
+
+
+void MegaChatLogger::log(int , const char *)
+{
+
 }

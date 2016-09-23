@@ -40,6 +40,7 @@
 #include <sdkApi.h>
 #include <mstrophepp.h>
 #include <karereCommon.h>
+#include <logger.h>
 
 
 namespace megachat
@@ -305,6 +306,19 @@ private:
     chatd::Chat *mChat;
 };
 
+class LoggerHandler : public karere::Logger::ILoggerBackend
+{
+public:
+    LoggerHandler();
+    void setMegaChatLogger(MegaChatLogger *logger);
+    void setLogLevel(int logLevel);
+    virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
+
+private:
+    mega::MegaMutex mutex;
+    MegaChatLogger *megaLogger;
+};
+
 class MegaChatErrorPrivate :
         public MegaChatError,
         private promise::Error
@@ -493,6 +507,8 @@ private:
 
     void init(MegaChatApi *chatApi, mega::MegaApi *megaApi);
 
+    static LoggerHandler *loggerHandler;
+
     ChatRequestQueue requestQueue;
     EventQueue eventQueue;
 
@@ -521,6 +537,9 @@ public:
 
     void sendPendingRequests();
     void sendPendingEvents();
+
+    static void setLogLevel(int logLevel);
+    static void setLoggerClass(MegaChatLogger *megaLogger);
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
     void removeChatRoomHandler(MegaChatHandle chatid);

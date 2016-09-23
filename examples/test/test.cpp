@@ -33,6 +33,9 @@ MegaSdkTest::MegaSdkTest()
     logger = new MegaLoggerSDK("SDK.log");
     MegaApi::setLoggerObject(logger);
 
+    chatLogger = new MegaChatLoggerSDK("SDKchat.log");
+    MegaChatApi::setLoggerObject(chatLogger);
+
     // do some initialization
     megaApi[0] = megaApi[1] = NULL;
 
@@ -82,9 +85,12 @@ void MegaSdkTest::start()
 
     // 2. Create MegaChatApi instance
     megaChatApi[0] = new MegaChatApi(megaApi[0]);
+
+    megaChatApi[0]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
     megaChatApi[0]->addChatRequestListener(this);
     megaChatApi[0]->addChatListener(this);
     signal(SIGINT, sigintHandler);
+    megaApi[0]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");
 
     // 3. Login into the user account and fetchnodes (launched in the login callback)
     megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
@@ -138,7 +144,7 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
     switch(request->getType())
     {
     case MegaChatRequest::TYPE_INITIALIZE:
-        if (e->getErrorCode() == API_OK)
+        if (e->getErrorCode() == MegaChatError::ERROR_OK)
         {
             KR_LOG_DEBUG("Initialization of local cache successfully.");
 
@@ -158,7 +164,7 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
         break;
 
     case MegaChatRequest::TYPE_CONNECT:
-        if (e->getErrorCode() == API_OK)
+        if (e->getErrorCode() == MegaChatError::ERROR_OK)
         {
             KR_LOG_DEBUG("Connection to chat servers established!");
 
@@ -171,7 +177,7 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
         break;
 
     case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
-        if (e->getErrorCode() == API_OK)
+        if (e->getErrorCode() == MegaChatError::ERROR_OK)
         {
             KR_LOG_DEBUG("Online status changed successfully.");
         }
@@ -248,8 +254,31 @@ void MegaSdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError 
 }
 
 
+MegaChatLoggerSDK::MegaChatLoggerSDK(const char *filename)
+{
+    sdklog.open(filename, ios::out | ios::app);
+}
 
+MegaChatLoggerSDK::~MegaChatLoggerSDK()
+{
+    sdklog.close();
+}
 
+void MegaChatLoggerSDK::log(int loglevel, const char *message)
+{
+    string levelStr;
 
+    switch (loglevel)
+    {
+        case MegaChatApi::LOG_LEVEL_ERROR: levelStr = "err"; break;
+        case MegaChatApi::LOG_LEVEL_WARNING: levelStr = "warn"; break;
+        case MegaChatApi::LOG_LEVEL_INFO: levelStr = "info"; break;
+        case MegaChatApi::LOG_LEVEL_VERBOSE: levelStr = "verb"; break;
+        case MegaChatApi::LOG_LEVEL_DEBUG: levelStr = "debug"; break;
+        case MegaChatApi::LOG_LEVEL_MAX: levelStr = "debug-verbose"; break;
+        default: levelStr = ""; break;
+    }
 
-
+    // message comes with a line-break at the end
+    sdklog  << message;
+}

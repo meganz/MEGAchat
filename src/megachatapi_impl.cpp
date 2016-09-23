@@ -49,6 +49,7 @@ using namespace karere;
 using namespace chatd;
 
 MegaChatApiImpl *MegaChatApiImpl::megaChatApiRef = NULL;
+LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 {
@@ -156,7 +157,6 @@ void MegaChatApiImpl::sendPendingRequests()
 
     while((request = requestQueue.pop()))
     {
-//        sdkMutex.lock();
         nextTag = ++reqtag;
         request->setTag(nextTag);
         requestMap[nextTag]=request;
@@ -540,8 +540,6 @@ void MegaChatApiImpl::sendPendingRequests()
             KR_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
             fireOnChatRequestFinish(request, megaChatError);
         }
-
-//        sdkMutex.unlock();
     }
 }
 
@@ -550,10 +548,27 @@ void MegaChatApiImpl::sendPendingEvents()
     void *msg;
     while((msg = eventQueue.pop()))
     {
-//        sdkMutex.lock();
         megaProcessMessage(msg);
-//		sdkMutex.unlock();
     }
+}
+
+void MegaChatApiImpl::setLogLevel(int logLevel)
+{
+    if(!loggerHandler)
+    {
+        loggerHandler = new LoggerHandler();
+    }
+    loggerHandler->setLogLevel(logLevel);
+}
+
+void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
+{
+    if(!loggerHandler)
+    {
+        loggerHandler = new LoggerHandler();
+        karere::gLogger.addUserLogger("MegaChatApi", loggerHandler);
+    }
+    loggerHandler->setMegaChatLogger(megaLogger);
 }
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
@@ -2261,4 +2276,30 @@ MegaChatMessage::Type MegaChatMessagePrivate::getType() const
 int64_t MegaChatMessagePrivate::getTimestamp() const
 {
     return ts;
+}
+
+LoggerHandler::LoggerHandler()
+{
+    mutex.init(true);
+    this->megaLogger = NULL;
+}
+
+void LoggerHandler::setMegaChatLogger(MegaChatLogger *logger)
+{
+    this->megaLogger = logger;
+}
+
+void LoggerHandler::setLogLevel(int logLevel)
+{
+    this->maxLogLevel= logLevel;
+}
+
+void LoggerHandler::log(krLogLevel level, const char *msg, size_t len, unsigned flags)
+{
+    mutex.lock();
+    if (megaLogger)
+    {
+        megaLogger->log(level, msg);
+    }
+    mutex.unlock();
 }

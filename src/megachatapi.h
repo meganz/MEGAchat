@@ -446,6 +446,48 @@ public:
     virtual ~MegaChatRequestListener();
 };
 
+/**
+ * @brief Interface to receive SDK logs
+ *
+ * You can implement this class and pass an object of your subclass to MegaChatApi::setLoggerObject
+ * to receive SDK logs. You will have to use also MegaChatApi::setLogLevel to select the level of
+ * the logs that you want to receive.
+ *
+ */
+class MegaChatLogger
+{
+public:
+    /**
+     * @brief This function will be called with all logs with level <= your selected
+     * level of logging (by default it is MegaChatApi::LOG_LEVEL_INFO)
+     *
+     * @param time Readable string representing the current time.
+     *
+     * The SDK retains the ownership of this string, it won't be valid after this funtion returns.
+     *
+     * @param loglevel Log level of this message
+     *
+     * Valid values are:
+     * - MegaChatApi::LOG_LEVEL_ERROR   = 1
+     * - MegaChatApi::LOG_LEVEL_WARNING = 2
+     * - MegaChatApi::LOG_LEVEL_INFO    = 3
+     * - MegaChatApi::LOG_LEVEL_VERBOSE = 4
+     * - MegaChatApi::LOG_LEVEL_DEBUG   = 5
+     * - MegaChatApi::LOG_LEVEL_MAX     = 6
+     *
+     * @param source Location where this log was generated
+     *
+     * For logs generated inside the SDK, this will contain the source file and the line of code.
+     * The SDK retains the ownership of this string, it won't be valid after this funtion returns.
+     *
+     * @param message Log message
+     *
+     * The SDK retains the ownership of this string, it won't be valid after this funtion returns.
+     *
+     */
+    virtual void log(int loglevel, const char *message);
+    virtual ~MegaChatLogger(){}
+};
 
 /**
  * @brief Provides information about an error
@@ -531,6 +573,17 @@ public:
         STATUS_CHATTY     = 4
     };
 
+    enum
+    {
+        //0 is reserved to overwrite completely disabled logging. Used only by logger itself
+        LOG_LEVEL_ERROR     = 1,    /// Error information but will continue application to keep running.
+        LOG_LEVEL_WARNING   = 2,    /// Information representing errors in application but application will keep running
+        LOG_LEVEL_INFO      = 3,    /// Mainly useful to represent current progress of application.
+        LOG_LEVEL_VERBOSE   = 4,    /// More information than the usual logging mode
+        LOG_LEVEL_DEBUG     = 5,    /// Informational logs, that are useful for developers. Only applicable if DEBUG is defined.
+        LOG_LEVEL_MAX       = 6     /// Maximum level of informational logs
+    };
+
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     MegaChatApi(mega::MegaApi *megaApi);
@@ -539,6 +592,37 @@ public:
 //    MegaChatApi(const char *appKey, const char* appDir);
 
     virtual ~MegaChatApi();
+
+
+    /**
+     * @brief Set a MegaChatLogger implementation to receive SDK logs
+     *
+     * Logs received by this objects depends on the active log level.
+     * By default, it is MegaChatApi::LOG_LEVEL_INFO. You can change it
+     * using MegaChatApi::setLogLevel.
+     *
+     * @param megaLogger MegaChatLogger implementation
+     */
+    static void setLoggerObject(MegaChatLogger *megaLogger);
+
+    /**
+     * @brief Set the active log level
+     *
+     * This function sets the log level of the logging system. If you set a log listener using
+     * MegaApi::setLoggerObject, you will receive logs with the same or a lower level than
+     * the one passed to this function.
+     *
+     * @param logLevel Active log level
+     *
+     * Valid values are:
+     * - MegaChatApi::LOG_LEVEL_ERROR   = 1
+     * - MegaChatApi::LOG_LEVEL_WARNING = 2
+     * - MegaChatApi::LOG_LEVEL_INFO    = 3
+     * - MegaChatApi::LOG_LEVEL_VERBPSE = 4
+     * - MegaChatApi::LOG_LEVEL_DEBUG   = 5
+     * - MegaChatApi::LOG_LEVEL_MAX     = 6
+     */
+    static void setLogLevel(int logLevel);
 
 
     // ============= Requests ================
@@ -821,7 +905,6 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param msgid MegaChatHandle that identifies the message
      * @return The MegaChatMessage object, or NULL if not found.
-     *
      */
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
