@@ -514,10 +514,13 @@ public:
         }
         return *msg;
     }
+
     /** @brief Returns the message at the specified index in the RAM history buffer.
-     * Throws if index is out of range */
+     * Throws if index is out of range
+     */
     Message& operator[](Idx num) const { return at(num); }
-    /** @brief Returnd whether the specified RAM history buffer index is valid or out
+
+    /** @brief Returns whether the specified RAM history buffer index is valid or out
      * of range */
     bool hasNum(Idx num) const
     {
