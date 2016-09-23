@@ -273,13 +273,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 }
 
                 mClient->createGroupChat(peers)
-//                .then([request,this](ChatRoom* room)
-//                {
-//                    request->setChatHandle(room->chatid());
+                .then([request,this](Id chatid)
+                {
+                    request->setChatHandle(chatid);
 
-//                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-//                    fireOnChatRequestFinish(request, megaChatError);
-//                })
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                })
                 .fail([request,this](const promise::Error& err)
                 {
                     KR_LOG_ERROR("Error creating group chat: ", err.what());
@@ -1175,8 +1175,6 @@ void MegaChatApiImpl::removeChatRoomListener(MegaChatRoomListener *listener)
 
 IApp::IChatHandler *MegaChatApiImpl::createChatHandler(ChatRoom &room)
 {
-    MegaChatRoomHandler *chatHandler = getChatRoomHandler(room.chatid());
-
     return getChatRoomHandler(room.chatid());
 }
 
