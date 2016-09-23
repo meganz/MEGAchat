@@ -941,9 +941,10 @@ void MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
     }
 
     // then fetch more messages if requested
-    if (oldest - newest < count)
+    int loadedCount = oldest - newest;
+    if (loadedCount < count)
     {
-        chat.getHistory(oldest - newest);
+        chat.getHistory(count - loadedCount);
     }
 
     sdkMutex.unlock();
