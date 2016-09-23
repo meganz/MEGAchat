@@ -600,8 +600,8 @@ public:
      * no title will be set and the room will be shown with the names of
      * the participants.
      */
-    promise::Promise<void>
-    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, const std::string& title=std::string());
+    promise::Promise<karere::Id>
+    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
 
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
