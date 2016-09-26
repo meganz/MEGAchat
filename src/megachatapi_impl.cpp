@@ -2286,10 +2286,10 @@ int64_t MegaChatMessagePrivate::getTimestamp() const
 }
 
 LoggerHandler::LoggerHandler()
+    : ILoggerBackend(MegaChatApi::LOG_LEVEL_INFO)
 {
     mutex.init(true);
     this->megaLogger = NULL;
-    this->maxLogLevel = MegaChatApi::LOG_LEVEL_INFO; // krLogLevelInfo
 
     gLogger.addUserLogger("MegaChatApi", this);
 }
