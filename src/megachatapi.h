@@ -586,7 +586,14 @@ public:
 
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
-    MegaChatApi(mega::MegaApi *megaApi);
+    /**
+     * @brief Creates an instance of MegaChatApi to access to the chat-engine.
+     *
+     * @param megaApi Instance of MegaApi to be used by the chat-engine.
+     * @param resumeSession Boolean indicating if you're going to resume a session. If false, any existing
+     * session will be discarded and MegaChatApi expects to have a login+fetchnodes before MegaChatApi::init
+     */
+    MegaChatApi(mega::MegaApi *megaApi, bool resumeSession);
 
 //    // chat will use its own megaApi, a new instance
 //    MegaChatApi(const char *appKey, const char* appDir);

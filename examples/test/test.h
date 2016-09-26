@@ -71,6 +71,7 @@ private:
 
     string email[2];
     string pwd[2];
+    char *session;
 
     int lastError[2];
 

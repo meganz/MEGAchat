@@ -51,9 +51,9 @@ using namespace chatd;
 MegaChatApiImpl *MegaChatApiImpl::megaChatApiRef = NULL;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
-MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
+MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi, bool resumeSession)
 {
-    init(chatApi, megaApi);
+    init(chatApi, megaApi, resumeSession);
 
     MegaChatApiImpl::megaChatApiRef = this;
 }
@@ -71,10 +71,11 @@ MegaChatApiImpl::~MegaChatApiImpl()
     thread.join();
 }
 
-void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
+void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi, bool resumeSession)
 {
     this->chatApi = chatApi;
     this->megaApi = megaApi;
+    this->resumeSession = resumeSession;
 
     sdkMutex.init(true);
 
@@ -108,7 +109,7 @@ void MegaChatApiImpl::loop()
     // karere initialization
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
-    this->mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline, false);
+    this->mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline, resumeSession);
 
     while (true)
     {

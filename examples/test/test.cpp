@@ -18,12 +18,17 @@ int main(int argc, char **argv)
 
     MegaSdkTest test;
     test.start();
-
-    sleep(60);
+    sleep(15);
 
     test.terminate();
+    sleep(5);
 
+    // now with session
+    test.start();
     sleep(15);
+
+    test.terminate();
+    sleep(5);
 
     return 0;
 }
@@ -38,6 +43,7 @@ MegaSdkTest::MegaSdkTest()
 
     // do some initialization
     megaApi[0] = megaApi[1] = NULL;
+    session = NULL;
 
     char *buf = getenv("MEGA_EMAIL");
     if (buf)
@@ -84,7 +90,7 @@ void MegaSdkTest::start()
     megaApi[0]->log(MegaApi::LOG_LEVEL_INFO, "___ Initializing tests for chat ___");
 
     // 2. Create MegaChatApi instance
-    megaChatApi[0] = new MegaChatApi(megaApi[0]);
+    megaChatApi[0] = new MegaChatApi(megaApi[0], session);
 
     megaChatApi[0]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
     megaChatApi[0]->addChatRequestListener(this);
@@ -93,7 +99,15 @@ void MegaSdkTest::start()
     megaApi[0]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");
 
     // 3. Login into the user account and fetchnodes (launched in the login callback)
-    megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
+    if (!session)
+    {
+        megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
+    }
+    else
+    {
+        KR_LOG_DEBUG("Login with existing session.");
+        megaApi[0]->fastLogin(session);
+    }
 }
 
 void MegaSdkTest::terminate()
@@ -180,6 +194,8 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
         if (e->getErrorCode() == MegaChatError::ERROR_OK)
         {
             KR_LOG_DEBUG("Online status changed successfully.");
+            session = megaApi[0]->dumpSession();
+
         }
         else
         {

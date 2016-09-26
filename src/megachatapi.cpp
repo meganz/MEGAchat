@@ -68,9 +68,9 @@ MegaChatHandle MegaChatCall::getContactHandle() const
     return INVALID_HANDLE;
 }
 
-MegaChatApi::MegaChatApi(MegaApi *megaApi)
+MegaChatApi::MegaChatApi(MegaApi *megaApi, bool resumeSession)
 {
-    this->pImpl = new MegaChatApiImpl(this, megaApi);
+    this->pImpl = new MegaChatApiImpl(this, megaApi, resumeSession);
 }
 
 MegaChatApi::~MegaChatApi()
