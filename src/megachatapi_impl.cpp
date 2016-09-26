@@ -2289,6 +2289,7 @@ LoggerHandler::LoggerHandler()
 {
     mutex.init(true);
     this->megaLogger = NULL;
+    this->maxLogLevel = MegaChatApi::LOG_LEVEL_INFO; // krLogLevelInfo
 
     gLogger.addUserLogger("MegaChatApi", this);
 }
@@ -2305,7 +2306,7 @@ void LoggerHandler::setMegaChatLogger(MegaChatLogger *logger)
 
 void LoggerHandler::setLogLevel(int logLevel)
 {
-    this->maxLogLevel= logLevel;
+    this->maxLogLevel = logLevel;
 }
 
 void LoggerHandler::log(krLogLevel level, const char *msg, size_t len, unsigned flags)
