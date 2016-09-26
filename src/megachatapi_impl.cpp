@@ -563,12 +563,19 @@ void MegaChatApiImpl::setLogLevel(int logLevel)
 
 void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
 {
-    if(!loggerHandler)
+    if (!megaLogger)   // removing logger
     {
-        loggerHandler = new LoggerHandler();
-        karere::gLogger.addUserLogger("MegaChatApi", loggerHandler);
+        delete loggerHandler;
+        loggerHandler = NULL;
     }
-    loggerHandler->setMegaChatLogger(megaLogger);
+    else
+    {
+        if(!loggerHandler)
+        {
+            loggerHandler = new LoggerHandler();
+        }
+        loggerHandler->setMegaChatLogger(megaLogger);
+    }
 }
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
@@ -2282,6 +2289,13 @@ LoggerHandler::LoggerHandler()
 {
     mutex.init(true);
     this->megaLogger = NULL;
+
+    gLogger.addUserLogger("MegaChatApi", this);
+}
+
+LoggerHandler::~LoggerHandler()
+{
+    gLogger.removeUserLogger("MegaChatApi");
 }
 
 void LoggerHandler::setMegaChatLogger(MegaChatLogger *logger)

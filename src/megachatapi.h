@@ -601,7 +601,9 @@ public:
      * By default, it is MegaChatApi::LOG_LEVEL_INFO. You can change it
      * using MegaChatApi::setLogLevel.
      *
-     * @param megaLogger MegaChatLogger implementation
+     * The logger object can be removed by passing NULL as \c megaLogger.
+     *
+     * @param megaLogger MegaChatLogger implementation. NULL to remove the existing object.
      */
     static void setLoggerObject(MegaChatLogger *megaLogger);
 

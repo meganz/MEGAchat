@@ -310,6 +310,8 @@ class LoggerHandler : public karere::Logger::ILoggerBackend
 {
 public:
     LoggerHandler();
+    virtual ~LoggerHandler();
+
     void setMegaChatLogger(MegaChatLogger *logger);
     void setLogLevel(int logLevel);
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
