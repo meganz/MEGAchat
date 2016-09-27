@@ -58,7 +58,7 @@ protected:
     void log(int loglevel, const char *message);
 };
 
-class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener
+class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener, MegaChatRoomListener
 {
 public:
     MegaSdkTest();
@@ -112,7 +112,11 @@ public:
     virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
     virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
 
-
+    // implementation for MegaChatRoomListener
+//    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
+    virtual void onMessageLoaded(MegaChatApi* api, MegaChatMessage *msg);   // loaded by getMessages()
+    virtual void onMessageReceived(MegaChatApi* api, MegaChatMessage *msg);
+    virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);   // new or updated
 
 //    void onUsersUpdate(MegaApi* api, MegaUserList *users);
 //    void onNodesUpdate(MegaApi* api, MegaNodeList *nodes);

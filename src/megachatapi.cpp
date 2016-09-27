@@ -401,6 +401,11 @@ const char *MegaChatRoom::getTitle() const
     return NULL;
 }
 
+int MegaChatRoom::getOnlineState() const
+{
+    return MegaChatRoom::STATE_OFFLINE;
+}
+
 int MegaChatRoom::getChanges() const
 {
     return 0;
@@ -545,6 +550,11 @@ void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
 }
 
 void MegaChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *msg)
+{
+
+}
+
+void MegaChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *msg)
 {
 
 }

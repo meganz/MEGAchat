@@ -790,6 +790,16 @@ void MegaChatApiImpl::fireOnMessageLoaded(MegaChatMessage *msg)
     delete msg;
 }
 
+void MegaChatApiImpl::fireOnMessageReceived(MegaChatMessage *msg)
+{
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onMessageReceived(chatApi, msg);
+    }
+
+    delete msg;
+}
+
 void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
 {
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
@@ -955,8 +965,7 @@ void MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
         Message &msg = chat.at(i);
         Message::Status status = chat.getMsgStatus(msg, i);
 
-        MegaChatMessagePrivate *megaMsg = new MegaChatMessagePrivate(msg, status, i);
-        fireOnMessageLoaded(megaMsg);
+        fireOnMessageLoaded(new MegaChatMessagePrivate(msg, status, i));
     }
 
     // then fetch more messages if requested
@@ -1712,6 +1721,8 @@ MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApi, MegaChatHandl
 {
     this->chatApi = chatApi;
     this->chatid = chatid;
+
+    this->mChat = NULL;
 }
 
 IApp::ICallHandler *MegaChatRoomHandler::callHandler()
@@ -1751,9 +1762,85 @@ void MegaChatRoomHandler::init(Chat &chat, DbInterface *&)
 
 }
 
+void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Status status)
+{
+    // forward the event to the chatroom, so chatlist items also receive the notification
+    ChatRoom *room = chatApi->findChatRoom(this->chatid);
+    if (room)
+    {
+        room->onRecvNewMessage(idx, msg, status);
+    }
+
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    chatApi->fireOnMessageReceived(message);
+}
+
 void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isFromDb)
 {
-    chatApi->fireOnMessageLoaded(new MegaChatMessagePrivate(msg, status, idx));
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    chatApi->fireOnMessageLoaded(message);
+}
+
+void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
+{
+    ChatRoom *room = chatApi->findChatRoom(this->chatid);
+    if (room)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        room->onOnlineStateChange(state);
+
+        MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*room);
+        chatroom->setOnlineState(state);
+
+        chatApi->fireOnChatRoomUpdate(chatroom);
+    }
+}
+
+void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
+{
+    ChatRoom *room = chatApi->findChatRoom(this->chatid);
+    if (room)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        room->onUserJoin(userid, privilege);
+
+        MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*room);
+        chatroom->setMembersUpdated();
+
+        chatApi->fireOnChatRoomUpdate(chatroom);
+    }
+}
+
+void MegaChatRoomHandler::onUserLeave(Id userid)
+{
+    ChatRoom *room = chatApi->findChatRoom(this->chatid);
+    if (room)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        room->onUserLeave(userid);
+
+        MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*room);
+        chatroom->setMembersUpdated();
+
+        chatApi->fireOnChatRoomUpdate(chatroom);
+    }
+}
+
+void MegaChatRoomHandler::onUnreadChanged()
+{
+    ChatRoom *room = chatApi->findChatRoom(this->chatid);
+    if (room)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        room->onUnreadChanged();
+
+        if (mChat)
+        {
+            MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*room);
+            chatroom->setUnreadCount(mChat->unreadMsgCount());
+            chatApi->fireOnChatRoomUpdate(chatroom);
+        }
+    }
 }
 
 
@@ -1871,6 +1958,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     }
     this->group = chat->isGroup();
     this->title = chat->getTitle();
+    this->chatState = chat->getOnlineState();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
@@ -1880,6 +1968,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 
     this->group = chat.isGroup();
     this->title = chat.titleString().c_str();
+    this->chatState = chat.chatdOnlineState();
 
     if (group)
     {
@@ -1949,6 +2038,11 @@ const char *MegaChatRoomPrivate::getTitle() const
     return title;
 }
 
+int MegaChatRoomPrivate::getOnlineState() const
+{
+    return chatState;
+}
+
 int MegaChatRoomPrivate::getChanges() const
 {
     return changed;
@@ -1994,6 +2088,12 @@ void MegaChatRoomPrivate::setOnlineStatus(MegaChatApi::Status status)
 void MegaChatRoomPrivate::setMembersUpdated()
 {
     this->changed |= MegaChatRoom::CHANGE_TYPE_PARTICIPANTS;
+}
+
+void MegaChatRoomPrivate::setOnlineState(int state)
+{
+    this->chatState = state;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_CHAT_STATE;
 }
 
 void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)

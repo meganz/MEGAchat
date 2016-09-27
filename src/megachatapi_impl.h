@@ -255,9 +255,6 @@ class MegaChatPeerListItemHandler :
 {
 public:
     MegaChatPeerListItemHandler(MegaChatApiImpl &, MegaChatHandle chatid);
-
-    // karere::IApp::IListItem::IPeerChatListItem implementation
-    // (empty - no methods to implement yet)
 };
 
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
@@ -278,7 +275,7 @@ public:
     // karere::IApp::IChatHandler::chatd::Listener implementation
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
     //virtual void onDestroy();
-    //virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status);
+    virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb);
     //virtual void onHistoryDone(bool isFromDb) ;
     //virtual void onUnsentMsgLoaded(Message& msg) ;
@@ -288,10 +285,10 @@ public:
     //virtual void onMessageStatusChange(Idx idx, Message::Status newStatus, const Message& msg);
     //virtual void onMessageEdited(const Message& msg, Idx idx);
     //virtual void onEditRejected(const Message& msg, uint8_t opcode);
-    //virtual void onOnlineStateChange(ChatState state);
-    //virtual void onUserJoin(karere::Id userid, Priv privilege);
-    //virtual void onUserLeave(karere::Id userid);
-    //virtual void onUnreadChanged();
+    virtual void onOnlineStateChange(chatd::ChatState state);
+    virtual void onUserJoin(karere::Id userid, chatd::Priv privilege);
+    virtual void onUserLeave(karere::Id userid);
+    virtual void onUnreadChanged();
     //virtual void onManualSendRequired(Message* msg, uint64_t id, int reason);
     //virtual void onHistoryTruncated(const Message& msg, Idx idx);
     //virtual void onMsgOrderVerificationFail(const Message& msg, Idx idx, const std::string& errmsg);
@@ -382,6 +379,7 @@ public:
     virtual MegaChatHandle getPeerHandle(unsigned int i) const;
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
+    virtual int getOnlineState() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -393,6 +391,7 @@ public:
     void setUnreadCount(int count);
     void setOnlineStatus(MegaChatApi::Status status);
     void setMembersUpdated();
+    void setOnlineState(int state);
 
 private:
     int changed;
@@ -405,6 +404,7 @@ private:
     const char *title;
     int unreadCount;
     MegaChatApi::Status status;
+    int chatState;
 
 };
 
@@ -584,6 +584,7 @@ public:
     // MegaChatRoomListener callbacks
     void fireOnChatRoomUpdate(MegaChatRoom *chat);
     void fireOnMessageLoaded(MegaChatMessage *msg);
+    void fireOnMessageReceived(MegaChatMessage *msg);
 
     // MegaChatRoomListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);

@@ -893,7 +893,7 @@ public:
      *
      * The corresponding callback is MegaChatRoomListener::onMessageLoaded.
      *
-     * @note The actual number of messages loaded can be less than this. One reason is
+     * @note The actual number of messages loaded can be less than \c count. One reason is
      * the history being shorter than requested, the other is due to internal protocol
      * messages that are not intended to be displayed to the user.
      *
@@ -1032,7 +1032,8 @@ public:
         CHANGE_TYPE_STATUS          = 0x01,
         CHANGE_TYPE_UNREAD_COUNT    = 0x02,
         CHANGE_TYPE_PARTICIPANTS    = 0x04,
-        CHANGE_TYPE_TITLE           = 0x08
+        CHANGE_TYPE_TITLE           = 0x08,
+        CHANGE_TYPE_CHAT_STATE      = 0x10
 //        CHANGE_TYPE_TITLE           = 0x10
     };
 
@@ -1042,6 +1043,13 @@ public:
         PRIV_RO         = 0,
         PRIV_STANDARD   = 2,
         PRIV_MODERATOR  = 3
+    };
+
+    enum {
+        STATE_OFFLINE      = 0,
+        STATE_CONNECTING   = 1,
+        STATE_JOINING      = 2,
+        STATE_ONLINE       = 3
     };
 
     virtual ~MegaChatRoom() {}
@@ -1121,6 +1129,26 @@ public:
      * @return The title of the chat as a null-terminated char array.
      */
     virtual const char *getTitle() const;
+
+    /**
+     * @brief Returns the chatroom connection (to the chatd server shard) state
+     *
+     * It can be one of the following values:
+     * - STATE_OFFLINE = 0
+     * It is not connected
+     *
+     * - STATE_CONNECTING = 1
+     * The connection is in progress
+     *
+     * - STATE_JOINING = 2
+     * The connection is alive, joining the chatroom.
+     *
+     * - STATE_ONLINE = 3
+     * The connected is alive and properly joined to the chatroom.
+     *
+     * @return State of the connection to the chatd server shard
+     */
+    virtual int getOnlineState() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -1293,6 +1321,7 @@ public:
     virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
 
     virtual void onMessageLoaded(MegaChatApi* api, MegaChatMessage *msg);   // loaded by getMessages()
+    virtual void onMessageReceived(MegaChatApi* api, MegaChatMessage *msg);
     virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);   // new or updated
 };
 

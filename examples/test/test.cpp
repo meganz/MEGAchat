@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 
     MegaSdkTest test;
     test.start();
-    sleep(15);
+    sleep(3000);
 
     test.terminate();
     sleep(5);
@@ -70,13 +70,15 @@ MegaSdkTest::MegaSdkTest()
  *
  * - Create a MegaApi
  * - Create a MegaChatApi
- * - MegaApi::login(user, pwd)
+ * - MegaApi::login(user, pwd) or MegaApi::fastLogin(session) if available
  * - MegaApi::fetchNodes()
  * - MegaChatApi::init()
+ * - MegaChatApi::getChatRooms() - sync call
  * - MegaChatApi::connect()
  * - MegaChatApi::setOnlineStatus(away)
+ * - MegaApi::dumpSession()
  * - MegaChatApi::getChatRooms() - sync call
- * - MegaApi::getContacts() - sync call
+ * - MegaChatApi::getMessages(chatid)
  */
 void MegaSdkTest::start()
 {
@@ -196,12 +198,36 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
             KR_LOG_DEBUG("Online status changed successfully.");
             session = megaApi[0]->dumpSession();
 
+            MegaChatRoomList *chats = megaChatApi[apiIndex]->getChatRooms();
+            if (chats->size() > 0)
+            {
+                MegaChatHandle chatid = chats->get(0)->getChatId();
+                megaChatApi[0]->openChatRoom(chatid, this); // set listener to `this`
+//                megaChatApi[0]->addChatRoomListener(chatid, this);
+                megaChatApi[0]->getMessages(chatid, 50);
+            }
+            for (int i = 0; i < chats->size(); i++)
+            {
+                KR_LOG_DEBUG("Chat %d", chats->get(i)->getChatId());
+            }
         }
         else
         {
             KR_LOG_ERROR("Online status change error: %s (%d)", e->getErrorString(), e->getErrorCode());
         }
         break;
+
+    case MegaChatRequest::TYPE_GET_HISTORY:
+        if (e->getErrorCode() == MegaChatError::ERROR_OK)
+        {
+            KR_LOG_DEBUG("Retrieving history...");
+        }
+        else
+        {
+            KR_LOG_ERROR("Cannot get more history: %s (%d)", e->getErrorString(), e->getErrorCode());
+        }
+        break;
+
     }
 }
 
@@ -229,6 +255,21 @@ void MegaSdkTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *item)
     {
         KR_LOG_DEBUG("Chat list item added or updated");
     }
+}
+
+void MegaSdkTest::onMessageLoaded(MegaChatApi *api, MegaChatMessage *msg)
+{
+    KR_LOG_DEBUG("New message loaded: ", msg->getContent());
+}
+
+void MegaSdkTest::onMessageReceived(MegaChatApi *api, MegaChatMessage *msg)
+{
+    KR_LOG_DEBUG("New message loaded: ", msg->getContent());
+}
+
+void MegaSdkTest::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
+{
+    KR_LOG_DEBUG("Message updated: ", msg->getContent());
 }
 
 void MegaSdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
