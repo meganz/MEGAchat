@@ -60,10 +60,15 @@ If you get a libtool error that a tag is missing, you can try setting this env v
 `export LIBTOOLFLAGS ="--tag CXX"`  
 
 ## Build webrtc ##
-Karere provides an autmated system for building webrtc for any of the supported
+Karere provides an automated system for building webrtc for any of the supported
 desktop and mobile platforms. This is made very easy by using the
 `/webrtc-build/build-webrtc.sh` script. Run it without arguments to see help on
-usage. This system is generally an addon to the stock webrtc (actually chromium)
+usage.
+
+*IMPORTANT*  
+Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh  
+
+This system is generally an addon to the stock webrtc (actually chromium)
 build system, but it strips it down to download only a few hundred megabytes
 of source code and tools instead of 10-12GB. It also patches webrtc to fix
 several issues (use normal openssl instead of its own included boringssl
@@ -89,9 +94,6 @@ find libs not located in standard system paths:
 Depending on the plaform, `/path/to/prefix` will be:  
 - iOS, Android, Windows: `$builddir/usr`, where `$builddir` is the builddir parameter that you passed to the `setup-deps.sh` script.
 - MacOS: The prefix where MacPorts/HomeBrew installs libraries.  
-
-*IMPORTANT*  
-Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh
 
 *Android*  
 You need to set ANDROID_NDK to an NDK installation. The current webrtc revision
