@@ -70,15 +70,16 @@ several issues (use normal openssl instead of its own included boringssl
 lib, replace macos capturer that uses obsolete API and problematic threading
 model with modified iOS capturer, etc).
 
-###Python version###
-Since the Chromium build system relies heavily on python, and it assumes the
-python version is 2.7, the `python` command must map to python2 instead of
-python3. This may not be true on more recent systems. To easily accomndate for
-this, you can create a symlink named `python` that points to `/usr/bin/python2`
-and. Put that symlink in a private directory that doesn't contain other
-executables, and include this directory to be first in the system PATH in the
-shell where you build webrtc, before invoking `build-webrtc.sh`:
-`export PATH=/path/to/dir-with-python-symlink:$PATH`
+###Python version###  
+Since the Chromium build system (at least the curent revision) relies heavily
+on python, and it assumes the python version is 2.7, the `python` command must
+map to python2 instead of python3. This may not be true on more recent systems.
+To easily accomodate forthis, you can create a symlink named `python` that
+points to `/usr/bin/python2`. Put that symlink in a private directory that
+doesn't contain other executables, and include this directory to be first in
+the system PATH in the shell where you build webrtc, before invoking
+`build-webrtc.sh`:  
+`export PATH=/path/to/dir-with-python-symlink:$PATH`  
 
 On any platform other than Linux, set the following two env vars, to make the webrtc build system
 find libs not located in standard system paths:  
