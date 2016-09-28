@@ -168,6 +168,11 @@ MegaChatMessage *MegaChatApi::getMessage(MegaChatHandle chatid, MegaChatHandle m
     return pImpl->getMessage(chatid, msgid);
 }
 
+MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg, size_t msglen, MegaChatMessage::Type type, void *userp)
+{
+    return pImpl->sendMessage(chatid, msg, msglen, type, userp);
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();
@@ -411,7 +416,7 @@ int MegaChatRoom::getChanges() const
     return 0;
 }
 
-bool MegaChatRoom::hasChanged(int changeType) const
+bool MegaChatRoom::hasChanged(int) const
 {
     return false;
 }
@@ -569,12 +574,12 @@ MegaChatMessage *MegaChatMessage::copy() const
     return NULL;
 }
 
-MegaChatMessage::Status MegaChatMessage::getStatus() const
+int MegaChatMessage::getStatus() const
 {
     return MegaChatMessage::STATUS_UNKNOWN;
 }
 
-MegaChatHandle MegaChatMessage::getMsgHandle() const
+MegaChatHandle MegaChatMessage::getMsgId() const
 {
     return INVALID_HANDLE;
 }
@@ -602,6 +607,16 @@ int64_t MegaChatMessage::getTimestamp() const
 const char *MegaChatMessage::getContent() const
 {
     return NULL;
+}
+
+int MegaChatMessage::getChanges() const
+{
+    return 0;
+}
+
+bool MegaChatMessage::hasChanged(int) const
+{
+    return false;
 }
 
 

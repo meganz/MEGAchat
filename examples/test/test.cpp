@@ -79,6 +79,7 @@ MegaSdkTest::MegaSdkTest()
  * - MegaApi::dumpSession()
  * - MegaChatApi::getChatRooms() - sync call
  * - MegaChatApi::getMessages(chatid)
+ * - MegaChatApi::sendMessage (when the full history is loaded)
  */
 void MegaSdkTest::start()
 {
@@ -198,10 +199,10 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
             KR_LOG_DEBUG("Online status changed successfully.");
             session = megaApi[0]->dumpSession();
 
-            MegaChatRoomList *chats = megaChatApi[apiIndex]->getChatRooms();
+            chats = megaChatApi[apiIndex]->getChatRooms();
             if (chats->size() > 0)
             {
-                MegaChatHandle chatid = chats->get(0)->getChatId();
+                this->chatid = chats->get(0)->getChatId();
                 megaChatApi[0]->openChatRoom(chatid, this); // set listener to `this`
 //                megaChatApi[0]->addChatRoomListener(chatid, this);
                 megaChatApi[0]->getMessages(chatid, 50);
@@ -259,17 +260,28 @@ void MegaSdkTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *item)
 
 void MegaSdkTest::onMessageLoaded(MegaChatApi *api, MegaChatMessage *msg)
 {
-    KR_LOG_DEBUG("New message loaded: ", msg->getContent());
+    if (msg)
+    {
+        KR_LOG_DEBUG("New message loaded: %s", msg->getContent());
+    }
+    else
+    {
+        KR_LOG_DEBUG("Full history loaded. No more messages");
+
+        // send a message
+        string message = "Hi there, this is a test";
+        api->sendMessage(chatid, message.c_str(), message.size(), MegaChatMessage::TYPE_NORMAL, NULL);
+    }
 }
 
 void MegaSdkTest::onMessageReceived(MegaChatApi *api, MegaChatMessage *msg)
 {
-    KR_LOG_DEBUG("New message loaded: ", msg->getContent());
+    KR_LOG_DEBUG("New message loaded: %s", msg->getContent());
 }
 
 void MegaSdkTest::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
 {
-    KR_LOG_DEBUG("Message updated: ", msg->getContent());
+    KR_LOG_DEBUG("Message updated: %s", msg->getContent());
 }
 
 void MegaSdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)

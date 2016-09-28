@@ -277,12 +277,12 @@ public:
     //virtual void onDestroy();
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb);
-    //virtual void onHistoryDone(bool isFromDb) ;
+    virtual void onHistoryDone(bool isFromDb);
     //virtual void onUnsentMsgLoaded(Message& msg) ;
     //virtual void onUnsentEditLoaded(Message& msg, bool oriMsgIsSending) ;
-    //virtual void onMessageConfirmed(karere::Id msgxid, const Message& msg, Idx idx);
+    virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx);
     //virtual void onMessageRejected(const Message& msg);
-    //virtual void onMessageStatusChange(Idx idx, Message::Status newStatus, const Message& msg);
+    virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     //virtual void onMessageEdited(const Message& msg, Idx idx);
     //virtual void onEditRejected(const Message& msg, uint8_t opcode);
     virtual void onOnlineStateChange(chatd::ChatState state);
@@ -435,16 +435,25 @@ public:
     virtual MegaChatMessage *copy() const;
 
     // MegaChatMessage interface
-    virtual Status getStatus() const;
-    virtual MegaChatHandle getMsgHandle() const;
+    virtual int getStatus() const;
+    virtual MegaChatHandle getMsgId() const;
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual Type getType() const;
     virtual int64_t getTimestamp() const;
+    virtual const char *getContent() const;
+
+    virtual int getChanges() const;
+    virtual bool hasChanged(int changeType) const;
+
+    void setStatus(int status);
+
 
 private:
+    int changed;
+
     Type type;
-    Status status;
+    int status;
     MegaChatHandle msgId;
     MegaChatHandle uh;
     int index;
@@ -585,6 +594,7 @@ public:
     void fireOnChatRoomUpdate(MegaChatRoom *chat);
     void fireOnMessageLoaded(MegaChatMessage *msg);
     void fireOnMessageReceived(MegaChatMessage *msg);
+    void fireOnMessageUpdate(MegaChatMessage *msg);
 
     // MegaChatRoomListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
@@ -611,6 +621,7 @@ public:
 
     void getMessages(MegaChatHandle chatid, int count);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msglen, MegaChatMessage::Type type, void* userp);
 
     // Audio/Video devices
     mega::MegaStringList *getChatAudioInDevices();

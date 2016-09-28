@@ -800,6 +800,16 @@ void MegaChatApiImpl::fireOnMessageReceived(MegaChatMessage *msg)
     delete msg;
 }
 
+void MegaChatApiImpl::fireOnMessageUpdate(MegaChatMessage *msg)
+{
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onMessageUpdate(chatApi, msg);
+    }
+
+    delete msg;
+}
+
 void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
 {
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
@@ -1006,6 +1016,28 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     sdkMutex.unlock();
 
     return megaMsg;
+}
+
+MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, size_t msglen, MegaChatMessage::Type type, void *userp)
+{
+    MegaChatMessagePrivate *megaMsg = NULL;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        Message::Type t = (Message::Type) type;
+        Message *m = chat.msgSubmit(msg, msglen, t, userp);
+
+        megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+    }
+
+    sdkMutex.unlock();
+
+    return megaMsg;
+
 }
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
@@ -1781,6 +1813,29 @@ void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::S
     chatApi->fireOnMessageLoaded(message);
 }
 
+void MegaChatRoomHandler::onHistoryDone(bool isFromDb)
+{
+    if (!isFromDb)  // no more history available (including DB and server)
+    {
+        chatApi->fireOnMessageLoaded(NULL);
+    }
+}
+
+void MegaChatRoomHandler::onMessageConfirmed(Id /*msgxid*/, const Message &msg, Idx idx)
+{
+    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_RECEIVED;
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    message->setStatus(status);
+    chatApi->fireOnMessageUpdate(message);
+}
+
+void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status newStatus, const Message &msg)
+{
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, newStatus, idx);
+    message->setStatus(newStatus);
+    chatApi->fireOnMessageUpdate(message);
+}
+
 void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
 {
     ChatRoom *room = chatApi->findChatRoom(this->chatid);
@@ -1791,7 +1846,6 @@ void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
 
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*room);
         chatroom->setOnlineState(state);
-
         chatApi->fireOnChatRoomUpdate(chatroom);
     }
 }
@@ -1806,7 +1860,6 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
 
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*room);
         chatroom->setMembersUpdated();
-
         chatApi->fireOnChatRoomUpdate(chatroom);
     }
 }
@@ -1821,7 +1874,6 @@ void MegaChatRoomHandler::onUserLeave(Id userid)
 
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*room);
         chatroom->setMembersUpdated();
-
         chatApi->fireOnChatRoomUpdate(chatroom);
     }
 }
@@ -1959,6 +2011,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->group = chat->isGroup();
     this->title = chat->getTitle();
     this->chatState = chat->getOnlineState();
+
+    this->changed = chat->getChanges();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
@@ -1983,6 +2037,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
                                           (privilege_t) it->second->priv()));
         }
     }
+
+    this->changed = 0;
 }
 
 MegaChatRoom *MegaChatRoomPrivate::copy() const
@@ -2328,22 +2384,27 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage &msg)
 {
     this->msg = MegaApi::strdup(msg.getContent());
     this->uh = msg.getUserHandle();
-    this->msgId = msg.getMsgHandle();
+    this->msgId = msg.getMsgId();
     this->index = msg.getMsgIndex();
     this->status = msg.getStatus();
     this->ts = msg.getTimestamp();
     this->type = msg.getType();
+
+    this->changed = 0;
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
 {
-    this->msg = MegaApi::strdup(msg.buf());
+    string tmp(msg.buf(), msg.size());
+    this->msg = MegaApi::strdup(tmp.c_str());
     this->uh = msg.userid;
     this->msgId = msg.id();
     this->type = (MegaChatMessage::Type) msg.type;
     this->ts = msg.ts;
-    this->status = (MegaChatMessage::Status) status;
+    this->status = status;
     this->index = index;
+
+    this->changed = 0;
 }
 
 MegaChatMessagePrivate::~MegaChatMessagePrivate()
@@ -2356,12 +2417,12 @@ MegaChatMessage *MegaChatMessagePrivate::copy() const
     return new MegaChatMessagePrivate(*this);
 }
 
-MegaChatMessage::Status MegaChatMessagePrivate::getStatus() const
+int MegaChatMessagePrivate::getStatus() const
 {
     return status;
 }
 
-MegaChatHandle MegaChatMessagePrivate::getMsgHandle() const
+MegaChatHandle MegaChatMessagePrivate::getMsgId() const
 {
     return msgId;
 }
@@ -2384,6 +2445,27 @@ MegaChatMessage::Type MegaChatMessagePrivate::getType() const
 int64_t MegaChatMessagePrivate::getTimestamp() const
 {
     return ts;
+}
+
+const char *MegaChatMessagePrivate::getContent() const
+{
+    return msg;
+}
+
+int MegaChatMessagePrivate::getChanges() const
+{
+    return changed;
+}
+
+bool MegaChatMessagePrivate::hasChanged(int changeType) const
+{
+    return (changed & changeType);
+}
+
+void MegaChatMessagePrivate::setStatus(int status)
+{
+    this->status = status;
+    this->changed |= MegaChatMessage::CHANGE_TYPE_STATUS;
 }
 
 LoggerHandler::LoggerHandler()

@@ -85,11 +85,8 @@ private:
     bool userUpdated[2];
     bool contactRequestUpdated[2];
 
-#ifdef ENABLE_CHAT
-    bool chatUpdated[2];                // flags to monitor the updates of chats due to actionpackets
-    map<handle, MegaTextChat*> chats;   //  runtime cache of fetched/updated chats
-    MegaHandle chatid;                  // last chat added
-#endif
+    MegaChatRoomList *chats;   //  runtime cache of fetched/updated chats
+    MegaHandle chatid;         // opened chatroom
 
     MegaLoggerSDK *logger;
     MegaChatLoggerSDK *chatLogger;
