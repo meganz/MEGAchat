@@ -65,8 +65,7 @@ desktop and mobile platforms. This is made very easy by using the
 `/webrtc-build/build-webrtc.sh` script. Run it without arguments to see help on
 usage.
 
-*IMPORTANT*  
-Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh  
+*IMPORTANT:* Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh  
 
 This system is generally an addon to the stock webrtc (actually chromium)
 build system, but it strips it down to download only a few hundred megabytes
