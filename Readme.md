@@ -82,8 +82,7 @@ To easily accomodate for this, you can create a symlink named `python` that
 points to `/usr/bin/python2`. Put that symlink in a private directory that
 doesn't contain other executables with names clashing with ones in the system path,
 and include this directory to be first in the system PATH in the shell where you
-build webrtc, before invoking
-`build-webrtc.sh`:  
+build webrtc, before invoking `build-webrtc.sh`:  
 `export PATH=/path/to/dir-with-python-symlink:$PATH`  
 
 ### Third party deps ###
