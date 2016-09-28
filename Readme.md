@@ -64,11 +64,22 @@ Karere provides an autmated system for building webrtc for any of the supported
 desktop and mobile platforms. This is made very easy by using the
 `/webrtc-build/build-webrtc.sh` script. Run it without arguments to see help on
 usage. This system is generally an addon to the stock webrtc (actually chromium)
-build sustem, but it strips it down to download only a few hundred megabytes
+build system, but it strips it down to download only a few hundred megabytes
 of source code and tools instead of 10-12GB. It also patches webrtc to fix
 several issues (use normal openssl instead of its own included boringssl
 lib, replace macos capturer that uses obsolete API and problematic threading
-model with modified iOS capturer, etc).  
+model with modified iOS capturer, etc).
+
+###Python version###
+Since the Chromium build system relies heavily on python, and it assumes the
+python version is 2.7, the `python` command must map to python2 instead of
+python3. This may not be true on more recent systems. To easily accomndate for
+this, you can create a symlink named `python` that points to `/usr/bin/python2`
+and. Put that symlink in a private directory that doesn't contain other
+executables, and include this directory to be first in the system PATH in the
+shell where you build webrtc, before invoking `build-webrtc.sh`:
+`export PATH=/path/to/dir-with-python-symlink:$PATH`
+
 On any platform other than Linux, set the following two env vars, to make the webrtc build system
 find libs not located in standard system paths:  
 `export WEBRTC_DEPS_INCLUDE=/path/to/prefix/include`
