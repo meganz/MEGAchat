@@ -2022,7 +2022,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 
     this->group = chat.isGroup();
     this->title = chat.titleString().c_str();
-    this->chatState = chat.chatdOnlineState();
+//    this->chatState = chat.chatdOnlineState();    --> make it crash, issue: #5386
 
     if (group)
     {
