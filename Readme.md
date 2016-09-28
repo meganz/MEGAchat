@@ -78,8 +78,10 @@ model with modified iOS capturer, etc).
 Since the Chromium build system (at least the curent revision) relies heavily
 on python, and it assumes the python version is 2.7, the `python` command must
 map to python2 instead of python3. This may not be true on more recent systems.
-To easily accomodate for this, you can create a symlink named `python` that
-points to `/usr/bin/python2`. Put that symlink in a private directory that
+To check, just type `python --version`. If it says version 2.x, then you are ok
+and can skip the rest of this section.
+To easily make python2 default in the current shell, you can create a symlink
+named `python` that points to `/usr/bin/python2`. Put that symlink in a private directory that
 doesn't contain other executables with names clashing with ones in the system path,
 and include this directory to be first in the system PATH in the shell where you
 build webrtc, before invoking `build-webrtc.sh`:  
