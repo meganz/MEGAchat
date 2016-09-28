@@ -78,7 +78,7 @@ model with modified iOS capturer, etc).
 Since the Chromium build system (at least the curent revision) relies heavily
 on python, and it assumes the python version is 2.7, the `python` command must
 map to python2 instead of python3. This may not be true on more recent systems.
-To easily accomodate forthis, you can create a symlink named `python` that
+To easily accomodate for this, you can create a symlink named `python` that
 points to `/usr/bin/python2`. Put that symlink in a private directory that
 doesn't contain other executables, and include this directory to be first in
 the system PATH in the shell where you build webrtc, before invoking
