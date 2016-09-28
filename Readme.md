@@ -70,7 +70,7 @@ several issues (use normal openssl instead of its own included boringssl
 lib, replace macos capturer that uses obsolete API and problematic threading
 model with modified iOS capturer, etc).
 
-###Python version###  
+### Python version ###
 Since the Chromium build system (at least the curent revision) relies heavily
 on python, and it assumes the python version is 2.7, the `python` command must
 map to python2 instead of python3. This may not be true on more recent systems.
