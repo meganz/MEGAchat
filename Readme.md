@@ -81,6 +81,7 @@ the system PATH in the shell where you build webrtc, before invoking
 `build-webrtc.sh`:  
 `export PATH=/path/to/dir-with-python-symlink:$PATH`  
 
+### Third party deps ###
 On any platform other than Linux, set the following two env vars, to make the webrtc build system
 find libs not located in standard system paths:  
 `export WEBRTC_DEPS_INCLUDE=/path/to/prefix/include`
@@ -96,7 +97,7 @@ Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh
 You need to set ANDROID_NDK to an NDK installation. The current webrtc revision
 has been tested with NDK r10d.
 
-### Verify the build ###
+### Verify the webrtc build ###
 * Cd to the directory you passed to build-webrtc.sh, and then:  
    - non-iOS  
   `cd src/out/Release|Debug`  
