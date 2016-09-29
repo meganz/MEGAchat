@@ -1155,7 +1155,8 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
     addMissingRoomsFromApi(*rooms);
     for (int i=0; i<rooms->size(); i++)
     {
-        auto& room = *rooms->get(i);
+        //FIXME: make MegaTextChatRoomList::get() return non-const object
+        ::mega::MegaTextChat& room = *((::mega::MegaTextChat*)rooms->get(i));
         auto chatid = room.getHandle();
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
@@ -1611,13 +1612,17 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
     {
         auto self = static_cast<Member*>(userp);
         if (buf)
+        {
             self->mName.assign(buf->buf(), buf->dataSize());
-        else if (self->mName.empty())
+        }
+        else
+        {
             self->mName = "\x01?";
-            if (!self->mRoom.hasTitle())
-            {
-                self->mRoom.makeTitleFromMemberNames();
-            }
+        }
+        if (!self->mRoom.hasTitle())
+        {
+            self->mRoom.makeTitleFromMemberNames();
+        }
     });
 }
 GroupChatRoom::Member::~Member()
