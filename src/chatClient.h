@@ -132,6 +132,9 @@ public:
      */
     void removeAppChatHandler();
 
+    /** @brief Initiates a webrtc call in the chatroom
+     *  @param av Whether to initially send video and/or audio
+     */
     virtual promise::Promise<void> mediaCall(AvFlags av) = 0;
 
     //chatd::Listener implementation
@@ -562,8 +565,9 @@ public:
 
     /** Terminates the karere client, logging it out, hanging up calls,
      * and cleaning up state
+     * @param deleteDb - if set to \c true, deletes the local cache db.
      */
-    promise::Promise<void> terminate();
+    promise::Promise<void> terminate(bool deleteDb=false);
 
     /**
      * @brief Ping a target peer to check whether he/she is alive
@@ -622,6 +626,7 @@ protected:
     std::unique_ptr<rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
     sqlite3* openDb();
+    void wipeDb();
     sqlite3* reinitDb();
     void createDatabase(sqlite3*& database);
     void connectToChatd();

@@ -557,10 +557,13 @@ public:
         }
         return *msg;
     }
+
     /** @brief Returns the message at the specified index in the RAM history buffer.
-     * Throws if index is out of range */
+     * Throws if index is out of range
+     */
     Message& operator[](Idx num) const { return at(num); }
-    /** @brief Returnd whether the specified RAM history buffer index is valid or out
+
+    /** @brief Returns whether the specified RAM history buffer index is valid or out
      * of range */
     bool hasNum(Idx num) const
     {
@@ -570,10 +573,14 @@ public:
             return (num < mForwardStart + static_cast<int>(mForwardList.size()));
     }
     /** @brief Returns the index of the message with the specified msgid.
-      * Throws if no such message exists in the RAM history buffer */
-    Idx msgIndexFromId(karere::Id id)
+     * @param msgid The message id whose index to find
+     * @returns The index of the message inside the RAM history buffer.
+     *  If no such message exists in the RAM history buffer, CHATD_IDX_INVALID
+     * is returned
+     */
+    Idx msgIndexFromId(karere::Id msgid)
     {
-        auto it = mIdToIndexMap.find(id);
+        auto it = mIdToIndexMap.find(msgid);
         return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;
     }
     /** @brief Initiates fetching more history - from local db or from
