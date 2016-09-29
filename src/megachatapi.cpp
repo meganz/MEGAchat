@@ -103,6 +103,11 @@ void MegaChatApi::logout(MegaChatRequestListener *listener)
     pImpl->logout(listener);
 }
 
+void MegaChatApi::localLogout(MegaChatRequestListener *listener)
+{
+    pImpl->localLogout(listener);
+}
+
 //MegaChatApi::MegaChatApi(const char *appKey, const char *appDir)
 //{
 //    this->pImpl = new MegaChatApiImpl(this, appKey, appDir);

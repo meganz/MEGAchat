@@ -32,6 +32,10 @@ using namespace megachat;
 static const string APP_KEY     = "MBoVFSyZ";
 static const string USER_AGENT  = "Tests for Karere SDK functionality";
 
+static const unsigned int pollingT      = 500000;   // (microseconds) to check if response from server is received
+static const unsigned int maxTimeout    = 300;      // Maximum time (seconds) to wait for response from server
+
+
 class MegaLoggerSDK : public MegaLogger {
 
 public:
@@ -58,37 +62,36 @@ protected:
     void log(int loglevel, const char *message);
 };
 
-class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener, MegaChatRoomListener
+class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener
 {
 public:
     MegaSdkTest();
-    void start();
     void terminate();
-    void resetSession();
+
+    bool waitForResponse(bool *responseReceived, int timeout = maxTimeout);
 
     string email[2];
     string pwd[2];
-    char *session;
 
-private:
     MegaApi* megaApi[2];
     MegaChatApi* megaChatApi[2];
 
-
-    int lastError[2];
-
     // flags to monitor the completion of requests/transfers
     bool requestFlags[2][MegaRequest::TYPE_CHAT_SET_TITLE];
+    bool requestFlagsChat[2][MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
 
-    MegaContactRequest* cr[2];
+private:
+    int lastError[2];
+
+//    MegaContactRequest* cr[2];
 
     // flags to monitor the updates of nodes/users/PCRs due to actionpackets
-    bool nodeUpdated[2];
-    bool userUpdated[2];
-    bool contactRequestUpdated[2];
+//    bool nodeUpdated[2];
+//    bool userUpdated[2];
+//    bool contactRequestUpdated[2];
 
-    MegaChatRoomList *chats;   //  runtime cache of fetched/updated chats
-    MegaHandle chatid;         // opened chatroom
+//    MegaChatRoomList *chats;   //  runtime cache of fetched/updated chats
+//    MegaHandle chatid;         // opened chatroom
 
     MegaLoggerSDK *logger;
     MegaChatLoggerSDK *chatLogger;
@@ -111,12 +114,6 @@ public:
     virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
     virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
 
-    // implementation for MegaChatRoomListener
-//    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
-    virtual void onMessageLoaded(MegaChatApi* api, MegaChatMessage *msg);   // loaded by getMessages()
-    virtual void onMessageReceived(MegaChatApi* api, MegaChatMessage *msg);
-    virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);   // new or updated
-
 //    void onUsersUpdate(MegaApi* api, MegaUserList *users);
 //    void onNodesUpdate(MegaApi* api, MegaNodeList *nodes);
 //    void onAccountUpdate(MegaApi *api) {}
@@ -131,4 +128,20 @@ public:
 //#ifdef ENABLE_CHAT
 //    void onChatsUpdate(MegaApi *api, MegaTextChatList *chats);
 //#endif
+};
+
+class TestChatRoomListener : public MegaChatRoomListener
+{
+public:
+    TestChatRoomListener();
+
+    bool historyLoaded;
+    bool msgConfirmed;
+    MegaChatHandle msgId;
+
+    // implementation for MegaChatRoomListener
+    //    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
+    virtual void onMessageLoaded(MegaChatApi* api, MegaChatMessage *msg);   // loaded by getMessages()
+    virtual void onMessageReceived(MegaChatApi* api, MegaChatMessage *msg);
+    virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);   // new or updated
 };

@@ -345,13 +345,14 @@ public:
         TYPE_SET_ONLINE_STATUS,
         TYPE_START_CHAT_CALL, TYPE_ANSWER_CHAT_CALL,
         TYPE_MUTE_CHAT_CALL, TYPE_HANG_CHAT_CALL,
-        TYPE_SEND_MESSAGE, TYPE_EDIT_MESSAGE, TYPE_DELETE_MESSAGE,
+        TYPE_EDIT_MESSAGE, TYPE_DELETE_MESSAGE,
         TYPE_CREATE_CHATROOM, TYPE_REMOVE_FROM_CHATROOM,
         TYPE_INVITE_TO_CHATROOM, TYPE_UPDATE_PEER_PERMISSIONS,
         TYPE_EDIT_CHATROOM_NAME, TYPE_EDIT_CHATROOM_PIC,
         TYPE_TRUNCATE_HISTORY, TYPE_GET_HISTORY,
 //        TYPE_GRANT_ACCESS, TYPE_REMOVE_ACCESS,
-        TYPE_SHARE_CONTACT
+        TYPE_SHARE_CONTACT,
+        TOTAL_OF_REQUEST_TYPES
     };
 
     virtual ~MegaChatRequest();
@@ -663,6 +664,10 @@ public:
  *     6. Call MegaChatApi::connect() and wait for completion
  *     7. The app is ready to operate
  *
+ * Important considerations:
+ *  - The app must NOT call any MegaApi method between fetchnodes and MegaChatApi::init().
+ *  - The instance of MegaChatApi must be deleted before the instance of MegaApi passed to the constructor.
+ *
  * Some functions in this class return a pointer and give you the ownership. In all of them, memory allocations
  * are made using new (for single objects) and new[] (for arrays) so you should use delete and delete[] to free them.
  */
@@ -769,7 +774,29 @@ public:
      */
     void connect(MegaChatRequestListener *listener = NULL);
 
+    /**
+     * @brief Logout of chat servers invalidating the session
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT
+     *
+     * After calling \c logout, the subsequent call to MegaChatApi::init expects to
+     * have a new session created by MegaApi::login.
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
     void logout(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Logout of chat servers without invalidating the session
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT
+     *
+     * After calling \c localLogout, the subsequent call to MegaChatApi::init expects to
+     * have an already existing session created by MegaApi::fastLogin(session)
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void localLogout(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Set your online status.
@@ -975,10 +1002,13 @@ public:
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief This method should be called when a chat is opened.
+     * @brief This method should be called when a chat is opened
+     *
+     * The second parameter is the listener that will receive notifications about
+     * events related to the specified chatroom.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param listener MegaChatRequestListener to track this request
+     * @param listener MegaChatRoomListener to track events on this chatroom
      */
     void openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
 

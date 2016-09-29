@@ -76,7 +76,6 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi, bool resumeSe
     this->chatApi = chatApi;
     this->megaApi = megaApi;
     this->resumeSession = resumeSession;
-    this->loggedOut = false;    // init() is always called after MegaApi::login()
 
     sdkMutex.init(true);
 
@@ -123,13 +122,6 @@ void MegaChatApiImpl::loop()
 
         sendPendingEvents();
         sendPendingRequests();
-
-        if (loggedOut)
-        {
-            delete mClient;
-            mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline, false);
-            continue;
-        }
 
         if (threadExit)
         {
@@ -210,15 +202,21 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOGOUT:
         {
-            mClient->terminate()
-            .then([this]()
+            mClient->terminate(request->getFlag())
+            .then([request, this]()
             {
                 KR_LOG_INFO("Chat engine is logged out!");
-                loggedOut = true;
+
+                delete mClient;
+                mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline, request->getFlag());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([](const promise::Error& err)
+            .fail([request, this](const promise::Error& e)
             {
-                KR_LOG_ERROR("Error logging out of chat engine: ", err.what());
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                fireOnChatRequestFinish(request, megaChatError);
             });
             break;
         }
@@ -859,6 +857,15 @@ void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 void MegaChatApiImpl::logout(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOGOUT, listener);
+    request->setFlag(true);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::localLogout(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOGOUT, listener);
+    request->setFlag(false);
     requestQueue.push(request);
     waiter->notify();
 }
