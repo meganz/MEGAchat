@@ -679,6 +679,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
         return promise::Promise<void>();
     }
     isTerminating = true;
+    api.sdk.removeGlobalListener(this);
     if (mReconnectConnStateHandler)
     {
         conn->removeConnStateHandler(mReconnectConnStateHandler);
