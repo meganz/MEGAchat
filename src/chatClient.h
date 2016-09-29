@@ -427,7 +427,21 @@ public:
     const std::string* getUserEmail(uint64_t userid) const;
     /** @endcond */
 };
-
+/** @brief The karere Client object. Create an instance to use Karere.
+ *
+ *  A sequence of how the client has to be initialized:
+ *  1. create a new MegaApi instance of the Mega SDK
+ *  2. create a new karere::Client instance and pass it the Mega SDK instance
+ *  3. Call MegaApi::login() and wait for completion
+ *  4. Call MegaApi::fetchnodes() and wait for completion
+ *     [at this stage, cloud storage apps show the main GUI, but apps with
+ *      with chat enabled are not ready to be shown yet]
+ *  5. Call karere::Client::init() to initialize the chat engine.
+ *     [at this stage, a chat-enabled app can load chatrooms and history
+ *      from the local karere cache db, and can operate in offline mode]
+ *  6. Call karere::Client::connect() and wait for completion
+ *  7. The app is ready to operate
+ */
 class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener
 {
 /** @cond PRIVATE */
