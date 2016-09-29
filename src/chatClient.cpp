@@ -1166,7 +1166,6 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
     addMissingRoomsFromApi(*rooms);
     for (int i=0; i<rooms->size(); i++)
     {
-        //FIXME: make MegaTextChatRoomList::get() return non-const object
         std::shared_ptr<::mega::MegaTextChat> room(rooms->get(i)->copy());
         auto chatid = room->getHandle();
         auto it = find(chatid);
