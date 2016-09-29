@@ -98,6 +98,11 @@ void MegaChatApi::connect(MegaChatRequestListener *listener)
     pImpl->connect(listener);
 }
 
+void MegaChatApi::logout(MegaChatRequestListener *listener)
+{
+    pImpl->logout(listener);
+}
+
 //MegaChatApi::MegaChatApi(const char *appKey, const char *appDir)
 //{
 //    this->pImpl = new MegaChatApiImpl(this, appKey, appDir);

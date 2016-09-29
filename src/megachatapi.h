@@ -341,6 +341,7 @@ public:
         TYPE_INITIALIZE,// initialize local cache with SDK cache and loads chats
         TYPE_CONNECT,   // connect to chatd (call it after login+fetchnodes with MegaApi)
         TYPE_DELETE,    // delete MegaChatApi instance
+        TYPE_LOGOUT,    // delete existing Client and creates a new one
         TYPE_SET_ONLINE_STATUS,
         TYPE_START_CHAT_CALL, TYPE_ANSWER_CHAT_CALL,
         TYPE_MUTE_CHAT_CALL, TYPE_HANG_CHAT_CALL,
@@ -471,7 +472,7 @@ public:
  * @brief Interface to receive information about requests
  *
  * All requests allows to pass a pointer to an implementation of this interface in the last parameter.
- * You can also get information about all requests using MegaApi::addRequestListener
+ * You can also get information about all requests using MegaChatApi::addChatRequestListener
  *
  * MegaListener objects can also receive information about requests
  *
@@ -767,6 +768,8 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void connect(MegaChatRequestListener *listener = NULL);
+
+    void logout(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Set your online status.

@@ -64,14 +64,16 @@ public:
     MegaSdkTest();
     void start();
     void terminate();
+    void resetSession();
+
+    string email[2];
+    string pwd[2];
+    char *session;
 
 private:
     MegaApi* megaApi[2];
     MegaChatApi* megaChatApi[2];
 
-    string email[2];
-    string pwd[2];
-    char *session;
 
     int lastError[2];
 

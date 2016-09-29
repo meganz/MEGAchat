@@ -513,6 +513,7 @@ private:
     mega::MegaWaiter *waiter;
     mega::MegaThread thread;
     int threadExit;
+    bool loggedOut;
     static void *threadEntryPoint(void *param);
     void loop();
 
@@ -604,6 +605,8 @@ public:
     // General chat methods
     void init(MegaChatRequestListener *listener = NULL);
     void connect(MegaChatRequestListener *listener = NULL);
+    void logout(MegaChatRequestListener *listener = NULL);
+
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);

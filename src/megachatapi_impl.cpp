@@ -76,6 +76,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi, bool resumeSe
     this->chatApi = chatApi;
     this->megaApi = megaApi;
     this->resumeSession = resumeSession;
+    this->loggedOut = false;    // init() is always called after MegaApi::login()
 
     sdkMutex.init(true);
 
@@ -109,7 +110,7 @@ void MegaChatApiImpl::loop()
     // karere initialization
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
-    this->mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline, resumeSession);
+    mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), Presence::kOnline, resumeSession);
 
     while (true)
     {
@@ -120,16 +121,21 @@ void MegaChatApiImpl::loop()
 
         sdkMutex.lock();
 
-        sendPendingRequests();
         sendPendingEvents();
+        sendPendingRequests();
 
-        if(threadExit)
+        if (loggedOut)
+        {
+            delete mClient;
+            mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline, false);
+            continue;
+        }
+
+        if (threadExit)
+        {
             break;
+        }
     }
-
-    sdkMutex.lock();
-    delete mClient;
-    sdkMutex.unlock();
 
     rtcModule::globalCleanup();
     services_shutdown();
@@ -200,6 +206,20 @@ void MegaChatApiImpl::sendPendingRequests()
                 fireOnChatRequestFinish(request, megaChatError);
             });
 
+            break;
+        }
+        case MegaChatRequest::TYPE_LOGOUT:
+        {
+            mClient->terminate()
+            .then([this]()
+            {
+                KR_LOG_INFO("Chat engine is logged out!");
+                loggedOut = true;
+            })
+            .fail([](const promise::Error& err)
+            {
+                KR_LOG_ERROR("Error logging out of chat engine: ", err.what());
+            });
             break;
         }
         case MegaChatRequest::TYPE_DELETE:
@@ -549,7 +569,9 @@ void MegaChatApiImpl::sendPendingEvents()
     void *msg;
     while((msg = eventQueue.pop()))
     {
+        sdkMutex.lock();
         megaProcessMessage(msg);
+        sdkMutex.unlock();
     }
 }
 
@@ -830,6 +852,13 @@ void MegaChatApiImpl::init(MegaChatRequestListener *listener)
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::logout(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOGOUT, listener);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -1440,6 +1469,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
     switch(type)
     {
         case TYPE_DELETE: return "DELETE";
+        case TYPE_LOGOUT: return "LOGOUT";
         case TYPE_CONNECT: return "CONNECT";
         case TYPE_INITIALIZE: return "INITIALIZE";
         case TYPE_SET_ONLINE_STATUS: return "SET_CHAT_STATUS";
@@ -2027,7 +2057,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     if (group)
     {
         GroupChatRoom &groupchat = (GroupChatRoom&) chat;
-
         GroupChatRoom::MemberMap peers = groupchat.peers();
 
         GroupChatRoom::MemberMap::iterator it;

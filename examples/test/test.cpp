@@ -18,9 +18,16 @@ int main(int argc, char **argv)
 
     MegaSdkTest test;
     test.start();
-    sleep(3000);
+    sleep(20);
 
-    test.terminate();
+    // login with another account
+    test.email[0] = test.email[1];
+    test.pwd[0] = test.pwd[1];
+
+    test.start();
+    sleep(20);
+
+    test.resetSession();
     sleep(5);
 
     // now with session
@@ -43,6 +50,7 @@ MegaSdkTest::MegaSdkTest()
 
     // do some initialization
     megaApi[0] = megaApi[1] = NULL;
+    megaChatApi[0] = megaChatApi[1] = NULL;
     session = NULL;
 
     char *buf = getenv("MEGA_EMAIL");
@@ -62,6 +70,14 @@ MegaSdkTest::MegaSdkTest()
         cout << "Set your password at the environment variable $MEGA_PWD" << endl;
         exit(-1);
     }
+
+    buf = getenv("MEGA_EMAIL_AUX");
+    if (buf)
+        email[1].assign(buf);
+
+    buf = getenv("MEGA_PWD_AUX");
+    if (buf)
+        pwd[1].assign(buf);
 }
 
 /**
@@ -84,22 +100,28 @@ MegaSdkTest::MegaSdkTest()
 void MegaSdkTest::start()
 {
     // 1. Create MegaApi instance
-    char path[1024];
-    getcwd(path, sizeof path);
-    megaApi[0] = new MegaApi(APP_KEY.c_str(), path, USER_AGENT.c_str());
+    if (!megaApi[0])
+    {
+        char path[1024];
+        getcwd(path, sizeof path);
+        megaApi[0] = new MegaApi(APP_KEY.c_str(), path, USER_AGENT.c_str());
 
-    megaApi[0]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
-    megaApi[0]->addRequestListener(this);
-    megaApi[0]->log(MegaApi::LOG_LEVEL_INFO, "___ Initializing tests for chat ___");
+        megaApi[0]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
+        megaApi[0]->addRequestListener(this);
+        megaApi[0]->log(MegaApi::LOG_LEVEL_INFO, "___ Initializing tests for chat ___");
+    }
 
     // 2. Create MegaChatApi instance
-    megaChatApi[0] = new MegaChatApi(megaApi[0], session);
+    if (!megaChatApi[0])
+    {
+        megaChatApi[0] = new MegaChatApi(megaApi[0], session);
 
-    megaChatApi[0]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
-    megaChatApi[0]->addChatRequestListener(this);
-    megaChatApi[0]->addChatListener(this);
-    signal(SIGINT, sigintHandler);
-    megaApi[0]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");
+        megaChatApi[0]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
+        megaChatApi[0]->addChatRequestListener(this);
+        megaChatApi[0]->addChatListener(this);
+        signal(SIGINT, sigintHandler);
+        megaApi[0]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");
+    }
 
     // 3. Login into the user account and fetchnodes (launched in the login callback)
     if (!session)
@@ -117,6 +139,12 @@ void MegaSdkTest::terminate()
 {
     delete megaChatApi[0];
     delete megaApi[0];
+}
+
+void MegaSdkTest::resetSession()
+{
+    delete [] session;
+    session = NULL;
 }
 
 MegaLoggerSDK::MegaLoggerSDK(const char *filename)
@@ -197,7 +225,6 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
         if (e->getErrorCode() == MegaChatError::ERROR_OK)
         {
             KR_LOG_DEBUG("Online status changed successfully.");
-            session = megaApi[0]->dumpSession();
 
             chats = megaChatApi[apiIndex]->getChatRooms();
             if (chats->size() > 0)
@@ -209,7 +236,8 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
             }
             for (int i = 0; i < chats->size(); i++)
             {
-                KR_LOG_DEBUG("Chat %d", chats->get(i)->getChatId());
+                const MegaChatRoom *chatroom = chats->get(i);
+                KR_LOG_DEBUG("Chatid: %d, peercount: %d", chatroom->getChatId(), chatroom->getPeerCount());
             }
         }
         else
@@ -226,6 +254,17 @@ void MegaSdkTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, Me
         else
         {
             KR_LOG_ERROR("Cannot get more history: %s (%d)", e->getErrorString(), e->getErrorCode());
+        }
+        break;
+
+    case MegaChatRequest::TYPE_LOGOUT:
+        if (e->getErrorCode() == MegaChatError::ERROR_OK)
+        {
+            KR_LOG_DEBUG("Chat engine has been logged out.");
+        }
+        else
+        {
+            KR_LOG_ERROR("Error logging out from chat engine: %s (%d)", e->getErrorString(), e->getErrorCode());
         }
         break;
 
@@ -271,6 +310,9 @@ void MegaSdkTest::onMessageLoaded(MegaChatApi *api, MegaChatMessage *msg)
         // send a message
         string message = "Hi there, this is a test";
         api->sendMessage(chatid, message.c_str(), message.size(), MegaChatMessage::TYPE_NORMAL, NULL);
+
+        // logout
+        megaApi[0]->logout();
     }
 }
 
@@ -316,7 +358,20 @@ void MegaSdkTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError 
     case MegaRequest::TYPE_FETCH_NODES:
         if (e->getErrorCode() == API_OK)
         {
+            session = megaApi[0]->dumpSession();
             megaChatApi[apiIndex]->init();
+        }
+        break;
+
+    case MegaRequest::TYPE_LOGOUT:
+        if (e->getErrorCode() == API_OK)
+        {
+            if (session)
+            {
+                delete [] session;
+                session = NULL;
+                megaChatApi[apiIndex]->logout();
+            }
         }
         break;
     }
