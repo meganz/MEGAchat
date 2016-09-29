@@ -1156,11 +1156,11 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
     for (int i=0; i<rooms->size(); i++)
     {
         //FIXME: make MegaTextChatRoomList::get() return non-const object
-        ::mega::MegaTextChat& room = *((::mega::MegaTextChat*)rooms->get(i));
-        auto chatid = room.getHandle();
+        std::shared_ptr<::mega::MegaTextChat> room(rooms->get(i)->copy());
+        auto chatid = room->getHandle();
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
-        auto priv = room.getOwnPrivilege();
+        auto priv = room->getOwnPrivilege();
         if (localRoom)
         {
             if (priv == chatd::PRIV_NOTPRESENT) //we were removed by someone else
@@ -1171,13 +1171,13 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             else
             {   //we have the room, there maybe is some change on room properties
                 client.api.call(&mega::MegaApi::getUrlChat, chatid)
-                .then([this, chatid, rooms, &room](ReqResult result)
+                .then([this, chatid, room](ReqResult result)
                 {
                     auto it = find(chatid);
                     if (it == end())
                         return;
-                    room.setUrl(result->getLink());
-                    it->second->syncWithApi(room);
+                    room->setUrl(result->getLink());
+                    it->second->syncWithApi(*room);
                 });
             }
         }
@@ -1188,10 +1188,10 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                 //we are in the room, add it to local cache
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
                 client.api.call(&mega::MegaApi::getUrlChat, chatid)
-                .then([this, chatid, rooms, &room](ReqResult result)
+                .then([this, chatid, room](ReqResult result)
                 {
-                    room.setUrl(result->getLink());
-                    auto& createdRoom = addRoom(room);
+                    room->setUrl(result->getLink());
+                    auto& createdRoom = addRoom(*room);
                     client.app.notifyInvited(createdRoom);
                 });
             }
