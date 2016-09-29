@@ -122,16 +122,23 @@ int main(int argc, char **argv)
 void AppDelegate::onAppTerminate()
 {
     gClient->terminate()
+    .then([this]()
+    {
+        return gSdk->localLogout(nullptr);
+    })
     .fail([](const promise::Error& err)
     {
         KR_LOG_ERROR("Error logging out the Mega client: ", err.what());
     })
     .then([this]()
     {
-        qApp->quit(); //stop processing marshalled call messages
-        gClient.reset();
-        rtcModule::globalCleanup();
-        services_shutdown();
+
+        marshallCall([]() //post destruction asynchronously so that all pending messages get processed before that
+        {
+            qApp->quit(); //stop processing marshalled call messages
+            gClient.reset();
+            karere::globalCleanup();
+        });
     });
 }
 #include <main.moc>

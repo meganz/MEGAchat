@@ -320,8 +320,9 @@ promise::Promise<void> Client::init()
         return initWithNewSession();
     }
 }
-
-sqlite3 *Client::reinitDb()
+//TODO: We should actually wipe the whole app dir, but the log file may
+//be in that dir, and it is in use
+void Client::wipeDb()
 {
     if (db)
     {
@@ -333,7 +334,12 @@ sqlite3 *Client::reinitDb()
     struct stat info;
     if (stat(path.c_str(), &info) == 0)
         throw std::runtime_error("reinitDb: Could not delete old database file "+path);
+}
 
+sqlite3 *Client::reinitDb()
+{
+    wipeDb();
+    std::string path = mAppDir+"/karere.db";
     int ret = sqlite3_open(path.c_str(), &db);
     if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+path);
@@ -665,7 +671,7 @@ void Client::notifyNetworkOnline()
     mReconnectController->restart();
 }
 
-promise::Promise<void> Client::terminate()
+promise::Promise<void> Client::terminate(bool deleteDb)
 {
     if (isTerminating)
     {
@@ -683,18 +689,22 @@ promise::Promise<void> Client::terminate()
     if (rtc)
         rtc->hangupAll();
     chatd.reset();
-    sqlite3_close(db);
+    if (deleteDb)
+    {
+        wipeDb();
+    }
+    else
+    {
+        sqlite3_close(db);
+        db = nullptr;
+    }
     promise::Promise<void> pms;
     conn->disconnect(2000)
     //resolve output promise asynchronously, because the callbacks of the output
     //promise may free the client, and the resolve()-s of the input promises
     //(mega and conn) are within the client's code, so any code after the resolve()s
     //that tries to access the client will crash
-    .then([this, pms](int) mutable
-    {
-        return api.call(&::mega::MegaApi::localLogout);
-    })
-    .then([pms](ReqResult result) mutable
+    .then([pms](int) mutable
     {
         marshallCall([pms]() mutable { pms.resolve(); });
     })
