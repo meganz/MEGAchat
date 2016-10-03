@@ -274,14 +274,14 @@ public:
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
-    //virtual void onDestroy();
+    virtual void onDestroy();
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb);
     virtual void onHistoryDone(bool isFromDb);
-    //virtual void onUnsentMsgLoaded(Message& msg) ;
-    //virtual void onUnsentEditLoaded(Message& msg, bool oriMsgIsSending) ;
+    //virtual void onUnsentMsgLoaded(chatd::Message& msg) ;
+    //virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending) ;
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx);
-    //virtual void onMessageRejected(const Message& msg);
+    virtual void onMessageRejected(const chatd::Message& msg);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     //virtual void onMessageEdited(const Message& msg, Idx idx);
     //virtual void onEditRejected(const Message& msg, uint8_t opcode);
@@ -289,9 +289,9 @@ public:
     virtual void onUserJoin(karere::Id userid, chatd::Priv privilege);
     virtual void onUserLeave(karere::Id userid);
     virtual void onUnreadChanged();
-    //virtual void onManualSendRequired(Message* msg, uint64_t id, int reason);
-    //virtual void onHistoryTruncated(const Message& msg, Idx idx);
-    //virtual void onMsgOrderVerificationFail(const Message& msg, Idx idx, const std::string& errmsg);
+    //virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, int reason);
+    //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
+    //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
 
 
 protected:
@@ -301,6 +301,7 @@ private:
     MegaChatHandle chatid;
 
     chatd::Chat *mChat;
+    karere::ChatRoom *mRoom;
 };
 
 class LoggerHandler : public karere::Logger::ILoggerBackend
@@ -437,6 +438,7 @@ public:
     // MegaChatMessage interface
     virtual int getStatus() const;
     virtual MegaChatHandle getMsgId() const;
+    virtual MegaChatHandle getTempId() const;
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual Type getType() const;
@@ -447,6 +449,8 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     void setStatus(int status);
+    void setTempId(MegaChatHandle tempId);
+    void setContentChanged();
 
 
 private:
@@ -454,9 +458,10 @@ private:
 
     Type type;
     int status;
-    MegaChatHandle msgId;
+    MegaChatHandle msgId;   // definitive unique ID given by server
+    MegaChatHandle tempId;  // used until it's given a definitive ID by server
     MegaChatHandle uh;
-    int index;
+    int index;              // position within the history buffer
     int64_t ts;
     char *msg;
 };
@@ -557,6 +562,7 @@ public:
     void removeChatRoomHandler(MegaChatHandle chatid);
 
     karere::ChatRoom *findChatRoom(MegaChatHandle chatid);
+    chatd::Message *findMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
     // ============= Listeners ================
 

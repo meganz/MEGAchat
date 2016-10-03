@@ -594,6 +594,11 @@ MegaChatHandle MegaChatMessage::getMsgId() const
     return INVALID_HANDLE;
 }
 
+MegaChatHandle MegaChatMessage::getTempId() const
+{
+    return INVALID_HANDLE;
+}
+
 int MegaChatMessage::getMsgIndex() const
 {
     return 0;

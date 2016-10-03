@@ -31,6 +31,7 @@ namespace megachat
 {
 
 typedef uint64_t MegaChatHandle;
+typedef int32_t MegaChatIndex;
 
 /**
  * @brief INVALID_HANDLE Invalid value for a handle
@@ -40,6 +41,7 @@ typedef uint64_t MegaChatHandle;
  *
  */
 const MegaChatHandle INVALID_HANDLE = ~(MegaChatHandle)0;
+const MegaChatIndex INVALID_INDEX = ~(MegaChatIndex)0;
 
 class MegaChatApi;
 class MegaChatApiImpl;
@@ -240,8 +242,8 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS          = 0x01/*,
-        CHANGE_TYPE_UNREAD_COUNT    = 0x02,
+        CHANGE_TYPE_STATUS          = 0x01,
+        CHANGE_TYPE_CONTENT         = 0x02/*,
         CHANGE_TYPE_PARTICIPANTS    = 0x04,
         CHANGE_TYPE_TITLE           = 0x08,
         CHANGE_TYPE_CHAT_STATE      = 0x10
@@ -266,6 +268,15 @@ public:
      * @return MegaChatHandle that identifies the message in this chatroom
      */
     virtual MegaChatHandle getMsgId() const;
+
+    /**
+     * @brief Returns the temporal identifier of the message
+     *
+     * Once the message is confirmed by the server, this identifier should not be used.
+     *
+     * @return MegaChatHandle that temporary identifies the message until its confirmation
+     */
+    virtual MegaChatHandle getTempId() const;
 
     /**
      * @brief Returns the index of the message in the loaded history
@@ -1026,7 +1037,7 @@ public:
      * @brief Initiates fetching more history of the specified chatroom.
      *
      * The loaded messages will be notified one by one through the MegaChatRoomListener
-     * specified at MegaChatApi::openChatRoom (and through any other listener you have
+     * specified at MegaChatApi::openChatRoom (and through any other listener you may have
      * registered by calling MegaChatApi::addChatRoomListener).
      *
      * The corresponding callback is MegaChatRoomListener::onMessageLoaded.
@@ -1058,10 +1069,17 @@ public:
     /**
      * @brief Sends a new message to the specified chatroom
      *
-     * The MegaChatMessage object returned by this function includes a message id that is
-     * not the definitive id, which will be assigned by the server. When the server confirms
-     * the reception of the message, the MegaChatRoomListener::onMessageUpdate is called,
-     * including the real id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId()
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to INVALID_HANDLE.
      *
      * You take the ownership of the returned value.
      *
@@ -1427,7 +1445,20 @@ public:
      */
     virtual void onMessageReceived(MegaChatApi* api, MegaChatMessage *msg);
 
-    virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);   // new or updated
+    /**
+     * @brief This function is called when an existing message is updated
+     *
+     * i.e. When a submitted message is confirmed by the server, the status chages
+     * to MegaChatMessage::STATUS_SERVER_RECEIVED and its message id is considered definitive.
+     *
+     * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
+     * object will be valid until this function returns. If you want to save the MegaChatMessage object,
+     * use MegaChatMessage::copy for the message.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msg MegaChatMessage representing the updated message
+     */
+    virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);
 };
 
 }

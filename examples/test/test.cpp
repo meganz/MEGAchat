@@ -59,7 +59,7 @@ int main(int argc, char **argv)
         // 6. Open a chatroom
         TestChatRoomListener *chatroomListener = new TestChatRoomListener;
         MegaChatHandle chatid = megachat::INVALID_HANDLE;
-        chatid = (chats->size() > 0) ? chats->get(0)->getChatId() : megachat::INVALID_HANDLE;
+        chatid = (chats->size() > 0) ? chats->get(i)->getChatId() : megachat::INVALID_HANDLE;
         t.megaChatApi[0]->openChatRoom(chatid, chatroomListener);
 
         // 7. Load history
