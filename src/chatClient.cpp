@@ -324,7 +324,6 @@ promise::Promise<void> Client::init(bool useCache)
         return promise::Error(e.what());
     }
 }
-
 //TODO: We should actually wipe the whole app dir, but the log file may
 //be in that dir, and it is in use
 void Client::wipeDb()
