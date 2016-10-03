@@ -58,12 +58,15 @@ void Client::sendPong(const std::string& peerJid, const std::string& messageId)
     conn->send(pong);
 }
 
+/* Warning - the database is not initialzed at construction, but only after
+ * init() is called. Therefore, no code in this constructor should access or
+ * depend on the database
+ */
 Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir,
-               Presence pres, bool existingCache)
- :mAppDir(appDir), mCacheExisted(existingCache),
-  db(mCacheExisted ? openDb() : reinitDb()),
+               Presence pres)
+ :mAppDir(appDir),
   conn(new strophe::Connection(services_strophe_get_ctx())),
-  api(sdk), userAttrCache(*this), app(aApp),
+  api(sdk), app(aApp),
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
   mOwnPresence(pres),
@@ -126,9 +129,16 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
     return path;
 }
 
-sqlite3* Client::openDb()
+std::string Client::dbPath() const
 {
-    std::string path = mAppDir+"/karere.db";
+    std::string path = mAppDir;
+    path.append("/karere-").append(mSid).append(".db");
+    return path;
+}
+
+void Client::openDb()
+{
+    std::string path = dbPath();
     struct stat info;
     bool existed = (stat(path.c_str(), &info) == 0);
     int ret = sqlite3_open(path.c_str(), &db);
@@ -139,22 +149,10 @@ sqlite3* Client::openDb()
         KR_LOG_WARNING("Initializing local database, did not exist");
         createDatabase(db);
     }
-    else
-    {
-        SqliteStmt stmt(db, "select value from vars where name='sid'");
-        if (!stmt.step() || (mSid = stmt.stringCol(0)).empty())
-        {
-            KR_LOG_ERROR("No sid in local cache database, re-creating it");
-            reinitDb();
-        }
-    }
-    return db;
 }
 
 void Client::createDatabase(sqlite3*& database)
 {
-    mCacheExisted = false;
-    mSid.clear();
     mMyHandle = Id::null();
     MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
     int ret = sqlite3_exec(database, gKarereDbSchema, nullptr, nullptr, errmsg.handlePtr());
@@ -217,18 +215,19 @@ promise::Promise<ReqResult> Client::sdkLoginNewSession()
         return ret;
     });
 }
-promise::Promise<ReqResult> Client::sdkLoginExistingSession(const std::string& sid)
+promise::Promise<ReqResult> Client::sdkLoginExistingSession(const char* sid)
 {
-    return api.call(&::mega::MegaApi::fastLogin, sid.c_str())
+    assert(sid);
+    return api.call(&::mega::MegaApi::fastLogin, sid)
     .then([this](ReqResult)
     {
         return api.call(&::mega::MegaApi::fetchNodes);
     });
 }
 
-promise::Promise<void> Client::loginSdkAndInit()
+promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
-    if (!mCacheExisted)
+    if (!sid)
     {
         return sdkLoginNewSession()
         .then([this](ReqResult)
@@ -238,8 +237,7 @@ promise::Promise<void> Client::loginSdkAndInit()
     }
     else
     {
-        assert(!mSid.empty());
-        return sdkLoginExistingSession(mSid)
+        return sdkLoginExistingSession(sid)
         .then([this](ReqResult)
         {
             initWithExistingSession();
@@ -262,12 +260,13 @@ promise::Promise<void> Client::initWithNewSession()
     const char* sid = api.sdk.dumpSession();
     assert(sid);
 
-    reinitDb();
     mSid = sid;
-    sqliteQuery(db, "insert or replace into vars(name,value) values('sid',?)", sid);
+    reinitDb();
 
     mMyHandle = getMyHandleFromSdk();
     sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
+
+    mUserAttrCache.reset(new UserAttrCache(*this));
 
     return loadOwnKeysFromApi()
     .then([this]()
@@ -285,19 +284,18 @@ promise::Promise<void> Client::initWithNewSession()
     });
 }
 
-void Client::initWithExistingSession()
+promise::Promise<void> Client::initWithExistingSession()
 {
-    const char* sid = api.sdk.dumpSession();
-    assert(sid);
-    if (mSid != sid)
-        throw std::runtime_error("initWithExistingSession: sid from db does not match the one from SDK");
-
+    const char* sdkSid = api.sdk.dumpSession();
+    assert(sdkSid);
+    mSid = sdkSid;
+    openDb();
+    mUserAttrCache.reset(new UserAttrCache(*this));
     Id sdkHandle = getMyHandleFromSdk();
     Id dbHandle = getMyHandleFromDb();
     if (sdkHandle != dbHandle)
         throw std::runtime_error("initWithExistingSession: own handle from db does not matche the one from SDK");
 
-    mSid = sid;
     mMyHandle = sdkHandle;
 
     loadOwnKeysFromDb();
@@ -305,30 +303,37 @@ void Client::initWithExistingSession()
     loadContactListFromApi();
     chatd.reset(new chatd::Client(mMyHandle));
     chats->loadFromDb();
+    return promise::Void();
 }
 
-promise::Promise<void> Client::init()
+promise::Promise<void> Client::init(bool useCache)
 {
-    if (mCacheExisted)
-    {  //sid in db, verify it
-        initWithExistingSession();
-        return promise::Void();
-    }
-    else
+    try
     {
-        //no sid in db
-        return initWithNewSession();
+        if (useCache)
+        {
+            return initWithExistingSession();
+        }
+        else
+        {
+            return initWithNewSession();
+        }
+    }
+    catch(std::exception& e)
+    {
+        //TODO: Handle promise::Exception
+        return promise::Error(e.what());
     }
 }
 
-sqlite3 *Client::reinitDb()
+void Client::reinitDb()
 {
     if (db)
     {
         sqlite3_close(db);
         db = nullptr;
     }
-    std::string path = mAppDir+"/karere.db";
+    std::string path = dbPath();
     remove(path.c_str());
     struct stat info;
     if (stat(path.c_str(), &info) == 0)
@@ -338,7 +343,6 @@ sqlite3 *Client::reinitDb()
     if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+path);
     createDatabase(db);
-    return db;
 }
 
 void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
@@ -390,8 +394,9 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
 promise::Promise<void> Client::connect()
 {
     KR_LOG_DEBUG("Login to Mega API successful");
-    userAttrCache.onLogin();
-    userAttrCache.getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    assert(mUserAttrCache);
+    mUserAttrCache->onLogin();
+    mUserAttrCache->getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* buf, void* userp)
     {
         if (buf)
@@ -794,7 +799,7 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
     if (!aUsers)
         return;
-
+    assert(mUserAttrCache);
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
     marshallCall([this, users]()
     {
@@ -806,7 +811,7 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
             {
                 if (user.isOwnChange() == 0)
                 {
-                    userAttrCache.onUserAttrChange(user);
+                    mUserAttrCache->onUserAttrChange(user);
                 }
             }
             else
@@ -851,7 +856,7 @@ strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
         StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), userAttrCache, db, chatid);
+        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid);
 }
 void ChatRoom::chatdJoin(const karere::SetOfIds& initialUsers)
 {
@@ -1606,7 +1611,7 @@ UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, User
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
 : mRoom(aRoom), mPriv(aPriv)
 {
-    mNameAttrCbHandle = mRoom.parent.client.userAttrCache.getAttr(user, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(user, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* buf, void* userp)
     {
         auto self = static_cast<Member*>(userp);
@@ -1622,7 +1627,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
 }
 GroupChatRoom::Member::~Member()
 {
-    mRoom.parent.client.userAttrCache.removeCb(mNameAttrCbHandle);
+    mRoom.parent.client.userAttrCache().removeCb(mNameAttrCbHandle);
 }
 
 void Client::connectToChatd()
@@ -1795,7 +1800,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     auto appClist = clist.client.app.contactListHandler();
     mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
     updateTitle(email);
-    mUsernameAttrCbId = mClist.client.userAttrCache.getAttr(userid,
+    mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
         mega::MegaApi::USER_ATTR_LASTNAME, this,
         [](Buffer* data, void* userp)
         {
@@ -1827,7 +1832,7 @@ void Contact::updateTitle(const std::string& str)
 
 Contact::~Contact()
 {
-    mClist.client.userAttrCache.removeCb(mUsernameAttrCbId);
+    mClist.client.userAttrCache().removeCb(mUsernameAttrCbId);
     if (mXmppContact)
         mXmppContact->setPresenceListener(nullptr);
 

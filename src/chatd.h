@@ -118,36 +118,43 @@ public:
       * @param idx - The history buffer index at which the message was put
       */
     virtual void onMessageConfirmed(karere::Id msgxid, const Message& msg, Idx idx){}
+
     /** @brief A message was rejected by the server for some reason. As the message is not yet
      * in the history buffer, its \c id() is a msgxid, and \c msg.isSending() is true
      */
     virtual void onMessageRejected(const Message& msg){}
+
     /** @brief A message was delivered, seen, etc. When the seen/received pointers are advanced,
      * this will be called for each message of the pointer-advanced range, so the application
      * doesn't need to iterate over ranges by itself
      */
     virtual void onMessageStatusChange(Idx idx, Message::Status newStatus, const Message& msg){}
-   /** @brief Called when a message edit is received, i.e. MSGUPD is received.
-    * The message is already updated in the history buffer and in the db,
-    * and the GUI should also update it.
-    * \attention If the edited message is not in memory, it is still updated in
-    * the database, but this callback will not be called.
-    * @param msg The edited message
-    * @param idx - the index of the edited message
-    */
+
+    /** @brief Called when a message edit is received, i.e. MSGUPD is received.
+     * The message is already updated in the history buffer and in the db,
+     * and the GUI should also update it.
+     * \attention If the edited message is not in memory, it is still updated in
+     * the database, but this callback will not be called.
+     * @param msg The edited message
+     * @param idx - the index of the edited message
+     */
     virtual void onMessageEdited(const Message& msg, Idx idx){}
+
     /** @brief An edit posted by us was rejected for some reason.
      * @param opcode The chatd code of the operation that was rejected
      */
     virtual void onEditRejected(const Message& msg, uint8_t opcode){}
+
     /** @brief The chatroom connection (to the chatd server shard) state
      * has changed.
      */
     virtual void onOnlineStateChange(ChatState state){}
-     /** @brief A user has joined the room, or their privilege has
-      * changed.
-      */
+
+    /** @brief A user has joined the room, or their privilege has
+     * changed.
+     */
     virtual void onUserJoin(karere::Id userid, Priv privilege){}
+
     /**
      * @brief onUserLeave User has been excluded from the group chat
      * @param userid The userid of the user
@@ -156,6 +163,7 @@ public:
 
     /** @brief Unread message count has changed */
     virtual void onUnreadChanged() {}
+
     /** @brief A message could not be sent automatically, due to some reason.
      * User-initiated retry is required.
      * @param id The send queue id of the message. As the message has no msgid,
@@ -164,6 +172,7 @@ public:
      * @attention Ownership of \c msg is passed to application.
      */
     virtual void onManualSendRequired(Message* msg, uint64_t id, ManualSendReason reason) {}
+
     /**
      * @brief onHistoryTruncated The history of the chat was truncated by someone
      * at the message \c msg.
@@ -173,6 +182,7 @@ public:
      * @param idx - The index of \c msg
      */
     virtual void onHistoryTruncated(const Message& msg, Idx idx) {}
+
     /**
      * @brief onMsgOrderVerificationFail The message ordering check for \c msg has
      * failed. The message may have been tampered.

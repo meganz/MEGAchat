@@ -436,8 +436,8 @@ protected:
 //these must be before the db member, because they are initialized during the init of db member
     Id mMyHandle = mega::UNDEF;
     std::string mSid;
+    std::unique_ptr<UserAttrCache> mUserAttrCache;
 public:
-    bool mCacheExisted;
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
     std::unique_ptr<chatd::Client> chatd;
@@ -445,8 +445,6 @@ public:
     rtcModule::IRtcModule* rtc = nullptr;
     bool isTerminating = false;
     unsigned mReconnectConnStateHandler = 0;
-    std::function<void()> onChatdReady;
-    UserAttrCache userAttrCache;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};
@@ -455,6 +453,7 @@ public:
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
     std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
+    UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     bool contactsLoaded() const { return mContactsLoaded; }
     std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
     /** @endcond PRIVATE */
@@ -492,7 +491,7 @@ public:
      * delete the karere.db file and re-create it from scratch.
      */
     Client(::mega::MegaApi& sdk, IApp& app, const std::string& appDir,
-           Presence pres, bool existingCache);
+           Presence pres);
 
     virtual ~Client();
 
@@ -511,38 +510,42 @@ public:
      * identified by \c sid. This is to be used in a standalone chat app where
      * there is no existing code that logs in the Mega SDK instance.
      */
-    promise::Promise<ReqResult> sdkLoginExistingSession(const std::string& sid);
+    promise::Promise<ReqResult> sdkLoginExistingSession(const char* sid);
 
     /** @brief Performs karere-only login, assuming the Mega SDK is already logged in
      * with an existing session.
+     * @param sid - The session id with which the Mega SDK is logged it
      */
-    void initWithExistingSession();
+    promise::Promise<void> initWithExistingSession();
 
     /** @brief Performs karere-only login, assuming the Mega SDK is already logged
      * in with a new session
      */
     promise::Promise<void> initWithNewSession();
     /**
-     * @brief init Initializes karere via calling initWithNewSession() or initWithExistingSession();
-     * depending on whether there is a karere cache existing and matches the
-     * sid of the SDK
+     * @brief init Initializes karere, opening or creating the local db cache
+     * @param sid The mega session id with which the SDK is logged in.
+     * If it is not NULL, then an existing db cache is supposed
+     * to be existing for that sid, and an attempt is made to load it. If load
+     * fails, the cache db is created and initialized.
+     * If sid is NULL, then a karere cache for that session is not supposed
+     * to exist, and even if it does exist, it is wiped out. The cache db
+     * is created and initialized from scratch.
      */
-    promise::Promise<void> init();
+    promise::Promise<void> init(bool useCache);
 
     /** @brief Does the actual connection to chatd, xmpp and gelb. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initNewSession() or \c initExistingSession() completes */
     promise::Promise<void> connect();
 
-    /** @brief A convenience method that logs in the Mega SDK, by checking
-     * the karere cache if there is a cached session - if there is, it calls
-     * \c sdkLoginExistingSession(), otherwise \c sdkLoginNewSession(). Then inits
-     * the karere client in the corresponding way (with or without existing
-     * session).
-     * This can be used when building a standalone chat app where there is no app
-     * code that logs in the Mega SDK.
+    /** @brief A convenience method that logs in the Mega SDK and then inits
+     * karere. This can be used when building a standalone chat app where there
+     * is no app code that logs in the Mega SDK.
+     * @param sid - The mega session id with which to log in the SDK and init
+     * karere. If it is NULL, then a new SDK session is created.
      */
-    promise::Promise<void> loginSdkAndInit();
+    promise::Promise<void> loginSdkAndInit(const char* sid);
 
     /** @brief Notifies the client that network connection is down */
     void notifyNetworkOffline();
@@ -613,8 +616,9 @@ protected:
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
     std::unique_ptr<rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
-    sqlite3* openDb();
-    sqlite3* reinitDb();
+    std::string dbPath() const;
+    void openDb();
+    void reinitDb();
     void createDatabase(sqlite3*& database);
     void connectToChatd();
     karere::Id getMyHandleFromDb();
