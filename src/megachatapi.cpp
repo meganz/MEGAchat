@@ -183,6 +183,16 @@ MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg
     return pImpl->sendMessage(chatid, msg, msglen, type, userp);
 }
 
+MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msglen, void *userp)
+{
+    return pImpl->editMessage(chatid, msgid, msg, msglen, userp);
+}
+
+MegaChatMessage *MegaChatApi::deleteMessage(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    return pImpl->editMessage(chatid, msgid, NULL, 0, NULL);
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();

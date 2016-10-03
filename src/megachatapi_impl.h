@@ -283,8 +283,8 @@ public:
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx);
     virtual void onMessageRejected(const chatd::Message& msg);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
-    //virtual void onMessageEdited(const Message& msg, Idx idx);
-    //virtual void onEditRejected(const Message& msg, uint8_t opcode);
+    virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
+    virtual void onEditRejected(const chatd::Message& msg, uint8_t opcode);
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUserJoin(karere::Id userid, chatd::Priv privilege);
     virtual void onUserLeave(karere::Id userid);
@@ -631,6 +631,7 @@ public:
     void getMessages(MegaChatHandle chatid, int count);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msglen, MegaChatMessage::Type type, void* userp);
+    MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msglen, void* userp);
 
     // Audio/Video devices
     mega::MegaStringList *getChatAudioInDevices();

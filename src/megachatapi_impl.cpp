@@ -1098,6 +1098,27 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     return megaMsg;    
 }
 
+MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msglen, void *userp)
+{
+    MegaChatMessagePrivate *megaMsg = NULL;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    Message *originalMsg = findMessage(chatid, msgid);
+    const Message *editedMsg = NULL;
+    if (chatroom && originalMsg)
+    {
+        Chat &chat = chatroom->chat();
+        editedMsg = chat.msgModify(*originalMsg, msg, msglen, userp);
+        if (editedMsg)
+        {
+            megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, INVALID_INDEX);
+        }
+    }
+
+    sdkMutex.unlock();
+
     return megaMsg;
 }
 
@@ -1909,6 +1930,23 @@ void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status newStat
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, newStatus, idx);
     message->setStatus(newStatus);
+    chatApi->fireOnMessageUpdate(message);
+}
+
+void MegaChatRoomHandler::onMessageEdited(const chatd::Message &msg, chatd::Idx idx)
+{
+    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_RECEIVED;
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    message->setContentChanged();
+    chatApi->fireOnMessageUpdate(message);
+}
+
+void MegaChatRoomHandler::onEditRejected(const chatd::Message &msg, uint8_t /*opcode*/)
+{
+    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_REJECTED;
+    Idx index = mChat->msgIndexFromId(msg.id());
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, index);
+    message->setStatus(status);
     chatApi->fireOnMessageUpdate(message);
 }
 

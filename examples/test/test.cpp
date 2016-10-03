@@ -74,6 +74,14 @@ int main(int argc, char **argv)
         t.megaChatApi[0]->sendMessage(chatid, msg.c_str(), msg.size(), MegaChatMessage::TYPE_NORMAL, NULL);
         assert(t.waitForResponse(flag));    // for confirmation, sendMessage() is synchronous
 
+        // 9. Edit the sent message
+        MegaChatHandle msgId = chatroomListener->msgId;
+        msg = "Edited message: this is a test";
+        flag = &chatroomListener->msgConfirmed; *flag = false;
+        chatroomListener->msgId = megachat::INVALID_HANDLE;   // will be set at confirmation
+        t.megaChatApi[0]->editMessage(chatid, msgId, msg.c_str(), msg.length(), NULL);
+        assert(t.waitForResponse(flag));
+
         // 10. Close the chatroom
         t.megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
         delete chatroomListener;
@@ -127,7 +135,7 @@ int main(int argc, char **argv)
     t.megaChatApi[0]->init();
     assert(t.waitForResponse(flag));
 
-    // log in the other account, check the message with msgId has arrived
+    // TODO: log in the other account, check the message with msgId has arrived
 
 
     t.terminate();

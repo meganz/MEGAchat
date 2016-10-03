@@ -1094,6 +1094,32 @@ public:
      */
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msglen, MegaChatMessage::Type type, void* userp);
 
+    /**
+     * @brief Edits an existing message
+     *
+     * Message's edits are only allowed during a short timeframe, usually 1 hour.
+     * Message's deletions are equivalent to message's edits, but with empty content.
+     *
+     * There is only one pending edit for not-yet confirmed edits. Therefore, this function will
+     * discard previous edits that haven't been notified via MegaChatRoomListener::onMessageUpdate
+     * where the message has MegaChatMessage::hasChanged(MegaChatMessage::CHANGE_TYPE_CONTENT).
+     *
+     * If the edits is rejected... // TODO:
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     * @param msg New content of the message
+     * @param msglen New length of the message
+     * @param userp An optional user pointer to associate with the message object
+     *
+     * @return MegaChatMessage that will be modified. NULL if the message cannot be edited (too old)
+     */
+    MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msglen, void* userp);
+    MegaChatMessage *deleteMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+
+
     // Audio/Video device management
     mega::MegaStringList *getChatAudioInDevices();
     mega::MegaStringList *getChatVideoInDevices();
