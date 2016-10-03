@@ -150,7 +150,7 @@ void Client::openDb()
         throw std::runtime_error("Can't access application database at "+path);
 }
 
-void Client::createDatabase(sqlite3*& database)
+void Client::createDbSchema(sqlite3*& database)
 {
     mMyHandle = Id::null();
     MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
@@ -260,7 +260,7 @@ promise::Promise<void> Client::initWithNewSession()
     assert(sid);
 
     mSid = sid;
-    reinitDb();
+    createDb();
 
     mMyHandle = getMyHandleFromSdk();
     sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
@@ -337,17 +337,17 @@ void Client::wipeDb()
     remove(path.c_str());
     struct stat info;
     if (stat(path.c_str(), &info) == 0)
-        throw std::runtime_error("reinitDb: Could not delete old database file "+path);
+        throw std::runtime_error("wipeDb: Could not delete old database file in "+mAppDir);
 }
 
-void Client::reinitDb()
+void Client::createDb()
 {
     wipeDb();
     std::string path = dbPath();
     int ret = sqlite3_open(path.c_str(), &db);
     if (ret != SQLITE_OK || !db)
-        throw std::runtime_error("Can't access application database at "+path);
-    createDatabase(db);
+        throw std::runtime_error("Can't access application database at "+mAppDir);
+    createDbSchema(db);
 }
 
 void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)

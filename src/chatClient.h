@@ -509,26 +509,8 @@ public:
 
     virtual ~Client();
 
-    /** @brief A convenience method to log in the associated Mega SDK instance,
-     *  using IApp::ILoginDialog to ask the user/app for credentials. This
-     * method is to be used in a standalone chat app where the SDK instance is not
-     * logged by other code, like for example the qt test app. THe reason this
-     * method does not just accept a user and pass but rather calls back into
-     * ILoginDialog is to be able to update the login progress via ILoginDialog,
-     * and to save the app the management of the dialog, retries in case of
-     * bad credentials etc. This is just a convenience method.
-     */
-    promise::Promise<ReqResult> sdkLoginNewSession();
-
-    /** @brief A convenience method to log the sdk in using an existing session,
-     * identified by \c sid. This is to be used in a standalone chat app where
-     * there is no existing code that logs in the Mega SDK instance.
-     */
-    promise::Promise<ReqResult> sdkLoginExistingSession(const char* sid);
-
     /** @brief Performs karere-only login, assuming the Mega SDK is already logged in
      * with an existing session.
-     * @param sid - The session id with which the Mega SDK is logged it
      */
     promise::Promise<void> initWithExistingSession();
 
@@ -536,15 +518,13 @@ public:
      * in with a new session
      */
     promise::Promise<void> initWithNewSession();
+
     /**
-     * @brief init Initializes karere, opening or creating the local db cache
-     * @param sid The mega session id with which the SDK is logged in.
-     * If it is not NULL, then an existing db cache is supposed
-     * to be existing for that sid, and an attempt is made to load it. If load
-     * fails, the cache db is created and initialized.
-     * If sid is NULL, then a karere cache for that session is not supposed
-     * to exist, and even if it does exist, it is wiped out. The cache db
-     * is created and initialized from scratch.
+     * @brief Initializes karere, opening or creating the local db cache
+     * @param useCache - \c true if the mega SDK was logged in with an existing
+     * session (the karere cache MUST exist in that case, otherwise an
+     * error is returned), or \false if the SDK just created a new session, in which
+     * case the cache db is created and initialized from scratch.
      */
     promise::Promise<void> init(bool useCache);
 
@@ -633,9 +613,9 @@ protected:
     xmpp_ts mLastPingTs = 0;
     std::string dbPath() const;
     void openDb();
-    void reinitDb();
+    void createDb();
     void wipeDb();
-    void createDatabase(sqlite3*& database);
+    void createDbSchema(sqlite3*& database);
     void connectToChatd();
     karere::Id getMyHandleFromDb();
     karere::Id getMyHandleFromSdk();
@@ -647,6 +627,22 @@ protected:
     promise::Promise<void> connectXmpp(const std::shared_ptr<HostPortServerInfo>& server);
     void setupXmppHandlers();
     promise::Promise<int> initializeContactList();
+    /** @brief A convenience method to log in the associated Mega SDK instance,
+     *  using IApp::ILoginDialog to ask the user/app for credentials. This
+     * method is to be used in a standalone chat app where the SDK instance is not
+     * logged by other code, like for example the qt test app. THe reason this
+     * method does not just accept a user and pass but rather calls back into
+     * ILoginDialog is to be able to update the login progress via ILoginDialog,
+     * and to save the app the management of the dialog, retries in case of
+     * bad credentials etc. This is just a convenience method.
+     */
+    promise::Promise<ReqResult> sdkLoginNewSession();
+
+    /** @brief A convenience method to log the sdk in using an existing session,
+     * identified by \c sid. This is to be used in a standalone chat app where
+     * there is no existing code that logs in the Mega SDK instance.
+     */
+    promise::Promise<ReqResult> sdkLoginExistingSession(const char* sid);
 
     /**
      * @brief send response to ping request.
