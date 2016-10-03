@@ -95,13 +95,9 @@ public:
     }
     ~MyMegaApi()
     {
-        //we need to destroy the logger after the base mega::MegaApi, because the MegaApi dtor uses the logger
-        MyMegaLogger* logger = mLogger.release();
-        karere::marshallCall([logger]()
-        {
-            delete logger;
-            KR_LOG_DEBUG("Deleted SDK logger");
-        });
+        sdk.setLoggerObject(nullptr);
+        mLogger.reset();
+        KR_LOG_DEBUG("Deleted SDK logger");
     }
 };
 
