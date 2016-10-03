@@ -132,7 +132,8 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
 std::string Client::dbPath() const
 {
     std::string path = mAppDir;
-    path.append("/karere-").append(mSid).append(".db");
+
+    path.append("/karere-").append(mSid.substr(44)).append(".db");
     return path;
 }
 
@@ -140,15 +141,13 @@ void Client::openDb()
 {
     std::string path = dbPath();
     struct stat info;
-    bool existed = (stat(path.c_str(), &info) == 0);
+    bool exists = (stat(path.c_str(), &info) == 0);
+    if (!exists)
+        throw std::runtime_error("Asked to use local cache, but it does not exist");
+
     int ret = sqlite3_open(path.c_str(), &db);
     if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+path);
-    if (!existed)
-    {
-        KR_LOG_WARNING("Initializing local database, did not exist");
-        createDatabase(db);
-    }
 }
 
 void Client::createDatabase(sqlite3*& database)
@@ -326,7 +325,9 @@ promise::Promise<void> Client::init(bool useCache)
     }
 }
 
-void Client::reinitDb()
+//TODO: We should actually wipe the whole app dir, but the log file may
+//be in that dir, and it is in use
+void Client::wipeDb()
 {
     if (db)
     {
@@ -338,7 +339,12 @@ void Client::reinitDb()
     struct stat info;
     if (stat(path.c_str(), &info) == 0)
         throw std::runtime_error("reinitDb: Could not delete old database file "+path);
+}
 
+void Client::reinitDb()
+{
+    wipeDb();
+    std::string path = dbPath();
     int ret = sqlite3_open(path.c_str(), &db);
     if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+path);
@@ -670,7 +676,7 @@ void Client::notifyNetworkOnline()
     mReconnectController->restart();
 }
 
-promise::Promise<void> Client::terminate()
+promise::Promise<void> Client::terminate(bool deleteDb)
 {
     if (isTerminating)
     {
@@ -678,6 +684,7 @@ promise::Promise<void> Client::terminate()
         return promise::Promise<void>();
     }
     isTerminating = true;
+    api.sdk.removeGlobalListener(this);
     if (mReconnectConnStateHandler)
     {
         conn->removeConnStateHandler(mReconnectConnStateHandler);
@@ -688,18 +695,22 @@ promise::Promise<void> Client::terminate()
     if (rtc)
         rtc->hangupAll();
     chatd.reset();
-    sqlite3_close(db);
+    if (deleteDb)
+    {
+        wipeDb();
+    }
+    else
+    {
+        sqlite3_close(db);
+        db = nullptr;
+    }
     promise::Promise<void> pms;
     conn->disconnect(2000)
     //resolve output promise asynchronously, because the callbacks of the output
     //promise may free the client, and the resolve()-s of the input promises
     //(mega and conn) are within the client's code, so any code after the resolve()s
     //that tries to access the client will crash
-    .then([this, pms](int) mutable
-    {
-        return api.call(&::mega::MegaApi::localLogout);
-    })
-    .then([pms](ReqResult result) mutable
+    .then([pms](int) mutable
     {
         marshallCall([pms]() mutable { pms.resolve(); });
     })
@@ -1160,11 +1171,11 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
     addMissingRoomsFromApi(*rooms);
     for (int i=0; i<rooms->size(); i++)
     {
-        auto& room = *rooms->get(i);
-        auto chatid = room.getHandle();
+        std::shared_ptr<::mega::MegaTextChat> room(rooms->get(i)->copy());
+        auto chatid = room->getHandle();
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
-        auto priv = room.getOwnPrivilege();
+        auto priv = room->getOwnPrivilege();
         if (localRoom)
         {
             if (priv == chatd::PRIV_NOTPRESENT) //we were removed by someone else
@@ -1175,13 +1186,13 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             else
             {   //we have the room, there maybe is some change on room properties
                 client.api.call(&mega::MegaApi::getUrlChat, chatid)
-                .then([this, chatid, rooms, &room](ReqResult result)
+                .then([this, chatid, room](ReqResult result)
                 {
                     auto it = find(chatid);
                     if (it == end())
                         return;
-                    room.setUrl(result->getLink());
-                    it->second->syncWithApi(room);
+                    room->setUrl(result->getLink());
+                    it->second->syncWithApi(*room);
                 });
             }
         }
@@ -1192,10 +1203,10 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                 //we are in the room, add it to local cache
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
                 client.api.call(&mega::MegaApi::getUrlChat, chatid)
-                .then([this, chatid, rooms, &room](ReqResult result)
+                .then([this, chatid, room](ReqResult result)
                 {
-                    room.setUrl(result->getLink());
-                    auto& createdRoom = addRoom(room);
+                    room->setUrl(result->getLink());
+                    auto& createdRoom = addRoom(*room);
                     client.app.notifyInvited(createdRoom);
                 });
             }
@@ -1616,13 +1627,17 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
     {
         auto self = static_cast<Member*>(userp);
         if (buf)
+        {
             self->mName.assign(buf->buf(), buf->dataSize());
-        else if (self->mName.empty())
+        }
+        else
+        {
             self->mName = "\x01?";
-            if (!self->mRoom.hasTitle())
-            {
-                self->mRoom.makeTitleFromMemberNames();
-            }
+        }
+        if (!self->mRoom.hasTitle())
+        {
+            self->mRoom.makeTitleFromMemberNames();
+        }
     });
 }
 GroupChatRoom::Member::~Member()
