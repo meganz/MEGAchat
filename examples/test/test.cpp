@@ -68,18 +68,19 @@ int main(int argc, char **argv)
         assert(t.waitForResponse(flag));
 
         // 8. Send a message and wait for confirmation from server
-        string msg = "This is a testing message automatically sent";
+        string msg = "HOLA - This is a testing message automatically sent";
         flag = &chatroomListener->msgConfirmed; *flag = false;
         chatroomListener->msgId = megachat::INVALID_HANDLE;   // will be set at confirmation
-        t.megaChatApi[0]->sendMessage(chatid, msg.c_str(), msg.size(), MegaChatMessage::TYPE_NORMAL, NULL);
+        t.megaChatApi[0]->sendMessage(chatid, msg.c_str(), msg.size(), MegaChatMessage::TYPE_NORMAL);
         assert(t.waitForResponse(flag));    // for confirmation, sendMessage() is synchronous
+
 
         // 9. Edit the sent message
         MegaChatHandle msgId = chatroomListener->msgId;
         msg = "Edited message: this is a test";
         flag = &chatroomListener->msgConfirmed; *flag = false;
         chatroomListener->msgId = megachat::INVALID_HANDLE;   // will be set at confirmation
-        t.megaChatApi[0]->editMessage(chatid, msgId, msg.c_str(), msg.length(), NULL);
+        t.megaChatApi[0]->editMessage(chatid, msgId, msg.c_str(), msg.length());
         assert(t.waitForResponse(flag));
 
         // 9.1. Delete the message
@@ -334,7 +335,7 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
 
 void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *msg)
 {
-    KR_LOG_DEBUG("New message loaded: %s", msg->getContent());
+        KR_LOG_DEBUG("New message loaded: %s", msg->getContent());
 }
 
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
