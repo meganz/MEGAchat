@@ -1911,7 +1911,7 @@ void MegaChatRoomHandler::onHistoryDone(bool isFromDb)
 
 void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx idx)
 {
-    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_RECEIVED;
+    Message::Status status = mChat->getMsgStatus(msg, idx);
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     message->setStatus(status);
     message->setTempId(msgxid);
@@ -1933,18 +1933,18 @@ void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status newStat
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onMessageEdited(const chatd::Message &msg, chatd::Idx idx)
+void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
 {
-    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_RECEIVED;
+    Message::Status status = mChat->getMsgStatus(msg, idx);
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     message->setContentChanged();
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onEditRejected(const chatd::Message &msg, uint8_t /*opcode*/)
+void MegaChatRoomHandler::onEditRejected(const Message &msg, uint8_t /*opcode*/)
 {
-    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_REJECTED;
     Idx index = mChat->msgIndexFromId(msg.id());
+    Message::Status status = (index != INVALID_INDEX) ? mChat->getMsgStatus(msg, index) : Message::kSending;
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, index);
     message->setStatus(status);
     chatApi->fireOnMessageUpdate(message);
