@@ -41,7 +41,7 @@ typedef int32_t MegaChatIndex;
  *
  */
 const MegaChatHandle INVALID_HANDLE = ~(MegaChatHandle)0;
-const MegaChatIndex INVALID_INDEX = ~(MegaChatIndex)0;
+const MegaChatIndex INVALID_INDEX = 0x7fffffff;
 
 class MegaChatApi;
 class MegaChatApiImpl;
