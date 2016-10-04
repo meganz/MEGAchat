@@ -278,8 +278,8 @@ public:
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb);
     virtual void onHistoryDone(bool isFromDb);
-    //virtual void onUnsentMsgLoaded(chatd::Message& msg) ;
-    //virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending) ;
+    virtual void onUnsentMsgLoaded(chatd::Message& msg);
+    virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx);
     virtual void onMessageRejected(const chatd::Message& msg);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
@@ -289,7 +289,7 @@ public:
     virtual void onUserJoin(karere::Id userid, chatd::Priv privilege);
     virtual void onUserLeave(karere::Id userid);
     virtual void onUnreadChanged();
-    //virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, int reason);
+    virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, int reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
     //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
 
@@ -562,6 +562,7 @@ public:
 
     karere::ChatRoom *findChatRoom(MegaChatHandle chatid);
     chatd::Message *findMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+    chatd::Message *findMessageNotConfirmed(MegaChatHandle chatid, MegaChatHandle msgxid);
 
     // ============= Listeners ================
 
@@ -629,8 +630,8 @@ public:
 
     bool getMessages(MegaChatHandle chatid, int count);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
-    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msglen, MegaChatMessage::Type type, void* userp);
-    MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msglen, void* userp);
+    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msglen, MegaChatMessage::Type type);
+    MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msglen);
 
     // Audio/Video devices
     mega::MegaStringList *getChatAudioInDevices();

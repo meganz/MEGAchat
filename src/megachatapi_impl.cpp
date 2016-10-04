@@ -647,8 +647,26 @@ chatd::Message *MegaChatApiImpl::findMessage(MegaChatHandle chatid, MegaChatHand
         if (index != CHATD_IDX_INVALID)
         {
             msg = chat.findOrNull(index);
-
         }
+    }
+
+    sdkMutex.unlock();
+
+    return msg;
+}
+
+chatd::Message *MegaChatApiImpl::findMessageNotConfirmed(MegaChatHandle chatid, MegaChatHandle msgxid)
+{
+    Message *msg = NULL;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        // FIXME: karere will provide a method to find messages from msgxid (#5422)
+//        msg = chat.findOrNull(msgxid);
     }
 
     sdkMutex.unlock();
@@ -1091,7 +1109,7 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, size_t msglen, MegaChatMessage::Type type, void *userp)
+MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, size_t msglen, MegaChatMessage::Type type)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
 
@@ -1102,7 +1120,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     {
         Chat &chat = chatroom->chat();
         Message::Type t = (Message::Type) type;
-        Message *m = chat.msgSubmit(msg, msglen, t, userp);
+        Message *m = chat.msgSubmit(msg, msglen, t, NULL);
 
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
@@ -1112,7 +1130,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     return megaMsg;    
 }
 
-MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msglen, void *userp)
+MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msglen)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
 
@@ -1120,11 +1138,15 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
     ChatRoom *chatroom = findChatRoom(chatid);
     Message *originalMsg = findMessage(chatid, msgid);
-    const Message *editedMsg = NULL;
+    if (!originalMsg)   // message may not have an index yet (not confirmed)
+    {
+        originalMsg = findMessageNotConfirmed(chatid, msgid);   // find by transactional id
+    }
+
     if (chatroom && originalMsg)
     {
         Chat &chat = chatroom->chat();
-        editedMsg = chat.msgModify(*originalMsg, msg, msglen, userp);
+        const Message *editedMsg = chat.msgModify(*originalMsg, msg, msglen, NULL);
         if (editedMsg)
         {
             megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, INVALID_INDEX);
@@ -1923,12 +1945,32 @@ void MegaChatRoomHandler::onHistoryDone(bool isFromDb)
     }
 }
 
+void MegaChatRoomHandler::onUnsentMsgLoaded(chatd::Message &msg)
+{
+    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SENDING;
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, INVALID_INDEX);
+    chatApi->fireOnMessageLoaded(message);
+}
+
+void MegaChatRoomHandler::onUnsentEditLoaded(chatd::Message &msg, bool oriMsgIsSending)
+{
+    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SENDING;
+    Idx index = INVALID_INDEX;
+    if (!oriMsgIsSending)   // original message was already sent
+    {
+        index = mChat->msgIndexFromId(msg.id());
+    }
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, index);
+    message->setContentChanged();
+    chatApi->fireOnMessageLoaded(message);
+}
+
 void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx idx)
 {
     Message::Status status = mChat->getMsgStatus(msg, idx);
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     message->setStatus(status);
-    message->setTempId(msgxid);
+    message->setTempId(msgxid);     // to allow the app to find the "temporal" message
     chatApi->fireOnMessageUpdate(message);
 }
 
@@ -2017,6 +2059,17 @@ void MegaChatRoomHandler::onUnreadChanged()
             chatApi->fireOnChatRoomUpdate(chatroom);
         }
     }
+}
+
+void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t /*id*/, int /*reason*/)
+{
+    Idx index = mChat->msgIndexFromId(msg->id());
+    Message::Status status = (index != INVALID_INDEX) ? mChat->getMsgStatus(*msg, index) : Message::kSending;
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(*msg, status, index);
+    delete msg; // we take ownership of the Message
+
+    message->setStatus(status);
+    chatApi->fireOnMessageUpdate(message);
 }
 
 
