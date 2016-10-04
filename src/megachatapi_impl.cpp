@@ -1012,15 +1012,18 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
+bool MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
 {
+    bool ret = true;
+
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!chatroom)
     {
+        KR_LOG_ERROR("Cannot get messages from non-existing chatroom (chatid: %d)", chatid);
         sdkMutex.unlock();
-        return;
+        return 0;
     }
 
     Chat &chat = chatroom->chat();
@@ -1029,6 +1032,8 @@ void MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
     Idx newest = chat.decryptedLownum();
     Idx oldest = chat.decryptedHighnum();
 
+    /****** remove this block after changes on getHistory() to make it return
+     * messages from RAM too. (issue #5411) ************************************/
     for (Idx i = newest; i < oldest; i++)
     {
         Message &msg = chat.at(i);
@@ -1036,15 +1041,18 @@ void MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
 
         fireOnMessageLoaded(new MegaChatMessagePrivate(msg, status, i));
     }
+    /***************************************************************************/
 
     // then fetch more messages if requested
     int loadedCount = oldest - newest;
     if (loadedCount < count)
     {
-        chat.getHistory(count - loadedCount);
+        ret = chat.getHistory(count - loadedCount);
     }
 
     sdkMutex.unlock();
+
+    return ret;
 }
 
 MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHandle msgid)
@@ -1070,6 +1078,10 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
                 KR_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
             }
         }
+    }
+    else
+    {
+        KR_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
     }
 
     sdkMutex.unlock();

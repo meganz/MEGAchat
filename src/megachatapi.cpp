@@ -168,9 +168,9 @@ void MegaChatApi::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *lis
     pImpl->closeChatRoom(chatid, listener);
 }
 
-void MegaChatApi::getMessages(MegaChatHandle chatid, int count)
+bool MegaChatApi::getMessages(MegaChatHandle chatid, int count)
 {
-    pImpl->getMessages(chatid, count);
+    return pImpl->getMessages(chatid, count);
 }
 
 MegaChatMessage *MegaChatApi::getMessage(MegaChatHandle chatid, MegaChatHandle msgid)

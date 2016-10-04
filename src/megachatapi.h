@@ -1044,12 +1044,17 @@ public:
      *
      * @note The actual number of messages loaded can be less than \c count. One reason is
      * the history being shorter than requested, the other is due to internal protocol
-     * messages that are not intended to be displayed to the user.
+     * messages that are not intended to be displayed to the user. Additionally, if the fetch
+     * is local and there's no more history locally available, the number of messages could be
+     * lower too (and the next call to MegaChatApi::getMessages will fetch messages from server).
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param count The number of requested messages to load.
+     *
+     * @return True if the fetch is local, false if it will request the server. This value
+     * can be used to show a progress bar accordingly when network operation occurs.
      */
-    void getMessages(MegaChatHandle chatid, int count);
+    bool getMessages(MegaChatHandle chatid, int count);
 
     /**
      * @brief Returns the MegaChatMessage specified from the chat room.
