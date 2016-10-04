@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 
     // 3. Initialize chat engine
     flag = &t.requestFlagsChat[0][MegaChatRequest::TYPE_INITIALIZE]; *flag = false;
-    t.megaChatApi[0]->init();
+    t.megaChatApi[0]->init(false);
     assert(t.waitForResponse(flag));
 
     // 3.1. Print chats
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     assert(t.waitForResponse(flag));
 
     flag = &t.requestFlagsChat[0][MegaChatRequest::TYPE_INITIALIZE]; *flag = false;
-    t.megaChatApi[0]->init();
+    t.megaChatApi[0]->init(true);
     assert(t.waitForResponse(flag));
 
     // TODO: get chatrooms, check they're the same than before logging out.
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
     assert(t.waitForResponse(flag));
 
     flag = &t.requestFlagsChat[0][MegaChatRequest::TYPE_INITIALIZE]; *flag = false;
-    t.megaChatApi[0]->init();
+    t.megaChatApi[0]->init(false);
     assert(t.waitForResponse(flag));
 
     // TODO: log in the other account, check the message with msgId has arrived
@@ -202,7 +202,7 @@ MegaSdkTest::MegaSdkTest()
     // 2. Create MegaChatApi instance
     if (!megaChatApi[0])
     {
-        megaChatApi[0] = new MegaChatApi(megaApi[0], false);
+        megaChatApi[0] = new MegaChatApi(megaApi[0]);
 
         megaChatApi[0]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
         megaChatApi[0]->addChatRequestListener(this);
@@ -341,7 +341,8 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 {
     KR_LOG_DEBUG("Message updated: %s", msg->getContent());
 
-    if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
+    if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED ||
+            msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
     {
         msgConfirmed = true;
         msgId = msg->getMsgId();

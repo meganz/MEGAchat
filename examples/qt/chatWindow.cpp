@@ -411,7 +411,7 @@ MessageWidget& MessageWidget::setAuthor(karere::Id userid)
     else
         ui.mAuthorDisplay->setText(tr("?"));
 
-    mChatWindow.client.userAttrCache.getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    mChatWindow.client.userAttrCache().getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* data, void* userp)
     {
         //buffer contains an unsigned char prefix that is the strlen() of the first name

@@ -68,9 +68,9 @@ MegaChatHandle MegaChatCall::getContactHandle() const
     return INVALID_HANDLE;
 }
 
-MegaChatApi::MegaChatApi(MegaApi *megaApi, bool resumeSession)
+MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
-    this->pImpl = new MegaChatApiImpl(this, megaApi, resumeSession);
+    this->pImpl = new MegaChatApiImpl(this, megaApi);
 }
 
 MegaChatApi::~MegaChatApi()
@@ -88,9 +88,9 @@ void MegaChatApi::setLogLevel(int logLevel)
     MegaChatApiImpl::setLogLevel(logLevel);
 }
 
-void MegaChatApi::init(MegaChatRequestListener *listener)
+void MegaChatApi::init(bool resumeSession, MegaChatRequestListener *listener)
 {
-    pImpl->init(listener);
+    pImpl->init(resumeSession, listener);
 }
 
 void MegaChatApi::connect(MegaChatRequestListener *listener)

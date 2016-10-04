@@ -179,8 +179,7 @@ public:
     virtual void onOnlineStateChange(ChatState state){}
 
      /**
-      * @brief A user has joined the room, or their privilege has
-      * changed.
+      * @brief A user has joined the room, or their privilege has changed.
       */
     virtual void onUserJoin(karere::Id userid, Priv privilege){}
 

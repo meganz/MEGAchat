@@ -17,6 +17,8 @@
 #include <chatd.h>
 #include <mega/megaclient.h>
 #include <karereCommon.h>
+#include <fstream>
+
 using namespace std;
 using namespace promise;
 using namespace mega;
@@ -96,14 +98,33 @@ int main(int argc, char **argv)
 
     mainWin = new MainWindow();
     gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));
-    gClient.reset(new karere::Client(*gSdk, *mainWin, gAppDir, karere::Presence::kOnline, true));
+    gClient.reset(new karere::Client(*gSdk, *mainWin, gAppDir, karere::Presence::kOnline));
     mainWin->setClient(*gClient);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-
-    gClient->loginSdkAndInit()
-    .then([]()
+    char buf[256];
+    const char* sid = nullptr;
+    std::ifstream sidf(gAppDir+"/sid");
+    if (!sidf.fail())
     {
-        KR_LOG_DEBUG("Client initialized");
+        sidf.getline(buf, 256);
+        if (!sidf.fail())
+            sid = buf;
+    }
+    sidf.close();
+    gClient->loginSdkAndInit(sid)
+    .then([sid]()
+    {
+        if (!sid)
+        {
+            KR_LOG_DEBUG("Client initialized with new session");
+            std::ofstream osidf(gAppDir+"/sid");
+            osidf << gSdk->dumpSession();
+            osidf.close();
+        }
+        else
+        {
+            KR_LOG_DEBUG("Client initialized");
+        }
         mainWin->show();
         gClient->connect();
     })

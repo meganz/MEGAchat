@@ -502,7 +502,7 @@ class MegaChatApiImpl :
 {
 public:
 
-    MegaChatApiImpl(MegaChatApi *chatApi, mega::MegaApi *megaApi, bool resumeSession);
+    MegaChatApiImpl(MegaChatApi *chatApi, mega::MegaApi *megaApi);
 //    MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir);
     virtual ~MegaChatApiImpl();
 
@@ -521,8 +521,7 @@ private:
     static void *threadEntryPoint(void *param);
     void loop();
 
-    void init(MegaChatApi *chatApi, mega::MegaApi *megaApi, bool resumeSession);
-    bool resumeSession;
+    void init(MegaChatApi *chatApi, mega::MegaApi *megaApi);
 
     static LoggerHandler *loggerHandler;
 
@@ -608,7 +607,7 @@ public:
     // ============= API requests ================
 
     // General chat methods
-    void init(MegaChatRequestListener *listener = NULL);
+    void init(bool resumeSession, MegaChatRequestListener *listener = NULL);
     void connect(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);

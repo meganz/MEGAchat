@@ -712,10 +712,8 @@ public:
      * @brief Creates an instance of MegaChatApi to access to the chat-engine.
      *
      * @param megaApi Instance of MegaApi to be used by the chat-engine.
-     * @param resumeSession Boolean indicating if you're going to resume a session. If false, any existing
-     * session will be discarded and MegaChatApi expects to have a login+fetchnodes before MegaChatApi::init
      */
-    MegaChatApi(mega::MegaApi *megaApi, bool resumeSession);
+    MegaChatApi(mega::MegaApi *megaApi);
 
 //    // chat will use its own megaApi, a new instance
 //    MegaChatApi(const char *appKey, const char* appDir);
@@ -768,8 +766,12 @@ public:
      *
      * @note: until the MegaChatApi::connect function is called, MegaChatApi will operate
      * in offline mode (cannot send/receive any message or call)
+     *
+     * @param resumeSession Flag to indicate if the Mega SDK login has been done by resuming a
+     * session (true) or by creating a new session (false).
+     * @param listener MegaChatRequestListener to track this request
      */
-    void init(MegaChatRequestListener *listener = NULL);
+    void init(bool resumeSession, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).

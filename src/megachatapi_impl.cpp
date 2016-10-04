@@ -51,9 +51,9 @@ using namespace chatd;
 MegaChatApiImpl *MegaChatApiImpl::megaChatApiRef = NULL;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
-MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi, bool resumeSession)
+MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 {
-    init(chatApi, megaApi, resumeSession);
+    init(chatApi, megaApi);
 
     MegaChatApiImpl::megaChatApiRef = this;
 }
@@ -71,11 +71,10 @@ MegaChatApiImpl::~MegaChatApiImpl()
     thread.join();
 }
 
-void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi, bool resumeSession)
+void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
 {
     this->chatApi = chatApi;
     this->megaApi = megaApi;
-    this->resumeSession = resumeSession;
 
     sdkMutex.init(true);
 
@@ -109,7 +108,7 @@ void MegaChatApiImpl::loop()
     // karere initialization
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
-    mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), Presence::kOnline, resumeSession);
+    mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), Presence::kOnline);
 
     while (true)
     {
@@ -167,7 +166,8 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_INITIALIZE:
         {
-            mClient->init()
+            bool resumeSession = request->getFlag();
+            mClient->init(resumeSession)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -202,13 +202,14 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOGOUT:
         {
-            mClient->terminate(request->getFlag())
+            bool deleteDb = request->getFlag();
+            mClient->terminate(deleteDb)
             .then([request, this]()
             {
                 KR_LOG_INFO("Chat engine is logged out!");
 
                 delete mClient;
-                mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline, request->getFlag());
+                mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline);
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
@@ -863,9 +864,10 @@ void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
     delete item;
 }
 
-void MegaChatApiImpl::init(MegaChatRequestListener *listener)
+void MegaChatApiImpl::init(bool resumeSession, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_INITIALIZE, listener);
+    request->setFlag(resumeSession);
     requestQueue.push(request);
     waiter->notify();
 }
