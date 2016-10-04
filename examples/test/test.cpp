@@ -82,6 +82,12 @@ int main(int argc, char **argv)
         t.megaChatApi[0]->editMessage(chatid, msgId, msg.c_str(), msg.length(), NULL);
         assert(t.waitForResponse(flag));
 
+        // 9.1. Delete the message
+        flag = &chatroomListener->msgConfirmed; *flag = false;
+        chatroomListener->msgId = megachat::INVALID_HANDLE;   // will be set at confirmation
+        t.megaChatApi[0]->deleteMessage(chatid, msgId);
+        assert(t.waitForResponse(flag));
+
         // 10. Close the chatroom
         t.megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
         delete chatroomListener;
