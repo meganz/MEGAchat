@@ -1424,10 +1424,18 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
 
 void MegaChatApiImpl::onOwnPresence(Presence pres)
 {
+    if (pres.status() == this->status)
+    {
+        API_LOG_DEBUG("onOwnPresence() notifies the same status: %s (flags: %d)", pres.toString(), pres.flags());
+        return;
+    }
+
     this->status = (MegaChatApi::Status) pres.status();
 
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(INVALID_HANDLE);
     item->setOnlineStatus(status);
+
+    API_LOG_INFO("My own presence has changed to %s (%d)", pres.toString(), pres.val());
 
     fireOnChatListItemUpdate(item);
 }
@@ -2460,6 +2468,10 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(MegaChatHandle chatid)
 {
     this->chatid = chatid;
     this->title = NULL;
+    this->visibility = VISIBILITY_UNKNOWN;
+    this->unreadCount = 0;
+    this->status = MegaChatApi::STATUS_OFFLINE;
+    this->changed = 0;
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
