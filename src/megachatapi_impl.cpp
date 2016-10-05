@@ -2011,10 +2011,22 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onEditRejected(const Message &msg, uint8_t /*opcode*/)
+void MegaChatRoomHandler::onEditRejected(const Message &msg, uint8_t opcode)
 {
-    Idx index = mChat->msgIndexFromId(msg.id());
-    Message::Status status = (index != INVALID_INDEX) ? mChat->getMsgStatus(msg, index) : Message::kSending;
+    Idx index;
+    Message::Status status;
+
+    if (opcode == OP_MSGUPD)    // message is confirmed, but edit has been rejected
+    {
+        index = mChat->msgIndexFromId(msg.id());
+        status = mChat->getMsgStatus(msg, index);
+    }
+    else // OP_MSGUPDX --> both, original message and edit, have been rejected
+    {
+        index = INVALID_INDEX;
+        status = Message::kSending;
+    }
+
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, index);
     message->setStatus(status);
     chatApi->fireOnMessageUpdate(message);
