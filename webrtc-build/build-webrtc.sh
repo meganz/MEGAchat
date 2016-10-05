@@ -31,6 +31,27 @@ function checkPlatformValid
   fi
 }
 
+function checkArchValid
+{
+  if [ -z "$arch" ]; then
+    if [ "$platform" == "ios" ]; then
+      echo "No architecture specified (--arch [ arm | arm64 | ia32 | x64 ])"
+      return 1
+    fi
+  else
+    if [ "$platform" != "ios" ]; then
+      echo "Architecture selection not supported for $platform"
+      return 1
+    fi
+
+    if [[ "$arch" != "arm" ]] && [[ "$arch" != "arm64" ]] && [[ "$arch" != "ia32" ]] && [[ "$arch" != "x64" ]]; then
+      echo -e "Invalid architecture \033[1;31m'$arch'\033[0;0m"
+      echo "Valid architectures are: arm, arm64, ia32, x64"
+      return 1
+    fi
+  fi
+}
+
 karere=`echo "$(cd "$(dirname "$0")"; pwd)"`
 echo "======================================================================="
 webrtcdir=$1
@@ -58,6 +79,14 @@ do
        platform=$2
        shift
        ;;
+    -a|--arch)
+       if [[ $# < 2 ]]; then
+          echo "No arch specified"
+          exit 1
+       fi
+       arch=$2
+       shift
+       ;;
     -b|--batch)
         batch=1
         ;;
@@ -81,7 +110,13 @@ do
 done
 
 checkPlatformValid
+checkArchValid
+
 echo -e "Platform: \033[0;32m${platform}\033[0;0m"
+if [ ! -z $arch ]; then
+  echo -e "Arch: \033[0;32m${arch}\033[0;0m"
+fi
+
 echo "Script directory: $karere"
 echo "WebRTC revision: '$revision'"
 echo "WebRTC build type: $buildtype"
@@ -144,6 +179,10 @@ fi
 export PATH="$webrtcdir/depot_tools:$PATH"
 if [[ "$platform" == "android" ]]; then
     export gclientConfigOpts="target_os=['android', 'unix']"
+fi
+
+if [[ "$platform" == "ios" ]]; then
+    export gclientConfigOpts="target_os=['ios', 'mac']"
 fi
 
 if [ -f ./.gclient ] && [ -f src/DEPS ]; then
@@ -257,7 +296,11 @@ elif [[ "$platform" == "ios" ]]; then
     sed -i '' -e "s/\'<(DEPTH)\/testing\/iossim\/iossim.gyp:iossim#host\',//g" $webrtcdir/src/webrtc/webrtc_examples.gyp
     
     echo "Setting GYP_DEFINES for iOS..."
-    export GYP_DEFINES="$GYP_DEFINES OS=ios target_arch=arm arm_version=7 libjingle_objc=1 use_system_libcxx=1 ios_deployment_target=7.0"
+    if [[ "$arch" == "arm" ]]; then
+        export GYP_DEFINES="$GYP_DEFINES OS=ios target_arch=arm arm_version=7 libjingle_objc=1 use_system_libcxx=1 ios_deployment_target=7.0 release_extra_cflags=-Wno-unused-result"
+    else
+        export GYP_DEFINES="$GYP_DEFINES OS=ios target_arch=$arch libjingle_objc=1 use_system_libcxx=1 ios_deployment_target=7.0 release_extra_cflags=-Wno-unused-result"
+    fi
     export GYP_CROSSCOMPILE=1
 elif [[ "$platform" == "win" ]]; then
     export GYP_MSVS_VERSION=2015
@@ -277,7 +320,11 @@ echo "Building webrtc in $buildtype mode..."
 if [[ "$platform" != "ios" ]]; then
     ninja -C out/$buildtype
 else
+  if [[ "$arch" == arm* ]]; then
     ninja -C out/$buildtype-iphoneos AppRTCDemo
+  else
+    ninja -C out/$buildtype-iphonesimulator AppRTCDemo
+  fi
 fi
 
 echo "All done"
