@@ -291,8 +291,16 @@ elif [[ "$platform" == "android" ]]; then
     rm -f chromium/src/third_party/android_tools/ndk
     ln -sv "$ANDROID_NDK" "chromium/src/third_party/android_tools/ndk"
 elif [[ "$platform" == "ios" ]]; then
+    
+    # remove an unneeded dependency
+    sed -i '' -e "s/\'<(DEPTH)\/testing\/iossim\/iossim.gyp:iossim#host\',//g" $karere/ios/src/webrtc/webrtc_examples.gyp
+    
     echo "Setting GYP_DEFINES for iOS..."
-    export GYP_DEFINES="$GYP_DEFINES OS=ios target_arch=$arch libjingle_objc=1 use_system_libcxx=1 ios_deployment_target=7.0"
+    if [[ "$arch" == "arm" ]]; then
+        export GYP_DEFINES="$GYP_DEFINES OS=ios target_arch=arm arm_version=7 libjingle_objc=1 use_system_libcxx=1 ios_deployment_target=7.0 release_extra_cflags=-Wno-unused-result"
+    else
+        export GYP_DEFINES="$GYP_DEFINES OS=ios target_arch=$arch libjingle_objc=1 use_system_libcxx=1 ios_deployment_target=7.0 release_extra_cflags=-Wno-unused-result"
+    fi
     export GYP_CROSSCOMPILE=1
 elif [[ "$platform" == "win" ]]; then
     export GYP_MSVS_VERSION=2015

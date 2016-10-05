@@ -12,4 +12,3 @@ protobuf
 usrsctp
 webrtc_overrides
 yasm
-class-dump

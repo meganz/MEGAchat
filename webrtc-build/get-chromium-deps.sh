@@ -65,7 +65,7 @@ mkdir -p './src'
 cd 'src'
 
 files="BUILD.gn DEPS"
-dirs="build tools testing"
+dirs="build tools"
 files3p="$files"
 dirs3p=`cat $karere/third-party-deps.txt`
 if [ -f "$karere/$platform/third-party-deps.txt" ]; then

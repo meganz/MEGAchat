@@ -20,7 +20,6 @@ print("Linking paths in chromium tree to webrtc tree...")
 cwd=os.getcwd();
 makelink('', 'build')
 makelink('', 'buildtools')
-makelink('', 'testing')
 makelink('tools', 'clang')
 makelink('tools', 'generate_library_loader')
 makelink('tools', 'generate_stubs')
