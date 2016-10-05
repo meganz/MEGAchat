@@ -172,14 +172,14 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);                
-                KR_LOG_INFO("Initialization complete");
+                API_LOG_INFO("Initialization complete");
                 fireOnChatRoomUpdate(NULL);
             })
             .fail([request, this](const promise::Error& e)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
                 fireOnChatRequestFinish(request, megaChatError);
-                KR_LOG_INFO("Initialization failed");
+                API_LOG_INFO("Initialization failed");
             });
 
             break;
@@ -206,7 +206,7 @@ void MegaChatApiImpl::sendPendingRequests()
             mClient->terminate(deleteDb)
             .then([request, this]()
             {
-                KR_LOG_INFO("Chat engine is logged out!");
+                API_LOG_INFO("Chat engine is logged out!");
 
                 delete mClient;
                 mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline);
@@ -226,12 +226,12 @@ void MegaChatApiImpl::sendPendingRequests()
             mClient->terminate()
             .then([this]()
             {
-                KR_LOG_INFO("Chat engine closed!");
+                API_LOG_INFO("Chat engine closed!");
                 threadExit = 1;
             })
             .fail([](const promise::Error& err)
             {
-                KR_LOG_ERROR("Error closing chat engine: ", err.what());
+                API_LOG_ERROR("Error closing chat engine: ", err.what());
             });
             break;
         }
@@ -252,7 +252,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                KR_LOG_ERROR("Error setting online status: ", err.what());
+                API_LOG_ERROR("Error setting online status: ", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -281,7 +281,7 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 group = true;
                 request->setFlag(group);
-                KR_LOG_INFO("Forcing group chat due to more than 2 participants");
+                API_LOG_INFO("Forcing group chat due to more than 2 participants");
             }
 
             if (group)
@@ -302,7 +302,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 })
                 .fail([request,this](const promise::Error& err)
                 {
-                    KR_LOG_ERROR("Error creating group chat: ", err.what());
+                    API_LOG_ERROR("Error creating group chat: ", err.what());
 
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                     fireOnChatRequestFinish(request, megaChatError);
@@ -322,7 +322,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 })
                 .fail([request,this](const promise::Error& err)
                 {
-                    KR_LOG_ERROR("Error creating 1on1 chat: ", err.what());
+                    API_LOG_ERROR("Error creating 1on1 chat: ", err.what());
 
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                     fireOnChatRequestFinish(request, megaChatError);
@@ -367,7 +367,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                KR_LOG_ERROR("Error adding user to group chat: ", err.what());
+                API_LOG_ERROR("Error adding user to group chat: ", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -406,7 +406,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                KR_LOG_ERROR("Error updating peer privileges: ", err.what());
+                API_LOG_ERROR("Error updating peer privileges: ", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -457,7 +457,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                KR_LOG_ERROR("Error removing peer from chat: ", err.what());
+                API_LOG_ERROR("Error removing peer from chat: ", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -494,7 +494,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                KR_LOG_ERROR("Error truncating chat history: ", err.what());
+                API_LOG_ERROR("Error truncating chat history: ", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -540,7 +540,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                KR_LOG_ERROR("Error editing chat title: ", err.what());
+                API_LOG_ERROR("Error editing chat title: ", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -557,7 +557,7 @@ void MegaChatApiImpl::sendPendingRequests()
         if(errorCode)
         {
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
-            KR_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
+            API_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
             fireOnChatRequestFinish(request, megaChatError);
         }
     }
@@ -1041,7 +1041,7 @@ bool MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!chatroom)
     {
-        KR_LOG_ERROR("Cannot get messages from non-existing chatroom (chatid: %d)", chatid);
+        API_LOG_ERROR("Cannot get messages from non-existing chatroom (chatid: %d)", chatid);
         sdkMutex.unlock();
         return 0;
     }
@@ -1095,13 +1095,13 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
             }
             else
             {
-                KR_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
             }
         }
     }
     else
     {
-        KR_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
     }
 
     sdkMutex.unlock();
@@ -1387,7 +1387,7 @@ void MegaChatApiImpl::notifyInvited(const ChatRoom &room)
 
 void MegaChatApiImpl::onTerminate()
 {
-    KR_LOG_DEBUG("Karere is about to terminate (call onTerminate())");
+    API_LOG_DEBUG("Karere is about to terminate (call onTerminate())");
 }
 
 IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)

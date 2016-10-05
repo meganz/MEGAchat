@@ -165,6 +165,11 @@ extern const char* gKarereDbSchema;
 #define GUI_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_gui, fmtString, ##__VA_ARGS__)
 
 #define JINGLE_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_jingle, fmtString, ##__VA_ARGS__)
+
+#define API_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)
+#define API_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)
+#define API_LOG_WARNING(fmtString,...)  KARERE_LOG_WARNING(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)
+#define API_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)
 /*
 #ifndef NDEBUG
 #undef assert
