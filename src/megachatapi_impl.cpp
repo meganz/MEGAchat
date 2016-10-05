@@ -1435,7 +1435,7 @@ void MegaChatApiImpl::onOwnPresence(Presence pres)
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(INVALID_HANDLE);
     item->setOnlineStatus(status);
 
-    API_LOG_INFO("My own presence has changed to %s (%d)", pres.toString(), pres.val());
+    API_LOG_INFO("My own presence has changed to %s (flags: %d)", pres.toString(), pres.flags());
 
     fireOnChatListItemUpdate(item);
 }

@@ -66,6 +66,8 @@ class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaCha
 {
 public:
     MegaSdkTest();
+    char *login(const char *session = NULL);
+    void logout(bool closeSession = false);
     void terminate();
 
     bool waitForResponse(bool *responseReceived, int timeout = maxTimeout);
@@ -133,7 +135,9 @@ public:
 class TestChatRoomListener : public MegaChatRoomListener
 {
 public:
-    TestChatRoomListener();
+    TestChatRoomListener(MegaChatHandle chatid);
+
+    MegaChatHandle chatid;
 
     bool historyLoaded;
     bool msgConfirmed;
