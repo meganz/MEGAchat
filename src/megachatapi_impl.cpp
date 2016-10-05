@@ -664,8 +664,8 @@ chatd::Message *MegaChatApiImpl::findMessageNotConfirmed(MegaChatHandle chatid, 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        Chat &chat = chatroom->chat();
         // FIXME: karere will provide a method to find messages from msgxid (#5422)
+//        Chat &chat = chatroom->chat();
 //        msg = chat.findOrNull(msgxid);
     }
 
