@@ -676,7 +676,7 @@ chatd::Message *MegaChatApiImpl::findMessageNotConfirmed(MegaChatHandle chatid, 
 
 void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
 {
-    KR_LOG_INFO("Request (%s) starting", request->getRequestString());
+    API_LOG_INFO("Request (%s) starting", request->getRequestString());
 
     for (set<MegaChatRequestListener *>::iterator it = requestListeners.begin(); it != requestListeners.end() ; it++)
     {
@@ -694,11 +694,11 @@ void MegaChatApiImpl::fireOnChatRequestFinish(MegaChatRequestPrivate *request, M
 {
     if(e->getErrorCode())
     {
-        KR_LOG_INFO("Request (%s) finished with error: %s", request->getRequestString(), e->getErrorString());
+        API_LOG_INFO("Request (%s) finished with error: %s", request->getRequestString(), e->getErrorString());
     }
     else
     {
-        KR_LOG_INFO("Request (%s) finished", request->getRequestString());
+        API_LOG_INFO("Request (%s) finished", request->getRequestString());
     }
 
     for (set<MegaChatRequestListener *>::iterator it = requestListeners.begin(); it != requestListeners.end() ; it++)
@@ -752,7 +752,7 @@ void MegaChatApiImpl::fireOnChatRequestTemporaryError(MegaChatRequestPrivate *re
 
 void MegaChatApiImpl::fireOnChatCallStart(MegaChatCallPrivate *call)
 {
-    KR_LOG_INFO("Starting chat call");
+    API_LOG_INFO("Starting chat call");
 
     for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
@@ -764,7 +764,7 @@ void MegaChatApiImpl::fireOnChatCallStart(MegaChatCallPrivate *call)
 
 void MegaChatApiImpl::fireOnChatCallStateChange(MegaChatCallPrivate *call)
 {
-    KR_LOG_INFO("Chat call state changed to %s", call->getStatus());
+    API_LOG_INFO("Chat call state changed to %s", call->getStatus());
 
     for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
@@ -774,7 +774,7 @@ void MegaChatApiImpl::fireOnChatCallStateChange(MegaChatCallPrivate *call)
 
 void MegaChatApiImpl::fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e)
 {
-    KR_LOG_INFO("Chat call temporary error: %s", e->getErrorString());
+    API_LOG_INFO("Chat call temporary error: %s", e->getErrorString());
 
     for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
@@ -786,11 +786,11 @@ void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatEr
 {
     if(e->getErrorCode())
     {
-        KR_LOG_INFO("Chat call finished with error: %s", e->getErrorString());
+        API_LOG_INFO("Chat call finished with error: %s", e->getErrorString());
     }
     else
     {
-        KR_LOG_INFO("Chat call finished");
+        API_LOG_INFO("Chat call finished");
     }
 
     call->setStatus(MegaChatCall::CALL_STATUS_DISCONNECTED);
@@ -809,7 +809,7 @@ void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatEr
 
 void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer)
 {
-    KR_LOG_INFO("Remote video data");
+    API_LOG_INFO("Remote video data");
 
     for(set<MegaChatVideoListener *>::iterator it = remoteVideoListeners.begin(); it != remoteVideoListeners.end() ; it++)
     {
@@ -819,7 +819,7 @@ void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int w
 
 void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer)
 {
-    KR_LOG_INFO("Local video data");
+    API_LOG_INFO("Local video data");
 
     for(set<MegaChatVideoListener *>::iterator it = localVideoListeners.begin(); it != localVideoListeners.end() ; it++)
     {
@@ -1011,14 +1011,20 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
     waiter->notify();
 }
 
-void MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
+bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {    
     sdkMutex.lock();
 
-    findChatRoom(chatid)->setAppChatHandler(getChatRoomHandler(chatid));
-    addChatRoomListener(chatid, listener);
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        chatroom->setAppChatHandler(getChatRoomHandler(chatid));
+        addChatRoomListener(chatid, listener);
+    }
 
     sdkMutex.unlock();
+
+    return chatroom;
 }
 
 void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)

@@ -158,9 +158,9 @@ void MegaChatApi::setChatTitle(MegaChatHandle chatid, const char *title, MegaCha
     pImpl->setChatTitle(chatid, title, listener);
 }
 
-void MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
+bool MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
-    pImpl->openChatRoom(chatid, listener);
+    return pImpl->openChatRoom(chatid, listener);
 }
 
 void MegaChatApi::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)

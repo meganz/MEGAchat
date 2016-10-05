@@ -1022,8 +1022,10 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRoomListener to track events on this chatroom
+     *
+     * @return True if success, false if the chatroom was not found.
      */
-    void openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
+    bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is closed.
@@ -1400,7 +1402,8 @@ public:
          * want to save the MegaChatListItem, use MegaChatListItem::copy
          *
          * @note If the handle returned by MegaChatListItem::getChatId is INVALID_HANDLE, it
-         * means the notification is for the own user rather than a chat in the list.
+         * means the notification is for the own user rather than a chat in the list. This can
+         * happen, i.e. for the update of your own online status.
          *
          * @param api MegaChatApi connected to the account
          * @param item MegaChatListItem representing a 1on1 or groupchat in the list.

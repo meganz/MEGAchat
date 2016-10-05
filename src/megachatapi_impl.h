@@ -625,7 +625,7 @@ public:
     void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
 
-    void openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
+    bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
 
     bool getMessages(MegaChatHandle chatid, int count);
