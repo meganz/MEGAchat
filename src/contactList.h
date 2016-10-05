@@ -118,13 +118,14 @@ public:
 };
 inline const char* Presence::toString()
 {
-    if (mPres == kOffline)
+    unsigned char tmpStatus = status();
+    if (tmpStatus == kOffline)
         return "unavailable";
-    else if (mPres == kOnline)
+    else if (tmpStatus == kOnline)
         return "available";
-    else if (mPres == kAway)
+    else if (tmpStatus == kAway)
         return "away";
-    else if (mPres == kBusy)
+    else if (tmpStatus == kBusy)
         return "dnd";
     else
         throw std::runtime_error("Presence::toString: Unknown presence "+std::to_string(mPres));
