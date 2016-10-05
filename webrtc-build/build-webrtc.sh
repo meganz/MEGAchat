@@ -252,6 +252,10 @@ elif [[ "$platform" == "android" ]]; then
     rm -f chromium/src/third_party/android_tools/ndk
     ln -sv "$ANDROID_NDK" "chromium/src/third_party/android_tools/ndk"
 elif [[ "$platform" == "ios" ]]; then
+
+    # remove an unneeded dependency
+    sed -i '' -e "s/\'<(DEPTH)\/testing\/iossim\/iossim.gyp:iossim#host\',//g" $webrtcdir/src/webrtc/webrtc_examples.gyp
+    
     echo "Setting GYP_DEFINES for iOS..."
     export GYP_DEFINES="$GYP_DEFINES OS=ios target_arch=arm arm_version=7 libjingle_objc=1 use_system_libcxx=1 ios_deployment_target=7.0"
     export GYP_CROSSCOMPILE=1
