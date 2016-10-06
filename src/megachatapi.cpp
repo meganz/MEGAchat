@@ -193,6 +193,11 @@ MegaChatMessage *MegaChatApi::deleteMessage(MegaChatHandle chatid, MegaChatHandl
     return pImpl->editMessage(chatid, msgid, NULL, 0);
 }
 
+bool MegaChatApi::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    return pImpl->setMessageSeen(chatid, msgid);
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();

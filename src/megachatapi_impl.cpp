@@ -105,7 +105,7 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
 
 void MegaChatApiImpl::loop()
 {
-    // karere initialization
+    // karere initialization (do NOT use globaInit() since it forces to log to file)
     services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
 
     mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), Presence::kOnline);
@@ -128,8 +128,7 @@ void MegaChatApiImpl::loop()
         }
     }
 
-    rtcModule::globalCleanup();
-    services_shutdown();
+    globalCleanup();
 }
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg)
@@ -1162,6 +1161,23 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
     sdkMutex.unlock();
 
     return megaMsg;
+}
+
+bool MegaChatApiImpl::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    bool ret = false;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        ret = chatroom->chat().setMessageSeen(msgid);
+    }    
+
+    sdkMutex.unlock();
+
+    return ret;
 }
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()

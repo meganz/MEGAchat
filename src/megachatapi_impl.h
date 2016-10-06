@@ -632,6 +632,7 @@ public:
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msglen, MegaChatMessage::Type type);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msglen);
+    bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
 
     // Audio/Video devices
     mega::MegaStringList *getChatAudioInDevices();

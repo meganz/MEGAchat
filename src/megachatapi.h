@@ -361,7 +361,6 @@ public:
         TYPE_INVITE_TO_CHATROOM, TYPE_UPDATE_PEER_PERMISSIONS,
         TYPE_EDIT_CHATROOM_NAME, TYPE_EDIT_CHATROOM_PIC,
         TYPE_TRUNCATE_HISTORY, TYPE_GET_HISTORY,
-//        TYPE_GRANT_ACCESS, TYPE_REMOVE_ACCESS,
         TYPE_SHARE_CONTACT,
         TOTAL_OF_REQUEST_TYPES
     };
@@ -1124,8 +1123,32 @@ public:
      * @return MegaChatMessage that will be modified. NULL if the message cannot be edited (too old)
      */
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msglen);
+
+    /**
+     * @brief Deletes an existing message
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     *
+     * @return MegaChatMessage that will be deleted. NULL if the message cannot be deleted (too old)
+     */
     MegaChatMessage *deleteMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
+    /**
+     * @brief Sets the last-seen-by-us pointer to the specified message
+     *
+     * The last-seen-by-us pointer is persisted in the account, so every client will
+     * be aware of the last-seen message.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     *
+     * @return False if the \c chatid is invalid or the message is older
+     * than last-seen-by-us message. True if success.
+     */
+    bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
 
     // Audio/Video device management
     mega::MegaStringList *getChatAudioInDevices();

@@ -308,7 +308,7 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
 {
     if (msg)
     {
-        cout << "TEST - New message loaded from chat " << chatid << ": " << msg->getContent() << endl;
+        cout << "TEST - New message loaded from chat " << chatid << ": " << msg->getContent() << " (" << msg->getMsgId() << ")" << endl;
     }
     else
     {
@@ -319,12 +319,12 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
 
 void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *msg)
 {
-        cout << "TEST - New message received from chat " << chatid << ": " << msg->getContent() << endl;
+        cout << "TEST - New message received from chat " << chatid << ": " << msg->getContent() << " (" << msg->getMsgId() << ")" << endl;
 }
 
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
 {
-    cout << "TEST - Message updated from chat " << chatid << ": " << msg->getContent() << endl;
+    cout << "TEST - Message updated from chat " << chatid << ": " << msg->getContent()  << " (" << msg->getMsgId() << ")" << endl;
 
     if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED ||
             msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
