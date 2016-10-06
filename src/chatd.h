@@ -60,11 +60,9 @@ class DbInterface;
 class Listener
 {
 public:
-
-    /**
-     * @brief This is the first call chatd makes to the Listener, passing it necessary
-     * objects and retrieving info about the local history database
-     *
+    /** @brief
+     * This is the first call chatd makes to the Listener, passing it necessary objects and
+     * retrieving info about the local history database
      * @param chat - the Chat object that can be used to access the message buffer etc
      * @param dbIntf[out] reference to the internal pointer to the database abstraction
      * layer interface. Set this pointer to a newly created instance of a db abstraction
@@ -73,24 +71,17 @@ public:
      * this callback should not change this pointer (which is set to NULL)
      */
     virtual void init(Chat& chat, DbInterface*& dbIntf) = 0;
-
     /** @brief Called when that chatroom instance is being destroyed
      *  (e.g. on application close)
      */
     virtual void onDestroy(){}
-
-    /**
-     * @brief A new message was received. This can be just sent by a peer, or retrieved from the server.
-     *
+    /** @brief A new message was received. This can be just sent by a peer, or retrieved from the server.
      * @param idx The index of the message in the buffer
      * @param status - The 'seen' status of the message. Normally it should be
      * 'not seen', until we call setMessageSeen() on it
      */
     virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status){}
-
-    /**
-     * @brief A history message has been received.
-     *
+    /** @brief A history message has been received.
      * @param The index of the message in the history buffer
      * @param The message itself
      * @param status The 'seen' status of the message
@@ -98,27 +89,19 @@ public:
      * history db via \c fetchDbHistory() - this parameter specifies the source
      */
     virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isFromDb){}
-
-    /**
-     * @brief The retrieval of the requested history batch, via \c getHistory(), was completed
-     *
+    /** @brief The retrieval of the requested history batch, via \c getHistory(), was completed
      * @param isFromDb Whether the history was retrieved from localDb,
      * via \c fetchDbHistory() or from the server
      */
     virtual void onHistoryDone(bool isFromDb) {}
-
-    /**
-     * @brief An unsent message was loaded from local db. The app should normally
+    /** @brief An unsent message was loaded from local db. The app should normally
      * display it at the end of the message history, indicating that it has not been
      * sent. This callback is called for all unsent messages, in order in which
      * the message posting ocurrent, from the oldest to the newest,
      * i.e. subsequent onUnsentMsgLoaded() calls are for newer unsent messages
      */
     virtual void onUnsentMsgLoaded(Message& msg) {}
-
-    /**
-     * @brief An unsent edit of a message was loaded. Similar to \c onUnsentMsgLoaded()
-     *
+    /** @brief An unsent edit of a message was loaded. Similar to \c onUnsentMsgLoaded()
      * @param msg The edited message
      * @param oriIsSending - whether the original message has been sent or not
      * yet sent (on the send queue).
@@ -126,13 +109,9 @@ public:
      * are done in the order of the corresponding events (send, edit)
      */
     virtual void onUnsentEditLoaded(Message& msg, bool oriMsgIsSending) {}
-
-     /**
-      * @brief A message sent by us was acknoledged by the server, assigning it a MSGID.
-      *
+     /** @brief A message sent by us was acknoledged by the server, assigning it a MSGID.
       * At this stage, the message state is "received-by-server", and it is in the history
       * buffer when this callback is called.
-      *
       * @param msgxid - The request-response match id that we generated for the sent message.
       * Normally the application doesn't need to care about it
       * @param msg - The message object - \c id() returns a real msgid, and \c isSending() is \c false
@@ -140,25 +119,20 @@ public:
       */
     virtual void onMessageConfirmed(karere::Id msgxid, const Message& msg, Idx idx){}
 
-    /**
-     * @brief A message was rejected by the server for some reason. As the message is not yet
+    /** @brief A message was rejected by the server for some reason. As the message is not yet
      * in the history buffer, its \c id() is a msgxid, and \c msg.isSending() is true
      */
     virtual void onMessageRejected(const Message& msg){}
 
-    /**
-     * @brief A message was delivered, seen, etc. When the seen/received pointers are advanced,
+    /** @brief A message was delivered, seen, etc. When the seen/received pointers are advanced,
      * this will be called for each message of the pointer-advanced range, so the application
      * doesn't need to iterate over ranges by itself
      */
     virtual void onMessageStatusChange(Idx idx, Message::Status newStatus, const Message& msg){}
 
-    /**
-     * @brief Called when a message edit is received, i.e. MSGUPD is received.
-     *
+    /** @brief Called when a message edit is received, i.e. MSGUPD is received.
      * The message is already updated in the history buffer and in the db,
      * and the GUI should also update it.
-     *
      * \attention If the edited message is not in memory, it is still updated in
      * the database, but this callback will not be called.
      * @param msg The edited message
@@ -166,21 +140,19 @@ public:
      */
     virtual void onMessageEdited(const Message& msg, Idx idx){}
 
-    /**
-     * @brief An edit posted by us was rejected for some reason.
+    /** @brief An edit posted by us was rejected for some reason.
      * @param opcode The chatd code of the operation that was rejected
      */
     virtual void onEditRejected(const Message& msg, uint8_t opcode){}
 
-    /**
-     * @brief The chatroom connection (to the chatd server shard) state
+    /** @brief The chatroom connection (to the chatd server shard) state
      * has changed.
      */
     virtual void onOnlineStateChange(ChatState state){}
 
-     /**
-      * @brief A user has joined the room, or their privilege has changed.
-      */
+    /** @brief A user has joined the room, or their privilege has
+     * changed.
+     */
     virtual void onUserJoin(karere::Id userid, Priv privilege){}
 
     /**
@@ -192,10 +164,8 @@ public:
     /** @brief Unread message count has changed */
     virtual void onUnreadChanged() {}
 
-    /**
-     * @brief A message could not be sent automatically, due to some reason.
+    /** @brief A message could not be sent automatically, due to some reason.
      * User-initiated retry is required.
-     *
      * @param id The send queue id of the message. As the message has no msgid,
      * this is used to identify the message in seubsequent retry/cancel
      * @param reason - The code of the reason why the message could not be auto sent
@@ -206,7 +176,6 @@ public:
     /**
      * @brief onHistoryTruncated The history of the chat was truncated by someone
      * at the message \c msg.
-     *
      * @param msg The message at which the history is truncated. The message before
      * it (if it exists) is the last preserved message. The \c msg message is
      * overwritten with a management message that contains information who truncated the message.
@@ -217,7 +186,6 @@ public:
     /**
      * @brief onMsgOrderVerificationFail The message ordering check for \c msg has
      * failed. The message may have been tampered.
-     *
      * @param msg The message
      * @param idx Index of \c msg
      * @param errmsg The error string describing what exactly is the problem
