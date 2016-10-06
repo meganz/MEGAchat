@@ -172,5 +172,5 @@ videoRenderer_Qt.h
 ../../src/megachatapi.h
 ../../src/megachatapi.cpp
 ../../src/IGui.h
-../../examples/test/test.cpp
-../../examples/test/test.h
+../../tests/sdk_test/sdk_test.cpp
+../../tests/sdk_test/sdk_test.h

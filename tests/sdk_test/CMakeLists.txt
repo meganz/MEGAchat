@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.0)
-project(apitestapp)
+project(sdk_test)
 
 set(CMAKE_BUILD_TYPE "Debug")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set (SRCS
-    test.cpp
+    sdk_test.cpp
 )
 
 add_subdirectory(../../src karere)
@@ -19,16 +19,16 @@ if (CLANG_STDLIB)
     set(SYSLIBS ${CLANG_STDLIB})
 endif()
 
-add_executable(apitestapp ${SRCS})
+add_executable(sdk_test ${SRCS})
 
-target_link_libraries(apitestapp
+target_link_libraries(sdk_test
     karere
     ${SYSLIBS}
 )
 
 
 set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist")
-INSTALL(TARGETS apitestapp DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
+INSTALL(TARGETS sdk_test DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
 
 include(CPack)
 

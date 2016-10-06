@@ -1,4 +1,4 @@
-#include "test.h"
+#include "sdk_test.h"
 
 #include <megaapi.h>
 #include "../../src/megachatapi.h"
