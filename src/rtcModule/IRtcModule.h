@@ -214,7 +214,7 @@ enum
     virtual AvFlags sentAv() const = 0;
 
     /**
-     * @brief pecifies what streams we currently (should) receive - audio and/or video.
+     * @brief Specifies what streams we currently (should) receive - audio and/or video.
      * Note that this does not mean that we are actually receiving them, but only that
      * the peer has declared that it will send them
      *
