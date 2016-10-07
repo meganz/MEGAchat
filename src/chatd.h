@@ -99,19 +99,29 @@ public:
      * history db via \c fetchDbHistory() - this parameter specifies the source
      */
     virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isLocal){}
-    /** @brief The retrieval of the requested history batch, via \c getHistory(), was completed
-     * @param isLocal Whether the history was retrieved from a local source (RAM or localDb),
-     * or from the server.
+
+    /**
+     * @brief The retrieval of the requested history batch, via \c getHistory(), was completed
+     * @param source The source from where the last message of the history
+     * chunk was returned. This basically means that if some of it was returned from RAM
+     * and then from DB, then source will be kHistSourceDb. This is not valid
+     * from mixing messages from local source and from server, as they are never
+     * mixed in one history chunk.
+     * @param endOfHistory - wherther there exists no more history, even on server.
      */
-    virtual void onHistoryDone(HistSource source) {}
-    /** @brief An unsent message was loaded from local db. The app should normally
+    virtual void onHistoryDone(HistSource source, bool endOfHistory) {}
+
+    /**
+     * @brief An unsent message was loaded from local db. The app should normally
      * display it at the end of the message history, indicating that it has not been
      * sent. This callback is called for all unsent messages, in order in which
      * the message posting ocurrent, from the oldest to the newest,
      * i.e. subsequent onUnsentMsgLoaded() calls are for newer unsent messages
      */
     virtual void onUnsentMsgLoaded(Message& msg) {}
-    /** @brief An unsent edit of a message was loaded. Similar to \c onUnsentMsgLoaded()
+
+    /**
+     * @brief An unsent edit of a message was loaded. Similar to \c onUnsentMsgLoaded()
      * @param msg The edited message
      * @param oriIsSending - whether the original message has been sent or not
      * yet sent (on the send queue).
@@ -119,7 +129,8 @@ public:
      * are done in the order of the corresponding events (send, edit)
      */
     virtual void onUnsentEditLoaded(Message& msg, bool oriMsgIsSending) {}
-     /** @brief A message sent by us was acknoledged by the server, assigning it a MSGID.
+
+    /** @brief A message sent by us was acknoledged by the server, assigning it a MSGID.
       * At this stage, the message state is "received-by-server", and it is in the history
       * buffer when this callback is called.
       * @param msgxid - The request-response match id that we generated for the sent message.
@@ -129,7 +140,8 @@ public:
       */
     virtual void onMessageConfirmed(karere::Id msgxid, const Message& msg, Idx idx){}
 
-    /** @brief A message was rejected by the server for some reason. As the message is not yet
+    /**
+     * @brief A message was rejected by the server for some reason. As the message is not yet
      * in the history buffer, its \c id() is a msgxid, and \c msg.isSending() is true
      */
     virtual void onMessageRejected(const Message& msg){}
@@ -140,7 +152,8 @@ public:
      */
     virtual void onMessageStatusChange(Idx idx, Message::Status newStatus, const Message& msg){}
 
-    /** @brief Called when a message edit is received, i.e. MSGUPD is received.
+    /**
+     * @brief Called when a message edit is received, i.e. MSGUPD is received.
      * The message is already updated in the history buffer and in the db,
      * and the GUI should also update it.
      * \attention If the edited message is not in memory, it is still updated in
@@ -151,14 +164,12 @@ public:
     virtual void onMessageEdited(const Message& msg, Idx idx){}
 
     /** @brief An edit posted by us was rejected for some reason.
-     * @param opcode The chatd command opcode of the operation that was rejected.
-     * Can be OP_MSGUPD for an edit of a message already confirmed by server,
-     * or OP_MSGUPDX for a not-yet-confirmed message, in case the edit follows
-     * immediately the send, without waiting for confirmation from server. In
-     * the former case, the id() of msg is the normal mgid, and in the latter
-     * case - it's the message transaction id (msgxid).
+     * @param oriIsConfirmed - whether the original of the edit was already
+     * confirmed by the server and has a proper msgid as msg.id(),
+     * or has not been confirmed and only a transaction id (msgxid),
+     * hence msg.id() returns the msgxid.
      */
-    virtual void onEditRejected(const Message& msg, uint8_t opcode){}
+    virtual void onEditRejected(const Message& msg, bool oriIsConfirmed){}
 
     /** @brief The chatroom connection (to the chatd server shard) state
      * has changed.
@@ -677,7 +688,7 @@ protected:
     void rejectMsgupd(uint8_t opcode, karere::Id id);
     template <bool mustBeInSending=false>
     void rejectGeneric(uint8_t opcode);
-    void moveItemToManualSending(OutputQueue::iterator it, int reason);
+    void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
     void handleTruncate(const Message& msg, Idx idx);
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(Message& msg);

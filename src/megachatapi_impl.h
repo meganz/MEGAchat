@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file megachatapi_impl.h
  * @brief Private header file of the intermediate layer for the MEGA Chat C++ SDK.
  *
@@ -277,19 +277,19 @@ public:
     virtual void onDestroy();
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb);
-    virtual void onHistoryDone(bool isFromDb);
+    virtual void onHistoryDone(chatd::HistSource source, bool endOfHistory);
     virtual void onUnsentMsgLoaded(chatd::Message& msg);
     virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx);
     virtual void onMessageRejected(const chatd::Message& msg);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
-    virtual void onEditRejected(const chatd::Message& msg, uint8_t opcode);
+    virtual void onEditRejected(const chatd::Message& msg, bool oriIsConfirmed);
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUserJoin(karere::Id userid, chatd::Priv privilege);
     virtual void onUserLeave(karere::Id userid);
     virtual void onUnreadChanged();
-    virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, int reason);
+    virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
     //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
 

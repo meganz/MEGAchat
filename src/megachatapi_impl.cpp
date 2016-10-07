@@ -52,6 +52,7 @@ MegaChatApiImpl *MegaChatApiImpl::megaChatApiRef = NULL;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
+: localVideoReceiver(nullptr)
 {
     init(chatApi, megaApi);
 
@@ -2028,9 +2029,9 @@ void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::S
     chatApi->fireOnMessageLoaded(message);
 }
 
-void MegaChatRoomHandler::onHistoryDone(bool isFromDb)
+void MegaChatRoomHandler::onHistoryDone(chatd::HistSource source, bool endOfHistory)
 {
-    if (!isFromDb)  // no more history available (including DB and server)
+    if (endOfHistory)  // no more history available (including DB and server)
     {
         chatApi->fireOnMessageLoaded(NULL);
     }
@@ -2088,17 +2089,17 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onEditRejected(const Message &msg, uint8_t opcode)
+void MegaChatRoomHandler::onEditRejected(const Message &msg, bool oriIsConfirmed)
 {
     Idx index;
     Message::Status status;
 
-    if (opcode == OP_MSGUPD)    // message is confirmed, but edit has been rejected
+    if (oriIsConfirmed)    // message is confirmed, but edit has been rejected
     {
         index = mChat->msgIndexFromId(msg.id());
         status = mChat->getMsgStatus(msg, index);
     }
-    else // OP_MSGUPDX --> both, original message and edit, have been rejected
+    else // both, original message and edit, have been rejected
     {
         index = INVALID_INDEX;
         status = Message::kSending;
@@ -2164,7 +2165,7 @@ void MegaChatRoomHandler::onUnreadChanged()
     }
 }
 
-void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t /*id*/, int /*reason*/)
+void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t /*id*/, ManualSendReason /*reason*/)
 {
     Idx index = mChat->msgIndexFromId(msg->id());
     Message::Status status = (index != INVALID_INDEX) ? mChat->getMsgStatus(*msg, index) : Message::kSending;
