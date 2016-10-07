@@ -986,7 +986,9 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to truncate their chat, i.e. to clear
      * the entire chat history up to a certain message. All earlier messages are wiped,
-     * but his specific message gets overridden with an API message.
+     * but his specific message gets overridden with a management message.
+     *
+     * If no message id is provided, this function will remove the entire history.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1002,7 +1004,7 @@ public:
      * @param messageid MegaChatHandle that identifies the message to truncate from
      * @param listener MegaChatRequestListener to track this request
      */
-    void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
+    void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid = INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Allows to set the title of a group chat
@@ -1312,6 +1314,9 @@ public:
 
     virtual ~MegaChatRoom() {}
     virtual MegaChatRoom *copy() const;
+
+    static const char *privToString(int);
+    static const char *stateToString(int);
 
     /**
      * @brief Returns the MegaChatHandle of the chat.

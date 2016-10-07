@@ -34,7 +34,7 @@ static const string USER_AGENT  = "Tests for Karere SDK functionality";
 
 static const unsigned int pollingT      = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int maxTimeout    = 300;      // Maximum time (seconds) to wait for response from server
-
+static const unsigned int NUM_ACCOUNTS  = 2;
 
 class MegaLoggerSDK : public MegaLogger {
 
@@ -62,28 +62,30 @@ protected:
     void log(int loglevel, const char *message);
 };
 
-class MegaSdkTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener
+class MegaChatApiTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener
 {
 public:
-    MegaSdkTest();
-    char *login(const char *session = NULL);
-    void logout(bool closeSession = false);
+    MegaChatApiTest();
+    char *login(int accountIndex, const char *session = NULL);
+    void logout(int accountIndex, bool closeSession = false);
     void terminate();
+
+    void printChatRoomInfo(const MegaChatRoom *);
 
     bool waitForResponse(bool *responseReceived, int timeout = maxTimeout);
 
-    string email[2];
-    string pwd[2];
+    string email[NUM_ACCOUNTS];
+    string pwd[NUM_ACCOUNTS];
 
-    MegaApi* megaApi[2];
-    MegaChatApi* megaChatApi[2];
+    MegaApi* megaApi[NUM_ACCOUNTS];
+    MegaChatApi* megaChatApi[NUM_ACCOUNTS];
 
     // flags to monitor the completion of requests/transfers
-    bool requestFlags[2][MegaRequest::TYPE_CHAT_SET_TITLE];
-    bool requestFlagsChat[2][MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
+    bool requestFlags[NUM_ACCOUNTS][MegaRequest::TYPE_CHAT_SET_TITLE];
+    bool requestFlagsChat[NUM_ACCOUNTS][MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
 
 private:
-    int lastError[2];
+    int lastError[NUM_ACCOUNTS];
 
 //    MegaContactRequest* cr[2];
 

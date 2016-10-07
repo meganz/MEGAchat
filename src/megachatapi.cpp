@@ -401,6 +401,31 @@ MegaChatRoom *MegaChatRoom::copy() const
     return NULL;
 }
 
+const char *MegaChatRoom::privToString(int priv)
+{
+    switch (priv)
+    {
+    case PRIV_RM: return "removed";
+    case PRIV_RO: return "read-only";
+    case PRIV_STANDARD: return "standard";
+    case PRIV_MODERATOR:return "moderator";
+    case PRIV_UNKNOWN:
+    default: return "unknown privilege";
+    }
+}
+
+const char *MegaChatRoom::stateToString(int status)
+{
+    switch (status)
+    {
+    case STATE_OFFLINE: return "offline";
+    case STATE_CONNECTING: return "connecting";
+    case STATE_JOINING: return "joining";
+    case STATE_ONLINE:return "online";
+    default: return "unknown state";
+    }
+}
+
 MegaChatHandle MegaChatRoom::getChatId() const
 {
     return INVALID_HANDLE;
