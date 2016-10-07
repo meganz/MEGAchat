@@ -14,6 +14,9 @@
 #include "IGui.h"
 
 namespace strophe { class Connection; }
+
+namespace mega { class MegaTextChat; class MegaTextChatList; }
+
 namespace strongvelope { class ProtocolHandler; }
 
 struct sqlite3;
@@ -69,9 +72,11 @@ public:
     /** @brief The text that will be displayed on the chat list for that chat */
     virtual const std::string& titleString() const = 0;
 
-    /** @brief The current presence status of the chat. If this is a 1on1 chat, this is
+    /**
+     * @brief The current presence status of the chat. If this is a 1on1 chat, this is
      * the same as the presence of the peer. If it is a groupchat, it is
-     *  derived from the chatd chatroom status */
+     * derived from the chatd chatroom status
+     */
     virtual Presence presence() const = 0;
 
     /** @brief Connects to the chatd chatroom */
@@ -131,6 +136,7 @@ public:
      *  @param av Whether to initially send video and/or audio
      */
     virtual promise::Promise<void> mediaCall(AvFlags av) = 0;
+
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
@@ -500,7 +506,7 @@ public:
      * services/objects implemented by the application.
      * @param pres The initial presence that will be set when we log in.
      * @param existingCache Whether the karere cache db exists and karere should
-     * try to use it, or not. If \c true is specifieb but the db is unreadable or
+     * try to use it, or not. If \c true is specified but the db is unreadable or
      * inconsistent, karere will behave as if \c false was specified - will
      * delete the karere.db file and re-create it from scratch.
      */
@@ -509,12 +515,14 @@ public:
 
     virtual ~Client();
 
-    /** @brief Performs karere-only login, assuming the Mega SDK is already logged in
+    /**
+     * @brief Performs karere-only login, assuming the Mega SDK is already logged in
      * with an existing session.
      */
     promise::Promise<void> initWithExistingSession();
 
-    /** @brief Performs karere-only login, assuming the Mega SDK is already logged
+    /**
+     * @brief Performs karere-only login, assuming the Mega SDK is already logged
      * in with a new session
      */
     promise::Promise<void> initWithNewSession();
@@ -533,7 +541,8 @@ public:
      * \c initNewSession() or \c initExistingSession() completes */
     promise::Promise<void> connect();
 
-    /** @brief A convenience method that logs in the Mega SDK and then inits
+    /**
+     * @brief A convenience method that logs in the Mega SDK and then inits
      * karere. This can be used when building a standalone chat app where there
      * is no app code that logs in the Mega SDK.
      * @param sid - The mega session id with which to log in the SDK and init

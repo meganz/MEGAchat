@@ -39,6 +39,7 @@ public:
          * @param state The presence code
          */
         virtual void onPresenceChanged(karere::Presence state) = 0;
+
         /**
          * @brief The number of unread messages for that chat has changed. It can be used
          * to display an unread message counter next to the contact/groupchat
@@ -147,6 +148,7 @@ public:
         /** @brief Returns a user data pointer */
         void* userp = nullptr;
     };
+
     /**
      * @brief The IContactListItem class represents an interface to a contact display
      * in the application's contactlist
@@ -199,6 +201,7 @@ public:
     {
     public:
         virtual bool isGroup() const { return true; }
+
         /**
          * @brief Called when a user has joined the group chatroom
          * @param userid The handle of the user
@@ -257,6 +260,7 @@ public:
          */
         virtual void removePeerChatItem(IPeerChatListItem& item) = 0;
     };
+
     /**
      * @brief Called when karere needs to create a login dialog.
      *

@@ -50,13 +50,17 @@ typedef enum
 {
     /** We are calling the peer, and the call is waiting for peer to answer or reject the request */
     kCallStateOutReq = 0,
+
     /** We have received a call request */
     kCallStateInReq,
+
     /** We have received a call request and accepted the call, and we are waiting
      * for the peer to initiate the Jingle session */
     kCallStateInReqWaitJingle,
+
     /** Call is in progress (a Jingle session is established and in progress) */
     kCallStateSession,
+
     /** Call has ended, but is not yet deleted */
     kCallStateEnded
 } CallState;
@@ -79,7 +83,7 @@ class RtcModule;
 /** Length of Jingle session id strings */
 enum { RTCM_SESSIONID_LEN = 16 };
 
-/** @brief A class represending a media call. The protected members are internal
+/** @brief A class representing a media call. The protected members are internal
  stuff, and are here only for performance reasons, to not have virtual methods
  for every property
 */
@@ -110,87 +114,119 @@ public:
 /** @brief Call termination reason codes */
 enum
 {
-    kNormalHangupFirst = 0, ///< First enum specifying a normal call termination
-    kUserHangup = 0, ///< Normal user hangup or peer rejected the call request
-    kCallReqCancel = 1, ///< Call request was canceled before call was answered
-    kAnsweredElsewhere = 2, ///< Call was answered on another device of ours
-    kRejectedElsewhere = 3, ///< Call was rejected on another device of ours
-    kAnswerTimeout = 4, ///< Call was not answered in a timely manner
-    kAppTerminating = 5, ///< The application is terminating
-    kNormalHangupLast = 5, ///< Last enum specifying a normal call termination
+    kNormalHangupFirst = 0,     ///< First enum specifying a normal call termination
+    kUserHangup = 0,            ///< Normal user hangup
+    kCallReqCancel = 1,         ///< Call request was canceled before call was answered
+    kAnsweredElsewhere = 2,     ///< Call was answered on another device of ours
+    kRejectedElsewhere = 3,     ///< Call was rejected on another device of ours
+    kAnswerTimeout = 4,         ///< Call was not answered in a timely manner
+    kAppTerminating = 5,        ///< The application is terminating
+    kNormalHangupLast = 5,      ///< Last enum specifying a normal call termination
     kReserved1 = 6,
     kReserved2 = 7,
-    kErrorFirst = 8, ///< First enum specifying call termination due to error
-    kInitiateTimeout = 8, ///< The calling side did not initiate the Jingle session in a timely manner after the callee accepted the call
-    kApiTimeout = 9, ///< Mega API timed out on some request (usually for RSA keys)
-    kFprVerifFail = 10, ///< Peer DTLS-SRTP fingerprint verification failed, posible MiTM attack
-    kProtoTimeout = 11, ///< Protocol timeout - one if the peers did not send something that was expected, in a timely manner
-    kProtoError = 12, ///< General protocol error
-    kInternalError = 13, ///< Internal error in the client
-    kNoMediaError = 14, ///< There is no media to be exchanged - both sides don't have audio/video to send
-    kXmppDisconnError = 15, ///< XMPP client was disconnected
-    kErrorLast = 15, ///< Last enum indicating call termination due to error
-    kTermLast = 15, ///< Last call terminate enum value
-    kPeer = 128 ///< If this flag is set, the condition specified by the code happened at the peer, not at our side
+    kErrorFirst = 8,            ///< First enum specifying call termination due to error
+    kInitiateTimeout = 8,       ///< The calling side did not initiate the Jingle session in a timely manner after the callee accepted the call
+    kApiTimeout = 9,            ///< Mega API timed out on some request (usually for RSA keys)
+    kFprVerifFail = 10,         ///< Peer DTLS-SRTP fingerprint verification failed, posible MiTM attack
+    kProtoTimeout = 11,         ///< Protocol timeout - one if the peers did not send something that was expected, in a timely manner
+    kProtoError = 12,           ///< General protocol error
+    kInternalError = 13,        ///< Internal error in the client
+    kNoMediaError = 14,         ///< There is no media to be exchanged - both sides don't have audio/video to send
+    kXmppDisconnError = 15,     ///< XMPP client was disconnected
+    kErrorLast = 15,            ///< Last enum indicating call termination due to error
+    kTermLast = 15,             ///< Last call terminate enum value
+    kPeer = 128                 ///< If this flag is set, the condition specified by the code happened at the peer, not at our side
 };
     /** @brief The Jingle session id of the call */
     const std::string& sid() const { return mSid; }
+
     /** @brief The RtcModule instance that manages the call */
     RtcModule& rtc() const { return mRtc; }
+
     /** @brief The state of the call at the moment */
     CallState state() const { return mState; }
+
     /** @brief Whether we initiated the call */
     bool isCaller() const { return mIsCaller; }
+
     /** @brief The jid of the peer */
     const std::string& peerJid() const { return mPeerJid; }
+
     /** @brief The anonymous Id of the peer. Used only for (anonymous) stats and logging */
     const std::string& peerAnonId() const { return mPeerAnonId; }
+
     /** @brief Our own anonymoud Id. Used only for (aonymous) stats and logging */
     virtual const std::string& ownAnonId() const;
+
     /// @cond PRIVATE
     RTCM_API static const char* termcodeToMsg(TermCode event);
     RTCM_API static std::string termcodeToReason(TermCode event);
     RTCM_API static TermCode strToTermcode(std::string event);
     ///@endcond
+
     /** @brief The current call event handler */
     IEventHandler& handler() const { return *mHandler; }
-    /** @brief Hangs up the call. Always uses kNormalHangup reason code.
-      * @param text An optional textual reason for hanging up the call. This reason
-      * is sent to the peer. Normally not used.
-      */
+
+    /**
+     * @brief Hangs up the call. Always uses kNormalHangup reason code.
+     * @param text An optional textual reason for hanging up the call. This reason
+     * is sent to the peer. Normally not used.
+     */
     virtual bool hangup(const std::string& text="") = 0;
-    /** @brief Mutes/unmutes the spefified channel (audio and/or video) */
+
+    /**
+     * @brief Mutes/unmutes the spefified channel (audio and/or video)
+     * @param what
+     * @param state
+     */
     virtual void muteUnmute(AvFlags what, bool state) = 0;
-    /** @brief Changes the event handler that receives call events.
-      *
-      * This may be necessary when the app initially displays a call answer gui,
-      * and after the call is established, displays a call GUI that should
-      * receive further events about the call
-      */
+
+    /**
+     * @brief Changes the event handler that receives call events.
+     *
+     * This may be necessary when the app initially displays a call answer gui,
+     * and after the call is established, displays a call GUI that should
+     * receive further events about the call
+     *
+     * @param handler
+     * @return
+     */
     RTCM_API IEventHandler* changeEventHandler(IEventHandler* handler);
-    /** @brief Changes the instance that received local video stream.
+
+    /**
+     * @brief Changes the instance that received local video stream.
      *
      * This may be convenient for example if the app displays local
      * video in a different GUI before the call is answered and after that
+     *
+     * @param renderer
      */
     virtual void changeLocalRenderer(IVideoRenderer* renderer) = 0;
-    /** @brief Returns \c true if we have already received media packets from the peer,
-      * \c false otherwise.
-      */
+
+    /**
+     * @brief Returns \c true if we have already received media packets from the peer,
+     * \c false otherwise.
+     * @return
+     */
     bool hasReceivedMedia() const { return mHasReceivedMedia; }
+
     /** @brief Specifies what streams we currently send - audio and/or video */
     virtual AvFlags sentAv() const = 0;
-    /** @brief Specifies what streams we currently (should) receive - audio and/or video.
-      * Note that this does not mean that we are actually receiving them, but only that
-      * the peer has declared that it will send them
-      */
+
+    /**
+     * @brief Specifies what streams we currently (should) receive - audio and/or video.
+     * Note that this does not mean that we are actually receiving them, but only that
+     * the peer has declared that it will send them
+     *
+     * @return
+     */
     virtual AvFlags receivedAv() const = 0;
 };
 
 /**
  * Call event handler callback interface. When the call is created, the user
  * provides this interface to receive further events from the call.
-*/
+ */
 class IEventHandler
 {
 public:
@@ -301,6 +337,9 @@ public:
 class ICallAnswer
 {
 public:
+
+    virtual ~ICallAnswer() {}
+
     /** @brief The call object */
     virtual std::shared_ptr<ICall> call() const = 0;
 
@@ -319,7 +358,9 @@ public:
      */
     virtual AvFlags peerMedia() const = 0;
 
-    /** @brief Answer or reject the call.
+    /**
+     * @brief Answer or reject the call.
+     *
      * @param accept - if true, answers the call, if false - rejects it
      * @param ownMedia - when answering the call, specified whether we send
      * audio and/or video
@@ -402,7 +443,9 @@ public:
      */
     virtual int muteUnmute(AvFlags what, bool state, const std::string& jid) = 0;
 
-    /** @brief Initiates a call to the specified JID.
+    /**
+     * @brief Initiates a call to the specified JID.
+     *
      * @param userHandler - the event handler interface that will receive further events
      * about the call
      * @param targetJid - the bare or full JID of the callee. If the JID is bare,
@@ -415,7 +458,9 @@ public:
     virtual void startMediaCall(IEventHandler* userHandler, const std::string& targetJid,
         AvFlags av, const char* files[]=nullptr, const std::string& myJid="") = 0;
 
-    /** @brief Hangs up all current calls.
+    /**
+     * @brief Hangs up all current calls.
+     *
      * @param code Optional reason to specify for the hangup, like 'kAppTerminating'.
      * @param text Optional descriptive text for the hangup reason.
      */
@@ -423,6 +468,7 @@ public:
 
     /** @brief Returns the call object for the specified Jingle session id, or \c NULL if no such call exists */
     virtual std::shared_ptr<ICall> getCallBySid(const std::string& sid) = 0;
+
     virtual ~IRtcModule(){}
 };
 
