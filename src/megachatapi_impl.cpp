@@ -681,9 +681,8 @@ chatd::Message *MegaChatApiImpl::findMessageNotConfirmed(MegaChatHandle chatid, 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        // FIXME: karere will provide a method to find messages from msgxid (#5422)
-//        Chat &chat = chatroom->chat();
-//        msg = chat.findOrNull(msgxid);
+        Chat &chat = chatroom->chat();
+        msg = chat.getMsgByXid(msgxid);
     }
 
     sdkMutex.unlock();
@@ -1057,7 +1056,6 @@ bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *
     }
 
     sdkMutex.unlock();
-
     return chatroom;
 }
 
@@ -1075,7 +1073,6 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
 bool MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
 {
     bool ret = true;
-
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
@@ -1172,19 +1169,28 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
-    Message *originalMsg = findMessage(chatid, msgid);
-    if (!originalMsg)   // message may not have an index yet (not confirmed)
-    {
-        originalMsg = findMessageNotConfirmed(chatid, msgid);   // find by transactional id
-    }
-
-    if (chatroom && originalMsg)
+    if (chatroom)
     {
         Chat &chat = chatroom->chat();
-        const Message *editedMsg = chat.msgModify(*originalMsg, msg, msglen, NULL);
-        if (editedMsg)
+        Message *originalMsg = findMessage(chatid, msgid);
+        Idx index;
+        if (originalMsg)
         {
-            megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, INVALID_INDEX);
+            index = chat.msgIndexFromId(msgid);
+        }
+        else   // message may not have an index yet (not confirmed)
+        {
+            index = MEGACHAT_INVALID_INDEX;
+            originalMsg = findMessageNotConfirmed(chatid, msgid);   // find by transactional id
+        }
+
+        if (originalMsg)
+        {
+            const Message *editedMsg = chat.msgModify(*originalMsg, msg, msglen, NULL);
+            if (editedMsg)
+            {
+                megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
+            }
         }
     }
 

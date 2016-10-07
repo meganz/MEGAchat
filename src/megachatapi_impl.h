@@ -276,7 +276,7 @@ public:
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
     virtual void onDestroy();
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
-    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb);
+    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal);
     virtual void onHistoryDone(chatd::HistSource source, bool endOfHistory);
     virtual void onUnsentMsgLoaded(chatd::Message& msg);
     virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
