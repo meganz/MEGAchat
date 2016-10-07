@@ -1180,6 +1180,33 @@ bool MegaChatApiImpl::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid
     return ret;
 }
 
+MegaChatMessage *MegaChatApiImpl::getLastMessageSeen(MegaChatHandle chatid)
+{
+    MegaChatMessagePrivate *megaMsg = NULL;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        Idx index = chat.lastSeenIdx();
+        if (index != CHATD_IDX_INVALID)
+        {
+            const Message *msg = chat.findOrNull(index);
+            if (msg)
+            {
+                Message::Status status = chat.getMsgStatus(*msg, index);
+                megaMsg = new MegaChatMessagePrivate(*msg, status, index);
+            }
+        }
+    }
+
+    sdkMutex.unlock();
+
+    return megaMsg;
+}
+
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
     return NULL;

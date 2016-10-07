@@ -1150,6 +1150,15 @@ public:
      */
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
 
+    /**
+     * @brief Returns the last-seen-by-us message
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return The last-seen-by-us MegaChatMessage, or NULL if error.
+     */
+    MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
+
     // Audio/Video device management
     mega::MegaStringList *getChatAudioInDevices();
     mega::MegaStringList *getChatVideoInDevices();

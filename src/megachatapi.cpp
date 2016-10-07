@@ -198,6 +198,11 @@ bool MegaChatApi::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid)
     return pImpl->setMessageSeen(chatid, msgid);
 }
 
+MegaChatMessage *MegaChatApi::getLastMessageSeen(MegaChatHandle chatid)
+{
+    return  pImpl->getLastMessageSeen(chatid);
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();
