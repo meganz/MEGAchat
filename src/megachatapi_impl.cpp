@@ -632,6 +632,23 @@ ChatRoom *MegaChatApiImpl::findChatRoom(MegaChatHandle chatid)
     return chatroom;
 }
 
+karere::ChatRoom *MegaChatApiImpl::findChatRoomByUser(MegaChatHandle userhandle)
+{
+    ChatRoom *chatroom = NULL;
+
+    sdkMutex.lock();
+
+    ContactList::iterator it = mClient->contactList->find(userhandle);
+    if (it != mClient->contactList->end())
+    {
+        chatroom = it->second->chatRoom();
+    }
+
+    sdkMutex.unlock();
+
+    return chatroom;
+}
+
 chatd::Message *MegaChatApiImpl::findMessage(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     Message *msg = NULL;
@@ -944,6 +961,23 @@ MegaChatRoom *MegaChatApiImpl::getChatRoom(MegaChatHandle chatid)
     sdkMutex.lock();
 
     ChatRoom *chatRoom = findChatRoom(chatid);
+    if (chatRoom)
+    {
+        chat = new MegaChatRoomPrivate(*chatRoom);
+    }
+
+    sdkMutex.unlock();
+
+    return chat;
+}
+
+MegaChatRoom *MegaChatApiImpl::getChatRoomByUser(MegaChatHandle userhandle)
+{
+    MegaChatRoomPrivate *chat = NULL;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatRoom = findChatRoomByUser(userhandle);
     if (chatRoom)
     {
         chat = new MegaChatRoomPrivate(*chatRoom);

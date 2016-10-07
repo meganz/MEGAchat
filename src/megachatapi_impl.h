@@ -561,6 +561,7 @@ public:
     void removeChatRoomHandler(MegaChatHandle chatid);
 
     karere::ChatRoom *findChatRoom(MegaChatHandle chatid);
+    karere::ChatRoom *findChatRoomByUser(MegaChatHandle userhandle);
     chatd::Message *findMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     chatd::Message *findMessageNotConfirmed(MegaChatHandle chatid, MegaChatHandle msgxid);
 
@@ -616,6 +617,7 @@ public:
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
+    MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);

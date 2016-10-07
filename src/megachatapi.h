@@ -859,9 +859,26 @@ public:
      *
      * You take the ownership of the returned value
      *
-     * @return List of MegaChatRoom objects with all chatrooms of this account.
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return MegaChatRoom object for the specified \c chatid
      */
     MegaChatRoom *getChatRoom(MegaChatHandle chatid);
+
+    /**
+     * @brief Get the MegaChatRoom for the 1on1 chat with the specified user
+     *
+     * If the 1on1 chat with the user specified doesn't exist, this function will
+     * return NULL.
+     *
+     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * before calling this function.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param userhandle MegaChatHandle that identifies the user
+     * @return MegaChatRoom object for the specified \c userhandle
+     */
+    MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
 
     /**
      * @brief Creates a chat for one or more participants, allowing you to specify their
