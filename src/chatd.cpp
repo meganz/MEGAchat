@@ -973,7 +973,7 @@ void Chat::loadAndProcessUnsent()
     replayUnsentNotifications();
 }
 
-void Chat::listenerChanged()
+void Chat::resetListenerState()
 {
     resetHistFetch();
     replayUnsentNotifications();
@@ -1021,6 +1021,21 @@ void Chat::loadManualSending()
     {
         CALL_LISTENER(onManualSendRequired, item.msg, item.rowid, item.reason);
     }
+}
+Message* Chat::getMsgByXid(Id msgxid)
+{
+    for (auto& item: mSending)
+    {
+        if (!item.msg)
+            continue;
+        //id() of MSGUPD messages is a real msgid, not a msgxid
+        if ((item.msg->id() == msgxid) && (item.opcode() != OP_MSGUPD))
+        {
+            assert(item.msg->isSending());
+            return item.msg;
+        }
+    }
+    return nullptr;
 }
 
 uint64_t Chat::generateRefId(const ICrypto* aCrypto)
@@ -1666,7 +1681,7 @@ void Chat::rejectMsgupd(uint8_t opcode, Id id)
     if (msg.id() != id)
         throw std::runtime_error("rejectMsgupd: Message msgid/msgxid does not match the one at the front of send queue");
 
-    CALL_LISTENER(onEditRejected, msg, opcode);
+    CALL_LISTENER(onEditRejected, msg, opcode == OP_MSGUPD);
     CALL_DB(deleteItemFromSending, mSending.front().rowid);
     mSending.pop_front();
 }

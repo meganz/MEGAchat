@@ -526,14 +526,26 @@ public:
      * to differentiate whether the history fetch process is doing the actual fetch, or
      * is waiting for the decryption (i.e. fetching chat keys etc)
      */
-    bool haveAllHistory() const { return mHaveAllHistory; }
     bool isFetchDecrypting() const { return (isFetchingHistory() && (mHistFetchState & kHistDecryptingFlag)); }
 
-    /**  @brief The last number of history messages that have actually been
+    /**
+     * @brief haveAllHistory
+     * Returned whether we have locally all existing history.
+     * Note that this doesn't mean that we have send all history the app
+     * via getHistory() - the client may still have history that hasn't yet
+     * sent to the app.
+     */
+    bool haveAllHistory() const { return mHaveAllHistory; }
+
+    /**
+     * @brief The last number of history messages that have actually been
      * returned to the app via * \c getHitory() */
     unsigned lastHistDecryptCount() const { return mLastHistDecryptCount; }
-    /** Get the message with the specified index, or \c NULL if that
-     * index is out of range */
+
+    /** @brief
+     * Get the message with the specified index, or \c NULL if that
+     * index is out of range
+     */
     inline Message* findOrNull(Idx num) const
     {
         if (num < mForwardStart) //look in mBackwardList
@@ -551,8 +563,11 @@ public:
             return mForwardList[idx].get();
         }
     }
-    /** @brief Returns the message at the specified index in the RAM history buffer.
-     * Throws if index is out of range */
+
+    /**
+     * @brief Returns the message at the specified index in the RAM history buffer.
+     * Throws if index is out of range
+     */
     Message& at(Idx num) const
     {
         Message* msg = findOrNull(num);
@@ -565,13 +580,15 @@ public:
         return *msg;
     }
 
-    /** @brief Returns the message at the specified index in the RAM history buffer.
+    /**
+     * @brief Returns the message at the specified index in the RAM history buffer.
      * Throws if index is out of range
      */
     Message& operator[](Idx num) const { return at(num); }
 
     /** @brief Returns whether the specified RAM history buffer index is valid or out
-     * of range */
+     * of range
+     */
     bool hasNum(Idx num) const
     {
         if (num < mForwardStart)
@@ -579,7 +596,9 @@ public:
         else
             return (num < mForwardStart + static_cast<int>(mForwardList.size()));
     }
-    /** @brief Returns the index of the message with the specified msgid.
+
+    /**
+     * @brief Returns the index of the message with the specified msgid.
      * @param msgid The message id whose index to find
      * @returns The index of the message inside the RAM history buffer.
      *  If no such message exists in the RAM history buffer, CHATD_IDX_INVALID
@@ -590,7 +609,9 @@ public:
         auto it = mIdToIndexMap.find(msgid);
         return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;
     }
-    /** @brief Initiates fetching more history - from local RAM history buffer,
+
+    /**
+     * @brief Initiates fetching more history - from local RAM history buffer,
      * from local db or from server.
      * If ram + local db have less than the number of requested messages,
      * loading stops when local db is exhausted, returning less than \count
@@ -606,7 +627,8 @@ public:
      */
     HistSource getHistory(unsigned count);
 
-    /** @brief Resets history fetching, so that next getHistory will start from
+    /**
+     * @brief Resets history fetching, so that next getHistory will start from
      * the newest known message
      */
     void resetHistFetch();
@@ -619,27 +641,25 @@ public:
      */
     bool setMessageSeen(Idx idx);
 
-    /** @brief Sets the last-see-by-us pointer to the message with the specified
+    /**
+     * @brief Sets the last-see-by-us pointer to the message with the specified
      * msgid.
      * @return Whether the pointer was successfully set. Setting may fail if
      * it was attempted to set the pointer to an older than the current position.
      */
     bool setMessageSeen(karere::Id msgid);
+
     /** @brief The last-seen-by-us pointer */
     Idx lastSeenIdx() const { return mLastSeenIdx; }
+
     /** @brief Whether the next history fetch will be from local db or from server */
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
-    /** @brief Initiates replaying of callbacks about unsent messages and unsent
-     * edits, i.e. \c onUnsentMsgLoaded() and \c onUnsentEditLoaded().
-     * This may be needed when the listener is switched, in order to init the new
-     * listener state */
-    void replayUnsentNotifications();
-    /** @brief Initiates loading of the queue with messages that require user
-     * approval for re-sending */
-    void loadManualSending();
+
     /** @brief The interface of the Strongvelope crypto module instance associated with this
-      * chat */
+      * chat
+      */
     ICrypto* crypto() const { return mCrypto; }
+
     /** @group Message output methods */
 
     /** @brief Submits a message for sending.
@@ -650,6 +670,7 @@ public:
      * @param userp - An optional user pointer to associate with the message object
      */
     Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
+
     /** @brief Queues a message as an edit message for the specified original message.
      * @param msg - the original message
      * @param newdata - The new contents
@@ -663,17 +684,37 @@ public:
      * dangling pointer.
      */
     Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp);
+
     /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer */
     int unreadMsgCount() const;
+
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
 
-    void listenerChanged();
-
-    /** @brief Removes the specified manual-send message, from the manual send queue.
+    /**
+     * @brief Resets the state of the listener, initiating all initial
+     * callbacks, such as the onManualSendRequired(), onUnsentMsgLoaded,
+     * and resets the getHistory() pointer, so that subsequent getHistory()
+     * calls will start returning history from the newest message.
+     */
+    void resetListenerState();
+    /**
+     * @brief getMsgByXid searches the send queue for a message with the specified
+     * msgxid. The message is supposed to be unconfirmed, but in reality the
+     * message may have been received and recorded by the server,
+     * and the client may have not received the confirmation.
+     * @param msgxid - The transaction id of the message
+     * @returns Pointer to the Message object, or nullptr if a message with
+     * that msgxid does not exist in the send queue.
+     */
+    Message* getMsgByXid(karere::Id msgxid);
+    /**
+     * @brief Removes the specified manual-send message, from the manual send queue.
      * Normally should be called when the user opts to not retry sending the message */
     void removeManualSend(uint64_t id);
-    /** @brief Generates a backreference id. Must be public because strongvelope
+
+    /**
+     * @brief Generates a backreference id. Must be public because strongvelope
      *  uses it to generate chat title messages
      * @param aCrypto - the crypto module interface to use for random number
      * generation.
@@ -693,6 +734,18 @@ protected:
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(Message& msg);
     void verifyMsgOrder(const Message& msg, Idx idx);
+    /**
+     * @brief Initiates replaying of callbacks about unsent messages and unsent
+     * edits, i.e. \c onUnsentMsgLoaded() and \c onUnsentEditLoaded().
+     * This may be needed when the listener is switched, in order to init the new
+     * listener state */
+    void replayUnsentNotifications();
+
+    /**
+     * @brief Initiates loading of the queue with messages that require user
+     * approval for re-sending */
+    void loadManualSending();
+
 //===
 };
 

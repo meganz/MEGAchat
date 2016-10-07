@@ -505,32 +505,10 @@ public:
         mChat = &chat;
         onPresenceChanged(mRoom.presence());
         updateChatdStatusDisplay(mChat->onlineState());
-        mChat->listenerChanged();
+        mChat->resetListenerState();
         auto source = mChat->getHistory(16);
         if (source == chatd::kHistSourceServer)
             createHistFetchUi();
-
-/*
-        if (mChat->empty())
-            return;
-        mChat->replayUnsentNotifications(); //works synchronously
-        auto first = mChat->decryptedLownum();
-        for (chatd::Idx idx = mChat->decryptedHighnum(); idx>=first; idx--)
-        {
-            auto& msg = mChat->at(idx);
-            handleHistoryMsg(msg, idx, mChat->getMsgStatus(msg, idx));
-        }
-        mChat->loadManualSending();
-        if (mChat->isFetchingHistory())
-        {
-            createHistFetchUi();
-        }
-        else
-        {
-            if ((mChat->size() < 16) && (mChat->onlineState() == chatd::kChatStateOnline))
-            QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
-        }
-    */
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -583,7 +561,7 @@ public:
         }
     }
     void showCantEditNotice(const QString& action=QObject::tr("edit"));
-    virtual void onHistoryDone(chatd::HistSource source)
+    virtual void onHistoryDone(chatd::HistSource source, bool endOfHistory)
     {
         mHistFetchUi.reset();
         if (source == chatd::kHistSourceNone) // no more history
@@ -635,7 +613,7 @@ public:
         widget->updateStatus(chatd::Message::kServerReceived);
     }
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
-    virtual void onEditRejected(const chatd::Message& msg, uint8_t opcode);
+    virtual void onEditRejected(const chatd::Message& msg, bool oriIsConfirmed);
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
         mRoom.onOnlineStateChange(state);
