@@ -1078,6 +1078,8 @@ public:
      */
     bool getMessages(MegaChatHandle chatid, int count);
 
+    bool isFullHistoryLoaded(MegaChatHandle chatid);
+
     /**
      * @brief Returns the MegaChatMessage specified from the chat room.
      *

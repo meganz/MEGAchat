@@ -1108,7 +1108,22 @@ bool MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
     }
 
     sdkMutex.unlock();
+    return ret;
+}
 
+bool MegaChatApiImpl::isFullHistoryLoaded(MegaChatHandle chatid)
+{
+    bool ret = false;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        ret = chat.haveAllHistory();
+    }
+
+    sdkMutex.unlock();
     return ret;
 }
 

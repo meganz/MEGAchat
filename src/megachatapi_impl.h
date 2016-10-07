@@ -631,6 +631,7 @@ public:
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
 
     bool getMessages(MegaChatHandle chatid, int count);
+    bool isFullHistoryLoaded(MegaChatHandle chatid);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msglen, MegaChatMessage::Type type);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msglen);

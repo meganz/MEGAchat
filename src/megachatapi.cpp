@@ -178,6 +178,11 @@ bool MegaChatApi::getMessages(MegaChatHandle chatid, int count)
     return pImpl->getMessages(chatid, count);
 }
 
+bool MegaChatApi::isFullHistoryLoaded(MegaChatHandle chatid)
+{
+    return pImpl->isFullHistoryLoaded(chatid);
+}
+
 MegaChatMessage *MegaChatApi::getMessage(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     return pImpl->getMessage(chatid, msgid);
