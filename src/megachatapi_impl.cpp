@@ -2018,6 +2018,8 @@ void MegaChatRoomHandler::init(Chat &chat, DbInterface *&)
 {
     mChat = &chat;
     mRoom = chatApi->findChatRoom(chatid);
+
+    mChat->resetListenerState();
 }
 
 void MegaChatRoomHandler::onDestroy()
