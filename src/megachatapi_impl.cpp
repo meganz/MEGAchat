@@ -2337,8 +2337,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     else
     {
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
-//        privilege_t priv = (privilege_t) peerchat.getPeerPriv();
-        privilege_t priv = (privilege_t) PRIV_MODERATOR;
+        privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
 
         this->peers.push_back(userpriv_pair(uh, priv));
