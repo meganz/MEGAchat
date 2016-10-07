@@ -56,6 +56,15 @@ enum ManualSendReason: uint8_t
     kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_AUTOSEND_AGE seconds
 };
 
+enum HistSource
+{
+    kHistSourceNone = 0,
+    kHistSourceRam = 1,
+    kHistSourceDb = 2,
+    kHistSourceServer = 3,
+    kHistSourceMask = 3
+};
+
 class DbInterface;
 class Listener
 {
@@ -81,19 +90,20 @@ public:
      * 'not seen', until we call setMessageSeen() on it
      */
     virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status){}
-    /** @brief A history message has been received.
+
+    /** @brief A history message has been received, as a result of getHistory().
      * @param The index of the message in the history buffer
      * @param The message itself
      * @param status The 'seen' status of the message
      * @param isFromDb The message can be received from the server, or from the app's local
      * history db via \c fetchDbHistory() - this parameter specifies the source
      */
-    virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isFromDb){}
+    virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isLocal){}
     /** @brief The retrieval of the requested history batch, via \c getHistory(), was completed
-     * @param isFromDb Whether the history was retrieved from localDb,
-     * via \c fetchDbHistory() or from the server
+     * @param isLocal Whether the history was retrieved from a local source (RAM or localDb),
+     * or from the server.
      */
-    virtual void onHistoryDone(bool isFromDb) {}
+    virtual void onHistoryDone(HistSource source) {}
     /** @brief An unsent message was loaded from local db. The app should normally
      * display it at the end of the message history, indicating that it has not been
      * sent. This callback is called for all unsent messages, in order in which
@@ -141,14 +151,19 @@ public:
     virtual void onMessageEdited(const Message& msg, Idx idx){}
 
     /** @brief An edit posted by us was rejected for some reason.
-     * @param opcode The chatd code of the operation that was rejected
+     * @param opcode The chatd command opcode of the operation that was rejected.
+     * Can be OP_MSGUPD for an edit of a message already confirmed by server,
+     * or OP_MSGUPDX for a not-yet-confirmed message, in case the edit follows
+     * immediately the send, without waiting for confirmation from server. In
+     * the former case, the id() of msg is the normal mgid, and in the latter
+     * case - it's the message transaction id (msgxid).
      */
     virtual void onEditRejected(const Message& msg, uint8_t opcode){}
 
     /** @brief The chatroom connection (to the chatd server shard) state
      * has changed.
      */
-    virtual void onOnlineStateChange(ChatState state){}
+    virtual void onOnlineStateChange(ChatState state) = 0;
 
     /** @brief A user has joined the room, or their privilege has
      * changed.
@@ -247,22 +262,24 @@ public:
 
 enum HistFetchState
 {
-/** History is not being fetched, and we don't have any more history neither in db nor on server */
-    kHistNoMore = 0,
+/** Thie least significant 2 bits signify the history fetch source,
+ * and correspond to HistSource values */
+
 /** History is not being fetched, and there is probably history to fetch available */
-    kHistNotFetching = 1,
+    kHistNotFetching = 4,
 /** We are fetching old messages if this flag is set, i.e. ones added to the back of
  *  the history buffer. If this flag is no set, we are fetching new messages, i.e. ones
  *  appended to the front of the history buffer */
-    kHistOldFlag = 2,
+    kHistOldFlag = 8,
 /** We are fetching from the server if flag is set, otherwise we are fetching from
  * local db */
-    kHistFetchingFromServerFlag = 4,
-    kHistFetchingOldFromServer = kHistFetchingFromServerFlag | kHistOldFlag,
-    kHistFetchingNewFromServer = kHistFetchingFromServerFlag | 0,
+    kHistFetchingOldFromServer = kHistSourceServer | kHistOldFlag,
+    kHistFetchingNewFromServer = kHistSourceServer | 0,
 /** We are currently fetching history from db - always old messages */
-    kHistFetchingFromDb = 0 | kHistOldFlag,
-    kHistDecryptingFlag = 8,
+//    kHistFetchingFromDb = kHistSourceDb | kHistOldFlag,
+/** Fething from RAM history buffer, always old messages */
+//    kHistFetchingFromRam = kHistSourceRam | kHistOldFlag,
+    kHistDecryptingFlag = 16,
     kHistDecryptingOld = kHistDecryptingFlag | kHistOldFlag,
     kHistDecryptingNew = kHistDecryptingFlag | 0
 };
@@ -342,10 +359,14 @@ protected:
     /// range() only from the buffer items
     karere::Id mOldestKnownMsgId;
     karere::Id mNewestKnownMsgId;
-    unsigned mLastReqdHistCount = 0; ///< The amount of old/new history messages last requested either from server or from db
-    unsigned mLastHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
-    unsigned mLastHistObtainCount = 0; ///< Similar to mLastHistFetchCount, but reflects the current number of message passed through the decrypt process, which may be less than mLastHistFetchCount at a given moment
+    unsigned mLastServerHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
+    unsigned mLastHistDecryptCount = 0; ///< Similar to mLastServerHistFetchCount, but reflects the current number of message passed through the decrypt process, which may be less than mLastServerHistFetchCount at a given moment
+    /** @brief The state of history fetching from server */
     HistFetchState mHistFetchState = kHistNotFetching;
+    /** @brief @The state of history sending to the app via getHistory() */
+    HistSource mHistSendSource = kHistSourceNone;
+    bool mHaveAllHistory = false;
+    Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
     ICrypto* mCrypto;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
@@ -402,7 +423,8 @@ protected:
     void loadAndProcessUnsent();
     void initialFetchHistory(karere::Id serverNewest);
     void requestHistoryFromServer(int32_t count);
-    void getHistoryFromDb(unsigned count);
+    Idx getHistoryFromDb(unsigned count);
+    HistSource getHistoryFromDbOrServer(unsigned count);
     void onLastReceived(karere::Id msgid);
     void onLastSeen(karere::Id msgid);
     void handleLastReceivedSeen(karere::Id msgid);
@@ -421,7 +443,9 @@ protected:
     void login();
     void join();
     void joinRangeHist();
+    void onDisconnect();
     void onHistDone(); //called upont receipt of HISTDONE from server
+    void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
     void onNewKeys(StaticBuffer&& keybuf);
     void logSend(const Command& cmd);
     friend class Connection;
@@ -475,23 +499,28 @@ public:
     const std::map<karere::Id, Message*>& pendingEdits() const { return mPendingEdits; }
     /** @brief listener The chatd::Listener currently attached to this chat */
     Listener* listener() const { return mListener; }
-    /** @brief Whether history is being retrieved at the moment */
-    bool isFetchingHistory() const { return mHistFetchState > kHistNotFetching; }
-    /** @brief Whether we are fetching history from local database */
-    bool isFetchingFromDb() const { return mHistFetchState & kHistFetchingFromDb; }
+
+    /** @brief The source from where history is being retrieved at the moment.
+     * If history is not being fetched, kHistSourceNone is returned.
+     */
+    HistSource histSendSource() const { return mHistSendSource; }
+
+    /** @brief Returns whether we are fetching history at the moment */
+    bool isFetchingHistory() const { return (mHistFetchState & kHistNotFetching) == 0; }
+
     /** @brief The current history fetch state */
     HistFetchState histFetchState() const { return mHistFetchState; }
+
     /** @brief Whether we are decrypting the fetched history. The app may need
-     * to differentiate whether the hitory fetch process is doing the actual fetch, or
+     * to differentiate whether the history fetch process is doing the actual fetch, or
      * is waiting for the decryption (i.e. fetching chat keys etc)
      */
-    bool isFetchDecrypting() const { return ((mHistFetchState > kHistNotFetching) && (mHistFetchState < kHistDecryptingFlag)); }
-    /** @brief The last number of history messages that have been requested via
-     * \c getHitory() */
-    unsigned lastReqdHistCount() const { return mLastReqdHistCount; }
+    bool haveAllHistory() const { return mHaveAllHistory; }
+    bool isFetchDecrypting() const { return (isFetchingHistory() && (mHistFetchState & kHistDecryptingFlag)); }
+
     /**  @brief The last number of history messages that have actually been
      * returned to the app via * \c getHitory() */
-    unsigned lastHistObtainCount() const { return mLastHistObtainCount; }
+    unsigned lastHistDecryptCount() const { return mLastHistDecryptCount; }
     /** Get the message with the specified index, or \c NULL if that
      * index is out of range */
     inline Message* findOrNull(Idx num) const
@@ -550,18 +579,27 @@ public:
         auto it = mIdToIndexMap.find(msgid);
         return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;
     }
-    /** @brief Initiates fetching more history - from local db or from
-     * server. If there is more history in local db, it is loaded from there.
-     * If local db has less than the number of requested messages, loading stops
-     * when local db is exhausted. Next call to this function will fetch history
-     * from server.
+    /** @brief Initiates fetching more history - from local RAM history buffer,
+     * from local db or from server.
+     * If ram + local db have less than the number of requested messages,
+     * loading stops when local db is exhausted, returning less than \count
+     * messages. Next call to this function will fetch history from server.
      * If there is no history in local db, loading is done from the chatd server.
+     * Fetching from RAM and DB can be combined, if there is not enough history
+     * in RAM. In that case, kHistSourceDb will be returned.
      * @param count - The number of requested messages to load. The actual number
      * of messages loaded can be less than this.
-     * @returns Whether the fetch is from network (true), or database (false).
-     * The app may use this to decide whether to display a progress bar/ui or not
+     * @returns The source from where history is fetched.
+     * The app may use this to decide whether to display a progress bar/ui in case
+     * the fetch is from server.
      */
-    bool getHistory(int count);
+    HistSource getHistory(unsigned count);
+
+    /** @brief Resets history fetching, so that next getHistory will start from
+     * the newest known message
+     */
+    void resetHistFetch();
+
     /**
      * @brief setMessageSeen Move the last-seen-by-us pointer to the message with the
      * specified index.
@@ -569,6 +607,7 @@ public:
      * it was attempted to set the pointer to an older than the current position.
      */
     bool setMessageSeen(Idx idx);
+
     /** @brief Sets the last-see-by-us pointer to the message with the specified
      * msgid.
      * @return Whether the pointer was successfully set. Setting may fail if
@@ -617,6 +656,9 @@ public:
     int unreadMsgCount() const;
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
+
+    void listenerChanged();
+
     /** @brief Removes the specified manual-send message, from the manual send queue.
      * Normally should be called when the user opts to not retry sending the message */
     void removeManualSend(uint64_t id);
@@ -722,6 +764,8 @@ public:
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void addUser(karere::Id userid, Priv priv) = 0;
     virtual void removeUser(karere::Id userid) = 0;
+    virtual void setHaveAllHistory() = 0;
+    virtual bool haveAllHistory() = 0;
     virtual ~DbInterface(){}
 };
 

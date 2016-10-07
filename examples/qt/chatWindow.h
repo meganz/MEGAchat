@@ -344,17 +344,15 @@ noedit:
     void fetchMoreHistory(bool byScroll)
     {
         mLastHistReqByScroll = byScroll;
-//        if (mChat->isFetchingHistory() && !mChat->isFetchDecrypting())
-//            return;
-        if (mChat->histFetchState() == chatd::kHistNoMore)
+        auto source = mChat->getHistory(kHistBatchSize);
+        if (source == chatd::kHistSourceServer)
+        {
+            printf("source = server\n");
+            createHistFetchUi();
+        }
+        else if (source == chatd::kHistSourceNone)
         {
             //TODO: Show in some way in the GUI that we have reached the start of history
-            return;
-        }
-        bool isRemote = mChat->getHistory(kHistBatchSize);
-        if (isRemote)
-        {
-            createHistFetchUi();
         }
     }
     void createHistFetchUi()
@@ -363,7 +361,7 @@ noedit:
         auto layout = qobject_cast<QBoxLayout*>(ui.mTitlebar->layout());
         auto bar = mHistFetchUi->progressBar();
         bar->setMinimum(0);
-        bar->setMaximum(mChat->lastReqdHistCount());
+        bar->setMaximum(kHistBatchSize);
         layout->insertWidget(2, bar);
     }
     void onVideoCallBtn(bool) { onCallBtn(true); }
@@ -507,6 +505,12 @@ public:
         mChat = &chat;
         onPresenceChanged(mRoom.presence());
         updateChatdStatusDisplay(mChat->onlineState());
+        mChat->listenerChanged();
+        auto source = mChat->getHistory(16);
+        if (source == chatd::kHistSourceServer)
+            createHistFetchUi();
+
+/*
         if (mChat->empty())
             return;
         mChat->replayUnsentNotifications(); //works synchronously
@@ -526,6 +530,7 @@ public:
             if ((mChat->size() < 16) && (mChat->onlineState() == chatd::kChatStateOnline))
             QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
         }
+    */
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -545,7 +550,8 @@ public:
 //            file->open(QIODevice::ReadOnly);
         }
     }
-    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
+    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg,
+        chatd::Message::Status status, bool isLocal)
     {
         assert(idx != CHATD_IDX_INVALID); assert(msg.id());
         if (mHistFetchUi)
@@ -577,16 +583,16 @@ public:
         }
     }
     void showCantEditNotice(const QString& action=QObject::tr("edit"));
-    virtual void onHistoryDone(bool isFromDb)
+    virtual void onHistoryDone(chatd::HistSource source)
     {
         mHistFetchUi.reset();
-        if (!mChat->lastHistObtainCount())
+        if (source == chatd::kHistSourceNone) // no more history
             return;
 
         auto& list = *ui.mMessageList;
-        //chech if we have filled the window height with history, if not, fetch more
+        //check if we have filled the window height with history, if not, fetch more
         auto idx = list.indexAt(QPoint(list.rect().left()+10, list.rect().bottom()-2));
-        if (!idx.isValid() && mChat->histFetchState() != chatd::kHistNoMore)
+        if (!idx.isValid() && !mChat->haveAllHistory())
         {
             fetchMoreHistory(false);
             return;
@@ -598,7 +604,7 @@ public:
         else
         {
             int last = idx.isValid()
-              ?(std::min((unsigned)idx.row(), mChat->lastHistObtainCount()))
+              ?(std::min((unsigned)idx.row(), mChat->lastHistDecryptCount()))
               :list.count()-1;
             for (int i=0; i<=last; i++)
                 qobject_cast<MessageWidget*>(list.itemWidget(list.item(i)))->fadeIn(QColor(250,250,250));
@@ -630,7 +636,7 @@ public:
     }
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onEditRejected(const chatd::Message& msg, uint8_t opcode);
-    virtual void onOnlineStateChanged(chatd::ChatState state)
+    virtual void onOnlineStateChange(chatd::ChatState state)
     {
         mRoom.onOnlineStateChange(state);
         updateChatdStatusDisplay(state);
