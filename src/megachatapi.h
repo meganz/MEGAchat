@@ -40,8 +40,8 @@ typedef int32_t MegaChatIndex;
  * a handle but it will never be megachat::INVALID_HANDLE
  *
  */
-const MegaChatHandle INVALID_HANDLE = ~(MegaChatHandle)0;
-const MegaChatIndex INVALID_INDEX = 0x7fffffff;
+const MegaChatHandle MEGACHAT_INVALID_HANDLE = ~(MegaChatHandle)0;
+const MegaChatIndex MEGACHAT_INVALID_INDEX = 0x7fffffff;
 
 class MegaChatApi;
 class MegaChatApiImpl;
@@ -955,7 +955,7 @@ public:
      * @param uh MegaChatHandle that identifies the user. If not provided (INVALID_HANDLE), the requester is removed
      * @param listener MegaChatRequestListener to track this request
      */
-    void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Allows a logged in operator/moderator to adjust the permissions on any other user
@@ -1004,7 +1004,7 @@ public:
      * @param messageid MegaChatHandle that identifies the message to truncate from
      * @param listener MegaChatRequestListener to track this request
      */
-    void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid = INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Allows to set the title of a group chat

@@ -356,7 +356,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatHandle chatid)
     this->chatid = chatid;
     this->historyLoaded = false;
     this->msgConfirmed = false;
-    this->msgId = megachat::INVALID_HANDLE;
+    this->msgId = megachat::MEGACHAT_INVALID_HANDLE;
 }
 
 void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *msg)

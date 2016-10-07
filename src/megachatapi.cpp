@@ -65,7 +65,7 @@ int MegaChatCall::getTag() const
 
 MegaChatHandle MegaChatCall::getContactHandle() const
 {
-    return INVALID_HANDLE;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
@@ -351,12 +351,12 @@ MegaChatPeerList *MegaChatRequest::getMegaChatPeerList()
 
 MegaHandle MegaChatRequest::getChatHandle()
 {
-    return INVALID_HANDLE;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 MegaHandle MegaChatRequest::getUserHandle()
 {
-    return INVALID_HANDLE;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 int MegaChatRequest::getPrivilege()
@@ -428,7 +428,7 @@ const char *MegaChatRoom::stateToString(int status)
 
 MegaChatHandle MegaChatRoom::getChatId() const
 {
-    return INVALID_HANDLE;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 int MegaChatRoom::getOwnPrivilege() const
@@ -448,7 +448,7 @@ unsigned int MegaChatRoom::getPeerCount() const
 
 MegaChatHandle MegaChatRoom::getPeerHandle(unsigned int i) const
 {
-    return INVALID_HANDLE;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 int MegaChatRoom::getPeerPrivilege(unsigned int i) const
@@ -517,7 +517,7 @@ void MegaChatPeerList::addPeer(MegaChatHandle, int)
 
 MegaChatHandle MegaChatPeerList::getPeerHandle(int) const
 {
-    return INVALID_HANDLE;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 int MegaChatPeerList::getPeerPrivilege(int) const
@@ -585,7 +585,7 @@ bool MegaChatListItem::hasChanged(int changeType) const
 
 MegaChatHandle MegaChatListItem::getChatId() const
 {
-    return INVALID_HANDLE;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 const char *MegaChatListItem::getTitle() const
@@ -641,12 +641,12 @@ int MegaChatMessage::getStatus() const
 
 MegaChatHandle MegaChatMessage::getMsgId() const
 {
-    return INVALID_HANDLE;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 MegaChatHandle MegaChatMessage::getTempId() const
 {
-    return INVALID_HANDLE;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 int MegaChatMessage::getMsgIndex() const
@@ -656,7 +656,7 @@ int MegaChatMessage::getMsgIndex() const
 
 MegaChatHandle MegaChatMessage::getUserHandle() const
 {
-    return INVALID_HANDLE;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 MegaChatMessage::Type MegaChatMessage::getType() const
