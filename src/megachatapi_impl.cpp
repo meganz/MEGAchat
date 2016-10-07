@@ -2688,8 +2688,11 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage &msg)
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
 {
-    string tmp(msg.buf(), msg.size());
-    this->msg = MegaApi::strdup(tmp.c_str());
+    size_t msgSize = msg.bufSize();
+    this->msg = new char[msgSize+1];
+    memcpy(this->msg, msg.buf(), msgSize);
+    this->msg[msgSize] = '\0';
+
     this->uh = msg.userid;
     this->msgId = msg.isSending() ? INVALID_HANDLE : (MegaChatHandle) msg.id();
     this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : INVALID_HANDLE;
