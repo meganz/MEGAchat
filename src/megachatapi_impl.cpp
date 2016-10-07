@@ -2040,18 +2040,15 @@ void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Statu
     chatApi->fireOnMessageReceived(message);
 }
 
-void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isFromDb)
+void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isLocal)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     chatApi->fireOnMessageLoaded(message);
 }
 
-void MegaChatRoomHandler::onHistoryDone(chatd::HistSource source, bool endOfHistory)
+void MegaChatRoomHandler::onHistoryDone(chatd::HistSource /*source*/, bool /*endOfHistory*/)
 {
-    if (endOfHistory)  // no more history available (including DB and server)
-    {
-        chatApi->fireOnMessageLoaded(NULL);
-    }
+    chatApi->fireOnMessageLoaded(NULL);
 }
 
 void MegaChatRoomHandler::onUnsentMsgLoaded(chatd::Message &msg)
