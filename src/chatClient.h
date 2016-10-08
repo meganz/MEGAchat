@@ -170,7 +170,7 @@ public:
 
     /** @brief The userid of the other person in the 1on1 chat */
     const uint64_t peer() const { return mPeer; }
-
+    chatd::Priv peerPrivilege() const { return mPeerPriv; }
     /** @brief The contact object representing the peer of the 1on1 chat */
     Contact& contact() const { return mContact; }
 

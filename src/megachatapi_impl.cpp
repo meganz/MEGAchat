@@ -52,6 +52,7 @@ MegaChatApiImpl *MegaChatApiImpl::megaChatApiRef = NULL;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
+: localVideoReceiver(nullptr)
 {
     init(chatApi, megaApi);
 
@@ -335,7 +336,7 @@ void MegaChatApiImpl::sendPendingRequests()
             handle uh = request->getUserHandle();
             Priv privilege = (Priv) request->getPrivilege();
 
-            if (chatid == INVALID_HANDLE || uh == INVALID_HANDLE)
+            if (chatid == MEGACHAT_INVALID_HANDLE || uh == MEGACHAT_INVALID_HANDLE)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -379,7 +380,7 @@ void MegaChatApiImpl::sendPendingRequests()
             handle uh = request->getUserHandle();
             int privilege = request->getPrivilege();
 
-            if (chatid == INVALID_HANDLE || uh == INVALID_HANDLE)
+            if (chatid == MEGACHAT_INVALID_HANDLE || uh == MEGACHAT_INVALID_HANDLE)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -417,7 +418,7 @@ void MegaChatApiImpl::sendPendingRequests()
             handle chatid = request->getChatHandle();
             handle uh = request->getUserHandle();
 
-            if (chatid == INVALID_HANDLE)
+            if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -437,7 +438,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR)
             {
-                if (uh != INVALID_HANDLE)
+                if (uh != MEGACHAT_INVALID_HANDLE)
                 {
                     errorCode = MegaChatError::ERROR_ACCESS;
                     break;
@@ -467,7 +468,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             handle chatid = request->getChatHandle();
             handle messageid = request->getUserHandle();
-            if (chatid == INVALID_HANDLE || messageid == INVALID_HANDLE)
+            if (chatid == MEGACHAT_INVALID_HANDLE || messageid == MEGACHAT_INVALID_HANDLE)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -504,7 +505,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             handle chatid = request->getChatHandle();
             const char *title = request->getText();
-            if (chatid == INVALID_HANDLE || title == NULL)
+            if (chatid == MEGACHAT_INVALID_HANDLE || title == NULL)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -680,9 +681,8 @@ chatd::Message *MegaChatApiImpl::findMessageNotConfirmed(MegaChatHandle chatid, 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        // FIXME: karere will provide a method to find messages from msgxid (#5422)
-//        Chat &chat = chatroom->chat();
-//        msg = chat.findOrNull(msgxid);
+        Chat &chat = chatroom->chat();
+        msg = chat.getMsgByXid(msgxid);
     }
 
     sdkMutex.unlock();
@@ -1056,7 +1056,6 @@ bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *
     }
 
     sdkMutex.unlock();
-
     return chatroom;
 }
 
@@ -1074,7 +1073,6 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
 bool MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
 {
     bool ret = true;
-
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
@@ -1110,14 +1108,28 @@ bool MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
     }
 
     sdkMutex.unlock();
+    return ret;
+}
 
+bool MegaChatApiImpl::isFullHistoryLoaded(MegaChatHandle chatid)
+{
+    bool ret = false;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        ret = chat.haveAllHistory();
+    }
+
+    sdkMutex.unlock();
     return ret;
 }
 
 MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
-
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
@@ -1144,14 +1156,12 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     }
 
     sdkMutex.unlock();
-
     return megaMsg;
 }
 
 MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, size_t msglen, MegaChatMessage::Type type)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
-
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
@@ -1165,35 +1175,41 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     }
 
     sdkMutex.unlock();
-
     return megaMsg;    
 }
 
 MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msglen)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
-
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
-    Message *originalMsg = findMessage(chatid, msgid);
-    if (!originalMsg)   // message may not have an index yet (not confirmed)
-    {
-        originalMsg = findMessageNotConfirmed(chatid, msgid);   // find by transactional id
-    }
-
-    if (chatroom && originalMsg)
+    if (chatroom)
     {
         Chat &chat = chatroom->chat();
-        const Message *editedMsg = chat.msgModify(*originalMsg, msg, msglen, NULL);
-        if (editedMsg)
+        Message *originalMsg = findMessage(chatid, msgid);
+        Idx index;
+        if (originalMsg)
         {
-            megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, INVALID_INDEX);
+            index = chat.msgIndexFromId(msgid);
+        }
+        else   // message may not have an index yet (not confirmed)
+        {
+            index = MEGACHAT_INVALID_INDEX;
+            originalMsg = findMessageNotConfirmed(chatid, msgid);   // find by transactional id
+        }
+
+        if (originalMsg)
+        {
+            const Message *editedMsg = chat.msgModify(*originalMsg, msg, msglen, NULL);
+            if (editedMsg)
+            {
+                megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
+            }
         }
     }
 
     sdkMutex.unlock();
-
     return megaMsg;
 }
 
@@ -1339,7 +1355,7 @@ void MegaChatApiImpl::addChatListener(MegaChatListener *listener)
 
 void MegaChatApiImpl::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
-    if (!listener || chatid == INVALID_HANDLE)
+    if (!listener || chatid == MEGACHAT_INVALID_HANDLE)
     {
         return;
     }
@@ -1509,7 +1525,7 @@ void MegaChatApiImpl::onOwnPresence(Presence pres)
 
     this->status = (MegaChatApi::Status) pres.status();
 
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(INVALID_HANDLE);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(MEGACHAT_INVALID_HANDLE);
     item->setOnlineStatus(status);
 
     API_LOG_INFO("My own presence has changed to %s (flags: %d)", pres.toString(), pres.flags());
@@ -1609,8 +1625,8 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->retry = 0;
     this->flag = false;
     this->peerList = NULL;
-    this->chatid = INVALID_HANDLE;
-    this->userHandle = INVALID_HANDLE;
+    this->chatid = MEGACHAT_INVALID_HANDLE;
+    this->userHandle = MEGACHAT_INVALID_HANDLE;
     this->privilege = MegaChatPeerList::PRIV_UNKNOWN;
     this->text = NULL;
 }
@@ -1836,10 +1852,10 @@ MegaChatHandle MegaChatCallPrivate::getContactHandle() const
 {
     if(!peer)
     {
-        return INVALID_HANDLE;
+        return MEGACHAT_INVALID_HANDLE;
     }
 
-    MegaChatHandle userHandle = INVALID_HANDLE;
+    MegaChatHandle userHandle = MEGACHAT_INVALID_HANDLE;
     string tmp = peer;
     tmp.resize(13);
     Base32::atob(tmp.data(), (byte *)&userHandle, sizeof(userHandle));
@@ -2002,6 +2018,8 @@ void MegaChatRoomHandler::init(Chat &chat, DbInterface *&)
 {
     mChat = &chat;
     mRoom = chatApi->findChatRoom(chatid);
+
+    mChat->resetListenerState();
 }
 
 void MegaChatRoomHandler::onDestroy()
@@ -2022,31 +2040,28 @@ void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Statu
     chatApi->fireOnMessageReceived(message);
 }
 
-void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isFromDb)
+void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isLocal)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     chatApi->fireOnMessageLoaded(message);
 }
 
-void MegaChatRoomHandler::onHistoryDone(bool isFromDb)
+void MegaChatRoomHandler::onHistoryDone(chatd::HistSource /*source*/, bool /*endOfHistory*/)
 {
-    if (!isFromDb)  // no more history available (including DB and server)
-    {
-        chatApi->fireOnMessageLoaded(NULL);
-    }
+    chatApi->fireOnMessageLoaded(NULL);
 }
 
 void MegaChatRoomHandler::onUnsentMsgLoaded(chatd::Message &msg)
 {
     Message::Status status = (Message::Status) MegaChatMessage::STATUS_SENDING;
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, INVALID_INDEX);
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, MEGACHAT_INVALID_INDEX);
     chatApi->fireOnMessageLoaded(message);
 }
 
 void MegaChatRoomHandler::onUnsentEditLoaded(chatd::Message &msg, bool oriMsgIsSending)
 {
     Message::Status status = (Message::Status) MegaChatMessage::STATUS_SENDING;
-    Idx index = INVALID_INDEX;
+    Idx index = MEGACHAT_INVALID_INDEX;
     if (!oriMsgIsSending)   // original message was already sent
     {
         index = mChat->msgIndexFromId(msg.id());
@@ -2068,7 +2083,7 @@ void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx 
 void MegaChatRoomHandler::onMessageRejected(const Message &msg)
 {
     Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_REJECTED;
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, INVALID_INDEX);
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, MEGACHAT_INVALID_INDEX);
     message->setStatus(status);
     chatApi->fireOnMessageUpdate(message);
 }
@@ -2088,19 +2103,19 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onEditRejected(const Message &msg, uint8_t opcode)
+void MegaChatRoomHandler::onEditRejected(const Message &msg, bool oriIsConfirmed)
 {
     Idx index;
     Message::Status status;
 
-    if (opcode == OP_MSGUPD)    // message is confirmed, but edit has been rejected
+    if (oriIsConfirmed)    // message is confirmed, but edit has been rejected
     {
         index = mChat->msgIndexFromId(msg.id());
         status = mChat->getMsgStatus(msg, index);
     }
-    else // OP_MSGUPDX --> both, original message and edit, have been rejected
+    else // both, original message and edit, have been rejected
     {
-        index = INVALID_INDEX;
+        index = MEGACHAT_INVALID_INDEX;
         status = Message::kSending;
     }
 
@@ -2167,7 +2182,7 @@ void MegaChatRoomHandler::onUnreadChanged()
 void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t /*id*/, chatd::ManualSendReason /*reason*/)
 {
     Idx index = mChat->msgIndexFromId(msg->id());
-    Message::Status status = (index != INVALID_INDEX) ? mChat->getMsgStatus(*msg, index) : Message::kSending;
+    Message::Status status = (index != MEGACHAT_INVALID_INDEX) ? mChat->getMsgStatus(*msg, index) : Message::kSending;
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(*msg, status, index);
     delete msg; // we take ownership of the Message
 
@@ -2319,8 +2334,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     else
     {
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
-//        privilege_t priv = (privilege_t) peerchat.getPeerPriv();
-        privilege_t priv = (privilege_t) PRIV_MODERATOR;
+        privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
 
         this->peers.push_back(userpriv_pair(uh, priv));
@@ -2502,7 +2516,7 @@ MegaChatHandle MegaChatPeerListPrivate::getPeerHandle(int i) const
 {
     if (i > size())
     {
-        return INVALID_HANDLE;
+        return MEGACHAT_INVALID_HANDLE;
     }
     else
     {
@@ -2694,8 +2708,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->msg[msgSize] = '\0';
 
     this->uh = msg.userid;
-    this->msgId = msg.isSending() ? INVALID_HANDLE : (MegaChatHandle) msg.id();
-    this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : INVALID_HANDLE;
+    this->msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
+    this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
     this->type = (MegaChatMessage::Type) msg.type;
     this->ts = msg.ts;
     this->status = status;

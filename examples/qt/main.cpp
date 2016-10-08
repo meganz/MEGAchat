@@ -118,7 +118,9 @@ int main(int argc, char **argv)
         {
             KR_LOG_DEBUG("Client initialized with new session");
             std::ofstream osidf(gAppDir+"/sid");
-            osidf << gSdk->dumpSession();
+            const char* sdkSid = gSdk->dumpSession();
+            assert(sdkSid);
+            osidf << sdkSid;
             osidf.close();
         }
         else

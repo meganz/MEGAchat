@@ -245,7 +245,7 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     widget->fadeIn(QColor(Qt::yellow));
 }
 
-void ChatWindow::onEditRejected(const chatd::Message& msg, uint8_t opcode)
+void ChatWindow::onEditRejected(const chatd::Message& msg, bool oriIsConfirmed)
 {
     auto widget = widgetFromMessage(msg);
     if (!widget)

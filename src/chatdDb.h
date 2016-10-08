@@ -299,6 +299,20 @@ public:
         sqliteQuery(mDb, "delete from chat_peers where chatid=? and userid=?",
             mMessages.chatId(), userid);
     }
+    virtual void setHaveAllHistory()
+    {
+        sqliteQuery(mDb,
+            "insert or replace into chat_vars(chatid, name, value) "
+            "values(?, 'have_all_history', '1')", mMessages.chatId());
+    }
+    virtual bool haveAllHistory()
+    {
+        SqliteStmt stmt(mDb,
+            "select value from chat_vars where chatid=? and name='have_all_history'");
+        if (!stmt.step())
+            return false;
+        return stmt.stringCol(0) == "1";
+    }
 };
 
 #endif
