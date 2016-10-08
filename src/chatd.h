@@ -531,9 +531,10 @@ public:
     /**
      * @brief haveAllHistory
      * Returned whether we have locally all existing history.
-     * Note that this doesn't mean that we have send all history the app
+     * Note that this doesn't mean that we have sent all history the app
      * via getHistory() - the client may still have history that hasn't yet
-     * sent to the app.
+     * been sent to the app after a getHistory(), i.e. because resetGetHistory()
+     * has been called.
      */
     bool haveAllHistory() const { return mHaveAllHistory; }
 
@@ -628,10 +629,12 @@ public:
     HistSource getHistory(unsigned count);
 
     /**
-     * @brief Resets history fetching, so that next getHistory will start from
-     * the newest known message
+     * @brief Resets sending of history to the app, so that next getHistory()
+     * will start from the newest known message. Note that this doesn't affect
+     * the actual fetching of history from the server to the chatd client,
+     * only the sending from the chatd client to the app.
      */
-    void resetHistFetch();
+    void resetGetHistory();
 
     /**
      * @brief setMessageSeen Move the last-seen-by-us pointer to the message with the
@@ -642,7 +645,7 @@ public:
     bool setMessageSeen(Idx idx);
 
     /**
-     * @brief Sets the last-see-by-us pointer to the message with the specified
+     * @brief Sets the last-seen-by-us pointer to the message with the specified
      * msgid.
      * @return Whether the pointer was successfully set. Setting may fail if
      * it was attempted to set the pointer to an older than the current position.

@@ -559,7 +559,7 @@ HistSource Chat::getHistory(unsigned count)
         }
         countSoFar = mNextHistFetchIdx - fetchEnd;
         mNextHistFetchIdx -= countSoFar;
-        if (countSoFar >= count)
+        if (countSoFar >= (int)count)
         {
             CALL_LISTENER(onHistoryDone, kHistSourceRam, mHaveAllHistory && !mHasMoreHistoryInDb && (mNextHistFetchIdx <= end));
             return kHistSourceRam;

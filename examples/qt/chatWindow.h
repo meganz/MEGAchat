@@ -506,7 +506,7 @@ public:
         onPresenceChanged(mRoom.presence());
         updateChatdStatusDisplay(mChat->onlineState());
         mChat->resetListenerState();
-        auto source = mChat->getHistory(16);
+        auto source = mChat->getHistory(kHistBatchSize);
         if (source == chatd::kHistSourceServer)
             createHistFetchUi();
     }
