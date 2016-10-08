@@ -975,7 +975,7 @@ void Chat::loadAndProcessUnsent()
 
 void Chat::resetListenerState()
 {
-    resetHistFetch();
+    resetGetHistory();
     replayUnsentNotifications();
     loadManualSending();
 }
@@ -2142,7 +2142,7 @@ void Chat::onJoinComplete()
         msgEncryptAndSend(mNextUnsent->msg, mNextUnsent->opcode(), &(*mNextUnsent));
     }
 }
-void Chat::resetHistFetch()
+void Chat::resetGetHistory()
 {
     mNextHistFetchIdx = CHATD_IDX_INVALID;
 }
