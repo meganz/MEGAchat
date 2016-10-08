@@ -72,6 +72,8 @@ public:
     /** @brief
      * This is the first call chatd makes to the Listener, passing it necessary objects and
      * retrieving info about the local history database
+     * If you want to replay notifications related to this chat and the history retrieval to
+     * start from the beginning (so every message is notified again), call \c Chat::resetListenerState
      * @param chat - the Chat object that can be used to access the message buffer etc
      * @param dbIntf[out] reference to the internal pointer to the database abstraction
      * layer interface. Set this pointer to a newly created instance of a db abstraction
@@ -699,6 +701,8 @@ public:
      * callbacks, such as the onManualSendRequired(), onUnsentMsgLoaded,
      * and resets the getHistory() pointer, so that subsequent getHistory()
      * calls will start returning history from the newest message.
+     * You may want to call this method at \c chatd::Listener::init, so the
+     * history retrieval starts from the beginning.
      */
     void resetListenerState();
     /**

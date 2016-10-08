@@ -276,7 +276,7 @@ public:
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
     virtual void onDestroy();
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
-    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb);
+    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal);
     virtual void onHistoryDone(chatd::HistSource source, bool endOfHistory);
     virtual void onUnsentMsgLoaded(chatd::Message& msg);
     virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
@@ -622,7 +622,7 @@ public:
     // Chatrooms management
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
-    void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
     void updateChatPermissions(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
     void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
@@ -631,6 +631,7 @@ public:
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
 
     bool getMessages(MegaChatHandle chatid, int count);
+    bool isFullHistoryLoaded(MegaChatHandle chatid);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msglen, MegaChatMessage::Type type);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msglen);
