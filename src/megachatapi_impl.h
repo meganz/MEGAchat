@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file megachatapi_impl.h
  * @brief Private header file of the intermediate layer for the MEGA Chat C++ SDK.
  *
@@ -289,7 +289,7 @@ public:
     virtual void onUserJoin(karere::Id userid, chatd::Priv privilege);
     virtual void onUserLeave(karere::Id userid);
     virtual void onUnreadChanged();
-    virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, int reason);
+    virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
     //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
 

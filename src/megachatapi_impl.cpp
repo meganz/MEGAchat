@@ -2164,7 +2164,7 @@ void MegaChatRoomHandler::onUnreadChanged()
     }
 }
 
-void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t /*id*/, int /*reason*/)
+void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t /*id*/, chatd::ManualSendReason /*reason*/)
 {
     Idx index = mChat->msgIndexFromId(msg->id());
     Message::Status status = (index != INVALID_INDEX) ? mChat->getMsgStatus(*msg, index) : Message::kSending;
