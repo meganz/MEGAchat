@@ -705,6 +705,14 @@ public:
         LOG_LEVEL_MAX       = 6     /// Maximum level of informational logs
     };
 
+    enum
+    {
+        SOURCE_ERROR    = -1,
+        SOURCE_NONE     = 0,
+        SOURCE_LOCAL,
+        SOURCE_REMOTE
+    };
+
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -1068,15 +1076,19 @@ public:
      * the history being shorter than requested, the other is due to internal protocol
      * messages that are not intended to be displayed to the user. Additionally, if the fetch
      * is local and there's no more history locally available, the number of messages could be
-     * lower too (and the next call to MegaChatApi::getMessages will fetch messages from server).
+     * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param count The number of requested messages to load.
      *
-     * @return True if the fetch is local, false if it will request the server. This value
-     * can be used to show a progress bar accordingly when network operation occurs.
+     * @return Return the source of the messages that is going to be fetched. The possible values are:
+     *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even int the server)
+     *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
+     *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
+     *
+     * The value MegaChatApi::SOURCE_REMOTE can be used to show a progress bar accordingly when network operation occurs.
      */
-    bool getMessages(MegaChatHandle chatid, int count);
+    int loadMessages(MegaChatHandle chatid, int count);
 
     bool isFullHistoryLoaded(MegaChatHandle chatid);
 
@@ -1509,7 +1521,7 @@ public:
     /**
      * @brief This function is called when new messages are loaded
      *
-     * You can use MegaChatApi::getMessages to request loading messages.
+     * You can use MegaChatApi::loadMessages to request loading messages.
      *
      * When there are no more message to load in the history, this function is also
      * called, but the second parameter will be NULL.
@@ -1521,7 +1533,7 @@ public:
      * @param api MegaChatApi connected to the account
      * @param msg The MegaChatMessage object, or NULL if no more history available.
      */
-    virtual void onMessageLoaded(MegaChatApi* api, MegaChatMessage *msg);   // loaded by getMessages()
+    virtual void onMessageLoaded(MegaChatApi* api, MegaChatMessage *msg);   // loaded by loadMessages()
 
     /**
      * @brief This function is called when a new message is received

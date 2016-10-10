@@ -173,9 +173,9 @@ void MegaChatApi::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *lis
     pImpl->closeChatRoom(chatid, listener);
 }
 
-bool MegaChatApi::getMessages(MegaChatHandle chatid, int count)
+int MegaChatApi::loadMessages(MegaChatHandle chatid, int count)
 {
-    return pImpl->getMessages(chatid, count);
+    return pImpl->loadMessages(chatid, count);
 }
 
 bool MegaChatApi::isFullHistoryLoaded(MegaChatHandle chatid)

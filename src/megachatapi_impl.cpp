@@ -1070,41 +1070,26 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     sdkMutex.unlock();
 }
 
-bool MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
+int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
 {
-    bool ret = true;
+    int ret = MegaChatApi::SOURCE_NONE;
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
-    if (!chatroom)
+    if (chatroom)
     {
-        API_LOG_ERROR("Cannot get messages from non-existing chatroom (chatid: %d)", chatid);
-        sdkMutex.unlock();
-        return 0;
-    }
-
-    Chat &chat = chatroom->chat();
-
-    // first notify about messages already loaded in RAM
-    Idx newest = chat.decryptedLownum();
-    Idx oldest = chat.decryptedHighnum();
-
-    /****** remove this block after changes on getHistory() to make it return
-     * messages from RAM too. (issue #5411) ************************************/
-    for (Idx i = newest; i < oldest; i++)
-    {
-        Message &msg = chat.at(i);
-        Message::Status status = chat.getMsgStatus(msg, i);
-
-        fireOnMessageLoaded(new MegaChatMessagePrivate(msg, status, i));
-    }
-    /***************************************************************************/
-
-    // then fetch more messages if requested
-    int loadedCount = oldest - newest;
-    if (loadedCount < count)
-    {
-        ret = chat.getHistory(count - loadedCount);
+        Chat &chat = chatroom->chat();
+        HistSource source = chat.getHistory(count);
+        switch (source)
+        {
+        case kHistSourceNone:   ret = MegaChatApi::SOURCE_NONE; break;
+        case kHistSourceRam:
+        case kHistSourceDb:     ret = MegaChatApi::SOURCE_LOCAL; break;
+        case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
+        default:
+            API_LOG_ERROR("Unknown source of messages at loadMessages()");
+            break;
+        }
     }
 
     sdkMutex.unlock();

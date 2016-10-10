@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 
         // Load history
         flag = &chatroomListener->historyLoaded; *flag = false;
-        t.megaChatApi[0]->getMessages(chatid, 500);
+        t.megaChatApi[0]->loadMessages(chatid, 500);
         assert(t.waitForResponse(flag));
 
         // Close the chatroom
