@@ -288,6 +288,7 @@ public:
         stmt.stepMustHaveData(__FUNCTION__);
         return stmt.uint64Col(0);
     }
+
     virtual void addUser(karere::Id userid, chatd::Priv priv)
     {
         sqliteQuery(mDb, "insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",

@@ -512,7 +512,7 @@ void Chat::onDisconnect()
         //about to receive new history (if any), so notify app about end of
         //old history
         mHistSendSource = kHistSourceNone;
-        CALL_LISTENER(onHistoryDone, kHistSourceServer, mHaveAllHistory);
+        CALL_LISTENER(onHistoryDone, kHistSourceServer);
     }
     setOnlineState(kChatStateOffline);
 }
@@ -531,7 +531,7 @@ HistSource Chat::getHistory(unsigned count)
         {
             //we must have fetched at least one message at init, if not - then there is no history on server
             assert(mHaveAllHistory);
-            CALL_LISTENER(onHistoryDone, kHistSourceNone, mHaveAllHistory);
+            CALL_LISTENER(onHistoryDone, kHistSourceNone);
             return kHistSourceNone;
         }
         else
@@ -561,7 +561,7 @@ HistSource Chat::getHistory(unsigned count)
         mNextHistFetchIdx -= countSoFar;
         if (countSoFar >= (int)count)
         {
-            CALL_LISTENER(onHistoryDone, kHistSourceRam, mHaveAllHistory && !mHasMoreHistoryInDb && (mNextHistFetchIdx <= end));
+            CALL_LISTENER(onHistoryDone, kHistSourceRam);
             return kHistSourceRam;
         }
     }
@@ -680,7 +680,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
     }
     mNextHistFetchIdx -= messages.size();
     mHistFetchState = kHistNotFetching;
-    CALL_LISTENER(onHistoryDone, kHistSourceDb, mHaveAllHistory && !mHasMoreHistoryInDb);
+    CALL_LISTENER(onHistoryDone, kHistSourceDb);
 
     // If we haven't yet seen the message with the last-seen msgid, then all messages
     // in the buffer (and in the loaded range) are unseen - so we just loaded
@@ -956,7 +956,7 @@ void Chat::onFetchHistDone()
             //we are forwarding to the app the history we are receiving from
             //server. Tell app that is complete.
             mHistSendSource = kHistSourceNone;
-            CALL_LISTENER(onHistoryDone, kHistSourceServer, mHaveAllHistory);
+            CALL_LISTENER(onHistoryDone, kHistSourceServer);
         }
         if (mLastSeenIdx == CHATD_IDX_INVALID)
             CALL_LISTENER(onUnreadChanged);
@@ -1036,6 +1036,14 @@ Message* Chat::getMsgByXid(Id msgxid)
         }
     }
     return nullptr;
+}
+
+bool Chat::haveAllHistoryNotified() const
+{
+    if (!mHaveAllHistory || mHasMoreHistoryInDb)
+        return false;
+
+    return (mNextHistFetchIdx < lownum());
 }
 
 uint64_t Chat::generateRefId(const ICrypto* aCrypto)
@@ -2003,7 +2011,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 mHistFetchState = kHistNotFetching;
                 if (mHistSendSource == kHistSourceServer)
                 {
-                    CALL_LISTENER(onHistoryDone, kHistSourceServer, mHaveAllHistory);
+                    CALL_LISTENER(onHistoryDone, kHistSourceServer);
                 }
             }
         }
