@@ -561,7 +561,7 @@ public:
         }
     }
     void showCantEditNotice(const QString& action=QObject::tr("edit"));
-    virtual void onHistoryDone(chatd::HistSource source, bool endOfHistory)
+    virtual void onHistoryDone(chatd::HistSource source)
     {
         mHistFetchUi.reset();
         if (source == chatd::kHistSourceNone) // no more history

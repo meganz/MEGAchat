@@ -110,7 +110,6 @@ public:
      * and then from DB, then source will be kHistSourceDb. This is not valid
      * from mixing messages from local source and from server, as they are never
      * mixed in one history chunk.
-     * @param endOfHistory - wherther there exists no more history, even on server.
      */
     virtual void onHistoryDone(HistSource source) {}
 

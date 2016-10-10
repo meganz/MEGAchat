@@ -2046,7 +2046,7 @@ void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::S
     chatApi->fireOnMessageLoaded(message);
 }
 
-void MegaChatRoomHandler::onHistoryDone(chatd::HistSource /*source*/, bool /*endOfHistory*/)
+void MegaChatRoomHandler::onHistoryDone(chatd::HistSource /*source*/)
 {
     chatApi->fireOnMessageLoaded(NULL);
 }
