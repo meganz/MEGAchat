@@ -56,13 +56,14 @@ enum ManualSendReason: uint8_t
     kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_AUTOSEND_AGE seconds
 };
 
+/** The source from where history is being retrieved by the app */
 enum HistSource
 {
-    kHistSourceNone = 0,
-    kHistSourceRam = 1,
-    kHistSourceDb = 2,
-    kHistSourceServer = 3,
-    kHistSourceMask = 3
+    kHistSourceNone = 0, //< History is not being retrieved
+    kHistSourceRam = 1, //< History is being retrieved from the history buffer in RAM
+    kHistSourceDb = 2, //<History is being retrieved from the local DB
+    kHistSourceServer = 3, //< History is being retrieved from the server
+//    kHistSourceMask = 3
 };
 
 class DbInterface;
@@ -111,7 +112,7 @@ public:
      * mixed in one history chunk.
      * @param endOfHistory - wherther there exists no more history, even on server.
      */
-    virtual void onHistoryDone(HistSource source, bool endOfHistory) {}
+    virtual void onHistoryDone(HistSource source) {}
 
     /**
      * @brief An unsent message was loaded from local db. The app should normally
@@ -513,7 +514,8 @@ public:
     /** @brief listener The chatd::Listener currently attached to this chat */
     Listener* listener() const { return mListener; }
 
-    /** @brief The source from where history is being retrieved at the moment.
+    /** @brief The source from where history is being retrieved at the moment
+     * by the app, via \c getHistory().
      * If history is not being fetched, kHistSourceNone is returned.
      */
     HistSource histSendSource() const { return mHistSendSource; }
@@ -539,7 +541,11 @@ public:
      * has been called.
      */
     bool haveAllHistory() const { return mHaveAllHistory; }
-
+    /** @brief returns whether the app has received all existing history
+     * for the current history fetch session (since the chat creation or
+     * sinte the last call to \c resetGetHistory()
+     */
+    bool haveAllHistoryNotified() const;
     /**
      * @brief The last number of history messages that have actually been
      * returned to the app via * \c getHitory() */
