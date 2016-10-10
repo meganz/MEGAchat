@@ -1090,6 +1090,13 @@ public:
      */
     int loadMessages(MegaChatHandle chatid, int count);
 
+    /**
+     * @brief Checks whether the app has already loaded the full history of the chatroom
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return True the whole history is already loaded (including old messages from server).
+     */
     bool isFullHistoryLoaded(MegaChatHandle chatid);
 
     /**

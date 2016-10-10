@@ -1105,7 +1105,7 @@ bool MegaChatApiImpl::isFullHistoryLoaded(MegaChatHandle chatid)
     if (chatroom)
     {
         Chat &chat = chatroom->chat();
-        ret = chat.haveAllHistory();
+        ret = chat.haveAllHistoryNotified();
     }
 
     sdkMutex.unlock();
