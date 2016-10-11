@@ -173,9 +173,9 @@ void MegaChatApi::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *lis
     pImpl->closeChatRoom(chatid, listener);
 }
 
-bool MegaChatApi::getMessages(MegaChatHandle chatid, int count)
+int MegaChatApi::loadMessages(MegaChatHandle chatid, int count)
 {
-    return pImpl->getMessages(chatid, count);
+    return pImpl->loadMessages(chatid, count);
 }
 
 bool MegaChatApi::isFullHistoryLoaded(MegaChatHandle chatid)
@@ -188,19 +188,19 @@ MegaChatMessage *MegaChatApi::getMessage(MegaChatHandle chatid, MegaChatHandle m
     return pImpl->getMessage(chatid, msgid);
 }
 
-MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg, size_t msglen, MegaChatMessage::Type type)
+MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg, MegaChatMessage::Type type)
 {
-    return pImpl->sendMessage(chatid, msg, msglen, type);
+    return pImpl->sendMessage(chatid, msg, type);
 }
 
-MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msglen)
+MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
 {
-    return pImpl->editMessage(chatid, msgid, msg, msglen);
+    return pImpl->editMessage(chatid, msgid, msg);
 }
 
 MegaChatMessage *MegaChatApi::deleteMessage(MegaChatHandle chatid, MegaChatHandle msgid)
 {
-    return pImpl->editMessage(chatid, msgid, NULL, 0);
+    return pImpl->editMessage(chatid, msgid, NULL);
 }
 
 bool MegaChatApi::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid)

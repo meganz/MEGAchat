@@ -1070,41 +1070,26 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     sdkMutex.unlock();
 }
 
-bool MegaChatApiImpl::getMessages(MegaChatHandle chatid, int count)
+int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
 {
-    bool ret = true;
+    int ret = MegaChatApi::SOURCE_NONE;
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
-    if (!chatroom)
+    if (chatroom)
     {
-        API_LOG_ERROR("Cannot get messages from non-existing chatroom (chatid: %d)", chatid);
-        sdkMutex.unlock();
-        return 0;
-    }
-
-    Chat &chat = chatroom->chat();
-
-    // first notify about messages already loaded in RAM
-    Idx newest = chat.decryptedLownum();
-    Idx oldest = chat.decryptedHighnum();
-
-    /****** remove this block after changes on getHistory() to make it return
-     * messages from RAM too. (issue #5411) ************************************/
-    for (Idx i = newest; i < oldest; i++)
-    {
-        Message &msg = chat.at(i);
-        Message::Status status = chat.getMsgStatus(msg, i);
-
-        fireOnMessageLoaded(new MegaChatMessagePrivate(msg, status, i));
-    }
-    /***************************************************************************/
-
-    // then fetch more messages if requested
-    int loadedCount = oldest - newest;
-    if (loadedCount < count)
-    {
-        ret = chat.getHistory(count - loadedCount);
+        Chat &chat = chatroom->chat();
+        HistSource source = chat.getHistory(count);
+        switch (source)
+        {
+        case kHistSourceNone:   ret = MegaChatApi::SOURCE_NONE; break;
+        case kHistSourceRam:
+        case kHistSourceDb:     ret = MegaChatApi::SOURCE_LOCAL; break;
+        case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
+        default:
+            API_LOG_ERROR("Unknown source of messages at loadMessages()");
+            break;
+        }
     }
 
     sdkMutex.unlock();
@@ -1120,7 +1105,7 @@ bool MegaChatApiImpl::isFullHistoryLoaded(MegaChatHandle chatid)
     if (chatroom)
     {
         Chat &chat = chatroom->chat();
-        ret = chat.haveAllHistory();
+        ret = chat.haveAllHistoryNotified();
     }
 
     sdkMutex.unlock();
@@ -1159,7 +1144,7 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, size_t msglen, MegaChatMessage::Type type)
+MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, MegaChatMessage::Type type)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
@@ -1169,7 +1154,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     {
         Chat &chat = chatroom->chat();
         Message::Type t = (Message::Type) type;
-        Message *m = chat.msgSubmit(msg, msglen, t, NULL);
+        Message *m = chat.msgSubmit(msg, strlen(msg), t, NULL);
 
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
@@ -1178,7 +1163,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     return megaMsg;    
 }
 
-MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msglen)
+MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
@@ -1201,7 +1186,7 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
         if (originalMsg)
         {
-            const Message *editedMsg = chat.msgModify(*originalMsg, msg, msglen, NULL);
+            const Message *editedMsg = chat.msgModify(*originalMsg, msg, strlen(msg), NULL);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
@@ -2306,6 +2291,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->group = chat->isGroup();
     this->title = chat->getTitle();
     this->chatState = chat->getOnlineState();
+    this->unreadCount = chat->getUnreadCount();
+    this->status = chat->getOnlineStatus();
 
     this->changed = chat->getChanges();
 }
@@ -2339,6 +2326,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 
         this->peers.push_back(userpriv_pair(uh, priv));
     }
+
+//    this->unreadCount = chat.unreadMsgCount();    TODO: pending const-getter
+    this->unreadCount = 0;
+//    this->status = TODO: how to get online presence of a groupchat??
+    this->status = MegaChatApi::STATUS_OFFLINE;
 
     this->changed = 0;
 }
