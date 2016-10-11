@@ -90,6 +90,9 @@ public:
     /** @brief returns the chatd::Chat chat object associated with the room */
     chatd::Chat& chat() { return *mChat; }
 
+    /** @brief returns the chatd::Chat chat object associated with the room */
+    const chatd::Chat& chat() const { return *mChat; }
+
     /** @brief The chatid of the chatroom */
     const uint64_t& chatid() const { return mChatid; }
 
