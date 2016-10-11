@@ -31,7 +31,7 @@ namespace megachat
 {
 
 typedef uint64_t MegaChatHandle;
-typedef int32_t MegaChatIndex;
+typedef int MegaChatIndex;  // int32_t
 
 /**
  * @brief INVALID_HANDLE Invalid value for a handle
