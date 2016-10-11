@@ -2292,19 +2292,19 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->title = chat->getTitle();
     this->chatState = chat->getOnlineState();
     this->unreadCount = chat->getUnreadCount();
-    this->status = chat->getOnlineStatus();
 
     this->changed = chat->getChanges();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 {
+    this->changed = 0;
     this->chatid = chat.chatid();
     this->priv = chat.ownPriv();
-
     this->group = chat.isGroup();
     this->title = chat.titleString().c_str();
-//    this->chatState = chat.chatdOnlineState();    --> make it crash, issue: #5386
+//    this->status = chat.chatdOnlineState(); --> make it crash, issue: #5386
+//    this->unreadCount = chat.chat().unreadMsgCount(); --> make it crash, issue: #5386
 
     if (group)
     {
@@ -2317,6 +2317,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
             this->peers.push_back(userpriv_pair(it->first,
                                           (privilege_t) it->second->priv()));
         }
+//        this->chatState = chat.chatdOnlineState(); --> make it crash, issue: #5386
     }
     else
     {
@@ -2325,14 +2326,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         handle uh = peerchat.peer();
 
         this->peers.push_back(userpriv_pair(uh, priv));
+        this->chatState = chat.presence();
     }
-
-//    this->unreadCount = chat.unreadMsgCount();    TODO: pending const-getter
-    this->unreadCount = 0;
-//    this->status = TODO: how to get online presence of a groupchat??
-    this->status = MegaChatApi::STATUS_OFFLINE;
-
-    this->changed = 0;
 }
 
 MegaChatRoom *MegaChatRoomPrivate::copy() const

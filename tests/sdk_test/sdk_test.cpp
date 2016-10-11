@@ -255,7 +255,7 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
     {
         cout << "\tTitle: " << chat->getTitle() << endl;
     }
-    cout << "\tOnline state: " << MegaChatRoom::stateToString(chat->getOnlineState()) << endl;
+    cout << "\tOnline state: " << MegaChatRoom::statusToString(chat->getOnlineStatus()) << endl;
     cout << "\tUnread count: " << chat->getUnreadCount() << " message/s" << endl;
     cout << "-------------------------------------------------" << endl;
 }

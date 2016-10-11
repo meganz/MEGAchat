@@ -1295,12 +1295,49 @@ public:
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 
+    /**
+     * @brief Returns the MegaChatHandle of the chat.
+     * @return MegaChatHandle of the chat.
+     */
     virtual MegaChatHandle getChatId() const;
 
+    /**
+     * @brief getTitle Returns the title of the chat, if any.
+     *
+     * @return The title of the chat as a null-terminated char array.
+     */
     virtual const char *getTitle() const;
+
+    /**
+     * @brief Returns the online status of the chatroom
+     *
+     * The app may use this value to show in the chatlist the status of the chat
+     *
+     * It can be one of the following values:
+     * - MegaChatApi::STATUS_OFFLINE = 0
+     * It is not connected
+     *
+     * - MegaChatApi::STATUS_ONLINE = 3
+     * The connected is alive and properly joined to the chatroom.
+     *
+     * Additionally, for 1on1 chatrooms, the following values are also valid:
+     *
+     * - MegaChatApi::STATUS_BUSY = 1
+     * The peer of the chat is busy
+     *
+     * - MegaChatApi::STATUS_AWAY = 2
+     * The peer of the chat is away
+     *
+     * - MegaChatApi::STATUS_CHATTY = 4
+     * The peer of the chat is typing
+     *
+     * @return Online status of the chat
+     */
+    virtual MegaChatApi::Status getOnlineStatus() const;
+
     virtual int getVisibility() const;
     virtual int getUnreadCount() const;
-    virtual MegaChatApi::Status getOnlineStatus() const;
+
 };
 
 class MegaChatRoom
@@ -1325,6 +1362,7 @@ public:
         PRIV_MODERATOR  = 3
     };
 
+    //  (status of connection with chatd server)
     enum {
         STATE_OFFLINE      = 0,
         STATE_CONNECTING   = 1,
@@ -1337,6 +1375,7 @@ public:
 
     static const char *privToString(int);
     static const char *stateToString(int);
+    static const char *statusToString(MegaChatApi::Status);
 
     /**
      * @brief Returns the MegaChatHandle of the chat.
@@ -1433,11 +1472,37 @@ public:
      */
     virtual int getOnlineState() const;
 
-    virtual int getChanges() const;
-    virtual bool hasChanged(int changeType) const;
+    /**
+     * @brief Returns the online status of the chatroom
+     *
+     * The app may use this value to show in the chatlist the status of the chat
+     *
+     * It can be one of the following values:
+     * - MegaChatApi::STATUS_OFFLINE = 0
+     * It is not connected
+     *
+     * - MegaChatApi::STATUS_ONLINE = 3
+     * The connected is alive and properly joined to the chatroom.
+     *
+     * Additionally, for 1on1 chatrooms, the following values are also valid:
+     *
+     * - MegaChatApi::STATUS_BUSY = 1
+     * The peer of the chat is busy
+     *
+     * - MegaChatApi::STATUS_AWAY = 2
+     * The peer of the chat is away
+     *
+     * - MegaChatApi::STATUS_CHATTY = 4
+     * The peer of the chat is typing
+     *
+     * @return Online status of the chat
+     */
+    virtual MegaChatApi::Status getOnlineStatus() const;
 
     virtual int getUnreadCount() const;
-    virtual MegaChatApi::Status getOnlineStatus() const;
+
+    virtual int getChanges() const;
+    virtual bool hasChanged(int changeType) const;
 };
 
 /**

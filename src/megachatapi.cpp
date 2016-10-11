@@ -431,6 +431,19 @@ const char *MegaChatRoom::stateToString(int status)
     }
 }
 
+const char *MegaChatRoom::statusToString(MegaChatApi::Status status)
+{
+    switch (status)
+    {
+    case MegaChatApi::STATUS_OFFLINE: return "offline";
+    case MegaChatApi::STATUS_BUSY: return "busy";
+    case MegaChatApi::STATUS_AWAY: return "away";
+    case MegaChatApi::STATUS_ONLINE:return "online";
+    case MegaChatApi::STATUS_CHATTY:return "chatty";
+    default: return "unknown status";
+    }
+}
+
 MegaChatHandle MegaChatRoom::getChatId() const
 {
     return MEGACHAT_INVALID_HANDLE;
