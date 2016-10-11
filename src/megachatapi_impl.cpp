@@ -1144,7 +1144,7 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, size_t msglen, MegaChatMessage::Type type)
+MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, MegaChatMessage::Type type)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
@@ -1154,7 +1154,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     {
         Chat &chat = chatroom->chat();
         Message::Type t = (Message::Type) type;
-        Message *m = chat.msgSubmit(msg, msglen, t, NULL);
+        Message *m = chat.msgSubmit(msg, strlen(msg), t, NULL);
 
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
@@ -2291,6 +2291,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->group = chat->isGroup();
     this->title = chat->getTitle();
     this->chatState = chat->getOnlineState();
+    this->unreadCount = chat->getUnreadCount();
+    this->status = chat->getOnlineStatus();
 
     this->changed = chat->getChanges();
 }
@@ -2324,6 +2326,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 
         this->peers.push_back(userpriv_pair(uh, priv));
     }
+
+//    this->unreadCount = chat.unreadMsgCount();    TODO: pending const-getter
+    this->unreadCount = 0;
+//    this->status = TODO: how to get online presence of a groupchat??
+    this->status = MegaChatApi::STATUS_OFFLINE;
 
     this->changed = 0;
 }

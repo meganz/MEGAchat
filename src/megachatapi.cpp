@@ -190,7 +190,7 @@ MegaChatMessage *MegaChatApi::getMessage(MegaChatHandle chatid, MegaChatHandle m
 
 MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg, size_t msglen, MegaChatMessage::Type type)
 {
-    return pImpl->sendMessage(chatid, msg, msglen, type);
+    return pImpl->sendMessage(chatid, msg, type);
 }
 
 MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msglen)

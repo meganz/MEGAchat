@@ -1133,13 +1133,12 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param msg Content of the message
-     * @param msglen Length of the message
      * @param type Type of the message (normal message, type of management message,
      * application-specific type like link, share, picture etc.) @see MegaChatMessage::Type.
      *
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
-    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msglen, MegaChatMessage::Type type);
+    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, MegaChatMessage::Type type);
 
     /**
      * @brief Edits an existing message
