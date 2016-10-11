@@ -1163,7 +1163,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     return megaMsg;    
 }
 
-MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msglen)
+MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
@@ -1186,7 +1186,7 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
         if (originalMsg)
         {
-            const Message *editedMsg = chat.msgModify(*originalMsg, msg, msglen, NULL);
+            const Message *editedMsg = chat.msgModify(*originalMsg, msg, strlen(msg), NULL);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);

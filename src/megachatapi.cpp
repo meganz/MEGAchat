@@ -188,19 +188,19 @@ MegaChatMessage *MegaChatApi::getMessage(MegaChatHandle chatid, MegaChatHandle m
     return pImpl->getMessage(chatid, msgid);
 }
 
-MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg, size_t msglen, MegaChatMessage::Type type)
+MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg, MegaChatMessage::Type type)
 {
     return pImpl->sendMessage(chatid, msg, type);
 }
 
-MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msglen)
+MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
 {
-    return pImpl->editMessage(chatid, msgid, msg, msglen);
+    return pImpl->editMessage(chatid, msgid, msg);
 }
 
 MegaChatMessage *MegaChatApi::deleteMessage(MegaChatHandle chatid, MegaChatHandle msgid)
 {
-    return pImpl->editMessage(chatid, msgid, NULL, 0);
+    return pImpl->editMessage(chatid, msgid, NULL);
 }
 
 bool MegaChatApi::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid)

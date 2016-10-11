@@ -1161,7 +1161,7 @@ public:
      *
      * @return MegaChatMessage that will be modified. NULL if the message cannot be edited (too old)
      */
-    MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msglen);
+    MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
 
     /**
      * @brief Deletes an existing message
