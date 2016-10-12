@@ -133,14 +133,14 @@ Client::Client(Id userId)
         CHATD_LOG_WARNING("Websocket '" event "' callback: ws param is not equal to self->mWebSocket, ignoring"); \
     }
 
-// add a new chatd shard
-void Client::join(Id chatid, int shardNo, const std::string& url, Listener* listener,
+Chat& Client::createChat(Id chatid, int shardNo, const std::string& url, Listener* listener,
     const karere::SetOfIds& users, ICrypto* crypto)
 {
-    auto msgsit = mChatForChatId.find(chatid);
-    if (msgsit != mChatForChatId.end())
+    auto chatit = mChatForChatId.find(chatid);
+    if (chatit != mChatForChatId.end())
     {
-        return;
+        CHATD_LOG_WARNING("Client::createChat: Chat with chatid %s already exists, returning existing instance", ID_CSTR(chatid));
+        return *chatit->second;
     }
 
     // instantiate a Connection object for this shard if needed
@@ -169,16 +169,19 @@ void Client::join(Id chatid, int shardNo, const std::string& url, Listener* list
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
     Chat* chat = new Chat(*conn, chatid, listener, users, crypto);
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
+    return *chat;
+}
 
+void Chat::connect()
+{
     // attempt a connection ONLY if this is a new shard.
-    if(isNew)
+    if (mConnection.state() == Connection::kStateNew)
     {
-        conn->reconnect();
+        mConnection.reconnect();
     }
-    else
+    else if (mConnection.isOnline())
     {
-        if (conn->isOnline())
-            chat->login();
+        login();
     }
 }
 

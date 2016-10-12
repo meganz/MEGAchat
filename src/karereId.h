@@ -42,9 +42,11 @@ static inline std::string& operator+(std::string&& str, const Id& id)
 
 struct SetOfIds: public std::set<karere::Id>
 {
+    typedef std::set<karere::Id> Base;
     template <class T>
     SetOfIds(const T& src) { load(src); }
     SetOfIds(){}
+    SetOfIds(Base&& other): Base(std::move(other)){}
     void save(Buffer& buf)
     {
         for (auto id: *this)

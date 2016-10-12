@@ -229,20 +229,20 @@ class Client;
 class Connection
 {
 public:
-    enum State { kStateDisconnected, kStateConnecting, kStateConnected };
+    enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected };
 protected:
     Client& mClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
     ws_t mWebSocket = nullptr;
-    State mState = kStateDisconnected;
+    State mState = kStateNew;
     Url mUrl;
     megaHandle mInactivityTimer = 0;
     int mInactivityBeats = 0;
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
-    State getState() { return mState; }
+    State state() { return mState; }
     bool isOnline() const
     {
         return (mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
@@ -500,17 +500,29 @@ public:
         return(mDecryptNewHaltedAt == CHATD_IDX_INVALID)
             ? highnum() : mDecryptNewHaltedAt-1;
     }
+
+    /** @brief connects the chatroom for the first time. A chatroom
+      * is initialized in two stages: first it is created via Client::createChatRoom(),
+      * after which it can be accessed in offline mode. The second stage is
+      * connect(), after which it initiates or uses an existing connection to
+      * chatd
+      */
+    void connect();
+
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
+
     /** @brief Get the seen/received status of a message. Both the message object
      * and its index in the history buffer must be provided */
     Message::Status getMsgStatus(const Message& msg, Idx idx);
+
     /** @brief Contains all not-yet-confirmed edits of messages.
       *  This can be used by the app to replace the text of messages who have
       * been edited before they have been sent/confirmed. Normally the app needs
       * to display the edited text in the unsent message.*/
     const std::map<karere::Id, Message*>& pendingEdits() const { return mPendingEdits; }
-    /** @brief listener The chatd::Listener currently attached to this chat */
+
+    /** @brief The chatd::Listener currently attached to this chat */
     Listener* listener() const { return mListener; }
 
     /** @brief The source from where history is being retrieved at the moment
@@ -797,7 +809,7 @@ public:
      * url, and assocuates the specified Listener and ICRypto instances
      * with the newly created Chat object.
      */
-    void join(karere::Id chatid, int shardNo, const std::string& url,
+    Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
         Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);

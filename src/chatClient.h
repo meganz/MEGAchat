@@ -63,7 +63,7 @@ protected:
     chatd::Chat* mChat = nullptr;
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
-    void chatdJoin(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
+    void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
@@ -80,7 +80,7 @@ public:
     virtual Presence presence() const = 0;
 
     /** @brief Connects to the chatd chatroom */
-    virtual void join() = 0;
+    virtual void connect() = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
              unsigned char shard, chatd::Priv ownPriv);
@@ -162,7 +162,8 @@ protected:
     bool syncPeerPriv(chatd::Priv priv);
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     void updatePresence();
-    virtual void join();
+    void initWithChatd();
+    virtual void connect();
     friend class Contact;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
@@ -243,7 +244,8 @@ public:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
-    virtual void join();
+    void initWithChatd();
+    virtual void connect();
 
     friend class ChatRoomList;
     friend class Member;
