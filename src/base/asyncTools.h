@@ -7,8 +7,6 @@
 
 namespace async
 {
-template <class I>
-
 template <class P>
 promise::Promise<P> defaultVal() { return P(); }
 
@@ -30,18 +28,19 @@ template <class I, class X, class C, class F>
 class StateBase: public Loop<I>
 {
 protected:
-    typedef typename std::result_of<F(Loop&)>::type::Type P;
-    promise::Promise<P> mOutput;
+    typedef typename std::result_of<F(Loop<I>&)>::type::Type P;
     C mCondition;
     X mIncrement;
     F mFunc;
     StateBase(I aInitial, C&& aCond, X&& aInc, F&& aFunc)
     : Loop<I>(aInitial), mCondition(std::forward<C>(aCond)),
       mIncrement(std::forward<X>(aInc)), mFunc(std::forward<F>(aFunc)){}
+public:
+    promise::Promise<P> mOutput;
 };
 
 template <class I, class C, class X, class F, class V>
-struct State: public StateBase<F,C>
+struct State: public StateBase<I,C,X,F>
 {
     typedef StateBase<I,C,X,F> Base;
     using StateBase<I,C,X,F>::StateBase;
@@ -72,11 +71,12 @@ bail:
     }
 };
 
-template <class I, class C, class X, class F, class V>
-struct State<I,C,X,F,V>: public StateBase<I,C,X,F>
+template <class I, class C, class X, class F>
+struct State<I,C,X,F,void>: public StateBase<I,C,X,F>
 {
     typedef StateBase<I,C,X,F> Base;
     using StateBase<I,C,X,F>::StateBase;
+
     void nextIter()
     {
         this->mFunc(*this)
@@ -105,10 +105,10 @@ bail:
 };
 
 template <class I, class C, class X, class F>
-typename std::result_of<F(Loop&)>::type
+typename std::result_of<F(Loop<I>&)>::type
 loop(I initial, C&& cond, X&& inc, F&& func)
 {
-    typedef typename std::result_of<F(Loop&)>::type::Type P;
+    typedef typename std::result_of<F(Loop<I>&)>::type::Type P;
 
     if (!cond(initial))
         return defaultVal<P>();

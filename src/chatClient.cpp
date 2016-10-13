@@ -181,7 +181,8 @@ Client::~Client()
 promise::Promise<ReqResult> Client::sdkLoginNewSession()
 {
     mLoginDlg.reset(app.createLoginDialog());
-    return async::loop([this](async::Loop& loop)
+    return async::loop(0, [](int) { return true; }, [](async::Loop<int>&){},
+    [this](async::Loop<int>& loop)
     {
         return mLoginDlg->requestCredentials()
         .then([this](const std::pair<std::string, std::string>& cred)
@@ -202,7 +203,7 @@ promise::Promise<ReqResult> Client::sdkLoginNewSession()
             mLoginDlg->setState(IApp::ILoginDialog::kBadCredentials);
             return 0;
         });
-    }, [](int) { return true; })
+    })
     .then([this](int)
     {
         mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
@@ -275,15 +276,17 @@ promise::Promise<void> Client::initWithNewSession()
         if (!mInitialChats.empty())
         {
             auto count = mInitialChats.size();
-            return async::loop([this](async::Loop& loop)
-            {
-                auto& list = mInitialChats[loop.i()];
-                return chats->onChatsUpdate(list);
-            }, [count](int i){ return i < count; }, 0)
-            .then([this]()
-            {
-                mInitialChats.clear();
-            });
+            return async::loop(0, [count](int i){ return i < count; },
+                [](async::Loop<int>& loop) { loop.i++; },
+                [this](async::Loop<int>& loop)
+                  {
+                      auto& list = mInitialChats[loop.i];
+                      return chats->onChatsUpdate(list);
+                  })
+                  .then([this]()
+                  {
+                      mInitialChats.clear();
+                  });
         }
         else
         {
@@ -1212,9 +1215,11 @@ promise::Promise<void> ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::M
 {
     addMissingRoomsFromApi(*rooms);
     auto count = rooms->size();
-    return async::loop([this, rooms](async::Loop& loop) -> promise::Promise<void>
+    std::vector<Promise<void>> promises;
+    promises.reserve(count);
+    for (int i = 0; i < count; i++)
     {
-        std::shared_ptr<const ::mega::MegaTextChat> room(rooms->get(loop.i()));
+        std::shared_ptr<const ::mega::MegaTextChat> room(rooms->get(i));
         auto chatid = room->getHandle();
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
@@ -1225,11 +1230,11 @@ promise::Promise<void> ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::M
             {
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(chatid).toString().c_str());
                 removeRoom(chatid);
-                return promise::Void();
+                continue;
             }
             else
             {   //we have the room, there maybe is some change on room properties
-                return it->second->updateUrl();
+                promises.push_back(it->second->updateUrl());
             }
         }
         else
@@ -1238,22 +1243,23 @@ promise::Promise<void> ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::M
             {
                 //we are in the room, add it to local cache
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
-                return addRoom(*room).updateUrl()
+                promises.push_back(addRoom(*room).updateUrl()
                 .then([this, chatid]()
                 {
                     auto it = find(chatid);
                     if (it == end())
                         return;
                     client.app.notifyInvited(*it->second);
-                });
+                }));
             }
             else
             {   //we don't have the room, and we are not in the room - we have just removed ourselves from it, and deleted it locally
                 KR_LOG_DEBUG("Chatroom[%s]: We should have just removed ourself from the room",  Id(chatid).toString().c_str());
-                return promise::Void();
+                continue;
             }
         }
-    }, [count](int i) { return i<count; }, 0);
+    }
+    return when(promises);
 }
 
 ChatRoomList::~ChatRoomList()
