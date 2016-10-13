@@ -5,63 +5,124 @@
 #include <gcmpp.h>
 #include <type_traits>
 
+namespace async
+{
+template <class I>
+
+template <class P>
+promise::Promise<P> defaultVal() { return P(); }
+
+template<>
+promise::Promise<void> defaultVal() { return promise::Void(); }
+
+template <class I>
 class Loop
 {
 protected:
     bool mBreak = false;
-    size_t mCount = 0;
 public:
+    Loop(I aInitial): i(aInitial){}
     void breakLoop() { mBreak = true; }
-    size_t i() const { return mCount; }
-    Loop(size_t aCount): mCount(aCount){}
+    I i;
 };
 
-template <class F, class C>
+template <class I, class X, class C, class F>
+class StateBase: public Loop<I>
+{
+protected:
+    typedef typename std::result_of<F(Loop&)>::type::Type P;
+    promise::Promise<P> mOutput;
+    C mCondition;
+    X mIncrement;
+    F mFunc;
+    StateBase(I aInitial, C&& aCond, X&& aInc, F&& aFunc)
+    : Loop<I>(aInitial), mCondition(std::forward<C>(aCond)),
+      mIncrement(std::forward<X>(aInc)), mFunc(std::forward<F>(aFunc)){}
+};
+
+template <class I, class C, class X, class F, class V>
+struct State: public StateBase<F,C>
+{
+    typedef StateBase<I,C,X,F> Base;
+    using StateBase<I,C,X,F>::StateBase;
+    void nextIter()
+    {
+        this->mFunc(*this)
+        .fail([this](const promise::Error& err)
+        {
+            this->mOutput.reject(err);
+            delete this;
+            return err;
+        })
+        .then([this](typename Base::P result)
+        {
+            if (this->mBreak)
+                goto bail;
+
+            this->mIncrement();
+            if (this->mCondition(this->i))
+            {
+                karere::marshallCall([this](){nextIter();});
+                return;
+            }
+bail:
+            this->mOutput.resolve(result);
+            delete this;
+        });
+    }
+};
+
+template <class I, class C, class X, class F, class V>
+struct State<I,C,X,F,V>: public StateBase<I,C,X,F>
+{
+    typedef StateBase<I,C,X,F> Base;
+    using StateBase<I,C,X,F>::StateBase;
+    void nextIter()
+    {
+        this->mFunc(*this)
+        .fail([this](const promise::Error& err)
+        {
+            this->mOutput.reject(err);
+            delete this;
+            return err;
+        })
+        .then([this]()
+        {
+            if (this->mBreak)
+                goto bail;
+
+            this->mIncrement();
+            if (this->mCondition(this->i))
+            {
+                karere::marshallCall([this](){nextIter();});
+                return;
+            }
+bail:
+            this->mOutput.resolve();
+            delete this;
+        });
+    }
+};
+
+template <class I, class C, class X, class F>
 typename std::result_of<F(Loop&)>::type
-asyncLoop(F&& func, C&& cond, size_t initial=0)
+loop(I initial, C&& cond, X&& inc, F&& func)
 {
     typedef typename std::result_of<F(Loop&)>::type::Type P;
-    struct State: public Loop
-    {
-        promise::Promise<P> mOutput;
-        F mFunc;
-        C mCondition;
-        State(F&& aFunc, C&& aCond, size_t aCount): Loop(aCount), mFunc(std::forward<F>(aFunc)),
-            mCondition(std::forward<C>(aCond)){}
-        void nextIter()
-        {
-            mFunc(*this)
-            .fail([this](const promise::Error& err)
-            {
-                mOutput.reject(err);
-                delete this;
-                return err;
-            })
-            .then([this](const P& result)
-            {
-                if (mBreak)
-                    goto bail;
-
-                mCount++;
-                if (mCondition(mCount))
-                {
-                    karere::marshallCall([this](){nextIter();});
-                    return;
-                }
-bail:
-                mOutput.resolve(result);
-                delete this;
-            });
-        }
-    };
 
     if (!cond(initial))
-        return promise::Promise<P>(P());
+        return defaultVal<P>();
 
-    auto state = new State(std::forward<F>(func), std::forward<C>(cond), initial);
-    auto output = state->mOutput; //state may get deleted on the first nextIter()
+    auto state = new State<I,C,X,F,P>(
+        initial, std::forward<C>(cond),
+        std::forward<X>(inc), std::forward<F>(func)
+    );
+
+    //keep reference to state, as it may get deleted on the first nextIter()
+    auto output = state->mOutput;
     state->nextIter();
     return output;
+}
 }
 
 #endif

@@ -181,7 +181,7 @@ Client::~Client()
 promise::Promise<ReqResult> Client::sdkLoginNewSession()
 {
     mLoginDlg.reset(app.createLoginDialog());
-    return asyncLoop([this](Loop& loop)
+    return async::loop([this](async::Loop& loop)
     {
         return mLoginDlg->requestCredentials()
         .then([this](const std::pair<std::string, std::string>& cred)
@@ -268,17 +268,26 @@ promise::Promise<void> Client::initWithNewSession()
     mUserAttrCache.reset(new UserAttrCache(*this));
 
     return loadOwnKeysFromApi()
-    .then([this]()
+    .then([this]() -> promise::Promise<void>
     {
         loadContactListFromApi();
         chatd.reset(new chatd::Client(mMyHandle));
         if (!mInitialChats.empty())
         {
-            for (auto& list: mInitialChats)
+            auto count = mInitialChats.size();
+            return async::loop([this](async::Loop& loop)
             {
-                chats->onChatsUpdate(list);
-            }
-            mInitialChats.clear();
+                auto& list = mInitialChats[loop.i()];
+                return chats->onChatsUpdate(list);
+            }, [count](int i){ return i < count; }, 0)
+            .then([this]()
+            {
+                mInitialChats.clear();
+            });
+        }
+        else
+        {
+            return promise::Void();
         }
     });
 }
@@ -1077,6 +1086,24 @@ void GroupChatRoom::deleteSelf()
     delete this;
 }
 
+promise::Promise<void> ChatRoom::updateUrl()
+{
+    return parent.client.api.call(&mega::MegaApi::getUrlChat, mChatid)
+    .then([this](ReqResult result)
+    {
+        const char* url = result->getLink();
+        if (!url || !url[0])
+            return;
+        std::string sUrl = url;
+        if (sUrl == mUrl)
+            return;
+        mUrl = sUrl;
+        sqliteQuery(parent.client.db, "update chats set url=? where chatid=?", mUrl, mChatid);
+        KR_LOG_DEBUG("Updated chatroom %s url", Id(mChatid).toString().c_str());
+        return;
+    });
+}
+
 ChatRoomList::ChatRoomList(Client& aClient)
 :client(aClient)
 {}
@@ -1123,6 +1150,7 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
         addRoom(room);
     }
 }
+
 ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
 {
     auto chatid = apiRoom.getHandle();
@@ -1180,12 +1208,13 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     }
 }
 
-void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
+promise::Promise<void> ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
 {
     addMissingRoomsFromApi(*rooms);
-    for (int i=0; i<rooms->size(); i++)
+    auto count = rooms->size();
+    return async::loop([this, rooms](async::Loop& loop) -> promise::Promise<void>
     {
-        std::shared_ptr<::mega::MegaTextChat> room(rooms->get(i)->copy());
+        std::shared_ptr<const ::mega::MegaTextChat> room(rooms->get(loop.i()));
         auto chatid = room->getHandle();
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
@@ -1196,18 +1225,11 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             {
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(chatid).toString().c_str());
                 removeRoom(chatid);
+                return promise::Void();
             }
             else
             {   //we have the room, there maybe is some change on room properties
-                client.api.call(&mega::MegaApi::getUrlChat, chatid)
-                .then([this, chatid, room](ReqResult result)
-                {
-                    auto it = find(chatid);
-                    if (it == end())
-                        return;
-                    room->setUrl(result->getLink());
-                    it->second->syncWithApi(*room);
-                });
+                return it->second->updateUrl();
             }
         }
         else
@@ -1216,20 +1238,22 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             {
                 //we are in the room, add it to local cache
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
-                client.api.call(&mega::MegaApi::getUrlChat, chatid)
-                .then([this, chatid, room](ReqResult result)
+                return addRoom(*room).updateUrl()
+                .then([this, chatid]()
                 {
-                    room->setUrl(result->getLink());
-                    auto& createdRoom = addRoom(*room);
-                    client.app.notifyInvited(createdRoom);
+                    auto it = find(chatid);
+                    if (it == end())
+                        return;
+                    client.app.notifyInvited(*it->second);
                 });
             }
             else
             {   //we don't have the room, and we are not in the room - we have just removed ourselves from it, and deleted it locally
                 KR_LOG_DEBUG("Chatroom[%s]: We should have just removed ourself from the room",  Id(chatid).toString().c_str());
+                return promise::Void();
             }
         }
-    }
+    }, [count](int i) { return i<count; }, 0);
 }
 
 ChatRoomList::~ChatRoomList()
