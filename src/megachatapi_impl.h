@@ -428,7 +428,7 @@ private:
 class MegaChatMessagePrivate : public MegaChatMessage
 {
 public:
-    MegaChatMessagePrivate(const MegaChatMessage &msg);
+    MegaChatMessagePrivate(const MegaChatMessage *msg);
     MegaChatMessagePrivate(const chatd::Message &msg, chatd::Message::Status status, chatd::Idx index);
 
     virtual ~MegaChatMessagePrivate();
