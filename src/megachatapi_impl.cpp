@@ -2684,16 +2684,16 @@ MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatAp
 }
 
 
-MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage &msg)
+MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 {
-    this->msg = MegaApi::strdup(msg.getContent());
-    this->uh = msg.getUserHandle();
-    this->msgId = msg.getMsgId();
-    this->tempId = msg.getTempId();
-    this->index = msg.getMsgIndex();
-    this->status = msg.getStatus();
-    this->ts = msg.getTimestamp();
-    this->type = msg.getType();
+    this->msg = MegaApi::strdup(msg->getContent());
+    this->uh = msg->getUserHandle();
+    this->msgId = msg->getMsgId();
+    this->tempId = msg->getTempId();
+    this->index = msg->getMsgIndex();
+    this->status = msg->getStatus();
+    this->ts = msg->getTimestamp();
+    this->type = msg->getType();
 
     this->changed = 0;
 }
@@ -2723,7 +2723,7 @@ MegaChatMessagePrivate::~MegaChatMessagePrivate()
 
 MegaChatMessage *MegaChatMessagePrivate::copy() const
 {
-    return new MegaChatMessagePrivate(*this);
+    return new MegaChatMessagePrivate(this);
 }
 
 int MegaChatMessagePrivate::getStatus() const
