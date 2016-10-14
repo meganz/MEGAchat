@@ -506,6 +506,7 @@ public:
     virtual ~MegaChatApiImpl();
 
     static std::vector<MegaChatApiImpl *> megaChatApiRefs;
+    static mega::MegaMutex refsMutex;
     static mega::MegaMutex sdkMutex;
 
 private:
