@@ -76,11 +76,16 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
 {
     this->chatApi = chatApi;
     this->megaApi = megaApi;
+    this->megaApi->addRequestListener(this);
 
     sdkMutex.init(true);
 
     this->waiter = new MegaWaiter();
     this->mClient = NULL;   // created at loop()
+
+    this->resumeSession = false;
+    this->initResult = NULL;
+    this->initRequest = NULL;
 
     this->status = MegaChatApi::STATUS_OFFLINE;
 
@@ -166,22 +171,26 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_INITIALIZE:
         {
-            bool resumeSession = request->getFlag();
-            mClient->init(resumeSession)
-            .then([request, this]()
+            if (initResult)
             {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);                
-                API_LOG_INFO("Initialization complete");
-                fireOnChatRoomUpdate(NULL);
-            })
-            .fail([request, this](const promise::Error& e)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                fireOnChatRequestFinish(request, megaChatError);
-                API_LOG_INFO("Initialization failed");
-            });
+                fireOnChatRequestFinish(request, initResult);
 
+                if (initResult->getErrorCode() == MegaChatError::ERROR_OK)
+                {
+                    API_LOG_INFO("Initialization complete");
+                    fireOnChatRoomUpdate(NULL);
+                }
+                else
+                {
+                    API_LOG_INFO("Initialization failed");
+                }
+                initResult = NULL;
+                initRequest = NULL;
+            }
+            else
+            {
+                initRequest = request;
+            }
             break;
         }
         case MegaChatRequest::TYPE_CONNECT:
@@ -1063,9 +1072,13 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
 {
     sdkMutex.lock();
 
-    findChatRoom(chatid)->removeAppChatHandler();
-    removeChatRoomHandler(chatid);
-    removeChatRoomListener(listener);
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        chatroom->removeAppChatHandler();
+        removeChatRoomHandler(chatid);
+        removeChatRoomListener(listener);
+    }
 
     sdkMutex.unlock();
 }
@@ -1498,6 +1511,48 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
 void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
 {
     chatPeerListItemHandler.erase(&item);
+}
+
+void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
+{
+    if (e->getErrorCode() != MegaError::API_OK)
+    {
+        return;
+    }
+
+    switch (request->getType())
+    {
+        case MegaRequest::TYPE_LOGIN:
+            resumeSession = request->getSessionKey();
+            break;
+
+        case MegaRequest::TYPE_FETCH_NODES:
+            mClient->init(resumeSession)
+            .then([this]()
+            {
+                initResult = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                if (initRequest)
+                {
+                    fireOnChatRequestFinish(initRequest, initResult);
+                    API_LOG_INFO("Initialization complete");
+                    fireOnChatRoomUpdate(NULL);
+                    initRequest = NULL;
+                    initResult = NULL;
+                }
+            })
+            .fail([this](const promise::Error& e)
+            {
+                initResult = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                if (initRequest)
+                {
+                    fireOnChatRequestFinish(initRequest, initResult);
+                    API_LOG_INFO("Initialization failed");
+                    initRequest = NULL;
+                    initResult = NULL;
+                }
+            });
+            break;
+    }
 }
 
 void MegaChatApiImpl::onOwnPresence(Presence pres)
