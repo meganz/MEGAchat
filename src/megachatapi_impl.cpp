@@ -1146,6 +1146,11 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
 
 MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, MegaChatMessage::Type type)
 {
+    if (!msg)
+    {
+        return NULL;
+    }
+
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
 
@@ -1186,7 +1191,7 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
         if (originalMsg)
         {
-            const Message *editedMsg = chat.msgModify(*originalMsg, msg, strlen(msg), NULL);
+            const Message *editedMsg = chat.msgModify(*originalMsg, msg, msg ? strlen(msg) : 0, NULL);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
@@ -2673,16 +2678,16 @@ MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatAp
 }
 
 
-MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage &msg)
+MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 {
-    this->msg = MegaApi::strdup(msg.getContent());
-    this->uh = msg.getUserHandle();
-    this->msgId = msg.getMsgId();
-    this->tempId = msg.getTempId();
-    this->index = msg.getMsgIndex();
-    this->status = msg.getStatus();
-    this->ts = msg.getTimestamp();
-    this->type = msg.getType();
+    this->msg = MegaApi::strdup(msg->getContent());
+    this->uh = msg->getUserHandle();
+    this->msgId = msg->getMsgId();
+    this->tempId = msg->getTempId();
+    this->index = msg->getMsgIndex();
+    this->status = msg->getStatus();
+    this->ts = msg->getTimestamp();
+    this->type = msg->getType();
 
     this->changed = 0;
 }
@@ -2709,7 +2714,7 @@ MegaChatMessagePrivate::~MegaChatMessagePrivate()
 
 MegaChatMessage *MegaChatMessagePrivate::copy() const
 {
-    return new MegaChatMessagePrivate(*this);
+    return new MegaChatMessagePrivate(this);
 }
 
 int MegaChatMessagePrivate::getStatus() const
