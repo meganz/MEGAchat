@@ -1527,7 +1527,7 @@ void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
             break;
 
         case MegaRequest::TYPE_FETCH_NODES:
-//            api->pausesc();
+            api->pauseActionPackets();
             marshallCall([this, api]()
             {
                 mClient->init(resumeSession)
@@ -1542,7 +1542,7 @@ void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                         initRequest = NULL;
                         initResult = NULL;
                     }
-//                    api->resumesc();
+                    api->resumeActionPackets();
                 })
                 .fail([this, api](const promise::Error& e)
                 {
@@ -1554,7 +1554,7 @@ void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                         initRequest = NULL;
                         initResult = NULL;
                     }
-//                    api->resumesc();
+                    api->resumeActionPackets();
                 });
             });
             break;

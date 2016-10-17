@@ -224,7 +224,7 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
     MegaChatHandle chatid = chat->getChatId();
     Base64::btoa((const byte *)&chatid, sizeof(handle), hstr);
 
-    cout << "Chat ID: " << hstr << endl;
+    cout << "Chat ID: " << hstr << " (" << chatid << ")" << endl;
     cout << "\tOwn privilege level: " << MegaChatRoom::privToString(chat->getOwnPrivilege()) << endl;
     if (chat->isGroup())
     {
