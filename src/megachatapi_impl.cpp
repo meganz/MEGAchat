@@ -1063,9 +1063,13 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
 {
     sdkMutex.lock();
 
-    findChatRoom(chatid)->removeAppChatHandler();
-    removeChatRoomHandler(chatid);
-    removeChatRoomListener(listener);
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        chatroom->removeAppChatHandler();
+        removeChatRoomHandler(chatid);
+        removeChatRoomListener(listener);
+    }
 
     sdkMutex.unlock();
 }
