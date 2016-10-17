@@ -173,15 +173,15 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             if (initResult)
             {
-                fireOnChatRequestFinish(request, initResult);
-
                 if (initResult->getErrorCode() == MegaChatError::ERROR_OK)
                 {
+                    fireOnChatRequestFinish(request, initResult);
                     API_LOG_INFO("Initialization complete");
                     fireOnChatRoomUpdate(NULL);
                 }
                 else
                 {
+                    fireOnChatRequestFinish(request, initResult);
                     API_LOG_INFO("Initialization failed");
                 }
                 initResult = NULL;
