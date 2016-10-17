@@ -1527,29 +1527,35 @@ void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
             break;
 
         case MegaRequest::TYPE_FETCH_NODES:
-            mClient->init(resumeSession)
-            .then([this]()
+//            api->pausesc();
+            marshallCall([this, api]()
             {
-                initResult = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                if (initRequest)
+                mClient->init(resumeSession)
+                .then([this, api]()
                 {
-                    fireOnChatRequestFinish(initRequest, initResult);
-                    API_LOG_INFO("Initialization complete");
-                    fireOnChatRoomUpdate(NULL);
-                    initRequest = NULL;
-                    initResult = NULL;
-                }
-            })
-            .fail([this](const promise::Error& e)
-            {
-                initResult = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                if (initRequest)
+                    initResult = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    if (initRequest)
+                    {
+                        fireOnChatRequestFinish(initRequest, initResult);
+                        API_LOG_INFO("Initialization complete");
+                        fireOnChatRoomUpdate(NULL);
+                        initRequest = NULL;
+                        initResult = NULL;
+                    }
+//                    api->resumesc();
+                })
+                .fail([this, api](const promise::Error& e)
                 {
-                    fireOnChatRequestFinish(initRequest, initResult);
-                    API_LOG_INFO("Initialization failed");
-                    initRequest = NULL;
-                    initResult = NULL;
-                }
+                    initResult = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                    if (initRequest)
+                    {
+                        fireOnChatRequestFinish(initRequest, initResult);
+                        API_LOG_INFO("Initialization failed");
+                        initRequest = NULL;
+                        initResult = NULL;
+                    }
+//                    api->resumesc();
+                });
             });
             break;
     }
