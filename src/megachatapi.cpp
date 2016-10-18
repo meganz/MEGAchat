@@ -88,9 +88,9 @@ void MegaChatApi::setLogLevel(int logLevel)
     MegaChatApiImpl::setLogLevel(logLevel);
 }
 
-void MegaChatApi::init(bool resumeSession, MegaChatRequestListener *listener)
+void MegaChatApi::init(MegaChatRequestListener *listener)
 {
-    pImpl->init(resumeSession, listener);
+    pImpl->init(listener);
 }
 
 void MegaChatApi::connect(MegaChatRequestListener *listener)
@@ -148,6 +148,11 @@ void MegaChatApi::removeFromChat(MegaChatHandle chatid, MegaChatHandle uh, MegaC
     pImpl->removeFromChat(chatid, uh, listener);
 }
 
+void MegaChatApi::leaveChat(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->removeFromChat(chatid, MEGACHAT_INVALID_HANDLE, listener);
+}
+
 void MegaChatApi::updateChatPermissions(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener)
 {
     pImpl->updateChatPermissions(chatid, uh, privilege, listener);
@@ -156,6 +161,11 @@ void MegaChatApi::updateChatPermissions(MegaChatHandle chatid, MegaChatHandle uh
 void MegaChatApi::truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener)
 {
     pImpl->truncateChat(chatid, messageid, listener);
+}
+
+void MegaChatApi::clearChatHistory(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->truncateChat(chatid, MEGACHAT_INVALID_HANDLE, listener);
 }
 
 void MegaChatApi::setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener)

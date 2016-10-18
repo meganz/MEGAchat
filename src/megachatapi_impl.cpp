@@ -85,9 +85,14 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
 {
     this->chatApi = chatApi;
     this->megaApi = megaApi;
+    this->megaApi->addRequestListener(this);
 
     this->waiter = new MegaWaiter();
     this->mClient = NULL;   // created at loop()
+
+    this->resumeSession = false;
+    this->initResult = NULL;
+    this->initRequest = NULL;
 
     this->status = MegaChatApi::STATUS_OFFLINE;
 
@@ -191,22 +196,26 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_INITIALIZE:
         {
-            bool resumeSession = request->getFlag();
-            mClient->init(resumeSession)
-            .then([request, this]()
+            if (initResult)
             {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);                
-                API_LOG_INFO("Initialization complete");
-                fireOnChatRoomUpdate(NULL);
-            })
-            .fail([request, this](const promise::Error& e)
+                if (initResult->getErrorCode() == MegaChatError::ERROR_OK)
+                {
+                    fireOnChatRequestFinish(request, initResult);
+                    API_LOG_INFO("Initialization complete");
+                    fireOnChatRoomUpdate(NULL);
+                }
+                else
+                {
+                    fireOnChatRequestFinish(request, initResult);
+                    API_LOG_INFO("Initialization failed");
+                }
+                initResult = NULL;
+                initRequest = NULL;
+            }
+            else
             {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                fireOnChatRequestFinish(request, megaChatError);
-                API_LOG_INFO("Initialization failed");
-            });
-
+                initRequest = request;
+            }
             break;
         }
         case MegaChatRequest::TYPE_CONNECT:
@@ -921,10 +930,9 @@ void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
     delete item;
 }
 
-void MegaChatApiImpl::init(bool resumeSession, MegaChatRequestListener *listener)
+void MegaChatApiImpl::init(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_INITIALIZE, listener);
-    request->setFlag(resumeSession);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -1086,9 +1094,13 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
 {
     sdkMutex.lock();
 
-    findChatRoom(chatid)->removeAppChatHandler();
-    removeChatRoomHandler(chatid);
-    removeChatRoomListener(listener);
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        chatroom->removeAppChatHandler();
+        removeChatRoomHandler(chatid);
+        removeChatRoomListener(listener);
+    }
 
     sdkMutex.unlock();
 }
@@ -1169,6 +1181,11 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
 
 MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, MegaChatMessage::Type type)
 {
+    if (!msg)
+    {
+        return NULL;
+    }
+
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
 
@@ -1209,7 +1226,7 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
         if (originalMsg)
         {
-            const Message *editedMsg = chat.msgModify(*originalMsg, msg, strlen(msg), NULL);
+            const Message *editedMsg = chat.msgModify(*originalMsg, msg, msg ? strlen(msg) : 0, NULL);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
@@ -1521,6 +1538,54 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
 void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
 {
     chatPeerListItemHandler.erase(&item);
+}
+
+void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
+{
+    if (e->getErrorCode() != MegaError::API_OK)
+    {
+        return;
+    }
+
+    switch (request->getType())
+    {
+        case MegaRequest::TYPE_LOGIN:
+            resumeSession = request->getSessionKey();
+            break;
+
+        case MegaRequest::TYPE_FETCH_NODES:
+            api->pauseActionPackets();
+            marshallCall([this, api]()
+            {
+                mClient->init(resumeSession)
+                .then([this, api]()
+                {
+                    initResult = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    if (initRequest)
+                    {
+                        fireOnChatRequestFinish(initRequest, initResult);
+                        API_LOG_INFO("Initialization complete");
+                        fireOnChatRoomUpdate(NULL);
+                        initRequest = NULL;
+                        initResult = NULL;
+                    }
+                    api->resumeActionPackets();
+                })
+                .fail([this, api](const promise::Error& e)
+                {
+                    initResult = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                    if (initRequest)
+                    {
+                        fireOnChatRequestFinish(initRequest, initResult);
+                        API_LOG_INFO("Initialization failed");
+                        initRequest = NULL;
+                        initResult = NULL;
+                    }
+                    api->resumeActionPackets();
+                });
+            });
+            break;
+    }
 }
 
 void MegaChatApiImpl::onOwnPresence(Presence pres)
@@ -2707,16 +2772,13 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->ts = msg->getTimestamp();
     this->type = msg->getType();
 
-    this->changed = 0;
+    this->changed = msg->getChanges();
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
 {
-    size_t msgSize = msg.bufSize();
-    this->msg = new char[msgSize+1];
-    memcpy(this->msg, msg.buf(), msgSize);
-    this->msg[msgSize] = '\0';
-
+    string tmp(msg.buf(), msg.size());
+    this->msg = MegaApi::strdup(tmp.c_str());
     this->uh = msg.userid;
     this->msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
     this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
