@@ -676,6 +676,7 @@ public:
  *
  * Important considerations:
  *  - The app must NOT call any MegaApi method between fetchnodes and MegaChatApi::init().
+ *  - In order to logout from the account, the app should call MegaChatApi::logout before MegaApi::logout.
  *  - The instance of MegaChatApi must be deleted before the instance of MegaApi passed to the constructor.
  *
  * Some functions in this class return a pointer and give you the ownership. In all of them, memory allocations
