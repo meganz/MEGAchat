@@ -612,7 +612,7 @@ public:
     // ============= API requests ================
 
     // General chat methods
-    void init(bool resumeSession, MegaChatRequestListener *listener = NULL);
+    void init(MegaChatRequestListener *listener = NULL);
     void connect(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);

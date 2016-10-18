@@ -775,11 +775,9 @@ public:
      * @note: until the MegaChatApi::connect function is called, MegaChatApi will operate
      * in offline mode (cannot send/receive any message or call)
      *
-     * @param resumeSession Flag to indicate if the Mega SDK login has been done by resuming a
-     * session (true) or by creating a new session (false).
      * @param listener MegaChatRequestListener to track this request
      */
-    void init(bool resumeSession, MegaChatRequestListener *listener = NULL);
+    void init(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).

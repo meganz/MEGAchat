@@ -88,9 +88,9 @@ void MegaChatApi::setLogLevel(int logLevel)
     MegaChatApiImpl::setLogLevel(logLevel);
 }
 
-void MegaChatApi::init(bool resumeSession, MegaChatRequestListener *listener)
+void MegaChatApi::init(MegaChatRequestListener *listener)
 {
-    pImpl->init(resumeSession, listener);
+    pImpl->init(listener);
 }
 
 void MegaChatApi::connect(MegaChatRequestListener *listener)

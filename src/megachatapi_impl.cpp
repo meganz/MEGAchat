@@ -907,10 +907,9 @@ void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
     delete item;
 }
 
-void MegaChatApiImpl::init(bool resumeSession, MegaChatRequestListener *listener)
+void MegaChatApiImpl::init(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_INITIALIZE, listener);
-    request->setFlag(resumeSession);
     requestQueue.push(request);
     waiter->notify();
 }
