@@ -2749,7 +2749,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->ts = msg->getTimestamp();
     this->type = msg->getType();
 
-    this->changed = 0;
+    this->changed = msg->getChanges();
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
