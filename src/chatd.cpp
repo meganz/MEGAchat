@@ -338,28 +338,30 @@ void Connection::disableInactivityTimer()
 
 Promise<void> Connection::reconnect(const std::string& url)
 {
-    if (mState == kStateConnecting) //would be good to just log and return, but we have to return a promise
-        throw std::runtime_error("Connection::reconnect: Already connecting to shard %d"+std::to_string(mShardNo));
-    if (!url.empty())
+    try
     {
-        mUrl.parse(url);
-    }
-    else
-    {
-        if (!mUrl.isValid())
-            throw std::runtime_error("Connection:reconnect: No valid URL provided and current URL is not valid");
-    }
+        if (mState == kStateConnecting) //would be good to just log and return, but we have to return a promise
+            throw std::runtime_error(std::string("Already connecting to shard ")+std::to_string(mShardNo));
+        if (!url.empty())
+        {
+            mUrl.parse(url);
+        }
+        else
+        {
+            if (!mUrl.isValid())
+                throw std::runtime_error("No valid URL provided and current URL is not valid");
+        }
 
-    mState = kStateConnecting;
-    return retry("chatd", [this](int no)
-    {
-        reset();
-        mConnectPromise = Promise<void>();
-        CHATD_LOG_DEBUG("Chatd connecting to shard %d...", mShardNo);
-        checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
-        ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
-        ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
-        ws_set_onmsg_cb(mWebSocket,
+        mState = kStateConnecting;
+        return retry("chatd", [this](int no)
+        {
+            reset();
+            mConnectPromise = Promise<void>();
+            CHATD_LOG_DEBUG("Chatd connecting to shard %d...", mShardNo);
+            checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
+            ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
+            ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
+            ws_set_onmsg_cb(mWebSocket,
             [](ws_t ws, char *msg, uint64_t len, int binary, void *arg)
             {
                 Connection* self = static_cast<Connection*>(arg);
@@ -368,23 +370,26 @@ Promise<void> Connection::reconnect(const std::string& url)
                 self->execCommand(StaticBuffer(msg, len));
             }, this);
 
-        if (mUrl.isSecure)
+            if (mUrl.isSecure)
+            {
+                ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
+            }
+            for (auto& chatid: mChatIds)
+            {
+                mClient.chats(chatid).setOnlineState(kChatStateConnecting);
+            }
+            checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str())), "connect");
+            return mConnectPromise;
+        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
+        .then([this]()
         {
-             ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
-        }
-        for (auto& chatid: mChatIds)
-        {
-            mClient.chats(chatid).setOnlineState(kChatStateConnecting);
-        }
-        checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str())), "connect");
-        return mConnectPromise;
-    }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
-    .then([this]()
-    {
-        enableInactivityTimer();
-        rejoinExistingChats();
-    });
+            enableInactivityTimer();
+            rejoinExistingChats();
+        });
+    }
+    KR_EXCEPTION_TO_PROMISE(CHATD);
 }
+
 void Connection::enableInactivityTimer()
 {
     if (mInactivityTimer)

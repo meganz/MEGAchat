@@ -286,24 +286,28 @@ promise::Promise<void> Client::initWithNewSession()
 
 promise::Promise<void> Client::initWithExistingSession()
 {
-    const char* sdkSid = api.sdk.dumpSession();
-    assert(sdkSid);
-    mSid = sdkSid;
-    openDb();
-    mUserAttrCache.reset(new UserAttrCache(*this));
-    Id sdkHandle = getMyHandleFromSdk();
-    Id dbHandle = getMyHandleFromDb();
-    if (sdkHandle != dbHandle)
-        throw std::runtime_error("initWithExistingSession: own handle from db does not matche the one from SDK");
+    try
+    {
+        const char* sdkSid = api.sdk.dumpSession();
+        assert(sdkSid);
+        mSid = sdkSid;
+        openDb();
+        mUserAttrCache.reset(new UserAttrCache(*this));
+        Id sdkHandle = getMyHandleFromSdk();
+        Id dbHandle = getMyHandleFromDb();
+        if (sdkHandle != dbHandle)
+            throw std::runtime_error("initWithExistingSession: own handle from db does not matche the one from SDK");
 
-    mMyHandle = sdkHandle;
+        mMyHandle = sdkHandle;
 
-    loadOwnKeysFromDb();
-    contactList->loadFromDb();
-    loadContactListFromApi();
-    chatd.reset(new chatd::Client(mMyHandle));
-    chats->loadFromDb();
-    return promise::Void();
+        loadOwnKeysFromDb();
+        contactList->loadFromDb();
+        loadContactListFromApi();
+        chatd.reset(new chatd::Client(mMyHandle));
+        chats->loadFromDb();
+    }
+    KR_EXCEPTION_TO_PROMISE(KR);
+    return promise:: Void();
 }
 
 promise::Promise<void> Client::init(bool useCache)
