@@ -251,7 +251,7 @@ protected:
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
         size_t reason_len, void *arg);
     void onSocketClose(int ercode, int errtype, const std::string& reason);
-    promise::Promise<void> reconnect();
+    promise::Promise<void> reconnect(const std::string& url=std::string());
     void disconnect();
     void enableInactivityTimer();
     void disableInactivityTimer();
@@ -507,7 +507,7 @@ public:
       * connect(), after which it initiates or uses an existing connection to
       * chatd
       */
-    void connect();
+    void connect(const std::string& url=std::string());
 
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }

@@ -24,7 +24,7 @@ public:
     I i;
 };
 
-template <class I, class X, class C, class F>
+template <class I, class C, class X, class F>
 class StateBase: public Loop<I>
 {
 protected:
@@ -32,10 +32,10 @@ protected:
     C mCondition;
     X mIncrement;
     F mFunc;
+public:
     StateBase(I aInitial, C&& aCond, X&& aInc, F&& aFunc)
     : Loop<I>(aInitial), mCondition(std::forward<C>(aCond)),
       mIncrement(std::forward<X>(aInc)), mFunc(std::forward<F>(aFunc)){}
-public:
     promise::Promise<P> mOutput;
 };
 
@@ -58,7 +58,7 @@ struct State: public StateBase<I,C,X,F>
             if (this->mBreak)
                 goto bail;
 
-            this->mIncrement();
+            this->mIncrement(this->i);
             if (this->mCondition(this->i))
             {
                 karere::marshallCall([this](){nextIter();});
@@ -91,7 +91,7 @@ struct State<I,C,X,F,void>: public StateBase<I,C,X,F>
             if (this->mBreak)
                 goto bail;
 
-            this->mIncrement();
+            this->mIncrement(this->i);
             if (this->mCondition(this->i))
             {
                 karere::marshallCall([this](){nextIter();});

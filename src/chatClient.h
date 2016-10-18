@@ -313,7 +313,7 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
-    promise::Promise<void> onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& chats);
+    void onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& chats);
 /** @endcond PRIVATE */
 };
 

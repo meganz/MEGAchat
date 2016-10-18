@@ -133,8 +133,8 @@ Client::Client(Id userId)
         CHATD_LOG_WARNING("Websocket '" event "' callback: ws param is not equal to self->mWebSocket, ignoring"); \
     }
 
-Chat& Client::createChat(Id chatid, int shardNo, const std::string& url, Listener* listener,
-    const karere::SetOfIds& users, ICrypto* crypto)
+Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
+    Listener* listener, const karere::SetOfIds& users, ICrypto* crypto)
 {
     auto chatit = mChatForChatId.find(chatid);
     if (chatit != mChatForChatId.end())
@@ -160,7 +160,10 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url, Listene
         conn = it->second.get();
     }
 
-    conn->mUrl.parse(url);
+    if (!url.empty())
+    {
+        conn->mUrl.parse(url);
+    }
     // map chatid to this shard
     mConnectionForChatId[chatid] = conn;
 
@@ -172,12 +175,12 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url, Listene
     return *chat;
 }
 
-void Chat::connect()
+void Chat::connect(const std::string& url)
 {
     // attempt a connection ONLY if this is a new shard.
     if (mConnection.state() == Connection::kStateNew)
     {
-        mConnection.reconnect();
+        mConnection.reconnect(url);
     }
     else if (mConnection.isOnline())
     {
@@ -336,10 +339,19 @@ void Connection::disableInactivityTimer()
     }
 }
 
-Promise<void> Connection::reconnect()
+Promise<void> Connection::reconnect(const std::string& url)
 {
     if (mState == kStateConnecting) //would be good to just log and return, but we have to return a promise
         throw std::runtime_error("Connection::reconnect: Already connecting to shard %d"+std::to_string(mShardNo));
+    if (!url.empty())
+    {
+        mUrl.parse(url);
+    }
+    else
+    {
+        if (!mUrl.isValid())
+            throw std::runtime_error("Connection:reconnect: No valid URL provided and current URL is not valid");
+    }
 
     mState = kStateConnecting;
     return retry("chatd", [this](int no)
