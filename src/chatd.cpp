@@ -145,18 +145,15 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
 
     // instantiate a Connection object for this shard if needed
     Connection* conn;
-    bool isNew;
     auto it = mConnections.find(shardNo);
     if (it == mConnections.end())
     {
-        isNew = true;
         conn = new Connection(*this, shardNo);
         mConnections.emplace(std::piecewise_construct,
             std::forward_as_tuple(shardNo), std::forward_as_tuple(conn));
     }
     else
     {
-        isNew = false;
         conn = it->second.get();
     }
 

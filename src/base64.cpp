@@ -49,7 +49,10 @@ static const unsigned char b64dectable[] = {
 size_t base64urldecode(const char* str, size_t len, void* bin, size_t binlen)
 {
     if (binlen < (len*3)/4)
-        throw std::runtime_error("Insufficient output buffer space");
+        throw std::runtime_error("base64urldecode: Insufficient output buffer space");
+    auto mod = len % 4;
+    if ((mod != 0) && (mod < 2))
+        throw std::runtime_error("Incorrect size of base64 string, size mod 4 must be at least 2");
 
     const unsigned char* last = (const unsigned char*)str+len-1;
     const unsigned char* in = (const unsigned char*)str;

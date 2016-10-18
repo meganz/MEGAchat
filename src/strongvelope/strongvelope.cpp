@@ -727,18 +727,25 @@ Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>&
 promise::Promise<std::string>
 ProtocolHandler::decryptChatTitle(const Buffer& data)
 {
-    Buffer copy(data.dataSize());
-    copy.copyFrom(data);
-    chatd::Message* msg = new chatd::Message(karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
-
-    auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
-    return parsedMsg->decryptChatTitle(msg)
-    //warning: parsedMsg must be kept alive when .then() is executed, so we
-    //capture the shared pointer to it
-    .then([parsedMsg](Message* retMsg)
+    try
     {
-        return std::string(retMsg->buf(), retMsg->dataSize());
-    });
+        Buffer copy(data.dataSize());
+        copy.copyFrom(data);
+        chatd::Message* msg = new chatd::Message(karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
+
+        auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
+        return parsedMsg->decryptChatTitle(msg)
+        //warning: parsedMsg must be kept alive when .then() is executed, so we
+        //capture the shared pointer to it
+        .then([parsedMsg](Message* retMsg)
+        {
+            return std::string(retMsg->buf(), retMsg->dataSize());
+        });
+    }
+    catch(std::exception& e)
+    {
+        return promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
+    }
 }
 
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
