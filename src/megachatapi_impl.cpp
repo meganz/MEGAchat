@@ -2748,8 +2748,9 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->status = msg->getStatus();
     this->ts = msg->getTimestamp();
     this->type = msg->getType();
-
     this->changed = msg->getChanges();
+    this->edited = msg->isEdited();
+    this->deleted = msg->isDeleted();
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
@@ -2763,8 +2764,9 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->ts = msg.ts;
     this->status = status;
     this->index = index;
-
     this->changed = 0;
+    this->edited = msg.updated && this->msg;
+    this->deleted = msg.updated && !this->msg;
 }
 
 MegaChatMessagePrivate::~MegaChatMessagePrivate()
@@ -2815,6 +2817,16 @@ int64_t MegaChatMessagePrivate::getTimestamp() const
 const char *MegaChatMessagePrivate::getContent() const
 {
     return msg;
+}
+
+bool MegaChatMessagePrivate::isEdited() const
+{
+    return edited;
+}
+
+bool MegaChatMessagePrivate::isDeleted() const
+{
+    return deleted;
 }
 
 int MegaChatMessagePrivate::getChanges() const

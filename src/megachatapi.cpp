@@ -702,6 +702,16 @@ const char *MegaChatMessage::getContent() const
     return NULL;
 }
 
+bool MegaChatMessage::isEdited() const
+{
+    return false;
+}
+
+bool MegaChatMessage::isDeleted() const
+{
+    return false;
+}
+
 int MegaChatMessage::getChanges() const
 {
     return 0;

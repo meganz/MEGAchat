@@ -443,6 +443,8 @@ public:
     virtual Type getType() const;
     virtual int64_t getTimestamp() const;
     virtual const char *getContent() const;
+    virtual bool isEdited() const;
+    virtual bool isDeleted() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -463,6 +465,8 @@ private:
     int index;              // position within the history buffer
     int64_t ts;
     char *msg;
+    bool edited;
+    bool deleted;
 };
 
 //Thread safe request queue
