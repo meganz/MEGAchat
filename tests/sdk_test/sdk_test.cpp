@@ -1,6 +1,6 @@
 #include "sdk_test.h"
 
-#include <megaapi.h>
+#include "../../third-party/sdk/include/megaapi.h"  // TODO: include it as a system lib, but keeping symbols resolved by IDE
 #include "../../src/megachatapi.h"
 #include "../../src/karereCommon.h" // for logging with karere facility
 
@@ -18,39 +18,10 @@ int main(int argc, char **argv)
 
     MegaChatApiTest t;
 
-    // Create a new session
-    char *session = t.login(0);
-
-    // Set online status to busy
-    bool *flag = &t.requestFlagsChat[0][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
-    t.megaChatApi[0]->setOnlineStatus(MegaChatApi::STATUS_BUSY);
-    assert(t.waitForResponse(flag));
-
-    // Print chats
-    MegaChatRoomList *chats = t.megaChatApi[0]->getChatRooms();
-    cout << chats->size() << " chat/s received: " << endl;
-    for (int i = 0; i < chats->size(); i++)
-    {
-        t.printChatRoomInfo(chats->get(i));
-    }
-
-    // Open chats and print history
-    for (int i = 0; i < chats->size(); i++)
-    {
-        // Open a chatroom
-        MegaChatHandle chatid = chats->get(i)->getChatId();
-        TestChatRoomListener *chatroomListener = new TestChatRoomListener(chatid);
-        assert(t.megaChatApi[0]->openChatRoom(chatid, chatroomListener));
-
-        // Load history
-        flag = &chatroomListener->historyLoaded; *flag = false;
-        t.megaChatApi[0]->loadMessages(chatid, 500);
-        assert(t.waitForResponse(flag));
-
-        // Close the chatroom
-        t.megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
-        delete chatroomListener;
-    }
+//    t.TEST_resumeSession();
+//    t.TEST_setOnlineStatus();
+    t.TEST_getChatRoomsAndMessages();
+    t.TEST_groupChatManagement();
 
     // Create a group chat
     /*  - Establish contact relationship: invite, accept
@@ -95,17 +66,6 @@ int main(int argc, char **argv)
 
 
 
-
-    // Resume an existing session
-    t.logout(0); // keeps session alive
-    char *tmpSession = t.login(0, session);
-    assert (!strcmp(session, tmpSession));
-    delete [] tmpSession;   tmpSession = NULL;
-
-    // Close session and create a new one
-    t.logout(0, true);
-    delete [] session; session = NULL;
-    session = t.login(0);
 
     // TODO: log in the other account, check the message with msgId has arrived
 
@@ -179,7 +139,7 @@ char *MegaChatApiTest::login(int accountIndex, const char *session)
 
     // 3. Initialize chat engine
     flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_INITIALIZE]; *flag = false;
-    megaChatApi[accountIndex]->init(session);
+    megaChatApi[accountIndex]->init();
     assert(waitForResponse(flag));
 
     // 4. Connect to chat servers
@@ -281,6 +241,135 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, int timeout)
     return true;    // response is received
 }
 
+void MegaChatApiTest::TEST_resumeSession()
+{
+    // Create a new session
+    char *session = login(0);
+
+    // Resume an existing session
+    logout(0, false); // keeps session alive
+    char *tmpSession = login(0, session);
+    assert (!strcmp(session, tmpSession));
+    delete [] tmpSession;   tmpSession = NULL;
+
+    // Close session
+    logout(0, true);
+    delete [] session; session = NULL;
+}
+
+void MegaChatApiTest::TEST_setOnlineStatus()
+{
+    login(0);
+
+    bool *flag = &requestFlagsChat[0][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
+    megaChatApi[0]->setOnlineStatus(MegaChatApi::STATUS_BUSY);
+    assert(waitForResponse(flag));
+
+    logout(0, true);
+}
+
+void MegaChatApiTest::TEST_getChatRoomsAndMessages()
+{
+    login(0);
+
+    // Print chats
+    MegaChatRoomList *chats = megaChatApi[0]->getChatRooms();
+    cout << chats->size() << " chat/s received: " << endl;
+    for (int i = 0; i < chats->size(); i++)
+    {
+        printChatRoomInfo(chats->get(i));
+    }
+
+    // Open chats and print history
+    for (int i = 0; i < chats->size(); i++)
+    {
+        // Open a chatroom
+        const MegaChatRoom *chatroom = chats->get(i);
+        MegaChatHandle chatid = chatroom->getChatId();
+        TestChatRoomListener *chatroomListener = new TestChatRoomListener(chatid);
+        assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
+
+        // Load history
+        cout << "Loading messages for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
+        while (1)
+        {
+            bool *flag = &chatroomListener->historyLoaded; *flag = false;
+            if (!megaChatApi[0]->loadMessages(chatid, 16))
+            {
+                break;  // no more history
+            }
+            assert(waitForResponse(flag));
+        }
+
+        // Close the chatroom
+        megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
+        delete chatroomListener;
+
+        // Now, load history locally (it should be cached by now)
+        chatroomListener = new TestChatRoomListener(chatid);
+        assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
+        cout << "Loading messages locally for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
+        while (1)
+        {
+            bool *flag = &chatroomListener->historyLoaded; *flag = false;
+            if (!megaChatApi[0]->loadMessages(chatid, 16))
+            {
+                break;  // no more history
+            }
+            assert(waitForResponse(flag));
+        }
+        megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
+        delete chatroomListener;
+    }
+
+    logout(0, true);
+}
+
+/**
+ * @brief MegaChatApiTest::TEST_groupChatManagement
+ */
+void MegaChatApiTest::TEST_groupChatManagement()
+{
+    login(0);
+    login(1);
+
+    // Prepare peers, privileges...
+    MegaUser *peer = megaApi[0]->getContact(email[1].c_str());
+    assert(peer);
+    MegaChatPeerList *peers = MegaChatPeerList::createInstance();
+    peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
+
+    // Create the GroupChat
+    bool *flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
+    bool *chatReceived = &chatUpdated[1]; *chatReceived = false;
+    megaChatApi[0]->createChat(true, peers);
+    assert(waitForResponse(flag));
+    assert(waitForResponse(chatReceived));
+
+    // Check we got a new chat ID...
+    delete peers;   peers = NULL;
+    chatid = this->chatid;
+    assert (chatid != MEGACHAT_INVALID_HANDLE);
+    // ...and the auxiliar account also received the chatroom
+    MegaChatRoom *chatroom = megaChatApi[1]->getChatRoom(chatid);
+    assert (chatroom);
+    delete chatroom;
+
+
+    // Remove the GroupChat
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
+    megaChatApi[0]->leaveChat(chatid);
+    assert(waitForResponse(flag));
+
+    flag = &requestFlagsChat[1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
+    megaChatApi[1]->leaveChat(chatid);
+    assert(waitForResponse(flag));
+
+    logout(1, true);
+    logout(0, true);
+}
+
 MegaLoggerSDK::MegaLoggerSDK(const char *filename)
 {
     sdklog.open(filename, ios::out | ios::app);
@@ -313,7 +402,7 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
     }
     if (apiIndex == -1)
     {
-        cout << "TEST - Instance of MegaChatApi not recognized" << endl;
+        cout << "Instance of MegaChatApi not recognized" << endl;
         return;
     }
 
@@ -322,24 +411,42 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
 
     switch(request->getType())
     {
-
+        case MegaChatRequest::TYPE_CREATE_CHATROOM:
+            chatid = request->getChatHandle();
+            break;
     }
 }
 
 void MegaChatApiTest::onOnlineStatusUpdate(MegaChatApi *api, MegaChatApi::Status status)
 {
-    cout << "TEST - Online status has been updated: " << status << endl;
+    cout << "Online status updated: " << status << endl;
 }
 
 void MegaChatApiTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
 {
+    int apiIndex = -1;
+    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    {
+        if (api == megaChatApi[i])
+        {
+            apiIndex = i;
+            break;
+        }
+    }
+    if (apiIndex == -1)
+    {
+        cout << "Instance of MegaChatApi not recognized" << endl;
+        return;
+    }
+
     if (chat != NULL)
     {
-        cout << "TEST - Chat added or updated (" << chat->getChatId() << ")" << endl;
+        cout << "Chat added or updated (" << chat->getChatId() << ")" << endl;
+        chatUpdated[apiIndex] = chat->getChatId();
     }
     else
     {
-        cout << "TEST - " <<  megaChatApi[0]->getChatRooms()->size() << " chat/s received" << endl;
+        cout << "" <<  megaChatApi[0]->getChatRooms()->size() << " chat/s received" << endl;
     }
 }
 
@@ -363,23 +470,23 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
 {
     if (msg)
     {
-        cout << "TEST - New message loaded from chat " << chatid << ": " << msg->getContent() << " (" << msg->getMsgId() << ")" << endl;
+        cout << "Message loaded: " << msg->getContent() << " (id: " << msg->getMsgId() << ")" << endl;
     }
     else
     {
         historyLoaded = true;
-        cout << "TEST - Full history loaded. No more messages in chat " << chatid << endl;
+        cout << "Loading of messages completed" << endl;
     }
 }
 
 void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *msg)
 {
-        cout << "TEST - New message received from chat " << chatid << ": " << msg->getContent() << " (" << msg->getMsgId() << ")" << endl;
+        cout << "Message received: " << msg->getContent() << " (id" << msg->getMsgId() << ")" << endl;
 }
 
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
 {
-    cout << "TEST - Message updated from chat " << chatid << ": " << msg->getContent()  << " (" << msg->getMsgId() << ")" << endl;
+    cout << "Message updated: " << msg->getContent()  << " (id" << msg->getMsgId() << ")" << endl;
 
     if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED ||
             msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
