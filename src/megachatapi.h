@@ -945,8 +945,8 @@ public:
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Remove yourself or another user from a chat. To remove a user other than
-     * yourself you need to have the operator/moderator privilege. Only a group chat may be left.
+     * @brief Remove another user from a chat. To remove a user you need to have the
+     * operator/moderator privilege. Only groupchats can be left.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -959,10 +959,27 @@ public:
      * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot remove peers)
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param uh MegaChatHandle that identifies the user. If not provided (INVALID_HANDLE), the requester is removed
+     * @param uh MegaChatHandle that identifies the user.
      * @param listener MegaChatRequestListener to track this request
      */
-    void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Leave a chatroom. Only groupchats can be left.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to remove peers.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot remove peers)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void leaveChat(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Allows a logged in operator/moderator to adjust the permissions on any other user
@@ -995,8 +1012,6 @@ public:
      * the entire chat history up to a certain message. All earlier messages are wiped,
      * but his specific message gets overridden with a management message.
      *
-     * If no message id is provided, this function will remove the entire history.
-     *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
@@ -1011,7 +1026,26 @@ public:
      * @param messageid MegaChatHandle that identifies the message to truncate from
      * @param listener MegaChatRequestListener to track this request
      */
-    void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allows a logged in operator/moderator to clear the entire history of a chat
+     *
+     * The latest message gets overridden with a management message.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void clearChatHistory(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Allows to set the title of a group chat
