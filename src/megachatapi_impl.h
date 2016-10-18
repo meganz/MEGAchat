@@ -497,7 +497,8 @@ public:
 
 class MegaChatApiImpl :
         public karere::IApp,
-        public karere::IApp::IChatListHandler
+        public karere::IApp::IChatListHandler,
+        public mega::MegaRequestListener
 {
 public:
 
@@ -521,6 +522,9 @@ private:
     void loop();
 
     void init(MegaChatApi *chatApi, mega::MegaApi *megaApi);
+    bool resumeSession;
+    MegaChatError *initResult;
+    MegaChatRequestPrivate *initRequest;
 
     static LoggerHandler *loggerHandler;
 
@@ -669,6 +673,13 @@ public:
     virtual void removeGroupChatItem(IApp::IGroupChatListItem& item);
     virtual IApp::IPeerChatListItem *addPeerChatItem(karere::PeerChatRoom& room);
     virtual void removePeerChatItem(IApp::IPeerChatListItem& item);
+
+    // mega::MegaRequestListener implementation
+//    virtual void onRequestStart(MegaApi* api, MegaRequest *request);
+    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
+//    virtual void onRequestUpdate(MegaApi*api, MegaRequest *request);
+//    virtual void onRequestTemporaryError(MegaApi *api, MegaRequest *request, MegaError* error);
+
 };
 
 
