@@ -510,7 +510,9 @@ public:
 //    MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir);
     virtual ~MegaChatApiImpl();
 
-    static MegaChatApiImpl *megaChatApiRef;
+    static std::vector<MegaChatApiImpl *> megaChatApiRefs;
+    static mega::MegaMutex refsMutex;
+    static mega::MegaMutex sdkMutex;
 
 private:
     MegaChatApi *chatApi;
@@ -518,7 +520,6 @@ private:
 
     karere::Client *mClient;
 
-    mega::MegaMutex sdkMutex;
     mega::MegaWaiter *waiter;
     mega::MegaThread thread;
     int threadExit;

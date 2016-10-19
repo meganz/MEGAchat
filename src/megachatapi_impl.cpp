@@ -48,15 +48,24 @@ using namespace mega;
 using namespace karere;
 using namespace chatd;
 
-MegaChatApiImpl *MegaChatApiImpl::megaChatApiRef = NULL;
+vector<MegaChatApiImpl *> MegaChatApiImpl::megaChatApiRefs;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
+MegaMutex MegaChatApiImpl::sdkMutex(true);
+MegaMutex MegaChatApiImpl::refsMutex(true);
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 : localVideoReceiver(nullptr)
 {
-    init(chatApi, megaApi);
+    refsMutex.lock();
+    megaChatApiRefs.push_back(this);
+    if (megaChatApiRefs.size() == 1)
+    {
+        // karere initialization (do NOT use globaInit() since it forces to log to file)
+        services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
+    }
+    refsMutex.unlock();
 
-    MegaChatApiImpl::megaChatApiRef = this;
+    init(chatApi, megaApi);
 }
 
 //MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir)
@@ -77,8 +86,6 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->chatApi = chatApi;
     this->megaApi = megaApi;
     this->megaApi->addRequestListener(this);
-
-    sdkMutex.init(true);
 
     this->waiter = new MegaWaiter();
     this->mClient = NULL;   // created at loop()
@@ -111,9 +118,6 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
 
 void MegaChatApiImpl::loop()
 {
-    // karere initialization (do NOT use globaInit() since it forces to log to file)
-    services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
-
     mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), Presence::kOnline);
 
     while (true)
@@ -130,20 +134,41 @@ void MegaChatApiImpl::loop()
 
         if (threadExit)
         {
+            // remove the MegaChatApiImpl that is being deleted
+            refsMutex.lock();
+            for (vector<MegaChatApiImpl*>::iterator it = megaChatApiRefs.begin(); it != megaChatApiRefs.end(); it++)
+            {
+                if (*it == this)
+                {
+                    megaChatApiRefs.erase(it);
+                    break;
+                }
+            }
+            sendPendingEvents();    // process any pending events in the queue
+            refsMutex.unlock();
+            if (!megaChatApiRefs.size())    // if no remaining instances...
+            {
+                globalCleanup();
+            }
+            sdkMutex.unlock();
             break;
         }
     }
-
-    globalCleanup();
 }
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg)
 {
     // Add the message to the queue of events
-    // TODO: decide if a singleton is suitable to retrieve instance of MegaChatApi,
-    // or it's better to change karere to pass the instance of the MegaChatApi as parameter
-//    MegaChatApiImpl *chatApi = MegaChatApiImpl::getMegaChatApi();
-    megaChatApiRef->postMessage(msg);
+    refsMutex.lock();
+    if (megaChatApiRefs.size())
+    {
+        megaChatApiRefs[0]->postMessage(msg);
+    }
+    else    // no more instances running, only one left --> directly process messages
+    {
+        megaProcessMessage(msg);
+    }
+    refsMutex.unlock();
 }
 
 void MegaChatApiImpl::postMessage(void *msg)
@@ -577,9 +602,7 @@ void MegaChatApiImpl::sendPendingEvents()
     void *msg;
     while((msg = eventQueue.pop()))
     {
-        sdkMutex.lock();
         megaProcessMessage(msg);
-        sdkMutex.unlock();
     }
 }
 
