@@ -321,7 +321,7 @@ public:
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatMessage object is deleted.
      *
-     * @return Content of the message
+     * @return Content of the message. If message was deleted, it returns NULL.
      */
     virtual const char *getContent() const;
 
@@ -1373,6 +1373,12 @@ public:
     virtual MegaChatApi::Status getOnlineStatus() const;
 
     virtual int getVisibility() const;
+
+    /**
+     * @brief getUnreadCount
+     * @note This function will return 0 if the last seen message has never been loaded yet.
+     * @return
+     */
     virtual int getUnreadCount() const;
 
 };

@@ -2779,7 +2779,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
 {
     string tmp(msg.buf(), msg.size());
-    this->msg = MegaApi::strdup(tmp.c_str());
+    this->msg = msg.size() ? MegaApi::strdup(tmp.c_str()) : NULL;
     this->uh = msg.userid;
     this->msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
     this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;

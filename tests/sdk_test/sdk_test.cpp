@@ -272,17 +272,15 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
 {
     login(0);
 
-    // Print chats
     MegaChatRoomList *chats = megaChatApi[0]->getChatRooms();
     cout << chats->size() << " chat/s received: " << endl;
-    for (int i = 0; i < chats->size(); i++)
-    {
-        printChatRoomInfo(chats->get(i));
-    }
 
     // Open chats and print history
     for (int i = 0; i < chats->size(); i++)
     {
+        // Print chats
+        printChatRoomInfo(chats->get(i));
+
         // Open a chatroom
         const MegaChatRoom *chatroom = chats->get(i);
         MegaChatHandle chatid = chatroom->getChatId();
@@ -470,7 +468,17 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
 {
     if (msg)
     {
-        cout << "Message loaded: " << msg->getContent() << " (id: " << msg->getMsgId() << ")" << endl;
+        const char *content = msg->getContent() ? msg->getContent() : "<empty>";
+        cout << "Message loaded: " <<  content;
+        if (msg->isEdited())
+        {
+            cout << " (edited)";
+        }
+        else if (msg->isDeleted())
+        {
+            cout << " (deleted)";
+        }
+        cout << " (id: " << msg->getMsgId() << ")" << endl;
     }
     else
     {
