@@ -118,6 +118,11 @@ void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
     pImpl->setOnlineStatus(status, listener);
 }
 
+int MegaChatApi::getOnlineStatus()
+{
+    return pImpl->getOnlineStatus();
+}
+
 MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();
@@ -198,9 +203,9 @@ MegaChatMessage *MegaChatApi::getMessage(MegaChatHandle chatid, MegaChatHandle m
     return pImpl->getMessage(chatid, msgid);
 }
 
-MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg, MegaChatMessage::Type type)
+MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg)
 {
-    return pImpl->sendMessage(chatid, msg, type);
+    return pImpl->sendMessage(chatid, msg);
 }
 
 MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
@@ -441,7 +446,7 @@ const char *MegaChatRoom::stateToString(int status)
     }
 }
 
-const char *MegaChatRoom::statusToString(MegaChatApi::Status status)
+const char *MegaChatRoom::statusToString(int status)
 {
     switch (status)
     {
@@ -514,7 +519,7 @@ int MegaChatRoom::getUnreadCount() const
     return 0;
 }
 
-MegaChatApi::Status MegaChatRoom::getOnlineStatus() const
+int MegaChatRoom::getOnlineStatus() const
 {
     return MegaChatApi::STATUS_OFFLINE;
 }
@@ -631,7 +636,7 @@ int MegaChatListItem::getUnreadCount() const
     return 0;
 }
 
-MegaChatApi::Status MegaChatListItem::getOnlineStatus() const
+int MegaChatListItem::getOnlineStatus() const
 {
     return MegaChatApi::STATUS_OFFLINE;
 }
@@ -687,7 +692,7 @@ MegaChatHandle MegaChatMessage::getUserHandle() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-MegaChatMessage::Type MegaChatMessage::getType() const
+int MegaChatMessage::getType() const
 {
     return MegaChatMessage::TYPE_UNKNOWN;
 }

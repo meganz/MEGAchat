@@ -198,7 +198,7 @@ private:
     mega::visibility_t visibility;
     const char *title;
     int unreadCount;
-    MegaChatApi::Status status;
+    int status;
 
 public:
     virtual int getChanges() const;
@@ -208,13 +208,13 @@ public:
     virtual const char *getTitle() const;
     virtual int getVisibility() const;
     virtual int getUnreadCount() const;
-    virtual MegaChatApi::Status getOnlineStatus() const;
+    virtual int getOnlineStatus() const;
 
 
     void setVisibility(mega::visibility_t visibility);
     void setTitle(const char *title);
     void setUnreadCount(int count);
-    void setOnlineStatus(MegaChatApi::Status status);
+    void setOnlineStatus(int status);
     void setMembersUpdated();
 };
 
@@ -386,11 +386,11 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     virtual int getUnreadCount() const;
-    virtual MegaChatApi::Status getOnlineStatus() const;
+    virtual int getOnlineStatus() const;
 
     void setTitle(const char *title);
     void setUnreadCount(int count);
-    void setOnlineStatus(MegaChatApi::Status status);
+    void setOnlineStatus(int status);
     void setMembersUpdated();
     void setOnlineState(int state);
 
@@ -404,7 +404,7 @@ private:
 
     const char *title;
     int unreadCount;
-    MegaChatApi::Status status;
+    int status;
     int chatState;
 };
 
@@ -440,7 +440,7 @@ public:
     virtual MegaChatHandle getTempId() const;
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
-    virtual Type getType() const;
+    virtual int getType() const;
     virtual int64_t getTimestamp() const;
     virtual const char *getContent() const;
     virtual bool isEdited() const;
@@ -457,7 +457,7 @@ public:
 private:
     int changed;
 
-    Type type;
+    int type;
     int status;
     MegaChatHandle msgId;   // definitive unique ID given by server
     MegaChatHandle tempId;  // used until it's given a definitive ID by server
@@ -553,7 +553,7 @@ private:
     MegaChatVideoReceiver *localVideoReceiver;
 
     // online status of user
-    MegaChatApi::Status status;
+    int status;
 
 public:    
     static void megaApiPostMessage(void* msg);
@@ -623,6 +623,7 @@ public:
     void localLogout(MegaChatRequestListener *listener = NULL);
 
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
+    int getOnlineStatus();
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
@@ -641,7 +642,7 @@ public:
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
-    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, MegaChatMessage::Type type);
+    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);

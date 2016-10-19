@@ -217,7 +217,8 @@ public:
 class MegaChatMessage
 {
 public:
-    enum Status {
+    // Online status of message
+    enum {
         STATUS_UNKNOWN              = -1,   /// Invalid status
         // for outgoing messages
         STATUS_SENDING              = 0,    /// Message has not been sent or is not yet confirmed by the server
@@ -230,7 +231,8 @@ public:
         STATUS_SEEN                 = 6     /// User has read this message
     };
 
-    enum Type {
+    // Types of message
+    enum {
         TYPE_UNKNOWN                = -1,   /// Invalid type
         TYPE_NORMAL                 = 1,    /// Regular text message
         TYPE_ALTER_PARTICIPANTS     = 2,    /// Management message indicating the participants in the chat have changed
@@ -303,11 +305,18 @@ public:
     /**
      * @brief Returns the type of message.
      *
-     * @see \c MegaChatMessage::Type for the possible values and its meaning.
+     * Valid values are:
+     *  - TYPE_UNKNOWN              = -1
+     *  - TYPE_NORMAL               = 1
+     *  - TYPE_ALTER_PARTICIPANTS   = 2
+     *  - TYPE_TRUNCATE             = 3
+     *  - TYPE_PRIV_CHANGE          = 4
+     *  - TYPE_CHAT_TITLE           = 5
+     *  - TYPE_USER_MSG             = 16
      *
      * @return Returns the Type of message.
      */
-    virtual Type getType() const;
+    virtual int getType() const;
 
     /**
      * @brief Returns the timestamp of the message.
@@ -690,8 +699,7 @@ class MegaChatApi
 {
 
 public:
-    enum Status
-    {
+    enum {
         STATUS_OFFLINE    = 0,
         STATUS_BUSY       = 1,
         STATUS_AWAY       = 2,
@@ -846,6 +854,24 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Get your online status.
+     *
+     * It can be one of the following values:
+     * - MegaChatApi::STATUS_OFFLINE = 1
+     * The user appears as being offline
+     *
+     * - MegaChatApi::STATUS_BUSY = 2
+     * The user is busy and don't want to be disturbed.
+     *
+     * - MegaChatApi::STATUS_AWAY = 3
+     * The user is away and might not answer.
+     *
+     * - MegaChatApi::STATUS_ONLINE = 4
+     * The user is connected and online.
+     */
+    int getOnlineStatus();
 
     /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
@@ -1170,12 +1196,10 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param msg Content of the message
-     * @param type Type of the message (normal message, type of management message,
-     * application-specific type like link, share, picture etc.) @see MegaChatMessage::Type.
      *
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
-    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, MegaChatMessage::Type type);
+    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
 
     /**
      * @brief Edits an existing message
@@ -1370,7 +1394,7 @@ public:
      *
      * @return Online status of the chat
      */
-    virtual MegaChatApi::Status getOnlineStatus() const;
+    virtual int getOnlineStatus() const;
 
     virtual int getVisibility() const;
 
@@ -1418,7 +1442,7 @@ public:
 
     static const char *privToString(int);
     static const char *stateToString(int);
-    static const char *statusToString(MegaChatApi::Status);
+    static const char *statusToString(int status);
 
     /**
      * @brief Returns the MegaChatHandle of the chat.
@@ -1540,7 +1564,7 @@ public:
      *
      * @return Online status of the chat
      */
-    virtual MegaChatApi::Status getOnlineStatus() const;
+    virtual int getOnlineStatus() const;
 
     virtual int getUnreadCount() const;
 
