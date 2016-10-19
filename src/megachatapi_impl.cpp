@@ -246,7 +246,7 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
         {
-            MegaChatApi::Status status = (MegaChatApi::Status) request->getNumber();
+            int status = request->getNumber();
             if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_CHATTY)
             {
                 fireOnChatRequestFinish(request, new MegaChatErrorPrivate("Invalid online status", MegaChatError::ERROR_ARGS));
@@ -945,6 +945,11 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
     waiter->notify();
 }
 
+int MegaChatApiImpl::getOnlineStatus()
+{
+    return status;
+}
+
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 {
     MegaChatRoomListPrivate *chats = new MegaChatRoomListPrivate();
@@ -1156,7 +1161,7 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, MegaChatMessage::Type type)
+MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg)
 {
     if (!msg)
     {
@@ -1170,7 +1175,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     if (chatroom)
     {
         Chat &chat = chatroom->chat();
-        Message::Type t = (Message::Type) type;
+        Message::Type t = (Message::Type) MegaChatMessage::TYPE_NORMAL;
         Message *m = chat.msgSubmit(msg, strlen(msg), t, NULL);
 
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
@@ -1573,7 +1578,7 @@ void MegaChatApiImpl::onOwnPresence(Presence pres)
         return;
     }
 
-    this->status = (MegaChatApi::Status) pres.status();
+    this->status = pres.status();
 
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(MEGACHAT_INVALID_HANDLE);
     item->setOnlineStatus(status);
@@ -2059,7 +2064,7 @@ void MegaChatRoomHandler::onUnreadCountChanged(int count)
 void MegaChatRoomHandler::onPresenceChanged(Presence state)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
-    chat->setOnlineStatus((MegaChatApi::Status) state.status());
+    chat->setOnlineStatus(state.status());
 
     chatApi->fireOnChatRoomUpdate(chat);
 }
@@ -2382,7 +2387,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
             this->peers.push_back(userpriv_pair(it->first,
                                           (privilege_t) it->second->priv()));
         }
-        this->status = (MegaChatApi::Status) chat.chatdOnlineState();
+        this->status = chat.chatdOnlineState();
     }
     else
     {
@@ -2391,7 +2396,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         handle uh = peerchat.peer();
 
         this->peers.push_back(userpriv_pair(uh, priv));
-        this->status = (MegaChatApi::Status) chat.presence().status();
+        this->status = chat.presence().status();
     }
 }
 
@@ -2468,7 +2473,7 @@ int MegaChatRoomPrivate::getUnreadCount() const
     return unreadCount;
 }
 
-MegaChatApi::Status MegaChatRoomPrivate::getOnlineStatus() const
+int MegaChatRoomPrivate::getOnlineStatus() const
 {
     return status;
 }
@@ -2489,7 +2494,7 @@ void MegaChatRoomPrivate::setUnreadCount(int count)
     this->changed |= MegaChatRoom::CHANGE_TYPE_UNREAD_COUNT;
 }
 
-void MegaChatRoomPrivate::setOnlineStatus(MegaChatApi::Status status)
+void MegaChatRoomPrivate::setOnlineStatus(int status)
 {
     this->status = status;
     this->changed |= MegaChatRoom::CHANGE_TYPE_STATUS;
@@ -2533,7 +2538,7 @@ void MegaChatListItemHandler::onUnreadCountChanged(int count)
 void MegaChatListItemHandler::onPresenceChanged(Presence state)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
-    item->setOnlineStatus((MegaChatApi::Status) state.status());
+    item->setOnlineStatus(state.status());
 
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -2669,7 +2674,7 @@ int MegaChatListItemPrivate::getUnreadCount() const
     return unreadCount;
 }
 
-MegaChatApi::Status MegaChatListItemPrivate::getOnlineStatus() const
+int MegaChatListItemPrivate::getOnlineStatus() const
 {
     return status;
 }
@@ -2696,7 +2701,7 @@ void MegaChatListItemPrivate::setUnreadCount(int count)
     this->changed |= MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT;
 }
 
-void MegaChatListItemPrivate::setOnlineStatus(MegaChatApi::Status status)
+void MegaChatListItemPrivate::setOnlineStatus(int status)
 {
     this->status = status;
     this->changed |= MegaChatListItem::CHANGE_TYPE_STATUS;
@@ -2760,7 +2765,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->uh = msg.userid;
     this->msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
     this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
-    this->type = (MegaChatMessage::Type) msg.type;
+    this->type = msg.type;
     this->ts = msg.ts;
     this->status = status;
     this->index = index;
@@ -2804,7 +2809,7 @@ MegaChatHandle MegaChatMessagePrivate::getUserHandle() const
     return uh;
 }
 
-MegaChatMessage::Type MegaChatMessagePrivate::getType() const
+int MegaChatMessagePrivate::getType() const
 {
     return type;
 }
