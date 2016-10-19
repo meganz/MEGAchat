@@ -415,7 +415,7 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
     }
 }
 
-void MegaChatApiTest::onOnlineStatusUpdate(MegaChatApi *api, MegaChatApi::Status status)
+void MegaChatApiTest::onOnlineStatusUpdate(MegaChatApi *api, int status)
 {
     cout << "Online status updated: " << status << endl;
 }

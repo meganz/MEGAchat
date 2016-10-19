@@ -122,7 +122,7 @@ public:
     virtual void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaChatError* error) {}
 
     // implementation for MegaChatListener
-    void onOnlineStatusUpdate(MegaChatApi* api, MegaChatApi::Status status);
+    void onOnlineStatusUpdate(MegaChatApi* api, int status);
     virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
     virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
 
