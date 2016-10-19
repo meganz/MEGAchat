@@ -2765,8 +2765,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->status = status;
     this->index = index;
     this->changed = 0;
-    this->edited = msg.updated && this->msg;
-    this->deleted = msg.updated && !this->msg;
+    this->edited = msg.updated && msg.size();
+    this->deleted = msg.updated && !msg.size();
 }
 
 MegaChatMessagePrivate::~MegaChatMessagePrivate()
