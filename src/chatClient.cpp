@@ -181,7 +181,8 @@ Client::~Client()
 promise::Promise<ReqResult> Client::sdkLoginNewSession()
 {
     mLoginDlg.reset(app.createLoginDialog());
-    return asyncLoop([this](Loop& loop)
+    return async::loop((int)0, [](int) { return true; }, [](int&){},
+    [this](async::Loop<int>& loop)
     {
         return mLoginDlg->requestCredentials()
         .then([this](const std::pair<std::string, std::string>& cred)
@@ -202,7 +203,7 @@ promise::Promise<ReqResult> Client::sdkLoginNewSession()
             mLoginDlg->setState(IApp::ILoginDialog::kBadCredentials);
             return 0;
         });
-    }, [](int) { return true; })
+    })
     .then([this](int)
     {
         mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
@@ -285,24 +286,28 @@ promise::Promise<void> Client::initWithNewSession()
 
 promise::Promise<void> Client::initWithExistingSession()
 {
-    const char* sdkSid = api.sdk.dumpSession();
-    assert(sdkSid);
-    mSid = sdkSid;
-    openDb();
-    mUserAttrCache.reset(new UserAttrCache(*this));
-    Id sdkHandle = getMyHandleFromSdk();
-    Id dbHandle = getMyHandleFromDb();
-    if (sdkHandle != dbHandle)
-        throw std::runtime_error("initWithExistingSession: own handle from db does not matche the one from SDK");
+    try
+    {
+        const char* sdkSid = api.sdk.dumpSession();
+        assert(sdkSid);
+        mSid = sdkSid;
+        openDb();
+        mUserAttrCache.reset(new UserAttrCache(*this));
+        Id sdkHandle = getMyHandleFromSdk();
+        Id dbHandle = getMyHandleFromDb();
+        if (sdkHandle != dbHandle)
+            throw std::runtime_error("initWithExistingSession: own handle from db does not matche the one from SDK");
 
-    mMyHandle = sdkHandle;
+        mMyHandle = sdkHandle;
 
-    loadOwnKeysFromDb();
-    contactList->loadFromDb();
-    loadContactListFromApi();
-    chatd.reset(new chatd::Client(mMyHandle));
-    chats->loadFromDb();
-    return promise::Void();
+        loadOwnKeysFromDb();
+        contactList->loadFromDb();
+        loadContactListFromApi();
+        chatd.reset(new chatd::Client(mMyHandle));
+        chats->loadFromDb();
+    }
+    KR_EXCEPTION_TO_PROMISE(KR);
+    return promise:: Void();
 }
 
 promise::Promise<void> Client::init(bool useCache)
@@ -883,7 +888,11 @@ void PeerChatRoom::initWithChatd()
 
 void PeerChatRoom::connect()
 {
-    mChat->connect();
+    updateUrl()
+    .then([this]()
+    {
+        mChat->connect();
+    });
 }
 
 promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
@@ -935,8 +944,12 @@ void GroupChatRoom::initWithChatd()
 
 void GroupChatRoom::connect()
 {
-    mChat->connect();
-    decryptTitle();
+    updateUrl()
+    .then([this]()
+    {
+        mChat->connect();
+        decryptTitle();
+    });
 }
 
 IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
@@ -1071,10 +1084,33 @@ promise::Promise<ReqResult> GroupChatRoom::setPrivilege(karere::Id userid, chatd
 
 void GroupChatRoom::deleteSelf()
 {
-    auto db = parent.client.db;
-    sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
-    sqliteQuery(db, "delete from chats where chatid=?", mChatid);
-    delete this;
+    //have to post a delete on the event loop, as there may be pending
+    //events related to the chatroom/strongvelope instance
+    marshallCall([this]()
+    {
+        auto db = parent.client.db;
+        sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
+        sqliteQuery(db, "delete from chats where chatid=?", mChatid);
+        delete this;
+    });
+}
+
+promise::Promise<void> ChatRoom::updateUrl()
+{
+    return parent.client.api.call(&mega::MegaApi::getUrlChat, mChatid)
+    .then([this](ReqResult result)
+    {
+        const char* url = result->getLink();
+        if (!url || !url[0])
+            return;
+        std::string sUrl = url;
+        if (sUrl == mUrl)
+            return;
+        mUrl = sUrl;
+        sqliteQuery(parent.client.db, "update chats set url=? where chatid=?", mUrl, mChatid);
+        KR_LOG_DEBUG("Updated chatroom %s url", Id(mChatid).toString().c_str());
+        return;
+    });
 }
 
 ChatRoomList::ChatRoomList(Client& aClient)
@@ -1095,17 +1131,14 @@ void ChatRoomList::loadFromDb()
         auto url = stmt.stringCol(1);
         if (url.empty())
         {
-            KR_LOG_ERROR("ChatRoomList::loadFromDb: Chatroom has empty URL, ignoring and deleting from db");
-            sqliteQuery(client.db, "delete from chats where chatid = ?", chatid);
-            sqliteQuery(client.db, "delete from chat_peers where chatid = ?", chatid);
-            continue;
+            KR_LOG_WARNING("ChatRoomList::loadFromDb: Chatroom has empty URL in database");
         }
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
-            room = new PeerChatRoom(*this, chatid, stmt.stringCol(1), stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5));
+            room = new PeerChatRoom(*this, chatid, url, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5));
         else
-            room = new GroupChatRoom(*this, chatid, stmt.stringCol(1), stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.stringCol(6));
+            room = new GroupChatRoom(*this, chatid, url, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.stringCol(6));
         emplace(chatid, room);
     }
 }
@@ -1123,6 +1156,7 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
         addRoom(room);
     }
 }
+
 ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
 {
     auto chatid = apiRoom.getHandle();
@@ -1183,9 +1217,10 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
 {
     addMissingRoomsFromApi(*rooms);
-    for (int i=0; i<rooms->size(); i++)
+    auto count = rooms->size();
+    for (int i = 0; i < count; i++)
     {
-        std::shared_ptr<::mega::MegaTextChat> room(rooms->get(i)->copy());
+        auto room = rooms->get(i);
         auto chatid = room->getHandle();
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
@@ -1196,18 +1231,11 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             {
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(chatid).toString().c_str());
                 removeRoom(chatid);
+                continue;
             }
             else
             {   //we have the room, there maybe is some change on room properties
-                client.api.call(&mega::MegaApi::getUrlChat, chatid)
-                .then([this, chatid, room](ReqResult result)
-                {
-                    auto it = find(chatid);
-                    if (it == end())
-                        return;
-                    room->setUrl(result->getLink());
-                    it->second->syncWithApi(*room);
-                });
+                it->second->syncWithApi(*room);
             }
         }
         else
@@ -1216,17 +1244,12 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             {
                 //we are in the room, add it to local cache
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
-                client.api.call(&mega::MegaApi::getUrlChat, chatid)
-                .then([this, chatid, room](ReqResult result)
-                {
-                    room->setUrl(result->getLink());
-                    auto& createdRoom = addRoom(*room);
-                    client.app.notifyInvited(createdRoom);
-                });
+                client.app.notifyInvited(addRoom(*room));
             }
             else
             {   //we don't have the room, and we are not in the room - we have just removed ourselves from it, and deleted it locally
                 KR_LOG_DEBUG("Chatroom[%s]: We should have just removed ourself from the room",  Id(chatid).toString().c_str());
+                continue;
             }
         }
     }
@@ -1278,8 +1301,21 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     if (mEncryptedTitle.empty())
         return promise::_Void();
     Buffer buf(mEncryptedTitle.size());
-    auto decLen = base64urldecode(mEncryptedTitle.c_str(), mEncryptedTitle.size(),
-        buf.buf(), buf.bufSize());
+    size_t decLen;
+    try
+    {
+        decLen = base64urldecode(mEncryptedTitle.c_str(), mEncryptedTitle.size(),
+            buf.buf(), buf.bufSize());
+    }
+    catch(std::exception& e)
+    {
+        makeTitleFromMemberNames();
+        std::string err("Error base64-decoding chat title: ");
+        err.append(e.what()).append(". Falling back to member names");
+        KR_LOG_ERROR("%s", err.c_str());
+        return promise::Error(err);
+    }
+
     buf.setDataSize(decLen);
     return this->chat().crypto()->decryptChatTitle(buf)
     .then([this](const std::string& title)
@@ -1300,8 +1336,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     .fail([this](const promise::Error& err)
     {
         KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", karere::Id(chatid()).toString().c_str(), err.what());
-        mHasTitle = false;
-        loadTitleFromDb(); //if it existed before in db, the title will be preserved
+        makeTitleFromMemberNames();
     });
 }
 
@@ -1418,13 +1453,15 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
         throw std::runtime_error("syncWithApi: isGroup flag can't change");
     auto db = parent.client.db;
     auto url = chat.getUrl();
-    if (!url)
-        throw std::runtime_error("MegaTextChat::getUrl() returned NULL");
-    if (strcmp(url, mUrl.c_str()))
+    if (url)
     {
-        mUrl = url;
-        changed = true;
-        sqliteQuery(db, "update chats set url=? where chatid=?", mUrl, mChatid);
+        if (strcmp(url, mUrl.c_str()))
+        {
+            mUrl = url;
+            changed = true;
+            sqliteQuery(db, "update chats set url=? where chatid=?", mUrl, mChatid);
+            KR_LOG_DEBUG("Chatroom %s: URL updated from API", Id(mChatid).toString().c_str());
+        }
     }
     chatd::Priv ownPriv = (chatd::Priv)chat.getOwnPrivilege();
     if (ownPriv != mOwnPriv)
@@ -1432,6 +1469,7 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
         mOwnPriv = ownPriv;
         changed = true;
         sqliteQuery(db, "update chats set own_priv=? where chatid=?", ownPriv, mChatid);
+        KR_LOG_DEBUG("Chatroom %s: own privilege updated from API", Id(mChatid).toString().c_str());
     }
     return changed;
 }

@@ -187,6 +187,13 @@ extern const char* gKarereDbSchema;
      } \
  } while(0)
 
+#define KR_EXCEPTION_TO_PROMISE(prefix)        \
+    catch(std::exception& e)                   \
+    {                                          \
+        prefix##_LOG_ERROR("%s() exception: %s", __FUNCTION__, e.what());  \
+        return promise::Error(e.what());       \
+    }
+
 class Client;
 /** @endcond PRIVATE */
 

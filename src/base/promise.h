@@ -713,7 +713,7 @@ struct WhenStateShared
 {
     int numready = 0;
     Promise<void> output;
-    bool lastAdded = false;
+    bool addLast = false;
     int totalCount = 0;
 };
 
@@ -730,11 +730,12 @@ inline void _when_add_single(WhenState& state, Promise<T>& pms)
     {
         int n = ++(state->numready);
         PROMISE_LOG_REF("when: %p: numready = %d", state.get(), state->numready);
-        if (!state->lastAdded || (n < state->totalCount))
-            return ret;
-        assert(n == state->totalCount);
-        if (!state->output.done())
-            state->output.resolve();
+        if (state->addLast && (n >= state->totalCount))
+        {
+            assert(n == state->totalCount);
+            if (!state->output.done())
+                state->output.resolve();
+        }
         return ret;
     });
     pms.fail([state](const Error& err)
@@ -753,11 +754,12 @@ inline void _when_add_single(WhenState& state, Promise<void>& pms)
     {
         int n = ++(state->numready);
         PROMISE_LOG_REF("when: %p: numready = %d", state.get(), state->numready);
-        if (!state->lastAdded || (n < state->totalCount))
-            return;
-        assert(n == state->totalCount);
-        if (!state->output.done())
-            state->output.resolve();
+        if (state->addLast && (n >= state->totalCount))
+        {
+            assert(n == state->totalCount);
+            if (!state->output.done())
+                state->output.resolve();
+        }
     });
     pms.fail([state](const Error& err)
     {
@@ -771,7 +773,7 @@ template <class T>
 inline void _when_add(WhenState& state, Promise<T>& promise)
 {
 //this is called when the final promise is added. Now we know the actual count
-    state->lastAdded = true;
+    state->addLast = true;
     _when_add_single<T>(state, promise);
 }
 template <class T, class...Args>
@@ -789,5 +791,20 @@ inline Promise<void> when(Args... inputs)
     _when_add(state, inputs...);
     return state->output;
 }
+
+template <class P>
+inline Promise<void> when(std::vector<Promise<P>>& promises)
+{
+    WhenState state;
+    size_t countMinus1 = promises.size()-1;
+    for (size_t i=0; i < countMinus1; i++)
+    {
+        _when_add_single<P>(state, promises[i]);
+    }
+    state->addLast = true;
+    _when_add_single<P>(state, promises[countMinus1]);
+    return state->output;
+}
+
 }//end namespace promise
 #endif
