@@ -74,9 +74,6 @@ public:
 
     bool waitForResponse(bool *responseReceived, int timeout = maxTimeout);
 
-    string email[NUM_ACCOUNTS];
-    string pwd[NUM_ACCOUNTS];
-
     MegaApi* megaApi[NUM_ACCOUNTS];
     MegaChatApi* megaChatApi[NUM_ACCOUNTS];
 
@@ -84,8 +81,19 @@ public:
     bool requestFlags[NUM_ACCOUNTS][MegaRequest::TYPE_CHAT_SET_TITLE];
     bool requestFlagsChat[NUM_ACCOUNTS][MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
 
+    void TEST_resumeSession();
+    void TEST_setOnlineStatus();
+    void TEST_getChatRoomsAndMessages();
+    void TEST_groupChatManagement();
+
 private:
+    std::string email[NUM_ACCOUNTS];
+    std::string pwd[NUM_ACCOUNTS];
+
     int lastError[NUM_ACCOUNTS];
+
+    MegaChatHandle chatid;  // chatroom created...
+    bool chatUpdated[NUM_ACCOUNTS];
 
 //    MegaContactRequest* cr[2];
 
@@ -114,7 +122,7 @@ public:
     virtual void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaChatError* error) {}
 
     // implementation for MegaChatListener
-    void onOnlineStatusUpdate(MegaChatApi* api, MegaChatApi::Status status);
+    void onOnlineStatusUpdate(MegaChatApi* api, int status);
     virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
     virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
 
