@@ -217,7 +217,8 @@ public:
 class MegaChatMessage
 {
 public:
-    enum Status {
+    // Online status of message
+    enum {
         STATUS_UNKNOWN              = -1,   /// Invalid status
         // for outgoing messages
         STATUS_SENDING              = 0,    /// Message has not been sent or is not yet confirmed by the server
@@ -230,7 +231,8 @@ public:
         STATUS_SEEN                 = 6     /// User has read this message
     };
 
-    enum Type {
+    // Types of message
+    enum {
         TYPE_UNKNOWN                = -1,   /// Invalid type
         TYPE_NORMAL                 = 1,    /// Regular text message
         TYPE_ALTER_PARTICIPANTS     = 2,    /// Management message indicating the participants in the chat have changed
@@ -303,11 +305,18 @@ public:
     /**
      * @brief Returns the type of message.
      *
-     * @see \c MegaChatMessage::Type for the possible values and its meaning.
+     * Valid values are:
+     *  - TYPE_UNKNOWN              = -1
+     *  - TYPE_NORMAL               = 1
+     *  - TYPE_ALTER_PARTICIPANTS   = 2
+     *  - TYPE_TRUNCATE             = 3
+     *  - TYPE_PRIV_CHANGE          = 4
+     *  - TYPE_CHAT_TITLE           = 5
+     *  - TYPE_USER_MSG             = 16
      *
      * @return Returns the Type of message.
      */
-    virtual Type getType() const;
+    virtual int getType() const;
 
     /**
      * @brief Returns the timestamp of the message.
@@ -321,9 +330,13 @@ public:
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatMessage object is deleted.
      *
-     * @return Content of the message
+     * @return Content of the message. If message was deleted, it returns NULL.
      */
     virtual const char *getContent() const;
+
+    virtual bool isEdited() const;
+
+    virtual bool isDeleted() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -676,6 +689,7 @@ public:
  *
  * Important considerations:
  *  - The app must NOT call any MegaApi method between fetchnodes and MegaChatApi::init().
+ *  - In order to logout from the account, the app should call MegaChatApi::logout before MegaApi::logout.
  *  - The instance of MegaChatApi must be deleted before the instance of MegaApi passed to the constructor.
  *
  * Some functions in this class return a pointer and give you the ownership. In all of them, memory allocations
@@ -685,8 +699,7 @@ class MegaChatApi
 {
 
 public:
-    enum Status
-    {
+    enum {
         STATUS_OFFLINE    = 0,
         STATUS_BUSY       = 1,
         STATUS_AWAY       = 2,
@@ -774,11 +787,9 @@ public:
      * @note: until the MegaChatApi::connect function is called, MegaChatApi will operate
      * in offline mode (cannot send/receive any message or call)
      *
-     * @param resumeSession Flag to indicate if the Mega SDK login has been done by resuming a
-     * session (true) or by creating a new session (false).
      * @param listener MegaChatRequestListener to track this request
      */
-    void init(bool resumeSession, MegaChatRequestListener *listener = NULL);
+    void init(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).
@@ -843,6 +854,24 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Get your online status.
+     *
+     * It can be one of the following values:
+     * - MegaChatApi::STATUS_OFFLINE = 1
+     * The user appears as being offline
+     *
+     * - MegaChatApi::STATUS_BUSY = 2
+     * The user is busy and don't want to be disturbed.
+     *
+     * - MegaChatApi::STATUS_AWAY = 3
+     * The user is away and might not answer.
+     *
+     * - MegaChatApi::STATUS_ONLINE = 4
+     * The user is connected and online.
+     */
+    int getOnlineStatus();
 
     /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
@@ -946,8 +975,8 @@ public:
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Remove yourself or another user from a chat. To remove a user other than
-     * yourself you need to have the operator/moderator privilege. Only a group chat may be left.
+     * @brief Remove another user from a chat. To remove a user you need to have the
+     * operator/moderator privilege. Only groupchats can be left.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -960,10 +989,27 @@ public:
      * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot remove peers)
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param uh MegaChatHandle that identifies the user. If not provided (INVALID_HANDLE), the requester is removed
+     * @param uh MegaChatHandle that identifies the user.
      * @param listener MegaChatRequestListener to track this request
      */
-    void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Leave a chatroom. Only groupchats can be left.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to remove peers.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot remove peers)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void leaveChat(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Allows a logged in operator/moderator to adjust the permissions on any other user
@@ -996,8 +1042,6 @@ public:
      * the entire chat history up to a certain message. All earlier messages are wiped,
      * but his specific message gets overridden with a management message.
      *
-     * If no message id is provided, this function will remove the entire history.
-     *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
@@ -1012,7 +1056,26 @@ public:
      * @param messageid MegaChatHandle that identifies the message to truncate from
      * @param listener MegaChatRequestListener to track this request
      */
-    void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allows a logged in operator/moderator to clear the entire history of a chat
+     *
+     * The latest message gets overridden with a management message.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void clearChatHistory(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Allows to set the title of a group chat
@@ -1133,12 +1196,10 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param msg Content of the message
-     * @param type Type of the message (normal message, type of management message,
-     * application-specific type like link, share, picture etc.) @see MegaChatMessage::Type.
      *
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
-    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, MegaChatMessage::Type type);
+    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
 
     /**
      * @brief Edits an existing message
@@ -1333,9 +1394,15 @@ public:
      *
      * @return Online status of the chat
      */
-    virtual MegaChatApi::Status getOnlineStatus() const;
+    virtual int getOnlineStatus() const;
 
     virtual int getVisibility() const;
+
+    /**
+     * @brief getUnreadCount
+     * @note This function will return 0 if the last seen message has never been loaded yet.
+     * @return
+     */
     virtual int getUnreadCount() const;
 
 };
@@ -1375,7 +1442,7 @@ public:
 
     static const char *privToString(int);
     static const char *stateToString(int);
-    static const char *statusToString(MegaChatApi::Status);
+    static const char *statusToString(int status);
 
     /**
      * @brief Returns the MegaChatHandle of the chat.
@@ -1497,7 +1564,7 @@ public:
      *
      * @return Online status of the chat
      */
-    virtual MegaChatApi::Status getOnlineStatus() const;
+    virtual int getOnlineStatus() const;
 
     virtual int getUnreadCount() const;
 

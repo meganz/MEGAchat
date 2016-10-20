@@ -198,7 +198,7 @@ private:
     mega::visibility_t visibility;
     const char *title;
     int unreadCount;
-    MegaChatApi::Status status;
+    int status;
 
 public:
     virtual int getChanges() const;
@@ -208,13 +208,13 @@ public:
     virtual const char *getTitle() const;
     virtual int getVisibility() const;
     virtual int getUnreadCount() const;
-    virtual MegaChatApi::Status getOnlineStatus() const;
+    virtual int getOnlineStatus() const;
 
 
     void setVisibility(mega::visibility_t visibility);
     void setTitle(const char *title);
     void setUnreadCount(int count);
-    void setOnlineStatus(MegaChatApi::Status status);
+    void setOnlineStatus(int status);
     void setMembersUpdated();
 };
 
@@ -386,11 +386,11 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     virtual int getUnreadCount() const;
-    virtual MegaChatApi::Status getOnlineStatus() const;
+    virtual int getOnlineStatus() const;
 
     void setTitle(const char *title);
     void setUnreadCount(int count);
-    void setOnlineStatus(MegaChatApi::Status status);
+    void setOnlineStatus(int status);
     void setMembersUpdated();
     void setOnlineState(int state);
 
@@ -404,7 +404,7 @@ private:
 
     const char *title;
     int unreadCount;
-    MegaChatApi::Status status;
+    int status;
     int chatState;
 };
 
@@ -428,7 +428,7 @@ private:
 class MegaChatMessagePrivate : public MegaChatMessage
 {
 public:
-    MegaChatMessagePrivate(const MegaChatMessage &msg);
+    MegaChatMessagePrivate(const MegaChatMessage *msg);
     MegaChatMessagePrivate(const chatd::Message &msg, chatd::Message::Status status, chatd::Idx index);
 
     virtual ~MegaChatMessagePrivate();
@@ -440,9 +440,11 @@ public:
     virtual MegaChatHandle getTempId() const;
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
-    virtual Type getType() const;
+    virtual int getType() const;
     virtual int64_t getTimestamp() const;
     virtual const char *getContent() const;
+    virtual bool isEdited() const;
+    virtual bool isDeleted() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -455,7 +457,7 @@ public:
 private:
     int changed;
 
-    Type type;
+    int type;
     int status;
     MegaChatHandle msgId;   // definitive unique ID given by server
     MegaChatHandle tempId;  // used until it's given a definitive ID by server
@@ -463,6 +465,8 @@ private:
     int index;              // position within the history buffer
     int64_t ts;
     char *msg;
+    bool edited;
+    bool deleted;
 };
 
 //Thread safe request queue
@@ -497,7 +501,8 @@ public:
 
 class MegaChatApiImpl :
         public karere::IApp,
-        public karere::IApp::IChatListHandler
+        public karere::IApp::IChatListHandler,
+        public mega::MegaRequestListener
 {
 public:
 
@@ -505,7 +510,9 @@ public:
 //    MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir);
     virtual ~MegaChatApiImpl();
 
-    static MegaChatApiImpl *megaChatApiRef;
+    static std::vector<MegaChatApiImpl *> megaChatApiRefs;
+    static mega::MegaMutex refsMutex;
+    static mega::MegaMutex sdkMutex;
 
 private:
     MegaChatApi *chatApi;
@@ -513,7 +520,6 @@ private:
 
     karere::Client *mClient;
 
-    mega::MegaMutex sdkMutex;
     mega::MegaWaiter *waiter;
     mega::MegaThread thread;
     int threadExit;
@@ -521,6 +527,9 @@ private:
     void loop();
 
     void init(MegaChatApi *chatApi, mega::MegaApi *megaApi);
+    bool resumeSession;
+    MegaChatError *initResult;
+    MegaChatRequestPrivate *initRequest;
 
     static LoggerHandler *loggerHandler;
 
@@ -544,7 +553,7 @@ private:
     MegaChatVideoReceiver *localVideoReceiver;
 
     // online status of user
-    MegaChatApi::Status status;
+    int status;
 
 public:    
     static void megaApiPostMessage(void* msg);
@@ -608,12 +617,13 @@ public:
     // ============= API requests ================
 
     // General chat methods
-    void init(bool resumeSession, MegaChatRequestListener *listener = NULL);
+    void init(MegaChatRequestListener *listener = NULL);
     void connect(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);
 
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
+    int getOnlineStatus();
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
@@ -632,7 +642,7 @@ public:
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
-    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, MegaChatMessage::Type type);
+    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
@@ -669,6 +679,13 @@ public:
     virtual void removeGroupChatItem(IApp::IGroupChatListItem& item);
     virtual IApp::IPeerChatListItem *addPeerChatItem(karere::PeerChatRoom& room);
     virtual void removePeerChatItem(IApp::IPeerChatListItem& item);
+
+    // mega::MegaRequestListener implementation
+//    virtual void onRequestStart(MegaApi* api, MegaRequest *request);
+    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
+//    virtual void onRequestUpdate(MegaApi*api, MegaRequest *request);
+//    virtual void onRequestTemporaryError(MegaApi *api, MegaRequest *request, MegaError* error);
+
 };
 
 
