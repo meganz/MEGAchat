@@ -194,6 +194,62 @@ extern const char* gKarereDbSchema;
         return promise::Error(e.what());       \
     }
 
+//used to capture 'this' in async lambdas, as the instance may get destroyed before e.g. an attribute is fetched
+
+template <class T>
+class DeleteThisSupport
+{
+public:
+    struct SharedData
+    {
+        bool mDeleted = false;
+        int mRefCount = 0;
+        T* mSelf;
+//        SharedData(T* self): mSelf(self){}
+    };
+    class Handle
+    {
+    protected:
+        SharedData* mData;
+        Handle(SharedData* shared)
+        : mData(shared)
+        {
+            mData->mRefCount++;
+            printf("%p: incremented mRefCount to %d\n", mData, mData->mRefCount);
+        }
+    public:
+        ~Handle()
+        {
+            printf("mData: %p\n", mData);
+            if (--(mData->mRefCount) <= 0)
+            {
+                printf("%p: deleting shared data\n", mData);
+                delete mData;
+            }
+            else
+            {
+                printf("%p: decremented refcount to %d\n", mData, mData->mRefCount);
+            }
+        }
+        bool deleted() const { return mData->mDeleted; }
+        void throwIfDeleted() const
+        {
+            if (mData->mDeleted)
+                throw std::runtime_error("Instance has been deleted");
+        }
+//      T& operator*() const { return *mData->mSelf; }
+//      T* operator->() const { return mData->mSelf; }
+        friend class DeleteThisSupport;
+    };
+
+protected:
+    Handle mSharedDataHandle;
+public:
+    Handle getWeakPtr() const { return Handle(mSharedDataHandle.mData); }
+    DeleteThisSupport(): mSharedDataHandle(new SharedData()){}
+    ~DeleteThisSupport() { mSharedDataHandle.mData->mDeleted = true; }
+};
+
 class Client;
 /** @endcond PRIVATE */
 
