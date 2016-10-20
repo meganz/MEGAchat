@@ -1218,7 +1218,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
     auto count = rooms->size();
     for (int i = 0; i < count; i++)
     {
-        std::shared_ptr<const ::mega::MegaTextChat> room(rooms->get(i));
+        auto room = rooms->get(i);
         auto chatid = room->getHandle();
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
