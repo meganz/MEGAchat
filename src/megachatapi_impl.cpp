@@ -262,6 +262,7 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_INFO("Chat engine closed!");
                 threadExit = 1;
+                megaApi->removeRequestListener(this);
             })
             .fail([](const promise::Error& err)
             {

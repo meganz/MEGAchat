@@ -66,6 +66,7 @@ class MegaChatApiTest : public MegaRequestListener, MegaChatRequestListener, Meg
 {
 public:
     MegaChatApiTest();
+    void init();
     char *login(int accountIndex, const char *session = NULL);
     void logout(int accountIndex, bool closeSession = false);
     void terminate();

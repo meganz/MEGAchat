@@ -20,6 +20,8 @@ int main(int argc, char **argv)
 
 //    t.TEST_resumeSession();
 //    t.TEST_setOnlineStatus();
+    t.init();
+
     t.TEST_getChatRoomsAndMessages();
     t.TEST_groupChatManagement();
 
@@ -83,7 +85,6 @@ MegaChatApiTest::MegaChatApiTest()
     chatLogger = new MegaChatLoggerSDK("SDKchat.log");
     MegaChatApi::setLoggerObject(chatLogger);
 
-    // do some initialization
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
         // get credentials from environment variables
@@ -91,7 +92,9 @@ MegaChatApiTest::MegaChatApiTest()
         varName += std::to_string(i);
         char *buf = getenv(varName.c_str());
         if (buf)
+        {
             email[i].assign(buf);
+        }
         if (!email[i].length())
         {
             cout << "TEST - Set your username at the environment variable $" << varName << endl;
@@ -102,13 +105,22 @@ MegaChatApiTest::MegaChatApiTest()
         varName += std::to_string(i);
         buf = getenv(varName.c_str());
         if (buf)
+        {
             pwd[i].assign(buf);
+        }
         if (!pwd[i].length())
         {
             cout << "TEST - Set your password at the environment variable $" << varName << endl;
             exit(-1);
         }
+    }
+}
 
+void MegaChatApiTest::init()
+{
+    // do some initialization
+    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    {
         char path[1024];
         getcwd(path, sizeof path);
         megaApi[i] = new MegaApi(APP_KEY.c_str(), path, USER_AGENT.c_str());
@@ -162,9 +174,13 @@ void MegaChatApiTest::logout(int accountIndex, bool closeSession)
 }
 
 void MegaChatApiTest::terminate()
-{    
+{
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
+        megaApi[i]->removeRequestListener(this);
+        megaChatApi[i]->removeChatRequestListener(this);
+        megaChatApi[i]->removeChatListener(this);
+
         delete megaChatApi[i];
         delete megaApi[i];
 
@@ -278,14 +294,15 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
     // Open chats and print history
     for (int i = 0; i < chats->size(); i++)
     {
-        // Print chats
-        printChatRoomInfo(chats->get(i));
 
         // Open a chatroom
         const MegaChatRoom *chatroom = chats->get(i);
         MegaChatHandle chatid = chatroom->getChatId();
         TestChatRoomListener *chatroomListener = new TestChatRoomListener(chatid);
         assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
+
+        // Print chats
+        printChatRoomInfo(chatroom);
 
         // Load history
         cout << "Loading messages for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
