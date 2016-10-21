@@ -2386,7 +2386,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->title = chat->getTitle();
     this->chatState = chat->getOnlineState();
     this->unreadCount = chat->getUnreadCount();
-
+    this->status = chat->getOnlineStatus();
     this->changed = chat->getChanges();
 }
 
