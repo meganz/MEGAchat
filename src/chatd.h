@@ -841,7 +841,7 @@ public:
     virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
     virtual void confirmKeyOfSendingItem(uint64_t rowid, KeyId keyid) = 0;
-    virtual void updateMsgInHistory(karere::Id msgid, const StaticBuffer& newdata) = 0;
+    virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
     virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
     virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;

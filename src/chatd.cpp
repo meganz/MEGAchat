@@ -1266,6 +1266,10 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             }
         }
         assert(item);
+        if ((item->opcode() == OP_MSGUPD) || (item->opcode() == OP_MSGUPDX))
+        {
+            item->msg->updated = age + 1;
+        }
         msg.assign((void*)newdata, newlen);
         auto cmd = item->msgCmd.get();
         if (cmd) //it's already encrypted, re-encrypt
