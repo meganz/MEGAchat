@@ -242,11 +242,14 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_INFO("Chat engine is logged out!");
 
-                delete mClient;
-                mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline);
+                marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
+                {
+                     delete mClient;
+                     mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline);
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
+                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                     fireOnChatRequestFinish(request, megaChatError);
+                 });
             })
             .fail([request, this](const promise::Error& e)
             {
