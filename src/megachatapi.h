@@ -1107,24 +1107,27 @@ public:
      * @brief This method should be called when a chat is opened
      *
      * The second parameter is the listener that will receive notifications about
-     * events related to the specified chatroom.
+     * events related to the specified chatroom. The same listener should be provided at
+     * MegaChatApi::closeChatRoom to unregister it.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param listener MegaChatRoomListener to track events on this chatroom
+     * @param listener MegaChatRoomListener to track events on this chatroom. NULL is not allowed.
      *
-     * @return True if success, false if the chatroom was not found.
+     * @return True if success, false if listener is NULL or the chatroom is not found.
      */
-    bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
+    bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener);
 
     /**
      * @brief This method should be called when a chat is closed.
      *
-     * It automatically unregisters the listener to stop receiving the related events.
+     * It automatically unregisters the listener passed as the second paramenter, in
+     * order to stop receiving the related events. Note that this listener should be
+     * the one registered by MegaChatApi::openChatRoom.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRoomListener to be unregistered.
      */
-    void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
+    void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener);
 
     /**
      * @brief Initiates fetching more history of the specified chatroom.

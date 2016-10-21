@@ -1083,6 +1083,11 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
 
 bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {    
+    if (!listener)
+    {
+        return false;
+    }
+
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
