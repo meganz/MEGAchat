@@ -287,7 +287,9 @@ public:
      */
     virtual Presence presence() const
     {
-        return (mChat->onlineState() == chatd::kChatStateOnline)? Presence::kOnline:Presence::kOffline;
+        return (mChat->onlineState() == chatd::kChatStateOnline)
+                ? Presence::kOnline
+                : Presence::kOffline;
     }
 
     /** @brief Removes the specifid user from the chatroom. You must have

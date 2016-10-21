@@ -1084,10 +1084,15 @@ promise::Promise<ReqResult> GroupChatRoom::setPrivilege(karere::Id userid, chatd
 
 void GroupChatRoom::deleteSelf()
 {
-    auto db = parent.client.db;
-    sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
-    sqliteQuery(db, "delete from chats where chatid=?", mChatid);
-    delete this;
+    //have to post a delete on the event loop, as there may be pending
+    //events related to the chatroom/strongvelope instance
+    marshallCall([this]()
+    {
+        auto db = parent.client.db;
+        sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
+        sqliteQuery(db, "delete from chats where chatid=?", mChatid);
+        delete this;
+    });
 }
 
 promise::Promise<void> ChatRoom::updateUrl()
@@ -1126,17 +1131,14 @@ void ChatRoomList::loadFromDb()
         auto url = stmt.stringCol(1);
         if (url.empty())
         {
-            KR_LOG_ERROR("ChatRoomList::loadFromDb: Chatroom has empty URL, ignoring and deleting from db");
-            sqliteQuery(client.db, "delete from chats where chatid = ?", chatid);
-            sqliteQuery(client.db, "delete from chat_peers where chatid = ?", chatid);
-            continue;
+            KR_LOG_WARNING("ChatRoomList::loadFromDb: Chatroom has empty URL in database");
         }
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
-            room = new PeerChatRoom(*this, chatid, stmt.stringCol(1), stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5));
+            room = new PeerChatRoom(*this, chatid, url, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5));
         else
-            room = new GroupChatRoom(*this, chatid, stmt.stringCol(1), stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.stringCol(6));
+            room = new GroupChatRoom(*this, chatid, url, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.stringCol(6));
         emplace(chatid, room);
     }
 }
@@ -1218,7 +1220,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
     auto count = rooms->size();
     for (int i = 0; i < count; i++)
     {
-        std::shared_ptr<const ::mega::MegaTextChat> room(rooms->get(i));
+        auto room = rooms->get(i);
         auto chatid = room->getHandle();
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
