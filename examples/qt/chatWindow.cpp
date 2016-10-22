@@ -51,6 +51,8 @@ MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     setAuthor(msg.userid);
     setTimestamp(msg.ts);
     setStatus(status);
+    if (msg.updated)
+        setEdited();
     setText(msg);
     auto tooltip = QString("msgid: %1\nkeyid: %2\nuserid: %3\nchatid: %4\nbackrefs: %5")
            .arg(QString::fromStdString(mMessage->id().toString()))

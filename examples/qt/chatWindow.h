@@ -507,7 +507,7 @@ public:
         updateChatdStatusDisplay(mChat->onlineState());
         mChat->resetListenerState();
         auto source = mChat->getHistory(kHistBatchSize);
-        printf("source = %d\n", source);
+        printf("initial getHistory: source = %d\n", source);
         if (source == chatd::kHistSourceServer)
             createHistFetchUi();
     }
