@@ -169,11 +169,22 @@ void CallAnswerGui::onSession()
     auto it = mParent.client().contactList->find(mContact->userId());
     if (it == mParent.client().contactList->end())
         throw std::runtime_error("CallAnswerGui::onSession: peer '"+Id(mContact->userId()).toString()+"' not in contact list");
-    auto room = it->second->chatRoom();
+    auto room = mContact->chatRoom();
     assert(room);
-    auto handler = static_cast<ChatWindow*>(room->appChatHandler());
-    assert(handler);
-//handover event handling and local video renderer to chat window
-    handler->createCallGui(mAns->call());
+    auto chatWin = static_cast<ChatWindow*>(room->appChatHandler());
+    if (chatWin)
+    {
+        //handover event handling and local video renderer to chat window
+        chatWin->createCallGui(mAns->call());
+    }
+    else
+    {
+        auto contactGui = static_cast<CListContactItem*>(mContact->appItem()->userp);
+        contactGui->showChatWindow()
+        .then([this](ChatWindow* window)
+        {
+            window->createCallGui(mAns->call());
+        });
+    }
     delete this;
 }
