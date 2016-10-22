@@ -1577,7 +1577,7 @@ void Chat::joinRangeHist()
     assert(mOldestKnownMsgId && mNewestKnownMsgId);
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
-    assert(mHistSendSource == kHistSourceNone);
+    mHistSendSource = kHistSourceNone;
     mHistFetchState = kHistFetchingNewFromServer;
     CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
             mOldestKnownMsgId.toString().c_str(), mNewestKnownMsgId.toString().c_str());
