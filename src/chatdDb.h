@@ -133,7 +133,7 @@ public:
 
         sqliteQuery(mDb, "insert or replace into history"
             "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid) "
-            "values(?,?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
+            "values(?,?,?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
             msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId);
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
