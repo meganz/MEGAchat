@@ -277,7 +277,7 @@ public:
     }
     Buffer& write(size_t offset, const void* data, size_t datalen)
     {
-        if (data == 0)
+        if (!data)
             return *this;
         auto reqdSize = offset+datalen;
         if (reqdSize <= mDataSize)
@@ -296,6 +296,7 @@ public:
                     mBuf = save;
                     throw std::runtime_error("Buffer::write: error reallocating block of size "+std::to_string(reqdSize));
                 }
+                mBufSize = reqdSize;
             }
             memcpy(mBuf+offset, data, datalen);
             mDataSize = reqdSize;

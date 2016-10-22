@@ -26,6 +26,7 @@
 #include <db.h>
 #include <codecvt>
 #include <locale>
+#include <karereCommon.h>
 
 namespace strongvelope
 {
@@ -464,7 +465,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,
     karere::UserAttrCache& userAttrCache, sqlite3* db, Id aChatId)
-:mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
+: mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
  mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId)
 {
@@ -524,11 +525,13 @@ void ProtocolHandler::msgEncryptWithKey(Message& src, chatd::MsgCommand& dest,
 promise::Promise<std::shared_ptr<SendKey>>
 ProtocolHandler::computeSymmetricKey(karere::Id userid)
 {
+    auto wptr = getWeakPtr();
     return mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
-    .then([this, userid](const StaticBuffer* pubKey)
+    .then([wptr, this, userid](const StaticBuffer* pubKey) -> promise::Promise<std::shared_ptr<SendKey>>
     {
+        wptr.throwIfDeleted();
         if (pubKey->empty())
-            throw std::runtime_error("Empty Cu25519 chat key for user "+userid.toString());
+            return promise::Error("Empty Cu25519 chat key for user "+userid.toString());
         Key<crypto_scalarmult_BYTES> sharedSecret;
         sharedSecret.setDataSize(crypto_scalarmult_BYTES);
         crypto_scalarmult(sharedSecret.ubuf(), myPrivCu25519.ubuf(), pubKey->ubuf());
@@ -544,9 +547,11 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::I
     /**
      * Use RSA encryption if no chat key is available.
      */
+    auto wptr = getWeakPtr();
     return computeSymmetricKey(toUser)
-    .then([this, sendKey](const std::shared_ptr<SendKey>& symkey) -> Promise<std::shared_ptr<Buffer>>
+    .then([wptr, this, sendKey](const std::shared_ptr<SendKey>& symkey) -> Promise<std::shared_ptr<Buffer>>
     {
+        wptr.throwIfDeleted();
         if (mForceRsa)
             return promise::Error("Test: Forcing RSA");
 
@@ -556,13 +561,15 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::I
         aesECBEncrypt(*sendKey, *symkey, *result);
         return result;
     })
-    .fail([this, toUser, sendKey](const promise::Error& err)
+    .fail([wptr, this, toUser, sendKey](const promise::Error& err)
     {
+        wptr.throwIfDeleted();
         STRONGVELOPE_LOG_DEBUG("Can't use EC encryption for user %s (error '%s'), falling back to RSA", toUser.toString().c_str(), err.what());
         return rsaEncryptTo(std::static_pointer_cast<StaticBuffer>(sendKey), toUser);
     })
-    .fail([toUser](const promise::Error& err)
+    .fail([toUser, wptr, this](const promise::Error& err)
     {
+        wptr.throwIfDeleted();
         STRONGVELOPE_LOG_ERROR("No public encryption key (RSA or x25519) available for %s", toUser.toString().c_str());
         return err;
     });
@@ -573,7 +580,7 @@ ProtocolHandler::rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, Id toUs
 {
     assert(data->dataSize() <= 512);
     return mUserAttrCache.getAttr(toUser, USER_ATTR_RSA_PUBKEY)
-    .then([this, data, toUser](Buffer* rsapub) -> promise::Promise<std::shared_ptr<Buffer>>
+    .then([data, toUser](Buffer* rsapub) -> promise::Promise<std::shared_ptr<Buffer>>
     {
         assert(rsapub && !rsapub->empty());
         ::mega::AsymmCipher key;
@@ -607,9 +614,11 @@ ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedM
         Id otherParty = (parsedMsg->sender == mOwnHandle)
             ? parsedMsg->receiver
             : parsedMsg->sender;
+        auto wptr = getWeakPtr();
         return computeSymmetricKey(otherParty)
-        .then([this, parsedMsg](const std::shared_ptr<SendKey>& symKey)
+        .then([this, wptr, parsedMsg](const std::shared_ptr<SendKey>& symKey)
         {
+            wptr.throwIfDeleted();
             Key<32> iv;
             deriveNonceSecret(parsedMsg->nonce, iv, parsedMsg->receiver);
             iv.setDataSize(AES::BLOCKSIZE);
@@ -639,9 +648,11 @@ ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver
             throw std::runtime_error("decryptKey: invalid aes-encrypted key size");
 
         Id otherParty = (sender == mOwnHandle) ? receiver : sender;
+        auto wptr = getWeakPtr();
         return computeSymmetricKey(otherParty)
-        .then([this, key, receiver](const std::shared_ptr<SendKey>& symmKey)
+        .then([this, wptr, key, receiver](const std::shared_ptr<SendKey>& symmKey)
         {
+            wptr.throwIfDeleted();
             // decrypt key
             auto result = std::make_shared<SendKey>();
             result->setDataSize(AES::BLOCKSIZE);
@@ -688,10 +699,12 @@ ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
     {
         if (!mCurrentKey || mParticipantsChanged)
         {
+            auto wptr = getWeakPtr();
             return updateSenderKey()
-            .then([this, msg, msgCmd](std::pair<KeyCommand*,
+            .then([this, wptr, msg, msgCmd](std::pair<KeyCommand*,
                   std::shared_ptr<SendKey>> result) mutable
             {
+                wptr.throwIfDeleted();
                 msg->keyid = CHATD_KEYID_UNCONFIRMED;
                 msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
                 msgEncryptWithKey(*msg, *msgCmd, *result.second);
@@ -708,9 +721,11 @@ ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
     }
     else //use a key specified in msg->keyid
     {
+        auto wptr = getWeakPtr();
         return getKey(UserKeyId(mOwnHandle, msg->keyid))
-        .then([this, msg, msgCmd](const std::shared_ptr<SendKey>& key)
+        .then([this, wptr, msg, msgCmd](const std::shared_ptr<SendKey>& key)
         {
+            wptr.throwIfDeleted();
             msgEncryptWithKey(*msg, *msgCmd, *key);
             return std::make_pair(msgCmd, (KeyCommand*)nullptr);
         });
@@ -853,9 +868,11 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         ctx->edKey.assign(key->buf(), key->dataSize());
     });
 
+    auto wptr = getWeakPtr();
     return promise::when(symPms, edPms)
-    .then([this, message, parsedMsg, ctx, isLegacy, keyid]() ->promise::Promise<Message*>
+    .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid]() ->promise::Promise<Message*>
     {
+        wptr.throwIfDeleted();
         if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
         {
             return promise::Error("Signature invalid for message "+
@@ -894,9 +911,11 @@ ProtocolHandler::legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedM
                 key2.pms.reset(new Promise<std::shared_ptr<SendKey>>);
         }
     }
+    auto wptr = getWeakPtr();
     return legacyDecryptKeys(parsedMsg)
-    .then([this, parsedMsg](const std::shared_ptr<Buffer>& keys)
+    .then([this, wptr, parsedMsg](const std::shared_ptr<Buffer>& keys)
     {
+        wptr.throwIfDeleted();
         // Add keys
         addDecryptedKey(UserKeyId(parsedMsg->sender, parsedMsg->keyId),
             std::make_shared<SendKey>(keys->buf(), (size_t)AES::BLOCKSIZE));
@@ -926,15 +945,18 @@ void ProtocolHandler::onKeyReceived(uint32_t keyid, Id sender, Id receiver,
         STRONGVELOPE_LOG_WARNING("Key % from user %s is already being decrypted", keyid, sender.toString().c_str());
         return;
     }
+    auto wptr = getWeakPtr();
     entry.pms.reset(new Promise<std::shared_ptr<SendKey>>);
-    pms.then([this, sender, keyid](const std::shared_ptr<SendKey>& key)
+    pms.then([this, wptr, sender, keyid](const std::shared_ptr<SendKey>& key)
     {
+        wptr.throwIfDeleted();
         //addDecryptedKey will remove entry.pms, but anyone that has already
         //attached to it will be notified
         addDecryptedKey(UserKeyId(sender, keyid), key);
     });
-    pms.fail([this, sender, keyid](const promise::Error& err)
+    pms.fail([this, wptr, sender, keyid](const promise::Error& err)
     {
+        wptr.throwIfDeleted();
         STRONGVELOPE_LOG_ERROR("Removing key entry for key %d - decryptKey() failed with error '%s'", keyid, err.what());
         auto it = mKeys.find(UserKeyId(sender, keyid));
         assert(it != mKeys.end());
@@ -1097,9 +1119,11 @@ ProtocolHandler::encryptChatTitle(const std::string& data)
     blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
     blob->append<uint8_t>(SVCRYPTO_MSGTYPE_CHAT_TITLE);
 
+    auto wptr = getWeakPtr();
     return encryptKeyToAllParticipants(key)
-    .then([this, blob, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
+    .then([this, wptr, blob, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
     {
+        wptr.throwIfDeleted();
         auto& key = result.second;
         chatd::Message msg(0, mOwnHandle, 0, 0, Buffer(data.c_str(), data.size()));
         msg.backRefId = chatd::Chat::generateRefId(this);
@@ -1155,9 +1179,11 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg)
         throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
     auto buf = std::make_shared<Buffer>(16);
     buf->assign(pos, 16);
+    auto wptr = getWeakPtr();
     return mProtoHandler.decryptKey(buf, sender, receiver)
-    .then([this, msg](const std::shared_ptr<SendKey>& key)
+    .then([this, wptr, msg](const std::shared_ptr<SendKey>& key)
     {
+        wptr.throwIfDeleted();
         symmetricDecrypt(*key, *msg);
         return msg;
     });

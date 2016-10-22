@@ -18,10 +18,11 @@
 #include <chatdICrypto.h>
 #include <promise.h>
 #include <logger.h>
+#include <karereCommon.h>
 
 #define STRONGVELOPE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
-#define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, fmtString, ##__VA_ARGS__)
-#define STRONGVELOPE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_strongvelope, fmtString, ##__VA_ARGS__)
+#define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
+#define STRONGVELOPE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_strongvelope, fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
 
 #define SVCRYPTO_ERRTYPE 0x3e9a5419 //should resemble megasvlp
 
@@ -166,7 +167,7 @@ typedef Key<32> EcKey;
 
 class ProtocolHandler;
 /** Class to parse an encrypted message and store its attributes and content */
-struct ParsedMessage
+struct ParsedMessage: public karere::TrackDelete
 {
     ProtocolHandler& mProtoHandler;
     uint8_t protocolVersion;
@@ -240,7 +241,7 @@ struct UserKeyId
 
 class TlvWriter;
 
-class ProtocolHandler: public chatd::ICrypto
+class ProtocolHandler: public chatd::ICrypto, public karere::TrackDelete
 {
 protected:
     karere::Id mOwnHandle;
@@ -263,6 +264,7 @@ protected:
     std::map<UserKeyId, KeyEntry> mKeys;
     karere::SetOfIds* mParticipants = nullptr;
     bool mParticipantsChanged = true;
+    bool mIsDestroying = false;
 public:
     karere::Id chatid;
     karere::Id ownHandle() const { return mOwnHandle; }
