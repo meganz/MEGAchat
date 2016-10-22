@@ -136,7 +136,7 @@ public:
         ui.setupUi(this);
         ui.mUnreadIndicator->hide();
     }
-    virtual void showChatWindow() = 0;
+    virtual promise::Promise<ChatWindow*> showChatWindow() = 0;
     void showAsHidden()
     {
         ui.mName->setStyleSheet("color: rgba(0,0,0,128)\n");
@@ -151,7 +151,7 @@ class CListChatItem: public CListItem, public virtual karere::IApp::IChatListIte
 {
     Q_OBJECT
 public:
-    void showChatWindow()
+    promise::Promise<ChatWindow*> showChatWindow()
     {
         ChatWindow* window;
         auto& thisRoom = room();
@@ -165,6 +165,7 @@ public:
             window = static_cast<ChatWindow*>(thisRoom.appChatHandler()->userp);
         }
         window->show();
+        return window;
     }
     CListChatItem(QWidget* parent): CListItem(parent){}
 //ITitleHandler intefrace
@@ -218,28 +219,37 @@ public:
 //        text.append(tr("\nFriends since: ")).append(prettyInterval(now-contact.since())).append(lf);
         setToolTip(text);
     }
-    virtual void showChatWindow()
+    virtual promise::Promise<ChatWindow*> showChatWindow()
     {
         auto room = mContact.chatRoom();
         if (room)
         {
             auto chatItem = static_cast<CListChatItem*>(room->roomGui()->userp);
-            if (chatItem) //may be null if app returned null from IChatListHandler::addXXXChatItem()
-                chatItem->showChatWindow();
-            return;
+
+            //may be null if app returned null from IChatListHandler::addXXXChatItem()
+            if (chatItem)
+            {
+                return chatItem->showChatWindow();
+            }
+            else
+            {
+                return promise::Error("No chat list item for this contact");
+            }
         }
-        mContact.createChatRoom()
+        return mContact.createChatRoom()
         .then([this](karere::ChatRoom* room)
         {
             updateToolTip();
             auto window = new ChatWindow(this, *room);
             room->setAppChatHandler(window);
             window->show();
+            return window;
         })
         .fail([this](const promise::Error& err)
         {
             QMessageBox::critical(nullptr, "rtctestapp",
                     "Error creating chatroom:\n"+QString::fromStdString(err.what()));
+            return err;
         });
     }
     virtual void onTitleChanged(const std::string &title)
