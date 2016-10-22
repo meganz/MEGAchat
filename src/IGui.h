@@ -1,6 +1,9 @@
 #ifndef IAPP_H
 #define IAPP_H
 
+#include <rtcModule/IRtcModule.h>
+#include <chatd.h>
+
 namespace karere
 {
 class ChatRoom;

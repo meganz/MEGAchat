@@ -1,7 +1,9 @@
 #include "karereCommon.h"
 #include <services-http.hpp>
-#include "chatClient.h"
+//#include "chatClient.h"
 #include "stringUtils.h"
+//#include <rtcModule.h>
+#include "rtcModule/IRtcModule.h"
 
 namespace karere
 {

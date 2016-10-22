@@ -1,9 +1,10 @@
 #ifndef CHATCLIENT_H
 #define CHATCLIENT_H
+
 #include "karereCommon.h"
 #include "sdkApi.h"
 #include "contactList.h"
-#include "rtcModule/IRtcModule.h"
+//#include "rtcModule/IRtcModule.h"
 #include <memory>
 #include <map>
 #include <type_traits>
@@ -48,7 +49,7 @@ class ChatRoomList;
  * serves as a chat event handler for the chatroom, until the application creates
  * one via \c IApp::createChatHandler()
  */
-class ChatRoom: public chatd::Listener
+class ChatRoom: public chatd::Listener, public TrackDelete
 {
     //@cond PRIVATE
 public:

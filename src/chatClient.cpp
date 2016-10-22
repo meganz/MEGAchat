@@ -944,9 +944,11 @@ void GroupChatRoom::initWithChatd()
 
 void GroupChatRoom::connect()
 {
+    auto wptr = getWeakPtr();
     updateUrl()
-    .then([this]()
+    .then([wptr, this]()
     {
+        wptr.throwIfDeleted();
         mChat->connect();
         decryptTitle();
     });
@@ -1097,9 +1099,11 @@ void GroupChatRoom::deleteSelf()
 
 promise::Promise<void> ChatRoom::updateUrl()
 {
+    auto wptr = getWeakPtr();
     return parent.client.api.call(&mega::MegaApi::getUrlChat, mChatid)
-    .then([this](ReqResult result)
+    .then([wptr, this](ReqResult result)
     {
+        wptr.throwIfDeleted();
         const char* url = result->getLink();
         if (!url || !url[0])
             return;
@@ -1199,6 +1203,9 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 #endif
     if (!mContactsLoaded)
     {
+        // No need for weak ptr guard, as we are marshalling immediately,
+        // and client deletion is done via a posted message, which is guaranteed
+        // be processed after all currently posted
         marshallCall([this, copy]()
         {
             KR_LOG_DEBUG("onChatsUpdate: no contactlist yet, caching the update info");
@@ -1317,9 +1324,11 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     }
 
     buf.setDataSize(decLen);
+    auto wptr = getWeakPtr();
     return this->chat().crypto()->decryptChatTitle(buf)
-    .then([this](const std::string& title)
+    .then([wptr, this](const std::string& title)
     {
+        wptr.throwIfDeleted();
         if (mTitleString == title)
         {
             KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
@@ -1333,8 +1342,9 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         if (mAppChatHandler)
             mAppChatHandler->onTitleChanged(mTitleString);
     })
-    .fail([this](const promise::Error& err)
+    .fail([wptr, this](const promise::Error& err)
     {
+        wptr.throwIfDeleted();
         KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", karere::Id(chatid()).toString().c_str(), err.what());
         makeTitleFromMemberNames();
     });
@@ -1383,15 +1393,18 @@ void GroupChatRoom::loadTitleFromDb()
 
 promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 {
+    auto wptr = getWeakPtr();
     return chat().crypto()->encryptChatTitle(title)
-    .then([this](const std::shared_ptr<Buffer>& buf)
+    .then([wptr, this](const std::shared_ptr<Buffer>& buf)
     {
+        wptr.throwIfDeleted();
         auto b64 = base64urlencode(buf->buf(), buf->dataSize());
         return parent.client.api.call(&::mega::MegaApi::setChatTitle, chatid(),
             b64.c_str());
     })
-    .then([this, title](const ReqResult&)
+    .then([wptr, this, title](const ReqResult&)
     {
+        wptr.throwIfDeleted();
         if (title.empty())
         {
             mHasTitle = false;

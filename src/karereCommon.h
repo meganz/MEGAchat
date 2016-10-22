@@ -194,60 +194,48 @@ extern const char* gKarereDbSchema;
         return promise::Error(e.what());       \
     }
 
-//used to capture 'this' in async lambdas, as the instance may get destroyed before e.g. an attribute is fetched
 
-template <class T>
-class DeleteThisSupport
+/** @brief Used to keep track of deletion of a lambda-captured object
+  * pointer/reference - the instance may get deleted before the lambda is called
+  * e.g. an attribute is fetched
+  */
+class TrackDelete
 {
 public:
     struct SharedData
     {
         bool mDeleted = false;
-        int mRefCount = 0;
-        T* mSelf;
-//        SharedData(T* self): mSelf(self){}
+        uint32_t mRefCount = 0;
     };
     class Handle
     {
     protected:
         SharedData* mData;
         Handle(SharedData* shared)
-        : mData(shared)
-        {
-            mData->mRefCount++;
-            printf("%p: incremented mRefCount to %d\n", mData, mData->mRefCount);
-        }
+        : mData(shared) { mData->mRefCount++; }
+        Handle& operator=(Handle& other) = delete;
     public:
+        Handle(const Handle& other): Handle(other.mData){}
         ~Handle()
         {
-            printf("mData: %p\n", mData);
             if (--(mData->mRefCount) <= 0)
-            {
-                printf("%p: deleting shared data\n", mData);
                 delete mData;
-            }
-            else
-            {
-                printf("%p: decremented refcount to %d\n", mData, mData->mRefCount);
-            }
         }
         bool deleted() const { return mData->mDeleted; }
         void throwIfDeleted() const
         {
             if (mData->mDeleted)
-                throw std::runtime_error("Instance has been deleted");
+                throw std::runtime_error("TrackDelete: Instance has been deleted");
         }
-//      T& operator*() const { return *mData->mSelf; }
-//      T* operator->() const { return mData->mSelf; }
-        friend class DeleteThisSupport;
+        friend class TrackDelete;
     };
 
 protected:
     Handle mSharedDataHandle;
 public:
     Handle getWeakPtr() const { return Handle(mSharedDataHandle.mData); }
-    DeleteThisSupport(): mSharedDataHandle(new SharedData()){}
-    ~DeleteThisSupport() { mSharedDataHandle.mData->mDeleted = true; }
+    TrackDelete(): mSharedDataHandle(new SharedData()){}
+    ~TrackDelete() { mSharedDataHandle.mData->mDeleted = true; }
 };
 
 class Client;
