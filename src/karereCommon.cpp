@@ -8,9 +8,12 @@
 namespace karere
 {
 class Client;
-void globalInit(const std::string& logPath, size_t logSize, void(*postFunc)(void*), uint32_t options)
+void globalInit(void(*postFunc)(void*), uint32_t options, const char* logPath, size_t logSize)
 {
-    gLogger.logToFile(logPath.c_str(), logSize);
+    if (logPath)
+    {
+        gLogger.logToFile(logPath, logSize);
+    }
     services_init(postFunc, options);
 }
 

@@ -74,7 +74,7 @@ std::unique_ptr<karere::Client> gClient;
 std::unique_ptr<::mega::MegaApi> gSdk;
 int main(int argc, char **argv)
 {
-    karere::globalInit(gAppDir+"/log.txt", 500, myMegaPostMessageToGui);
+    karere::globalInit(myMegaPostMessageToGui, 0, (gAppDir+"/log.txt").c_str(), 500);
 //    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
 //    gLogger.addUserLogger("karere-remote", new RemoteLogger);
 

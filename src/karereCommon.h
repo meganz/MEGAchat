@@ -105,7 +105,7 @@ typedef std::map<std::string, std::string> StringMap;
  * @param options Various flags that modify the behaviour of the karere
  * services subsystem. Normally this is 0
  */
-void globalInit(const std::string& logPath, size_t logSize, void(*postFunc)(void*), uint32_t options=0);
+void globalInit(void(*postFunc)(void*), uint32_t options=0, const char* logPath=nullptr, size_t logSize=0);
 
 /** @brief Stops the karere services susbsystem and frees global resources
  * used by Karere
