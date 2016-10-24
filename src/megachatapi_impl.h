@@ -264,7 +264,9 @@ public:
 
     // karere::IApp::IChatHandler implementation
     virtual karere::IApp::ICallHandler* callHandler();
+    virtual void onUserTyping(karere::Id user);
     //virtual void* userp();
+
 
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);

@@ -146,16 +146,21 @@ public:
 class TestChatRoomListener : public MegaChatRoomListener
 {
 public:
-    TestChatRoomListener(MegaChatHandle chatid);
+    TestChatRoomListener(MegaChatApi *api, MegaChatHandle chatid);
 
+    MegaChatApi *api;
     MegaChatHandle chatid;
 
-    bool historyLoaded;
+    bool historyLoaded;   // when, after loadMessage(X), X messages have been loaded
+    bool msgLoaded;
     bool msgConfirmed;
+    bool msgReceived;
+
     MegaChatHandle msgId;
+    bool chatUpdated;
 
     // implementation for MegaChatRoomListener
-    //    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
+    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
     virtual void onMessageLoaded(MegaChatApi* api, MegaChatMessage *msg);   // loaded by getMessages()
     virtual void onMessageReceived(MegaChatApi* api, MegaChatMessage *msg);
     virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);   // new or updated

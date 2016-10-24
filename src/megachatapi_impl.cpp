@@ -2077,6 +2077,11 @@ IApp::ICallHandler *MegaChatRoomHandler::callHandler()
     return NULL;
 }
 
+void MegaChatRoomHandler::onUserTyping(karere::Id user)
+{
+    // TODO: report the user who is typing to the app (new callback??)
+}
+
 void MegaChatRoomHandler::onTitleChanged(const string &title)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);

@@ -1657,6 +1657,15 @@ class MegaChatRoomListener
 public:
     virtual ~MegaChatRoomListener() {}
 
+    /**
+     * @brief This function is called when there are changes in the chatroom
+     *
+     * The changes can include: a user join/leaves the chatroom, the unread messages count
+     * has changed, the online state of the connection to the chat server has changed.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chat MegaChatRoom that contains the updates relatives to the chat
+     */
     virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
 
     /**
