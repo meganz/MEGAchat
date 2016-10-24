@@ -235,6 +235,17 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
     cout << "-------------------------------------------------" << endl;
 }
 
+void MegaChatApiTest::printMessageInfo(const MegaChatMessage *msg)
+{
+    const char *content = msg->getContent() ? msg->getContent() : "<empty>";
+
+    cout << "id: " << msg->getMsgId() << ", content: " << content;
+    cout << ", tempId: " << msg->getTempId() << ", index:" << msg->getMsgIndex();
+    cout << ", status: " << msg->getStatus() << ", uh: " << msg->getUserHandle();
+    cout << ", type: " << msg->getType() << ", edited: " << msg->isEdited();
+    cout << ", deleted: " << msg->isDeleted() << ", changes: " << msg->getChanges() << endl;
+}
+
 bool MegaChatApiTest::waitForResponse(bool *responseReceived, int timeout)
 {
     timeout *= 1000000; // convert to micro-seconds
@@ -523,17 +534,7 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
 
     if (msg)
     {
-        const char *content = msg->getContent() ? msg->getContent() : "<empty>";
-        cout << "Message loaded: " <<  content;
-        if (msg->isEdited())
-        {
-            cout << " (edited)";
-        }
-        else if (msg->isDeleted())
-        {
-            cout << " (deleted)";
-        }
-        cout << " (id: " << msg->getMsgId() << ")" << endl;
+        MegaChatApiTest::printMessageInfo(msg);
 
         msgLoaded = true;
         msgId = msg->getMsgId();
@@ -553,7 +554,7 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
         return;
     }
 
-    cout << "Message received: " << msg->getContent() << " (id" << msg->getMsgId() << ")" << endl;
+    MegaChatApiTest::printMessageInfo(msg);
 
     msgReceived = true;
     msgId = msg->getMsgId();
@@ -576,17 +577,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
         return;
     }
 
-    const char *content = msg->getContent() ? msg->getContent() : "<empty>";
-    cout << "Message updated: " <<  content;
-    if (msg->isEdited())
-    {
-        cout << " (edited)";
-    }
-    else if (msg->isDeleted())
-    {
-        cout << " (deleted)";
-    }
-    cout << " (id: " << msg->getMsgId() << ")" << endl;
+    MegaChatApiTest::printMessageInfo(msg);
 
     if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED ||
             msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
