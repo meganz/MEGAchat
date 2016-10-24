@@ -583,7 +583,17 @@ HistSource Chat::getHistory(unsigned count)
         }
     }
     //more than what is available in RAM is requested
-    return getHistoryFromDbOrServer(count - countSoFar);
+    auto nextSource = getHistoryFromDbOrServer(count - countSoFar);
+    if (nextSource == kHistSourceNone) //no history in db and server
+    {
+        auto source = (countSoFar > 0) ? kHistSourceRam : kHistSourceNone;
+        CALL_LISTENER(onHistoryDone, source);
+        return source;
+    }
+    else
+    {
+        return nextSource;
+    }
 }
 
 HistSource Chat::getHistoryFromDbOrServer(unsigned count)
@@ -1773,7 +1783,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
-            histmsg.takeFrom(std::move(*msg));
+            histmsg.updateFrom(std::move(*msg));
             CALL_LISTENER(onMessageEdited, histmsg, idx);
         }
         else
