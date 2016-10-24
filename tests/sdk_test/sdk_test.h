@@ -71,7 +71,8 @@ public:
     void logout(int accountIndex, bool closeSession = false);
     void terminate();
 
-    void printChatRoomInfo(const MegaChatRoom *);
+    static void printChatRoomInfo(const MegaChatRoom *);
+    static void printMessageInfo(const MegaChatMessage *);
 
     bool waitForResponse(bool *responseReceived, int timeout = maxTimeout);
 
