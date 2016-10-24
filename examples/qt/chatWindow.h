@@ -346,9 +346,9 @@ noedit:
     {
         mLastHistReqByScroll = byScroll;
         auto source = mChat->getHistory(kHistBatchSize);
+        printf("source = %d\n", source);
         if (source == chatd::kHistSourceServer)
         {
-            printf("source = server\n");
             createHistFetchUi();
         }
         else if (source == chatd::kHistSourceNone)
