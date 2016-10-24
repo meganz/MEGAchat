@@ -36,9 +36,9 @@ Jingle::Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler,
     new TurnServerProvider("https://gelb530n001.karere.mega.nz", "turn", iceServers, 3600)),
   mIceServers(new webrtc::PeerConnectionInterface::IceServers)
 {
-    mMediaConstraints.SetMandatoryReceiveAudio(true);
-    mMediaConstraints.SetMandatoryReceiveVideo(true);
-    mMediaConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
+    pcConstraints.SetMandatoryReceiveAudio(true);
+    pcConstraints.SetMandatoryReceiveVideo(true);
+    pcConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
     registerDiscoCaps();
     mConn.addHandler(std::bind(&Jingle::onJingle, this, _1),
                      "urn:xmpp:jingle:1", "iq", "set");
@@ -54,6 +54,7 @@ Jingle::Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler,
         setIceServers(*servers);
     });
 }
+
 void Jingle::discoAddFeature(const char* feature)
 {
     mGlobalHandler->discoAddFeature(feature);
@@ -79,8 +80,8 @@ void Jingle::registerDiscoCaps()
     //this.connection.disco.addNode('urn:ietf:rfc:5888', {}); // a=group, e.g. bundle
     //this.connection.disco.addNode('urn:ietf:rfc:5576', {}); // a=ssrc
     auto& devices = deviceManager.inputDevices();
-    bool hasAudio = !devices.audio.empty() && !(mediaFlags & DISABLE_MIC);
-    bool hasVideo = !devices.video.empty() && !(mediaFlags & DISABLE_CAM);
+    bool hasAudio = !devices.audio.empty() && !(mediaOptions & DISABLE_MIC);
+    bool hasVideo = !devices.video.empty() && !(mediaOptions & DISABLE_CAM);
     if (hasAudio)
         addAudioCaps();
     if (hasVideo)
@@ -501,7 +502,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
 
         auto& call = state->mCall = addCall(kCallStateInReq, false, nullptr, state->sid,
             std::move(hangupFunc), state->from, AvFlags(true, true));
-        KR_LOG_RTC_EVENT("global(%s)->onIncomingCallRequest", state->sid.c_str());
+        RTCM_LOG_EVENT("global(%s)->onIncomingCallRequest", state->sid.c_str());
         call->mHandler = mGlobalHandler->onIncomingCallRequest(
             static_pointer_cast<ICallAnswer>(state));
         if (!call->mHandler)
@@ -547,6 +548,18 @@ void Jingle::processAndDeleteInputQueue(JingleSession& sess)
     for (auto& stanza: *queue)
         onJingle(stanza);
 }
+
+JingleCall::JingleCall(RtcModule& aRtc, bool isCaller, CallState aState,
+    IEventHandler* aHandler, const std::string& aSid, HangupFunc &&hangupFunc,
+    const std::string& aPeerJid, AvFlags localAv, bool aIsFt,
+    const std::string& aOwnJid)
+: ICall(aRtc, isCaller, aState, aHandler, aSid, aPeerJid, aIsFt, aOwnJid),
+  mHangupFunc(std::forward<HangupFunc>(hangupFunc)), mLocalAv(localAv)
+{
+    if (!mHandler && mIsCaller) //handler is set after creation when we answer
+        throw std::runtime_error("Call::Call: NULL user handler passed");
+}
+
 //called by startMediaCall() in rtcModule.cpp
 void JingleCall::initiate()
 {
@@ -561,6 +574,67 @@ void JingleCall::initiate()
       });
     RTCM_EVENT(this, onSession);
 }
+
+void JingleCall::createPcConstraints()
+{
+    if (pcConstraints)
+        return;
+    pcConstraints.reset(new webrtc::FakeConstraints);
+    for (auto& constr: rtc().pcConstraints.GetMandatory())
+    {
+        pcConstraints->AddMandatory(constr.key, constr.value);
+    }
+    for (auto& constr: rtc().pcConstraints.GetOptional())
+    {
+        pcConstraints->AddOptional(constr.key, constr.value);
+    }
+}
+
+void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
+    bool optional)
+{
+    if (optional)
+    {
+        //TODO: why webrtc has no SetOptional?
+        auto& optional = (webrtc::MediaConstraintsInterface::Constraints&)(constr.GetOptional());
+        auto it = optional.begin();
+        for (; it != optional.end(); it++)
+        {
+            if (it->key == name)
+            {
+                it->value = value;
+                break;
+            }
+        }
+        if (it == optional.end())
+        {
+            constr.AddOptional(name, value);
+        }
+    }
+    else
+    {
+        constr.SetMandatory(name, value);
+    }
+}
+
+void JingleCall::setPcConstraint(const string &name, const string &value, bool optional)
+{
+    if (!pcConstraints)
+    {
+        createPcConstraints();
+    }
+    rtcModule::setConstraint(*pcConstraints, name, value, optional);
+}
+
+void Jingle::setMediaConstraint(const string& name, const string &value, bool optional)
+{
+    rtcModule::setConstraint(mediaConstraints, value, name, optional);
+}
+void Jingle::setPcConstraint(const string& name, const string &value, bool optional)
+{
+    rtcModule::setConstraint(pcConstraints, value, name, optional);
+}
+
 
 void Jingle::hangupAll(TermCode termcode, const std::string& text)
 {

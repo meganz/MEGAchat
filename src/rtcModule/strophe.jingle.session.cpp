@@ -5,7 +5,9 @@
 #include "karereCommon.h"
 #include "stringUtils.h"
 #include "rtcModule.h"
+#include "rtcmPrivate.h"
 #include "ICryptoFunctions.h"
+#include <regex>
 
 using namespace std;
 using namespace promise;
@@ -17,8 +19,8 @@ namespace rtcModule
 
 JingleSession::JingleSession(Call& call, FileTransferHandler* ftHandler)
     :mCall(call), mJingle(mCall.mRtc),
-    mSid(call.mSid),
-    mFtHandler(ftHandler){}
+    mSid(call.mSid), mFtHandler(ftHandler)
+{}
 
 JingleSession::~JingleSession()
 {}
@@ -43,7 +45,9 @@ void JingleSession::initiate(bool isInitiator)
     }
     //TODO: make it more elegant to initialize mPeerConn
     mPeerConn = artc::myPeerConnection<JingleSession>(*mJingle.mIceServers,
-        *this, &mJingle.mMediaConstraints);
+        *this, mCall.pcConstraints
+            ? mCall.pcConstraints.get()
+            : &mJingle.pcConstraints);
 
     KR_THROW_IF_FALSE((mPeerConn->AddStream(*mCall.mLocalStream)));
 }
@@ -137,11 +141,20 @@ Promise<Stanza> JingleSession::sendIceCandidate(
 
 Promise<Stanza> JingleSession::sendOffer()
 {
-    return mPeerConn.createOffer(&mJingle.mMediaConstraints)
+    return mPeerConn.createOffer(mCall.pcConstraints
+        ? mCall.pcConstraints.get()
+        : &mJingle.pcConstraints)
     .then([this](webrtc::SessionDescriptionInterface* sdp)
     {
         string strSdp;
         KR_THROW_IF_FALSE(sdp->ToString(&strSdp));
+        webrtc::SessionDescriptionInterface* newSdp =
+            tweakEncoding(strSdp, sdp->type());
+        if (newSdp)
+        {
+            delete sdp;
+            sdp = newSdp;
+        }
         mLocalSdp.parse(strSdp);
         return mPeerConn.setLocalDescription(sdp);
     })
@@ -209,14 +222,21 @@ Promise<void> JingleSession::sendAnswer()
 //must first send the sdp, and then setLocalDescription because
 //ICE candidates may start being generated before we had a chance to send
 //the sdp, so the peer will receive ICE candidates before the answer
-    return mPeerConn.createAnswer(&mJingle.mMediaConstraints)
+    return mPeerConn.createAnswer(mCall.pcConstraints
+        ? mCall.pcConstraints.get() : &mJingle.pcConstraints)
     .then([this](webrtc::SessionDescriptionInterface* sdp) mutable
     {
         checkActive("created SDP answer");
         string strSdp;
         KR_THROW_IF_FALSE(sdp->ToString(&strSdp));
+        webrtc::SessionDescriptionInterface* newSdp =
+            tweakEncoding(strSdp, sdp->type());
+        if (newSdp)
+        {
+            delete sdp;
+            sdp = newSdp;
+        }
         mLocalSdp.parse(strSdp);
-    //this.localSDP.mangle();
         auto accept = createJingleIq(mCall.mPeerJid, "session-accept");
         mLocalSdp.toJingle(accept.second, jCreator());
         addFingerprintMac(accept.second);
@@ -321,6 +341,99 @@ int JingleSession::isRelayed() const
     if (!mStatsRecorder)
         return -1;
     return mStatsRecorder->isRelay()?1:0;
+}
+
+using namespace std::regex_constants;
+
+int JingleSession::findCodecNo(const std::string& sdp, const char* codecName)
+{
+    //FIXME: code 0 is actually not invalid, it's PCM 8khz
+    std::smatch m;
+    if (!std::regex_search(sdp, m, std::regex(std::string("a=rtpmap:(\\d+)\\s")+codecName+"/*", ECMAScript | icase))
+       || (m.size() < 2))
+    {
+        return 0;
+    }
+    return atoi(m[1].str().c_str());
+}
+
+webrtc::SessionDescriptionInterface*
+JingleSession::tweakEncoding(std::string& strSdp, const std::string& type)
+{
+//    return nullptr;
+    bool changed = false;
+    int vp8id = findCodecNo(strSdp, "VP8");
+    int vp9id = findCodecNo(strSdp, "VP9");
+    if (vp8id)
+    {
+        changed = changed | tweakCodec(strSdp, vp8id);
+    }
+/*    if (vp9id)
+    {
+        changed = changed | tweakCodec(strSdp, vp9id);
+    }
+*/
+    if (!changed)
+    {
+        return nullptr;
+    }
+
+    printf("SDP: %s\n", strSdp.c_str());
+
+    webrtc::SdpParseError err;
+    auto sdp = webrtc::CreateSessionDescription(type, strSdp, &err);
+    if (!sdp)
+    {
+        printf("ERROR PARSING SDP\n");
+        throw std::runtime_error("Error parsing tweaked-for-encoding SDP string at line "
+            +err.line+": "+err.description);
+    }
+    return sdp;
+}
+
+bool JingleSession::tweakCodec(std::string& strSdp, int codecId)
+{
+    bool changed = false;
+    std::string line;
+    char lastch = strSdp[strSdp.size()-1];
+    if ((lastch != '\n') && (lastch != '\r'))
+        line+= "\r\n";
+    line.append("a=fmtp:").append(to_string(codecId));
+    auto& params = mCall.vidEncParams;
+    if (params.minBitrate)
+    {
+        line.append(" x-google-min-bitrate=")
+            .append(std::to_string(params.minBitrate))+=';';
+        changed = true;
+    }
+    if (params.maxBitrate)
+    {
+        line.append(" x-google-max-bitrate=")
+            .append(std::to_string(params.maxBitrate))+=';';
+        changed = true;
+    }
+    if (params.maxQuant)
+    {
+        line.append(" x-google-max-quantization=")
+            .append(to_string(params.maxQuant))+=';';
+        changed = true;
+    }
+    if (changed)
+        line.resize(line.size()-1); //remove last ';'
+    if (params.bufLatency) //this one should be last as it adds a new line
+    {
+        line.append("\r\na=x-google-buffer-latency:")
+            .append(std::to_string(params.bufLatency));
+        changed = true;
+    }
+    if (!changed)
+        return false;
+
+    line+="\r\n";
+    auto idx = strSdp.find("a=ssrc-group");
+    assert (idx != string::npos);
+    strSdp.insert(idx, line);
+    return true;
 }
 
 }
