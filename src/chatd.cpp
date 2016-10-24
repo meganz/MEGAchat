@@ -1773,7 +1773,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
-            histmsg.takeFrom(std::move(*msg));
+            histmsg.updateFrom(std::move(*msg));
             CALL_LISTENER(onMessageEdited, histmsg, idx);
         }
         else

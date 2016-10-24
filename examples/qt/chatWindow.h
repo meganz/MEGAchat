@@ -139,6 +139,7 @@ public:
     MessageWidget& setEdited(const QString& txt=QObject::tr("(Edited)"))
     {
         ui.mEditDisplay->setText(txt);
+        ui.mEditDisplay->setToolTip(tr("After %1 seconds").arg(mMessage->updated));
         return *this;
     }
     void msgDeleted();
