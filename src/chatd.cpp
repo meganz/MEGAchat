@@ -1355,7 +1355,7 @@ void Chat::onLastReceived(Id msgid)
             CHATID_LOG_DEBUG("highnum() = %zu, mLastReceivedIdx = %zu, idx = %zu", highnum(), mLastReceivedIdx, idx);
             return;
         }
-        notifyOldest = mLastReceivedIdx;
+        notifyOldest = mLastReceivedIdx + 1;
         mLastReceivedIdx = idx;
     } //no mLastReceivedIdx
     else
