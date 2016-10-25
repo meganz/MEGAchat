@@ -1416,7 +1416,12 @@ void Chat::onLastSeen(Id msgid)
             if (idx < mLastSeenIdx)
                 CHATID_LOG_ERROR("onLastSeen: Can't set last seen index to an older "
                     "message: current idx: %d, new: %d", mLastSeenIdx, idx);
-            notifyOldest = mLastSeenIdx;
+            notifyOldest = mLastSeenIdx + 1;
+            auto low = lownum();
+            if (notifyOldest < low)
+            {
+                notifyOldest = low;
+            }
             mLastSeenIdx = idx;
         }
         else
