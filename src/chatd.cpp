@@ -1358,7 +1358,7 @@ void Chat::onLastReceived(Id msgid)
         notifyOldest = mLastReceivedIdx + 1;
         auto low = lownum();
         if (notifyOldest < low)
-        { // mLastReceivedIdx may point to a message in db, older than what we have in ram
+        { // mLastReceivedIdx may point to a message in db, older than what we have in RAM
             notifyOldest = low;
         }
         mLastReceivedIdx = idx;
