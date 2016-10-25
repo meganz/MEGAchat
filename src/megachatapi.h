@@ -767,7 +767,7 @@ public:
      * - MegaChatApi::LOG_LEVEL_ERROR   = 1
      * - MegaChatApi::LOG_LEVEL_WARNING = 2
      * - MegaChatApi::LOG_LEVEL_INFO    = 3
-     * - MegaChatApi::LOG_LEVEL_VERBPSE = 4
+     * - MegaChatApi::LOG_LEVEL_VERBOSE = 4
      * - MegaChatApi::LOG_LEVEL_DEBUG   = 5
      * - MegaChatApi::LOG_LEVEL_MAX     = 6
      */
