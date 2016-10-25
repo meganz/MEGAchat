@@ -1355,11 +1355,17 @@ void Chat::onLastReceived(Id msgid)
             CHATID_LOG_DEBUG("highnum() = %zu, mLastReceivedIdx = %zu, idx = %zu", highnum(), mLastReceivedIdx, idx);
             return;
         }
-        notifyOldest = mLastReceivedIdx;
+        notifyOldest = mLastReceivedIdx + 1;
+        auto low = lownum();
+        if (notifyOldest < low)
+        { // mLastReceivedIdx may point to a message in db, older than what we have in RAM
+            notifyOldest = low;
+        }
         mLastReceivedIdx = idx;
-    } //no mLastReceivedIdx
+    }
     else
     {
+        // No mLastReceivedIdx - notify all messages in RAM
         mLastReceivedIdx = idx;
         notifyOldest = lownum();
     }
@@ -1410,7 +1416,12 @@ void Chat::onLastSeen(Id msgid)
             if (idx < mLastSeenIdx)
                 CHATID_LOG_ERROR("onLastSeen: Can't set last seen index to an older "
                     "message: current idx: %d, new: %d", mLastSeenIdx, idx);
-            notifyOldest = mLastSeenIdx;
+            notifyOldest = mLastSeenIdx + 1;
+            auto low = lownum();
+            if (notifyOldest < low)
+            {
+                notifyOldest = low;
+            }
             mLastSeenIdx = idx;
         }
         else
@@ -1783,7 +1794,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
-            histmsg.updateFrom(std::move(*msg));
+            histmsg.takeFrom(std::move(*msg));
+            histmsg.updated = msg->updated;
+            // msg.ts is zero - chatd doesn't send the original timestamp
             CALL_LISTENER(onMessageEdited, histmsg, idx);
         }
         else

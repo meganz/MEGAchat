@@ -233,6 +233,7 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
         widget->msgDeleted();
         return;
     }
+    assert(msg.ts);
     widget->setText(msg);
     if (msg.userid == mChat->client().userId()) //edit of our own message
     {

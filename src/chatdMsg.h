@@ -102,12 +102,6 @@ public:
             KeyId aKeyid=CHATD_KEYID_INVALID, Type aType=kMsgNormal, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
             updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
-    void updateFrom(Message&& other)
-    {
-        Buffer::takeFrom(std::move(other));
-        ts = other.ts;
-        updated = other.updated;
-    }
 
     static const char* statusToStr(unsigned status)
     {
