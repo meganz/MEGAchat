@@ -1357,9 +1357,10 @@ void Chat::onLastReceived(Id msgid)
         }
         notifyOldest = mLastReceivedIdx + 1;
         mLastReceivedIdx = idx;
-    } //no mLastReceivedIdx
+    }
     else
     {
+        // no mLastReceivedIdx - notify all messages in RAM
         mLastReceivedIdx = idx;
         notifyOldest = lownum();
     }
