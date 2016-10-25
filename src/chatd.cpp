@@ -1783,7 +1783,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
-            histmsg.updateFrom(std::move(*msg));
+            histmsg.takeFrom(std::move(*msg));
+            histmsg.updated = msg->updated;
+            // msg.ts is zero - chatd doesn't send the original timestamp
             CALL_LISTENER(onMessageEdited, histmsg, idx);
         }
         else
