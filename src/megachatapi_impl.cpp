@@ -2871,6 +2871,11 @@ bool MegaChatMessagePrivate::isDeleted() const
     return deleted;
 }
 
+bool MegaChatMessagePrivate::isEditable() const
+{
+    return ((time(NULL) - ts) > CHATD_MAX_EDIT_AGE);
+}
+
 int MegaChatMessagePrivate::getChanges() const
 {
     return changed;

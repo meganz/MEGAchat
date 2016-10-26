@@ -717,6 +717,11 @@ bool MegaChatMessage::isDeleted() const
     return false;
 }
 
+bool MegaChatMessage::isEditable() const
+{
+    return false;
+}
+
 int MegaChatMessage::getChanges() const
 {
     return 0;

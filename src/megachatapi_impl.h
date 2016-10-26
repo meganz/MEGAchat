@@ -447,6 +447,7 @@ public:
     virtual const char *getContent() const;
     virtual bool isEdited() const;
     virtual bool isDeleted() const;
+    virtual bool isEditable() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;

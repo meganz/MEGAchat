@@ -334,9 +334,27 @@ public:
      */
     virtual const char *getContent() const;
 
+    /**
+     * @brief Returns whether the message is an edit of the original message
+     * @return True if the message has been edited. Otherwise, false.
+     */
     virtual bool isEdited() const;
 
+    /**
+     * @brief Returns whether the message has been deleted
+     * @return True if the message has been deleted. Otherwise, false.
+     */
     virtual bool isDeleted() const;
+
+    /**
+     * @brief Returns whether the message can be edited
+     *
+     * Currently, messages are editable only during a timeframe (1 hour). Later on, the
+     * edit will be rejected. The same applies to deletions.
+     *
+     * @return True if the message can be edited. Otherwise, false.
+     */
+    virtual bool isEditable() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;

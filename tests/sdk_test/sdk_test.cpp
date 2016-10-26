@@ -233,6 +233,7 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
     cout << "\tOnline state: " << MegaChatRoom::statusToString(chat->getOnlineStatus()) << endl;
     cout << "\tUnread count: " << chat->getUnreadCount() << " message/s" << endl;
     cout << "-------------------------------------------------" << endl;
+    fflush(stdout);
 }
 
 void MegaChatApiTest::printMessageInfo(const MegaChatMessage *msg)
@@ -245,13 +246,17 @@ void MegaChatApiTest::printMessageInfo(const MegaChatMessage *msg)
     cout << ", type: " << msg->getType() << ", edited: " << msg->isEdited();
     cout << ", deleted: " << msg->isDeleted() << ", changes: " << msg->getChanges();
     cout << ", ts: " << msg->getTimestamp() << endl;
+    fflush(stdout);
 }
 
 void MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
 {
-    cout << "id: " << item->getChatId() << ", title: " << item->getTitle();
+    const char *title = item->getTitle() ? item->getTitle() : "<empty>";
+
+    cout << "id: " << item->getChatId() << ", title: " << title;
     cout << ", status: " << item->getOnlineStatus() << ", visibility: " << item->getVisibility();
     cout << ", unread: " << item->getUnreadCount() << endl;
+    fflush(stdout);
 }
 
 bool MegaChatApiTest::waitForResponse(bool *responseReceived, int timeout)
@@ -404,13 +409,13 @@ void MegaChatApiTest::TEST_groupChatManagement()
 
     // Send a message and wait for reception by target user
     string msg0 = "HOLA " + email[0] + " - This is a testing message automatically sent";
-    flag = &chatroomListener->msgConfirmed[0]; *flag = false;
+    bool *msgConfirmed = &chatroomListener->msgConfirmed[0]; *msgConfirmed = false;
     bool *msgReceived = &chatroomListener->msgReceived[1]; *msgReceived = false;
     bool *msgDelivered = &chatroomListener->msgDelivered[0]; *msgDelivered = false;
     chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
     chatroomListener->msgId[1] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
     megaChatApi[0]->sendMessage(chatid, msg0.c_str());
-    assert(waitForResponse(flag));    // for confirmation, sendMessage() is synchronous
+    assert(waitForResponse(msgConfirmed));    // for confirmation, sendMessage() is synchronous
     MegaChatHandle msgId = chatroomListener->msgId[0];
     assert (msgId != MEGACHAT_INVALID_HANDLE);
     assert(waitForResponse(msgReceived));    // for reception
