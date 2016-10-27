@@ -599,6 +599,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
     }
     else //have to fetch history from server
     {
+        mServerOldHistCbEnabled = true;
         if (mHaveAllHistory)
         {
             CHATID_LOG_DEBUG("getHistoryFromDbOrServer: No more history exists");
@@ -613,7 +614,6 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
             requestHistoryFromServer(-count);
         }
-        mServerOldHistCbEnabled = true;
         return kHistSourceServer;
     }
 }
@@ -2183,6 +2183,7 @@ void Chat::onJoinComplete()
 void Chat::resetGetHistory()
 {
     mNextHistFetchIdx = CHATD_IDX_INVALID;
+    mServerOldHistCbEnabled = false;
 }
 
 void Chat::setOnlineState(ChatState state)
