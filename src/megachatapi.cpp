@@ -519,6 +519,11 @@ int MegaChatRoom::getUnreadCount() const
     return 0;
 }
 
+MegaChatHandle MegaChatRoom::getUserTyping() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 int MegaChatRoom::getOnlineStatus() const
 {
     return MegaChatApi::STATUS_OFFLINE;

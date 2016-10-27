@@ -2079,13 +2079,16 @@ IApp::ICallHandler *MegaChatRoomHandler::callHandler()
 
 void MegaChatRoomHandler::onUserTyping(karere::Id user)
 {
-    // TODO: report the user who is typing to the app (new callback??)
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setUserTyping(user.val);
+
+    chatApi->fireOnChatRoomUpdate(chat);
 }
 
 void MegaChatRoomHandler::onTitleChanged(const string &title)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
-    chat->setTitle(title.c_str());
+    chat->setTitle(title);
 
     chatApi->fireOnChatRoomUpdate(chat);
 }
@@ -2409,7 +2412,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     this->chatid = chat.chatid();
     this->priv = chat.ownPriv();
     this->group = chat.isGroup();
-    this->title = chat.titleString().c_str();
+    this->title = chat.titleString();
     this->chatState = chat.chatdOnlineState();
     this->unreadCount = chat.chat().unreadMsgCount();
 
@@ -2487,7 +2490,7 @@ bool MegaChatRoomPrivate::isGroup() const
 
 const char *MegaChatRoomPrivate::getTitle() const
 {
-    return title;
+    return title.c_str();
 }
 
 int MegaChatRoomPrivate::getOnlineState() const
@@ -2515,13 +2518,14 @@ int MegaChatRoomPrivate::getOnlineStatus() const
     return status;
 }
 
-void MegaChatRoomPrivate::setTitle(const char *title)
+MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
 {
-    if(this->title)
-    {
-        delete [] this->title;
-    }
-    this->title = MegaApi::strdup(title);
+    return uh;
+}
+
+void MegaChatRoomPrivate::setTitle(string title)
+{
+    this->title = title;
     this->changed |= MegaChatRoom::CHANGE_TYPE_TITLE;
 }
 
@@ -2546,6 +2550,12 @@ void MegaChatRoomPrivate::setOnlineState(int state)
 {
     this->chatState = state;
     this->changed |= MegaChatRoom::CHANGE_TYPE_CHAT_STATE;
+}
+
+void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
+{
+    this->uh = uh;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_USER_TYPING;
 }
 
 void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)

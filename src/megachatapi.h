@@ -1438,8 +1438,8 @@ public:
         CHANGE_TYPE_UNREAD_COUNT    = 0x02,
         CHANGE_TYPE_PARTICIPANTS    = 0x04,
         CHANGE_TYPE_TITLE           = 0x08,
-        CHANGE_TYPE_CHAT_STATE      = 0x10
-//        CHANGE_TYPE_TITLE           = 0x10
+        CHANGE_TYPE_CHAT_STATE      = 0x10,
+        CHANGE_TYPE_USER_TYPING     = 0X20
     };
 
     enum {
@@ -1587,7 +1587,29 @@ public:
      */
     virtual int getOnlineStatus() const;
 
+    /**
+     * @brief Returns the number of unread messages for the chatroom
+     *
+     * It can be used to display an unread message counter next to the chatroom name
+     *
+     * @return The count of unread messages as follows:
+     *  - If the returned value is 0, then the indicator should be removed.
+     *  - If the returned value is > 0, the indicator should show the exact count.
+     *  - If the returned value is < 0, then there are at least that count unread messages,
+     * and possibly more. In that case the indicator should show e.g. '2+'
+     */
     virtual int getUnreadCount() const;
+
+    /**
+     * TODO: this feature is still not implemented. Ticket on Redmine: #5595
+     * @brief Returns the handle of the user who is typing a message in the chatroom
+     *
+     * Normally the app should have a timer that is reset each time a typing
+     * notification is received. When the timer expires, it should hide the notification GUI.
+     *
+     * @return The user that is typing
+     */
+    virtual MegaChatHandle getUserTyping() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;

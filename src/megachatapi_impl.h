@@ -389,12 +389,14 @@ public:
 
     virtual int getUnreadCount() const;
     virtual int getOnlineStatus() const;
+    virtual MegaChatHandle getUserTyping() const;
 
-    void setTitle(const char *title);
+    void setTitle(std::string title);
     void setUnreadCount(int count);
     void setOnlineStatus(int status);
     void setMembersUpdated();
     void setOnlineState(int state);
+    void setUserTyping(MegaChatHandle uh);
 
 private:
     int changed;
@@ -404,7 +406,7 @@ private:
     mega::userpriv_vector peers;
     bool group;
 
-    const char *title;
+    std::string title;
     int unreadCount;
     int status;
     int chatState;
