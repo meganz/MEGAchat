@@ -2077,10 +2077,18 @@ IApp::ICallHandler *MegaChatRoomHandler::callHandler()
     return NULL;
 }
 
+void MegaChatRoomHandler::onUserTyping(karere::Id user)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setUserTyping(user.val);
+
+    chatApi->fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::onTitleChanged(const string &title)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
-    chat->setTitle(title.c_str());
+    chat->setTitle(title);
 
     chatApi->fireOnChatRoomUpdate(chat);
 }
@@ -2388,7 +2396,9 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->priv = chat->getOwnPrivilege();
     for (unsigned int i = 0; i < chat->getPeerCount(); i++)
     {
-        peers.push_back(userpriv_pair(chat->getPeerHandle(i), (privilege_t) chat->getPeerPrivilege(i)));
+        MegaChatHandle uh = chat->getPeerHandle(i);
+        peers.push_back(userpriv_pair(uh, (privilege_t) chat->getPeerPrivilege(i)));
+        peerNames.push_back(chat->getPeerName(i));
     }
     this->group = chat->isGroup();
     this->title = chat->getTitle();
@@ -2404,7 +2414,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     this->chatid = chat.chatid();
     this->priv = chat.ownPriv();
     this->group = chat.isGroup();
-    this->title = chat.titleString().c_str();
+    this->title = chat.titleString();
     this->chatState = chat.chatdOnlineState();
     this->unreadCount = chat.chat().unreadMsgCount();
 
@@ -2418,6 +2428,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         {
             this->peers.push_back(userpriv_pair(it->first,
                                           (privilege_t) it->second->priv()));
+            this->peerNames.push_back(it->second->name());
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2428,6 +2439,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         handle uh = peerchat.peer();
 
         this->peers.push_back(userpriv_pair(uh, priv));
+        this->peerNames.push_back(peerchat.contact().titleString());
         this->status = chat.presence().status();
     }
 }
@@ -2475,6 +2487,11 @@ MegaChatHandle MegaChatRoomPrivate::getPeerHandle(unsigned int i) const
     return peers.at(i).first;
 }
 
+const char *MegaChatRoomPrivate::getPeerName(unsigned int i) const
+{
+    return peerNames.at(i).c_str();
+}
+
 bool MegaChatRoomPrivate::isGroup() const
 {
     return group;
@@ -2482,7 +2499,7 @@ bool MegaChatRoomPrivate::isGroup() const
 
 const char *MegaChatRoomPrivate::getTitle() const
 {
-    return title;
+    return title.c_str();
 }
 
 int MegaChatRoomPrivate::getOnlineState() const
@@ -2510,13 +2527,14 @@ int MegaChatRoomPrivate::getOnlineStatus() const
     return status;
 }
 
-void MegaChatRoomPrivate::setTitle(const char *title)
+MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
 {
-    if(this->title)
-    {
-        delete [] this->title;
-    }
-    this->title = MegaApi::strdup(title);
+    return uh;
+}
+
+void MegaChatRoomPrivate::setTitle(string title)
+{
+    this->title = title;
     this->changed |= MegaChatRoom::CHANGE_TYPE_TITLE;
 }
 
@@ -2541,6 +2559,12 @@ void MegaChatRoomPrivate::setOnlineState(int state)
 {
     this->chatState = state;
     this->changed |= MegaChatRoom::CHANGE_TYPE_CHAT_STATE;
+}
+
+void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
+{
+    this->uh = uh;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_USER_TYPING;
 }
 
 void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
@@ -2864,6 +2888,11 @@ bool MegaChatMessagePrivate::isEdited() const
 bool MegaChatMessagePrivate::isDeleted() const
 {
     return deleted;
+}
+
+bool MegaChatMessagePrivate::isEditable() const
+{
+    return (!isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
 }
 
 int MegaChatMessagePrivate::getChanges() const

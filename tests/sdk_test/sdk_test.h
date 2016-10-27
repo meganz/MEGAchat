@@ -71,7 +71,9 @@ public:
     void logout(int accountIndex, bool closeSession = false);
     void terminate();
 
-    void printChatRoomInfo(const MegaChatRoom *);
+    static void printChatRoomInfo(const MegaChatRoom *);
+    static void printMessageInfo(const MegaChatMessage *);
+    static void printChatListItemInfo(const MegaChatListItem *);
 
     bool waitForResponse(bool *responseReceived, int timeout = maxTimeout);
 
@@ -93,7 +95,7 @@ private:
 
     int lastError[NUM_ACCOUNTS];
 
-    MegaChatHandle chatid;  // chatroom created...
+    MegaChatHandle chatid;  // chatroom in use...
     bool chatUpdated[NUM_ACCOUNTS];
 
 //    MegaContactRequest* cr[2];
@@ -146,17 +148,23 @@ public:
 class TestChatRoomListener : public MegaChatRoomListener
 {
 public:
-    TestChatRoomListener(MegaChatHandle chatid);
+    TestChatRoomListener(MegaChatApi **apis, MegaChatHandle chatid);
 
+    MegaChatApi **megaChatApi;
     MegaChatHandle chatid;
 
-    bool historyLoaded;
-    bool msgConfirmed;
-    MegaChatHandle msgId;
+    bool historyLoaded[NUM_ACCOUNTS];   // when, after loadMessage(X), X messages have been loaded
+    bool msgLoaded[NUM_ACCOUNTS];
+    bool msgConfirmed[NUM_ACCOUNTS];
+    bool msgDelivered[NUM_ACCOUNTS];
+    bool msgReceived[NUM_ACCOUNTS];
+
+    MegaChatHandle msgId[NUM_ACCOUNTS];
+    bool chatUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
-    //    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
-    virtual void onMessageLoaded(MegaChatApi* api, MegaChatMessage *msg);   // loaded by getMessages()
-    virtual void onMessageReceived(MegaChatApi* api, MegaChatMessage *msg);
-    virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);   // new or updated
+    virtual void onChatRoomUpdate(MegaChatApi* megaChatApi, MegaChatRoom *chat);
+    virtual void onMessageLoaded(MegaChatApi* megaChatApi, MegaChatMessage *msg);   // loaded by getMessages()
+    virtual void onMessageReceived(MegaChatApi* megaChatApi, MegaChatMessage *msg);
+    virtual void onMessageUpdate(MegaChatApi* megaChatApi, MegaChatMessage *msg);   // new or updated
 };

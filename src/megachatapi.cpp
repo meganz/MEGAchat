@@ -489,6 +489,11 @@ int MegaChatRoom::getPeerPrivilege(unsigned int i) const
     return PRIV_UNKNOWN;
 }
 
+const char *MegaChatRoom::getPeerName(unsigned int i) const
+{
+    return NULL;
+}
+
 bool MegaChatRoom::isGroup() const
 {
     return false;
@@ -517,6 +522,11 @@ bool MegaChatRoom::hasChanged(int) const
 int MegaChatRoom::getUnreadCount() const
 {
     return 0;
+}
+
+MegaChatHandle MegaChatRoom::getUserTyping() const
+{
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 int MegaChatRoom::getOnlineStatus() const
@@ -713,6 +723,11 @@ bool MegaChatMessage::isEdited() const
 }
 
 bool MegaChatMessage::isDeleted() const
+{
+    return false;
+}
+
+bool MegaChatMessage::isEditable() const
 {
     return false;
 }
