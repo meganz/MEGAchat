@@ -525,17 +525,21 @@ public:
     /** @brief The chatd::Listener currently attached to this chat */
     Listener* listener() const { return mListener; }
 
-    /** @brief The source from where history is being retrieved at the moment
-     * by the app, via \c getHistory().
-     * If history is not being fetched, kHistSourceNone is returned.
+    /** @brief Whether the listener will be notified upon receiving
+     * old history messages from the server.
      */
-    HistSource histSendSource() const { return mHistSendSource; }
+    bool isServerOldHistCbEnabled() const { return mServerOldHistCbEnabled;}
 
-    /** @brief Returns whether we are fetching history at the moment */
-    bool isFetchingHistory() const { return (mHistFetchState & kHistNotFetching) == 0; }
+    /** @brief Returns whether history is being fetched from server _and_
+     * send to the application callback via \c onRecvHistoryMsg().
+     */
+    bool isNotifyingOldHistFromServer() const { return mServerOldHistCbEnabled && (mServerFetchState & kHistOldFlag); }
+
+    /** @brief Returns whether we are fetching old or new history at the moment */
+    bool isFetchingFromServer() const { return (mServerFetchState & kHistNotFetching) == 0; }
 
     /** @brief The current history fetch state */
-    HistFetchState histFetchState() const { return mHistFetchState; }
+    ServerFetchState serverFetchState() const { return mServerFetchState; }
 
     /** @brief Whether we are decrypting the fetched history. The app may need
      * to differentiate whether the history fetch process is doing the actual fetch, or
