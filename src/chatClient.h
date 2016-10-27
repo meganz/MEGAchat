@@ -125,7 +125,7 @@ public:
      * have the chat list item still receive events. The events that need
      * to be forwarded are:
      * \c onUserJoin, \c onUserLeave, \c onUnreadChanged,
-     * \c onOnlineStateChange, \c onRecvNewMessage, \c onRecvOldMessage.
+     * \c onOnlineStateChange, \c onRecvNewMessage, \c onRecvHistoryMessage.
      * @param handler The application-provided chat event handler.
      * The chatroom object does not take owhership of the handler,
      * so, on removal, the app should take care to free it if needed.
@@ -212,6 +212,7 @@ public:
     class Member
     {
         GroupChatRoom& mRoom;
+        uint64_t mHandle;
         std::string mName;
         chatd::Priv mPriv;
         uint64_t mNameAttrCbHandle;
