@@ -513,17 +513,17 @@ void Chat::join()
 //Reset handshake state, as we may be reconnecting
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
-    mServerFetchState = kNotFetching;
+    mServerFetchState = kHistNotFetching;
     //we don't have local history, so mHistSendSource may be None or Server.
     //In both cases this will not block history messages being sent to app
-    mServerHistCbEnabled = false;
+    mServerOldHistCbEnabled = false;
     sendCommand(Command(OP_JOIN) + mChatId + mClient.mUserId + (int8_t)PRIV_NOCHANGE);
     requestHistoryFromServer(-initialHistoryFetchCount);
 }
 
 void Chat::onDisconnect()
 {
-    if (mHistCbEnabled && (mHistFetchState & kHistFetchingOldFromServer))
+    if (mServerOldHistCbEnabled && (mServerFetchState & kHistFetchingOldFromServer))
     {
         //app has been receiving old history from server, but we are now
         //about to receive new history (if any), so notify app about end of
@@ -540,7 +540,7 @@ HistSource Chat::getHistory(unsigned count)
     {
         return kHistSourceServer;
     }
-    if (mNextHistFetchIdx == CHATD_IDX_INVALID) & !empty())
+    if ((mNextHistFetchIdx == CHATD_IDX_INVALID) && !empty())
     {
         //start from newest message and go backwards
         mNextHistFetchIdx = highnum();
@@ -604,7 +604,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             CHATID_LOG_DEBUG("getHistoryFromDbOrServer: No more history exists");
             return kHistSourceNone;
         }
-        if (mServerFetchState & kHistFetchOld)
+        if (mServerFetchState & kHistOldFlag)
         {
             CHATID_LOG_DEBUG("getHistoryFromDbOrServer: Need more history, and server history fetch is already in progress, will get next messages from there");
         }
@@ -621,19 +621,10 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 void Chat::requestHistoryFromServer(int32_t count)
 {
     mLastServerHistFetchCount = mLastHistDecryptCount = 0;
-    if (count > 0)
-    {
-        mServerFetchState = kHistFetchingNewFromServer;
-    }
-    else
-    {
-        mHistFetchState = kHistFetchingOldFromServer;
-        if (mHistSendSource == kHistSourceNone)
-        {
-            //if we are not currently sending history to the app, start sending what we receive from server
-            mHistSendSource = kHistSourceServer;
-        }
-    }
+    mServerFetchState = (count > 0)
+        ? kHistFetchingNewFromServer
+        : kHistFetchingOldFromServer;
+
     sendCommand(Command(OP_HIST) + mChatId + count);
 }
 
@@ -934,7 +925,7 @@ void Chat::onHistDone()
     // while fetching from server. In that case, we don't notify about
     // fetched messages and onHistDone()
 
-    if (isFetchingHistory()) //HISTDONE is received for new history or after JOINRANGEHIST
+    if (isFetchingFromServer()) //HISTDONE is received for new history or after JOINRANGEHIST
     {
         onFetchHistDone();
     }
@@ -946,14 +937,14 @@ void Chat::onHistDone()
 
 void Chat::onFetchHistDone()
 {
-    assert(isFetchingHistory());
+    assert(isFetchingFromServer());
 
     //resetHistFetch() may have been called while fetching from server,
     //so state may be fetching-from-ram or fetching-from-db
-    bool fetchingOld = (mHistFetchState & kHistOldFlag);
+    bool fetchingOld = (mServerFetchState & kHistOldFlag);
     if (fetchingOld)
     {
-        mHistFetchState = (mDecryptOldHaltedAt != CHATD_IDX_INVALID)
+        mServerFetchState = (mDecryptOldHaltedAt != CHATD_IDX_INVALID)
             ? kHistDecryptingOld : kHistNotFetching;
         if (mLastServerHistFetchCount <= 0)
         {
@@ -1910,7 +1901,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
         idx = lownum();
         if (!isLocal)
         {
-            assert(isFetchingHistory());
+            assert(isFetchingFromServer());
             mLastServerHistFetchCount++;
         }
         if (!mHasMoreHistoryInDb)
@@ -2019,10 +2010,10 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 if (!msgIncomingAfterAdd(isNew, false, at(i), i))
                     break;
             }
-            if ((mHistFetchState == kHistDecryptingNew) &&
+            if ((mServerFetchState == kHistDecryptingNew) &&
                 (mDecryptNewHaltedAt == CHATD_IDX_INVALID)) //all messages decrypted
             {
-                mHistFetchState = kHistNotFetching;
+                mServerFetchState = kHistNotFetching;
             }
         }
         else
@@ -2042,11 +2033,11 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 if (!msgIncomingAfterAdd(isNew, false, at(i), i))
                     break;
             }
-            if ((mHistFetchState == kHistDecryptingOld) &&
+            if ((mServerFetchState == kHistDecryptingOld) &&
                 (mDecryptOldHaltedAt == CHATD_IDX_INVALID))
             {
                 mServerFetchState = kHistNotFetching;
-                if (mServerHistoryCbEnabled)
+                if (mServerOldHistCbEnabled)
                 {
                     CALL_LISTENER(onHistoryDone, kHistSourceServer);
                 }
@@ -2086,7 +2077,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         // old message
         // local messages are obtained synchronously, so if isLocal,
         // then always send to app
-        if (isLocal || mServerHistCbEnabled)
+        if (isLocal || mServerOldHistCbEnabled)
         {
             CALL_LISTENER(onRecvHistoryMessage, idx, msg, status, isLocal);
         }

@@ -273,7 +273,7 @@ public:
     }
 };
 
-enum HistFetchState
+enum ServerHistFetchState
 {
 /** Thie least significant 2 bits signify the history fetch source,
  * and correspond to HistSource values */
@@ -289,9 +289,7 @@ enum HistFetchState
     kHistFetchingOldFromServer = kHistSourceServer | kHistOldFlag,
     kHistFetchingNewFromServer = kHistSourceServer | 0,
 /** We are currently fetching history from db - always old messages */
-//    kHistFetchingFromDb = kHistSourceDb | kHistOldFlag,
 /** Fething from RAM history buffer, always old messages */
-//    kHistFetchingFromRam = kHistSourceRam | kHistOldFlag,
     kHistDecryptingFlag = 16,
     kHistDecryptingOld = kHistDecryptingFlag | kHistOldFlag,
     kHistDecryptingNew = kHistDecryptingFlag | 0
@@ -375,9 +373,9 @@ protected:
     unsigned mLastServerHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
     unsigned mLastHistDecryptCount = 0; ///< Similar to mLastServerHistFetchCount, but reflects the current number of message passed through the decrypt process, which may be less than mLastServerHistFetchCount at a given moment
     /** @brief The state of history fetching from server */
-    HistFetchState mHistFetchState = kHistNotFetching;
+    ServerHistFetchState mServerFetchState = kHistNotFetching;
     /** @brief @The state of history sending to the app via getHistory() */
-    HistSource mHistSendSource = kHistSourceNone;
+    bool mServerOldHistCbEnabled = false;
     bool mHaveAllHistory = false;
     Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
@@ -539,13 +537,13 @@ public:
     bool isFetchingFromServer() const { return (mServerFetchState & kHistNotFetching) == 0; }
 
     /** @brief The current history fetch state */
-    ServerFetchState serverFetchState() const { return mServerFetchState; }
+    ServerHistFetchState serverFetchState() const { return mServerFetchState; }
 
     /** @brief Whether we are decrypting the fetched history. The app may need
      * to differentiate whether the history fetch process is doing the actual fetch, or
      * is waiting for the decryption (i.e. fetching chat keys etc)
      */
-    bool isFetchDecrypting() const { return (isFetchingHistory() && (mHistFetchState & kHistDecryptingFlag)); }
+    bool isServerFetchDecrypting() const { return mServerFetchState & kHistDecryptingFlag; }
 
     /**
      * @brief haveAllHistory
