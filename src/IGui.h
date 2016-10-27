@@ -98,8 +98,7 @@ public:
          * @param userid The member user handle
          * @param newName The new name. The first char of the name
          */
-        virtual void onMemberNameChanged(uint64_t userid, const std::string& newName){};
-
+        virtual void onMemberNameChanged(uint64_t userid, const std::string& newName){}
 
         /** @brief Returns an optionally associated user data pointer */
         void* userp = nullptr;
