@@ -2396,7 +2396,9 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->priv = chat->getOwnPrivilege();
     for (unsigned int i = 0; i < chat->getPeerCount(); i++)
     {
-        peers.push_back(userpriv_pair(chat->getPeerHandle(i), (privilege_t) chat->getPeerPrivilege(i)));
+        MegaChatHandle uh = chat->getPeerHandle(i);
+        peers.push_back(userpriv_pair(uh, (privilege_t) chat->getPeerPrivilege(i)));
+        peerNames.push_back(chat->getPeerName(i));
     }
     this->group = chat->isGroup();
     this->title = chat->getTitle();
@@ -2426,6 +2428,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         {
             this->peers.push_back(userpriv_pair(it->first,
                                           (privilege_t) it->second->priv()));
+            this->peerNames.push_back(it->second->name());
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2436,6 +2439,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         handle uh = peerchat.peer();
 
         this->peers.push_back(userpriv_pair(uh, priv));
+        this->peerNames.push_back(peerchat.contact().titleString());
         this->status = chat.presence().status();
     }
 }
@@ -2481,6 +2485,11 @@ unsigned int MegaChatRoomPrivate::getPeerCount() const
 MegaChatHandle MegaChatRoomPrivate::getPeerHandle(unsigned int i) const
 {
     return peers.at(i).first;
+}
+
+const char *MegaChatRoomPrivate::getPeerName(unsigned int i) const
+{
+    return peerNames.at(i).c_str();
 }
 
 bool MegaChatRoomPrivate::isGroup() const

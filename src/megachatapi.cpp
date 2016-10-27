@@ -489,6 +489,11 @@ int MegaChatRoom::getPeerPrivilege(unsigned int i) const
     return PRIV_UNKNOWN;
 }
 
+const char *MegaChatRoom::getPeerName(unsigned int i) const
+{
+    return NULL;
+}
+
 bool MegaChatRoom::isGroup() const
 {
     return false;

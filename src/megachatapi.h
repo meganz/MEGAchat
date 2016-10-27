@@ -1506,7 +1506,7 @@ public:
      * will return INVALID_HANDLE.
      *
      * @param i Position of the peer whose handle is requested
-     * @return Handle of the peer in the position i.
+     * @return Handle of the peer in the position \c i.
      */
     virtual MegaChatHandle getPeerHandle(unsigned int i) const;
 
@@ -1517,7 +1517,7 @@ public:
      * will return PRIV_UNKNOWN.
      *
      * @param i Position of the peer whose handle is requested
-     * @return Privilege level of the chat peer with the handle specified.
+     * @return Privilege level of the peer in the position \c i.
      * Valid values are:
      * - MegaChatPeerList::PRIV_UNKNOWN = -2
      * - MegaChatPeerList::PRIV_RM = -1
@@ -1526,6 +1526,14 @@ public:
      * - MegaChatPeerList::PRIV_MODERATOR = 3
      */
     virtual int getPeerPrivilege(unsigned int i) const;
+
+    /**
+     * @brief Returns the current display name of the peer
+     *
+     * @param i Position of the peer whose name is requested
+     * @return Display name of the peer in the position \c i.
+     */
+    virtual const char *getPeerName(unsigned int i) const;
 
     /**
      * @brief isGroup Returns whether this chat is a group chat or not

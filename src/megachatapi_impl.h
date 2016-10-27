@@ -380,6 +380,7 @@ public:
     virtual int getPeerPrivilege(unsigned int i) const;
     virtual unsigned int getPeerCount() const;
     virtual MegaChatHandle getPeerHandle(unsigned int i) const;
+    virtual const char *getPeerName(unsigned int i) const;
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
     virtual int getOnlineState() const;
@@ -404,12 +405,14 @@ private:
     MegaChatHandle chatid;
     int priv;
     mega::userpriv_vector peers;
+    std::vector<std::string> peerNames;
     bool group;
 
     std::string title;
     int unreadCount;
     int status;
     int chatState;
+    MegaChatHandle uh;
 };
 
 class MegaChatRoomListPrivate :  public MegaChatRoomList
