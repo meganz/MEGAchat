@@ -1436,7 +1436,7 @@ public:
     {
         CHANGE_TYPE_STATUS          = 0x01,
         CHANGE_TYPE_UNREAD_COUNT    = 0x02,
-        CHANGE_TYPE_PARTICIPANTS    = 0x04,
+        CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
         CHANGE_TYPE_TITLE           = 0x08,
         CHANGE_TYPE_CHAT_STATE      = 0x10,
         CHANGE_TYPE_USER_TYPING     = 0X20

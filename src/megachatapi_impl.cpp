@@ -2085,6 +2085,14 @@ void MegaChatRoomHandler::onUserTyping(karere::Id user)
     chatApi->fireOnChatRoomUpdate(chat);
 }
 
+void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &newName)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setMembersUpdated();
+
+    chatApi->fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::onTitleChanged(const string &title)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
