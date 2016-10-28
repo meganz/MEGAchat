@@ -1688,7 +1688,7 @@ UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, User
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
-: mRoom(aRoom), mPriv(aPriv)
+: mRoom(aRoom), mHandle(user), mPriv(aPriv)
 {
     mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(user, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* buf, void* userp)
@@ -1701,6 +1701,10 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         else
         {
             self->mName = "\x01?";
+        }
+        if (self->mRoom.mAppChatHandler)
+        {
+            self->mRoom.mAppChatHandler->onMemberNameChanged(self->mHandle, self->mName);
         }
         if (!self->mRoom.hasTitle())
         {
