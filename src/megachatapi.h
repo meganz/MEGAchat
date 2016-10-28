@@ -1494,6 +1494,16 @@ public:
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
 
     /**
+     * @brief Returns the current display name of the peer
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Display name of the chat peer with the handle specified.
+     */
+    virtual const char *getPeerNameByHandle(MegaChatHandle userhandle) const;
+
+    /**
      * @brief Returns the number of participants in the chat
      * @return Number of participants in the chat
      */

@@ -2472,6 +2472,19 @@ int MegaChatRoomPrivate::getPeerPrivilegeByHandle(MegaChatHandle userhandle) con
     return PRIV_UNKNOWN;
 }
 
+const char *MegaChatRoomPrivate::getPeerNameByHandle(MegaChatHandle userhandle) const
+{
+    for (unsigned int i = 0; i < peers.size(); i++)
+    {
+        if (peers.at(i).first == userhandle)
+        {
+            return peerNames.at(i).c_str();
+        }
+    }
+
+    return NULL;
+}
+
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
 {
     return peers.at(i).second;
