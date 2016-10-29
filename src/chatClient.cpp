@@ -1522,9 +1522,7 @@ void ChatRoom::removeAppChatHandler()
 
 Presence PeerChatRoom::presence() const
 {
-    return (mChat && mChat->onlineState() == chatd::kChatStateOnline)
-        ? Presence::kOnline
-        : Presence::kOffline;
+    return calculatePresence(mContact.xmppContact().presence());
 }
 
 void PeerChatRoom::updatePresence()

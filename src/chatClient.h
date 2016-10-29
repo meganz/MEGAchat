@@ -170,6 +170,7 @@ protected:
     void updatePresence();
     void initWithChatd();
     virtual void connect();
+    inline Presence calculatePresence(Presence pres) const;
     friend class Contact;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
@@ -685,6 +686,13 @@ protected:
     friend class ChatRoom;
 /** @endcond PRIVATE */
 };
+
+inline Presence PeerChatRoom::calculatePresence(Presence pres) const
+{
+     if (mChat && mChat->onlineState() != chatd::kChatStateOnline)
+         return Presence::kOffline;
+     return pres;
+}
 
 }
 #endif // CHATCLIENT_H
