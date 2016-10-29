@@ -428,7 +428,7 @@ void MessageWidget::msgDeleted()
     assert(mMessage->userp);
     auto& list = *mChatWindow.ui.mMessageList;
     auto visualRect = list.visualItemRect(static_cast<QListWidgetItem*>(mMessage->userp));
-    if (mChatWindow.mChat->isFetchingHistory() || !list.rect().contains(visualRect))
+    if (mChatWindow.mChat->isFetchingFromServer() || !list.rect().contains(visualRect))
     {
         removeFromList();
         return;

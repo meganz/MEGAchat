@@ -122,15 +122,18 @@ public:
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
 #if 1
-        SqliteStmt stmt(mDb, "select min(idx), max(idx) from history where chatid = ?");
+        SqliteStmt stmt(mDb, "select min(idx), max(idx), count(*) from history where chatid = ?");
         stmt << mMessages.chatId();
         stmt.step();
-        if ((idx != stmt.intCol(0)-1) && (idx != stmt.intCol(1)+1))
-            throw std::runtime_error("addMsgToHistory: index of added msg is not adjacent to neither end of db history: add idx="
-              +std::to_string(idx)+", histlow="+std::to_string(stmt.intCol(0))
-              +", histhigh="+std::to_string(stmt.intCol(1)));
+        int low = stmt.intCol(0);
+        int high = stmt.intCol(1);
+        int count = stmt.intCol(2);
+        if ((count > 0) && (idx != low-1) && (idx != high+1))
+            throw std::runtime_error("addMsgToHistory: index of added msg is "
+                "not adjacent to neither end of db history: add idx="+
+                std::to_string(idx)+", histlow="+std::to_string(low)+
+                ", histhigh="+std::to_string(high)+" histcount="+std::to_string(count));
 #endif
-
         sqliteQuery(mDb, "insert or replace into history"
             "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid) "
             "values(?,?,?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
