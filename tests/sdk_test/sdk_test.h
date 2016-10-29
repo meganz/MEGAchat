@@ -87,6 +87,7 @@ public:
     void TEST_resumeSession();
     void TEST_setOnlineStatus();
     void TEST_getChatRoomsAndMessages();
+    void TEST_editAndDeleteMessages();
     void TEST_groupChatManagement();
 
 private:
@@ -158,6 +159,7 @@ public:
     bool msgConfirmed[NUM_ACCOUNTS];
     bool msgDelivered[NUM_ACCOUNTS];
     bool msgReceived[NUM_ACCOUNTS];
+    bool msgEdited[NUM_ACCOUNTS];
 
     MegaChatHandle msgId[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];

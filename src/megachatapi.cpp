@@ -474,6 +474,11 @@ int MegaChatRoom::getPeerPrivilegeByHandle(MegaChatHandle userhandle) const
     return PRIV_UNKNOWN;
 }
 
+const char *MegaChatRoom::getPeerNameByHandle(MegaChatHandle userhandle) const
+{
+    return NULL;
+}
+
 unsigned int MegaChatRoom::getPeerCount() const
 {
     return 0;

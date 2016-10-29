@@ -22,6 +22,7 @@ int main(int argc, char **argv)
     t.TEST_resumeSession();
     t.TEST_setOnlineStatus();
     t.TEST_getChatRoomsAndMessages();
+    t.TEST_editAndDeleteMessages();
     t.TEST_groupChatManagement();
 
     // Create a group chat
@@ -213,13 +214,14 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
 
     if (chat->getPeerCount())
     {
-        cout << "\t\t(userhandle)\t(privilege level)" << endl;
+        cout << "\t\t(userhandle)\t(privilege)\t(name)" << endl;
         for (unsigned i = 0; i < chat->getPeerCount(); i++)
         {
             MegaChatHandle uh = chat->getPeerHandle(i);
             Base64::btoa((const byte *)&uh, sizeof(handle), hstr);
             cout << "\t\t\t" << hstr;
-            cout << "\t" << MegaChatRoom::privToString(chat->getPeerPrivilege(i)) << endl;
+            cout << "\t" << MegaChatRoom::privToString(chat->getPeerPrivilege(i));
+            cout << "\t\t" << chat->getPeerName(i) << endl;
         }
     }
     else
@@ -359,6 +361,110 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
         delete chatroomListener;
     }
 
+    logout(0, true);
+}
+
+void MegaChatApiTest::TEST_editAndDeleteMessages()
+{
+    login(0);
+    login(1);
+
+    MegaUser *peer0 = megaApi[0]->getContact(email[1].c_str());
+    MegaUser *peer1 = megaApi[1]->getContact(email[0].c_str());
+    assert(peer0 && peer1);
+
+    MegaChatRoom *chatroom0 = megaChatApi[0]->getChatRoomByUser(peer0->getHandle());
+    if (!chatroom0) // chat 1on1 doesn't exist yet --> create it
+    {
+        MegaChatPeerList *peers = MegaChatPeerList::createInstance();
+        peers->addPeer(peer0->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+
+        bool *chatCreated = &chatUpdated[0]; *chatCreated = false;
+        bool *chatReceived = &chatUpdated[1]; *chatReceived = false;
+        megaChatApi[0]->createChat(false, peers, this);
+        assert(waitForResponse(chatCreated));
+        assert(waitForResponse(chatReceived));
+
+        chatroom0 = megaChatApi[0]->getChatRoomByUser((MegaChatHandle)peer0);
+    }
+
+    MegaChatHandle chatid0 = chatroom0->getChatId();
+    assert (chatid0 != MEGACHAT_INVALID_HANDLE);
+    delete chatroom0; chatroom0 = NULL;
+
+    MegaChatRoom *chatroom1 = megaChatApi[1]->getChatRoomByUser(peer1->getHandle());
+    MegaChatHandle chatid1 = chatroom1->getChatId();
+    assert (chatid0 == chatid1);
+
+    // 1. A sends a message to B while B has the chat opened.
+    // --> check the confirmed in A, the received message in B, the delivered in A
+
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid0);
+    assert(megaChatApi[0]->openChatRoom(chatid0, chatroomListener));
+    assert(megaChatApi[1]->openChatRoom(chatid1, chatroomListener));
+
+    sleep(300);
+
+    string msg0 = "HOLA " + email[0] + " - This is a testing message automatically sent to you";
+    bool *flagConfirmed = &chatroomListener->msgConfirmed[0]; *flagConfirmed = false;
+    bool *flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
+    bool *flagDelivered = &chatroomListener->msgDelivered[0]; *flagDelivered = false;
+    chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
+    chatroomListener->msgId[1] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+
+    MegaChatMessage *msgSent = megaChatApi[0]->sendMessage(chatid0, msg0.c_str());
+    assert(msgSent);
+    delete msgSent; msgSent = NULL;
+
+    assert(waitForResponse(flagConfirmed));    // for confirmation, sendMessage() is synchronous
+    MegaChatHandle msgId0 = chatroomListener->msgId[0];
+    assert (msgId0 != MEGACHAT_INVALID_HANDLE);
+
+    assert(waitForResponse(flagReceived));    // for reception
+    MegaChatHandle msgId1 = chatroomListener->msgId[1];
+    assert (msgId0 == msgId1);
+    MegaChatMessage *msgReceived = megaChatApi[1]->getMessage(chatid1, msgId0);   // message should be already received, so in RAM
+    assert(msgReceived && !strcmp(msg0.c_str(), msgReceived->getContent()));
+    assert(waitForResponse(flagDelivered));    // for delivery
+    delete msgReceived; msgReceived = NULL;
+
+    // edit the message
+    msg0 = "This is an edited message to " + email[0];
+    bool *flagEdited = &chatroomListener->msgEdited[0]; *flagEdited = false;
+    flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
+    flagDelivered = &chatroomListener->msgDelivered[0]; *flagDelivered = false;
+    chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
+    chatroomListener->msgId[1] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+
+    MegaChatMessage *msgEdited = megaChatApi[0]->editMessage(chatid0, msgId0, msg0.c_str());
+    assert(msgEdited);  // rejected because of age (more than one hour) --> shouldn't happen
+    delete msgEdited; msgEdited = NULL;
+
+    assert(waitForResponse(flagEdited));    // for confirmation, editMessage() is synchronous
+    msgId0 = chatroomListener->msgId[0];
+    assert (msgId0 != MEGACHAT_INVALID_HANDLE);
+    msgEdited = megaChatApi[0]->getMessage(chatid0, msgId0);
+    assert (msgEdited && msgEdited->isEdited());
+
+    assert(waitForResponse(flagReceived));    // for reception
+    msgId1 = chatroomListener->msgId[1];
+    assert (msgId0 == msgId1);
+    msgReceived = megaChatApi[1]->getMessage(chatid1, msgId1);   // message should be already received, so in RAM
+    assert(msgReceived && !strcmp(msgEdited->getContent(), msgReceived->getContent()));
+    assert(msgReceived->isEdited());
+    assert(waitForResponse(flagDelivered));    // for delivery
+
+
+
+    megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[1]->closeChatRoom(chatid, chatroomListener);
+    delete chatroomListener;
+
+    // 2. A sends a message to B while B doesn't have the chat opened.
+    // Then, B opens the chat --> check the received message in B, the delivered in A
+
+
+    logout(1, true);
     logout(0, true);
 }
 
@@ -575,6 +681,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApi **apis, MegaChatHandle ch
         this->msgConfirmed[i] = false;
         this->msgDelivered[i] = false;
         this->msgReceived[i] = false;
+        this->msgEdited[i] = false;
         this->msgId[i] = MEGACHAT_INVALID_HANDLE;
         this->chatUpdated[i] = false;
     }

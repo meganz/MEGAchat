@@ -2085,6 +2085,14 @@ void MegaChatRoomHandler::onUserTyping(karere::Id user)
     chatApi->fireOnChatRoomUpdate(chat);
 }
 
+void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &newName)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setMembersUpdated();
+
+    chatApi->fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::onTitleChanged(const string &title)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
@@ -2470,6 +2478,19 @@ int MegaChatRoomPrivate::getPeerPrivilegeByHandle(MegaChatHandle userhandle) con
     }
 
     return PRIV_UNKNOWN;
+}
+
+const char *MegaChatRoomPrivate::getPeerNameByHandle(MegaChatHandle userhandle) const
+{
+    for (unsigned int i = 0; i < peers.size(); i++)
+    {
+        if (peers.at(i).first == userhandle)
+        {
+            return peerNames.at(i).c_str();
+        }
+    }
+
+    return NULL;
 }
 
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const

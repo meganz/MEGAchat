@@ -1436,7 +1436,7 @@ public:
     {
         CHANGE_TYPE_STATUS          = 0x01,
         CHANGE_TYPE_UNREAD_COUNT    = 0x02,
-        CHANGE_TYPE_PARTICIPANTS    = 0x04,
+        CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
         CHANGE_TYPE_TITLE           = 0x08,
         CHANGE_TYPE_CHAT_STATE      = 0x10,
         CHANGE_TYPE_USER_TYPING     = 0X20
@@ -1492,6 +1492,16 @@ public:
      * - MegaChatPeerList::PRIV_MODERATOR = 3
      */
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
+
+    /**
+     * @brief Returns the current display name of the peer
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Display name of the chat peer with the handle specified.
+     */
+    virtual const char *getPeerNameByHandle(MegaChatHandle userhandle) const;
 
     /**
      * @brief Returns the number of participants in the chat
