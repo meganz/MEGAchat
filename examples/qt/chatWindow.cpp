@@ -54,11 +54,12 @@ MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     if (msg.updated)
         setEdited();
     setText(msg);
-    auto tooltip = QString("msgid: %1\nkeyid: %2\nuserid: %3\nchatid: %4\nbackrefs: %5")
-           .arg(QString::fromStdString(mMessage->id().toString()))
-           .arg(mMessage->keyid).arg(QString::fromStdString(mMessage->userid.toString()))
-           .arg(QString::fromStdString(parent.chat().chatId().toString()))
-           .arg(mMessage->backRefs.size());
+    auto tooltip = QString("msgid: %1\ntype:%2\nkeyid: %3\nuserid: %4\nchatid: %5\nbackrefs: %6")
+            .arg(QString::fromStdString(mMessage->id().toString()))
+            .arg(mMessage->type)
+            .arg(mMessage->keyid).arg(QString::fromStdString(mMessage->userid.toString()))
+            .arg(QString::fromStdString(parent.chat().chatId().toString()))
+            .arg(mMessage->backRefs.size());
     ui.mHeader->setToolTip(tooltip);
     show();
 }
