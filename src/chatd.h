@@ -709,7 +709,25 @@ public:
      */
     Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp);
 
-    /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer */
+    /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer.
+      * It's possible that the exact count is not yet known, if the last seen message is not
+      * known by the client yet. In that case, the client knows the minumum count,
+      * (which is the total count of locally loaded messages at the moment),
+      * and returns the number as negative. The application may use this to
+      * to display for example '1+' instead of '1' in the unread indicator.
+      * When more history is fetched, the negative count increases in absolute value,
+      * (but is still negative), until the actual last seen message is obtained,
+      * at which point the count becomes positive.
+      * An example: client has only one message pre-fetched from server, and
+      * its msgid is not the same as the last-seen-by-us msgid. The client
+      * will then return the unread count as -1. When one more message is loaded
+      * from server but it's still not the last-seen one, the count will become
+      * -2. A third message is fetched, and its msgid matches the last-seen-msgid.
+      * The client will then return the unread count as +2, and will not change
+      * as more history is fetched from server.
+      * Example 1: Client has 1 message pre-fetched and its msgid is the same
+      * as the last-seen-msgid. The count will be returned as 0.
+      */
     int unreadMsgCount() const;
 
     /** @brief Changes the Listener */
