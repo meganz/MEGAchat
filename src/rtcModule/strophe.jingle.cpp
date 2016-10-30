@@ -628,11 +628,11 @@ void JingleCall::setPcConstraint(const string &name, const string &value, bool o
 
 void Jingle::setMediaConstraint(const string& name, const string &value, bool optional)
 {
-    rtcModule::setConstraint(mediaConstraints, value, name, optional);
+    rtcModule::setConstraint(mediaConstraints, name, value, optional);
 }
 void Jingle::setPcConstraint(const string& name, const string &value, bool optional)
 {
-    rtcModule::setConstraint(pcConstraints, value, name, optional);
+    rtcModule::setConstraint(pcConstraints, name, value, optional);
 }
 
 
