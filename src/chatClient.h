@@ -338,7 +338,7 @@ protected:
     IApp::IContactListHandler* mAppClist; //cached, because we often need to check if it's null
     IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
-    void updateTitle(const std::string& str);
+    void updateTitle(const std::string& str, size_t firstNameLen);
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
     friend class PeerChatRoom;

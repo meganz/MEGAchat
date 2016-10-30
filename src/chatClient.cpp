@@ -1884,34 +1884,43 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
 {
     auto appClist = clist.client.app.contactListHandler();
     mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
-    updateTitle(email);
+    updateTitle(email, email.size());
     mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
         mega::MegaApi::USER_ATTR_LASTNAME, this,
         [](Buffer* data, void* userp)
         {
             auto self = static_cast<Contact*>(userp);
             if (!data || data->dataSize() < 2)
-                self->updateTitle(self->mEmail);
+                self->updateTitle(self->mEmail, self->mEmail.size());
             else
-                self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
+                self->updateTitle(std::string(data->buf(), data->dataSize()), 0);
         });
     //FIXME: Is this safe? We are passing a virtual interface to 'this' in the ctor
     mXmppContact = mClist.client.xmppContactList().addContact(*this);
 }
-void Contact::updateTitle(const std::string& str)
+void Contact::updateTitle(const std::string& str, size_t firstNameLen)
 {
-    mTitleString = str;
+    if (!firstNameLen)
+    {
+        mTitleString = str;
+    }
+    else
+    {
+        mTitleString.resize(1);
+        mTitleString[0] = firstNameLen;
+        mTitleString.append(str);
+    }
     if (mDisplay)
     {
-        mDisplay->onTitleChanged(str);
+        mDisplay->onTitleChanged(mTitleString);
     }
     if (mChatRoom)
     {
         auto display = mChatRoom->roomGui();
         if (display)
-            display->onTitleChanged(str);
+            display->onTitleChanged(mTitleString);
         if (mChatRoom->appChatHandler())
-            mChatRoom->appChatHandler()->onTitleChanged(str);
+            mChatRoom->appChatHandler()->onTitleChanged(mTitleString);
     }
 }
 
