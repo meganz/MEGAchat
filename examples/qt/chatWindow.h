@@ -622,7 +622,7 @@ public:
         updateChatdStatusDisplay(state);
 
         if ((state == chatd::kChatStateOnline) && (mChat->size() < 2)
-        && ((!mChat->isFetchingHistory())))
+        && ((!mChat->isFetchingFromServer())))
         {
             // avoid re-entrancy - we are in a chatd callback. We could use mega::marshallCall instead,
             // but this is safer as the window may get destroyed before the message is processed

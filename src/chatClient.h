@@ -170,6 +170,7 @@ protected:
     void updatePresence();
     void initWithChatd();
     virtual void connect();
+    inline Presence calculatePresence(Presence pres) const;
     friend class Contact;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
@@ -337,7 +338,7 @@ protected:
     IApp::IContactListHandler* mAppClist; //cached, because we often need to check if it's null
     IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
-    void updateTitle(const std::string& str);
+    void updateTitle(const std::string& str, size_t firstNameLen);
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
     friend class PeerChatRoom;
@@ -685,6 +686,13 @@ protected:
     friend class ChatRoom;
 /** @endcond PRIVATE */
 };
+
+inline Presence PeerChatRoom::calculatePresence(Presence pres) const
+{
+     if (mChat && mChat->onlineState() != chatd::kChatStateOnline)
+         return Presence::kOffline;
+     return pres;
+}
 
 }
 #endif // CHATCLIENT_H
