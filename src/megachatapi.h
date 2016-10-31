@@ -1494,14 +1494,24 @@ public:
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
 
     /**
-     * @brief Returns the current display name of the peer
+     * @brief Returns the current firstname of the peer
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
      *
      * @param Handle of the peer whose name is requested.
-     * @return Display name of the chat peer with the handle specified.
+     * @return Firstname of the chat peer with the handle specified.
      */
-    virtual const char *getPeerNameByHandle(MegaChatHandle userhandle) const;
+    virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
+
+    /**
+     * @brief Returns the current lastname of the peer
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Lastname of the chat peer with the handle specified.
+     */
+    virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
 
     /**
      * @brief Returns the number of participants in the chat
@@ -1538,12 +1548,20 @@ public:
     virtual int getPeerPrivilege(unsigned int i) const;
 
     /**
-     * @brief Returns the current display name of the peer
+     * @brief Returns the current firstname of the peer
      *
      * @param i Position of the peer whose name is requested
-     * @return Display name of the peer in the position \c i.
+     * @return Firstname of the peer in the position \c i.
      */
-    virtual const char *getPeerName(unsigned int i) const;
+    virtual const char *getPeerFirstname(unsigned int i) const;
+
+    /**
+     * @brief Returns the current lastname of the peer
+     *
+     * @param i Position of the peer whose name is requested
+     * @return Lastname of the peer in the position \c i.
+     */
+    virtual const char *getPeerLastname(unsigned int i) const;
 
     /**
      * @brief isGroup Returns whether this chat is a group chat or not

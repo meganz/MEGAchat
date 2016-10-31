@@ -2413,7 +2413,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     {
         MegaChatHandle uh = chat->getPeerHandle(i);
         peers.push_back(userpriv_pair(uh, (privilege_t) chat->getPeerPrivilege(i)));
-        peerNames.push_back(chat->getPeerName(i));
+        peerFirstnames.push_back(chat->getPeerFirstname(i));
+        peerLastnames.push_back(chat->getPeerLastname(i));
     }
     this->group = chat->isGroup();
     this->title = chat->getTitle();
@@ -2441,9 +2442,10 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         GroupChatRoom::MemberMap::iterator it;
         for (it = peers.begin(); it != peers.end(); it++)
         {
-            this->peers.push_back(userpriv_pair(it->first,
-                                          (privilege_t) it->second->priv()));
-            this->peerNames.push_back(it->second->name());
+            this->peers.push_back(userpriv_pair(it->first, (privilege_t) it->second->priv()));
+            string name = it->second->name();
+            this->peerFirstnames.push_back(name.length() ? string(name.data() + 1, name.at(0)) : "");
+            this->peerLastnames.push_back(name.length() ? name.c_str() + name.at(0) + 2: "");
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2454,7 +2456,9 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         handle uh = peerchat.peer();
 
         this->peers.push_back(userpriv_pair(uh, priv));
-        this->peerNames.push_back(peerchat.contact().titleString());
+        string buffer = peerchat.contact().titleString();
+        this->peerFirstnames.push_back(buffer.length() ? string(buffer.data() + 1, buffer.at(0)) : "");   // only firstname
+        this->peerLastnames.push_back(buffer.length() ? buffer.data() + buffer.at(0) + 2 : "");   // only lastname
         this->status = chat.presence().status();
     }
 }
@@ -2487,13 +2491,26 @@ int MegaChatRoomPrivate::getPeerPrivilegeByHandle(MegaChatHandle userhandle) con
     return PRIV_UNKNOWN;
 }
 
-const char *MegaChatRoomPrivate::getPeerNameByHandle(MegaChatHandle userhandle) const
+const char *MegaChatRoomPrivate::getPeerFirstnameByHandle(MegaChatHandle userhandle) const
 {
     for (unsigned int i = 0; i < peers.size(); i++)
     {
         if (peers.at(i).first == userhandle)
         {
-            return peerNames.at(i).c_str();
+            return peerFirstnames.at(i).c_str();
+        }
+    }
+
+    return NULL;
+}
+
+const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhandle) const
+{
+    for (unsigned int i = 0; i < peers.size(); i++)
+    {
+        if (peers.at(i).first == userhandle)
+        {
+            return peerLastnames.at(i).c_str();
         }
     }
 
@@ -2515,9 +2532,14 @@ MegaChatHandle MegaChatRoomPrivate::getPeerHandle(unsigned int i) const
     return peers.at(i).first;
 }
 
-const char *MegaChatRoomPrivate::getPeerName(unsigned int i) const
+const char *MegaChatRoomPrivate::getPeerFirstname(unsigned int i) const
 {
-    return peerNames.at(i).c_str();
+    return peerFirstnames.at(i).c_str();
+}
+
+const char *MegaChatRoomPrivate::getPeerLastname(unsigned int i) const
+{
+    return peerLastnames.at(i).c_str();
 }
 
 bool MegaChatRoomPrivate::isGroup() const

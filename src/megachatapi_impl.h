@@ -378,11 +378,13 @@ public:
     virtual MegaChatHandle getChatId() const;
     virtual int getOwnPrivilege() const;
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
-    virtual const char *getPeerNameByHandle(MegaChatHandle userhandle) const;
+    virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
+    virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
     virtual int getPeerPrivilege(unsigned int i) const;
     virtual unsigned int getPeerCount() const;
     virtual MegaChatHandle getPeerHandle(unsigned int i) const;
-    virtual const char *getPeerName(unsigned int i) const;
+    virtual const char *getPeerFirstname(unsigned int i) const;
+    virtual const char *getPeerLastname(unsigned int i) const;
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
     virtual int getOnlineState() const;
@@ -407,7 +409,8 @@ private:
     MegaChatHandle chatid;
     int priv;
     mega::userpriv_vector peers;
-    std::vector<std::string> peerNames;
+    std::vector<std::string> peerFirstnames;
+    std::vector<std::string> peerLastnames;
     bool group;
 
     std::string title;
