@@ -2182,7 +2182,8 @@ void MegaChatRoomHandler::onUnsentEditLoaded(chatd::Message &msg, bool oriMsgIsS
 
 void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx idx)
 {
-    Message::Status status = mChat->getMsgStatus(msg, idx);
+    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_RECEIVED;
+//    Message::Status status = mChat->getMsgStatus(msg, idx); It already returns delivered sometimes
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     message->setStatus(status);
     message->setTempId(msgxid);     // to allow the app to find the "temporal" message
