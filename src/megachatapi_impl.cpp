@@ -350,6 +350,12 @@ void MegaChatApiImpl::sendPendingRequests()
             else    // 1on1 chat
             {
                 ContactList::iterator it = mClient->contactList->find(peersList->getPeerHandle(0));
+                if (it == mClient->contactList->end())
+                {
+                    // contact not found
+                    errorCode = MegaChatError::ERROR_ARGS;
+                    break;
+                }
                 it->second->createChatRoom()
                 .then([request,this](ChatRoom* room)
                 {
