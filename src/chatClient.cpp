@@ -967,7 +967,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const s
   mRoomGui(addAppItem()),
   mTitleString(mContact.titleString().empty()
     ? mContact.titleString()
-    : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1)
+    : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1))
 {
     mContact.attachChatRoom(*this);
     initWithChatd();
@@ -981,7 +981,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     mRoomGui(addAppItem()),
     mTitleString(mContact.titleString().empty()
         ? mContact.titleString()
-        : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1)
+        : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1))
 {
     assert(!chat.isGroup());
     auto peers = chat.getPeerList();
@@ -1035,11 +1035,9 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     return changed;
 }
 
-const std::string PeerChatRoom::titleString() const
+const std::string& PeerChatRoom::titleString() const
 {
-    if (mContact.titleString().empty())
-        return mContact.titleString();
-    return mContact.titleString();
+    return mTitleString;
 }
 
 void GroupChatRoom::addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb)
@@ -1612,8 +1610,8 @@ void PeerChatRoom::updateTitle(const std::string& title)
     auto display = roomGui();
     if (display)
         display->onTitleChanged(mTitleString);
-    if (mChatRoom->appChatHandler())
-        mChatRoom->appChatHandler()->onTitleChanged(mTitleString);
+    if (appChatHandler())
+        appChatHandler()->onTitleChanged(mTitleString);
 }
 
 void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
