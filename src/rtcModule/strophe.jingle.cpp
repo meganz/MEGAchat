@@ -568,10 +568,15 @@ void JingleCall::initiate()
 // create and initiate a new jinglesession to peerjid
     mSess->initiate(true);
     mSess->sendOffer()
-      .then([this](Stanza)
-      {
+    .then([this](Stanza)
+    {
         mSess->sendMuteDelta(AvFlags(true,true), mLocalAv);
-      });
+    })
+    .fail([](const promise::Error& err)
+    {
+        RTCM_LOG_ERROR("Error sending offer: %s", err.what());
+    });
+
     RTCM_EVENT(this, onSession);
 }
 

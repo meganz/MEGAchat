@@ -139,6 +139,20 @@ Promise<Stanza> JingleSession::sendIceCandidate(
     return sendIq(cand.first, "transportinfo");
 }
 
+webrtc::SessionDescriptionInterface* parsedSdpToWebrtcSdp(
+    const ParsedSdp& parsed, const std::string& type)
+{
+    webrtc::SdpParseError err;
+    auto sdp = webrtc::CreateSessionDescription(type, parsed.toString(), &err);
+    if (!sdp)
+    {
+        printf("ERROR PARSING SDP\n");
+        throw std::runtime_error("Error parsing tweaked-for-encoding SDP string at line "
+            +err.line+": "+err.description);
+    }
+    return sdp;
+}
+
 Promise<Stanza> JingleSession::sendOffer()
 {
     return mPeerConn.createOffer(mCall.pcConstraints
@@ -148,14 +162,13 @@ Promise<Stanza> JingleSession::sendOffer()
     {
         string strSdp;
         KR_THROW_IF_FALSE(sdp->ToString(&strSdp));
-        webrtc::SessionDescriptionInterface* newSdp =
-            tweakEncoding(strSdp, sdp->type());
-        if (newSdp)
+        mLocalSdp.parse(strSdp);
+        if (tweakEncoding(mLocalSdp))
         {
+            webrtc::SessionDescriptionInterface* newSdp = parsedSdpToWebrtcSdp(mLocalSdp, sdp->type());
             delete sdp;
             sdp = newSdp;
         }
-        mLocalSdp.parse(strSdp);
         return mPeerConn.setLocalDescription(sdp);
     })
     .then([this]()
@@ -169,15 +182,16 @@ Promise<Stanza> JingleSession::sendOffer()
 
 Promise<void> JingleSession::setRemoteDescription(Stanza elem, const string& desctype)
 {
-    if (!mRemoteSdp.raw.empty())
+    if (!mRemoteSdp.session.empty())
         throw runtime_error("setRemoteDescription() from stanza: already have remote description");
     mRemoteSdp.parse(elem);
     unique_ptr<webrtc::JsepSessionDescription> jsepSdp(
         new webrtc::JsepSessionDescription(desctype));
     webrtc::SdpParseError error;
-    if (!jsepSdp->Initialize(mRemoteSdp.raw, &error))
+    if (!jsepSdp->Initialize(mRemoteSdp.toString(), &error))
         throw std::runtime_error("Error parsing SDP: line='"+error.line+"'\nError: "+error.description);
-//    KR_LOG_COLOR(34, "translated remote sdp:\n%s\n", mRemoteSdp.raw.c_str());
+
+//  KR_LOG_COLOR(34, "translated remote sdp:\n%s\n", mRemoteSdp.raw.c_str());
     return mPeerConn.setRemoteDescription(jsepSdp.release());
 }
 
@@ -229,14 +243,14 @@ Promise<void> JingleSession::sendAnswer()
         checkActive("created SDP answer");
         string strSdp;
         KR_THROW_IF_FALSE(sdp->ToString(&strSdp));
-        webrtc::SessionDescriptionInterface* newSdp =
-            tweakEncoding(strSdp, sdp->type());
-        if (newSdp)
+        mLocalSdp.parse(strSdp);
+        if (tweakEncoding(mLocalSdp))
         {
+            auto newSdp = parsedSdpToWebrtcSdp(mLocalSdp, sdp->type());
             delete sdp;
             sdp = newSdp;
         }
-        mLocalSdp.parse(strSdp);
+
         auto accept = createJingleIq(mCall.mPeerJid, "session-accept");
         mLocalSdp.toJingle(accept.second, jCreator());
         addFingerprintMac(accept.second);
@@ -357,47 +371,29 @@ int JingleSession::findCodecNo(const std::string& sdp, const char* codecName)
     return atoi(m[1].str().c_str());
 }
 
-webrtc::SessionDescriptionInterface*
-JingleSession::tweakEncoding(std::string& strSdp, const std::string& type)
+bool JingleSession::tweakEncoding(sdpUtil::ParsedSdp& sdp)
 {
-//    return nullptr;
-    bool changed = false;
-    int vp8id = findCodecNo(strSdp, "VP8");
-    int vp9id = findCodecNo(strSdp, "VP9");
-    if (vp8id)
+    return false;
+    sdpUtil::MGroup* video = nullptr;
+    for (auto& media: sdp.media)
     {
-        changed = changed | tweakCodec(strSdp, vp8id);
+        if (media.name() == "video")
+        {
+            video = &media;
+            break;
+        }
     }
-/*    if (vp9id)
-    {
-        changed = changed | tweakCodec(strSdp, vp9id);
-    }
-*/
-    if (!changed)
-    {
-        return nullptr;
-    }
-
-    printf("SDP: %s\n", strSdp.c_str());
-
-    webrtc::SdpParseError err;
-    auto sdp = webrtc::CreateSessionDescription(type, strSdp, &err);
-    if (!sdp)
-    {
-        printf("ERROR PARSING SDP\n");
-        throw std::runtime_error("Error parsing tweaked-for-encoding SDP string at line "
-            +err.line+": "+err.description);
-    }
-    return sdp;
+    if (!video)
+        return false;
+    bool changed = tweakCodec(*video, 100);
+    printf("SDP: %s\n", sdp.toString().c_str());
+    return changed;
 }
 
-bool JingleSession::tweakCodec(std::string& strSdp, int codecId)
+bool JingleSession::tweakCodec(sdpUtil::MGroup& media, int codecId)
 {
     bool changed = false;
     std::string line;
-    char lastch = strSdp[strSdp.size()-1];
-    if ((lastch != '\n') && (lastch != '\r'))
-        line+= "\r\n";
     line.append("a=fmtp:").append(to_string(codecId));
     auto& params = mCall.vidEncParams;
     if (params.minBitrate)
@@ -408,8 +404,7 @@ bool JingleSession::tweakCodec(std::string& strSdp, int codecId)
     }
     if (params.maxBitrate)
     {
-        line.append(" x-google-max-bitrate=")
-            .append(std::to_string(params.maxBitrate))+=';';
+        media.insert(media.begin()+1, "b=AS:"+std::to_string(params.maxBitrate));
         changed = true;
     }
     if (params.maxQuant)
@@ -419,21 +414,15 @@ bool JingleSession::tweakCodec(std::string& strSdp, int codecId)
         changed = true;
     }
     if (changed)
+    {
         line.resize(line.size()-1); //remove last ';'
+        media.push_back(line);
+    }
     if (params.bufLatency) //this one should be last as it adds a new line
     {
-        line.append("\r\na=x-google-buffer-latency:")
-            .append(std::to_string(params.bufLatency));
+        media.push_back("a=x-google-buffer-latency:"+std::to_string(params.bufLatency));
         changed = true;
     }
-    if (!changed)
-        return false;
-
-    line+="\r\n";
-    auto idx = strSdp.find("a=ssrc-group");
-    assert (idx != string::npos);
-    strSdp.insert(idx, line);
-    return true;
+    return changed;
 }
-
 }

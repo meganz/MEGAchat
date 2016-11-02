@@ -61,12 +61,9 @@ protected:
     std::unique_ptr<FileTransferHandler> mFtHandler;
     void reportError(const std::string& msg, const char* reason, const char* text, unsigned flags=0);
     void addFingerprintMac(strophe::Stanza jingle);
-    bool tweaksEncoding() const;
-    webrtc::SessionDescriptionInterface*
-        tweakEncoding(std::string& strSdp, const std::string& type);
+    bool tweakEncoding(sdpUtil::ParsedSdp& sdp);
     int findCodecNo(const std::string& sdp, const char* codecName);
-    bool tweakCodec(std::string& strSdp, int codecId);
-
+    bool tweakCodec(sdpUtil::MGroup& sdp, int codecId);
 public:
     artc::myPeerConnection<JingleSession> mPeerConn;
     std::unique_ptr<StanzaQueue> inputQueue;
