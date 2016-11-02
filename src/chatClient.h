@@ -323,7 +323,7 @@ public:
 };
 
 /** @brief Represents a karere contact. Also handles presence change events. */
-class Contact: public IPresenceListener
+class Contact: public IPresenceListener, public karere::TrackDelete
 {
 /** @cond PRIVATE */
 protected:
@@ -394,6 +394,8 @@ public:
      */
     int visibility() const { return mVisibility; }
 
+    /** @brief The presence of the contact */
+    Presence presence() const { return mXmppContact->presence(); }
     /** @cond PRIVATE */
     virtual void onPresence(Presence pres)
     {

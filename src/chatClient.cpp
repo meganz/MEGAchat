@@ -1896,9 +1896,20 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             else
                 self->updateTitle(std::string(data->buf(), data->dataSize()), 0);
         });
-    //FIXME: Is this safe? We are passing a virtual interface to 'this' in the ctor
+
     mXmppContact = mClist.client.xmppContactList().addContact(*this);
+    auto pres = mXmppContact->presence();
+    if (pres != Presence::kOffline)
+    {
+        auto wptr = getWeakPtr();
+        marshallCall([wptr, this, pres]()
+        {
+            wptr.throwIfDeleted();
+            onPresence(pres);
+        });
+    }
 }
+
 // the title string starts with a byte equal to the first name length, followed by first name,
 // then second name
 void Contact::updateTitle(const std::string& str, size_t firstNameLen)

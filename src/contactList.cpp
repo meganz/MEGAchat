@@ -106,9 +106,6 @@ std::shared_ptr<XmppContact> XmppContactList::addContact(Contact& contact)
     {
         auto xmppContact = it->second;
         xmppContact->setPresenceListener(&contact);
-        auto pres = xmppContact->presence();
-        if (pres != Presence::kOffline)
-            contact.onPresence(pres);
         return xmppContact;
     }
     else
