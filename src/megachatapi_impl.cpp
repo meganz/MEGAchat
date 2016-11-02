@@ -998,7 +998,7 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
     ContactList::iterator it = mClient->contactList->find(userhandle);
     if (it != mClient->contactList->end())
     {
-        status = it->second->xmppContact().presence().status();
+        status = it->second->presence().status();
     }
 
     sdkMutex.unlock();
