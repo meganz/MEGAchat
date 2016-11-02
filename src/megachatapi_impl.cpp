@@ -350,6 +350,12 @@ void MegaChatApiImpl::sendPendingRequests()
             else    // 1on1 chat
             {
                 ContactList::iterator it = mClient->contactList->find(peersList->getPeerHandle(0));
+                if (it == mClient->contactList->end())
+                {
+                    // contact not found
+                    errorCode = MegaChatError::ERROR_ARGS;
+                    break;
+                }
                 it->second->createChatRoom()
                 .then([request,this](ChatRoom* room)
                 {
@@ -505,8 +511,8 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_TRUNCATE_HISTORY:
         {
             handle chatid = request->getChatHandle();
-            handle messageid = request->getUserHandle();
-            if (chatid == MEGACHAT_INVALID_HANDLE || messageid == MEGACHAT_INVALID_HANDLE)
+
+            if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -522,6 +528,12 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
+            }
+
+            handle messageid = request->getUserHandle();
+            if (messageid == MEGACHAT_INVALID_HANDLE)   // clear the full history, from current message
+            {
+                messageid = chatroom->chat().at(chatroom->chat().highnum()).id().val;
             }
 
             mClient->api.call(&MegaApi::truncateChat, chatid, messageid)
@@ -974,6 +986,23 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
 
 int MegaChatApiImpl::getOnlineStatus()
 {
+    return status;
+}
+
+int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
+{
+    int status = MegaChatApi::STATUS_OFFLINE;
+
+    sdkMutex.lock();
+
+    ContactList::iterator it = mClient->contactList->find(userhandle);
+    if (it != mClient->contactList->end())
+    {
+        status = it->second->xmppContact().presence().status();
+    }
+
+    sdkMutex.unlock();
+
     return status;
 }
 
@@ -2077,10 +2106,26 @@ IApp::ICallHandler *MegaChatRoomHandler::callHandler()
     return NULL;
 }
 
+void MegaChatRoomHandler::onUserTyping(karere::Id user)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setUserTyping(user.val);
+
+    chatApi->fireOnChatRoomUpdate(chat);
+}
+
+void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &newName)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setMembersUpdated();
+
+    chatApi->fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::onTitleChanged(const string &title)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
-    chat->setTitle(title.c_str());
+    chat->setTitle(title);
 
     chatApi->fireOnChatRoomUpdate(chat);
 }
@@ -2160,7 +2205,8 @@ void MegaChatRoomHandler::onUnsentEditLoaded(chatd::Message &msg, bool oriMsgIsS
 
 void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx idx)
 {
-    Message::Status status = mChat->getMsgStatus(msg, idx);
+    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_RECEIVED;
+//    Message::Status status = mChat->getMsgStatus(msg, idx); It already returns delivered sometimes
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     message->setStatus(status);
     message->setTempId(msgxid);     // to allow the app to find the "temporal" message
@@ -2388,7 +2434,10 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->priv = chat->getOwnPrivilege();
     for (unsigned int i = 0; i < chat->getPeerCount(); i++)
     {
-        peers.push_back(userpriv_pair(chat->getPeerHandle(i), (privilege_t) chat->getPeerPrivilege(i)));
+        MegaChatHandle uh = chat->getPeerHandle(i);
+        peers.push_back(userpriv_pair(uh, (privilege_t) chat->getPeerPrivilege(i)));
+        peerFirstnames.push_back(chat->getPeerFirstname(i));
+        peerLastnames.push_back(chat->getPeerLastname(i));
     }
     this->group = chat->isGroup();
     this->title = chat->getTitle();
@@ -2404,7 +2453,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     this->chatid = chat.chatid();
     this->priv = chat.ownPriv();
     this->group = chat.isGroup();
-    this->title = chat.titleString().c_str();
+    this->title = chat.titleString();
     this->chatState = chat.chatdOnlineState();
     this->unreadCount = chat.chat().unreadMsgCount();
 
@@ -2416,8 +2465,10 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         GroupChatRoom::MemberMap::iterator it;
         for (it = peers.begin(); it != peers.end(); it++)
         {
-            this->peers.push_back(userpriv_pair(it->first,
-                                          (privilege_t) it->second->priv()));
+            this->peers.push_back(userpriv_pair(it->first, (privilege_t) it->second->priv()));
+            string name = it->second->name();
+            this->peerFirstnames.push_back(name.length() ? string(name.data() + 1, name.at(0)) : "");
+            this->peerLastnames.push_back(name.length() ? name.c_str() + name.at(0) + 2: "");
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2428,6 +2479,9 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         handle uh = peerchat.peer();
 
         this->peers.push_back(userpriv_pair(uh, priv));
+        string buffer = peerchat.contact().titleString();
+        this->peerFirstnames.push_back(buffer.length() ? string(buffer.data() + 1, buffer.at(0)) : "");   // only firstname
+        this->peerLastnames.push_back(buffer.length() ? buffer.data() + buffer.at(0) + 2 : "");   // only lastname
         this->status = chat.presence().status();
     }
 }
@@ -2460,6 +2514,32 @@ int MegaChatRoomPrivate::getPeerPrivilegeByHandle(MegaChatHandle userhandle) con
     return PRIV_UNKNOWN;
 }
 
+const char *MegaChatRoomPrivate::getPeerFirstnameByHandle(MegaChatHandle userhandle) const
+{
+    for (unsigned int i = 0; i < peers.size(); i++)
+    {
+        if (peers.at(i).first == userhandle)
+        {
+            return peerFirstnames.at(i).c_str();
+        }
+    }
+
+    return NULL;
+}
+
+const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhandle) const
+{
+    for (unsigned int i = 0; i < peers.size(); i++)
+    {
+        if (peers.at(i).first == userhandle)
+        {
+            return peerLastnames.at(i).c_str();
+        }
+    }
+
+    return NULL;
+}
+
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
 {
     return peers.at(i).second;
@@ -2475,6 +2555,16 @@ MegaChatHandle MegaChatRoomPrivate::getPeerHandle(unsigned int i) const
     return peers.at(i).first;
 }
 
+const char *MegaChatRoomPrivate::getPeerFirstname(unsigned int i) const
+{
+    return peerFirstnames.at(i).c_str();
+}
+
+const char *MegaChatRoomPrivate::getPeerLastname(unsigned int i) const
+{
+    return peerLastnames.at(i).c_str();
+}
+
 bool MegaChatRoomPrivate::isGroup() const
 {
     return group;
@@ -2482,7 +2572,7 @@ bool MegaChatRoomPrivate::isGroup() const
 
 const char *MegaChatRoomPrivate::getTitle() const
 {
-    return title;
+    return title.c_str();
 }
 
 int MegaChatRoomPrivate::getOnlineState() const
@@ -2510,13 +2600,14 @@ int MegaChatRoomPrivate::getOnlineStatus() const
     return status;
 }
 
-void MegaChatRoomPrivate::setTitle(const char *title)
+MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
 {
-    if(this->title)
-    {
-        delete [] this->title;
-    }
-    this->title = MegaApi::strdup(title);
+    return uh;
+}
+
+void MegaChatRoomPrivate::setTitle(string title)
+{
+    this->title = title;
     this->changed |= MegaChatRoom::CHANGE_TYPE_TITLE;
 }
 
@@ -2541,6 +2632,12 @@ void MegaChatRoomPrivate::setOnlineState(int state)
 {
     this->chatState = state;
     this->changed |= MegaChatRoom::CHANGE_TYPE_CHAT_STATE;
+}
+
+void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
+{
+    this->uh = uh;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_USER_TYPING;
 }
 
 void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
@@ -2864,6 +2961,11 @@ bool MegaChatMessagePrivate::isEdited() const
 bool MegaChatMessagePrivate::isDeleted() const
 {
     return deleted;
+}
+
+bool MegaChatMessagePrivate::isEditable() const
+{
+    return (!isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
 }
 
 int MegaChatMessagePrivate::getChanges() const

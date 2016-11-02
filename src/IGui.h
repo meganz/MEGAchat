@@ -30,7 +30,11 @@ public:
 
         /**
          * @brief Called by karere when the title has changed. It can be used to e.g.
-         * to update the displayed contact/groupchat name
+         * to update the displayed contact/groupchat name. For contacts (and only there),
+         * this string has a special layout - the first byte is the length of
+         * the first name, then the first name follows, then the second name.
+         * This allows passing taking apart the full name into first and second
+         * name.
          */
         virtual void onTitleChanged(const std::string& title) = 0;
 
@@ -93,6 +97,12 @@ public:
          * cache to get a human-readable name for the user.
          */
         virtual void onUserTyping(karere::Id user) {}
+
+        /** @brief Called when the name of a member changes
+         * @param userid The member user handle
+         * @param newName The new name. The first char of the name
+         */
+        virtual void onMemberNameChanged(uint64_t userid, const std::string& newName){}
 
         /** @brief Returns an optionally associated user data pointer */
         void* userp = nullptr;

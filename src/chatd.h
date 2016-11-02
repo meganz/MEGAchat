@@ -273,7 +273,7 @@ public:
     }
 };
 
-enum HistFetchState
+enum ServerHistFetchState
 {
 /** Thie least significant 2 bits signify the history fetch source,
  * and correspond to HistSource values */
@@ -289,9 +289,7 @@ enum HistFetchState
     kHistFetchingOldFromServer = kHistSourceServer | kHistOldFlag,
     kHistFetchingNewFromServer = kHistSourceServer | 0,
 /** We are currently fetching history from db - always old messages */
-//    kHistFetchingFromDb = kHistSourceDb | kHistOldFlag,
 /** Fething from RAM history buffer, always old messages */
-//    kHistFetchingFromRam = kHistSourceRam | kHistOldFlag,
     kHistDecryptingFlag = 16,
     kHistDecryptingOld = kHistDecryptingFlag | kHistOldFlag,
     kHistDecryptingNew = kHistDecryptingFlag | 0
@@ -375,9 +373,9 @@ protected:
     unsigned mLastServerHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
     unsigned mLastHistDecryptCount = 0; ///< Similar to mLastServerHistFetchCount, but reflects the current number of message passed through the decrypt process, which may be less than mLastServerHistFetchCount at a given moment
     /** @brief The state of history fetching from server */
-    HistFetchState mHistFetchState = kHistNotFetching;
+    ServerHistFetchState mServerFetchState = kHistNotFetching;
     /** @brief @The state of history sending to the app via getHistory() */
-    HistSource mHistSendSource = kHistSourceNone;
+    bool mServerOldHistCbEnabled = false;
     bool mHaveAllHistory = false;
     Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
@@ -525,23 +523,27 @@ public:
     /** @brief The chatd::Listener currently attached to this chat */
     Listener* listener() const { return mListener; }
 
-    /** @brief The source from where history is being retrieved at the moment
-     * by the app, via \c getHistory().
-     * If history is not being fetched, kHistSourceNone is returned.
+    /** @brief Whether the listener will be notified upon receiving
+     * old history messages from the server.
      */
-    HistSource histSendSource() const { return mHistSendSource; }
+    bool isServerOldHistCbEnabled() const { return mServerOldHistCbEnabled;}
 
-    /** @brief Returns whether we are fetching history at the moment */
-    bool isFetchingHistory() const { return (mHistFetchState & kHistNotFetching) == 0; }
+    /** @brief Returns whether history is being fetched from server _and_
+     * send to the application callback via \c onRecvHistoryMsg().
+     */
+    bool isNotifyingOldHistFromServer() const { return mServerOldHistCbEnabled && (mServerFetchState & kHistOldFlag); }
+
+    /** @brief Returns whether we are fetching old or new history at the moment */
+    bool isFetchingFromServer() const { return (mServerFetchState & kHistNotFetching) == 0; }
 
     /** @brief The current history fetch state */
-    HistFetchState histFetchState() const { return mHistFetchState; }
+    ServerHistFetchState serverFetchState() const { return mServerFetchState; }
 
     /** @brief Whether we are decrypting the fetched history. The app may need
      * to differentiate whether the history fetch process is doing the actual fetch, or
      * is waiting for the decryption (i.e. fetching chat keys etc)
      */
-    bool isFetchDecrypting() const { return (isFetchingHistory() && (mHistFetchState & kHistDecryptingFlag)); }
+    bool isServerFetchDecrypting() const { return mServerFetchState & kHistDecryptingFlag; }
 
     /**
      * @brief haveAllHistory
@@ -707,7 +709,25 @@ public:
      */
     Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp);
 
-    /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer */
+    /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer.
+      * It's possible that the exact count is not yet known, if the last seen message is not
+      * known by the client yet. In that case, the client knows the minumum count,
+      * (which is the total count of locally loaded messages at the moment),
+      * and returns the number as negative. The application may use this to
+      * to display for example '1+' instead of '1' in the unread indicator.
+      * When more history is fetched, the negative count increases in absolute value,
+      * (but is still negative), until the actual last seen message is obtained,
+      * at which point the count becomes positive.
+      * An example: client has only one message pre-fetched from server, and
+      * its msgid is not the same as the last-seen-by-us msgid. The client
+      * will then return the unread count as -1. When one more message is loaded
+      * from server but it's still not the last-seen one, the count will become
+      * -2. A third message is fetched, and its msgid matches the last-seen-msgid.
+      * The client will then return the unread count as +2, and will not change
+      * as more history is fetched from server.
+      * Example 1: Client has 1 message pre-fetched and its msgid is the same
+      * as the last-seen-msgid. The count will be returned as 0.
+      */
     int unreadMsgCount() const;
 
     /** @brief Changes the Listener */

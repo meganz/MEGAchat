@@ -54,11 +54,12 @@ MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     if (msg.updated)
         setEdited();
     setText(msg);
-    auto tooltip = QString("msgid: %1\nkeyid: %2\nuserid: %3\nchatid: %4\nbackrefs: %5")
-           .arg(QString::fromStdString(mMessage->id().toString()))
-           .arg(mMessage->keyid).arg(QString::fromStdString(mMessage->userid.toString()))
-           .arg(QString::fromStdString(parent.chat().chatId().toString()))
-           .arg(mMessage->backRefs.size());
+    auto tooltip = QString("msgid: %1\ntype:%2\nkeyid: %3\nuserid: %4\nchatid: %5\nbackrefs: %6")
+            .arg(QString::fromStdString(mMessage->id().toString()))
+            .arg(mMessage->type)
+            .arg(mMessage->keyid).arg(QString::fromStdString(mMessage->userid.toString()))
+            .arg(QString::fromStdString(parent.chat().chatId().toString()))
+            .arg(mMessage->backRefs.size());
     ui.mHeader->setToolTip(tooltip);
     show();
 }
@@ -233,17 +234,14 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
         widget->msgDeleted();
         return;
     }
+    assert(msg.ts);
     widget->setText(msg);
     if (msg.userid == mChat->client().userId()) //edit of our own message
     {
         //edited state must have been set earlier, on posting the edit
         widget->updateStatus(chatd::Message::kServerReceived);
-        widget->setEdited();
     }
-    else
-    {
-        widget->setEdited();
-    }
+    widget->setEdited();
     widget->fadeIn(QColor(Qt::yellow));
 }
 
@@ -431,7 +429,7 @@ void MessageWidget::msgDeleted()
     assert(mMessage->userp);
     auto& list = *mChatWindow.ui.mMessageList;
     auto visualRect = list.visualItemRect(static_cast<QListWidgetItem*>(mMessage->userp));
-    if (mChatWindow.mChat->isFetchingHistory() || !list.rect().contains(visualRect))
+    if (mChatWindow.mChat->isFetchingFromServer() || !list.rect().contains(visualRect))
     {
         removeFromList();
         return;

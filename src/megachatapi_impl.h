@@ -264,7 +264,10 @@ public:
 
     // karere::IApp::IChatHandler implementation
     virtual karere::IApp::ICallHandler* callHandler();
+    virtual void onUserTyping(karere::Id user);
+    virtual void onMemberNameChanged(uint64_t userid, const std::string &newName);
     //virtual void* userp();
+
 
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
@@ -375,9 +378,13 @@ public:
     virtual MegaChatHandle getChatId() const;
     virtual int getOwnPrivilege() const;
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
+    virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
+    virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
     virtual int getPeerPrivilege(unsigned int i) const;
     virtual unsigned int getPeerCount() const;
     virtual MegaChatHandle getPeerHandle(unsigned int i) const;
+    virtual const char *getPeerFirstname(unsigned int i) const;
+    virtual const char *getPeerLastname(unsigned int i) const;
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
     virtual int getOnlineState() const;
@@ -387,12 +394,14 @@ public:
 
     virtual int getUnreadCount() const;
     virtual int getOnlineStatus() const;
+    virtual MegaChatHandle getUserTyping() const;
 
-    void setTitle(const char *title);
+    void setTitle(std::string title);
     void setUnreadCount(int count);
     void setOnlineStatus(int status);
     void setMembersUpdated();
     void setOnlineState(int state);
+    void setUserTyping(MegaChatHandle uh);
 
 private:
     int changed;
@@ -400,12 +409,15 @@ private:
     MegaChatHandle chatid;
     int priv;
     mega::userpriv_vector peers;
+    std::vector<std::string> peerFirstnames;
+    std::vector<std::string> peerLastnames;
     bool group;
 
-    const char *title;
+    std::string title;
     int unreadCount;
     int status;
     int chatState;
+    MegaChatHandle uh;
 };
 
 class MegaChatRoomListPrivate :  public MegaChatRoomList
@@ -445,6 +457,7 @@ public:
     virtual const char *getContent() const;
     virtual bool isEdited() const;
     virtual bool isDeleted() const;
+    virtual bool isEditable() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -624,6 +637,7 @@ public:
 
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     int getOnlineStatus();
+    int getUserOnlineStatus(MegaChatHandle userhandle);
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);

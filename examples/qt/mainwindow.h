@@ -168,12 +168,6 @@ public:
         return window;
     }
     CListChatItem(QWidget* parent): CListItem(parent){}
-//ITitleHandler intefrace
-    virtual void onTitleChanged(const std::string& title)
-    {
-        QString text = QString::fromUtf8(title.c_str(), title.size());
-        ui.mName->setText(text);
-    }
     virtual void onVisibilityChanged(int newVisibility) {}
 //==
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
@@ -254,7 +248,8 @@ public:
     }
     virtual void onTitleChanged(const std::string &title)
     {
-        QString text = QString::fromUtf8(title.c_str(), title.size());
+        // first char is length of first name
+        QString text = QString::fromUtf8(title.c_str()+1, title[0]);
         ui.mName->setText(text);
         ui.mAvatar->setText(QString(text[0].toUpper()));
         auto& col = gAvatarColors[mContact.userId() & 0x0f];
@@ -405,6 +400,12 @@ public:
         setToolTip(text);
     }
     virtual void onMembersUpdated() { updateToolTip(); }
+    //ITitleHandler intefrace
+    virtual void onTitleChanged(const std::string& title)
+    {
+        QString text = QString::fromUtf8(title.c_str(), title.size());
+        ui.mName->setText(text);
+    }
 protected:
     karere::GroupChatRoom& mRoom;
     void contextMenuEvent(QContextMenuEvent* event)
@@ -460,6 +461,12 @@ public:
         menu.exec(event->globalPos());
     }
     virtual karere::ChatRoom& room() const { return mRoom; }
+    //ITitleHandler intefrace
+    virtual void onTitleChanged(const std::string& title)
+    {
+        QString text = QString::fromUtf8(title.c_str());
+        ui.mName->setText(text);
+    }
 };
 
 #endif // MAINWINDOW_H

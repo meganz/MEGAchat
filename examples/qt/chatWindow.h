@@ -139,6 +139,7 @@ public:
     MessageWidget& setEdited(const QString& txt=QObject::tr("(Edited)"))
     {
         ui.mEditDisplay->setText(txt);
+        ui.mEditDisplay->setToolTip(tr("After %1 seconds").arg(mMessage->updated));
         return *this;
     }
     void msgDeleted();
@@ -345,9 +346,9 @@ noedit:
     {
         mLastHistReqByScroll = byScroll;
         auto source = mChat->getHistory(kHistBatchSize);
+        printf("source = %d\n", source);
         if (source == chatd::kHistSourceServer)
         {
-            printf("source = server\n");
             createHistFetchUi();
         }
         else if (source == chatd::kHistSourceNone)
@@ -621,7 +622,7 @@ public:
         updateChatdStatusDisplay(state);
 
         if ((state == chatd::kChatStateOnline) && (mChat->size() < 2)
-        && ((!mChat->isFetchingHistory())))
+        && ((!mChat->isFetchingFromServer())))
         {
             // avoid re-entrancy - we are in a chatd callback. We could use mega::marshallCall instead,
             // but this is safer as the window may get destroyed before the message is processed

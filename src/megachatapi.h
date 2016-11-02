@@ -334,9 +334,27 @@ public:
      */
     virtual const char *getContent() const;
 
+    /**
+     * @brief Returns whether the message is an edit of the original message
+     * @return True if the message has been edited. Otherwise, false.
+     */
     virtual bool isEdited() const;
 
+    /**
+     * @brief Returns whether the message has been deleted
+     * @return True if the message has been deleted. Otherwise, false.
+     */
     virtual bool isDeleted() const;
+
+    /**
+     * @brief Returns whether the message can be edited
+     *
+     * Currently, messages are editable only during a timeframe (1 hour). Later on, the
+     * edit will be rejected. The same applies to deletions.
+     *
+     * @return True if the message can be edited. Otherwise, false.
+     */
+    virtual bool isEditable() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -767,7 +785,7 @@ public:
      * - MegaChatApi::LOG_LEVEL_ERROR   = 1
      * - MegaChatApi::LOG_LEVEL_WARNING = 2
      * - MegaChatApi::LOG_LEVEL_INFO    = 3
-     * - MegaChatApi::LOG_LEVEL_VERBPSE = 4
+     * - MegaChatApi::LOG_LEVEL_VERBOSE = 4
      * - MegaChatApi::LOG_LEVEL_DEBUG   = 5
      * - MegaChatApi::LOG_LEVEL_MAX     = 6
      */
@@ -872,6 +890,27 @@ public:
      * The user is connected and online.
      */
     int getOnlineStatus();
+
+    /**
+     * @brief Get the online status of a user.
+     *
+     * It can be one of the following values:
+     * - MegaChatApi::STATUS_OFFLINE = 1
+     * The user appears as being offline
+     *
+     * - MegaChatApi::STATUS_BUSY = 2
+     * The user is busy and don't want to be disturbed.
+     *
+     * - MegaChatApi::STATUS_AWAY = 3
+     * The user is away and might not answer.
+     *
+     * - MegaChatApi::STATUS_ONLINE = 4
+     * The user is connected and online.
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Online status of the user
+     */
+    int getUserOnlineStatus(MegaChatHandle userhandle);
 
     /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
@@ -1418,10 +1457,10 @@ public:
     {
         CHANGE_TYPE_STATUS          = 0x01,
         CHANGE_TYPE_UNREAD_COUNT    = 0x02,
-        CHANGE_TYPE_PARTICIPANTS    = 0x04,
+        CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
         CHANGE_TYPE_TITLE           = 0x08,
-        CHANGE_TYPE_CHAT_STATE      = 0x10
-//        CHANGE_TYPE_TITLE           = 0x10
+        CHANGE_TYPE_CHAT_STATE      = 0x10,
+        CHANGE_TYPE_USER_TYPING     = 0X20
     };
 
     enum {
@@ -1476,6 +1515,26 @@ public:
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
 
     /**
+     * @brief Returns the current firstname of the peer
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Firstname of the chat peer with the handle specified.
+     */
+    virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
+
+    /**
+     * @brief Returns the current lastname of the peer
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Lastname of the chat peer with the handle specified.
+     */
+    virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
+
+    /**
      * @brief Returns the number of participants in the chat
      * @return Number of participants in the chat
      */
@@ -1488,7 +1547,7 @@ public:
      * will return INVALID_HANDLE.
      *
      * @param i Position of the peer whose handle is requested
-     * @return Handle of the peer in the position i.
+     * @return Handle of the peer in the position \c i.
      */
     virtual MegaChatHandle getPeerHandle(unsigned int i) const;
 
@@ -1499,7 +1558,7 @@ public:
      * will return PRIV_UNKNOWN.
      *
      * @param i Position of the peer whose handle is requested
-     * @return Privilege level of the chat peer with the handle specified.
+     * @return Privilege level of the peer in the position \c i.
      * Valid values are:
      * - MegaChatPeerList::PRIV_UNKNOWN = -2
      * - MegaChatPeerList::PRIV_RM = -1
@@ -1508,6 +1567,22 @@ public:
      * - MegaChatPeerList::PRIV_MODERATOR = 3
      */
     virtual int getPeerPrivilege(unsigned int i) const;
+
+    /**
+     * @brief Returns the current firstname of the peer
+     *
+     * @param i Position of the peer whose name is requested
+     * @return Firstname of the peer in the position \c i.
+     */
+    virtual const char *getPeerFirstname(unsigned int i) const;
+
+    /**
+     * @brief Returns the current lastname of the peer
+     *
+     * @param i Position of the peer whose name is requested
+     * @return Lastname of the peer in the position \c i.
+     */
+    virtual const char *getPeerLastname(unsigned int i) const;
 
     /**
      * @brief isGroup Returns whether this chat is a group chat or not
@@ -1569,7 +1644,29 @@ public:
      */
     virtual int getOnlineStatus() const;
 
+    /**
+     * @brief Returns the number of unread messages for the chatroom
+     *
+     * It can be used to display an unread message counter next to the chatroom name
+     *
+     * @return The count of unread messages as follows:
+     *  - If the returned value is 0, then the indicator should be removed.
+     *  - If the returned value is > 0, the indicator should show the exact count.
+     *  - If the returned value is < 0, then there are at least that count unread messages,
+     * and possibly more. In that case the indicator should show e.g. '2+'
+     */
     virtual int getUnreadCount() const;
+
+    /**
+     * TODO: this feature is still not implemented. Ticket on Redmine: #5595
+     * @brief Returns the handle of the user who is typing a message in the chatroom
+     *
+     * Normally the app should have a timer that is reset each time a typing
+     * notification is received. When the timer expires, it should hide the notification GUI.
+     *
+     * @return The user that is typing
+     */
+    virtual MegaChatHandle getUserTyping() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -1657,6 +1754,15 @@ class MegaChatRoomListener
 public:
     virtual ~MegaChatRoomListener() {}
 
+    /**
+     * @brief This function is called when there are changes in the chatroom
+     *
+     * The changes can include: a user join/leaves the chatroom, the unread messages count
+     * has changed, the online state of the connection to the chat server has changed.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chat MegaChatRoom that contains the updates relatives to the chat
+     */
     virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
 
     /**

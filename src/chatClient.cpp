@@ -1522,9 +1522,7 @@ void ChatRoom::removeAppChatHandler()
 
 Presence PeerChatRoom::presence() const
 {
-    return (mChat && mChat->onlineState() == chatd::kChatStateOnline)
-        ? Presence::kOnline
-        : Presence::kOffline;
+    return calculatePresence(mContact.xmppContact().presence());
 }
 
 void PeerChatRoom::updatePresence()
@@ -1688,7 +1686,7 @@ UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, User
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
-: mRoom(aRoom), mPriv(aPriv)
+: mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0")
 {
     mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(user, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* buf, void* userp)
@@ -1701,6 +1699,10 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         else
         {
             self->mName = "\x01?";
+        }
+        if (self->mRoom.mAppChatHandler)
+        {
+            self->mRoom.mAppChatHandler->onMemberNameChanged(self->mHandle, self->mName);
         }
         if (!self->mRoom.hasTitle())
         {
@@ -1878,38 +1880,66 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
                  const std::string& email, int visibility,
                  int64_t since, PeerChatRoom* room)
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),
-     mSince(since), mTitleString(email), mVisibility(visibility)
+     mSince(since), mVisibility(visibility)
 {
     auto appClist = clist.client.app.contactListHandler();
     mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
-    updateTitle(email);
+    updateTitle(email, email.size());
+    assert(!mTitleString.empty()); //must at least contain the firstname len byte
     mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
         mega::MegaApi::USER_ATTR_LASTNAME, this,
         [](Buffer* data, void* userp)
         {
             auto self = static_cast<Contact*>(userp);
             if (!data || data->dataSize() < 2)
-                self->updateTitle(self->mEmail);
+                self->updateTitle(self->mEmail, self->mEmail.size());
             else
-                self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
+                self->updateTitle(std::string(data->buf(), data->dataSize()), 0);
         });
-    //FIXME: Is this safe? We are passing a virtual interface to 'this' in the ctor
+
     mXmppContact = mClist.client.xmppContactList().addContact(*this);
+    auto pres = mXmppContact->presence();
+    if (pres != Presence::kOffline)
+    {
+        auto wptr = getWeakPtr();
+        marshallCall([wptr, this, pres]()
+        {
+            wptr.throwIfDeleted();
+            onPresence(pres);
+        });
+    }
 }
-void Contact::updateTitle(const std::string& str)
+
+// the title string starts with a byte equal to the first name length, followed by first name,
+// then second name
+void Contact::updateTitle(const std::string& str, size_t firstNameLen)
 {
-    mTitleString = str;
+    if (!firstNameLen) // use as-is, must have the first byte as first name len
+    {
+        assert(!str.empty());
+        mTitleString = str;
+    }
+    else
+    {
+        mTitleString.reserve(str.size()+1);
+        mTitleString.resize(1);
+        mTitleString[0] = firstNameLen;
+        mTitleString.append(str);
+    }
     if (mDisplay)
     {
-        mDisplay->onTitleChanged(str);
+        mDisplay->onTitleChanged(mTitleString);
     }
     if (mChatRoom)
     {
+        assert(!mTitleString.empty());
+        //1on1 chatroom title is the full name, without binary prefix for first name len
+        std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
         auto display = mChatRoom->roomGui();
         if (display)
-            display->onTitleChanged(str);
+            display->onTitleChanged(roomTitle);
         if (mChatRoom->appChatHandler())
-            mChatRoom->appChatHandler()->onTitleChanged(str);
+            mChatRoom->appChatHandler()->onTitleChanged(roomTitle);
     }
 }
 
@@ -1946,12 +1976,14 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
 void Contact::setChatRoom(PeerChatRoom& room)
 {
     assert(!mChatRoom);
+    assert(!mTitleString.empty());
     mChatRoom = &room;
     auto display = room.roomGui();
+    std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
     if (display)
-        display->onTitleChanged(mTitleString);
+        display->onTitleChanged(roomTitle);
     if (room.appChatHandler())
-        room.appChatHandler()->onTitleChanged(mTitleString);
+        room.appChatHandler()->onTitleChanged(roomTitle);
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)

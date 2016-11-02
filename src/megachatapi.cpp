@@ -123,6 +123,11 @@ int MegaChatApi::getOnlineStatus()
     return pImpl->getOnlineStatus();
 }
 
+int MegaChatApi::getUserOnlineStatus(MegaChatHandle userhandle)
+{
+    return pImpl->getUserOnlineStatus(userhandle);
+}
+
 MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();
@@ -474,6 +479,16 @@ int MegaChatRoom::getPeerPrivilegeByHandle(MegaChatHandle userhandle) const
     return PRIV_UNKNOWN;
 }
 
+const char *MegaChatRoom::getPeerFirstnameByHandle(MegaChatHandle userhandle) const
+{
+    return NULL;
+}
+
+const char *MegaChatRoom::getPeerLastnameByHandle(MegaChatHandle userhandle) const
+{
+    return NULL;
+}
+
 unsigned int MegaChatRoom::getPeerCount() const
 {
     return 0;
@@ -487,6 +502,16 @@ MegaChatHandle MegaChatRoom::getPeerHandle(unsigned int i) const
 int MegaChatRoom::getPeerPrivilege(unsigned int i) const
 {
     return PRIV_UNKNOWN;
+}
+
+const char *MegaChatRoom::getPeerFirstname(unsigned int i) const
+{
+    return NULL;
+}
+
+const char *MegaChatRoom::getPeerLastname(unsigned int i) const
+{
+    return NULL;
 }
 
 bool MegaChatRoom::isGroup() const
@@ -517,6 +542,11 @@ bool MegaChatRoom::hasChanged(int) const
 int MegaChatRoom::getUnreadCount() const
 {
     return 0;
+}
+
+MegaChatHandle MegaChatRoom::getUserTyping() const
+{
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 int MegaChatRoom::getOnlineStatus() const
@@ -713,6 +743,11 @@ bool MegaChatMessage::isEdited() const
 }
 
 bool MegaChatMessage::isDeleted() const
+{
+    return false;
+}
+
+bool MegaChatMessage::isEditable() const
 {
     return false;
 }
