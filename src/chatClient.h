@@ -214,9 +214,9 @@ public:
     {
         GroupChatRoom& mRoom;
         uint64_t mHandle;
-        std::string mName;
         chatd::Priv mPriv;
         uint64_t mNameAttrCbHandle;
+        std::string mName;
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();

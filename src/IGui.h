@@ -30,7 +30,11 @@ public:
 
         /**
          * @brief Called by karere when the title has changed. It can be used to e.g.
-         * to update the displayed contact/groupchat name
+         * to update the displayed contact/groupchat name. For contacts (and only there),
+         * this string has a special layout - the first byte is the length of
+         * the first name, then the first name follows, then the second name.
+         * This allows passing taking apart the full name into first and second
+         * name.
          */
         virtual void onTitleChanged(const std::string& title) = 0;
 

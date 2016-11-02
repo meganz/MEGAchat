@@ -1686,7 +1686,7 @@ UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, User
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
-: mRoom(aRoom), mHandle(user), mPriv(aPriv)
+: mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0")
 {
     mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(user, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* buf, void* userp)
@@ -1880,11 +1880,12 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
                  const std::string& email, int visibility,
                  int64_t since, PeerChatRoom* room)
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),
-     mSince(since), mTitleString(email), mVisibility(visibility)
+     mSince(since), mVisibility(visibility)
 {
     auto appClist = clist.client.app.contactListHandler();
     mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
     updateTitle(email, email.size());
+    assert(!mTitleString.empty()); //must at least contain the firstname len byte
     mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
         mega::MegaApi::USER_ATTR_LASTNAME, this,
         [](Buffer* data, void* userp)
@@ -1898,14 +1899,18 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     //FIXME: Is this safe? We are passing a virtual interface to 'this' in the ctor
     mXmppContact = mClist.client.xmppContactList().addContact(*this);
 }
+// the title string starts with a byte equal to the first name length, followed by first name,
+// then second name
 void Contact::updateTitle(const std::string& str, size_t firstNameLen)
 {
-    if (!firstNameLen)
+    if (!firstNameLen) // use as-is, must have the first byte as first name len
     {
+        assert(!str.empty());
         mTitleString = str;
     }
     else
     {
+        mTitleString.reserve(str.size()+1);
         mTitleString.resize(1);
         mTitleString[0] = firstNameLen;
         mTitleString.append(str);
@@ -1916,11 +1921,14 @@ void Contact::updateTitle(const std::string& str, size_t firstNameLen)
     }
     if (mChatRoom)
     {
+        assert(!mTitleString.empty());
+        //1on1 chatroom title is the full name, without binary prefix for first name len
+        std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
         auto display = mChatRoom->roomGui();
         if (display)
-            display->onTitleChanged(mTitleString);
+            display->onTitleChanged(roomTitle);
         if (mChatRoom->appChatHandler())
-            mChatRoom->appChatHandler()->onTitleChanged(mTitleString);
+            mChatRoom->appChatHandler()->onTitleChanged(roomTitle);
     }
 }
 
@@ -1957,12 +1965,14 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
 void Contact::setChatRoom(PeerChatRoom& room)
 {
     assert(!mChatRoom);
+    assert(!mTitleString.empty());
     mChatRoom = &room;
     auto display = room.roomGui();
+    std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
     if (display)
-        display->onTitleChanged(mTitleString);
+        display->onTitleChanged(roomTitle);
     if (room.appChatHandler())
-        room.appChatHandler()->onTitleChanged(mTitleString);
+        room.appChatHandler()->onTitleChanged(roomTitle);
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)

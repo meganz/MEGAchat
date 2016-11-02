@@ -464,7 +464,7 @@ public:
     //ITitleHandler intefrace
     virtual void onTitleChanged(const std::string& title)
     {
-        QString text = QString::fromUtf8(title.c_str()+1, title[0]);
+        QString text = QString::fromUtf8(title.c_str());
         ui.mName->setText(text);
     }
 };
