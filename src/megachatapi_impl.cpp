@@ -989,6 +989,23 @@ int MegaChatApiImpl::getOnlineStatus()
     return status;
 }
 
+int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
+{
+    int status = MegaChatApi::STATUS_OFFLINE;
+
+    sdkMutex.lock();
+
+    ContactList::iterator it = mClient->contactList->find(userhandle);
+    if (it != mClient->contactList->end())
+    {
+        status = it->second->xmppContact().presence().status();
+    }
+
+    sdkMutex.unlock();
+
+    return status;
+}
+
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 {
     MegaChatRoomListPrivate *chats = new MegaChatRoomListPrivate();

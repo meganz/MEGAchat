@@ -637,6 +637,7 @@ public:
 
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     int getOnlineStatus();
+    int getUserOnlineStatus(MegaChatHandle userhandle);
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);

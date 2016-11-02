@@ -892,6 +892,27 @@ public:
     int getOnlineStatus();
 
     /**
+     * @brief Get the online status of a user.
+     *
+     * It can be one of the following values:
+     * - MegaChatApi::STATUS_OFFLINE = 1
+     * The user appears as being offline
+     *
+     * - MegaChatApi::STATUS_BUSY = 2
+     * The user is busy and don't want to be disturbed.
+     *
+     * - MegaChatApi::STATUS_AWAY = 3
+     * The user is away and might not answer.
+     *
+     * - MegaChatApi::STATUS_ONLINE = 4
+     * The user is connected and online.
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Online status of the user
+     */
+    int getUserOnlineStatus(MegaChatHandle userhandle);
+
+    /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
      *
      * It is needed to have successfully completed the \c MegaChatApi::init request

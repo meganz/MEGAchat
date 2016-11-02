@@ -123,6 +123,11 @@ int MegaChatApi::getOnlineStatus()
     return pImpl->getOnlineStatus();
 }
 
+int MegaChatApi::getUserOnlineStatus(MegaChatHandle userhandle)
+{
+    return pImpl->getUserOnlineStatus(userhandle);
+}
+
 MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();
