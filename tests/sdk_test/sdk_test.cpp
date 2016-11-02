@@ -214,14 +214,15 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
 
     if (chat->getPeerCount())
     {
-        cout << "\t\t(userhandle)\t(privilege)\t(name)" << endl;
+        cout << "\t\t(userhandle)\t(privilege)\t(firstname)\t(lastname)" << endl;
         for (unsigned i = 0; i < chat->getPeerCount(); i++)
         {
             MegaChatHandle uh = chat->getPeerHandle(i);
             Base64::btoa((const byte *)&uh, sizeof(handle), hstr);
             cout << "\t\t\t" << hstr;
             cout << "\t" << MegaChatRoom::privToString(chat->getPeerPrivilege(i));
-            cout << "\t\t" << chat->getPeerName(i) << endl;
+            cout << "\t\t" << chat->getPeerFirstname(i);
+            cout << "\t" << chat->getPeerLastname(i) << endl;
         }
     }
     else
@@ -325,7 +326,6 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
         TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
         assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
 
-        // Print chats
         printChatRoomInfo(chatroom);
 
         // Load history
@@ -683,6 +683,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApi **apis, MegaChatHandle ch
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
         this->historyLoaded[i] = false;
+        this->historyTruncated[i] = false;
         this->msgLoaded[i] = false;
         this->msgConfirmed[i] = false;
         this->msgDelivered[i] = false;
@@ -807,6 +808,11 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
     if (msg->isEdited())
     {
         msgEdited[apiIndex] = true;
+    }
+
+    if (msg->getType() == MegaChatMessage::TYPE_TRUNCATE)
+    {
+        historyTruncated[apiIndex] = true;
     }
 
     msgId[apiIndex] = msg->getMsgId();

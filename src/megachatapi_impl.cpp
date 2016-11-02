@@ -511,8 +511,8 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_TRUNCATE_HISTORY:
         {
             handle chatid = request->getChatHandle();
-            handle messageid = request->getUserHandle();
-            if (chatid == MEGACHAT_INVALID_HANDLE || messageid == MEGACHAT_INVALID_HANDLE)
+
+            if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -528,6 +528,12 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
+            }
+
+            handle messageid = request->getUserHandle();
+            if (messageid == MEGACHAT_INVALID_HANDLE)   // clear the full history, from current message
+            {
+                messageid = chatroom->chat().at(chatroom->chat().highnum()).id().val;
             }
 
             mClient->api.call(&MegaApi::truncateChat, chatid, messageid)
