@@ -892,6 +892,27 @@ public:
     int getOnlineStatus();
 
     /**
+     * @brief Get the online status of a user.
+     *
+     * It can be one of the following values:
+     * - MegaChatApi::STATUS_OFFLINE = 1
+     * The user appears as being offline
+     *
+     * - MegaChatApi::STATUS_BUSY = 2
+     * The user is busy and don't want to be disturbed.
+     *
+     * - MegaChatApi::STATUS_AWAY = 3
+     * The user is away and might not answer.
+     *
+     * - MegaChatApi::STATUS_ONLINE = 4
+     * The user is connected and online.
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Online status of the user
+     */
+    int getUserOnlineStatus(MegaChatHandle userhandle);
+
+    /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
      *
      * It is needed to have successfully completed the \c MegaChatApi::init request
@@ -1494,14 +1515,24 @@ public:
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
 
     /**
-     * @brief Returns the current display name of the peer
+     * @brief Returns the current firstname of the peer
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
      *
      * @param Handle of the peer whose name is requested.
-     * @return Display name of the chat peer with the handle specified.
+     * @return Firstname of the chat peer with the handle specified.
      */
-    virtual const char *getPeerNameByHandle(MegaChatHandle userhandle) const;
+    virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
+
+    /**
+     * @brief Returns the current lastname of the peer
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Lastname of the chat peer with the handle specified.
+     */
+    virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
 
     /**
      * @brief Returns the number of participants in the chat
@@ -1538,12 +1569,20 @@ public:
     virtual int getPeerPrivilege(unsigned int i) const;
 
     /**
-     * @brief Returns the current display name of the peer
+     * @brief Returns the current firstname of the peer
      *
      * @param i Position of the peer whose name is requested
-     * @return Display name of the peer in the position \c i.
+     * @return Firstname of the peer in the position \c i.
      */
-    virtual const char *getPeerName(unsigned int i) const;
+    virtual const char *getPeerFirstname(unsigned int i) const;
+
+    /**
+     * @brief Returns the current lastname of the peer
+     *
+     * @param i Position of the peer whose name is requested
+     * @return Lastname of the peer in the position \c i.
+     */
+    virtual const char *getPeerLastname(unsigned int i) const;
 
     /**
      * @brief isGroup Returns whether this chat is a group chat or not

@@ -123,6 +123,11 @@ int MegaChatApi::getOnlineStatus()
     return pImpl->getOnlineStatus();
 }
 
+int MegaChatApi::getUserOnlineStatus(MegaChatHandle userhandle)
+{
+    return pImpl->getUserOnlineStatus(userhandle);
+}
+
 MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();
@@ -474,7 +479,12 @@ int MegaChatRoom::getPeerPrivilegeByHandle(MegaChatHandle userhandle) const
     return PRIV_UNKNOWN;
 }
 
-const char *MegaChatRoom::getPeerNameByHandle(MegaChatHandle userhandle) const
+const char *MegaChatRoom::getPeerFirstnameByHandle(MegaChatHandle userhandle) const
+{
+    return NULL;
+}
+
+const char *MegaChatRoom::getPeerLastnameByHandle(MegaChatHandle userhandle) const
 {
     return NULL;
 }
@@ -494,7 +504,12 @@ int MegaChatRoom::getPeerPrivilege(unsigned int i) const
     return PRIV_UNKNOWN;
 }
 
-const char *MegaChatRoom::getPeerName(unsigned int i) const
+const char *MegaChatRoom::getPeerFirstname(unsigned int i) const
+{
+    return NULL;
+}
+
+const char *MegaChatRoom::getPeerLastname(unsigned int i) const
 {
     return NULL;
 }

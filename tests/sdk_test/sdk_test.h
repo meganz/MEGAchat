@@ -155,6 +155,7 @@ public:
     MegaChatHandle chatid;
 
     bool historyLoaded[NUM_ACCOUNTS];   // when, after loadMessage(X), X messages have been loaded
+    bool historyTruncated[NUM_ACCOUNTS];
     bool msgLoaded[NUM_ACCOUNTS];
     bool msgConfirmed[NUM_ACCOUNTS];
     bool msgDelivered[NUM_ACCOUNTS];
