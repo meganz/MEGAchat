@@ -978,7 +978,10 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
      (chatd::Priv)chat.getOwnPrivilege()),
     mPeer(getSdkRoomPeer(chat)), mPeerPriv(chatd::PRIV_RDONLY),
     mContact(parent.client.contactList->contactFromUserId(mPeer)),
-    mRoomGui(addAppItem())
+    mRoomGui(addAppItem()),
+    mTitleString(mContact.titleString().empty()
+        ? mContact.titleString()
+        : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1)
 {
     assert(!chat.isGroup());
     auto peers = chat.getPeerList();
