@@ -161,6 +161,7 @@ protected:
     chatd::Priv mPeerPriv;
     Contact& mContact;
     IApp::IPeerChatListItem* mRoomGui;
+    std::string mTitleString;
     friend class ContactList;
     IApp::IPeerChatListItem* addAppItem();
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
@@ -171,6 +172,7 @@ protected:
     void initWithChatd();
     virtual void connect();
     inline Presence calculatePresence(Presence pres) const;
+    void updateTitle(const std::string& title);
     friend class Contact;
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,

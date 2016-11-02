@@ -964,7 +964,10 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const s
     unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv)
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer),
   mPeerPriv(peerPriv), mContact(parent.client.contactList->contactFromUserId(peer)),
-  mRoomGui(addAppItem())
+  mRoomGui(addAppItem()),
+  mTitleString(mContact.titleString().empty()
+    ? mContact.titleString()
+    : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1)
 {
     mContact.attachChatRoom(*this);
     initWithChatd();
@@ -1029,8 +1032,10 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     return changed;
 }
 
-const std::string& PeerChatRoom::titleString() const
+const std::string PeerChatRoom::titleString() const
 {
+    if (mContact.titleString().empty())
+        return mContact.titleString();
     return mContact.titleString();
 }
 
@@ -1598,6 +1603,15 @@ void PeerChatRoom::onUnreadChanged()
     if (mContact.appItem())
         mContact.appItem()->onUnreadCountChanged(count);
 }
+void PeerChatRoom::updateTitle(const std::string& title)
+{
+    mTitleString = title.empty() ? title : std::string(title.c_str()+1, title.size()-1);
+    auto display = roomGui();
+    if (display)
+        display->onTitleChanged(mTitleString);
+    if (mChatRoom->appChatHandler())
+        mChatRoom->appChatHandler()->onTitleChanged(mTitleString);
+}
 
 void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
@@ -1935,11 +1949,7 @@ void Contact::updateTitle(const std::string& str, size_t firstNameLen)
         assert(!mTitleString.empty());
         //1on1 chatroom title is the full name, without binary prefix for first name len
         std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
-        auto display = mChatRoom->roomGui();
-        if (display)
-            display->onTitleChanged(roomTitle);
-        if (mChatRoom->appChatHandler())
-            mChatRoom->appChatHandler()->onTitleChanged(roomTitle);
+        mChatRoom->updateTitle(roomTitle);
     }
 }
 
