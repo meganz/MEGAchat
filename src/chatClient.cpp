@@ -1949,9 +1949,7 @@ void Contact::updateTitle(const std::string& str, size_t firstNameLen)
     if (mChatRoom)
     {
         assert(!mTitleString.empty());
-        //1on1 chatroom title is the full name, without binary prefix for first name len
-        std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
-        mChatRoom->updateTitle(roomTitle);
+        mChatRoom->updateTitle(mTitleString);
     }
 }
 
