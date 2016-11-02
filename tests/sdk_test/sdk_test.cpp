@@ -460,7 +460,12 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
     assert(msgReceived->isEdited());
     assert(waitForResponse(flagDelivered));    // for delivery
 
-
+    // finally, clear history
+    bool *fTruncated0 = &chatroomListener->historyTruncated[0]; *fTruncated0 = false;
+    bool *fTruncated1 = &chatroomListener->historyTruncated[1]; *fTruncated1 = false;
+    megaChatApi[0]->clearChatHistory(chatid0);
+    waitForResponse(fTruncated0);
+    waitForResponse(fTruncated1);
 
     megaChatApi[0]->closeChatRoom(chatid0, chatroomListener);
     megaChatApi[1]->closeChatRoom(chatid1, chatroomListener);
