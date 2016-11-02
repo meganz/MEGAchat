@@ -160,8 +160,11 @@ protected:
     uint64_t mPeer;
     chatd::Priv mPeerPriv;
     Contact& mContact;
-    IApp::IPeerChatListItem* mRoomGui;
     std::string mTitleString;
+    // mRoomGui must be the last member, since when we initialize it,
+    // we call into the app and pass our this pointer, so all other members
+    // must be initialized
+    IApp::IPeerChatListItem* mRoomGui;
     friend class ContactList;
     IApp::IPeerChatListItem* addAppItem();
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
