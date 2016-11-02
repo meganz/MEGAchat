@@ -387,12 +387,12 @@ public:
         TYPE_SET_ONLINE_STATUS,
         TYPE_START_CHAT_CALL, TYPE_ANSWER_CHAT_CALL,
         TYPE_MUTE_CHAT_CALL, TYPE_HANG_CHAT_CALL,
-        TYPE_EDIT_MESSAGE, TYPE_DELETE_MESSAGE,
         TYPE_CREATE_CHATROOM, TYPE_REMOVE_FROM_CHATROOM,
         TYPE_INVITE_TO_CHATROOM, TYPE_UPDATE_PEER_PERMISSIONS,
         TYPE_EDIT_CHATROOM_NAME, TYPE_EDIT_CHATROOM_PIC,
-        TYPE_TRUNCATE_HISTORY, TYPE_GET_HISTORY,
+        TYPE_TRUNCATE_HISTORY,
         TYPE_SHARE_CONTACT,
+        TYPE_GET_FIRSTNAME, TYPE_GET_LASTNAME,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -907,10 +907,49 @@ public:
      * - MegaChatApi::STATUS_ONLINE = 4
      * The user is connected and online.
      *
-     * @param Handle of the peer whose name is requested.
+     * @param userhandle Handle of the peer whose name is requested.
      * @return Online status of the user
      */
     int getUserOnlineStatus(MegaChatHandle userhandle);
+
+    /**
+     * @brief Returns the current firstname of the user
+     *
+     * This function is useful to get the firstname of users who participated in a groupchat with
+     * you but already left. If the user sent a message, you may want to show the name of the sender.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_FIRSTNAME
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the firstname of the user
+     *
+     * @param userhandle Handle of the user whose name is requested.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns the current lastname of the user
+     *
+     * This function is useful to get the lastname of users who participated in a groupchat with
+     * you but already left. If the user sent a message, you may want to show the name of the sender.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_LASTNAME
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the lastname of the user
+     *
+     *
+     * @param userhandle Handle of the user whose name is requested.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
