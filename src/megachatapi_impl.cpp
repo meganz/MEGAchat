@@ -601,7 +601,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             MegaChatHandle uh = request->getUserHandle();
 
-            mClient->userAttrCache().getAttr(uh, mega::MegaApi::USER_ATTR_FIRSTNAME)
+            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_FIRSTNAME)
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2827,7 +2827,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
 {
     this->chatid = item->getChatId();
     this->title = item->getTitle();
-    this->visibility = (mega::visibility_t) item->getVisibility();
+    this->visibility = (visibility_t) item->getVisibility();
     this->unreadCount = item->getUnreadCount();
     this->status = item->getOnlineStatus();
     this->changed = item->getChanges();
