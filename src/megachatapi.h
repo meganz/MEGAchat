@@ -1425,7 +1425,7 @@ public:
     enum
     {
         CHANGE_TYPE_STATUS          = 0x01,
-        CHANGE_TYPE_VISIBILITY      = 0x02,
+        CHANGE_TYPE_VISIBILITY      = 0x02, // The contact of 1on1 chat has changed: added/removed... (chat remains even for removed contacts)
         CHANGE_TYPE_UNREAD_COUNT    = 0x04,
         CHANGE_TYPE_PARTICIPANTS    = 0x08,
         CHANGE_TYPE_TITLE           = 0x10

@@ -2665,7 +2665,7 @@ MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
     return uh;
 }
 
-void MegaChatRoomPrivate::setTitle(string title)
+void MegaChatRoomPrivate::setTitle(const string& title)
 {
     this->title = title;
     this->changed |= MegaChatRoom::CHANGE_TYPE_TITLE;
@@ -2711,7 +2711,7 @@ void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
 void MegaChatListItemHandler::onTitleChanged(const string &title)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
-    item->setTitle(title.c_str());
+    item->setTitle(title);
 
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -2816,21 +2816,30 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(MegaChatHandle chatid)
     : MegaChatListItem()
 {
     this->chatid = chatid;
-    this->title = NULL;
+    this->title = "";
     this->visibility = VISIBILITY_UNKNOWN;
     this->unreadCount = 0;
     this->status = MegaChatApi::STATUS_OFFLINE;
     this->changed = 0;
 }
 
+MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
+{
+    this->chatid = item->getChatId();
+    this->title = item->getTitle();
+    this->visibility = (mega::visibility_t) item->getVisibility();
+    this->unreadCount = item->getUnreadCount();
+    this->status = item->getOnlineStatus();
+    this->changed = item->getChanges();
+}
+
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
 {
-    delete [] title;
 }
 
 MegaChatListItem *MegaChatListItemPrivate::copy() const
 {
-    return new MegaChatListItemPrivate(chatid);
+    return new MegaChatListItemPrivate(this);
 }
 
 int MegaChatListItemPrivate::getChanges() const
@@ -2850,7 +2859,7 @@ MegaChatHandle MegaChatListItemPrivate::getChatId() const
 
 const char *MegaChatListItemPrivate::getTitle() const
 {
-    return title;
+    return title.c_str();
 }
 
 int MegaChatListItemPrivate::getVisibility() const
@@ -2874,13 +2883,9 @@ void MegaChatListItemPrivate::setVisibility(visibility_t visibility)
     this->changed |= MegaChatListItem::CHANGE_TYPE_VISIBILITY;
 }
 
-void MegaChatListItemPrivate::setTitle(const char *title)
+void MegaChatListItemPrivate::setTitle(const string &title)
 {
-    if(this->title)
-    {
-        delete [] this->title;
-    }
-    this->title = MegaApi::strdup(title);
+    this->title = title;
     this->changed |= MegaChatListItem::CHANGE_TYPE_TITLE;
 }
 
