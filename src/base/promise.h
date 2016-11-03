@@ -1,3 +1,5 @@
+/** @author Alexander Vassilev */
+
 #ifndef _PROMISE_H
 #define _PROMISE_H
 #include <stdexcept>
@@ -6,6 +8,19 @@
 #include <utility>
 #include <memory>
 #include <assert.h>
+
+/** @brief The name of the unhandled promise error handler. This handler is
+ * called when a promise fails, but the user has not provided a fail() callback
+ * to handle that error. Often this is unintentional and results in the program
+ * stepping execution for no obvious reason.
+ * The user can define this to customize the unhandled error trap.
+ * The default just prints a warning to stderr
+ */
+#ifndef PROMISE_ON_UNHANDLED_ERROR
+    #define PROMISE_ON_UNHANDLED_ERROR ErrorShared::defaultOnUnhandledError
+#else // define the prototype, as it may come after the inclusion of promise.h
+    void PROMISE_ON_UNHANDLED_ERROR(const std::string& msg, int type, int code);
+#endif
 
 namespace promise
 {
@@ -23,19 +38,8 @@ enum ResolvedState
     #define PROMISE_LOG_REF(fmtString,...)
 #endif
 
-/** @brief The name of the unhandled promise error handler. This handler is
- * called when a promise fails, but the user has not provided a fail() callback
- * to handle that error. Often this is unintentional and results in the program
- * stepping execution for no obvious reason.
- * The user can define this to customize the unhandled error trap.
- * The default just prints a warning to stderr
- */
-#ifndef PROMISE_ON_UNHANDLED_ERROR
-    #define PROMISE_ON_UNHANDLED_ERROR ErrorShared::defaultOnUnhandledError
-#endif
-
 static const char* kNoMoreCallbacksMsg =
-  "No more space for promise callbacks, please increase the N template argument";
+  "No more space for promise callbacks, please increase the L template argument";
 
 //===
 struct _Void{};
