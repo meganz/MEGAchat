@@ -1742,6 +1742,13 @@ public:
         /**
          * @brief This function is called when there are relevant changes related to the chats.
          *
+         * The possible changes that are notified are the following:
+         *  - Title
+         *  - Unread messages count
+         *  - Online status
+         *  - Visibility: the contact of 1on1 chat has changed. i.e. added or removed
+         *  - Participants: new peer added or existing peer removed
+         *
          * The SDK retains the ownership of the MegaChatListItem in the second parameter.
          * The MegaChatListItem object will be valid until this function returns. If you
          * want to save the MegaChatListItem, use MegaChatListItem::copy

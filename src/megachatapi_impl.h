@@ -419,6 +419,10 @@ private:
     int status;
     int chatState;
     MegaChatHandle uh;
+
+public:
+    static const char *firstnameFromBuffer(const std::string &buffer);
+    static const char *lastnameFromBuffer(const std::string &buffer);
 };
 
 class MegaChatRoomListPrivate :  public MegaChatRoomList
@@ -466,7 +470,6 @@ public:
     void setStatus(int status);
     void setTempId(MegaChatHandle tempId);
     void setContentChanged();
-
 
 private:
     int changed;

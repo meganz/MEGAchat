@@ -2526,9 +2526,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         for (it = peers.begin(); it != peers.end(); it++)
         {
             this->peers.push_back(userpriv_pair(it->first, (privilege_t) it->second->priv()));
-            string name = it->second->name();
-            this->peerFirstnames.push_back(name.length() ? string(name.data() + 1, name.at(0)) : "");
-            this->peerLastnames.push_back(name.length() ? name.c_str() + name.at(0) + 2: "");
+            this->peerFirstnames.push_back(MegaChatRoomPrivate::firstnameFromBuffer(it->second->name()));
+            this->peerLastnames.push_back(MegaChatRoomPrivate::lastnameFromBuffer(it->second->name()));
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2537,11 +2536,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
         privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
+        string name = peerchat.contact().titleString();
 
         this->peers.push_back(userpriv_pair(uh, priv));
-        string buffer = peerchat.contact().titleString();
-        this->peerFirstnames.push_back(buffer.length() ? string(buffer.data() + 1, buffer.at(0)) : "");   // only firstname
-        this->peerLastnames.push_back(buffer.length() ? buffer.data() + buffer.at(0) + 2 : "");   // only lastname
+        this->peerFirstnames.push_back(MegaChatRoomPrivate::firstnameFromBuffer(name));
+        this->peerLastnames.push_back(MegaChatRoomPrivate::lastnameFromBuffer(name));
         this->status = chat.presence().status();
     }
 }
@@ -2698,6 +2697,34 @@ void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
 {
     this->uh = uh;
     this->changed |= MegaChatRoom::CHANGE_TYPE_USER_TYPING;
+}
+
+const char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
+{
+    string ret;
+
+    if (buffer.length() && buffer.at(0))
+    {
+        ret = string(buffer.data() + 1, buffer.at(0));
+    }
+
+    return ret.c_str();
+}
+
+const char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
+{
+    string ret;
+
+    if (buffer.length())
+    {
+        int lenLastname = buffer.length() - buffer.at(0) - 1;
+        if (lenLastname)
+        {
+            ret = string(buffer.data() + 1 + buffer.at(0), lenLastname);
+        }
+    }
+
+    return ret.c_str();
 }
 
 void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
