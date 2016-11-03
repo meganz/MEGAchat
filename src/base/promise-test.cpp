@@ -1,10 +1,25 @@
 //#define TESTLOOP_LOG_DONES
 //#define TESTLOOP_DEBUG
 //#define TESTLOOP_DEFAULT_DONE_TIMEOUT 4000
+
 #include <asyncTest-framework.h>
+#define PROMISE_ON_UNHANDLED_ERROR testUnhandledError
 #include <promise.h>
+
 TESTS_INIT();
 using namespace promise;
+
+std::function<void(const std::string&, int, int)> gUnhandledHandler =
+[](const std::string& msg, int type, int code)
+{
+    printf("WARNING: Unhandled promise fail. Error: %s, type: %d, code: %d\n", msg.c_str(), type, code);
+};
+
+void testUnhandledError(const std::string& msg, int type, int code)
+{
+    gUnhandledHandler(msg, type, code);
+}
+
 int main()
 {
 
@@ -512,7 +527,94 @@ TestGroup("when() tests")
         loop.schedCall([pms3, &test]() mutable { test.done("third"); pms3.resolve("test"); }, -100);
         loop.schedCall([pms4, &test]() mutable { test.done("fourth"); pms4.reject("test fourth fail"); }, -100);
     });
+    asyncTest("when() with array of promises, one failed", {"output"})
+    {
+        std::vector<Promise<int>> inputs(4);
+        when(inputs)
+        .then([&]()
+        {
+            test.error(("Output promise should fail, not call then()"));
+        })
+        .fail([&](const Error& err)
+        {
+            doneOrError(err.msg() == "test fourth fail", "output");
+        });
 
+        auto& in0 = inputs[0];
+        auto& in1 = inputs[1];
+        auto& in2 = inputs[2];
+        auto& in3 = inputs[3];
+        loop.schedCall([in0]() mutable { in0.resolve(10); }, -100);
+        loop.schedCall([in1]() mutable { in1.resolve(20); }, -100);
+        loop.schedCall([in2]() mutable { in2.resolve(30); }, -100);
+        loop.schedCall([in3]() mutable { in3.reject("test fourth fail"); }, -100);
+    });
 });
-  return test::gNumFailed;
+TestGroup("Unhandled promise fail")
+{
+    asyncTest("Unhandled fail with async-rejected promise", {"unhandled"})
+    {
+        Promise<int> pms;
+        pms.then([&test](int a)
+        {
+            test.error("Promise is rejected, should not reslove");
+        });
+
+        gUnhandledHandler = [&loop, &test](const std::string& msg, int type, int code)
+        {
+            doneOrError(msg == "test unhandled reported" && type == 1 && code == 2, "unhandled");
+        };
+        loop.schedCall([pms]() mutable { pms.reject("test unhandled reported", 2, 1);}, -100);
+    });
+    asyncTest("Unhandled fail with alredy rejected promise", {"unhandled"})
+    {
+        Promise<int> pms(Error("test unhandled reported", 2, 1));
+        pms.then([&test](int a)
+        {
+            test.error("Promise is rejected, should not reslove");
+        });
+
+        gUnhandledHandler = [&loop, &test](const std::string& msg, int type, int code)
+        {
+            doneOrError(msg == "test unhandled reported" && type == 1 && code == 2, "unhandled");
+        };
+    });
+    asyncTest("Unhandled fail should not be reported when errors are handled (already failed promise)", {"handled"})
+    {
+        Promise<int> pms(Error("test", 2, 1));
+        pms.then([&test](int a)
+        {
+            test.error("Promise is rejected, should not reslove");
+        })
+        .fail([&test, &loop](const Error& err)
+        {
+            loop.schedCall([&test]() { test.done("handled"); }, -100);
+        });
+
+        gUnhandledHandler = [&loop, &test](const std::string& msg, int type, int code)
+        {
+            test.error("unhandled error reported");
+        };
+    });
+    asyncTest("Unhandled fail should not be reported when errors are handled (async failed promise)", {"handled"})
+    {
+        Promise<int> pms;
+        pms.then([&test](int a)
+        {
+            test.error("Promise is rejected, should not reslove");
+        })
+        .fail([&test, &loop](const Error& err)
+        {
+            loop.schedCall([&test]() { test.done("handled"); }, -100);
+        });
+
+        gUnhandledHandler = [&loop, &test](const std::string& msg, int type, int code)
+        {
+            test.error("unhandled error reported");
+        };
+        loop.schedCall([pms]() mutable { pms.reject("test"); });
+    });
+});
+
+return test::gNumFailed;
 }

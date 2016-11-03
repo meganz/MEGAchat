@@ -1364,9 +1364,14 @@ void GroupChatRoom::makeTitleFromMemberNames()
     {
         auto& name = m.second->mName;
         if (name.size() <= 1)
+        {
             mTitleString.append("...,");
+        }
         else
-            mTitleString.append(name.c_str()+1, name.size()-1).append(", ");
+        {
+            mTitleString.append(std::string(name.c_str()+1, name.size()-1))
+                        .append(", ");
+        }
     }
     if (!mTitleString.empty())
         mTitleString.resize(mTitleString.size()-2); //truncate last ", "
