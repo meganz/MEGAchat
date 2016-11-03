@@ -280,17 +280,18 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
 void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     std::string userid = key.user.toString();
+    item->data.reset(new Buffer);
+
     mClient.api.call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
             (int)::mega::MegaApi::USER_ATTR_FIRSTNAME)
     .then([this, userid, item](ReqResult result)
     {
         //first name. Write a prefix byte with the first name data length,
         //and then the name string in utf8
+        auto& data = *(item->data);
         const char* name = nonWhitespaceStr(result->getText());
         if (name)
         {
-            item->data.reset(new Buffer);
-            auto& data = *(item->data);
             size_t len = strlen(name);
             if (len > 255) //FIXME: This is utf8, so can't truncate arbitrarily
             {
@@ -305,12 +306,17 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
                 data.append(name);
             }
         }
+        else
+        {
+            data.append<unsigned char>(0);
+        }
     })
-    .fail([this](const promise::Error& err) -> promise::Promise<void>
+    .fail([this, item](const promise::Error& err) -> promise::Promise<void>
     {
         if (err.code() != ::mega::API_EARGS)
             return err;
         KR_LOG_DEBUG("No first name for user, proceeding with fetching second name");
+        item->data->append<unsigned char>(0);
          //silently ignore errors for the first name, in case we can still retrieve the second name
         return promise::_Void();
     })
@@ -324,20 +330,14 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         const char* name = nonWhitespaceStr(result->getText());
         if (name)
         {
-            if (!item->data)
-            {
-                item->data.reset(new Buffer);
-            }
-            else
-            {
-                item->data->append(' ');
-            }
+            assert(item->data);
+            item->data->append(' ');
             item->data->append(name).append<char>(0);
             item->resolve(key);
         }
         else //second name is NULL
         {
-            if (item->data)
+            if (item->data->dataSize() > 1)
                 item->resolve(key);
             else
                 item->error(key, ::mega::API_ENOENT);
