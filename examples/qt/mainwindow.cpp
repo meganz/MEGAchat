@@ -441,11 +441,8 @@ void MainWindow::onSettingsBtn(bool)
 
 void CListGroupChatItem::setTitle()
 {
-    auto topic = QInputDialog::getText(this, tr("Change chat title"), tr("Please enter chat title"));
-    if (topic.isNull())
-        return;
-
-    mRoom.setTitle(topic.toStdString())
+    auto title = QInputDialog::getText(this, tr("Change chat title"), tr("Please enter chat title"));
+    mRoom.setTitle(title.isNull() ? std::string() : title.toStdString())
     .fail([](const promise::Error& err)
     {
         GUI_LOG_ERROR("Error setting chat title: %s", err.what());

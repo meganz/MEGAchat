@@ -249,6 +249,7 @@ public:
     static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
+    void clearTitle();
     void updateAllOnlineDisplays(Presence pres);
     void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(const uint64_t& userid);

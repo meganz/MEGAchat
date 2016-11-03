@@ -914,7 +914,8 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
     return list ? list->addGroupChatItem(*this) : nullptr;
 }
 
-GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl, unsigned char aShard,
+GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
+    const std::string& aUrl, unsigned char aShard,
     chatd::Priv aOwnPriv, const std::string& title)
 :ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv), mRoomGui(addAppItem()),
   mTitleString(title), mHasTitle(!title.empty())
@@ -925,10 +926,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const
     {
         addMember(stmt.uint64Col(0), (chatd::Priv)stmt.intCol(1), false);
     }
-    if (!mTitleString.empty() && mRoomGui)
-    {
+    if (mTitleString.empty())
+        makeTitleFromMemberNames();
+    if (mRoomGui)
         mRoomGui->onTitleChanged(mTitleString);
-    }
     initWithChatd();
 }
 void GroupChatRoom::initWithChatd()
@@ -1306,6 +1307,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     {
         mEncryptedTitle = title;
     }
+    else
+    {
+        clearTitle();
+    }
     initWithChatd();
 }
 
@@ -1313,6 +1318,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 {
     if (mEncryptedTitle.empty())
         return promise::_Void();
+
     Buffer buf(mEncryptedTitle.size());
     size_t decLen;
     try
@@ -1341,8 +1347,15 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
             return;
         }
         mTitleString = title;
-        mHasTitle = true;
-        sqliteQuery(parent.client.db, "update chats set title=? where chatid=?", mTitleString, mChatid);
+        if (!mTitleString.empty())
+        {
+            mHasTitle = true;
+            sqliteQuery(parent.client.db, "update chats set title=? where chatid=?", mTitleString, mChatid);
+        }
+        else
+        {
+            clearTitle();
+        }
         if (mRoomGui)
             mRoomGui->onTitleChanged(mTitleString);
         if (mAppChatHandler)
@@ -1373,8 +1386,11 @@ void GroupChatRoom::makeTitleFromMemberNames()
                         .append(", ");
         }
     }
+
     if (!mTitleString.empty())
         mTitleString.resize(mTitleString.size()-2); //truncate last ", "
+    else
+        mTitleString = "(alone in this chatroom)";
 
     if (mRoomGui)
         mRoomGui->onTitleChanged(mTitleString);
@@ -1671,6 +1687,11 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
     }
     return changed;
 }
+void GroupChatRoom::clearTitle()
+{
+    makeTitleFromMemberNames();
+    sqliteQuery(parent.client.db, "update chats set title=NULL where chatid=?", mChatid);
+}
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
@@ -1685,6 +1706,11 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         {
             decryptTitle();
         }
+    }
+    else
+    {
+        clearTitle();
+        KR_LOG_DEBUG("Empty title received for group chat %s", Id(mChatid).toString().c_str());
     }
     if (changed)
         KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
