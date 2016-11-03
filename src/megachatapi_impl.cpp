@@ -621,7 +621,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             MegaChatHandle uh = request->getUserHandle();
 
-            mClient->userAttrCache().getAttr(uh, mega::MegaApi::USER_ATTR_LASTNAME)
+            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_LASTNAME)
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
