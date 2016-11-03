@@ -2527,8 +2527,10 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         {
             this->peers.push_back(userpriv_pair(it->first, (privilege_t) it->second->priv()));
             string name = it->second->name();
-            this->peerFirstnames.push_back(name.length() ? string(name.data() + 1, name.at(0)) : "");
-            this->peerLastnames.push_back(name.length() ? name.c_str() + name.at(0) + 2: "");
+            int lenFirstname = name.length() ? name.at(0) : 0;
+            this->peerFirstnames.push_back(lenFirstname ? string(name.data() + 1, lenFirstname) : "");
+            int lenLastname = name.length() ? (name.length() - lenFirstname - 1) : 0;
+            this->peerLastnames.push_back(lenLastname ? string(name.data() + 1 + lenFirstname, lenLastname) : "");
         }
         this->status = chat.chatdOnlineState();
     }
