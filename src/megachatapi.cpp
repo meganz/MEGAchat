@@ -128,6 +128,16 @@ int MegaChatApi::getUserOnlineStatus(MegaChatHandle userhandle)
     return pImpl->getUserOnlineStatus(userhandle);
 }
 
+void MegaChatApi::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+{
+    pImpl->getUserFirstname(userhandle, listener);
+}
+
+void MegaChatApi::getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+{
+    pImpl->getUserLastname(userhandle, listener);
+}
+
 MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();

@@ -597,6 +597,47 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_GET_FIRSTNAME:
+        {
+            MegaChatHandle uh = request->getUserHandle();
+
+            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_FIRSTNAME)
+            .then([request, this](Buffer *data)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                request->setText(data->buf());
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                API_LOG_ERROR("Error getting user firstname: ", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
+        case MegaChatRequest::TYPE_GET_LASTNAME:
+        {
+            MegaChatHandle uh = request->getUserHandle();
+
+            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_LASTNAME)
+            .then([request, this](Buffer *data)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                request->setText(data->buf());
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                API_LOG_ERROR("Error getting user lastname: ", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+            break;
+        }
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -1004,6 +1045,22 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
     sdkMutex.unlock();
 
     return status;
+}
+
+void MegaChatApiImpl::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_FIRSTNAME, listener);
+    request->setUserHandle(userhandle);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_LASTNAME, listener);
+    request->setUserHandle(userhandle);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
@@ -1791,6 +1848,9 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_UPDATE_PEER_PERMISSIONS: return "UPDATE_PEER_PERMISSIONS";
         case TYPE_TRUNCATE_HISTORY: return "TRUNCATE_HISTORY";
         case TYPE_EDIT_CHATROOM_NAME: return "EDIT_CHATROOM_NAME";
+        case TYPE_EDIT_CHATROOM_PIC: return "TYPE_EDIT_CHATROOM_PIC";
+        case TYPE_GET_FIRSTNAME: return "TYPE_GET_FIRSTNAME";
+        case TYPE_GET_LASTNAME: return "TYPE_GET_LASTNAME";
 
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
@@ -2605,7 +2665,7 @@ MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
     return uh;
 }
 
-void MegaChatRoomPrivate::setTitle(string title)
+void MegaChatRoomPrivate::setTitle(const string& title)
 {
     this->title = title;
     this->changed |= MegaChatRoom::CHANGE_TYPE_TITLE;
@@ -2651,7 +2711,7 @@ void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
 void MegaChatListItemHandler::onTitleChanged(const string &title)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
-    item->setTitle(title.c_str());
+    item->setTitle(title);
 
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -2756,21 +2816,30 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(MegaChatHandle chatid)
     : MegaChatListItem()
 {
     this->chatid = chatid;
-    this->title = NULL;
+    this->title = "";
     this->visibility = VISIBILITY_UNKNOWN;
     this->unreadCount = 0;
     this->status = MegaChatApi::STATUS_OFFLINE;
     this->changed = 0;
 }
 
+MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
+{
+    this->chatid = item->getChatId();
+    this->title = item->getTitle();
+    this->visibility = (visibility_t) item->getVisibility();
+    this->unreadCount = item->getUnreadCount();
+    this->status = item->getOnlineStatus();
+    this->changed = item->getChanges();
+}
+
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
 {
-    delete [] title;
 }
 
 MegaChatListItem *MegaChatListItemPrivate::copy() const
 {
-    return new MegaChatListItemPrivate(chatid);
+    return new MegaChatListItemPrivate(this);
 }
 
 int MegaChatListItemPrivate::getChanges() const
@@ -2790,7 +2859,7 @@ MegaChatHandle MegaChatListItemPrivate::getChatId() const
 
 const char *MegaChatListItemPrivate::getTitle() const
 {
-    return title;
+    return title.c_str();
 }
 
 int MegaChatListItemPrivate::getVisibility() const
@@ -2814,13 +2883,9 @@ void MegaChatListItemPrivate::setVisibility(visibility_t visibility)
     this->changed |= MegaChatListItem::CHANGE_TYPE_VISIBILITY;
 }
 
-void MegaChatListItemPrivate::setTitle(const char *title)
+void MegaChatListItemPrivate::setTitle(const string &title)
 {
-    if(this->title)
-    {
-        delete [] this->title;
-    }
-    this->title = MegaApi::strdup(title);
+    this->title = title;
     this->changed |= MegaChatListItem::CHANGE_TYPE_TITLE;
 }
 

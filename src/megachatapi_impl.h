@@ -188,6 +188,7 @@ class MegaChatListItemPrivate : public MegaChatListItem
 {
 public:
     MegaChatListItemPrivate(MegaChatHandle chatid);
+    MegaChatListItemPrivate(const MegaChatListItem *item);
     virtual ~MegaChatListItemPrivate();
     virtual MegaChatListItem *copy() const;
 
@@ -196,7 +197,7 @@ private:
 
     MegaChatHandle chatid;
     mega::visibility_t visibility;
-    const char *title;
+    std::string title;
     int unreadCount;
     int status;
 
@@ -212,7 +213,7 @@ public:
 
 
     void setVisibility(mega::visibility_t visibility);
-    void setTitle(const char *title);
+    void setTitle(const std::string &title);
     void setUnreadCount(int count);
     void setOnlineStatus(int status);
     void setMembersUpdated();
@@ -396,7 +397,7 @@ public:
     virtual int getOnlineStatus() const;
     virtual MegaChatHandle getUserTyping() const;
 
-    void setTitle(std::string title);
+    void setTitle(const std::string &title);
     void setUnreadCount(int count);
     void setOnlineStatus(int status);
     void setMembersUpdated();
@@ -638,6 +639,8 @@ public:
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     int getOnlineStatus();
     int getUserOnlineStatus(MegaChatHandle userhandle);
+    void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+    void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
