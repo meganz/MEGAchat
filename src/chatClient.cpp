@@ -964,10 +964,10 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const s
     unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv)
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer),
   mPeerPriv(peerPriv), mContact(parent.client.contactList->contactFromUserId(peer)),
-  mRoomGui(addAppItem()),
   mTitleString(mContact.titleString().empty()
     ? mContact.titleString()
-    : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1))
+    : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1)),
+  mRoomGui(addAppItem())
 {
     mContact.attachChatRoom(*this);
     initWithChatd();
@@ -978,10 +978,10 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
      (chatd::Priv)chat.getOwnPrivilege()),
     mPeer(getSdkRoomPeer(chat)), mPeerPriv(chatd::PRIV_RDONLY),
     mContact(parent.client.contactList->contactFromUserId(mPeer)),
-    mRoomGui(addAppItem()),
     mTitleString(mContact.titleString().empty()
         ? mContact.titleString()
-        : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1))
+        : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1)),
+    mRoomGui(addAppItem())
 {
     assert(!chat.isGroup());
     auto peers = chat.getPeerList();
@@ -1901,6 +1901,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
     updateTitle(email, email.size());
     assert(!mTitleString.empty()); //must at least contain the firstname len byte
+
     mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
         mega::MegaApi::USER_ATTR_LASTNAME, this,
         [](Buffer* data, void* userp)
@@ -1948,9 +1949,7 @@ void Contact::updateTitle(const std::string& str, size_t firstNameLen)
     if (mChatRoom)
     {
         assert(!mTitleString.empty());
-        //1on1 chatroom title is the full name, without binary prefix for first name len
-        std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
-        mChatRoom->updateTitle(roomTitle);
+        mChatRoom->updateTitle(mTitleString);
     }
 }
 
