@@ -165,6 +165,7 @@ Promise<Stanza> JingleSession::sendOffer()
         mLocalSdp.parse(strSdp);
         if (tweakEncoding(mLocalSdp))
         {
+            printf("SDP: %s\n", mLocalSdp.toString().c_str());
             webrtc::SessionDescriptionInterface* newSdp = parsedSdpToWebrtcSdp(mLocalSdp, sdp->type());
             delete sdp;
             sdp = newSdp;
@@ -373,7 +374,6 @@ int JingleSession::findCodecNo(const std::string& sdp, const char* codecName)
 
 bool JingleSession::tweakEncoding(sdpUtil::ParsedSdp& sdp)
 {
-    return false;
     sdpUtil::MGroup* video = nullptr;
     for (auto& media: sdp.media)
     {
@@ -386,7 +386,6 @@ bool JingleSession::tweakEncoding(sdpUtil::ParsedSdp& sdp)
     if (!video)
         return false;
     bool changed = tweakCodec(*video, 100);
-    printf("SDP: %s\n", sdp.toString().c_str());
     return changed;
 }
 
@@ -416,7 +415,7 @@ bool JingleSession::tweakCodec(sdpUtil::MGroup& media, int codecId)
     if (changed)
     {
         line.resize(line.size()-1); //remove last ';'
-        media.push_back(line);
+//        media.push_back(line);
     }
     if (params.bufLatency) //this one should be last as it adds a new line
     {

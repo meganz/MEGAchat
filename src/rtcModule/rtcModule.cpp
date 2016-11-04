@@ -593,6 +593,10 @@ void Call::onMediaStart()
             statOptions.maxSamplePeriod = 5000;
 
         mSess->mStatsRecorder.reset(new stats::Recorder(*mSess, statOptions));
+        if (statOptions.onSample)
+        {
+            mSess->mStatsRecorder->onSample = std::move(statOptions.onSample);
+        }
         mSess->mStatsRecorder->start();
     }
     mSess->tsMediaStart = karere::timestampMs();

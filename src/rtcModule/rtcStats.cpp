@@ -88,7 +88,7 @@ void dumpStats(const artc::MyStatsReports& data)
 
 void Recorder::onStats(const std::shared_ptr<artc::MyStatsReports>& data)
 {
-//    dumpStats(*data);
+//  dumpStats(*data);
     long ts = karere::timestampMs() - mStats->mStartTs;
     long period = ts - mCurrSample->ts;
     mCurrSample->ts = ts;
@@ -166,6 +166,7 @@ void Recorder::onStats(const std::shared_ptr<artc::MyStatsReports>& data)
             sample.bwav = round((float)item.longVal(VALNAME(AvailableSendBandwidth))/1024);
             sample.gbps = round((float)item.longVal(VALNAME(TransmitBitrate))/1024); //chrome returns it in bits/s, should be near our calculated bps
             sample.gabps = (sample.gabps*4+sample.gbps)/5;
+            sample.targetEncBitrate = round((float)item.longVal(VALNAME(TargetEncBitrate))/1024);
         }
     } //end item loop
     bool shouldAddSample = false;
@@ -206,12 +207,12 @@ void Recorder::onStats(const std::shared_ptr<artc::MyStatsReports>& data)
     {
         //KR_LOG_DEBUG("Stats: add sample");
         addSample();
-        if (onSample)
-        {
-            if (mStats->mSamples.size() == 1) //first sample that we just added
-                onSample(&(mStats->mConnInfo), 0);
-            onSample(mStats->mSamples.back(), 1);
-        }
+    }
+    if (onSample)
+    {
+        if ((mStats->mSamples.size() == 1) && shouldAddSample) //first sample that we just added
+            onSample(&(mStats->mConnInfo), 0);
+        onSample(mCurrSample.get(), 1);
     }
 }
 
