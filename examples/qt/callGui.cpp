@@ -3,6 +3,7 @@
 #include <chatRoom.h>
 #include "mainwindow.h"
 #include <QPainter>
+#include <IRtcStats.h>
 
 using namespace std;
 using namespace mega;
@@ -117,6 +118,19 @@ void CallGui::onPeerUnmute(AvFlags what)
 {
     if (what.video)
         ui.remoteRenderer->disableStaticImage();
+}
+
+void CallGui::onMediaRecv(rtcModule::stats::Options& statOptions)
+{
+    ui.remoteRenderer->disableStaticImage();
+    statOptions.onSample = [](void* data, int type)
+    {
+        if (type != 1)
+            return;
+
+        auto& stats = *static_cast<rtcModule::stats::Sample*>(data);
+        printf("vsend bps: %ld (target: %ld)\n", stats.vstats.s.bps, stats.vstats.s.targetEncBitrate);
+    };
 }
 
 void CallGui::setAvatarOnRemote()

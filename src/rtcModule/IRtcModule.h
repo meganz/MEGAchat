@@ -83,6 +83,24 @@ class RtcModule;
 /** Length of Jingle session id strings */
 enum { RTCM_SESSIONID_LEN = 16 };
 
+struct VidEncParams
+{
+    /** @brief Minimum bitrate for video encoding, in kbits/s */
+    uint16_t minBitrate = 0;
+    /** @brief Maximum bitrate for video encoding, in kbits/s */
+    uint16_t maxBitrate = 0;
+    /** @brief Maximum spatial quantization for video encoding.
+      * This specifies the maximum size of image area to be encoded with one
+      * color - the bigger this value is, the more coarse and blocky the image
+      * is. Value of 1 should disable quantization.
+      */
+    uint16_t maxQuant = 0;
+
+    /** @brief The target buffer latency of the video stream, in milliseconds */
+    uint16_t bufLatency = 0;
+
+};
+
 /** @brief A class representing a media call. The protected members are internal
  stuff, and are here only for performance reasons, to not have virtual methods
  for every property
@@ -103,12 +121,9 @@ protected:
     bool mHasReceivedMedia = false;
     ICall(RtcModule& aRtc, bool isCaller, CallState aState, IEventHandler* aHandler,
          const std::string& aSid, const std::string& aPeerJid, bool aIsFt,
-         const std::string& aOwnJid)
-    : mRtc(aRtc), mIsCaller(isCaller), mState(aState), mHandler(aHandler), mSid(aSid),
-      mOwnJid(aOwnJid), mPeerJid(aPeerJid), mIsFileTransfer(aIsFt) {}
+         const std::string& aOwnJid);
 ///@endcond
 public:
-
     virtual ~ICall() {}
 
 /** @brief Call termination reason codes */
@@ -176,8 +191,8 @@ enum
 
     /**
      * @brief Mutes/unmutes the spefified channel (audio and/or video)
-     * @param what
-     * @param state
+     * @param what Specified which channels to apply the operation
+     * @param state Whther to mute (\c false) or unmute(\c true) the specified channels
      */
     virtual void muteUnmute(AvFlags what, bool state) = 0;
 
@@ -206,7 +221,6 @@ enum
     /**
      * @brief Returns \c true if we have already received media packets from the peer,
      * \c false otherwise.
-     * @return
      */
     bool hasReceivedMedia() const { return mHasReceivedMedia; }
 
@@ -217,10 +231,22 @@ enum
      * @brief Specifies what streams we currently (should) receive - audio and/or video.
      * Note that this does not mean that we are actually receiving them, but only that
      * the peer has declared that it will send them
-     *
-     * @return
      */
     virtual AvFlags receivedAv() const = 0;
+
+    /**
+     * @brief Sets a peer connection constraint specificly for this call.
+     * If not set, the peer connection constraints set in the parent RtcModule
+     * will be used. Otherwise, the rtcModule's constraints are copied, and
+     * explicit changes, made with this method, are appiled.
+     * @param key The name of the constraint, as per the webrtc specification
+     * @param value the numeric value
+     * @param optional Whether the constraint is optional or mandatory
+     */
+    virtual void setPcConstraint(const std::string& key, const std::string& value, bool optional=false) = 0;
+
+    /** @brief Default video encoding settings */
+    VidEncParams vidEncParams;
 };
 
 /**
@@ -415,6 +441,8 @@ public:
 class IRtcModule: public strophe::IPlugin
 {
 public:
+    /** @brief Default video encoding parameters. */
+    VidEncParams vidEncParams;
 
     /** @brief Returns a list of all detected audio input devices on the system */
     virtual void getAudioInDevices(std::vector<std::string>& devices) const = 0;
@@ -445,7 +473,6 @@ public:
 
     /**
      * @brief Initiates a call to the specified JID.
-     *
      * @param userHandler - the event handler interface that will receive further events
      * about the call
      * @param targetJid - the bare or full JID of the callee. If the JID is bare,
@@ -468,6 +495,21 @@ public:
 
     /** @brief Returns the call object for the specified Jingle session id, or \c NULL if no such call exists */
     virtual std::shared_ptr<ICall> getCallBySid(const std::string& sid) = 0;
+
+    /**
+     * @brief Sets a media capture constraint, like resolution and fps.
+     * @param key The name of the constraint, as per the webrtc specification
+     * @param value the numeric value
+     * @param optional Whether the constraint is optional or mandatory
+     */
+    virtual void setMediaConstraint(const std::string& key, const std::string& value, bool optional=false) = 0;
+    /**
+     * @brief Sets a default peer connection constraint.
+     * @param key The name of the constraint, as per the webrtc specification
+     * @param value the numeric value
+     * @param optional Whether the constraint is optional or mandatory
+     */
+    virtual void setPcConstraint(const std::string& key, const std::string& value, bool optional=false) = 0;
 
     virtual ~IRtcModule(){}
 };

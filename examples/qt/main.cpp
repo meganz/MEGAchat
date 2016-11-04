@@ -60,7 +60,7 @@ extern "C" void myMegaPostMessageToGui(void* msg)
 
 using namespace strophe;
 
-
+void setVidencParams();
 void sigintHandler(int)
 {
     printf("SIGINT Received\n");
@@ -128,7 +128,11 @@ int main(int argc, char **argv)
             KR_LOG_DEBUG("Client initialized");
         }
         mainWin->show();
-        gClient->connect();
+        return gClient->connect();
+    })
+    .then([]()
+    {
+        setVidencParams();
     })
     .fail([](const promise::Error& error)
     {
@@ -139,6 +143,38 @@ int main(int argc, char **argv)
 
     signal(SIGINT, sigintHandler);
     return a.exec();
+}
+
+void setVidencParams()
+{
+
+    const char* val;
+    auto& rtc = *gClient->rtc;
+    if ((val = getenv("KR_VIDENC_MAXH")))
+    {
+        rtc.setMediaConstraint("maxHeight", val);
+    }
+    if ((val = getenv("KR_VIDENC_MAXW")))
+    {
+        rtc.setMediaConstraint("maxWidth", val);
+    }
+
+    if ((val = getenv("KR_VIDENC_MAXBR")))
+    {
+        rtc.vidEncParams.maxBitrate = atoi(val);
+    }
+    if ((val = getenv("KR_VIDENC_MINBR")))
+    {
+        rtc.vidEncParams.minBitrate = atoi(val);
+    }
+    if ((val = getenv("KR_VIDENC_MAXQNT")))
+    {
+        rtc.vidEncParams.maxQuant = atoi(val);
+    }
+    if ((val = getenv("KR_VIDENC_BUFLAT")))
+    {
+        rtc.vidEncParams.bufLatency = atoi(val);
+    }
 }
 
 void AppDelegate::onAppTerminate()

@@ -357,9 +357,9 @@ typedef std::vector<cricket::Device> DeviceList;
 struct MediaGetOptions
 {
     const cricket::Device& device;
-    webrtc::FakeConstraints constraints;
-    MediaGetOptions(const cricket::Device& aDevice)
-    :device(aDevice){}
+    webrtc::FakeConstraints& constraints;
+    MediaGetOptions(const cricket::Device& aDevice, webrtc::FakeConstraints& constr)
+    :device(aDevice), constraints(constr){}
 };
 
 class DeviceManager;

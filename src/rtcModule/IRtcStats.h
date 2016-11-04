@@ -44,6 +44,7 @@ struct Sample
             unsigned char lcpu;
             unsigned char lbw;
             long bwav;
+            long targetEncBitrate;
         } s;
     } vstats;
     struct
@@ -89,6 +90,7 @@ struct Options
     bool enableStats = true;
     int scanPeriod = -1;
     int maxSamplePeriod = -1;
+    std::function<void(void*, int)> onSample;
 };
 
 }
