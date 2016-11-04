@@ -1614,17 +1614,17 @@ void MegaChatApiImpl::onTerminate()
     API_LOG_DEBUG("Karere is about to terminate (call onTerminate())");
 }
 
-IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &room)
+IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &chat)
 {
-    MegaChatGroupListItemHandler *itemHandler = new MegaChatGroupListItemHandler(*this, room.chatid());
+    MegaChatGroupListItemHandler *itemHandler = new MegaChatGroupListItemHandler(*this, chat);
     chatGroupListItemHandler.insert(itemHandler);
 
     return itemHandler;
 }
 
-IApp::IPeerChatListItem *MegaChatApiImpl::addPeerChatItem(PeerChatRoom &room)
+IApp::IPeerChatListItem *MegaChatApiImpl::addPeerChatItem(PeerChatRoom &chat)
 {
-    MegaChatPeerListItemHandler *itemHandler = new MegaChatPeerListItemHandler(*this, room.chatid());
+    MegaChatPeerListItemHandler *itemHandler = new MegaChatPeerListItemHandler(*this, chat);
     chatPeerListItemHandler.insert(itemHandler);
 
     return itemHandler;
@@ -1698,12 +1698,14 @@ void MegaChatApiImpl::onOwnPresence(Presence pres)
 
     this->status = pres.status();
 
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(MEGACHAT_INVALID_HANDLE);
-    item->setOnlineStatus(status);
+    // TODO: create specific callback to notify the own-presence changes
 
-    API_LOG_INFO("My own presence has changed to %s (flags: %d)", pres.toString(), pres.flags());
+//    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(MEGACHAT_INVALID_HANDLE);
+//    item->setOnlineStatus(status);
 
-    fireOnChatListItemUpdate(item);
+//    API_LOG_INFO("My own presence has changed to %s (flags: %d)", pres.toString(), pres.flags());
+
+//    fireOnChatListItemUpdate(item);
 }
 
 ChatRequestQueue::ChatRequestQueue()
@@ -2729,7 +2731,7 @@ const char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
 
 void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setVisibility((visibility_t) newVisibility);
 
     chatApi.fireOnChatListItemUpdate(item);
@@ -2737,7 +2739,7 @@ void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
 
 void MegaChatListItemHandler::onTitleChanged(const string &title)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setTitle(title);
 
     chatApi.fireOnChatListItemUpdate(item);
@@ -2745,7 +2747,7 @@ void MegaChatListItemHandler::onTitleChanged(const string &title)
 
 void MegaChatListItemHandler::onUnreadCountChanged(int count)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setUnreadCount(count);
 
     chatApi.fireOnChatListItemUpdate(item);
@@ -2753,7 +2755,7 @@ void MegaChatListItemHandler::onUnreadCountChanged(int count)
 
 void MegaChatListItemHandler::onPresenceChanged(Presence state)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setOnlineStatus(state.status());
 
     chatApi.fireOnChatListItemUpdate(item);
@@ -2834,19 +2836,20 @@ MegaChatPeerListPrivate::MegaChatPeerListPrivate(userpriv_vector *userpriv)
 }
 
 
-MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl &chatApi, MegaChatHandle chatid)
-    :chatApi(chatApi), chatid(chatid)
+MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl &chatApi, const karere::ChatRoom &room)
+    :chatApi(chatApi), mRoom(room)
 {
 }
 
-MegaChatListItemPrivate::MegaChatListItemPrivate(MegaChatHandle chatid)
+MegaChatListItemPrivate::MegaChatListItemPrivate(const ChatRoom &chat)
     : MegaChatListItem()
 {
-    this->chatid = chatid;
-    this->title = "";
-    this->visibility = VISIBILITY_UNKNOWN;
-    this->unreadCount = 0;
-    this->status = MegaChatApi::STATUS_OFFLINE;
+    this->chatid = chat.chatid();
+    this->title = chat.titleString();
+    bool chatdConnected = &chat.chat() != nullptr;
+    this->unreadCount = (chatdConnected) ? chat.chat().unreadMsgCount() : 0;
+    this->status = chatdConnected ? (chat.isGroup() ? chat.chatdOnlineState() : chat.presence().status()) : MegaChatRoom::STATE_OFFLINE;
+    this->visibility = chat.isGroup() ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chat).contact().visibility();
     this->changed = 0;
 }
 
@@ -2934,15 +2937,15 @@ void MegaChatListItemPrivate::setMembersUpdated()
 }
 
 
-MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chatApi, MegaChatHandle chatid)
-    : MegaChatListItemHandler(chatApi, chatid)
+MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chatApi, const ChatRoom &room)
+    : MegaChatListItemHandler(chatApi, room)
 {
 
 }
 
 void MegaChatGroupListItemHandler::onUserJoin(uint64_t, Priv)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setMembersUpdated();
 
     chatApi.fireOnChatListItemUpdate(item);
@@ -2950,15 +2953,15 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t, Priv)
 
 void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->chatid);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setMembersUpdated();
 
     chatApi.fireOnChatListItemUpdate(item);
 }
 
 
-MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, MegaChatHandle chatid)
-    : MegaChatListItemHandler(chatApi, chatid)
+MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, const ChatRoom &room)
+    : MegaChatListItemHandler(chatApi, room)
 {
 
 }
