@@ -80,7 +80,7 @@ public:
     {
         rendererRet = ui.remoteRenderer;
     }
-    virtual void onMediaRecv(rtcModule::stats::Options&) { ui.remoteRenderer->disableStaticImage(); }
+    virtual void onMediaRecv(rtcModule::stats::Options& statOptions);
     virtual void onCallEnded(rtcModule::TermCode code, const std::string& text,
         const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj);
     virtual void onLocalMediaFail(const std::string& err, bool* cont)

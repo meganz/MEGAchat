@@ -5,7 +5,9 @@
 #include "karereCommon.h"
 #include "stringUtils.h"
 #include "rtcModule.h"
+#include "rtcmPrivate.h"
 #include "ICryptoFunctions.h"
+#include <regex>
 
 using namespace std;
 using namespace promise;
@@ -17,8 +19,8 @@ namespace rtcModule
 
 JingleSession::JingleSession(Call& call, FileTransferHandler* ftHandler)
     :mCall(call), mJingle(mCall.mRtc),
-    mSid(call.mSid),
-    mFtHandler(ftHandler){}
+    mSid(call.mSid), mFtHandler(ftHandler)
+{}
 
 JingleSession::~JingleSession()
 {}
@@ -43,7 +45,9 @@ void JingleSession::initiate(bool isInitiator)
     }
     //TODO: make it more elegant to initialize mPeerConn
     mPeerConn = artc::myPeerConnection<JingleSession>(*mJingle.mIceServers,
-        *this, &mJingle.mMediaConstraints);
+        *this, mCall.pcConstraints
+            ? mCall.pcConstraints.get()
+            : &mJingle.pcConstraints);
 
     KR_THROW_IF_FALSE((mPeerConn->AddStream(*mCall.mLocalStream)));
 }
@@ -135,14 +139,37 @@ Promise<Stanza> JingleSession::sendIceCandidate(
     return sendIq(cand.first, "transportinfo");
 }
 
+webrtc::SessionDescriptionInterface* parsedSdpToWebrtcSdp(
+    const ParsedSdp& parsed, const std::string& type)
+{
+    webrtc::SdpParseError err;
+    auto sdp = webrtc::CreateSessionDescription(type, parsed.toString(), &err);
+    if (!sdp)
+    {
+        printf("ERROR PARSING SDP\n");
+        throw std::runtime_error("Error parsing tweaked-for-encoding SDP string at line "
+            +err.line+": "+err.description);
+    }
+    return sdp;
+}
+
 Promise<Stanza> JingleSession::sendOffer()
 {
-    return mPeerConn.createOffer(&mJingle.mMediaConstraints)
+    return mPeerConn.createOffer(mCall.pcConstraints
+        ? mCall.pcConstraints.get()
+        : &mJingle.pcConstraints)
     .then([this](webrtc::SessionDescriptionInterface* sdp)
     {
         string strSdp;
         KR_THROW_IF_FALSE(sdp->ToString(&strSdp));
         mLocalSdp.parse(strSdp);
+        if (tweakEncoding(mLocalSdp))
+        {
+            printf("SDP: %s\n", mLocalSdp.toString().c_str());
+            webrtc::SessionDescriptionInterface* newSdp = parsedSdpToWebrtcSdp(mLocalSdp, sdp->type());
+            delete sdp;
+            sdp = newSdp;
+        }
         return mPeerConn.setLocalDescription(sdp);
     })
     .then([this]()
@@ -156,15 +183,16 @@ Promise<Stanza> JingleSession::sendOffer()
 
 Promise<void> JingleSession::setRemoteDescription(Stanza elem, const string& desctype)
 {
-    if (!mRemoteSdp.raw.empty())
+    if (!mRemoteSdp.session.empty())
         throw runtime_error("setRemoteDescription() from stanza: already have remote description");
     mRemoteSdp.parse(elem);
     unique_ptr<webrtc::JsepSessionDescription> jsepSdp(
         new webrtc::JsepSessionDescription(desctype));
     webrtc::SdpParseError error;
-    if (!jsepSdp->Initialize(mRemoteSdp.raw, &error))
+    if (!jsepSdp->Initialize(mRemoteSdp.toString(), &error))
         throw std::runtime_error("Error parsing SDP: line='"+error.line+"'\nError: "+error.description);
-//    KR_LOG_COLOR(34, "translated remote sdp:\n%s\n", mRemoteSdp.raw.c_str());
+
+//  KR_LOG_COLOR(34, "translated remote sdp:\n%s\n", mRemoteSdp.raw.c_str());
     return mPeerConn.setRemoteDescription(jsepSdp.release());
 }
 
@@ -209,14 +237,21 @@ Promise<void> JingleSession::sendAnswer()
 //must first send the sdp, and then setLocalDescription because
 //ICE candidates may start being generated before we had a chance to send
 //the sdp, so the peer will receive ICE candidates before the answer
-    return mPeerConn.createAnswer(&mJingle.mMediaConstraints)
+    return mPeerConn.createAnswer(mCall.pcConstraints
+        ? mCall.pcConstraints.get() : &mJingle.pcConstraints)
     .then([this](webrtc::SessionDescriptionInterface* sdp) mutable
     {
         checkActive("created SDP answer");
         string strSdp;
         KR_THROW_IF_FALSE(sdp->ToString(&strSdp));
         mLocalSdp.parse(strSdp);
-    //this.localSDP.mangle();
+        if (tweakEncoding(mLocalSdp))
+        {
+            auto newSdp = parsedSdpToWebrtcSdp(mLocalSdp, sdp->type());
+            delete sdp;
+            sdp = newSdp;
+        }
+
         auto accept = createJingleIq(mCall.mPeerJid, "session-accept");
         mLocalSdp.toJingle(accept.second, jCreator());
         addFingerprintMac(accept.second);
@@ -323,4 +358,70 @@ int JingleSession::isRelayed() const
     return mStatsRecorder->isRelay()?1:0;
 }
 
+using namespace std::regex_constants;
+
+int JingleSession::findCodecNo(const std::string& sdp, const char* codecName)
+{
+    //FIXME: code 0 is actually not invalid, it's PCM 8khz
+    std::smatch m;
+    if (!std::regex_search(sdp, m, std::regex(std::string("a=rtpmap:(\\d+)\\s")+codecName+"/*", ECMAScript | icase))
+       || (m.size() < 2))
+    {
+        return 0;
+    }
+    return atoi(m[1].str().c_str());
+}
+
+bool JingleSession::tweakEncoding(sdpUtil::ParsedSdp& sdp)
+{
+    sdpUtil::MGroup* video = nullptr;
+    for (auto& media: sdp.media)
+    {
+        if (media.name() == "video")
+        {
+            video = &media;
+            break;
+        }
+    }
+    if (!video)
+        return false;
+    bool changed = tweakCodec(*video, 100);
+    return changed;
+}
+
+bool JingleSession::tweakCodec(sdpUtil::MGroup& media, int codecId)
+{
+    bool changed = false;
+    std::string line;
+    line.append("a=fmtp:").append(to_string(codecId));
+    auto& params = mCall.vidEncParams;
+    if (params.minBitrate)
+    {
+        line.append(" x-google-min-bitrate=")
+            .append(std::to_string(params.minBitrate))+=';';
+        changed = true;
+    }
+    if (params.maxBitrate)
+    {
+        media.insert(media.begin()+1, "b=AS:"+std::to_string(params.maxBitrate));
+        changed = true;
+    }
+    if (params.maxQuant)
+    {
+        line.append(" x-google-max-quantization=")
+            .append(to_string(params.maxQuant))+=';';
+        changed = true;
+    }
+    if (changed)
+    {
+        line.resize(line.size()-1); //remove last ';'
+//        media.push_back(line);
+    }
+    if (params.bufLatency) //this one should be last as it adds a new line
+    {
+        media.push_back("a=x-google-buffer-latency:"+std::to_string(params.bufLatency));
+        changed = true;
+    }
+    return changed;
+}
 }

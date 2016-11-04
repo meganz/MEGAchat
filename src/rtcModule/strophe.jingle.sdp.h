@@ -25,28 +25,34 @@ struct MLine
     MLine(strophe::Stanza content);
     std::string toSdp();
 };
+struct MGroup: public LineGroup
+{
+    MLine mline;
+    MGroup(const strophe::Stanza stanza): mline(stanza){}
+    MGroup(const std::string& strMline): mline(strMline){}
+    const std::string& name() const { return mline.media; }
+};
 
 class ParsedSdp
 {
 public:
     /** Each media element is a group of lines related to one 'm=' block in the SDP */
-    std::vector<LineGroup> media;
+    std::vector<MGroup> media;
     /** This is the group of lines that is before the first 'm=' group of lines */
     LineGroup session;
-    std::string raw;
-//construct from SDP
+/// construct from SDP
     void parse(const std::string& strSdp);
-// construct from a jingle stanza
+/// construct from a jingle stanza
     void parse(strophe::Stanza jingle);
-//checks if there is an 'm=<name>:' line
-    //bool hasMlineWithName(const char* name);
+    std::string toString() const;
+/// checks if there is an 'm=<name>:' line
     int getMlineIndex(const std::string& mid);
-// add contents to a jingle element
+/// add contents to a jingle element
     strophe::Stanza toJingle(strophe::Stanza elem, const char* creator);
 protected:
     void rtcpFbFromJingle(strophe::Stanza elem, const std::string& payloadtype, LineGroup& media);
-// translate a jingle content element into an an SDP media part
-    std::unique_ptr<LineGroup> jingle2media(strophe::Stanza content);
+/// translate a jingle content element into an an SDP media part
+    std::unique_ptr<MGroup> jingle2media(strophe::Stanza content);
 };
 
 std::unique_ptr<StringMap> parse_rtpmap(const std::string& line, const std::string& id);

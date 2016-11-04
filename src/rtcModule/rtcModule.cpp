@@ -41,11 +41,11 @@ void RtcModule::initInputDevices()
         selectAudioInDevice(devices.audio[0].name);
     if (!devices.video.empty())
         selectVideoInDevice(devices.video[0].name);
-    KR_LOG_INFO("Input devices on this system:");
+    RTCM_LOG_INFO("Input devices on this system:");
     for (const auto& dev: devices.audio)
-        KR_LOG_INFO("\tAudio: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
+        RTCM_LOG_INFO("\tAudio: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
     for (const auto& dev: devices.video)
-        KR_LOG_INFO("\tVideo: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
+        RTCM_LOG_INFO("\tVideo: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
 }
 
 void RtcModule::getAudioInDevices(std::vector<std::string>& devices) const
@@ -126,9 +126,8 @@ std::shared_ptr<artc::LocalStreamHandle> RtcModule::getLocalStream(std::string& 
             errors.append("Configured video input device '").append(mVideoInDeviceName)
                   .append("' not present, using default device\n");
         }
-        auto opts = std::make_shared<artc::MediaGetOptions>(*device);
-        //opts.constraints.SetMandatoryMinWidth(1280);
-        //opts.constraints.SetMandatoryMinHeight(720);
+        auto opts = std::make_shared<artc::MediaGetOptions>(*device, mediaConstraints);
+
         mVideoInput = deviceManager.getUserVideo(opts);
     }
     catch(exception& e)
@@ -153,7 +152,7 @@ std::shared_ptr<artc::LocalStreamHandle> RtcModule::getLocalStream(std::string& 
             device = &devices.audio[0];
         }
         mAudioInput = deviceManager.getUserAudio(
-                std::make_shared<artc::MediaGetOptions>(*device));
+                std::make_shared<artc::MediaGetOptions>(*device, mediaConstraints));
     }
     catch(exception& e)
     {
@@ -280,7 +279,7 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
       auto actualAv = aCall.mLocalStream ? aCall.mLocalStream->av() : AvFlags(false,false);
       if (state->av != actualAv)
       {
-          KR_LOG_WARNING("startMediaCall: Could not obtain audio or video stream requested by the user");
+          RTCM_LOG_WARNING("startMediaCall: Could not obtain audio or video stream requested by the user");
           state->av = actualAv;
       }
       if (state->state == kCallCanceledByUs)
@@ -348,7 +347,7 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
         catch(runtime_error& e)
         {
               erase(state->sid);
-              KR_LOG_ERROR("Exception in call answer handler:\n%s\nIgnoring call", e.what());
+              RTCM_LOG_ERROR("Exception in call answer handler:\n%s\nIgnoring call", e.what());
         }
       }, NULL, "message", "megaCallAnswer", state->targetJid.c_str(), nullptr, STROPHE_MATCH_BAREJID);
 
@@ -476,7 +475,7 @@ void RtcModule::startMediaCall(IEventHandler* handler, const std::string& target
   })
   .fail([](const Error& err)
   {
-      KR_LOG_ERROR("Call setup failed: %s", err.what());
+      RTCM_LOG_ERROR("Call setup failed: %s", err.what());
   });
 }
 
@@ -545,7 +544,7 @@ void Call::createLocalPlayer()
 // This is called by myGetUserMedia when the the local stream is obtained (was not open before)
     if (mLocalPlayer) //should never happend
     {
-        KR_LOG_ERROR("Local stream just obtained, but mLocalPlayer was not NULL");
+        RTCM_LOG_ERROR("Local stream just obtained, but mLocalPlayer was not NULL");
         mLocalPlayer->attachVideo(mLocalStream->video());
         return;
     }
@@ -567,7 +566,7 @@ void Call::removeRemotePlayer()
 {
     if (!mRemotePlayer)
     {
-        KR_LOG_ERROR("removeVideo: remote player is already NULL");
+        RTCM_LOG_ERROR("removeVideo: remote player is already NULL");
         return;
     }
     mRemotePlayer->stop();
@@ -580,7 +579,7 @@ void Call::onMediaStart()
 {
     if (!mRemotePlayer || !mSess)
     {
-        KR_LOG_DEBUG("Received onMediaStart but remote player or session is NULL");
+        RTCM_LOG_DEBUG("Received onMediaStart but remote player or session is NULL");
         return;
     }
     stats::Options statOptions;
@@ -594,6 +593,10 @@ void Call::onMediaStart()
             statOptions.maxSamplePeriod = 5000;
 
         mSess->mStatsRecorder.reset(new stats::Recorder(*mSess, statOptions));
+        if (statOptions.onSample)
+        {
+            mSess->mStatsRecorder->onSample = std::move(statOptions.onSample);
+        }
         mSess->mStatsRecorder->start();
     }
     mSess->tsMediaStart = karere::timestampMs();
@@ -659,7 +662,7 @@ void Call::destroy(TermCode termcode, const std::string& text, bool noSessTermSe
 //call that don't have a shared_ptr to the call object, such as video frames
     marshallCall([call, termcode, text, stats]()
     {
-        KR_LOG_RTC_EVENT("%s -> onCallEnded: %s%s, msg: '%s'", call->mSid.c_str(),
+        RTCM_LOG_EVENT("%s -> onCallEnded: %s%s, msg: '%s'", call->mSid.c_str(),
             termcodeToMsg(termcode), ((termcode&kPeer)?" by peer":""), text.c_str());
         try
         {
@@ -677,11 +680,11 @@ void Call::destroy(TermCode termcode, const std::string& text, bool noSessTermSe
     })
     .then([](const std::shared_ptr<std::string>& response)
     {
-        KR_LOG_DEBUG("Callstats successfully posted");
+        RTCM_LOG_DEBUG("Callstats successfully posted");
     })
     .fail([](const promise::Error& err)
     {
-        KR_LOG_ERROR("Error posting stats: %s", err.what());
+        RTCM_LOG_ERROR("Error posting stats: %s", err.what());
     });
 }
 
@@ -690,12 +693,12 @@ void Call::onRemoteStreamAdded(artc::tspMediaStream stream)
 {
     if (!mSess)
     {
-        KR_LOG_ERROR("onRemoteStreamAdded for a call with no session");
+        RTCM_LOG_ERROR("onRemoteStreamAdded for a call with no session");
         return;
     }
     if (mRemotePlayer)
     {
-        KR_LOG_WARNING("onRemoteStreamAdded: Session '%s' already has a remote player, ignoring event", mSid.c_str());
+        RTCM_LOG_WARNING("onRemoteStreamAdded: Session '%s' already has a remote player, ignoring event", mSid.c_str());
         return;
     }
 
@@ -776,9 +779,18 @@ RtcModule::~RtcModule()
     destroyAll(Call::kUserHangup);
     if (mAudioInput || mVideoInput)
     {
-        KR_LOG_ERROR("RtcModule::~RtcModule: BUG: After destroying all calls, media input devices are still in use");
+        RTCM_LOG_ERROR("RtcModule::~RtcModule: BUG: After destroying all calls, media input devices are still in use");
     }
 }
+// We need to define the ICall ctor here as it needs access to RtcModule for
+// the maxBitrate and maxQuality members.
+ICall::ICall(RtcModule& aRtc, bool isCaller, CallState aState, IEventHandler* aHandler,
+     const std::string& aSid, const std::string& aPeerJid, bool aIsFt,
+     const std::string& aOwnJid)
+: mRtc(aRtc), mIsCaller(isCaller), mState(aState), mHandler(aHandler), mSid(aSid),
+  mOwnJid(aOwnJid), mPeerJid(aPeerJid), mIsFileTransfer(aIsFt),
+  vidEncParams(aRtc.vidEncParams)
+{}
 
 int Call::isRelayed() const
 {
