@@ -2018,12 +2018,19 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-    auto display = room.roomGui();
-    std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
-    if (display)
-        display->onTitleChanged(roomTitle);
-    if (room.appChatHandler())
-        room.appChatHandler()->onTitleChanged(roomTitle);
+    auto wptr = getWeakPtr();
+    karere::marshallCall([this, wptr]()
+    {
+        wptr.throwIfDeleted();
+        if (!mChatRoom)
+            return;
+        std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
+        auto display = mChatRoom->roomGui();
+        if (display)
+            display->onTitleChanged(roomTitle);
+        if (mChatRoom->appChatHandler())
+            mChatRoom->appChatHandler()->onTitleChanged(roomTitle);
+    });
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)
