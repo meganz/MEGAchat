@@ -306,12 +306,17 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
                 data.append(name);
             }
         }
+        else
+        {
+            data.append<unsigned char>(0);
+        }
     })
     .fail([this, item](const promise::Error& err) -> promise::Promise<void>
     {
+        item->data->append<unsigned char>(0);
         if (err.code() != ::mega::API_EARGS) //Shouldn't the API return ENOENT instead when there is not first name?
             return err;
-        KR_LOG_DEBUG("No first name for user, proceeding with fetching second name");
+        UACACHE_LOG_DEBUG("No first name for user, proceeding with fetching second name");
          //silently ignore errors for the first name, in case we can still retrieve the second name
         return promise::_Void();
     })
