@@ -1386,7 +1386,6 @@ void GroupChatRoom::makeTitleFromMemberNames()
                         .append(", ");
         }
     }
-
     if (!mTitleString.empty())
         mTitleString.resize(mTitleString.size()-2); //truncate last ", "
     else

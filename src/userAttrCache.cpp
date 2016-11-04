@@ -306,17 +306,12 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
                 data.append(name);
             }
         }
-        else
-        {
-            data.append<unsigned char>(0);
-        }
     })
     .fail([this, item](const promise::Error& err) -> promise::Promise<void>
     {
-        if (err.code() != ::mega::API_EARGS)
+        if (err.code() != ::mega::API_EARGS) //Shouldn't the API return ENOENT instead when there is not first name?
             return err;
         KR_LOG_DEBUG("No first name for user, proceeding with fetching second name");
-        item->data->append<unsigned char>(0);
          //silently ignore errors for the first name, in case we can still retrieve the second name
         return promise::_Void();
     })
@@ -332,34 +327,29 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         {
             assert(item->data);
             item->data->append(' ');
-            item->data->append(name).append<char>(0);
-            item->resolve(key);
+            item->data->append(name);
         }
-        else //second name is NULL
+        else if (item->data->dataSize() < 2) //second name and first name are NULL
         {
-            if (item->data->dataSize() > 1)
-                item->resolve(key);
-            else
-                item->error(key, ::mega::API_ENOENT);
+            item->error(key, ::mega::API_ENOENT);
+            return;
         }
+        item->resolve(key);
     })
     .fail([this, key, item](const promise::Error& err)
     {
 //even if we have error here, we don't clear item->data as we may have the
 //first name, but won't cache it in db, so the next app run will retry
-        if (err.code() == ::mega::API_ENOENT)
+        if (item->data->dataSize() < 2)
         {
-            if (item->data) //has only one name, still good
-                item->resolve(key);
-            else
-                item->error(key, ::mega::API_ENOENT);
+            item->error(key, err.code());
         }
-        else //some other error
+        else
         {
-            if (item->data)
-                item->resolveNoDb(key);
-            else
-                item->error(key, err.code());
+            if (err.code() == ::mega::API_ENOENT)
+                item->resolve(key); //has only first name, still good
+            else //some other error
+                item->resolveNoDb(key); //has only first name, still good
         }
     });
 }
