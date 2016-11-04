@@ -926,11 +926,15 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     {
         addMember(stmt.uint64Col(0), (chatd::Priv)stmt.intCol(1), false);
     }
-    if (mTitleString.empty())
-        makeTitleFromMemberNames();
-    if (mRoomGui)
-        mRoomGui->onTitleChanged(mTitleString);
     initWithChatd();
+    if (mTitleString.empty())
+    {
+        makeTitleFromMemberNames();
+    }
+    else if (mRoomGui)
+    {
+        mRoomGui->onTitleChanged(mTitleString);
+    }
 }
 void GroupChatRoom::initWithChatd()
 {
@@ -970,8 +974,8 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const s
     : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1)),
   mRoomGui(addAppItem())
 {
-    mContact.attachChatRoom(*this);
     initWithChatd();
+    mContact.attachChatRoom(*this);
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
@@ -995,9 +999,11 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
         mChatid, mUrl, mShardNo, mPeer, mPeerPriv, mOwnPriv);
 //just in case
     sqliteQuery(parent.client.db, "delete from chat_peers where chatid = ?", mChatid);
+
+    initWithChatd();
+
     mContact.attachChatRoom(*this);
     KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  Id(mChatid).toString().c_str());
-    initWithChatd();
 }
 
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
@@ -1302,6 +1308,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         stmt.step();
         stmt.reset().clearBind();
     }
+    initWithChatd();
     auto title = aChat.getTitle();
     if (title)
     {
@@ -1311,7 +1318,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     {
         clearTitle();
     }
-    initWithChatd();
 }
 
 promise::Promise<void> GroupChatRoom::decryptTitle()
@@ -2018,19 +2024,12 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-    auto wptr = getWeakPtr();
-    karere::marshallCall([this, wptr]()
-    {
-        wptr.throwIfDeleted();
-        if (!mChatRoom)
-            return;
-        std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
-        auto display = mChatRoom->roomGui();
-        if (display)
-            display->onTitleChanged(roomTitle);
-        if (mChatRoom->appChatHandler())
-            mChatRoom->appChatHandler()->onTitleChanged(roomTitle);
-    });
+    std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
+    auto display = room.roomGui();
+    if (display)
+        display->onTitleChanged(roomTitle);
+    if (room.appChatHandler())
+        room.appChatHandler()->onTitleChanged(roomTitle);
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)
