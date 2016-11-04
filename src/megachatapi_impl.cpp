@@ -1347,7 +1347,7 @@ bool MegaChatApiImpl::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        ret = chatroom->chat().setMessageSeen(msgid);
+        ret = chatroom->chat().setMessageSeen((Id) msgid);
     }    
 
     sdkMutex.unlock();
