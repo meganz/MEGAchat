@@ -2846,9 +2846,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const ChatRoom &chat)
 {
     this->chatid = chat.chatid();
     this->title = chat.titleString();
-    bool chatdConnected = &chat.chat() != nullptr;
-    this->unreadCount = (chatdConnected) ? chat.chat().unreadMsgCount() : 0;
-    this->status = chatdConnected ? (chat.isGroup() ? chat.chatdOnlineState() : chat.presence().status()) : MegaChatRoom::STATE_OFFLINE;
+    this->unreadCount = chat.chat().unreadMsgCount();
+    this->status = chat.isGroup() ? chat.chatdOnlineState() : chat.presence().status();
     this->visibility = chat.isGroup() ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chat).contact().visibility();
     this->changed = 0;
 }
