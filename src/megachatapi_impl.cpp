@@ -606,6 +606,8 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 request->setText(data->buf());
+                string firstname = string(data->buf(), data->bufSize());
+                request->setText(firstname.c_str());
                 fireOnChatRequestFinish(request, megaChatError);
             })
             .fail([request, this](const promise::Error& err)
@@ -625,7 +627,8 @@ void MegaChatApiImpl::sendPendingRequests()
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                request->setText(data->buf());
+                string lastname = string(data->buf(), data->bufSize());
+                request->setText(lastname.c_str());
                 fireOnChatRequestFinish(request, megaChatError);
             })
             .fail([request, this](const promise::Error& err)
