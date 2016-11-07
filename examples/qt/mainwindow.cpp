@@ -63,10 +63,7 @@ public:
         if (pass)
             ui.mPasswordInput->setText(pass);
     }
-    ~LoginDialog()
-    {
-        printf("LoginDialog dtor\n");
-    }
+    ~LoginDialog(){}
 
     void enableControls(bool enable)
     {
@@ -129,9 +126,9 @@ MainWindow::MainWindow(Client* aClient): mClient(aClient)
 //                   |Qt::WindowMinimizeButtonHint|Qt::WindowCloseButtonHint);
     ui.contactList->setSortingEnabled(true);
 }
+
 void MainWindow::onOnlineStatusBtn(bool)
 {
-    printf("click\n");
     auto list = new QMenu(this);
     auto actOnline = list->addAction("Online");
     actOnline->setData(QVariant(karere::Presence::kOnline));

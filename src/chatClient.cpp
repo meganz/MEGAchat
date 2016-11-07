@@ -974,8 +974,8 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const s
     : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1)),
   mRoomGui(addAppItem())
 {
+    mContact.attachChatRoom(*this); //defers title callbacks so they are not called during construction
     initWithChatd();
-    mContact.attachChatRoom(*this);
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
@@ -2024,12 +2024,19 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-    std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
-    auto display = room.roomGui();
-    if (display)
-        display->onTitleChanged(roomTitle);
-    if (room.appChatHandler())
-        room.appChatHandler()->onTitleChanged(roomTitle);
+    auto wptr = getWeakPtr();
+    karere::marshallCall([this, wptr]()
+    {
+        wptr.throwIfDeleted();
+        if (!mChatRoom)
+            return;
+        std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
+        auto display = mChatRoom->roomGui();
+        if (display)
+            display->onTitleChanged(roomTitle);
+        if (mChatRoom->appChatHandler())
+            mChatRoom->appChatHandler()->onTitleChanged(roomTitle);
+    });
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)
