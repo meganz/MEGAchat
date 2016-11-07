@@ -258,7 +258,7 @@ void MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
 
     cout << "id: " << item->getChatId() << ", title: " << title;
     cout << ", status: " << item->getOnlineStatus() << ", visibility: " << item->getVisibility();
-    cout << ", unread: " << item->getUnreadCount() << endl;
+    cout << ", unread: " << item->getUnreadCount() << ", changes: " << item->getChanges() << endl;
     fflush(stdout);
 }
 
@@ -326,7 +326,25 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
         TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
         assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
 
+        // Print chatroom information and peers' names
         printChatRoomInfo(chatroom);
+        if (chatroom->getPeerCount())
+        {
+            for (unsigned i = 0; i < chatroom->getPeerCount(); i++)
+            {
+                MegaChatHandle uh = chatroom->getPeerHandle(i);
+
+                bool *flag = &nameReceived[0]; *flag = false; firstname = "";
+                megaChatApi[0]->getUserFirstname(uh);
+                assert(waitForResponse(flag));
+                cout << "Peer firstname (" << uh << "): " << firstname << " (len: " << firstname.length() << ")" << endl;
+
+                flag = &nameReceived[0]; *flag = false; lastname = "";
+                megaChatApi[0]->getUserLastname(uh);
+                assert(waitForResponse(flag));
+                cout << "Peer lastname (" << uh << "): " << lastname << " (len: " << lastname.length() << ")" << endl;
+            }
+        }
 
         // Load history
         cout << "Loading messages for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
@@ -604,27 +622,17 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
         case MegaChatRequest::TYPE_CREATE_CHATROOM:
             chatid = request->getChatHandle();
             break;
-    }
-}
 
-void MegaChatApiTest::onOnlineStatusUpdate(MegaChatApi *api, int status)
-{
-    int apiIndex = -1;
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
-    {
-        if (api == megaChatApi[i])
-        {
-            apiIndex = i;
+        case MegaChatRequest::TYPE_GET_FIRSTNAME:
+            firstname = request->getText();
+            nameReceived[apiIndex] = true;
             break;
-        }
-    }
-    if (apiIndex == -1)
-    {
-        cout << "Instance of MegaChatApi not recognized" << endl;
-        return;
-    }
 
-    cout << "[api: " << apiIndex << "] Online status updated: " << status << endl;
+        case MegaChatRequest::TYPE_GET_LASTNAME:
+            lastname = request->getText();
+            nameReceived[apiIndex] = true;
+            break;
+    }
 }
 
 void MegaChatApiTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
@@ -647,7 +655,7 @@ void MegaChatApiTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
     if (chat != NULL)
     {
         cout << "[api: " << apiIndex << "] Chat added or updated (" << chat->getChatId() << ")" << endl;
-        chatUpdated[apiIndex] = chat->getChatId();
+        chatUpdated[apiIndex] = true;
     }
     else
     {
@@ -676,7 +684,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
     {
         cout << "[api: " << apiIndex << "] Chat list item added or updated - ";
         printChatListItemInfo(item);
-        chatUpdated[apiIndex] = item->getChatId();
+        chatUpdated[apiIndex] = true;
     }
 }
 

@@ -98,6 +98,8 @@ private:
 
     MegaChatHandle chatid;  // chatroom in use...
     bool chatUpdated[NUM_ACCOUNTS];
+    std::string firstname, lastname; // requested via karere
+    bool nameReceived[NUM_ACCOUNTS];
 
 //    MegaContactRequest* cr[2];
 
@@ -126,7 +128,6 @@ public:
     virtual void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaChatError* error) {}
 
     // implementation for MegaChatListener
-    void onOnlineStatusUpdate(MegaChatApi* api, int status);
     virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
     virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
 
