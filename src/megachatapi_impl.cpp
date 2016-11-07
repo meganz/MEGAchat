@@ -1623,7 +1623,11 @@ IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &chat)
     MegaChatGroupListItemHandler *itemHandler = new MegaChatGroupListItemHandler(*this, chat);
     chatGroupListItemHandler.insert(itemHandler);
 
-    return itemHandler;
+    // notify the app about the new chatroom
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(chat);
+    fireOnChatListItemUpdate(item);
+
+    return (IGroupChatListItem *) itemHandler;
 }
 
 IApp::IPeerChatListItem *MegaChatApiImpl::addPeerChatItem(PeerChatRoom &chat)
@@ -1631,17 +1635,51 @@ IApp::IPeerChatListItem *MegaChatApiImpl::addPeerChatItem(PeerChatRoom &chat)
     MegaChatPeerListItemHandler *itemHandler = new MegaChatPeerListItemHandler(*this, chat);
     chatPeerListItemHandler.insert(itemHandler);
 
-    return itemHandler;
+    // notify the app about the new chatroom
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(chat);
+    fireOnChatListItemUpdate(item);
+
+    return (IPeerChatListItem *) itemHandler;
 }
 
 void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
 {
-    chatGroupListItemHandler.erase(&item);
+    set<MegaChatGroupListItemHandler *>::iterator it = chatGroupListItemHandler.begin();
+    while (it != chatGroupListItemHandler.end())
+    {
+        IGroupChatListItem *itemHandler = (*it);
+        if (itemHandler == &item)
+        {
+            // notify the app about the new chatroom
+            MegaChatListItemPrivate *listItem = new MegaChatListItemPrivate((*it)->getChatRoom());
+            listItem->setClosed();
+            fireOnChatListItemUpdate(listItem);
+
+            chatGroupListItemHandler.erase(*it);
+            delete (*it);
+            return;
+        }
+    }
 }
 
 void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
 {
-    chatPeerListItemHandler.erase(&item);
+    set<MegaChatPeerListItemHandler *>::iterator it = chatPeerListItemHandler.begin();
+    while (it != chatPeerListItemHandler.end())
+    {
+        IPeerChatListItem *itemHandler = (*it);
+        if (itemHandler == &item)
+        {
+            // notify the app about the new chatroom
+            MegaChatListItemPrivate *listItem = new MegaChatListItemPrivate((*it)->getChatRoom());
+            listItem->setClosed();
+            fireOnChatListItemUpdate(listItem);
+
+            chatPeerListItemHandler.erase(*it);
+            delete (*it);
+            return;
+        }
+    }
 }
 
 void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
@@ -2765,6 +2803,11 @@ void MegaChatListItemHandler::onPresenceChanged(Presence state)
     chatApi.fireOnChatListItemUpdate(item);
 }
 
+const ChatRoom &MegaChatListItemHandler::getChatRoom() const
+{
+    return mRoom;
+}
+
 MegaChatPeerListPrivate::MegaChatPeerListPrivate()
 {
 }
@@ -2937,6 +2980,11 @@ void MegaChatListItemPrivate::setOnlineStatus(int status)
 void MegaChatListItemPrivate::setMembersUpdated()
 {
     this->changed |= MegaChatListItem::CHANGE_TYPE_PARTICIPANTS;
+}
+
+void MegaChatListItemPrivate::setClosed()
+{
+    this->changed |= MegaChatListItem::CHANGE_TYPE_CLOSED;
 }
 
 

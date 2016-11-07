@@ -565,12 +565,15 @@ void MegaChatApiTest::TEST_groupChatManagement()
     megaChatApi[1]->closeChatRoom(chatid, chatroomListener);
     delete chatroomListener;
 
-    // Remove the GroupChat
+    // Leave the GroupChat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
+    bool *chatClosed = &chatItemClosed[0]; *chatClosed = false;
     megaChatApi[0]->leaveChat(chatid);
     assert(waitForResponse(flag));
+    assert(waitForResponse(chatClosed));
 
     flag = &requestFlagsChat[1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
+    chatClosed = &chatItemClosed[1]; *chatClosed = false;
     megaChatApi[1]->leaveChat(chatid);
     assert(waitForResponse(flag));
 
@@ -685,6 +688,11 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         cout << "[api: " << apiIndex << "] Chat list item added or updated - ";
         printChatListItemInfo(item);
         chatUpdated[apiIndex] = true;
+
+        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_CLOSED))
+        {
+            chatItemClosed[apiIndex] = true;
+        }
     }
 }
 
@@ -785,8 +793,8 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
     cout << "[api: " << apiIndex << "] Message received - ";
     MegaChatApiTest::printMessageInfo(msg);
 
-    msgReceived[apiIndex] = true;
     msgId[apiIndex] = msg->getMsgId();
+    msgReceived[apiIndex] = true;
 }
 
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
@@ -809,6 +817,8 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
     cout << "[api: " << apiIndex << "] Message updated - ";
     MegaChatApiTest::printMessageInfo(msg);
 
+    msgId[apiIndex] = msg->getMsgId();
+
     if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
     {
         msgConfirmed[apiIndex] = true;
@@ -827,8 +837,6 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
     {
         historyTruncated[apiIndex] = true;
     }
-
-    msgId[apiIndex] = msg->getMsgId();
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
