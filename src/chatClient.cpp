@@ -403,7 +403,7 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
 
 promise::Promise<void> Client::connect()
 {
-    KR_LOG_DEBUG("Login to Mega API successful");
+    KR_LOG_DEBUG("Client::connect: Connecting to account '%s'...", SdkString(api.sdk.getMyEmail()).c_str());
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
     mUserAttrCache->getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
@@ -865,9 +865,9 @@ promise::Promise<ReqResult> GroupChatRoom::excludeMember(uint64_t user)
 }
 
 ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup, const std::string& aUrl,
-  unsigned char aShard, chatd::Priv aOwnPriv)
+  unsigned char aShard, chatd::Priv aOwnPriv, const std::string& aTitle)
 :parent(aParent), mChatid(chatid), mUrl(aUrl), mShardNo(aShard), mIsGroup(aIsGroup),
-  mOwnPriv(aOwnPriv)
+  mOwnPriv(aOwnPriv), mTitleString(aTitle)
 {}
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
@@ -920,8 +920,8 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     const std::string& aUrl, unsigned char aShard,
     chatd::Priv aOwnPriv, const std::string& title)
-:ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv),
-  mTitleString(title), mHasTitle(!title.empty()), mRoomGui(nullptr)
+:ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv, title),
+mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
@@ -935,12 +935,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     }
     else
     {
-        auto wptr = getWeakPtr();
-        marshallCall([this, wptr]()
-        {
-            wptr.throwIfDeleted();
-            notifyTitleChanged();
-        });
+        notifyTitleChanged();
     }
     initWithChatd();
     mRoomGui = addAppItem();
@@ -1013,6 +1008,14 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     initWithChatd();
     mRoomGui = addAppItem();
     mIsInitializing = false;
+}
+PeerChatRoom::~PeerChatRoom()
+{
+    if (mRoomGui)
+        parent.client.app.chatListHandler()->removePeerChatItem(*mRoomGui);
+    auto chatd = parent.client.chatd.get();
+    if (chatd)
+        chatd->leave(mChatid);
 }
 
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
@@ -1405,19 +1408,7 @@ void GroupChatRoom::makeTitleFromMemberNames()
     else
         mTitleString = "(alone in this chatroom)";
 
-    if (mIsInitializing)
-    {
-        auto wptr = getWeakPtr();
-        marshallCall([this, wptr]()
-        {
-            wptr.throwIfDeleted();
-            notifyTitleChanged();
-        });
-    }
-    else
-    {
-        notifyTitleChanged();
-    }
+    notifyTitleChanged();
 }
 
 void GroupChatRoom::loadTitleFromDb()
@@ -1652,23 +1643,27 @@ void PeerChatRoom::onUnreadChanged()
 void PeerChatRoom::updateTitle(const std::string& title)
 {
     mTitleString = title;
-    printf("%p: setting title in app: %s\n", this, mTitleString.c_str());
+    notifyTitleChanged();
+}
+
+void ChatRoom::notifyTitleChanged()
+{
     if (mIsInitializing)
     {
         auto wptr = getWeakPtr();
         marshallCall([this, wptr]()
         {
             wptr.throwIfDeleted();
-            notifyTitleChanged();
+            synchronousNotifyTitleChanged();
         });
     }
     else
     {
-        notifyTitleChanged();
+        synchronousNotifyTitleChanged();
     }
 }
 
-void ChatRoom::notifyTitleChanged()
+void ChatRoom::synchronousNotifyTitleChanged()
 {
     auto display = roomGui();
     if (display)
@@ -2021,22 +2016,27 @@ void Contact::updateTitle(const std::string& str, size_t firstNameLen)
         mTitleString[0] = firstNameLen;
         mTitleString.append(str);
     }
+    notifyTitleChanged();
+}
+
+void Contact::notifyTitleChanged()
+{
     if (mIsInitializing)
     {
         auto wptr = getWeakPtr();
         marshallCall([this, wptr]()
         {
             wptr.throwIfDeleted();
-            notifyTitleChanged();
+            synchronousNotifyTitleChanged();
         });
     }
     else
     {
-        notifyTitleChanged();
+        synchronousNotifyTitleChanged();
     }
 }
 
-void Contact::notifyTitleChanged()
+void Contact::synchronousNotifyTitleChanged()
 {
     if (mDisplay)
     {

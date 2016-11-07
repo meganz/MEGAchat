@@ -65,6 +65,7 @@ protected:
     bool mIsInitializing = true;
     std::string mTitleString;
     void notifyTitleChanged();
+    void synchronousNotifyTitleChanged();
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
@@ -87,7 +88,7 @@ public:
     virtual void connect() = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
-             unsigned char shard, chatd::Priv ownPriv);
+             unsigned char shard, chatd::Priv ownPriv, const std::string& aTitle=std::string());
 
     virtual ~ChatRoom(){}
 
@@ -183,7 +184,7 @@ protected:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
-    ~PeerChatRoom() {}
+    ~PeerChatRoom();
     //@endcond
 public:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
@@ -245,7 +246,6 @@ public:
     /** @cond PRIVATE */
     protected:
     MemberMap mPeers;
-    std::string mTitleString;
     bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
@@ -352,6 +352,7 @@ protected:
     bool mIsInitializing = true;
     void updateTitle(const std::string& str, size_t firstNameLen);
     void notifyTitleChanged();
+    void synchronousNotifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
     friend class PeerChatRoom;
