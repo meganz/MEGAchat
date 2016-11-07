@@ -62,6 +62,7 @@ protected:
     bool mIsGroup;
     chatd::Priv mOwnPriv;
     chatd::Chat* mChat = nullptr;
+    bool mIsInitializing = true;
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
@@ -177,6 +178,7 @@ protected:
     inline Presence calculatePresence(Presence pres) const;
     void updateTitle(const std::string& title);
     friend class Contact;
+    void notifyTitleChanged();
 public:
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
@@ -217,11 +219,13 @@ public:
     /** @brief Represents a single chatroom member */
     class Member
     {
+    protected:
         GroupChatRoom& mRoom;
         uint64_t mHandle;
         chatd::Priv mPriv;
         uint64_t mNameAttrCbHandle;
         std::string mName;
+        void subscribeForNameChanges();
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
@@ -250,6 +254,7 @@ public:
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
+    void notifyTitleChanged();
     void updateAllOnlineDisplays(Presence pres);
     void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(const uint64_t& userid);
@@ -344,7 +349,9 @@ protected:
     IApp::IContactListHandler* mAppClist; //cached, because we often need to check if it's null
     IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
+    bool mIsInitializing = true;
     void updateTitle(const std::string& str, size_t firstNameLen);
+    void notifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
     friend class PeerChatRoom;
