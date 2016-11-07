@@ -177,7 +177,7 @@ protected:
     std::string mService;
     int64_t mMaxReuseOldServersAge;
     int64_t mLastUpdateTs = 0;
-    std::unique_ptr<http::Client> mClient;
+    std::shared_ptr<http::Client> mClient;
     std::unique_ptr<rh::IRetryController> mRetryController;
     promise::Promise<void> mOutputPromise;
     void parseServersJson(const std::string& json);
@@ -258,9 +258,10 @@ template <class S>
 promise::Promise<void> GelbProvider<S>::exec(int no)
 {
     assert(!mClient); //don't destroy it as it may be still working, the promise handlers will destroy it when it resolves/fails the promise
-    mClient.reset(new http::Client);
+    mClient = std::make_shared<http::Client>();
+    auto client = mClient; //keep the client alive in case we destroy the provider
     return mClient->pget<std::string>(mGelbHost+"/?service="+mService)
-    .then([this](std::shared_ptr<http::Response<std::string> > response)
+    .then([this, client](std::shared_ptr<http::Response<std::string> > response)
         -> promise::Promise<void>
     {
         if (response->httpCode() != 200)
@@ -274,7 +275,7 @@ promise::Promise<void> GelbProvider<S>::exec(int no)
         this->mLastUpdateTs = timestampMs();
         return promise::_Void();
     })
-    .fail([this](const promise::Error& err)
+    .fail([this, client](const promise::Error& err)
     {
         mClient.reset();
         return err;

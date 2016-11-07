@@ -4,7 +4,6 @@
 #include "karereCommon.h"
 #include "sdkApi.h"
 #include "contactList.h"
-//#include "rtcModule/IRtcModule.h"
 #include <memory>
 #include <map>
 #include <type_traits>
@@ -13,6 +12,7 @@
 #include "userAttrCache.h"
 #include "chatd.h"
 #include "IGui.h"
+#include <base/trackDelete.h>
 
 namespace strophe { class Connection; }
 

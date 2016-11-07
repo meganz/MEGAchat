@@ -19,6 +19,7 @@
 #include <promise.h>
 #include <logger.h>
 #include <karereCommon.h>
+#include <base/trackDelete.h>
 
 #define STRONGVELOPE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
 #define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
