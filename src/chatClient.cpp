@@ -1980,6 +1980,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             onPresence(pres);
         });
     }
+    mIsInitializing = false;
 }
 
 // the title string starts with a byte equal to the first name length, followed by first name,
