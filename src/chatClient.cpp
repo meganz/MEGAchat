@@ -219,7 +219,7 @@ promise::Promise<ReqResult> Client::sdkLoginExistingSession(const char* sid)
 {
     assert(sid);
     return api.call(&::mega::MegaApi::fastLogin, sid)
-    .then([this](ReqResult)
+    .then([this](ReqResult res)
     {
         return api.call(&::mega::MegaApi::fetchNodes);
     });
@@ -409,8 +409,11 @@ promise::Promise<void> Client::connect()
     mUserAttrCache->getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
     [](Buffer* buf, void* userp)
     {
-        if (buf)
-            static_cast<Client*>(userp)->mMyName = std::string(buf->buf()+1, buf->dataSize()-1);
+        if (!buf)
+            return;
+        auto& name = static_cast<Client*>(userp)->mMyName;
+        name = std::string(buf->buf()+1, buf->dataSize()-1);
+        KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str());
     });
 
     connectToChatd();
@@ -917,8 +920,8 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     const std::string& aUrl, unsigned char aShard,
     chatd::Priv aOwnPriv, const std::string& title)
-:ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv), mRoomGui(addAppItem()),
-  mTitleString(title), mHasTitle(!title.empty())
+:ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv),
+  mTitleString(title), mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
@@ -930,11 +933,17 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     {
         makeTitleFromMemberNames();
     }
-    else if (mRoomGui)
+    else
     {
-        mRoomGui->onTitleChanged(mTitleString);
+        auto wptr = getWeakPtr();
+        marshallCall([this, wptr]()
+        {
+            wptr.throwIfDeleted();
+            notifyTitleChanged();
+        });
     }
     initWithChatd();
+    mRoomGui = addAppItem();
     mIsInitializing = false;
 }
 
@@ -971,11 +980,12 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const s
     unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv)
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer),
   mPeerPriv(peerPriv), mContact(parent.client.contactList->contactFromUserId(peer)),
-  mRoomGui(addAppItem())
+  mRoomGui(nullptr)
 {
     //mTitleString is set by Contact::attachChatRoom() via updateTitle()
     mContact.attachChatRoom(*this); //defers title callbacks so they are not called during construction
     initWithChatd();
+    mRoomGui = addAppItem();
     mIsInitializing = false;
 }
 
@@ -984,10 +994,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
      (chatd::Priv)chat.getOwnPrivilege()),
     mPeer(getSdkRoomPeer(chat)), mPeerPriv(chatd::PRIV_RDONLY),
     mContact(parent.client.contactList->contactFromUserId(mPeer)),
-    mTitleString(mContact.titleString().empty()
-        ? mContact.titleString()
-        : std::string(mContact.titleString().c_str()+1, mContact.titleString().size()-1)),
-    mRoomGui(addAppItem())
+    mRoomGui(nullptr)
 {
     assert(!chat.isGroup());
     auto peers = chat.getPeerList();
@@ -1004,6 +1011,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     mContact.attachChatRoom(*this);
     KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  Id(mChatid).toString().c_str());
     initWithChatd();
+    mRoomGui = addAppItem();
     mIsInitializing = false;
 }
 
@@ -1284,7 +1292,7 @@ ChatRoomList::~ChatRoomList()
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getUrl(), aChat.getShard(),
-  (chatd::Priv)aChat.getOwnPrivilege()), mRoomGui(addAppItem()), mHasTitle(false)
+  (chatd::Priv)aChat.getOwnPrivilege()), mHasTitle(false), mRoomGui(nullptr)
 {
     auto peers = aChat.getPeerList();
     if (peers)
@@ -1319,6 +1327,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         clearTitle();
     }
     initWithChatd();
+    mRoomGui = addAppItem();
     mIsInitializing = false;
 }
 
@@ -1364,10 +1373,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         {
             clearTitle();
         }
-        if (mRoomGui)
-            mRoomGui->onTitleChanged(mTitleString);
-        if (mAppChatHandler)
-            mAppChatHandler->onTitleChanged(mTitleString);
+        notifyTitleChanged();
     })
     .fail([wptr, this](const promise::Error& err)
     {
@@ -1398,18 +1404,20 @@ void GroupChatRoom::makeTitleFromMemberNames()
         mTitleString.resize(mTitleString.size()-2); //truncate last ", "
     else
         mTitleString = "(alone in this chatroom)";
-    if (mIsInitializing)
-        marshallCall([this]() { notifyTitleChanged(); });
-    else
-        notifyTitleChanged();
-}
 
-void GroupChatRoom::notifyTitleChanged()
-{
-    if (mRoomGui)
-        mRoomGui->onTitleChanged(mTitleString);
-    if(mAppChatHandler)
-        mAppChatHandler->onTitleChanged(mTitleString);
+    if (mIsInitializing)
+    {
+        auto wptr = getWeakPtr();
+        marshallCall([this, wptr]()
+        {
+            wptr.throwIfDeleted();
+            notifyTitleChanged();
+        });
+    }
+    else
+    {
+        notifyTitleChanged();
+    }
 }
 
 void GroupChatRoom::loadTitleFromDb()
@@ -1457,6 +1465,9 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 
 GroupChatRoom::~GroupChatRoom()
 {
+    if (mRoomGui)
+        parent.client.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
+
     auto chatd = parent.client.chatd.get();
     if (chatd)
         chatd->leave(mChatid);
@@ -1466,8 +1477,6 @@ GroupChatRoom::~GroupChatRoom()
         delete m.second;
     }
 
-    if (mRoomGui)
-        parent.client.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 }
 
 promise::Promise<ReqResult> GroupChatRoom::leave()
@@ -1643,19 +1652,33 @@ void PeerChatRoom::onUnreadChanged()
 void PeerChatRoom::updateTitle(const std::string& title)
 {
     mTitleString = title;
+    printf("%p: setting title in app: %s\n", this, mTitleString.c_str());
     if (mIsInitializing)
-        marshallCall([this]() { notifyTitleChanged(); });
+    {
+        auto wptr = getWeakPtr();
+        marshallCall([this, wptr]()
+        {
+            wptr.throwIfDeleted();
+            notifyTitleChanged();
+        });
+    }
     else
+    {
         notifyTitleChanged();
+    }
 }
 
-void PeerChatRoom::notifyTitleChanged()
+void ChatRoom::notifyTitleChanged()
 {
     auto display = roomGui();
     if (display)
+    {
         display->onTitleChanged(mTitleString);
-    if (appChatHandler())
-        appChatHandler()->onTitleChanged(mTitleString);
+    }
+    if (mAppChatHandler)
+    {
+        mAppChatHandler->onTitleChanged(mTitleString);
+    }
 }
 
 void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
@@ -2022,7 +2045,7 @@ void Contact::notifyTitleChanged()
     if (mChatRoom)
     {
         assert(!mTitleString.empty());
-        mChatRoom->updateTitle(mTitleString);
+        mChatRoom->updateTitle(std::string(mTitleString.c_str()+1, mTitleString.size()-1));
     }
 }
 
@@ -2061,7 +2084,6 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-    auto wptr = getWeakPtr();
 
     std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
     mChatRoom->updateTitle(roomTitle);

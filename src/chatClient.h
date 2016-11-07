@@ -63,6 +63,8 @@ protected:
     chatd::Priv mOwnPriv;
     chatd::Chat* mChat = nullptr;
     bool mIsInitializing = true;
+    std::string mTitleString;
+    void notifyTitleChanged();
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
@@ -161,7 +163,6 @@ protected:
     uint64_t mPeer;
     chatd::Priv mPeerPriv;
     Contact& mContact;
-    std::string mTitleString;
     // mRoomGui must be the last member, since when we initialize it,
     // we call into the app and pass our this pointer, so all other members
     // must be initialized
@@ -178,14 +179,14 @@ protected:
     inline Presence calculatePresence(Presence pres) const;
     void updateTitle(const std::string& title);
     friend class Contact;
-    void notifyTitleChanged();
-public:
+    friend class ChatRoomList;
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
-    virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
+    ~PeerChatRoom() {}
     //@endcond
-
+public:
+    virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     /** @brief The userid of the other person in the 1on1 chat */
     const uint64_t peer() const { return mPeer; }
     chatd::Priv peerPrivilege() const { return mPeerPriv; }
@@ -244,17 +245,16 @@ public:
     /** @cond PRIVATE */
     protected:
     MemberMap mPeers;
-    IApp::IGroupChatListItem* mRoomGui;
     std::string mTitleString;
     bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
+    IApp::IGroupChatListItem* mRoomGui;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
     bool syncMembers(const UserPrivMap& users);
     static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
-    void notifyTitleChanged();
     void updateAllOnlineDisplays(Presence pres);
     void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(const uint64_t& userid);
@@ -268,11 +268,11 @@ public:
 
     friend class ChatRoomList;
     friend class Member;
-public:
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
                   unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
     ~GroupChatRoom();
+public:
     promise::Promise<ReqResult> setPrivilege(karere::Id userid, chatd::Priv priv);
     promise::Promise<void> setTitle(const std::string& title);
     promise::Promise<ReqResult> leave();
@@ -487,6 +487,7 @@ protected:
     Id mMyHandle = mega::UNDEF;
     std::string mSid;
     std::unique_ptr<UserAttrCache> mUserAttrCache;
+    std::string mMyEmail;
 public:
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
