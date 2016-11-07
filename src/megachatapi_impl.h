@@ -217,6 +217,7 @@ public:
     void setUnreadCount(int count);
     void setOnlineStatus(int status);
     void setMembersUpdated();
+    void setClosed();
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
@@ -232,6 +233,8 @@ public:
     virtual void onUnreadCountChanged(int count);
     virtual void onPresenceChanged(karere::Presence state);
 //    virtual void onLastMessageUpdate();   // TBD in IGui.h
+
+    virtual const karere::ChatRoom& getChatRoom() const;
 
 protected:
     MegaChatApiImpl &chatApi;
@@ -560,8 +563,8 @@ private:
     std::set<MegaChatVideoListener *> localVideoListeners;
     std::set<MegaChatVideoListener *> remoteVideoListeners;
 
-    std::set<karere::IApp::IPeerChatListItem *> chatPeerListItemHandler;
-    std::set<karere::IApp::IGroupChatListItem *> chatGroupListItemHandler;
+    std::set<MegaChatPeerListItemHandler *> chatPeerListItemHandler;
+    std::set<MegaChatGroupListItemHandler *> chatGroupListItemHandler;
     std::map<MegaChatHandle, MegaChatRoomHandler*> chatRoomHandler;
 
     int reqtag;

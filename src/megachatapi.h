@@ -1418,6 +1418,21 @@ private:
     MegaChatApiImpl *pImpl;
 };
 
+/**
+ * @brief Represents every single chatroom where the user participates
+ *
+ * Unlike MegaChatRoom, which contains full information about the chatroom,
+ * objects of this class include strictly the minimal information required
+ * to populate a list of chats:
+ *  - Chat ID
+ *  - Title
+ *  - Online status
+ *  - Unread messages count
+ *  - Visibility of the contact for 1on1 chats
+ *
+ * Changes on any of this fields will be reported by a callback: MegaChatListener::onChatListItemUpdate
+ * It also notifies about a groupchat that has been closed (the user has left the room).
+ */
 class MegaChatListItem
 {
 public:
@@ -1428,7 +1443,8 @@ public:
         CHANGE_TYPE_VISIBILITY      = 0x02, // The contact of 1on1 chat has changed: added/removed... (chat remains even for removed contacts)
         CHANGE_TYPE_UNREAD_COUNT    = 0x04,
         CHANGE_TYPE_PARTICIPANTS    = 0x08,
-        CHANGE_TYPE_TITLE           = 0x10
+        CHANGE_TYPE_TITLE           = 0x10,
+        CHANGE_TYPE_CLOSED          = 0x20  // The chatroom has been left by own user
     };
 
     virtual ~MegaChatListItem() {}
@@ -1477,12 +1493,35 @@ public:
      */
     virtual int getOnlineStatus() const;
 
+    /**
+     * @brief Returns the visibility of the peer in a 1on1 chatroom.
+     *
+     * This visibility is the same from MegaUser::getVisibility.
+     *
+     * The returned value will be one of these:
+     * - VISIBILITY_UNKNOWN = -1 The visibility of the contact isn't know
+     * - VISIBILITY_HIDDEN = 0 The contact is currently hidden
+     * - VISIBILITY_VISIBLE = 1 The contact is currently visible
+     * - VISIBILITY_INACTIVE = 2 The contact is currently inactive
+     * - VISIBILITY_BLOCKED = 3 The contact is currently blocked
+     *
+     * @note The returned value is only valid for 1on1 chatrooms. It shouldn't be
+     * used for Groupchats.
+     *
+     * @return The current visibility of the peer in 1on1 chatrooms.
+     */
     virtual int getVisibility() const;
 
     /**
-     * @brief getUnreadCount
-     * @note This function will return 0 if the last seen message has never been loaded yet.
-     * @return
+     * @brief Returns the number of unread messages for the chatroom
+     *
+     * It can be used to display an unread message counter next to the chatroom name
+     *
+     * @return The count of unread messages as follows:
+     *  - If the returned value is 0, then the indicator should be removed.
+     *  - If the returned value is > 0, the indicator should show the exact count.
+     *  - If the returned value is < 0, then there are at least that count unread messages,
+     * and possibly more. In that case the indicator should show e.g. '2+'
      */
     virtual int getUnreadCount() const;
 
@@ -1740,7 +1779,7 @@ public:
     //    virtual void onChatCurrent(MegaChatApi* api);
 
         /**
-         * @brief This function is called when there are relevant changes related to the chats.
+         * @brief This function is called when there are new chats or relevant changes on existing chats.
          *
          * The possible changes that are notified are the following:
          *  - Title
@@ -1752,10 +1791,6 @@ public:
          * The SDK retains the ownership of the MegaChatListItem in the second parameter.
          * The MegaChatListItem object will be valid until this function returns. If you
          * want to save the MegaChatListItem, use MegaChatListItem::copy
-         *
-         * @note If the handle returned by MegaChatListItem::getChatId is INVALID_HANDLE, it
-         * means the notification is for the own user rather than a chat in the list. This can
-         * happen, i.e. for the update of your own online status.
          *
          * @param api MegaChatApi connected to the account
          * @param item MegaChatListItem representing a 1on1 or groupchat in the list.

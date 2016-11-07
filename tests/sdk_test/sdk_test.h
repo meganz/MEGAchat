@@ -98,6 +98,7 @@ private:
 
     MegaChatHandle chatid;  // chatroom in use...
     bool chatUpdated[NUM_ACCOUNTS];
+    bool chatItemClosed[NUM_ACCOUNTS];
     std::string firstname, lastname; // requested via karere
     bool nameReceived[NUM_ACCOUNTS];
 
