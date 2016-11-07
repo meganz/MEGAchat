@@ -490,6 +490,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 else    // uh is optional. If not provided, own user wants to leave the chat
                 {
                     uh = mClient->myHandle();
+                    request->setUserHandle(uh);
                 }
             }
 
