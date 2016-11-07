@@ -926,7 +926,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     {
         addMember(stmt.uint64Col(0), (chatd::Priv)stmt.intCol(1), false);
     }
-    initWithChatd();
     if (mTitleString.empty())
     {
         makeTitleFromMemberNames();
@@ -935,6 +934,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     {
         mRoomGui->onTitleChanged(mTitleString);
     }
+    initWithChatd();
     mIsInitializing = false;
 }
 
@@ -1001,10 +1001,9 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 //just in case
     sqliteQuery(parent.client.db, "delete from chat_peers where chatid = ?", mChatid);
 
-    initWithChatd();
-
     mContact.attachChatRoom(*this);
     KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  Id(mChatid).toString().c_str());
+    initWithChatd();
     mIsInitializing = false;
 }
 
@@ -1310,7 +1309,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         stmt.step();
         stmt.reset().clearBind();
     }
-    initWithChatd();
     auto title = aChat.getTitle();
     if (title)
     {
@@ -1320,6 +1318,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     {
         clearTitle();
     }
+    initWithChatd();
     mIsInitializing = false;
 }
 
