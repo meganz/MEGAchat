@@ -252,12 +252,8 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
     else
     {
         offset = 2;
-        type = (MessageType)binaryMessage.read<uint8_t>(1);
+        type = binaryMessage.read<uint8_t>(1);
     }
-    //participant change stuff
-    std::unique_ptr<Buffer> userAddInfo;
-    std::unique_ptr<Buffer> userExcInfo;
-    //==
     TlvParser tlv(binaryMessage, offset, isLegacy);
     TlvRecord record(binaryMessage);
     std::string recordNames;
@@ -268,50 +264,46 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
         {
             case TLV_TYPE_SIGNATURE:
             {
-                signature.assign(
-                    binaryMessage.buf()+record.dataOffset, record.dataLen);
+                signature.assign(record.buf(), record.dataLen);
                 auto nextOffset = record.dataOffset+record.dataLen;
                 signedContent.assign(binaryMessage.buf()+nextOffset, binaryMessage.dataSize()-nextOffset);
                 break;
             }
             case TLV_TYPE_NONCE:
             {
-                nonce.assign(binaryMessage.buf()+record.dataOffset, record.dataLen);
+                nonce.assign(record.buf(), record.dataLen);
                 break;
             }
             case TLV_TYPE_MESSAGE_TYPE:
             {
-                record.validateDataLen(1);
                 // if MESSAGE_TYPE, get the first byte from the record value.
-                type = (MessageType)binaryMessage.read<uint8_t>(record.dataOffset);
+                type = record.read<uint8_t>();
                 break;
             }
             case TLV_TYPE_INC_PARTICIPANT:
             {
-                if (!userAddInfo)
-                    userAddInfo.reset(new Buffer);
-                userAddInfo->append(binaryMessage.buf()+record.dataOffset, record.dataLen);
+                if (target || privilege != PRIV_INVALID)
+                    throw std::runtime_error("TLV_TYPE_INC_PARTICIPANT: Already parsed an incompatible TLV record");
+                privilege = chatd::PRIV_NOCHANGE;
+                target = record.read<uint64_t>();
                 break;
             }
             case TLV_TYPE_EXC_PARTICIPANT:
             {
-                if (!userExcInfo)
-                    userExcInfo.reset(new Buffer);
-                userExcInfo->append(binaryMessage.buf()+record.dataOffset, record.dataLen);
+            if (target || privilege != PRIV_INVALID)
+                throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
+                privilege = chatd::PRIV_NOTPRESENT;
+                target = record.read<uint64_t>();
                 break;
             }
             case TLV_TYPE_INVITOR:
             {
-                if (record.dataLen != 8)
-                    throw std::runtime_error("TLV_TYPE_INVITOR: record data is not 8 bytes");
-                sender = binaryMessage.read<uint64_t>(record.dataOffset);
+                sender = record.read<uint64_t>();
                 break;
             }
             case TLV_TYPE_PRIVILEGE:
             {
-                if (record.dataLen != 1)
-                    throw std::runtime_error("TLV_TYPE_PRIVILEGE: record data is not 1 byte");
-                privilege = (chatd::Priv)binaryMessage.read<uint8_t>(record.dataOffset);
+                privilege = (chatd::Priv)record.read<uint8_t>();
                 break;
             }
             case TLV_TYPE_KEYBLOB:
@@ -322,10 +314,10 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             //legacy key stuff
             case TLV_TYPE_RECIPIENT:
             {
-                if (receiver)
+                if (target)
                     throw std::runtime_error("Already had one RECIPIENT tlv record");
                 record.validateDataLen(8);
-                receiver = binaryMessage.read<uint64_t>(record.dataOffset);
+                target = binaryMessage.read<uint64_t>(record.dataOffset);
                 break;
             }
             case TLV_TYPE_KEYS:
@@ -371,18 +363,6 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             default:
                 throw std::runtime_error("Unknown TLV record type "+std::to_string(record.type)+" in message "+binaryMessage.id().toString());
-        }
-    }
-    if (type == SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS)
-    {
-        assert(payload.empty());
-        if (userAddInfo)
-        {
-            payload.append<int16_t>(userAddInfo->dataSize()/8).append(static_cast<StaticBuffer>(*userAddInfo));
-        }
-        if (userExcInfo)
-        {
-            payload.append<int16_t>(-userExcInfo->dataSize()/8).append(*userExcInfo);
         }
     }
     if (!recordNames.empty())
@@ -609,10 +589,10 @@ ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedM
     {
         if (parsedMsg->encryptedKey.dataSize() % AES::BLOCKSIZE)
             throw std::runtime_error("legacyDecryptKeys: invalid aes-encrypted key size");
-        assert(parsedMsg->receiver);
+        assert(parsedMsg->target);
         assert(parsedMsg->sender);
         Id otherParty = (parsedMsg->sender == mOwnHandle)
-            ? parsedMsg->receiver
+            ? parsedMsg->target
             : parsedMsg->sender;
         auto wptr = getWeakPtr();
         return computeSymmetricKey(otherParty)
@@ -620,7 +600,7 @@ ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedM
         {
             wptr.throwIfDeleted();
             Key<32> iv;
-            deriveNonceSecret(parsedMsg->nonce, iv, parsedMsg->receiver);
+            deriveNonceSecret(parsedMsg->nonce, iv, parsedMsg->target);
             iv.setDataSize(AES::BLOCKSIZE);
 
             // decrypt key
@@ -766,53 +746,28 @@ ProtocolHandler::decryptChatTitle(const Buffer& data)
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, Message* msg)
 {
-    msg->type = (chatd::Message::Type)parsedMsg->type;
+    msg->type = parsedMsg->type;
+    msg->userid = parsedMsg->sender;
+    msg->clear();
+
     switch(parsedMsg->type)
     {
-        case SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS:
+        case Message::kMsgAlterParticipants:
         {
-            msg->clear();
-            //ParsedMessage filled the payload with generated app-level info about participant change
-            msg->userid = parsedMsg->sender; //the INVITOR
-            //temp
-            assert(parsedMsg->payload.dataSize() >= 10); //2 bytes for count, 8 bytes for at least one handle
-            auto num = parsedMsg->payload.read<int16_t>(0);
-            msg->append("User "+msg->userid.toString())
-                .append(std::string((num > 0)?" added users:\n":" removed users:\n"));
-            if (num < 0)
-                num = -num;
-            for (int i=0; i<num; i++)
-            {
-                msg->append(Id(parsedMsg->payload.read<uint64_t>(i*8+2)).toString());
-                msg->append(',');
-            }
-            if (num > 0)
-                msg->setDataSize(msg->dataSize()-1); //erase last ','
+            msg->createMgmtInfo(*parsedMsg);
             return msg;
         }
-        case SVCRYPTO_MSGTYPE_TRUNCATE:
+        case Message::kMsgTruncate:
         {
-            msg->userid = parsedMsg->sender;
-            msg->assign<false>(std::string("<Chat was truncated by user "));
-            msg->append(msg->userid.toString());
-            msg->append('>');
             return msg;
         }
-        case SVCRYPTO_MSGTYPE_PRIVCHANGE:
+        case Message::kMsgPrivChange:
         {
-            msg->userid = parsedMsg->sender;
-            msg->assign<false>(std::string("<Privilege of user "));
-            msg->append(parsedMsg->receiver.toString());
-            msg->append(std::string(" was changed to "))
-                .append(chatd::privToString(parsedMsg->privilege))
-                .append(std::string(" by "))
-                .append(parsedMsg->sender.toString())
-                .append(">");
+            msg->createMgmtInfo(*parsedMsg);
             return msg;
         }
-        case SVCRYPTO_MSGTYPE_CHAT_TITLE:
+        case Message::kMsgChatTitle:
         {
-            msg->userid = parsedMsg->sender;
             return parsedMsg->decryptChatTitle(msg);
         }
         default:
@@ -1117,7 +1072,7 @@ ProtocolHandler::encryptChatTitle(const std::string& data)
     auto blob = std::make_shared<Buffer>(512);
     blob->clear();
     blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
-    blob->append<uint8_t>(SVCRYPTO_MSGTYPE_CHAT_TITLE);
+    blob->append<uint8_t>(Message::kMsgChatTitle);
 
     auto wptr = getWeakPtr();
     return encryptKeyToAllParticipants(key)
@@ -1137,7 +1092,7 @@ ProtocolHandler::encryptChatTitle(const std::string& data)
         tlv.addRecord(TLV_TYPE_KEYBLOB, StaticBuffer(keyCmd.buf()+17, keyCmd.dataSize()-17));
         tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(enc.ciphertext, false));
         Key<64> signature;
-        signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, SVCRYPTO_MSGTYPE_CHAT_TITLE,
+        signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle,
             enc.key, signature);
         TlvWriter sigTlv;
         sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
@@ -1249,6 +1204,48 @@ bool ProtocolHandler::handleLegacyKeys(chatd::Message& msg)
 void ProtocolHandler::randomBytes(void* buf, size_t bufsize) const
 {
     randombytes_buf(buf, bufsize);
+}
+} //end stringvelope namespace
+
+namespace chatd
+{
+std::string Message::managementInfoToString() const
+{
+    std::string ret;
+    ret.reserve(128);
+    switch (type)
+    {
+    case kMsgAlterParticipants:
+    {
+        auto& info = mgmtInfo();
+        ret.append("User ").append(userid.toString())
+           .append((info.privilege == chatd::PRIV_NOTPRESENT) ? " removed" : " added")
+           .append(" user ").append(info.target.toString());
+        return ret;
+    }
+    case kMsgTruncate:
+    {
+        ret.append("Chat history was truncated by user ").append(userid.toString());
+        return ret;
+    }
+    case kMsgPrivChange:
+    {
+        auto& info = mgmtInfo();
+        ret.append("User ").append(userid.toString())
+           .append(" set privilege of user ").append(info.target.toString())
+           .append(" to ").append(chatd::privToString(info.privilege));
+        return ret;
+    }
+    case kMsgChatTitle:
+    {
+        ret.append("User ").append(userid.toString())
+           .append(" set chat title to '")
+           .append(buf(), dataSize())+='\'';
+        return ret;
+    }
+    default:
+        throw std::runtime_error("Message with type "+std::to_string(type)+" is not a management message");
+    }
 }
 }
 

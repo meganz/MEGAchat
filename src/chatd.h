@@ -693,7 +693,7 @@ public:
      * application-specific type like link, share, picture etc.
      * @param userp - An optional user pointer to associate with the message object
      */
-    Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
+    Message* msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp);
 
     /** @brief Queues a message as an edit message for the specified original message.
      * @param msg - the original message

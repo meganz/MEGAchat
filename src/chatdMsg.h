@@ -44,6 +44,7 @@ enum Opcode
 // privilege levels
 enum Priv: signed char
 {
+    PRIV_INVALID = -10,
     PRIV_NOCHANGE = -2,
     PRIV_NOTPRESENT = -1,
     PRIV_RDONLY = 0,
@@ -54,12 +55,17 @@ enum Priv: signed char
 class Message: public Buffer
 {
 public:
-    enum Type: unsigned char
+    enum: unsigned char
     {
+        kMsgInvalid = 0,
         kMsgNormal = 1,
+        kMsgManagementLowest = 2,
         kMsgAlterParticipants = 2,
         kMsgTruncate = 3,
-        kUserMsg = 16
+        kMsgPrivChange = 4,
+        kMsgChatTitle = 5,
+        kMsgManagementHighest = 5,
+        kMsgUserFirst = 16
     };
     enum Status
     {
@@ -72,6 +78,36 @@ public:
         kNotSeen, //< User hasn't read this message yet
         kSeen //< User has read this message
     };
+    /** @brief Info recorder in a management message.
+     * When a message is a management message, _and_ it needs to carry additional
+     * info besides the standard fields (such as sender), the additional data
+     * is put inside the message body, laid out as this structure. This is done
+     * locally, and has nothing to do with the format of the management message
+     * on the wire (where it us usually encoded via TLV). Note that not all management
+     * messages need this additional data - for example, a history truncate message
+     * has info only about the user that truncated the history, whose handle is contained
+     * in the userid property of the Message object, so truncate messages are empty and
+     * don't contain a ManagementInfo structure.
+     */
+    struct ManagementInfo
+    {
+        /** @brief The affected user.
+         * In case of:
+         * \c kMsgPrivChange - the user whose privilege changed
+         * \c kMsgAlterParticipants - the user who was added/or excluded from the chatroom
+         */
+        karere::Id target;
+
+        /** In case of:
+         * \c kMsgPrivChange - the new privilege of the user whose handle is in \c target
+         * \c kMsgAlterParticipants - this is used as a flag to specify whether the user
+         * was:
+         * - removed - the value is \c PRIV_NOTPRESENT
+         * - added - the value of \c PRIV_NOCHANGE
+         */
+        Priv privilege = PRIV_INVALID;
+    };
+
 private:
 //avoid setting the id and flag pairs one by one by making them accessible only by setXXX(Id,bool)
     karere::Id mId;
@@ -83,7 +119,7 @@ public:
     uint32_t ts;
     uint16_t updated;
     uint32_t keyid;
-    Type type;
+    unsigned char type;
     BackRefId backRefId;
     std::vector<BackRefId> backRefs;
     mutable void* userp;
@@ -94,14 +130,36 @@ public:
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,
-          Type aType=kMsgNormal, void* aUserp=nullptr)
+          unsigned char aType=kMsgNormal, void* aUserp=nullptr)
       :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
           ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
-            KeyId aKeyid=CHATD_KEYID_INVALID, Type aType=kMsgNormal, void* aUserp=nullptr)
+            KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgNormal, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
             updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
+
+    /** @brief Returns the ManagementInfo structure contained within the message
+     * content. Throws if the message is not a management message, or if the
+     * size of the message contents is smaller than the size of ManagementInfo,
+     * but otherwise does not guarentee that the data inside the message
+     * is actually a ManagementInfo structure
+     */
+    ManagementInfo& mgmtInfo() { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
+
+    /** @brief A \c const version of mgmtInfo() */
+    const ManagementInfo& mgmtInfo() const { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
+
+    /** @brief Allocated a ManagementInfo structure in the message's buffer,
+     * and writes the contents of the provided structure. The message contents
+     * *must* be empty when the method is called.
+     * @returns A reference to the newly created and filled ManagementInfo structure */
+    ManagementInfo& createMgmtInfo(const ManagementInfo& src)
+    {
+        assert(empty());
+        append(&src, sizeof(src));
+        return *reinterpret_cast<ManagementInfo*>(buf());
+    }
 
     static const char* statusToStr(unsigned status)
     {
@@ -114,6 +172,17 @@ public:
             ?StaticBuffer(nullptr, 0)
             :StaticBuffer((const char*)&backRefs[0], backRefs.size()*8);
     }
+
+    /** @brief Creates a human readable string that describes the management
+     * message. Used for debugging
+     */
+    std::string managementInfoToString() const; //implementation is in strongelope.cpp, as the management info is created there
+
+    /** @brief Returns whether this message is a management message. */
+    bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
+
+    /** @brief Throws an exception if this is not a management message. */
+    void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
 protected:
     static const char* statusNames[];
     friend class Chat;

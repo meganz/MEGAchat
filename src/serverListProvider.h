@@ -170,7 +170,7 @@ public:
 
 /** An implementation of a server data provider that gets the servers from the GeLB server */
 template <class S>
-class GelbProvider: public ListProvider<S>
+class GelbProvider: public ListProvider<S>, public TrackDelete
 {
 protected:
     std::string mGelbHost;
@@ -248,9 +248,18 @@ GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
     int reqCount, unsigned reqTimeout, int64_t maxReuseOldServersAge)
     :mGelbHost(gelbHost), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
 {
+    auto wptr = getWeakPtr();
     mRetryController.reset(::karere::createRetryController("gelb",
-        [this](int no) { return exec(no); },
-        [this]() { giveup(); },
+        [this, wptr](int no)
+        {
+            wptr.throwIfDeleted();
+            return exec(no);
+        },
+        [this, wptr]()
+        {
+            wptr.throwIfDeleted();
+            giveup();
+        },
         reqTimeout, reqCount, 1, 1
     ));
 }

@@ -171,7 +171,7 @@ public:
 
             auto msg = new chatd::Message(stmt.int64Col(2), mMessages.client().userId(),
                     stmt.intCol(6), stmt.intCol(7), nullptr, 0, true, (chatd::KeyId)stmt.intCol(3),
-                    (chatd::Message::Type)stmt.intCol(5));
+                    (unsigned char)stmt.intCol(5));
             stmt.blobCol(4, *msg);
             msg->backRefId = stmt.uint64Col(8);
             if (stmt.hasBlobCol(9))
@@ -222,7 +222,7 @@ public:
             }
 #endif
             auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
-                false, keyid, (chatd::Message::Type)stmt.intCol(3));
+                false, keyid, (unsigned char)stmt.intCol(3));
             msg->backRefId = stmt.uint64Col(7);
             messages.push_back(msg);
         }
@@ -266,7 +266,7 @@ public:
             stmt.blobCol(5, buf);
             auto msg = new chatd::Message(stmt.uint64Col(1), 0,
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
-                CHATD_KEYID_INVALID, (chatd::Message::Type)stmt.intCol(2));
+                CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), (chatd::ManualSendReason)stmt.intCol(7));
         }
     }

@@ -66,23 +66,17 @@ public:
     }
     MessageWidget& setText(const chatd::Message& msg)
     {
+        assert(!msg.isManagementMessage());
         auto& txt = *ui.mMsgDisplay;
-        printf("msg.type = %d\n", msg.type);
-        if (msg.type == (int)strongvelope::SVCRYPTO_MSGTYPE_CHAT_TITLE)
-        {
-            std::string display = "<Chat title was set by user ";
-            display.append(msg.userid.toString());
-            display.append(" to '").append(msg.buf(), msg.dataSize())
-            .append("'>");
-
-            txt.setText(QString::fromStdString(display));
-        }
-        else
-        {
-            txt.setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
-        }
+        txt.setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
         return *this;
     }
+    MessageWidget& setText(const std::string& str)
+    {
+        ui.mMsgDisplay->setText(QString::fromStdString(str));
+        return *this;
+    }
+
     MessageWidget& updateStatus(chatd::Message::Status newStatus)
     {
         ui.mStatusDisplay->setText(chatd::Message::statusToStr(newStatus));
@@ -266,7 +260,7 @@ public slots:
 noedit:
         widget->disableEditGui();
     }
-    void postNewMessage(const char* data, size_t size, chatd::Message::Type type=chatd::Message::kMsgNormal)
+    void postNewMessage(const char* data, size_t size, unsigned char type=chatd::Message::kMsgNormal)
     {
         if (!data)
             throw std::runtime_error("postNewMessage: Can't post message with NULL data");
@@ -544,7 +538,7 @@ public:
     }
     virtual void handleHistoryMsg(chatd::Message& msg, chatd::Idx idx, chatd::Message::Status status)
     {
-        if (msg.empty())
+        if (msg.empty() && !msg.isManagementMessage())
             return;// once a message becomes empty(i.e. deleted), it can't be edited anymore, so no pending edit handling is necessary
         addMsgWidget(msg, idx, status, true);
         handlePendingEdits(msg);
