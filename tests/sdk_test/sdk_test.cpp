@@ -528,6 +528,50 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert (chatroom);
     delete chatroom;
 
+    // Remove from chat
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
+    bool *chatLeft0 = &chatUpdated[0]; *chatLeft0 = false;
+    bool *chatLeft1 = &chatUpdated[1]; *chatLeft1 = false;
+    megaChatApi[0]->removeFromChat(chatid, peer->getHandle());
+    assert(waitForResponse(flag));
+    assert(waitForResponse(chatLeft0));
+//    assert(waitForResponse(chatLeft1));   Currently there's no notification about us being kicked off
+
+    chatroom = megaChatApi[0]->getChatRoom(chatid);
+    assert (chatroom);
+    assert(chatroom->getPeerCount() == 0);
+    delete chatroom;
+
+    // Invite to chat
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flag = false;
+    bool *chatJoined0 = &chatUpdated[0]; *chatJoined0 = false;
+    bool *chatJoined1 = &chatUpdated[1]; *chatJoined1 = false;
+    megaChatApi[0]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    assert(waitForResponse(flag));
+    assert(waitForResponse(chatJoined0));
+    assert(waitForResponse(chatJoined1));
+
+    chatroom = megaChatApi[0]->getChatRoom(chatid);
+    assert (chatroom);
+    assert(chatroom->getPeerCount() == 1);
+    delete chatroom;
+
+    // invite again --> error
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flag = false;
+    megaChatApi[0]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    assert(waitForResponse(flag));
+    assert(lastErrorChat[0] == MegaChatError::ERROR_EXIST);
+
+    // Set title
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flag = false;
+    bool *titleChanged0 = &chatUpdated[0]; *titleChanged0 = false;
+    bool *titleChanged1 = &chatUpdated[1]; *titleChanged1 = false;
+    megaChatApi[0]->setChatTitle(chatid, "My groupchat with title");
+    assert(waitForResponse(flag));
+    assert(lastErrorChat[0] == MegaChatError::ERROR_OK);
+    assert(waitForResponse(titleChanged0));
+    assert(waitForResponse(titleChanged1));
+
     // Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
     assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
@@ -617,9 +661,6 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
         return;
     }
 
-    requestFlagsChat[apiIndex][request->getType()] = true;
-    lastError[apiIndex] = e->getErrorCode();
-
     switch(request->getType())
     {
         case MegaChatRequest::TYPE_CREATE_CHATROOM:
@@ -636,6 +677,9 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
             nameReceived[apiIndex] = true;
             break;
     }
+
+    lastErrorChat[apiIndex] = e->getErrorCode();
+    requestFlagsChat[apiIndex][request->getType()] = true;
 }
 
 void MegaChatApiTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)

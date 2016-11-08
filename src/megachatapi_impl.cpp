@@ -269,7 +269,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([](const promise::Error& err)
             {
-                API_LOG_ERROR("Error closing chat engine: ", err.what());
+                API_LOG_ERROR("Error closing chat engine: %s", err.what());
             });
             break;
         }
@@ -290,7 +290,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error setting online status: ", err.what());
+                API_LOG_ERROR("Error setting online status: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -340,7 +340,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 })
                 .fail([request,this](const promise::Error& err)
                 {
-                    API_LOG_ERROR("Error creating group chat: ", err.what());
+                    API_LOG_ERROR("Error creating group chat: %s", err.what());
 
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                     fireOnChatRequestFinish(request, megaChatError);
@@ -366,7 +366,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 })
                 .fail([request,this](const promise::Error& err)
                 {
-                    API_LOG_ERROR("Error creating 1on1 chat: ", err.what());
+                    API_LOG_ERROR("Error creating 1on1 chat: %s", err.what());
 
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                     fireOnChatRequestFinish(request, megaChatError);
@@ -411,7 +411,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error adding user to group chat: ", err.what());
+                API_LOG_ERROR("Error adding user to group chat: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -450,7 +450,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error updating peer privileges: ", err.what());
+                API_LOG_ERROR("Error updating peer privileges: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -502,7 +502,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error removing peer from chat: ", err.what());
+                API_LOG_ERROR("Error removing peer from chat: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -545,7 +545,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error truncating chat history: ", err.what());
+                API_LOG_ERROR("Error truncating chat history: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -591,7 +591,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error editing chat title: ", err.what());
+                API_LOG_ERROR("Error editing chat title: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -613,7 +613,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error getting user firstname: ", err.what());
+                API_LOG_ERROR("Error getting user firstname: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -634,7 +634,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error getting user lastname: ", err.what());
+                API_LOG_ERROR("Error getting user lastname: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -1659,6 +1659,8 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
             delete (*it);
             return;
         }
+
+        it++;
     }
 }
 
@@ -1679,6 +1681,8 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
             delete (*it);
             return;
         }
+
+        it++;
     }
 }
 

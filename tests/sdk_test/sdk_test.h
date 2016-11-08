@@ -84,6 +84,9 @@ public:
     bool requestFlags[NUM_ACCOUNTS][MegaRequest::TYPE_CHAT_SET_TITLE];
     bool requestFlagsChat[NUM_ACCOUNTS][MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
 
+    int lastError[NUM_ACCOUNTS];
+    int lastErrorChat[NUM_ACCOUNTS];
+
     void TEST_resumeSession();
     void TEST_setOnlineStatus();
     void TEST_getChatRoomsAndMessages();
@@ -94,7 +97,6 @@ private:
     std::string email[NUM_ACCOUNTS];
     std::string pwd[NUM_ACCOUNTS];
 
-    int lastError[NUM_ACCOUNTS];
 
     MegaChatHandle chatid;  // chatroom in use...
     bool chatUpdated[NUM_ACCOUNTS];

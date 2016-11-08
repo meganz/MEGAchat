@@ -644,11 +644,12 @@ class MegaChatError
 {
 public:
     enum {
-        ERROR_OK = 0,
-        ERROR_UNKNOWN = -1,
-        ERROR_ARGS = -2,
-        ERROR_ACCESS = -3,
-        ERROR_NOENT = -4
+        ERROR_OK        =   0,
+        ERROR_UNKNOWN   =  -1,		// internal error
+        ERROR_ARGS      =  -2,		// bad arguments
+        ERROR_NOENT     =  -9,		// resource does not exist
+        ERROR_ACCESS    = -11,		// access denied
+        ERROR_EXIST     = -12		// resource already exists
     };
 
     MegaChatError() {}
