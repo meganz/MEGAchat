@@ -137,8 +137,8 @@ int main(int argc, char **argv)
     .fail([](const promise::Error& error)
     {
         QMessageBox::critical(mainWin, "rtctestapp", QString::fromLatin1("Client startup failed with error:\n")+QString::fromStdString(error.msg()));
-        mainWin->close();
-        exit(1);
+//        mainWin->close();
+//        exit(1);
     });
 
     signal(SIGINT, sigintHandler);
