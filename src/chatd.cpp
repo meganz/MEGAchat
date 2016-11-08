@@ -1065,7 +1065,7 @@ uint64_t Chat::generateRefId(const ICrypto* aCrypto)
     return (ts & 0x0000000000ffffff) | (rand << 40);
 }
 
-Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp)
+Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
@@ -2213,5 +2213,4 @@ const char* Message::statusNames[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"
 };
-
 }

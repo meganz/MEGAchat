@@ -47,13 +47,19 @@ MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
 : QWidget(&parent), mChatWindow(parent), mMessage(&msg),
     mIsMine(msg.userid == parent.chat().client().userId()), mIndex(idx)
 {
+    printf("MessageWidget: msg.type = %d\n", msg.type);
     ui.setupUi(this);
     setAuthor(msg.userid);
     setTimestamp(msg.ts);
     setStatus(status);
     if (msg.updated)
         setEdited();
-    setText(msg);
+
+    if (!msg.isManagementMessage())
+        setText(msg);
+    else
+        setText(msg.managementInfoToString());
+
     auto tooltip = QString("msgid: %1\ntype:%2\nkeyid: %3\nuserid: %4\nchatid: %5\nbackrefs: %6")
             .arg(QString::fromStdString(mMessage->id().toString()))
             .arg(mMessage->type)
@@ -229,19 +235,26 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
         CHAT_LOG_WARNING("onMessageEdited: No widget is associated with message with idx %d", idx);
         return;
     }
-    if (msg.empty())
+    if (msg.isManagementMessage())
     {
-        widget->msgDeleted();
-        return;
+        widget->setText(msg.managementInfoToString());
     }
-    assert(msg.ts);
-    widget->setText(msg);
+    else
+    {
+        if (msg.empty())
+        {
+            widget->msgDeleted();
+            return;
+        }
+        assert(msg.ts);
+        widget->setText(msg);
+        widget->setEdited();
+    }
     if (msg.userid == mChat->client().userId()) //edit of our own message
     {
         //edited state must have been set earlier, on posting the edit
         widget->updateStatus(chatd::Message::kServerReceived);
     }
-    widget->setEdited();
     widget->fadeIn(QColor(Qt::yellow));
 }
 
@@ -418,7 +431,7 @@ MessageWidget& MessageWidget::setAuthor(karere::Id userid)
         if (!data || data->dataSize() < 2)
             return;
         auto self = static_cast<MessageWidget*>(userp);
-        self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1));
+        self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1, data->dataSize()-1));
     });
     return *this;
 }
