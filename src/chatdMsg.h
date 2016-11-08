@@ -142,7 +142,7 @@ public:
     ManagementInfo& mgmtInfo() { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
     const ManagementInfo& mgmtInfo() const { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
 
-    ManagementInfo createMgmtInfo(const ManagementInfo& src)
+    ManagementInfo& createMgmtInfo(const ManagementInfo& src)
     {
         assert(empty());
         append(&src, sizeof(src));
