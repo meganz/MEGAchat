@@ -139,9 +139,21 @@ public:
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
             updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
 
+    /** @brief Returns the ManagementInfo structure contained within the message
+     * content. Throws if the message is not a management message, or if the
+     * size of the message contents is smaller than the size of ManagementInfo,
+     * but otherwise does not guarentee that the data inside the message
+     * is actually a ManagementInfo structure
+     */
     ManagementInfo& mgmtInfo() { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
+
+    /** @brief A \c const version of mgmtInfo() */
     const ManagementInfo& mgmtInfo() const { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
 
+    /** @brief Allocated a ManagementInfo structure in the message's buffer,
+     * and writes the contents of the provided structure. The message contents
+     * *must* be empty when the method is called.
+     * @returns A reference to the newly created and filled ManagementInfo structure */
     ManagementInfo& createMgmtInfo(const ManagementInfo& src)
     {
         assert(empty());
@@ -160,8 +172,16 @@ public:
             ?StaticBuffer(nullptr, 0)
             :StaticBuffer((const char*)&backRefs[0], backRefs.size()*8);
     }
+
+    /** @brief Creates a human readable string that describes the management
+     * message. Used for debugging
+     */
     std::string managementInfoToString() const; //implementation is in strongelope.cpp, as the management info is created there
+
+    /** @brief Returns whether this message is a management message. */
     bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
+
+    /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
 protected:
     static const char* statusNames[];
