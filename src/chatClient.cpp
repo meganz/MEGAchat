@@ -1083,8 +1083,6 @@ void GroupChatRoom::addMember(const uint64_t& userid, chatd::Priv priv, bool sav
         sqliteQuery(parent.client.db, "insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",
             mChatid, userid, priv);
     }
-    if (!mHasTitle)
-        makeTitleFromMemberNames();
 }
 
 bool GroupChatRoom::removeMember(const uint64_t& userid)
@@ -1399,15 +1397,19 @@ void GroupChatRoom::makeTitleFromMemberNames()
         }
         else
         {
-            mTitleString.append(std::string(name.c_str()+1, name.size()-1))
-                        .append(", ");
+            mTitleString.append(
+                std::string(name.c_str()+((name[0] != 0) ? 1 : 2), //skip the space if the first name is empty
+                name.size()-1)).append(", ");
         }
     }
     if (!mTitleString.empty())
+    {
         mTitleString.resize(mTitleString.size()-2); //truncate last ", "
+    }
     else
+    {
         mTitleString = "(alone in this chatroom)";
-
+    }
     notifyTitleChanged();
 }
 
@@ -1631,6 +1633,7 @@ void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
     auto pres = mContact.xmppContact().presence();
     mContact.onPresence(pres);
 }
+
 void PeerChatRoom::onUnreadChanged()
 {
     auto count = mChat->unreadMsgCount();
@@ -1648,6 +1651,7 @@ void PeerChatRoom::updateTitle(const std::string& title)
 
 void ChatRoom::notifyTitleChanged()
 {
+    printf("%p (%s): notifyTitleChanged: %s\n", this, isGroup()?"group":"1on1", mTitleString.c_str());
     if (mIsInitializing)
     {
         auto wptr = getWeakPtr();
@@ -1791,7 +1795,13 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         {
             self->mRoom.mAppChatHandler->onMemberNameChanged(self->mHandle, self->mName);
         }
-        if (!self->mRoom.hasTitle())
+        // Update title only if we get called outside the ctor. During
+        // construction all members will be added, their names will probably
+        // be cached, so this callback may be called for each member, resulting
+        // in multiple title updates. Detect this, and don't update the title.
+        // The constructor will call makeTitleFromMemberNames() once it adds
+        // all peers.
+        if (!self->mRoom.isInitializing() && !self->mRoom.hasTitle())
         {
             self->mRoom.makeTitleFromMemberNames();
         }
@@ -1972,8 +1982,6 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
 {
     auto appClist = clist.client.app.contactListHandler();
     mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
-    updateTitle(email, email.size());
-    assert(!mTitleString.empty()); //must at least contain the firstname len byte
 
     mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
         mega::MegaApi::USER_ATTR_LASTNAME, this,
@@ -1985,6 +1993,12 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             else
                 self->updateTitle(std::string(data->buf(), data->dataSize()), 0);
         });
+
+    if (mTitleString.empty()) // user attrib fetch was not synchornous
+    {
+        updateTitle(email, email.size());
+        assert(!mTitleString.empty()); //must at least contain the firstname len byte
+    }
 
     mXmppContact = mClist.client.xmppContactList().addContact(*this);
     auto pres = mXmppContact->presence();
@@ -2027,25 +2041,20 @@ void Contact::notifyTitleChanged()
         marshallCall([this, wptr]()
         {
             wptr.throwIfDeleted();
-            synchronousNotifyTitleChanged();
+            //if it's initializing, then there is no mChatRoom
+            if (mDisplay)
+                mDisplay->onTitleChanged(mTitleString);
         });
     }
     else
     {
-        synchronousNotifyTitleChanged();
-    }
-}
-
-void Contact::synchronousNotifyTitleChanged()
-{
-    if (mDisplay)
-    {
-        mDisplay->onTitleChanged(mTitleString);
-    }
-    if (mChatRoom)
-    {
-        assert(!mTitleString.empty());
-        mChatRoom->updateTitle(std::string(mTitleString.c_str()+1, mTitleString.size()-1));
+        if (mDisplay)
+            mDisplay->onTitleChanged(mTitleString);
+        if (mChatRoom)
+        {
+            assert(!mTitleString.empty());
+            mChatRoom->updateTitle(std::string(mTitleString.c_str()+1, mTitleString.size()-1));
+        }
     }
 }
 

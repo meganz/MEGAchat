@@ -140,9 +140,14 @@ public:
      */
     void removeAppChatHandler();
 
+    /** @brief Whether the chatroom object is currently being
+     * constructed.
+     */
+    bool isInitializing() const { return mIsInitializing; }
+
     /** @brief Initiates a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio
-     */  
+     */
     virtual promise::Promise<void> mediaCall(AvFlags av) = 0;
 
     /**
@@ -352,7 +357,6 @@ protected:
     bool mIsInitializing = true;
     void updateTitle(const std::string& str, size_t firstNameLen);
     void notifyTitleChanged();
-    void synchronousNotifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
     friend class PeerChatRoom;
@@ -410,6 +414,7 @@ public:
 
     /** @brief The presence of the contact */
     Presence presence() const { return mXmppContact->presence(); }
+
     /** @cond PRIVATE */
     virtual void onPresence(Presence pres)
     {
