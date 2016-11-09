@@ -159,6 +159,7 @@ public:
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
+    virtual void onExcludedFromRoom() {}
 //  virtual void onHistoryTruncated();
 };
 /** @brief Represents a 1on1 chatd chatroom */

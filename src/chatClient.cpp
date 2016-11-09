@@ -1184,13 +1184,15 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
     auto size = rooms.size();
     for (int i=0; i<size; i++)
     {
-        auto& room = *rooms.get(i);
-        if (room.getOwnPrivilege() == -1)
+        auto& apiRoom = *rooms.get(i);
+        if (apiRoom.getOwnPrivilege() == -1)
         {
-            KR_LOG_DEBUG("Chatroom %s is inactive, skipping", Id(room.getHandle()).toString().c_str());
+            KR_LOG_DEBUG("Chatroom %s is inactive, skipping", Id(apiRoom.getHandle()).toString().c_str());
             continue;
         }
-        addRoom(room);
+        KR_LOG_DEBUG("Adding room %s from API", Id(apiRoom.getHandle()).toString().c_str());
+        auto& room = addRoom(apiRoom);
+        room.connect();
     }
 }
 
@@ -1263,11 +1265,11 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
     auto count = rooms->size();
     for (int i = 0; i < count; i++)
     {
-        auto room = rooms->get(i);
-        auto chatid = room->getHandle();
+        auto apiRoom = rooms->get(i);
+        auto chatid = apiRoom->getHandle();
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
-        auto priv = room->getOwnPrivilege();
+        auto priv = apiRoom->getOwnPrivilege();
         if (localRoom)
         {
             if (priv == chatd::PRIV_NOTPRESENT) //we were removed by someone else
@@ -1278,7 +1280,7 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             }
             else
             {   //we have the room, there maybe is some change on room properties
-                it->second->syncWithApi(*room);
+                it->second->syncWithApi(*apiRoom);
             }
         }
         else
@@ -1287,7 +1289,9 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             {
                 //we are in the room, add it to local cache
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
-                client.app.notifyInvited(addRoom(*room));
+                auto& room = addRoom(*apiRoom);
+                room.connect();
+                client.app.notifyInvited(room);
             }
             else
             {   //we don't have the room, and we are not in the room - we have just removed ourselves from it, and deleted it locally
@@ -1471,6 +1475,7 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 
 GroupChatRoom::~GroupChatRoom()
 {
+    removeAppChatHandler();
     if (mRoomGui)
         parent.client.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 
@@ -1482,13 +1487,19 @@ GroupChatRoom::~GroupChatRoom()
     {
         delete m.second;
     }
-
 }
 
 promise::Promise<void> GroupChatRoom::leave()
 {
     auto wptr = getWeakPtr();
     return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle())
+    .fail([](const promise::Error& err) -> Promise<void>
+    {
+        if (err.code() == ::mega::MegaError::API_EARGS) //room does not actually exist on API, ignore room and remove it locally
+            return promise::_Void();
+        else
+            return err;
+    })
     .then([this, wptr]()
     {
         wptr.throwIfDeleted();
