@@ -1017,54 +1017,38 @@ ProtocolHandler::updateSenderKey()
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
-ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key)
+ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, uint64_t extraUser)
 {
     // Users and send key may change while we are getting pubkeys of current
     // users, so make a snapshot
-    struct Context
+    auto keyCmd = new KeyCommand;
+    SetOfIds users = *mParticipants;
+    if (extraUser)
     {
-        ProtocolHandler& self;
-        SetOfIds users;
-        SetOfIds::iterator userIt;
-        Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
-            pms;
-        std::shared_ptr<SendKey> sendKey;
-        std::unique_ptr<KeyCommand> keyCmd;
-        void next()
-        {
-            if (userIt == users.end())
-            {
-                pms.resolve(std::make_pair(keyCmd.release(), sendKey));
-                delete this;
-                return;
-            }
-            self.encryptKeyTo(sendKey, *userIt)
-            .then([this](const std::shared_ptr<Buffer>& encryptedKey)
-            {
-                assert(encryptedKey);
-                keyCmd->addKey(*userIt, encryptedKey->buf(), encryptedKey->dataSize());
+        users.insert(extraUser);
+    }
+    std::vector<Promise<void>> promises;
+    promises.reserve(users.size());
 
-                userIt++;
-                next();
-            })
-            .fail([this](const promise::Error& err)
-            {
-                pms.reject(err);
-                delete this;
-            });
-        }
-        Context(ProtocolHandler& aSelf, const std::shared_ptr<SendKey>& aKey)
-        : self(aSelf), users(*self.mParticipants), userIt(users.begin()),
-          sendKey(aKey), keyCmd(new KeyCommand){}
-    };
-    auto context = new Context(*this, key);
-    auto pms = context->pms; //after next() the context may already be deleted
-    context->next();
-    return pms;
+    for (auto& user: users)
+    {
+        auto pms = encryptKeyTo(key, user)
+        .then([keyCmd, user](const std::shared_ptr<Buffer>& encryptedKey)
+        {
+            assert(encryptedKey);
+            keyCmd->addKey(user, encryptedKey->buf(), encryptedKey->dataSize());
+        });
+        promises.push_back(pms);
+    }
+    return promise::when(promises)
+    .then([keyCmd, key]()
+    {
+        return std::make_pair(keyCmd, key);
+    });
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::encryptChatTitle(const std::string& data)
+ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
 {
     auto key = std::make_shared<SendKey>();
     randombytes_buf(key->buf(), key->bufSize());
@@ -1075,7 +1059,7 @@ ProtocolHandler::encryptChatTitle(const std::string& data)
     blob->append<uint8_t>(Message::kMsgChatTitle);
 
     auto wptr = getWeakPtr();
-    return encryptKeyToAllParticipants(key)
+    return encryptKeyToAllParticipants(key, extraUser)
     .then([this, wptr, blob, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
     {
         wptr.throwIfDeleted();

@@ -189,6 +189,9 @@ public:
      */
     virtual void onUserLeave(karere::Id userid){}
 
+    /** @brief We have been excluded from this chatroom */
+    virtual void onExcludedFromRoom() {}
+
     /** @brief Unread message count has changed */
     virtual void onUnreadChanged() {}
 

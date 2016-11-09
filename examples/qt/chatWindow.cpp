@@ -47,7 +47,6 @@ MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
 : QWidget(&parent), mChatWindow(parent), mMessage(&msg),
     mIsMine(msg.userid == parent.chat().client().userId()), mIndex(idx)
 {
-    printf("MessageWidget: msg.type = %d\n", msg.type);
     ui.setupUi(this);
     setAuthor(msg.userid);
     setTimestamp(msg.ts);

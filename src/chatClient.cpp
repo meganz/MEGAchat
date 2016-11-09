@@ -178,7 +178,7 @@ Client::~Client()
     std::shared_ptr<TOKENPASTE(SharedState, __LINE__)> varname(new TOKENPASTE(SharedState,__LINE__))
 
 //This is a convenience method to log in the SDK in case the app does not do it.
-promise::Promise<ReqResult> Client::sdkLoginNewSession()
+promise::Promise<void> Client::sdkLoginNewSession()
 {
     mLoginDlg.reset(app.createLoginDialog());
     return async::loop((int)0, [](int) { return true; }, [](int&){},
@@ -188,9 +188,9 @@ promise::Promise<ReqResult> Client::sdkLoginNewSession()
         .then([this](const std::pair<std::string, std::string>& cred)
         {
             mLoginDlg->setState(IApp::ILoginDialog::kLoggingIn);
-            return api.call(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
+            return api.callIgnoreResult(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
         })
-        .then([&loop](ReqResult res)
+        .then([&loop]()
         {
             loop.breakLoop();
             return 0;
@@ -207,21 +207,20 @@ promise::Promise<ReqResult> Client::sdkLoginNewSession()
     .then([this](int)
     {
         mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
-        return api.call(&::mega::MegaApi::fetchNodes);
+        return api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
     })
-    .then([this](ReqResult ret)
+    .then([this]()
     {
         mLoginDlg.reset();
-        return ret;
     });
 }
-promise::Promise<ReqResult> Client::sdkLoginExistingSession(const char* sid)
+promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
 {
     assert(sid);
-    return api.call(&::mega::MegaApi::fastLogin, sid)
-    .then([this](ReqResult res)
+    return api.callIgnoreResult(&::mega::MegaApi::fastLogin, sid)
+    .then([this]()
     {
-        return api.call(&::mega::MegaApi::fetchNodes);
+        return api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
     });
 }
 
@@ -230,7 +229,7 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     if (!sid)
     {
         return sdkLoginNewSession()
-        .then([this](ReqResult)
+        .then([this]()
         {
             return initWithNewSession();
         });
@@ -238,7 +237,7 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     else
     {
         return sdkLoginExistingSession(sid)
-        .then([this](ReqResult)
+        .then([this](void)
         {
             initWithExistingSession();
         });
@@ -859,9 +858,15 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
     });
 }
 
-promise::Promise<ReqResult> GroupChatRoom::excludeMember(uint64_t user)
+promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
 {
-    return parent.client.api.call(&mega::MegaApi::removeFromChat, chatid(), user);
+    auto wptr = getWeakPtr();
+    return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, chatid(), user)
+    .then([this, wptr, user]()
+    {
+        wptr.throwIfDeleted();
+        removeMember(user);
+    });
 }
 
 ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup, const std::string& aUrl,
@@ -1102,9 +1107,15 @@ bool GroupChatRoom::removeMember(const uint64_t& userid)
     return true;
 }
 
-promise::Promise<ReqResult> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
+promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
 {
-    return parent.client.api.call(&::mega::MegaApi::updateChatPermissions, chatid(), userid.val, priv);
+    auto wptr = getWeakPtr();
+    return parent.client.api.callIgnoreResult(&::mega::MegaApi::updateChatPermissions, chatid(), userid.val, priv)
+    .then([this, wptr, userid, priv]()
+    {
+        wptr.throwIfDeleted();
+        sqliteQuery(parent.client.db, "update chat_peers set priv=? where chatid=? and userid=?", priv, mChatid, userid);
+    });
 }
 
 void GroupChatRoom::deleteSelf()
@@ -1136,7 +1147,6 @@ promise::Promise<void> ChatRoom::updateUrl()
         mUrl = sUrl;
         sqliteQuery(parent.client.db, "update chats set url=? where chatid=?", mUrl, mChatid);
         KR_LOG_DEBUG("Updated chatroom %s url", Id(mChatid).toString().c_str());
-        return;
     });
 }
 
@@ -1211,8 +1221,11 @@ bool ChatRoomList::removeRoom(const uint64_t &chatid)
     auto it = find(chatid);
     if (it == end())
         return false;
-    if (!it->second->isGroup())
+    auto& room = *it->second;
+    if (!room.isGroup())
         throw std::runtime_error("Can't delete a 1on1 chat");
+    if (room.appChatHandler())
+        room.appChatHandler()->onExcludedFromRoom();
     static_cast<GroupChatRoom*>(it->second)->deleteSelf();
     erase(it);
     return true;
@@ -1441,10 +1454,10 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
     {
         wptr.throwIfDeleted();
         auto b64 = base64urlencode(buf->buf(), buf->dataSize());
-        return parent.client.api.call(&::mega::MegaApi::setChatTitle, chatid(),
+        return parent.client.api.callIgnoreResult(&::mega::MegaApi::setChatTitle, chatid(),
             b64.c_str());
     })
-    .then([wptr, this, title](const ReqResult&)
+    .then([wptr, this, title]()
     {
         wptr.throwIfDeleted();
         if (title.empty())
@@ -1472,16 +1485,22 @@ GroupChatRoom::~GroupChatRoom()
 
 }
 
-promise::Promise<ReqResult> GroupChatRoom::leave()
+promise::Promise<void> GroupChatRoom::leave()
 {
-    //rely on actionpacket to do the actual removal of the group
-    return parent.client.api.call(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle());
+    auto wptr = getWeakPtr();
+    return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle())
+    .then([this, wptr]()
+    {
+        wptr.throwIfDeleted();
+        parent.removeRoom(mChatid);
+    });
 }
 
 promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 {
+    auto wptr = getWeakPtr();
     promise::Promise<std::string> pms = mHasTitle
-        ? chat().crypto()->encryptChatTitle(mTitleString)
+        ? chat().crypto()->encryptChatTitle(mTitleString, userid)
           .then([](const std::shared_ptr<Buffer>& buf)
           {
                return base64urlencode(buf->buf(), buf->dataSize());
@@ -1489,14 +1508,16 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
         : promise::Promise<std::string>(std::string());
 
     return pms
-    .then([this, userid, priv](const std::string& title)
+    .then([this, wptr, userid, priv](const std::string& title)
     {
+        wptr.throwIfDeleted();
         return parent.client.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
             title.empty() ? nullptr: title.c_str());
     })
-    .then([this, userid, priv](ReqResult)
+    .then([this, wptr, userid, priv](ReqResult)
     {
-        mPeers.emplace(userid, new Member(*this, userid, priv));
+        wptr.throwIfDeleted();
+        addMember(userid, priv, true);
     });
 }
 
@@ -1651,7 +1672,6 @@ void PeerChatRoom::updateTitle(const std::string& title)
 
 void ChatRoom::notifyTitleChanged()
 {
-    printf("%p (%s): notifyTitleChanged: %s\n", this, isGroup()?"group":"1on1", mTitleString.c_str());
     if (mIsInitializing)
     {
         auto wptr = getWeakPtr();
@@ -1921,16 +1941,8 @@ promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
     std::unique_ptr<mega::MegaUser> user(api.sdk.getContact(it->second->email().c_str()));
     if (!user)
         return promise::Error("Could not get user object from email");
-
-    return api.call(&::mega::MegaApi::removeContact, user.get())
-    .then([this, userid](ReqResult ret)->promise::Promise<void>
-    {
-//we don't remove it, we just set visibility to HIDDEN
-//        auto erased = find(userid);
-//        if (erased != end())
-//            removeUser(erased);
-        return promise::_Void();
-    });
+    //we don't remove it, we just set visibility to HIDDEN
+    return api.callIgnoreResult(&::mega::MegaApi::removeContact, user.get());
 }
 
 ContactList::~ContactList()

@@ -278,9 +278,9 @@ public:
                   unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
     ~GroupChatRoom();
 public:
-    promise::Promise<ReqResult> setPrivilege(karere::Id userid, chatd::Priv priv);
+    promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
     promise::Promise<void> setTitle(const std::string& title);
-    promise::Promise<ReqResult> leave();
+    promise::Promise<void> leave();
     promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
     virtual promise::Promise<void> mediaCall(AvFlags av);
 //chatd::Listener
@@ -316,7 +316,7 @@ public:
      * @param user The handle of the user to remove from the chatroom.
      * @returns A promise with the MegaRequest result, returned by the mega SDK.
      */
-    promise::Promise<ReqResult> excludeMember(uint64_t user);
+    promise::Promise<void> excludeMember(uint64_t user);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -682,13 +682,13 @@ protected:
      * and to save the app the management of the dialog, retries in case of
      * bad credentials etc. This is just a convenience method.
      */
-    promise::Promise<ReqResult> sdkLoginNewSession();
+    promise::Promise<void> sdkLoginNewSession();
 
     /** @brief A convenience method to log the sdk in using an existing session,
      * identified by \c sid. This is to be used in a standalone chat app where
      * there is no existing code that logs in the Mega SDK instance.
      */
-    promise::Promise<ReqResult> sdkLoginExistingSession(const char* sid);
+    promise::Promise<void> sdkLoginExistingSession(const char* sid);
 
     /**
      * @brief send response to ping request.
