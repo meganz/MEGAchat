@@ -306,6 +306,8 @@ void MainWindow::removeItem(IListItem& item)
         auto gui = (clist->itemWidget(clist->item(i)));
         if (widget == gui)
         {
+            clist->setItemWidget(clist->item(i), nullptr);
+            delete widget;
             delete clist->takeItem(i);
             return;
         }

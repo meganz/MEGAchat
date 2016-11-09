@@ -33,6 +33,7 @@ ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
 
 ChatWindow::~ChatWindow()
 {
+    mRoom.removeAppChatHandler();
     //Quite possible mRoom is already destroyed, and the reference is invalid
     //because widget destructors may be called asynchronously
     GUI_LOG_DEBUG("Destroying chat window for chat %s", Id(mRoom.chatid()).toString().c_str());

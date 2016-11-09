@@ -700,7 +700,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
         mReconnectController->abort();
     if (rtc)
         rtc->hangupAll();
-    chatd.reset();
+    chatd->disconnect();
     if (deleteDb)
     {
         wipeDb();
