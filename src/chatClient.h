@@ -113,6 +113,11 @@ public:
     /** @brief Our own privilege within this chat */
     chatd::Priv ownPriv() const { return mOwnPriv; }
 
+    /** @brief Whether we are currently member of the chatroom (for group
+      * chats), or we are contacts with the peer (for 1on1 chats)
+      */
+    bool isActive() const { return mOwnPriv != chatd::PRIV_NOTPRESENT; }
+
     /** @brief The online state reported by chatd for that chatroom */
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
 
@@ -270,6 +275,9 @@ public:
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
     void initWithChatd();
+    void setRemoved();
+    void notifyRemoved();
+    void notifyRejoined();
     virtual void connect();
 
     friend class ChatRoomList;
@@ -495,6 +503,7 @@ protected:
     std::string mSid;
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     std::string mMyEmail;
+    bool mConnected = false;
 public:
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
@@ -511,8 +520,10 @@ public:
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
     std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
+    bool skipInactiveChatrooms = true;
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     bool contactsLoaded() const { return mContactsLoaded; }
+    bool connected() const { return mConnected; }
     std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
     /** @endcond PRIVATE */
 

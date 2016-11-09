@@ -28,6 +28,9 @@ ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
 
     setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint);
     setAttribute(Qt::WA_DeleteOnClose);
+    if (!mRoom.isActive())
+        ui.mMessageEdit->setEnabled(false);
+
     QDialog::show();
 }
 

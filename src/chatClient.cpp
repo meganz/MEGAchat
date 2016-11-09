@@ -422,6 +422,7 @@ promise::Promise<void> Client::connect()
     {
         return connectXmpp(server);
     });
+    mConnected = true;
 }
 
 karere::Id Client::getMyHandleFromSdk()
@@ -1185,14 +1186,18 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
     for (int i=0; i<size; i++)
     {
         auto& apiRoom = *rooms.get(i);
-        if (apiRoom.getOwnPrivilege() == -1)
+        bool isInactive = apiRoom.getOwnPrivilege()  == -1;
+        if (isInactive && client.skipInactiveChatrooms)
         {
-            KR_LOG_DEBUG("Chatroom %s is inactive, skipping", Id(apiRoom.getHandle()).toString().c_str());
+            KR_LOG_DEBUG("Skipping inactive chatroom %s", Id(apiRoom.getHandle()).toString().c_str());
             continue;
         }
-        KR_LOG_DEBUG("Adding room %s from API", Id(apiRoom.getHandle()).toString().c_str());
+        KR_LOG_DEBUG("Adding %s room %s from API",
+            isInactive ? "(inactive)" : "",
+            Id(apiRoom.getHandle()).toString().c_str());
         auto& room = addRoom(apiRoom);
-        room.connect();
+        if (client.connected())
+            room.connect();
     }
 }
 
@@ -1218,19 +1223,21 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     return *room;
 }
 
-bool ChatRoomList::removeRoom(const uint64_t &chatid)
+void GroupChatRoom::notifyRemoved()
 {
-    auto it = find(chatid);
-    if (it == end())
-        return false;
-    auto& room = *it->second;
-    if (!room.isGroup())
-        throw std::runtime_error("Can't delete a 1on1 chat");
-    if (room.appChatHandler())
-        room.appChatHandler()->onExcludedFromRoom();
-    static_cast<GroupChatRoom*>(it->second)->deleteSelf();
-    erase(it);
-    return true;
+    if (mAppChatHandler)
+        mAppChatHandler->onExcludedFromChat();
+    if (mRoomGui)
+        mRoomGui->onExcludedFromChat();
+//  room.deleteSelf();
+//  erase(it);
+}
+
+void GroupChatRoom::setRemoved()
+{
+    mOwnPriv = chatd::PRIV_NOTPRESENT;
+    sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
+    notifyRemoved();
 }
 
 void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
@@ -1273,15 +1280,8 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
         if (localRoom)
         {
             if (priv == chatd::PRIV_NOTPRESENT) //we were removed by someone else
-            {
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(chatid).toString().c_str());
-                removeRoom(chatid);
-                continue;
-            }
-            else
-            {   //we have the room, there maybe is some change on room properties
-                it->second->syncWithApi(*apiRoom);
-            }
+            it->second->syncWithApi(*apiRoom);
         }
         else
         {   //we don't have the room locally
@@ -1503,7 +1503,7 @@ promise::Promise<void> GroupChatRoom::leave()
     .then([this, wptr]()
     {
         wptr.throwIfDeleted();
-        parent.removeRoom(mChatid);
+        setRemoved();
     });
 }
 
@@ -1768,9 +1768,17 @@ void GroupChatRoom::clearTitle()
     makeTitleFromMemberNames();
     sqliteQuery(parent.client.db, "update chats set title=NULL where chatid=?", mChatid);
 }
+void GroupChatRoom::notifyRejoined()
+{
+    if (mAppChatHandler)
+        mAppChatHandler->onRejoinedChat();
+    if (mRoomGui)
+        mRoomGui->onRejoinedChat();
+}
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
+    auto oldPriv = mOwnPriv;
     bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);
     UserPrivMap membs;
     changed |= syncMembers(apiMembersToMap(chat, membs));
@@ -1789,9 +1797,28 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         KR_LOG_DEBUG("Empty title received for group chat %s", Id(mChatid).toString().c_str());
     }
     if (changed)
+    {
+        if (oldPriv == chatd::PRIV_NOTPRESENT)
+        {
+            if (mOwnPriv != chatd::PRIV_NOTPRESENT)
+            {
+                //we were reinvited
+                notifyRejoined();
+            }
+        }
+        else //room was active
+        {
+            if (mOwnPriv == chatd::PRIV_NOTPRESENT)
+            {
+                notifyRemoved();
+            }
+        }
         KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
+    }
     else
+    {
         KR_LOG_DEBUG("Sync group chatroom %s with API: no changes", Id(mChatid).toString().c_str());
+    }
     return changed;
 }
 

@@ -190,7 +190,11 @@ public:
     virtual void onUserLeave(karere::Id userid){}
 
     /** @brief We have been excluded from this chatroom */
-    virtual void onExcludedFromRoom() {}
+    virtual void onExcludedFromChat() {}
+
+    /** @brief We have rejoined the room
+     */
+    virtual void onRejoinedChat() {}
 
     /** @brief Unread message count has changed */
     virtual void onUnreadChanged() {}
