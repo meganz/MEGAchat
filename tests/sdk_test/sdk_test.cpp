@@ -534,6 +534,12 @@ void MegaChatApiTest::TEST_groupChatManagement()
     bool *chatLeft1 = &chatUpdated[1]; *chatLeft1 = false;
     megaChatApi[0]->removeFromChat(chatid, peer->getHandle());
     assert(waitForResponse(flag));
+
+    chatroom = megaChatApi[0]->getChatRoom(chatid);
+    assert (chatroom);
+    assert(chatroom->getPeerCount() == 0);
+    delete chatroom;
+
     assert(waitForResponse(chatLeft0));
 //    assert(waitForResponse(chatLeft1));   Currently there's no notification about us being kicked off
 
@@ -563,14 +569,21 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(lastErrorChat[0] == MegaChatError::ERROR_EXIST);
 
     // Set title
+    string title = "My groupchat with title";
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flag = false;
     bool *titleChanged0 = &chatUpdated[0]; *titleChanged0 = false;
     bool *titleChanged1 = &chatUpdated[1]; *titleChanged1 = false;
-    megaChatApi[0]->setChatTitle(chatid, "My groupchat with title");
+    megaChatApi[0]->setChatTitle(chatid, title.c_str());
     assert(waitForResponse(flag));
     assert(lastErrorChat[0] == MegaChatError::ERROR_OK);
     assert(waitForResponse(titleChanged0));
     assert(waitForResponse(titleChanged1));
+
+    chatroom = megaChatApi[1]->getChatRoom(chatid);
+    assert (chatroom);
+    assert(!strcmp(chatroom->getTitle(), title.c_str()));
+    delete chatroom;
+
 
     // Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);

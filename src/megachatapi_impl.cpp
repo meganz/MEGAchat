@@ -2574,8 +2574,14 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         for (it = peers.begin(); it != peers.end(); it++)
         {
             this->peers.push_back(userpriv_pair(it->first, (privilege_t) it->second->priv()));
-            this->peerFirstnames.push_back(MegaChatRoomPrivate::firstnameFromBuffer(it->second->name()));
-            this->peerLastnames.push_back(MegaChatRoomPrivate::lastnameFromBuffer(it->second->name()));
+
+            const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(it->second->name());
+            this->peerFirstnames.push_back(buffer ? buffer : "");
+            delete buffer;
+
+            buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
+            this->peerLastnames.push_back(buffer ? buffer : "");
+            delete buffer;
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2587,8 +2593,15 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         string name = peerchat.contact().titleString();
 
         this->peers.push_back(userpriv_pair(uh, priv));
-        this->peerFirstnames.push_back(MegaChatRoomPrivate::firstnameFromBuffer(name));
-        this->peerLastnames.push_back(MegaChatRoomPrivate::lastnameFromBuffer(name));
+
+        const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
+        this->peerFirstnames.push_back(buffer ? buffer : "");
+        delete buffer;
+
+        buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
+        this->peerLastnames.push_back(buffer ? buffer : "");
+        delete buffer;
+
         this->status = chat.presence().status();
     }
 }
@@ -2749,30 +2762,34 @@ void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
 
 const char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
 {
-    string ret;
+    char *ret = NULL;
+    int len = buffer.length() ? buffer.at(0) : 0;
 
-    if (buffer.length() && buffer.at(0))
+    if (len)
     {
-        ret = string(buffer.data() + 1, buffer.at(0));
+        ret = new char[len + 1];
+        strncpy(ret, buffer.data() + 1, len);
+        ret[len] = '\0';
     }
 
-    return ret.c_str();
+    return ret;
 }
 
 const char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
 {
-    string ret;
+    char *ret = NULL;
 
     if (buffer.length())
     {
         int lenLastname = buffer.length() - buffer.at(0) - 1;
         if (lenLastname)
         {
-            ret = string(buffer.data() + 1 + buffer.at(0), lenLastname);
+            ret = new char[lenLastname + 1];
+            strncpy(ret, buffer.data() + 1 + buffer.at(0), lenLastname);
         }
     }
 
-    return ret.c_str();
+    return ret;
 }
 
 void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)

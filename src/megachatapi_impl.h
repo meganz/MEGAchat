@@ -424,7 +424,10 @@ private:
     MegaChatHandle uh;
 
 public:
+    // you take the ownership of return value
     static const char *firstnameFromBuffer(const std::string &buffer);
+
+    // you take the ownership of return value
     static const char *lastnameFromBuffer(const std::string &buffer);
 };
 
