@@ -1223,6 +1223,10 @@ public:
      * is local and there's no more history locally available, the number of messages could be
      * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
      *
+     * When there are no more history available from the reported source of messages
+     * (local / remote), or when the requested \c count has been already loaded,
+     * the callback MegaChatRoomListener::onMessageLoaded will be called with a NULL message.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param count The number of requested messages to load.
      *
@@ -1852,8 +1856,8 @@ public:
      *
      * You can use MegaChatApi::loadMessages to request loading messages.
      *
-     * When there are no more message to load in the history, this function is also
-     * called, but the second parameter will be NULL.
+     * When there are no more message to load from the source reported by MegaChatApi::loadMessages or
+     * there are no more history at all, this function is also called, but the second parameter will be NULL.
      *
      * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
      * object will be valid until this function returns. If you want to save the MegaChatMessage object,
