@@ -3044,6 +3044,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 {
     this->msg = MegaApi::strdup(msg->getContent());
     this->uh = msg->getUserHandle();
+    this->uh = msg->getUserHandleOfAction();
     this->msgId = msg->getMsgId();
     this->tempId = msg->getTempId();
     this->index = msg->getMsgIndex();
@@ -3053,12 +3054,21 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->changed = msg->getChanges();
     this->edited = msg->isEdited();
     this->deleted = msg->isDeleted();
+    this->priv = msg->getPrivilege();
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
 {
     string tmp(msg.buf(), msg.size());
-    this->msg = msg.size() ? MegaApi::strdup(tmp.c_str()) : NULL;
+
+    if (!msg.isManagementMessage())
+    {
+        this->msg = (msg.type == TYPE_NORMAL && msg.size()) ? MegaApi::strdup(tmp.c_str()) : NULL;
+    }
+    else
+    {
+        this->msg = MegaApi::strdup(msg.managementInfoToString().c_str());
+    }
     this->uh = msg.userid;
     this->msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
     this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
@@ -3069,6 +3079,27 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->changed = 0;
     this->edited = msg.updated && msg.size();
     this->deleted = msg.updated && !msg.size();
+
+    switch (type)
+    {
+        case MegaChatMessage::TYPE_PRIV_CHANGE:
+        case MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
+        {
+            const Message::ManagementInfo mngInfo = msg.mgmtInfo();
+
+            this->priv = mngInfo.privilege;
+            this->uhAction = mngInfo.target;
+            break;
+        }
+        case MegaChatMessage::TYPE_NORMAL:
+        case MegaChatMessage::TYPE_CHAT_TITLE:
+        case MegaChatMessage::TYPE_TRUNCATE:
+        case MegaChatMessage::TYPE_USER_MSG:
+        default:
+            this->priv = PRIV_UNKNOWN;
+            this->uhAction = MEGACHAT_INVALID_HANDLE;
+            break;
+    }
 }
 
 MegaChatMessagePrivate::~MegaChatMessagePrivate()
@@ -3134,6 +3165,24 @@ bool MegaChatMessagePrivate::isDeleted() const
 bool MegaChatMessagePrivate::isEditable() const
 {
     return (!isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
+}
+
+bool MegaChatMessagePrivate::isManagementMessage() const
+{
+    return (type == TYPE_ALTER_PARTICIPANTS ||
+            type == TYPE_PRIV_CHANGE ||
+            type == TYPE_TRUNCATE ||
+            type == TYPE_CHAT_TITLE);
+}
+
+MegaChatHandle MegaChatMessagePrivate::getUserHandleOfAction() const
+{
+    return uhAction;
+}
+
+int MegaChatMessagePrivate::getPrivilege() const
+{
+    return priv;
 }
 
 int MegaChatMessagePrivate::getChanges() const

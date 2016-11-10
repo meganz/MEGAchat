@@ -132,7 +132,6 @@ public:
      * @param h MegaChatHandle of the user to be added
      * @param priv Privilege level of the user to be added
      * Valid values are:
-     * - MegaChatPeerList::PRIV_UNKNOWN = -2
      * - MegaChatPeerList::PRIV_RM = -1
      * - MegaChatPeerList::PRIV_RO = 0
      * - MegaChatPeerList::PRIV_STANDARD = 2
@@ -245,11 +244,7 @@ public:
     enum
     {
         CHANGE_TYPE_STATUS          = 0x01,
-        CHANGE_TYPE_CONTENT         = 0x02/*,
-        CHANGE_TYPE_PARTICIPANTS    = 0x04,
-        CHANGE_TYPE_TITLE           = 0x08,
-        CHANGE_TYPE_CHAT_STATE      = 0x10
-//        CHANGE_TYPE_TITLE           = 0x10*/
+        CHANGE_TYPE_CONTENT         = 0x02
     };
 
     virtual ~MegaChatMessage() {}
@@ -355,6 +350,40 @@ public:
      * @return True if the message can be edited. Otherwise, false.
      */
     virtual bool isEditable() const;
+
+    /**
+     * @brief Returns whether the message is a management message
+     *
+     * Management messages are intented to record in the history any change related
+     * to the management of the chatroom, such as a title change or an addition of a peer.
+     *
+     * @return True if the message is a management message.
+     */
+    virtual bool isManagementMessage() const;
+
+    /**
+     * @brief Return the handle of the user relative to the action
+     *
+     * Only valid for management messages:
+     *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: handle of the user who is added/removed
+     *  - MegaChatMessage::TYPE_PRIV_CHANGE: handle of the user whose privilege is changed
+     *
+     * @return Handle of the user
+     */
+    virtual MegaChatHandle getUserHandleOfAction() const;
+
+    /**
+     * @brief Return the privilege of the user relative to the action
+     *
+     * Only valid for management messages:
+     *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
+     *      - When a peer is removed: MegaChatRoom::PRIV_RM
+     *      - When a peer is added: MegaChatRoom::PRIV_UNKNOWN
+     *  - MegaChatMessage::TYPE_PRIV_CHANGE: the new privilege of the user
+     *
+     * @return Privilege level as above
+     */
+    virtual int getPrivilege() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
