@@ -2786,6 +2786,7 @@ const char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
         {
             ret = new char[lenLastname + 1];
             strncpy(ret, buffer.data() + 1 + buffer.at(0), lenLastname);
+            ret[lenLastname] = '\0';
         }
     }
 
