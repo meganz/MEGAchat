@@ -1192,8 +1192,8 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
             KR_LOG_DEBUG("Skipping inactive chatroom %s", Id(apiRoom.getHandle()).toString().c_str());
             continue;
         }
-        KR_LOG_DEBUG("Adding %s room %s from API",
-            isInactive ? "(inactive)" : "",
+        KR_LOG_DEBUG("Adding %sroom %s from API",
+            isInactive ? "(inactive) " : "",
             Id(apiRoom.getHandle()).toString().c_str());
         auto& room = addRoom(apiRoom);
         if (client.connected())
