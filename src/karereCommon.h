@@ -44,6 +44,7 @@
     #endif
 #endif
 
+#define KARERE_GELB_HOST "gelb.karere.mega.nz"
 #define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
 #define KARERE_XMPP_DOMAIN "karere.mega.nz"
 #define KARERE_LOGIN_TIMEOUT 15000
