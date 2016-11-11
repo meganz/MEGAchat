@@ -405,13 +405,13 @@ promise::Promise<void> Client::connect()
     KR_LOG_DEBUG("Client::connect: Connecting to account '%s'...", SdkString(api.sdk.getMyEmail()).c_str());
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
-    mUserAttrCache->getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)
     {
-        if (!buf)
+        if (!buf || buf->empty())
             return;
         auto& name = static_cast<Client*>(userp)->mMyName;
-        name = std::string(buf->buf()+1, buf->dataSize()-1);
+        name.assign(buf->buf(), buf->dataSize());
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str());
     });
 
@@ -938,6 +938,7 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
     if (mTitleString.empty())
     {
         makeTitleFromMemberNames();
+        assert(!mTitleString.empty());
     }
     else
     {
@@ -1405,28 +1406,25 @@ void GroupChatRoom::makeTitleFromMemberNames()
 {
     mHasTitle = false;
     mTitleString.clear();
+    if (mPeers.empty())
+    {
+        mTitleString = "(alone in this chatroom)";
+    }
     for (auto& m: mPeers)
     {
         auto& name = m.second->mName;
         if (name.size() <= 1)
         {
-            mTitleString.append("...,");
+            mTitleString.append("..., ");
         }
         else
         {
-            mTitleString.append(
-                std::string(name.c_str()+((name[0] != 0) ? 1 : 2), //skip the space if the first name is empty
-                name.size()-1)).append(", ");
+            mTitleString.append(name).append(", ");
         }
     }
-    if (!mTitleString.empty())
-    {
-        mTitleString.resize(mTitleString.size()-2); //truncate last ", "
-    }
-    else
-    {
-        mTitleString = "(alone in this chatroom)";
-    }
+    assert(!mTitleString.empty());
+
+    mTitleString.resize(mTitleString.size()-2); //truncate last ", "
     notifyTitleChanged();
 }
 
@@ -1837,8 +1835,9 @@ UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, User
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
 : mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0")
 {
-    mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(user, mega::MegaApi::USER_ATTR_LASTNAME, this,
-    [](Buffer* buf, void* userp)
+    mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(
+        user, USER_ATTR_FULLNAME, this,
+        [](Buffer* buf, void* userp)
     {
         auto self = static_cast<Member*>(userp);
         if (buf)
@@ -1847,7 +1846,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         }
         else
         {
-            self->mName = "\x01?";
+            self->mName.clear();
         }
         if (self->mRoom.mAppChatHandler)
         {
@@ -2034,20 +2033,20 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
 
     mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
-        mega::MegaApi::USER_ATTR_LASTNAME, this,
+        USER_ATTR_FULLNAME, this,
         [](Buffer* data, void* userp)
         {
             auto self = static_cast<Contact*>(userp);
-            if (!data || data->dataSize() < 2)
-                self->updateTitle(self->mEmail, self->mEmail.size());
+            if (!data || data->empty())
+                self->updateTitle(self->mEmail);
             else
-                self->updateTitle(std::string(data->buf(), data->dataSize()), 0);
+                self->updateTitle(std::string(data->buf(), data->dataSize()));
         });
 
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
-        updateTitle(email, email.size());
-        assert(!mTitleString.empty()); //must at least contain the firstname len byte
+        updateTitle(email);
+        assert(!mTitleString.empty());
     }
 
     mXmppContact = mClist.client.xmppContactList().addContact(*this);
@@ -2066,20 +2065,9 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
 
 // the title string starts with a byte equal to the first name length, followed by first name,
 // then second name
-void Contact::updateTitle(const std::string& str, size_t firstNameLen)
+void Contact::updateTitle(const std::string& str)
 {
-    if (!firstNameLen) // use as-is, must have the first byte as first name len
-    {
-        assert(!str.empty());
-        mTitleString = str;
-    }
-    else
-    {
-        mTitleString.reserve(str.size()+1);
-        mTitleString.resize(1);
-        mTitleString[0] = firstNameLen;
-        mTitleString.append(str);
-    }
+    mTitleString = str;
     notifyTitleChanged();
 }
 
@@ -2101,10 +2089,7 @@ void Contact::notifyTitleChanged()
         if (mDisplay)
             mDisplay->onTitleChanged(mTitleString);
         if (mChatRoom)
-        {
-            assert(!mTitleString.empty());
-            mChatRoom->updateTitle(std::string(mTitleString.c_str()+1, mTitleString.size()-1));
-        }
+            mChatRoom->updateTitle(mTitleString);
     }
 }
 
@@ -2143,9 +2128,7 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-
-    std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
-    mChatRoom->updateTitle(roomTitle);
+    mChatRoom->updateTitle(mTitleString);
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)

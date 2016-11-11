@@ -428,14 +428,14 @@ MessageWidget& MessageWidget::setAuthor(karere::Id userid)
     else
         ui.mAuthorDisplay->setText(tr("?"));
 
-    mChatWindow.client.userAttrCache().getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    mChatWindow.client.userAttrCache().getAttr(userid, USER_ATTR_FULLNAME, this,
     [](Buffer* data, void* userp)
     {
         //buffer contains an unsigned char prefix that is the strlen() of the first name
-        if (!data || data->dataSize() < 2)
+        if (!data || data->empty())
             return;
         auto self = static_cast<MessageWidget*>(userp);
-        self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1, data->dataSize()-1));
+        self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf(), data->dataSize()));
     });
     return *this;
 }

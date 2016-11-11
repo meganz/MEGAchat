@@ -33,24 +33,43 @@ const char* nonWhitespaceStr(const char* str)
     return nullptr;
 }
 
-UserAttrDesc gUserAttrDescs[8] =
+inline static Buffer* bufFromCstr(const char* cstr)
+{
+    return new Buffer(cstr, strlen(cstr));
+}
+
+Buffer* getDataNotImpl(const ::mega::MegaRequest& req)
+{
+     throw std::runtime_error("Not implemented");
+}
+
+UserAttrDesc gUserAttrDescs[9] =
 { //getData func | changeMask
   //0 - avatar
-    { [](const ::mega::MegaRequest& req)->Buffer* { return new Buffer(req.getFile(), strlen(req.getFile())); }, ::mega::MegaUser::CHANGE_TYPE_AVATAR},
+    { [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getFile()); },
+      ::mega::MegaUser::CHANGE_TYPE_AVATAR },
   //1 - first name
-    { [](const ::mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME},
-  //2 - lastname is handled specially, so we don't use a descriptor for it
-    { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_LASTNAME},
+    { [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME },
+  //2 - last name
+    { [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+      ::mega::MegaUser::CHANGE_TYPE_LASTNAME },
   //3 - authring
-    { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_AUTHRING},
+    { &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_AUTHRING },
   //4 - last interaction
-    { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_LSTINT},
+    { &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_LSTINT },
   //5 - ed25519 signing key
-    { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); }, ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255},
+    { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
+      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255 },
   //6 - cu25519 encryption key
-    { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); }, ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255},
+    { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
+      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255 },
   //7 - keyring - not used by userAttrCache
-    { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implemented"); }, ::mega::MegaUser::CHANGE_TYPE_KEYRING}
+    { &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_KEYRING },
+  //FULLNAME - virtual attrib with no DB backing
+    { &getDataNotImpl,
+      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME,
+      UserAttrDesc::kNoDb }
 };
 
 UserAttrCache::~UserAttrCache()
@@ -104,6 +123,7 @@ const char* attrName(uint8_t type)
     case ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY: return "PUB_CU25519";
     case ::mega::MegaApi::USER_ATTR_KEYRING: return "KEYRING";
     case USER_ATTR_RSA_PUBKEY: return "PUB_RSA";
+    case USER_ATTR_FULLNAME: return "FULLNAME";
     default: return "(invalid)";
     }
 }
@@ -114,8 +134,10 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
 //  printf("user %s changed %u\n", Id(user.getHandle()).toString().c_str(), changed);
     for (size_t t = 0; t < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); t++)
     {
-        if ((changed & gUserAttrDescs[t].changeMask) == 0)
-            continue;
+        auto& desc = gUserAttrDescs[t];
+        if ((changed & desc.changeMask) == 0)
+            continue; //the change is not of this attrib type
+
         UserAttrPair key(user.getHandle(), t);
         auto it = find(key);
         if (it == end()) //we don't have such attribute
@@ -124,7 +146,10 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
             continue;
         }
         auto& item = it->second;
-        dbInvalidateItem(key); //immediately invalidate parsistent cache
+        if (!(desc.flags & UserAttrDesc::kNoDb))
+        {
+            dbInvalidateItem(key); //immediately invalidate persistent cache
+        }
         if (item->cbs.empty()) //we aren't using that item atm
         { //delete it from memory as well, forcing it to be freshly fetched if it's requested
             erase(key);
@@ -192,6 +217,13 @@ void UserAttrCacheItem::error(UserAttrPair key, int errCode)
     notify();
 }
 
+void UserAttrCacheItem::errorNoDb(int errCode)
+{
+    pending = kCacheFetchNotPending;
+    data.reset();
+    notify();
+}
+
 uint64_t UserAttrCache::addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp, bool oneShot)
 {
     auto& cbs = itemit->second->cbs;
@@ -251,7 +283,7 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
         return;
     switch (key.attrType)
     {
-        case ::mega::MegaApi::USER_ATTR_LASTNAME:
+        case USER_ATTR_FULLNAME:
             fetchUserFullName(key, item);
             break;
         case USER_ATTR_RSA_PUBKEY:
@@ -277,87 +309,62 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
         return err;
     });
 }
+
 void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    std::string userid = key.user.toString();
-    item->data.reset(new Buffer);
+    struct Context
+    {
+        std::string firstname;
+        std::string lastname;
+    };
+    auto ctx = std::make_shared<Context>();
 
-    mClient.api.call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
-            (int)::mega::MegaApi::USER_ATTR_FIRSTNAME)
-    .then([this, userid, item](ReqResult result)
+    auto pms1 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_FIRSTNAME)
+    .then([ctx](Buffer* data)
     {
-        //first name. Write a prefix byte with the first name data length,
-        //and then the name string in utf8
-        auto& data = *(item->data);
-        const char* name = nonWhitespaceStr(result->getText());
-        if (name)
-        {
-            size_t len = strlen(name);
-            if (len > 255) //FIXME: This is utf8, so can't truncate arbitrarily
-            {
-                //truncate first name
-                data.append<unsigned char>(255);
-                data.append(name, 252);
-                data.append("...", 3);
-            }
-            else
-            {
-                data.append<unsigned char>(len);
-                data.append(name);
-            }
-        }
-        else
-        {
-            data.append<unsigned char>(0);
-        }
+        if (!data->empty())
+            ctx->firstname.assign(data->buf(), data->dataSize());
     })
-    .fail([this, item](const promise::Error& err) -> promise::Promise<void>
+    .fail([](const Error& err)
     {
-        item->data->append<unsigned char>(0);
-        if (err.code() != ::mega::API_EARGS) //Shouldn't the API return ENOENT instead when there is not first name?
-            return err;
-        UACACHE_LOG_DEBUG("No first name for user, proceeding with fetching second name");
-         //silently ignore errors for the first name, in case we can still retrieve the second name
-        return promise::_Void();
-    })
-    .then([this, userid]()
+        return _Void();
+    });
+
+    auto pms2 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_LASTNAME)
+    .then([ctx](Buffer* data)
     {
-        return mClient.api.call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
-            (int)::mega::MegaApi::USER_ATTR_LASTNAME);
+        if (!data->empty())
+            ctx->lastname.assign(data->buf(), data->dataSize());
     })
-    .then([this, item, key](ReqResult result)
-    { //second name
-        const char* name = nonWhitespaceStr(result->getText());
-        if (name)
-        {
-            assert(item->data);
-            item->data->append(' ');
-            item->data->append(name);
-        }
-        else if (item->data->dataSize() < 2) //second name and first name are NULL
-        {
-            item->error(key, ::mega::API_ENOENT);
-            return;
-        }
-        item->resolve(key);
-    })
-    .fail([this, key, item](const promise::Error& err)
+    .fail([](const Error& err)
     {
-//even if we have error here, we don't clear item->data as we may have the
-//first name, but won't cache it in db, so the next app run will retry
-        if (item->data->dataSize() < 2)
+        return _Void();
+    });
+
+    promise::when(pms1, pms2)
+    .then([ctx, this, key, item]()
+    {
+        item->data.reset(new Buffer(ctx->firstname.size()+ctx->lastname.size()+1));
+        auto& data = *item->data;
+        if (!ctx->firstname.empty())
         {
-            item->error(key, err.code());
+            data.assign<false>(ctx->firstname);
         }
-        else
+        if (!ctx->lastname.empty())
         {
-            if (err.code() == ::mega::API_ENOENT)
-                item->resolve(key); //has only first name, still good
-            else //some other error
-                item->resolveNoDb(key); //has only first name, still good
+            if (!data.empty())
+                data.append<char>(' ');
+            data.append(ctx->lastname);
         }
+        item->resolveNoDb(key);
+    })
+    .fail([item](const Error& err)
+    {
+        item->errorNoDb(err.code());
+        return err;
     });
 }
+
 void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     mClient.api.call(&::mega::MegaApi::getUserData, key.user.toString().c_str())

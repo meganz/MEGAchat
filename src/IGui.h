@@ -221,8 +221,17 @@ public:
          * @param priv The privilege of the joined user - look at chatd::Priv
          */
         virtual void onUserJoin(uint64_t userid, chatd::Priv priv) {}
+        /** @brief User has left the chat.
+         * @param userid - the user handle of the user who left the chat.
+         */
         virtual void onUserLeave(uint64_t userid) {}
+        /** @brief We were excluded from this chat - either because
+         * we left, or because someone excluded us
+         */
         virtual void onExcludedFromChat() {}
+        /** @brief We were included in a chat again - we have the chat object,
+         * so that means we were part of the chat before, hence we re-joined
+         */
         virtual void onRejoinedChat() {}
 
     };

@@ -249,7 +249,7 @@ public:
     virtual void onTitleChanged(const std::string &title)
     {
         // first char is length of first name
-        QString text = QString::fromUtf8(title.c_str()+1, title[0]);
+        QString text = QString::fromStdString(title);
         ui.mName->setText(text);
         ui.mAvatar->setText(QString(text[0].toUpper()));
         auto& col = gAvatarColors[mContact.userId() & 0x0f];
@@ -414,7 +414,7 @@ public:
     //ITitleHandler intefrace
     virtual void onTitleChanged(const std::string& title)
     {
-        QString text = QString::fromUtf8(title.c_str(), title.size());
+        QString text = QString::fromStdString(title);
         ui.mName->setText(text);
     }
 protected:
@@ -475,7 +475,7 @@ public:
     //ITitleHandler intefrace
     virtual void onTitleChanged(const std::string& title)
     {
-        QString text = QString::fromUtf8(title.c_str());
+        QString text = QString::fromStdString(title);
         ui.mName->setText(text);
     }
 };

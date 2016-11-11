@@ -364,7 +364,7 @@ protected:
     IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
     std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
     bool mIsInitializing = true;
-    void updateTitle(const std::string& str, size_t firstNameLen);
+    void updateTitle(const std::string& str);
     void notifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
@@ -613,6 +613,7 @@ public:
      */
     promise::Promise<void> terminate(bool deleteDb=false);
 
+    promise::Promise<std::string> getUserFullName(Id userid);
     /**
      * @brief Ping a target peer to check whether he/she is alive
      *

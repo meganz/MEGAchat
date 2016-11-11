@@ -16,17 +16,39 @@ namespace mega
 }
 namespace karere
 {
-enum { USER_ATTR_RSA_PUBKEY = 128 }; //virtual user attribute type, to be used with the common attr cache table
+/** @brief Virtual user attribute types - these arent' supported directly
+ * \c by MegaApi::getUserAttribute()
+ */
+enum {
+    /** RSA Public key ofg user */
+    USER_ATTR_RSA_PUBKEY = 128,
+
+    /** Returns firstname and secondname in one string. Tolerates either name
+     * missing. If both are preent, they are separated with a space.
+     * Fetchs both names using the cache, and does it in parallel. Does not
+     * cache the full name itself, but relies on each name being cached separately
+     */
+    USER_ATTR_FULLNAME = 129
+};
+
 const char* attrName(uint8_t type);
 
 class Client;
 struct UserAttrDesc
 {
-    Buffer*(*getData)(const mega::MegaRequest&);
+    enum Flags: unsigned char
+    {
+        kNoDb = 1
+    };
+    typedef Buffer*(*GetDataFunc)(const mega::MegaRequest&);
+    GetDataFunc getData;
     int changeMask;
+    unsigned char flags;
+    UserAttrDesc(GetDataFunc aGetData, int aChangeMask, unsigned char aFlags = kNoDb)
+        :getData(aGetData), changeMask(aChangeMask), flags(aFlags){}
 };
 
-extern UserAttrDesc gUserAttrDescs[8];
+extern UserAttrDesc gUserAttrDescs[9];
 
 struct UserAttrPair
 {
@@ -42,7 +64,7 @@ struct UserAttrPair
     UserAttrPair(uint64_t aUser, uint8_t aType): user(aUser), attrType(aType)
     {
         if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
-         && (attrType != USER_ATTR_RSA_PUBKEY))
+         && (attrType != USER_ATTR_RSA_PUBKEY) && (attrType != USER_ATTR_FULLNAME))
             throw std::runtime_error("UserAttrPair: Invalid user attribute id specified");
     }
     std::string toString()
@@ -78,6 +100,7 @@ struct UserAttrCacheItem
     void resolve(UserAttrPair key);
     void resolveNoDb(UserAttrPair key); //same as resolve, but dont't write to cache db - used for partial results, like first name obtained, second name returned non-ENOENT error
     void error(UserAttrPair key, int errCode);
+    void errorNoDb(int errCode);
     void notify();
 };
 
