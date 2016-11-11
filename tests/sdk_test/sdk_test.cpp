@@ -514,10 +514,10 @@ void MegaChatApiTest::TEST_groupChatManagement()
 
     // --> Create the GroupChat
     bool *flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
-    bool *chatReceived = &chatUpdated[1]; *chatReceived = false;
+    bool *chatItemReceived = &chatItemUpdated[1]; *chatItemReceived = false;
     megaChatApi[0]->createChat(true, peers);
     assert(waitForResponse(flag));
-    assert(waitForResponse(chatReceived));
+    assert(waitForResponse(chatItemReceived));
 
     // Check we got a new chat ID...
     delete peers;   peers = NULL;
@@ -535,6 +535,8 @@ void MegaChatApiTest::TEST_groupChatManagement()
 
     // --> Remove from chat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
+    bool *chatItemLeft0 = &chatItemUpdated[0]; *chatItemLeft0 = false;
+    bool *chatItemLeft1 = &chatItemUpdated[1]; *chatItemLeft1 = false;
     bool *chatLeft0 = &chatUpdated[0]; *chatLeft0 = false;
     bool *chatLeft1 = &chatUpdated[1]; *chatLeft1 = false;
     bool *mngMsgRecv = &chatroomListener->msgReceived[0]; *mngMsgRecv = false;
@@ -551,6 +553,8 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(chatroom->getPeerCount() == 0);
     delete chatroom;
 
+    assert(waitForResponse(chatItemLeft0));
+//    assert(waitForResponse(chatItemLeft1));   Currently there's no notification about us being kicked off
     assert(waitForResponse(chatLeft0));
 //    assert(waitForResponse(chatLeft1));   Currently there's no notification about us being kicked off
 
@@ -561,6 +565,8 @@ void MegaChatApiTest::TEST_groupChatManagement()
 
     // --> Invite to chat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flag = false;
+    bool *chatItemJoined0 = &chatItemUpdated[0]; *chatItemJoined0 = false;
+    bool *chatItemJoined1 = &chatItemUpdated[1]; *chatItemJoined1 = false;
     bool *chatJoined0 = &chatUpdated[0]; *chatJoined0 = false;
     bool *chatJoined1 = &chatUpdated[1]; *chatJoined1 = false;
     mngMsgRecv = &chatroomListener->msgReceived[0]; *mngMsgRecv = false;
@@ -568,8 +574,10 @@ void MegaChatApiTest::TEST_groupChatManagement()
     priv = &chatroomListener->priv[0]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[0]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
     assert(waitForResponse(flag));
+    assert(waitForResponse(chatItemJoined0));
+    assert(waitForResponse(chatItemJoined1));
     assert(waitForResponse(chatJoined0));
-    assert(waitForResponse(chatJoined1));
+//    assert(waitForResponse(chatJoined1)); Redmine ticket: #5668
     assert(waitForResponse(mngMsgRecv));
     assert(*uhAction == peer->getHandle());
     assert(*priv == MegaChatRoom::PRIV_UNKNOWN);    // the message doesn't report the new priv
@@ -588,6 +596,8 @@ void MegaChatApiTest::TEST_groupChatManagement()
     // --> Set title
     string title = "My groupchat with title";
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flag = false;
+    bool *titleItemChanged0 = &chatItemUpdated[0]; *titleItemChanged0 = false;
+    bool *titleItemChanged1 = &chatItemUpdated[1]; *titleItemChanged1 = false;
     bool *titleChanged0 = &chatUpdated[0]; *titleChanged0 = false;
     bool *titleChanged1 = &chatUpdated[1]; *titleChanged1 = false;
     mngMsgRecv = &chatroomListener->msgReceived[0]; *mngMsgRecv = false;
@@ -595,14 +605,13 @@ void MegaChatApiTest::TEST_groupChatManagement()
     megaChatApi[0]->setChatTitle(chatid, title.c_str());
     assert(waitForResponse(flag));
     assert(lastErrorChat[0] == MegaChatError::ERROR_OK);
+    assert(waitForResponse(titleItemChanged0));
+    assert(waitForResponse(titleItemChanged1));
     assert(waitForResponse(titleChanged0));
-    assert(waitForResponse(titleChanged1));
+//    assert(waitForResponse(titleChanged1)); Redmine ticket: #5668
     assert(waitForResponse(mngMsgRecv));
-//    assert(!strcmp(title.c_str(), msgContent->c_str())); Redmine ticket: #5700
-    if (strcmp(title.c_str(), msgContent->c_str()))
-    {
-        cout << "Test of title failed" << endl;
-    }
+    assert(!strcmp(title.c_str(), msgContent->c_str())); // Redmine ticket: #5700
+
 
     chatroom = megaChatApi[1]->getChatRoom(chatid);
     assert (chatroom);
@@ -620,7 +629,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
 //    assert(waitForResponse(peerUpdated1));    Redmine ticket: #5668
     assert(waitForResponse(mngMsgRecv));
     assert(*uhAction == peer->getHandle());
-    assert(*priv == MegaChatRoom::PRIV_MODERATOR);    // the message doesn't report the new priv
+    assert(*priv == MegaChatRoom::PRIV_MODERATOR);
 
 
     // --> Load some message to feed history
@@ -779,7 +788,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
     {
         cout << "[api: " << apiIndex << "] Chat list item added or updated - ";
         printChatListItemInfo(item);
-        chatUpdated[apiIndex] = true;
+        chatItemUpdated[apiIndex] = true;
 
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_CLOSED))
         {

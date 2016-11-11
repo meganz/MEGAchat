@@ -3061,9 +3061,9 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
 {
     string tmp(msg.buf(), msg.size());
 
-    if (!msg.isManagementMessage() || msg.type == TYPE_CHAT_TITLE)
+    if (msg.type == TYPE_NORMAL || msg.type == TYPE_CHAT_TITLE)
     {
-        this->msg = (msg.type == TYPE_NORMAL && msg.size()) ? MegaApi::strdup(tmp.c_str()) : NULL;
+        this->msg = msg.size() ? MegaApi::strdup(tmp.c_str()) : NULL;
     }
     else    // for other types, content is irrelevant
     {
