@@ -643,6 +643,15 @@ public:
         mRoom.onUserJoin(userid, priv);
     }
     virtual void onUserLeave(karere::Id userid) { mRoom.onUserLeave(userid); }
+    virtual void onExcludedFromChat()
+    {
+        ui.mMessageEdit->setEnabled(false);
+    }
+    virtual void onRejoinedChat()
+    {
+        ui.mMessageEdit->setEnabled(true);
+    }
+
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //IChatWindow interface
     virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }

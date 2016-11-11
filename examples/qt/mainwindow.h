@@ -379,6 +379,8 @@ public:
     {
         ui.mAvatar->setText("G");
         updateToolTip();
+        if (!mRoom.isActive())
+            showAsHidden();
     }
     void updateToolTip()
     {
@@ -400,6 +402,15 @@ public:
         setToolTip(text);
     }
     virtual void onMembersUpdated() { updateToolTip(); }
+    virtual void onExcludedFromChat()
+    {
+        showAsHidden();
+    }
+    virtual void onRejoinedChat()
+    {
+        unshowAsHidden();
+    }
+
     //ITitleHandler intefrace
     virtual void onTitleChanged(const std::string& title)
     {

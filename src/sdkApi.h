@@ -62,6 +62,33 @@ public:
     }
 };
 
+class MyListenerNoResult: public ::mega::MegaRequestListener
+{
+public:
+    promise::Promise<void> mPromise;
+    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
+    {
+        int errCode = e->getErrorCode();
+        karere::marshallCall([this, errCode]()
+        {
+            if (mPromise.done())
+                return; //a timeout timer may resolve it before the actual callback
+            if(errCode != mega::MegaError::API_OK)
+            {
+                std::string errmsg = "Mega API error ";
+                errmsg.append(std::to_string(errCode)).append(" (")
+                      .append(::mega::MegaError::getErrorString(errCode))+=')';
+                mPromise.reject(errmsg, errCode, ERRTYPE_MEGASDK);
+            }
+            else
+            {
+                mPromise.resolve();
+            }
+            delete this;
+        });
+    }
+};
+
 class MyMegaLogger: public ::mega::MegaLogger
 {
     virtual void log(const char *time, int loglevel, const char *source, const char *message)
@@ -93,6 +120,14 @@ public:
         (sdk.*method)(args..., listener);
         return listener->mPromise;
     }
+    template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
+    promise::Promise<void> callIgnoreResult(MSig method, Args... args)
+    {
+        auto listener = new MyListenerNoResult;
+        (sdk.*method)(args..., listener);
+        return listener->mPromise;
+    }
+
     ~MyMegaApi()
     {
         sdk.setLoggerObject(nullptr);

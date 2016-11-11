@@ -113,6 +113,11 @@ public:
     /** @brief Our own privilege within this chat */
     chatd::Priv ownPriv() const { return mOwnPriv; }
 
+    /** @brief Whether we are currently member of the chatroom (for group
+      * chats), or we are contacts with the peer (for 1on1 chats)
+      */
+    bool isActive() const { return mOwnPriv != chatd::PRIV_NOTPRESENT; }
+
     /** @brief The online state reported by chatd for that chatroom */
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
 
@@ -159,6 +164,7 @@ public:
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
+    virtual void onExcludedFromRoom() {}
 //  virtual void onHistoryTruncated();
 };
 /** @brief Represents a 1on1 chatd chatroom */
@@ -269,6 +275,9 @@ public:
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
     void initWithChatd();
+    void setRemoved();
+    void notifyRemoved();
+    void notifyRejoined();
     virtual void connect();
 
     friend class ChatRoomList;
@@ -278,9 +287,9 @@ public:
                   unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
     ~GroupChatRoom();
 public:
-    promise::Promise<ReqResult> setPrivilege(karere::Id userid, chatd::Priv priv);
+    promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
     promise::Promise<void> setTitle(const std::string& title);
-    promise::Promise<ReqResult> leave();
+    promise::Promise<void> leave();
     promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
     virtual promise::Promise<void> mediaCall(AvFlags av);
 //chatd::Listener
@@ -316,7 +325,7 @@ public:
      * @param user The handle of the user to remove from the chatroom.
      * @returns A promise with the MegaRequest result, returned by the mega SDK.
      */
-    promise::Promise<ReqResult> excludeMember(uint64_t user);
+    promise::Promise<void> excludeMember(uint64_t user);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -494,6 +503,7 @@ protected:
     std::string mSid;
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     std::string mMyEmail;
+    bool mConnected = false;
 public:
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
@@ -510,8 +520,10 @@ public:
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
     std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
+    bool skipInactiveChatrooms = true;
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     bool contactsLoaded() const { return mContactsLoaded; }
+    bool connected() const { return mConnected; }
     std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
     /** @endcond PRIVATE */
 
@@ -682,13 +694,13 @@ protected:
      * and to save the app the management of the dialog, retries in case of
      * bad credentials etc. This is just a convenience method.
      */
-    promise::Promise<ReqResult> sdkLoginNewSession();
+    promise::Promise<void> sdkLoginNewSession();
 
     /** @brief A convenience method to log the sdk in using an existing session,
      * identified by \c sid. This is to be used in a standalone chat app where
      * there is no existing code that logs in the Mega SDK instance.
      */
-    promise::Promise<ReqResult> sdkLoginExistingSession(const char* sid);
+    promise::Promise<void> sdkLoginExistingSession(const char* sid);
 
     /**
      * @brief send response to ping request.
