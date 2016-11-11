@@ -3044,7 +3044,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 {
     this->msg = MegaApi::strdup(msg->getContent());
     this->uh = msg->getUserHandle();
-    this->uh = msg->getUserHandleOfAction();
+    this->uhAction = msg->getUserHandleOfAction();
     this->msgId = msg->getMsgId();
     this->tempId = msg->getTempId();
     this->index = msg->getMsgIndex();

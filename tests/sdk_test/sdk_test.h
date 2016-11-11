@@ -168,6 +168,9 @@ public:
     bool msgEdited[NUM_ACCOUNTS];
 
     MegaChatHandle msgId[NUM_ACCOUNTS];
+    MegaChatHandle uhAction[NUM_ACCOUNTS];
+    int priv[NUM_ACCOUNTS];
+    std::string content[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener

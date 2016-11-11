@@ -528,12 +528,23 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert (chatroom);
     delete chatroom;
 
+    // --> Open chatroom
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
+    assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
+    assert(megaChatApi[1]->openChatRoom(chatid, chatroomListener));
+
     // --> Remove from chat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
     bool *chatLeft0 = &chatUpdated[0]; *chatLeft0 = false;
     bool *chatLeft1 = &chatUpdated[1]; *chatLeft1 = false;
+    bool *mngMsgRecv = &chatroomListener->msgReceived[0]; *mngMsgRecv = false;
+    MegaChatHandle *uhAction = &chatroomListener->uhAction[0]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    int *priv = &chatroomListener->priv[0]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[0]->removeFromChat(chatid, peer->getHandle());
     assert(waitForResponse(flag));
+    assert(waitForResponse(mngMsgRecv));
+    assert(*uhAction == peer->getHandle());
+    assert(*priv == MegaChatRoom::PRIV_RM);
 
     chatroom = megaChatApi[0]->getChatRoom(chatid);
     assert (chatroom);
@@ -552,10 +563,16 @@ void MegaChatApiTest::TEST_groupChatManagement()
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flag = false;
     bool *chatJoined0 = &chatUpdated[0]; *chatJoined0 = false;
     bool *chatJoined1 = &chatUpdated[1]; *chatJoined1 = false;
+    mngMsgRecv = &chatroomListener->msgReceived[0]; *mngMsgRecv = false;
+    uhAction = &chatroomListener->uhAction[0]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    priv = &chatroomListener->priv[0]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[0]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
     assert(waitForResponse(flag));
     assert(waitForResponse(chatJoined0));
     assert(waitForResponse(chatJoined1));
+    assert(waitForResponse(mngMsgRecv));
+    assert(*uhAction == peer->getHandle());
+    assert(*priv == MegaChatRoom::PRIV_UNKNOWN);    // the message doesn't report the new priv
 
     chatroom = megaChatApi[0]->getChatRoom(chatid);
     assert (chatroom);
@@ -573,11 +590,19 @@ void MegaChatApiTest::TEST_groupChatManagement()
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flag = false;
     bool *titleChanged0 = &chatUpdated[0]; *titleChanged0 = false;
     bool *titleChanged1 = &chatUpdated[1]; *titleChanged1 = false;
+    mngMsgRecv = &chatroomListener->msgReceived[0]; *mngMsgRecv = false;
+    string *msgContent = &chatroomListener->content[0]; *msgContent = "";
     megaChatApi[0]->setChatTitle(chatid, title.c_str());
     assert(waitForResponse(flag));
     assert(lastErrorChat[0] == MegaChatError::ERROR_OK);
     assert(waitForResponse(titleChanged0));
     assert(waitForResponse(titleChanged1));
+    assert(waitForResponse(mngMsgRecv));
+//    assert(!strcmp(title.c_str(), msgContent->c_str())); Redmine ticket: #5700
+    if (strcmp(title.c_str(), msgContent->c_str()))
+    {
+        cout << "Test of title failed" << endl;
+    }
 
     chatroom = megaChatApi[1]->getChatRoom(chatid);
     assert (chatroom);
@@ -587,14 +612,16 @@ void MegaChatApiTest::TEST_groupChatManagement()
     // --> Change peer privileges
     bool *peerUpdated0 = &peersUpdated[0]; *peerUpdated0 = false;
     bool *peerUpdated1 = &peersUpdated[1]; *peerUpdated1 = false;
+    mngMsgRecv = &chatroomListener->msgReceived[0]; *mngMsgRecv = false;
+    uhAction = &chatroomListener->uhAction[0]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    priv = &chatroomListener->priv[0]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[0]->updateChatPermissions(chatid, peer->getHandle(), MegaChatRoom::PRIV_MODERATOR);
     assert(waitForResponse(peerUpdated0));
-    assert(waitForResponse(peerUpdated1));
+//    assert(waitForResponse(peerUpdated1));    Redmine ticket: #5668
+    assert(waitForResponse(mngMsgRecv));
+    assert(*uhAction == peer->getHandle());
+    assert(*priv == MegaChatRoom::PRIV_MODERATOR);    // the message doesn't report the new priv
 
-    // --> Open chatroom
-    TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
-    assert(megaChatApi[1]->openChatRoom(chatid, chatroomListener));
 
     // --> Load some message to feed history
     flag = &chatroomListener->historyLoaded[0]; *flag = false;
@@ -864,6 +891,17 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
 
     msgId[apiIndex] = msg->getMsgId();
     msgReceived[apiIndex] = true;
+
+    if (msg->getType() == MegaChatMessage::TYPE_ALTER_PARTICIPANTS ||
+            msg->getType() == MegaChatMessage::TYPE_PRIV_CHANGE)
+    {
+        uhAction[apiIndex] = msg->getUserHandleOfAction();
+        priv[apiIndex] = msg->getPrivilege();
+    }
+    if (msg->getType() == MegaChatMessage::TYPE_CHAT_TITLE)
+    {
+        content[apiIndex] = msg->getContent() ? msg->getContent() : "<empty>";
+    }
 }
 
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
