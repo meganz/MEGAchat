@@ -495,7 +495,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             ((GroupChatRoom *)chatroom)->excludeMember(uh)
-            .then([request, this](ReqResult result)
+            .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);

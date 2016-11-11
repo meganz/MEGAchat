@@ -36,21 +36,21 @@ const char* nonWhitespaceStr(const char* str)
 UserAttrDesc gUserAttrDescs[8] =
 { //getData func | changeMask
   //0 - avatar
-   { [](const ::mega::MegaRequest& req)->Buffer* { return new Buffer(req.getFile(), strlen(req.getFile())); }, ::mega::MegaUser::CHANGE_TYPE_AVATAR},
+    { [](const ::mega::MegaRequest& req)->Buffer* { return new Buffer(req.getFile(), strlen(req.getFile())); }, ::mega::MegaUser::CHANGE_TYPE_AVATAR},
   //1 - first name
-   { [](const ::mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME},
+    { [](const ::mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME},
   //2 - lastname is handled specially, so we don't use a descriptor for it
-   { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_LASTNAME},
+    { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_LASTNAME},
   //3 - authring
-  { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_AUTHRING},
+    { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_AUTHRING},
   //4 - last interaction
-  { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_LSTINT},
+    { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_LSTINT},
   //5 - ed25519 signing key
-  { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); }, ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255},
+    { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); }, ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255},
   //6 - cu25519 encryption key
-  { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); }, ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255},
+    { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); }, ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255},
   //7 - keyring - not used by userAttrCache
-  { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implemented"); }, ::mega::MegaUser::CHANGE_TYPE_KEYRING}
+    { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implemented"); }, ::mega::MegaUser::CHANGE_TYPE_KEYRING}
 };
 
 UserAttrCache::~UserAttrCache()

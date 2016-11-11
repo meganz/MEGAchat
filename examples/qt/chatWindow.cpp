@@ -28,18 +28,23 @@ ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
 
     setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint);
     setAttribute(Qt::WA_DeleteOnClose);
+    if (!mRoom.isActive())
+        ui.mMessageEdit->setEnabled(false);
+
     QDialog::show();
 }
 
 ChatWindow::~ChatWindow()
 {
+    mRoom.removeAppChatHandler();
+    //Quite possible mRoom is already destroyed, and the reference is invalid
+    //because widget destructors may be called asynchronously
     GUI_LOG_DEBUG("Destroying chat window for chat %s", Id(mRoom.chatid()).toString().c_str());
     if (mUpdateSeenTimer)
     {
         cancelTimeout(mUpdateSeenTimer);
         mUpdateSeenTimer = 0;
     }
-    mRoom.removeAppChatHandler();
 }
 
 MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
@@ -47,7 +52,6 @@ MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
 : QWidget(&parent), mChatWindow(parent), mMessage(&msg),
     mIsMine(msg.userid == parent.chat().client().userId()), mIndex(idx)
 {
-    printf("MessageWidget: msg.type = %d\n", msg.type);
     ui.setupUi(this);
     setAuthor(msg.userid);
     setTimestamp(msg.ts);
