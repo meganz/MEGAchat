@@ -222,6 +222,9 @@ public:
          */
         virtual void onUserJoin(uint64_t userid, chatd::Priv priv) {}
         virtual void onUserLeave(uint64_t userid) {}
+        virtual void onExcludedFromChat() {}
+        virtual void onRejoinedChat() {}
+
     };
 
     /** @brief Manages contactlist items that in turn receive events

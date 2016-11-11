@@ -301,7 +301,7 @@ protected:
     promise::Promise<std::shared_ptr<Buffer>>
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-    encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key);
+    encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, uint64_t extraUser=0);
 
     void msgEncryptWithKey(chatd::Message &src, chatd::MsgCommand& dest,
         const StaticBuffer& key);
@@ -335,7 +335,7 @@ public:
         virtual void resetSendKey();
         virtual bool handleLegacyKeys(chatd::Message& msg);
         virtual void randomBytes(void* buf, size_t bufsize) const;
-        virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data);
+        virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
         virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
 
         //====

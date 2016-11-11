@@ -189,6 +189,13 @@ public:
      */
     virtual void onUserLeave(karere::Id userid){}
 
+    /** @brief We have been excluded from this chatroom */
+    virtual void onExcludedFromChat() {}
+
+    /** @brief We have rejoined the room
+     */
+    virtual void onRejoinedChat() {}
+
     /** @brief Unread message count has changed */
     virtual void onUnreadChanged() {}
 
@@ -833,6 +840,7 @@ public:
         Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
+    void disconnect();
     friend class Connection;
     friend class Chat;
 };

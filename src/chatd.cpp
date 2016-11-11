@@ -410,8 +410,17 @@ void Connection::enableInactivityTimer()
 
 void Connection::disconnect() //should be graceful disconnect
 {
+    mTerminating = true;
     if (mWebSocket)
         ws_close(mWebSocket);
+}
+
+void Client::disconnect()
+{
+    for (auto& conn: mConnections)
+    {
+        conn.second->disconnect();
+    }
 }
 
 void Connection::reset() //immediate disconnect

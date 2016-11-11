@@ -132,7 +132,6 @@ public:
      * @param h MegaChatHandle of the user to be added
      * @param priv Privilege level of the user to be added
      * Valid values are:
-     * - MegaChatPeerList::PRIV_UNKNOWN = -2
      * - MegaChatPeerList::PRIV_RM = -1
      * - MegaChatPeerList::PRIV_RO = 0
      * - MegaChatPeerList::PRIV_STANDARD = 2
@@ -245,11 +244,7 @@ public:
     enum
     {
         CHANGE_TYPE_STATUS          = 0x01,
-        CHANGE_TYPE_CONTENT         = 0x02/*,
-        CHANGE_TYPE_PARTICIPANTS    = 0x04,
-        CHANGE_TYPE_TITLE           = 0x08,
-        CHANGE_TYPE_CHAT_STATE      = 0x10
-//        CHANGE_TYPE_TITLE           = 0x10*/
+        CHANGE_TYPE_CONTENT         = 0x02
     };
 
     virtual ~MegaChatMessage() {}
@@ -355,6 +350,40 @@ public:
      * @return True if the message can be edited. Otherwise, false.
      */
     virtual bool isEditable() const;
+
+    /**
+     * @brief Returns whether the message is a management message
+     *
+     * Management messages are intented to record in the history any change related
+     * to the management of the chatroom, such as a title change or an addition of a peer.
+     *
+     * @return True if the message is a management message.
+     */
+    virtual bool isManagementMessage() const;
+
+    /**
+     * @brief Return the handle of the user relative to the action
+     *
+     * Only valid for management messages:
+     *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: handle of the user who is added/removed
+     *  - MegaChatMessage::TYPE_PRIV_CHANGE: handle of the user whose privilege is changed
+     *
+     * @return Handle of the user
+     */
+    virtual MegaChatHandle getUserHandleOfAction() const;
+
+    /**
+     * @brief Return the privilege of the user relative to the action
+     *
+     * Only valid for management messages:
+     *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
+     *      - When a peer is removed: MegaChatRoom::PRIV_RM
+     *      - When a peer is added: MegaChatRoom::PRIV_UNKNOWN
+     *  - MegaChatMessage::TYPE_PRIV_CHANGE: the new privilege of the user
+     *
+     * @return Privilege level as above
+     */
+    virtual int getPrivilege() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -644,11 +673,12 @@ class MegaChatError
 {
 public:
     enum {
-        ERROR_OK = 0,
-        ERROR_UNKNOWN = -1,
-        ERROR_ARGS = -2,
-        ERROR_ACCESS = -3,
-        ERROR_NOENT = -4
+        ERROR_OK        =   0,
+        ERROR_UNKNOWN   =  -1,		// internal error
+        ERROR_ARGS      =  -2,		// bad arguments
+        ERROR_NOENT     =  -9,		// resource does not exist
+        ERROR_ACCESS    = -11,		// access denied
+        ERROR_EXIST     = -12		// resource already exists
     };
 
     MegaChatError() {}
@@ -1221,6 +1251,10 @@ public:
      * messages that are not intended to be displayed to the user. Additionally, if the fetch
      * is local and there's no more history locally available, the number of messages could be
      * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
+     *
+     * When there are no more history available from the reported source of messages
+     * (local / remote), or when the requested \c count has been already loaded,
+     * the callback MegaChatRoomListener::onMessageLoaded will be called with a NULL message.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param count The number of requested messages to load.
@@ -1838,8 +1872,9 @@ public:
     /**
      * @brief This function is called when there are changes in the chatroom
      *
-     * The changes can include: a user join/leaves the chatroom, the unread messages count
-     * has changed, the online state of the connection to the chat server has changed.
+     * The changes can include: a user join/leaves the chatroom, a user changes its name,
+     * the unread messages count has changed, the online state of the connection to the
+     * chat server has changed.
      *
      * @param api MegaChatApi connected to the account
      * @param chat MegaChatRoom that contains the updates relatives to the chat
@@ -1851,8 +1886,8 @@ public:
      *
      * You can use MegaChatApi::loadMessages to request loading messages.
      *
-     * When there are no more message to load in the history, this function is also
-     * called, but the second parameter will be NULL.
+     * When there are no more message to load from the source reported by MegaChatApi::loadMessages or
+     * there are no more history at all, this function is also called, but the second parameter will be NULL.
      *
      * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
      * object will be valid until this function returns. If you want to save the MegaChatMessage object,

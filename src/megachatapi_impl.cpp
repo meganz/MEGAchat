@@ -269,7 +269,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([](const promise::Error& err)
             {
-                API_LOG_ERROR("Error closing chat engine: ", err.what());
+                API_LOG_ERROR("Error closing chat engine: %s", err.what());
             });
             break;
         }
@@ -290,7 +290,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error setting online status: ", err.what());
+                API_LOG_ERROR("Error setting online status: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -340,7 +340,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 })
                 .fail([request,this](const promise::Error& err)
                 {
-                    API_LOG_ERROR("Error creating group chat: ", err.what());
+                    API_LOG_ERROR("Error creating group chat: %s", err.what());
 
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                     fireOnChatRequestFinish(request, megaChatError);
@@ -366,7 +366,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 })
                 .fail([request,this](const promise::Error& err)
                 {
-                    API_LOG_ERROR("Error creating 1on1 chat: ", err.what());
+                    API_LOG_ERROR("Error creating 1on1 chat: %s", err.what());
 
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                     fireOnChatRequestFinish(request, megaChatError);
@@ -411,7 +411,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error adding user to group chat: ", err.what());
+                API_LOG_ERROR("Error adding user to group chat: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -450,7 +450,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error updating peer privileges: ", err.what());
+                API_LOG_ERROR("Error updating peer privileges: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -495,14 +495,14 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             ((GroupChatRoom *)chatroom)->excludeMember(uh)
-            .then([request, this](ReqResult result)
+            .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error removing peer from chat: ", err.what());
+                API_LOG_ERROR("Error removing peer from chat: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -545,7 +545,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error truncating chat history: ", err.what());
+                API_LOG_ERROR("Error truncating chat history: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -591,7 +591,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error editing chat title: ", err.what());
+                API_LOG_ERROR("Error editing chat title: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -607,13 +607,13 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 request->setText(data->buf());
-                string firstname = string(data->buf(), data->bufSize());
+                string firstname = string(data->buf(), data->dataSize());
                 request->setText(firstname.c_str());
                 fireOnChatRequestFinish(request, megaChatError);
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error getting user firstname: ", err.what());
+                API_LOG_ERROR("Error getting user firstname: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -628,13 +628,13 @@ void MegaChatApiImpl::sendPendingRequests()
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                string lastname = string(data->buf(), data->bufSize());
+                string lastname = string(data->buf(), data->dataSize());
                 request->setText(lastname.c_str());
                 fireOnChatRequestFinish(request, megaChatError);
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error getting user lastname: ", err.what());
+                API_LOG_ERROR("Error getting user lastname: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -1659,6 +1659,8 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
             delete (*it);
             return;
         }
+
+        it++;
     }
 }
 
@@ -1679,6 +1681,8 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
             delete (*it);
             return;
         }
+
+        it++;
     }
 }
 
@@ -2570,8 +2574,14 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         for (it = peers.begin(); it != peers.end(); it++)
         {
             this->peers.push_back(userpriv_pair(it->first, (privilege_t) it->second->priv()));
-            this->peerFirstnames.push_back(MegaChatRoomPrivate::firstnameFromBuffer(it->second->name()));
-            this->peerLastnames.push_back(MegaChatRoomPrivate::lastnameFromBuffer(it->second->name()));
+
+            const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(it->second->name());
+            this->peerFirstnames.push_back(buffer ? buffer : "");
+            delete buffer;
+
+            buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
+            this->peerLastnames.push_back(buffer ? buffer : "");
+            delete buffer;
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2583,8 +2593,15 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
         string name = peerchat.contact().titleString();
 
         this->peers.push_back(userpriv_pair(uh, priv));
-        this->peerFirstnames.push_back(MegaChatRoomPrivate::firstnameFromBuffer(name));
-        this->peerLastnames.push_back(MegaChatRoomPrivate::lastnameFromBuffer(name));
+
+        const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
+        this->peerFirstnames.push_back(buffer ? buffer : "");
+        delete buffer;
+
+        buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
+        this->peerLastnames.push_back(buffer ? buffer : "");
+        delete buffer;
+
         this->status = chat.presence().status();
     }
 }
@@ -2745,30 +2762,35 @@ void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
 
 const char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
 {
-    string ret;
+    char *ret = NULL;
+    int len = buffer.length() ? buffer.at(0) : 0;
 
-    if (buffer.length() && buffer.at(0))
+    if (len)
     {
-        ret = string(buffer.data() + 1, buffer.at(0));
+        ret = new char[len + 1];
+        strncpy(ret, buffer.data() + 1, len);
+        ret[len] = '\0';
     }
 
-    return ret.c_str();
+    return ret;
 }
 
 const char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
 {
-    string ret;
+    char *ret = NULL;
 
     if (buffer.length())
     {
         int lenLastname = buffer.length() - buffer.at(0) - 1;
         if (lenLastname)
         {
-            ret = string(buffer.data() + 1 + buffer.at(0), lenLastname);
+            ret = new char[lenLastname + 1];
+            strncpy(ret, buffer.data() + 1 + buffer.at(0), lenLastname);
+            ret[lenLastname] = '\0';
         }
     }
 
-    return ret.c_str();
+    return ret;
 }
 
 void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
@@ -3022,6 +3044,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 {
     this->msg = MegaApi::strdup(msg->getContent());
     this->uh = msg->getUserHandle();
+    this->uhAction = msg->getUserHandleOfAction();
     this->msgId = msg->getMsgId();
     this->tempId = msg->getTempId();
     this->index = msg->getMsgIndex();
@@ -3031,12 +3054,21 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->changed = msg->getChanges();
     this->edited = msg->isEdited();
     this->deleted = msg->isDeleted();
+    this->priv = msg->getPrivilege();
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
 {
     string tmp(msg.buf(), msg.size());
-    this->msg = msg.size() ? MegaApi::strdup(tmp.c_str()) : NULL;
+
+    if (msg.type == TYPE_NORMAL || msg.type == TYPE_CHAT_TITLE)
+    {
+        this->msg = msg.size() ? MegaApi::strdup(tmp.c_str()) : NULL;
+    }
+    else    // for other types, content is irrelevant
+    {
+        this->msg = NULL;
+    }
     this->uh = msg.userid;
     this->msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
     this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
@@ -3047,6 +3079,27 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->changed = 0;
     this->edited = msg.updated && msg.size();
     this->deleted = msg.updated && !msg.size();
+
+    switch (type)
+    {
+        case MegaChatMessage::TYPE_PRIV_CHANGE:
+        case MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
+        {
+            const Message::ManagementInfo mngInfo = msg.mgmtInfo();
+
+            this->priv = mngInfo.privilege;
+            this->uhAction = mngInfo.target;
+            break;
+        }
+        case MegaChatMessage::TYPE_NORMAL:
+        case MegaChatMessage::TYPE_CHAT_TITLE:
+        case MegaChatMessage::TYPE_TRUNCATE:
+        case MegaChatMessage::TYPE_USER_MSG:
+        default:
+            this->priv = PRIV_UNKNOWN;
+            this->uhAction = MEGACHAT_INVALID_HANDLE;
+            break;
+    }
 }
 
 MegaChatMessagePrivate::~MegaChatMessagePrivate()
@@ -3112,6 +3165,24 @@ bool MegaChatMessagePrivate::isDeleted() const
 bool MegaChatMessagePrivate::isEditable() const
 {
     return (!isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
+}
+
+bool MegaChatMessagePrivate::isManagementMessage() const
+{
+    return (type == TYPE_ALTER_PARTICIPANTS ||
+            type == TYPE_PRIV_CHANGE ||
+            type == TYPE_TRUNCATE ||
+            type == TYPE_CHAT_TITLE);
+}
+
+MegaChatHandle MegaChatMessagePrivate::getUserHandleOfAction() const
+{
+    return uhAction;
+}
+
+int MegaChatMessagePrivate::getPrivilege() const
+{
+    return priv;
 }
 
 int MegaChatMessagePrivate::getChanges() const
