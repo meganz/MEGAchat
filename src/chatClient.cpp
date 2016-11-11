@@ -940,10 +940,8 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
         makeTitleFromMemberNames();
         assert(!mTitleString.empty());
     }
-    else
-    {
-        notifyTitleChanged();
-    }
+
+    notifyTitleChanged();
     initWithChatd();
     mRoomGui = addAppItem();
     mIsInitializing = false;
@@ -1291,8 +1289,8 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                 //we are in the room, add it to local cache
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
                 auto& room = addRoom(*apiRoom);
-                room.connect();
                 client.app.notifyInvited(room);
+                room.connect();
             }
             else
             {   //we don't have the room, and we are not in the room - we have just removed ourselves from it, and deleted it locally
@@ -2042,7 +2040,6 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             else
                 self->updateTitle(std::string(data->buf(), data->dataSize()));
         });
-
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
         updateTitle(email);

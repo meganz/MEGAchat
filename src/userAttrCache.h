@@ -76,14 +76,17 @@ struct UserAttrPair
         return result;
     }
 };
+
 typedef void(*UserAttrReqCbFunc)(Buffer*, void*);
+enum { kUserAttrCbOneShotFlag = 1 << 63 };
+
 struct UserAttrReqCb
 {
     UserAttrReqCbFunc cb;
     void* userp;
-    bool oneShot;
-    UserAttrReqCb(UserAttrReqCbFunc aCb, void* aUserp, bool aOneShot=false)
-    : cb(aCb), userp(aUserp), oneShot(aOneShot){}
+    uint64_t id;
+    UserAttrReqCb(UserAttrReqCbFunc aCb, void* aUserp, uint64_t aId)
+    : cb(aCb), userp(aUserp), id(aId){}
 };
 
 enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2};
@@ -139,7 +142,7 @@ public:
     uint64_t getAttr(const uint64_t& user, unsigned attrType, void* userp,
                              UserAttrReqCbFunc cb, bool oneShot=false);
     promise::Promise<Buffer*> getAttr(const uint64_t &user, unsigned attrType);
-    bool removeCb(const uint64_t &cbid);
+    bool removeCb(uint64_t cbid);
 };
 
 }

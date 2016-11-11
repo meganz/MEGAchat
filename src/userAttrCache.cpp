@@ -182,9 +182,10 @@ void UserAttrCacheItem::notify()
     {
         auto curr = it;
         it++;
+        uint64_t id = curr->id;
         curr->cb(data.get(), curr->userp); //may erase curr
-        if (curr->oneShot)
-            cbs.erase(curr);
+        if (id & kUserAttrCbOneShotFlag)
+            parent.removeCb(id);
     }
 }
 
@@ -227,19 +228,22 @@ void UserAttrCacheItem::errorNoDb(int errCode)
 uint64_t UserAttrCache::addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp, bool oneShot)
 {
     auto& cbs = itemit->second->cbs;
-    auto it = cbs.emplace(cbs.end(), cb, userp, oneShot);
-    mCallbacks.emplace(std::piecewise_construct, std::forward_as_tuple(++mCbId),
+    auto id = ++mCbId;
+    if (oneShot)
+        id |= kUserAttrCbOneShotFlag;
+    auto it = cbs.emplace(cbs.end(), cb, userp, id);
+    mCallbacks.emplace(std::piecewise_construct, std::forward_as_tuple(id),
                        std::forward_as_tuple(itemit, it));
-    return mCbId;
+    return id;
 }
 
-bool UserAttrCache::removeCb(const uint64_t& cbid)
+bool UserAttrCache::removeCb(uint64_t cbid)
 {
     auto it = mCallbacks.find(cbid);
     if (it == mCallbacks.end())
         return false;
-    auto& cbDesc = it->second;
-    cbDesc.itemit->second->cbs.erase(cbDesc.cbit);
+    auto& cbref = it->second;
+    cbref.itemit->second->cbs.erase(cbref.cbit);
     return true;
 }
 
