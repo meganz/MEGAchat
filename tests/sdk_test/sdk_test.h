@@ -98,13 +98,19 @@ private:
     std::string pwd[NUM_ACCOUNTS];
 
 
-    MegaChatHandle chatid;  // chatroom in use...
+    MegaChatHandle chatid;  // chatroom id from request
+    MegaChatRoom *chatroom;
+    MegaChatListItem *chatListItem;
     bool chatUpdated[NUM_ACCOUNTS];
     bool chatItemUpdated[NUM_ACCOUNTS];
     bool chatItemClosed[NUM_ACCOUNTS];
     bool peersUpdated[NUM_ACCOUNTS];
-    std::string firstname, lastname; // requested via karere
+
+    std::string firstname, lastname;
     bool nameReceived[NUM_ACCOUNTS];
+
+    std::string chatFirstname, chatLastname; // requested via karere
+    bool chatNameReceived[NUM_ACCOUNTS];
 
 //    MegaContactRequest* cr[2];
 
@@ -168,6 +174,7 @@ public:
     bool msgReceived[NUM_ACCOUNTS];
     bool msgEdited[NUM_ACCOUNTS];
 
+    MegaChatMessage *message;
     MegaChatHandle msgId[NUM_ACCOUNTS];
     MegaChatHandle uhAction[NUM_ACCOUNTS];
     int priv[NUM_ACCOUNTS];

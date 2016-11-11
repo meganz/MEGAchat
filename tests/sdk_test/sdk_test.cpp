@@ -113,6 +113,9 @@ MegaChatApiTest::MegaChatApiTest()
             cout << "TEST - Set your password at the environment variable $" << varName << endl;
             exit(-1);
         }
+
+        chatroom = NULL;
+        chatListItem = NULL;
     }
 }
 
@@ -334,15 +337,15 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
             {
                 MegaChatHandle uh = chatroom->getPeerHandle(i);
 
-                bool *flag = &nameReceived[0]; *flag = false; firstname = "";
+                bool *flag = &chatNameReceived[0]; *flag = false; chatFirstname = "";
                 megaChatApi[0]->getUserFirstname(uh);
                 assert(waitForResponse(flag));
-                cout << "Peer firstname (" << uh << "): " << firstname << " (len: " << firstname.length() << ")" << endl;
+                cout << "Peer firstname (" << uh << "): " << chatFirstname << " (len: " << chatFirstname.length() << ")" << endl;
 
-                flag = &nameReceived[0]; *flag = false; lastname = "";
+                flag = &chatNameReceived[0]; *flag = false; chatLastname = "";
                 megaChatApi[0]->getUserLastname(uh);
                 assert(waitForResponse(flag));
-                cout << "Peer lastname (" << uh << "): " << lastname << " (len: " << lastname.length() << ")" << endl;
+                cout << "Peer lastname (" << uh << "): " << chatLastname << " (len: " << chatLastname.length() << ")" << endl;
             }
         }
 
@@ -511,13 +514,26 @@ void MegaChatApiTest::TEST_groupChatManagement()
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
+    bool *flag = &nameReceived[0]; *flag = false; firstname = "";
+    megaApi[0]->getUserAttribute(MegaApi::USER_ATTR_FIRSTNAME);
+    assert(waitForResponse(flag));
+    string peerFirstname = firstname;
+    flag = &nameReceived[0]; *flag = false; lastname = "";
+    megaApi[0]->getUserAttribute(MegaApi::USER_ATTR_LASTNAME);
+    assert(waitForResponse(flag));
+    string peerLastname = lastname;
+    string peerFullname = peerFirstname + peerLastname;
 
     // --> Create the GroupChat
-    bool *flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
     bool *chatItemReceived = &chatItemUpdated[1]; *chatItemReceived = false;
+    chatListItem = NULL;
     megaChatApi[0]->createChat(true, peers);
     assert(waitForResponse(flag));
     assert(waitForResponse(chatItemReceived));
+    assert(chatListItem);
+//    assert(!strcmp(chatListItem->getTitle(), peerFullname.c_str())); ERROR: we get empty title
+    delete chatListItem; chatListItem = NULL;
 
     // Check we got a new chat ID...
     delete peers;   peers = NULL;
@@ -721,13 +737,13 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
             break;
 
         case MegaChatRequest::TYPE_GET_FIRSTNAME:
-            firstname = request->getText();
-            nameReceived[apiIndex] = true;
+            chatFirstname = request->getText();
+            chatNameReceived[apiIndex] = true;
             break;
 
         case MegaChatRequest::TYPE_GET_LASTNAME:
-            lastname = request->getText();
-            nameReceived[apiIndex] = true;
+            chatLastname = request->getText();
+            chatNameReceived[apiIndex] = true;
             break;
     }
 
@@ -755,6 +771,7 @@ void MegaChatApiTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
     if (chat != NULL)
     {
         cout << "[api: " << apiIndex << "] Chat added or updated (" << chat->getChatId() << ")" << endl;
+        chatroom = chat->copy();
         chatUpdated[apiIndex] = true;
         if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_PARTICIPANTS))
         {
@@ -787,6 +804,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
     if (item)
     {
         cout << "[api: " << apiIndex << "] Chat list item added or updated - ";
+        chatListItem = item->copy();
         printChatListItemInfo(item);
         chatItemUpdated[apiIndex] = true;
 
@@ -805,6 +823,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApi **apis, MegaChatHandle ch
 {
     this->megaChatApi = apis;
     this->chatid = chatid;
+    this->message = NULL;
 
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
@@ -977,6 +996,17 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
 
     switch(request->getType())
     {
+    case MegaRequest::TYPE_GET_ATTR_USER:
+        if (request->getParamType() ==  MegaApi::USER_ATTR_FIRSTNAME)
+        {
+            firstname = request->getText();
+        }
+        else if (request->getParamType() == MegaApi::USER_ATTR_LASTNAME)
+        {
+            lastname = request->getText();
+        }
+        nameReceived[apiIndex] = true;
+        break;
     }
 }
 
