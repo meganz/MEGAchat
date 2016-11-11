@@ -3061,13 +3061,13 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
 {
     string tmp(msg.buf(), msg.size());
 
-    if (!msg.isManagementMessage())
+    if (!msg.isManagementMessage() || msg.type == TYPE_CHAT_TITLE)
     {
         this->msg = (msg.type == TYPE_NORMAL && msg.size()) ? MegaApi::strdup(tmp.c_str()) : NULL;
     }
-    else
+    else    // for other types, content is irrelevant
     {
-        this->msg = MegaApi::strdup(msg.managementInfoToString().c_str());
+        this->msg = NULL;
     }
     this->uh = msg.userid;
     this->msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
