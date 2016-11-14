@@ -350,13 +350,20 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
     {
         item->data.reset(new Buffer(ctx->firstname.size()+ctx->lastname.size()+1));
         auto& data = *item->data;
-        if (!ctx->firstname.empty())
+        auto& fn = ctx->firstname;
+        if (fn.size() > 255)
         {
-            data.assign<false>(ctx->firstname);
+            fn.resize(252);
+            fn.append("...");
+        }
+        data.append(fn.size());
+        if (!fn.empty())
+        {
+            data.append(fn);
         }
         if (!ctx->lastname.empty())
         {
-            if (!data.empty())
+            if (!fn.empty())
                 data.append<char>(' ');
             data.append(ctx->lastname);
         }

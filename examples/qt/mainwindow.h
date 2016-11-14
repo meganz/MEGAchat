@@ -249,7 +249,7 @@ public:
     virtual void onTitleChanged(const std::string &title)
     {
         // first char is length of first name
-        QString text = QString::fromStdString(title);
+        QString text = QString::fromUtf8(title.c_str()+1, title[0]);
         ui.mName->setText(text);
         ui.mAvatar->setText(QString(text[0].toUpper()));
         auto& col = gAvatarColors[mContact.userId() & 0x0f];

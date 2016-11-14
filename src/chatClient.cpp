@@ -47,6 +47,8 @@ using namespace promise;
 namespace karere
 {
 
+std::string encodeFirstName(const std::string& first);
+
 void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 {
     strophe::Stanza pong(*conn);
@@ -2043,13 +2045,13 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         {
             auto self = static_cast<Contact*>(userp);
             if (!data || data->empty())
-                self->updateTitle(self->mEmail);
+                self->updateTitle(encodeFirstName(self->mEmail));
             else
                 self->updateTitle(std::string(data->buf(), data->dataSize()));
         });
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
-        updateTitle(email);
+        updateTitle(encodeFirstName(email));
         assert(!mTitleString.empty());
     }
 
@@ -2093,7 +2095,10 @@ void Contact::notifyTitleChanged()
         if (mDisplay)
             mDisplay->onTitleChanged(mTitleString);
         if (mChatRoom)
-            mChatRoom->updateTitle(mTitleString);
+        {
+            //1on1 chatrooms don't have a binary layout for the title
+            mChatRoom->updateTitle(mTitleString.substr(1));
+        }
     }
 }
 
@@ -2184,4 +2189,15 @@ rtcModule::IEventHandler* Client::onIncomingCallRequest(
     return app.onIncomingCall(ans);
 }
 
+std::string encodeFirstName(const std::string& first)
+{
+    std::string result;
+    result.reserve(first.size()+1);
+    result+=(char)(first.size());
+    if (!first.empty())
+    {
+        result.append(first);
+    }
+    return result;
+}
 }
