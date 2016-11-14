@@ -168,9 +168,10 @@ public:
 //  virtual void onHistoryTruncated();
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
     {
-        KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s]: %s",
+        KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, userid %s]: %s",
             karere::Id(mChatid).toString().c_str(),
-            msg.id().toString().c_str(), errmsg.c_str());
+            msg.id().toString().c_str(), msg.userid.toString().c_str(),
+            errmsg.c_str());
     }
 
 };
@@ -274,8 +275,8 @@ public:
     promise::Promise<void> decryptTitle();
     void clearTitle();
     void updateAllOnlineDisplays(Presence pres);
-    void addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb);
-    bool removeMember(const uint64_t& userid);
+    void addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
+    bool removeMember(uint64_t userid);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     IApp::IGroupChatListItem* addAppItem();
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
@@ -344,7 +345,7 @@ class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr 
 /** @cond PRIVATE */
 public:
     Client& client;
-    void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms);
+    void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
     ChatRoom& addRoom(const mega::MegaTextChat &room);
     bool removeRoom(const uint64_t& chatid);
     ChatRoomList(Client& aClient);

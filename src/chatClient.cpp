@@ -1066,7 +1066,7 @@ const std::string& PeerChatRoom::titleString() const
     return mTitleString;
 }
 
-void GroupChatRoom::addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb)
+void GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv, bool saveToDb)
 {
     assert(userid != parent.client.myHandle());
     auto it = mPeers.find(userid);
@@ -1092,7 +1092,7 @@ void GroupChatRoom::addMember(const uint64_t& userid, chatd::Priv priv, bool sav
     }
 }
 
-bool GroupChatRoom::removeMember(const uint64_t& userid)
+bool GroupChatRoom::removeMember(uint64_t userid)
 {
     auto it = mPeers.find(userid);
     if (it == mPeers.end())
@@ -1111,6 +1111,7 @@ bool GroupChatRoom::removeMember(const uint64_t& userid)
 
 promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
 {
+    assert(userid != parent.client.myHandle());
     auto wptr = getWeakPtr();
     return parent.client.api.callIgnoreResult(&::mega::MegaApi::updateChatPermissions, chatid(), userid.val, priv)
     .then([this, wptr, userid, priv]()
@@ -1181,7 +1182,7 @@ void ChatRoomList::loadFromDb()
         emplace(chatid, room);
     }
 }
-void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
+void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, SetOfIds& chatids)
 {
     auto size = rooms.size();
     for (int i=0; i<size; i++)
@@ -1197,6 +1198,8 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
             isInactive ? "(inactive) " : "",
             Id(apiRoom.getHandle()).toString().c_str());
         auto& room = addRoom(apiRoom);
+        chatids.insert(room.chatid());
+
         if (client.connected())
         {
             KR_LOG_DEBUG("Connecting new room to chatd...");
@@ -1221,6 +1224,10 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     if(apiRoom.isGroup())
     {
         room = new GroupChatRoom(*this, apiRoom); //also writes it to cache
+        if (client.connected())
+        {
+            static_cast<GroupChatRoom*>(room)->decryptTitle();
+        }
     }
     else
     {
@@ -1276,12 +1283,15 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 
 void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
 {
-    addMissingRoomsFromApi(*rooms);
+    SetOfIds added;
+    addMissingRoomsFromApi(*rooms, added);
     auto count = rooms->size();
     for (int i = 0; i < count; i++)
     {
         auto apiRoom = rooms->get(i);
         auto chatid = apiRoom->getHandle();
+        if (added.has(chatid)) //room was just added, no need to sync
+            continue;
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
         auto priv = apiRoom->getOwnPrivilege();
@@ -1325,6 +1335,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         for (int i=0; i<size; i++)
         {
             auto handle = peers->getPeerHandle(i);
+            assert(handle != parent.client.myHandle());
             mPeers[handle] = new Member(*this, handle, (chatd::Priv)peers->getPeerPrivilege(i)); //may try to access mContactGui, but we have set it to nullptr, so it's ok
         }
     }
@@ -1791,7 +1802,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     if (title)
     {
         mEncryptedTitle = title;
-        if (parent.client.contactsLoaded())
+        if (parent.client.connected())
         {
             decryptTitle();
         }
