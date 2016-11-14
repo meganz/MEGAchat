@@ -347,7 +347,7 @@ public:
     Client& client;
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
     ChatRoom& addRoom(const mega::MegaTextChat &room);
-    bool removeRoom(const uint64_t& chatid);
+    void removeRoom(GroupChatRoom& room);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
@@ -528,7 +528,7 @@ public:
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
     std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
-    bool skipInactiveChatrooms = true;
+    bool skipInactiveChatrooms = false;
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     bool contactsLoaded() const { return mContactsLoaded; }
     bool connected() const { return mConnected; }

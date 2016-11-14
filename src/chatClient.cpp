@@ -1194,6 +1194,10 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
             KR_LOG_DEBUG("Skipping inactive chatroom %s", Id(apiRoom.getHandle()).toString().c_str());
             continue;
         }
+        auto chatid = apiRoom.getHandle();
+        auto it = find(chatid);
+        if (it != end())
+            continue;
         KR_LOG_DEBUG("Adding %sroom %s from API",
             isInactive ? "(inactive) " : "",
             Id(apiRoom.getHandle()).toString().c_str());
@@ -1216,10 +1220,8 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
 {
     auto chatid = apiRoom.getHandle();
     auto it = find(chatid);
-    if (it != end()) //we already have that room
-    {
-        return *it->second;
-    }
+    assert(it == end()); //we should not have that room
+
     ChatRoom* room;
     if(apiRoom.isGroup())
     {
@@ -1244,15 +1246,30 @@ void GroupChatRoom::notifyRemoved()
         mAppChatHandler->onExcludedFromChat();
     if (mRoomGui)
         mRoomGui->onExcludedFromChat();
-//  room.deleteSelf();
-//  erase(it);
+}
+
+void ChatRoomList::removeRoom(GroupChatRoom& room)
+{
+    auto it = find(room.chatid());
+    if (it == end())
+        throw std::runtime_error("removRoom:: Room not in chat list");
+    room.deleteSelf();
+    erase(it);
 }
 
 void GroupChatRoom::setRemoved()
 {
-    mOwnPriv = chatd::PRIV_NOTPRESENT;
-    sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
-    notifyRemoved();
+    if (parent.client.skipInactiveChatrooms)
+    {
+        notifyRemoved();
+        parent.removeRoom(*this);
+    }
+    else
+    {
+        mOwnPriv = chatd::PRIV_NOTPRESENT;
+        sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
+        notifyRemoved();
+    }
 }
 
 void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
@@ -1353,7 +1370,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         stmt.reset().clearBind();
     }
     auto title = aChat.getTitle();
-    if (title)
+    if (title && title[0])
     {
         mEncryptedTitle = title;
     }
@@ -1557,7 +1574,7 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
         throw std::runtime_error("syncWithApi: isGroup flag can't change");
     auto db = parent.client.db;
     auto url = chat.getUrl();
-    if (url)
+    if (url && url[0])
     {
         if (strcmp(url, mUrl.c_str()))
         {
