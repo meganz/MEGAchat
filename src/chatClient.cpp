@@ -1315,7 +1315,9 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
         if (localRoom)
         {
             if (priv == chatd::PRIV_NOTPRESENT) //we were removed by someone else
+            {
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(chatid).toString().c_str());
+            }
             it->second->syncWithApi(*apiRoom);
         }
         else
