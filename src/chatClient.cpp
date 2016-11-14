@@ -1443,23 +1443,25 @@ void GroupChatRoom::makeTitleFromMemberNames()
     {
         mTitleString = "(alone in this chatroom)";
     }
-    for (auto& m: mPeers)
+    else
     {
-        //name has binary layout
-        auto& name = m.second->mName;
-        assert(!name.empty()); //is initialized to '\3...', so is never empty
-        if (name.size() <= 1)
+        for (auto& m: mPeers)
         {
-            mTitleString.append("..., ");
+            //name has binary layout
+            auto& name = m.second->mName;
+            assert(!name.empty()); //is initialized to '\3...', so is never empty
+            if (name.size() <= 1)
+            {
+                mTitleString.append("..., ");
+            }
+            else
+            {
+                mTitleString.append(name.substr(1)).append(", ");
+            }
         }
-        else
-        {
-            mTitleString.append(name.substr(1)).append(", ");
-        }
+        mTitleString.resize(mTitleString.size()-2); //truncate last ", "
     }
     assert(!mTitleString.empty());
-
-    mTitleString.resize(mTitleString.size()-2); //truncate last ", "
     notifyTitleChanged();
 }
 
