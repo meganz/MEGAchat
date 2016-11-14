@@ -356,7 +356,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
             fn.resize(252);
             fn.append("...");
         }
-        data.append(fn.size());
+        data.append<uint8_t>(fn.size());
         if (!fn.empty())
         {
             data.append(fn);

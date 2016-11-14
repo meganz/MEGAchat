@@ -414,7 +414,7 @@ promise::Promise<void> Client::connect()
             return;
         auto& name = static_cast<Client*>(userp)->mMyName;
         name.assign(buf->buf(), buf->dataSize());
-        KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str());
+        KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
     connectToChatd();
@@ -2096,6 +2096,7 @@ void Contact::notifyTitleChanged()
             mDisplay->onTitleChanged(mTitleString);
         if (mChatRoom)
         {
+            printf("mTitleString: %u: %s\n", mTitleString[0], mTitleString.c_str()+1);
             //1on1 chatrooms don't have a binary layout for the title
             mChatRoom->updateTitle(mTitleString.substr(1));
         }
@@ -2137,7 +2138,7 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-    mChatRoom->updateTitle(mTitleString);
+    mChatRoom->updateTitle(mTitleString.substr(1));
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)
