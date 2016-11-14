@@ -166,6 +166,13 @@ public:
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
     virtual void onExcludedFromRoom() {}
 //  virtual void onHistoryTruncated();
+    virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
+    {
+        KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s]: %s",
+            karere::Id(mChatid).toString().c_str(),
+            msg.id().toString().c_str(), errmsg.c_str());
+    }
+
 };
 /** @brief Represents a 1on1 chatd chatroom */
 class PeerChatRoom: public ChatRoom

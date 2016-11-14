@@ -417,12 +417,12 @@ promise::Promise<void> Client::connect()
 
     connectToChatd();
 
+    mConnected = true;
     return mXmppServerProvider->getServer()
     .then([this](const std::shared_ptr<HostPortServerInfo>& server) mutable
     {
         return connectXmpp(server);
     });
-    mConnected = true;
 }
 
 karere::Id Client::getMyHandleFromSdk()
@@ -1191,12 +1191,19 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
             KR_LOG_DEBUG("Skipping inactive chatroom %s", Id(apiRoom.getHandle()).toString().c_str());
             continue;
         }
-        KR_LOG_DEBUG("Adding %s room %s from API",
-            isInactive ? "(inactive)" : "",
+        KR_LOG_DEBUG("Adding %sroom %s from API",
+            isInactive ? "(inactive) " : "",
             Id(apiRoom.getHandle()).toString().c_str());
         auto& room = addRoom(apiRoom);
         if (client.connected())
+        {
+            KR_LOG_DEBUG("Connecting new room to chatd...");
             room.connect();
+        }
+        else
+        {
+            KR_LOG_DEBUG("Client is not connected, not connecting new room");
+        }
     }
 }
 
