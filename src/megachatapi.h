@@ -1474,11 +1474,11 @@ public:
     enum
     {
         CHANGE_TYPE_STATUS          = 0x01,
-        CHANGE_TYPE_VISIBILITY      = 0x02, // The contact of 1on1 chat has changed: added/removed... (chat remains even for removed contacts)
+        CHANGE_TYPE_VISIBILITY      = 0x02, /// The contact of 1on1 chat has changed: added/removed... (chat remains even for removed contacts)
         CHANGE_TYPE_UNREAD_COUNT    = 0x04,
         CHANGE_TYPE_PARTICIPANTS    = 0x08,
         CHANGE_TYPE_TITLE           = 0x10,
-        CHANGE_TYPE_CLOSED          = 0x20  // The chatroom has been left by own user
+        CHANGE_TYPE_CLOSED          = 0x20  /// The chatroom has been left by own user
     };
 
     virtual ~MegaChatListItem() {}
@@ -1572,7 +1572,8 @@ public:
         CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
         CHANGE_TYPE_TITLE           = 0x08,
         CHANGE_TYPE_CHAT_STATE      = 0x10,
-        CHANGE_TYPE_USER_TYPING     = 0X20
+        CHANGE_TYPE_USER_TYPING     = 0X20,
+        CHANGE_TYPE_CLOSED          = 0X40  /// The chatroom has been left by own user
     };
 
     enum {
@@ -1697,7 +1698,7 @@ public:
     virtual const char *getPeerLastname(unsigned int i) const;
 
     /**
-     * @brief isGroup Returns whether this chat is a group chat or not
+     * @brief Returns whether this chat is a group chat or not
      * @return True if this chat is a group chat. Only chats with more than 2 peers are groupal chats.
      */
     virtual bool isGroup() const;

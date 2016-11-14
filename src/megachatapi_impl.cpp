@@ -1650,10 +1650,10 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
         IGroupChatListItem *itemHandler = (*it);
         if (itemHandler == &item)
         {
-            // notify the app about the new chatroom
-            MegaChatListItemPrivate *listItem = new MegaChatListItemPrivate((*it)->getChatRoom());
-            listItem->setClosed();
-            fireOnChatListItemUpdate(listItem);
+//            TODO: Redmine ticket #5693
+//            MegaChatListItemPrivate *listItem = new MegaChatListItemPrivate((*it)->getChatRoom());
+//            listItem->setClosed();
+//            fireOnChatListItemUpdate(listItem);
 
             chatGroupListItemHandler.erase(*it);
             delete (*it);
@@ -1672,10 +1672,10 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
         IPeerChatListItem *itemHandler = (*it);
         if (itemHandler == &item)
         {
-            // notify the app about the new chatroom
-            MegaChatListItemPrivate *listItem = new MegaChatListItemPrivate((*it)->getChatRoom());
-            listItem->setClosed();
-            fireOnChatListItemUpdate(listItem);
+//            TODO: Redmine ticket #5693
+//            MegaChatListItemPrivate *listItem = new MegaChatListItemPrivate((*it)->getChatRoom());
+//            listItem->setClosed();
+//            fireOnChatListItemUpdate(listItem);
 
             chatPeerListItemHandler.erase(*it);
             delete (*it);
@@ -2404,6 +2404,26 @@ void MegaChatRoomHandler::onUserLeave(Id userid)
     }
 }
 
+void MegaChatRoomHandler::onRejoinedChat()
+{
+    if (mRoom)
+    {
+        MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
+        chatApi->fireOnChatRoomUpdate(chatroom);
+    }
+}
+
+void MegaChatRoomHandler::onExcludedFromChat()
+{
+
+    if (mRoom)
+    {
+        MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
+        chatroom->setClosed();
+        chatApi->fireOnChatRoomUpdate(chatroom);
+    }
+}
+
 void MegaChatRoomHandler::onUnreadChanged()
 {
     if (mRoom)
@@ -2760,6 +2780,11 @@ void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
     this->changed |= MegaChatRoom::CHANGE_TYPE_USER_TYPING;
 }
 
+void MegaChatRoomPrivate::setClosed()
+{
+    this->changed |= MegaChatRoom::CHANGE_TYPE_CLOSED;
+}
+
 const char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
 {
     char *ret = NULL;
@@ -3029,6 +3054,19 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setMembersUpdated();
 
+    chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatGroupListItemHandler::onExcludedFromChat()
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setClosed();
+    chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatGroupListItemHandler::onRejoinedChat()
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     chatApi.fireOnChatListItemUpdate(item);
 }
 

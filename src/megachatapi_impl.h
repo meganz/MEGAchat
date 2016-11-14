@@ -251,6 +251,8 @@ public:
     // karere::IApp::IListItem::IGroupChatListItem implementation
     virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
     virtual void onUserLeave(uint64_t userid);
+    virtual void onExcludedFromChat();
+    virtual void onRejoinedChat();
 };
 
 class MegaChatPeerListItemHandler :
@@ -295,6 +297,8 @@ public:
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUserJoin(karere::Id userid, chatd::Priv privilege);
     virtual void onUserLeave(karere::Id userid);
+    virtual void onExcludedFromChat();
+    virtual void onRejoinedChat();
     virtual void onUnreadChanged();
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
@@ -406,6 +410,7 @@ public:
     void setMembersUpdated();
     void setOnlineState(int state);
     void setUserTyping(MegaChatHandle uh);
+    void setClosed();
 
 private:
     int changed;
