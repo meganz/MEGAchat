@@ -1299,12 +1299,10 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
                 auto& room = addRoom(*apiRoom);
                 client.app.notifyInvited(room);
-                room.connect();
-            }
-            else
-            {   //we don't have the room, and we are not in the room - we have just removed ourselves from it, and deleted it locally
-                KR_LOG_DEBUG("Chatroom[%s]: We should have just removed ourself from the room",  Id(chatid).toString().c_str());
-                continue;
+                if (client.connected())
+                {
+                    room.connect();
+                }
             }
         }
     }
@@ -1419,14 +1417,16 @@ void GroupChatRoom::makeTitleFromMemberNames()
     }
     for (auto& m: mPeers)
     {
+        //name has binary layout
         auto& name = m.second->mName;
+        assert(!name.empty()); //is initialized to '\3...', so is never empty
         if (name.size() <= 1)
         {
             mTitleString.append("..., ");
         }
         else
         {
-            mTitleString.append(name).append(", ");
+            mTitleString.append(name.substr(1)).append(", ");
         }
     }
     assert(!mTitleString.empty());
@@ -1840,20 +1840,20 @@ UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, User
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
-: mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0")
+: mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\3...")
 {
     mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(
         user, USER_ATTR_FULLNAME, this,
         [](Buffer* buf, void* userp)
     {
         auto self = static_cast<Member*>(userp);
-        if (buf)
+        if (buf && !buf->empty())
         {
             self->mName.assign(buf->buf(), buf->dataSize());
         }
         else
         {
-            self->mName.clear();
+            self->mName.assign("\3...");
         }
         if (self->mRoom.mAppChatHandler)
         {
@@ -2087,16 +2087,19 @@ void Contact::notifyTitleChanged()
             wptr.throwIfDeleted();
             //if it's initializing, then there is no mChatRoom
             if (mDisplay)
+            {
                 mDisplay->onTitleChanged(mTitleString);
+            }
         });
     }
     else
     {
         if (mDisplay)
+        {
             mDisplay->onTitleChanged(mTitleString);
+        }
         if (mChatRoom)
         {
-            printf("mTitleString: %u: %s\n", mTitleString[0], mTitleString.c_str()+1);
             //1on1 chatrooms don't have a binary layout for the title
             mChatRoom->updateTitle(mTitleString.substr(1));
         }
