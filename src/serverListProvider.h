@@ -354,8 +354,16 @@ void GelbProvider<S>::parseServersJson(const std::string& json)
     }
     auto arr = doc.FindMember(mService.c_str());
     if (arr == doc.MemberEnd())
-        throw std::runtime_error("JSON receoved does not have a '"+mService+"' member");
-    parseServerList(arr->value, *this);
+        throw std::runtime_error("JSON received does not have a '"+mService+"' member");
+    try
+    {
+        parseServerList(arr->value, *this);
+    }
+    catch (std::exception& e)
+    {
+        KR_LOG_ERROR("Error parsing GeLB response: JSON dump:\n %s", json.c_str());
+        throw;
+    }
 }
 
 template <class S>
