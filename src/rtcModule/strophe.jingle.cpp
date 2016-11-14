@@ -33,7 +33,7 @@ Jingle::Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler,
                ICryptoFunctions* crypto, const char* iceServers)
 :mConn(conn), mGlobalHandler(globalHandler), mCrypto(crypto),
   mTurnServerProvider(
-    new TurnServerProvider("https://gelb530n001.karere.mega.nz", "turn", iceServers, 3600)),
+    new TurnServerProvider("https://" KARERE_GELB_HOST, "turn", iceServers, 3600)),
   mIceServers(new webrtc::PeerConnectionInterface::IceServers)
 {
     pcConstraints.SetMandatoryReceiveAudio(true);

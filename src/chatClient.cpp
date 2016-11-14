@@ -71,7 +71,7 @@ Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir,
   chats(new ChatRoomList(*this)),
   mOwnPresence(pres),
   mXmppContactList(*this),
-  mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
+  mXmppServerProvider(new XmppServerProvider("https://" KARERE_GELB_HOST, "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
 {
     try
     {
@@ -1192,8 +1192,8 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
             KR_LOG_DEBUG("Skipping inactive chatroom %s", Id(apiRoom.getHandle()).toString().c_str());
             continue;
         }
-        KR_LOG_DEBUG("Adding %s room %s from API",
-            isInactive ? "(inactive)" : "",
+        KR_LOG_DEBUG("Adding %sroom %s from API",
+            isInactive ? "(inactive) " : "",
             Id(apiRoom.getHandle()).toString().c_str());
         auto& room = addRoom(apiRoom);
         if (client.connected())
