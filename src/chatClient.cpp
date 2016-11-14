@@ -73,7 +73,7 @@ Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir,
   chats(new ChatRoomList(*this)),
   mOwnPresence(pres),
   mXmppContactList(*this),
-  mXmppServerProvider(new XmppServerProvider("https://gelb530n001.karere.mega.nz", "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
+  mXmppServerProvider(new XmppServerProvider("https://" KARERE_GELB_HOST, "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
 {
     try
     {
