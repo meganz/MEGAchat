@@ -424,7 +424,10 @@ private:
     MegaChatHandle uh;
 
 public:
+    // you take the ownership of return value
     static const char *firstnameFromBuffer(const std::string &buffer);
+
+    // you take the ownership of return value
     static const char *lastnameFromBuffer(const std::string &buffer);
 };
 
@@ -466,6 +469,9 @@ public:
     virtual bool isEdited() const;
     virtual bool isDeleted() const;
     virtual bool isEditable() const;
+    virtual bool isManagementMessage() const;
+    virtual MegaChatHandle getUserHandleOfAction() const;
+    virtual int getPrivilege() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -482,11 +488,13 @@ private:
     MegaChatHandle msgId;   // definitive unique ID given by server
     MegaChatHandle tempId;  // used until it's given a definitive ID by server
     MegaChatHandle uh;
+    MegaChatHandle uhAction;// certain messages need additional userhandle, such us priv changes
     int index;              // position within the history buffer
     int64_t ts;
     char *msg;
     bool edited;
     bool deleted;
+    int priv;               // certain messages need additional info, like priv changes
 };
 
 //Thread safe request queue

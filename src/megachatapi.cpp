@@ -762,6 +762,21 @@ bool MegaChatMessage::isEditable() const
     return false;
 }
 
+bool MegaChatMessage::isManagementMessage() const
+{
+    return false;
+}
+
+MegaChatHandle MegaChatMessage::getUserHandleOfAction() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+int MegaChatMessage::getPrivilege() const
+{
+    return MegaChatRoom::PRIV_UNKNOWN;
+}
+
 int MegaChatMessage::getChanges() const
 {
     return 0;

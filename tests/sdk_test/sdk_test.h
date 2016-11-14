@@ -84,6 +84,9 @@ public:
     bool requestFlags[NUM_ACCOUNTS][MegaRequest::TYPE_CHAT_SET_TITLE];
     bool requestFlagsChat[NUM_ACCOUNTS][MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
 
+    int lastError[NUM_ACCOUNTS];
+    int lastErrorChat[NUM_ACCOUNTS];
+
     void TEST_resumeSession();
     void TEST_setOnlineStatus();
     void TEST_getChatRoomsAndMessages();
@@ -94,13 +97,20 @@ private:
     std::string email[NUM_ACCOUNTS];
     std::string pwd[NUM_ACCOUNTS];
 
-    int lastError[NUM_ACCOUNTS];
 
-    MegaChatHandle chatid;  // chatroom in use...
+    MegaChatHandle chatid;  // chatroom id from request
+    MegaChatRoom *chatroom;
+    MegaChatListItem *chatListItem;
     bool chatUpdated[NUM_ACCOUNTS];
+    bool chatItemUpdated[NUM_ACCOUNTS];
     bool chatItemClosed[NUM_ACCOUNTS];
-    std::string firstname, lastname; // requested via karere
+    bool peersUpdated[NUM_ACCOUNTS];
+
+    std::string firstname, lastname;
     bool nameReceived[NUM_ACCOUNTS];
+
+    std::string chatFirstname, chatLastname; // requested via karere
+    bool chatNameReceived[NUM_ACCOUNTS];
 
 //    MegaContactRequest* cr[2];
 
@@ -164,7 +174,11 @@ public:
     bool msgReceived[NUM_ACCOUNTS];
     bool msgEdited[NUM_ACCOUNTS];
 
+    MegaChatMessage *message;
     MegaChatHandle msgId[NUM_ACCOUNTS];
+    MegaChatHandle uhAction[NUM_ACCOUNTS];
+    int priv[NUM_ACCOUNTS];
+    std::string content[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
