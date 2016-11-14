@@ -24,7 +24,7 @@ enum {
     USER_ATTR_RSA_PUBKEY = 128,
 
     /** Returns firstname and secondname in one string. Tolerates either name
-     * missing. If both are preent, they are separated with a space.
+     * missing. If both are present, they are separated with a space.
      * Fetchs both names using the cache, and does it in parallel. Does not
      * cache the full name itself, but relies on each name being cached separately
      */
