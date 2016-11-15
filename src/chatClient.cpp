@@ -1240,12 +1240,21 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     return *room;
 }
 
-void GroupChatRoom::notifyRemoved()
+void ChatRoom::notifyExcludedFromChat()
 {
     if (mAppChatHandler)
         mAppChatHandler->onExcludedFromChat();
-    if (mRoomGui)
-        mRoomGui->onExcludedFromChat();
+    auto listItem = roomGui();
+    if (listItem)
+        listItem->onExcludedFromChat();
+}
+void ChatRoom::notifyRejoinedChat()
+{
+    if (mAppChatHandler)
+        mAppChatHandler->onRejoinedChat();
+    auto listItem = roomGui();
+    if (listItem)
+        listItem->onRejoinedChat();
 }
 
 void ChatRoomList::removeRoom(GroupChatRoom& room)
@@ -1261,14 +1270,14 @@ void GroupChatRoom::setRemoved()
 {
     if (parent.client.skipInactiveChatrooms)
     {
-        notifyRemoved();
+        notifyExcludedFromChat();
         parent.removeRoom(*this);
     }
     else
     {
         mOwnPriv = chatd::PRIV_NOTPRESENT;
         sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
-        notifyRemoved();
+        notifyExcludedFromChat();
     }
 }
 
@@ -1805,13 +1814,6 @@ void GroupChatRoom::clearTitle()
     makeTitleFromMemberNames();
     sqliteQuery(parent.client.db, "update chats set title=NULL where chatid=?", mChatid);
 }
-void GroupChatRoom::notifyRejoined()
-{
-    if (mAppChatHandler)
-        mAppChatHandler->onRejoinedChat();
-    if (mRoomGui)
-        mRoomGui->onRejoinedChat();
-}
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
@@ -1840,14 +1842,14 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
             if (mOwnPriv != chatd::PRIV_NOTPRESENT)
             {
                 //we were reinvited
-                notifyRejoined();
+                notifyRejoinedChat();
             }
         }
         else //room was active
         {
             if (mOwnPriv == chatd::PRIV_NOTPRESENT)
             {
-                notifyRemoved();
+                notifyExcludedFromChat();
             }
         }
         KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
@@ -1947,6 +1949,12 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
         sqliteQuery(client.db, "update contacts set visibility = ? where userid = ?",
             newVisibility, userid);
         item->onVisibilityChanged(newVisibility);
+/*
+        if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
+        {
+            if (item->mRoom)
+        }
+*/
         return true;
     }
     auto cmail = user.getEmail();
@@ -1958,6 +1966,28 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
     item = new Contact(*this, userid, email, visibility, ts, nullptr);
     KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
     return true;
+}
+
+void Contact::onVisibilityChanged(int newVisibility)
+{
+    assert(newVisibility != mVisibility);
+    auto old = mVisibility;
+    mVisibility = newVisibility;
+    if (mDisplay)
+    {
+        mDisplay->onVisibilityChanged(newVisibility);
+    }
+    if (mChatRoom)
+    {
+        if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
+        {
+            mChatRoom->notifyExcludedFromChat();
+        }
+        else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+        {
+            mChatRoom->notifyRejoinedChat();
+        }
+    }
 }
 
 void ContactList::syncWithApi(mega::MegaUserList& users)

@@ -69,6 +69,8 @@ protected:
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
+    void notifyExcludedFromChat();
+    void notifyRejoinedChat();
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
@@ -284,8 +286,6 @@ public:
     void makeTitleFromMemberNames();
     void initWithChatd();
     void setRemoved();
-    void notifyRemoved();
-    void notifyRejoined();
     virtual void connect();
 
     friend class ChatRoomList;
@@ -439,12 +439,7 @@ public:
             pres = Presence::kOffline;
         updateAllOnlineDisplays(pres);
     }
-    void onVisibilityChanged(int newVisibility)
-    {
-        mVisibility = newVisibility;
-        if (mDisplay)
-            mDisplay->onVisibilityChanged(newVisibility);
-    }
+    void onVisibilityChanged(int newVisibility);
     void updateAllOnlineDisplays(Presence pres)
     {
         if (mDisplay)
