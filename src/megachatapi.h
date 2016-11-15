@@ -1781,6 +1781,14 @@ public:
      */
     virtual MegaChatHandle getUserTyping() const;
 
+    /**
+     * @brief Returns whether the user is member of the chatroom (for groupchats),
+     * or the user is contact with the peer (for 1on1 chats).
+     *
+     * @return True if the chat is active, false otherwise.
+     */
+    virtual bool isActive() const;
+
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 };

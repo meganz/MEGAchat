@@ -559,6 +559,11 @@ MegaChatHandle MegaChatRoom::getUserTyping() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
+bool MegaChatRoom::isActive() const
+{
+    return false;
+}
+
 int MegaChatRoom::getOnlineStatus() const
 {
     return MegaChatApi::STATUS_OFFLINE;

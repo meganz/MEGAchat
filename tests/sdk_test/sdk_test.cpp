@@ -205,6 +205,14 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
 
     cout << "Chat ID: " << hstr << " (" << chatid << ")" << endl;
     cout << "\tOwn privilege level: " << MegaChatRoom::privToString(chat->getOwnPrivilege()) << endl;
+    if (chat->isActive())
+    {
+        cout << "\tActive: yes" << endl;
+    }
+    else
+    {
+        cout << "\tActive: no" << endl;
+    }
     if (chat->isGroup())
     {
         cout << "\tGroup chat: yes" << endl;
@@ -347,6 +355,13 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
                 assert(waitForResponse(flag));
                 cout << "Peer lastname (" << uh << "): " << chatLastname << " (len: " << chatLastname.length() << ")" << endl;
             }
+        }
+
+        // TODO: remove the block below (currently cannot load history from inactive chats.
+        // Redmine ticket: #5721
+        if (!chatroom->isActive())
+        {
+            continue;
         }
 
         // Load history

@@ -395,6 +395,7 @@ public:
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
     virtual int getOnlineState() const;
+    virtual bool isActive() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -420,6 +421,7 @@ private:
     std::vector<std::string> peerFirstnames;
     std::vector<std::string> peerLastnames;
     bool group;
+    bool active;
 
     std::string title;
     int unreadCount;

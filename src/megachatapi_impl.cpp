@@ -2572,6 +2572,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->chatState = chat->getOnlineState();
     this->unreadCount = chat->getUnreadCount();
     this->status = chat->getOnlineStatus();
+    this->active = chat->isActive();
     this->changed = chat->getChanges();
 }
 
@@ -2584,6 +2585,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     this->title = chat.titleString();
     this->chatState = chat.chatdOnlineState();
     this->unreadCount = chat.chat().unreadMsgCount();
+    this->active = chat.isActive();
 
     if (group)
     {
@@ -2718,6 +2720,11 @@ const char *MegaChatRoomPrivate::getTitle() const
 int MegaChatRoomPrivate::getOnlineState() const
 {
     return chatState;
+}
+
+bool MegaChatRoomPrivate::isActive() const
+{
+    return active;
 }
 
 int MegaChatRoomPrivate::getChanges() const
