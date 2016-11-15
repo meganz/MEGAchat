@@ -1035,7 +1035,7 @@ ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key
         auto pms = encryptKeyTo(key, user)
         .then([keyCmd, user](const std::shared_ptr<Buffer>& encryptedKey)
         {
-            assert(encryptedKey);
+            assert(encryptedKey && !encryptedKey->empty());
             keyCmd->addKey(user, encryptedKey->buf(), encryptedKey->dataSize());
         });
         promises.push_back(pms);

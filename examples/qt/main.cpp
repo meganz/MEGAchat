@@ -61,6 +61,8 @@ extern "C" void myMegaPostMessageToGui(void* msg)
 using namespace strophe;
 
 void setVidencParams();
+void applyEnvSettings();
+
 void sigintHandler(int)
 {
     printf("SIGINT Received\n");
@@ -99,6 +101,7 @@ int main(int argc, char **argv)
     mainWin = new MainWindow();
     gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));
     gClient.reset(new karere::Client(*gSdk, *mainWin, gAppDir, karere::Presence::kOnline));
+    applyEnvSettings();
     mainWin->setClient(*gClient);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
     char buf[256];
@@ -175,6 +178,16 @@ void setVidencParams()
     {
         rtc.vidEncParams.bufLatency = atoi(val);
     }
+}
+void applyEnvSettings()
+{
+    const char* val = getenv("KR_SKIP_INACTIVE_CHATS");
+    if (!val)
+        return;
+    if (strcmp(val, "1") == 0)
+        gClient->skipInactiveChatrooms = true;
+    else if (strcmp(val, "0") == 0)
+        gClient->skipInactiveChatrooms = false;
 }
 
 void AppDelegate::onAppTerminate()

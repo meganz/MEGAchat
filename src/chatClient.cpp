@@ -47,6 +47,8 @@ using namespace promise;
 namespace karere
 {
 
+std::string encodeFirstName(const std::string& first);
+
 void Client::sendPong(const std::string& peerJid, const std::string& messageId)
 {
     strophe::Stanza pong(*conn);
@@ -405,24 +407,24 @@ promise::Promise<void> Client::connect()
     KR_LOG_DEBUG("Client::connect: Connecting to account '%s'...", SdkString(api.sdk.getMyEmail()).c_str());
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
-    mUserAttrCache->getAttr(mMyHandle, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)
     {
-        if (!buf)
+        if (!buf || buf->empty())
             return;
         auto& name = static_cast<Client*>(userp)->mMyName;
-        name = std::string(buf->buf()+1, buf->dataSize()-1);
-        KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str());
+        name.assign(buf->buf(), buf->dataSize());
+        KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
     connectToChatd();
 
+    mConnected = true;
     return mXmppServerProvider->getServer()
     .then([this](const std::shared_ptr<HostPortServerInfo>& server) mutable
     {
         return connectXmpp(server);
     });
-    mConnected = true;
 }
 
 karere::Id Client::getMyHandleFromSdk()
@@ -938,11 +940,10 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
     if (mTitleString.empty())
     {
         makeTitleFromMemberNames();
+        assert(!mTitleString.empty());
     }
-    else
-    {
-        notifyTitleChanged();
-    }
+
+    notifyTitleChanged();
     initWithChatd();
     mRoomGui = addAppItem();
     mIsInitializing = false;
@@ -1065,7 +1066,7 @@ const std::string& PeerChatRoom::titleString() const
     return mTitleString;
 }
 
-void GroupChatRoom::addMember(const uint64_t& userid, chatd::Priv priv, bool saveToDb)
+void GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv, bool saveToDb)
 {
     assert(userid != parent.client.myHandle());
     auto it = mPeers.find(userid);
@@ -1091,7 +1092,7 @@ void GroupChatRoom::addMember(const uint64_t& userid, chatd::Priv priv, bool sav
     }
 }
 
-bool GroupChatRoom::removeMember(const uint64_t& userid)
+bool GroupChatRoom::removeMember(uint64_t userid)
 {
     auto it = mPeers.find(userid);
     if (it == mPeers.end())
@@ -1110,6 +1111,7 @@ bool GroupChatRoom::removeMember(const uint64_t& userid)
 
 promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
 {
+    assert(userid != parent.client.myHandle());
     auto wptr = getWeakPtr();
     return parent.client.api.callIgnoreResult(&::mega::MegaApi::updateChatPermissions, chatid(), userid.val, priv)
     .then([this, wptr, userid, priv]()
@@ -1180,7 +1182,7 @@ void ChatRoomList::loadFromDb()
         emplace(chatid, room);
     }
 }
-void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
+void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, SetOfIds& chatids)
 {
     auto size = rooms.size();
     for (int i=0; i<size; i++)
@@ -1192,12 +1194,25 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms)
             KR_LOG_DEBUG("Skipping inactive chatroom %s", Id(apiRoom.getHandle()).toString().c_str());
             continue;
         }
+        auto chatid = apiRoom.getHandle();
+        auto it = find(chatid);
+        if (it != end())
+            continue;
         KR_LOG_DEBUG("Adding %sroom %s from API",
             isInactive ? "(inactive) " : "",
             Id(apiRoom.getHandle()).toString().c_str());
         auto& room = addRoom(apiRoom);
+        chatids.insert(room.chatid());
+
         if (client.connected())
+        {
+            KR_LOG_DEBUG("Connecting new room to chatd...");
             room.connect();
+        }
+        else
+        {
+            KR_LOG_DEBUG("Client is not connected, not connecting new room");
+        }
     }
 }
 
@@ -1205,14 +1220,16 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
 {
     auto chatid = apiRoom.getHandle();
     auto it = find(chatid);
-    if (it != end()) //we already have that room
-    {
-        return *it->second;
-    }
+    assert(it == end()); //we should not have that room
+
     ChatRoom* room;
     if(apiRoom.isGroup())
     {
         room = new GroupChatRoom(*this, apiRoom); //also writes it to cache
+        if (client.connected())
+        {
+            static_cast<GroupChatRoom*>(room)->decryptTitle();
+        }
     }
     else
     {
@@ -1229,15 +1246,30 @@ void GroupChatRoom::notifyRemoved()
         mAppChatHandler->onExcludedFromChat();
     if (mRoomGui)
         mRoomGui->onExcludedFromChat();
-//  room.deleteSelf();
-//  erase(it);
+}
+
+void ChatRoomList::removeRoom(GroupChatRoom& room)
+{
+    auto it = find(room.chatid());
+    if (it == end())
+        throw std::runtime_error("removRoom:: Room not in chat list");
+    room.deleteSelf();
+    erase(it);
 }
 
 void GroupChatRoom::setRemoved()
 {
-    mOwnPriv = chatd::PRIV_NOTPRESENT;
-    sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
-    notifyRemoved();
+    if (parent.client.skipInactiveChatrooms)
+    {
+        notifyRemoved();
+        parent.removeRoom(*this);
+    }
+    else
+    {
+        mOwnPriv = chatd::PRIV_NOTPRESENT;
+        sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
+        notifyRemoved();
+    }
 }
 
 void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
@@ -1268,19 +1300,24 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 
 void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
 {
-    addMissingRoomsFromApi(*rooms);
+    SetOfIds added;
+    addMissingRoomsFromApi(*rooms, added);
     auto count = rooms->size();
     for (int i = 0; i < count; i++)
     {
         auto apiRoom = rooms->get(i);
         auto chatid = apiRoom->getHandle();
+        if (added.has(chatid)) //room was just added, no need to sync
+            continue;
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
         auto priv = apiRoom->getOwnPrivilege();
         if (localRoom)
         {
             if (priv == chatd::PRIV_NOTPRESENT) //we were removed by someone else
+            {
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(chatid).toString().c_str());
+            }
             it->second->syncWithApi(*apiRoom);
         }
         else
@@ -1290,13 +1327,11 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                 //we are in the room, add it to local cache
                 KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
                 auto& room = addRoom(*apiRoom);
-                room.connect();
                 client.app.notifyInvited(room);
-            }
-            else
-            {   //we don't have the room, and we are not in the room - we have just removed ourselves from it, and deleted it locally
-                KR_LOG_DEBUG("Chatroom[%s]: We should have just removed ourself from the room",  Id(chatid).toString().c_str());
-                continue;
+                if (client.connected())
+                {
+                    room.connect();
+                }
             }
         }
     }
@@ -1319,6 +1354,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         for (int i=0; i<size; i++)
         {
             auto handle = peers->getPeerHandle(i);
+            assert(handle != parent.client.myHandle());
             mPeers[handle] = new Member(*this, handle, (chatd::Priv)peers->getPeerPrivilege(i)); //may try to access mContactGui, but we have set it to nullptr, so it's ok
         }
     }
@@ -1336,7 +1372,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         stmt.reset().clearBind();
     }
     auto title = aChat.getTitle();
-    if (title)
+    if (title && title[0])
     {
         mEncryptedTitle = title;
     }
@@ -1405,28 +1441,29 @@ void GroupChatRoom::makeTitleFromMemberNames()
 {
     mHasTitle = false;
     mTitleString.clear();
-    for (auto& m: mPeers)
-    {
-        auto& name = m.second->mName;
-        if (name.size() <= 1)
-        {
-            mTitleString.append("...,");
-        }
-        else
-        {
-            mTitleString.append(
-                std::string(name.c_str()+((name[0] != 0) ? 1 : 2), //skip the space if the first name is empty
-                name.size()-1)).append(", ");
-        }
-    }
-    if (!mTitleString.empty())
-    {
-        mTitleString.resize(mTitleString.size()-2); //truncate last ", "
-    }
-    else
+    if (mPeers.empty())
     {
         mTitleString = "(alone in this chatroom)";
     }
+    else
+    {
+        for (auto& m: mPeers)
+        {
+            //name has binary layout
+            auto& name = m.second->mName;
+            assert(!name.empty()); //is initialized to '\3...', so is never empty
+            if (name.size() <= 1)
+            {
+                mTitleString.append("..., ");
+            }
+            else
+            {
+                mTitleString.append(name.substr(1)).append(", ");
+            }
+        }
+        mTitleString.resize(mTitleString.size()-2); //truncate last ", "
+    }
+    assert(!mTitleString.empty());
     notifyTitleChanged();
 }
 
@@ -1541,7 +1578,7 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
         throw std::runtime_error("syncWithApi: isGroup flag can't change");
     auto db = parent.client.db;
     auto url = chat.getUrl();
-    if (url)
+    if (url && url[0])
     {
         if (strcmp(url, mUrl.c_str()))
         {
@@ -1786,7 +1823,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     if (title)
     {
         mEncryptedTitle = title;
-        if (parent.client.contactsLoaded())
+        if (parent.client.connected())
         {
             decryptTitle();
         }
@@ -1835,19 +1872,20 @@ UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, User
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
-: mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0")
+: mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\3...")
 {
-    mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(user, mega::MegaApi::USER_ATTR_LASTNAME, this,
-    [](Buffer* buf, void* userp)
+    mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(
+        user, USER_ATTR_FULLNAME, this,
+        [](Buffer* buf, void* userp)
     {
         auto self = static_cast<Member*>(userp);
-        if (buf)
+        if (buf && !buf->empty())
         {
             self->mName.assign(buf->buf(), buf->dataSize());
         }
         else
         {
-            self->mName = "\x01?";
+            self->mName.assign("\3...");
         }
         if (self->mRoom.mAppChatHandler)
         {
@@ -2034,20 +2072,19 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
 
     mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
-        mega::MegaApi::USER_ATTR_LASTNAME, this,
+        USER_ATTR_FULLNAME, this,
         [](Buffer* data, void* userp)
         {
             auto self = static_cast<Contact*>(userp);
-            if (!data || data->dataSize() < 2)
-                self->updateTitle(self->mEmail, self->mEmail.size());
+            if (!data || data->empty())
+                self->updateTitle(encodeFirstName(self->mEmail));
             else
-                self->updateTitle(std::string(data->buf(), data->dataSize()), 0);
+                self->updateTitle(std::string(data->buf(), data->dataSize()));
         });
-
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
-        updateTitle(email, email.size());
-        assert(!mTitleString.empty()); //must at least contain the firstname len byte
+        updateTitle(encodeFirstName(email));
+        assert(!mTitleString.empty());
     }
 
     mXmppContact = mClist.client.xmppContactList().addContact(*this);
@@ -2066,20 +2103,9 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
 
 // the title string starts with a byte equal to the first name length, followed by first name,
 // then second name
-void Contact::updateTitle(const std::string& str, size_t firstNameLen)
+void Contact::updateTitle(const std::string& str)
 {
-    if (!firstNameLen) // use as-is, must have the first byte as first name len
-    {
-        assert(!str.empty());
-        mTitleString = str;
-    }
-    else
-    {
-        mTitleString.reserve(str.size()+1);
-        mTitleString.resize(1);
-        mTitleString[0] = firstNameLen;
-        mTitleString.append(str);
-    }
+    mTitleString = str;
     notifyTitleChanged();
 }
 
@@ -2093,17 +2119,21 @@ void Contact::notifyTitleChanged()
             wptr.throwIfDeleted();
             //if it's initializing, then there is no mChatRoom
             if (mDisplay)
+            {
                 mDisplay->onTitleChanged(mTitleString);
+            }
         });
     }
     else
     {
         if (mDisplay)
+        {
             mDisplay->onTitleChanged(mTitleString);
+        }
         if (mChatRoom)
         {
-            assert(!mTitleString.empty());
-            mChatRoom->updateTitle(std::string(mTitleString.c_str()+1, mTitleString.size()-1));
+            //1on1 chatrooms don't have a binary layout for the title
+            mChatRoom->updateTitle(mTitleString.substr(1));
         }
     }
 }
@@ -2143,9 +2173,7 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-
-    std::string roomTitle(mTitleString.c_str()+1, mTitleString.size()-1);
-    mChatRoom->updateTitle(roomTitle);
+    mChatRoom->updateTitle(mTitleString.substr(1));
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)
@@ -2197,4 +2225,15 @@ rtcModule::IEventHandler* Client::onIncomingCallRequest(
     return app.onIncomingCall(ans);
 }
 
+std::string encodeFirstName(const std::string& first)
+{
+    std::string result;
+    result.reserve(first.size()+1);
+    result+=(char)(first.size());
+    if (!first.empty())
+    {
+        result.append(first);
+    }
+    return result;
+}
 }
