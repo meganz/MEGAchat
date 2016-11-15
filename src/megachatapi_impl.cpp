@@ -2818,14 +2818,6 @@ const char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
     return ret;
 }
 
-void MegaChatListItemHandler::onVisibilityChanged(int newVisibility)
-{
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    item->setVisibility((visibility_t) newVisibility);
-
-    chatApi.fireOnChatListItemUpdate(item);
-}
-
 void MegaChatListItemHandler::onTitleChanged(const string &title)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
@@ -3057,14 +3049,14 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatGroupListItemHandler::onExcludedFromChat()
+void MegaChatListItemHandler::onExcludedFromChat()
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setClosed();
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatGroupListItemHandler::onRejoinedChat()
+void MegaChatListItemHandler::onRejoinedChat()
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     chatApi.fireOnChatListItemUpdate(item);

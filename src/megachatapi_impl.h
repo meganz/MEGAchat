@@ -225,13 +225,14 @@ class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
 public:
     MegaChatListItemHandler(MegaChatApiImpl&, const karere::ChatRoom&);
 
-    // karere::IApp::IListItem implementation
-    virtual void onVisibilityChanged(int newVisibility);
-
     // karere::IApp::IListItem::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
     virtual void onPresenceChanged(karere::Presence state);
+
+    // karere::IApp::IListItem::IChatListItem implementation
+    virtual void onExcludedFromChat();
+    virtual void onRejoinedChat();
 //    virtual void onLastMessageUpdate();   // TBD in IGui.h
 
     virtual const karere::ChatRoom& getChatRoom() const;
@@ -251,8 +252,6 @@ public:
     // karere::IApp::IListItem::IGroupChatListItem implementation
     virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
     virtual void onUserLeave(uint64_t userid);
-    virtual void onExcludedFromChat();
-    virtual void onRejoinedChat();
 };
 
 class MegaChatPeerListItemHandler :
