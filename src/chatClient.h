@@ -621,7 +621,6 @@ public:
      */
     promise::Promise<void> terminate(bool deleteDb=false);
 
-    promise::Promise<std::string> getUserFullName(Id userid);
     /**
      * @brief Ping a target peer to check whether he/she is alive
      *

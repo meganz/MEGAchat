@@ -78,7 +78,7 @@ struct UserAttrPair
 };
 
 typedef void(*UserAttrReqCbFunc)(Buffer*, void*);
-enum { kUserAttrCbOneShotFlag = 1 << 63 };
+enum: uint64_t { kUserAttrCbOneShotFlag = 1ULL << 63 };
 
 struct UserAttrReqCb
 {
