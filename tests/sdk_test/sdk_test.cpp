@@ -1,6 +1,6 @@
 #include "sdk_test.h"
 
-#include "../../third-party/sdk/include/megaapi.h"  // TODO: include it as a system lib, but keeping symbols resolved by IDE
+#include <megaapi.h>  // TODO: include it as a system lib, but keeping symbols resolved by IDE
 #include "../../src/megachatapi.h"
 #include "../../src/karereCommon.h" // for logging with karere facility
 
