@@ -1,6 +1,6 @@
 #include "sdk_test.h"
 
-#include <megaapi.h>  // TODO: include it as a system lib, but keeping symbols resolved by IDE
+#include <megaapi.h>
 #include "../../src/megachatapi.h"
 #include "../../src/karereCommon.h" // for logging with karere facility
 
@@ -748,6 +748,8 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
     }
 
     lastErrorChat[apiIndex] = e->getErrorCode();
+    assert(!lastErrorChat[apiIndex]);
+
     requestFlagsChat[apiIndex][request->getType()] = true;
 }
 
@@ -993,6 +995,8 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
 
     requestFlags[apiIndex][request->getType()] = true;
     lastError[apiIndex] = e->getErrorCode();
+
+    assert(!lastError[apiIndex]);
 
     switch(request->getType())
     {
