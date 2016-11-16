@@ -2936,6 +2936,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const ChatRoom &chat)
     this->status = chat.isGroup() ? chat.chatdOnlineState() : chat.presence().status();
     this->visibility = chat.isGroup() ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chat).contact().visibility();
     this->changed = 0;
+    // TODO: connect to the corresponding interface to get the last message from Chat
+    this->lastMsg = NULL; // chat.chat().lastMessage();
 }
 
 MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
@@ -2946,10 +2948,12 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->unreadCount = item->getUnreadCount();
     this->status = item->getOnlineStatus();
     this->changed = item->getChanges();
+    this->lastMsg = item->getLastMessage();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
 {
+    delete lastMsg;
 }
 
 MegaChatListItem *MegaChatListItemPrivate::copy() const
@@ -2992,6 +2996,11 @@ int MegaChatListItemPrivate::getOnlineStatus() const
     return status;
 }
 
+MegaChatMessage *MegaChatListItemPrivate::getLastMessage() const
+{
+    return lastMsg;
+}
+
 void MegaChatListItemPrivate::setVisibility(visibility_t visibility)
 {
     this->visibility = visibility;
@@ -3024,6 +3033,16 @@ void MegaChatListItemPrivate::setMembersUpdated()
 void MegaChatListItemPrivate::setClosed()
 {
     this->changed |= MegaChatListItem::CHANGE_TYPE_CLOSED;
+}
+
+void MegaChatListItemPrivate::setLastMessage(MegaChatMessage *msg)
+{
+    if (lastMsg)
+    {
+        delete lastMsg;
+    }
+    this->lastMsg = msg;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
 }
 
 
@@ -3059,6 +3078,14 @@ void MegaChatListItemHandler::onExcludedFromChat()
 void MegaChatListItemHandler::onRejoinedChat()
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatListItemHandler::onLastMessageUpdated(const Message& msg, Message::Status status, Idx idx)
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatMessagePrivate *megaMsg = new MegaChatMessagePrivate(msg, status, idx);
+    item->setLastMessage(megaMsg);
     chatApi.fireOnChatListItemUpdate(item);
 }
 

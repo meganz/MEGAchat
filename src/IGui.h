@@ -205,6 +205,12 @@ public:
          */
         virtual void onRejoinedChat() {}
 
+        /**
+         * @brief Called when a new message is received.
+         * @param msg Reference to the last received message.
+         */
+        virtual void onLastMessageUpdated(const chatd::Message& msg, chatd::Message::Status status, chatd::Idx idx) {}
+
     };
 
     /**

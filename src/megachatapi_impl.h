@@ -200,6 +200,7 @@ private:
     std::string title;
     int unreadCount;
     int status;
+    MegaChatMessage *lastMsg;
 
 public:
     virtual int getChanges() const;
@@ -210,7 +211,7 @@ public:
     virtual int getVisibility() const;
     virtual int getUnreadCount() const;
     virtual int getOnlineStatus() const;
-
+    virtual MegaChatMessage *getLastMessage() const;
 
     void setVisibility(mega::visibility_t visibility);
     void setTitle(const std::string &title);
@@ -218,6 +219,7 @@ public:
     void setOnlineStatus(int status);
     void setMembersUpdated();
     void setClosed();
+    void setLastMessage(MegaChatMessage *msg);
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
@@ -233,7 +235,7 @@ public:
     // karere::IApp::IListItem::IChatListItem implementation
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
-//    virtual void onLastMessageUpdate();   // TBD in IGui.h
+    virtual void onLastMessageUpdated(const chatd::Message& msg, chatd::Message::Status status, chatd::Idx idx);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
