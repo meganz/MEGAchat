@@ -181,11 +181,17 @@ void UserAttrCacheItem::notify()
     for (auto it=cbs.begin(); it!=cbs.end();)
     {
         auto curr = it;
-        it++;
-        uint64_t id = curr->id;
-        curr->cb(data.get(), curr->userp); //may erase curr
-        if (id & kUserAttrCbOneShotFlag)
-            parent.removeCb(id);
+        ++it; //curr may be deleted in the callback
+        if (curr->oneShot)
+        {
+            auto wref = curr->getWeakHandle();
+            curr->cb(data.get(), curr->userp); //may erase curr
+            parent.removeCb(wref); //checks if already deleted
+        }
+        else
+        {
+            curr->cb(data.get(), curr->userp);
+        }
     }
 }
 
@@ -225,60 +231,58 @@ void UserAttrCacheItem::errorNoDb(int errCode)
     notify();
 }
 
-uint64_t UserAttrCache::addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp, bool oneShot)
+UserAttrCache::Handle UserAttrCacheItem::addCb(UserAttrReqCbFunc cb, void* userp, bool oneShot)
 {
-    auto& cbs = itemit->second->cbs;
-    auto id = ++mCbId;
-    if (oneShot)
-        id |= kUserAttrCbOneShotFlag;
-    auto it = cbs.emplace(cbs.end(), cb, userp, id);
-    mCallbacks.emplace(std::piecewise_construct, std::forward_as_tuple(id),
-                       std::forward_as_tuple(itemit, it));
-    return id;
+    auto it = cbs.emplace(cbs.end(), *this, cb, userp, oneShot);
+    it->listIt = it;
+    return it->getWeakHandle();
 }
 
-bool UserAttrCache::removeCb(uint64_t cbid)
+bool UserAttrCache::removeCb(Handle h)
 {
-    auto it = mCallbacks.find(cbid);
-    if (it == mCallbacks.end())
+    if (!h.isValid())
         return false;
-    auto& cbref = it->second;
-    cbref.itemit->second->cbs.erase(cbref.cbit);
+    h->owner.cbs.erase(h->listIt);
     return true;
 }
 
-uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
+UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
             void* userp, UserAttrReqCbFunc cb, bool oneShot)
 {
     UserAttrPair key(userHandle, type);
     auto it = find(key);
     if (it != end())
     {
-        auto& item = it->second;
+        auto& item = *it->second;
         if (cb)
-        { //TODO: not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
-            if (item->pending != kCacheFetchNewPending)
+        { // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
+            if (item.pending != kCacheFetchNewPending)
             {
-                auto cbid = oneShot ? 0 : addCb(it, cb, userp, false);
-                cb(item->data.get(), userp);
-                return cbid;
+                // we have something in the cache, call the cb
+                auto handle = oneShot ? Handle::invalid() : item.addCb(cb, userp, false);
+                cb(item.data.get(), userp);
+                return handle;
             }
-            else
+            else //nothing in cache, must always add a callback, even if one shot
             {
-                return addCb(it, cb, userp, oneShot);
+                return item.addCb(cb, userp, oneShot);
             }
         }
         else
         {
-            return 0;
+            // no callback, user wants to force pre-fetching of attribute, but we are
+            // already subscribed to it
+            return Handle::invalid();
         }
     }
+
+    //we don't have the attrib item, create it
     UACACHE_LOG_DEBUG("Attibute %s not found in cache, fetching", key.toString().c_str());
     auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, kCacheFetchNewPending);
     it = emplace(key, item).first;
-    uint64_t cbid = cb ? addCb(it, cb, userp, oneShot) : 0;
+    Handle handle = cb ? item->addCb(cb, userp, oneShot) : Handle::invalid();
     fetchAttr(key, item);
-    return cbid;
+    return handle;
 }
 
 void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
@@ -413,7 +417,7 @@ void UserAttrCache::onLogin()
 }
 
 promise::Promise<Buffer*>
-UserAttrCache::getAttr(const uint64_t &user, unsigned attrType)
+UserAttrCache::getAttr(uint64_t user, unsigned attrType)
 {
     auto pms = new Promise<Buffer*>;
     auto ret = *pms;

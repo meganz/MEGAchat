@@ -505,7 +505,7 @@ void ProtocolHandler::msgEncryptWithKey(Message& src, chatd::MsgCommand& dest,
 promise::Promise<std::shared_ptr<SendKey>>
 ProtocolHandler::computeSymmetricKey(karere::Id userid)
 {
-    auto wptr = getWeakPtr();
+    auto wptr = weakHandle();
     return mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
     .then([wptr, this, userid](const StaticBuffer* pubKey) -> promise::Promise<std::shared_ptr<SendKey>>
     {
@@ -527,7 +527,7 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::I
     /**
      * Use RSA encryption if no chat key is available.
      */
-    auto wptr = getWeakPtr();
+    auto wptr = weakHandle();
     return computeSymmetricKey(toUser)
     .then([wptr, this, sendKey](const std::shared_ptr<SendKey>& symkey) -> Promise<std::shared_ptr<Buffer>>
     {
@@ -594,7 +594,7 @@ ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedM
         Id otherParty = (parsedMsg->sender == mOwnHandle)
             ? parsedMsg->target
             : parsedMsg->sender;
-        auto wptr = getWeakPtr();
+        auto wptr = weakHandle();
         return computeSymmetricKey(otherParty)
         .then([this, wptr, parsedMsg](const std::shared_ptr<SendKey>& symKey)
         {
@@ -628,7 +628,7 @@ ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver
             throw std::runtime_error("decryptKey: invalid aes-encrypted key size");
 
         Id otherParty = (sender == mOwnHandle) ? receiver : sender;
-        auto wptr = getWeakPtr();
+        auto wptr = weakHandle();
         return computeSymmetricKey(otherParty)
         .then([this, wptr, key, receiver](const std::shared_ptr<SendKey>& symmKey)
         {
@@ -679,7 +679,7 @@ ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
     {
         if (!mCurrentKey || mParticipantsChanged)
         {
-            auto wptr = getWeakPtr();
+            auto wptr = weakHandle();
             return updateSenderKey()
             .then([this, wptr, msg, msgCmd](std::pair<KeyCommand*,
                   std::shared_ptr<SendKey>> result) mutable
@@ -701,7 +701,7 @@ ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
     }
     else //use a key specified in msg->keyid
     {
-        auto wptr = getWeakPtr();
+        auto wptr = weakHandle();
         return getKey(UserKeyId(mOwnHandle, msg->keyid))
         .then([this, wptr, msg, msgCmd](const std::shared_ptr<SendKey>& key)
         {
@@ -823,7 +823,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         ctx->edKey.assign(key->buf(), key->dataSize());
     });
 
-    auto wptr = getWeakPtr();
+    auto wptr = weakHandle();
     return promise::when(symPms, edPms)
     .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid]() ->promise::Promise<Message*>
     {
@@ -866,7 +866,7 @@ ProtocolHandler::legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedM
                 key2.pms.reset(new Promise<std::shared_ptr<SendKey>>);
         }
     }
-    auto wptr = getWeakPtr();
+    auto wptr = weakHandle();
     return legacyDecryptKeys(parsedMsg)
     .then([this, wptr, parsedMsg](const std::shared_ptr<Buffer>& keys)
     {
@@ -900,7 +900,7 @@ void ProtocolHandler::onKeyReceived(uint32_t keyid, Id sender, Id receiver,
         STRONGVELOPE_LOG_WARNING("Key % from user %s is already being decrypted", keyid, sender.toString().c_str());
         return;
     }
-    auto wptr = getWeakPtr();
+    auto wptr = weakHandle();
     entry.pms.reset(new Promise<std::shared_ptr<SendKey>>);
     pms.then([this, wptr, sender, keyid](const std::shared_ptr<SendKey>& key)
     {
@@ -1058,7 +1058,7 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
     blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
     blob->append<uint8_t>(Message::kMsgChatTitle);
 
-    auto wptr = getWeakPtr();
+    auto wptr = weakHandle();
     return encryptKeyToAllParticipants(key, extraUser)
     .then([this, wptr, blob, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
     {
@@ -1118,7 +1118,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg)
         throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
     auto buf = std::make_shared<Buffer>(16);
     buf->assign(pos, 16);
-    auto wptr = getWeakPtr();
+    auto wptr = weakHandle();
     return mProtoHandler.decryptKey(buf, sender, receiver)
     .then([this, wptr, msg](const std::shared_ptr<SendKey>& key)
     {

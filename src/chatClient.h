@@ -49,7 +49,7 @@ class ChatRoomList;
  * serves as a chat event handler for the chatroom, until the application creates
  * one via \c IApp::createChatHandler()
  */
-class ChatRoom: public chatd::Listener, public TrackDelete
+class ChatRoom: public chatd::Listener, public DeleteTrackable
 {
     //@cond PRIVATE
 public:
@@ -165,6 +165,7 @@ public:
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
+    virtual void onRecvHistoryMessage(chatd::Idx, chatd::Message&, chatd::Message::Status, bool isLocal);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
     virtual void onExcludedFromRoom() {}
 //  virtual void onHistoryTruncated();
@@ -246,7 +247,7 @@ public:
         GroupChatRoom& mRoom;
         uint64_t mHandle;
         chatd::Priv mPriv;
-        uint64_t mNameAttrCbHandle;
+        UserAttrCache::Handle mNameAttrCbHandle;
         std::string mName;
         void subscribeForNameChanges();
     public:
@@ -356,14 +357,14 @@ public:
 };
 
 /** @brief Represents a karere contact. Also handles presence change events. */
-class Contact: public IPresenceListener, public karere::TrackDelete
+class Contact: public IPresenceListener, public karere::DeleteTrackable
 {
 /** @cond PRIVATE */
 protected:
     ContactList& mClist;
     uint64_t mUserid;
     PeerChatRoom* mChatRoom;
-    uint64_t mUsernameAttrCbId;
+    UserAttrCache::Handle mUsernameAttrCbId;
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
@@ -523,7 +524,7 @@ public:
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
     std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
-    bool skipInactiveChatrooms = true;
+    bool skipInactiveChatrooms = false;
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     bool contactsLoaded() const { return mContactsLoaded; }
     bool connected() const { return mConnected; }

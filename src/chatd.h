@@ -201,10 +201,14 @@ public:
 
     /** @brief A message could not be sent automatically, due to some reason.
      * User-initiated retry is required.
+     * @attention Ownership of \c msg is passed to application.
+     * The application can re-send or discard the message. In both cases, it should
+     * call removeManualSend() when it's about to resend or discard, in order to
+     * remove the message from the pending-manual-action list.
+     * To re-send, just call msgSubmit() in the normal way.
      * @param id The send queue id of the message. As the message has no msgid,
      * this is used to identify the message in seubsequent retry/cancel
      * @param reason - The code of the reason why the message could not be auto sent
-     * @attention Ownership of \c msg is passed to application.
      */
     virtual void onManualSendRequired(Message* msg, uint64_t id, ManualSendReason reason) {}
 
@@ -761,7 +765,9 @@ public:
     Message* getMsgByXid(karere::Id msgxid);
     /**
      * @brief Removes the specified manual-send message, from the manual send queue.
-     * Normally should be called when the user opts to not retry sending the message */
+     * Normally should be called when the user opts to not retry sending the message
+     * @param id The id of the message, provided by \c onManualSendRequired()
+     */
     void removeManualSend(uint64_t id);
 
     /**

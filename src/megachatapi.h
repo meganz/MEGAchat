@@ -253,7 +253,20 @@ public:
     /**
      * @brief Returns the status of the message.
      *
-     * @see \c MegaChatMessage::Status for the possible values and its meaning.
+     * Valid values are:
+     *  - STATUS_UNKNOWN            = -1
+     *  - STATUS_SENDING            = 0
+     *  - STATUS_SENDING_MANUAL     = 1
+     *  - STATUS_SERVER_RECEIVED    = 2
+     *  - STATUS_SERVER_REJECTED    = 3
+     *  - STATUS_SERVER_DELIVERED   = 4
+     *  - STATUS_NOT_SEEN           = 5
+     *  - STATUS_SEEN               = 6
+     *
+     * If status is STATUS_SENDING_MANUAL, the user can whether manually retry to send the
+     * message (get content and send new message as usual through MegaChatApi::sendMessage),
+     * or discard the message. In both cases, the message should be removed from the manual-send
+     * queue by calling MegaChatApi::removeUnsentMessage once the user has sent or discarded it.
      *
      * @return Returns the status of the message.
      */
@@ -269,9 +282,17 @@ public:
     /**
      * @brief Returns the temporal identifier of the message
      *
-     * Once the message is confirmed by the server, this identifier should not be used.
+     * The temporal identifier has different usages depending on the status of the message:
+     *  - MegaChatMessage::STATUS_SENDING: valid until it's confirmed by the server.
+     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's removed from manual-send queue.
      *
-     * @return MegaChatHandle that temporary identifies the message until its confirmation
+     * @note If status is STATUS_SENDING_MANUAL, this value can be used to identify the
+     * message in the manual-send queue and can be passed to MegaChatApi::removeUnsentMessage
+     * to definitely remove the message.
+     *
+     * For messages in a different status than above, this identifier should not be used.
+     *
+     * @return MegaChatHandle that temporary identifies the message
      */
     virtual MegaChatHandle getTempId() const;
 
@@ -1373,6 +1394,17 @@ public:
      * @return The last-seen-by-us MegaChatMessage, or NULL if error.
      */
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
+
+    /**
+     * @brief Removes the unsent message from the queue
+     *
+     * Messages with status MegaChatMessage::STATUS_SENDING_MANUAL should be
+     * removed from the manual send queue after user discards them or resends them.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param tempId Temporal id of the message, as returned by MegaChatMessage::getTempId.
+     */
+    void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempId);
 
     // Audio/Video device management
     mega::MegaStringList *getChatAudioInDevices();

@@ -89,7 +89,7 @@ inline static void callFuncIfNotNull(std::nullptr_t){}
  * (failed) call of the function.
  */
 template<class Func, class CancelFunc=void*>
-class RetryController: public IRetryController, public karere::TrackDelete
+class RetryController: public IRetryController, public karere::DeleteTrackable
 {
 public:
     /** @brief
@@ -265,7 +265,7 @@ protected:
     template <class P>
     void attachThenHandler(P& promise, unsigned attempt)
     {
-        auto wptr = getWeakPtr();
+        auto wptr = getDelTracker();
         promise.then([wptr, this, attempt](const RetType& ret)
         {
             wptr.throwIfDeleted();
@@ -286,10 +286,10 @@ protected:
 
     void attachThenHandler(promise::Promise<void>& promise, unsigned attempt)
     {
-        auto wptr = getWeakPtr();
-        promise.then([wptr, this, attempt]()
+        auto track = getDelTracker();
+        promise.then([track, this, attempt]()
         {
-            wptr.throwIfDeleted();
+            track.throwIfDeleted();
             if (attempt != mCurrentAttemptId)
             {
                 RETRY_LOG("A previous timed-out/aborted attempt returned success");

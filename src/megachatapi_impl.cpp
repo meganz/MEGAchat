@@ -1386,6 +1386,20 @@ MegaChatMessage *MegaChatApiImpl::getLastMessageSeen(MegaChatHandle chatid)
     return megaMsg;
 }
 
+void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempid)
+{
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        chat.removeManualSend(tempid);
+    }
+
+    sdkMutex.unlock();
+}
+
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
     return NULL;
@@ -2300,32 +2314,28 @@ void MegaChatRoomHandler::onUnsentMsgLoaded(chatd::Message &msg)
 
 void MegaChatRoomHandler::onUnsentEditLoaded(chatd::Message &msg, bool oriMsgIsSending)
 {
-    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SENDING;
     Idx index = MEGACHAT_INVALID_INDEX;
     if (!oriMsgIsSending)   // original message was already sent
     {
         index = mChat->msgIndexFromId(msg.id());
     }
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, index);
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kSending, index);
     message->setContentChanged();
     chatApi->fireOnMessageLoaded(message);
 }
 
 void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx idx)
 {
-    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_RECEIVED;
-//    Message::Status status = mChat->getMsgStatus(msg, idx); It already returns delivered sometimes
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
-    message->setStatus(status);
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kServerReceived, idx);
+    message->setStatus(MegaChatMessage::STATUS_SERVER_RECEIVED);
     message->setTempId(msgxid);     // to allow the app to find the "temporal" message
     chatApi->fireOnMessageUpdate(message);
 }
 
 void MegaChatRoomHandler::onMessageRejected(const Message &msg)
 {
-    Message::Status status = (Message::Status) MegaChatMessage::STATUS_SERVER_REJECTED;
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, MEGACHAT_INVALID_INDEX);
-    message->setStatus(status);
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kServerRejected, MEGACHAT_INVALID_INDEX);
+    message->setStatus(MegaChatMessage::STATUS_SERVER_REJECTED);
     chatApi->fireOnMessageUpdate(message);
 }
 
@@ -2440,14 +2450,13 @@ void MegaChatRoomHandler::onUnreadChanged()
     }
 }
 
-void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t /*id*/, chatd::ManualSendReason /*reason*/)
+void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id, chatd::ManualSendReason /*reason*/)
 {
-    Idx index = mChat->msgIndexFromId(msg->id());
-    Message::Status status = (index != MEGACHAT_INVALID_INDEX) ? mChat->getMsgStatus(*msg, index) : Message::kSending;
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(*msg, status, index);
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(*msg, Message::kSendingManual, MEGACHAT_INVALID_INDEX);
     delete msg; // we take ownership of the Message
 
-    message->setStatus(status);
+    message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
+    message->setTempId(id); // identifier for the manual-send queue, for removal from queue
     chatApi->fireOnMessageUpdate(message);
 }
 

@@ -243,6 +243,11 @@ MegaChatMessage *MegaChatApi::getLastMessageSeen(MegaChatHandle chatid)
     return  pImpl->getLastMessageSeen(chatid);
 }
 
+void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempId)
+{
+    pImpl->removeUnsentMessage(chatid, tempId);
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();

@@ -863,7 +863,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
 
 promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
 {
-    auto wptr = getWeakPtr();
+    auto wptr = getDelTracker();
     return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, chatid(), user)
     .then([this, wptr, user]()
     {
@@ -962,7 +962,7 @@ void GroupChatRoom::initWithChatd()
 
 void GroupChatRoom::connect()
 {
-    auto wptr = getWeakPtr();
+    auto wptr = weakHandle();
     updateUrl()
     .then([wptr, this]()
     {
@@ -1112,7 +1112,7 @@ bool GroupChatRoom::removeMember(uint64_t userid)
 promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
 {
     assert(userid != parent.client.myHandle());
-    auto wptr = getWeakPtr();
+    auto wptr = getDelTracker();
     return parent.client.api.callIgnoreResult(&::mega::MegaApi::updateChatPermissions, chatid(), userid.val, priv)
     .then([this, wptr, userid, priv]()
     {
@@ -1136,7 +1136,7 @@ void GroupChatRoom::deleteSelf()
 
 promise::Promise<void> ChatRoom::updateUrl()
 {
-    auto wptr = getWeakPtr();
+    auto wptr = getDelTracker();
     return parent.client.api.call(&mega::MegaApi::getUrlChat, mChatid)
     .then([wptr, this](ReqResult result)
     {
@@ -1416,7 +1416,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     }
 
     buf.setDataSize(decLen);
-    auto wptr = getWeakPtr();
+    auto wptr = getDelTracker();
     return this->chat().crypto()->decryptChatTitle(buf)
     .then([wptr, this](const std::string& title)
     {
@@ -1498,7 +1498,7 @@ void GroupChatRoom::loadTitleFromDb()
 
 promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 {
-    auto wptr = getWeakPtr();
+    auto wptr = getDelTracker();
     return chat().crypto()->encryptChatTitle(title)
     .then([wptr, this](const std::shared_ptr<Buffer>& buf)
     {
@@ -1537,7 +1537,7 @@ GroupChatRoom::~GroupChatRoom()
 
 promise::Promise<void> GroupChatRoom::leave()
 {
-    auto wptr = getWeakPtr();
+    auto wptr = getDelTracker();
     return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle())
     .fail([](const promise::Error& err) -> Promise<void>
     {
@@ -1555,7 +1555,7 @@ promise::Promise<void> GroupChatRoom::leave()
 
 promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 {
-    auto wptr = getWeakPtr();
+    auto wptr = getDelTracker();
     promise::Promise<std::string> pms = mHasTitle
         ? chat().crypto()->encryptChatTitle(mTitleString, userid)
           .then([](const std::shared_ptr<Buffer>& buf)
@@ -1697,8 +1697,21 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Mess
 {
     auto display = roomGui();
     if (display)
+    {
+        display->onLastMessageUpdated(msg, status, idx);
         display->onUnreadCountChanged(mChat->unreadMsgCount());
+    }
 }
+void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status, bool)
+{
+    if (mChat->size() == 1)
+    {
+        auto display = roomGui();
+        if (display)
+            display->onLastMessageUpdated(msg, status, idx);
+    }
+}
+
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg)
 {
     auto display = roomGui();
@@ -1731,7 +1744,7 @@ void ChatRoom::notifyTitleChanged()
 {
     if (mIsInitializing)
     {
-        auto wptr = getWeakPtr();
+        auto wptr = getDelTracker();
         marshallCall([this, wptr]()
         {
             wptr.throwIfDeleted();
@@ -2121,7 +2134,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     auto pres = mXmppContact->presence();
     if (pres != Presence::kOffline)
     {
-        auto wptr = getWeakPtr();
+        auto wptr = getDelTracker();
         marshallCall([wptr, this, pres]()
         {
             wptr.throwIfDeleted();
@@ -2143,7 +2156,7 @@ void Contact::notifyTitleChanged()
 {
     if (mIsInitializing)
     {
-        auto wptr = getWeakPtr();
+        auto wptr = getDelTracker();
         marshallCall([this, wptr]()
         {
             wptr.throwIfDeleted();
