@@ -1698,7 +1698,7 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Mess
     auto display = roomGui();
     if (display)
     {
-        display->onLastMessageChanged(msg, idx);
+        display->onLastMessageUpdated(msg, status, idx);
         display->onUnreadCountChanged(mChat->unreadMsgCount());
     }
 }
@@ -1708,7 +1708,7 @@ void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::
     {
         auto display = roomGui();
         if (display)
-            display->onLastMessageChanged(msg, idx);
+            display->onLastMessageUpdated(msg, status, idx);
     }
 }
 
