@@ -49,7 +49,7 @@ class ChatRoomList;
  * serves as a chat event handler for the chatroom, until the application creates
  * one via \c IApp::createChatHandler()
  */
-class ChatRoom: public chatd::Listener, public TrackDelete
+class ChatRoom: public chatd::Listener, public DeleteTrackable
 {
     //@cond PRIVATE
 public:
@@ -246,7 +246,7 @@ public:
         GroupChatRoom& mRoom;
         uint64_t mHandle;
         chatd::Priv mPriv;
-        uint64_t mNameAttrCbHandle;
+        UserAttrCache::Handle mNameAttrCbHandle;
         std::string mName;
         void subscribeForNameChanges();
     public:
@@ -356,14 +356,14 @@ public:
 };
 
 /** @brief Represents a karere contact. Also handles presence change events. */
-class Contact: public IPresenceListener, public karere::TrackDelete
+class Contact: public IPresenceListener, public karere::DeleteTrackable
 {
 /** @cond PRIVATE */
 protected:
     ContactList& mClist;
     uint64_t mUserid;
     PeerChatRoom* mChatRoom;
-    uint64_t mUsernameAttrCbId;
+    UserAttrCache::Handle mUsernameAttrCbId;
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
