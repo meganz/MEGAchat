@@ -1702,7 +1702,7 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Mess
         display->onUnreadCountChanged(mChat->unreadMsgCount());
     }
 }
-void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status, bool)
+void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool)
 {
     if (mChat->size() == 1)
     {
