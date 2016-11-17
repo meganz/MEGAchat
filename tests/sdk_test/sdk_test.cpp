@@ -758,24 +758,26 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
         return;
     }
 
-    switch(request->getType())
-    {
-        case MegaChatRequest::TYPE_CREATE_CHATROOM:
-            chatid = request->getChatHandle();
-            break;
-
-        case MegaChatRequest::TYPE_GET_FIRSTNAME:
-            chatFirstname = request->getText();
-            chatNameReceived[apiIndex] = true;
-            break;
-
-        case MegaChatRequest::TYPE_GET_LASTNAME:
-            chatLastname = request->getText();
-            chatNameReceived[apiIndex] = true;
-            break;
-    }
-
     lastErrorChat[apiIndex] = e->getErrorCode();
+    if (!lastErrorChat[apiIndex])
+    {
+        switch(request->getType())
+        {
+            case MegaChatRequest::TYPE_CREATE_CHATROOM:
+                chatid = request->getChatHandle();
+                break;
+
+            case MegaChatRequest::TYPE_GET_FIRSTNAME:
+                chatFirstname = request->getText();
+                chatNameReceived[apiIndex] = true;
+                break;
+
+            case MegaChatRequest::TYPE_GET_LASTNAME:
+                chatLastname = request->getText();
+                chatNameReceived[apiIndex] = true;
+                break;
+        }
+    }
 
     requestFlagsChat[apiIndex][request->getType()] = true;
 }
@@ -1020,23 +1022,26 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
         return;
     }
 
-    requestFlags[apiIndex][request->getType()] = true;
     lastError[apiIndex] = e->getErrorCode();
-
-    switch(request->getType())
+    if (!lastError[apiIndex])
     {
-    case MegaRequest::TYPE_GET_ATTR_USER:
-        if (request->getParamType() ==  MegaApi::USER_ATTR_FIRSTNAME)
+        switch(request->getType())
         {
-            firstname = request->getText();
+            case MegaRequest::TYPE_GET_ATTR_USER:
+                if (request->getParamType() ==  MegaApi::USER_ATTR_FIRSTNAME)
+                {
+                    firstname = request->getText();
+                }
+                else if (request->getParamType() == MegaApi::USER_ATTR_LASTNAME)
+                {
+                    lastname = request->getText();
+                }
+                nameReceived[apiIndex] = true;
+                break;
         }
-        else if (request->getParamType() == MegaApi::USER_ATTR_LASTNAME)
-        {
-            lastname = request->getText();
-        }
-        nameReceived[apiIndex] = true;
-        break;
     }
+
+    requestFlags[apiIndex][request->getType()] = true;
 }
 
 
