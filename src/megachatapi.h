@@ -1565,6 +1565,10 @@ public:
      *
      * If there are no messages in the history or the last message is still
      * pending to be retrieved from the server, the returned value will be NULL.
+     * 
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatListItem object is deleted. If you want to save the MegaChatMessage,
+     * use MegaChatMessage::copy
      *
      * @return The last message received.
      */
