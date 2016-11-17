@@ -1697,8 +1697,21 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Mess
 {
     auto display = roomGui();
     if (display)
+    {
+        display->onLastMessageChanged(msg, idx);
         display->onUnreadCountChanged(mChat->unreadMsgCount());
+    }
 }
+void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status, bool)
+{
+    if (mChat->size() == 1)
+    {
+        auto display = roomGui();
+        if (display)
+            display->onLastMessageChanged(msg, idx);
+    }
+}
+
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg)
 {
     auto display = roomGui();

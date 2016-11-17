@@ -204,7 +204,15 @@ public:
          * so that means we were part of the chat before, hence we re-joined
          */
         virtual void onRejoinedChat() {}
-
+        /** @brief The last message in the history sequence has changed.
+         * This means that either a new message has been received, or the last
+         * message of existing history was just fetched (this is the first message
+         * received when fetching history, because it is fetched from newest to oldest).
+         * @param msg The message object
+         * @param idx The index of the message in the history buffer. Can be used to
+         * access the message via the \c at(idx) interface
+         */
+        virtual void onLastMessageChanged(const chatd::Message& msg, chatd::Idx idx) {};
     };
 
     /**
