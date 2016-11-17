@@ -213,7 +213,7 @@ public:
          * @param idx The index of the message in the history buffer. Can be used to
          * access the message via the \c at(idx) interface
          */
-        virtual void onLastMessageChanged(const chatd::Message& msg, chatd::Idx idx) {};
+        virtual void onLastMessageUpdated(const chatd::Message& msg, chatd::Idx idx) {};
     };
 
     /**
