@@ -3,8 +3,14 @@
 #include <megaapi.h>
 #include "../../src/megachatapi.h"
 #include "../../src/karereCommon.h" // for logging with karere facility
-#include "../../src/karereId.h"
+
 #include <signal.h>
+
+void sigintHandler(int)
+{
+    printf("SIGINT Received\n");
+    fflush(stdout);
+}
 
 int main(int argc, char **argv)
 {
@@ -13,10 +19,10 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-//    t.TEST_resumeSession();
-//    t.TEST_setOnlineStatus();
-//    t.TEST_getChatRoomsAndMessages();
-//    t.TEST_editAndDeleteMessages();
+    t.TEST_resumeSession();
+    t.TEST_setOnlineStatus();
+    t.TEST_getChatRoomsAndMessages();
+    t.TEST_editAndDeleteMessages();
     t.TEST_groupChatManagement();
 
     // Create a group chat
@@ -129,6 +135,7 @@ void MegaChatApiTest::init()
         megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
         megaChatApi[i]->addChatRequestListener(this);
         megaChatApi[i]->addChatListener(this);
+        signal(SIGINT, sigintHandler);
         megaApi[i]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");
     }
 }
@@ -139,21 +146,25 @@ char *MegaChatApiTest::login(int accountIndex, const char *session)
     bool *flag = &requestFlags[accountIndex][MegaRequest::TYPE_LOGIN]; *flag = false;
     session ? megaApi[accountIndex]->fastLogin(session) : megaApi[accountIndex]->login(email[accountIndex].c_str(), pwd[accountIndex].c_str());
     assert(waitForResponse(flag));
+    assert(!lastError[accountIndex]);
 
     // 2. fetchnodes
     flag = &requestFlags[accountIndex][MegaRequest::TYPE_FETCH_NODES]; *flag = false;
     megaApi[accountIndex]->fetchNodes();
     assert(waitForResponse(flag));
+    assert(!lastError[accountIndex]);
 
     // 3. Initialize chat engine
     flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_INITIALIZE]; *flag = false;
     megaChatApi[accountIndex]->init();
     assert(waitForResponse(flag));
+    assert(!lastError[accountIndex]);
 
     // 4. Connect to chat servers
     flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flag = false;
     megaChatApi[accountIndex]->connect();
     assert(waitForResponse(flag));
+    assert(!lastError[accountIndex]);
 
     return megaApi[accountIndex]->dumpSession();
 }
@@ -163,10 +174,12 @@ void MegaChatApiTest::logout(int accountIndex, bool closeSession)
     bool *flag = &requestFlags[accountIndex][MegaRequest::TYPE_LOGOUT]; *flag = false;
     closeSession ? megaApi[accountIndex]->logout() : megaApi[accountIndex]->localLogout();
     assert(waitForResponse(flag));
+    assert(!lastError[accountIndex]);
 
     flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flag = false;
     closeSession ? megaChatApi[accountIndex]->logout() : megaChatApi[accountIndex]->localLogout();
     assert(waitForResponse(flag));
+    assert(!lastError[accountIndex]);
 }
 
 void MegaChatApiTest::terminate()
@@ -333,11 +346,13 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
                 bool *flag = &chatNameReceived[0]; *flag = false; chatFirstname = "";
                 megaChatApi[0]->getUserFirstname(uh);
                 assert(waitForResponse(flag));
+                assert(!lastErrorChat[0]);
                 cout << "Peer firstname (" << uh << "): " << chatFirstname << " (len: " << chatFirstname.length() << ")" << endl;
 
                 flag = &chatNameReceived[0]; *flag = false; chatLastname = "";
                 megaChatApi[0]->getUserLastname(uh);
                 assert(waitForResponse(flag));
+                assert(!lastErrorChat[0]);
                 cout << "Peer lastname (" << uh << "): " << chatLastname << " (len: " << chatLastname.length() << ")" << endl;
             }
         }
@@ -352,6 +367,7 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
                 break;  // no more history
             }
             assert(waitForResponse(flag));
+            assert(!lastErrorChat[0]);
         }
 
         // Close the chatroom
@@ -370,6 +386,7 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
                 break;  // no more history
             }
             assert(waitForResponse(flag));
+            assert(!lastErrorChat[0]);
         }
         megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
         delete chatroomListener;
@@ -393,9 +410,11 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
         MegaChatPeerList *peers = MegaChatPeerList::createInstance();
         peers->addPeer(peer0->getHandle(), MegaChatPeerList::PRIV_STANDARD);
 
+        bool *flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
         bool *chatCreated = &chatUpdated[0]; *chatCreated = false;
         bool *chatReceived = &chatUpdated[1]; *chatReceived = false;
         megaChatApi[0]->createChat(false, peers, this);
+        assert(!lastErrorChat[0]);
         assert(waitForResponse(chatCreated));
         assert(waitForResponse(chatReceived));
 
@@ -421,9 +440,11 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
     bool *flag = &chatroomListener->historyLoaded[0]; *flag = false;
     megaChatApi[0]->loadMessages(chatid0, 16);
     assert(waitForResponse(flag));
+    assert(!lastErrorChat[0]);
     flag = &chatroomListener->historyLoaded[1]; *flag = false;
     megaChatApi[1]->loadMessages(chatid1, 16);
     assert(waitForResponse(flag));
+    assert(!lastErrorChat[0]);
 
     string msg0 = "HOLA " + email[0] + " - This is a testing message automatically sent to you";
     bool *flagConfirmed = &chatroomListener->msgConfirmed[0]; *flagConfirmed = false;
@@ -507,15 +528,21 @@ void MegaChatApiTest::TEST_groupChatManagement()
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
-    bool *flag = &nameReceived[0]; *flag = false; firstname = "";
+    bool *flag = &requestFlags[0][MegaRequest::TYPE_GET_ATTR_USER]; *flag = false;
+    bool *nameReceivedFlag = &nameReceived[0]; *nameReceivedFlag = false; firstname = "";
     megaApi[0]->getUserAttribute(MegaApi::USER_ATTR_FIRSTNAME);
     assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    assert(waitForResponse(nameReceivedFlag));
     string peerFirstname = firstname;
-    flag = &nameReceived[0]; *flag = false; lastname = "";
+    flag = &requestFlags[0][MegaRequest::TYPE_GET_ATTR_USER]; *flag = false;
+    nameReceivedFlag = &nameReceived[0]; *nameReceivedFlag = false; lastname = "";
     megaApi[0]->getUserAttribute(MegaApi::USER_ATTR_LASTNAME);
     assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    assert(waitForResponse(nameReceivedFlag));
     string peerLastname = lastname;
-    string peerFullname = peerFirstname + peerLastname;
+    string peerFullname = peerFirstname + " " + peerLastname;
 
     // --> Create the GroupChat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
@@ -523,6 +550,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     chatListItem = NULL;
     megaChatApi[0]->createChat(true, peers);
     assert(waitForResponse(flag));
+    assert(!lastErrorChat[0]);
     assert(waitForResponse(chatItemReceived));
     assert(chatListItem);
 //    assert(!strcmp(chatListItem->getTitle(), peerFullname.c_str())); ERROR: we get empty title
@@ -540,9 +568,6 @@ void MegaChatApiTest::TEST_groupChatManagement()
     // --> Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
     assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
-
-    printf("===========================\n============= opening chatroom %s\n", karere::Id(chatid).toString().c_str());
-    fflush(stdout);
     assert(megaChatApi[1]->openChatRoom(chatid, chatroomListener));
 
     // --> Remove from chat
@@ -556,6 +581,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     int *priv = &chatroomListener->priv[0]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[0]->removeFromChat(chatid, peer->getHandle());
     assert(waitForResponse(flag));
+    assert(!lastErrorChat[0]);
     assert(waitForResponse(mngMsgRecv));
     assert(*uhAction == peer->getHandle());
     assert(*priv == MegaChatRoom::PRIV_RM);
@@ -586,6 +612,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     priv = &chatroomListener->priv[0]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[0]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
     assert(waitForResponse(flag));
+    assert(!lastErrorChat[0]);
     assert(waitForResponse(chatItemJoined0));
     assert(waitForResponse(chatItemJoined1));
     assert(waitForResponse(chatJoined0));
@@ -616,7 +643,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     string *msgContent = &chatroomListener->content[0]; *msgContent = "";
     megaChatApi[0]->setChatTitle(chatid, title.c_str());
     assert(waitForResponse(flag));
-    assert(lastErrorChat[0] == MegaChatError::ERROR_OK);
+    assert(!lastErrorChat[0]);
     assert(waitForResponse(titleItemChanged0));
     assert(waitForResponse(titleItemChanged1));
     assert(waitForResponse(titleChanged0));
@@ -631,12 +658,15 @@ void MegaChatApiTest::TEST_groupChatManagement()
     delete chatroom;
 
     // --> Change peer privileges
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flag = false;
     bool *peerUpdated0 = &peersUpdated[0]; *peerUpdated0 = false;
     bool *peerUpdated1 = &peersUpdated[1]; *peerUpdated1 = false;
     mngMsgRecv = &chatroomListener->msgReceived[0]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[0]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[0]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[0]->updateChatPermissions(chatid, peer->getHandle(), MegaChatRoom::PRIV_MODERATOR);
+    assert(waitForResponse(flag));
+    assert(!lastErrorChat[0]);
     assert(waitForResponse(peerUpdated0));
 //    assert(waitForResponse(peerUpdated1));    Redmine ticket: #5668
     assert(waitForResponse(mngMsgRecv));
@@ -659,7 +689,6 @@ void MegaChatApiTest::TEST_groupChatManagement()
     bool *msgDelivered = &chatroomListener->msgDelivered[0]; *msgDelivered = false;
     chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
     chatroomListener->msgId[1] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
-    printf("============== sending message\n");
     megaChatApi[0]->sendMessage(chatid, msg0.c_str());
     assert(waitForResponse(msgConfirmed));    // for confirmation, sendMessage() is synchronous
     MegaChatHandle msgId = chatroomListener->msgId[0];
@@ -680,12 +709,14 @@ void MegaChatApiTest::TEST_groupChatManagement()
     bool *chatClosed = &chatItemClosed[0]; *chatClosed = false;
     megaChatApi[0]->leaveChat(chatid);
     assert(waitForResponse(flag));
+    assert(!lastErrorChat[0]);
     assert(waitForResponse(chatClosed));
 
     flag = &requestFlagsChat[1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
     chatClosed = &chatItemClosed[1]; *chatClosed = false;
     megaChatApi[1]->leaveChat(chatid);
     assert(waitForResponse(flag));
+    assert(!lastErrorChat[0]);
 
     logout(1, true);
     logout(0, true);
@@ -727,25 +758,26 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
         return;
     }
 
-    switch(request->getType())
-    {
-        case MegaChatRequest::TYPE_CREATE_CHATROOM:
-            chatid = request->getChatHandle();
-            break;
-
-        case MegaChatRequest::TYPE_GET_FIRSTNAME:
-            chatFirstname = request->getText();
-            chatNameReceived[apiIndex] = true;
-            break;
-
-        case MegaChatRequest::TYPE_GET_LASTNAME:
-            chatLastname = request->getText();
-            chatNameReceived[apiIndex] = true;
-            break;
-    }
-
     lastErrorChat[apiIndex] = e->getErrorCode();
-//    assert(!lastErrorChat[apiIndex]);
+    if (!lastErrorChat[apiIndex])
+    {
+        switch(request->getType())
+        {
+            case MegaChatRequest::TYPE_CREATE_CHATROOM:
+                chatid = request->getChatHandle();
+                break;
+
+            case MegaChatRequest::TYPE_GET_FIRSTNAME:
+                chatFirstname = request->getText();
+                chatNameReceived[apiIndex] = true;
+                break;
+
+            case MegaChatRequest::TYPE_GET_LASTNAME:
+                chatLastname = request->getText();
+                chatNameReceived[apiIndex] = true;
+                break;
+        }
+    }
 
     requestFlagsChat[apiIndex][request->getType()] = true;
 }
@@ -990,25 +1022,26 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
         return;
     }
 
-    requestFlags[apiIndex][request->getType()] = true;
     lastError[apiIndex] = e->getErrorCode();
-
-//    assert(!lastError[apiIndex]);
-
-    switch(request->getType())
+    if (!lastError[apiIndex])
     {
-    case MegaRequest::TYPE_GET_ATTR_USER:
-        if (request->getParamType() ==  MegaApi::USER_ATTR_FIRSTNAME)
+        switch(request->getType())
         {
-            firstname = request->getText();
+            case MegaRequest::TYPE_GET_ATTR_USER:
+                if (request->getParamType() ==  MegaApi::USER_ATTR_FIRSTNAME)
+                {
+                    firstname = request->getText();
+                }
+                else if (request->getParamType() == MegaApi::USER_ATTR_LASTNAME)
+                {
+                    lastname = request->getText();
+                }
+                nameReceived[apiIndex] = true;
+                break;
         }
-        else if (request->getParamType() == MegaApi::USER_ATTR_LASTNAME)
-        {
-            lastname = request->getText();
-        }
-        nameReceived[apiIndex] = true;
-        break;
     }
+
+    requestFlags[apiIndex][request->getType()] = true;
 }
 
 
