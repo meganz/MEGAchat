@@ -524,7 +524,7 @@ public:
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
     std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
-    bool skipInactiveChatrooms = false;
+    bool skipInactiveChatrooms = true;
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     bool contactsLoaded() const { return mContactsLoaded; }
     bool connected() const { return mConnected; }
