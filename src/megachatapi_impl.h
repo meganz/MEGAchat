@@ -187,7 +187,7 @@ protected:
 class MegaChatListItemPrivate : public MegaChatListItem
 {
 public:
-    MegaChatListItemPrivate(const karere::ChatRoom &chat);
+    MegaChatListItemPrivate(karere::ChatRoom &chatroom);
     MegaChatListItemPrivate(const MegaChatListItem *item);
     virtual ~MegaChatListItemPrivate();
     virtual MegaChatListItem *copy() const;
@@ -225,7 +225,7 @@ public:
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
 {
 public:
-    MegaChatListItemHandler(MegaChatApiImpl&, const karere::ChatRoom&);
+    MegaChatListItemHandler(MegaChatApiImpl&, karere::ChatRoom&);
 
     // karere::IApp::IListItem::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
@@ -241,7 +241,7 @@ public:
 
 protected:
     MegaChatApiImpl &chatApi;
-    const karere::ChatRoom &mRoom;
+    karere::ChatRoom &mRoom;
 };
 
 class MegaChatGroupListItemHandler :
@@ -249,7 +249,7 @@ class MegaChatGroupListItemHandler :
         public virtual karere::IApp::IGroupChatListItem
 {
 public:
-    MegaChatGroupListItemHandler(MegaChatApiImpl&, const karere::ChatRoom&);
+    MegaChatGroupListItemHandler(MegaChatApiImpl&, karere::ChatRoom&);
 
     // karere::IApp::IListItem::IGroupChatListItem implementation
     virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
@@ -261,7 +261,7 @@ class MegaChatPeerListItemHandler :
         public virtual karere::IApp::IPeerChatListItem
 {
 public:
-    MegaChatPeerListItemHandler(MegaChatApiImpl &, const karere::ChatRoom&);
+    MegaChatPeerListItemHandler(MegaChatApiImpl &, karere::ChatRoom&);
 };
 
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
