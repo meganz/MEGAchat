@@ -196,7 +196,7 @@ protected:
     bool syncOwnPriv(chatd::Priv priv);
     bool syncPeerPriv(chatd::Priv priv);
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
-    void updatePresence();
+    void notifyPresenceChange(Presence pres);
     void initWithChatd();
     virtual void connect();
     inline Presence calculatePresence(Presence pres) const;
@@ -446,7 +446,7 @@ public:
         if (mDisplay)
             mDisplay->onPresenceChanged(pres);
         if (mChatRoom)
-            mChatRoom->updatePresence();
+            mChatRoom->notifyPresenceChange(pres);
     }
     friend class ContactList;
 };
