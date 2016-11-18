@@ -19,6 +19,7 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
+    t.TEST_offlineMode();
     t.TEST_resumeSession();
     t.TEST_setOnlineStatus();
     t.TEST_getChatRoomsAndMessages();
@@ -444,7 +445,7 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
     flag = &chatroomListener->historyLoaded[1]; *flag = false;
     megaChatApi[1]->loadMessages(chatid1, 16);
     assert(waitForResponse(flag));
-    assert(!lastErrorChat[0]);
+    assert(!lastErrorChat[1]);
 
     string msg0 = "HOLA " + email[0] + " - This is a testing message automatically sent to you";
     bool *flagConfirmed = &chatroomListener->msgConfirmed[0]; *flagConfirmed = false;
@@ -719,6 +720,68 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(!lastErrorChat[0]);
 
     logout(1, true);
+    logout(0, true);
+}
+
+void MegaChatApiTest::TEST_offlineMode()
+{
+    login(0);
+
+    MegaChatRoomList *chats = megaChatApi[0]->getChatRooms();
+    cout << chats->size() << " chat/s received: " << endl;
+
+    if (chats->size())
+    {
+        // Open a chatroom
+        const MegaChatRoom *chatroom = chats->get(0);
+        MegaChatHandle chatid = chatroom->getChatId();
+
+        printChatRoomInfo(chatroom);
+
+        TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
+        assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
+
+        // Load some message to feed history
+        bool *flag = &chatroomListener->historyLoaded[0]; *flag = false;
+        megaChatApi[0]->loadMessages(chatid, 16);
+        assert(waitForResponse(flag));
+        assert(!lastErrorChat[0]);
+
+
+        cout << endl << endl << "Disconnect from the Internet now" << endl << endl;
+//        system("pause");
+
+
+        string msg0 = "This is a test message sent without Internet connection";
+        bool *flagConfirmed = &chatroomListener->msgConfirmed[0]; *flagConfirmed = false;
+        chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
+        MegaChatMessage *msgSent = megaChatApi[0]->sendMessage(chatid, msg0.c_str());
+        assert(msgSent);
+        assert(msgSent->getStatus() == MegaChatMessage::STATUS_SENDING);
+
+        megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
+        assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
+
+        flag = &chatroomListener->historyLoaded[0]; *flag = false;
+        chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;
+        megaChatApi[0]->loadMessages(chatid, 16);
+        bool msgSentFound = false;
+        while (!*flag)
+        {
+            bool *msgSentLoaded = &chatroomListener->msgLoaded[0]; *msgSentLoaded = false;
+            assert(waitForResponse(msgSentLoaded));
+            if (chatroomListener->msgId[0] == msgSent->getMsgId())
+            {
+                msgSentFound = true;
+                break;
+            }
+        }
+        assert(msgSentFound);
+        delete msgSent; msgSent = NULL;
+
+
+    }
+
     logout(0, true);
 }
 

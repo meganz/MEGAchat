@@ -1186,8 +1186,8 @@ bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        chatroom->setAppChatHandler(getChatRoomHandler(chatid));
         addChatRoomListener(chatid, listener);
+        chatroom->setAppChatHandler(getChatRoomHandler(chatid));
     }
 
     sdkMutex.unlock();

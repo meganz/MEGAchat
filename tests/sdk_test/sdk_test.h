@@ -92,6 +92,7 @@ public:
     void TEST_getChatRoomsAndMessages();
     void TEST_editAndDeleteMessages();
     void TEST_groupChatManagement();
+    void TEST_offlineMode();
 
 private:
     std::string email[NUM_ACCOUNTS];
