@@ -434,6 +434,7 @@ public:
     Presence presence() const { return mXmppContact->presence(); }
 
     /** @cond PRIVATE */
+    /** @ xmpp notification */
     virtual void onPresence(Presence pres)
     {
         if (mChatRoom && (mChatRoom->chatdOnlineState() != chatd::kChatStateOnline))

@@ -158,7 +158,11 @@ inline unsigned char Presence::fromStanza(strophe::Stanza pres)
     }
     else
     {
-        return Presence::kOnline;
+        auto type = pres.attr("type");
+        if (type)
+            return fromString(type);
+        else
+            return Presence::kOnline;
     }
 }
 static inline std::string useridToJid(uint64_t userid)
