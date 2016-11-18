@@ -2931,20 +2931,31 @@ MegaChatPeerListPrivate::MegaChatPeerListPrivate(userpriv_vector *userpriv)
 }
 
 
-MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl &chatApi, const karere::ChatRoom &room)
+MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)
     :chatApi(chatApi), mRoom(room)
 {
 }
 
-MegaChatListItemPrivate::MegaChatListItemPrivate(const ChatRoom &chat)
+MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     : MegaChatListItem()
 {
-    this->chatid = chat.chatid();
-    this->title = chat.titleString();
-    this->unreadCount = chat.chat().unreadMsgCount();
-    this->status = chat.isGroup() ? chat.chatdOnlineState() : chat.presence().status();
-    this->visibility = chat.isGroup() ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chat).contact().visibility();
+    this->chatid = chatroom.chatid();
+    this->title = chatroom.titleString();
+    this->unreadCount = chatroom.chat().unreadMsgCount();
+    this->status = chatroom.isGroup() ? chatroom.chatdOnlineState() : chatroom.presence().status();
+    this->visibility = chatroom.isGroup() ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
     this->changed = 0;
+
+    this->lastMsg = NULL;
+    Chat &chat = chatroom.chat();
+    Message *msg = chat.lastMessage();
+    if (msg)
+    {
+        Idx index = chat.msgIndexFromId(msg->id());
+        Message::Status status = (index != MEGACHAT_INVALID_INDEX) ?
+                    chat.getMsgStatus(*msg, index) : (Message::Status) MegaChatMessage::STATUS_UNKNOWN;
+        this->lastMsg = new MegaChatMessagePrivate(*msg, status, index);
+    }
 }
 
 MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
@@ -2955,10 +2966,12 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->unreadCount = item->getUnreadCount();
     this->status = item->getOnlineStatus();
     this->changed = item->getChanges();
+    this->lastMsg = item->getLastMessage();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
 {
+    delete lastMsg;
 }
 
 MegaChatListItem *MegaChatListItemPrivate::copy() const
@@ -3001,6 +3014,11 @@ int MegaChatListItemPrivate::getOnlineStatus() const
     return status;
 }
 
+MegaChatMessage *MegaChatListItemPrivate::getLastMessage() const
+{
+    return lastMsg;
+}
+
 void MegaChatListItemPrivate::setVisibility(visibility_t visibility)
 {
     this->visibility = visibility;
@@ -3035,8 +3053,18 @@ void MegaChatListItemPrivate::setClosed()
     this->changed |= MegaChatListItem::CHANGE_TYPE_CLOSED;
 }
 
+void MegaChatListItemPrivate::setLastMessage(MegaChatMessage *msg)
+{
+    if (lastMsg)
+    {
+        delete lastMsg;
+    }
+    this->lastMsg = msg;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
+}
 
-MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chatApi, const ChatRoom &room)
+
+MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)
     : MegaChatListItemHandler(chatApi, room)
 {
 
@@ -3071,8 +3099,16 @@ void MegaChatListItemHandler::onRejoinedChat()
     chatApi.fireOnChatListItemUpdate(item);
 }
 
+void MegaChatListItemHandler::onLastMessageUpdated(const Message& msg, Message::Status status, Idx idx)
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatMessagePrivate *megaMsg = new MegaChatMessagePrivate(msg, status, idx);
+    item->setLastMessage(megaMsg);
+    chatApi.fireOnChatListItemUpdate(item);
+}
 
-MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, const ChatRoom &room)
+
+MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)
     : MegaChatListItemHandler(chatApi, room)
 {
 

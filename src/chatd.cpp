@@ -2205,6 +2205,13 @@ void Chat::setOnlineState(ChatState state)
     CALL_LISTENER(onOnlineStateChange, state);
 }
 
+Message* Chat::lastMessage() const
+{
+    if (empty())
+        return nullptr;
+    return &at(highnum());
+}
+
 void Client::leave(Id chatid)
 {
     mConnectionForChatId.erase(chatid);

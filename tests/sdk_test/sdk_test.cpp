@@ -250,6 +250,11 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
 
 void MegaChatApiTest::printMessageInfo(const MegaChatMessage *msg)
 {
+    if (!msg)
+    {
+        return;
+    }
+
     const char *content = msg->getContent() ? msg->getContent() : "<empty>";
 
     cout << "id: " << msg->getMsgId() << ", content: " << content;
@@ -263,11 +268,18 @@ void MegaChatApiTest::printMessageInfo(const MegaChatMessage *msg)
 
 void MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
 {
+    if (!item)
+    {
+        return;
+    }
+
     const char *title = item->getTitle() ? item->getTitle() : "<empty>";
 
     cout << "id: " << item->getChatId() << ", title: " << title;
     cout << ", status: " << item->getOnlineStatus() << ", visibility: " << item->getVisibility();
     cout << ", unread: " << item->getUnreadCount() << ", changes: " << item->getChanges() << endl;
+    cout << "Last message in the chat: " << endl;
+    printMessageInfo(item->getLastMessage());
     fflush(stdout);
 }
 
