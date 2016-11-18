@@ -657,6 +657,8 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mNewestKnownMsgId = info.newestDbId;
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
+    mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
+    mLastReceivedIdx = mDbInterface->getIdxOfMsgid(mLastReceivedId);
 
     if ((mHaveAllHistory = mDbInterface->haveAllHistory()))
     {
