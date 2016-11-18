@@ -1510,7 +1510,8 @@ public:
         CHANGE_TYPE_UNREAD_COUNT    = 0x04,
         CHANGE_TYPE_PARTICIPANTS    = 0x08,
         CHANGE_TYPE_TITLE           = 0x10,
-        CHANGE_TYPE_CLOSED          = 0x20  /// The chatroom has been left by own user
+        CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
+        CHANGE_TYPE_LAST_MSG        = 0x40  /// Last message recorded in the history
     };
 
     virtual ~MegaChatListItem() {}
@@ -1590,6 +1591,20 @@ public:
      * and possibly more. In that case the indicator should show e.g. '2+'
      */
     virtual int getUnreadCount() const;
+
+    /**
+     * @brief Returns the last message for the chatroom
+     *
+     * If there are no messages in the history or the last message is still
+     * pending to be retrieved from the server, the returned value will be NULL.
+     * 
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatListItem object is deleted. If you want to save the MegaChatMessage,
+     * use MegaChatMessage::copy
+     *
+     * @return The last message received.
+     */
+    virtual MegaChatMessage *getLastMessage() const;
 
 };
 

@@ -686,6 +686,11 @@ int MegaChatListItem::getOnlineStatus() const
     return MegaChatApi::STATUS_OFFLINE;
 }
 
+MegaChatMessage *MegaChatListItem::getLastMessage() const
+{
+    return NULL;
+}
+
 
 void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
 {

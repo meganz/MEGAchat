@@ -741,6 +741,11 @@ public:
       */
     int unreadMsgCount() const;
 
+    /** @brief Returns the most-recent message in the RAM history buffer.
+     * If the buffer is empty, returns \c NULL
+     */
+    Message* lastMessage() const;
+
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
 
