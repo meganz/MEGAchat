@@ -196,14 +196,11 @@ void ChatWindow::updateSeen()
         return;
     int i = msglist.indexAt(QPoint(4, 1)).row();
     if (i < 0) //message list is empty
-    {
-//      printf("no visible messages\n");
         return;
-    }
 
     auto lastidx = mChat->lastSeenIdx();
     if (lastidx == CHATD_IDX_INVALID)
-        lastidx = mChat->lownum();
+        lastidx = mChat->lownum()-1;
     auto rect = msglist.rect();
     chatd::Idx idx = CHATD_IDX_INVALID;
     //find last visible message widget

@@ -647,12 +647,19 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     assert(mCrypto);
     assert(!mUsers.empty());
     mNextUnsent = mSending.begin();
-    Idx newestDbIdx;
     //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
     assert(mDbInterface);
-    mDbInterface->getHistoryInfo(mOldestKnownMsgId, mNewestKnownMsgId, newestDbIdx);
+    ChatDbInfo info;
+    mDbInterface->getHistoryInfo(info);
+    mOldestKnownMsgId = info.oldestDbId;
+    mNewestKnownMsgId = info.newestDbId;
+    mLastSeenId = info.lastSeenId;
+    mLastReceivedId = info.lastRecvId;
+    mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
+    mLastReceivedIdx = mDbInterface->getIdxOfMsgid(mLastReceivedId);
+
     if ((mHaveAllHistory = mDbInterface->haveAllHistory()))
     {
         CHATID_LOG_DEBUG("All backward history of chat is available locally");
@@ -668,9 +675,9 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     }
     else
     {
-        assert(mNewestKnownMsgId); assert(newestDbIdx != CHATD_IDX_INVALID);
+        assert(mNewestKnownMsgId); assert(info.newestDbIdx != CHATD_IDX_INVALID);
         mHasMoreHistoryInDb = true;
-        mForwardStart = newestDbIdx + 1;
+        mForwardStart = info.newestDbIdx + 1;
         CHATID_LOG_DEBUG("Db has local history: %s - %s (middle point: %u)",
             ID_CSTR(mOldestKnownMsgId), ID_CSTR(mNewestKnownMsgId), mForwardStart);
         loadAndProcessUnsent();
@@ -1311,6 +1318,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
 void Chat::onLastReceived(Id msgid)
 {
     mLastReceivedId = msgid;
+    CALL_DB(setLastReceived, msgid);
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     { // we don't have that message in the buffer yet, so we don't know its index
@@ -1333,9 +1341,9 @@ void Chat::onLastReceived(Id msgid)
     auto idx = it->second;
     if (idx == mLastReceivedIdx)
         return; //probably set from db
-    if (at(idx).userid != mClient.mUserId)
+    if (at(idx).userid == mClient.mUserId)
     {
-        CHATID_LOG_WARNING("Last-received pointer points to a message by a peer,"
+        CHATID_LOG_WARNING("Last-received pointer points to a message by us,"
             " possibly the pointer was set incorrectly");
     }
     //notify about messages that become 'received'
@@ -1375,6 +1383,7 @@ void Chat::onLastReceived(Id msgid)
 void Chat::onLastSeen(Id msgid)
 {
     mLastSeenId = msgid;
+    CALL_DB(setLastSeen, msgid);
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     {
@@ -1446,6 +1455,7 @@ bool Chat::setMessageSeen(Idx idx)
         CHATID_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
         return false;
     }
+    CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msg.id()));
     sendCommand(Command(OP_SEEN) + mChatId + msg.id());
 
     Idx notifyStart;
@@ -1487,8 +1497,6 @@ bool Chat::setMessageSeen(Id msgid)
 
 int Chat::unreadMsgCount() const
 {
-    if (!mLastSeenId) //not received SEEN yet
-        return 0;
     if (mLastSeenIdx == CHATD_IDX_INVALID)
         return -mDbInterface->getPeerMsgCountAfterIdx(CHATD_IDX_INVALID);
     else if (mLastSeenIdx < lownum())
@@ -1800,7 +1808,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
         if (msg->type == Message::kMsgTruncate)
         {
-            CHATID_LOG_DEBUG("Truncating chat history before msgid %s", ID_CSTR(msg->id()));
             handleTruncate(*msg, idx);
         }
     })
@@ -1812,6 +1819,29 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)
 {
+// chatd may re-send a MSGUPD at login, if there are no newer messages in the
+// chat. We have to be prepared to handle this, i.e. handleTruncate() must
+// be idempotent.
+// However, handling the SEEN and RECEIVED pointers in in a replayed truncate
+// is a bit tricky, because if they point to the truncate point (i.e. idx)
+// normally we would set them in a way that makes the truncate management message
+// at the truncation point unseen. But in case of a replay, we don't want it
+// to be unseen, as this will reset the unread message count to '1+' every time
+// the client connects, until someoone posts a new message in the chat.
+// To avoid this, we have to detect the replay. But if we detect it, we can actually
+// avoid the whole replay (even the idempotent part), and just bail out.
+
+    if (idx != CHATD_IDX_INVALID)
+    {
+        auto last = highnum();
+        if (idx == last && at(last).type == Message::kMsgTruncate)
+        {
+            CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
+            return;
+        }
+    }
+
+    CHATID_LOG_DEBUG("Truncating chat history before msgid %s", ID_CSTR(msg.id()));
     CALL_DB(truncateHistory, msg);
     if (idx != CHATD_IDX_INVALID)
     {
@@ -1819,6 +1849,26 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         //messages older than the one specified
         CALL_LISTENER(onHistoryTruncated, msg, idx);
         deleteMessagesBefore(idx);
+        if (mLastSeenIdx != CHATD_IDX_INVALID)
+        {
+            if (mLastSeenIdx <= idx)
+            {
+                //if we haven't seen even messages before the truncation point,
+                //now we will have not seen any message after the truncation
+                mLastSeenIdx = CHATD_IDX_INVALID;
+                mLastSeenId = 0;
+                CALL_DB(setLastSeen, 0);
+            }
+        }
+        if (mLastReceivedIdx != CHATD_IDX_INVALID)
+        {
+            if (mLastReceivedIdx <= idx)
+            {
+                mLastReceivedIdx = CHATD_IDX_INVALID;
+                mLastReceivedId = 0;
+                CALL_DB(setLastReceived, 0);
+            }
+        }
     }
 
     mOldestKnownMsgId = mDbInterface->getOldestMsgid();
@@ -1831,7 +1881,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         mHasMoreHistoryInDb = false;
     }
     CALL_LISTENER(onUnreadChanged);
-
 }
 
 Id Chat::makeRandomId()
