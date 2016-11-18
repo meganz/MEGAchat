@@ -1646,9 +1646,8 @@ Presence PeerChatRoom::presence() const
     return calculatePresence(mContact.xmppContact().presence());
 }
 
-void PeerChatRoom::updatePresence()
+void PeerChatRoom::notifyPresenceChange(Presence pres)
 {
-    auto pres = presence();
     if (mRoomGui)
         mRoomGui->onPresenceChanged(pres);
     if (mAppChatHandler)
@@ -1719,10 +1718,17 @@ void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newS
         display->onUnreadCountChanged(mChat->unreadMsgCount());
 }
 
+//chatd notification
 void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
-    auto pres = mContact.xmppContact().presence();
-    mContact.onPresence(pres);
+    if (state == chatd::kChatStateOnline)
+    {
+        notifyPresenceChange(mContact.xmppContact().presence());
+    }
+    else
+    {
+        notifyPresenceChange(Presence::kOffline);
+    }
 }
 
 void PeerChatRoom::onUnreadChanged()
