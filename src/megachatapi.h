@@ -1266,6 +1266,8 @@ public:
      * registered by calling MegaChatApi::addChatRoomListener).
      *
      * The corresponding callback is MegaChatRoomListener::onMessageLoaded.
+     * 
+     * Messages are always loaded and notified in strict order, from newest to oldest.
      *
      * @note The actual number of messages loaded can be less than \c count. One reason is
      * the history being shorter than requested, the other is due to internal protocol
