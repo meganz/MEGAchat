@@ -15,30 +15,34 @@ protected:
 public:
     ChatdSqliteDb(chatd::Chat& msgs, sqlite3* db, const std::string& sendingTblName="sending", const std::string& histTblName="history")
         :mDb(db), mMessages(msgs), mSendingTblName(sendingTblName), mHistTblName(histTblName){}
-    virtual void getHistoryInfo(karere::Id& oldestDbId, karere::Id& newestDbId, chatd::Idx& newestDbIdx)
+    virtual void getHistoryInfo(chatd::ChatDbInfo& info)
     {
         SqliteStmt stmt(mDb, "select min(idx), max(idx) from history where chatid=?1");
         stmt.bind(mMessages.chatId()).step(); //will always return a row, even if table empty
         auto minIdx = stmt.intCol(0); //WARNING: the chatd implementation uses uint32_t values for idx.
-        newestDbIdx = stmt.intCol(1);
+        info.newestDbIdx = stmt.intCol(1);
         if (sqlite3_column_type(stmt, 0) == SQLITE_NULL) //no db history
         {
-            oldestDbId = 0; //no really need to zero the others
-            newestDbId = newestDbIdx = 0;
+            memset(&info, 0, sizeof(info)); //actually need to zero only oldestDbId
             return;
         }
         SqliteStmt stmt2(mDb, "select msgid from "+mHistTblName+" where chatid=?1 and idx=?2");
         stmt2 << mMessages.chatId() << minIdx;
         stmt2.stepMustHaveData();
-        oldestDbId = stmt2.uint64Col(0);
-        stmt2.reset().bind(2, newestDbIdx);
+        info.oldestDbId = stmt2.uint64Col(0);
+        stmt2.reset().bind(2, info.newestDbIdx);
         stmt2.stepMustHaveData();
-        newestDbId = stmt2.uint64Col(0);
-        if (!newestDbId)
+        info.newestDbId = stmt2.uint64Col(0);
+        if (!info.newestDbId)
         {
             CHATD_LOG_WARNING("Db: Newest msgid in db is null, telling chatd we don't have local history");
-            oldestDbId = 0;
+            info.oldestDbId = 0;
         }
+        SqliteStmt stmt3(mDb, "select last_seen, last_recv from chats where chatid=?");
+        stmt3 << mMessages.chatId();
+        stmt3.stepMustHaveData();
+        info.lastSeenId = stmt3.uint64Col(0);
+        info.lastRecvId = stmt3.uint64Col(1);
     }
     void assertAffectedRowCount(int count, const char* opname=nullptr)
     {
@@ -297,7 +301,16 @@ public:
         stmt.stepMustHaveData(__FUNCTION__);
         return stmt.uint64Col(0);
     }
-
+    virtual void setLastSeen(karere::Id msgid)
+    {
+        sqliteQuery(mDb, "update chats set last_seen=? where chatid=?", msgid, mMessages.chatId());
+        assertAffectedRowCount(1);
+    }
+    virtual void setLastReceived(karere::Id msgid)
+    {
+        sqliteQuery(mDb, "update chats set last_recv=? where chatid=?", msgid, mMessages.chatId());
+        assertAffectedRowCount(1);
+    }
     virtual void addUser(karere::Id userid, chatd::Priv priv)
     {
         sqliteQuery(mDb, "insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",

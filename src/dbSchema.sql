@@ -10,7 +10,8 @@ CREATE TABLE manual_sending(rowid integer primary key autoincrement, msgid int64
 CREATE TABLE vars(name text not null primary key, value blob);
 
 CREATE TABLE chats(chatid int64 unique primary key, url text, shard tinyint,
-    own_priv tinyint, peer int64 default -1, peer_priv tinyint default 0, title text);
+    own_priv tinyint, peer int64 default -1, peer_priv tinyint default 0,
+    title text, last_seen int64 default 0, last_recv int64 default 0);
 CREATE TABLE contacts(userid int64 PRIMARY KEY, email text, visibility int,
     since int64 not null default 0);
 

@@ -856,10 +856,19 @@ public:
     friend class Chat;
 };
 
+struct ChatDbInfo
+{
+    karere::Id oldestDbId;
+    karere::Id newestDbId;
+    Idx newestDbIdx;
+    karere::Id lastSeenId;
+    karere::Id lastRecvId;
+};
+
 class DbInterface
 {
 public:
-    virtual void getHistoryInfo(karere::Id& oldestDbId, karere::Id& newestDbId, Idx& newestDbIdx) = 0;
+    virtual void getHistoryInfo(ChatDbInfo& info) = 0;
     /// Called when the client was requested to fetch history, and it knows the db contains the requested
     /// history range.
     /// @param startIdx - the start index of the requested history range
@@ -887,6 +896,8 @@ public:
     virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
     virtual void truncateHistory(const chatd::Message& msg) = 0;
+    virtual void setLastSeen(karere::Id msgid) = 0;
+    virtual void setLastReceived(karere::Id msgid) = 0;
     virtual karere::Id getOldestMsgid() = 0;
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void addUser(karere::Id userid, Priv priv) = 0;
