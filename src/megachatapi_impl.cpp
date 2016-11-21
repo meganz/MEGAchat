@@ -2725,6 +2725,11 @@ const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhand
 
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
 {
+    if (i >= peers.size())
+    {
+        return MegaChatRoom::PRIV_UNKNOWN;
+    }
+
     return peers.at(i).second;
 }
 
@@ -2735,16 +2740,31 @@ unsigned int MegaChatRoomPrivate::getPeerCount() const
 
 MegaChatHandle MegaChatRoomPrivate::getPeerHandle(unsigned int i) const
 {
+    if (i >= peers.size())
+    {
+        return MEGACHAT_INVALID_HANDLE;
+    }
+
     return peers.at(i).first;
 }
 
 const char *MegaChatRoomPrivate::getPeerFirstname(unsigned int i) const
 {
+    if (i >= peerFirstnames.size())
+    {
+        return NULL;
+    }
+
     return peerFirstnames.at(i).c_str();
 }
 
 const char *MegaChatRoomPrivate::getPeerLastname(unsigned int i) const
 {
+    if (i >= peerLastnames.size())
+    {
+        return NULL;
+    }
+
     return peerLastnames.at(i).c_str();
 }
 

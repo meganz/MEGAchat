@@ -34,10 +34,10 @@ typedef uint64_t MegaChatHandle;
 typedef int MegaChatIndex;  // int32_t
 
 /**
- * @brief INVALID_HANDLE Invalid value for a handle
+ * @brief MEGACHAT_INVALID_HANDLE Invalid value for a handle
  *
  * This value is used to represent an invalid handle. Several MEGA objects can have
- * a handle but it will never be megachat::INVALID_HANDLE
+ * a handle but it will never be megachat::MEGACHAT_INVALID_HANDLE
  *
  */
 const MegaChatHandle MEGACHAT_INVALID_HANDLE = ~(MegaChatHandle)0;
@@ -143,7 +143,7 @@ public:
     /**
      * @brief Returns the MegaChatHandle of the chat peer at the position i in the list
      *
-     * If the index is >= the size of the list, this function returns INVALID_HANDLE.
+     * If the index is >= the size of the list, this function returns MEGACHAT_INVALID_HANDLE.
      *
      * @param i Position of the chat peer that we want to get from the list
      * @return MegaChatHandle of the chat peer at the position i in the list
@@ -1402,7 +1402,7 @@ public:
      * the final position in the history, based on the reported index in the callback.
      *
      * If the message is rejected by the server, the message will keep its temporal id and will have its
-     * a message id set to INVALID_HANDLE.
+     * a message id set to MEGACHAT_INVALID_HANDLE.
      *
      * You take the ownership of the returned value.
      *
@@ -1780,7 +1780,7 @@ public:
      * @brief Returns the handle of the user
      *
      * If the index is >= the number of participants in this chat, this function
-     * will return INVALID_HANDLE.
+     * will return MEGACHAT_INVALID_HANDLE.
      *
      * @param i Position of the peer whose handle is requested
      * @return Handle of the peer in the position \c i.
@@ -1807,6 +1807,9 @@ public:
     /**
      * @brief Returns the current firstname of the peer
      *
+     * If the index is >= the number of participants in this chat, this function
+     * will return NULL.
+     *
      * @param i Position of the peer whose name is requested
      * @return Firstname of the peer in the position \c i.
      */
@@ -1814,6 +1817,9 @@ public:
 
     /**
      * @brief Returns the current lastname of the peer
+     *
+     * If the index is >= the number of participants in this chat, this function
+     * will return NULL.
      *
      * @param i Position of the peer whose name is requested
      * @return Lastname of the peer in the position \c i.
