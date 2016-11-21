@@ -3020,7 +3020,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->unreadCount = item->getUnreadCount();
     this->status = item->getOnlineStatus();
     this->changed = item->getChanges();
-    this->lastMsg = item->getLastMessage();
+    this->lastMsg = item->getLastMessage() ? item->getLastMessage()->copy() : NULL;
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
