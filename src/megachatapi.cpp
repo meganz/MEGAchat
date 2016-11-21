@@ -153,6 +153,16 @@ MegaChatRoom *MegaChatApi::getChatRoomByUser(MegaChatHandle userhandle)
     return pImpl->getChatRoomByUser(userhandle);
 }
 
+MegaChatListItemList *MegaChatApi::getChatListItems()
+{
+    return pImpl->getChatListItems();
+}
+
+MegaChatListItem *MegaChatApi::getChatListItem(MegaChatHandle chatid)
+{
+    return pImpl->getChatListItem(chatid);
+}
+
 void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener)
 {
     pImpl->createChat(group, peers, listener);
@@ -801,4 +811,20 @@ bool MegaChatMessage::hasChanged(int) const
 void MegaChatLogger::log(int , const char *)
 {
 
+}
+
+
+MegaChatListItemList *MegaChatListItemList::copy() const
+{
+    return NULL;
+}
+
+const MegaChatListItem *MegaChatListItemList::get(unsigned int i) const
+{
+    return NULL;
+}
+
+unsigned int MegaChatListItemList::size() const
+{
+    return 0;
 }

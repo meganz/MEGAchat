@@ -375,6 +375,23 @@ private:
     mega::userpriv_vector list;
 };
 
+class MegaChatListItemListPrivate :  public MegaChatListItemList
+{
+public:
+    MegaChatListItemListPrivate();
+    virtual ~MegaChatListItemListPrivate() {}
+    virtual MegaChatListItemListPrivate *copy() const;
+
+    virtual const MegaChatListItem *get(unsigned int i) const;
+    virtual unsigned int size() const;
+
+    void addChatListItem(MegaChatListItem*);
+
+private:
+    MegaChatListItemListPrivate(const MegaChatListItemListPrivate *list);
+    std::vector<MegaChatListItem*> list;
+};
+
 class MegaChatRoomPrivate : public MegaChatRoom
 {
 public:
@@ -664,6 +681,8 @@ public:
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
+    MegaChatListItemList *getChatListItems();
+    MegaChatListItem *getChatListItem(MegaChatHandle chatid);
 
     // Chatrooms management
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);

@@ -55,6 +55,7 @@ class MegaChatCall;
 class MegaChatCallListener;
 class MegaChatVideoListener;
 class MegaChatListener;
+class MegaChatListItem;
 
 class MegaChatCall
 {
@@ -208,6 +209,43 @@ public:
     /**
      * @brief Returns the number of MegaChatRooms in the list
      * @return Number of MegaChatRooms in the list
+     */
+    virtual unsigned int size() const;
+
+};
+
+/**
+ * @brief List of MegaChatListItem objects
+ *
+ * A MegaChatListItemList has the ownership of the MegaChatListItem objects that it contains, so they will be
+ * only valid until the MegaChatListItemList is deleted. If you want to retain a MegaChatListItem returned by
+ * a MegaChatListItemList, use MegaChatListItem::copy.
+ *
+ * Objects of this class are immutable.
+ */
+class MegaChatListItemList
+{
+public:
+    virtual ~MegaChatListItemList() {}
+
+    virtual MegaChatListItemList *copy() const;
+
+    /**
+     * @brief Returns the MegaChatRoom at the position i in the MegaChatListItemList
+     *
+     * The MegaChatListItemList retains the ownership of the returned MegaChatListItem. It will be only valid until
+     * the MegaChatListItemList is deleted.
+     *
+     * If the index is >= the size of the list, this function returns NULL.
+     *
+     * @param i Position of the MegaChatListItem that we want to get for the list
+     * @return MegaChatListItem at the position i in the list
+     */
+    virtual const MegaChatListItem *get(unsigned int i)  const;
+
+    /**
+     * @brief Returns the number of MegaChatListItems in the list
+     * @return Number of MegaChatListItem in the list
      */
     virtual unsigned int size() const;
 
@@ -1045,6 +1083,42 @@ public:
      * @return MegaChatRoom object for the specified \c userhandle
      */
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
+
+    /**
+     * @brief Get all chatrooms (1on1 and groupal) with limited information
+     *
+     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * You take the ownership of the returned value
+     *
+     * @return List of MegaChatListItemList objects with all chatrooms of this account.
+     */
+    MegaChatListItemList *getChatListItems();
+
+    /**
+     * @brief Get the MegaChatListItem that has a specific handle
+     *
+     * You can get the handle of the chatroom using MegaChatRoom::getChatId or
+     * MegaChatListItem::getChatId.
+     *
+     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return MegaChatListItem object for the specified \c chatid
+     */
+    MegaChatListItem *getChatListItem(MegaChatHandle chatid);
 
     /**
      * @brief Creates a chat for one or more participants, allowing you to specify their

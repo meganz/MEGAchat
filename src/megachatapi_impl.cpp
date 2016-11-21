@@ -1118,6 +1118,40 @@ MegaChatRoom *MegaChatApiImpl::getChatRoomByUser(MegaChatHandle userhandle)
     return chat;
 }
 
+MegaChatListItemList *MegaChatApiImpl::getChatListItems()
+{
+    MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
+
+    sdkMutex.lock();
+
+    ChatRoomList::iterator it;
+    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+        items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+    }
+
+    sdkMutex.unlock();
+
+    return items;
+}
+
+MegaChatListItem *MegaChatApiImpl::getChatListItem(MegaChatHandle chatid)
+{
+    MegaChatListItemPrivate *item = NULL;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatRoom = findChatRoom(chatid);
+    if (chatRoom)
+    {
+        item = new MegaChatListItemPrivate(*chatRoom);
+    }
+
+    sdkMutex.unlock();
+
+    return item;
+}
+
 void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
@@ -3318,4 +3352,46 @@ void LoggerHandler::log(krLogLevel level, const char *msg, size_t len, unsigned 
         megaLogger->log(level, msg);
     }
     mutex.unlock();
+}
+
+MegaChatListItemListPrivate::MegaChatListItemListPrivate()
+{
+}
+
+MegaChatListItemListPrivate::MegaChatListItemListPrivate(const MegaChatListItemListPrivate *list)
+{
+    MegaChatListItemPrivate *item;
+
+    for (unsigned int i = 0; i < list->size(); i++)
+    {
+        item = new MegaChatListItemPrivate(list->get(i));
+        this->list.push_back(item);
+    }
+}
+
+MegaChatListItemListPrivate *MegaChatListItemListPrivate::copy() const
+{
+    return new MegaChatListItemListPrivate(this);
+}
+
+const MegaChatListItem *MegaChatListItemListPrivate::get(unsigned int i) const
+{
+    if (i >= size())
+    {
+        return NULL;
+    }
+    else
+    {
+        return list.at(i);
+    }
+}
+
+unsigned int MegaChatListItemListPrivate::size() const
+{
+    return list.size();
+}
+
+void MegaChatListItemListPrivate::addChatListItem(MegaChatListItem *item)
+{
+    list.push_back(item);
 }
