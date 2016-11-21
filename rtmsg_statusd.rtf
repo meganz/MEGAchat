@@ -37,7 +37,7 @@ OP_RTMSG: sender_userid(8 bytes) sender_clienid(4 bytes) msgtype(1 byte) msglen(
 \
 The three modes of addressing the recipient would be differentiated by the receiver_userid and receiver_clientid, as follows:\
  - broadcast to every client of every user in the chatroom: userid = INVALID_USERID , clientid = INVALID_HANDLE\
- - broadcast to all clients of a particular user: userid = <user handle>, clientid = INVALID_USERID\
+ - broadcast to all clients of a particular user: userid = <user handle>, clientid = INVALID_CLIENTID\
  - send to particular client of a particular user: userid = <user handle>, client = <id of the client>\
 \
 Therefore, we need INVALID_CLIENTID and INVALID_HANDLE values that chatd will never use the as valid id/handle. Zero seems like a good candidate.\
