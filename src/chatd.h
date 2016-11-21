@@ -523,7 +523,7 @@ public:
 
     /** @brief Get the seen/received status of a message. Both the message object
      * and its index in the history buffer must be provided */
-    Message::Status getMsgStatus(const Message& msg, Idx idx);
+    Message::Status getMsgStatus(const Message& msg, Idx idx) const;
 
     /** @brief Contains all not-yet-confirmed edits of messages.
       *  This can be used by the app to replace the text of messages who have
@@ -637,7 +637,7 @@ public:
      *  If no such message exists in the RAM history buffer, CHATD_IDX_INVALID
      * is returned
      */
-    Idx msgIndexFromId(karere::Id msgid)
+    Idx msgIndexFromId(karere::Id msgid) const
     {
         auto it = mIdToIndexMap.find(msgid);
         return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;

@@ -2618,7 +2618,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->changed = chat->getChanges();
 }
 
-MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
+MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
 {
     this->changed = 0;
     this->chatid = chat.chatid();
@@ -2990,7 +2990,7 @@ MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl &chatApi, ChatR
 {
 }
 
-MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
+MegaChatListItemPrivate::MegaChatListItemPrivate(const ChatRoom &chatroom)
     : MegaChatListItem()
 {
     this->chatid = chatroom.chatid();
@@ -3001,7 +3001,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->changed = 0;
 
     this->lastMsg = NULL;
-    Chat &chat = chatroom.chat();
+    const Chat &chat = chatroom.chat();
     Message *msg = chat.lastMessage();
     if (msg)
     {

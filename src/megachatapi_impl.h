@@ -187,7 +187,7 @@ protected:
 class MegaChatListItemPrivate : public MegaChatListItem
 {
 public:
-    MegaChatListItemPrivate(karere::ChatRoom &chatroom);
+    MegaChatListItemPrivate(const karere::ChatRoom &chatroom);
     MegaChatListItemPrivate(const MegaChatListItem *item);
     virtual ~MegaChatListItemPrivate();
     virtual MegaChatListItem *copy() const;
