@@ -701,6 +701,10 @@ MegaChatMessage *MegaChatListItem::getLastMessage() const
     return NULL;
 }
 
+bool MegaChatListItem::isGroup() const
+{
+    return false;
+}
 
 void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
 {

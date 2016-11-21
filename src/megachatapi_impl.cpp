@@ -2996,8 +2996,9 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->chatid = chatroom.chatid();
     this->title = chatroom.titleString();
     this->unreadCount = chatroom.chat().unreadMsgCount();
-    this->status = chatroom.isGroup() ? chatroom.chatdOnlineState() : chatroom.presence().status();
-    this->visibility = chatroom.isGroup() ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
+    this->group = chatroom.isGroup();
+    this->status = group ? chatroom.chatdOnlineState() : chatroom.presence().status();
+    this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
     this->changed = 0;
 
     this->lastMsg = NULL;
@@ -3021,6 +3022,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->status = item->getOnlineStatus();
     this->changed = item->getChanges();
     this->lastMsg = item->getLastMessage() ? item->getLastMessage()->copy() : NULL;
+    this->group = item->isGroup();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -3071,6 +3073,11 @@ int MegaChatListItemPrivate::getOnlineStatus() const
 MegaChatMessage *MegaChatListItemPrivate::getLastMessage() const
 {
     return lastMsg;
+}
+
+bool MegaChatListItemPrivate::isGroup() const
+{
+    return group;
 }
 
 void MegaChatListItemPrivate::setVisibility(visibility_t visibility)

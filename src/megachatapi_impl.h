@@ -201,6 +201,7 @@ private:
     int unreadCount;
     int status;
     MegaChatMessage *lastMsg;
+    bool group;
 
 public:
     virtual int getChanges() const;
@@ -212,6 +213,7 @@ public:
     virtual int getUnreadCount() const;
     virtual int getOnlineStatus() const;
     virtual MegaChatMessage *getLastMessage() const;
+    virtual bool isGroup() const;
 
     void setVisibility(mega::visibility_t visibility);
     void setTitle(const std::string &title);

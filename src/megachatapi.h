@@ -1682,6 +1682,11 @@ public:
      */
     virtual MegaChatMessage *getLastMessage() const;
 
+    /**
+     * @brief Returns whether this chat is a group chat or not
+     * @return True if this chat is a group chat. Only chats with more than 2 peers are groupal chats.
+     */
+    virtual bool isGroup() const;
 };
 
 class MegaChatRoom
