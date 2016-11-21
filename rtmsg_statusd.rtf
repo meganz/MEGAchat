@@ -40,13 +40,13 @@ The three modes of addressing the recipient would be differentiated by the recei
  - broadcast to all clients of a particular user: userid = <user handle>, clientid = INVALID_CLIENTID\
  - send to particular client of a particular user: userid = <user handle>, client = <id of the client>\
 \
-Therefore, we need INVALID_CLIENTID and INVALID_HANDLE values that chatd will never use the as valid id/handle. Zero seems like a good candidate.\
+Therefore, we need INVALID_CLIENTID and INVALID_HANDLE values that chatd will never use as valid id/handle. Zero seems like a good candidate.\
 \
-msgtype - this should be left to the user to define and should just be forwarder  by chatd without interpreting it in anyway. It will allow to differentiate e.g. one-way messages (similar to xmpp <message>) and request-response messages (similar to xmpp <iq>). The higher-level protocol may use some bits in this type code to specify the content format - i.e. JSON, binary, etc.\
+msgtype - this should be left to the user to define and should just be forwarded by chatd without interpreting it in anyway. It will allow to differentiate e.g. one-way messages (similar to xmpp <message>) and request-response messages (similar to xmpp <iq>). The higher-level protocol may use some bits in this type code to specify the content format - i.e. JSON, binary, etc.\
 \
 In-call status of the chatroom\
 ==========================\
-Chatd should maintain a flag for each chatroom that indicated whether there is an ongoing call in this room. In this way, if the flag is set, clients will know that they can join the call. If the flag is not set, the client would initiate a new call by sending a call request to everybody in the room.\
+Chatd should maintain a flag for each chatroom that indicates whether there is an ongoing call in this room. In this way, if the flag is set, clients will know that they can join the call. If the flag is not set, the client would initiate a new call by sending a call request to everybody in the room.\
 The flag is maintained in the set state via a watchdog-like mechanism - each client that is currently in a call sends a heartbeat to chatd. If a heartbeat is not received within a given timeout period, or a client disconnects, chatd considers this client as not being in a call. The in-call flag of the room is true if at least 2 users are in a call. If this room-level flag changes, its new value is broadcast by chatd to all clients connected to the room.\
 Client-server:\
 OP_IN_CALL status (1 byte - no fields needed, but we may want to reuse structure? However, we must optimize size as this is send frequently each few seconds)\
@@ -54,7 +54,7 @@ OP_IN_CALL status (1 byte - no fields needed, but we may want to reuse structure
 Server-client:\
 OP_IN_CALL status (1 byte)\
 \
-Clients send OP_IN_CALL every 2-5 seconds. Server sends OP_IN_CALL with the current room status as part of the login procedure, and after that broadcasts OP_IN_CALL to all clients only when the room status changes. This each device knows the in-call status of the room at any given moment.\
+Clients send OP_IN_CALL every 2-5 seconds. Server sends OP_IN_CALL with the current room status as part of the login procedure, and after that broadcasts OP_IN_CALL to all clients only when the room status changes. Thus each device knows the in-call status of the room at any given moment.\
 To join a call, a client will broadcast a call request to all devices in the room, and will continue the webrtc handshake with the ones that reply. We should not rely on chatd informing the client who is in the call, as this may bring race conditions.\
 \
 statusd protocol\
@@ -67,7 +67,7 @@ statusd is needed only for presence. Realtime messaging is needed only within a 
 \
 Presence is encoded with 1 byte.\
 As there can be multiple clients of a given userid connected at the same time with a different presence, statusd has to combine the presence of all clients to a single value. The presence of a given device may be set explicitly by the user, in which case statusd would need to set it as specified. However, the presence may be automatically set by the client to a \'91less-chatty\'92 value if there was no recent user activity at that client. In that case, statusd should not blindly obey, but should check if there is a \'91more chatty\'92 client of the same user (regardless whether it was set by the user or by the idle timer of the client), and use its presence. As statusd needs to differentiate between user-initiated and automatic presence setting, we use the most significant bit of the presence value to specify that. The bit is \'911\'92 if the presence was automatically set due to idleness, and 0 if the user set it explicitly.\
-To able able to determine the most chatty presence among all clients of a user, presence values should map to the \'91chattiness\'92 of the user, presence 0 being offline/invisible, then presence 1 being do-not-disturb, presence 2 - \'91away\'92, etc. We should reserve only presence 0 as meaning \'91offline/invisible\'92, as it has to be generated by statusd for not connected users. All other presence values from 1 to 127 are defined by the application-level protocol. \
+To be able to determine the most chatty presence among all clients of a user, presence values should increase with the \'91chattiness\'92, presence 0 being offline/invisible, then presence 1 being do-not-disturb, presence 2 - \'91away\'92, etc. We should reserve only presence 0 as meaning \'91offline/invisible\'92, as it has to be generated by statusd for not connected users. All other presence values from 1 to 127 are defined by the application-level protocol. \
 \
 Protocol\
 \'97\'97\'97\'97\
@@ -78,7 +78,7 @@ Login:\
 Client-to-server:\
 OP_HELLO version (2 bytes) user_presence(1 byte) reserved (1 byte)\
 \
-Before login, the client assumes the presence of everybody is 0 (offline). At login, statusd dumps the presence of all non-offline users for whose presence we are subscribed.\
+Before login, the client assumes the presence of everybody is 0 (offline). At login, statusd dumps the presence of all non-offline users whose presence we are entitled to see:\
 \
 Server-to-client:\
 OP_PRES userid(8 bytes) presence(1 byte)\
@@ -88,7 +88,6 @@ OP_PRES userid(8 bytes) presence(1 byte)\
 OP_PRES userid(8 bytes) presence(1 byte)\
 \
 The last OP_PRES is the user\'92s own presence. To be more explicit, the userid of that last command is INVALID_USERID (0?)\
-\
 \
 Client changes presence:\
 \
@@ -101,6 +100,6 @@ OP_PRES userid(8 bytes) presence(1 byte)\
 \
 To the clients of the user whose presence is broadcast, the userid is INVALID_USERID, to be more explicit that the presence is for the client\'92s own user.\
 \
-A client should not assume that its presence was set to whatever it sent in OP_SETPRES. It must update its presence only as a result of a received OP_PRES. For example, let\'92s say client A is set to \'91chatty\'92, and there is also another client B of the same user logged in, with presence \'91online\'92. User inactivity timer kicks in at client A, and sets its presence to \'91away\'92 (with the MSB flag set). The actual present will then be the the \'91most chatty\'92 presence of both, i.e. \'91online\'92. Hence client A will want to set the presence to \'91away\'92, but this will result in the actual presence being set to \'91online\'92. Therefore, client A should set its presence indication only when it receives an OP_PRES command from statusd.\
+A client should not assume that its presence was set to whatever it sent in OP_SETPRES. It must update its presence only as a result of a received OP_PRES. For example, let\'92s say client A is set to \'91chatty\'92, and there is also another client B of the same user logged in, with presence \'91online\'92. User inactivity timer kicks in at client A, and sets its presence to \'91away\'92 (with the MSB flag set). The actual present will then be the \'91most chatty\'92 presence of both, i.e. \'91online\'92. Hence client A will want to set the presence to \'91away\'92, but this will result in the actual presence being set to \'91online\'92. Therefore, client A should set its presence indication only when it receives an OP_PRES command from statusd.\
 \
 }
