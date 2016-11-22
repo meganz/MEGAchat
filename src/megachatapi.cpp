@@ -168,6 +168,11 @@ MegaChatListItem *MegaChatApi::getChatListItem(MegaChatHandle chatid)
     return pImpl->getChatListItem(chatid);
 }
 
+MegaChatHandle MegaChatApi::getChatHandleByUser(MegaChatHandle userhandle)
+{
+    return pImpl->getChatHandleByUser(userhandle);
+}
+
 void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener)
 {
     pImpl->createChat(group, peers, listener);

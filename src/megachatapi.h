@@ -1133,6 +1133,17 @@ public:
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
 
     /**
+     * @brief Get the chat id for the 1on1 chat with the specified user
+     *
+     * If the 1on1 chat with the user specified doesn't exist, this function will
+     * return MEGACHAT_INVALID_HANDLE.
+     *
+     * @param userhandle MegaChatHandle that identifies the user
+     * @return MegaChatHandle that identifies the 1on1 chatroom
+     */
+    MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
+
+    /**
      * @brief Creates a chat for one or more participants, allowing you to specify their
      * permissions and if the chat should be a group chat or not (when it is just for 2 participants).
      *

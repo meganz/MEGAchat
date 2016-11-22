@@ -686,6 +686,7 @@ public:
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
     MegaChatListItemList *getChatListItems();
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
+    MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);

@@ -1169,6 +1169,23 @@ MegaChatListItem *MegaChatApiImpl::getChatListItem(MegaChatHandle chatid)
     return item;
 }
 
+MegaChatHandle MegaChatApiImpl::getChatHandleByUser(MegaChatHandle userhandle)
+{
+    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatRoom = findChatRoomByUser(userhandle);
+    if (chatRoom)
+    {
+        chatid = chatRoom->chatid();
+    }
+
+    sdkMutex.unlock();
+
+    return chatid;
+}
+
 void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
