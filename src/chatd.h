@@ -53,7 +53,7 @@ public:
 enum ManualSendReason: uint8_t
 {
     kManualSendUsersChanged = 1, ///< Group chat participants have changed
-    kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_AUTOSEND_AGE seconds
+    kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_EDIT_AGE seconds
 };
 
 /** The source from where history is being retrieved by the app */
