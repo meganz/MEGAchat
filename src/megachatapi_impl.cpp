@@ -1067,6 +1067,23 @@ void MegaChatApiImpl::getUserLastname(MegaChatHandle userhandle, MegaChatRequest
     waiter->notify();
 }
 
+char *MegaChatApiImpl::getUserEmail(MegaChatHandle userhandle)
+{
+    char *ret = NULL;
+
+    sdkMutex.lock();
+
+    const std::string *email = mClient->contactList->getUserEmail(userhandle);
+    if (email)
+    {
+        ret = MegaApi::strdup(email->c_str());
+    }
+
+    sdkMutex.unlock();
+
+    return ret;
+}
+
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 {
     MegaChatRoomListPrivate *chats = new MegaChatRoomListPrivate();

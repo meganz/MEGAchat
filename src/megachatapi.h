@@ -1034,11 +1034,23 @@ public:
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getText - Returns the lastname of the user
      *
-     *
      * @param userhandle Handle of the user whose name is requested.
      * @param listener MegaChatRequestListener to track this request
      */
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns the current email address of the user
+     *
+     * This function is useful to get the email address of users you are contact with.
+     * Note that for any other user without contact relationship, this function will return NULL.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param userhandle Handle of the user whose name is requested.
+     * @return The email address of the contact, or NULL if not found.
+     */
+    char *getUserEmail(MegaChatHandle userhandle);
 
     /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
