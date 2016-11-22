@@ -2525,7 +2525,7 @@ void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id,
 
     message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
     message->setTempId(id); // identifier for the manual-send queue, for removal from queue
-    chatApi->fireOnMessageUpdate(message);
+    chatApi->fireOnMessageLoaded(message);
 }
 
 
