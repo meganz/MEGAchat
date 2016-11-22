@@ -138,6 +138,11 @@ void MegaChatApi::getUserLastname(MegaChatHandle userhandle, MegaChatRequestList
     pImpl->getUserLastname(userhandle, listener);
 }
 
+char *MegaChatApi::getUserEmail(MegaChatHandle userhandle)
+{
+    return pImpl->getUserEmail(userhandle);
+}
+
 MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();
@@ -161,6 +166,11 @@ MegaChatListItemList *MegaChatApi::getChatListItems()
 MegaChatListItem *MegaChatApi::getChatListItem(MegaChatHandle chatid)
 {
     return pImpl->getChatListItem(chatid);
+}
+
+MegaChatHandle MegaChatApi::getChatHandleByUser(MegaChatHandle userhandle)
+{
+    return pImpl->getChatHandleByUser(userhandle);
 }
 
 void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener)
@@ -704,6 +714,11 @@ MegaChatMessage *MegaChatListItem::getLastMessage() const
 bool MegaChatListItem::isGroup() const
 {
     return false;
+}
+
+MegaChatHandle MegaChatListItem::getPeerHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)

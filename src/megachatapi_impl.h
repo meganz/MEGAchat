@@ -202,6 +202,7 @@ private:
     int status;
     MegaChatMessage *lastMsg;
     bool group;
+    MegaChatHandle peerHandle;  // only for 1on1 chatrooms
 
 public:
     virtual int getChanges() const;
@@ -214,6 +215,7 @@ public:
     virtual int getOnlineStatus() const;
     virtual MegaChatMessage *getLastMessage() const;
     virtual bool isGroup() const;
+    virtual MegaChatHandle getPeerHandle() const;
 
     void setVisibility(mega::visibility_t visibility);
     void setTitle(const std::string &title);
@@ -680,11 +682,13 @@ public:
     int getUserOnlineStatus(MegaChatHandle userhandle);
     void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+    char *getUserEmail(MegaChatHandle userhandle);
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
     MegaChatListItemList *getChatListItems();
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
+    MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);

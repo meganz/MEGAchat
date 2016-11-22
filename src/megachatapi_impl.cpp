@@ -1067,6 +1067,23 @@ void MegaChatApiImpl::getUserLastname(MegaChatHandle userhandle, MegaChatRequest
     waiter->notify();
 }
 
+char *MegaChatApiImpl::getUserEmail(MegaChatHandle userhandle)
+{
+    char *ret = NULL;
+
+    sdkMutex.lock();
+
+    const std::string *email = mClient->contactList->getUserEmail(userhandle);
+    if (email)
+    {
+        ret = MegaApi::strdup(email->c_str());
+    }
+
+    sdkMutex.unlock();
+
+    return ret;
+}
+
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 {
     MegaChatRoomListPrivate *chats = new MegaChatRoomListPrivate();
@@ -1150,6 +1167,23 @@ MegaChatListItem *MegaChatApiImpl::getChatListItem(MegaChatHandle chatid)
     sdkMutex.unlock();
 
     return item;
+}
+
+MegaChatHandle MegaChatApiImpl::getChatHandleByUser(MegaChatHandle userhandle)
+{
+    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatRoom = findChatRoomByUser(userhandle);
+    if (chatRoom)
+    {
+        chatid = chatRoom->chatid();
+    }
+
+    sdkMutex.unlock();
+
+    return chatid;
 }
 
 void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener)
@@ -2491,7 +2525,7 @@ void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id,
 
     message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
     message->setTempId(id); // identifier for the manual-send queue, for removal from queue
-    chatApi->fireOnMessageUpdate(message);
+    chatApi->fireOnMessageLoaded(message);
 }
 
 
@@ -3000,6 +3034,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->status = group ? chatroom.chatdOnlineState() : chatroom.presence().status();
     this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
     this->changed = 0;
+    this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
     this->lastMsg = NULL;
     Chat &chat = chatroom.chat();
@@ -3023,6 +3058,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->changed = item->getChanges();
     this->lastMsg = item->getLastMessage() ? item->getLastMessage()->copy() : NULL;
     this->group = item->isGroup();
+    this->peerHandle = item->getPeerHandle();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -3078,6 +3114,11 @@ MegaChatMessage *MegaChatListItemPrivate::getLastMessage() const
 bool MegaChatListItemPrivate::isGroup() const
 {
     return group;
+}
+
+MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
+{
+    return peerHandle;
 }
 
 void MegaChatListItemPrivate::setVisibility(visibility_t visibility)
