@@ -3034,6 +3034,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->status = group ? chatroom.chatdOnlineState() : chatroom.presence().status();
     this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
     this->changed = 0;
+    this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
     this->lastMsg = NULL;
     Chat &chat = chatroom.chat();
@@ -3057,6 +3058,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->changed = item->getChanges();
     this->lastMsg = item->getLastMessage() ? item->getLastMessage()->copy() : NULL;
     this->group = item->isGroup();
+    this->peerHandle = item->getPeerHandle();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -3112,6 +3114,11 @@ MegaChatMessage *MegaChatListItemPrivate::getLastMessage() const
 bool MegaChatListItemPrivate::isGroup() const
 {
     return group;
+}
+
+MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
+{
+    return peerHandle;
 }
 
 void MegaChatListItemPrivate::setVisibility(visibility_t visibility)

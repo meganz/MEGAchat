@@ -716,6 +716,11 @@ bool MegaChatListItem::isGroup() const
     return false;
 }
 
+MegaChatHandle MegaChatListItem::getPeerHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
 {
 

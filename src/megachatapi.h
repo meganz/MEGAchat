@@ -1710,6 +1710,16 @@ public:
      * @return True if this chat is a group chat. Only chats with more than 2 peers are groupal chats.
      */
     virtual bool isGroup() const;
+
+    /**
+     * @brief Returns the userhandle of the Contact in 1on1 chatrooms
+     *
+     * The returned value is only valid for 1on1 chatrooms. For groupchats, it will
+     * return MEGACHAT_INVALID_HANDLE.
+     *
+     * @return The userhandle of the Contact
+     */
+    virtual MegaChatHandle getPeerHandle() const;
 };
 
 class MegaChatRoom
