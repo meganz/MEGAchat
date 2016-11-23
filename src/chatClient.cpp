@@ -131,25 +131,36 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
     return path;
 }
 
-std::string Client::dbPath() const
+std::string Client::dbPath(const std::string& sid) const
 {
+    if (sid.size() < 50)
+        throw std::runtime_error("dbPath: sid is too small");
     std::string path = mAppDir;
-
-    path.append("/karere-").append(mSid.substr(44)).append(".db");
+    path.reserve(56);
+    path.append("/karere-").append(sid.c_str()+44).append(".db");
     return path;
 }
 
-void Client::openDb()
+bool Client::openDb(const std::string& sid)
 {
-    std::string path = dbPath();
+    assert(!sid.empty());
+    std::string path = dbPath(sid);
     struct stat info;
     bool exists = (stat(path.c_str(), &info) == 0);
     if (!exists)
-        throw std::runtime_error("Asked to use local cache, but it does not exist");
+    {
+        KR_LOG_WARNING("Asked to use local cache, but it does not exist");
+        return false;
+    }
 
     int ret = sqlite3_open(path.c_str(), &db);
     if (ret != SQLITE_OK || !db)
-        throw std::runtime_error("Can't access application database at "+path);
+    {
+        KR_LOG_WARNING("Error opening database");
+        return false;
+    }
+    mSid = sid;
+    return true;
 }
 
 void Client::createDbSchema(sqlite3*& database)
@@ -228,21 +239,14 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
 
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
+    init(sid);
     if (!sid)
     {
-        return sdkLoginNewSession()
-        .then([this]()
-        {
-            return initWithNewSession();
-        });
+        return sdkLoginNewSession();
     }
     else
     {
-        return sdkLoginExistingSession(sid)
-        .then([this](void)
-        {
-            initWithExistingSession();
-        });
+        return sdkLoginExistingSession(sid);
     }
 }
 void Client::loadContactListFromApi()
@@ -256,9 +260,8 @@ void Client::loadContactListFromApi()
     mContactsLoaded = true;
 }
 
-promise::Promise<void> Client::initWithNewSession()
+promise::Promise<void> Client::initWithNewSession(const char* sid)
 {
-    const char* sid = api.sdk.dumpSession();
     assert(sid);
 
     mSid = sid;
@@ -285,61 +288,118 @@ promise::Promise<void> Client::initWithNewSession()
     });
 }
 
-promise::Promise<void> Client::initWithExistingSession()
+void Client::initWithDbSession(const char* sid)
 {
     try
     {
-        const char* sdkSid = api.sdk.dumpSession();
-        assert(sdkSid);
-        mSid = sdkSid;
-        openDb();
+        assert(sid);
+        if (!openDb(sid))
+        {
+            assert(mSid.empty());
+            mInitState = kInitErrNoCache;
+            return;
+        }
+        assert(db);
+        assert(!mSid.empty());
         mUserAttrCache.reset(new UserAttrCache(*this));
-        Id sdkHandle = getMyHandleFromSdk();
-        Id dbHandle = getMyHandleFromDb();
-        if (sdkHandle != dbHandle)
-            throw std::runtime_error("initWithExistingSession: own handle from db does not matche the one from SDK");
 
-        mMyHandle = sdkHandle;
+        mMyHandle = getMyHandleFromDb();
+        assert(mMyHandle);
 
         loadOwnKeysFromDb();
         contactList->loadFromDb();
-        loadContactListFromApi();
         chatd.reset(new chatd::Client(mMyHandle));
         chats->loadFromDb();
     }
-    KR_EXCEPTION_TO_PROMISE(KR);
-    return promise:: Void();
+    catch(std::runtime_error& e)
+    {
+        KR_LOG_ERROR("initWithDbSession: Error loading session from local cache: %s", e.what());
+        setInitState(kInitErrCorruptCache);
+        return;
+    }
+
+    setInitState(kInitHasOfflineSession);
+    return;
 }
 
-promise::Promise<void> Client::init(bool useCache)
+void Client::setInitState(unsigned char newState)
 {
-    try
-    {
-        if (useCache)
-        {
-            return initWithExistingSession();
-        }
-        else
-        {
-            return initWithNewSession();
-        }
-    }
-    catch(std::exception& e)
-    {
-        //TODO: Handle promise::Exception
-        return promise::Error(e.what());
-    }
+    if (newState == mInitState)
+        return;
+    mInitState = newState;
+    KR_LOG_DEBUG("Client reached init state %s", initStateStr());
+    app.onInitStateChange(mInitState);
 }
+
+void Client::init(const char* sid)
+{
+    if (sid)
+    {
+        initWithDbSession(sid);
+        if (mInitState == kInitErrNoCache)
+        {
+            wipeDb(sid);
+            setInitState(kInitWaitingNewSession);
+        }
+    }
+    else
+    {
+        setInitState(kInitWaitingNewSession);
+    }
+    api.sdk.addRequestListener(this);
+}
+
+void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
+{
+    if (!request)
+        return;
+    auto type = request->getType();
+    auto s = request->getSessionKey();
+    std::string reqSid;
+    if (s)
+    {
+        reqSid = s;
+    }
+    marshallCall([this, type, reqSid]()
+    {
+        if (type == mega::MegaRequest::TYPE_FETCH_NODES)
+        {
+            auto sid = api.sdk.dumpSession();
+            assert(sid);
+            if (mInitState == kInitHasOfflineSession)
+            {
+                //verify the SDK sid is the same as ours
+                if (mSid != sid)
+                {
+                    setInitState(kInitErrSidMismatch);
+                    return;
+                }
+                loadContactListFromApi();
+                setInitState(kInitHasOnlineSession);
+            }
+            else if (mInitState == kInitWaitingNewSession)
+            {
+                initWithNewSession(sid)
+                .then([this]()
+                {
+                    setInitState(kInitHasOnlineSession);
+                });
+            }
+        }
+    });
+}
+
 //TODO: We should actually wipe the whole app dir, but the log file may
 //be in that dir, and it is in use
-void Client::wipeDb()
+void Client::wipeDb(const std::string& sid)
 {
+    assert(!sid.empty());
     if (db)
     {
         sqlite3_close(db);
         db = nullptr;
     }
-    std::string path = dbPath();
+    std::string path = dbPath(sid);
     remove(path.c_str());
     struct stat info;
     if (stat(path.c_str(), &info) == 0)
@@ -348,8 +408,8 @@ void Client::wipeDb()
 
 void Client::createDb()
 {
-    wipeDb();
-    std::string path = dbPath();
+    wipeDb(mSid);
+    std::string path = dbPath(mSid);
     int ret = sqlite3_open(path.c_str(), &db);
     if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+mAppDir);
@@ -634,7 +694,7 @@ void Client::setupXmppReconnectHandler()
 
         if (mOwnPresence.status() == Presence::kOffline) //user wants to be offline
             return;
-        if (isTerminating) //no need to handle
+        if (mInitState == kInitTerminating) //no need to handle
             return;
         assert(xmpp_conn_get_state(*conn) == XMPP_STATE_DISCONNECTED);
         if (mReconnectController->state() & rh::kStateBitRunning)
@@ -687,12 +747,12 @@ void Client::notifyNetworkOnline()
 
 promise::Promise<void> Client::terminate(bool deleteDb)
 {
-    if (isTerminating)
+    if (mInitState == kInitTerminating)
     {
         KR_LOG_WARNING("Client::terminate: Already terminating");
         return promise::Promise<void>();
     }
-    isTerminating = true;
+    setInitState(kInitTerminating);
     api.sdk.removeGlobalListener(this);
     if (mReconnectConnStateHandler)
     {
@@ -706,7 +766,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     chatd->disconnect();
     if (deleteDb)
     {
-        wipeDb();
+        wipeDb(mSid);
     }
     else
     {
@@ -719,12 +779,14 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     //promise may free the client, and the resolve()-s of the input promises
     //(mega and conn) are within the client's code, so any code after the resolve()s
     //that tries to access the client will crash
-    .then([pms](int) mutable
+    .then([pms, this](int) mutable
     {
+        setInitState(kInitTerminated);
         marshallCall([pms]() mutable { pms.resolve(); });
     })
-    .fail([pms](const promise::Error& err) mutable
+    .fail([pms, this](const promise::Error& err) mutable
     {
+        setInitState(kInitTerminated);
         marshallCall([pms, err]() mutable { pms.reject(err); });
         return err;
     });
@@ -872,10 +934,12 @@ promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
     });
 }
 
-ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup, const std::string& aUrl,
-  unsigned char aShard, chatd::Priv aOwnPriv, const std::string& aTitle)
-:parent(aParent), mChatid(chatid), mUrl(aUrl), mShardNo(aShard), mIsGroup(aIsGroup),
-  mOwnPriv(aOwnPriv), mTitleString(aTitle)
+ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
+  const char* aUrl, unsigned char aShard, chatd::Priv aOwnPriv,
+  const std::string& aTitle)
+   :parent(aParent), mChatid(chatid), mUrl(aUrl ? aUrl : std::string()),
+    mShardNo(aShard), mIsGroup(aIsGroup),
+    mOwnPriv(aOwnPriv), mTitleString(aTitle)
 {}
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
@@ -926,7 +990,7 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    const std::string& aUrl, unsigned char aShard,
+    const char* aUrl, unsigned char aShard,
     chatd::Priv aOwnPriv, const std::string& title)
 :ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv, title),
 mHasTitle(!title.empty()), mRoomGui(nullptr)
@@ -978,7 +1042,7 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
     return list ? list->addPeerChatItem(*this) : nullptr;
 }
 
-PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
+PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* aUrl,
     unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv)
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer),
   mPeerPriv(peerPriv), mContact(parent.client.contactList->contactFromUserId(peer)),
@@ -1176,9 +1240,9 @@ void ChatRoomList::loadFromDb()
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
-            room = new PeerChatRoom(*this, chatid, url, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5));
+            room = new PeerChatRoom(*this, chatid, url.c_str(), stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5));
         else
-            room = new GroupChatRoom(*this, chatid, url, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.stringCol(6));
+            room = new GroupChatRoom(*this, chatid, url.c_str(), stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.stringCol(6));
         emplace(chatid, room);
     }
 }
@@ -2266,6 +2330,27 @@ Contact* ContactList::contactFromJid(const std::string& jid) const
 void Client::discoAddFeature(const char *feature)
 {
     conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
+}
+
+#define RETURN_ENUM_NAME(name) case name: return #name
+
+const char* Client::initStateToStr(unsigned char state)
+{
+    switch (state)
+    {
+        RETURN_ENUM_NAME(kInitCreated);
+        RETURN_ENUM_NAME(kInitWaitingNewSession);
+        RETURN_ENUM_NAME(kInitHasOfflineSession);
+        RETURN_ENUM_NAME(kInitHasOnlineSession);
+        RETURN_ENUM_NAME(kInitTerminating);
+        RETURN_ENUM_NAME(kInitTerminated);
+        RETURN_ENUM_NAME(kInitErrGeneric);
+        RETURN_ENUM_NAME(kInitErrNoCache);
+        RETURN_ENUM_NAME(kInitErrCorruptCache);
+        RETURN_ENUM_NAME(kInitErrSidMismatch);
+    default:
+        return "(unknown)";
+    }
 }
 
 rtcModule::IEventHandler* Client::onIncomingCallRequest(

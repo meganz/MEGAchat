@@ -582,7 +582,7 @@ private:
     void loop();
 
     void init(MegaChatApi *chatApi, mega::MegaApi *megaApi);
-    bool resumeSession;
+    const char* resumeSession;
     MegaChatError *initResult;
     MegaChatRequestPrivate *initRequest;
 

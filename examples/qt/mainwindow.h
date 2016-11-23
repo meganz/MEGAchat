@@ -53,6 +53,7 @@ public:
     virtual karere::IApp::IContactListHandler* contactListHandler() { return this; }
     virtual karere::IApp::IChatListHandler* chatListHandler() { return this; }
     IChatHandler* createChatHandler(karere::ChatRoom& room);
+    virtual void onInitStateChange(int newState);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
     {
         return new CallAnswerGui(*this, ans);

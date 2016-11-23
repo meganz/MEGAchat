@@ -90,7 +90,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->waiter = new MegaWaiter();
     this->mClient = NULL;   // created at loop()
 
-    this->resumeSession = false;
+    this->resumeSession = nullptr;
     this->initResult = NULL;
     this->initRequest = NULL;
 
@@ -1785,23 +1785,11 @@ void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
             api->pauseActionPackets();
             marshallCall([this, api]()
             {
-                mClient->init(resumeSession)
-                .then([this, api]()
+                mClient->init(resumeSession);
+                if (mClient->hasInitError())
                 {
-                    initResult = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    if (initRequest)
-                    {
-                        fireOnChatRequestFinish(initRequest, initResult);
-                        API_LOG_INFO("Initialization complete");
-                        fireOnChatRoomUpdate(NULL);
-                        initRequest = NULL;
-                        initResult = NULL;
-                    }
-                    api->resumeActionPackets();
-                })
-                .fail([this, api](const promise::Error& e)
-                {
-                    initResult = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                    initResult = new MegaChatErrorPrivate(mClient->initStateStr(),
+                        mClient->initState(), karere::Client::kInitErrorType);
                     if (initRequest)
                     {
                         fireOnChatRequestFinish(initRequest, initResult);
@@ -1810,7 +1798,18 @@ void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                         initResult = NULL;
                     }
                     api->resumeActionPackets();
-                });
+                }
+
+                initResult = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                if (initRequest)
+                {
+                    fireOnChatRequestFinish(initRequest, initResult);
+                    API_LOG_INFO("Initialization complete");
+                    fireOnChatRoomUpdate(NULL);
+                    initRequest = NULL;
+                    initResult = NULL;
+                }
+                api->resumeActionPackets();
             });
             break;
     }
