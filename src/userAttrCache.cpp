@@ -46,30 +46,56 @@ Buffer* getDataNotImpl(const ::mega::MegaRequest& req)
 UserAttrDesc gUserAttrDescs[9] =
 { //getData func | changeMask
   //0 - avatar
-    { [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getFile()); },
-      ::mega::MegaUser::CHANGE_TYPE_AVATAR },
+    {
+      ::mega::MegaApi::USER_ATTR_AVATAR,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getFile()); },
+      ::mega::MegaUser::CHANGE_TYPE_AVATAR
+    },
   //1 - first name
-    { [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
-      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME },
+    {
+      ::mega::MegaApi::USER_ATTR_FIRSTNAME,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME
+    },
   //2 - last name
-    { [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
-      ::mega::MegaUser::CHANGE_TYPE_LASTNAME },
+    {
+      ::mega::MegaApi::USER_ATTR_LASTNAME,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+      ::mega::MegaUser::CHANGE_TYPE_LASTNAME
+    },
   //3 - authring
-    { &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_AUTHRING },
+    {
+      ::mega::MegaApi::USER_ATTR_AUTHRING,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_AUTHRING
+    },
   //4 - last interaction
-    { &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_LSTINT },
+    {
+      ::mega::MegaApi::USER_ATTR_LAST_INTERACTION,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_LSTINT
+    },
   //5 - ed25519 signing key
-    { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
-      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255 },
+    {
+      ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY,
+      [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
+      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255
+    },
   //6 - cu25519 encryption key
-    { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
-      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255 },
+    {
+      ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY,
+      [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
+      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255
+    },
   //7 - keyring - not used by userAttrCache
-    { &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_KEYRING },
+    {
+      ::mega::MegaApi::USER_ATTR_KEYRING,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_KEYRING
+    },
   //FULLNAME - virtual attrib with no DB backing
-    { &getDataNotImpl,
-      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME,
-      UserAttrDesc::kNoDb }
+    {
+      USER_ATTR_FULLNAME,
+      &getDataNotImpl,
+      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME
+    }
 };
 
 UserAttrCache::~UserAttrCache()
@@ -132,21 +158,21 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
 {
     int changed = user.getChanges();
 //  printf("user %s changed %u\n", Id(user.getHandle()).toString().c_str(), changed);
-    for (size_t t = 0; t < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); t++)
+    for (size_t i = 0; i < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); i++)
     {
-        auto& desc = gUserAttrDescs[t];
+        auto& desc = gUserAttrDescs[i];
         if ((changed & desc.changeMask) == 0)
             continue; //the change is not of this attrib type
-
-        UserAttrPair key(user.getHandle(), t);
+        int type = desc.type;
+        UserAttrPair key(user.getHandle(), type);
         auto it = find(key);
         if (it == end()) //we don't have such attribute
         {
-            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(t));
+            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(type));
             continue;
         }
         auto& item = it->second;
-        if (!(desc.flags & UserAttrDesc::kNoDb))
+        if ((type & USER_ATTR_FLAG_COMPOSITE) == 0)
         {
             dbInvalidateItem(key); //immediately invalidate persistent cache
         }
@@ -287,7 +313,7 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
 
 void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    if (!mIsLoggedIn)
+    if (!mIsLoggedIn && !(key.attrType & USER_ATTR_FLAG_COMPOSITE))
         return;
     switch (key.attrType)
     {
