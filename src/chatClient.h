@@ -642,10 +642,26 @@ public:
 
     /**
      * @brief Initializes karere, opening or creating the local db cache
-     * @param useCache - \c true if the mega SDK was logged in with an existing
-     * session (the karere cache MUST exist in that case, otherwise an
-     * error is returned), or \false if the SDK just created a new session, in which
-     * case the cache db is created and initialized from scratch.
+     * @param sid - an optional session id to restore from. If one is specified
+     * (sid is not \c NULL), the client will try to initialize for offline work
+     * from an existing karere cache for that sid. If loading the local cache was
+     * successful, the client will transition to \c kInitHasOfflineSession.
+     * If a karere cache for that sid does not exist or is not valid, the client
+     * will signal its init state as \c kInitErrNoCache and then continue
+     * to \c kInitWaitingNewSession, effectively behaving as if a new session
+     * is being created by the SDK (see the \c NULL-sid case below).
+     * The app, upon seeing \c kInitErrNoCache must do the complete version of the
+     * \c fetchnodes operation, and not the fast one that fetches only newly queued
+     * actionpackets. This is in order to replay all actionpackets and associated
+     * events, so that karere can rebuild its cache from scratch, as if this was
+     * a new session.
+     * If \c sid is \c NULL, then the client will transition to \c kInitWaitingForNewSession,
+     * and wait for a fetchnodes completion from the SDK. Then it will initialize
+     * its state and cache from scratch, from information provided by the SDK.
+     * In both cases, when fetchnodes completes, the client will transition to
+     * \c kInitHasOnlineSession.
+     * @note In any case, if there is no existing karere session cache,
+     * offline operation is not possible.
      */
     void init(const char* sid);
     unsigned char initState() const { return mInitState; }
