@@ -204,7 +204,7 @@ class Client;
  *  Usage:
  * \c gLogger.addUserLogger("karere-remote", new RemoteLogger);
  */
-class RemoteLogger: public Logger::ILoggerBackend
+class RemoteLogger: public karere::Logger::ILoggerBackend
 {
 public:
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);

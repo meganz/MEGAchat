@@ -22,9 +22,11 @@ set (SRCS
     chatClient.cpp
     userAttrCache.cpp
     contactList.cpp
+    url.cpp
     chatd.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
     strongvelope/strongvelope.cpp
+    presenced.cpp
     megachatapi.cpp
     megachatapi_impl.cpp
 )
