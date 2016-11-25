@@ -12,6 +12,7 @@
 #include <base/promise.h>
 #include <base/timers.hpp>
 #include "chatdMsg.h"
+#include "url.h"
 
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
@@ -33,21 +34,6 @@ typedef int32_t Idx;
 class Chat;
 class ICrypto;
 
-class Url
-{
-protected:
-    uint16_t getPortFromProtocol() const;
-public:
-    std::string protocol;
-    std::string host;
-    uint16_t port;
-    std::string path;
-    bool isSecure;
-    Url(const std::string& url) { parse(url); }
-    Url(): isSecure(false) {}
-    void parse(const std::string& url);
-    bool isValid() const { return !host.empty(); }
-};
 
 /** @brief Reason codes passed to Listener::onManualSendRequired() */
 enum ManualSendReason: uint8_t
@@ -247,7 +233,7 @@ protected:
     std::set<karere::Id> mChatIds;
     ws_t mWebSocket = nullptr;
     State mState = kStateNew;
-    Url mUrl;
+    karere::Url mUrl;
     megaHandle mInactivityTimer = 0;
     int mInactivityBeats = 0;
     bool mTerminating = false;

@@ -45,7 +45,7 @@ KR_LOGGER_CONFIG_START(
         krLogChannel_textchat, krLogChannel_megasdk, krLogChannel_services,
         krLogChannel_strongvelope,
         krLogChannel_http, krLogChannel_chatd, krLogChannel_gui,
-        krLogChannel_uacache, krLogChannel_megachatapi)
+        krLogChannel_uacache, krLogChannel_megachatapi, krLogChannel_presenced)
     KR_LOGCHANNEL(default, NULL, Debug, 0)
     KR_LOGCHANNEL(xmpp, "xmpp", Warn, krLogNoLevel | 7)
     KR_LOGCHANNEL(strophe, "strophe", Warn, krLogNoLeadingSpace)
@@ -61,6 +61,8 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(gui, "gui", Debug, 10)
     KR_LOGCHANNEL(uacache, "uacache", Warn, 2)
     KR_LOGCHANNEL(megachatapi, "megachatapi", Debug, 3)
+    KR_LOGCHANNEL(presenced, "pres", Debug, 14)
+
     KR_LOGGER_CONFIG(setFlags(krLogNoLevel))
     KR_LOGGER_CONFIG(logToConsole())
 KR_LOGGER_CONFIG_END()
