@@ -29,7 +29,10 @@ public:
         kAway = 2,
         kOnline = 3,
         kBusy = 4,
-        kLast = kBusy
+        kLast = kBusy,
+        kFlagsMask = 0xf0,
+        kFlagCanWebrtc = 0x80,
+        kFlagsIsMobile = 0x40
     };
     Presence(Code pres=kOffline): mPres(pres){}
     Code code() const { return mPres; }
@@ -58,6 +61,8 @@ enum: uint8_t
     OP_KEEPALIVE = 0,
     OP_HELLO = 1,
     OP_STATUSOVERRIDE = 2, //notifies own presence, sets 'manual' presence
+    OP_ADDPEERS = 4,
+    OP_DELPEERS = 5,
     OP_PEERSTATUS = 6, //notifies about presence of user
     OP_PING = 3 //pings with status
 };
@@ -69,7 +74,7 @@ private:
 public:
     Command(): Buffer(){}
     Command(Command&& other): Buffer(std::forward<Buffer>(other)) {assert(!other.buf() && !other.bufSize() && !other.dataSize());}
-    Command(uint8_t opcode, uint8_t reserve=10): Buffer(reserve) { write(0, opcode); }
+    Command(uint8_t opcode, uint8_t reserve=10): Buffer(reserve+1) { write(0, opcode); }
     template<class T>
     Command&& operator+(const T& val)
     {
@@ -97,7 +102,6 @@ public:
         kStateNew = 0,
         kStateDisconnected,
         kStateConnecting,
-        kStateLoggingIn,
         kStateConnected
     };
     enum: uint16_t { kProtoVersion = 0x0001 };
@@ -113,8 +117,8 @@ protected:
     int mInactivityBeats = 0;
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mLoginPromise;
-    uint8_t mMobileFlag;
+    uint8_t mFlags;
+    karere::SetOfIds mCurrentPeers;
     void initWebsocketCtx();
     void setConnState(State newState);
     static void websockConnectCb(ws_t ws, void* arg);
@@ -127,20 +131,22 @@ protected:
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
-    promise::Promise<void> login();
+    void login();
     bool sendBuf(Buffer&& buf);
     void logSend(const Command& cmd);
     void setOnlineState(State state);
     void pingWithPresence();
+    void syncPeers();
 public:
-    Client(Listener* listener, bool isMobile);
+    Client(Listener* listener, uint8_t flags);
     State state() { return mState; }
     bool isOnline() const
     {
         return (mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
     }
     void setPresence(Presence pres, bool force);
-    promise::Promise<void> connect(const std::string& url, Presence pres, bool force);
+    promise::Promise<void>
+    connect(const std::string& url, Presence pres, bool force, karere::SetOfIds&& peers);
     void disconnect();
     void reset();
     ~Client();
@@ -173,7 +179,6 @@ static inline const char* connStateToStr(Client::State state)
     {
     case Client::kStateDisconnected: return "Disconnected";
     case Client::kStateConnecting: return "Connecting";
-    case Client::kStateLoggingIn: return "Login";
     case Client::kStateConnected: return "Connected";
     default: return "(invalid)";
     }
