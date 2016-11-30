@@ -34,8 +34,8 @@ namespace presenced
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
-Client::Client(Listener* listener, bool isMobile)
-: mListener(listener), mMobileFlag(isMobile ? 0x80 : 0)
+Client::Client(Listener* listener, uint8_t flags)
+: mListener(listener), mFlags(flags)
 {
     if (!sWebsockCtxInitialized)
         initWebsocketCtx();
@@ -88,8 +88,11 @@ void Client::initWebsocketCtx()
         PRESENCED_LOG_WARNING("Websocket '" event "' callback: ws param is not equal to self->mWebSocket, ignoring"); \
     }
 
-promise::Promise<void> Client::connect(const std::string& url, Presence pres, bool force)
+promise::Promise<void>
+Client::connect(const std::string& url, Presence pres, bool force,
+                karere::SetOfIds&& currentPeers)
 {
+    mCurrentPeers = std::move(currentPeers);
     return reconnect(url)
     .then([this, pres, force]()
     {
@@ -97,13 +100,26 @@ promise::Promise<void> Client::connect(const std::string& url, Presence pres, bo
     });
 }
 
+void Client::syncPeers()
+{
+    Command cmd(OP_ADDPEERS, mCurrentPeers.size()*8);
+    for (auto& peer: mCurrentPeers)
+    {
+        cmd.append<uint64_t>(peer);
+    }
+    if (cmd.dataSize() > 1)
+    {
+        sendCommand(std::move(cmd));
+    }
+}
+
 void Client::websockConnectCb(ws_t ws, void* arg)
 {
     Client& self = *static_cast<Client*>(arg);
     ASSERT_NOT_ANOTHER_WS("connect");
     assert(!self.mConnectPromise.done());
+    self.setConnState(kStateConnected);
     self.mConnectPromise.resolve();
-    self.setConnState(kStateLoggingIn);
 }
 
 void Client::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preason,
@@ -174,7 +190,7 @@ void Client::setPresence(Presence pres, bool force)
     else
     {
         //FIXME
-        mPingCode = mMobileFlag;
+        mPingCode = mFlags;
         if (pres.code() == Presence::kOnline)
             mPingCode |= 0x01;
         else if (pres.code() == Presence::kBusy)
@@ -183,7 +199,8 @@ void Client::setPresence(Presence pres, bool force)
     }
 }
 
-Promise<void> Client::reconnect(const std::string& url)
+Promise<void>
+Client::reconnect(const std::string& url)
 {
     try
     {
@@ -343,12 +360,10 @@ void Client::logSend(const Command& cmd)
     }
 }
 
-promise::Promise<void> Client::login()
+void Client::login()
 {
-    mLoginPromise = Promise<void>();
-    setOnlineState(kStateLoggingIn);
     sendCommand(Command(OP_HELLO) + (uint16_t)kProtoVersion);
-    return mLoginPromise;
+    syncPeers();
 }
 
 Client::~Client()
@@ -410,11 +425,6 @@ void Client::handleMessage(const StaticBuffer& buf)
                 PRESENCED_LOG_DEBUG("recv STATUSOVERRIDE - presence %s", Presence::toString(pres));
 
                 CALL_LISTENER(onOwnPresence, pres);
-                if (mState == kStateLoggingIn) //last presence in response to HELLO is our own presence
-                {
-                    mLoginPromise.resolve();
-                    setConnState(kStateConnected);
-                }
             }
             default:
             {
