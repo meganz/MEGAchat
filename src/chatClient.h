@@ -3,7 +3,6 @@
 
 #include "karereCommon.h"
 #include "sdkApi.h"
-#include "contactList.h"
 #include <memory>
 #include <map>
 #include <type_traits>
@@ -11,6 +10,7 @@
 #include <serverListProviderForwards.h>
 #include "userAttrCache.h"
 #include "chatd.h"
+#include "presenced.h"
 #include "IGui.h"
 #include <base/trackDelete.h>
 
@@ -249,6 +249,7 @@ public:
         chatd::Priv mPriv;
         UserAttrCache::Handle mNameAttrCbHandle;
         std::string mName;
+        Presence mPresence;
         void subscribeForNameChanges();
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
@@ -259,6 +260,8 @@ public:
 
         /** @brief The current provilege of the member within the groupchat */
         chatd::Priv priv() const { return mPriv; }
+        /** @brief The presence of the peer */
+        Presence presence() const { return mPresence; }
         friend class GroupChatRoom;
     };
     /**
@@ -280,6 +283,7 @@ public:
     void updateAllOnlineDisplays(Presence pres);
     void addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(uint64_t userid);
+    void updatePeerPresence(uint64_t peer, Presence pres);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     IApp::IGroupChatListItem* addAppItem();
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
@@ -291,6 +295,7 @@ public:
 
     friend class ChatRoomList;
     friend class Member;
+    friend class Client;
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* aUrl,
                   unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
@@ -357,11 +362,12 @@ public:
 };
 
 /** @brief Represents a karere contact. Also handles presence change events. */
-class Contact: public IPresenceListener, public karere::DeleteTrackable
+class Contact: public karere::DeleteTrackable
 {
 /** @cond PRIVATE */
 protected:
     ContactList& mClist;
+    Presence mPresence;
     uint64_t mUserid;
     PeerChatRoom* mChatRoom;
     UserAttrCache::Handle mUsernameAttrCbId;
@@ -371,13 +377,14 @@ protected:
     int mVisibility;
     IApp::IContactListHandler* mAppClist; //cached, because we often need to check if it's null
     IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
-    std::shared_ptr<XmppContact> mXmppContact; //after constructor returns, we are guaranteed to have this set to a vaild instance
     bool mIsInitializing = true;
     void updateTitle(const std::string& str);
     void notifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
+    void updatePresence(Presence pres);
     friend class PeerChatRoom;
+    friend class Client;
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
@@ -386,11 +393,6 @@ public:
 
     /** @brief The contactlist object which this contact is member of */
     ContactList& contactList() const { return mClist; }
-
-    /** @brief The XMPP contact associated with this Mega contact. It provides
-     * the presence notifications
-     */
-    XmppContact& xmppContact() { return *mXmppContact; }
 
     /** @brief Returns the 1on1 chatroom with this contact, if one exists.
      * Otherwise returns NULL
@@ -417,9 +419,6 @@ public:
     /** @brief Returns the email of this contact */
     const std::string& email() const { return mEmail; }
 
-    /** @brief Retutns the bare JID, representing this contact in XMPP */
-    const std::string& jid() const { return mXmppContact->bareJid(); }
-
     /** @brief Returns the time since this contact was added */
     int64_t since() const { return mSince; }
 
@@ -431,25 +430,17 @@ public:
     int visibility() const { return mVisibility; }
 
     /** @brief The presence of the contact */
-    Presence presence() const { return mXmppContact->presence(); }
+    Presence presence() const { return mPresence; }
 
     /** @cond PRIVATE */
-    /** @ xmpp notification */
-    virtual void onPresence(Presence pres)
-    {
-        if (mChatRoom && (mChatRoom->chatdOnlineState() != chatd::kChatStateOnline))
-            pres = Presence::kOffline;
-        updateAllOnlineDisplays(pres);
-    }
     void onVisibilityChanged(int newVisibility);
     void updateAllOnlineDisplays(Presence pres)
     {
         if (mDisplay)
             mDisplay->onPresenceChanged(pres);
         if (mChatRoom)
-            mChatRoom->notifyPresenceChange(pres);
+            mChatRoom->notifyPresenceChange(mChatRoom->calculatePresence(pres));
     }
-    friend class ContactList;
 };
 
 /** @brief This is the karere contactlist class. It maps user ids
@@ -498,17 +489,20 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener, ::mega::MegaRequestListener
+class Client: public rtcModule::IGlobalEventHandler,
+              public ::mega::MegaGlobalListener,
+              public ::mega::MegaRequestListener,
+              public presenced::Listener
 {
 /** @cond PRIVATE */
 protected:
     std::string mAppDir;
 //these must be before the db member, because they are initialized during the init of db member
-    Id mMyHandle = mega::UNDEF;
+    Id mMyHandle = Id::null(); //mega::UNDEF
     std::string mSid;
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     std::string mMyEmail;
-    bool mConnected = false;
+    bool mConnected = false; //TODO: maybe integrate this in the mInitState
 public:
     enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
     enum: unsigned char
@@ -527,7 +521,7 @@ public:
 
         /** Karere has sucessfully initialized and the SDK/API is online.
          * Note that the karere client itself (chat, presence) is not online.
-         * It has to beThey have to be explicitly connected via \c connect()
+         * It has to be explicitly connected via \c connect()
          */
         kInitHasOnlineSession,
 
@@ -570,6 +564,15 @@ public:
         kInitErrSidMismatch
     } InitState;
 
+/** @brief Client capability flags. There are defined by the presenced protocol */
+    enum: uint8_t
+    {
+        /** Client has webrtc capabilities */
+        kCanWebrtc = 0x80,
+        /** Client is a mobile application */
+        kIsMobile = 0x40
+    };
+
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
     std::unique_ptr<chatd::Client> chatd;
@@ -586,8 +589,10 @@ public:
     std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
     bool skipInactiveChatrooms = true;
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
+    presenced::Client& presenced() { return mPresencedClient; }
     bool contactsLoaded() const { return mContactsLoaded; }
     bool connected() const { return mConnected; }
+    bool hasInitError() const { return mInitState >= kInitErrFirst; }
     std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
     /** @endcond PRIVATE */
 
@@ -624,7 +629,7 @@ public:
      * delete the karere.db file and re-create it from scratch.
      */
     Client(::mega::MegaApi& sdk, IApp& app, const std::string& appDir,
-           Presence pres);
+           uint8_t caps);
 
     virtual ~Client();
 
@@ -665,13 +670,21 @@ public:
      */
     void init(const char* sid);
     unsigned char initState() const { return mInitState; }
-    bool hasInitError() const { return mInitState >= kInitErrFirst; }
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
+
     /** @brief Does the actual connection to chatd, xmpp and gelb. Assumes the
      * Mega SDK is already logged in. This must be called after
-     * \c initNewSession() or \c initExistingSession() completes */
-    promise::Promise<void> connect();
+     * \c initNewSession() or \c initExistingSession() completes
+     * @param pres The presence which should be set. This is a forced presence,
+     * i.e. it will be preserved even if the client disconnects. To disable
+     * setting such a forced presence and assume whatever presence was last used,
+     * and/or use only dynamic presence, set this param to \c Presence::kClear
+     */
+    promise::Promise<void> connect(Presence pres=Presence::kClear);
+
+    /** @brief Disconnects the client from chatd and presenced */
+    void disconnect();
 
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits
@@ -697,17 +710,6 @@ public:
     promise::Promise<void> terminate(bool deleteDb=false);
 
     /**
-     * @brief Ping a target peer to check whether he/she is alive
-     *
-     * @param [peerJid] {const char*} peer's Jid. If NULL, then no 'to'
-     * attribute will be included in the stanza, effectively sending the ping to the server
-     * @param [intervalSec] {int} optional with default value as 100, interval in seconds to do ping.
-     *
-     * This performs a xmpp ping to the target jid to check if the user is alive or not.
-     */
-    strophe::StanzaPromise pingPeer(const char* peerJid);
-
-    /**
     * @brief set user's chat presence.
     * Set user's presence state
     *
@@ -715,12 +717,6 @@ public:
     * is the same. Normally is \c false
     */
     promise::Promise<void> setPresence(const Presence pres, bool force = false);
-
-    /** Returns the XMPP contactlist, as obtained from the XMPP server */
-    XmppContactList& xmppContactList()
-    {
-        return mXmppContactList;
-    }
 
     /** @brief Creates a group chatroom with the specified peers, privileges
      * and title.
@@ -747,12 +743,10 @@ protected:
     /** @brief Our password */
     std::string mPassword;
     /** @brief Client's contact list */
-    XmppContactList mXmppContactList;
-    typedef FallbackServerProvider<HostPortServerInfo> XmppServerProvider;
-    std::unique_ptr<XmppServerProvider> mXmppServerProvider;
-    std::unique_ptr<rh::IRetryController> mReconnectController;
-    xmpp_ts mLastPingTs = 0;
+    presenced::Client mPresencedClient;
+    std::string mPresencedUrl;
     unsigned char mInitState = kInitCreated;
+    UserAttrCache::Handle mOwnNameAttrHandle;
     void setInitState(unsigned char newState);
     std::string dbPath(const std::string& sid) const;
     bool openDb(const std::string& sid);
@@ -766,9 +760,9 @@ protected:
     void loadOwnKeysFromDb();
     void loadContactListFromApi();
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
-    void setupXmppReconnectHandler();
-    promise::Promise<void> connectXmpp(const std::shared_ptr<HostPortServerInfo>& server);
-    void setupXmppHandlers();
+    promise::Promise<void> connectToPresenced(Presence pres);
+    promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
+    void setOwnPresence(Presence pres, bool force);
     promise::Promise<int> initializeContactList();
     /** @brief A convenience method to log in the associated Mega SDK instance,
      *  using IApp::ILoginDialog to ask the user/app for credentials. This
@@ -787,23 +781,23 @@ protected:
      */
     promise::Promise<void> sdkLoginExistingSession(const char* sid);
 
-    /**
-     * @brief send response to ping request.
-     *
-     * This performs an xmpp response to the received xmpp ping request.
-     */
-    void sendPong(const std::string& peerJid, const std::string& messageId);
-
-    //rtcModule::IGlobalEventHandler interface
+    // rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
             const std::shared_ptr<rtcModule::ICallAnswer> &call);
-    virtual void discoAddFeature(const char *feature);
-    //mega::MegaGlobalListener interface, called by worker thread
+
+    // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);
     virtual void onUsersUpdate(mega::MegaApi*, mega::MegaUserList* users);
     virtual void onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs);
-    //MegaRequestListener interface
-    void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
+
+    // MegaRequestListener interface
+    virtual void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
+
+    // presenced listener interface
+    virtual void onOwnPresence(Presence pres);
+    virtual void onConnStateChange(presenced::Client::State state);
+    virtual void onPresence(Id userid, Presence pres);
+    //==
     friend class ChatRoom;
 /** @endcond PRIVATE */
 };

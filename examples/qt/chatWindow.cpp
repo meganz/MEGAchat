@@ -233,7 +233,7 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     auto widget = widgetFromMessage(msg);
     if (!widget)
     {
-        CHAT_LOG_WARNING("onMessageEdited: No widget is associated with message with idx %d", idx);
+        GUI_LOG_WARNING("onMessageEdited: No widget is associated with message with idx %d", idx);
         return;
     }
     if (msg.isManagementMessage())
@@ -264,7 +264,7 @@ void ChatWindow::onEditRejected(const chatd::Message& msg, bool oriIsConfirmed)
     auto widget = widgetFromMessage(msg);
     if (!widget)
     {
-        CHAT_LOG_ERROR("onEditRejected: No widget associated with message");
+        GUI_LOG_ERROR("onEditRejected: No widget associated with message");
         return;
     }
 //    widget->setText(*widget->mMessage); //restore original
@@ -294,7 +294,7 @@ void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg, bool oriMsgIsSendin
         }
         if (!widget)
         {
-            CHAT_LOG_WARNING("onUnsentEditLoaded: Could not find the orignal message among the ones being in sending state");
+            GUI_LOG_WARNING("onUnsentEditLoaded: Could not find the orignal message among the ones being in sending state");
             return;
         }
         assert(widget->mMessage->dataEquals(editmsg.buf(), editmsg.dataSize()));
@@ -309,7 +309,7 @@ void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg, bool oriMsgIsSendin
         widget = widgetFromMessage(msg);
         if (!widget)
         {
-            CHAT_LOG_WARNING("onUnsentEditLoaded: No widget associated with msgid %s", msg.id().toString().c_str());
+            GUI_LOG_WARNING("onUnsentEditLoaded: No widget associated with msgid %s", msg.id().toString().c_str());
             return;
         }
         widget->setText(msg);
@@ -492,7 +492,7 @@ ManualSendMsgWidget::ManualSendMsgWidget(ChatWindow& chatWin, chatd::Message* aM
     }
     else
     {
-        CHAT_LOG_ERROR("Don't know how to handle manual send reason %d", reason);
+        GUI_LOG_ERROR("Don't know how to handle manual send reason %d", reason);
     }
     connect(ui.mSendBtn, SIGNAL(clicked()), this, SLOT(onSendBtn()));
     connect(ui.mDiscardBtn, SIGNAL(clicked()), this, SLOT(onDiscardBtn()));

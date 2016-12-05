@@ -166,9 +166,9 @@ void MainWindow::onOnlineStatusBtn(bool)
         "}");
     list->exec();
 }
-void MainWindow::onOwnPresence(Presence pres)
+void MainWindow::onOwnPresence(Presence pres, bool inProgress)
 {
-    ui.mOnlineStatusBtn->setText((pres.val() & Presence::kInProgress)
+    ui.mOnlineStatusBtn->setText(inProgress
         ?kOnlineSymbol_InProgress
         :kOnlineSymbol_Set);
     ui.mOnlineStatusBtn->setStyleSheet(
@@ -186,7 +186,8 @@ void MainWindow::setOnlineStatus()
         GUI_LOG_WARNING("setOnlineStatus: action data is not a valid presence code");
         return;
     }
-    client().setPresence(pres);
+    client().setPresence(pres, false);
+//  client().setPresence(Presence::kClear, true);
 }
 
 SettingsDialog::SettingsDialog(MainWindow &parent)
@@ -250,7 +251,7 @@ QColor gAvatarColors[16] = {
 };
 
 QString gOnlineIndColors[karere::Presence::kLast+1] =
-{  "lightgray", "red", "orange", "lightgreen", "lightblue" };
+{ "black", "lightgray", "orange", "lightgreen", "red" };
 
 
 karere::IApp::IContactListItem*
