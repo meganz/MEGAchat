@@ -4,6 +4,7 @@
 #include "db.h"
 #include <codecvt>
 #include <locale>
+#include <mega/types.h>
 
 using namespace promise;
 using namespace std;
@@ -440,6 +441,11 @@ void UserAttrCache::onLogin()
         if (item.second->pending != kCacheFetchNotPending)
             fetchAttr(item.first, item.second);
     }
+}
+
+void UserAttrCache::onLogOut()
+{
+    mIsLoggedIn = false;
 }
 
 promise::Promise<Buffer*>

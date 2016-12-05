@@ -45,8 +45,7 @@
 #endif
 
 #define KARERE_GELB_HOST "gelb.karere.mega.nz"
-#define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
-#define KARERE_XMPP_DOMAIN "karere.mega.nz"
+#define KARERE_PRESENCED_URL "mcd270n310.userstorage.mega.co.nz"
 #define KARERE_LOGIN_TIMEOUT 15000
 #define KARERE_RECONNECT_DELAY_MAX 10000
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
@@ -61,9 +60,6 @@
 
 #define KARERE_TURN_USERNAME "inoo20jdnH"
 #define KARERE_TURN_PASSWORD "02nNKDBkkS"
-
-#define KARERE_FALLBACK_XMPP_SERVERS "[\
-{\"host\":\"xmpp270n001.karere.mega.nz\",\"port\":443}]"
 
 #if defined(__ANDROID__) && !defined(HAVE_STD_TO_STRING)
 //Android is missing std::to_string

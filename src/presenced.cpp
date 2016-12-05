@@ -11,6 +11,7 @@ using namespace promise;
 using namespace karere;
 
 #define ID_CSTR(id) id.toString().c_str()
+#define PRESENCED_LOG_LISTENER_CALLS
 
 #ifdef PRESENCED_LOG_LISTENER_CALLS
     #define LOG_LISTENER_CALL(fmtString,...) PRESENCED_LOG_DEBUG(fmtString, ##__VA_ARGS__)
@@ -34,8 +35,8 @@ namespace presenced
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
-Client::Client(Listener* listener, uint8_t flags)
-: mListener(listener), mFlags(flags)
+Client::Client(Listener& listener, uint8_t flags)
+: mListener(&listener), mFlags(flags)
 {
     if (!sWebsockCtxInitialized)
         initWebsocketCtx();
@@ -89,23 +90,23 @@ void Client::initWebsocketCtx()
     }
 
 promise::Promise<void>
-Client::connect(const std::string& url, Presence pres, bool force,
-                karere::SetOfIds&& currentPeers)
+Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
+    Presence forcedPres, Presence dynPres)
 {
+    mMyHandle = myHandle;
+    mDynamicPresence = dynPres;
+    mForcedPresence = forcedPres;
     mCurrentPeers = std::move(currentPeers);
-    return reconnect(url)
-    .then([this, pres, force]()
-    {
-        setPresence(pres, force);
-    });
+    return reconnect(url);
 }
 
-void Client::syncPeers()
+void Client::pushPeers()
 {
-    Command cmd(OP_ADDPEERS, mCurrentPeers.size()*8);
+    Command cmd(OP_ADDPEERS, 4 + mCurrentPeers.size()*8);
+    cmd.append<uint32_t>(mCurrentPeers.size());
     for (auto& peer: mCurrentPeers)
     {
-        cmd.append<uint64_t>(peer);
+        cmd.append<uint64_t>(peer.first);
     }
     if (cmd.dataSize() > 1)
     {
@@ -167,6 +168,7 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     }
     else
     {
+        CALL_LISTENER(onOwnPresence, Presence::kOffline);
         setConnState(kStateDisconnected);
         reconnect(); //start retry controller
     }
@@ -181,22 +183,32 @@ void Client::disableInactivityTimer()
     }
 }
 
-void Client::setPresence(Presence pres, bool force)
+bool Client::setPresence(Presence pres, bool force)
 {
     if (force)
     {
-        sendCommand(Command(OP_STATUSOVERRIDE)+pres.code());
+        mForcedPresence = pres;
+        PRESENCED_LOG_DEBUG("setOwnPresence-> %s(forced)", pres.toString());
+        return sendCommand(Command(OP_STATUSOVERRIDE)+pres.code());
     }
     else
     {
+        PRESENCED_LOG_DEBUG("setOwnPresence-> %s", pres.toString());
         //FIXME
-        mPingCode = mFlags;
-        if (pres.code() == Presence::kOnline)
-            mPingCode |= 0x01;
-        else if (pres.code() == Presence::kBusy)
-            mPingCode |= 0x02;
-        pingWithPresence();
+        mDynamicPresence = pres;
+        return sendCommand(Command(OP_SETSTATUS) + presenceToDynFlags(pres));
     }
+}
+
+uint8_t Client::presenceToDynFlags(Presence pres)
+{
+    uint8_t code = mFlags;
+    uint8_t presCode = pres.code();
+    if (presCode == Presence::kOnline)
+        code |= 0x01;
+    else if (presCode == Presence::kBusy)
+        code |= 0x02;
+    return code;
 }
 
 Promise<void>
@@ -230,7 +242,7 @@ Client::reconnect(const std::string& url)
             {
                 Client& self = *static_cast<Client*>(arg);
                 ASSERT_NOT_ANOTHER_WS("message");
-                self.mInactivityBeats = 0;
+//                self.mInactivityBeats = 0;
                 self.handleMessage(StaticBuffer(msg, len));
             }, this);
 
@@ -257,6 +269,8 @@ void Client::enableInactivityTimer()
 
     mInactivityTimer = setInterval([this]()
     {
+        sendCommand(Command(OP_KEEPALIVE));
+/*
         if (mInactivityBeats++ > 3)
         {
             mState = kStateDisconnected;
@@ -264,7 +278,8 @@ void Client::enableInactivityTimer()
             PRESENCED_LOG_WARNING("Connection inactive for too long, reconnecting...");
             reconnect();
         }
-    }, 10000);
+*/
+    }, 20000);
 }
 
 void Client::disconnect() //should be graceful disconnect
@@ -315,15 +330,21 @@ bool Client::sendCommand(const Command& cmd)
         PRESENCED_LOG_DEBUG("  Can't send, we are offline");
     return result;
 }
-
 void Client::logSend(const Command& cmd)
 {
-    auto op = cmd.opcode();
+    char buf[512];
+    cmd.toString(buf, 512);
+    krLoggerLog(krLogChannel_presenced, krLogLevelDebug, "send %s\n", buf);
+}
+
+void Command::toString(char* buf, size_t bufsize) const
+{
+    auto op = opcode();
     switch (op)
     {
-        case OP_PING:
+        case OP_SETSTATUS:
         {
-            auto code = cmd.read<uint8_t>(1);
+            auto code = read<uint8_t>(1);
             const char* flags;
             if ((code & 0x03) == 0)
                 flags = "Away";
@@ -333,37 +354,48 @@ void Client::logSend(const Command& cmd)
                 flags = "DnD";
             else
                 flags = "invalid(both DnD and Online set)";
-
-            krLoggerLog(krLogChannel_presenced, krLogLevelDebug,
-                "send PING - %s%s\n", flags, (code & 0x80)?"(mobile)":"");
+            snprintf(buf, bufsize, "SETSTATUS - %s%s", flags, (code & 0x80)?"(mobile)":"");
+            break;
         }
         case OP_STATUSOVERRIDE:
         {
-            krLoggerLog(krLogChannel_presenced, krLogLevelDebug,
-                "send STAUSOVERRIDE - presence: %s\n",
-                Presence::toString(cmd.read<uint8_t>(1)));
+            snprintf(buf, bufsize, "STATUSOVERRIDE - presence: %s",
+                Presence::toString(read<uint8_t>(1)));
             break;
         }
         case OP_HELLO:
         {
-            krLoggerLog(krLogChannel_presenced, krLogLevelDebug,
-                "send HELLO - version %0x04X\n",
-                cmd.read<uint16_t>(0));
+            snprintf(buf, bufsize, "HELLO - version 0x%04X",
+                read<uint16_t>(1));
+            break;
+        }
+        case OP_ADDPEERS:
+        {
+            snprintf(buf, bufsize, "ADDPEERS - %u peers", read<uint32_t>(1));
+            break;
+        }
+        case OP_DELPEERS:
+        {
+            snprintf(buf, bufsize, "DELPEERS - %u peers", read<uint32_t>(1));
             break;
         }
         default:
         {
-            krLoggerLog(krLogChannel_presenced, krLogLevelDebug, "send %s\n",
-                cmd.opcodeName());
+            snprintf(buf, bufsize, "%s", opcodeName());
             break;
         }
     }
+    buf[bufsize-1] = 0; //terminate, just in case
 }
 
 void Client::login()
 {
     sendCommand(Command(OP_HELLO) + (uint16_t)kProtoVersion);
-    syncPeers();
+    if (mForcedPresence.isValid())
+        sendCommand(Command(OP_STATUSOVERRIDE) + mForcedPresence.code());
+    sendCommand(Command(OP_SETSTATUS) + presenceToDynFlags(mDynamicPresence));
+
+    pushPeers();
 }
 
 Client::~Client()
@@ -406,8 +438,8 @@ void Client::handleMessage(const StaticBuffer& buf)
         {
             case OP_KEEPALIVE:
             {
-                //CHATD_LOG_DEBUG("Server heartbeat received");
-                pingWithPresence();
+                PRESENCED_LOG_DEBUG("recv KEEPALIVE");
+                sendCommand(Command(OP_KEEPALIVE));
                 break;
             }
             case OP_PEERSTATUS:
@@ -416,15 +448,21 @@ void Client::handleMessage(const StaticBuffer& buf)
                 READ_ID(userid, 1);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
-                CALL_LISTENER(onPresence, userid, pres);
+                if (userid != mMyHandle)
+                    CALL_LISTENER(onPresence, userid, pres);
+                else
+                    CALL_LISTENER(onOwnPresence, pres);
                 break;
             }
             case OP_STATUSOVERRIDE:
             {
                 READ_8(pres, 0);
                 PRESENCED_LOG_DEBUG("recv STATUSOVERRIDE - presence %s", Presence::toString(pres));
-
-                CALL_LISTENER(onOwnPresence, pres);
+                //FIXME - maybe we should have an ACK
+                mForcedPresence = Presence::kInvalid;
+                if (pres != Presence::kClear)
+                    CALL_LISTENER(onOwnPresence, pres);
+                break;
             }
             default:
             {
@@ -445,11 +483,6 @@ void Client::handleMessage(const StaticBuffer& buf)
     }
 }
 
-void Client::pingWithPresence()
-{
-    sendBuf(Command(OP_PING)+mPingCode);
-}
-
 void Client::setConnState(State newState)
 {
     if (newState == mState)
@@ -460,5 +493,38 @@ void Client::setConnState(State newState)
 #endif
     mListener->onConnStateChange(mState);
 }
-
+void Client::addPeer(karere::Id peer)
+{
+    int result = mCurrentPeers.insert(peer);
+    if (result == 1) //refcount = 1, wasnt there before
+    {
+        sendCommand(Command(OP_ADDPEERS)+(uint32_t)(1)+peer);
+    }
+}
+void Client::removePeer(karere::Id peer, bool force)
+{
+    auto it = mCurrentPeers.find(peer);
+    if (it == mCurrentPeers.end())
+    {
+        PRESENCED_LOG_DEBUG("removePeer: Unknown peer %s", peer.toString().c_str());
+        return;
+    }
+    if (--it->second > 0)
+    {
+        if (!force)
+        {
+            return;
+        }
+        else
+        {
+            PRESENCED_LOG_DEBUG("removePeer: Forcing delete of peer %s with refcount > 0", peer.toString().c_str());
+        }
+    }
+    else //refcount reched zero
+    {
+        assert(it->second == 0);
+    }
+    mCurrentPeers.erase(it);
+    sendCommand(Command(OP_DELPEERS)+(uint32_t)(1)+peer);
+}
 }

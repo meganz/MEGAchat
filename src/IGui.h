@@ -3,12 +3,14 @@
 
 #include <rtcModule/IRtcModule.h>
 #include <chatd.h>
+#include <presenced.h>
 
 namespace karere
 {
 class ChatRoom;
 class PeerChatRoom;
 class GroupChatRoom;
+class Contact;
 
 /**
  * @brief The karere chat application class that the app needs to
@@ -45,7 +47,7 @@ public:
          *
          * @param state The presence code
          */
-        virtual void onPresenceChanged(karere::Presence state) = 0;
+        virtual void onPresenceChanged(Presence state) = 0;
 
         /**
          * @brief The number of unread messages for that chat has changed. It can be used
@@ -245,6 +247,7 @@ public:
          * @param userid - the user handle of the user who left the chat.
          */
         virtual void onUserLeave(uint64_t userid) {}
+        virtual void onPeerPresence(Presence pres) {}
     };
 
     /** @brief Manages contactlist items that in turn receive events
@@ -317,7 +320,7 @@ public:
      * @brief Called by karere when our own online state/presence has changed.
      * @param pres
      */
-    virtual void onOwnPresence(Presence pres) {} //may include flags
+    virtual void onOwnPresence(Presence pres, bool inProgress) {} //may include flags
 
     /**
      * @brief Called when an incoming contact request has been received.

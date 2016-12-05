@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include "chatClient.h"
-#include "contactList.h"
 #include "ITypes.h" //for IPtr
 #ifdef _WIN32
     #include <winsock2.h>
@@ -36,7 +35,6 @@
 #include <locale>
 //#include <chatdICrypto.h>
 #include "strongvelope/strongvelope.h"
-#include "chatRoom.h"
 #include "base64.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -49,36 +47,20 @@ namespace karere
 
 std::string encodeFirstName(const std::string& first);
 
-void Client::sendPong(const std::string& peerJid, const std::string& messageId)
-{
-    strophe::Stanza pong(*conn);
-    pong.setAttr("type", "result")
-        .setAttr("to", peerJid)
-        .setAttr("from", conn->fullJid())
-        .setAttr("id", messageId);
-
-    conn->send(pong);
-}
 
 /* Warning - the database is not initialzed at construction, but only after
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
  */
-Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir,
-               Presence pres)
+Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint8_t caps)
  :mAppDir(appDir),
   conn(new strophe::Connection(services_strophe_get_ctx())),
   api(sdk), app(aApp),
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
-  mOwnPresence(pres),
-  mXmppContactList(*this),
-  mXmppServerProvider(new XmppServerProvider("https://" KARERE_GELB_HOST, "xmpp", KARERE_FALLBACK_XMPP_SERVERS))
+  mOwnPresence(Presence::kInvalid),
+  mPresencedClient(*this, caps)
 {
-    try
-    {
-        app.onOwnPresence(Presence::kOffline);
-    } catch(...){}
     api.sdk.addGlobalListener(this);
 }
 
@@ -385,6 +367,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                     setInitState(kInitHasOnlineSession);
                 });
             }
+
         }
     });
 }
@@ -462,12 +445,13 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect()
+promise::Promise<void> Client::connect(Presence pres)
 {
-    KR_LOG_DEBUG("Client::connect: Connecting to account '%s'...", SdkString(api.sdk.getMyEmail()).c_str());
+    mOwnPresence = pres;
+    KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
-    mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
+    mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)
     {
         if (!buf || buf->empty())
@@ -478,13 +462,26 @@ promise::Promise<void> Client::connect()
     });
 
     connectToChatd();
-
-    mConnected = true;
-    return mXmppServerProvider->getServer()
-    .then([this](const std::shared_ptr<HostPortServerInfo>& server) mutable
+    auto pms = connectToPresenced(mOwnPresence);
+    if (!pms.failed())
     {
-        return connectXmpp(server);
-    });
+        mConnected = true; //we may not be actually connected to presenced, mConnected signifies that we are in online mode
+    }
+    return pms;
+}
+
+void Client::disconnect()
+{
+    if (!mConnected)
+        return;
+
+    assert(mOwnNameAttrHandle.isValid());
+    mUserAttrCache->removeCb(mOwnNameAttrHandle);
+    mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
+    mUserAttrCache->onLogOut();
+    chatd->disconnect();
+    mPresencedClient.disconnect();
+    mConnected = false;
 }
 
 karere::Id Client::getMyHandleFromSdk()
@@ -583,166 +580,112 @@ void Client::loadOwnKeysFromDb()
 }
 
 
-promise::Promise<void> Client::connectXmpp(const std::shared_ptr<HostPortServerInfo>& server)
+promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
 {
-//we assume gui.onOwnPresence(Presence::kOffline) has been called at application start
-    app.onOwnPresence(mOwnPresence.val() | Presence::kInProgress);
-    assert(server);
-    SdkString xmppPass = api.sdk.dumpXMPPSession();
-    if (!xmppPass)
-        return promise::Error("SDK returned NULL session id");
-    if (xmppPass.size() < 16)
-        throw std::runtime_error("Mega session id is shorter than 16 bytes");
-    ((char&)xmppPass.c_str()[16]) = 0;
-
-    //xmpp_conn_set_keepalive(*conn, 10, 4);
-    // setup authentication information
-    std::string jid = useridToJid(mMyHandle);
-    jid.append("/kn_").append(rtcModule::makeRandomString(10));
-    xmpp_conn_set_jid(*conn, jid.c_str());
-    xmpp_conn_set_pass(*conn, xmppPass.c_str());
-    KR_LOG_DEBUG("xmpp user = '%s', pass = '%s'", jid.c_str(), xmppPass.c_str());
-    setupXmppHandlers();
-    setupXmppReconnectHandler();
-    Promise<void> pms = static_cast<Promise<void>&>(mReconnectController->start());
-    return pms.then([this]()
+    if (mPresencedUrl.empty())
     {
-        KR_LOG_INFO("XMPP login successful");
-// create and register disco strophe plugin
-        conn->registerPlugin("disco", new disco::DiscoPlugin(*conn, "Karere Native"));
+        return api.call(&::mega::MegaApi::getChatPresenceURL)
+        .then([this, forcedPres](ReqResult result) -> Promise<void>
+        {
+            auto url = result->getLink();
+            if (!url)
+                return promise::Error("No presenced URL received from API");
+            mPresencedUrl = url;
+            return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
+        });
+    }
+    else
+    {
+        return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
+    }
+}
+
+promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence forcedPres)
+{
+//we assume app.onOwnPresence(Presence::kOffline) has been called at application start
+    presenced::IdRefMap peers;
+    for (auto& contact: *contactList)
+    {
+        peers.insert(contact.first);
+    }
+    for (auto& chat: *chats)
+    {
+        if (!chat.second->isGroup())
+            continue;
+        auto& members = static_cast<GroupChatRoom*>(chat.second)->peers();
+        for (auto& peer: members)
+        {
+            peers.insert(peer.first);
+        }
+    }
+    if (forcedPres.isValid())
+    {
+        mOwnPresence = forcedPres;
+        app.onOwnPresence(forcedPres, true);
+    }
+    return mPresencedClient.connect(url, mMyHandle, std::move(peers), forcedPres);
 
 // Create and register the rtcmodule plugin
 // the MegaCryptoFuncs object needs api.userData (to initialize the private key etc)
 // To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
-        rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*this), KARERE_DEFAULT_TURN_SERVERS);
-        conn->registerPlugin("rtcmodule", rtc);
+//        rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*this), KARERE_DEFAULT_TURN_SERVERS);
+//        conn->registerPlugin("rtcmodule", rtc);
 
-/*
-// create and register text chat plugin
-        mTextModule = new TextModule(*this);
-        conn->registerPlugin("textchat", mTextModule);
-*/
-        KR_LOG_DEBUG("webrtc plugin initialized");
-        return mXmppContactList.ready();
-    })
-    .then([this]()
-    {
-        KR_LOG_DEBUG("XMPP contactlist initialized");
-        //startKeepalivePings();
-    });
+//        KR_LOG_DEBUG("webrtc plugin initialized");
+//        return mXmppContactList.ready();
 }
 
-void Client::setupXmppHandlers()
+void Client::setOwnPresence(Presence pres, bool force)
 {
-    conn->addHandler([this](strophe::Stanza stanza, void*, bool &keep) mutable
-    {
-            sendPong(stanza.attr("from"), stanza.attr("id"));
-    }, "urn::xmpp::ping", "iq", nullptr, nullptr);
+    mOwnPresence = pres;
+    mPresencedClient.setPresence(pres, force);
+    app.onOwnPresence(pres, true);
 }
 
-void Client::setupXmppReconnectHandler()
+void Client::onOwnPresence(Presence pres)
 {
-    mReconnectController.reset(karere::createRetryController("xmpp",
-        [this](int no) -> promise::Promise<void>
-    {
-        if (no < 2)
-        {
-            auto& host = mXmppServerProvider->lastServer()->host;
-            KR_LOG_INFO("Connecting to xmpp server %s...", host.c_str());
-            app.onOwnPresence(mOwnPresence.val()|Presence::kInProgress);
-            return conn->connect(host.c_str(), 0);
-        }
-        else
-        {
-            return mXmppServerProvider->getServer()
-            .then([this](std::shared_ptr<HostPortServerInfo> server)
-            {
-                KR_LOG_WARNING("Connecting to new xmpp server: %s...", server->host.c_str());
-                app.onOwnPresence(mOwnPresence | Presence::kInProgress);
-                return conn->connect(server->host.c_str(), 0);
-            });
-        }
-    },
-    [this]()
-    {
-        xmpp_disconnect(*conn, -1);
-        app.onOwnPresence(Presence::kOffline);
-    },
-    KARERE_LOGIN_TIMEOUT, 60000, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
-
-    mReconnectConnStateHandler = conn->addConnStateHandler(
-       [this](xmpp_conn_event_t event, int error,
-        xmpp_stream_error_t* stream_error, bool& keepHandler) mutable
-    {
-        if (event == XMPP_CONN_CONNECT)
-        {
-            marshallCall([this]() //notify async, safer
-            {
-                mXmppContactList.fetch(); //waits for roster
-                setPresence(mOwnPresence, true); //initiates roster fetch
-                mXmppContactList.ready()
-                .then([this]()
-                {
-                    app.onOwnPresence(mOwnPresence);
-                });
-            });
-            return;
-        }
-        //we have a disconnect
-        xmppContactList().notifyOffline();
-        app.onOwnPresence(Presence::kOffline);
-
-        if (mOwnPresence.status() == Presence::kOffline) //user wants to be offline
-            return;
-        if (mInitState == kInitTerminating) //no need to handle
-            return;
-        assert(xmpp_conn_get_state(*conn) == XMPP_STATE_DISCONNECTED);
-        if (mReconnectController->state() & rh::kStateBitRunning)
-            return;
-
-        if (mReconnectController->state() == rh::kStateFinished) //we had previous retry session, reset the retry controller
-            mReconnectController->reset();
-        mReconnectController->start(1); //need the 1ms delay to start asynchronously, in order to process(i.e. ignore) all stale libevent messages for the old connection so they don't get interpreted in the context of the new connection
-    });
-#if 0
-    //test
-    mega::setInterval([this]()
-    {
-        printf("simulating disconnect\n");
-        xmpp_disconnect(*conn, -1);
-    }, 6000);
-#endif
+    mOwnPresence = pres;
+    app.onOwnPresence(pres, false);
 }
 
+void Contact::updatePresence(Presence pres)
+{
+    mPresence = pres;
+    updateAllOnlineDisplays(pres);
+}
+
+void Client::onPresence(Id userid, Presence pres)
+{
+    auto it = contactList->find(userid);
+    if (it != contactList->end())
+    {
+        it->second->updatePresence(pres);
+    }
+    for (auto& item: *chats)
+    {
+        auto& chat = *item.second;
+        if (!chat.isGroup())
+            continue;
+        static_cast<GroupChatRoom&>(chat).updatePeerPresence(userid, pres);
+    }
+}
+void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
+{
+    auto it = mPeers.find(userid);
+    if (it == mPeers.end())
+        return;
+    it->second->mPresence = pres;
+    if (mRoomGui)
+        mRoomGui->onPeerPresence(pres);
+}
 
 void Client::notifyNetworkOffline()
 {
-    KR_LOG_WARNING("Network offline notification received, starting reconnect attempts");
-    if (xmpp_conn_get_state(*conn) == XMPP_STATE_DISCONNECTED)
-    {
-        //if we are disconnected, the retry controller must never be at work, so not 'finished'
-        assert(mReconnectController->state() != rh::kStateFinished);
-        if (mReconnectController->currentAttemptNo() > 2)
-            mReconnectController->restart();
-    }
-    else
-    {
-        conn->disconnect(-1); //this must trigger the conn state handler which will start the reconnect controller
-    }
 }
 
 
 void Client::notifyNetworkOnline()
 {
-    if (xmpp_conn_get_state(*conn) == XMPP_STATE_CONNECTED)
-        return;
-
-    if (mReconnectController->state() == rh::kStateFinished)
-    {
-        KR_LOG_WARNING("notifyNetworkOnline: reconnect controller is in 'finished' state, but connection is not connected. Resetting reconnect controller.");
-        mReconnectController->reset();
-    }
-    mReconnectController->restart();
 }
 
 promise::Promise<void> Client::terminate(bool deleteDb)
@@ -754,16 +697,9 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     }
     setInitState(kInitTerminating);
     api.sdk.removeGlobalListener(this);
-    if (mReconnectConnStateHandler)
-    {
-        conn->removeConnStateHandler(mReconnectConnStateHandler);
-        mReconnectConnStateHandler = 0;
-    }
-    if (mReconnectController)
-        mReconnectController->abort();
     if (rtc)
         rtc->hangupAll();
-    chatd->disconnect();
+    disconnect();
     if (deleteDb)
     {
         wipeDb(mSid);
@@ -774,108 +710,25 @@ promise::Promise<void> Client::terminate(bool deleteDb)
         db = nullptr;
     }
     promise::Promise<void> pms;
-    conn->disconnect(2000)
     //resolve output promise asynchronously, because the callbacks of the output
     //promise may free the client, and the resolve()-s of the input promises
     //(mega and conn) are within the client's code, so any code after the resolve()s
     //that tries to access the client will crash
-    .then([pms, this](int) mutable
-    {
-        setInitState(kInitTerminated);
-        marshallCall([pms]() mutable { pms.resolve(); });
-    })
-    .fail([pms, this](const promise::Error& err) mutable
-    {
-        setInitState(kInitTerminated);
-        marshallCall([pms, err]() mutable { pms.reject(err); });
-        return err;
-    });
+    setInitState(kInitTerminated);
+    marshallCall([pms]() mutable { pms.resolve(); });
     return pms;
-}
-
-void Client::startKeepalivePings()
-{
-    setInterval([this]()
-    {
-        if (!xmpp_conn_is_authenticated(*conn))
-            return;
-        if (mLastPingTs) //waiting for pong
-        {
-            if (xmpp_time_stamp()-mLastPingTs > 9000)
-            {
-                KR_LOG_WARNING("Keepalive ping timeout");
-                notifyNetworkOffline();
-            }
-        }
-        else
-        {
-            mLastPingTs = xmpp_time_stamp();
-            pingPeer(nullptr)
-            .then([this](strophe::Stanza s)
-            {
-                mLastPingTs = 0;
-                return 0;
-            });
-        }
-    }, 10000);
-}
-
-
-strophe::StanzaPromise Client::pingPeer(const char* peerJid)
-{
-    strophe::Stanza ping(*conn);
-    ping.setName("iq")
-        .setAttr("type", "get")
-        .c("ping")
-                .setAttr("xmlns", "urn:xmpp:ping");
-    if (peerJid)
-        ping.setAttr("to", peerJid);
-
-    return conn->sendIqQuery(ping, "png")
-    .fail([](const promise::Error& err)
-    {
-        KR_LOG_ERROR("Error receiving pong\n");
-        return err;
-    });
 }
 
 promise::Promise<void> Client::setPresence(Presence pres, bool force)
 {
-    if ((pres.status() == mOwnPresence.status()) && !force)
-        return promise::Void();
-    auto previous = mOwnPresence;
-    mOwnPresence = pres;
-
-    if (pres.status() == Presence::kOffline)
+    if (!mPresencedClient.setPresence(pres, force))
+        return promise::Error("Not connected");
+    else
     {
-        mReconnectController->abort();
-        conn->disconnect(4000);
-        app.onOwnPresence(Presence::kOffline);
-        return promise::Void();
+        app.onOwnPresence(pres, true);
+        return promise::_Void();
     }
-    if (previous.status() == Presence::kOffline) //we were disconnected
-    {
-        mReconnectController->reset();
-        app.onOwnPresence(pres.val() | Presence::kInProgress);
-        return static_cast<promise::Promise<void>&>(mReconnectController->start());
-    }
-    app.onOwnPresence(pres.val() | Presence::kInProgress);
-    strophe::Stanza msg(*conn);
-    msg.setName("presence")
-       .c("show")
-           .t(pres.toString())
-           .up()
-       .c("status")
-           .t(pres.toString())
-           .up();
-
-    return conn->sendQuery(msg)
-    .then([this, pres](strophe::Stanza)
-    {
-        app.onOwnPresence(pres.status());
-    });
 }
-
 
 void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
@@ -973,8 +826,7 @@ void PeerChatRoom::connect()
 promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
 {
     assert(mAppChatHandler);
-    auto jid = karere::useridToJid(mPeer);
-    parent.client.rtc->startMediaCall(mAppChatHandler->callHandler(), jid, av);
+//    parent.client.rtc->startMediaCall(mAppChatHandler->callHandler(), jid, av);
     return promise::_Void();
 }
 
@@ -1148,6 +1000,8 @@ void GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv, bool saveToDb)
     else
     {
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
+        if (parent.client.initState() >= Client::kInitHasOnlineSession)
+            parent.client.presenced().addPeer(userid);
     }
     if (saveToDb)
     {
@@ -1166,6 +1020,7 @@ bool GroupChatRoom::removeMember(uint64_t userid)
     }
     delete it->second;
     mPeers.erase(it);
+    parent.client.presenced().removePeer(userid);
     sqliteQuery(parent.client.db, "delete from chat_peers where chatid=? and userid=?",
                 mChatid, userid);
     if (!mHasTitle)
@@ -1707,7 +1562,7 @@ void ChatRoom::removeAppChatHandler()
 
 Presence PeerChatRoom::presence() const
 {
-    return calculatePresence(mContact.xmppContact().presence());
+    return calculatePresence(mContact.presence());
 }
 
 void PeerChatRoom::notifyPresenceChange(Presence pres)
@@ -1787,7 +1642,7 @@ void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
     if (state == chatd::kChatStateOnline)
     {
-        notifyPresenceChange(mContact.xmppContact().presence());
+        notifyPresenceChange(presence());
     }
     else
     {
@@ -2199,18 +2054,11 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         updateTitle(encodeFirstName(email));
         assert(!mTitleString.empty());
     }
+    auto& client = mClist.client;
+    if ((client.initState() >= Client::kInitHasOnlineSession)
+         && (mVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE))
+        client.presenced().addPeer(mUserid);
 
-    mXmppContact = mClist.client.xmppContactList().addContact(*this);
-    auto pres = mXmppContact->presence();
-    if (pres != Presence::kOffline)
-    {
-        auto wptr = getDelTracker();
-        marshallCall([wptr, this, pres]()
-        {
-            wptr.throwIfDeleted();
-            onPresence(pres);
-        });
-    }
     mIsInitializing = false;
 }
 
@@ -2253,12 +2101,17 @@ void Contact::notifyTitleChanged()
 
 Contact::~Contact()
 {
-    mClist.client.userAttrCache().removeCb(mUsernameAttrCbId);
-    if (mXmppContact)
-        mXmppContact->setPresenceListener(nullptr);
+    auto& client = mClist.client;
+    client.userAttrCache().removeCb(mUsernameAttrCbId);
 
-    if (mDisplay)
-        mClist.client.app.contactListHandler()->removeContactItem(*mDisplay);
+    if (client.initState() < Client::kInitTerminating)
+    {
+        client.presenced().removePeer(mUserid, true);
+        if (mDisplay)
+        {
+            client.app.contactListHandler()->removeContactItem(*mDisplay);
+        }
+    }
 }
 
 promise::Promise<ChatRoom*> Contact::createChatRoom()
@@ -2294,7 +2147,7 @@ void Contact::attachChatRoom(PeerChatRoom& room)
     if (mChatRoom)
         throw std::runtime_error("attachChatRoom[room "+Id(room.chatid()).toString()+ "]: contact "+
             Id(mUserid).toString()+" already has a chat room attached");
-    CHAT_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", Id(room.chatid()).toString().c_str(), Id(mUserid).toString().c_str());
+    KR_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", Id(room.chatid()).toString().c_str(), Id(mUserid).toString().c_str());
     setChatRoom(room);
 }
 uint64_t Client::useridFromJid(const std::string& jid)
@@ -2327,9 +2180,8 @@ Contact* ContactList::contactFromJid(const std::string& jid) const
         return it->second;
 }
 
-void Client::discoAddFeature(const char *feature)
+void Client::onConnStateChange(presenced::Client::State state)
 {
-    conn->plugin<disco::DiscoPlugin>("disco").addFeature(feature);
 }
 
 #define RETURN_ENUM_NAME(name) case name: return #name

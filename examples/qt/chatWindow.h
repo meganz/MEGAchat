@@ -444,7 +444,7 @@ protected:
         item->setSizeHint(widget->size());
         if (msg.isSending()) //we need to add it to the actual end of the list
         {
-            CHAT_LOG_DEBUG("Adding unsent message widget of msgxid %s", msg.id().toString().c_str());
+            GUI_LOG_DEBUG("Adding unsent message widget of msgxid %s", msg.id().toString().c_str());
             ui.mMessageList->addItem(item);
         }
         else
@@ -488,7 +488,7 @@ protected:
         }
         ui.mOnlineIndicator->setStyleSheet(
             QString("border-radius: 4px; background-color: ")+
-            gOnlineIndColors[pres.val()]);
+            gOnlineIndColors[pres.code()]);
     }
     //we are online - we need to have fetched all new messages to be able to send unsent ones,
     //because the crypto layer needs to have received the most recent keys
@@ -598,7 +598,7 @@ public:
         auto widget = widgetFromMessage(msg);
         if (!widget)
         {
-            CHAT_LOG_ERROR("onMessageConfirmed: No widget assigned for message with msgxid %s", msgxid.toString().c_str());
+            GUI_LOG_ERROR("onMessageConfirmed: No widget assigned for message with msgxid %s", msgxid.toString().c_str());
             return;
         }
 #ifndef NDEBUG

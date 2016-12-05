@@ -59,7 +59,7 @@ public:
         return new CallAnswerGui(*this, ans);
     }
     virtual karere::IApp::ILoginDialog* createLoginDialog();
-    virtual void onOwnPresence(karere::Presence pres);
+    virtual void onOwnPresence(karere::Presence pres, bool inProgress);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest &req);
 protected:
     karere::IApp::IContactListItem* addItem(bool front, karere::Contact* contact,
@@ -205,7 +205,6 @@ public:
         text.append(tr("Email: "));
         text.append(QString::fromStdString(mContact.email())).append(lf);
         text.append(tr("User handle: ")).append(QString::fromStdString(karere::Id(mContact.userId()).toString())).append(lf);
-        text.append(tr("XMPP jid: ")).append(QString::fromStdString(mContact.jid())).append(lf);
         if (mContact.chatRoom())
             text.append(tr("Chat handle: ")).append(QString::fromStdString(karere::Id(mContact.chatRoom()->chatid()).toString()));
         else

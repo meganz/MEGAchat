@@ -132,6 +132,7 @@ protected:
 //==
     void onUserAttrChange(mega::MegaUser& user);
     void onLogin();
+    void onLogOut();
     friend struct UserAttrCacheItem;
     friend class Client;
 public:

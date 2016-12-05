@@ -118,7 +118,7 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
 
 void MegaChatApiImpl::loop()
 {
-    mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), Presence::kOnline);
+    mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), karere::Client::kIsMobile);
 
     while (true)
     {
@@ -245,7 +245,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
                 {
                      delete mClient;
-                     mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline);
+                     mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), karere::Client::kIsMobile);
 
                      MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                      fireOnChatRequestFinish(request, megaChatError);
@@ -1815,11 +1815,14 @@ void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
     }
 }
 
-void MegaChatApiImpl::onOwnPresence(Presence pres)
+void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
 {
+    if (inProgress)
+        return;
+
     if (pres.status() == this->status)
     {
-        API_LOG_DEBUG("onOwnPresence() notifies the same status: %s (flags: %d)", pres.toString(), pres.flags());
+        API_LOG_DEBUG("onOwnPresence() notifies the same status: %s", pres.toString());
         return;
     }
 
