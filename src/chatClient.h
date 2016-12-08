@@ -565,7 +565,6 @@ public:
     } InitState;
 
     sqlite3* db = nullptr;
-    std::shared_ptr<strophe::Connection> conn;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
     rtcModule::IRtcModule* rtc = nullptr;
@@ -597,15 +596,6 @@ public:
 
     /** @brief Our own display name */
     const std::string& myName() const { return mMyName; }
-
-    /** @brief Utulity function to convert a jid to a user handle */
-    static uint64_t useridFromJid(const std::string& jid);
-
-    /** @brief The XMPP resource of our XMPP connection */
-    std::string getResource() const
-    {
-        return strophe::getResourceFromJid(conn->fullJid());
-    }
 
     /**
      * @brief Creates a karere Client.
@@ -774,9 +764,11 @@ protected:
      */
     promise::Promise<void> sdkLoginExistingSession(const char* sid);
 
+#ifndef KARERE_DISABLE_WEBRTC
     // rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
             const std::shared_ptr<rtcModule::ICallAnswer> &call);
+#endif
 
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);

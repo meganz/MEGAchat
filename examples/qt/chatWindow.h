@@ -18,9 +18,18 @@
 #include <QToolTip>
 #include <chatdDb.h>
 #include <chatClient.h>
-#include "callGui.h"
 #include <mega/base64.h> //for jid base32 conversion
 #include <strongvelope/strongvelope.h>
+#ifndef KARERE_DISABLE_WEBRTC
+    #include "callGui.h"
+#else
+    namespace rtcmodule
+    {
+        class ICall{};
+    }
+    class CallGui{};
+#endif
+
 namespace Ui
 {
 class ChatWindow;

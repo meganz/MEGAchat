@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include "chatClient.h"
-#include "ITypes.h" //for IPtr
 #ifdef _WIN32
     #include <winsock2.h>
     #include <direct.h>
@@ -33,7 +32,6 @@
 #include <asyncTools.h>
 #include <codecvt> //for nonWhitespaceStr()
 #include <locale>
-//#include <chatdICrypto.h>
 #include "strongvelope/strongvelope.h"
 #include "base64.h"
 #include <sys/types.h>
@@ -54,7 +52,6 @@ std::string encodeFirstName(const std::string& first);
  */
 Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint8_t caps)
  :mAppDir(appDir),
-  conn(new strophe::Connection(services_strophe_get_ctx())),
   api(sdk), app(aApp),
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
@@ -717,8 +714,12 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     }
     setInitState(kInitTerminating);
     api.sdk.removeGlobalListener(this);
+
+#ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
         rtc->hangupAll();
+#endif
+
     disconnect();
     if (deleteDb)
     {
@@ -2170,35 +2171,6 @@ void Contact::attachChatRoom(PeerChatRoom& room)
     KR_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", Id(room.chatid()).toString().c_str(), Id(mUserid).toString().c_str());
     setChatRoom(room);
 }
-uint64_t Client::useridFromJid(const std::string& jid)
-{
-    auto end = jid.find('@');
-    if (end != 13)
-    {
-        KR_LOG_WARNING("useridFromJid: Invalid Mega JID '%s'", jid.c_str());
-        return mega::UNDEF;
-    }
-
-    uint64_t userid;
-#ifndef NDEBUG
-    auto len =
-#endif
-    mega::Base32::atob(jid.c_str(), (byte*)&userid, end);
-    assert(len == 8);
-    return userid;
-}
-
-Contact* ContactList::contactFromJid(const std::string& jid) const
-{
-    auto userid = Client::useridFromJid(jid);
-    if (userid == mega::UNDEF)
-        return nullptr;
-    auto it = find(userid);
-    if (it == this->end())
-        return nullptr;
-    else
-        return it->second;
-}
 
 void Client::onConnStateChange(presenced::Client::State state)
 {
@@ -2225,11 +2197,13 @@ const char* Client::initStateToStr(unsigned char state)
     }
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 rtcModule::IEventHandler* Client::onIncomingCallRequest(
         const std::shared_ptr<rtcModule::ICallAnswer> &ans)
 {
     return app.onIncomingCall(ans);
 }
+#endif
 
 std::string encodeFirstName(const std::string& first)
 {

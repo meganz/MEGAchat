@@ -2110,7 +2110,11 @@ void MegaChatRequestPrivate::setText(const char *text)
 MegaChatCallPrivate::MegaChatCallPrivate(const shared_ptr<rtcModule::ICallAnswer> &ans)
 {
     mAns = ans;
+#ifndef KARERE_DISABLE_WEBRTC
     this->peer = mAns->call()->peerJid().c_str();
+#else
+    this->peer = nullptr;
+#endif
     status = 0;
     tag = 0;
     videoReceiver = NULL;

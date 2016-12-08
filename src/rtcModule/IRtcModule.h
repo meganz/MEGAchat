@@ -20,6 +20,20 @@
  * You should have received a copy of the license along with this
  * program.
  */
+#ifdef KARERE_DISABLE_WEBRTC
+namespace rtcModule
+{
+class IVideoRenderer;
+class IEventHandler {};
+class IGlobalEventHandler {};
+class ICryptoFunctions;
+class ICall {};
+class ICallAnswer {};
+class IRtcModule;
+class RtcModule;
+}
+
+#else
 
 #include "mstrophepp.h" //only needed for IPlugin
 #include "karereCommon.h" //for AvFlags
@@ -527,5 +541,6 @@ RTCM_API void globalCleanup();
 
 }
 
+#endif
 #endif
 

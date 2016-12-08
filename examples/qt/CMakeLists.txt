@@ -33,7 +33,7 @@ endif()
 
 add_subdirectory(../../src karere)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${KARERE_INCLUDE_DIRS})
-add_definitions(-DHAVE_KARERE_LOGGER ${LIBMEGA_DEFINES})
+add_definitions(${KARERE_DEFINES})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(SYSLIBS)
 if (CLANG_STDLIB)
