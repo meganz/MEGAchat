@@ -159,9 +159,21 @@ void Client::createDbSchema(sqlite3*& database)
     }
 }
 
+void Client::heartbeat()
+{
+    if (!mConnected)
+    {
+        KR_LOG_WARNING("Heartbeat timer tick without being connected");
+        return;
+    }
+    mPresencedClient.heartbeat();
+    //TODO: implement in chatd as well
+}
 
 Client::~Client()
 {
+    if (mHeartbeatTimer)
+        karere::cancelInterval(mHeartbeatTimer);
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
 
@@ -469,6 +481,12 @@ promise::Promise<void> Client::connect(Presence pres)
     {
         mConnected = true; //we may not be actually connected to presenced, mConnected signifies that we are in online mode
     }
+    assert(!mHeartbeatTimer);
+    mHeartbeatTimer = karere::setInterval([this]()
+    {
+        heartbeat();
+    }, 10000);
+
     return pms;
 }
 
@@ -476,11 +494,13 @@ void Client::disconnect()
 {
     if (!mConnected)
         return;
-
+    assert(mHeartbeatTimer);
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
     mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
     mUserAttrCache->onLogOut();
+    karere::cancelInterval(mHeartbeatTimer);
+    mHeartbeatTimer = 0;
     chatd->disconnect();
     mPresencedClient.disconnect();
     mConnected = false;

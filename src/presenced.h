@@ -52,7 +52,7 @@ inline const char* Presence::toString(Code pres)
         case kOffline: return "Offline";
         case kOnline: return "Online";
         case kAway: return "Away";
-        case kBusy: return "DnD";
+        case kBusy: return "Busy";
         case kClear: return "kClear";
         case kInvalid: return "kInvalid";
         default: return "(unknown)";
@@ -135,12 +135,12 @@ protected:
     State mState = kStateNew;
     Listener* mListener;
     karere::Url mUrl;
-    uint8_t mPingCode = 0;
-    megaHandle mInactivityTimer = 0;
-    int mInactivityBeats = 0;
+    bool mHeartbeatEnabled = false;
+    uint8_t mHeartBeats = 0;
+    bool mPacketReceived = true; //used for connection activity detection
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
-    uint8_t mFlags;
+    uint8_t mCapabilities;
     karere::Id mMyHandle;
     karere::Presence mDynamicPresence = karere::Presence::kInvalid;
     karere::Presence mForcedPresence = karere::Presence::kInvalid;
@@ -165,7 +165,7 @@ protected:
     void pingWithPresence();
     void pushPeers();
 public:
-    Client(Listener& listener, uint8_t flags);
+    Client(Listener& listener, uint8_t caps);
     State state() { return mState; }
     bool isOnline() const
     {
@@ -178,6 +178,10 @@ public:
         karere::Presence dynPres=karere::Presence::kOnline);
     void disconnect();
     void reset();
+    /** @brief Performs server ping and check for network inactivity.
+     * Must be called externally in order to have all clients
+     * perform pings at a single moment, to reduce mobile radio wakeup frequency */
+    void heartbeat();
     void addPeer(karere::Id peer);
     void removePeer(karere::Id peer, bool force=false);
     ~Client();
