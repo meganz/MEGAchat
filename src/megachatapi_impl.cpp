@@ -118,7 +118,7 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
 
 void MegaChatApiImpl::loop()
 {
-    mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), karere::Client::kIsMobile);
+    mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), karere::kClientIsMobile);
 
     while (true)
     {
@@ -245,7 +245,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
                 {
                      delete mClient;
-                     mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), karere::Client::kIsMobile);
+                     mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), karere::kClientIsMobile);
 
                      MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                      fireOnChatRequestFinish(request, megaChatError);

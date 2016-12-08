@@ -186,7 +186,7 @@ void MainWindow::setOnlineStatus()
         GUI_LOG_WARNING("setOnlineStatus: action data is not a valid presence code");
         return;
     }
-    client().setPresence(pres, false);
+    client().setPresence(pres, true);
 //  client().setPresence(Presence::kClear, true);
 }
 

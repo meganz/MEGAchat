@@ -142,6 +142,16 @@ struct AvFlags
     }
 };
 
+/** @brief Client capability flags. There are defined by the presenced protocol */
+//defined here and not in karere::Client to avoid presenced.cpp depending on chatClient.cpp
+enum: uint8_t
+{
+    /** Client has webrtc capabilities */
+    kClientCanWebrtc = 0x80,
+    /** Client is a mobile application */
+    kClientIsMobile = 0x40
+};
+
 extern const char* gKarereDbSchema;
 
 //logging stuff

@@ -5,6 +5,7 @@
 #include <libws_log.h>
 #include <event2/dns.h>
 #include <event2/dns_compat.h>
+#include <chatClient.h>
 
 using namespace std;
 using namespace promise;
@@ -35,8 +36,8 @@ namespace presenced
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
-Client::Client(Listener& listener, uint8_t flags)
-: mListener(&listener), mFlags(flags)
+Client::Client(Listener& listener, uint8_t caps)
+: mListener(&listener), mCapabilities(caps)
 {
     if (!sWebsockCtxInitialized)
         initWebsocketCtx();
@@ -157,7 +158,7 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
         evdns_config_windows_nameservers();
 #endif
     }
-    disableInactivityTimer();
+    mHeartbeatEnabled = false;
     if (mTerminating)
         return;
 
@@ -171,15 +172,6 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
         CALL_LISTENER(onOwnPresence, Presence::kOffline);
         setConnState(kStateDisconnected);
         reconnect(); //start retry controller
-    }
-}
-
-void Client::disableInactivityTimer()
-{
-    if (mInactivityTimer)
-    {
-        cancelInterval(mInactivityTimer);
-        mInactivityTimer = 0;
     }
 }
 
@@ -202,7 +194,7 @@ bool Client::setPresence(Presence pres, bool force)
 
 uint8_t Client::presenceToDynFlags(Presence pres)
 {
-    uint8_t code = mFlags;
+    uint8_t code = 0;
     uint8_t presCode = pres.code();
     if (presCode == Presence::kOnline)
         code |= 0x01;
@@ -214,6 +206,7 @@ uint8_t Client::presenceToDynFlags(Presence pres)
 Promise<void>
 Client::reconnect(const std::string& url)
 {
+    assert(!mHeartbeatEnabled);
     try
     {
         if (mState >= kStateConnecting) //would be good to just log and return, but we have to return a promise
@@ -242,7 +235,7 @@ Client::reconnect(const std::string& url)
             {
                 Client& self = *static_cast<Client*>(arg);
                 ASSERT_NOT_ANOTHER_WS("message");
-//                self.mInactivityBeats = 0;
+                self.mPacketReceived = true;
                 self.handleMessage(StaticBuffer(msg, len));
             }, this);
 
@@ -255,35 +248,36 @@ Client::reconnect(const std::string& url)
         }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
         .then([this]()
         {
-            enableInactivityTimer();
+            mHeartbeatEnabled = true;
             return login();
         });
     }
     KR_EXCEPTION_TO_PROMISE(PRESENCED);
 }
 
-void Client::enableInactivityTimer()
+void Client::heartbeat()
 {
-    if (mInactivityTimer)
+    if (!mHeartbeatEnabled)
         return;
-
-    mInactivityTimer = setInterval([this]()
+    mHeartBeats++;
+    if (!mPacketReceived) //one heartbeat interval for server pong
     {
+        mState = kStateDisconnected;
+        mHeartbeatEnabled = false;
+        PRESENCED_LOG_WARNING("Connection inactive for too long, reconnecting...");
+        reconnect();
+    }
+    else if (mHeartBeats % 3 == 0)
+    {
+        mHeartBeats = 0;
+        mPacketReceived = false;
         sendCommand(Command(OP_KEEPALIVE));
-/*
-        if (mInactivityBeats++ > 3)
-        {
-            mState = kStateDisconnected;
-            disableInactivityTimer();
-            PRESENCED_LOG_WARNING("Connection inactive for too long, reconnecting...");
-            reconnect();
-        }
-*/
-    }, 20000);
+    }
 }
 
 void Client::disconnect() //should be graceful disconnect
 {
+    mHeartbeatEnabled = false;
     mTerminating = true;
     if (mWebSocket)
         ws_close(mWebSocket);
@@ -337,6 +331,7 @@ void Client::logSend(const Command& cmd)
     krLoggerLog(krLogChannel_presenced, krLogLevelDebug, "send %s\n", buf);
 }
 
+//only for sent commands
 void Command::toString(char* buf, size_t bufsize) const
 {
     auto op = opcode();
@@ -351,7 +346,7 @@ void Command::toString(char* buf, size_t bufsize) const
             else if (code & 0x01)
                 flags = "Online";
             else if (code & 0x02)
-                flags = "DnD";
+                flags = "Busy";
             else
                 flags = "invalid(both DnD and Online set)";
             snprintf(buf, bufsize, "SETSTATUS - %s%s", flags, (code & 0x80)?"(mobile)":"");
@@ -365,8 +360,11 @@ void Command::toString(char* buf, size_t bufsize) const
         }
         case OP_HELLO:
         {
-            snprintf(buf, bufsize, "HELLO - version 0x%04X",
-                read<uint16_t>(1));
+            uint8_t caps = read<uint8_t>(2);
+            snprintf(buf, bufsize, "HELLO - version 0x%02X, caps: (%s,%s)",
+                read<uint8_t>(1),
+                (caps & karere::kClientCanWebrtc) ? "webrtc" : "nowebrtc",
+                (caps & karere::kClientIsMobile) ? "mobile" : "desktop");
             break;
         }
         case OP_ADDPEERS:
@@ -390,7 +388,7 @@ void Command::toString(char* buf, size_t bufsize) const
 
 void Client::login()
 {
-    sendCommand(Command(OP_HELLO) + (uint16_t)kProtoVersion);
+    sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion+mCapabilities);
     if (mForcedPresence.isValid())
         sendCommand(Command(OP_STATUSOVERRIDE) + mForcedPresence.code());
     sendCommand(Command(OP_SETSTATUS) + presenceToDynFlags(mDynamicPresence));
@@ -400,7 +398,6 @@ void Client::login()
 
 Client::~Client()
 {
-    disableInactivityTimer();
     reset();
     CALL_LISTENER(onDestroy); //we don't delete because it may have its own idea of its lifetime (i.e. it could be a GUI class)
 }
@@ -439,7 +436,6 @@ void Client::handleMessage(const StaticBuffer& buf)
             case OP_KEEPALIVE:
             {
                 PRESENCED_LOG_DEBUG("recv KEEPALIVE");
-                sendCommand(Command(OP_KEEPALIVE));
                 break;
             }
             case OP_PEERSTATUS:
@@ -460,8 +456,8 @@ void Client::handleMessage(const StaticBuffer& buf)
                 PRESENCED_LOG_DEBUG("recv STATUSOVERRIDE - presence %s", Presence::toString(pres));
                 //FIXME - maybe we should have an ACK
                 mForcedPresence = Presence::kInvalid;
-                if (pres != Presence::kClear)
-                    CALL_LISTENER(onOwnPresence, pres);
+//                if (pres != Presence::kClear)
+//                    CALL_LISTENER(onOwnPresence, pres);
                 break;
             }
             default:

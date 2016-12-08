@@ -564,15 +564,6 @@ public:
         kInitErrSidMismatch
     } InitState;
 
-/** @brief Client capability flags. There are defined by the presenced protocol */
-    enum: uint8_t
-    {
-        /** Client has webrtc capabilities */
-        kCanWebrtc = 0x80,
-        /** Client is a mobile application */
-        kIsMobile = 0x40
-    };
-
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
     std::unique_ptr<chatd::Client> chatd;
@@ -747,6 +738,8 @@ protected:
     std::string mPresencedUrl;
     unsigned char mInitState = kInitCreated;
     UserAttrCache::Handle mOwnNameAttrHandle;
+    megaHandle mHeartbeatTimer = 0;
+    void heartbeat();
     void setInitState(unsigned char newState);
     std::string dbPath(const std::string& sid) const;
     bool openDb(const std::string& sid);
