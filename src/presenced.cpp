@@ -430,7 +430,6 @@ void Client::handleMessage(const StaticBuffer& buf)
 #ifndef NDEBUG
         size_t base = pos;
 #endif
-//        CHATD_LOG_DEBUG("RECV %s", Command::opcodeToStr(opcode));
         switch (opcode)
         {
             case OP_KEEPALIVE:
@@ -445,9 +444,13 @@ void Client::handleMessage(const StaticBuffer& buf)
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
                 if (userid != mMyHandle)
+                {
                     CALL_LISTENER(onPresence, userid, pres);
+                }
                 else
+                {
                     CALL_LISTENER(onOwnPresence, pres);
+                }
                 break;
             }
             case OP_STATUSOVERRIDE:
@@ -469,12 +472,13 @@ void Client::handleMessage(const StaticBuffer& buf)
       }
       catch(BufferRangeError& e)
       {
-            PRESENCED_LOG_ERROR("Buffer bound check error while parsing %s:\n\t%s\n\tAborting command processing", Command::opcodeToStr(opcode), e.what());
-            return;
+          PRESENCED_LOG_ERROR("Buffer bound check error while parsing %s:\n\t%s\n\tAborting command processing", Command::opcodeToStr(opcode), e.what());
+          return;
       }
       catch(std::exception& e)
       {
-            PRESENCED_LOG_ERROR("Exception while processing incoming %s: %s", Command::opcodeToStr(opcode), e.what());
+          PRESENCED_LOG_ERROR("Exception while processing incoming %s: %s", Command::opcodeToStr(opcode), e.what());
+          return;
       }
     }
 }
