@@ -90,15 +90,6 @@ public:
          * NULL should be returned
          */
         virtual ICallHandler* callHandler() = 0;
-        /**
-         * @brief onUserTyping Called when a signal is received that a peer
-         * is typing a message. Normally the app should have a timer that
-         * is reset each time a typing notification is received. When the timer
-         * expires, it should hide the notification GUI.
-         * @param user The user that is typing. The app can use the user attrib
-         * cache to get a human-readable name for the user.
-         */
-        virtual void onUserTyping(karere::Id user) {}
 
         /** @brief Called when the name of a member changes
          * @param userid The member user handle

@@ -219,6 +219,15 @@ public:
     {
         CHATD_LOG_ERROR("msgOrderFail[msgid %s]: %s", msg.id().toString().c_str(), errmsg.c_str());
     }
+
+    /**
+     * @brief onUserTyping Called when a signal is received that a peer
+     * is typing a message. Normally the app should have a timer that
+     * is reset each time a typing notification is received. When the timer
+     * expires, it should hide the notification GUI.
+     * @param user The user that is typing. The app can use the user attrib
+     * cache to get a human-readable name for the user.
+     */
     virtual void onUserTyping(karere::Id userid) {}
 };
 
