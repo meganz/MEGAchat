@@ -953,7 +953,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 }
 PeerChatRoom::~PeerChatRoom()
 {
-    if (mRoomGui)
+    if (mRoomGui && (parent.client.initState() < Client::kInitTerminating))
         parent.client.app.chatListHandler()->removePeerChatItem(*mRoomGui);
     auto chatd = parent.client.chatd.get();
     if (chatd)
@@ -1462,7 +1462,7 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 GroupChatRoom::~GroupChatRoom()
 {
     removeAppChatHandler();
-    if (mRoomGui)
+    if (mRoomGui && (parent.client.initState() < Client::kInitTerminating))
         parent.client.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 
     auto chatd = parent.client.chatd.get();
@@ -1638,7 +1638,6 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Mess
     if (display)
     {
         display->onLastMessageUpdated(msg, status, idx);
-        display->onUnreadCountChanged(mChat->unreadMsgCount());
     }
 }
 void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool)
