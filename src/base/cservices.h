@@ -85,13 +85,15 @@ enum
 MEGAIO_IMPEXP void* services_hstore_get_handle(unsigned short type, megaHandle handle);
 MEGAIO_IMPEXP megaHandle services_hstore_add_handle(unsigned short type, void* ptr);
 MEGAIO_IMPEXP int services_hstore_remove_handle(unsigned short type, megaHandle handle);
+//==
+MEGAIO_IMPEXP int64_t services_get_time_ms();
 
 #ifdef __cplusplus
 }
 #endif
 
 //select features to include
-#ifndef SVC_DISABLE_STROPHE
+#if !defined(SVC_DISABLE_STROPHE)
     #include "cservices-strophe.h"
 #endif
 

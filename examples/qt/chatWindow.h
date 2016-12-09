@@ -27,7 +27,7 @@
     {
         class ICall{};
     }
-    class CallGui{};
+    class CallGui: public karere::IApp::ICallHandler {};
 #endif
 
 namespace Ui
@@ -368,8 +368,10 @@ noedit:
         bar->setMaximum(kHistBatchSize);
         layout->insertWidget(2, bar);
     }
+#ifndef KARERE_DISABLE_WEBRTC
     void onVideoCallBtn(bool) { onCallBtn(true); }
     void onAudioCallBtn(bool) { onCallBtn(false); }
+#endif
     void onMembersBtn(bool);
     void onMemberRemove();
     void onMemberSetPrivFull();
@@ -381,15 +383,9 @@ public:
     virtual ~ChatWindow();
     chatd::Chat& chat() const { return *mChat; }
 protected:
-    void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr)
-    {
-        assert(!mCallGui);
-        auto layout = qobject_cast<QBoxLayout*>(ui.mCentralWidget->layout());
-        mCallGui = new CallGui(*this, call);
-        layout->insertWidget(1, mCallGui, 1);
-        ui.mTitlebar->hide();
-        ui.mTextChatWidget->hide();
-    }
+#ifndef KARERE_DISABLE_WEBRTC
+    void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr);
+    virtual void closeEvent(QCloseEvent* event);
     void deleteCallGui()
     {
         assert(mCallGui);
@@ -398,16 +394,11 @@ protected:
         ui.mTitlebar->show();
         ui.mTextChatWidget->show();
     }
+#endif
     void updateSeen();
     virtual void showEvent(QShowEvent* event)
     {
         mUpdateSeenTimer = karere::setTimeout([this]() { updateSeen(); }, 2000);
-    }
-    void closeEvent(QCloseEvent* event)
-    {
-        if (mCallGui)
-            mCallGui->hangup();
-        event->accept();
     }
     virtual void dragEnterEvent(QDragEnterEvent* event)
     {
@@ -416,23 +407,7 @@ protected:
     }
     virtual void dropEvent(QDropEvent* event);
     void createMembersMenu(QMenu& menu);
-    void onCallBtn(bool video)
-    {
-        if (mRoom.isGroup())
-        {
-            QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
-            return;
-        }
-        if (mCallGui)
-            return;
-        createCallGui();
-        mRoom.mediaCall(karere::AvFlags(true, video))
-        .fail([this](const promise::Error& err)
-        {
-            QMessageBox::critical(this, "Call", QString::fromStdString(err.msg()));
-        });
-    }
-
+    void onCallBtn(bool video);
     static MessageWidget* widgetFromMessage(const chatd::Message& msg)
     {
         if (!msg.userp)
@@ -485,6 +460,7 @@ protected:
     }
     void onPresenceChanged(karere::Presence pres)
     {
+#ifndef KARERE_DISABLE_WEBRTC
         if (pres == karere::Presence::kOffline)
         {
             ui.mAudioCallBtn->hide();
@@ -495,6 +471,7 @@ protected:
             ui.mAudioCallBtn->show();
             ui.mVideoCallBtn->show();
         }
+#endif
         ui.mOnlineIndicator->setStyleSheet(
             QString("border-radius: 4px; background-color: ")+
             gOnlineIndColors[pres.code()]);

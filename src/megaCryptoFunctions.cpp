@@ -77,14 +77,29 @@ std::string MegaCryptoFuncs::decryptMessage(const std::string& b64msg)
     mPrivKey.decrypt((const byte*)binmsg.buf(), binmsg.dataSize(), (byte*)msg, sizeof(msg));
     return string(msg, kFprMacKeyLen);
 }
-
+uint64_t useridFromJid(const std::string& jid)
+{
+    auto end = jid.find('@');
+    if (end != 13)
+    {
+        KR_LOG_WARNING("useridFromJid: Invalid Mega JID '%s'", jid.c_str());
+        return ::mega::UNDEF;
+    }
+    uint64_t userid;
+#ifndef NDEBUG
+    auto len =
+#endif
+    ::mega::Base32::atob(jid.c_str(), (byte*)&userid, end);
+    assert(len == 8);
+    return userid;
+}
 std::string MegaCryptoFuncs::encryptMessageForJid(const std::string& msg, const std::string& bareJid)
 {
     if (bareJid.empty())
         throw std::runtime_error("encryptMessageForJid: Empty JID provided");
     if (msg.size() != kFprMacKeyLen)
         throw std::runtime_error("encryptMessageForJid: Message must be exactly 43 bytes long");
-    auto userid = Client::useridFromJid(bareJid);
+    auto userid = useridFromJid(bareJid);
     auto pms = mClient.userAttrCache().getAttr(userid, USER_ATTR_RSA_PUBKEY);
     if (pms.done() != promise::kSucceeded)
         throw std::runtime_error("encryptMessageForJid: No key loaded for jid "+bareJid);
@@ -114,7 +129,7 @@ bool MegaCryptoFuncs::loadKey(uint64_t userid, const char* keydata, size_t keyle
 
 promise::Promise<void> MegaCryptoFuncs::preloadCryptoForJid(const std::string& bareJid)
 {
-    auto userid = Client::useridFromJid(bareJid);
+    auto userid = useridFromJid(bareJid);
     if (userid == ::mega::UNDEF)
         return promise::Error("preloadCryptoForJid: Invalid Mega jid "+bareJid);
     return mClient.userAttrCache().getAttr(userid, USER_ATTR_RSA_PUBKEY)

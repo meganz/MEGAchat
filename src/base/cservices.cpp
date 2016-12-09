@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <event2/event.h>
 #include <event2/thread.h>
+#include <event2/util.h>
 #include <assert.h>
 #include "cservices-thread.h"
 #include "cservices.h"
@@ -146,5 +147,12 @@ MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle 
     }
     gHandleStore.erase(it);
     return 1;
+}
+
+int64_t services_get_time_ms()
+{
+    struct timeval tv;
+    evutil_gettimeofday(&tv, nullptr);
+    return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 }
 }

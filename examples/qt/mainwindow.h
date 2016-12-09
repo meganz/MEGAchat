@@ -6,10 +6,9 @@
 #include <QInputDialog>
 #include <QDrag>
 #include <QMimeData>
-#include <mstrophepp.h>
+//#include <mstrophepp.h>
 #include <IRtcModule.h>
-#include <mstrophepp.h>
-#include <../strophe.disco.h>
+//#include <../strophe.disco.h>
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>
 #include <ui_loginDialog.h>
@@ -56,7 +55,11 @@ public:
     virtual void onInitStateChange(int newState);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
     {
+#ifndef KARERE_DISABLE_WEBRTC
         return new CallAnswerGui(*this, ans);
+#else
+        return nullptr;
+#endif
     }
     virtual karere::IApp::ILoginDialog* createLoginDialog();
     virtual void onOwnPresence(karere::Presence pres, bool inProgress);
@@ -84,11 +87,13 @@ class SettingsDialog: public QDialog
     Q_OBJECT
 protected:
     Ui::SettingsDialog ui;
-    int mAudioInIdx;
-    int mVideoInIdx;
     MainWindow& mMainWindow;
+#ifndef KARERE_DISABLE_WEBRTC
     void selectVideoInput();
     void selectAudioInput();
+    int mAudioInIdx;
+    int mVideoInIdx;
+#endif
 protected slots:
 public:
     SettingsDialog(MainWindow &parent);

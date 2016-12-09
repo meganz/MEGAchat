@@ -61,7 +61,7 @@ MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
     if (megaChatApiRefs.size() == 1)
     {
         // karere initialization (do NOT use globaInit() since it forces to log to file)
-        services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
+        services_init(MegaChatApiImpl::megaApiPostMessage, 0);
     }
     refsMutex.unlock();
 

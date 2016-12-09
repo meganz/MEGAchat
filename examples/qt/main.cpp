@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-#include <mstrophepp.h>
 #include <QApplication>
 #include <QDir>
 #include "mainwindow.h"
@@ -146,10 +145,9 @@ int main(int argc, char **argv)
     signal(SIGINT, sigintHandler);
     return a.exec();
 }
-
 void setVidencParams()
 {
-
+#ifndef KARERE_DISABLE_WEBRTC
     const char* val;
     auto& rtc = *gClient->rtc;
     if ((val = getenv("KR_VIDENC_MAXH")))
@@ -177,6 +175,7 @@ void setVidencParams()
     {
         rtc.vidEncParams.bufLatency = atoi(val);
     }
+#endif
 }
 void applyEnvSettings()
 {

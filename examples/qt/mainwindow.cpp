@@ -194,6 +194,7 @@ SettingsDialog::SettingsDialog(MainWindow &parent)
     :QDialog(&parent), mMainWindow(parent)
 {
     ui.setupUi(this);
+#ifndef KARERE_DISABLE_WEBRTC
     vector<string> audio;
     mMainWindow.client().rtc->getAudioInDevices(audio);
     for (auto& name: audio)
@@ -205,16 +206,20 @@ SettingsDialog::SettingsDialog(MainWindow &parent)
     for (auto& name: video)
         ui.videoInCombo->addItem(name.c_str());
     mVideoInIdx = 0;
+#endif
 }
 
 void SettingsDialog::applySettings()
 {
+#ifndef KARERE_DISABLE_WEBRTC
     if (ui.audioInCombo->currentIndex() != mAudioInIdx)
         selectAudioInput();
     if (ui.videoInCombo->currentIndex() != mVideoInIdx)
         selectVideoInput();
+#endif
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 void SettingsDialog::selectAudioInput()
 {
     auto combo = ui.audioInCombo;
@@ -240,6 +245,7 @@ void SettingsDialog::selectVideoInput()
     }
     KR_LOG_DEBUG("Selected video device '%s'", device.c_str());
 }
+#endif
 
 MainWindow::~MainWindow()
 {}

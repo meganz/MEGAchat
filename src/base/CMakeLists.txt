@@ -2,13 +2,12 @@ cmake_minimum_required(VERSION 2.8)
 project(services)
 include(../utils.cmake)
 
-set (optStrophePath "${CMAKE_CURRENT_SOURCE_DIR}/../../third-party/strophe-native" CACHE PATH "Path to our custom strophe (mstrophe) lib")
-set (optServicesBuildShared 0 CACHE BOOL "Build libservices as a shared lib, for use of the async services by several shared objects")
+set(optStrophePath "${CMAKE_CURRENT_SOURCE_DIR}/../../third-party/strophe-native" CACHE PATH "Path to our custom strophe (mstrophe) lib")
+set(optServicesBuildShared 0 CACHE BOOL "Build libservices as a shared lib, for use of the async services by several shared objects")
 set(optAsanMode "" CACHE STRING "Build with AddressSanitizer, in the specified mode (-fsanitize=<mode>, i.e. address,memory) Requires GCC>= 4.9 or Clang>=3.5")
 
 set(SRCS
   cservices.cpp
-  cservices-strophe.cpp
   cservices-dns.cpp
   services-dns.cpp
   cservices-http.cpp
@@ -20,14 +19,22 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/..")
 find_package(LibEvent REQUIRED)
 find_package(CURL REQUIRED)
 
-add_subdirectory(${optStrophePath} strophe)
-
 set(SERVICES_INCLUDE_DIRS
    ${LIBEVENT_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS}
-   ${STROPHE_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}
-   CACHE STRING "Include dirs for libservices dependent projects"
+   ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+if (NOT optKarereDisableWebrtc)
+    add_subdirectory(${optStrophePath} strophe)
+    list(APPEND SRCS cservices-strophe.cpp)
+    list(APPEND SERVICES_INCLUDE_DIRS ${STROPHE_INCLUDE_DIRS})
+else()
+    add_definitions(-DSVC_DISABLE_STROPHE)
+endif()
+
+set_property(GLOBAL PROPERTY SERVICES_INCLUDE_DIRS ${SERVICES_INCLUDE_DIRS})
 include_directories(${SERVICES_INCLUDE_DIRS})
+
 if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
     add_definitions(-fvisibility=hidden -fPIC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -81,9 +88,14 @@ else()
     add_library(services ${SRCS})
 endif()
 
-target_link_libraries(services
-  strophe
+set(SERVICES_DEP_LIBS
   ${LIBEVENT_LIBRARIES}
   ${CURL_LIBRARIES}
   ${SYSLIBS}
 )
+
+if (NOT optKarereDisableWebrtc)
+    list(APPEND SERVICES_DEP_LIBS strophe)
+endif()
+
+target_link_libraries(services ${SERVICES_DEP_LIBS})

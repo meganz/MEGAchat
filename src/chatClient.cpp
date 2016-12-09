@@ -14,10 +14,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <mstrophepp.h>
 #include "rtcModule/IRtcModule.h"
 #include "dummyCrypto.h" //for makeRandomString
-#include "strophe.disco.h"
 #include "base/services.h"
 #include "sdkApi.h"
 #include "megaCryptoFunctions.h"
@@ -1159,8 +1157,6 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
 ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
 {
     auto chatid = apiRoom.getHandle();
-    auto it = find(chatid);
-    assert(it == end()); //we should not have that room
 
     ChatRoom* room;
     if(apiRoom.isGroup())
@@ -1176,7 +1172,11 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
         assert(apiRoom.getPeerList()->size() == 1);
         room = new PeerChatRoom(*this, apiRoom);
     }
+#ifndef NDEBUG
+    auto ret =
+#endif
     emplace(chatid, room);
+    assert(ret.second); //we should not have that room
     return *room;
 }
 
