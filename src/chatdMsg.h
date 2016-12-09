@@ -195,6 +195,7 @@ private:
 protected:
     static const char* opcodeNames[];
 public:
+    enum { kBroadcastUserTyping = 1 };
     Command(): Buffer(){}
     Command(Command&& other): Buffer(std::forward<Buffer>(other)) {assert(!other.buf() && !other.bufSize() && !other.dataSize());}
     Command(uint8_t opcode, uint8_t reserve=64): Buffer(reserve) { write(0, opcode); }

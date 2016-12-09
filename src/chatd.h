@@ -219,6 +219,7 @@ public:
     {
         CHATD_LOG_ERROR("msgOrderFail[msgid %s]: %s", msg.id().toString().c_str(), errmsg.c_str());
     }
+    virtual void onUserTyping(karere::Id userid) {}
 };
 
 class Client;
@@ -456,6 +457,7 @@ protected:
     void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
     void onNewKeys(StaticBuffer&& keybuf);
     void logSend(const Command& cmd);
+    void handleBroadcast(karere::Id userid, uint8_t type);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -761,6 +763,10 @@ public:
      */
     void removeManualSend(uint64_t id);
 
+    /** @brief Broadcasts a notification that the user is typing. This will trigged
+     * other clients receiving \c onUserTyping() callbacks
+     */
+    void sendTypingNotification();
     /**
      * @brief Generates a backreference id. Must be public because strongvelope
      *  uses it to generate chat title messages
