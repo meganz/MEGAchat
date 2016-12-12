@@ -450,7 +450,6 @@ class ContactList: public std::map<uint64_t, Contact*>
 {
 protected:
     void removeUser(iterator it);
-    void removeUser(uint64_t userid);
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
