@@ -168,14 +168,23 @@ public:
             zero();
         }
     }
-    Buffer(const char* data, size_t datalen)
+    Buffer(const char* data, size_t datalen, size_t reserve=0)
     {
-        if (data && datalen)
+        size_t allocSize = datalen+reserve;
+        if (allocSize > 0)
         {
-            mBuf = (char*)malloc(datalen);
-            mBufSize = datalen;
-            memcpy(mBuf, data, datalen);
-            mDataSize = datalen;
+            mBuf = (char*)malloc(allocSize);
+            mBufSize = allocSize;
+            if (datalen)
+            {
+                assert(data);
+                memcpy(mBuf, data, datalen);
+                mDataSize = datalen;
+            }
+            else
+            {
+                mDataSize = 0;
+            }
         }
         else
         {
@@ -184,7 +193,7 @@ public:
     }
     Buffer(Buffer&& other)
         :StaticBuffer(other.mBuf, other.mDataSize), mBufSize(other.mBufSize) { other.zero(); }
-
+    Buffer(const StaticBuffer& other): Buffer(other.buf(), other.dataSize()){}
     template <bool withNull>
     Buffer(const std::string& src)
     {

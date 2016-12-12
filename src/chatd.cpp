@@ -841,6 +841,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 mClient.chats(chatid).onNewKeys(StaticBuffer(keys, totalLen));
                 break;
             }
+            case OP_RTMSG:
+            {
+                READ_CHATID(0);
+                auto& chat = mClient.chats(chatid);
+                pos += chat.handleRtMessage(buf.buf()+pos, buf.dataSize()-pos);
+                break;
+            }
             default:
             {
                 CHATD_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
@@ -2209,6 +2216,62 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
 {
     if (type == Command::kBroadcastUserTyping)
         CALL_LISTENER(onUserTyping, from);
+}
+
+size_t Chat::handleRtMessage(const char* data, size_t maxSize)
+{
+    //userid.8 clientid.4 len.2 = 14
+    //msgtype.1
+    if (maxSize < 15)
+        throw std::runtime_error("handleRtMessage: Incoming realtime message buffer is too small");
+
+    auto msglen = *(uint16_t*)(data+12);
+    if (msglen < 1)
+        throw std::runtime_error("handleRtMessage: Message length is less than 1");
+
+    size_t cmdlen = msglen+14;
+    if (cmdlen > maxSize)
+        throw std::runtime_error("handleRtMessage: Message length field denotes message spans outside of received buffer");
+
+    StaticBuffer cmd(data, cmdlen);
+    auto userid = cmd.read<karere::Id>(0);
+    auto clientid = cmd.read<ClientId>(8);
+    auto type = cmd.read<RtMessage::Type>(14);
+    std::unique_ptr<RtMessage> msg;
+    if (type & RtMessage::kQueryBit)
+    {
+/*
+ * We don't need query-response at the moment.
+ * If we do, enable this code
+ *
+        auto queryId = cmd.read<RtMessage::QueryId>(15);
+        auto it = mRtQueries.find(queryId);
+        if (it == mRtQueries.end())
+        {
+            CHATID_LOG_DEBUG("Received response to a cancelled query realtime message, ignoring");
+            return;
+        }
+        msg = std::make_unique<RtMessage>(userid, cmd.buf()+14, cmd.dataSize()-14);
+        try
+        {
+            mRtQueryExecutingResponseId = queryId;
+            it->second(clientid, *msg);
+        }
+        catch(std::exception& e)
+        {
+            CHATID_LOG_ERROR("Exception thrown from a realtime query message response handler: %s", e.what());
+        }
+        mRtQueryExecutingResponseId = 0;
+        if (!mRtQueries.empty()) //during cleanup, all handlers may have been deleted
+            mRtQueries.erase(it);
+*/
+    }
+    else
+    {
+        RtMessage msg(userid, clientid, cmd.buf()+14, cmd.dataSize()-14);
+        CALL_LISTENER(onRtMessage, msg);
+    }
+    return cmdlen;
 }
 
 void Client::leave(Id chatid)

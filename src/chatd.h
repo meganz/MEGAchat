@@ -229,6 +229,10 @@ public:
      * cache to get a human-readable name for the user.
      */
     virtual void onUserTyping(karere::Id userid) {}
+    /** @brief A real-time message has been received.
+     * The message object contains all necessary info
+     */
+    void onRtMessage(RtMessage& msg) {}
 };
 
 class Client;
@@ -808,6 +812,13 @@ protected:
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */
     void loadManualSending();
+    size_t handleRtMessage(const char* data, size_t maxSize);
+public:
+//realtime messaging
+    bool rtSendMessage(ClientId clientId, const RtMessage& msg);
+/* We don't need query-response. If we do later, enble this
+   promise::Promise<RtMessage*> rtSendQuery(DeviceId deviceId, const RtMessage& msg, uint32_t timeoutMs);
+*/
 
 //===
 };

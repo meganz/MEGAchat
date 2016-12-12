@@ -13,6 +13,7 @@ namespace chatd
 
 typedef uint32_t KeyId;
 typedef uint64_t BackRefId;
+typedef uint32_t ClientId;
 
 enum { kMaxBackRefs = 32 };
 
@@ -38,7 +39,8 @@ enum Opcode
     OP_JOINRANGEHIST = 19,
     OP_MSGUPDX = 20,
     OP_MSGID = 21,
-    OP_LAST = OP_MSGID
+    OP_RTMSG = 22,
+    OP_LAST = OP_RTMSG
 };
 
 // privilege levels
@@ -293,6 +295,35 @@ public:
     {
         write<uint32_t>(35, dataSize()-39);
     }
+};
+class RtMessage: public Buffer
+{
+public:
+    typedef uint8_t Type;
+    enum: Type { kQueryBit = 0x80 };
+    typedef uint32_t QueryId;
+
+    karere::Id userid;
+    ClientId clientid;
+
+    Type type() const { return read<Type>(0); }
+    QueryId queryId() const
+    {
+        if ((type() & kQueryBit) == 0)
+            throw std::runtime_error("Message is a query");
+        return read<QueryId>(1);
+    }
+    RtMessage(Type type, uint16_t reserve): Buffer((const char*)&type, sizeof(type), reserve)
+    {
+        assert((type & kQueryBit) == 0); // no command-response query
+    }
+    RtMessage(Type type, uint16_t reserve, QueryId id)
+    : RtMessage(type | kQueryBit, reserve+sizeof(QueryId))
+    {
+        append<QueryId>(id);
+    }
+    RtMessage(karere::Id aUserId, ClientId aClientId, const char* data, size_t dataSize)
+        : Buffer(data, dataSize), userid(aUserId), clientid(aClientId){}
 };
 
 //for exception message purposes
