@@ -3,6 +3,10 @@ project(karere)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 include (utils.cmake)
+
+set(optKarereBuildShared 0 CACHE BOOL "Build libkarere as a shared library")
+set(optKarereDisableWebrtc 1 CACHE BOOL "Disable webrtc")
+
 find_package(Cryptopp REQUIRED)
 find_package(Mega REQUIRED)
 find_package(OpenSSL REQUIRED)

@@ -628,7 +628,8 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
     presenced::IdRefMap peers;
     for (auto& contact: *contactList)
     {
-        peers.insert(contact.first);
+        if (contact.second->visibility() == ::mega::MegaUser::VISIBILITY_VISIBLE)
+            peers.insert(contact.first);
     }
     for (auto& chat: *chats)
     {
@@ -1937,16 +1938,19 @@ void Contact::onVisibilityChanged(int newVisibility)
     {
         mDisplay->onVisibilityChanged(newVisibility);
     }
-    if (mChatRoom)
+
+    auto& client = mClist.client;
+    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
     {
-        if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
-        {
+        client.presenced().removePeer(mUserid, true);
+        if (mChatRoom)
             mChatRoom->notifyExcludedFromChat();
-        }
-        else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
-        {
+    }
+    else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+    {
+        mClist.client.presenced().addPeer(mUserid);
+        if (mChatRoom)
             mChatRoom->notifyRejoinedChat();
-        }
     }
 }
 
@@ -1973,20 +1977,10 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         removeUser(erased);
     }
 }
+
 void ContactList::onUserAddRemove(mega::MegaUser& user)
 {
     addUserFromApi(user);
-}
-
-void ContactList::removeUser(uint64_t userid)
-{
-    auto it = find(userid);
-    if (it == end())
-    {
-        KR_LOG_ERROR("ContactList::removeUser: Unknown user");
-        return;
-    }
-    removeUser(it);
 }
 
 void ContactList::removeUser(iterator it)
@@ -2125,7 +2119,7 @@ Contact::~Contact()
 {
     auto& client = mClist.client;
     client.userAttrCache().removeCb(mUsernameAttrCbId);
-
+    // this is not normally needed, as we never delete contacts - just make them invisible
     if (client.initState() < Client::kInitTerminating)
     {
         client.presenced().removePeer(mUserid, true);
