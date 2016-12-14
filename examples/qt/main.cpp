@@ -130,7 +130,6 @@ int main(int argc, char **argv)
         {
             KR_LOG_DEBUG("Client initialized");
         }
-        mainWin->show();
         return gClient->connect();
     })
     .then([]()

@@ -89,7 +89,7 @@ public:
     /** @brief Connects to the chatd chatroom */
     virtual void connect() = 0;
 
-    ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const std::string& url,
+    ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const char* url,
              unsigned char shard, chatd::Priv ownPriv, const std::string& aTitle=std::string());
 
     virtual ~ChatRoom(){}
@@ -203,7 +203,7 @@ protected:
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
-    PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& url,
+    PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     ~PeerChatRoom();
@@ -292,7 +292,7 @@ public:
     friend class ChatRoomList;
     friend class Member;
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
-    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const std::string& aUrl,
+    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* aUrl,
                   unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
     ~GroupChatRoom();
 public:
@@ -498,7 +498,7 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener
+class Client: public rtcModule::IGlobalEventHandler, mega::MegaGlobalListener, ::mega::MegaRequestListener
 {
 /** @cond PRIVATE */
 protected:
@@ -510,12 +510,71 @@ protected:
     std::string mMyEmail;
     bool mConnected = false;
 public:
+    enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
+    enum: unsigned char
+    {
+        /** The client has just been created. \c init() has not been called yet */
+        kInitCreated = 0,
+
+        /** \c init() has been called with no \c sid, or there was no valid
+         * database for that \sid. The client is waiting for the completion
+         * of a full fetchnodes from the SDK */
+        kInitWaitingNewSession,
+
+        /** \c init() has been called with a \c sid, there is a valid cache for that
+         * \sid, and the client is successfully initialized for offline operation */
+        kInitHasOfflineSession,
+
+        /** Karere has sucessfully initialized and the SDK/API is online.
+         * Note that the karere client itself (chat, presence) is not online.
+         * They have to be explicitly connected via \c connect()
+         */
+        kInitHasOnlineSession,
+
+        /** The client is terminating (due to a call to \c terminate()) */
+        kInitTerminating,
+
+        /** Client has disconnected and terminated */
+        kInitTerminated,
+
+        /** The first init state error code. All values equal or greater than this
+         * represent error states
+         */
+        kInitErrFirst,
+
+        /** Unspecified init error */
+        kInitErrGeneric = kInitErrFirst,
+
+        /** There was not valid database for the sid specified to \c init().
+         * This error is recoverable - the client will signal it, but then will
+         * behave like it starts with a new session. However, the application must
+         * be aware of this condition in order to tell the SDK to do a full fetchnodes,
+         * and receive all actionpackets again, so that karere can have a chance
+         * to initialize its state from scratch
+         */
+        kInitErrNoCache,
+
+        /** A problem was fund while initializing from a seemingly valid karere cache.
+         * This error is not recoverable. The client is probably in a bogus state,
+         * and the client instance should be destroyed. A possible recovery scenario
+         * is to delete the karere cache file, create and init a new client instance
+         * with the same sid. Then, login the SDK with full fetchnodes.
+         * In that case, the recoverable kInitErrNoCache will occur but
+         * karere will continue by creating the cache from scratch.
+         */
+        kInitErrCorruptCache,
+
+        /** The session given to init() was different than the session with which
+         * the SDK was initialized
+         */
+        kInitErrSidMismatch
+    } InitState;
+
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
     rtcModule::IRtcModule* rtc = nullptr;
-    bool isTerminating = false;
     unsigned mReconnectConnStateHandler = 0;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
@@ -573,23 +632,42 @@ public:
      * @brief Performs karere-only login, assuming the Mega SDK is already logged in
      * with an existing session.
      */
-    promise::Promise<void> initWithExistingSession();
+    void initWithDbSession(const char* sid);
 
     /**
      * @brief Performs karere-only login, assuming the Mega SDK is already logged
      * in with a new session
      */
-    promise::Promise<void> initWithNewSession();
+    promise::Promise<void> initWithNewSession(const char* sid);
 
     /**
      * @brief Initializes karere, opening or creating the local db cache
-     * @param useCache - \c true if the mega SDK was logged in with an existing
-     * session (the karere cache MUST exist in that case, otherwise an
-     * error is returned), or \false if the SDK just created a new session, in which
-     * case the cache db is created and initialized from scratch.
+     * @param sid - an optional session id to restore from. If one is specified
+     * (sid is not \c NULL), the client will try to initialize for offline work
+     * from an existing karere cache for that sid. If loading the local cache was
+     * successful, the client will transition to \c kInitHasOfflineSession.
+     * If a karere cache for that sid does not exist or is not valid, the client
+     * will signal its init state as \c kInitErrNoCache and then continue
+     * to \c kInitWaitingNewSession, effectively behaving as if a new session
+     * is being created by the SDK (see the \c NULL-sid case below).
+     * The app, upon seeing \c kInitErrNoCache must do the complete version of the
+     * \c fetchnodes operation, and not the fast one that fetches only newly queued
+     * actionpackets. This is in order to replay all actionpackets and associated
+     * events, so that karere can rebuild its cache from scratch, as if this was
+     * a new session.
+     * If \c sid is \c NULL, then the client will transition to \c kInitWaitingForNewSession,
+     * and wait for a fetchnodes completion from the SDK. Then it will initialize
+     * its state and cache from scratch, from information provided by the SDK.
+     * In both cases, when fetchnodes completes, the client will transition to
+     * \c kInitHasOnlineSession.
+     * @note In any case, if there is no existing karere session cache,
+     * offline operation is not possible.
      */
-    promise::Promise<void> init(bool useCache);
-
+    void init(const char* sid);
+    unsigned char initState() const { return mInitState; }
+    bool hasInitError() const { return mInitState >= kInitErrFirst; }
+    const char* initStateStr() const { return initStateToStr(mInitState); }
+    static const char* initStateToStr(unsigned char state);
     /** @brief Does the actual connection to chatd, xmpp and gelb. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initNewSession() or \c initExistingSession() completes */
@@ -674,10 +752,12 @@ protected:
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
     std::unique_ptr<rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
-    std::string dbPath() const;
-    void openDb();
+    unsigned char mInitState = kInitCreated;
+    void setInitState(unsigned char newState);
+    std::string dbPath(const std::string& sid) const;
+    bool openDb(const std::string& sid);
     void createDb();
-    void wipeDb();
+    void wipeDb(const std::string& sid);
     void createDbSchema(sqlite3*& database);
     void connectToChatd();
     karere::Id getMyHandleFromDb();
@@ -722,6 +802,8 @@ protected:
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);
     virtual void onUsersUpdate(mega::MegaApi*, mega::MegaUserList* users);
     virtual void onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs);
+    //MegaRequestListener interface
+    void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
     friend class ChatRoom;
 /** @endcond PRIVATE */
 };

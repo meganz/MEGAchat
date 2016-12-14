@@ -348,8 +348,11 @@ public:
      */
     virtual void notifyInvited(const ChatRoom& room) {}
 
-    /** @brief Called when karere is about to terminate */
-    virtual void onTerminate() {}
+    /** @brief Called when the karere::Client changes its initialization or termination state.
+     * Look at karere::Client::InitState for the possible values of the client init
+     * state and their meaning.
+     */
+    virtual void onInitStateChange(int newState) {}
     virtual ~IApp() {}
 };
 }

@@ -143,23 +143,34 @@ void MegaChatApiTest::init()
 
 char *MegaChatApiTest::login(int accountIndex, const char *session)
 {
-    // 1. login
+    // 1. Initialize chat engine
+    bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
+    megaChatApi[accountIndex]->init(session);
+    assert(waitForResponse(flagInit));
+    if (!session)
+    {
+        assert(initState[accountIndex] == MegaChatApi::INIT_WAITING_NEW_SESSION);
+    }
+    else
+    {
+        assert(initState[accountIndex] == MegaChatApi::INIT_OFFLINE_SESSION);
+    }
+
+    // 2. login
     bool *flag = &requestFlags[accountIndex][MegaRequest::TYPE_LOGIN]; *flag = false;
     session ? megaApi[accountIndex]->fastLogin(session) : megaApi[accountIndex]->login(email[accountIndex].c_str(), pwd[accountIndex].c_str());
     assert(waitForResponse(flag));
     assert(!lastError[accountIndex]);
 
-    // 2. fetchnodes
+    // 3. fetchnodes
+    flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     flag = &requestFlags[accountIndex][MegaRequest::TYPE_FETCH_NODES]; *flag = false;
     megaApi[accountIndex]->fetchNodes();
     assert(waitForResponse(flag));
     assert(!lastError[accountIndex]);
-
-    // 3. Initialize chat engine
-    flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_INITIALIZE]; *flag = false;
-    megaChatApi[accountIndex]->init();
-    assert(waitForResponse(flag));
-    assert(!lastError[accountIndex]);
+    // after fetchnodes, karere should be ready for offline, at least
+    assert(waitForResponse(flagInit));
+    assert(initState[accountIndex] == MegaChatApi::INIT_ONLINE_SESSION);
 
     // 4. Connect to chat servers
     flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flag = false;
@@ -307,16 +318,51 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, int timeout)
 
 void MegaChatApiTest::TEST_resumeSession()
 {
-    // Create a new session
+    // ___ Create a new session ___
     char *session = login(0);
 
-    // Resume an existing session
+    // ___ Resume an existing session ___
     logout(0, false); // keeps session alive
     char *tmpSession = login(0, session);
     assert (!strcmp(session, tmpSession));
     delete [] tmpSession;   tmpSession = NULL;
 
-    // Close session
+    // ___ Resume an existing session without karere cache ___
+
+    // logout from SDK keeping cache
+    bool *flag = &requestFlags[0][MegaRequest::TYPE_LOGOUT]; *flag = false;
+    megaApi[0]->localLogout();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    // logout from Karere removing cache
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_LOGOUT]; *flag = false;
+    megaChatApi[0]->logout();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    // try to initialize chat engine with cache --> should fail
+    bool *flagInit = &initStateChanged[0]; *flagInit = false;
+    megaChatApi[0]->init(session);
+    assert(waitForResponse(flagInit));
+    assert(initState[0] == MegaChatApi::INIT_WAITING_NEW_SESSION);
+
+
+    // ___ Re-create Karere cache without login out from SDK___
+    flagInit = &initStateChanged[0]; *flagInit = false;
+    // login in SDK
+    flag = &requestFlags[0][MegaRequest::TYPE_LOGIN]; *flag = false;
+    session ? megaApi[0]->fastLogin(session) : megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    // fetchnodes in SDK
+    flag = &requestFlags[0][MegaRequest::TYPE_FETCH_NODES]; *flag = false;
+    megaApi[0]->fetchNodes();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    assert(waitForResponse(flagInit));
+    assert(initState[0] == MegaChatApi::INIT_ONLINE_SESSION);
+
+
+    // ___ Close session ___
     logout(0, true);
     delete [] session; session = NULL;
 }
@@ -864,7 +910,7 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
     requestFlagsChat[apiIndex][request->getType()] = true;
 }
 
-void MegaChatApiTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
+void MegaChatApiTest::onChatInitStateUpdate(MegaChatApi *api, int newState)
 {
     int apiIndex = -1;
     for (int i = 0; i < NUM_ACCOUNTS; i++)
@@ -881,20 +927,8 @@ void MegaChatApiTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
         return;
     }
 
-    if (chat != NULL)
-    {
-        cout << "[api: " << apiIndex << "] Chat added or updated (" << chat->getChatId() << ")" << endl;
-        chatroom = chat->copy();
-        chatUpdated[apiIndex] = true;
-        if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_PARTICIPANTS))
-        {
-            peersUpdated[apiIndex] = true;
-        }
-    }
-    else
-    {
-        cout << "[api: " << apiIndex << "] " << megaChatApi[0]->getChatRooms()->size() << " chat/s received" << endl;
-    }
+    initState[apiIndex] = newState;
+    initStateChanged[apiIndex] = true;
 }
 
 void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *item)

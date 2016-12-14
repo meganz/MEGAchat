@@ -408,6 +408,12 @@ void MainWindow::onAddContact()
         return err;
     });
 }
+void MainWindow::onInitStateChange(int newState)
+{
+    if (!isVisible() && (newState == karere::Client::kInitHasOfflineSession
+                      || newState == karere::Client::kInitHasOnlineSession))
+        show();
+}
 
 QString prettyInterval(int64_t secs)
 {
