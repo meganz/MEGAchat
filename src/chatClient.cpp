@@ -483,10 +483,10 @@ promise::Promise<void> Client::connect(Presence pres)
     return pms;
 }
 
-void Client::disconnect()
+promise::Promise<void> Client::disconnect()
 {
     if (!mConnected)
-        return;
+        return promise::_Void();
     assert(mHeartbeatTimer);
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
@@ -497,6 +497,7 @@ void Client::disconnect()
     chatd->disconnect();
     mPresencedClient.disconnect();
     mConnected = false;
+    return promise::_Void();
 }
 
 karere::Id Client::getMyHandleFromSdk()
@@ -707,8 +708,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
 {
     if (mInitState == kInitTerminating)
     {
-        KR_LOG_WARNING("Client::terminate: Already terminating");
-        return promise::Promise<void>();
+        return promise::Error("Already terminating");
     }
     setInitState(kInitTerminating);
     api.sdk.removeGlobalListener(this);
@@ -718,24 +718,20 @@ promise::Promise<void> Client::terminate(bool deleteDb)
         rtc->hangupAll();
 #endif
 
-    disconnect();
-    if (deleteDb)
+    return disconnect()
+    .then([this, deleteDb]()
     {
-        wipeDb(mSid);
-    }
-    else
-    {
-        sqlite3_close(db);
-        db = nullptr;
-    }
-    promise::Promise<void> pms;
-    //resolve output promise asynchronously, because the callbacks of the output
-    //promise may free the client, and the resolve()-s of the input promises
-    //(mega and conn) are within the client's code, so any code after the resolve()s
-    //that tries to access the client will crash
-    setInitState(kInitTerminated);
-    marshallCall([pms]() mutable { pms.resolve(); });
-    return pms;
+        if (deleteDb)
+        {
+            wipeDb(mSid);
+        }
+        else
+        {
+            sqlite3_close(db);
+            db = nullptr;
+        }
+        setInitState(kInitTerminated);
+    });
 }
 
 promise::Promise<void> Client::setPresence(Presence pres, bool force)

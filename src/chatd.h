@@ -13,6 +13,7 @@
 #include <base/timers.hpp>
 #include "chatdMsg.h"
 #include "url.h"
+#include <base/trackDelete.h>
 
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
@@ -229,10 +230,6 @@ public:
      * cache to get a human-readable name for the user.
      */
     virtual void onUserTyping(karere::Id userid) {}
-    /** @brief A real-time message has been received.
-     * The message object contains all necessary info
-     */
-    void onRtMessage(RtMessage& msg) {}
 };
 
 class Client;
@@ -304,6 +301,70 @@ enum ServerHistFetchState
     kHistDecryptingFlag = 16,
     kHistDecryptingOld = kHistDecryptingFlag | kHistOldFlag,
     kHistDecryptingNew = kHistDecryptingFlag | 0
+};
+
+struct RtMsgTypeSenderKey
+{
+    RtMessage::Type type;
+    karere::Id userid;
+    bool operator<(RtMsgTypeSenderKey other) const
+    {
+        if (type != other.type)
+            return type < other.type;
+        else
+            return userid < other.userid;
+    }
+    RtMsgTypeSenderKey(RtMessage::Type aType, karere::Id aId)
+    : type(aType), userid(aId){}
+};
+
+struct RtMsgTypeSenderClientKey
+{
+    RtMessage::Type type;
+    karere::Id userid;
+    ClientId clientid;
+    bool operator<(RtMsgTypeSenderClientKey other) const
+    {
+        if (type != other.type)
+            return type < other.type;
+        if (userid != other.userid)
+            return userid < other.userid;
+        return clientid < other.clientid;
+    }
+    RtMsgTypeSenderClientKey(RtMessage::Type aType, karere::Id aId, ClientId aClientId)
+    : type(aType), userid(aId), clientid(aClientId){}
+};
+
+class IRtMsgHandlerCb: public karere::WeakReferenceable<IRtMsgHandlerCb>
+{
+    IRtMsgHandlerCb(): karere::WeakReferenceable<IRtMsgHandlerCb>(this){}
+public:
+    virtual void operator()(const RtMessage& msg, bool& keep) = 0;
+    virtual ~IRtMsgHandlerCb(){}
+    virtual void remove() = 0;
+};
+
+typedef IRtMsgHandlerCb::WeakRefHandle RtMsgHandler;
+
+template <class CB, class M>
+class RtMsgHandlerCb: public IRtMsgHandlerCb
+{
+protected:
+    CB mCallback;
+    M& mParent;
+    typename M::iterator mIterator;
+    RtMsgHandlerCb(CB&& aCb, M& aMap)
+    : mCallback(std::forward<CB>(aCb)), mParent(aMap){}
+    void setIterator(typename M::iterator aIt) { mIterator = aIt; }
+    virtual void operator()(const RtMessage& msg, bool& keep)
+    { mCallback(msg, keep); }
+    friend class Chat;
+public:
+    virtual void remove() //called by user to unregister and delete handler
+    {
+        mParent.remove(mIterator);
+        delete this;
+    }
 };
 
 /** @brief Represents a single chatroom together with the message history.
@@ -812,10 +873,49 @@ protected:
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */
     void loadManualSending();
+
+    //Rt message stuff
+    std::multimap<RtMessage::Type, std::unique_ptr<IRtMsgHandlerCb>> mRtHandlers_Type;
+    std::multimap<RtMsgTypeSenderKey, std::unique_ptr<IRtMsgHandlerCb>> mRtHandlers_TypeSender;
+    std::multimap<RtMsgTypeSenderClientKey, std::unique_ptr<IRtMsgHandlerCb>> mRtHandlers_TypeSenderClient;
+    template <class M, class K>
+    void rtCallHandlers(M& map, K key, const RtMessage& msg);
     size_t handleRtMessage(const char* data, size_t maxSize);
 public:
 //realtime messaging
     bool rtSendMessage(ClientId clientId, const RtMessage& msg);
+    template <class CB>
+    RtMsgHandler rtAddHandler(RtMessage::Type type, CB cb)
+    {
+        auto it = mRtHandlers_Type.emplace(type,
+            new RtMsgHandlerCb<CB, decltype(mRtHandlers_Type)>
+            (std::forward<CB>(cb), mRtHandlers_Type));
+        it->setIterator(it);
+        return it->weakHandle();
+    }
+
+    template <class CB>
+    RtMsgHandler rtAddHandler(RtMessage::Type type, karere::Id from, CB cb)
+    {
+        auto it = mRtHandlers_TypeSender.emplace(std::piecewise_construct,
+                std::forward_as_tuple(type, from),
+                new RtMsgHandlerCb<CB, decltype(mRtHandlers_TypeSender)>
+                    (std::forward<CB>(cb), mRtHandlers_TypeSender));
+        it->setIterator(it);
+        return it->weakHandle();
+    }
+
+    template <class CB>
+    RtMsgHandler rtAddHandler(RtMessage::Type type, CB cb, karere::Id from, ClientId fromClient)
+    {
+        auto it = mRtHandlers_TypeSenderClient.emplace(std::piecewise_construct,
+                std::forward_as_tuple(type, from),
+                new RtMsgHandlerCb<CB, decltype(mRtHandlers_TypeSenderClient)>
+                    (std::forward<CB>(cb), mRtHandlers_TypeSenderClient));
+        it->setIterator(it);
+        return it->weakHandle();
+    }
+
 /* We don't need query-response. If we do later, enble this
    promise::Promise<RtMessage*> rtSendQuery(DeviceId deviceId, const RtMessage& msg, uint32_t timeoutMs);
 */

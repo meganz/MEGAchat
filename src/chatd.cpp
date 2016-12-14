@@ -2237,7 +2237,7 @@ size_t Chat::handleRtMessage(const char* data, size_t maxSize)
     auto userid = cmd.read<karere::Id>(0);
     auto clientid = cmd.read<ClientId>(8);
     auto type = cmd.read<RtMessage::Type>(14);
-    std::unique_ptr<RtMessage> msg;
+//    std::unique_ptr<RtMessage> msg;
     if (type & RtMessage::kQueryBit)
     {
 /*
@@ -2266,12 +2266,40 @@ size_t Chat::handleRtMessage(const char* data, size_t maxSize)
             mRtQueries.erase(it);
 */
     }
-    else
-    {
-        RtMessage msg(userid, clientid, cmd.buf()+14, cmd.dataSize()-14);
-        CALL_LISTENER(onRtMessage, msg);
-    }
+
+    RtMessage msg(userid, clientid, cmd.buf()+14, cmd.dataSize()-14);
+    rtCallHandlers(mRtHandlers_Type, type, msg);
+    rtCallHandlers(mRtHandlers_TypeSender, RtMsgTypeSenderKey(type, userid), msg);
+    rtCallHandlers(mRtHandlers_TypeSenderClient, RtMsgTypeSenderClientKey(type, userid, clientid), msg);
     return cmdlen;
+}
+
+template <class M, class K>
+void Chat::rtCallHandlers(M& aMap, K aKey, const RtMessage& msg)
+{
+    auto range = aMap.equal_range(aKey);
+    for (auto it = range.first; it != range.second;)
+    {
+        bool keep = true;
+        try
+        {
+            (*it->second)(msg, keep);
+        }
+        catch(std::exception& e)
+        {
+            CHATID_LOG_ERROR("Exception thrown from realtime message handler: %s", e.what());
+        }
+        if (keep)
+        {
+            it++;
+        }
+        else
+        {
+            auto erased = it;
+            it++;
+            aMap.erase(erased);
+        }
+    }
 }
 
 void Client::leave(Id chatid)

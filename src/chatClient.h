@@ -665,7 +665,7 @@ public:
     promise::Promise<void> connect(Presence pres=Presence::kClear);
 
     /** @brief Disconnects the client from chatd and presenced */
-    void disconnect();
+    promise::Promise<void> disconnect();
 
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits
