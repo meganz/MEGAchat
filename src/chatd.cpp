@@ -314,6 +314,7 @@ Promise<void> Connection::reconnect(const std::string& url)
         .then([this]()
         {
             enableInactivityTimer();
+            sendCommand(Command(OP_HELLO)+(uint16_t)kProtocolVersion+(uint32_t)mClientId);
             rejoinExistingChats();
         });
     }
@@ -374,6 +375,21 @@ bool Connection::sendBuf(Buffer&& buf)
     bool result = (!rc && isOnline());
     return result;
 }
+
+bool Connection::sendCommand(Command&& cmd)
+{
+    char buf[512];
+    cmd.toString(buf, 512);
+    if (krLoggerWouldLog(krLogChannel_chatd, krLogLevelDebug))
+    {
+        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "conn-global: send %s\n", buf);
+    }
+    bool result = sendBuf(std::move(cmd));
+    if (!result)
+        CHATD_LOG_DEBUG("conn-global:    Can't send, we are offline");
+    return result;
+}
+
 bool Chat::sendCommand(Command&& cmd)
 {
     if (krLoggerWouldLog(krLogChannel_chatd, krLogLevelDebug))
@@ -394,38 +410,67 @@ bool Chat::sendCommand(const Command& cmd)
         CHATD_LOG_DEBUG("  Can't send, we are offline");
     return result;
 }
-void Chat::logSend(const Command& cmd)
+
+void Chat::logSend(const Command& cmd) const
 {
-    auto op = cmd.opcode();
-    switch (op)
+    char buf[512];
+    cmd.toString(buf, 512);
+    krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send %s\n",
+            ID_CSTR(mChatId), buf);
+}
+
+void Command::toString(char* buf, size_t bufsize) const
+{
+    switch(opcode())
+    {
+        case OP_HELLO:
+        {
+            snprintf(buf, bufsize, "HELLO - version 0x%04x, clientid: 0x%08x",
+                read<uint16_t>(1), read<uint32_t>(3));
+            break;
+        }
+        default:
+        {
+            snprintf(buf, bufsize, "%s", opcodeName());
+            break;
+        }
+    }
+    buf[bufsize-1] = 0;
+}
+
+void MsgCommand::toString(char* buf, size_t bufsize) const
+{
+    switch (opcode())
     {
       case OP_NEWMSG:
       {
-        auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgxid: %s\n",
-            ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
+        snprintf(buf, bufsize, "NEWMSG - msgxid: %s", ID_CSTR(msgid()));
         break;
       }
       case OP_MSGUPD:
       {
-        auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPD - msgid: %s\n",
-            ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
+        snprintf(buf, bufsize, "MSGUPD - msgid: %s", ID_CSTR(msgid()));
         break;
       }
       case OP_MSGUPDX:
       {
-        auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPDX - msgxid: %s, tsdelta: %hu\n",
-            ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.updated());
+        snprintf(buf, bufsize, "MSGUPDX - msgxid: %s, tsdelta: %hu",
+            ID_CSTR(msgid()), updated());
         break;
       }
       default:
       {
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send %s\n", ID_CSTR(mChatId), cmd.opcodeName());
+        snprintf(buf, bufsize, "%s", opcodeName());
         break;
       }
     }
+    buf[bufsize-1] = 0;
+}
+
+void KeyCommand::toString(char *buf, size_t bufsize) const
+{
+    assert(opcode() == OP_NEWKEY);
+    snprintf(buf, bufsize, "NEWKEY - keyid = 0x%04x", keyId());
 }
 
 // rejoin all open chats after reconnection (this is mandatory)
@@ -435,8 +480,8 @@ void Connection::rejoinExistingChats()
     {
         try
         {
-            Chat& msgs = mClient.chats(chatid);
-            msgs.login();
+            Chat& chat = mClient.chats(chatid);
+            chat.login();
         }
         catch(std::exception& e)
         {
@@ -570,7 +615,9 @@ void Chat::requestHistoryFromServer(int32_t count)
 Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     const karere::SetOfIds& initialUsers, ICrypto* crypto)
     : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
-      mListener(listener), mUsers(initialUsers), mCrypto(crypto)
+      mListener(listener), mUsers(initialUsers), mCrypto(crypto),
+      mRtHandlers_Type(*this), mRtHandlers_TypeSender(*this),
+      mRtHandlers_TypeSenderClient(*this)
 {
     assert(mChatId);
     assert(mListener);
@@ -846,6 +893,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 auto& chat = mClient.chats(chatid);
                 pos += chat.handleRtMessage(buf.buf()+pos, buf.dataSize()-pos);
+                break;
+            }
+            case OP_HELLO:
+            {
+                READ_32(clientid, 0);
+                mClientId = clientid;
+                CHATD_LOG_DEBUG("recv HELLO, clientid: %x", clientid);
                 break;
             }
             default:
@@ -1722,7 +1776,12 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             //erase item
             CALL_DB(deleteItemFromSending, item.rowid);
             if (!cipherMsg->dataEquals(item.msgCmd->msg()))
-                CHATD_LOG_WARNING("msgUpdConfirm: Discarding a different queued edit than the one received: %s\n%s", item.msgCmd->toString().c_str(), cipherMsg->toString().c_str());
+            {
+                CHATD_LOG_WARNING(
+                    "msgUpdConfirm: Discarding a different queued edit than the "
+                    "one received: %s\n%s", static_cast<Buffer*>(item.msgCmd.get())->toString().c_str(),
+                    cipherMsg->toString().c_str());
+            }
             auto erased = it;
             it++;
             mPendingEdits.erase(cipherMsg->id());
@@ -2237,7 +2296,6 @@ size_t Chat::handleRtMessage(const char* data, size_t maxSize)
     auto userid = cmd.read<karere::Id>(0);
     auto clientid = cmd.read<ClientId>(8);
     auto type = cmd.read<RtMessage::Type>(14);
-//    std::unique_ptr<RtMessage> msg;
     if (type & RtMessage::kQueryBit)
     {
 /*
@@ -2268,27 +2326,29 @@ size_t Chat::handleRtMessage(const char* data, size_t maxSize)
     }
 
     RtMessage msg(userid, clientid, cmd.buf()+14, cmd.dataSize()-14);
-    rtCallHandlers(mRtHandlers_Type, type, msg);
-    rtCallHandlers(mRtHandlers_TypeSender, RtMsgTypeSenderKey(type, userid), msg);
-    rtCallHandlers(mRtHandlers_TypeSenderClient, RtMsgTypeSenderClientKey(type, userid, clientid), msg);
+    mRtHandlers_Type.callHandlers(type, msg);
+    mRtHandlers_TypeSender.callHandlers(RtMsgTypeSenderKey(type, userid), msg);
+    mRtHandlers_TypeSenderClient.callHandlers(RtMsgTypeSenderClientKey(type, userid, clientid), msg);
     return cmdlen;
 }
 
-template <class M, class K>
-void Chat::rtCallHandlers(M& aMap, K aKey, const RtMessage& msg)
+template <class M>
+void Chat::RtHandlers<M>::callHandlers(typename M::key_type aKey, const RtMessage& msg)
 {
-    auto range = aMap.equal_range(aKey);
+    auto range = this->equal_range(aKey);
     for (auto it = range.first; it != range.second;)
     {
         bool keep = true;
+        mExecutingHandler = it;
         try
         {
             (*it->second)(msg, keep);
         }
         catch(std::exception& e)
         {
-            CHATID_LOG_ERROR("Exception thrown from realtime message handler: %s", e.what());
+            CHATD_LOG_ERROR("%s: Exception thrown from realtime message handler: %s", mParent.chatId().toString().c_str(), e.what());
         }
+        mExecutingHandler = this->end();
         if (keep)
         {
             it++;
@@ -2297,9 +2357,20 @@ void Chat::rtCallHandlers(M& aMap, K aKey, const RtMessage& msg)
         {
             auto erased = it;
             it++;
-            aMap.erase(erased);
+            this->erase(erased);
         }
     }
+}
+
+template <class M>
+void Chat::RtHandlers<M>::remove(typename M::iterator it)
+{
+    if (it == mExecutingHandler)
+    {
+        CHATD_LOG_DEBUG("%s: Addempt to delete executing handler, ignoring", mParent.chatId().toString().c_str());
+        return;
+    }
+    erase(it);
 }
 
 void Client::leave(Id chatid)

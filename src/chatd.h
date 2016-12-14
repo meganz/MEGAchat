@@ -52,6 +52,7 @@ enum HistSource
     kHistSourceServer = 3, //< History is being retrieved from the server
 //    kHistSourceMask = 3
 };
+enum { kProtocolVersion = 0x01 };
 
 class DbInterface;
 class Listener
@@ -241,6 +242,7 @@ public:
 protected:
     Client& mClient;
     int mShardNo;
+    ClientId mClientId = 0;
     std::set<karere::Id> mChatIds;
     ws_t mWebSocket = nullptr;
     State mState = kStateNew;
@@ -266,6 +268,7 @@ protected:
     void reset();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
+    bool sendCommand(Command&& cmd); //needed only for OP_HELLO
     void rejoinExistingChats();
     void resendPending();
     void join(karere::Id chatid);
@@ -335,9 +338,9 @@ struct RtMsgTypeSenderClientKey
     : type(aType), userid(aId), clientid(aClientId){}
 };
 
-class IRtMsgHandlerCb: public karere::WeakReferenceable<IRtMsgHandlerCb>
+class IRtMsgHandlerCb: public karere::WeakReferenceable<IRtMsgHandlerCb*>
 {
-    IRtMsgHandlerCb(): karere::WeakReferenceable<IRtMsgHandlerCb>(this){}
+    IRtMsgHandlerCb(): karere::WeakReferenceable<IRtMsgHandlerCb*>(this){}
 public:
     virtual void operator()(const RtMessage& msg, bool& keep) = 0;
     virtual ~IRtMsgHandlerCb(){}
@@ -359,11 +362,13 @@ protected:
     virtual void operator()(const RtMessage& msg, bool& keep)
     { mCallback(msg, keep); }
     friend class Chat;
+    template <class X>
+    friend class RtHandlers;
 public:
     virtual void remove() //called by user to unregister and delete handler
     {
+        assert(mWeakRefHandle.isValid());
         mParent.remove(mIterator);
-        delete this;
     }
 };
 
@@ -530,7 +535,7 @@ protected:
     void onHistDone(); //called upont receipt of HISTDONE from server
     void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
     void onNewKeys(StaticBuffer&& keybuf);
-    void logSend(const Command& cmd);
+    void logSend(const Command& cmd) const;
     void handleBroadcast(karere::Id userid, uint8_t type);
     friend class Connection;
     friend class Client;
@@ -875,9 +880,23 @@ protected:
     void loadManualSending();
 
     //Rt message stuff
-    std::multimap<RtMessage::Type, std::unique_ptr<IRtMsgHandlerCb>> mRtHandlers_Type;
-    std::multimap<RtMsgTypeSenderKey, std::unique_ptr<IRtMsgHandlerCb>> mRtHandlers_TypeSender;
-    std::multimap<RtMsgTypeSenderClientKey, std::unique_ptr<IRtMsgHandlerCb>> mRtHandlers_TypeSenderClient;
+    typedef std::multimap<RtMessage::Type, std::unique_ptr<IRtMsgHandlerCb>> rthTypeMap;
+    typedef std::multimap<RtMsgTypeSenderKey, std::unique_ptr<IRtMsgHandlerCb>> rthTypeSenderMap;
+    typedef std::multimap<RtMsgTypeSenderClientKey, std::unique_ptr<IRtMsgHandlerCb>> rthTypeSenderClientMap;
+
+    template <class M>
+    struct RtHandlers: public M
+    {
+        Chat& mParent;
+        typename M::iterator mExecutingHandler = M::end();
+        RtHandlers(Chat& aParent): mParent(aParent){}
+        void callHandlers(typename M::key_type aKey, const RtMessage& msg);
+        void remove(typename M::iterator handler);
+    };
+    RtHandlers<rthTypeMap> mRtHandlers_Type;
+    RtHandlers<rthTypeSenderMap> mRtHandlers_TypeSender;
+    RtHandlers<rthTypeSenderClientMap> mRtHandlers_TypeSenderClient;
+
     template <class M, class K>
     void rtCallHandlers(M& map, K key, const RtMessage& msg);
     size_t handleRtMessage(const char* data, size_t maxSize);

@@ -83,15 +83,14 @@ struct UserAttrPair
 typedef void(*UserAttrReqCbFunc)(Buffer*, void*);
 struct UserAttrCacheItem;
 
-struct UserAttrReqCb: public karere::WeakReferenceable<UserAttrReqCb>
+struct UserAttrReqCb: public karere::WeakReferenceable<std::list<UserAttrReqCb>::iterator>
 {
     UserAttrCacheItem& owner;
     UserAttrReqCbFunc cb;
     void* userp;
     bool oneShot;
-    std::list<UserAttrReqCb>::iterator listIt;
     UserAttrReqCb(UserAttrCacheItem& aOwner, UserAttrReqCbFunc aCb, void* aUserp, bool aOneShot=false)
-    : WeakReferenceable(this), owner(aOwner), cb(aCb), userp(aUserp), oneShot(aOneShot){}
+    : owner(aOwner), cb(aCb), userp(aUserp), oneShot(aOneShot){}
 };
 
 enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2};

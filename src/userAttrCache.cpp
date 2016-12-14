@@ -261,7 +261,7 @@ void UserAttrCacheItem::errorNoDb(int errCode)
 UserAttrCache::Handle UserAttrCacheItem::addCb(UserAttrReqCbFunc cb, void* userp, bool oneShot)
 {
     auto it = cbs.emplace(cbs.end(), *this, cb, userp, oneShot);
-    it->listIt = it;
+    it->setIterator(it);
     return it->getWeakHandle();
 }
 
@@ -269,7 +269,7 @@ bool UserAttrCache::removeCb(Handle h)
 {
     if (!h.isValid())
         return false;
-    h->owner.cbs.erase(h->listIt);
+    h->owner.cbs.erase(h.weakPtr());
     return true;
 }
 

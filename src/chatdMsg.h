@@ -40,7 +40,8 @@ enum Opcode
     OP_MSGUPDX = 20,
     OP_MSGID = 21,
     OP_RTMSG = 22,
-    OP_LAST = OP_RTMSG
+    OP_HELLO = 23,
+    OP_LAST = OP_HELLO
 };
 
 // privilege levels
@@ -229,8 +230,10 @@ public:
     {
         return (code > OP_LAST) ? "(invalid opcode)" : opcodeNames[code];
     }
+    virtual void toString(char* buf, size_t bufsize) const;
     virtual ~Command(){}
 };
+
 class KeyCommand: public Command
 {
 public:
@@ -253,6 +256,7 @@ public:
     }
     bool hasKeys() const { return dataSize() > 17; }
     void clearKeys() { setDataSize(17); } //opcode.1+chatid.8+keyid.4+length.4
+    virtual void toString(char* buf, size_t bufsize) const;
 };
 
 //we need that special class because we may update key ids after keys get confirmed,
@@ -295,7 +299,9 @@ public:
     {
         write<uint32_t>(35, dataSize()-39);
     }
+    virtual void toString(char* buf, size_t bufsize) const;
 };
+
 class RtMessage: public Buffer
 {
 public:
