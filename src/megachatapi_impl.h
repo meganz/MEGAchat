@@ -620,6 +620,8 @@ public:
     static void setLogLevel(int logLevel);
     static void setLoggerClass(MegaChatLogger *megaLogger);
 
+    void init(const char *sid);
+
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
     void removeChatRoomHandler(MegaChatHandle chatid);
 
@@ -666,13 +668,13 @@ public:
     void fireOnMessageReceived(MegaChatMessage *msg);
     void fireOnMessageUpdate(MegaChatMessage *msg);
 
-    // MegaChatRoomListener callbacks (specific ones)
+    // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
+    void fireOnChatInitStateUpdate(int newState);
 
     // ============= API requests ================
 
     // General chat methods
-    void init(MegaChatRequestListener *listener = NULL);
     void connect(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);
@@ -735,7 +737,7 @@ public:
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
     virtual void notifyInvited(const karere::ChatRoom& room);
-    virtual void onTerminate();
+    virtual void onInitStateChange(int newState);
 
     // rtcModule::IChatListHandler implementation
     virtual IApp::IGroupChatListItem *addGroupChatItem(karere::GroupChatRoom &chat);
@@ -745,7 +747,7 @@ public:
 
     // mega::MegaRequestListener implementation
 //    virtual void onRequestStart(MegaApi* api, MegaRequest *request);
-    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
+//    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
 //    virtual void onRequestUpdate(MegaApi*api, MegaRequest *request);
 //    virtual void onRequestTemporaryError(MegaApi *api, MegaRequest *request, MegaError* error);
 

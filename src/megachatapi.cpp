@@ -88,9 +88,9 @@ void MegaChatApi::setLogLevel(int logLevel)
     MegaChatApiImpl::setLogLevel(logLevel);
 }
 
-void MegaChatApi::init(MegaChatRequestListener *listener)
+void MegaChatApi::init(const char *sid)
 {
-    pImpl->init(listener);
+    pImpl->init(sid);
 }
 
 void MegaChatApi::connect(MegaChatRequestListener *listener)
@@ -661,7 +661,7 @@ void MegaChatListener::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *
 
 }
 
-void MegaChatListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chats)
+void MegaChatListener::onChatInitStateUpdate(MegaChatApi *api, int newState)
 {
 
 }

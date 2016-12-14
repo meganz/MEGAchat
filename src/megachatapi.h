@@ -468,7 +468,7 @@ class MegaChatRequest
 {
 public:
     enum {
-        TYPE_INITIALIZE,// initialize local cache with SDK cache and loads chats
+        TYPE_INITIALIZE,// (obsolete)
         TYPE_CONNECT,   // connect to chatd (call it after login+fetchnodes with MegaApi)
         TYPE_DELETE,    // delete MegaChatApi instance
         TYPE_LOGOUT,    // delete existing Client and creates a new one
@@ -833,6 +833,14 @@ public:
         SOURCE_REMOTE
     };
 
+    enum
+    {
+        INIT_ERROR                  = -1,   /// Initialization failed
+        INIT_WAITING_NEW_SESSION    = 0,    /// No \c sid provided at init() or cache not available
+        INIT_OFFLINE_SESSION        = 1,    /// Initialization successful for offline operation
+        INIT_ONLINE_SESSION         = 2     /// Initialization successful for online operation
+    };
+
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -880,23 +888,23 @@ public:
      */
     static void setLogLevel(int logLevel);
 
+    /**
+     * @brief Initializes karere
+     *
+     * If a session id is provided, karere will try to resume the session from cache.
+     * If no session is provided, karere will listen to login event in order to register a new
+     * session.
+     *
+     * The initialization status is notified via `MegaChatListener::onChatInitStateUpdate`. See
+     * the documentation of the callback for possible values.
+     *
+     * This function should be called before MegaApi::login and MegaApi::fetchnodes.
+     *
+     * @param sid Session id that wants to be resumed, or NULL if a new session will be created.
+     */
+    void init(const char *sid);
 
     // ============= Requests ================
-
-    /**
-     * @brief Performs karere-only login, assuming the Mega SDK is already logged in
-     * with an existing session.
-     *
-     * After calling this function, the chat-engine is fully initialized (despite it's
-     * not connected yet, call MegaChatApi::connect) and the application can request the
-     * required objects, such as MegaChatApi::getChatRooms, to show the GUI to the user.
-     *
-     * @note: until the MegaChatApi::connect function is called, MegaChatApi will operate
-     * in offline mode (cannot send/receive any message or call)
-     *
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void init(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).
@@ -1185,7 +1193,7 @@ public:
      * - MegaChatRequest::getUserHandle - Returns the MegaChatHandle of the user to be invited
      * - MegaChatRequest::getPrivilege - Returns the privilege level wanted for the user
      *
-     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot invite peers)
@@ -1209,7 +1217,7 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getUserHandle - Returns the MegaChatHandle of the user to be removed
      *
-     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to remove peers.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot remove peers)
@@ -1227,7 +1235,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      *
-     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to remove peers.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot remove peers)
@@ -1248,7 +1256,7 @@ public:
      * is to be upgraded
      * - MegaChatRequest::getPrivilege - Returns the privilege level wanted for the user
      *
-     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to update the privilege level.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
@@ -1273,7 +1281,7 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getUserHandle - Returns the message identifier to truncate from.
      *
-     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
@@ -1293,7 +1301,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      *
-     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
@@ -1314,7 +1322,7 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getText - Returns the title of the chat.
      *
-     * On the onTransferFinish error, the error code associated to the MegaChatError can be:
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers.
      * - MegaChatError::ERROR_ARGS - If there's a title and it's not Base64url encoded.
      *
@@ -1967,19 +1975,6 @@ class MegaChatListener
 public:
     virtual ~MegaChatListener() {}
 
-
-    //    /**
-    //     * @brief This function is called when the chat engine is fully initialized
-    //     *
-    //     * At this moment, the list of chats is up to date and it can be retrieved by the app.
-    //     *
-    //     * @note The chat engine is able to work offline, so the connection to the
-    //     * the chat servers is not necessarily established when this function is called.
-    //     *
-    //     * @param api MegaChatApi connected to the account
-    //     */
-    //    virtual void onChatCurrent(MegaChatApi* api);
-
         /**
          * @brief This function is called when there are new chats or relevant changes on existing chats.
          *
@@ -2000,23 +1995,18 @@ public:
         virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
 
         /**
-         * @brief This funtion is called when there are new or updated chats in the account
+         * @brief This function is called when the status of the initialization has changed
          *
-         * When the chat engine is fully initialized, this function is also called, but
-         * the second parameter will be NULL.
-         *
-         * @note that it can work offline, so the connection to the chat servers may not
-         * have been established yet (wait for completion of MegaChatApi::connect in order to
-         * ensure the connection is established).
-         *
-         * The SDK retains the ownership of the MegaChatRoom in the second parameter.
-         * The MegaChatRoom object will be valid until this function returns. If you want to
-         * save the MegaChatRoom object, use MegaChatRoom::copy.
+         * The possible values are:
+         *  - MegaChatApi::INIT_ERROR = -1
+         *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 0
+         *  - MegaChatApi::INIT_OFFLINE_SESSION = 1
+         *  - MegaChatApi::INIT_ONLINE_SESSION = 2
          *
          * @param api MegaChatApi connected to the account
-         * @param chat MegaChatRoom that contains the new or updated chat
+         * @param newState New state of initialization
          */
-        virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
+        virtual void onChatInitStateUpdate(MegaChatApi* api, int newState);
 };
 
 /**
