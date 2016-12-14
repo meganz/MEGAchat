@@ -363,6 +363,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     if (type == mega::MegaRequest::TYPE_FETCH_NODES)
     {
         api.sdk.pauseActionPackets();
+        api.sdk.removeRequestListener(this);
         marshallCall([this, reqSid]()
         {
             auto sid = api.sdk.dumpSession();
