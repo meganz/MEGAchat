@@ -663,6 +663,7 @@ void Client::setOwnPresence(Presence pres, bool force)
     mOwnPresence = pres;
     mPresencedClient.setPresence(pres, force);
     app.onOwnPresence(pres, true);
+<<<<<<< HEAD
 }
 
 void Client::onOwnPresence(Presence pres)
@@ -677,6 +678,22 @@ void Contact::updatePresence(Presence pres)
     updateAllOnlineDisplays(pres);
 }
 
+=======
+}
+
+void Client::onOwnPresence(Presence pres)
+{
+    mOwnPresence = pres;
+    app.onOwnPresence(pres, false);
+}
+
+void Contact::updatePresence(Presence pres)
+{
+    mPresence = pres;
+    updateAllOnlineDisplays(pres);
+}
+
+>>>>>>> 574afa86c0c42b7707f954557095116dc96982b0
 void Client::onPresence(Id userid, Presence pres)
 {
     auto it = contactList->find(userid);
