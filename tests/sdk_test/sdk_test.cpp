@@ -910,7 +910,7 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
     requestFlagsChat[apiIndex][request->getType()] = true;
 }
 
-void MegaChatApiTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
+void MegaChatApiTest::onChatInitStateUpdate(MegaChatApi *api, int newState)
 {
     int apiIndex = -1;
     for (int i = 0; i < NUM_ACCOUNTS; i++)
@@ -927,20 +927,8 @@ void MegaChatApiTest::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
         return;
     }
 
-    if (chat != NULL)
-    {
-        cout << "[api: " << apiIndex << "] Chat added or updated (" << chat->getChatId() << ")" << endl;
-        chatroom = chat->copy();
-        chatUpdated[apiIndex] = true;
-        if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_PARTICIPANTS))
-        {
-            peersUpdated[apiIndex] = true;
-        }
-    }
-    else
-    {
-        cout << "[api: " << apiIndex << "] " << megaChatApi[0]->getChatRooms()->size() << " chat/s received" << endl;
-    }
+    initState[apiIndex] = newState;
+    initStateChanged[apiIndex] = true;
 }
 
 void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *item)
