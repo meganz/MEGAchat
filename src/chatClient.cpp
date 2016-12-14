@@ -360,9 +360,10 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     {
         reqSid = s;
     }
-    marshallCall([this, type, reqSid]()
+    if (type == mega::MegaRequest::TYPE_FETCH_NODES)
     {
-        if (type == mega::MegaRequest::TYPE_FETCH_NODES)
+        api.sdk.pauseActionPackets();
+        marshallCall([this, reqSid]()
         {
             auto sid = api.sdk.dumpSession();
             assert(sid);
@@ -385,8 +386,9 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                     setInitState(kInitHasOnlineSession);
                 });
             }
-        }
-    });
+            api.sdk.resumeActionPackets();
+        });
+    }
 }
 
 //TODO: We should actually wipe the whole app dir, but the log file may
