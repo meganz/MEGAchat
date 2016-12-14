@@ -105,7 +105,7 @@ public:
         }
     public:
         friend class WeakReferenceable;
-        WeakRefHandle(): mData(new WeakRefSharedData(T())) {}
+        WeakRefHandle(): mData(nullptr) {}
         WeakRefHandle(const WeakRefHandle& other): WeakRefHandle(other.mData){}
         WeakRefHandle& operator=(const WeakRefHandle& other)
         {
