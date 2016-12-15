@@ -20,6 +20,8 @@
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 
+enum: uint32_t { kPromiseErrtype_chatd = 0x3e9ac47d }; //should resemble 'megachtd'
+
 #define CHATD_MAX_EDIT_AGE 3600
 namespace chatd
 {

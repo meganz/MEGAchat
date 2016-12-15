@@ -194,30 +194,6 @@ void MegaChatApiImpl::sendPendingRequests()
 
         switch (request->getType())
         {
-        case MegaChatRequest::TYPE_INITIALIZE:
-        {
-            if (initResult)
-            {
-                if (initResult->getErrorCode() == MegaChatError::ERROR_OK)
-                {
-                    fireOnChatRequestFinish(request, initResult);
-                    API_LOG_INFO("Initialization complete");
-                    fireOnChatRoomUpdate(NULL);
-                }
-                else
-                {
-                    fireOnChatRequestFinish(request, initResult);
-                    API_LOG_INFO("Initialization failed");
-                }
-                initResult = NULL;
-                initRequest = NULL;
-            }
-            else
-            {
-                initRequest = request;
-            }
-            break;
-        }
         case MegaChatRequest::TYPE_CONNECT:
         {
             mClient->connect()
@@ -693,6 +669,24 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
     }
 }
 
+void MegaChatApiImpl::init(const char *sid)
+{
+    sdkMutex.lock();
+    mClient->init(sid);
+    sdkMutex.unlock();
+}
+
+int MegaChatApiImpl::getInitState()
+{
+    int initState;
+
+    sdkMutex.lock();
+    initState = MegaChatApiImpl::convertInitState(mClient->initState());
+    sdkMutex.unlock();
+
+    return initState;
+}
+
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
 {
     map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
@@ -943,11 +937,6 @@ void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoom *chat)
         (*it)->onChatRoomUpdate(chatApi, chat);
     }
 
-    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
-    {
-        (*it)->onChatRoomUpdate(chatApi, chat);
-    }
-
     delete chat;
 }
 
@@ -991,11 +980,12 @@ void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
     delete item;
 }
 
-void MegaChatApiImpl::init(MegaChatRequestListener *listener)
+void MegaChatApiImpl::fireOnChatInitStateUpdate(int newState)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_INITIALIZE, listener);
-    requestQueue.push(request);
-    waiter->notify();
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatInitStateUpdate(chatApi, newState);
+    }
 }
 
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
@@ -1695,9 +1685,42 @@ void MegaChatApiImpl::notifyInvited(const ChatRoom &room)
     fireOnChatRoomUpdate(chat);
 }
 
-void MegaChatApiImpl::onTerminate()
+void MegaChatApiImpl::onInitStateChange(int newState)
 {
-    API_LOG_DEBUG("Karere is about to terminate (call onTerminate())");
+    API_LOG_DEBUG("Karere initialization state has changed: %d", newState);
+
+    int state = MegaChatApiImpl::convertInitState(newState);
+
+    // only notify meaningful state to the app
+    if (state >= MegaChatApi::INIT_ERROR &&
+            state <= MegaChatApi::INIT_ONLINE_SESSION)
+    {
+        fireOnChatInitStateUpdate(state);
+    }
+}
+
+int MegaChatApiImpl::convertInitState(int state)
+{
+    switch (state)
+    {
+    case karere::Client::kInitErrGeneric:
+    case karere::Client::kInitErrCorruptCache:
+    case karere::Client::kInitErrSidMismatch:
+        return MegaChatApi::INIT_ERROR;
+
+    case karere::Client::kInitErrNoCache:
+    case karere::Client::kInitWaitingNewSession:
+        return MegaChatApi::INIT_WAITING_NEW_SESSION;
+
+    case karere::Client::kInitHasOfflineSession:
+        return MegaChatApi::INIT_OFFLINE_SESSION;
+
+    case karere::Client::kInitHasOnlineSession:
+        return MegaChatApi::INIT_ONLINE_SESSION;
+
+    default:
+        return state;
+    }
 }
 
 IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &chat)
@@ -1765,53 +1788,6 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
         }
 
         it++;
-    }
-}
-
-void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
-{
-    if (e->getErrorCode() != MegaError::API_OK)
-    {
-        return;
-    }
-
-    switch (request->getType())
-    {
-        case MegaRequest::TYPE_LOGIN:
-            resumeSession = request->getSessionKey();
-            break;
-
-        case MegaRequest::TYPE_FETCH_NODES:
-            api->pauseActionPackets();
-            marshallCall([this, api]()
-            {
-                mClient->init(resumeSession);
-                if (mClient->hasInitError())
-                {
-                    initResult = new MegaChatErrorPrivate(mClient->initStateStr(),
-                        mClient->initState(), karere::Client::kInitErrorType);
-                    if (initRequest)
-                    {
-                        fireOnChatRequestFinish(initRequest, initResult);
-                        API_LOG_INFO("Initialization failed");
-                        initRequest = NULL;
-                        initResult = NULL;
-                    }
-                    api->resumeActionPackets();
-                }
-
-                initResult = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                if (initRequest)
-                {
-                    fireOnChatRequestFinish(initRequest, initResult);
-                    API_LOG_INFO("Initialization complete");
-                    fireOnChatRoomUpdate(NULL);
-                    initRequest = NULL;
-                    initResult = NULL;
-                }
-                api->resumeActionPackets();
-            });
-            break;
     }
 }
 

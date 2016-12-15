@@ -177,7 +177,11 @@ void Chat::connect(const std::string& url)
     // attempt a connection ONLY if this is a new shard.
     if (mConnection.state() == Connection::kStateNew)
     {
-        mConnection.reconnect(url);
+        mConnection.reconnect(url)
+        .fail([this](const promise::Error& err)
+        {
+            CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+        });
     }
     else if (mConnection.isOnline())
     {
@@ -318,7 +322,7 @@ Promise<void> Connection::reconnect(const std::string& url)
             rejoinExistingChats();
         });
     }
-    KR_EXCEPTION_TO_PROMISE(CHATD);
+    KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
 }
 
 void Connection::enableInactivityTimer()
