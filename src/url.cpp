@@ -1,4 +1,7 @@
 #include "url.h"
+#include <algorithm>
+#include <stdexcept>
+
 namespace karere
 {
 void Url::parse(const std::string& url)
