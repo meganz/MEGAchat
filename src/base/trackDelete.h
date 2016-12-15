@@ -51,6 +51,8 @@ public:
     ~DeleteTrackable() { mSharedDataHandle.mData->mRefCount |= 0x01; }
 };
 
+#define TDEL_ENABLE_IF_POINTER template <class C=T, class=typename std::enable_if<std::is_pointer<C>::value>::type>
+#define TDEL_ENABLE_IF_ITERATOR template <class C=T, class=typename std::enable_if<is_iterator<C>::value>::type>
 
 template <class T>
 class WeakReferenceable
@@ -127,37 +129,30 @@ public:
                 throw std::runtime_error("WeakRefHandle::isValid: Handle is invalid or referenced object has been deleted");
         }
         static WeakRefHandle invalid() { return WeakRefHandle(); }
-        decltype(*(mData->mPtr))& operator*()
-        {
-            assert(isValid());
-            return *mData->mPtr;
-        }
-        const decltype(*(mData->mPtr))& operator*() const
-        {
-            assert(isValid());
-            return *mData->mPtr;
-        }
-        T weakPtr()
+
+        decltype(*(mData->mPtr))& operator*() { return *get(); }
+        const decltype(*(mData->mPtr))& operator*() const { return *get(); }
+        T get()
         {
             assert(isValid());
             return mData->mPtr;
         }
-        const T weakPtr() const
+        const T get() const
         {
             assert(isValid());
             return mData->mPtr;
         }
-        T operator->() { return weakPtr(); }
-        const T operator->() const { return weakPtr(); }
+        T operator->() { return get(); }
+        const T operator->() const { return get(); }
     };
 protected:
     WeakRefHandle mWeakRefHandle;
 public:
     //T is a pointer
-    template <class C=T, class=typename std::enable_if<std::is_pointer<C>::value>::type>
+    TDEL_ENABLE_IF_POINTER
     WeakReferenceable(T target): mWeakRefHandle(new WeakRefSharedData(target)){}
     //T is iterator
-    template <class C=T, class=typename std::enable_if<is_iterator<C>::value>::type>
+    TDEL_ENABLE_IF_ITERATOR
     WeakReferenceable(): mWeakRefHandle(new WeakRefSharedData(T())){}
 
     ~WeakReferenceable()
@@ -172,7 +167,7 @@ public:
      * when the item is inserted in the container. So we need to provide
      * a method to set it after construction.
      */
-    template <class C=T, class=typename std::enable_if<is_iterator<C>::value>::type>
+    TDEL_ENABLE_IF_ITERATOR
     void setIterator(T target)
     {
         mWeakRefHandle.mData->mPtr = target;

@@ -269,7 +269,7 @@ bool UserAttrCache::removeCb(Handle h)
 {
     if (!h.isValid())
         return false;
-    h->owner.cbs.erase(h.weakPtr());
+    h->owner.cbs.erase(h.get());
     return true;
 }
 
