@@ -93,6 +93,11 @@ void MegaChatApi::init(const char *sid)
     pImpl->init(sid);
 }
 
+int MegaChatApi::getInitState()
+{
+    return pImpl->getInitState();
+}
+
 void MegaChatApi::connect(MegaChatRequestListener *listener)
 {
     pImpl->connect(listener);

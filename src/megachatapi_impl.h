@@ -610,6 +610,8 @@ private:
     // online status of user
     int status;
 
+    static int convertInitState(int state);
+
 public:    
     static void megaApiPostMessage(void* msg);
     void postMessage(void *msg);
@@ -621,6 +623,7 @@ public:
     static void setLoggerClass(MegaChatLogger *megaLogger);
 
     void init(const char *sid);
+    int getInitState();
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
     void removeChatRoomHandler(MegaChatHandle chatid);

@@ -671,7 +671,20 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
 
 void MegaChatApiImpl::init(const char *sid)
 {
+    sdkMutex.lock();
     mClient->init(sid);
+    sdkMutex.unlock();
+}
+
+int MegaChatApiImpl::getInitState()
+{
+    int initState;
+
+    sdkMutex.lock();
+    initState = MegaChatApiImpl::convertInitState(mClient->initState());
+    sdkMutex.unlock();
+
+    return initState;
 }
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
@@ -1676,23 +1689,37 @@ void MegaChatApiImpl::onInitStateChange(int newState)
 {
     API_LOG_DEBUG("Karere initialization state has changed: %d", newState);
 
-    switch (newState)
-    {
-    case karere::Client::kInitErrCorruptCache:
-        fireOnChatInitStateUpdate(MegaChatApi::INIT_ERROR);
-        break;
+    int state = MegaChatApiImpl::convertInitState(newState);
 
+    // only notify meaningful state to the app
+    if (state >= MegaChatApi::INIT_ERROR &&
+            state <= MegaChatApi::INIT_ONLINE_SESSION)
+    {
+        fireOnChatInitStateUpdate(state);
+    }
+}
+
+int MegaChatApiImpl::convertInitState(int state)
+{
+    switch (state)
+    {
+    case karere::Client::kInitErrGeneric:
+    case karere::Client::kInitErrCorruptCache:
+    case karere::Client::kInitErrSidMismatch:
+        return MegaChatApi::INIT_ERROR;
+
+    case karere::Client::kInitErrNoCache:
     case karere::Client::kInitWaitingNewSession:
-        fireOnChatInitStateUpdate(MegaChatApi::INIT_WAITING_NEW_SESSION);
-        break;
+        return MegaChatApi::INIT_WAITING_NEW_SESSION;
 
     case karere::Client::kInitHasOfflineSession:
-        fireOnChatInitStateUpdate(MegaChatApi::INIT_OFFLINE_SESSION);
-        break;
+        return MegaChatApi::INIT_OFFLINE_SESSION;
 
     case karere::Client::kInitHasOnlineSession:
-        fireOnChatInitStateUpdate(MegaChatApi::INIT_ONLINE_SESSION);
-        break;
+        return MegaChatApi::INIT_ONLINE_SESSION;
+
+    default:
+        return state;
     }
 }
 
