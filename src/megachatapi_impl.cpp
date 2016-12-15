@@ -1791,7 +1791,7 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
     }
 }
 
-void MegaChatApiImpl::onOwnPresence(Presence pres)
+void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
 {
     if (inProgress)
         return;
