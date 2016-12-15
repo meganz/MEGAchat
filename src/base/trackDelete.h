@@ -129,21 +129,23 @@ public:
         static WeakRefHandle invalid() { return WeakRefHandle(); }
         decltype(*(mData->mPtr))& operator*()
         {
-            throwIfInvalid();
+            assert(isValid());
             return *mData->mPtr;
         }
         const decltype(*(mData->mPtr))& operator*() const
         {
-            throwIfInvalid();
+            assert(isValid());
             return *mData->mPtr;
         }
         T weakPtr()
         {
-            return mData ? mData->mPtr : T();
+            assert(isValid());
+            return mData->mPtr;
         }
         const T weakPtr() const
         {
-            return mData ? mData->mPtr : T();
+            assert(isValid());
+            return mData->mPtr;
         }
         T operator->() { return weakPtr(); }
         const T operator->() const { return weakPtr(); }

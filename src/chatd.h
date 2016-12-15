@@ -367,8 +367,7 @@ protected:
 public:
     virtual void remove() //called by user to unregister and delete handler
     {
-        assert(mWeakRefHandle.isValid());
-        mParent.remove(mIterator);
+        mParent.remove(mIterator); //deletes this, as the map holds smart pointers
     }
 };
 
@@ -900,6 +899,10 @@ protected:
     template <class M, class K>
     void rtCallHandlers(M& map, K key, const RtMessage& msg);
     size_t handleRtMessage(const char* data, size_t maxSize);
+
+    template <class CB, class M>
+    IRtMsgHandlerCb* rtMkHandler(CB&& cb, M& aMap)
+    { return new RtMsgHandlerCb<CB,M>(std::forward<CB>(cb), aMap); }
 public:
 //realtime messaging
     bool rtSendMessage(ClientId clientId, const RtMessage& msg);
@@ -907,8 +910,7 @@ public:
     RtMsgHandler rtAddHandler(RtMessage::Type type, CB cb)
     {
         auto it = mRtHandlers_Type.emplace(type,
-            new RtMsgHandlerCb<CB, decltype(mRtHandlers_Type)>
-            (std::forward<CB>(cb), mRtHandlers_Type));
+            rtMkHandler(std::forward<CB>(cb), mRtHandlers_Type));
         it->setIterator(it);
         return it->weakHandle();
     }
@@ -917,20 +919,18 @@ public:
     RtMsgHandler rtAddHandler(RtMessage::Type type, karere::Id from, CB cb)
     {
         auto it = mRtHandlers_TypeSender.emplace(std::piecewise_construct,
-                std::forward_as_tuple(type, from),
-                new RtMsgHandlerCb<CB, decltype(mRtHandlers_TypeSender)>
-                    (std::forward<CB>(cb), mRtHandlers_TypeSender));
+            std::forward_as_tuple(type, from),
+            rtMkHandler(std::forward<CB>(cb), mRtHandlers_TypeSender));
         it->setIterator(it);
         return it->weakHandle();
     }
 
     template <class CB>
-    RtMsgHandler rtAddHandler(RtMessage::Type type, CB cb, karere::Id from, ClientId fromClient)
+    RtMsgHandler rtAddHandler(RtMessage::Type type, karere::Id from, ClientId fromClient, CB cb)
     {
         auto it = mRtHandlers_TypeSenderClient.emplace(std::piecewise_construct,
-                std::forward_as_tuple(type, from),
-                new RtMsgHandlerCb<CB, decltype(mRtHandlers_TypeSenderClient)>
-                    (std::forward<CB>(cb), mRtHandlers_TypeSenderClient));
+            std::forward_as_tuple(type, from, fromClient),
+            rtMkHandler(std::forward<CB>(cb), mRtHandlers_TypeSenderClient));
         it->setIterator(it);
         return it->weakHandle();
     }
