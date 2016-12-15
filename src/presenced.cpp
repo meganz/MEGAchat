@@ -252,7 +252,7 @@ Client::reconnect(const std::string& url)
             return login();
         });
     }
-    KR_EXCEPTION_TO_PROMISE(PRESENCED);
+    KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
 
 void Client::heartbeat()
