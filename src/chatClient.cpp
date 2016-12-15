@@ -349,10 +349,12 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     {
         reqSid = s;
     }
-    marshallCall([this, type, reqSid]()
+    if (type == mega::MegaRequest::TYPE_FETCH_NODES)
     {
-        if (type == mega::MegaRequest::TYPE_FETCH_NODES)
+        api.sdk.pauseActionPackets();
+        marshallCall([this, reqSid]()
         {
+            api.sdk.removeRequestListener(this);
             auto sid = api.sdk.dumpSession();
             assert(sid);
             if (mInitState == kInitHasOfflineSession)
@@ -374,9 +376,9 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                     setInitState(kInitHasOnlineSession);
                 });
             }
-
-        }
-    });
+            api.sdk.resumeActionPackets();
+        });
+    }
 }
 
 //TODO: We should actually wipe the whole app dir, but the log file may
@@ -622,7 +624,8 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
     presenced::IdRefMap peers;
     for (auto& contact: *contactList)
     {
-        peers.insert(contact.first);
+        if (contact.second->visibility() == ::mega::MegaUser::VISIBILITY_VISIBLE)
+            peers.insert(contact.first);
     }
     for (auto& chat: *chats)
     {
@@ -711,6 +714,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
         return promise::Error("Already terminating");
     }
     setInitState(kInitTerminating);
+    api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -1931,16 +1935,19 @@ void Contact::onVisibilityChanged(int newVisibility)
     {
         mDisplay->onVisibilityChanged(newVisibility);
     }
-    if (mChatRoom)
+
+    auto& client = mClist.client;
+    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
     {
-        if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
-        {
+        client.presenced().removePeer(mUserid, true);
+        if (mChatRoom)
             mChatRoom->notifyExcludedFromChat();
-        }
-        else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
-        {
+    }
+    else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+    {
+        mClist.client.presenced().addPeer(mUserid);
+        if (mChatRoom)
             mChatRoom->notifyRejoinedChat();
-        }
     }
 }
 
@@ -1967,20 +1974,10 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         removeUser(erased);
     }
 }
+
 void ContactList::onUserAddRemove(mega::MegaUser& user)
 {
     addUserFromApi(user);
-}
-
-void ContactList::removeUser(uint64_t userid)
-{
-    auto it = find(userid);
-    if (it == end())
-    {
-        KR_LOG_ERROR("ContactList::removeUser: Unknown user");
-        return;
-    }
-    removeUser(it);
 }
 
 void ContactList::removeUser(iterator it)
@@ -2119,7 +2116,7 @@ Contact::~Contact()
 {
     auto& client = mClist.client;
     client.userAttrCache().removeCb(mUsernameAttrCbId);
-
+    // this is not normally needed, as we never delete contacts - just make them invisible
     if (client.initState() < Client::kInitTerminating)
     {
         client.presenced().removePeer(mUserid, true);
