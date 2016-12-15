@@ -510,8 +510,8 @@ public:
         kInitCreated = 0,
 
         /** \c init() has been called with no \c sid, or there was no valid
-         * database for that \sid. The client is waiting for the login event
-         * from the SDK */
+         * database for that \sid. The client is waiting for the completion
+         * of a full fetchnodes from the SDK */
         kInitWaitingNewSession,
 
         /** \c init() has been called with a \c sid, there is a valid cache for that
@@ -541,7 +541,7 @@ public:
         /** There was not valid database for the sid specified to \c init().
          * This error is recoverable - the client will signal it, but then will
          * behave like it starts with a new session. However, the application must
-         * be aware of this condition in order to tell the SDK to do a full login,
+         * be aware of this condition in order to tell the SDK to do a full fetchnodes,
          * and receive all actionpackets again, so that karere can have a chance
          * to initialize its state from scratch
          */
