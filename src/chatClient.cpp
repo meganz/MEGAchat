@@ -1520,7 +1520,7 @@ void GroupChatRoom::makeTitleFromMemberNames()
     mTitleString.clear();
     if (mPeers.empty())
     {
-        mTitleString = "(alone in this chatroom)";
+        mTitleString = "(empty)";
     }
     else
     {
