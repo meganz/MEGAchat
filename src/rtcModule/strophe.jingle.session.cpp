@@ -17,9 +17,7 @@ using namespace sdpUtil;
 namespace rtcModule
 {
 
-JingleSession::JingleSession(Call& call, FileTransferHandler* ftHandler)
-    :mCall(call), mJingle(mCall.mRtc),
-    mSid(call.mSid), mFtHandler(ftHandler)
+void JingleCall::createSession()
 {}
 
 JingleSession::~JingleSession()

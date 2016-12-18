@@ -58,7 +58,6 @@ enum {
     RTCM_ENONE = -4
 };
 
-typedef unsigned char TermCode;
 /** The call state */
 typedef enum
 {
@@ -141,7 +140,7 @@ public:
     virtual ~ICall() {}
 
 /** @brief Call termination reason codes */
-enum
+enum TermCode: uint8_t
 {
     kNormalHangupFirst = 0,     ///< First enum specifying a normal call termination
     kUserHangup = 0,            ///< Normal user hangup

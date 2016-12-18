@@ -39,9 +39,10 @@ enum Opcode
     OP_JOINRANGEHIST = 19,
     OP_MSGUPDX = 20,
     OP_MSGID = 21,
-    OP_RTMSG = 22,
-    OP_HELLO = 23,
-    OP_LAST = OP_HELLO
+    OP_CLIENTID = 24,
+    OP_RTMSG_BROADCAST = 25,
+    OP_RTMSG_USER = 26,
+    OP_RTMSG_ENDPOINT = 27
 };
 
 // privilege levels
@@ -196,12 +197,14 @@ class Command: public Buffer
 private:
     Command(const Command&) = delete;
 protected:
-    static const char* opcodeNames[];
+    Command(uint8_t opcode, uint8_t reserve, uint8_t dataSize)
+    : Buffer(reserve, dataSize) { write(0, opcode); }
+    Command(const char* data, size_t size): Buffer(data, size){}
 public:
     enum { kBroadcastUserTyping = 1 };
     Command(): Buffer(){}
+    Command(uint8_t opcode, uint8_t reserve=64): Command(opcode, reserve, 0){}
     Command(Command&& other): Buffer(std::forward<Buffer>(other)) {assert(!other.buf() && !other.bufSize() && !other.dataSize());}
-    Command(uint8_t opcode, uint8_t reserve=64): Buffer(reserve) { write(0, opcode); }
     template<class T>
     Command&& operator+(const T& val)
     {
@@ -226,10 +229,7 @@ public:
     }
     uint8_t opcode() const { return read<uint8_t>(0); }
     const char* opcodeName() const { return opcodeToStr(opcode()); }
-    static const char* opcodeToStr(uint8_t code)
-    {
-        return (code > OP_LAST) ? "(invalid opcode)" : opcodeNames[code];
-    }
+    static const char* opcodeToStr(uint8_t code);
     virtual void toString(char* buf, size_t bufsize) const;
     virtual ~Command(){}
 };
@@ -302,34 +302,151 @@ public:
     virtual void toString(char* buf, size_t bufsize) const;
 };
 
-class RtMessage: public Buffer
+class RtMessage: public Command
 {
 public:
     typedef uint8_t Type;
     enum: Type { kQueryBit = 0x80 };
     typedef uint32_t QueryId;
+protected:
+    uint8_t mHdrLen;
+    /** Crates an RtMessage as a base for derived classes (with userid/clientid)
+     * @param opcode The chatd command opcode. Can be OP_RTMSG_BROADCAST,
+     * OP_RTMSG_USER, OP_RTMSG_CLIENT
+     * @param type The payload-specific type. This is the first byte of the payload
+     * @param reserve How much bytes to reserve in the buffer for the payload data.
+     * This does not include the payload type byte.
+     * @param hdrlen The length of the header. This is used to calculate the data
+     * length field from the total buffer length. Does not include the payload type byte,
+     * which is part of the payload data.
+     */
+    RtMessage(uint8_t opcode, Type type, uint16_t reserve, unsigned char hdrlen)
+        : Command(opcode, hdrlen+1+reserve, hdrlen), mHdrLen(hdrlen)
+    {
+        //(opcode.1 chatid.8 [userid.8 [clientid.4]] len.2) (type.1 data.(len-1))
+        //              ^                                          ^
+        //          header.hdrlen                             payload.len
+        assert(mHdrLen >= 11); //the minimum one is for RTMSG_BROADCAST and is 11
+        Buffer::write<uint8_t, false>(0, opcode);
+        Buffer::write<uint8_t, false>(11, type);
+        //chatid and payload length are unknown at this point, we only reserve the space for them
+    }
+    RtMessage(const char* data, size_t dataSize, uint8_t hdrlen)
+        : Command(data, dataSize), mHdrLen(hdrlen){} //sanity check is done in the RtMessageWithEndpoint, as it is the only one that can be instantiated from raw data
+    void updateLenField()
+    {
+        Buffer::write<uint16_t, false>(mHdrLen-2, dataSize()-mHdrLen);
+    }
+    void updateChatidField(karere::Id chatid)
+    {
+        Buffer::write<uint64_t, false>(1, chatid.val);
+    }
+    using Command::read; //hide all read methods, as they will read the whole command, not the payload
+    using Command::write;
+public:
+    RtMessage(Type type, uint16_t reserve): RtMessage(OP_RTMSG_BROADCAST, type, reserve, 11){}
+    Type type() const { return read<uint8_t, false>(mHdrLen); }
+    uint8_t hdrLen() const { return mHdrLen; }
+    void finalizeFields(karere::Id chatid)
+    {
+        updateLenField(); updateChatidField(chatid);
+    }
+    template <class T, bool check=true, typename=typename std::enable_if<std::is_pod<T>::value>::type>
+    const T& readPayload(size_t offset) const
+    {
+        return Buffer::read<T, check>(mHdrLen+1+offset);
+    }
+    template<class T, bool check=true, typename=typename std::enable_if<std::is_pod<T>::value>::type>
+    void writePayload(size_t offset, T val)
+    {
+        write<T,check>(offset+mHdrLen, val);
+    }
+    const char* payloadReadPtr(size_t offset, size_t len)
+    {
+        return Buffer::readPtr(mHdrLen+offset, len);
+    }
+    const char* payloadPtr() const { return buf()+mHdrLen; }
+    size_t payloadSize() const { return dataSize() - mHdrLen; }
+    bool hasPayload() const { return payloadSize() > 1; }
+};
 
-    karere::Id userid;
-    ClientId clientid;
+class RtMessageWithUser: public RtMessage
+{
+public:
+    struct Key
+    {
+        Type type;
+        karere::Id userid;
+        bool operator<(Key other) const
+        {
+            if (type != other.type)
+                return type < other.type;
+            else
+                return userid < other.userid;
+        }
+        Key(Type aType, karere::Id aId)
+        : type(aType), userid(aId){}
+    };
+protected:
+    RtMessageWithUser(uint8_t opcode, Type type, karere::Id userid,
+        uint16_t reserve, uint8_t hdrlen)
+        :RtMessage(opcode, type, reserve, hdrlen)
+    {
+        //(opcode.1 chatid.8 userid.8 len.2) (type.1 data.len)
+        assert(mHdrLen >= 19);
+        Buffer::write<uint64_t>(9, userid.val);
+    }
+    RtMessageWithUser(const char* data, size_t dataSize, uint8_t hdrlen)
+        :RtMessage(data, dataSize, hdrlen){}
+public:
+    karere::Id userid() const { return read<uint64_t, false>(9); }
+    RtMessageWithUser(Type type, karere::Id userid, uint16_t reserve)
+        :RtMessageWithUser(OP_RTMSG_USER, type, userid, reserve, 19){}
+};
 
-    Type type() const { return read<Type>(0); }
+class RtMessageWithEndpoint: public RtMessageWithUser
+{
+public:
+    struct Key: public RtMessageWithUser::Key
+    {
+        ClientId clientid;
+        bool operator<(Key other) const
+        {
+            if (type != other.type)
+                return type < other.type;
+            if (userid != other.userid)
+                return userid < other.userid;
+            return clientid < other.clientid;
+        }
+        Key(Type aType, karere::Id aId, ClientId aClientId)
+            :RtMessageWithUser::Key(aType, aId), clientid(aClientId){}
+    };
+    ClientId clientid() const { return read<uint32_t, false>(17); }
     QueryId queryId() const
     {
         if ((type() & kQueryBit) == 0)
-            throw std::runtime_error("Message is a query");
+            throw std::runtime_error("Message is not a query");
         return read<QueryId>(1);
     }
-    RtMessage(Type type, uint16_t reserve): Buffer((const char*)&type, sizeof(type), reserve)
+    RtMessageWithEndpoint(Type aType, karere::Id aUserid, ClientId aClientid, uint16_t reserve)
+        :RtMessageWithUser(OP_RTMSG_ENDPOINT, aType, aUserid, reserve, 23)
     {
-        assert((type & kQueryBit) == 0); // no command-response query
+        //(opcode.1 chatid.8 userid.8 clientid.4 len.2) (type.1 payload.len)
+        Buffer::write<uint32_t>(17, aClientid);
     }
-    RtMessage(Type type, uint16_t reserve, QueryId id)
-    : RtMessage(type | kQueryBit, reserve+sizeof(QueryId))
+
+    //parses received message buffers
+    RtMessageWithEndpoint(const char* data, size_t dataSize)
+        :RtMessageWithUser(data, dataSize, 23)
     {
-        append<QueryId>(id);
+        if (dataSize < 24) //header.23 + type.1
+            throw std::runtime_error("RtMessageWithEndpoint: Data is smaller than header size");
+#ifndef NDEBUG
+        assert(opcode() == OP_RTMSG_ENDPOINT); //guaranteed by code (the receive function's switch() statement)
+        auto payloadLen = read<uint16_t>(21);
+        assert(payloadLen == dataSize-23); //this should be guaranteed by the code - the buffer size is calculated from the payload length field
+#endif
     }
-    RtMessage(karere::Id aUserId, ClientId aClientId, const char* data, size_t dataSize)
-        : Buffer(data, dataSize), userid(aUserId), clientid(aClientId){}
 };
 
 //for exception message purposes

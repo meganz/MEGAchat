@@ -29,9 +29,9 @@ using namespace karere;
 AvFlags peerMediaToObj(const char* strPeerMedia);
 //==
 
-Jingle::Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler,
+RtcHandler::RtcHandler(chatd::Chat& chat, IGlobalEventHandler* globalHandler,
                ICryptoFunctions* crypto, const char* iceServers)
-:mConn(conn), mGlobalHandler(globalHandler), mCrypto(crypto),
+:mChat(chat), mGlobalHandler(globalHandler), mCrypto(crypto),
   mTurnServerProvider(
     new TurnServerProvider("https://" KARERE_GELB_HOST, "turn", iceServers, 3600)),
   mIceServers(new webrtc::PeerConnectionInterface::IceServers)
@@ -39,20 +39,21 @@ Jingle::Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler,
     pcConstraints.SetMandatoryReceiveAudio(true);
     pcConstraints.SetMandatoryReceiveVideo(true);
     pcConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
-    registerDiscoCaps();
-    mConn.addHandler(std::bind(&Jingle::onJingle, this, _1),
-                     "urn:xmpp:jingle:1", "iq", "set");
-    mConn.addHandler([this](Stanza stanza, void* user, bool& keep)
-    {
-        onIncomingCallMsg(stanza);
-    },
-    nullptr, "message", "megaCall");
-    //preload ice servers to make calls faster
+
+//preload ice servers to make calls faster
     mTurnServerProvider->getServers()
     .then([this](ServerList<TurnServerInfo>* servers)
     {
         setIceServers(*servers);
     });
+
+    //install handlers
+    mChat.rtAddHandler(RTCMSG_CallRequest,
+    [this](const chatd::RtMessage& msg, bool& keep)
+    {
+        onIncomingCallMsg(msg);
+    });
+
 }
 
 void Jingle::discoAddFeature(const char* feature)
@@ -110,74 +111,62 @@ void Jingle::onConnState(const xmpp_conn_event_t status,
         KR_LOG_ERROR("Exception in connection state handler: %s", e.what());
     }
 }
-void Jingle::onJingle(Stanza iq)
+
+void JingleCall::handleSdpAnswer(const std::shared_ptr<RtMesageWithEndpoint>& msg)
 {
-   shared_ptr<Call> call; //declare it here because we need it in teh catch() handler
-   try
-   {
-        const char* from = iq.attr("from");
-        Stanza jingle = iq.child("jingle");
-        const char* sid = jingle.attr("sid");
-        auto callIt = find(sid);
-        if (callIt == end())
-            throw std::runtime_error("Could not find call for incoming jingle stanza with sid "+ std::string(sid));
+    /*
+    if (sess->inputQueue.get())
+    {
+        sess->inputQueue->push_back(iq);
+        return;
+    }
+    */
 
-        call = callIt->second;
-        if (call->mPeerJid != from)
-            throw std::runtime_error("onJingle: sid and sender full JID mismatch: expected jid: '"
-                +call->mPeerJid+"', actual: '"+from+"'");
+// sid.8 encFprMac.32 sdpLen.2 sdp.sdpLen
+    if (msgGetSid(*msg) != sid)
+    {
+        RTCM_LOG_WARNING("sdpAnswer received for unknown session, ignoring");
+        return;
+    }
 
-        auto sess = call->mSess;
-        if (!sess)
-            throw std::runtime_error("Jingle packet received, but the call has no session created");
-        if (sess->inputQueue.get())
-        {
-            sess->inputQueue->push_back(iq);
-            return;
-        }
-        std::string action = jingle.attr("action");
-        JINGLE_LOG_INFO("onJingle '%s' from '%s'", action.c_str(), from);
+    if (state() != kCallStateInReqWaitJingle)
+        throw std::runtime_error("Unexptected session-initiate received");
+    if (mTimer)
+    {
+        cancelTimeout(mTimer);
+        mTimer = 0;
+    }
+    RTCM_LOG_DEBUG("received rtcAnswer from %s[0x%04x]", peer.toString().c_str(), peerClient);
 
-        // send ack first
-        Stanza ack(mConn);
-        ack.setName("iq") //type will be set before sending, depending on the error flag
-           .setAttr("from", mConn.fullJid())
-           .setAttr("to", from)
-           .setAttr("id", iq.attr("id"))
-           .setAttr("type", "result");
-        mConn.send(ack);
+    // Verify SRTP fingerprint
+    const char* encFprMac = msg->payloadReadPtr(8, 32);
+    auto sdpLen = msg->readPayload<uint16_t>(40);
+    std::string sdp(msg->payloadReadPtr(42, sdpLen), sdpLen);
 
-        // see http://xmpp.org/extensions/xep-0166.html#concepts-session
-        if (action == "session-initiate")
-        {
-            if (call->state() != kCallStateInReqWaitJingle)
-                throw std::runtime_error("Unexptected session-initiate received");
-            KR_LOG_DEBUG("received INITIATE from %s", from);
-// Verify SRTP fingerprint
-            if (call->mOwnFprMacKey.empty())
-                throw runtime_error("No ans.ownFrpMacKey present, there is a bug");
-            if (!verifyMac(getFingerprintsFromJingle(jingle), call->mOwnFprMacKey, jingle.attr("fprmac")))
-            {
-                KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
-                call->hangup(Call::kFprVerifFail);
-                return;
-            }
-//===
-            call->setState(kCallStateSession);
-            RTCM_EVENT(call, onSession);
+    if (!verifyMac(getFingerprintsSdp(sdp), mOwnFprMacKey, encFprMac))
+    {
+        KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
+        manager.destroyCall(*this, Call::kFprVerifFail);
+        return;
+    }
+    handleSdpAnswer(sdp)
+    .then([this]()
+    {
+        setState(kCallStateSession);
+        RTCM_EVENT(call, onSession);
 
-            sess->inputQueue.reset(new StanzaQueue());
-            sess->answer(jingle)
-            .then([this, call]()
-            {
+        mInputQueue.reset(new StanzaQueue());
+    sess->answer(jingle)
+    .then([this, call]()
+    {
 //now handle all packets queued up while we were waiting for user's accept of the call
-                processAndDeleteInputQueue(*call->mSess);
-            })
-            .fail([this, call](const promise::Error& e) mutable
-             {//TODO: Can be also a protocol error
-                  call->hangup(Call::kInternalError, e.msg().c_str());
-             });
-        }
+        processAndDeleteInputQueue(*call->mSess);
+    })
+    .fail([this, call](const promise::Error& e) mutable
+    {//TODO: Can be also a protocol error
+        call->hangup(Call::kInternalError, e.msg().c_str());
+    });
+}
         else if (action == "session-accept")
         {
             if (call->state() != kCallStateOutReq)
@@ -267,281 +256,228 @@ void Jingle::onJingle(Stanza iq)
             call->hangup(Call::kProtoError, msg);
    }
 }
-/* Incoming call request with a message stanza of type 'megaCall' */
-void Jingle::onIncomingCallMsg(Stanza callmsg)
+/* Call initiation sequence for group calls:
+ *  1) Initiator broadcasts a call request
+ *  2) Answerers broadcast a join request to everybody
+ *  3) Clients already in the call respond to the join request with
+ *  RTCMSG_sessionOffer, containing an SDP offer
+ *  4) the joiner sends an RTCMSG_sessionAnswer with an SDP answer
+ * For joinin an existing call, the sequence starts from 2)
+ */
+void GroupHandler::handleSessionOffer(const std::shared_ptr<RtMessage>& callmsg)
 {
-    struct State: public ICallAnswer
-    {
-        Jingle& self;
-        bool handledElsewhere = false;
-        xmpp_uid elsewhereHandlerId = 0;
-        xmpp_uid cancelHandlerId = 0;
-        string sid;
-        string from;
-        string ownJid;
-        int64_t tsReceived = -1;
-        string fromBare;
-        string ownFprMacKey;
-        void* userp = nullptr;
-        Stanza callmsg;
-        Promise<void> pmsCrypto;
-        Promise<void> pmsGelb;
-        bool handlersFreed = false; //set to true when the stanza handlers have been freed
-        bool userResponded = false; //set to true when user answers or rejects the call
-        std::shared_ptr<Call> mCall;
-        AvFlags mPeerMedia;
-        std::shared_ptr<CallAnswerFunc> ansFunc;
-        //ICallAnswer interface
-        AvFlags peerMedia() const { return mPeerMedia; } //TODO: implement peer media parsing
-        bool answeredReqStillValid() const
-        {
-            if (mCall->state() != kCallStateInReq)
-                return false;
-            int64_t tsTillUser = tsReceived + self.callAnswerTimeout+10000;
-            return (timestampMs() < tsTillUser);
-        }
-        bool reqStillValid() const
-        {
-            return (!userResponded && answeredReqStillValid());
-        }
-        bool answer(bool accept, AvFlags av)
-        {
-            return (*ansFunc)(accept, av);
-        }
-        std::set<std::string>* files() const { return nullptr; }
-        std::shared_ptr<ICall> call() const { return std::static_pointer_cast<ICall>(mCall); }
-        //==
-        bool freeHandlers(xmpp_uid* handler=nullptr)
-        {
-            if (handlersFreed)
-                return false;
-            handlersFreed = true;
-            if (handler)
-                *handler = 0;
-            if (cancelHandlerId)
-            {
-                self.mConn.removeHandler(cancelHandlerId);
-                cancelHandlerId = 0;
-            }
-            if (elsewhereHandlerId)
-            {
-                self.mConn.removeHandler(elsewhereHandlerId);
-                elsewhereHandlerId = 0;
-            }
-            return true;
-        }
-        State(Jingle& aSelf): self(aSelf){}
-    };
-    shared_ptr<State> state = make_shared<State>(*this);
+}
 
-    state->callmsg = callmsg;
-    state->sid = callmsg.attr("sid");
-    if (find(state->sid) != end())
-        throw runtime_error("onIncomingCallMsg: Call with sid '"+string(state->sid)+"' already exists");
-    state->from = callmsg.attr("from");
-    state->ownJid = callmsg.attr("to");
-    if (state->ownJid.find('/') == std::string::npos)
+struct IncomingCallRequest: public karere::DeleteTrackable
+{
+    RtMsgHandler mElsewhereHandler;
+    int64_t tsReceived = timestampMs();
+    std::shared_ptr<RtMessage> mCallMsg;
+    Promise<void> pmsCrypto;
+    Promise<void> pmsGelb;
+    bool mUserAnswered = false; //set to true when user answers or rejects the call
+    Call& call;
+    ~IncomingCallRequest()
     {
-        assert(state->ownJid == getBareJidFromJid(mConn.fullJid()));
-        state->ownJid = mConn.fullJid();
+        mElsewhereHandler.remove();
     }
-    state->fromBare = getBareJidFromJid(state->from);
-    state->tsReceived = timestampMs();
+    IncomingCallRequest(Call& aCall, const std::shared_ptr<RtMsg_PeerCallRequest>& aCallmsg);
+};
 
-    try
+class CallAnswer: public ICallAnswer
+{
+protected:
+    Call::WeakRefHandle mCall;
+    IncomingCallRequest* callReq()
+    { return mCall.isValid() ? mCall.incomingReq() : nullptr; }
+public:
+    //ICallAnswer interface
+    AvFlags peerMedia() const
     {
-    // Add a 'handled-elsewhere' handler that will invalidate the call request if a notification
-    // is received that another resource answered/declined the call
-        state->elsewhereHandlerId = mConn.addHandler([this, state]
-         (Stanza msg, void*, bool& keep)
-         {
-            keep = false;
-            if (!state->freeHandlers(&state->elsewhereHandlerId))
-                return;
-            const char* by = msg.attr("by");
-            if (strcmp(by, mConn.fullJid())) //if it wasn't us
-            {
-                destroyBySid(state->sid, strcmp(msg.attr("accepted"), "1")
-                    ? Call::kRejectedElsewhere : Call::kAnsweredElsewhere, by);
-            }
-         },
-         NULL, "message", "megaNotifyCallHandled", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
+        auto req = callReq();
+        if (!req)
+            throw std::runtime_error("Call is no longer valid");
+        return req->peerMedia();
+    } //TODO: implement peer media parsing
+    bool reqStillValid() const
+    {
+        auto req = callReq();
+        return req ? (!req->userResponded()) : false;
+    }
+    bool answer(bool accept, AvFlags av)
+    {
+        auto req = callReq();
+        return req ? req->answer(accept, av) : false;
+    }
+    ICall& call() const
+    {
+        if (!mCall.isValid())
+            throw std::runtime_error("Call is not valid anymore");
+        return *mCall;
+    }
+};
 
-    // Add a 'cancel' handler that will invalidate the call request if the caller sends a cancel message
-        state->cancelHandlerId = mConn.addHandler([this, state]
-         (Stanza stanza, void*, bool& keep)
-         {
-            keep = false;
-            if (!state->freeHandlers(&state->cancelHandlerId))
-                return;
-            const char* reason = stanza.attrOrNull("reason");
-            if (!reason)
-                reason = "unknown";
-            destroyBySid(state->sid, Call::kCallReqCancel|Call::kPeer);
-        },
-        NULL, "message", "megaCallCancel", state->from.c_str(), nullptr, STROPHE_MATCH_BAREJID);
+IncomingCallRequest::IncomingCallRequest(Call& aCall, const std::shared_ptr<RtMsg_PeerCallRequest>& aCallMsg)
+    :call(aCall), callmsg(aCallMsg)
+{
+// Add a 'handled-elsewhere' handler that will invalidate the call request if a notification
+// is received that another client of our user answered/declined the call
 
-        setTimeout([this, state]()
-        {
-            if (!state->freeHandlers()) //cancel message was received and handler was removed
-                return;
-            destroyBySid(state->sid, Call::kAnswerTimeout);
-        },
-        callAnswerTimeout+10000);
+//This handler will be removed by the destructor of this object, so it's not possible
+//to have the object deleted when the handler is called
+    auto& chat = call.handler.chat;
+    mElsewhereHandler = chat.addHandler(RTMSG_notifyCallHandled, call.peer,
+    [this](const std::shared_ptr<RtMessage>& msg, void*, bool& keep)
+    {
+        if (msgGetSid(*msg) != call.sid)
+            return;
+        keep = false;
+        auto by = msg->clientid();
+        if (by == call.manager.chat.clientId()) //if it was us, ignore the message. We should have already removed this handler though.
+            return;
+        auto accepted = msg->readPayload<uint8_t>(8);
+        call.manager.destroyCall(call, (accepted ? Call::kRejectedElsewhere : Call::kAnsweredElsewhere) | Call::kPeer);
+    });
+
+    call.mTimer = setTimeout([this]()
+    {
+        call.manager.destroyCall(call, Call::kAnswerTimeout);
+    }, callAnswerTimeout+10000);
 
 //tsTillUser measures the time since the req was received till the user answers it
 //After the timeout either the handlers will be removed (by the timer above) and the user
 //will get onCallCanceled, or if the user answers at that moment, they will get
 //a call-not-valid-anymore condition
 
-        state->mPeerMedia = AvFlags(false,false); //TODO: Implement peerMedia parsing
-        auto hangupFunc = [this, state](TermCode termcode, const std::string& text)->bool
-        {
-            if (!state->reqStillValid()) // Call was cancelled, or request timed out and handler was removed
-                return false;
-            state->userResponded = true;
-            state->freeHandlers();
-            Stanza declMsg(mConn);
-            declMsg.setName("message")
-                   .setAttr("sid", state->sid.c_str())
-                   .setAttr("to", state->from.c_str())
-                   .setAttr("type", "megaCallDecline")
-                   .setAttr("reason", Call::termcodeToReason(termcode).c_str());
-
-            if (!text.empty())
-                declMsg.c("body").t(text.c_str());
-            mConn.send(declMsg);
-            return true;
-        };
-
-// Notify about incoming call
-        state->ansFunc = std::make_shared<CallAnswerFunc>(
-        [this, state](bool accept, AvFlags av)->bool
-        {
-// If dialog was displayed for too long, the peer timed out waiting for response,
-// or user was at another client and that other client answred.
-// When the user returns at this client he may see the expired dialog asking to accept call,
-// and will answer it, but we have to ignore it because it's no longer valid
-            if (!accept)
-                return state->mCall->hangup();
-//accept call
-            if (!state->reqStillValid()) // Call was cancelled, or request timed out and handler was removed
-                return false; //the callback returning false signals to the calling user code that the call request is not valid anymore
-
-            state->userResponded = true;
-            when(state->pmsCrypto, state->pmsGelb)
-            .then([this, state, av]()
-            {
-                if (!state->answeredReqStillValid())
-                    return;
-                auto it = find(state->sid);
-                if (it == end())
-                    return; //call was deleted meanwhile
-                auto& call = it->second;
-                if (call->state() != kCallStateInReq)
-                    throw std::runtime_error("BUG: Call transitioned to another state while waiting for gelb and crypto");
-
-                state->ownFprMacKey = mCrypto->generateFprMacKey();
-                auto peerFprMacKey = mCrypto->decryptMessage(state->callmsg.attr("fprmackey"));
-                if (peerFprMacKey.empty())
-                    throw std::runtime_error("Faield to verify peer's fprmackey from call request");
-// tsTillJingle measures the time since we sent megaCallAnswer till we receive jingle-initiate
-                int64_t tsTillJingle = timestampMs()+mJingleAutoAcceptTimeout;
-                call->mPeerFprMacKey = peerFprMacKey;
-                call->mOwnFprMacKey = state->ownFprMacKey;
-                call->mPeerAnonId = state->callmsg.attr("anonid");
-                call->mLocalAv = av;
-                if (!call->startLocalStream(true))
-                    return; //startLocalStream() hangs up the call
-//TODO: Handle file transfer
-// This timer is for the period from the megaCallAnswer to the jingle-initiate stanza
-                setTimeout([this, state, tsTillJingle]()
-                { //invalidate auto-answer after a timeout
-                    GET_CALL(state->sid, kCallStateInReqWaitJingle, return); //initiate was sent and we answered the call
-                    //It's possible that we have received or will receive a cancel from the
-                    //peer, and since we remove the call asynchronously,
-                    //in that case the call will receive both cancel and hangup.
-                    call->destroy(Call::kInitiateTimeout);
-                }, mJingleAutoAcceptTimeout);
-
-                Stanza ans(mConn);
-                ans.setName("message")
-                   .setAttr("sid", state->sid.c_str())
-                   .setAttr("to", state->from.c_str())
-                   .setAttr("type", "megaCallAnswer")
-                   .setAttr("fprmackey",
-                       mCrypto->encryptMessageForJid(
-                                state->ownFprMacKey, state->fromBare))
-                   .setAttr("anonid", mOwnAnonId.c_str())
-                   .setAttr("media", call->mLocalAv.toString().c_str());
-                mConn.send(ans);
-
-                call->setState(kCallStateInReqWaitJingle);
-                //the peer must create a session immediately after receiving our answer
-                //and before reading any other data from network, otherwise it may not have
-                //as session when we send the below terminate
-                call->createSession(state->from, state->ownJid, nullptr);
-            })
-            .fail([this, state](const Error& err)
-            {
-                auto msg = "Error during pre-jingle call answer response: "+err.msg();
-                if (state->userResponded)
-                    hangupBySid(state->sid, Call::kInternalError, msg);
-                else //we don't want to reject the call from this client if user hasn't interacted
-                    destroyBySid(state->sid, Call::kInternalError, msg);
-            });
-            return true;
-        }); //end answer func
-
-        state->pmsGelb = mTurnServerProvider->getServers(mIceFastGetTimeout)
-        .then([this, state](ServerList<TurnServerInfo>* servers)
-        {
-            setIceServers(*servers);
-        });
-        state->pmsCrypto = mCrypto->preloadCryptoForJid(state->fromBare);
-
-        auto& call = state->mCall = addCall(kCallStateInReq, false, nullptr, state->sid,
-            std::move(hangupFunc), state->from, AvFlags(true, true));
-        RTCM_LOG_EVENT("global(%s)->onIncomingCallRequest", state->sid.c_str());
-        call->mHandler = mGlobalHandler->onIncomingCallRequest(
-            static_pointer_cast<ICallAnswer>(state));
-        if (!call->mHandler)
-            throw std::runtime_error("onIncomingCallRequest: Application did not provide call event handler");
-    }
-    catch(exception& e)
+    pmsGelb = mTurnServerProvider->getServers(mIceFastGetTimeout)
+    .then([this](ServerList<TurnServerInfo>* servers)
     {
-        KR_LOG_ERROR("Exception in onIncomingCallMsg handler: %s", e.what());
-        auto it = find(state->sid);
-        if (it != end())
-            it->second->hangup(Call::kInternalError, (std::string("Exception during call accept: ")+e.what()).c_str());
+        mParent.rtcShared().setIceServers(*servers);
+    });
+
+    pmsCrypto = mCrypto->preloadCryptoForJid(state->fromBare);
+}
+
+bool Call::answer(bool accept, AvFlags av)
+{
+    //If user answer times out or the call request is cancelled or handled by someone else,
+    //the call will be immediately destroyed, so we will never reach here
+
+    if (mUserAnswered)
+        return false;
+
+    mUserAnswered = true;
+    if (mTimer)
+    {
+        cancelTimeout(mTimer);
+        mTimer = 0;
     }
-}
+    if (!accept)
+        return manager.hangup(Call::kCallReqDeclined);
 
-bool Jingle::hangupBySid(const std::string& sid, TermCode termcode, const std::string& text)
-{
-    auto it = find(sid);
-    if (it == end())
-        return false;
-    it->second->hangup(termcode, text);
+//accept call
+    auto wptr = getWeakHandle();
+    when(pmsCrypto, pmsGelb)
+    .then([wptr, this, av]()
+    {
+        if (!wptr.isValid())
+            return;
+        acceptCall(av);
+    })
+    .fail([this, wptr](const Error& err)
+    {
+        if (!wptr.isValid())
+            return;
+        RTMGS_LOG_ERROR("Error while sending call answer response: %s", err.what());
+        manager.hangup(Call::kInternalError);
+    });
     return true;
 }
 
-bool Jingle::destroyBySid(const std::string& sid, TermCode termcode, const std::string& text)
+void JingleCall::accept(AvFlags av)
 {
-    auto it = find(sid);
-    if (it == end())
-        return false;
-    it->second->destroy(termcode, text);
-    return true;
+    if (state() != kCallStateInReq)
+        throw std::runtime_error("BUG: Call transitioned to another state while waiting for gelb and crypto");
+    assert(mIncomingRequest);
+
+    mLocalAv = av;
+    auto& callmsg = mIncomingRequest->callmsg;
+
+    manager.rtcShared.mCrypto->generateFprMacKey(mOwnFprMacKey);
+
+    const char* peerAnonId = callmsg->payloadReadPtr(8, 32);
+    memcpy(mPeerAnonId, peerAnonId, 32);
+//FIXME: Check lengths and encoding
+    const char* encPeerFprMacKey = callmsg->payloadReadPtr(40, 32); //FIXME: Verify offset
+    mPeerFprMacKey = manager.rtcShared.mCrypto->decryptMessage(encPeerFprMacKey, 32, mPeerFprMacKey, 32);
+    if (mPeerFprMacKey.empty())
+        throw std::runtime_error("Failed to verify peer's fprmackey from call request");
+
+    std::string sdpOffer;
+    if (!startLocalStream(true, sdpOffer)) //FIXME: must be done before we sen
+        return; //startLocalStream() hangs up the call
+
+    assert(!mTimer);
+    // This timer is for the period from the megaCallAnswer we send to the sdp answer we should receive
+    mTimer = setTimeout([this]()
+    {
+        //invalidate call after a timeout
+        if (state() != kCallStateInReqWaitJingle)
+            return; //peer responded, timeout did not occur. FIXME: Maybe we should cancel the timer
+
+        //It's possible that we have received or will receive a cancel from the
+        //peer, and since we remove the call asynchronously,
+        //in that case the call will receive both cancel and hangup.
+        manager.hangup(Call::kInitiateTimeout);
+    }, mInitiateTimeout);
+
+    //sid.8 ownAnonId.16 encFprMacKey.32 sentAv.1 sdpLen.2 sdp.sdpLen
+    RtMessageWithEndpoint ans(RTMSG_megaCallAnswer, peer, peerClient, 64);
+    ans.append(sid);
+    msg.append(manager.rtcShared.ownAnonId, 16); //anonid, 16 bytes of base64 string
+
+    char encOwnFprmac[32];
+    auto fprkLen = mCrypto->encryptMessageForJid(mOwnFprMacKey, peer, encOwnFprmac, 32);
+    assert(fprkLen == 32);
+    msg.append(encOwnFprmac, 32); //fprmackey
+    msg.append<uint8_t>(call.mLocalAv.toFlags()); //"media"
+    msg.append<uint16_t>(sdpOffer.size());
+    msg.append(sdpOffer);
+    mParent.mChat.rtSendMessage(ans);
+
+    setState(kCallStateInReqWaitJingle);
+    //the peer must create a session immediately after receiving our answer
+    //and before reading any other data from network, otherwise it may not have
+    //as session when we send the below terminate
+    createSession(peer, nullptr);
 }
 
-bool Jingle::cancelIncomingReqCall(iterator it, TermCode termcode, const std::string& text)
+void PeerCallManager::handleCallRequest(const std::shared_ptr<RtMessageWithEndpoint>& callmsg)
 {
-    auto& call = it->second;
-//    if (call->mIsFt && type && (type != 'f'))
-//        return false;
-    return call->hangup(termcode, text);
+    if (mCall)
+    {
+        RTCM_LOG_WARNING("handleCallRequest: Already has call, ignoring");
+        //TODO: Maybe busy signal
+        return;
+    }
+    try
+    {
+        mCall.reset(createCall(*this, callmsg));
+    }
+    catch(std::exception& e)
+    {
+        RTCM_LOG_ERROR("handleCallRequest exception: %s", e.what());
+        return;
+    }
+    assert(mCall && mCall->mIncomingRequest);
+    RTCM_LOG_EVENT("global(%s)->onIncomingCallRequest", mCall->sid.toString().c_str());
+
+    mCall->mHandler = mGlobalHandler->onIncomingCallRequest(
+        std::make_shared<CallAnswer>(mCall->getWeakHandle()));
+    if (!mCall->mHandler)
+        throw std::runtime_error("onIncomingCallRequest: Application did not provide call event handler");
 }
+
 void Jingle::processAndDeleteInputQueue(JingleSession& sess)
 {
     unique_ptr<StanzaQueue> queue(sess.inputQueue.release());
@@ -549,15 +485,55 @@ void Jingle::processAndDeleteInputQueue(JingleSession& sess)
         onJingle(stanza);
 }
 
-JingleCall::JingleCall(RtcModule& aRtc, bool isCaller, CallState aState,
-    IEventHandler* aHandler, const std::string& aSid, HangupFunc &&hangupFunc,
-    const std::string& aPeerJid, AvFlags localAv, bool aIsFt,
-    const std::string& aOwnJid)
-: ICall(aRtc, isCaller, aState, aHandler, aSid, aPeerJid, aIsFt, aOwnJid),
-  mHangupFunc(std::forward<HangupFunc>(hangupFunc)), mLocalAv(localAv)
+JingleCall::JingleCall(CallHandler& aParent, bool isCaller, CallState aState,
+    IEventHandler* aHandler, karere::Id aSid,
+    karere::Id peer, chatd::ClientId peerClient, AvFlags localAv)
+: ICall(aParent, isCaller, aState, aHandler, aSid, peer, peerClient),
+  mLocalAv(localAv)
 {
     if (!mHandler && mIsCaller) //handler is set after creation when we answer
         throw std::runtime_error("Call::Call: NULL user handler passed");
+
+    hangupHandler = manager.chat.rtAddHandler(RTMSG_hangup, peer, peerClient,
+    [this](const std::shared_ptr<RtMessageWithEndpoint>& msg, bool& keep)
+    {
+        if (msg->readPayload<uint64_t>(0) != call.sid)
+            return;
+        auto termcode = msg->readPayload<uint8_t>(8);
+        auto reasonLen = msg->readPayload<uint16_t>(9);
+        std::string reason = reasonLen
+            ? std::string(msg->payloadReadPtr(11, reasonLen))
+            : "unknown";
+        manager.destroyCall(termcode | kPeer, reason);
+    });
+}
+
+JingleCall::JingleCall(CallManager& aParent, const std::shared_ptr<RtMessageWithEndpoint>& callmsg)
+    :JingleCall(aParent, false, kCallStateInReq, msgGetSid(*callmsg), msg->userid(), msg->clientid(),
+     AvFlags(false,false)), mIncominRequest(new IncomingCallRequest(*this, callmsg))
+{}
+
+bool PeerCallManager::hangup(TermCode termcode, const std::string& reason)
+{
+    if (!mCall)
+        return false;
+    mCall->maybeSendHangup(termcode, reason);
+    mCall.reset(); //deletes this
+}
+
+bool JingleCall::maybSendHangup(TermCode termcode, const std::string& reason)
+{
+    if (mIncomingRequest && !mIncomingRequest->userAnswered)
+    //we haven't answered the call, dont sent hangup and let other device pick it
+        return false;
+
+    RtMessageWithEndpoint hup(RTMSG_hangup, mPeer, mPeerClient, 3+reason.size());
+    hup.append<uint8_t>(termcode);
+    hup.append<uint16_t>(reason.size());
+    if (!reason.empty())
+        hup.append(reason);
+    mChat.rtSendMessage(hup);
+    return true;
 }
 
 //called by startMediaCall() in rtcModule.cpp

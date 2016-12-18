@@ -31,7 +31,6 @@ struct JingleCall: public ICall
 {
 protected:
     typedef std::function<bool(TermCode, const std::string&)> HangupFunc;
-    HangupFunc mHangupFunc;
     AvFlags mLocalAv;
     std::shared_ptr<JingleSession> mSess;
     std::string mOwnFprMacKey;

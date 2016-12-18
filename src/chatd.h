@@ -308,43 +308,13 @@ enum ServerHistFetchState
     kHistDecryptingNew = kHistDecryptingFlag | 0
 };
 
-struct RtMsgTypeSenderKey
-{
-    RtMessage::Type type;
-    karere::Id userid;
-    bool operator<(RtMsgTypeSenderKey other) const
-    {
-        if (type != other.type)
-            return type < other.type;
-        else
-            return userid < other.userid;
-    }
-    RtMsgTypeSenderKey(RtMessage::Type aType, karere::Id aId)
-    : type(aType), userid(aId){}
-};
 
-struct RtMsgTypeSenderClientKey
-{
-    RtMessage::Type type;
-    karere::Id userid;
-    ClientId clientid;
-    bool operator<(RtMsgTypeSenderClientKey other) const
-    {
-        if (type != other.type)
-            return type < other.type;
-        if (userid != other.userid)
-            return userid < other.userid;
-        return clientid < other.clientid;
-    }
-    RtMsgTypeSenderClientKey(RtMessage::Type aType, karere::Id aId, ClientId aClientId)
-    : type(aType), userid(aId), clientid(aClientId){}
-};
 
 class IRtMsgHandlerCb: public karere::WeakReferenceable<IRtMsgHandlerCb*>
 {
     IRtMsgHandlerCb(): karere::WeakReferenceable<IRtMsgHandlerCb*>(this){}
 public:
-    virtual void operator()(const RtMessage& msg, bool& keep) = 0;
+    virtual void operator()(const std::shared_ptr<RtMessage>& msg, bool& keep) = 0;
     virtual ~IRtMsgHandlerCb(){}
     virtual void remove() = 0;
 };
@@ -361,7 +331,7 @@ protected:
     RtMsgHandlerCb(CB&& aCb, M& aMap)
     : mCallback(std::forward<CB>(aCb)), mParent(aMap){}
     void setIterator(typename M::iterator aIt) { mIterator = aIt; }
-    virtual void operator()(const RtMessage& msg, bool& keep)
+    virtual void operator()(const std::shared_ptr<RtMessage>& msg, bool& keep)
     { mCallback(msg, keep); }
     friend class Chat;
     template <class X>
@@ -882,8 +852,8 @@ protected:
 
     //Rt message stuff
     typedef std::multimap<RtMessage::Type, std::unique_ptr<IRtMsgHandlerCb>> rthTypeMap;
-    typedef std::multimap<RtMsgTypeSenderKey, std::unique_ptr<IRtMsgHandlerCb>> rthTypeSenderMap;
-    typedef std::multimap<RtMsgTypeSenderClientKey, std::unique_ptr<IRtMsgHandlerCb>> rthTypeSenderClientMap;
+    typedef std::multimap<RtMessageWithUser::Key, std::unique_ptr<IRtMsgHandlerCb>> rthTypeSenderMap;
+    typedef std::multimap<RtMessageWithEndpoint::Key, std::unique_ptr<IRtMsgHandlerCb>> rthTypeSenderClientMap;
 
     template <class M>
     struct RtHandlers: public M
@@ -891,23 +861,25 @@ protected:
         Chat& mParent;
         typename M::iterator mExecutingHandler = M::end();
         RtHandlers(Chat& aParent): mParent(aParent){}
-        void callHandlers(typename M::key_type aKey, const RtMessage& msg);
+        void callHandlers(typename M::key_type aKey, const std::shared_ptr<RtMessageWithEndpoint>& msg);
         void remove(typename M::iterator handler);
     };
     RtHandlers<rthTypeMap> mRtHandlers_Type;
-    RtHandlers<rthTypeSenderMap> mRtHandlers_TypeSender;
-    RtHandlers<rthTypeSenderClientMap> mRtHandlers_TypeSenderClient;
+    RtHandlers<rthTypeSenderMap> mRtHandlers_Sender;
+    RtHandlers<rthTypeSenderClientMap> mRtHandlers_Endpoint;
 
     template <class M, class K>
     void rtCallHandlers(M& map, K key, const RtMessage& msg);
-    size_t handleRtMessage(const char* data, size_t maxSize);
+    void handleRtMessage(const char* data, size_t size);
 
     template <class CB, class M>
     IRtMsgHandlerCb* rtMkHandler(CB&& cb, M& aMap)
     { return new RtMsgHandlerCb<CB,M>(std::forward<CB>(cb), aMap); }
 public:
 //realtime messaging
-    bool rtSendMessage(ClientId clientId, const RtMessage& msg);
+    bool rtSendMessage(RtMessage&& msg);
+    bool rtSendMessage(RtMessageWithUser&& msg);
+    bool rtSendMessage(RtMessageWithEndpoint&& msg);
     template <class CB>
     RtMsgHandler rtAddHandler(RtMessage::Type type, CB cb)
     {
@@ -920,9 +892,9 @@ public:
     template <class CB>
     RtMsgHandler rtAddHandler(RtMessage::Type type, karere::Id from, CB cb)
     {
-        auto it = mRtHandlers_TypeSender.emplace(std::piecewise_construct,
+        auto it = mRtHandlers_Sender.emplace(std::piecewise_construct,
             std::forward_as_tuple(type, from),
-            rtMkHandler(std::forward<CB>(cb), mRtHandlers_TypeSender));
+            rtMkHandler(std::forward<CB>(cb), mRtHandlers_Sender));
         it->setIterator(it);
         return it->weakHandle();
     }
@@ -930,9 +902,9 @@ public:
     template <class CB>
     RtMsgHandler rtAddHandler(RtMessage::Type type, karere::Id from, ClientId fromClient, CB cb)
     {
-        auto it = mRtHandlers_TypeSenderClient.emplace(std::piecewise_construct,
+        auto it = mRtHandlers_Endpoint.emplace(std::piecewise_construct,
             std::forward_as_tuple(type, from, fromClient),
-            rtMkHandler(std::forward<CB>(cb), mRtHandlers_TypeSenderClient));
+            rtMkHandler(std::forward<CB>(cb), mRtHandlers_Endpoint));
         it->setIterator(it);
         return it->weakHandle();
     }
@@ -1043,8 +1015,3 @@ public:
 }
 
 #endif
-
-
-
-
-

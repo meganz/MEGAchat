@@ -318,7 +318,7 @@ Promise<void> Connection::reconnect(const std::string& url)
         .then([this]()
         {
             enableInactivityTimer();
-            sendCommand(Command(OP_HELLO)+(uint16_t)kProtocolVersion+(uint32_t)mClientId);
+            sendCommand(Command(OP_CLIENTID)+(uint32_t)mClientId);
             rejoinExistingChats();
         });
     }
@@ -427,10 +427,10 @@ void Command::toString(char* buf, size_t bufsize) const
 {
     switch(opcode())
     {
-        case OP_HELLO:
+        case OP_CLIENTID:
         {
-            snprintf(buf, bufsize, "HELLO - version 0x%04x, clientid: 0x%08x",
-                read<uint16_t>(1), read<uint32_t>(3));
+            snprintf(buf, bufsize, "CLIENTID - 0x%04x",
+                read<uint32_t>(3));
             break;
         }
         default:
@@ -620,8 +620,8 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     const karere::SetOfIds& initialUsers, ICrypto* crypto)
     : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
       mListener(listener), mUsers(initialUsers), mCrypto(crypto),
-      mRtHandlers_Type(*this), mRtHandlers_TypeSender(*this),
-      mRtHandlers_TypeSenderClient(*this)
+      mRtHandlers_Type(*this), mRtHandlers_Sender(*this),
+      mRtHandlers_Endpoint(*this)
 {
     assert(mChatId);
     assert(mListener);
@@ -892,18 +892,24 @@ void Connection::execCommand(const StaticBuffer& buf)
                 mClient.chats(chatid).onNewKeys(StaticBuffer(keys, totalLen));
                 break;
             }
-            case OP_RTMSG:
+            case OP_RTMSG_ENDPOINT:
             {
+                //chatid.8 userid.8 clientid.4 len.2 data.len
+                auto cmdoffset = pos-1; //includes the opcode
                 READ_CHATID(0);
+                pos+=12; //skip userid and clientid
+                READ_16(payloadLen, 20);
+                pos+=payloadLen; //skip the payload
+
                 auto& chat = mClient.chats(chatid);
-                pos += chat.handleRtMessage(buf.buf()+pos, buf.dataSize()-pos);
+                chat.handleRtMessage(buf.buf()+cmdoffset, payloadLen+23); //includes the opcode
                 break;
             }
-            case OP_HELLO:
+            case OP_CLIENTID:
             {
                 READ_32(clientid, 0);
                 mClientId = clientid;
-                CHATD_LOG_DEBUG("recv HELLO, clientid: %x", clientid);
+                CHATD_LOG_DEBUG("recv CLIENTID - 0x%04x", clientid);
                 break;
             }
             default:
@@ -2281,26 +2287,10 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
         CALL_LISTENER(onUserTyping, from);
 }
 
-size_t Chat::handleRtMessage(const char* data, size_t maxSize)
+void Chat::handleRtMessage(const char* data, size_t size)
 {
-    //userid.8 clientid.4 len.2 = 14
-    //msgtype.1
-    if (maxSize < 15)
-        throw std::runtime_error("handleRtMessage: Incoming realtime message buffer is too small");
-
-    auto msglen = *(uint16_t*)(data+12);
-    if (msglen < 1)
-        throw std::runtime_error("handleRtMessage: Message length is less than 1");
-
-    size_t cmdlen = msglen+14;
-    if (cmdlen > maxSize)
-        throw std::runtime_error("handleRtMessage: Message length field denotes message spans outside of received buffer");
-
-    StaticBuffer cmd(data, cmdlen);
-    auto userid = cmd.read<karere::Id>(0);
-    auto clientid = cmd.read<ClientId>(8);
-    auto type = cmd.read<RtMessage::Type>(14);
-    if (type & RtMessage::kQueryBit)
+    auto msg = std::make_shared<RtMessageWithEndpoint>(data, size);
+    if (msg->type() & RtMessage::kQueryBit)
     {
 /*
  * We don't need query-response at the moment.
@@ -2328,16 +2318,16 @@ size_t Chat::handleRtMessage(const char* data, size_t maxSize)
             mRtQueries.erase(it);
 */
     }
-
-    RtMessage msg(userid, clientid, cmd.buf()+14, cmd.dataSize()-14);
+    auto type = msg->type();
+    auto userid = msg->userid();
+    auto clientid = msg->clientid();
     mRtHandlers_Type.callHandlers(type, msg);
-    mRtHandlers_TypeSender.callHandlers(RtMsgTypeSenderKey(type, userid), msg);
-    mRtHandlers_TypeSenderClient.callHandlers(RtMsgTypeSenderClientKey(type, userid, clientid), msg);
-    return cmdlen;
+    mRtHandlers_Sender.callHandlers(RtMessageWithUser::Key(type, userid), msg);
+    mRtHandlers_Endpoint.callHandlers(RtMessageWithEndpoint::Key(type, userid, clientid), msg);
 }
 
 template <class M>
-void Chat::RtHandlers<M>::callHandlers(typename M::key_type aKey, const RtMessage& msg)
+void Chat::RtHandlers<M>::callHandlers(typename M::key_type aKey, const std::shared_ptr<RtMessageWithEndpoint>& msg)
 {
     auto range = this->equal_range(aKey);
     for (auto it = range.first; it != range.second;)
@@ -2371,10 +2361,15 @@ void Chat::RtHandlers<M>::remove(typename M::iterator it)
 {
     if (it == mExecutingHandler)
     {
-        CHATD_LOG_DEBUG("%s: Addempt to delete executing handler, ignoring", mParent.chatId().toString().c_str());
+        CHATD_LOG_WARNING("%s: Addempt to delete executing handler, ignoring", mParent.chatId().toString().c_str());
         return;
     }
     erase(it);
+}
+
+bool Chat::rtSendMessage(RtMessage &&msg)
+{
+    return sendCommand(msg);
 }
 
 void Client::leave(Id chatid)
@@ -2383,13 +2378,40 @@ void Client::leave(Id chatid)
     mChatForChatId.erase(chatid);
 }
 
-const char* Command::opcodeNames[] =
+#define RET_CODENAME(name) case OP_##name: return #name
+
+const char* Command::opcodeToStr(uint8_t code)
 {
- "KEEPALIVE","JOIN", "OLDMSG", "NEWMSG", "MSGUPD", "SEEN",
- "RECEIVED","RETENTION","HIST", "RANGE","NEWMSGID","REJECT",
- "BROADCAST", "HISTDONE", "(invalid)", "(invalid)", "(invalid)",
- "NEWKEY", "KEYID", "JOINRANGEHIST", "MSGUPDX", "MSGID"
-};
+    switch(code)
+    {
+        RET_CODENAME(KEEPALIVE);
+        RET_CODENAME(JOIN);
+        RET_CODENAME(OLDMSG);
+        RET_CODENAME(NEWMSG);
+        RET_CODENAME(MSGUPD);
+        RET_CODENAME(SEEN);
+        RET_CODENAME(RECEIVED);
+        RET_CODENAME(RETENTION);
+        RET_CODENAME(HIST);
+        RET_CODENAME(RANGE);
+        RET_CODENAME(NEWMSGID);
+        RET_CODENAME(REJECT);
+        RET_CODENAME(BROADCAST);
+        RET_CODENAME(HISTDONE);
+        RET_CODENAME(NEWKEY);
+        RET_CODENAME(KEYID);
+        RET_CODENAME(JOINRANGEHIST);
+        RET_CODENAME(MSGUPDX);
+        RET_CODENAME(MSGID);
+        RET_CODENAME(CLIENTID);
+        RET_CODENAME(RTMSG_BROADCAST);
+        RET_CODENAME(RTMSG_USER);
+        RET_CODENAME(RTMSG_ENDPOINT);
+        default: return "(unknown)";
+    };
+}
+
+
 const char* Message::statusNames[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"
