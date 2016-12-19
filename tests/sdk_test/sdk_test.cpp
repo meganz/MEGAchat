@@ -340,14 +340,12 @@ void MegaChatApiTest::TEST_resumeSession()
     assert(waitForResponse(flag));
     assert(!lastError[0]);
     // try to initialize chat engine with cache --> should fail
-    bool *flagInit = &initStateChanged[0]; *flagInit = false;
-    megaChatApi[0]->init(session);
-    assert(waitForResponse(flagInit));
-    assert(initState[0] == MegaChatApi::INIT_WAITING_NEW_SESSION);
+    assert(megaChatApi[0]->init(session) == MegaChatApi::INIT_NO_CACHE);
+    megaApi[0]->invalidateCache();
 
 
     // ___ Re-create Karere cache without login out from SDK___
-    flagInit = &initStateChanged[0]; *flagInit = false;
+    bool *flagInit = &initStateChanged[0]; *flagInit = false;
     // login in SDK
     flag = &requestFlags[0][MegaRequest::TYPE_LOGIN]; *flag = false;
     session ? megaApi[0]->fastLogin(session) : megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
@@ -361,6 +359,8 @@ void MegaChatApiTest::TEST_resumeSession()
     assert(waitForResponse(flagInit));
     assert(initState[0] == MegaChatApi::INIT_ONLINE_SESSION);
 
+    MegaChatListItemList *list = megaChatApi[0]->getChatListItems();
+    assert(list->size());
 
     // ___ Close session ___
     logout(0, true);
