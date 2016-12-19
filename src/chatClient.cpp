@@ -235,6 +235,10 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     }
     else
     {
+        if (mInitState == kInitErrNoCache) //local karere cache not present or currupt, force sdk to do full fetchnodes
+        {
+            api.sdk.invalidateCache();
+        }
         return sdkLoginExistingSession(sid);
     }
 }
@@ -285,7 +289,7 @@ void Client::initWithDbSession(const char* sid)
         if (!openDb(sid))
         {
             assert(mSid.empty());
-            mInitState = kInitErrNoCache;
+            setInitState(kInitErrNoCache);
             return;
         }
         assert(db);
@@ -311,7 +315,7 @@ void Client::initWithDbSession(const char* sid)
     return;
 }
 
-void Client::setInitState(unsigned char newState)
+void Client::setInitState(InitState newState)
 {
     if (newState == mInitState)
         return;
@@ -320,7 +324,7 @@ void Client::setInitState(unsigned char newState)
     app.onInitStateChange(mInitState);
 }
 
-void Client::init(const char* sid)
+Client::InitState Client::init(const char* sid)
 {
     if (sid)
     {
@@ -328,7 +332,6 @@ void Client::init(const char* sid)
         if (mInitState == kInitErrNoCache)
         {
             wipeDb(sid);
-            setInitState(kInitWaitingNewSession);
         }
     }
     else
@@ -336,6 +339,7 @@ void Client::init(const char* sid)
         setInitState(kInitWaitingNewSession);
     }
     api.sdk.addRequestListener(this);
+    return mInitState;
 }
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
@@ -368,7 +372,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 loadContactListFromApi();
                 setInitState(kInitHasOnlineSession);
             }
-            else if (mInitState == kInitWaitingNewSession)
+            else if (mInitState == kInitWaitingNewSession || mInitState == kInitErrNoCache)
             {
                 initWithNewSession(sid)
                 .then([this]()

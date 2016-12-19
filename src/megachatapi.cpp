@@ -88,9 +88,9 @@ void MegaChatApi::setLogLevel(int logLevel)
     MegaChatApiImpl::setLogLevel(logLevel);
 }
 
-void MegaChatApi::init(const char *sid)
+int MegaChatApi::init(const char *sid)
 {
-    pImpl->init(sid);
+    return pImpl->init(sid);
 }
 
 int MegaChatApi::getInitState()
