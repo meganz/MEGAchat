@@ -365,6 +365,11 @@ void MegaChatApiTest::TEST_resumeSession()
     // ___ Close session ___
     logout(0, true);
     delete [] session; session = NULL;
+
+
+    // ___ Create a new session ___
+    session = login(0);
+    assert(session);
 }
 
 void MegaChatApiTest::TEST_setOnlineStatus()
@@ -825,26 +830,25 @@ void MegaChatApiTest::TEST_offlineMode()
         assert(msgSent->getStatus() == MegaChatMessage::STATUS_SENDING);
 
         megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
-        assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
 
         flag = &chatroomListener->historyLoaded[0]; *flag = false;
+        bool *msgSentLoaded = &chatroomListener->msgLoaded[0]; *msgSentLoaded = false;
         chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;
-        megaChatApi[0]->loadMessages(chatid, 16);
+        assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
         bool msgSentFound = false;
-        while (!*flag)
+        do
         {
-            bool *msgSentLoaded = &chatroomListener->msgLoaded[0]; *msgSentLoaded = false;
             assert(waitForResponse(msgSentLoaded));
             if (chatroomListener->msgId[0] == msgSent->getMsgId())
             {
                 msgSentFound = true;
                 break;
             }
-        }
+            *msgSentLoaded = false;
+        } while (*flag);
+
         assert(msgSentFound);
         delete msgSent; msgSent = NULL;
-
-
     }
 
     logout(0, true);
