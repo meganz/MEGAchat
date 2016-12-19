@@ -247,13 +247,10 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     else
     {
         if (mInitState == kInitErrNoCache) //local karere cache not present or currupt, force sdk to do full fetchnodes
-        {//FIXME: Implement proper full fetchnodes with existing session
-            return sdkLoginExistingSession(sid);
-        }
-        else
         {
-            return sdkLoginExistingSession(sid);
+            api.sdk.invalidateCache();
         }
+        return sdkLoginExistingSession(sid);
     }
 }
 void Client::loadContactListFromApi()
