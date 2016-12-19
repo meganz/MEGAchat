@@ -319,7 +319,21 @@ public:
     virtual void remove() = 0;
 };
 
-typedef IRtMsgHandlerCb::WeakRefHandle RtMsgHandler;
+class RtMsgHandler: protected IRtMsgHandlerCb::WeakRefHandle
+{
+protected:
+    typedef IRtMsgHandlerCb::WeakRefHandle Base;
+public:
+    void remove()
+    {
+        if (!isValid())
+            return;
+        get()->remove();
+        assert(!isValid());
+    }
+    using Base::Base;
+    using Base::operator=;
+};
 
 template <class CB, class M>
 class RtMsgHandlerCb: public IRtMsgHandlerCb

@@ -258,107 +258,89 @@ void JingleCall::handleSdpAnswer(const std::shared_ptr<RtMesageWithEndpoint>& ms
 }
 /* Call initiation sequence for group calls:
  *  1) Initiator broadcasts a call request
- *  2) Answerers broadcast a join request to everybody
+ *  2) Answerers broadcast a join request to everybody, with a nonce
  *  3) Clients already in the call respond to the join request with
- *  RTCMSG_sessionOffer, containing an SDP offer
- *  4) the joiner sends an RTCMSG_sessionAnswer with an SDP answer
- * For joinin an existing call, the sequence starts from 2)
+ *    sessionOffer, containing an SDP offer, their own nonce, and a hash
+ *    of the webrtc fingerprint, keyed with the joiner's nonce, and encrypted
+ *    to the joiner's pubkey.
+ *  4) the joiner sends an RTCMSG_sessionAnswer with an SDP answer, with a
+ * webrtc fingerprint hash keyed with the session-offerer's nonce, and encrypted
+ * to their public rsa key.
+ *
+ *  For joinin an existing call, the sequence starts from 2)
  */
 void GroupHandler::handleSessionOffer(const std::shared_ptr<RtMessage>& callmsg)
 {
 }
 
-struct IncomingCallRequest: public karere::DeleteTrackable
+struct IncomingCallRequest: public karere::WeakReferenceable<IncomingCallRequest>
 {
     RtMsgHandler mElsewhereHandler;
-    int64_t tsReceived = timestampMs();
     std::shared_ptr<RtMessage> mCallMsg;
-    Promise<void> pmsCrypto;
-    Promise<void> pmsGelb;
     bool mUserAnswered = false; //set to true when user answers or rejects the call
-    Call& call;
-    ~IncomingCallRequest()
-    {
-        mElsewhereHandler.remove();
-    }
+//    Call& call;
+    karere::Id mRid; //request id
     IncomingCallRequest(Call& aCall, const std::shared_ptr<RtMsg_PeerCallRequest>& aCallmsg);
+    ~IncomingCallRequest() { mElsewhereHandler.remove(); }
 };
 
-class CallAnswer: public ICallAnswer
+class CallAnswer: public ICallAnswer, protected IncomingCallRequest::WeakRefHandle
 {
 protected:
-    Call::WeakRefHandle mCall;
-    IncomingCallRequest* callReq()
-    { return mCall.isValid() ? mCall.incomingReq() : nullptr; }
+    using IncomingCallRequest::WeakRefHandle::WeakRefHandle;
 public:
     //ICallAnswer interface
     AvFlags peerMedia() const
     {
-        auto req = callReq();
-        if (!req)
-            throw std::runtime_error("Call is no longer valid");
-        return req->peerMedia();
+        if (!isValid())
+            throw std::runtime_error("Incoming call request is no longer valid");
+        return get()->peerMedia();
     } //TODO: implement peer media parsing
     bool reqStillValid() const
     {
-        auto req = callReq();
-        return req ? (!req->userResponded()) : false;
+        return (isValid() && !get()->userResponded());
     }
     bool answer(bool accept, AvFlags av)
     {
-        auto req = callReq();
-        return req ? req->answer(accept, av) : false;
-    }
-    ICall& call() const
-    {
-        if (!mCall.isValid())
-            throw std::runtime_error("Call is not valid anymore");
-        return *mCall;
+        return isValid() ? get()->answer(accept, av) : false;
     }
 };
 
-IncomingCallRequest::IncomingCallRequest(Call& aCall, const std::shared_ptr<RtMsg_PeerCallRequest>& aCallMsg)
-    :call(aCall), callmsg(aCallMsg)
+IncomingCallRequest::IncomingCallRequest(CallManager& aMgr, const std::shared_ptr<RtMsg_PeerCallRequest>& aCallMsg)
+    :manager(aMgr), mRid(msgGetSid(*aCallMsg)), callmsg(aCallMsg)
 {
 // Add a 'handled-elsewhere' handler that will invalidate the call request if a notification
 // is received that another client of our user answered/declined the call
 
 //This handler will be removed by the destructor of this object, so it's not possible
 //to have the object deleted when the handler is called
-    auto& chat = call.handler.chat;
-    mElsewhereHandler = chat.addHandler(RTMSG_notifyCallHandled, call.peer,
+    mElsewhereHandler = manager.chat.addHandler(RTMSG_notifyCallHandled, manager.myUserid,
     [this](const std::shared_ptr<RtMessage>& msg, void*, bool& keep)
     {
-        if (msgGetSid(*msg) != call.sid)
+        if (msgGetSid(*msg) != mRid)
             return;
         keep = false;
         auto by = msg->clientid();
         if (by == call.manager.chat.clientId()) //if it was us, ignore the message. We should have already removed this handler though.
             return;
         auto accepted = msg->readPayload<uint8_t>(8);
-        call.manager.destroyCall(call, (accepted ? Call::kRejectedElsewhere : Call::kAnsweredElsewhere) | Call::kPeer);
+        manager.destroyIncomingReq(accepted ? Call::kRejectedElsewhere : Call::kAnsweredElsewhere);
     });
 
-    call.mTimer = setTimeout([this]()
+    manager.mTimer = setTimeout([this]()
     {
-        call.manager.destroyCall(call, Call::kAnswerTimeout);
+        manager.destroyIncomingReq(Call::kAnswerTimeout);
     }, callAnswerTimeout+10000);
 
 //tsTillUser measures the time since the req was received till the user answers it
 //After the timeout either the handlers will be removed (by the timer above) and the user
 //will get onCallCanceled, or if the user answers at that moment, they will get
 //a call-not-valid-anymore condition
-
-    pmsGelb = mTurnServerProvider->getServers(mIceFastGetTimeout)
-    .then([this](ServerList<TurnServerInfo>* servers)
-    {
-        mParent.rtcShared().setIceServers(*servers);
-    });
-
-    pmsCrypto = mCrypto->preloadCryptoForJid(state->fromBare);
+//    pmsGelb = mTurnServerProvider->getServers(mIceFastGetTimeout)
+    manager.initGelbAndCrypto(true, callmsg->user);
 }
 
-bool Call::answer(bool accept, AvFlags av)
+bool IncomingCallRequest::answer(bool accept, AvFlags av)
 {
     //If user answer times out or the call request is cancelled or handled by someone else,
     //the call will be immediately destroyed, so we will never reach here
@@ -367,31 +349,69 @@ bool Call::answer(bool accept, AvFlags av)
         return false;
 
     mUserAnswered = true;
-    if (mTimer)
+    auto& timer = manager.mTimer;
+    if (timer)
     {
-        cancelTimeout(mTimer);
-        mTimer = 0;
+        cancelTimeout(timer);
+        timer = 0;
     }
     if (!accept)
-        return manager.hangup(Call::kCallReqDeclined);
+        return manager.destroyIncomingCallReq(Call::kCallReqDeclined);
 
-//accept call
+//join call
     auto wptr = getWeakHandle();
-    when(pmsCrypto, pmsGelb)
+    manager.initGelbAndCrypto()
     .then([wptr, this, av]()
     {
         if (!wptr.isValid())
             return;
-        acceptCall(av);
+        joinCall(av);
     })
     .fail([this, wptr](const Error& err)
     {
         if (!wptr.isValid())
             return;
         RTMGS_LOG_ERROR("Error while sending call answer response: %s", err.what());
-        manager.hangup(Call::kInternalError);
+        manager.destroyIncomingCallReq(Call::kInternalError);
     });
     return true;
+}
+
+void CallManager::joinCall(AvFlags av, karere::Id rid)
+{
+    assert(mState == kStateIdle || mState == kStateIncomingCallReq);
+    generateOwnFprNonce();
+    if (!rid)
+        rid = generateSid();
+
+    mRid = rid;
+    RtMessage msg(RTMSG_join, 41);
+    msg.append<uint64_t>(rid.val);
+    msg.append<uint8_t>(av.toByte());
+    static_assert(sizeof(mOwnNonce) == 32, "own nonce size");
+    msg.append(mOwnNonce, 32);
+
+    setupIncomingOffersHandler();
+    chat.send(msg);
+    mState = Call::kStateJoining;
+}
+void CallManager::setupIncomingOffersHandler()
+{
+    assert(!mIncomingOffersHandler);
+    mIncomingOffersHandler = chat.rtAddHandler(RTMSG_sdpOffer,
+    [this](const std::shared_ptr<RtMessageWithEndpoint>& msg)
+    {
+        //rid.8 sid.8 avFlags.1 nonce.32 fprHash.32 sdpLen.2 sdp.sdpLen
+        if (mState != kStateJoining)
+            return;
+        if (msgGetSid(msg) != mRid)
+        {
+            RTCM_LOG_WARNING("Ignoring an incoming sdp offer of different rid");
+            return;
+        }
+        addIncomingCall(*msg);
+    });
+    //TODO: Maybe remove the handler after some time. Subsequent links will be requested by joins by others
 }
 
 void JingleCall::accept(AvFlags av)

@@ -142,10 +142,10 @@ public:
            const char* iceServers="");
     strophe::Connection& conn() { return mConn; }
     virtual std::shared_ptr<Call>& addCall(CallState aState,
-        bool aIsCaller, IEventHandler* aHandler, const std::string& aSid,
-            JingleCall::HangupFunc&& hangupFunc,
-            const std::string& aPeerJid, AvFlags localAv, bool aIsFt=false,
-            const std::string& aOwnJid = "") = 0;
+        bool aIsCaller, IEventHandler* aHandler, karere::Id aSid,
+        karere::Id peer, chatd::ClientId peerClient, AvFlags localAv, AvFlags removeAv) = 0;
+    virtual std::shared_ptr<Call>& addIncomingCall(const RtMessageWithEndpoint& sdpOffer);
+
     void addAudioCaps();
     void addVideoCaps();
     void registerDiscoCaps();

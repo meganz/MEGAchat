@@ -144,6 +144,7 @@ public:
         }
         T operator->() { return get(); }
         const T operator->() const { return get(); }
+        operator bool() const { return isValid(); }
     };
 protected:
     WeakRefHandle mWeakRefHandle;
