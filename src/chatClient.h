@@ -511,14 +511,14 @@ protected:
     bool mConnected = false;
 public:
     enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
-    enum: unsigned char
+    enum InitState: uint8_t
     {
         /** The client has just been created. \c init() has not been called yet */
         kInitCreated = 0,
 
-        /** \c init() has been called with no \c sid, or there was no valid
-         * database for that \sid. The client is waiting for the completion
-         * of a full fetchnodes from the SDK */
+         /** \c init() has been called with no \c sid. The client is waiting
+         * for the completion of a full fetchnodes from the SDK on a new session.
+         */
         kInitWaitingNewSession,
 
         /** \c init() has been called with a \c sid, there is a valid cache for that
@@ -568,7 +568,7 @@ public:
          * the SDK was initialized
          */
         kInitErrSidMismatch
-    } InitState;
+    };
 
     sqlite3* db = nullptr;
     std::shared_ptr<strophe::Connection> conn;
@@ -663,8 +663,8 @@ public:
      * @note In any case, if there is no existing karere session cache,
      * offline operation is not possible.
      */
-    void init(const char* sid);
-    unsigned char initState() const { return mInitState; }
+    InitState init(const char* sid);
+    InitState initState() const { return mInitState; }
     bool hasInitError() const { return mInitState >= kInitErrFirst; }
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
@@ -752,8 +752,8 @@ protected:
     std::unique_ptr<XmppServerProvider> mXmppServerProvider;
     std::unique_ptr<rh::IRetryController> mReconnectController;
     xmpp_ts mLastPingTs = 0;
-    unsigned char mInitState = kInitCreated;
-    void setInitState(unsigned char newState);
+    InitState mInitState = kInitCreated;
+    void setInitState(InitState newState);
     std::string dbPath(const std::string& sid) const;
     bool openDb(const std::string& sid);
     void createDb();
