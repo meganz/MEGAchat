@@ -669,11 +669,15 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
     }
 }
 
-void MegaChatApiImpl::init(const char *sid)
+int MegaChatApiImpl::init(const char *sid)
 {
+    int ret;
+
     sdkMutex.lock();
-    mClient->init(sid);
+    ret = MegaChatApiImpl::convertInitState(mClient->init(sid));
     sdkMutex.unlock();
+
+    return ret;
 }
 
 int MegaChatApiImpl::getInitState()
@@ -1709,6 +1713,8 @@ int MegaChatApiImpl::convertInitState(int state)
         return MegaChatApi::INIT_ERROR;
 
     case karere::Client::kInitErrNoCache:
+        return MegaChatApi::INIT_NO_CACHE;
+
     case karere::Client::kInitWaitingNewSession:
         return MegaChatApi::INIT_WAITING_NEW_SESSION;
 

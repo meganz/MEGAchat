@@ -622,7 +622,7 @@ public:
     static void setLogLevel(int logLevel);
     static void setLoggerClass(MegaChatLogger *megaLogger);
 
-    void init(const char *sid);
+    int init(const char *sid);
     int getInitState();
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
