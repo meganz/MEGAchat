@@ -148,6 +148,11 @@ char *MegaChatApi::getUserEmail(MegaChatHandle userhandle)
     return pImpl->getUserEmail(userhandle);
 }
 
+MegaChatHandle MegaChatApi::getMyUserHandle()
+{
+    return pImpl->getMyUserHandle();
+}
+
 MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();

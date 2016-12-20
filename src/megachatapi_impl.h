@@ -688,6 +688,7 @@ public:
     void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     char *getUserEmail(MegaChatHandle userhandle);
+    MegaChatHandle getMyUserHandle();
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);

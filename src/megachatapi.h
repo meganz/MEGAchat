@@ -1077,6 +1077,16 @@ public:
     char *getUserEmail(MegaChatHandle userhandle);
 
     /**
+     * @brief Returns the handle of the logged in user.
+     *
+     * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
+     * since the value is retrieved from cache.
+     *
+     * @return Own user handle
+     */
+    MegaChatHandle getMyUserHandle();
+
+    /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
      *
      * It is needed to have successfully called \c MegaChatApi::init (the initialization

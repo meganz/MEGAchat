@@ -1078,6 +1078,11 @@ char *MegaChatApiImpl::getUserEmail(MegaChatHandle userhandle)
     return ret;
 }
 
+MegaChatHandle MegaChatApiImpl::getMyUserHandle()
+{
+    return mClient->myHandle();
+}
+
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 {
     MegaChatRoomListPrivate *chats = new MegaChatRoomListPrivate();
