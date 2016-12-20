@@ -340,14 +340,12 @@ void MegaChatApiTest::TEST_resumeSession()
     assert(waitForResponse(flag));
     assert(!lastError[0]);
     // try to initialize chat engine with cache --> should fail
-    bool *flagInit = &initStateChanged[0]; *flagInit = false;
-    megaChatApi[0]->init(session);
-    assert(waitForResponse(flagInit));
-    assert(initState[0] == MegaChatApi::INIT_WAITING_NEW_SESSION);
+    assert(megaChatApi[0]->init(session) == MegaChatApi::INIT_NO_CACHE);
+    megaApi[0]->invalidateCache();
 
 
     // ___ Re-create Karere cache without login out from SDK___
-    flagInit = &initStateChanged[0]; *flagInit = false;
+    bool *flagInit = &initStateChanged[0]; *flagInit = false;
     // login in SDK
     flag = &requestFlags[0][MegaRequest::TYPE_LOGIN]; *flag = false;
     session ? megaApi[0]->fastLogin(session) : megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
@@ -361,10 +359,17 @@ void MegaChatApiTest::TEST_resumeSession()
     assert(waitForResponse(flagInit));
     assert(initState[0] == MegaChatApi::INIT_ONLINE_SESSION);
 
+    MegaChatListItemList *list = megaChatApi[0]->getChatListItems();
+    assert(list->size());
 
     // ___ Close session ___
     logout(0, true);
     delete [] session; session = NULL;
+
+
+    // ___ Create a new session ___
+    session = login(0);
+    assert(session);
 }
 
 void MegaChatApiTest::TEST_setOnlineStatus()
@@ -825,26 +830,25 @@ void MegaChatApiTest::TEST_offlineMode()
         assert(msgSent->getStatus() == MegaChatMessage::STATUS_SENDING);
 
         megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
-        assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
 
         flag = &chatroomListener->historyLoaded[0]; *flag = false;
+        bool *msgSentLoaded = &chatroomListener->msgLoaded[0]; *msgSentLoaded = false;
         chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;
-        megaChatApi[0]->loadMessages(chatid, 16);
+        assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
         bool msgSentFound = false;
-        while (!*flag)
+        do
         {
-            bool *msgSentLoaded = &chatroomListener->msgLoaded[0]; *msgSentLoaded = false;
             assert(waitForResponse(msgSentLoaded));
             if (chatroomListener->msgId[0] == msgSent->getMsgId())
             {
                 msgSentFound = true;
                 break;
             }
-        }
+            *msgSentLoaded = false;
+        } while (*flag);
+
         assert(msgSentFound);
         delete msgSent; msgSent = NULL;
-
-
     }
 
     logout(0, true);
