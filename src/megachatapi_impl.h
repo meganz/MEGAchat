@@ -258,6 +258,7 @@ public:
     // karere::IApp::IListItem::IGroupChatListItem implementation
     virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
     virtual void onUserLeave(uint64_t userid);
+    virtual void onPeerPresence(karere::Presence pres);
 };
 
 class MegaChatPeerListItemHandler :
@@ -674,6 +675,7 @@ public:
     // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
     void fireOnChatInitStateUpdate(int newState);
+    void fireOnChatOnlineStatusUpdate(int status);
 
     // ============= API requests ================
 

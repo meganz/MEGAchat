@@ -252,7 +252,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
         {
             int status = request->getNumber();
-            if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_CHATTY)
+            if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_BUSY)
             {
                 fireOnChatRequestFinish(request, new MegaChatErrorPrivate("Invalid online status", MegaChatError::ERROR_ARGS));
                 break;
@@ -989,6 +989,14 @@ void MegaChatApiImpl::fireOnChatInitStateUpdate(int newState)
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
         (*it)->onChatInitStateUpdate(chatApi, newState);
+    }
+}
+
+void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(int status)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatOnlineStatusUpdate(chatApi, status);
     }
 }
 
@@ -1810,14 +1818,8 @@ void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
 
     this->status = pres.status();
 
-    // TODO: create specific callback to notify the own-presence changes
-
-//    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(MEGACHAT_INVALID_HANDLE);
-//    item->setOnlineStatus(status);
-
-//    API_LOG_INFO("My own presence has changed to %s (flags: %d)", pres.toString(), pres.flags());
-
-//    fireOnChatListItemUpdate(item);
+    fireOnChatOnlineStatusUpdate(status);
+    API_LOG_INFO("My own presence has changed to %s", pres.toString());
 }
 
 ChatRequestQueue::ChatRequestQueue()
@@ -3170,6 +3172,11 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
     item->setMembersUpdated();
 
     chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatGroupListItemHandler::onPeerPresence(Presence pres)
+{
+    // apps don't show the presence of each peer individually
 }
 
 void MegaChatListItemHandler::onExcludedFromChat()
