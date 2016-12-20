@@ -145,6 +145,7 @@ public:
     // implementation for MegaChatListener
     virtual void onChatInitStateUpdate(MegaChatApi *api, int newState);
     virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
+    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status);
 
 //    void onUsersUpdate(MegaApi* api, MegaUserList *users);
 //    void onNodesUpdate(MegaApi* api, MegaNodeList *nodes);
