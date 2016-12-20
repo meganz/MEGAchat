@@ -16,15 +16,17 @@
 #include "ICryptoFunctions.h"
 #include "rtcmPrivate.h"
 
-using namespace std;
-using namespace promise;
-using namespace std::placeholders;
+#define VERIFY_SID(msg)         \
+    Sid sid;                    \
+    msg->payloadRead(sid, 16);  \
+    if (sid != mSid) return;
 
 namespace rtcModule
 {
 using namespace std;
-using namespace strophe;
 using namespace karere;
+using namespace promise;
+using namespace std::placeholders;
 
 AvFlags peerMediaToObj(const char* strPeerMedia);
 //==
@@ -145,28 +147,14 @@ void JingleCall::handleSdpAnswer(const std::shared_ptr<RtMesageWithEndpoint>& ms
 
     if (!verifyMac(getFingerprintsSdp(sdp), mOwnFprMacKey, encFprMac))
     {
-        KR_LOG_WARNING("Fingerprint verification failed, possible forge attempt, dropping call!");
-        manager.destroyCall(*this, Call::kFprVerifFail);
-        return;
-    }
-    handleSdpAnswer(sdp)
-    .then([this]()
-    {
-        setState(kCallStateSession);
-        RTCM_EVENT(call, onSession);
-
-        mInputQueue.reset(new StanzaQueue());
+/*    handleSdpAnswer(sdp)
     sess->answer(jingle)
     .then([this, call]()
     {
 //now handle all packets queued up while we were waiting for user's accept of the call
         processAndDeleteInputQueue(*call->mSess);
     })
-    .fail([this, call](const promise::Error& e) mutable
-    {//TODO: Can be also a protocol error
-        call->hangup(Call::kInternalError, e.msg().c_str());
-    });
-}
+*/
         else if (action == "session-accept")
         {
             if (call->state() != kCallStateOutReq)
@@ -306,38 +294,39 @@ public:
     }
 };
 
-IncomingCallRequest::IncomingCallRequest(CallManager& aMgr, const std::shared_ptr<RtMsg_PeerCallRequest>& aCallMsg)
-    :manager(aMgr), mRid(msgGetSid(*aCallMsg)), callmsg(aCallMsg)
+IncomingCallRequest::IncomingCallRequest(Call& aCall, const std::shared_ptr<RtMsg_PeerCallRequest>& aCallMsg)
+    :call(aCall), mRid(aCallMsg->readPayload<uint32_t>(0)), callmsg(aCallMsg)
 {
-// Add a 'handled-elsewhere' handler that will invalidate the call request if a notification
-// is received that another client of our user answered/declined the call
-
-//This handler will be removed by the destructor of this object, so it's not possible
-//to have the object deleted when the handler is called
+// When a client answers a call request, it broadcasts a 'handledElsewhere'
+// message to all (other) clients of that user, so they destroy the incoming the call
+// request.
+// This handler will be removed by the destructor of this object, so it's not possible
+// to have the object deleted when the handler is called
     mElsewhereHandler = manager.chat.addHandler(RTMSG_notifyCallHandled, manager.myUserid,
     [this](const std::shared_ptr<RtMessage>& msg, void*, bool& keep)
     {
-        if (msgGetSid(*msg) != mRid)
+        //rid.4 caller.8 callerClientId.4 answered.1
+        if ((msg->readPayload<uint32_t>(0) != mRid) ||
+         || (msg->readPayload<uint64_t>(4) != callmsg->userid())
+         || (msg->readPayload<uint32_t>(12) != callmsg->clientid()))
             return;
+
         keep = false;
         auto by = msg->clientid();
         if (by == call.manager.chat.clientId()) //if it was us, ignore the message. We should have already removed this handler though.
             return;
         auto accepted = msg->readPayload<uint8_t>(8);
-        manager.destroyIncomingReq(accepted ? Call::kRejectedElsewhere : Call::kAnsweredElsewhere);
+        call.manager.destroyIncomingReq(accepted ? Call::kRejectedElsewhere : Call::kAnsweredElsewhere);
     });
-
-    manager.mTimer = setTimeout([this]()
+// The timer will be canceled when the request is destroyed, so we don't need
+// to check for valid 'this'
+    mTimer = setTimeout([this]()
     {
-        manager.destroyIncomingReq(Call::kAnswerTimeout);
-    }, callAnswerTimeout+10000);
+        call.manager.destroyIncomingReq(kUserAnswerTimeout);
+    }, userAnswerTimeout+10000);
 
-//tsTillUser measures the time since the req was received till the user answers it
-//After the timeout either the handlers will be removed (by the timer above) and the user
-//will get onCallCanceled, or if the user answers at that moment, they will get
-//a call-not-valid-anymore condition
-//    pmsGelb = mTurnServerProvider->getServers(mIceFastGetTimeout)
-    manager.initGelbAndCrypto(true, callmsg->user);
+// pmsGelb = mTurnServerProvider->getServers(mIceFastGetTimeout)
+    manager.updateTurnServersFromGelb(true);
 }
 
 bool IncomingCallRequest::answer(bool accept, AvFlags av)
@@ -349,14 +338,8 @@ bool IncomingCallRequest::answer(bool accept, AvFlags av)
         return false;
 
     mUserAnswered = true;
-    auto& timer = manager.mTimer;
-    if (timer)
-    {
-        cancelTimeout(timer);
-        timer = 0;
-    }
     if (!accept)
-        return manager.destroyIncomingCallReq(Call::kCallReqDeclined);
+        return manager.destroyIncomingReq(kUserDeclined);
 
 //join call
     auto wptr = getWeakHandle();
@@ -366,113 +349,132 @@ bool IncomingCallRequest::answer(bool accept, AvFlags av)
         if (!wptr.isValid())
             return;
         joinCall(av);
+        manager.destroyIncomingReq(kUserAnswered);
     })
     .fail([this, wptr](const Error& err)
     {
         if (!wptr.isValid())
             return;
         RTMGS_LOG_ERROR("Error while sending call answer response: %s", err.what());
-        manager.destroyIncomingCallReq(Call::kInternalError);
+        manager.destroyIncomingReq(kInternalError);
     });
     return true;
 }
 
-void CallManager::joinCall(AvFlags av, karere::Id rid)
+bool Call::join()
 {
-    assert(mState == kStateIdle || mState == kStateIncomingCallReq);
+    assert(mState == kStateNew || mState == kStateIncomingCallReq);
     generateOwnFprNonce();
-    if (!rid)
-        rid = generateSid();
+    //nonce.16 anonid.12
+    RtMessage msg(RTMSG_join, 32);
+    static_assert(sizeof(mOwnNonce) == 16, "own nonce size");
+    msg.append(mOwnNonce, 16)
+       .append(manager.rtcShared.ownAnonId);
 
-    mRid = rid;
-    RtMessage msg(RTMSG_join, 41);
-    msg.append<uint64_t>(rid.val);
-    msg.append<uint8_t>(av.toByte());
-    static_assert(sizeof(mOwnNonce) == 32, "own nonce size");
-    msg.append(mOwnNonce, 32);
+    if (!manager.chat.rtSendMessage(msg))
+    {
+        hangup(kErrSignallingDisconnected);
+        return false;
+    }
 
     setupIncomingOffersHandler();
-    chat.send(msg);
-    mState = Call::kStateJoining;
+    setupIncomingJoinsHandler();
+
+    mState = kStateJoining;
+    return true;
+    //TODO: Cansel the 'joining' state when the first session starts media.
 }
-void CallManager::setupIncomingOffersHandler()
+
+void Call::setupIncomingOffersHandler()
 {
     assert(!mIncomingOffersHandler);
     mIncomingOffersHandler = chat.rtAddHandler(RTMSG_sdpOffer,
-    [this](const std::shared_ptr<RtMessageWithEndpoint>& msg)
+    [this](const std::shared_ptr<RtMessageWithEndpoint>& msg, bool& keep)
     {
-        //rid.8 sid.8 avFlags.1 nonce.32 fprHash.32 sdpLen.2 sdp.sdpLen
         if (mState != kStateJoining)
             return;
-        if (msgGetSid(msg) != mRid)
-        {
-            RTCM_LOG_WARNING("Ignoring an incoming sdp offer of different rid");
-            return;
-        }
-        addIncomingCall(*msg);
+        GET_SID(msg);
+        auto& sess = at(sid);
+        if (sess)
+            throw std::runtime_error("Incoming session offer: Session with sid '"+sid.toString()+"' already exists");
+        sess = std::make_shared<Session>(&this, *msg, sid);
     });
-    //TODO: Maybe remove the handler after some time. Subsequent links will be requested by joins by others
 }
 
-void JingleCall::accept(AvFlags av)
+void Call::setupIncomingJoinsHandler()
 {
-    if (state() != kCallStateInReq)
-        throw std::runtime_error("BUG: Call transitioned to another state while waiting for gelb and crypto");
-    assert(mIncomingRequest);
+    assert(!mIncomingJoinsHandler);
+    mIncomingJoinsHandler = chat.rtAddHandler(RTMSG_join,
+    [this](const std::shared_ptr<RtMessageWithEndpoint>& msg, bool& keep)
+    {
+        if (mState != kStateJoining)
+            return;
+        auto sess = std::make_shared<Session>(*this, *msg);
+        assert(sess->sid);
+        auto ret = insert(sess->sid, sess);
+        assert(ret.second); //clash
+    });
+}
 
-    mLocalAv = av;
-    auto& callmsg = mIncomingRequest->callmsg;
+// Constructor for incoming offer (as a result of a JOIN sent by us)
+// sdpOffer: sid.16 avFlags.1 nonce.16 fprHash.32 anonId.12 sdpLen.2 sdp.sdpLen
+void Call::Session::Session(Call& aCall, const RtMessageWithEndpoint& msg, const Sid& aSid)
+    : call(aCall), isCaller(false), kStateSdpHandshake,
+    sid(aSid), msg.userid(), msg.clientid(), mRemoteAv(msg.readPayload<uint8_t>(17))
+{
+    auto sdpLen = msg.readPayload<uint16_t>(77);
+    if (!sdpLen)
+        throw std::runtime_error("Incoming sdp offer has zero-size sdp string");
+    std::string sdpOffer(msg.payloadReadPtr(79, sdpLen));
+    mSdpOffer.parse(sdpOffer);
 
-    manager.rtcShared.mCrypto->generateFprMacKey(mOwnFprMacKey);
+    memcpy(mPeerAnonId, msg.payloadReadPtr(65, 12), 12);
+    memcpy(mPeerNonce, msg.payloadReadPtr(17, 16));
+    const char* encFprHash = msg.payloadReadPtr(33, 32);
 
-    const char* peerAnonId = callmsg->payloadReadPtr(8, 32);
-    memcpy(mPeerAnonId, peerAnonId, 32);
-//FIXME: Check lengths and encoding
-    const char* encPeerFprMacKey = callmsg->payloadReadPtr(40, 32); //FIXME: Verify offset
-    mPeerFprMacKey = manager.rtcShared.mCrypto->decryptMessage(encPeerFprMacKey, 32, mPeerFprMacKey, 32);
-    if (mPeerFprMacKey.empty())
-        throw std::runtime_error("Failed to verify peer's fprmackey from call request");
+    setupHangupHandler();
+    createPeerConnAndAnswer(sdpOffer, encFprHash)
+    .then([this]()
+    {
+        //sid.16 encFprHash.32 sentAv.1 sdpLen.2 sdp.sdpLen
+        RtMessageWithEndpoint ans(RTMSG_megaCallAnswer, peer, peerClient, 64);
+        ans.append(&sid, 16);
+        ans.append(call.manager.rtcShared.ownAnonId, 16); //anonid, 16 bytes
+        auto& crypto = *call.manager.rtcShared.crypto;
+        char fprHash[32];
+        crypto.hashMessage(mLocalSdp.fingerprints(), mPeerNonce, fprHash);
+        char encFprHash[32];
+        crypto.encryptHashForUser(fprHash, peer, encFprHash);
 
-    std::string sdpOffer;
-    if (!startLocalStream(true, sdpOffer)) //FIXME: must be done before we sen
-        return; //startLocalStream() hangs up the call
+        ans.append(mSid, 16)
+           .append(encFprHash, 32)
+           .append<uint8_t>(call.mLocalAv.toByte()) //"media"
+           .append<uint16_t>(mSdpAnswer.raw().size());
+           .append(sdpAnswer.raw());
+        send(ans);
+        startMediaTimeoutTimer();
+    })
+    .fail([this](const promise::Error& err)
+    {
+        int code = (err.type() == PROMISE_ERR_RTCMODULE) ? err.code() : kErrorSdpHandshake;
+        hangup(code, err.what());
+    });
+}
 
+void Call::Session::startMediaTimeoutTimer()
+{
     assert(!mTimer);
-    // This timer is for the period from the megaCallAnswer we send to the sdp answer we should receive
+    // This timer is for the period from the sdp answer we send to receiving any media
     mTimer = setTimeout([this]()
     {
         //invalidate call after a timeout
-        if (state() != kCallStateInReqWaitJingle)
-            return; //peer responded, timeout did not occur. FIXME: Maybe we should cancel the timer
-
-        //It's possible that we have received or will receive a cancel from the
-        //peer, and since we remove the call asynchronously,
-        //in that case the call will receive both cancel and hangup.
-        manager.hangup(Call::kInitiateTimeout);
-    }, mInitiateTimeout);
-
-    //sid.8 ownAnonId.16 encFprMacKey.32 sentAv.1 sdpLen.2 sdp.sdpLen
-    RtMessageWithEndpoint ans(RTMSG_megaCallAnswer, peer, peerClient, 64);
-    ans.append(sid);
-    msg.append(manager.rtcShared.ownAnonId, 16); //anonid, 16 bytes of base64 string
-
-    char encOwnFprmac[32];
-    auto fprkLen = mCrypto->encryptMessageForJid(mOwnFprMacKey, peer, encOwnFprmac, 32);
-    assert(fprkLen == 32);
-    msg.append(encOwnFprmac, 32); //fprmackey
-    msg.append<uint8_t>(call.mLocalAv.toFlags()); //"media"
-    msg.append<uint16_t>(sdpOffer.size());
-    msg.append(sdpOffer);
-    mParent.mChat.rtSendMessage(ans);
-
-    setState(kCallStateInReqWaitJingle);
-    //the peer must create a session immediately after receiving our answer
-    //and before reading any other data from network, otherwise it may not have
-    //as session when we send the below terminate
-    createSession(peer, nullptr);
+        if (mState != hasExchangedMedia())
+            return; //media timeout did not occur.
+        hangup(kMediaTimeoutError);
+    }, kMediaTimeout);
 }
 
-void PeerCallManager::handleCallRequest(const std::shared_ptr<RtMessageWithEndpoint>& callmsg)
+void CallManager::handleCallRequest(const std::shared_ptr<RtMessageWithEndpoint>& callmsg)
 {
     if (mCall)
     {
@@ -482,7 +484,7 @@ void PeerCallManager::handleCallRequest(const std::shared_ptr<RtMessageWithEndpo
     }
     try
     {
-        mCall.reset(createCall(*this, callmsg));
+        mCall.reset(new Call(*this, callmsg));
     }
     catch(std::exception& e)
     {
@@ -490,12 +492,65 @@ void PeerCallManager::handleCallRequest(const std::shared_ptr<RtMessageWithEndpo
         return;
     }
     assert(mCall && mCall->mIncomingRequest);
-    RTCM_LOG_EVENT("global(%s)->onIncomingCallRequest", mCall->sid.toString().c_str());
+    RTCM_LOG_EVENT("global->onIncomingCallRequest");
 
     mCall->mHandler = mGlobalHandler->onIncomingCallRequest(
         std::make_shared<CallAnswer>(mCall->getWeakHandle()));
     if (!mCall->mHandler)
         throw std::runtime_error("onIncomingCallRequest: Application did not provide call event handler");
+}
+
+void Call::Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
+{
+
+}
+void Call::Session::onIceCandidate(std::shared_ptr<artc::IceCandText> candidate)
+{
+    if (mState != kStateConnecting)
+        return;
+    RTCM_LOG_DEBUG("%s: onIceCandidate", mSid.toString().c_str());
+    //sid.16 midLen.1 mid.midLen candLen.2 cand.candLen
+    RtMessageWithEndpoint cand(RTCM_iceCand, peer, peerClient, candidate->candidate.size()+16);
+    cand.append(mSid, RTCM_SID_LEN)
+        .append<uint8_t>(cand.mid.size())
+        .append(cand.mid)
+        .append<uint16_t>(candidate.candidate.size())
+        .append(candidate.candidate);
+    send(cand);
+}
+void Call::Session::setupIceCandidateHandler()
+{
+    mIceCandHandler = call.manager.char.addHandler(RTCM_iceCand, peer, peerClient,
+    [this](const std::shared_ptr<RtMessageWithEndpoint>& cand)
+    {
+      try
+      {
+        //sid.16 sdpMlineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
+        VERIFY_SID(cand);
+        auto mLineIdx = cand->payloadRead<uint8_t>(16);
+        auto midLen = cand->readPlayload<uint8_t>(17);
+        if (!midLen)
+            throw std::runtime_error("No 'mid' present in ice candidate");
+        std::string mid(cand->payloadReadPtr(18, midLen), midLen);
+        auto candLen = cand->readPayload<uint16_t>(18+midLen);
+        if (!candLen)
+            throw std::runtime_error("Candidate string is empty");
+
+        string text(cand->payloadReadPtr(20+midLen, candLen), candLen);
+        unique_ptr<webrtc::JsepIceCandidate> cand(
+          new webrtc::JsepIceCandidate(mid, mLineIdx));
+        webrtc::SdpParseError err;
+        if (!cand->Initialize(text, &err))
+            throw runtime_error("Error parsing ICE candidate:\nline: '"+err.line+"'\nError:" +err.description);
+
+        mPeerConn->AddIceCandidate(cand.release());
+      }
+      catch(std::exception& e)
+      {
+          RTCM_LOG_ERROR("Error handling received ICE candidate: %s", e.what());
+          hangup(kErrorProtocol, "Error handling received ICE candidate");
+      }
+    });
 }
 
 void Jingle::processAndDeleteInputQueue(JingleSession& sess)
@@ -505,32 +560,180 @@ void Jingle::processAndDeleteInputQueue(JingleSession& sess)
         onJingle(stanza);
 }
 
-JingleCall::JingleCall(CallHandler& aParent, bool isCaller, CallState aState,
-    IEventHandler* aHandler, karere::Id aSid,
-    karere::Id peer, chatd::ClientId peerClient, AvFlags localAv)
-: ICall(aParent, isCaller, aState, aHandler, aSid, peer, peerClient),
-  mLocalAv(localAv)
+// Constructor for incoming join (i.e. we should send sdp offer)
+Call::Session::Session(Call& aCall, const RtMessageWithEndpoint& joinMsg)
+: call(aCall), isCaller(true), peer(joinMsg.userid()), peerClient(joinMsg.clientid())
 {
-    if (!mHandler && mIsCaller) //handler is set after creation when we answer
-        throw std::runtime_error("Call::Call: NULL user handler passed");
-
-    hangupHandler = manager.chat.rtAddHandler(RTMSG_hangup, peer, peerClient,
-    [this](const std::shared_ptr<RtMessageWithEndpoint>& msg, bool& keep)
+    assert(joinMsg.type() == RTCM_join);
+    generateSid();
+    memcpy(mPeerNonce, joinMsg->payloadReadPtr(0, 16), 16);
+    memcpy(mPeerAnonId, joinMsg->payloadReadPtr(16, 12), 12);
+    setupHangupHandler();
+    setupSdpAnsHandler();
+    createPeerConnAndOffer()
+    .then([this]()
     {
-        if (msg->readPayload<uint64_t>(0) != call.sid)
-            return;
-        auto termcode = msg->readPayload<uint8_t>(8);
-        auto reasonLen = msg->readPayload<uint16_t>(9);
-        std::string reason = reasonLen
-            ? std::string(msg->payloadReadPtr(11, reasonLen))
-            : "unknown";
-        manager.destroyCall(termcode | kPeer, reason);
+        //sid.16 nonce.16 anonId.12 av.1 sdpLen.2 sdpOffer.sdpLen
+        RtMessageWithEndpoint offer(RTCM_sdpOffer, peer, peerClient, 19+mSdpOffer.raw.size());
+        offer.append(mSid, 16)
+             .append(mOwnNonce, 16)
+             .append(call.manager.rtcShared.ownAnonId, 12)
+             .append(mLocalStream.av().toByte())
+             .append<uint16_t>(mSdpOffer.raw().size())
+             .append(mLocalSdp.raw());
+        send(offer);
+        startMediaTimeoutTimer();
+    })
+    .fail([this](const promise::Error& err)
+    {
+        int code = (err.type() == PROMISE_ERR_RTCMMODULE)
+                ? err.code()
+                : kErrSdpHandshake;
+        hangup(code, err.msg());
     });
 }
 
-JingleCall::JingleCall(CallManager& aParent, const std::shared_ptr<RtMessageWithEndpoint>& callmsg)
-    :JingleCall(aParent, false, kCallStateInReq, msgGetSid(*callmsg), msg->userid(), msg->clientid(),
-     AvFlags(false,false)), mIncominRequest(new IncomingCallRequest(*this, callmsg))
+promise::Promise<void> Call::Session::createPeerConnAndOffer()
+{
+    std::string errors;
+    if (!createPeerConnWithLocalStream(errors))
+        return promise::Error(errors, kNoMediaError, PROMISE_ERR_RTCMODULE);
+
+    return mPeerConn.createOffer(mPcConstraints
+        ? mPcConstraints.get()
+        : &call.manager.rtcShared.pcConstraints)
+    .then([this](webrtc::SessionDescriptionInterface* sdp)
+    {
+        string strSdp;
+        if (!sdp->ToString(&strSdp))
+            return promise::Error("sdp->ToString() returned false", kInternalError, PROMISE_ERR_RTCMODULE);
+        mLocalSdp.parse(strSdp);
+        if (tweakEncoding(mLocalSdp))
+        {
+            webrtc::SessionDescriptionInterface* newSdp = parsedSdpToWebrtcSdp(mLocalSdp, sdp->type());
+            delete sdp;
+            sdp = newSdp;
+        }
+        return mPeerConn.setLocalDescription(sdp);
+    });
+}
+
+void Call::Session::setupSdpAnsHandler()
+{
+    mSdpAnsHandler = call.manager.char.rtAddHandler(RTCM_sdpAnswer, peer, peerClient,
+    [this](const std::shared_ptr<RtMessageWithEndpoint>& ans, bool& keep)
+    {
+        //sid.16 av.1 fprHash.32 sdpLen.2 sdpAns.sdpLen
+        assert(mState == kWaitSdpAnswer);
+        VERIFY_SID(ans);
+
+        keep = false;
+        const char* encFprHash = ans->payloadReadPtr(17, 32);
+        auto sdpLen = ans->readPayload<uint16_t>(17);
+        std::string sdp(ans->payloadReadPtr(19, sdpLen));
+
+        setRemoteDescription("answer", sdp, encFprHash)
+        .fail([this](const promise::Error& err)
+        {
+            int code = (err.type() == PROMISE_ERR_RTCMODULE) ? err.code() : kErrSdpHandshake;
+            hangup(code, err.msg());
+        });
+    });
+}
+// we received an offer
+promise::Promise<void>
+Call::Session::createPeerConnAndAnswer(const std::string& sdpOffer, const char* encFprHash)
+{
+    std::string errors;
+    if (!createPeerConnWithLocalStream(errors))
+        return promise::Error(errors, kNoMediaError, PROMISE_ERR_RTCMODULE);
+    setRemoteDescription("offer", sdpOffer, encFprHash)
+    .then([this]()
+    {
+        return mPeerConn.createAnswer(call.pcConstraints
+            ? call.pcConstraints.get()
+            : &call.manager.rtcShared.pcConstraints)
+    })
+    .then([this](webrtc::SessionDescriptionInterface* sdp) mutable
+    {
+        checkActive("created SDP answer");
+        string strSdp;
+        if (!sdp->ToString(&strSdp))
+            return promise::Error("sdp->ToString() returned false", kErrSdpHandshake, PROMISE_ERR_RTCMODULE);
+
+        mLocalSdp.parse(strSdp);
+        if (tweakEncoding(mLocalSdp))
+        {
+            auto newSdp = parsedSdpToWebrtcSdp(mLocalSdp, sdp->type());
+            delete sdp;
+            sdp = newSdp;
+        }
+        return mPeerConn.setLocalDescription(sdp)
+    });
+}
+
+promise::Promise<void>
+Call::Session::setRemoteDescription(const char* type, const std::string& sdp,
+    const char* encFingerprintHash)
+{
+    try
+    {
+        mRemoteSdp.parse(sdp);
+    }
+    catch(std::runtime_error& e)
+    {
+        return promise::Error(e.what(), kErrSdpParse, PROMISE_ERR_RTCMODULE);
+    }
+    call.manager.rtcShared.crypto->decryptMessage(encFingerprintHash, fprHash, 32);
+    if (!verifyHash(mRemoteSdp.fingerprints(), mOwnNonce, fprHash))
+        return promise::Error("fingerprint verification failed", kErrFprVerifFail, PROMISE_ERR_RTCMODULE);
+
+    unique_ptr<webrtc::JsepSessionDescription> jsepSdp(
+        new webrtc::JsepSessionDescription(type));
+    webrtc::SdpParseError error;
+    if (!jsepSdp->Initialize(mRemoteSdp.raw(), &error))
+    {
+        std::string msg = "Error parsing SDP: line='"+error.line+"'\nError: "+error.description;
+        return promise::Error(msg, kErrSdpParse, PROMISE_ERR_RTCMODULE);
+    }
+    return mPeerConn.setRemoteDescription(jsepSdp.release());
+}
+
+bool Call::Session::createPeerConnWithLocalStream(std::string& errors)
+{
+    if (!startLocalStream(true, errors))
+        return false;
+
+    mPeerConn = artc::myPeerConnection<Call::Session>(
+        call.manager.rtcShared.mIceServers,
+        *this, call.pcConstraints
+            ? call.pcConstraints.get()
+            : &manager.rtcShared.pcConstraints);
+    if (!mPeerConn->AddStream(*mLocalStream))
+    {
+        errors = "mPeerConn->AddStream() returned false";
+        return false;
+    }
+    return true;
+}
+void Call::Session::setupHangupHandler()
+{
+    //sid.16 code.1 reasonLen.2 reason.reasonLen
+    mHangupHandler = call.manager.chat.rtAddHandler(RTMSG_hangup, peer, peerClient,
+    [this](const std::shared_ptr<RtMessageWithEndpoint>& msg, bool& keep)
+    {
+        VERIFY_SID(msg);
+        auto termcode = msg->readPayload<uint8_t>(16);
+        auto reasonLen = msg->readPayload<uint16_t>(17);
+        std::string reason = reasonLen
+            ? std::string(msg->payloadReadPtr(19, reasonLen))
+            : "unknown";
+        destroy(termcode | kPeer, reason);
+    });
+}
+//incoming
+Call::Call(CallManager& aManager, const std::shared_ptr<RtMessageWithEndpoint>& callmsg)
+    :manager(aManager), mState(kStateInReq), mIncominRequest(new IncomingCallRequest(*this, callmsg))
 {}
 
 bool PeerCallManager::hangup(TermCode termcode, const std::string& reason)

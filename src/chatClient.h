@@ -581,7 +581,6 @@ public:
     presenced::Client& presenced() { return mPresencedClient; }
     bool contactsLoaded() const { return mContactsLoaded; }
     bool connected() const { return mConnected; }
-    bool hasInitError() const { return mInitState >= kInitErrFirst; }
     std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
     /** @endcond PRIVATE */
 
@@ -727,23 +726,13 @@ protected:
     /** @brief Our password */
     std::string mPassword;
     /** @brief Client's contact list */
-<<<<<<< HEAD
     presenced::Client mPresencedClient;
     std::string mPresencedUrl;
-    unsigned char mInitState = kInitCreated;
+    InitState mInitState = kInitCreated;
     UserAttrCache::Handle mOwnNameAttrHandle;
     megaHandle mHeartbeatTimer = 0;
     void heartbeat();
-    void setInitState(unsigned char newState);
-=======
-    XmppContactList mXmppContactList;
-    typedef FallbackServerProvider<HostPortServerInfo> XmppServerProvider;
-    std::unique_ptr<XmppServerProvider> mXmppServerProvider;
-    std::unique_ptr<rh::IRetryController> mReconnectController;
-    xmpp_ts mLastPingTs = 0;
-    InitState mInitState = kInitCreated;
     void setInitState(InitState newState);
->>>>>>> develop
     std::string dbPath(const std::string& sid) const;
     bool openDb(const std::string& sid);
     void createDb();

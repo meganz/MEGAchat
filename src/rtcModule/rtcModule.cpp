@@ -165,12 +165,10 @@ std::shared_ptr<artc::LocalStreamHandle> RtcModule::getLocalStream(std::string& 
                 mVideoInput?mVideoInput.getTrack():nullptr);
 }
 
-bool Call::startLocalStream(bool allowEmpty)
+bool Call::startLocalStream(bool allowEmpty, std::string& errors)
 {
-    string errors;
     if (mLocalStream)
         return true;
-
     try
     {
         mLocalStream = mRtc.getLocalStream(errors);
@@ -189,14 +187,12 @@ bool Call::startLocalStream(bool allowEmpty)
 
     //we can be here only if there was an exception
     mLocalStream.reset();
-    bool cont = allowEmpty;
     if (allowEmpty)
-        RTCM_EVENT(this, onLocalMediaFail, errors, &cont);
-    if (cont)
+        RTCM_EVENT(this, onLocalMediaFail, errors, &allowEmpty);
+    if (allowEmpty)
         return true;
 
     RTCM_EVENT(this, onLocalMediaFail, errors, nullptr);
-    hangup(kNoMediaError, errors.c_str());
     return false;
 }
  

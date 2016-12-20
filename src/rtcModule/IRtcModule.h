@@ -160,9 +160,10 @@ enum TermCode: uint8_t
     kProtoError = 12,           ///< General protocol error
     kInternalError = 13,        ///< Internal error in the client
     kNoMediaError = 14,         ///< There is no media to be exchanged - both sides don't have audio/video to send
-    kXmppDisconnError = 15,     ///< XMPP client was disconnected
-    kErrorLast = 15,            ///< Last enum indicating call termination due to error
-    kTermLast = 15,             ///< Last call terminate enum value
+    kMediaExchangeTimeout = 15, ///< There was no media exchanged withing the allowed timeout
+    kXmppDisconnError = 16,     ///< XMPP client was disconnected
+    kErrorLast = 16,            ///< Last enum indicating call termination due to error
+    kTermLast = 16,             ///< Last call terminate enum value
     kPeer = 128                 ///< If this flag is set, the condition specified by the code happened at the peer, not at our side
 };
     /** @brief The Jingle session id of the call */

@@ -42,12 +42,6 @@ void JingleSession::initiate(bool isInitiator)
         mResponder = mCall.mOwnJid;
     }
     //TODO: make it more elegant to initialize mPeerConn
-    mPeerConn = artc::myPeerConnection<JingleSession>(*mJingle.mIceServers,
-        *this, mCall.pcConstraints
-            ? mCall.pcConstraints.get()
-            : &mJingle.pcConstraints);
-
-    KR_THROW_IF_FALSE((mPeerConn->AddStream(*mCall.mLocalStream)));
 }
 //PeerConnection events
 void JingleSession::onAddStream(artc::tspMediaStream stream)
@@ -69,10 +63,6 @@ void JingleSession::onRemoveStream(artc::tspMediaStream stream)
     }
     mRemoteStream = nullptr;
     mCall.onRemoteStreamRemoved(stream);
-}
-void JingleSession::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
-{
-//TODO: maybe forward to mJingle
 }
 
 void JingleSession::onIceComplete()
