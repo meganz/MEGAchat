@@ -1848,6 +1848,16 @@ public:
     virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
 
     /**
+     * @brief Returns the current fullname of the peer
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Fullname of the chat peer with the handle specified.
+     */
+    virtual const char *getPeerFullnameByHandle(MegaChatHandle userhandle) const;
+
+    /**
      * @brief Returns the number of participants in the chat
      * @return Number of participants in the chat
      */
@@ -1902,6 +1912,17 @@ public:
      * @return Lastname of the peer in the position \c i.
      */
     virtual const char *getPeerLastname(unsigned int i) const;
+
+    /**
+     * @brief Returns the current fullname of the peer
+     *
+     * If the index is >= the number of participants in this chat, this function
+     * will return NULL.
+     *
+     * @param i Position of the peer whose name is requested
+     * @return Fullname of the peer in the position \c i.
+     */
+    virtual const char *getPeerFullname(unsigned int i) const;
 
     /**
      * @brief Returns whether this chat is a group chat or not

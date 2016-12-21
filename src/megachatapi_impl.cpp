@@ -2743,6 +2743,26 @@ const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhand
     return NULL;
 }
 
+const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhandle) const
+{
+    for (unsigned int i = 0; i < peers.size(); i++)
+    {
+        if (peers.at(i).first == userhandle)
+        {
+            string ret = peerFirstnames.at(i);
+            if (!peerFirstnames.at(i).empty() && !peerLastnames.at(i).empty())
+            {
+                ret.append(" ");
+            }
+            ret.append(peerLastnames.at(i));
+
+            return ret.c_str();
+        }
+    }
+
+    return NULL;
+}
+
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
 {
     if (i >= peers.size())
@@ -2786,6 +2806,23 @@ const char *MegaChatRoomPrivate::getPeerLastname(unsigned int i) const
     }
 
     return peerLastnames.at(i).c_str();
+}
+
+const char *MegaChatRoomPrivate::getPeerFullname(unsigned int i) const
+{
+    if (i >= peerLastnames.size() || i >= peerFirstnames.size())
+    {
+        return NULL;
+    }
+
+    string ret = peerFirstnames.at(i);
+    if (!peerFirstnames.at(i).empty() && !peerLastnames.at(i).empty())
+    {
+        ret.append(" ");
+    }
+    ret.append(peerLastnames.at(i));
+
+    return ret.c_str();
 }
 
 bool MegaChatRoomPrivate::isGroup() const

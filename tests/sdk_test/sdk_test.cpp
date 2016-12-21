@@ -204,7 +204,7 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
 
     if (chat->getPeerCount())
     {
-        cout << "\t\t(userhandle)\t(privilege)\t(firstname)\t(lastname)" << endl;
+        cout << "\t\t(userhandle)\t(privilege)\t(firstname)\t(lastname)\t(fullname)" << endl;
         for (unsigned i = 0; i < chat->getPeerCount(); i++)
         {
             MegaChatHandle uh = chat->getPeerHandle(i);
@@ -212,7 +212,8 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
             cout << "\t\t\t" << hstr;
             cout << "\t" << MegaChatRoom::privToString(chat->getPeerPrivilege(i));
             cout << "\t\t" << chat->getPeerFirstname(i);
-            cout << "\t" << chat->getPeerLastname(i) << endl;
+            cout << "\t" << chat->getPeerLastname(i);
+            cout << "\t" << chat->getPeerFullname(i) << endl;
         }
     }
     else
