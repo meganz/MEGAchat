@@ -196,7 +196,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_CONNECT:
         {
-            mClient->connect()
+            mClient->connect(karere::Presence::kInvalid)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
