@@ -521,11 +521,7 @@ public:
 
         /** Karere has sucessfully initialized and the SDK/API is online.
          * Note that the karere client itself (chat, presence) is not online.
-<<<<<<< HEAD
          * It has to be explicitly connected via \c connect()
-=======
-         * They have to be explicitly connected via \c connect()
->>>>>>> develop
          */
         kInitHasOnlineSession,
 
