@@ -450,7 +450,6 @@ class ContactList: public std::map<uint64_t, Contact*>
 {
 protected:
     void removeUser(iterator it);
-    void removeUser(uint64_t userid);
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
@@ -665,7 +664,7 @@ public:
     promise::Promise<void> connect(Presence pres=Presence::kClear);
 
     /** @brief Disconnects the client from chatd and presenced */
-    void disconnect();
+    promise::Promise<void> disconnect();
 
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits
@@ -690,6 +689,9 @@ public:
      */
     promise::Promise<void> terminate(bool deleteDb=false);
 
+    /** @brief Convenience aliases for the \c force flag in \c setPresence() */
+    enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
+
     /**
     * @brief set user's chat presence.
     * Set user's presence state
@@ -697,7 +699,7 @@ public:
     * @param force Forces re-setting the presence, even if the current presence
     * is the same. Normally is \c false
     */
-    promise::Promise<void> setPresence(const Presence pres, bool force = false);
+    promise::Promise<void> setPresence(const Presence pres, bool force = kSetPresDynamic);
 
     /** @brief Creates a group chatroom with the specified peers, privileges
      * and title.
@@ -726,10 +728,10 @@ protected:
     /** @brief Client's contact list */
     presenced::Client mPresencedClient;
     std::string mPresencedUrl;
-    InitState mInitState = kInitCreated;
     UserAttrCache::Handle mOwnNameAttrHandle;
     megaHandle mHeartbeatTimer = 0;
     void heartbeat();
+    InitState mInitState = kInitCreated;
     void setInitState(InitState newState);
     std::string dbPath(const std::string& sid) const;
     bool openDb(const std::string& sid);

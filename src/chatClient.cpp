@@ -489,10 +489,10 @@ promise::Promise<void> Client::connect(Presence pres)
     return pms;
 }
 
-void Client::disconnect()
+promise::Promise<void> Client::disconnect()
 {
     if (!mConnected)
-        return;
+        return promise::_Void();
     assert(mHeartbeatTimer);
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
@@ -503,6 +503,7 @@ void Client::disconnect()
     chatd->disconnect();
     mPresencedClient.disconnect();
     mConnected = false;
+    return promise::_Void();
 }
 
 karere::Id Client::getMyHandleFromSdk()
@@ -627,7 +628,8 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
     presenced::IdRefMap peers;
     for (auto& contact: *contactList)
     {
-        peers.insert(contact.first);
+        if (contact.second->visibility() == ::mega::MegaUser::VISIBILITY_VISIBLE)
+            peers.insert(contact.first);
     }
     for (auto& chat: *chats)
     {
@@ -713,8 +715,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
 {
     if (mInitState == kInitTerminating)
     {
-        KR_LOG_WARNING("Client::terminate: Already terminating");
-        return promise::Promise<void>();
+        return promise::Error("Already terminating");
     }
     setInitState(kInitTerminating);
     api.sdk.removeRequestListener(this);
@@ -725,24 +726,20 @@ promise::Promise<void> Client::terminate(bool deleteDb)
         rtc->hangupAll();
 #endif
 
-    disconnect();
-    if (deleteDb)
+    return disconnect()
+    .then([this, deleteDb]()
     {
-        wipeDb(mSid);
-    }
-    else
-    {
-        sqlite3_close(db);
-        db = nullptr;
-    }
-    promise::Promise<void> pms;
-    //resolve output promise asynchronously, because the callbacks of the output
-    //promise may free the client, and the resolve()-s of the input promises
-    //(mega and conn) are within the client's code, so any code after the resolve()s
-    //that tries to access the client will crash
-    setInitState(kInitTerminated);
-    marshallCall([pms]() mutable { pms.resolve(); });
-    return pms;
+        if (deleteDb)
+        {
+            wipeDb(mSid);
+        }
+        else
+        {
+            sqlite3_close(db);
+            db = nullptr;
+        }
+        setInitState(kInitTerminated);
+    });
 }
 
 promise::Promise<void> Client::setPresence(Presence pres, bool force)
@@ -1942,16 +1939,19 @@ void Contact::onVisibilityChanged(int newVisibility)
     {
         mDisplay->onVisibilityChanged(newVisibility);
     }
-    if (mChatRoom)
+
+    auto& client = mClist.client;
+    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
     {
-        if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
-        {
+        client.presenced().removePeer(mUserid, true);
+        if (mChatRoom)
             mChatRoom->notifyExcludedFromChat();
-        }
-        else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
-        {
+    }
+    else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+    {
+        mClist.client.presenced().addPeer(mUserid);
+        if (mChatRoom)
             mChatRoom->notifyRejoinedChat();
-        }
     }
 }
 
@@ -1978,20 +1978,10 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         removeUser(erased);
     }
 }
+
 void ContactList::onUserAddRemove(mega::MegaUser& user)
 {
     addUserFromApi(user);
-}
-
-void ContactList::removeUser(uint64_t userid)
-{
-    auto it = find(userid);
-    if (it == end())
-    {
-        KR_LOG_ERROR("ContactList::removeUser: Unknown user");
-        return;
-    }
-    removeUser(it);
 }
 
 void ContactList::removeUser(iterator it)
@@ -2130,7 +2120,7 @@ Contact::~Contact()
 {
     auto& client = mClist.client;
     client.userAttrCache().removeCb(mUsernameAttrCbId);
-
+    // this is not normally needed, as we never delete contacts - just make them invisible
     if (client.initState() < Client::kInitTerminating)
     {
         client.presenced().removePeer(mUserid, true);
