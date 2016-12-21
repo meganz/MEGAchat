@@ -586,7 +586,6 @@ public:
     presenced::Client& presenced() { return mPresencedClient; }
     bool contactsLoaded() const { return mContactsLoaded; }
     bool connected() const { return mConnected; }
-    bool hasInitError() const { return mInitState >= kInitErrFirst; }
     std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
     /** @endcond PRIVATE */
 
@@ -653,14 +652,9 @@ public:
      * @note In any case, if there is no existing karere session cache,
      * offline operation is not possible.
      */
-<<<<<<< HEAD
-    void init(const char* sid);
-    unsigned char initState() const { return mInitState; }
-=======
     InitState init(const char* sid);
     InitState initState() const { return mInitState; }
     bool hasInitError() const { return mInitState >= kInitErrFirst; }
->>>>>>> develop
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
 
