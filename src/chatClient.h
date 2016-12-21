@@ -728,10 +728,10 @@ protected:
     /** @brief Client's contact list */
     presenced::Client mPresencedClient;
     std::string mPresencedUrl;
-    InitState mInitState = kInitCreated;
     UserAttrCache::Handle mOwnNameAttrHandle;
     megaHandle mHeartbeatTimer = 0;
     void heartbeat();
+    InitState mInitState = kInitCreated;
     void setInitState(InitState newState);
     std::string dbPath(const std::string& sid) const;
     bool openDb(const std::string& sid);
