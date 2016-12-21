@@ -1066,7 +1066,8 @@ public:
     /**
      * @brief Returns the current email address of the user
      *
-     * This function is useful to get the email address of users you are contact with.
+     * This function is useful to get the email address of users you are contact with and users
+     * you were contact with in the past and later on the contact relationship was broken.
      * Note that for any other user without contact relationship, this function will return NULL.
      *
      * You take the ownership of the returned value
