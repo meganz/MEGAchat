@@ -2749,12 +2749,12 @@ const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhand
     {
         if (peers.at(i).first == userhandle)
         {
-            string ret = peerFirstnames.at(i);
+            string ret = peerFirstnames.at(i).c_str();
             if (!peerFirstnames.at(i).empty() && !peerLastnames.at(i).empty())
             {
                 ret.append(" ");
             }
-            ret.append(peerLastnames.at(i));
+            ret.append(peerLastnames.at(i).c_str());
 
             return ret.c_str();
         }
@@ -2815,12 +2815,12 @@ const char *MegaChatRoomPrivate::getPeerFullname(unsigned int i) const
         return NULL;
     }
 
-    string ret = peerFirstnames.at(i);
+    string ret = peerFirstnames.at(i).c_str();
     if (!peerFirstnames.at(i).empty() && !peerLastnames.at(i).empty())
     {
         ret.append(" ");
     }
-    ret.append(peerLastnames.at(i));
+    ret.append(peerLastnames.at(i).c_str());
 
     return ret.c_str();
 }
