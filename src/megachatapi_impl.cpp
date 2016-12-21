@@ -2749,14 +2749,14 @@ const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhand
     {
         if (peers.at(i).first == userhandle)
         {
-            string ret = peerFirstnames.at(i).c_str();
+            string ret = peerFirstnames.at(i);
             if (!peerFirstnames.at(i).empty() && !peerLastnames.at(i).empty())
             {
                 ret.append(" ");
             }
-            ret.append(peerLastnames.at(i).c_str());
+            ret.append(peerLastnames.at(i));
 
-            return ret.c_str();
+            return MegaApi::strdup(ret.c_str());
         }
     }
 
@@ -2815,14 +2815,14 @@ const char *MegaChatRoomPrivate::getPeerFullname(unsigned int i) const
         return NULL;
     }
 
-    string ret = peerFirstnames.at(i).c_str();
+    string ret = peerFirstnames.at(i);
     if (!peerFirstnames.at(i).empty() && !peerLastnames.at(i).empty())
     {
         ret.append(" ");
     }
-    ret.append(peerLastnames.at(i).c_str());
+    ret.append(peerLastnames.at(i));
 
-    return ret.c_str();
+    return MegaApi::strdup(ret.c_str());
 }
 
 bool MegaChatRoomPrivate::isGroup() const

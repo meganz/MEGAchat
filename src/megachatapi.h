@@ -1853,6 +1853,8 @@ public:
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
      *
+     * You take the ownership of the returned value. Use delete [] value
+     *
      * @param Handle of the peer whose name is requested.
      * @return Fullname of the chat peer with the handle specified.
      */
@@ -1919,6 +1921,8 @@ public:
      *
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
+     *
+     * You take the ownership of the returned value. Use delete [] value
      *
      * @param i Position of the peer whose name is requested
      * @return Fullname of the peer in the position \c i.
