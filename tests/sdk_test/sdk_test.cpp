@@ -42,37 +42,6 @@ int main(int argc, char **argv)
      *  - Attach contact
      */
 
-
-
-//    // 8. Send a message and wait for confirmation from server
-//    string msg = "HOLA - This is a testing message automatically sent";
-//    flag = &chatroomListener->msgConfirmed; *flag = false;
-//    chatroomListener->msgId = megachat::INVALID_HANDLE;   // will be set at confirmation
-//    t.megaChatApi[0]->sendMessage(chatid, msg.c_str(), MegaChatMessage::TYPE_NORMAL);
-//    assert(t.waitForResponse(flag));    // for confirmation, sendMessage() is synchronous
-
-//    sleep(60);
-
-//    // 9. Edit the sent message
-//    MegaChatHandle msgId = chatroomListener->msgId;
-//    msg = "Edited message: this is a test";
-//    flag = &chatroomListener->msgConfirmed; *flag = false;
-//    chatroomListener->msgId = megachat::INVALID_HANDLE;   // will be set at confirmation
-//    t.megaChatApi[0]->editMessage(chatid, msgId, msg.c_str());
-//    assert(t.waitForResponse(flag));
-
-//    // 9.1. Delete the message
-//    flag = &chatroomListener->msgConfirmed; *flag = false;
-//    chatroomListener->msgId = megachat::INVALID_HANDLE;   // will be set at confirmation
-//    t.megaChatApi[0]->deleteMessage(chatid, msgId);
-//    assert(t.waitForResponse(flag));
-
-
-
-
-    // TODO: log in the other account, check the message with msgId has arrived
-
-
     t.terminate();
 
     return 0;
@@ -235,7 +204,7 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
 
     if (chat->getPeerCount())
     {
-        cout << "\t\t(userhandle)\t(privilege)\t(firstname)\t(lastname)" << endl;
+        cout << "\t\t(userhandle)\t(privilege)\t(firstname)\t(lastname)\t(fullname)" << endl;
         for (unsigned i = 0; i < chat->getPeerCount(); i++)
         {
             MegaChatHandle uh = chat->getPeerHandle(i);
@@ -243,7 +212,8 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
             cout << "\t\t\t" << hstr;
             cout << "\t" << MegaChatRoom::privToString(chat->getPeerPrivilege(i));
             cout << "\t\t" << chat->getPeerFirstname(i);
-            cout << "\t" << chat->getPeerLastname(i) << endl;
+            cout << "\t" << chat->getPeerLastname(i);
+            cout << "\t" << chat->getPeerFullname(i) << endl;
         }
     }
     else

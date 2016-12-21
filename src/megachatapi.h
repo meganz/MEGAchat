@@ -786,16 +786,15 @@ public:
  *     1. Create an object of MegaApi class (see https://github.com/meganz/sdk/tree/master#usage)
  *     2. Create an object of MegaChatApi class: passing the MegaApi instance to the constructor,
  * so the chat SDK can create its client and register listeners to receive the own handle, list of users and chats
- *     3. Call MegaApi::login() and wait for completion
- *     4. Call MegaApi::fetchnodes() and wait for completion
- *         [at this stage, cloud storage apps show the main GUI but, with chat-enabled, they are not ready yet]
- *     5. Call MegaChatApi::init() to initialize the chat engine.
+ *     3. Call MegaChatApi::init() to initialize the chat engine.
  *         [at this stage, the app can retrieve chatrooms and can operate in offline mode]
+ *     4. Call MegaApi::login() and wait for completion
+ *     5. Call MegaApi::fetchnodes() and wait for completion
+ *         [at this stage, cloud storage apps are ready, but chat-engine is offline]
  *     6. Call MegaChatApi::connect() and wait for completion
  *     7. The app is ready to operate
  *
  * Important considerations:
- *  - The app must NOT call any MegaApi method between fetchnodes and MegaChatApi::init().
  *  - In order to logout from the account, the app should call MegaApi::logout before MegaChatApi::logout.
  *  - The instance of MegaChatApi must be deleted before the instance of MegaApi passed to the constructor.
  *
@@ -923,12 +922,12 @@ public:
     // ============= Requests ================
 
     /**
-     * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).
+     * @brief Establish the connection with chat-related servers (chatd, presenced and Gelb).
      *
      * This function must be called only after calling:
+     *  - MegaChatApi::init to initialize the chat engine
      *  - MegaApi::login to login in MEGA
      *  - MegaApi::fetchNodes to retrieve current state of the account
-     *  - MegaChatApi::init to initialize the chat engine
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
      *
@@ -1067,7 +1066,8 @@ public:
     /**
      * @brief Returns the current email address of the user
      *
-     * This function is useful to get the email address of users you are contact with.
+     * This function is useful to get the email address of users you are contact with and users
+     * you were contact with in the past and later on the contact relationship was broken.
      * Note that for any other user without contact relationship, this function will return NULL.
      *
      * You take the ownership of the returned value
@@ -1078,9 +1078,20 @@ public:
     char *getUserEmail(MegaChatHandle userhandle);
 
     /**
+     * @brief Returns the handle of the logged in user.
+     *
+     * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
+     * since the value is retrieved from cache.
+     *
+     * @return Own user handle
+     */
+    MegaChatHandle getMyUserHandle();
+
+    /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
      *
-     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
      * before calling this function.
      *
      * You take the ownership of the returned value
@@ -1095,7 +1106,8 @@ public:
      * You can get the handle of a MegaChatRoom using MegaChatRoom::getChatId or
      * MegaChatListItem::getChatId.
      *
-     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
      * before calling this function.
      *
      * You take the ownership of the returned value
@@ -1111,7 +1123,8 @@ public:
      * If the 1on1 chat with the user specified doesn't exist, this function will
      * return NULL.
      *
-     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
      * before calling this function.
      *
      * You take the ownership of the returned value
@@ -1124,7 +1137,8 @@ public:
     /**
      * @brief Get all chatrooms (1on1 and groupal) with limited information
      *
-     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
      * before calling this function.
      *
      * Note that MegaChatListItem objects don't include as much information as
@@ -1143,7 +1157,8 @@ public:
      * You can get the handle of the chatroom using MegaChatRoom::getChatId or
      * MegaChatListItem::getChatId.
      *
-     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
      * before calling this function.
      *
      * Note that MegaChatListItem objects don't include as much information as
@@ -1832,6 +1847,18 @@ public:
     virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
 
     /**
+     * @brief Returns the current fullname of the peer
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     *
+     * You take the ownership of the returned value. Use delete [] value
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Fullname of the chat peer with the handle specified.
+     */
+    virtual const char *getPeerFullnameByHandle(MegaChatHandle userhandle) const;
+
+    /**
      * @brief Returns the number of participants in the chat
      * @return Number of participants in the chat
      */
@@ -1886,6 +1913,19 @@ public:
      * @return Lastname of the peer in the position \c i.
      */
     virtual const char *getPeerLastname(unsigned int i) const;
+
+    /**
+     * @brief Returns the current fullname of the peer
+     *
+     * If the index is >= the number of participants in this chat, this function
+     * will return NULL.
+     *
+     * You take the ownership of the returned value. Use delete [] value
+     *
+     * @param i Position of the peer whose name is requested
+     * @return Fullname of the peer in the position \c i.
+     */
+    virtual const char *getPeerFullname(unsigned int i) const;
 
     /**
      * @brief Returns whether this chat is a group chat or not

@@ -148,6 +148,11 @@ char *MegaChatApi::getUserEmail(MegaChatHandle userhandle)
     return pImpl->getUserEmail(userhandle);
 }
 
+MegaChatHandle MegaChatApi::getMyUserHandle()
+{
+    return pImpl->getMyUserHandle();
+}
+
 MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();
@@ -528,6 +533,11 @@ const char *MegaChatRoom::getPeerLastnameByHandle(MegaChatHandle userhandle) con
     return NULL;
 }
 
+const char *MegaChatRoom::getPeerFullnameByHandle(MegaChatHandle userhandle) const
+{
+    return NULL;
+}
+
 unsigned int MegaChatRoom::getPeerCount() const
 {
     return 0;
@@ -549,6 +559,11 @@ const char *MegaChatRoom::getPeerFirstname(unsigned int i) const
 }
 
 const char *MegaChatRoom::getPeerLastname(unsigned int i) const
+{
+    return NULL;
+}
+
+const char *MegaChatRoom::getPeerFullname(unsigned int i) const
 {
     return NULL;
 }
