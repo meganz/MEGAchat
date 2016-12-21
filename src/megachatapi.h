@@ -807,10 +807,10 @@ class MegaChatApi
 
 public:
     enum {
-        STATUS_OFFLINE    = 1,
-        STATUS_AWAY       = 2,
-        STATUS_ONLINE     = 3,
-        STATUS_BUSY       = 4
+        STATUS_OFFLINE    = 1,  /// Can be used for invisible mode
+        STATUS_AWAY       = 2,  /// User is not available
+        STATUS_ONLINE     = 3,  /// User is available
+        STATUS_BUSY       = 4   /// User don't expect notifications nor call requests
     };
 
     enum
@@ -926,9 +926,11 @@ public:
      * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).
      *
      * This function must be called only after calling:
+     *  - MegaChatApi::init to initialize the chat engine
      *  - MegaApi::login to login in MEGA
      *  - MegaApi::fetchNodes to retrieve current state of the account
-     *  - MegaChatApi::init to initialize the chat engine
+     *
+     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
      *
