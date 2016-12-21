@@ -369,7 +369,7 @@ bool Call::join()
     RtMessage msg(RTMSG_join, 32);
     static_assert(sizeof(mOwnNonce) == 16, "own nonce size");
     msg.append(mOwnNonce, 16)
-       .append(manager.rtcShared.ownAnonId);
+       .append(manager.rtcShared.ownAnonId, 12);
 
     if (!manager.chat.rtSendMessage(msg))
     {
@@ -393,11 +393,12 @@ void Call::setupIncomingOffersHandler()
     {
         if (mState != kStateJoining)
             return;
-        GET_SID(msg);
+        Sid sid;
+        memcpy(msg->payloadReadPtr(0, 16), sid, 16);
         auto& sess = at(sid);
         if (sess)
             throw std::runtime_error("Incoming session offer: Session with sid '"+sid.toString()+"' already exists");
-        sess = std::make_shared<Session>(&this, *msg, sid);
+        sess = std::make_shared<Session>(*this, *msg, sid);
     });
 }
 
@@ -417,10 +418,11 @@ void Call::setupIncomingJoinsHandler()
 }
 
 // Constructor for incoming offer (as a result of a JOIN sent by us)
-// sdpOffer: sid.16 avFlags.1 nonce.16 fprHash.32 anonId.12 sdpLen.2 sdp.sdpLen
+// sdpOffer: sid.8 avFlags.1 nonce.16 fprHash.32 anonId.12 sdpLen.2 sdp.sdpLen
 void Call::Session::Session(Call& aCall, const RtMessageWithEndpoint& msg, const Sid& aSid)
     : call(aCall), isCaller(false), kStateSdpHandshake,
-    sid(aSid), msg.userid(), msg.clientid(), mRemoteAv(msg.readPayload<uint8_t>(17))
+    sid(aSid), peer(msg.userid()), peerClient(msg.clientid()),
+    mRemoteAv(msg.readPayload<uint8_t>(17))
 {
     auto sdpLen = msg.readPayload<uint16_t>(77);
     if (!sdpLen)
@@ -429,14 +431,14 @@ void Call::Session::Session(Call& aCall, const RtMessageWithEndpoint& msg, const
     mSdpOffer.parse(sdpOffer);
 
     memcpy(mPeerAnonId, msg.payloadReadPtr(65, 12), 12);
-    memcpy(mPeerNonce, msg.payloadReadPtr(17, 16));
+    memcpy(mPeerNonce, msg.payloadReadPtr(17, 16), 16);
     const char* encFprHash = msg.payloadReadPtr(33, 32);
 
     setupHangupHandler();
     createPeerConnAndAnswer(sdpOffer, encFprHash)
     .then([this]()
     {
-        //sid.16 encFprHash.32 sentAv.1 sdpLen.2 sdp.sdpLen
+        //sid.8 encFprHash.32 sentAv.1 sdpLen.2 sdp.sdpLen
         RtMessageWithEndpoint ans(RTMSG_megaCallAnswer, peer, peerClient, 64);
         ans.append(&sid, 16);
         ans.append(call.manager.rtcShared.ownAnonId, 16); //anonid, 16 bytes
@@ -509,12 +511,13 @@ void Call::Session::onIceCandidate(std::shared_ptr<artc::IceCandText> candidate)
     if (mState != kStateConnecting)
         return;
     RTCM_LOG_DEBUG("%s: onIceCandidate", mSid.toString().c_str());
-    //sid.16 midLen.1 mid.midLen candLen.2 cand.candLen
+    //sid.8 mlineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
     RtMessageWithEndpoint cand(RTCM_iceCand, peer, peerClient, candidate->candidate.size()+16);
     cand.append(mSid, RTCM_SID_LEN)
-        .append<uint8_t>(cand.mid.size())
-        .append(cand.mid)
-        .append<uint16_t>(candidate.candidate.size())
+        .append<uint8_t>(candidate->sdpMLineIndex())
+        .append<uint8_t>(candidate->sdpMid.size())
+        .append(candidate->sdpMid)
+        .append<uint16_t>(candidate->candidate.size())
         .append(candidate.candidate);
     send(cand);
 }
@@ -525,7 +528,7 @@ void Call::Session::setupIceCandidateHandler()
     {
       try
       {
-        //sid.16 sdpMlineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
+        //sid.8 sdpMlineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
         VERIFY_SID(cand);
         auto mLineIdx = cand->payloadRead<uint8_t>(16);
         auto midLen = cand->readPlayload<uint8_t>(17);
@@ -573,7 +576,7 @@ Call::Session::Session(Call& aCall, const RtMessageWithEndpoint& joinMsg)
     createPeerConnAndOffer()
     .then([this]()
     {
-        //sid.16 nonce.16 anonId.12 av.1 sdpLen.2 sdpOffer.sdpLen
+        //sid.8 nonce.16 anonId.12 av.1 sdpLen.2 sdpOffer.sdpLen
         RtMessageWithEndpoint offer(RTCM_sdpOffer, peer, peerClient, 19+mSdpOffer.raw.size());
         offer.append(mSid, 16)
              .append(mOwnNonce, 16)
@@ -623,7 +626,7 @@ void Call::Session::setupSdpAnsHandler()
     mSdpAnsHandler = call.manager.char.rtAddHandler(RTCM_sdpAnswer, peer, peerClient,
     [this](const std::shared_ptr<RtMessageWithEndpoint>& ans, bool& keep)
     {
-        //sid.16 av.1 fprHash.32 sdpLen.2 sdpAns.sdpLen
+        //sid.8 av.1 fprHash.32 sdpLen.2 sdpAns.sdpLen
         assert(mState == kWaitSdpAnswer);
         VERIFY_SID(ans);
 
@@ -718,7 +721,7 @@ bool Call::Session::createPeerConnWithLocalStream(std::string& errors)
 }
 void Call::Session::setupHangupHandler()
 {
-    //sid.16 code.1 reasonLen.2 reason.reasonLen
+    //sid.8 code.1 reasonLen.2 reason.reasonLen
     mHangupHandler = call.manager.chat.rtAddHandler(RTMSG_hangup, peer, peerClient,
     [this](const std::shared_ptr<RtMessageWithEndpoint>& msg, bool& keep)
     {
