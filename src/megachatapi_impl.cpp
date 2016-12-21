@@ -2873,7 +2873,7 @@ const char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
     char *ret = NULL;
     int len = buffer.length() ? buffer.at(0) : 0;
 
-    if (len)
+    if (len > 0)
     {
         ret = new char[len + 1];
         strncpy(ret, buffer.data() + 1, len);
@@ -2887,13 +2887,20 @@ const char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
 {
     char *ret = NULL;
 
-    if (buffer.length())
+    if (buffer.length() && (int)buffer.length() >= buffer.at(0))
     {
         int lenLastname = buffer.length() - buffer.at(0) - 1;
         if (lenLastname)
         {
+            const char *start = buffer.data() + 1 + buffer.at(0);
+            if (buffer.at(0) != 0)
+            {
+                start++;    // there's a space separator
+                lenLastname--;
+            }
+
             ret = new char[lenLastname + 1];
-            strncpy(ret, buffer.data() + 1 + buffer.at(0), lenLastname);
+            strncpy(ret, start, lenLastname);
             ret[lenLastname] = '\0';
         }
     }

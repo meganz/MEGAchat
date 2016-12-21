@@ -42,37 +42,6 @@ int main(int argc, char **argv)
      *  - Attach contact
      */
 
-
-
-//    // 8. Send a message and wait for confirmation from server
-//    string msg = "HOLA - This is a testing message automatically sent";
-//    flag = &chatroomListener->msgConfirmed; *flag = false;
-//    chatroomListener->msgId = megachat::INVALID_HANDLE;   // will be set at confirmation
-//    t.megaChatApi[0]->sendMessage(chatid, msg.c_str(), MegaChatMessage::TYPE_NORMAL);
-//    assert(t.waitForResponse(flag));    // for confirmation, sendMessage() is synchronous
-
-//    sleep(60);
-
-//    // 9. Edit the sent message
-//    MegaChatHandle msgId = chatroomListener->msgId;
-//    msg = "Edited message: this is a test";
-//    flag = &chatroomListener->msgConfirmed; *flag = false;
-//    chatroomListener->msgId = megachat::INVALID_HANDLE;   // will be set at confirmation
-//    t.megaChatApi[0]->editMessage(chatid, msgId, msg.c_str());
-//    assert(t.waitForResponse(flag));
-
-//    // 9.1. Delete the message
-//    flag = &chatroomListener->msgConfirmed; *flag = false;
-//    chatroomListener->msgId = megachat::INVALID_HANDLE;   // will be set at confirmation
-//    t.megaChatApi[0]->deleteMessage(chatid, msgId);
-//    assert(t.waitForResponse(flag));
-
-
-
-
-    // TODO: log in the other account, check the message with msgId has arrived
-
-
     t.terminate();
 
     return 0;
