@@ -103,6 +103,11 @@ void MegaChatApi::connect(MegaChatRequestListener *listener)
     pImpl->connect(listener);
 }
 
+void MegaChatApi::disconnect(MegaChatRequestListener *listener)
+{
+    pImpl->disconnect(listener);
+}
+
 void MegaChatApi::logout(MegaChatRequestListener *listener)
 {
     pImpl->logout(listener);
@@ -504,7 +509,6 @@ const char *MegaChatRoom::statusToString(int status)
     case MegaChatApi::STATUS_BUSY: return "busy";
     case MegaChatApi::STATUS_AWAY: return "away";
     case MegaChatApi::STATUS_ONLINE:return "online";
-    case MegaChatApi::STATUS_CHATTY:return "chatty";
     default: return "unknown status";
     }
 }
@@ -682,6 +686,11 @@ void MegaChatListener::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *
 }
 
 void MegaChatListener::onChatInitStateUpdate(MegaChatApi *api, int newState)
+{
+
+}
+
+void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi *api, int status)
 {
 
 }

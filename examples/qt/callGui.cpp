@@ -1,6 +1,5 @@
 #include "callGui.h"
 #include "chatWindow.h"
-#include <chatRoom.h>
 #include "mainwindow.h"
 #include <QPainter>
 #include <IRtcStats.h>

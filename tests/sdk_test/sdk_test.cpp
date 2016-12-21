@@ -940,6 +940,26 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
     }
 }
 
+void MegaChatApiTest::onChatOnlineStatusUpdate(MegaChatApi *api, int status)
+{
+    int apiIndex = -1;
+    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    {
+        if (api == megaChatApi[i])
+        {
+            apiIndex = i;
+            break;
+        }
+    }
+    if (apiIndex == -1)
+    {
+        cout << "Instance of MegaChatApi not recognized" << endl;
+        return;
+    }
+
+    cout << "[api: " << apiIndex << "] Online status updated to " << status << endl;
+}
+
 TestChatRoomListener::TestChatRoomListener(MegaChatApi **apis, MegaChatHandle chatid)
 {
     this->megaChatApi = apis;

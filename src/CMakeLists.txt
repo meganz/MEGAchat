@@ -3,6 +3,10 @@ project(karere)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 include (utils.cmake)
+
+set(optKarereBuildShared 0 CACHE BOOL "Build libkarere as a shared library")
+set(optKarereDisableWebrtc 1 CACHE BOOL "Disable webrtc")
+
 find_package(Cryptopp REQUIRED)
 find_package(Mega REQUIRED)
 find_package(OpenSSL REQUIRED)
@@ -21,10 +25,11 @@ set (SRCS
     megaCryptoFunctions.cpp
     chatClient.cpp
     userAttrCache.cpp
-    contactList.cpp
+    url.cpp
     chatd.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
     strongvelope/strongvelope.cpp
+    presenced.cpp
     megachatapi.cpp
     megachatapi_impl.cpp
 )

@@ -45,8 +45,7 @@
 #endif
 
 #define KARERE_GELB_HOST "gelb.karere.mega.nz"
-#define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
-#define KARERE_XMPP_DOMAIN "karere.mega.nz"
+#define KARERE_PRESENCED_URL "mcd270n310.userstorage.mega.co.nz"
 #define KARERE_LOGIN_TIMEOUT 15000
 #define KARERE_RECONNECT_DELAY_MAX 10000
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
@@ -61,9 +60,6 @@
 
 #define KARERE_TURN_USERNAME "inoo20jdnH"
 #define KARERE_TURN_PASSWORD "02nNKDBkkS"
-
-#define KARERE_FALLBACK_XMPP_SERVERS "[\
-{\"host\":\"xmpp270n001.karere.mega.nz\",\"port\":443}]"
 
 #if defined(__ANDROID__) && !defined(HAVE_STD_TO_STRING)
 //Android is missing std::to_string
@@ -146,6 +142,16 @@ struct AvFlags
     }
 };
 
+/** @brief Client capability flags. There are defined by the presenced protocol */
+//defined here and not in karere::Client to avoid presenced.cpp depending on chatClient.cpp
+enum: uint8_t
+{
+    /** Client has webrtc capabilities */
+    kClientCanWebrtc = 0x80,
+    /** Client is a mobile application */
+    kClientIsMobile = 0x40
+};
+
 extern const char* gKarereDbSchema;
 
 //logging stuff
@@ -187,11 +193,12 @@ extern const char* gKarereDbSchema;
      } \
  } while(0)
 
-#define KR_EXCEPTION_TO_PROMISE(prefix)        \
-    catch(std::exception& e)                   \
-    {                                          \
-        prefix##_LOG_ERROR("%s() exception: %s", __FUNCTION__, e.what());  \
-        return promise::Error(e.what());       \
+#define KR_EXCEPTION_TO_PROMISE(type)                 \
+    catch(std::exception& e)                          \
+    {                                                 \
+        const char* what = e.what();                  \
+        if (!what) what = "(no exception message)";   \
+        return promise::Error(what, type);            \
     }
 
 class Client;
@@ -204,7 +211,7 @@ class Client;
  *  Usage:
  * \c gLogger.addUserLogger("karere-remote", new RemoteLogger);
  */
-class RemoteLogger: public Logger::ILoggerBackend
+class RemoteLogger: public karere::Logger::ILoggerBackend
 {
 public:
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);

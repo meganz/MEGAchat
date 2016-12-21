@@ -258,6 +258,7 @@ public:
     // karere::IApp::IListItem::IGroupChatListItem implementation
     virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
     virtual void onUserLeave(uint64_t userid);
+    virtual void onPeerPresence(karere::Presence pres);
 };
 
 class MegaChatPeerListItemHandler :
@@ -676,11 +677,13 @@ public:
     // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
     void fireOnChatInitStateUpdate(int newState);
+    void fireOnChatOnlineStatusUpdate(int status);
 
     // ============= API requests ================
 
     // General chat methods
     void connect(MegaChatRequestListener *listener = NULL);
+    void disconnect(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);
 
@@ -739,7 +742,7 @@ public:
     virtual IApp::IChatHandler *createChatHandler(karere::ChatRoom &chat);
     virtual IApp::IContactListHandler *contactListHandler();
     virtual IApp::IChatListHandler *chatListHandler();
-    virtual void onOwnPresence(karere::Presence pres);
+    virtual void onOwnPresence(karere::Presence pres, bool inProgress);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
     virtual void notifyInvited(const karere::ChatRoom& room);

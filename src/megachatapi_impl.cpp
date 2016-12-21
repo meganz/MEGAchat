@@ -118,7 +118,7 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
 
 void MegaChatApiImpl::loop()
 {
-    mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), Presence::kOnline);
+    mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), karere::kClientIsMobile);
 
     while (true)
     {
@@ -196,7 +196,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_CONNECT:
         {
-            mClient->connect()
+            mClient->connect(karere::Presence::kInvalid)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -207,6 +207,22 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
+
+            break;
+        }
+        case MegaChatRequest::TYPE_DISCONNECT:
+        {
+            mClient->disconnect();
+//            .then([request, this]()
+//            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+//            })
+//            .fail([request, this](const promise::Error& e)
+//            {
+//                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+//                fireOnChatRequestFinish(request, megaChatError);
+//            });
 
             break;
         }
@@ -221,7 +237,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
                 {
                      delete mClient;
-                     mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), Presence::kOnline);
+                     mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), karere::kClientIsMobile);
 
                      MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                      fireOnChatRequestFinish(request, megaChatError);
@@ -252,13 +268,22 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
         {
             int status = request->getNumber();
-            if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_CHATTY)
+            if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_BUSY)
             {
                 fireOnChatRequestFinish(request, new MegaChatErrorPrivate("Invalid online status", MegaChatError::ERROR_ARGS));
                 break;
             }
 
-            mClient->setPresence(request->getNumber(), true)
+            bool presenceType = karere::Client::kSetPresOverride;
+            if (status == MegaChatApi::STATUS_ONLINE)
+            {
+                // if setting to online, better to use dynamic in order to avoid sticky online that
+                // would be kept even when the user goes offline
+                mClient->setPresence(karere::Presence::kClear, karere::Client::kSetPresOverride);
+                presenceType = karere::Client::kSetPresDynamic;
+            }
+
+            mClient->setPresence(request->getNumber(), presenceType)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -992,9 +1017,24 @@ void MegaChatApiImpl::fireOnChatInitStateUpdate(int newState)
     }
 }
 
+void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(int status)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatOnlineStatusUpdate(chatApi, status);
+    }
+}
+
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISCONNECT, listener);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -1802,24 +1842,21 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
     }
 }
 
-void MegaChatApiImpl::onOwnPresence(Presence pres)
+void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
 {
+    if (inProgress)
+        return;
+
     if (pres.status() == this->status)
     {
-        API_LOG_DEBUG("onOwnPresence() notifies the same status: %s (flags: %d)", pres.toString(), pres.flags());
+        API_LOG_DEBUG("onOwnPresence() notifies the same status: %s", pres.toString());
         return;
     }
 
     this->status = pres.status();
 
-    // TODO: create specific callback to notify the own-presence changes
-
-//    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(MEGACHAT_INVALID_HANDLE);
-//    item->setOnlineStatus(status);
-
-//    API_LOG_INFO("My own presence has changed to %s (flags: %d)", pres.toString(), pres.flags());
-
-//    fireOnChatListItemUpdate(item);
+    fireOnChatOnlineStatusUpdate(status);
+    API_LOG_INFO("My own presence has changed to %s", pres.toString());
 }
 
 ChatRequestQueue::ChatRequestQueue()
@@ -1967,6 +2004,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_EDIT_CHATROOM_PIC: return "TYPE_EDIT_CHATROOM_PIC";
         case TYPE_GET_FIRSTNAME: return "TYPE_GET_FIRSTNAME";
         case TYPE_GET_LASTNAME: return "TYPE_GET_LASTNAME";
+        case TYPE_DISCONNECT: return "DISCONNECT";
 
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
@@ -3216,6 +3254,11 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
     item->setMembersUpdated();
 
     chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatGroupListItemHandler::onPeerPresence(Presence pres)
+{
+    // apps don't show the presence of each peer individually
 }
 
 void MegaChatListItemHandler::onExcludedFromChat()
