@@ -103,6 +103,11 @@ void MegaChatApi::connect(MegaChatRequestListener *listener)
     pImpl->connect(listener);
 }
 
+void MegaChatApi::disconnect(MegaChatRequestListener *listener)
+{
+    pImpl->disconnect(listener);
+}
+
 void MegaChatApi::logout(MegaChatRequestListener *listener)
 {
     pImpl->logout(listener);

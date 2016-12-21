@@ -481,6 +481,7 @@ public:
         TYPE_TRUNCATE_HISTORY,
         TYPE_SHARE_CONTACT,
         TYPE_GET_FIRSTNAME, TYPE_GET_LASTNAME,
+        TYPE_DISCONNECT,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -923,7 +924,7 @@ public:
     // ============= Requests ================
 
     /**
-     * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).
+     * @brief Establish the connection with chat-related servers (chatd, presenced and Gelb).
      *
      * This function must be called only after calling:
      *  - MegaChatApi::init to initialize the chat engine
@@ -932,11 +933,22 @@ public:
      *
      * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
      *
+     * The online status after connecting will be whatever was last used.
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
      *
      * @param listener MegaChatRequestListener to track this request
      */
     void connect(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Disconnect from chat-related servers (chatd, presenced and Gelb).
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISCONNECT
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void disconnect(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Logout of chat servers invalidating the session

@@ -210,6 +210,22 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
+        case MegaChatRequest::TYPE_DISCONNECT:
+        {
+            mClient->disconnect();
+//            .then([request, this]()
+//            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+//            })
+//            .fail([request, this](const promise::Error& e)
+//            {
+//                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+//                fireOnChatRequestFinish(request, megaChatError);
+//            });
+
+            break;
+        }
         case MegaChatRequest::TYPE_LOGOUT:
         {
             bool deleteDb = request->getFlag();
@@ -1003,6 +1019,13 @@ void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(int status)
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISCONNECT, listener);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -1967,6 +1990,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_EDIT_CHATROOM_PIC: return "TYPE_EDIT_CHATROOM_PIC";
         case TYPE_GET_FIRSTNAME: return "TYPE_GET_FIRSTNAME";
         case TYPE_GET_LASTNAME: return "TYPE_GET_LASTNAME";
+        case TYPE_DISCONNECT: return "DISCONNECT";
 
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";

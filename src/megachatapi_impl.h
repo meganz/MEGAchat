@@ -681,6 +681,7 @@ public:
 
     // General chat methods
     void connect(MegaChatRequestListener *listener = NULL);
+    void disconnect(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);
 
