@@ -595,6 +595,9 @@ public:
     /** @brief Our own display name */
     const std::string& myName() const { return mMyName; }
 
+    /** @brief Utulity function to convert a jid to a user handle */
+    static uint64_t useridFromJid(const std::string& jid);
+
     /**
      * @brief Creates a karere Client.
      *
