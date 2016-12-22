@@ -258,6 +258,7 @@ public:
     // karere::IApp::IListItem::IGroupChatListItem implementation
     virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
     virtual void onUserLeave(uint64_t userid);
+    virtual void onPeerPresence(karere::Presence pres);
 };
 
 class MegaChatPeerListItemHandler :
@@ -410,11 +411,13 @@ public:
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
     virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
     virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
+    virtual const char *getPeerFullnameByHandle(MegaChatHandle userhandle) const;
     virtual int getPeerPrivilege(unsigned int i) const;
     virtual unsigned int getPeerCount() const;
     virtual MegaChatHandle getPeerHandle(unsigned int i) const;
     virtual const char *getPeerFirstname(unsigned int i) const;
     virtual const char *getPeerLastname(unsigned int i) const;
+    virtual const char *getPeerFullname(unsigned int i) const;
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
     virtual int getOnlineState() const;
@@ -674,11 +677,13 @@ public:
     // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
     void fireOnChatInitStateUpdate(int newState);
+    void fireOnChatOnlineStatusUpdate(int status);
 
     // ============= API requests ================
 
     // General chat methods
     void connect(MegaChatRequestListener *listener = NULL);
+    void disconnect(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);
 
@@ -688,6 +693,7 @@ public:
     void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     char *getUserEmail(MegaChatHandle userhandle);
+    MegaChatHandle getMyUserHandle();
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);

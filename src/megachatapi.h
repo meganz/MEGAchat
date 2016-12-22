@@ -481,6 +481,7 @@ public:
         TYPE_TRUNCATE_HISTORY,
         TYPE_SHARE_CONTACT,
         TYPE_GET_FIRSTNAME, TYPE_GET_LASTNAME,
+        TYPE_DISCONNECT,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -786,16 +787,15 @@ public:
  *     1. Create an object of MegaApi class (see https://github.com/meganz/sdk/tree/master#usage)
  *     2. Create an object of MegaChatApi class: passing the MegaApi instance to the constructor,
  * so the chat SDK can create its client and register listeners to receive the own handle, list of users and chats
- *     3. Call MegaApi::login() and wait for completion
- *     4. Call MegaApi::fetchnodes() and wait for completion
- *         [at this stage, cloud storage apps show the main GUI but, with chat-enabled, they are not ready yet]
- *     5. Call MegaChatApi::init() to initialize the chat engine.
+ *     3. Call MegaChatApi::init() to initialize the chat engine.
  *         [at this stage, the app can retrieve chatrooms and can operate in offline mode]
+ *     4. Call MegaApi::login() and wait for completion
+ *     5. Call MegaApi::fetchnodes() and wait for completion
+ *         [at this stage, cloud storage apps are ready, but chat-engine is offline]
  *     6. Call MegaChatApi::connect() and wait for completion
  *     7. The app is ready to operate
  *
  * Important considerations:
- *  - The app must NOT call any MegaApi method between fetchnodes and MegaChatApi::init().
  *  - In order to logout from the account, the app should call MegaApi::logout before MegaChatApi::logout.
  *  - The instance of MegaChatApi must be deleted before the instance of MegaApi passed to the constructor.
  *
@@ -807,11 +807,10 @@ class MegaChatApi
 
 public:
     enum {
-        STATUS_OFFLINE    = 0,
-        STATUS_BUSY       = 1,
-        STATUS_AWAY       = 2,
-        STATUS_ONLINE     = 3,
-        STATUS_CHATTY     = 4
+        STATUS_OFFLINE    = 1,  /// Can be used for invisible mode
+        STATUS_AWAY       = 2,  /// User is not available
+        STATUS_ONLINE     = 3,  /// User is available
+        STATUS_BUSY       = 4   /// User don't expect notifications nor call requests
     };
 
     enum
@@ -924,18 +923,31 @@ public:
     // ============= Requests ================
 
     /**
-     * @brief Establish the connection with chat-related servers (chatd, XMPP and Gelb).
+     * @brief Establish the connection with chat-related servers (chatd, presenced and Gelb).
      *
      * This function must be called only after calling:
+     *  - MegaChatApi::init to initialize the chat engine
      *  - MegaApi::login to login in MEGA
      *  - MegaApi::fetchNodes to retrieve current state of the account
-     *  - MegaChatApi::init to initialize the chat engine
+     *
+     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
+     *
+     * The online status after connecting will be whatever was last used.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
      *
      * @param listener MegaChatRequestListener to track this request
      */
     void connect(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Disconnect from chat-related servers (chatd, presenced and Gelb).
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISCONNECT
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void disconnect(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Logout of chat servers invalidating the session
@@ -974,14 +986,14 @@ public:
      * - MegaChatApi::STATUS_OFFLINE = 1
      * The user appears as being offline
      *
-     * - MegaChatApi::STATUS_BUSY = 2
-     * The user is busy and don't want to be disturbed.
-     *
-     * - MegaChatApi::STATUS_AWAY = 3
+     * - MegaChatApi::STATUS_AWAY = 2
      * The user is away and might not answer.
      *
-     * - MegaChatApi::STATUS_ONLINE = 4
+     * - MegaChatApi::STATUS_ONLINE = 3
      * The user is connected and online.
+     *
+     * - MegaChatApi::STATUS_BUSY = 4
+     * The user is busy and don't want to be disturbed.
      *
      * @param listener MegaChatRequestListener to track this request
      */
@@ -994,14 +1006,14 @@ public:
      * - MegaChatApi::STATUS_OFFLINE = 1
      * The user appears as being offline
      *
-     * - MegaChatApi::STATUS_BUSY = 2
-     * The user is busy and don't want to be disturbed.
-     *
-     * - MegaChatApi::STATUS_AWAY = 3
+     * - MegaChatApi::STATUS_AWAY = 2
      * The user is away and might not answer.
      *
-     * - MegaChatApi::STATUS_ONLINE = 4
+     * - MegaChatApi::STATUS_ONLINE = 3
      * The user is connected and online.
+     *
+     * - MegaChatApi::STATUS_BUSY = 4
+     * The user is busy and don't want to be disturbed.
      */
     int getOnlineStatus();
 
@@ -1009,17 +1021,18 @@ public:
      * @brief Get the online status of a user.
      *
      * It can be one of the following values:
+     *
      * - MegaChatApi::STATUS_OFFLINE = 1
      * The user appears as being offline
      *
-     * - MegaChatApi::STATUS_BUSY = 2
-     * The user is busy and don't want to be disturbed.
-     *
-     * - MegaChatApi::STATUS_AWAY = 3
+     * - MegaChatApi::STATUS_AWAY = 2
      * The user is away and might not answer.
      *
-     * - MegaChatApi::STATUS_ONLINE = 4
+     * - MegaChatApi::STATUS_ONLINE = 3
      * The user is connected and online.
+     *
+     * - MegaChatApi::STATUS_BUSY = 4
+     * The user is busy and don't want to be disturbed.
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Online status of the user
@@ -1067,7 +1080,8 @@ public:
     /**
      * @brief Returns the current email address of the user
      *
-     * This function is useful to get the email address of users you are contact with.
+     * This function is useful to get the email address of users you are contact with and users
+     * you were contact with in the past and later on the contact relationship was broken.
      * Note that for any other user without contact relationship, this function will return NULL.
      *
      * You take the ownership of the returned value
@@ -1078,9 +1092,20 @@ public:
     char *getUserEmail(MegaChatHandle userhandle);
 
     /**
+     * @brief Returns the handle of the logged in user.
+     *
+     * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
+     * since the value is retrieved from cache.
+     *
+     * @return Own user handle
+     */
+    MegaChatHandle getMyUserHandle();
+
+    /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
      *
-     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
      * before calling this function.
      *
      * You take the ownership of the returned value
@@ -1095,7 +1120,8 @@ public:
      * You can get the handle of a MegaChatRoom using MegaChatRoom::getChatId or
      * MegaChatListItem::getChatId.
      *
-     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
      * before calling this function.
      *
      * You take the ownership of the returned value
@@ -1111,7 +1137,8 @@ public:
      * If the 1on1 chat with the user specified doesn't exist, this function will
      * return NULL.
      *
-     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
      * before calling this function.
      *
      * You take the ownership of the returned value
@@ -1124,7 +1151,8 @@ public:
     /**
      * @brief Get all chatrooms (1on1 and groupal) with limited information
      *
-     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
      * before calling this function.
      *
      * Note that MegaChatListItem objects don't include as much information as
@@ -1143,7 +1171,8 @@ public:
      * You can get the handle of the chatroom using MegaChatRoom::getChatId or
      * MegaChatListItem::getChatId.
      *
-     * It is needed to have successfully completed the \c MegaChatApi::init request
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
      * before calling this function.
      *
      * Note that MegaChatListItem objects don't include as much information as
@@ -1663,22 +1692,20 @@ public:
      * The app may use this value to show in the chatlist the status of the chat
      *
      * It can be one of the following values:
-     * - MegaChatApi::STATUS_OFFLINE = 0
+     *
+     * - MegaChatApi::STATUS_OFFLINE = 1
      * It is not connected
      *
      * - MegaChatApi::STATUS_ONLINE = 3
-     * The connected is alive and properly joined to the chatroom.
+     * The connection is alive and properly joined to the chatroom.
      *
      * Additionally, for 1on1 chatrooms, the following values are also valid:
      *
-     * - MegaChatApi::STATUS_BUSY = 1
-     * The peer of the chat is busy
-     *
      * - MegaChatApi::STATUS_AWAY = 2
-     * The peer of the chat is away
+     * The peer of the chat is away and might not answer
      *
-     * - MegaChatApi::STATUS_CHATTY = 4
-     * The peer of the chat is typing
+     * - MegaChatApi::STATUS_BUSY = 4
+     * The peer of the chat is busy and don't want to be disturbed.
      *
      * @return Online status of the chat
      */
@@ -1834,6 +1861,18 @@ public:
     virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
 
     /**
+     * @brief Returns the current fullname of the peer
+     *
+     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     *
+     * You take the ownership of the returned value. Use delete [] value
+     *
+     * @param Handle of the peer whose name is requested.
+     * @return Fullname of the chat peer with the handle specified.
+     */
+    virtual const char *getPeerFullnameByHandle(MegaChatHandle userhandle) const;
+
+    /**
      * @brief Returns the number of participants in the chat
      * @return Number of participants in the chat
      */
@@ -1890,6 +1929,19 @@ public:
     virtual const char *getPeerLastname(unsigned int i) const;
 
     /**
+     * @brief Returns the current fullname of the peer
+     *
+     * If the index is >= the number of participants in this chat, this function
+     * will return NULL.
+     *
+     * You take the ownership of the returned value. Use delete [] value
+     *
+     * @param i Position of the peer whose name is requested
+     * @return Fullname of the peer in the position \c i.
+     */
+    virtual const char *getPeerFullname(unsigned int i) const;
+
+    /**
      * @brief Returns whether this chat is a group chat or not
      * @return True if this chat is a group chat. Only chats with more than 2 peers are groupal chats.
      */
@@ -1928,22 +1980,20 @@ public:
      * The app may use this value to show in the chatlist the status of the chat
      *
      * It can be one of the following values:
-     * - MegaChatApi::STATUS_OFFLINE = 0
+     *
+     * - MegaChatApi::STATUS_OFFLINE = 1
      * It is not connected
      *
      * - MegaChatApi::STATUS_ONLINE = 3
-     * The connected is alive and properly joined to the chatroom.
+     * The connection is alive and properly joined to the chatroom.
      *
      * Additionally, for 1on1 chatrooms, the following values are also valid:
      *
-     * - MegaChatApi::STATUS_BUSY = 1
-     * The peer of the chat is busy
-     *
      * - MegaChatApi::STATUS_AWAY = 2
-     * The peer of the chat is away
+     * The peer of the chat is away and might not answer
      *
-     * - MegaChatApi::STATUS_CHATTY = 4
-     * The peer of the chat is typing
+     * - MegaChatApi::STATUS_BUSY = 4
+     * The peer of the chat is busy and don't want to be disturbed.
      *
      * @return Online status of the chat
      */
@@ -1992,38 +2042,46 @@ class MegaChatListener
 public:
     virtual ~MegaChatListener() {}
 
-        /**
-         * @brief This function is called when there are new chats or relevant changes on existing chats.
-         *
-         * The possible changes that are notified are the following:
-         *  - Title
-         *  - Unread messages count
-         *  - Online status
-         *  - Visibility: the contact of 1on1 chat has changed. i.e. added or removed
-         *  - Participants: new peer added or existing peer removed
-         *
-         * The SDK retains the ownership of the MegaChatListItem in the second parameter.
-         * The MegaChatListItem object will be valid until this function returns. If you
-         * want to save the MegaChatListItem, use MegaChatListItem::copy
-         *
-         * @param api MegaChatApi connected to the account
-         * @param item MegaChatListItem representing a 1on1 or groupchat in the list.
-         */
-        virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
+    /**
+     * @brief This function is called when there are new chats or relevant changes on existing chats.
+     *
+     * The possible changes that are notified are the following:
+     *  - Title
+     *  - Unread messages count
+     *  - Online status
+     *  - Visibility: the contact of 1on1 chat has changed. i.e. added or removed
+     *  - Participants: new peer added or existing peer removed
+     *
+     * The SDK retains the ownership of the MegaChatListItem in the second parameter.
+     * The MegaChatListItem object will be valid until this function returns. If you
+     * want to save the MegaChatListItem, use MegaChatListItem::copy
+     *
+     * @param api MegaChatApi connected to the account
+     * @param item MegaChatListItem representing a 1on1 or groupchat in the list.
+     */
+    virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
 
-        /**
-         * @brief This function is called when the status of the initialization has changed
-         *
-         * The possible values are:
-         *  - MegaChatApi::INIT_ERROR = -1
-         *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 0
-         *  - MegaChatApi::INIT_OFFLINE_SESSION = 1
-         *  - MegaChatApi::INIT_ONLINE_SESSION = 2
-         *
-         * @param api MegaChatApi connected to the account
-         * @param newState New state of initialization
-         */
-        virtual void onChatInitStateUpdate(MegaChatApi* api, int newState);
+    /**
+     * @brief This function is called when the status of the initialization has changed
+     *
+     * The possible values are:
+     *  - MegaChatApi::INIT_ERROR = -1
+     *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 0
+     *  - MegaChatApi::INIT_OFFLINE_SESSION = 1
+     *  - MegaChatApi::INIT_ONLINE_SESSION = 2
+     *
+     * @param api MegaChatApi connected to the account
+     * @param newState New state of initialization
+     */
+    virtual void onChatInitStateUpdate(MegaChatApi* api, int newState);
+
+    /**
+     * @brief This function is called when the own online status has changed
+     *
+     * @param api MegaChatApi connected to the account
+     * @param newState New online status
+     */
+    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status);
 };
 
 /**

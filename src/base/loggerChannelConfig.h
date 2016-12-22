@@ -54,7 +54,7 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(jingle, NULL, Warn, krLogNoLevel | 14)
     KR_LOGCHANNEL(strongvelope, "sv", Debug, 4)
     KR_LOGCHANNEL(chatd, "chatd", Debug, 4)
-    KR_LOGCHANNEL(megasdk, "sdk", Debug, 12)
+    KR_LOGCHANNEL(megasdk, "sdk", Warn, 12)
     KR_LOGCHANNEL(services, "services", Info, 0)
     KR_LOGCHANNEL(http, "http", Warn, 13)
     KR_LOGCHANNEL(gui, "gui", Debug, 10)

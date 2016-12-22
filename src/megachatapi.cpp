@@ -103,6 +103,11 @@ void MegaChatApi::connect(MegaChatRequestListener *listener)
     pImpl->connect(listener);
 }
 
+void MegaChatApi::disconnect(MegaChatRequestListener *listener)
+{
+    pImpl->disconnect(listener);
+}
+
 void MegaChatApi::logout(MegaChatRequestListener *listener)
 {
     pImpl->logout(listener);
@@ -146,6 +151,11 @@ void MegaChatApi::getUserLastname(MegaChatHandle userhandle, MegaChatRequestList
 char *MegaChatApi::getUserEmail(MegaChatHandle userhandle)
 {
     return pImpl->getUserEmail(userhandle);
+}
+
+MegaChatHandle MegaChatApi::getMyUserHandle()
+{
+    return pImpl->getMyUserHandle();
 }
 
 MegaChatRoomList *MegaChatApi::getChatRooms()
@@ -499,7 +509,6 @@ const char *MegaChatRoom::statusToString(int status)
     case MegaChatApi::STATUS_BUSY: return "busy";
     case MegaChatApi::STATUS_AWAY: return "away";
     case MegaChatApi::STATUS_ONLINE:return "online";
-    case MegaChatApi::STATUS_CHATTY:return "chatty";
     default: return "unknown status";
     }
 }
@@ -529,6 +538,11 @@ const char *MegaChatRoom::getPeerLastnameByHandle(MegaChatHandle userhandle) con
     return NULL;
 }
 
+const char *MegaChatRoom::getPeerFullnameByHandle(MegaChatHandle userhandle) const
+{
+    return NULL;
+}
+
 unsigned int MegaChatRoom::getPeerCount() const
 {
     return 0;
@@ -550,6 +564,11 @@ const char *MegaChatRoom::getPeerFirstname(unsigned int i) const
 }
 
 const char *MegaChatRoom::getPeerLastname(unsigned int i) const
+{
+    return NULL;
+}
+
+const char *MegaChatRoom::getPeerFullname(unsigned int i) const
 {
     return NULL;
 }
@@ -667,6 +686,11 @@ void MegaChatListener::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *
 }
 
 void MegaChatListener::onChatInitStateUpdate(MegaChatApi *api, int newState)
+{
+
+}
+
+void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi *api, int status)
 {
 
 }
