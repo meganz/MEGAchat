@@ -382,11 +382,9 @@ bool Connection::sendBuf(Buffer&& buf)
 
 bool Connection::sendCommand(Command&& cmd)
 {
-    char buf[512];
-    cmd.toString(buf, 512);
     if (krLoggerWouldLog(krLogChannel_chatd, krLogLevelDebug))
     {
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "conn-global: send %s\n", buf);
+        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "conn-global: send %s\n", cmd.toString().c_str());
     }
     bool result = sendBuf(std::move(cmd));
     if (!result)
@@ -417,64 +415,43 @@ bool Chat::sendCommand(const Command& cmd)
 
 void Chat::logSend(const Command& cmd) const
 {
-    char buf[512];
-    cmd.toString(buf, 512);
     krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send %s\n",
-            ID_CSTR(mChatId), buf);
+            ID_CSTR(mChatId), cmd.toString().c_str());
 }
 
-void Command::toString(char* buf, size_t bufsize) const
+string Command::toString() const
 {
     switch(opcode())
     {
         case OP_CLIENTID:
-        {
-            snprintf(buf, bufsize, "CLIENTID - 0x%04x",
-                read<uint32_t>(3));
-            break;
-        }
+            char buf[10];
+            snprintf(buf, 10, "0x%04x", read<uint32_t>(3));
+            return string("CLIENTID: id= ")+buf;
         default:
-        {
-            snprintf(buf, bufsize, "%s", opcodeName());
-            break;
-        }
+            return opcodeName();
     }
-    buf[bufsize-1] = 0;
 }
 
-void MsgCommand::toString(char* buf, size_t bufsize) const
+string MsgCommand::toString() const
 {
     switch (opcode())
     {
       case OP_NEWMSG:
-      {
-        snprintf(buf, bufsize, "NEWMSG - msgxid: %s", ID_CSTR(msgid()));
-        break;
-      }
+        return string("NEWMSG: msgxid= ")+msgid().toString();
       case OP_MSGUPD:
-      {
-        snprintf(buf, bufsize, "MSGUPD - msgid: %s", ID_CSTR(msgid()));
-        break;
-      }
+        return string("MSGUPD: msgid= ")+msgid().toString();
       case OP_MSGUPDX:
-      {
-        snprintf(buf, bufsize, "MSGUPDX - msgxid: %s, tsdelta: %hu",
-            ID_CSTR(msgid()), updated());
-        break;
-      }
+        return string("MSGUPDX: msgxid= ")+msgid().toString()+", tsdelta: "+
+            to_string(updated());
       default:
-      {
-        snprintf(buf, bufsize, "%s", opcodeName());
-        break;
-      }
+        return opcodeName();
     }
-    buf[bufsize-1] = 0;
 }
 
-void KeyCommand::toString(char *buf, size_t bufsize) const
+string KeyCommand::toString() const
 {
     assert(opcode() == OP_NEWKEY);
-    snprintf(buf, bufsize, "NEWKEY - keyid = 0x%04x", keyId());
+    return string("NEWKEY: keyid = ")+to_string(keyId());
 }
 
 // rejoin all open chats after reconnection (this is mandatory)

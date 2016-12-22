@@ -26,6 +26,37 @@ class IGlobalEventHandler;
 //TODO: Implement
 class FileTransferHandler;
 
+struct AnonId
+{
+    uint64_t u64;
+    uint32_t u32;
+    AnonId(const AnonId& other): u64(other.u64), u32(other.u32){}
+    bool operator==(const AnonId& other) const = default;
+    bool operator<(const AnonId& other) const
+    {
+        if (u64 == other.u64)
+            return u32 < other.u32;
+        else
+            return u64 < other.u64;
+    }
+};
+
+struct SessionKey
+{
+    karere::Id sid;
+    AnonId caller;
+    AnonId answerer;
+    SessionKey(karere::Id aSid, const AnonId& clr, const AnonId& ans)
+        :sid(aSid), caller(clr), answerer(ans){}
+    bool operator<(const SessionKey& other) const
+    {
+        if (sid != other.sid)
+            return sid < other.sid;
+        if (caller != other.caller)
+            return caller < other.caller;
+        return answerer < other.answerer;
+    }
+};
 
 struct JingleCall: public ICall
 {

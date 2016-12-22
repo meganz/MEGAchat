@@ -305,18 +305,18 @@ IncomingCallRequest::IncomingCallRequest(Call& aCall, const std::shared_ptr<RtMs
     mElsewhereHandler = manager.chat.addHandler(RTMSG_notifyCallHandled, manager.myUserid,
     [this](const std::shared_ptr<RtMessage>& msg, void*, bool& keep)
     {
+        auto& handled = Message::castTo<NotifyCallHandled>(msg);
         //rid.4 caller.8 callerClientId.4 answered.1
-        if ((msg->readPayload<uint32_t>(0) != mRid) ||
-         || (msg->readPayload<uint64_t>(4) != callmsg->userid())
-         || (msg->readPayload<uint32_t>(12) != callmsg->clientid()))
+        if ((handled.rid() != mRid) ||
+         || (handled.caller() != callmsg->userid())
+         || (handled.callerClient() != callmsg->clientid()))
             return;
 
         keep = false;
         auto by = msg->clientid();
         if (by == call.manager.chat.clientId()) //if it was us, ignore the message. We should have already removed this handler though.
             return;
-        auto accepted = msg->readPayload<uint8_t>(8);
-        call.manager.destroyIncomingReq(accepted ? Call::kRejectedElsewhere : Call::kAnsweredElsewhere);
+        call.manager.destroyIncomingReq(handled.accepted() ? Call::kRejectedElsewhere : Call::kAnsweredElsewhere);
     });
 // The timer will be canceled when the request is destroyed, so we don't need
 // to check for valid 'this'
@@ -389,16 +389,16 @@ void Call::setupIncomingOffersHandler()
 {
     assert(!mIncomingOffersHandler);
     mIncomingOffersHandler = chat.rtAddHandler(RTMSG_sdpOffer,
-    [this](const std::shared_ptr<RtMessageWithEndpoint>& msg, bool& keep)
+    [this](RtMessageWithEndpoint*& msg, bool& keep)
     {
         if (mState != kStateJoining)
             return;
-        Sid sid;
-        memcpy(msg->payloadReadPtr(0, 16), sid, 16);
-        auto& sess = at(sid);
+        auto& offer = *Message::castTo<SdpOffer>(msg);
+        auto sid = offer.sid();
+        auto& sess = at(SessionKey(offer.anonId(), manager.rtcShared.ownAnonId, sid));
         if (sess)
             throw std::runtime_error("Incoming session offer: Session with sid '"+sid.toString()+"' already exists");
-        sess = std::make_shared<Session>(*this, *msg, sid);
+        sess = std::make_shared<Session>(*this, msg, sid);
     });
 }
 
@@ -412,30 +412,22 @@ void Call::setupIncomingJoinsHandler()
             return;
         auto sess = std::make_shared<Session>(*this, *msg);
         assert(sess->sid);
-        auto ret = insert(sess->sid, sess);
+        auto ret = insert(SessionKey(sess->sid, manager.rtcShared.ownAnonId, msg->anonId), sess);
         assert(ret.second); //clash
     });
 }
 
 // Constructor for incoming offer (as a result of a JOIN sent by us)
 // sdpOffer: sid.8 avFlags.1 nonce.16 fprHash.32 anonId.12 sdpLen.2 sdp.sdpLen
-void Call::Session::Session(Call& aCall, const RtMessageWithEndpoint& msg, const Sid& aSid)
+void Call::Session::Session(Call& aCall, const SdpOffer& msg, const Sid& aSid)
     : call(aCall), isCaller(false), kStateSdpHandshake,
-    sid(aSid), peer(msg.userid()), peerClient(msg.clientid()),
-    mRemoteAv(msg.readPayload<uint8_t>(17))
+    sid(msg.sid()), peer(msg.userid()), peerClient(msg.clientid()), mRemoteAv(msg.av())
 {
-    auto sdpLen = msg.readPayload<uint16_t>(77);
-    if (!sdpLen)
-        throw std::runtime_error("Incoming sdp offer has zero-size sdp string");
-    std::string sdpOffer(msg.payloadReadPtr(79, sdpLen));
-    mSdpOffer.parse(sdpOffer);
-
-    memcpy(mPeerAnonId, msg.payloadReadPtr(65, 12), 12);
-    memcpy(mPeerNonce, msg.payloadReadPtr(17, 16), 16);
-    const char* encFprHash = msg.payloadReadPtr(33, 32);
-
+    mSdpOffer.parse(msg.sdp());
+    memcpy(mPeerAnonId, msg.anonId(), 12);
+    memcpy(mPeerNonce, msg.nonce(), 16);
     setupHangupHandler();
-    createPeerConnAndAnswer(sdpOffer, encFprHash)
+    createPeerConnAndAnswer(sdpOffer, msg.encryptedFprHash())
     .then([this]()
     {
         //sid.8 encFprHash.32 sentAv.1 sdpLen.2 sdp.sdpLen
@@ -528,22 +520,12 @@ void Call::Session::setupIceCandidateHandler()
     {
       try
       {
-        //sid.8 sdpMlineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
+        auto& cand = *Message::castTo<IceCandidate>(msg);
         VERIFY_SID(cand);
-        auto mLineIdx = cand->payloadRead<uint8_t>(16);
-        auto midLen = cand->readPlayload<uint8_t>(17);
-        if (!midLen)
-            throw std::runtime_error("No 'mid' present in ice candidate");
-        std::string mid(cand->payloadReadPtr(18, midLen), midLen);
-        auto candLen = cand->readPayload<uint16_t>(18+midLen);
-        if (!candLen)
-            throw std::runtime_error("Candidate string is empty");
-
-        string text(cand->payloadReadPtr(20+midLen, candLen), candLen);
-        unique_ptr<webrtc::JsepIceCandidate> cand(
-          new webrtc::JsepIceCandidate(mid, mLineIdx));
+        unique_ptr<webrtc::JsepIceCandidate> obj(
+          new webrtc::JsepIceCandidate(cand.mid(), cand.mLineIdx()));
         webrtc::SdpParseError err;
-        if (!cand->Initialize(text, &err))
+        if (!obj->Initialize(cand.cand(), &err))
             throw runtime_error("Error parsing ICE candidate:\nline: '"+err.line+"'\nError:" +err.description);
 
         mPeerConn->AddIceCandidate(cand.release());
@@ -598,10 +580,15 @@ Call::Session::Session(Call& aCall, const RtMessageWithEndpoint& joinMsg)
 
 promise::Promise<void> Call::Session::createPeerConnAndOffer()
 {
-    std::string errors;
-    if (!createPeerConnWithLocalStream(errors))
-        return promise::Error(errors, kNoMediaError, PROMISE_ERR_RTCMODULE);
-
+    try
+    {
+        createPeerConnWithLocalStream();
+    }
+    catch(std::exception& e)
+    {
+        //FIXME: may be a peerconnection error and not no-media
+        return promise::Error(e.what(), kNoMediaError, PROMISE_ERR_RTCMODULE);
+    }
     return mPeerConn.createOffer(mPcConstraints
         ? mPcConstraints.get()
         : &call.manager.rtcShared.pcConstraints)
@@ -647,9 +634,16 @@ void Call::Session::setupSdpAnsHandler()
 promise::Promise<void>
 Call::Session::createPeerConnAndAnswer(const std::string& sdpOffer, const char* encFprHash)
 {
-    std::string errors;
-    if (!createPeerConnWithLocalStream(errors))
-        return promise::Error(errors, kNoMediaError, PROMISE_ERR_RTCMODULE);
+    try
+    {
+        createPeerConnWithLocalStream();
+        mRemoteSdp.parse(sdpOffer);
+    }
+    catch(std::exception& e)
+    {
+        return promise::Error(e.what(), kErrSdpParse, PROMISE_ERR_RTCMODULE);
+    }
+
     setRemoteDescription("offer", sdpOffer, encFprHash)
     .then([this]()
     {
@@ -702,10 +696,11 @@ Call::Session::setRemoteDescription(const char* type, const std::string& sdp,
     return mPeerConn.setRemoteDescription(jsepSdp.release());
 }
 
-bool Call::Session::createPeerConnWithLocalStream(std::string& errors)
+void Call::Session::createPeerConnWithLocalStream()
 {
+    std::string errors;
     if (!startLocalStream(true, errors))
-        return false;
+        throw promise::Error(errors, kNoMediaError, PROMISE_ERR_RTCMODULE);
 
     mPeerConn = artc::myPeerConnection<Call::Session>(
         call.manager.rtcShared.mIceServers,
@@ -713,12 +708,9 @@ bool Call::Session::createPeerConnWithLocalStream(std::string& errors)
             ? call.pcConstraints.get()
             : &manager.rtcShared.pcConstraints);
     if (!mPeerConn->AddStream(*mLocalStream))
-    {
-        errors = "mPeerConn->AddStream() returned false";
-        return false;
-    }
-    return true;
+       throw promise::Error("mPeerConn->AddStream() returned false", kNoMediaError, PROMISE_ERR_RTCMODULE);
 }
+
 void Call::Session::setupHangupHandler()
 {
     //sid.8 code.1 reasonLen.2 reason.reasonLen

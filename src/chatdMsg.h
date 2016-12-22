@@ -230,7 +230,7 @@ public:
     uint8_t opcode() const { return read<uint8_t>(0); }
     const char* opcodeName() const { return opcodeToStr(opcode()); }
     static const char* opcodeToStr(uint8_t code);
-    virtual void toString(char* buf, size_t bufsize) const;
+    virtual std::string toString() const;
     virtual ~Command(){}
 };
 
@@ -256,7 +256,7 @@ public:
     }
     bool hasKeys() const { return dataSize() > 17; }
     void clearKeys() { setDataSize(17); } //opcode.1+chatid.8+keyid.4+length.4
-    virtual void toString(char* buf, size_t bufsize) const;
+    virtual std::string toString() const;
 };
 
 //we need that special class because we may update key ids after keys get confirmed,
@@ -299,7 +299,7 @@ public:
     {
         write<uint32_t>(35, dataSize()-39);
     }
-    virtual void toString(char* buf, size_t bufsize) const;
+    virtual std::string toString() const;
 };
 
 class RtMessage: public Command
@@ -352,22 +352,30 @@ public:
         updateLenField(); updateChatidField(chatid);
     }
     template <class T, bool check=true, typename=typename std::enable_if<std::is_pod<T>::value>::type>
-    const T& readPayload(size_t offset) const
+    const T& payloadRead(size_t offset) const
     {
         return Buffer::read<T, check>(mHdrLen+1+offset);
     }
     template<class T, bool check=true, typename=typename std::enable_if<std::is_pod<T>::value>::type>
-    void writePayload(size_t offset, T val)
+    void payloadWrite(size_t offset, T val)
     {
-        write<T,check>(offset+mHdrLen, val);
+        write<T,check>(offset+mHdrLen+1, val);
     }
     const char* payloadReadPtr(size_t offset, size_t len)
     {
-        return Buffer::readPtr(mHdrLen+offset, len);
+        return Buffer::readPtr(mHdrLen+1+offset, len);
     }
-    const char* payloadPtr() const { return buf()+mHdrLen; }
-    size_t payloadSize() const { return dataSize() - mHdrLen; }
-    bool hasPayload() const { return payloadSize() > 1; }
+    const char* payloadPtr() const { return buf()+mHdrLen+1; }
+    template <bool check=true>
+    const char* payloadPtr(uint16_t offset) const
+    {
+        auto dataOfs = mHdrLen+1+offset;
+        if (check && (dataOfs >= dataSize()))
+            throw std::runtime_error("RtMessage::payloadPtr: offset "+std::to_string(offset)+" points past end of data (dataSize="+std::to_string(dataSize())+")");
+        return buf()+offset;
+    }
+    size_t payloadSize() const { return dataSize()-mHdrLen-1; }
+    bool hasPayload() const { return payloadSize() > 0; }
 };
 
 class RtMessageWithUser: public RtMessage
