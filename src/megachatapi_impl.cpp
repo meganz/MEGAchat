@@ -1123,6 +1123,26 @@ MegaChatHandle MegaChatApiImpl::getMyUserHandle()
     return mClient->myHandle();
 }
 
+char *MegaChatApiImpl::getMyFirstname()
+{
+    return MegaChatRoomPrivate::firstnameFromBuffer(mClient->myName());
+}
+
+char *MegaChatApiImpl::getMyLastname()
+{
+    return MegaChatRoomPrivate::firstnameFromBuffer(mClient->myName());
+}
+
+char *MegaChatApiImpl::getMyFullname()
+{
+    return MegaApi::strdup(mClient->myName().c_str());
+}
+
+char *MegaChatApiImpl::getMyEmail()
+{
+    return MegaApi::strdup(mClient->myEmail().c_str());
+}
+
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 {
     MegaChatRoomListPrivate *chats = new MegaChatRoomListPrivate();
@@ -2702,11 +2722,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 
             const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(it->second->name());
             this->peerFirstnames.push_back(buffer ? buffer : "");
-            delete buffer;
+            delete [] buffer;
 
             buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
             this->peerLastnames.push_back(buffer ? buffer : "");
-            delete buffer;
+            delete [] buffer;
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2721,11 +2741,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 
         const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
         this->peerFirstnames.push_back(buffer ? buffer : "");
-        delete buffer;
+        delete [] buffer;
 
         buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
         this->peerLastnames.push_back(buffer ? buffer : "");
-        delete buffer;
+        delete [] buffer;
 
         this->status = chat.presence().status();
     }
@@ -2947,7 +2967,7 @@ void MegaChatRoomPrivate::setClosed()
     this->changed |= MegaChatRoom::CHANGE_TYPE_CLOSED;
 }
 
-const char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
+char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
 {
     char *ret = NULL;
     int len = buffer.length() ? buffer.at(0) : 0;
@@ -2962,7 +2982,7 @@ const char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
     return ret;
 }
 
-const char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
+char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
 {
     char *ret = NULL;
 

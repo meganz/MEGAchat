@@ -158,6 +158,26 @@ MegaChatHandle MegaChatApi::getMyUserHandle()
     return pImpl->getMyUserHandle();
 }
 
+char *MegaChatApi::getMyFirstname()
+{
+    return pImpl->getMyFirstname();
+}
+
+char *MegaChatApi::getMyLastname()
+{
+    return pImpl->getMyLastname();
+}
+
+char *MegaChatApi::getMyFullname()
+{
+    return pImpl->getMyFullname();
+}
+
+char *MegaChatApi::getMyEmail()
+{
+    return pImpl->getMyEmail();
+}
+
 MegaChatRoomList *MegaChatApi::getChatRooms()
 {
     return pImpl->getChatRooms();

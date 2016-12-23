@@ -455,10 +455,10 @@ private:
 
 public:
     // you take the ownership of return value
-    static const char *firstnameFromBuffer(const std::string &buffer);
+    static char *firstnameFromBuffer(const std::string &buffer);
 
     // you take the ownership of return value
-    static const char *lastnameFromBuffer(const std::string &buffer);
+    static char *lastnameFromBuffer(const std::string &buffer);
 };
 
 class MegaChatRoomListPrivate :  public MegaChatRoomList
@@ -694,6 +694,10 @@ public:
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     char *getUserEmail(MegaChatHandle userhandle);
     MegaChatHandle getMyUserHandle();
+    char *getMyFirstname();
+    char *getMyLastname();
+    char *getMyFullname();
+    char *getMyEmail();
     MegaChatRoomList* getChatRooms();
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);

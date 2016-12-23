@@ -1102,6 +1102,55 @@ public:
     MegaChatHandle getMyUserHandle();
 
     /**
+     * @brief Returns the firstname of the logged in user.
+     *
+     * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
+     * since the value is retrieved from cache.
+     *
+     * You take the ownership of the returned value
+     *
+     * @return Own user firstname
+     */
+    char *getMyFirstname();
+
+    /**
+     * @brief Returns the lastname of the logged in user.
+     *
+     * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
+     * since the value is retrieved from cache.
+     *
+     * You take the ownership of the returned value
+     *
+     * @return Own user lastname
+     */
+    char *getMyLastname();
+
+    /**
+     * @brief Returns the fullname of the logged in user.
+     *
+     * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
+     * since the value is retrieved from cache.
+     *
+     * You take the ownership of the returned value
+     *
+     * @return Own user fullname
+     */
+    char *getMyFullname();
+
+    /**
+     * @brief Returns the email of the logged in user.
+     *
+     * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
+     * since the value is retrieved from cache.
+     *
+     * You take the ownership of the returned value
+     *
+     * @return Own user email
+     */
+    char *getMyEmail();
+
+
+    /**
      * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
      *
      * It is needed to have successfully called \c MegaChatApi::init (the initialization
