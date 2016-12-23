@@ -12,7 +12,7 @@ find_package(Mega REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Sqlite3 REQUIRED)
 
-set(optKarereBuildShared 0 CACHE BOOL "Build libkarere as a shared library")
+
 set(KARERE_LOGGER_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/base CACHE PATH "Karere logger include dir") #tell mpenc to use the karere logger
 set(LIBWS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../third-party/libws CACHE PATH "libws source dir, where its CMakeLists.txt is located")
 set(LIBWS_EXTERNAL_LOOP 1 CACHE BOOL "Use libws with external libevent loop")
@@ -20,9 +20,6 @@ set(LIBWS_EXTERNAL_LOOP 1 CACHE BOOL "Use libws with external libevent loop")
 set (SRCS
     karereCommon.cpp
     base64.cpp
-    strophe.disco.cpp
-    dummyCrypto.cpp
-    megaCryptoFunctions.cpp
     chatClient.cpp
     userAttrCache.cpp
     url.cpp
@@ -33,6 +30,10 @@ set (SRCS
     megachatapi.cpp
     megachatapi_impl.cpp
 )
+
+if (NOT optKarereDisableWebrtc)
+    list(APPEND SRCS dummyCrypto.cpp megaCryptoFunctions.cpp strophe.disco.cpp)
+endif()
 
 if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
     add_definitions(-Wall -Wno-unused-local-typedefs)
@@ -53,7 +54,18 @@ endif()
 if (WIN32)
     add_definitions(-D_WIN32 -DWIN32)
 endif()
-add_subdirectory(rtcModule)
+
+set(KARERE_DEFINES -DHAVE_KARERE_LOGGER ${LIBMEGA_DEFINES})
+
+if (NOT optKarereDisableWebrtc)
+    add_subdirectory(rtcModule)
+else()
+    add_subdirectory(base)
+    list(APPEND KARERE_DEFINES -DKARERE_DISABLE_WEBRTC=1 -DSVC_DISABLE_STROPHE)
+endif()
+
+get_property(SERVICES_INCLUDE_DIRS GLOBAL PROPERTY SERVICES_INCLUDE_DIRS)
+
 add_subdirectory(${LIBWS_DIR} libws)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
     COMMAND ${CMAKE_COMMAND} -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
@@ -67,19 +79,34 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
 set(KARERE_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/base
-    ${RTCMODULE_INCLUDE_DIRS}
-    ${STROPHE_INCLUDE_DIRS}
     ${SERVICES_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/../third-party
-
     ${LIBMEGA_INCLUDE_DIRS}
     ${CRYPTOPP_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
     ${LIBWS_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/libws
-    CACHE STRING "Include directries needed by projects using karere lib"
 )
 
+set(KARERE_DEP_LIBS
+    ${LIBMEGA_LIBRARIES}
+    ws
+    ${SQLITE3_LIBRARY}
+)
+
+if (NOT optKarereDisableWebrtc)
+    list(APPEND KARERE_INCLUDE_DIRS ${RTCMODULE_INCLUDE_DIRS})
+    list(APPEND KARERE_DEP_LIBS rtcmodule)
+else()
+    list(APPEND KARERE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/rtcModule)
+    list(APPEND KARERE_DEP_LIBS services)
+endif()
+
+set_property(GLOBAL PROPERTY KARERE_INCLUDE_DIRS ${KARERE_INCLUDE_DIRS})
+set_property(GLOBAL PROPERTY KARERE_DEFINES ${KARERE_DEFINES})
+
 include_directories(${KARERE_INCLUDE_DIRS} ${SQLITE3_INCLUDE_DIR})
+add_definitions(${KARERE_DEFINES})
+
 if (optKarereBuildShared)
     add_library(karere SHARED ${SRCS})
     # all Karere symbols can be used by the application
@@ -88,14 +115,8 @@ if (optKarereBuildShared)
 else()
     add_library(karere ${SRCS})
 endif()
-set_target_properties(karere PROPERTIES COMPILE_FLAGS "${LIBMEGA_DEFINES}")
-target_link_libraries(karere
-    rtcmodule
-    ${LIBMEGA_LIBRARIES}
-    ws
-    ${SQLITE3_LIBRARY}
-)
 
+target_link_libraries(karere ${KARERE_DEP_LIBS})
 
 # add a target to generate API documentation with Doxygen
 find_package(Doxygen)

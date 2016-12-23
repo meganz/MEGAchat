@@ -1,6 +1,5 @@
 #ifndef IAPP_H
 #define IAPP_H
-
 #include <rtcModule/IRtcModule.h>
 #include <chatd.h>
 #include <presenced.h>
@@ -68,6 +67,7 @@ public:
      * As currently there are no additional methods besides the inherited from
      * \c  IEventHandler, the class is empty.
      */
+
     class ICallHandler: public rtcModule::IEventHandler
     {
     public:
@@ -330,7 +330,7 @@ public:
      * @param req The mega SDK contact request object
      */
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) = 0;
-
+#ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Called by karere when there is an incoming call.
      *
@@ -344,7 +344,7 @@ public:
      */
     virtual rtcModule::IEventHandler*
         onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
-
+#endif
     /**
      * @brief Called by karere when we become participants in a 1on1 or a group chat.
      * @param room The chat room object.

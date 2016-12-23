@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include "chatClient.h"
-#include "ITypes.h" //for IPtr
 #ifdef _WIN32
     #include <winsock2.h>
     #include <direct.h>
@@ -15,10 +14,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <mstrophepp.h>
 #include "rtcModule/IRtcModule.h"
 #include "dummyCrypto.h" //for makeRandomString
-#include "strophe.disco.h"
 #include "base/services.h"
 #include "sdkApi.h"
 #include "megaCryptoFunctions.h"
@@ -33,7 +30,6 @@
 #include <asyncTools.h>
 #include <codecvt> //for nonWhitespaceStr()
 #include <locale>
-//#include <chatdICrypto.h>
 #include "strongvelope/strongvelope.h"
 #include "base64.h"
 #include <sys/types.h>
@@ -54,7 +50,6 @@ std::string encodeFirstName(const std::string& first);
  */
 Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint8_t caps)
  :mAppDir(appDir),
-  conn(new strophe::Connection(services_strophe_get_ctx())),
   api(sdk), app(aApp),
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
@@ -494,10 +489,10 @@ promise::Promise<void> Client::connect(Presence pres)
     return pms;
 }
 
-void Client::disconnect()
+promise::Promise<void> Client::disconnect()
 {
     if (!mConnected)
-        return;
+        return promise::_Void();
     assert(mHeartbeatTimer);
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
@@ -508,6 +503,7 @@ void Client::disconnect()
     chatd->disconnect();
     mPresencedClient.disconnect();
     mConnected = false;
+    return promise::_Void();
 }
 
 karere::Id Client::getMyHandleFromSdk()
@@ -719,32 +715,31 @@ promise::Promise<void> Client::terminate(bool deleteDb)
 {
     if (mInitState == kInitTerminating)
     {
-        KR_LOG_WARNING("Client::terminate: Already terminating");
-        return promise::Promise<void>();
+        return promise::Error("Already terminating");
     }
     setInitState(kInitTerminating);
     api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
+
+#ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
         rtc->hangupAll();
-    disconnect();
-    if (deleteDb)
+#endif
+
+    return disconnect()
+    .then([this, deleteDb]()
     {
-        wipeDb(mSid);
-    }
-    else
-    {
-        sqlite3_close(db);
-        db = nullptr;
-    }
-    promise::Promise<void> pms;
-    //resolve output promise asynchronously, because the callbacks of the output
-    //promise may free the client, and the resolve()-s of the input promises
-    //(mega and conn) are within the client's code, so any code after the resolve()s
-    //that tries to access the client will crash
-    setInitState(kInitTerminated);
-    marshallCall([pms]() mutable { pms.resolve(); });
-    return pms;
+        if (deleteDb)
+        {
+            wipeDb(mSid);
+        }
+        else
+        {
+            sqlite3_close(db);
+            db = nullptr;
+        }
+        setInitState(kInitTerminated);
+    });
 }
 
 promise::Promise<void> Client::setPresence(Presence pres, bool force)
@@ -962,7 +957,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 }
 PeerChatRoom::~PeerChatRoom()
 {
-    if (mRoomGui)
+    if (mRoomGui && (parent.client.initState() < Client::kInitTerminating))
         parent.client.app.chatListHandler()->removePeerChatItem(*mRoomGui);
     auto chatd = parent.client.chatd.get();
     if (chatd)
@@ -1166,8 +1161,6 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
 ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
 {
     auto chatid = apiRoom.getHandle();
-    auto it = find(chatid);
-    assert(it == end()); //we should not have that room
 
     ChatRoom* room;
     if(apiRoom.isGroup())
@@ -1183,7 +1176,11 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
         assert(apiRoom.getPeerList()->size() == 1);
         room = new PeerChatRoom(*this, apiRoom);
     }
+#ifndef NDEBUG
+    auto ret =
+#endif
     emplace(chatid, room);
+    assert(ret.second); //we should not have that room
     return *room;
 }
 
@@ -1469,7 +1466,7 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 GroupChatRoom::~GroupChatRoom()
 {
     removeAppChatHandler();
-    if (mRoomGui)
+    if (mRoomGui && (parent.client.initState() < Client::kInitTerminating))
         parent.client.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 
     auto chatd = parent.client.chatd.get();
@@ -1645,7 +1642,6 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Mess
     if (display)
     {
         display->onLastMessageUpdated(msg, status, idx);
-        display->onUnreadCountChanged(mChat->unreadMsgCount());
     }
 }
 void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool)
@@ -2226,11 +2222,13 @@ const char* Client::initStateToStr(unsigned char state)
     }
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 rtcModule::IEventHandler* Client::onIncomingCallRequest(
         const std::shared_ptr<rtcModule::ICallAnswer> &ans)
 {
     return app.onIncomingCall(ans);
 }
+#endif
 
 std::string encodeFirstName(const std::string& first)
 {

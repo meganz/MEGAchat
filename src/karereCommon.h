@@ -3,7 +3,7 @@
 
 #include <string>
 #include <logger.h>
-#include <mstrophe.h> //needed for timestampMs()
+#include <cservices.h> //needed for timestampMs()
 #include <string.h>
 
 /** @cond PRIVATE */
@@ -111,13 +111,6 @@ void globalCleanup();
 
 /** @cond PRIVATE */
 
-//time function
-typedef xmpp_ts Ts;
-static inline Ts timestampMs()
-{
-    //use strophe's timestamp function
-    return xmpp_time_stamp();
-}
 struct AvFlags
 {
     bool audio;
@@ -153,6 +146,7 @@ enum: uint8_t
 };
 
 extern const char* gKarereDbSchema;
+static inline int64_t timestampMs() { return services_get_time_ms(); }
 
 //logging stuff
 

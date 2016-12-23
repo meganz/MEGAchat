@@ -14,12 +14,15 @@ ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
     connect(ui.mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
     connect(ui.mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
     connect(ui.mMessageList, SIGNAL(requestHistory()), this, SLOT(onMsgListRequestHistory()));
-    connect(ui.mVideoCallBtn, SIGNAL(clicked(bool)), this, SLOT(onVideoCallBtn(bool)));
-    connect(ui.mAudioCallBtn, SIGNAL(clicked(bool)), this, SLOT(onAudioCallBtn(bool)));
     connect(ui.mMembersBtn, SIGNAL(clicked(bool)), this, SLOT(onMembersBtn(bool)));
     connect(ui.mMessageList->verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScroll(int)));
+#ifndef KARERE_DISABLE_WEBRTC
+    connect(ui.mVideoCallBtn, SIGNAL(clicked(bool)), this, SLOT(onVideoCallBtn(bool)));
+    connect(ui.mAudioCallBtn, SIGNAL(clicked(bool)), this, SLOT(onAudioCallBtn(bool)));
+#endif
     ui.mAudioCallBtn->hide();
     ui.mVideoCallBtn->hide();
+
     ui.mChatdStatusDisplay->hide();
     if (!mRoom.isGroup())
         ui.mMembersBtn->hide();
@@ -46,6 +49,41 @@ ChatWindow::~ChatWindow()
         mUpdateSeenTimer = 0;
     }
 }
+#ifndef KARERE_DISABLE_WEBRTC
+void ChatWindow::createCallGui(const std::shared_ptr<rtcModule::ICall>& call)
+{
+    assert(!mCallGui);
+    auto layout = qobject_cast<QBoxLayout*>(ui.mCentralWidget->layout());
+    mCallGui = new CallGui(*this, call);
+    layout->insertWidget(1, mCallGui, 1);
+    ui.mTitlebar->hide();
+    ui.mTextChatWidget->hide();
+}
+
+void ChatWindow::closeEvent(QCloseEvent* event)
+{
+    if (mCallGui)
+        mCallGui->hangup();
+    event->accept();
+}
+
+void ChatWindow::onCallBtn(bool video)
+{
+    if (mRoom.isGroup())
+    {
+        QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
+        return;
+    }
+    if (mCallGui)
+        return;
+    createCallGui();
+    mRoom.mediaCall(karere::AvFlags(true, video))
+    .fail([this](const promise::Error& err)
+    {
+        QMessageBox::critical(this, "Call", QString::fromStdString(err.msg()));
+    });
+}
+#endif
 
 MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     chatd::Message::Status status, chatd::Idx idx)

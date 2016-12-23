@@ -61,7 +61,7 @@ MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
     if (megaChatApiRefs.size() == 1)
     {
         // karere initialization (do NOT use globaInit() since it forces to log to file)
-        services_init(MegaChatApiImpl::megaApiPostMessage, SVC_STROPHE_LOG);
+        services_init(MegaChatApiImpl::megaApiPostMessage, 0);
     }
     refsMutex.unlock();
 
@@ -584,7 +584,7 @@ void MegaChatApiImpl::sendPendingRequests()
             string strTitle(title, 30);
             request->setText(strTitle.c_str()); // update, in case it's been truncated
 
-            ((GroupChatRoom *)chatroom)->setTitle(strTitle)
+            ((GroupChatRoom *)chatroom)->setTitle(strTitle.c_str())
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2132,7 +2132,11 @@ void MegaChatRequestPrivate::setText(const char *text)
 MegaChatCallPrivate::MegaChatCallPrivate(const shared_ptr<rtcModule::ICallAnswer> &ans)
 {
     mAns = ans;
+#ifndef KARERE_DISABLE_WEBRTC
     this->peer = mAns->call()->peerJid().c_str();
+#else
+    this->peer = nullptr;
+#endif
     status = 0;
     tag = 0;
     videoReceiver = NULL;

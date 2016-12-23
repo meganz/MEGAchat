@@ -281,7 +281,7 @@ promise::Promise<void> GelbProvider<S>::exec(int no)
         mClient.reset();
         parseServersJson(*(response->data()));
         this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
-        this->mLastUpdateTs = timestampMs();
+        this->mLastUpdateTs = services_get_time_ms();
         return promise::_Void();
     })
     .fail([this, client](const promise::Error& err)
@@ -323,7 +323,7 @@ promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeout)
     mOutputPromise = pms
     .fail([this](const promise::Error& err) -> promise::Promise<void>
     {
-        if (!this->mLastUpdateTs || ((timestampMs() - mLastUpdateTs)/1000 > mMaxReuseOldServersAge))
+        if (!this->mLastUpdateTs || ((services_get_time_ms() - mLastUpdateTs)/1000 > mMaxReuseOldServersAge))
         {
             return err;
         }
