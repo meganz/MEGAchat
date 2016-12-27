@@ -80,9 +80,12 @@ public:
     MegaApi* megaApi[NUM_ACCOUNTS];
     MegaChatApi* megaChatApi[NUM_ACCOUNTS];
 
-    // flags to monitor the completion of requests/transfers
+    // flags to monitor the completion of requests
     bool requestFlags[NUM_ACCOUNTS][MegaRequest::TYPE_CHAT_SET_TITLE];
     bool requestFlagsChat[NUM_ACCOUNTS][MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
+
+    bool initStateChanged[NUM_ACCOUNTS];
+    int initState[NUM_ACCOUNTS];
 
     int lastError[NUM_ACCOUNTS];
     int lastErrorChat[NUM_ACCOUNTS];
@@ -140,8 +143,9 @@ public:
     virtual void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaChatError* error) {}
 
     // implementation for MegaChatListener
-    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
+    virtual void onChatInitStateUpdate(MegaChatApi *api, int newState);
     virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
+    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status);
 
 //    void onUsersUpdate(MegaApi* api, MegaUserList *users);
 //    void onNodesUpdate(MegaApi* api, MegaNodeList *nodes);

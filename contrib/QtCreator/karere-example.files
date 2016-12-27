@@ -131,3 +131,7 @@
 ../../src/IGui.h
 ../../tests/sdk_test/sdk_test.cpp
 ../../tests/sdk_test/sdk_test.h
+../../src/presenced.h
+../../src/presenced.cpp
+../../src/url.h
+../../src/url.cpp

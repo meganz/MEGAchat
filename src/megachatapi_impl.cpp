@@ -194,33 +194,9 @@ void MegaChatApiImpl::sendPendingRequests()
 
         switch (request->getType())
         {
-        case MegaChatRequest::TYPE_INITIALIZE:
-        {
-            if (initResult)
-            {
-                if (initResult->getErrorCode() == MegaChatError::ERROR_OK)
-                {
-                    fireOnChatRequestFinish(request, initResult);
-                    API_LOG_INFO("Initialization complete");
-                    fireOnChatRoomUpdate(NULL);
-                }
-                else
-                {
-                    fireOnChatRequestFinish(request, initResult);
-                    API_LOG_INFO("Initialization failed");
-                }
-                initResult = NULL;
-                initRequest = NULL;
-            }
-            else
-            {
-                initRequest = request;
-            }
-            break;
-        }
         case MegaChatRequest::TYPE_CONNECT:
         {
-            mClient->connect()
+            mClient->connect(karere::Presence::kInvalid)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -231,6 +207,22 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
+
+            break;
+        }
+        case MegaChatRequest::TYPE_DISCONNECT:
+        {
+            mClient->disconnect();
+//            .then([request, this]()
+//            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+//            })
+//            .fail([request, this](const promise::Error& e)
+//            {
+//                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+//                fireOnChatRequestFinish(request, megaChatError);
+//            });
 
             break;
         }
@@ -276,13 +268,22 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
         {
             int status = request->getNumber();
-            if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_CHATTY)
+            if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_BUSY)
             {
                 fireOnChatRequestFinish(request, new MegaChatErrorPrivate("Invalid online status", MegaChatError::ERROR_ARGS));
                 break;
             }
 
-            mClient->setPresence(request->getNumber(), true)
+            bool presenceType = karere::Client::kSetPresOverride;
+            if (status == MegaChatApi::STATUS_ONLINE)
+            {
+                // if setting to online, better to use dynamic in order to avoid sticky online that
+                // would be kept even when the user goes offline
+                mClient->setPresence(karere::Presence::kClear, karere::Client::kSetPresOverride);
+                presenceType = karere::Client::kSetPresDynamic;
+            }
+
+            mClient->setPresence(request->getNumber(), presenceType)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -583,7 +584,7 @@ void MegaChatApiImpl::sendPendingRequests()
             string strTitle(title, 30);
             request->setText(strTitle.c_str()); // update, in case it's been truncated
 
-            ((GroupChatRoom *)chatroom)->setTitle(strTitle)
+            ((GroupChatRoom *)chatroom)->setTitle(strTitle.c_str())
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -691,6 +692,28 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
         }
         loggerHandler->setMegaChatLogger(megaLogger);
     }
+}
+
+int MegaChatApiImpl::init(const char *sid)
+{
+    int ret;
+
+    sdkMutex.lock();
+    ret = MegaChatApiImpl::convertInitState(mClient->init(sid));
+    sdkMutex.unlock();
+
+    return ret;
+}
+
+int MegaChatApiImpl::getInitState()
+{
+    int initState;
+
+    sdkMutex.lock();
+    initState = MegaChatApiImpl::convertInitState(mClient->initState());
+    sdkMutex.unlock();
+
+    return initState;
 }
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
@@ -943,11 +966,6 @@ void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoom *chat)
         (*it)->onChatRoomUpdate(chatApi, chat);
     }
 
-    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
-    {
-        (*it)->onChatRoomUpdate(chatApi, chat);
-    }
-
     delete chat;
 }
 
@@ -991,16 +1009,32 @@ void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
     delete item;
 }
 
-void MegaChatApiImpl::init(MegaChatRequestListener *listener)
+void MegaChatApiImpl::fireOnChatInitStateUpdate(int newState)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_INITIALIZE, listener);
-    requestQueue.push(request);
-    waiter->notify();
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatInitStateUpdate(chatApi, newState);
+    }
+}
+
+void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(int status)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatOnlineStatusUpdate(chatApi, status);
+    }
 }
 
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISCONNECT, listener);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -1082,6 +1116,31 @@ char *MegaChatApiImpl::getUserEmail(MegaChatHandle userhandle)
     sdkMutex.unlock();
 
     return ret;
+}
+
+MegaChatHandle MegaChatApiImpl::getMyUserHandle()
+{
+    return mClient->myHandle();
+}
+
+char *MegaChatApiImpl::getMyFirstname()
+{
+    return MegaChatRoomPrivate::firstnameFromBuffer(mClient->myName());
+}
+
+char *MegaChatApiImpl::getMyLastname()
+{
+    return MegaChatRoomPrivate::firstnameFromBuffer(mClient->myName());
+}
+
+char *MegaChatApiImpl::getMyFullname()
+{
+    return MegaApi::strdup(mClient->myName().c_str());
+}
+
+char *MegaChatApiImpl::getMyEmail()
+{
+    return MegaApi::strdup(mClient->myEmail().c_str());
 }
 
 MegaChatRoomList *MegaChatApiImpl::getChatRooms()
@@ -1695,9 +1754,44 @@ void MegaChatApiImpl::notifyInvited(const ChatRoom &room)
     fireOnChatRoomUpdate(chat);
 }
 
-void MegaChatApiImpl::onTerminate()
+void MegaChatApiImpl::onInitStateChange(int newState)
 {
-    API_LOG_DEBUG("Karere is about to terminate (call onTerminate())");
+    API_LOG_DEBUG("Karere initialization state has changed: %d", newState);
+
+    int state = MegaChatApiImpl::convertInitState(newState);
+
+    // only notify meaningful state to the app
+    if (state >= MegaChatApi::INIT_ERROR &&
+            state <= MegaChatApi::INIT_ONLINE_SESSION)
+    {
+        fireOnChatInitStateUpdate(state);
+    }
+}
+
+int MegaChatApiImpl::convertInitState(int state)
+{
+    switch (state)
+    {
+    case karere::Client::kInitErrGeneric:
+    case karere::Client::kInitErrCorruptCache:
+    case karere::Client::kInitErrSidMismatch:
+        return MegaChatApi::INIT_ERROR;
+
+    case karere::Client::kInitErrNoCache:
+        return MegaChatApi::INIT_NO_CACHE;
+
+    case karere::Client::kInitWaitingNewSession:
+        return MegaChatApi::INIT_WAITING_NEW_SESSION;
+
+    case karere::Client::kInitHasOfflineSession:
+        return MegaChatApi::INIT_OFFLINE_SESSION;
+
+    case karere::Client::kInitHasOnlineSession:
+        return MegaChatApi::INIT_ONLINE_SESSION;
+
+    default:
+        return state;
+    }
 }
 
 IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &chat)
@@ -1768,53 +1862,6 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
     }
 }
 
-void MegaChatApiImpl::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
-{
-    if (e->getErrorCode() != MegaError::API_OK)
-    {
-        return;
-    }
-
-    switch (request->getType())
-    {
-        case MegaRequest::TYPE_LOGIN:
-            resumeSession = request->getSessionKey();
-            break;
-
-        case MegaRequest::TYPE_FETCH_NODES:
-            api->pauseActionPackets();
-            marshallCall([this, api]()
-            {
-                mClient->init(resumeSession);
-                if (mClient->hasInitError())
-                {
-                    initResult = new MegaChatErrorPrivate(mClient->initStateStr(),
-                        mClient->initState(), karere::Client::kInitErrorType);
-                    if (initRequest)
-                    {
-                        fireOnChatRequestFinish(initRequest, initResult);
-                        API_LOG_INFO("Initialization failed");
-                        initRequest = NULL;
-                        initResult = NULL;
-                    }
-                    api->resumeActionPackets();
-                }
-
-                initResult = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                if (initRequest)
-                {
-                    fireOnChatRequestFinish(initRequest, initResult);
-                    API_LOG_INFO("Initialization complete");
-                    fireOnChatRoomUpdate(NULL);
-                    initRequest = NULL;
-                    initResult = NULL;
-                }
-                api->resumeActionPackets();
-            });
-            break;
-    }
-}
-
 void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
 {
     if (inProgress)
@@ -1828,14 +1875,8 @@ void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
 
     this->status = pres.status();
 
-    // TODO: create specific callback to notify the own-presence changes
-
-//    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(MEGACHAT_INVALID_HANDLE);
-//    item->setOnlineStatus(status);
-
-//    API_LOG_INFO("My own presence has changed to %s (flags: %d)", pres.toString(), pres.flags());
-
-//    fireOnChatListItemUpdate(item);
+    fireOnChatOnlineStatusUpdate(status);
+    API_LOG_INFO("My own presence has changed to %s", pres.toString());
 }
 
 ChatRequestQueue::ChatRequestQueue()
@@ -1983,6 +2024,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_EDIT_CHATROOM_PIC: return "TYPE_EDIT_CHATROOM_PIC";
         case TYPE_GET_FIRSTNAME: return "TYPE_GET_FIRSTNAME";
         case TYPE_GET_LASTNAME: return "TYPE_GET_LASTNAME";
+        case TYPE_DISCONNECT: return "DISCONNECT";
 
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
@@ -2680,11 +2722,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 
             const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(it->second->name());
             this->peerFirstnames.push_back(buffer ? buffer : "");
-            delete buffer;
+            delete [] buffer;
 
             buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
             this->peerLastnames.push_back(buffer ? buffer : "");
-            delete buffer;
+            delete [] buffer;
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2699,11 +2741,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
 
         const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
         this->peerFirstnames.push_back(buffer ? buffer : "");
-        delete buffer;
+        delete [] buffer;
 
         buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
         this->peerLastnames.push_back(buffer ? buffer : "");
-        delete buffer;
+        delete [] buffer;
 
         this->status = chat.presence().status();
     }
@@ -2763,6 +2805,26 @@ const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhand
     return NULL;
 }
 
+const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhandle) const
+{
+    for (unsigned int i = 0; i < peers.size(); i++)
+    {
+        if (peers.at(i).first == userhandle)
+        {
+            string ret = peerFirstnames.at(i);
+            if (!peerFirstnames.at(i).empty() && !peerLastnames.at(i).empty())
+            {
+                ret.append(" ");
+            }
+            ret.append(peerLastnames.at(i));
+
+            return MegaApi::strdup(ret.c_str());
+        }
+    }
+
+    return NULL;
+}
+
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
 {
     if (i >= peers.size())
@@ -2806,6 +2868,23 @@ const char *MegaChatRoomPrivate::getPeerLastname(unsigned int i) const
     }
 
     return peerLastnames.at(i).c_str();
+}
+
+const char *MegaChatRoomPrivate::getPeerFullname(unsigned int i) const
+{
+    if (i >= peerLastnames.size() || i >= peerFirstnames.size())
+    {
+        return NULL;
+    }
+
+    string ret = peerFirstnames.at(i);
+    if (!peerFirstnames.at(i).empty() && !peerLastnames.at(i).empty())
+    {
+        ret.append(" ");
+    }
+    ret.append(peerLastnames.at(i));
+
+    return MegaApi::strdup(ret.c_str());
 }
 
 bool MegaChatRoomPrivate::isGroup() const
@@ -2888,12 +2967,12 @@ void MegaChatRoomPrivate::setClosed()
     this->changed |= MegaChatRoom::CHANGE_TYPE_CLOSED;
 }
 
-const char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
+char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
 {
     char *ret = NULL;
     int len = buffer.length() ? buffer.at(0) : 0;
 
-    if (len)
+    if (len > 0)
     {
         ret = new char[len + 1];
         strncpy(ret, buffer.data() + 1, len);
@@ -2903,17 +2982,24 @@ const char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
     return ret;
 }
 
-const char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
+char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
 {
     char *ret = NULL;
 
-    if (buffer.length())
+    if (buffer.length() && (int)buffer.length() >= buffer.at(0))
     {
         int lenLastname = buffer.length() - buffer.at(0) - 1;
         if (lenLastname)
         {
+            const char *start = buffer.data() + 1 + buffer.at(0);
+            if (buffer.at(0) != 0)
+            {
+                start++;    // there's a space separator
+                lenLastname--;
+            }
+
             ret = new char[lenLastname + 1];
-            strncpy(ret, buffer.data() + 1 + buffer.at(0), lenLastname);
+            strncpy(ret, start, lenLastname);
             ret[lenLastname] = '\0';
         }
     }
@@ -3192,6 +3278,11 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
     item->setMembersUpdated();
 
     chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatGroupListItemHandler::onPeerPresence(Presence pres)
+{
+    // apps don't show the presence of each peer individually
 }
 
 void MegaChatListItemHandler::onExcludedFromChat()

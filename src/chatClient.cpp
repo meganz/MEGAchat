@@ -235,6 +235,10 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     }
     else
     {
+        if (mInitState == kInitErrNoCache) //local karere cache not present or currupt, force sdk to do full fetchnodes
+        {
+            api.sdk.invalidateCache();
+        }
         return sdkLoginExistingSession(sid);
     }
 }
@@ -285,7 +289,7 @@ void Client::initWithDbSession(const char* sid)
         if (!openDb(sid))
         {
             assert(mSid.empty());
-            mInitState = kInitErrNoCache;
+            setInitState(kInitErrNoCache);
             return;
         }
         assert(db);
@@ -311,7 +315,7 @@ void Client::initWithDbSession(const char* sid)
     return;
 }
 
-void Client::setInitState(unsigned char newState)
+void Client::setInitState(InitState newState)
 {
     if (newState == mInitState)
         return;
@@ -320,7 +324,7 @@ void Client::setInitState(unsigned char newState)
     app.onInitStateChange(mInitState);
 }
 
-void Client::init(const char* sid)
+Client::InitState Client::init(const char* sid)
 {
     if (sid)
     {
@@ -328,7 +332,6 @@ void Client::init(const char* sid)
         if (mInitState == kInitErrNoCache)
         {
             wipeDb(sid);
-            setInitState(kInitWaitingNewSession);
         }
     }
     else
@@ -336,6 +339,7 @@ void Client::init(const char* sid)
         setInitState(kInitWaitingNewSession);
     }
     api.sdk.addRequestListener(this);
+    return mInitState;
 }
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
@@ -349,10 +353,12 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     {
         reqSid = s;
     }
-    marshallCall([this, type, reqSid]()
+    if (type == mega::MegaRequest::TYPE_FETCH_NODES)
     {
-        if (type == mega::MegaRequest::TYPE_FETCH_NODES)
+        api.sdk.pauseActionPackets();
+        marshallCall([this, reqSid]()
         {
+            api.sdk.removeRequestListener(this);
             auto sid = api.sdk.dumpSession();
             assert(sid);
             if (mInitState == kInitHasOfflineSession)
@@ -366,7 +372,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 loadContactListFromApi();
                 setInitState(kInitHasOnlineSession);
             }
-            else if (mInitState == kInitWaitingNewSession)
+            else if (mInitState == kInitWaitingNewSession || mInitState == kInitErrNoCache)
             {
                 initWithNewSession(sid)
                 .then([this]()
@@ -374,9 +380,9 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                     setInitState(kInitHasOnlineSession);
                 });
             }
-
-        }
-    });
+            api.sdk.resumeActionPackets();
+        });
+    }
 }
 
 //TODO: We should actually wipe the whole app dir, but the log file may
@@ -483,10 +489,10 @@ promise::Promise<void> Client::connect(Presence pres)
     return pms;
 }
 
-void Client::disconnect()
+promise::Promise<void> Client::disconnect()
 {
     if (!mConnected)
-        return;
+        return promise::_Void();
     assert(mHeartbeatTimer);
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
@@ -497,6 +503,7 @@ void Client::disconnect()
     chatd->disconnect();
     mPresencedClient.disconnect();
     mConnected = false;
+    return promise::_Void();
 }
 
 karere::Id Client::getMyHandleFromSdk()
@@ -621,7 +628,8 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
     presenced::IdRefMap peers;
     for (auto& contact: *contactList)
     {
-        peers.insert(contact.first);
+        if (contact.second->visibility() == ::mega::MegaUser::VISIBILITY_VISIBLE)
+            peers.insert(contact.first);
     }
     for (auto& chat: *chats)
     {
@@ -707,10 +715,10 @@ promise::Promise<void> Client::terminate(bool deleteDb)
 {
     if (mInitState == kInitTerminating)
     {
-        KR_LOG_WARNING("Client::terminate: Already terminating");
-        return promise::Promise<void>();
+        return promise::Error("Already terminating");
     }
     setInitState(kInitTerminating);
+    api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -718,24 +726,20 @@ promise::Promise<void> Client::terminate(bool deleteDb)
         rtc->hangupAll();
 #endif
 
-    disconnect();
-    if (deleteDb)
+    return disconnect()
+    .then([this, deleteDb]()
     {
-        wipeDb(mSid);
-    }
-    else
-    {
-        sqlite3_close(db);
-        db = nullptr;
-    }
-    promise::Promise<void> pms;
-    //resolve output promise asynchronously, because the callbacks of the output
-    //promise may free the client, and the resolve()-s of the input promises
-    //(mega and conn) are within the client's code, so any code after the resolve()s
-    //that tries to access the client will crash
-    setInitState(kInitTerminated);
-    marshallCall([pms]() mutable { pms.resolve(); });
-    return pms;
+        if (deleteDb)
+        {
+            wipeDb(mSid);
+        }
+        else
+        {
+            sqlite3_close(db);
+            db = nullptr;
+        }
+        setInitState(kInitTerminated);
+    });
 }
 
 promise::Promise<void> Client::setPresence(Presence pres, bool force)
@@ -1392,7 +1396,7 @@ void GroupChatRoom::makeTitleFromMemberNames()
     mTitleString.clear();
     if (mPeers.empty())
     {
-        mTitleString = "(alone in this chatroom)";
+        mTitleString = "(empty)";
     }
     else
     {
@@ -1935,16 +1939,19 @@ void Contact::onVisibilityChanged(int newVisibility)
     {
         mDisplay->onVisibilityChanged(newVisibility);
     }
-    if (mChatRoom)
+
+    auto& client = mClist.client;
+    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
     {
-        if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
-        {
+        client.presenced().removePeer(mUserid, true);
+        if (mChatRoom)
             mChatRoom->notifyExcludedFromChat();
-        }
-        else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
-        {
+    }
+    else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+    {
+        mClist.client.presenced().addPeer(mUserid);
+        if (mChatRoom)
             mChatRoom->notifyRejoinedChat();
-        }
     }
 }
 
@@ -1971,20 +1978,10 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         removeUser(erased);
     }
 }
+
 void ContactList::onUserAddRemove(mega::MegaUser& user)
 {
     addUserFromApi(user);
-}
-
-void ContactList::removeUser(uint64_t userid)
-{
-    auto it = find(userid);
-    if (it == end())
-    {
-        KR_LOG_ERROR("ContactList::removeUser: Unknown user");
-        return;
-    }
-    removeUser(it);
 }
 
 void ContactList::removeUser(iterator it)
@@ -2123,7 +2120,7 @@ Contact::~Contact()
 {
     auto& client = mClist.client;
     client.userAttrCache().removeCb(mUsernameAttrCbId);
-
+    // this is not normally needed, as we never delete contacts - just make them invisible
     if (client.initState() < Client::kInitTerminating)
     {
         client.presenced().removePeer(mUserid, true);
@@ -2169,6 +2166,35 @@ void Contact::attachChatRoom(PeerChatRoom& room)
             Id(mUserid).toString()+" already has a chat room attached");
     KR_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", Id(room.chatid()).toString().c_str(), Id(mUserid).toString().c_str());
     setChatRoom(room);
+}
+uint64_t Client::useridFromJid(const std::string& jid)
+{
+    auto end = jid.find('@');
+    if (end != 13)
+    {
+        KR_LOG_WARNING("useridFromJid: Invalid Mega JID '%s'", jid.c_str());
+        return mega::UNDEF;
+    }
+
+    uint64_t userid;
+#ifndef NDEBUG
+    auto len =
+#endif
+    mega::Base32::atob(jid.c_str(), (byte*)&userid, end);
+    assert(len == 8);
+    return userid;
+}
+
+Contact* ContactList::contactFromJid(const std::string& jid) const
+{
+    auto userid = Client::useridFromJid(jid);
+    if (userid == mega::UNDEF)
+        return nullptr;
+    auto it = find(userid);
+    if (it == this->end())
+        return nullptr;
+    else
+        return it->second;
 }
 
 void Client::onConnStateChange(presenced::Client::State state)
