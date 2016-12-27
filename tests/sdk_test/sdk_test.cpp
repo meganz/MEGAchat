@@ -298,7 +298,6 @@ void MegaChatApiTest::TEST_resumeSession()
     delete [] tmpSession;   tmpSession = NULL;
 
     // ___ Resume an existing session without karere cache ___
-
     // logout from SDK keeping cache
     bool *flag = &requestFlags[0][MegaRequest::TYPE_LOGOUT]; *flag = false;
     megaApi[0]->localLogout();
@@ -328,18 +327,56 @@ void MegaChatApiTest::TEST_resumeSession()
     assert(!lastError[0]);
     assert(waitForResponse(flagInit));
     assert(initState[0] == MegaChatApi::INIT_ONLINE_SESSION);
-
+    // check there's a list of chats already available
     MegaChatListItemList *list = megaChatApi[0]->getChatListItems();
     assert(list->size());
+    delete list; list = NULL;
+
 
     // ___ Close session ___
     logout(0, true);
     delete [] session; session = NULL;
 
 
-    // ___ Create a new session ___
+    // ___ Create a new session from scratch with existing MegaApi/MegaChatApi ___
     session = login(0);
     assert(session);
+    logout(0, true);
+    delete [] session; session = NULL;
+
+
+    // ___ Enable chat from disabled
+    // login in SDK
+    flag = &requestFlags[0][MegaRequest::TYPE_LOGIN]; *flag = false;
+    megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    session = megaApi[0]->dumpSession();
+    // fetchnodes in SDK
+    flag = &requestFlags[0][MegaRequest::TYPE_FETCH_NODES]; *flag = false;
+    megaApi[0]->fetchNodes();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    // init in Karere
+    cout << "sid: " << session << endl;
+    assert(megaChatApi[0]->init(session) == MegaChatApi::INIT_NO_CACHE);
+    // full-fetchndoes in SDK to regenerate cache in Karere
+    flagInit = &initStateChanged[0]; *flagInit = false;
+    flag = &requestFlags[0][MegaRequest::TYPE_FETCH_NODES]; *flag = false;
+    megaApi[0]->fetchNodes();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    assert(waitForResponse(flagInit));
+    assert(initState[0] == MegaChatApi::INIT_ONLINE_SESSION);
+    // connect in Karere
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
+    megaChatApi[0]->connect();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    // check there's a list of chats already available
+    list = megaChatApi[0]->getChatListItems();
+    assert(list->size());
+    delete list; list = NULL;
     logout(0, true);
     delete [] session; session = NULL;
 }
