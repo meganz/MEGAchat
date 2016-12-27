@@ -1390,7 +1390,9 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to clear the entire history of a chat
      *
-     * The latest message gets overridden with a management message.
+     * The latest message gets overridden with a management message. You can expect a call to
+     * \c MegaChatRoomListener::onMessageUpdate where the message will have no content and it
+     * will be of type \c MegaChatMessage::TYPE_TRUNCATE
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
