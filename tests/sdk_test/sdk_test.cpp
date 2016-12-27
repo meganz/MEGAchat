@@ -772,7 +772,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     megaChatApi[0]->sendTypingNotification(chatid);
     assert(waitForResponse(flagTyping1));
     assert(waitForResponse(flagTyping2));
-    assert(uhAction[1] == peers->getPeerHandle(0));
+    assert(uhAction[1] == peer->getHandle());
 
 
     // --> Send a message and wait for reception by target user
