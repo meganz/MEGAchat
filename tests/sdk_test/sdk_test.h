@@ -96,6 +96,7 @@ public:
     void TEST_editAndDeleteMessages();
     void TEST_groupChatManagement();
     void TEST_offlineMode();
+    void TEST_clearHistory();
 
 private:
     std::string email[NUM_ACCOUNTS];
@@ -181,6 +182,7 @@ public:
 
     MegaChatMessage *message;
     MegaChatHandle msgId[NUM_ACCOUNTS];
+    int msgCount[NUM_ACCOUNTS];
     MegaChatHandle uhAction[NUM_ACCOUNTS];
     int priv[NUM_ACCOUNTS];
     std::string content[NUM_ACCOUNTS];
