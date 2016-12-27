@@ -764,6 +764,17 @@ void MegaChatApiTest::TEST_groupChatManagement()
     megaChatApi[1]->loadMessages(chatid, 16);
     assert(waitForResponse(flag));
 
+
+    // --> Send typing notification
+    bool *flagTyping1 = &chatroomListener->userTyping[0]; *flagTyping1 = false;
+    bool *flagTyping2 = &chatroomListener->userTyping[1]; *flagTyping2 = false;
+    uhAction = &chatroomListener->uhAction[1]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    megaChatApi[0]->sendTypingNotification(chatid);
+    assert(waitForResponse(flagTyping1));
+    assert(waitForResponse(flagTyping2));
+    assert(uhAction[1] == peers->getPeerHandle(0));
+
+
     // --> Send a message and wait for reception by target user
     string msg0 = "HOLA " + email[0] + " - Testing groupchats";
     bool *msgConfirmed = &chatroomListener->msgConfirmed[0]; *msgConfirmed = false;
@@ -1018,6 +1029,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApi **apis, MegaChatHandle ch
         this->msgEdited[i] = false;
         this->msgId[i] = MEGACHAT_INVALID_HANDLE;
         this->chatUpdated[i] = false;
+        this->userTyping[i] = false;
     }
 }
 
@@ -1043,6 +1055,12 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
         cout << "[api: " << apiIndex << "] Initialization completed!" << endl;
         return;
     }
+    if (chat && chat->hasChanged(MegaChatRoom::CHANGE_TYPE_USER_TYPING))
+    {
+        uhAction[apiIndex] = chat->getUserTyping();
+        userTyping[apiIndex] = true;
+    }
+
     cout << "[api: " << apiIndex << "] Chat updated - ";
     MegaChatApiTest::printChatRoomInfo(chat);
     chatUpdated[apiIndex] = chat->getChatId();

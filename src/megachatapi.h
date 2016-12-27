@@ -1608,6 +1608,17 @@ public:
      */
     void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempId);
 
+    /**
+     * @brief Send a notification to the chatroom that the user is typing
+     *
+     * Everybody in the chatroom will receive a notification via
+     * \c MegaChatRoomListener::onChatRoomUpdate with the change type
+     * \c MegaChatRoom::CHANGE_TYPE_USER_TYPING. \see MegaChatRoom::getUserTyping.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    void sendTypingNotification(MegaChatHandle chatid);
+
     // Audio/Video device management
     mega::MegaStringList *getChatAudioInDevices();
     mega::MegaStringList *getChatVideoInDevices();
@@ -2062,7 +2073,6 @@ public:
     virtual int getUnreadCount() const;
 
     /**
-     * TODO: this feature is still not implemented. Ticket on Redmine: #5595
      * @brief Returns the handle of the user who is typing a message in the chatroom
      *
      * Normally the app should have a timer that is reset each time a typing

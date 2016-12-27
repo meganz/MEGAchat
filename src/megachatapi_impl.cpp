@@ -1527,6 +1527,19 @@ void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle 
     sdkMutex.unlock();
 }
 
+void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid)
+{
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        chatroom->sendTypingNotification();
+    }
+
+    sdkMutex.unlock();
+}
+
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
     return NULL;
