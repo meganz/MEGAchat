@@ -889,6 +889,19 @@ public:
     static void setLogLevel(int logLevel);
 
     /**
+     * @brief Enable the usage of colouring for logging in the console
+     *
+     * Karere library uses ANSI escape codes to color messages in the log when they
+     * are printed in a terminal. However, sometimes the terminal doesn't support those
+     * codes, resulting on weird characters at the beggining of each line.
+     *
+     * By default, colors are disabled.
+     *
+     * @param useColors True to enable them, false to disable.
+     */
+    static void setLogWithColors(bool useColors);
+
+    /**
      * @brief Initializes karere
      *
      * If a session id is provided, karere will try to resume the session from cache.

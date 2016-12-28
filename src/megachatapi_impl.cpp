@@ -670,11 +670,19 @@ void MegaChatApiImpl::sendPendingEvents()
 
 void MegaChatApiImpl::setLogLevel(int logLevel)
 {
-    if(!loggerHandler)
+    if (!loggerHandler)
     {
         loggerHandler = new LoggerHandler();
     }
     loggerHandler->setLogLevel(logLevel);
+}
+
+void MegaChatApiImpl::setLogWithColors(bool useColors)
+{
+    if (loggerHandler)
+    {
+        loggerHandler->setLogWithColors(useColors);
+    }
 }
 
 void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
@@ -686,7 +694,7 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
     }
     else
     {
-        if(!loggerHandler)
+        if (!loggerHandler)
         {
             loggerHandler = new LoggerHandler();
         }
@@ -3509,6 +3517,11 @@ void LoggerHandler::setMegaChatLogger(MegaChatLogger *logger)
 void LoggerHandler::setLogLevel(int logLevel)
 {
     this->maxLogLevel = logLevel;
+}
+
+void LoggerHandler::setLogWithColors(bool useColors)
+{
+    gLogger.logToConsoleUseColors(useColors);
 }
 
 void LoggerHandler::log(krLogLevel level, const char *msg, size_t len, unsigned flags)
