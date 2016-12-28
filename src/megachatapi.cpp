@@ -88,6 +88,11 @@ void MegaChatApi::setLogLevel(int logLevel)
     MegaChatApiImpl::setLogLevel(logLevel);
 }
 
+void MegaChatApi::setLogWithColors(bool useColors)
+{
+    MegaChatApiImpl::setLogWithColors(useColors);
+}
+
 int MegaChatApi::init(const char *sid)
 {
     return pImpl->init(sid);

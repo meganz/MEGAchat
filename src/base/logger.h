@@ -101,6 +101,7 @@ public:
     KarereLogChannel logChannels[krLogChannelCount];
     void setTimestampFmt(const char* fmt) {mTimeFmt = fmt;}
     void logToConsole(bool enable=true);
+    void logToConsoleUseColors(bool useColors);
     void logToFile(const char* fileName, size_t rotateSize);
     void setAutoFlush(bool enable=true);
     Logger(unsigned flags = 0, const char* timeFmt="%m-%d %H:%M:%S");
