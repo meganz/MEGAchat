@@ -15,15 +15,16 @@ protected:
     Logger& mLogger; //we want reference to the logger because we may want to set up error/warning colors there
     bool mStdoutIsAtty;
     bool mStderrIsAtty;
+    bool mUseColors;
 public:
-    ConsoleLogger(Logger& logger)
-    : mLogger(logger), mStdoutIsAtty(isatty(1)), mStderrIsAtty(isatty(2))
+    ConsoleLogger(Logger& logger, bool useColors = true)
+    : mLogger(logger), mStdoutIsAtty(isatty(1)), mStderrIsAtty(isatty(2)), mUseColors(useColors)
     {}
     void logString(unsigned level, const char* msg, unsigned flags)
     {
         if (level == krLogLevelError)
         {
-            if (mStderrIsAtty)
+            if (mStderrIsAtty && mUseColors)
                 fprintf(stderr, "\033[1;31m%s%s", msg, "\033[0m");
             else
                 fputs(msg, stderr);
@@ -33,7 +34,7 @@ public:
         }
         else if (level == krLogLevelWarn)
         {
-            if (mStderrIsAtty)
+            if (mStderrIsAtty && mUseColors)
                 fprintf(stderr, "\033[1;33m%s\033[0m", msg);
             else
                 fputs(msg, stderr);
@@ -43,7 +44,7 @@ public:
         }
         else //get color from flags
         {
-            if (mStdoutIsAtty)
+            if (mStdoutIsAtty && mUseColors)
                 printf("%s%s\033[0m", stdoutColorSelect(flags), msg);
             else
                 fputs(msg, stdout);
@@ -51,6 +52,11 @@ public:
         if ((flags & krLogNoAutoFlush) == 0)
             fflush(stdout);
     }
+    void setUseColors(bool useColors)
+    {
+        this->mUseColors = useColors;
+    }
+
     const char* stdoutColorSelect(unsigned flags)
     {
         static const char* colorEscapes[krLogColorMask+1] =

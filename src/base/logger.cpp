@@ -60,6 +60,14 @@ void Logger::logToConsole(bool enable)
     }
 }
 
+void Logger::logToConsoleUseColors(bool useColors)
+{
+    if (mConsoleLogger)
+    {
+        mConsoleLogger->setUseColors(useColors);
+    }
+}
+
 void Logger::logToFile(const char* fileName, size_t rotateSizeKb)
 {
     if (!fileName) //disable
