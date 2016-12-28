@@ -212,17 +212,17 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_DISCONNECT:
         {
-            mClient->disconnect();
-//            .then([request, this]()
-//            {
+            mClient->disconnect()
+            .then([request, this]()
+            {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
-//            })
-//            .fail([request, this](const promise::Error& e)
-//            {
-//                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-//                fireOnChatRequestFinish(request, megaChatError);
-//            });
+            })
+            .fail([request, this](const promise::Error& e)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
 
             break;
         }

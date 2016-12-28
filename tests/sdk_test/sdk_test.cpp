@@ -25,9 +25,11 @@ int main(int argc, char **argv)
     t.TEST_getChatRoomsAndMessages();
     t.TEST_editAndDeleteMessages();
     t.TEST_groupChatManagement();
+    t.TEST_clearHistory();
 
-    // Create a group chat
-    /*  - Establish contact relationship: invite, accept
+    t.terminate();
+
+        /*  - Establish contact relationship: invite, accept
      *  - Create group chat
      *  - Invite the contact
      *  - Update permissions of peer
@@ -41,8 +43,6 @@ int main(int argc, char **argv)
      *  - Attach node
      *  - Attach contact
      */
-
-    t.terminate();
 
     return 0;
 }
@@ -377,6 +377,22 @@ void MegaChatApiTest::TEST_resumeSession()
     list = megaChatApi[0]->getChatListItems();
     assert(list->size());
     delete list; list = NULL;
+
+
+    // ___ Disconnect from chat server and reconnect ___
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_DISCONNECT]; *flag = false;
+    megaChatApi[0]->disconnect();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    // reconnect
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
+    megaChatApi[0]->connect();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    // check there's a list of chats already available
+    list = megaChatApi[0]->getChatListItems();
+    assert(list->size());
+
     logout(0, true);
     delete [] session; session = NULL;
 }
