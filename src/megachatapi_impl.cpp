@@ -3492,6 +3492,8 @@ LoggerHandler::LoggerHandler()
     this->megaLogger = NULL;
 
     gLogger.addUserLogger("MegaChatApi", this);
+    gLogger.setFlags(gLogger.flags() | !krLogColorMask);
+    gLogger.logChannels[krLogChannel_megasdk].logLevel = krLogLevelDebugVerbose;
 }
 
 LoggerHandler::~LoggerHandler()
