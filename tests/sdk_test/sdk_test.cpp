@@ -291,11 +291,23 @@ void MegaChatApiTest::TEST_resumeSession()
     // ___ Create a new session ___
     char *session = login(0);
 
+    char *myEmail = megaChatApi[0]->getMyEmail();
+    assert(myEmail);
+    assert(string(myEmail) == this->email[0]);
+    cout << "My email is: " << myEmail << endl;
+    delete [] myEmail; myEmail = NULL;
+
     // ___ Resume an existing session ___
     logout(0, false); // keeps session alive
     char *tmpSession = login(0, session);
     assert (!strcmp(session, tmpSession));
     delete [] tmpSession;   tmpSession = NULL;
+
+    myEmail = megaChatApi[0]->getMyEmail();
+    assert(myEmail);
+    assert(string(myEmail) == this->email[0]);
+    cout << "My email is: " << myEmail << endl;
+    delete [] myEmail; myEmail = NULL;
 
     // ___ Resume an existing session without karere cache ___
     // logout from SDK keeping cache

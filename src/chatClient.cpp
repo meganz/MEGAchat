@@ -263,6 +263,9 @@ promise::Promise<void> Client::initWithNewSession(const char* sid)
     mMyHandle = getMyHandleFromSdk();
     sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
 
+    mMyEmail = getMyEmailFromSdk();
+    sqliteQuery(db, "insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
+
     mUserAttrCache.reset(new UserAttrCache(*this));
 
     return loadOwnKeysFromApi()
@@ -298,6 +301,8 @@ void Client::initWithDbSession(const char* sid)
 
         mMyHandle = getMyHandleFromDb();
         assert(mMyHandle);
+
+        mMyEmail = getMyEmailFromDb();
 
         loadOwnKeysFromDb();
         contactList->loadFromDb();
@@ -516,6 +521,28 @@ karere::Id Client::getMyHandleFromSdk()
     if (result == Id::null() || result.val == ::mega::UNDEF)
         throw std::runtime_error("Own handle returned by the SDK is NULL");
     return result;
+}
+
+std::string Client::getMyEmailFromDb()
+{
+    SqliteStmt stmt(db, "select value from vars where name='my_email'");
+    if (!stmt.step())
+        throw std::runtime_error("No own email in database");
+
+    std::string email = stmt.stringCol(0);
+
+    if (email.empty() || email.length() == 1)
+        throw std::runtime_error("loadOwnEmailFromDb: Own email in db is invalid");
+    return email;
+}
+
+std::string Client::getMyEmailFromSdk()
+{
+    SdkString myEmail = api.sdk.getMyEmail();
+    if (!myEmail.c_str() || !myEmail.c_str()[0])
+        throw std::runtime_error("Could not get our own email from API");
+    KR_LOG_INFO("Our email address is %s", myEmail.c_str());
+    return myEmail.c_str();
 }
 
 karere::Id Client::getMyHandleFromDb()

@@ -746,6 +746,8 @@ protected:
     void connectToChatd();
     karere::Id getMyHandleFromDb();
     karere::Id getMyHandleFromSdk();
+    std::string getMyEmailFromDb();
+    std::string getMyEmailFromSdk();
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
     void loadContactListFromApi();
