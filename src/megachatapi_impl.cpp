@@ -1130,12 +1130,12 @@ char *MegaChatApiImpl::getMyFirstname()
 
 char *MegaChatApiImpl::getMyLastname()
 {
-    return MegaChatRoomPrivate::firstnameFromBuffer(mClient->myName());
+    return MegaChatRoomPrivate::lastnameFromBuffer(mClient->myName());
 }
 
 char *MegaChatApiImpl::getMyFullname()
 {
-    return MegaApi::strdup(mClient->myName().c_str());
+    return MegaApi::strdup(mClient->myName().substr(1).c_str());
 }
 
 char *MegaChatApiImpl::getMyEmail()
