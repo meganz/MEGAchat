@@ -696,7 +696,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 READ_ID(userid, 8);
-                READ_8(bcastType, 0);
+                READ_8(bcastType, 16);
                 auto& chat = mClient.chats(chatid);
                 chat.handleBroadcast(userid, bcastType);
                 break;
@@ -2206,7 +2206,7 @@ Message* Chat::lastMessage() const
 
 void Chat::sendTypingNotification()
 {
-    sendCommand(Command(OP_BROADCAST)+(uint8_t)Command::kBroadcastUserTyping);
+    sendCommand(Command(OP_BROADCAST) + mChatId + mClient.mUserId +(uint8_t)Command::kBroadcastUserTyping);
 }
 
 void Chat::handleBroadcast(karere::Id from, uint8_t type)

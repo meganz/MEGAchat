@@ -766,13 +766,11 @@ void MegaChatApiTest::TEST_groupChatManagement()
 
 
     // --> Send typing notification
-    bool *flagTyping1 = &chatroomListener->userTyping[0]; *flagTyping1 = false;
-    bool *flagTyping2 = &chatroomListener->userTyping[1]; *flagTyping2 = false;
+    bool *flagTyping1 = &chatroomListener->userTyping[1]; *flagTyping1 = false;
     uhAction = &chatroomListener->uhAction[1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     megaChatApi[0]->sendTypingNotification(chatid);
     assert(waitForResponse(flagTyping1));
-    assert(waitForResponse(flagTyping2));
-    assert(uhAction[1] == peer->getHandle());
+    assert(*uhAction == megaChatApi[0]->getMyUserHandle());
 
 
     // --> Send a message and wait for reception by target user
