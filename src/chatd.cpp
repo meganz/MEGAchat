@@ -2206,7 +2206,7 @@ Message* Chat::lastMessage() const
 
 void Chat::sendTypingNotification()
 {
-    sendCommand(Command(OP_BROADCAST) + mChatId + mClient.mUserId +(uint8_t)Command::kBroadcastUserTyping);
+    sendCommand(Command(OP_BROADCAST) + mChatId + karere::Id::null() +(uint8_t)Command::kBroadcastUserTyping);
 }
 
 void Chat::handleBroadcast(karere::Id from, uint8_t type)
