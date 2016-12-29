@@ -98,7 +98,7 @@ class MyMegaLogger: public ::mega::MegaLogger
             krLogLevelError, krLogLevelError, krLogLevelWarn,
             krLogLevelInfo, krLogLevelDebug, krLogLevelDebugVerbose
         };
-        KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s", message);
+        KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s (%s)", message, source ? source : "");
     }
 };
 
