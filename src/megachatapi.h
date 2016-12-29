@@ -1613,7 +1613,7 @@ public:
     /**
      * @brief Send a notification to the chatroom that the user is typing
      *
-     * Everybody in the chatroom will receive a notification via
+     * Other peers in the chatroom will receive a notification via
      * \c MegaChatRoomListener::onChatRoomUpdate with the change type
      * \c MegaChatRoom::CHANGE_TYPE_USER_TYPING. \see MegaChatRoom::getUserTyping.
      *
@@ -1847,7 +1847,7 @@ public:
         CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
         CHANGE_TYPE_TITLE           = 0x08,
         CHANGE_TYPE_CHAT_STATE      = 0x10,
-        CHANGE_TYPE_USER_TYPING     = 0X20,
+        CHANGE_TYPE_USER_TYPING     = 0X20, /// User is typing. \see MegaChatRoom::getUserTyping()
         CHANGE_TYPE_CLOSED          = 0X40  /// The chatroom has been left by own user
     };
 
