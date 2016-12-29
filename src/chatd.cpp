@@ -692,6 +692,15 @@ void Connection::execCommand(const StaticBuffer& buf)
                 sendBuf(Command(OP_KEEPALIVE));
                 break;
             }
+            case OP_BROADCAST:
+            {
+                READ_CHATID(0);
+                READ_ID(userid, 8);
+                READ_8(bcastType, 16);
+                auto& chat = mClient.chats(chatid);
+                chat.handleBroadcast(userid, bcastType);
+                break;
+            }
             case OP_JOIN:
             {
                 READ_CHATID(0);
@@ -2193,6 +2202,17 @@ Message* Chat::lastMessage() const
     if (empty())
         return nullptr;
     return &at(highnum());
+}
+
+void Chat::sendTypingNotification()
+{
+    sendCommand(Command(OP_BROADCAST) + mChatId + karere::Id::null() +(uint8_t)Command::kBroadcastUserTyping);
+}
+
+void Chat::handleBroadcast(karere::Id from, uint8_t type)
+{
+    if (type == Command::kBroadcastUserTyping)
+        CALL_LISTENER(onUserTyping, from);
 }
 
 void Client::leave(Id chatid)

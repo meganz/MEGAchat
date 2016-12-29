@@ -308,6 +308,11 @@ void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle temp
     pImpl->removeUnsentMessage(chatid, tempId);
 }
 
+void MegaChatApi::sendTypingNotification(MegaChatHandle chatid)
+{
+    pImpl->sendTypingNotification(chatid);
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();
