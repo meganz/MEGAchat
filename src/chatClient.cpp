@@ -331,6 +331,8 @@ void Client::setInitState(InitState newState)
 
 Client::InitState Client::init(const char* sid)
 {
+    if (mInitState > kInitCreated)
+        return kInitErrAlready;
     if (sid)
     {
         initWithDbSession(sid);

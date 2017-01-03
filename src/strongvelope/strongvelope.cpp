@@ -294,8 +294,8 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_EXC_PARTICIPANT:
             {
-            if (target || privilege != PRIV_INVALID)
-                throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
+                if (target || privilege != PRIV_INVALID)
+                    throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
                 privilege = chatd::PRIV_NOTPRESENT;
                 target = record.read<uint64_t>();
                 break;

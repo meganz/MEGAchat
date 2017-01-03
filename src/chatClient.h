@@ -560,7 +560,10 @@ public:
         /** The session given to init() was different than the session with which
          * the SDK was initialized
          */
-        kInitErrSidMismatch
+        kInitErrSidMismatch,
+
+        /** init() has already been called on that client instance */
+        kInitErrAlready
     };
 
     sqlite3* db = nullptr;
