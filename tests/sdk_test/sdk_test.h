@@ -187,6 +187,7 @@ public:
     int priv[NUM_ACCOUNTS];
     std::string content[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
+    bool userTyping[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     virtual void onChatRoomUpdate(MegaChatApi* megaChatApi, MegaChatRoom *chat);

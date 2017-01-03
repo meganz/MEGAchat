@@ -276,7 +276,6 @@ public:
 
     // karere::IApp::IChatHandler implementation
     virtual karere::IApp::ICallHandler* callHandler();
-    virtual void onUserTyping(karere::Id user);
     virtual void onMemberNameChanged(uint64_t userid, const std::string &newName);
     //virtual void* userp();
 
@@ -309,6 +308,7 @@ public:
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
     //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
+    virtual void onUserTyping(karere::Id user);
 
 
 protected:
@@ -726,6 +726,7 @@ public:
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
     void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempid);
+    void sendTypingNotification(MegaChatHandle chatid);
 
     // Audio/Video devices
     mega::MegaStringList *getChatAudioInDevices();
