@@ -1077,12 +1077,12 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
                 break;
 
             case MegaChatRequest::TYPE_GET_FIRSTNAME:
-                chatFirstname = request->getText();
+                chatFirstname = request->getText() ? request->getText() : "";
                 chatNameReceived[apiIndex] = true;
                 break;
 
             case MegaChatRequest::TYPE_GET_LASTNAME:
-                chatLastname = request->getText();
+                chatLastname = request->getText() ? request->getText() : "";
                 chatNameReceived[apiIndex] = true;
                 break;
         }
@@ -1358,11 +1358,11 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
             case MegaRequest::TYPE_GET_ATTR_USER:
                 if (request->getParamType() ==  MegaApi::USER_ATTR_FIRSTNAME)
                 {
-                    firstname = request->getText();
+                    firstname = request->getText() ? request->getText() : "";
                 }
                 else if (request->getParamType() == MegaApi::USER_ATTR_LASTNAME)
                 {
-                    lastname = request->getText();
+                    lastname = request->getText() ? request->getText() : "";
                 }
                 nameReceived[apiIndex] = true;
                 break;
