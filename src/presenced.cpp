@@ -118,10 +118,16 @@ void Client::pushPeers()
 void Client::websockConnectCb(ws_t ws, void* arg)
 {
     Client& self = *static_cast<Client*>(arg);
+    auto wptr = self.getDelTracker();
     ASSERT_NOT_ANOTHER_WS("connect");
-    assert(!self.mConnectPromise.done());
-    self.setConnState(kStateConnected);
-    self.mConnectPromise.resolve();
+    marshallCall([&self, wptr]()
+    {
+        if (wptr.deleted())
+            return;
+        assert(!self.mConnectPromise.done());
+        self.setConnState(kStateConnected);
+        self.mConnectPromise.resolve();
+    });
 }
 
 void Client::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preason,
