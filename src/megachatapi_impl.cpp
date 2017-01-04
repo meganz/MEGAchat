@@ -1796,6 +1796,7 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitErrGeneric:
     case karere::Client::kInitErrCorruptCache:
     case karere::Client::kInitErrSidMismatch:
+    case karere::Client::kInitErrAlready:
         return MegaChatApi::INIT_ERROR;
 
     case karere::Client::kInitErrNoCache:
@@ -1810,6 +1811,9 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitHasOnlineSession:
         return MegaChatApi::INIT_ONLINE_SESSION;
 
+    case karere::Client::kInitCreated:
+    case karere::Client::kInitTerminating:
+    case karere::Client::kInitTerminated:
     default:
         return state;
     }
