@@ -868,10 +868,13 @@ void PeerChatRoom::initWithChatd()
 
 void PeerChatRoom::connect()
 {
+    auto wptr = weakHandle();
     updateUrl()
-    .then([this]()
+    .then([wptr, this]()
     {
-        mChat->connect();
+        if (wptr.deleted())
+            return;
+        mChat->connect(mUrl);
     });
 }
 
@@ -935,7 +938,7 @@ void GroupChatRoom::connect()
     .then([wptr, this]()
     {
         wptr.throwIfDeleted();
-        mChat->connect();
+        mChat->connect(mUrl);
         decryptTitle();
     });
 }
