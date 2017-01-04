@@ -2723,6 +2723,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->unreadCount = chat->getUnreadCount();
     this->status = chat->getOnlineStatus();
     this->changed = chat->getChanges();
+    this->uh = chat->getUserTyping();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
@@ -2734,6 +2735,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     this->title = chat.titleString();
     this->chatState = chat.chatdOnlineState();
     this->unreadCount = chat.chat().unreadMsgCount();
+    this->uh = MEGACHAT_INVALID_HANDLE;
 
     if (group)
     {
