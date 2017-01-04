@@ -1686,13 +1686,6 @@ void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::
     }
 }
 
-void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg)
-{
-    auto display = roomGui();
-    if (display)
-        display->onUnreadCountChanged(mChat->unreadMsgCount());
-}
-
 //chatd notification
 void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
@@ -1756,6 +1749,13 @@ void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
     updateAllOnlineDisplays((state == chatd::kChatStateOnline)
         ? Presence::kOnline
         : Presence::kOffline);
+}
+
+void GroupChatRoom::onUnreadChanged()
+{
+    auto count = mChat->unreadMsgCount();
+    if (mRoomGui)
+        mRoomGui->onUnreadCountChanged(count);
 }
 
 bool GroupChatRoom::syncMembers(const UserPrivMap& users)

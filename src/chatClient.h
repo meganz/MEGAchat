@@ -166,9 +166,7 @@ public:
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
     virtual void onRecvHistoryMessage(chatd::Idx, chatd::Message&, chatd::Message::Status, bool isLocal);
-    virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message &msg);
     virtual void onExcludedFromRoom() {}
-//  virtual void onHistoryTruncated();
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
     {
         KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, userid %s]: %s",
@@ -310,6 +308,8 @@ public:
     void onUserJoin(Id userid, chatd::Priv priv);
     void onUserLeave(Id userid);
     void onOnlineStateChange(chatd::ChatState);
+    void onUnreadChanged();
+//====
     /** @endcond PRIVATE */
 
     /** @brief Returns the map of the users in the chatroom, except our own user */
