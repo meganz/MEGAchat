@@ -795,7 +795,7 @@ protected:
     template <bool mustBeInSending=false>
     void rejectGeneric(uint8_t opcode);
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
-    void handleTruncate(const Message& msg, Idx idx);
+    void handleTruncate(const Message& msg, Idx idx, bool wasTruncate);
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(Message& msg);
     void verifyMsgOrder(const Message& msg, Idx idx);

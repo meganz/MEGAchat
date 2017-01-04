@@ -1734,10 +1734,12 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         //update in memory, if loaded
         auto msgit = mIdToIndexMap.find(msg->id());
         Idx idx;
+        uint8_t prevType;
         if (msgit != mIdToIndexMap.end())
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
+            prevType = histmsg.type;
             histmsg.takeFrom(std::move(*msg));
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
@@ -1747,11 +1749,12 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         else
         {
             idx = CHATD_IDX_INVALID;
+            prevType = Message::kMsgInvalid;
         }
 
         if (msg->type == Message::kMsgTruncate)
         {
-            handleTruncate(*msg, idx);
+            handleTruncate(*msg, idx, prevType == Message::kMsgTruncate);
         }
     })
     .fail([this, cipherMsg](const promise::Error& err)
@@ -1760,7 +1763,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             ID_CSTR(cipherMsg->id()), err.what());
     });
 }
-void Chat::handleTruncate(const Message& msg, Idx idx)
+void Chat::handleTruncate(const Message& msg, Idx idx, bool wasTruncate)
 {
 // chatd may re-send a MSGUPD at login, if there are no newer messages in the
 // chat. We have to be prepared to handle this, i.e. handleTruncate() must
@@ -1774,14 +1777,10 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 // To avoid this, we have to detect the replay. But if we detect it, we can actually
 // avoid the whole replay (even the idempotent part), and just bail out.
 
-    if (idx != CHATD_IDX_INVALID)
+    if (wasTruncate)
     {
-        auto last = highnum();
-        if (idx == last && at(last).type == Message::kMsgTruncate)
-        {
-            CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
-            return;
-        }
+        CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
+        return;
     }
 
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s", ID_CSTR(msg.id()));
