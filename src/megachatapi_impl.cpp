@@ -1796,6 +1796,7 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitErrGeneric:
     case karere::Client::kInitErrCorruptCache:
     case karere::Client::kInitErrSidMismatch:
+    case karere::Client::kInitErrAlready:
         return MegaChatApi::INIT_ERROR;
 
     case karere::Client::kInitErrNoCache:
@@ -1810,6 +1811,9 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitHasOnlineSession:
         return MegaChatApi::INIT_ONLINE_SESSION;
 
+    case karere::Client::kInitCreated:
+    case karere::Client::kInitTerminating:
+    case karere::Client::kInitTerminated:
     default:
         return state;
     }
@@ -2719,6 +2723,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->unreadCount = chat->getUnreadCount();
     this->status = chat->getOnlineStatus();
     this->changed = chat->getChanges();
+    this->uh = chat->getUserTyping();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
@@ -2730,6 +2735,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     this->title = chat.titleString();
     this->chatState = chat.chatdOnlineState();
     this->unreadCount = chat.chat().unreadMsgCount();
+    this->uh = MEGACHAT_INVALID_HANDLE;
 
     if (group)
     {
