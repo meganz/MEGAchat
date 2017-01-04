@@ -1754,7 +1754,14 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
         if (msg->type == Message::kMsgTruncate)
         {
-            handleTruncate(*msg, idx, prevType == Message::kMsgTruncate);
+            if (prevType != Message::kMsgTruncate)
+            {
+                handleTruncate(*msg, idx);
+            }
+            else
+            {
+                CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
+            }
         }
     })
     .fail([this, cipherMsg](const promise::Error& err)
@@ -1763,7 +1770,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             ID_CSTR(cipherMsg->id()), err.what());
     });
 }
-void Chat::handleTruncate(const Message& msg, Idx idx, bool wasTruncate)
+void Chat::handleTruncate(const Message& msg, Idx idx)
 {
 // chatd may re-send a MSGUPD at login, if there are no newer messages in the
 // chat. We have to be prepared to handle this, i.e. handleTruncate() must
@@ -1776,12 +1783,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx, bool wasTruncate)
 // the client connects, until someoone posts a new message in the chat.
 // To avoid this, we have to detect the replay. But if we detect it, we can actually
 // avoid the whole replay (even the idempotent part), and just bail out.
-
-    if (wasTruncate)
-    {
-        CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
-        return;
-    }
 
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s", ID_CSTR(msg.id()));
     CALL_DB(truncateHistory, msg);
