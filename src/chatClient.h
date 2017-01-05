@@ -246,7 +246,9 @@ public:
         uint64_t mHandle;
         chatd::Priv mPriv;
         UserAttrCache::Handle mNameAttrCbHandle;
+        UserAttrCache::Handle mEmailAttrCbHandle;
         std::string mName;
+        std::string mEmail;
         Presence mPresence;
         void subscribeForNameChanges();
     public:
@@ -256,8 +258,14 @@ public:
         /** @brief The current display name of the member */
         const std::string& name() const { return mName; }
 
-        /** @brief The current provilege of the member within the groupchat */
+        /** @brief The user's email. This is obtainable even if the user is not
+         * in our contactlist
+         */
+        const std::string& email() const { return mEmail; }
+
+        /** @brief The current privilege of the member within the groupchat */
         chatd::Priv priv() const { return mPriv; }
+
         /** @brief The presence of the peer */
         Presence presence() const { return mPresence; }
         friend class GroupChatRoom;

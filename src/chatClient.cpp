@@ -1898,11 +1898,22 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
             self->mRoom.makeTitleFromMemberNames();
         }
     });
+    mEmailAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(
+        user, USER_ATTR_EMAIL, this,
+        [](Buffer* buf, void* userp)
+    {
+        auto self = static_cast<Member*>(userp);
+        if (buf && !buf->empty())
+        {
+            self->mEmail.assign(buf->buf(), buf->dataSize());
+        }
+    });
 }
 
 GroupChatRoom::Member::~Member()
 {
     mRoom.parent.client.userAttrCache().removeCb(mNameAttrCbHandle);
+    mRoom.parent.client.userAttrCache().removeCb(mEmailAttrCbHandle);
 }
 
 void Client::connectToChatd()
