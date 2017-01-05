@@ -123,7 +123,8 @@ void ChatWindow::createMembersMenu(QMenu& menu)
     }
     for (auto& item: room.peers())
     {
-        auto entry = menu.addMenu(QString::fromStdString(item.second->name()));
+        auto& name = item.second->name();
+        auto entry = menu.addMenu(QString::fromUtf8(name.c_str()+1, name.size()-1));
         if (room.ownPriv() == chatd::PRIV_OPER)
         {
             auto actRemove = entry->addAction(tr("Remove from chat"));
@@ -470,7 +471,7 @@ MessageWidget& MessageWidget::setAuthor(karere::Id userid)
         if (!data || data->empty())
             return;
         auto self = static_cast<MessageWidget*>(userp);
-        self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf(), data->dataSize()));
+        self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1, data->dataSize()-1));
     });
     return *this;
 }
