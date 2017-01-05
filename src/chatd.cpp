@@ -1441,9 +1441,22 @@ bool Chat::setMessageSeen(Id msgid)
 int Chat::unreadMsgCount() const
 {
     if (mLastSeenIdx == CHATD_IDX_INVALID)
-        return -mDbInterface->getPeerMsgCountAfterIdx(CHATD_IDX_INVALID);
+    {
+        Message* msg;
+        if (!empty() && ((msg = newest())->type == Message::kMsgTruncate))
+        {
+            assert(size() == 1);
+            return (msg->userid != client().userId()) ? 1 : 0;
+        }
+        else
+        {
+            return -mDbInterface->getPeerMsgCountAfterIdx(CHATD_IDX_INVALID);
+        }
+    }
     else if (mLastSeenIdx < lownum())
+    {
         return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
+    }
 
     Idx first = mLastSeenIdx+1;
     unsigned count = 0;
