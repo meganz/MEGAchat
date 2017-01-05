@@ -98,7 +98,22 @@ class MyMegaLogger: public ::mega::MegaLogger
             krLogLevelError, krLogLevelError, krLogLevelWarn,
             krLogLevelInfo, krLogLevelDebug, krLogLevelDebugVerbose
         };
-        KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s (%s)", message, source ? source : "");
+        std::string sourceFile;
+        if (source)
+        {
+            std::string tmp = std::string(source);
+            size_t start = tmp.rfind('/');
+            if (start == std::string::npos)
+            {
+                start = tmp.rfind('\\');
+            }
+
+            if (start != std::string::npos)
+            {
+                sourceFile = "(" + tmp.substr(start+1) + ")";
+            }
+        }
+        KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s %s", message, sourceFile.c_str());
     }
 };
 

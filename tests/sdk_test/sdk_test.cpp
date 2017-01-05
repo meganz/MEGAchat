@@ -992,16 +992,17 @@ void MegaChatApiTest::TEST_clearHistory()
     assert(!lastErrorChat[0]);
     waitForResponse(fTruncated0);
     waitForResponse(fTruncated1);
-//    assert(waitForResponse(chatItemUpdated0));    Redmine ticket: #5925
-//    assert(waitForResponse(chatItemUpdated1));    Redmine ticket: #5925
-//    ___ Redmine ticket: #5925 ___
-//    MegaChatListItem *item0 = megaChatApi[0]->getChatListItem(chatid);
-//    assert(item0->getUnreadCount() == 1);
-//    assert(item0->getLastMessage()->getContent() == NULL);
-//    delete item0; item0 = NULL;
-//    MegaChatListItem *item1 = megaChatApi[1]->getChatListItem(chatid);
-//    assert(item1->getUnreadCount() == 1);
-//    assert(item1->getLastMessage()->getContent() == NULL);
+    assert(waitForResponse(chatItemUpdated0));
+    assert(waitForResponse(chatItemUpdated1));
+
+    MegaChatListItem *item0 = megaChatApi[0]->getChatListItem(chatid);
+    assert(item0->getUnreadCount() == 0);
+    assert(item0->getLastMessage()->getContent() == NULL);
+    delete item0; item0 = NULL;
+    MegaChatListItem *item1 = megaChatApi[1]->getChatListItem(chatid);
+//    assert(item1->getUnreadCount() == 1); // Redmine ticket: #5925
+    assert(item1->getLastMessage()->getContent() == NULL);
+    delete item1; item1 = NULL;
 
     // Close and re-open chatrooms
     megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
@@ -1016,12 +1017,12 @@ void MegaChatApiTest::TEST_clearHistory()
     count = &chatroomListener->msgCount[0]; *count = 0;
     megaChatApi[0]->loadMessages(chatid, 16);
     assert(waitForResponse(flag));
-//    assert(*count == 1);  Redmine ticket: #5927
+    assert(*count == 1);
     flag = &chatroomListener->historyLoaded[1]; *flag = false;
     count = &chatroomListener->msgCount[1]; *count = 0;
     megaChatApi[1]->loadMessages(chatid, 16);
     assert(waitForResponse(flag));
-//    assert(*count == 1);  Redmine ticket: #5927
+    assert(*count == 1);
 
     // Close the chatrooms
     megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
