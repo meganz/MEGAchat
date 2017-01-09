@@ -456,12 +456,20 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
                 assert(!lastErrorChat[0]);
                 cout << "Peer lastname (" << uh << "): " << chatLastname << " (len: " << chatLastname.length() << ")" << endl;
 
-                char *email = megaChatApi[0]->getUserEmail(uh);
+                char *email = megaChatApi[0]->getContactEmail(uh);
                 if (email)
                 {
-                    cout << "Peer email (" << uh << "): " << email << " (len: " << strlen(email) << ")" << endl;
+                    cout << "Contact email (" << uh << "): " << email << " (len: " << strlen(email) << ")" << endl;
+                    delete [] email;
                 }
-                delete [] email;
+                else
+                {
+                    flag = &chatNameReceived[0]; *flag = false; chatEmail = "";
+                    megaChatApi[0]->getUserEmail(uh);
+                    assert(waitForResponse(flag));
+                    assert(!lastErrorChat[0]);
+                    cout << "Peer email (" << uh << "): " << chatEmail << " (len: " << chatEmail.length() << ")" << endl;
+                }
             }
         }
 
