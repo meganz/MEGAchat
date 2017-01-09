@@ -694,7 +694,8 @@ public:
     int getUserOnlineStatus(MegaChatHandle userhandle);
     void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
-    char *getUserEmail(MegaChatHandle userhandle);
+    void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+    char *getContactEmail(MegaChatHandle userhandle);
     MegaChatHandle getMyUserHandle();
     char *getMyFirstname();
     char *getMyLastname();

@@ -114,7 +114,7 @@ private:
     std::string firstname, lastname;
     bool nameReceived[NUM_ACCOUNTS];
 
-    std::string chatFirstname, chatLastname; // requested via karere
+    std::string chatFirstname, chatLastname, chatEmail; // requested via karere
     bool chatNameReceived[NUM_ACCOUNTS];
 
 //    MegaContactRequest* cr[2];

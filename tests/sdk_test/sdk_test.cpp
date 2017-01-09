@@ -1082,10 +1082,15 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
                 chatNameReceived[apiIndex] = true;
                 break;
 
-            case MegaChatRequest::TYPE_GET_LASTNAME:
-                chatLastname = request->getText() ? request->getText() : "";
-                chatNameReceived[apiIndex] = true;
-                break;
+        case MegaChatRequest::TYPE_GET_LASTNAME:
+            chatLastname = request->getText() ? request->getText() : "";
+            chatNameReceived[apiIndex] = true;
+            break;
+
+        case MegaChatRequest::TYPE_GET_EMAIL:
+            chatEmail = request->getText() ? request->getText() : "";
+            chatNameReceived[apiIndex] = true;
+            break;
         }
     }
 
