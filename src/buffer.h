@@ -63,30 +63,16 @@ public:
         return mBuf+offset;
     }
     template <class T>
-    T read(size_t offset) const
+    T& read(size_t offset) const
     {
-#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
-        T val;
-        memcpy(&val, readPtr(offset, sizeof(T)), sizeof(T));
-        return val;
-#else
         return *((T*)(readPtr(offset, sizeof(T))));
-#endif
     }
     template <class T>
     void read(size_t offset, std::vector<T>& output, int count)
     {
         T* end = (T*)(mBuf+offset+count*sizeof(T));
         for (T* pitem = (T*)(mBuf+offset); pitem < end; pitem++)
-        {
-            T val;
-#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
-            memcpy(&val, pitem, sizeof(T));
-#else
-            val = *pitem;
-#endif
-            output.push_back(val);
-        }
+            output.push_back(*pitem);
     }
     template <class T>
     void read(size_t offset, std::vector<T>& output)
