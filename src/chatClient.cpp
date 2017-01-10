@@ -758,7 +758,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     return disconnect()
     .then([this, deleteDb]()
     {
-        if (deleteDb)
+        if (deleteDb && !mSid.empty())
         {
             wipeDb(mSid);
         }
