@@ -431,9 +431,17 @@ void ParsedMessage::parsePayload(const StaticBuffer &data, Message &msg)
     size_t binsize = 10+refsSize;
     if (data.dataSize() < binsize)
         throw std::runtime_error("parsePayload: Payload size "+std::to_string(data.dataSize())+" is less than size of backrefs "+std::to_string(binsize)+"\nMessage:"+data.toString());
-    uint64_t* end = (uint64_t*)(data.buf()+binsize);
-    for (uint64_t* prefid = (uint64_t*)(data.buf()+10); prefid < end; prefid++)
-        msg.backRefs.push_back(*prefid);
+    char* end = data.buf() + binsize;
+    for (char* prefid = data.buf() + 10; prefid < end; prefid += sizeof(uint64_t))
+    {
+        uint64_t val;
+#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
+        memcpy(&val, prefid, sizeof(uint64_t));
+#else
+        val = *((uin64_t*)prefid);
+#endif
+        msg.backRefs.push_back(val);
+    }
     if (data.dataSize() > binsize)
     {
         msg.assign(data.buf()+binsize, data.dataSize()-binsize);
@@ -1099,14 +1107,26 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg)
     karere::Id receiver;
     if (sender == mProtoHandler.ownHandle())
     {   //any version is ok, pick the first
-        receiver = *(uint64_t*)(pos);
+         uint64_t val;
+#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
+         memcpy(&val, pos, sizeof(uint64_t));
+#else
+         val = *(uint64_t*)pos;
+#endif
+        receiver = val;
         pos += 10; //userid.8+keylen.2
     }
     else
     {
         while (pos < end)
         {
-            receiver = *(uint64_t*)(pos);
+             uint64_t val;
+#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
+             memcpy(&val, pos, sizeof(uint64_t));
+#else
+             val = *(uint64_t*)pos;
+#endif
+            receiver = val;
             pos+=8;
             uint16_t keylen = *(uint16_t*)(pos);
             pos+=2;

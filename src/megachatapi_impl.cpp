@@ -641,6 +641,26 @@ void MegaChatApiImpl::sendPendingRequests()
                 fireOnChatRequestFinish(request, megaChatError);
             });
             break;
+        }
+        case MegaChatRequest::TYPE_GET_EMAIL:
+        {
+            MegaChatHandle uh = request->getUserHandle();
+
+            mClient->userAttrCache().getAttr(uh, karere::USER_ATTR_EMAIL)
+            .then([request, this](Buffer *data)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                string email = string(data->buf(), data->dataSize());
+                request->setText(email.c_str());
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                API_LOG_ERROR("Error getting user email: %s", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
             break;
         }
         default:
@@ -1109,7 +1129,15 @@ void MegaChatApiImpl::getUserLastname(MegaChatHandle userhandle, MegaChatRequest
     waiter->notify();
 }
 
-char *MegaChatApiImpl::getUserEmail(MegaChatHandle userhandle)
+void MegaChatApiImpl::getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_EMAIL, listener);
+    request->setUserHandle(userhandle);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+char *MegaChatApiImpl::getContactEmail(MegaChatHandle userhandle)
 {
     char *ret = NULL;
 
@@ -2046,9 +2074,10 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_UPDATE_PEER_PERMISSIONS: return "UPDATE_PEER_PERMISSIONS";
         case TYPE_TRUNCATE_HISTORY: return "TRUNCATE_HISTORY";
         case TYPE_EDIT_CHATROOM_NAME: return "EDIT_CHATROOM_NAME";
-        case TYPE_EDIT_CHATROOM_PIC: return "TYPE_EDIT_CHATROOM_PIC";
-        case TYPE_GET_FIRSTNAME: return "TYPE_GET_FIRSTNAME";
-        case TYPE_GET_LASTNAME: return "TYPE_GET_LASTNAME";
+        case TYPE_EDIT_CHATROOM_PIC: return "EDIT_CHATROOM_PIC";
+        case TYPE_GET_FIRSTNAME: return "GET_FIRSTNAME";
+        case TYPE_GET_LASTNAME: return "GET_LASTNAME";
+        case TYPE_GET_EMAIL: return "GET_EMAIL";
         case TYPE_DISCONNECT: return "DISCONNECT";
 
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";

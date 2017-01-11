@@ -153,9 +153,14 @@ void MegaChatApi::getUserLastname(MegaChatHandle userhandle, MegaChatRequestList
     pImpl->getUserLastname(userhandle, listener);
 }
 
-char *MegaChatApi::getUserEmail(MegaChatHandle userhandle)
+void MegaChatApi::getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener)
 {
-    return pImpl->getUserEmail(userhandle);
+    pImpl->getUserEmail(userhandle, listener);
+}
+
+char *MegaChatApi::getContactEmail(MegaChatHandle userhandle)
+{
+    return pImpl->getContactEmail(userhandle);
 }
 
 MegaChatHandle MegaChatApi::getMyUserHandle()

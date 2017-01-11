@@ -481,7 +481,7 @@ public:
         TYPE_TRUNCATE_HISTORY,
         TYPE_SHARE_CONTACT,
         TYPE_GET_FIRSTNAME, TYPE_GET_LASTNAME,
-        TYPE_DISCONNECT,
+        TYPE_DISCONNECT, TYPE_GET_EMAIL,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1091,7 +1091,31 @@ public:
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Returns the current email address of the user
+     * @brief Returns the current email address of the contact
+     *
+     * This function is useful to get the email address of users you are NOT contact with.
+     * Note that for any other user without contact relationship, this function will return NULL.
+     *
+     * You take the ownership of the returned value
+     *
+     * This function is useful to get the email address of users who participate in a groupchat with
+     * you but are not your contacts.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_EMAIL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the email address of the user
+     *
+     * @param userhandle Handle of the user whose name is requested.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns the current email address of the contact
      *
      * This function is useful to get the email address of users you are contact with and users
      * you were contact with in the past and later on the contact relationship was broken.
@@ -1102,7 +1126,7 @@ public:
      * @param userhandle Handle of the user whose name is requested.
      * @return The email address of the contact, or NULL if not found.
      */
-    char *getUserEmail(MegaChatHandle userhandle);
+    char *getContactEmail(MegaChatHandle userhandle);
 
     /**
      * @brief Returns the handle of the logged in user.

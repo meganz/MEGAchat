@@ -358,6 +358,15 @@ void MegaChatApiTest::TEST_resumeSession()
 
 
     // ___ Enable chat from disabled
+    // fully disable chat: remove logger + delete MegaChatApi instance
+//    megaChatApi[0]->setLoggerObject(NULL);     Redmine ticket: #6006
+    delete megaChatApi[0];
+    // create a new MegaChatApi instance
+    MegaChatApi::setLoggerObject(chatLogger);
+    megaChatApi[0] = new MegaChatApi(megaApi[0]);
+    megaChatApi[0]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
+    megaChatApi[0]->addChatRequestListener(this);
+    megaChatApi[0]->addChatListener(this);
     // login in SDK
     flag = &requestFlags[0][MegaRequest::TYPE_LOGIN]; *flag = false;
     megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
@@ -456,12 +465,20 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
                 assert(!lastErrorChat[0]);
                 cout << "Peer lastname (" << uh << "): " << chatLastname << " (len: " << chatLastname.length() << ")" << endl;
 
-                char *email = megaChatApi[0]->getUserEmail(uh);
+                char *email = megaChatApi[0]->getContactEmail(uh);
                 if (email)
                 {
-                    cout << "Peer email (" << uh << "): " << email << " (len: " << strlen(email) << ")" << endl;
+                    cout << "Contact email (" << uh << "): " << email << " (len: " << strlen(email) << ")" << endl;
+                    delete [] email;
                 }
-                delete [] email;
+                else
+                {
+                    flag = &chatNameReceived[0]; *flag = false; chatEmail = "";
+                    megaChatApi[0]->getUserEmail(uh);
+                    assert(waitForResponse(flag));
+                    assert(!lastErrorChat[0]);
+                    cout << "Peer email (" << uh << "): " << chatEmail << " (len: " << chatEmail.length() << ")" << endl;
+                }
             }
         }
 
@@ -1082,10 +1099,15 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
                 chatNameReceived[apiIndex] = true;
                 break;
 
-            case MegaChatRequest::TYPE_GET_LASTNAME:
-                chatLastname = request->getText() ? request->getText() : "";
-                chatNameReceived[apiIndex] = true;
-                break;
+        case MegaChatRequest::TYPE_GET_LASTNAME:
+            chatLastname = request->getText() ? request->getText() : "";
+            chatNameReceived[apiIndex] = true;
+            break;
+
+        case MegaChatRequest::TYPE_GET_EMAIL:
+            chatEmail = request->getText() ? request->getText() : "";
+            chatNameReceived[apiIndex] = true;
+            break;
         }
     }
 
