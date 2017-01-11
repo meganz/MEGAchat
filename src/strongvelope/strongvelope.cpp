@@ -434,13 +434,7 @@ void ParsedMessage::parsePayload(const StaticBuffer &data, Message &msg)
     char* end = data.buf() + binsize;
     for (char* prefid = data.buf() + 10; prefid < end; prefid += sizeof(uint64_t))
     {
-        uint64_t val;
-#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
-        memcpy(&val, prefid, sizeof(uint64_t));
-#else
-        val = *((uin64_t*)prefid);
-#endif
-        msg.backRefs.push_back(val);
+        msg.backRefs.push_back(Buffer::alignSafeRead<uint64_t>(prefid));
     }
     if (data.dataSize() > binsize)
     {
@@ -1106,27 +1100,15 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg)
     const char* end = encryptedKey.buf()+encryptedKey.dataSize();
     karere::Id receiver;
     if (sender == mProtoHandler.ownHandle())
-    {   //any version is ok, pick the first
-         uint64_t val;
-#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
-         memcpy(&val, pos, sizeof(uint64_t));
-#else
-         val = *(uint64_t*)pos;
-#endif
-        receiver = val;
+    {   //any version of the encrypted key is ok, pick the first
+        receiver = Buffer::alignSafeRead<uint64_t>(pos);
         pos += 10; //userid.8+keylen.2
     }
     else
-    {
+    { //pick the version that is encrypted for us
         while (pos < end)
         {
-             uint64_t val;
-#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
-             memcpy(&val, pos, sizeof(uint64_t));
-#else
-             val = *(uint64_t*)pos;
-#endif
-            receiver = val;
+            receiver = Buffer::alignSafeRead<uint64_t>(pos);
             pos+=8;
             uint16_t keylen = *(uint16_t*)(pos);
             pos+=2;

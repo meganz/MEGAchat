@@ -71,7 +71,7 @@ public:
         return alignSafeRead<T>(readPtr(offset, sizeof(T)));
     }
     template <typename T>
-    static T alignSafeRead(void* ptr)
+    static T alignSafeRead(const void* ptr)
     {
 #ifndef BUFFER_ALLOW_UNALIGNED_MEMORY_ACCESS
         T val;
