@@ -110,7 +110,19 @@ public:
     void log(const char* prefix, krLogLevel level, unsigned flags,
                 const char* fmtString, ...);
     std::shared_ptr<LogBuffer> loadLog();
+
+    /** @brief Registers a user logger with the specified tag.
+     * If a logger with that tag does not already exist, the function returns
+     * \c nullptr. If one already exists, the new one replaces it, and the old one
+     * is returned.
+     */
     ILoggerBackend *addUserLogger(const char* tag, ILoggerBackend* logger);
+
+    /** @brief Unregisters the user logger with the specified tag, and returns the
+     * instance. The user is responsible for freeing it.
+     * \note If a user logger is never unregistered, it will be deleted by the
+     * Logger upon its destruction
+     */
     ILoggerBackend* removeUserLogger(const char* tag);
     ~Logger();
     struct LogBuffer
