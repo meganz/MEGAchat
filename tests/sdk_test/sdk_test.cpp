@@ -358,6 +358,15 @@ void MegaChatApiTest::TEST_resumeSession()
 
 
     // ___ Enable chat from disabled
+    // fully disable chat: remove logger + delete MegaChatApi instance
+//    megaChatApi[0]->setLoggerObject(NULL);     Redmine ticket: #6006
+    delete megaChatApi[0];
+    // create a new MegaChatApi instance
+    MegaChatApi::setLoggerObject(chatLogger);
+    megaChatApi[0] = new MegaChatApi(megaApi[0]);
+    megaChatApi[0]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
+    megaChatApi[0]->addChatRequestListener(this);
+    megaChatApi[0]->addChatListener(this);
     // login in SDK
     flag = &requestFlags[0][MegaRequest::TYPE_LOGIN]; *flag = false;
     megaApi[0]->login(email[0].c_str(), pwd[0].c_str());
