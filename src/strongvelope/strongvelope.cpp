@@ -903,7 +903,7 @@ void ProtocolHandler::onKeyReceived(uint32_t keyid, Id sender, Id receiver,
     STRONGVELOPE_LOG_DEBUG("onKeyReceived: Created a key entry with promise for key %d of user %s", keyid, sender.toString().c_str());
     if (entry.pms)
     {
-        STRONGVELOPE_LOG_WARNING("Key % from user %s is already being decrypted", keyid, sender.toString().c_str());
+        STRONGVELOPE_LOG_WARNING("Key %d from user %s is already being decrypted", keyid, sender.toString().c_str());
         return;
     }
     auto wptr = weakHandle();
