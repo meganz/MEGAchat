@@ -431,9 +431,16 @@ void ParsedMessage::parsePayload(const StaticBuffer &data, Message &msg)
     size_t binsize = 10+refsSize;
     if (data.dataSize() < binsize)
         throw std::runtime_error("parsePayload: Payload size "+std::to_string(data.dataSize())+" is less than size of backrefs "+std::to_string(binsize)+"\nMessage:"+data.toString());
-    for (size_t offset = 10; offset < binsize; offset += sizeof(uint64_t))
+    char* end = data.buf() + binsize;
+    for (char* prefid = data.buf() + 10; prefid < end; prefid += sizeof(uint64_t))
     {
-        msg.backRefs.push_back(data.read<uint64_t>(offset));
+        uint64_t val;
+#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
+        memcpy(&val, prefid, sizeof(uint64_t));
+#else
+        val = *((uin64_t*)prefid);
+#endif
+        msg.backRefs.push_back(val);
     }
     if (data.dataSize() > binsize)
     {
@@ -1095,34 +1102,46 @@ promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTitle(chatd::Message* msg)
 {
     msg->userid = sender;
-    size_t pos = 0;
+    const char* pos = encryptedKey.buf();
+    const char* end = encryptedKey.buf()+encryptedKey.dataSize();
     karere::Id receiver;
     if (sender == mProtoHandler.ownHandle())
-    {   //any encrypted version of the key is ok, pick the first
-        receiver = encryptedKey.read<uint64_t>(pos);
+    {   //any version is ok, pick the first
+         uint64_t val;
+#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
+         memcpy(&val, pos, sizeof(uint64_t));
+#else
+         val = *(uint64_t*)pos;
+#endif
+        receiver = val;
         pos += 10; //userid.8+keylen.2
     }
     else
-    { //find the version that is for us
-        while (pos < encryptedKey.dataSize())
+    {
+        while (pos < end)
         {
-            receiver = encryptedKey.read<uint64_t>(pos);
+             uint64_t val;
+#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
+             memcpy(&val, pos, sizeof(uint64_t));
+#else
+             val = *(uint64_t*)pos;
+#endif
+            receiver = val;
             pos+=8;
-            uint16_t keylen = encryptedKey.read<uint16_t>(pos);
+            uint16_t keylen = *(uint16_t*)(pos);
             pos+=2;
             if (receiver == mProtoHandler.ownHandle())
                 break;
             pos+=keylen;
         }
 
-        if (pos >= encryptedKey.dataSize())
+        if (pos >= end)
             throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
     }
-    if (encryptedKey.dataSize()-pos < 16)
-        throw std::runtime_error("Unexpected key entry length - must be 16 bytes, but is "
-         +std::to_string(encryptedKey.dataSize())+" bytes");
+    if (end-pos < 16)
+        throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
     auto buf = std::make_shared<Buffer>(16);
-    buf->assign(encryptedKey.buf()+pos, 16);
+    buf->assign(pos, 16);
     auto wptr = weakHandle();
     return mProtoHandler.decryptKey(buf, sender, receiver)
     .then([this, wptr, msg](const std::shared_ptr<SendKey>& key)
