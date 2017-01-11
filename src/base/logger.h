@@ -89,13 +89,14 @@ protected:
     /** This is the low-level log function that does the actual logging
      *  of an assembled single string */
     void logString(krLogLevel level, const char* msg, unsigned flags, size_t len=(size_t)-1);
-    std::map<std::string, std::shared_ptr<ILoggerBackend> > mUserLoggers;
+    std::map<std::string, ILoggerBackend*> mUserLoggers;
 public:
-    std::mutex mMutex;
+    std::recursive_mutex mMutex;
+    typedef std::lock_guard<std::recursive_mutex> LockGuard;
     volatile unsigned flags() const { return mFlags;}
     void setFlags(unsigned flags)
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::lock_guard<std::recursive_mutex> lock(mMutex);
         mFlags = flags;
     }
     KarereLogChannel logChannels[krLogChannelCount];
@@ -109,8 +110,8 @@ public:
     void log(const char* prefix, krLogLevel level, unsigned flags,
                 const char* fmtString, ...);
     std::shared_ptr<LogBuffer> loadLog();
-    void addUserLogger(const char* tag, ILoggerBackend* logger);
-    bool removeUserLogger(const char* tag);
+    ILoggerBackend *addUserLogger(const char* tag, ILoggerBackend* logger);
+    ILoggerBackend* removeUserLogger(const char* tag);
     ~Logger();
     struct LogBuffer
     {
