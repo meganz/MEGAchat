@@ -56,16 +56,9 @@ struct SetOfIds: public std::set<karere::Id>
     {
         assert(buf.dataSize() % 8 == 0);
         clear();
-        const char* last = buf.buf() + buf.dataSize();
-        for (const char* pos = buf.buf(); pos < last; pos += sizeof(uint64_t))
+        for (size_t pos = 0; pos < buf.dataSize(); pos += sizeof(uint64_t))
         {
-            uint64_t val;
-#ifndef ALLOW_UNALIGNED_MEMORY_ACCESS
-            memcpy(&val, pos, sizeof(uint64_t));
-#else
-            val = *((uint64_t*)pos);
-#endif
-            emplace(val);
+            emplace(buf.read<uint64_t>(pos));
         }
     }
     bool has(Id id) { return find(id) != end(); }
