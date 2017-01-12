@@ -1883,9 +1883,8 @@ public:
         CHANGE_TYPE_UNREAD_COUNT    = 0x02,
         CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
         CHANGE_TYPE_TITLE           = 0x08,
-        CHANGE_TYPE_CHAT_STATE      = 0x10,
-        CHANGE_TYPE_USER_TYPING     = 0X20, /// User is typing. \see MegaChatRoom::getUserTyping()
-        CHANGE_TYPE_CLOSED          = 0X40  /// The chatroom has been left by own user
+        CHANGE_TYPE_USER_TYPING     = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_CLOSED          = 0X20, /// The chatroom has been left by own user
     };
 
     enum {
@@ -1896,19 +1895,10 @@ public:
         PRIV_MODERATOR  = 3
     };
 
-    //  (status of connection with chatd server)
-    enum {
-        STATE_OFFLINE      = 0,
-        STATE_CONNECTING   = 1,
-        STATE_JOINING      = 2,
-        STATE_ONLINE       = 3
-    };
-
     virtual ~MegaChatRoom() {}
     virtual MegaChatRoom *copy() const;
 
     static const char *privToString(int);
-    static const char *stateToString(int);
     static const char *statusToString(int status);
 
     /**
@@ -2052,26 +2042,6 @@ public:
      * @return The title of the chat as a null-terminated char array.
      */
     virtual const char *getTitle() const;
-
-    /**
-     * @brief Returns the chatroom connection (to the chatd server shard) state
-     *
-     * It can be one of the following values:
-     * - STATE_OFFLINE = 0
-     * It is not connected
-     *
-     * - STATE_CONNECTING = 1
-     * The connection is in progress
-     *
-     * - STATE_JOINING = 2
-     * The connection is alive, joining the chatroom.
-     *
-     * - STATE_ONLINE = 3
-     * The connected is alive and properly joined to the chatroom.
-     *
-     * @return State of the connection to the chatd server shard
-     */
-    virtual int getOnlineState() const;
 
     /**
      * @brief Returns the online status of the chatroom

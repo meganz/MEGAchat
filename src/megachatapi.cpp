@@ -524,18 +524,6 @@ const char *MegaChatRoom::privToString(int priv)
     }
 }
 
-const char *MegaChatRoom::stateToString(int status)
-{
-    switch (status)
-    {
-    case STATE_OFFLINE: return "offline";
-    case STATE_CONNECTING: return "connecting";
-    case STATE_JOINING: return "joining";
-    case STATE_ONLINE:return "online";
-    default: return "unknown state";
-    }
-}
-
 const char *MegaChatRoom::statusToString(int status)
 {
     switch (status)
@@ -616,11 +604,6 @@ bool MegaChatRoom::isGroup() const
 const char *MegaChatRoom::getTitle() const
 {
     return NULL;
-}
-
-int MegaChatRoom::getOnlineState() const
-{
-    return MegaChatRoom::STATE_OFFLINE;
 }
 
 int MegaChatRoom::getChanges() const

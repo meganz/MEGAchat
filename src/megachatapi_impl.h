@@ -421,7 +421,6 @@ public:
     virtual const char *getPeerFullname(unsigned int i) const;
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
-    virtual int getOnlineState() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -434,7 +433,6 @@ public:
     void setUnreadCount(int count);
     void setOnlineStatus(int status);
     void setMembersUpdated();
-    void setOnlineState(int state);
     void setUserTyping(MegaChatHandle uh);
     void setClosed();
 
@@ -451,7 +449,6 @@ private:
     std::string title;
     int unreadCount;
     int status;
-    int chatState;
     MegaChatHandle uh;
 
 public:

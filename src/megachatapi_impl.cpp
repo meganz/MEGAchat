@@ -2545,17 +2545,9 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, bool oriIsConfirmed
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
+void MegaChatRoomHandler::onOnlineStateChange(ChatState)
 {
-    if (mRoom)
-    {
-        // forward the event to the chatroom, so chatlist items also receive the notification
-        mRoom->onOnlineStateChange(state);
-
-        MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-        chatroom->setOnlineState(state);
-        chatApi->fireOnChatRoomUpdate(chatroom);
-    }
+    // apps not interested about this event
 }
 
 void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
@@ -2748,7 +2740,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     }
     this->group = chat->isGroup();
     this->title = chat->getTitle();
-    this->chatState = chat->getOnlineState();
     this->unreadCount = chat->getUnreadCount();
     this->status = chat->getOnlineStatus();
     this->changed = chat->getChanges();
@@ -2762,7 +2753,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
     this->priv = chat.ownPriv();
     this->group = chat.isGroup();
     this->title = chat.titleString();
-    this->chatState = chat.chatdOnlineState();
     this->unreadCount = chat.chat().unreadMsgCount();
     this->uh = MEGACHAT_INVALID_HANDLE;
 
@@ -2953,11 +2943,6 @@ const char *MegaChatRoomPrivate::getTitle() const
     return title.c_str();
 }
 
-int MegaChatRoomPrivate::getOnlineState() const
-{
-    return chatState;
-}
-
 int MegaChatRoomPrivate::getChanges() const
 {
     return changed;
@@ -3004,12 +2989,6 @@ void MegaChatRoomPrivate::setOnlineStatus(int status)
 void MegaChatRoomPrivate::setMembersUpdated()
 {
     this->changed |= MegaChatRoom::CHANGE_TYPE_PARTICIPANTS;
-}
-
-void MegaChatRoomPrivate::setOnlineState(int state)
-{
-    this->chatState = state;
-    this->changed |= MegaChatRoom::CHANGE_TYPE_CHAT_STATE;
 }
 
 void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
