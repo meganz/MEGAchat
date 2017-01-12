@@ -644,8 +644,8 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
  */
 void MegaChatApiTest::TEST_groupChatManagement()
 {
-    login(0);
-    login(1);
+    char *session0 = login(0);
+    char *session1 = login(1);
 
     // Prepare peers, privileges...
     MegaUser *peer = megaApi[0]->getContact(email[1].c_str());
@@ -784,7 +784,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(!strcmp(chatroom->getTitle(), title.c_str()));
     delete chatroom;
 
-    // --> Change peer privileges
+    // --> Change peer privileges to Moderator
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flag = false;
     bool *peerUpdated0 = &peersUpdated[0]; *peerUpdated0 = false;
     bool *peerUpdated1 = &peersUpdated[1]; *peerUpdated1 = false;
@@ -800,6 +800,22 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(*uhAction == peer->getHandle());
     assert(*priv == MegaChatRoom::PRIV_MODERATOR);
 
+
+    // --> Change peer privileges to Read-only
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flag = false;
+    peerUpdated0 = &peersUpdated[0]; *peerUpdated0 = false;
+    peerUpdated1 = &peersUpdated[1]; *peerUpdated1 = false;
+    mngMsgRecv = &chatroomListener->msgReceived[0]; *mngMsgRecv = false;
+    uhAction = &chatroomListener->uhAction[0]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    priv = &chatroomListener->priv[0]; *priv = MegaChatRoom::PRIV_UNKNOWN;
+    megaChatApi[0]->updateChatPermissions(chatid, peer->getHandle(), MegaChatRoom::PRIV_RO);
+    assert(waitForResponse(flag));
+    assert(!lastErrorChat[0]);
+    assert(waitForResponse(peerUpdated0));
+//    assert(waitForResponse(peerUpdated1));    Redmine ticket: #5668
+    assert(waitForResponse(mngMsgRecv));
+    assert(*uhAction == peer->getHandle());
+    assert(*priv == MegaChatRoom::PRIV_RO);
 
     // --> Load some message to feed history
     flag = &chatroomListener->historyLoaded[0]; *flag = false;
@@ -856,6 +872,9 @@ void MegaChatApiTest::TEST_groupChatManagement()
 
     logout(1, true);
     logout(0, true);
+
+    delete [] session0;
+    delete [] session1;
 }
 
 void MegaChatApiTest::TEST_offlineMode()
