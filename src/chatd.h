@@ -903,8 +903,6 @@ public:
     virtual void setLastReceived(karere::Id msgid) = 0;
     virtual karere::Id getOldestMsgid() = 0;
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
-    virtual void addUser(karere::Id userid, Priv priv) = 0;
-    virtual void removeUser(karere::Id userid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
     virtual ~DbInterface(){}

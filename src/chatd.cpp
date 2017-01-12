@@ -2154,7 +2154,6 @@ void Chat::onUserJoin(Id userid, Priv priv)
     else if (mOnlineState == kChatStateOnline)
     {
         mUsers.insert(userid);
-        CALL_DB(addUser, userid, priv);
         CALL_CRYPTO(onUserJoin, userid);
         CALL_LISTENER(onUserJoin, userid, priv);
     }
@@ -2170,7 +2169,6 @@ void Chat::onUserLeave(Id userid)
         throw std::runtime_error("onUserLeave received while not online");
 
     mUsers.erase(userid);
-    CALL_DB(removeUser, userid);
     CALL_CRYPTO(onUserLeave, userid);
     CALL_LISTENER(onUserLeave, userid);
 }
