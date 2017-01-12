@@ -220,11 +220,6 @@ Logger::~Logger()
     LockGuard lock(mMutex);
     if (!mUserLoggers.empty())
     {
-        for (auto& logger: mUserLoggers)
-        {
-            log("LOGGER", 0, 0, "Deleting user logger '%s'n", logger.first.c_str());
-            delete logger.second;
-        }
         mUserLoggers.clear();
     }
     if ((mFlags & krLogNoTerminateMessage) == 0)
