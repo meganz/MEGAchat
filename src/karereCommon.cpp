@@ -5,6 +5,8 @@
 
 namespace karere
 {
+const char* gDbSchemaVersionSuffix = "1";
+
 class Client;
 void globalInit(void(*postFunc)(void*), uint32_t options, const char* logPath, size_t logSize)
 {
