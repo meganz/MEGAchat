@@ -350,16 +350,47 @@ void MegaChatApiTest::TEST_resumeSession()
     delete [] session; session = NULL;
 
 
-    // ___ Create a new session from scratch with existing MegaApi/MegaChatApi ___
+    // ___ Login with chat enabled, transition to disabled and back to enabled
     session = login(0);
     assert(session);
+    // fully disable chat: logout + remove logger + delete MegaChatApi instance
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_LOGOUT]; *flag = false;
+    megaChatApi[0]->logout();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    megaChatApi[0]->setLoggerObject(NULL);
+    delete megaChatApi[0];
+    // create a new MegaChatApi instance
+    MegaChatApi::setLoggerObject(chatLogger);
+    megaChatApi[0] = new MegaChatApi(megaApi[0]);
+    megaChatApi[0]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
+    megaChatApi[0]->addChatRequestListener(this);
+    megaChatApi[0]->addChatListener(this);
+    // back to enabled: init + fetchnodes + connect
+    assert(megaChatApi[0]->init(session) == MegaChatApi::INIT_NO_CACHE);
+    flagInit = &initStateChanged[0]; *flagInit = false;
+    flag = &requestFlags[0][MegaRequest::TYPE_FETCH_NODES]; *flag = false;
+    megaApi[0]->fetchNodes();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    assert(waitForResponse(flagInit));
+    assert(initState[0] == MegaChatApi::INIT_ONLINE_SESSION);
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
+    megaChatApi[0]->connect();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    // check there's a list of chats already available
+    list = megaChatApi[0]->getChatListItems();
+    assert(list->size());
+    delete list; list = NULL;
+    // close session and remove cache
     logout(0, true);
     delete [] session; session = NULL;
 
 
-    // ___ Enable chat from disabled
+    // ___ Login with chat disabled, transition to enabled ___
     // fully disable chat: remove logger + delete MegaChatApi instance
-//    megaChatApi[0]->setLoggerObject(NULL);     Redmine ticket: #6006
+    megaChatApi[0]->setLoggerObject(NULL);
     delete megaChatApi[0];
     // create a new MegaChatApi instance
     MegaChatApi::setLoggerObject(chatLogger);
