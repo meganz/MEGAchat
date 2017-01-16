@@ -311,17 +311,6 @@ public:
         sqliteQuery(mDb, "update chats set last_recv=? where chatid=?", msgid, mMessages.chatId());
         assertAffectedRowCount(1);
     }
-    virtual void addUser(karere::Id userid, chatd::Priv priv)
-    {
-        sqliteQuery(mDb, "insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",
-            mMessages.chatId(), userid, priv);
-        assertAffectedRowCount(1);
-    }
-    virtual void removeUser(karere::Id userid)
-    {
-        sqliteQuery(mDb, "delete from chat_peers where chatid=? and userid=?",
-            mMessages.chatId(), userid);
-    }
     virtual void setHaveAllHistory()
     {
         sqliteQuery(mDb,
