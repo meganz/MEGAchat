@@ -626,6 +626,11 @@ MegaChatHandle MegaChatRoom::getUserTyping() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
+bool MegaChatRoom::isActive() const
+{
+    return false;
+}
+
 int MegaChatRoom::getOnlineStatus() const
 {
     return MegaChatApi::STATUS_OFFLINE;
@@ -759,6 +764,11 @@ MegaChatMessage *MegaChatListItem::getLastMessage() const
 }
 
 bool MegaChatListItem::isGroup() const
+{
+    return false;
+}
+
+bool MegaChatListItem::isActive() const
 {
     return false;
 }
