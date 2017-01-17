@@ -848,6 +848,19 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(*uhAction == peer->getHandle());
     assert(*priv == MegaChatRoom::PRIV_RO);
 
+
+    // --> Try to send a message without the right privilege
+    string msg1 = "HOLA " + email[0] + " - This message can't be send because I'm read-only";
+    bool *flagRejected = &chatroomListener->msgRejected[1]; *flagRejected = false;
+    chatroomListener->msgId[1] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+    MegaChatMessage *msgSent = megaChatApi[1]->sendMessage(chatid, msg1.c_str());
+    assert(msgSent);
+    delete msgSent; msgSent = NULL;
+    assert(waitForResponse(flagRejected));    // for confirmation, sendMessage() is synchronous
+    MegaChatHandle msgId0 = chatroomListener->msgId[1];
+    assert (msgId0 == MEGACHAT_INVALID_HANDLE);
+
+
     // --> Load some message to feed history
     flag = &chatroomListener->historyLoaded[0]; *flag = false;
     megaChatApi[0]->loadMessages(chatid, 16);
@@ -1257,6 +1270,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApi **apis, MegaChatHandle ch
         this->msgDelivered[i] = false;
         this->msgReceived[i] = false;
         this->msgEdited[i] = false;
+        this->msgRejected[i] = false;
         this->msgId[i] = MEGACHAT_INVALID_HANDLE;
         this->chatUpdated[i] = false;
         this->userTyping[i] = false;
@@ -1393,6 +1407,10 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
     else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
     {
         msgDelivered[apiIndex] = true;
+    }
+    else if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_REJECTED)
+    {
+        msgRejected[apiIndex] = true;
     }
 
     if (msg->isEdited())

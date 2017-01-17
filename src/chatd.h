@@ -40,6 +40,7 @@ class ICrypto;
 /** @brief Reason codes passed to Listener::onManualSendRequired() */
 enum ManualSendReason: uint8_t
 {
+    kManualSendNoWriteAccess = 0,    ///< Read-only privilege or not belong to the chatroom
     kManualSendUsersChanged = 1, ///< Group chat participants have changed
     kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_EDIT_AGE seconds
 };
