@@ -88,7 +88,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->megaApi->addRequestListener(this);
 
     this->waiter = new MegaWaiter();
-    this->mClient = NULL;   // created at loop()
+    this->mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), karere::kClientIsMobile);
 
     this->resumeSession = nullptr;
     this->initResult = NULL;
@@ -118,8 +118,6 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
 
 void MegaChatApiImpl::loop()
 {
-    mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), karere::kClientIsMobile);
-
     while (true)
     {
         sdkMutex.unlock();

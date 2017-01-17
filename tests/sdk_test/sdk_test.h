@@ -179,6 +179,7 @@ public:
     bool msgDelivered[NUM_ACCOUNTS];
     bool msgReceived[NUM_ACCOUNTS];
     bool msgEdited[NUM_ACCOUNTS];
+    bool msgRejected[NUM_ACCOUNTS];
 
     MegaChatMessage *message;
     MegaChatHandle msgId[NUM_ACCOUNTS];
