@@ -136,23 +136,6 @@ bool Client::openDb(const std::string& sid)
         KR_LOG_WARNING("Error opening database");
         return false;
     }
-    SqliteStmt stmt(db, "select value from vars where name = 'schema_version'");
-    if (!stmt.step())
-    {
-        sqlite3_close(db);
-        db = nullptr;
-        KR_LOG_WARNING("Can't get local database version");
-        return false;
-    }
-    std::string ver(gDbSchemaHash);
-    ver.append("_").append(gDbSchemaVersionSuffix);
-    if (stmt.stringCol(0) != ver)
-    {
-        sqlite3_close(db);
-        db = nullptr;
-        KR_LOG_WARNING("Database schema version is not compatible with app version, will rebuild it");
-        return false;
-    }
     mSid = sid;
     return true;
 }
@@ -161,7 +144,7 @@ void Client::createDbSchema(sqlite3*& database)
 {
     mMyHandle = Id::null();
     MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
-    int ret = sqlite3_exec(database, gDbSchema, nullptr, nullptr, errmsg.handlePtr());
+    int ret = sqlite3_exec(database, gKarereDbSchema, nullptr, nullptr, errmsg.handlePtr());
     if (ret)
     {
         if (errmsg)
@@ -169,9 +152,6 @@ void Client::createDbSchema(sqlite3*& database)
         else
             throw std::runtime_error("Error "+std::to_string(ret)+" initializing database");
     }
-    std::string ver(gDbSchemaHash);
-    ver.append("_").append(gDbSchemaVersionSuffix);
-    sqliteQuery(database, "insert into vars(name, value) values('schema_version', ?)", ver);
 }
 
 void Client::heartbeat()
