@@ -1863,6 +1863,14 @@ public:
     virtual bool isGroup() const;
 
     /**
+     * @brief Returns whether the user is member of the chatroom (for groupchats),
+     * or the user is contact with the peer (for 1on1 chats).
+     *
+     * @return True if the chat is active, false otherwise.
+     */
+    virtual bool isActive() const;
+
+    /**
      * @brief Returns the userhandle of the Contact in 1on1 chatrooms
      *
      * The returned value is only valid for 1on1 chatrooms. For groupchats, it will

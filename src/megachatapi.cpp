@@ -768,6 +768,11 @@ bool MegaChatListItem::isGroup() const
     return false;
 }
 
+bool MegaChatListItem::isActive() const
+{
+    return false;
+}
+
 MegaChatHandle MegaChatListItem::getPeerHandle() const
 {
     return MEGACHAT_INVALID_HANDLE;
