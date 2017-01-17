@@ -78,6 +78,11 @@ void XmppContactList::receivePresences()
         }
         else
         {
+            if (it->second->mPresence == status)
+            {
+                KR_LOG_WARNING("Duplicate presence received for %s", jid);
+                return;
+            }
             it->second->onPresence(status, jid);
         }
     }, nullptr, "presence", nullptr, nullptr);

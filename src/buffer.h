@@ -6,6 +6,9 @@
 #include <string.h>
 #include <vector>
 
+#ifndef __arm__
+    #define BUFFER_ALLOW_UNALIGNED_MEMORY_ACCESS 1
+#endif
 class BufferRangeError: public std::runtime_error
 {
     using std::runtime_error::runtime_error;
@@ -63,16 +66,29 @@ public:
         return mBuf+offset;
     }
     template <class T>
-    T& read(size_t offset) const
+    T read(size_t offset) const
     {
-        return *((T*)(readPtr(offset, sizeof(T))));
+        return alignSafeRead<T>(readPtr(offset, sizeof(T)));
+    }
+    template <typename T>
+    static T alignSafeRead(const void* ptr)
+    {
+#ifndef BUFFER_ALLOW_UNALIGNED_MEMORY_ACCESS
+        T val;
+        memcpy(&val, ptr, sizeof(T));
+        return val;
+#else
+        return *((T*)ptr);
+#endif
     }
     template <class T>
     void read(size_t offset, std::vector<T>& output, int count)
     {
         T* end = (T*)(mBuf+offset+count*sizeof(T));
         for (T* pitem = (T*)(mBuf+offset); pitem < end; pitem++)
-            output.push_back(*pitem);
+        {
+            output.push_back(alignSafeRead<T>(pitem));
+        }
     }
     template <class T>
     void read(size_t offset, std::vector<T>& output)

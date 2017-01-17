@@ -145,10 +145,10 @@ public:
      * but otherwise does not guarentee that the data inside the message
      * is actually a ManagementInfo structure
      */
-    ManagementInfo& mgmtInfo() { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
+    ManagementInfo mgmtInfo() { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
 
     /** @brief A \c const version of mgmtInfo() */
-    const ManagementInfo& mgmtInfo() const { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
+    const ManagementInfo mgmtInfo() const { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
 
     /** @brief Allocated a ManagementInfo structure in the message's buffer,
      * and writes the contents of the provided structure. The message contents
@@ -195,6 +195,7 @@ private:
 protected:
     static const char* opcodeNames[];
 public:
+    enum { kBroadcastUserTyping = 1 };
     Command(): Buffer(){}
     Command(Command&& other): Buffer(std::forward<Buffer>(other)) {assert(!other.buf() && !other.bufSize() && !other.dataSize());}
     Command(uint8_t opcode, uint8_t reserve=64): Buffer(reserve) { write(0, opcode); }

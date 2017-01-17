@@ -177,7 +177,11 @@ void Chat::connect(const std::string& url)
     // attempt a connection ONLY if this is a new shard.
     if (mConnection.state() == Connection::kStateNew)
     {
-        mConnection.reconnect(url);
+        mConnection.reconnect(url)
+        .fail([this](const promise::Error& err)
+        {
+            CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+        });
     }
     else if (mConnection.isOnline())
     {
@@ -203,76 +207,6 @@ void Connection::websockConnectCb(ws_t ws, void* arg)
     self->mConnectPromise.resolve();
 }
 
-void Url::parse(const std::string& url)
-{
-    if (url.empty())
-        throw std::runtime_error("Url::Parse: Url is empty");
-    protocol.clear();
-    port = 0;
-    host.clear();
-    path.clear();
-    size_t ss = url.find("://");
-    if (ss != std::string::npos)
-    {
-        protocol = url.substr(0, ss);
-        std::transform(protocol.begin(), protocol.end(), protocol.begin(), ::tolower);
-        ss += 3;
-    }
-    else
-    {
-        ss = 0;
-        protocol = "http";
-    }
-    char last = protocol[protocol.size()-1];
-    isSecure = (last == 's');
-
-    size_t i = ss;
-    for (; i<url.size(); i++)
-    {
-        char ch = url[i];
-        if (ch == ':') //we have port
-        {
-            size_t ps = i+1;
-            host = url.substr(ss, i-ss);
-            for (; i<url.size(); i++)
-            {
-                ch = url[i];
-                if ((ch == '/') || (ch == '?'))
-                {
-                    break;
-                }
-            }
-            port = std::stol(url.substr(ps, i-ps));
-            break;
-        }
-        else if ((ch == '/') || (ch == '?'))
-            break;
-    }
-
-    host = url.substr(ss, i-ss);
-
-    if (i < url.size()) //not only host and protocol
-    {
-        //i now points to '/' or '?' and host and port must have been set
-        path = (url[i] == '/') ? url.substr(i+1) : url.substr(i); //ignore the leading '/'
-    }
-    if (!port)
-    {
-        port = getPortFromProtocol();
-    }
-    if (host.empty())
-        throw std::runtime_error("Url::parse: Invalid URL '"+url+"', host is empty");
-}
-
-uint16_t Url::getPortFromProtocol() const
-{
-    if ((protocol == "http") || (protocol == "ws"))
-        return 80;
-    else if ((protocol == "https") || (protocol == "wss"))
-        return 443;
-    else
-        return 0;
-}
 void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preason,
                                 size_t reason_len, void *arg)
 {
@@ -387,7 +321,7 @@ Promise<void> Connection::reconnect(const std::string& url)
             rejoinExistingChats();
         });
     }
-    KR_EXCEPTION_TO_PROMISE(CHATD);
+    KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
 }
 
 void Connection::enableInactivityTimer()
@@ -647,12 +581,19 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     assert(mCrypto);
     assert(!mUsers.empty());
     mNextUnsent = mSending.begin();
-    Idx newestDbIdx;
     //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
     assert(mDbInterface);
-    mDbInterface->getHistoryInfo(mOldestKnownMsgId, mNewestKnownMsgId, newestDbIdx);
+    ChatDbInfo info;
+    mDbInterface->getHistoryInfo(info);
+    mOldestKnownMsgId = info.oldestDbId;
+    mNewestKnownMsgId = info.newestDbId;
+    mLastSeenId = info.lastSeenId;
+    mLastReceivedId = info.lastRecvId;
+    mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
+    mLastReceivedIdx = mDbInterface->getIdxOfMsgid(mLastReceivedId);
+
     if ((mHaveAllHistory = mDbInterface->haveAllHistory()))
     {
         CHATID_LOG_DEBUG("All backward history of chat is available locally");
@@ -668,9 +609,9 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     }
     else
     {
-        assert(mNewestKnownMsgId); assert(newestDbIdx != CHATD_IDX_INVALID);
+        assert(mNewestKnownMsgId); assert(info.newestDbIdx != CHATD_IDX_INVALID);
         mHasMoreHistoryInDb = true;
-        mForwardStart = newestDbIdx + 1;
+        mForwardStart = info.newestDbIdx + 1;
         CHATID_LOG_DEBUG("Db has local history: %s - %s (middle point: %u)",
             ID_CSTR(mOldestKnownMsgId), ID_CSTR(mNewestKnownMsgId), mForwardStart);
         loadAndProcessUnsent();
@@ -749,6 +690,15 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 //CHATD_LOG_DEBUG("Server heartbeat received");
                 sendBuf(Command(OP_KEEPALIVE));
+                break;
+            }
+            case OP_BROADCAST:
+            {
+                READ_CHATID(0);
+                READ_ID(userid, 8);
+                READ_8(bcastType, 16);
+                auto& chat = mClient.chats(chatid);
+                chat.handleBroadcast(userid, bcastType);
                 break;
             }
             case OP_JOIN:
@@ -1311,6 +1261,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
 void Chat::onLastReceived(Id msgid)
 {
     mLastReceivedId = msgid;
+    CALL_DB(setLastReceived, msgid);
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     { // we don't have that message in the buffer yet, so we don't know its index
@@ -1333,9 +1284,9 @@ void Chat::onLastReceived(Id msgid)
     auto idx = it->second;
     if (idx == mLastReceivedIdx)
         return; //probably set from db
-    if (at(idx).userid != mClient.mUserId)
+    if (at(idx).userid == mClient.mUserId)
     {
-        CHATID_LOG_WARNING("Last-received pointer points to a message by a peer,"
+        CHATID_LOG_WARNING("Last-received pointer points to a message by us,"
             " possibly the pointer was set incorrectly");
     }
     //notify about messages that become 'received'
@@ -1375,6 +1326,7 @@ void Chat::onLastReceived(Id msgid)
 void Chat::onLastSeen(Id msgid)
 {
     mLastSeenId = msgid;
+    CALL_DB(setLastSeen, msgid);
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     {
@@ -1446,6 +1398,7 @@ bool Chat::setMessageSeen(Idx idx)
         CHATID_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
         return false;
     }
+    CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msg.id()));
     sendCommand(Command(OP_SEEN) + mChatId + msg.id());
 
     Idx notifyStart;
@@ -1487,12 +1440,23 @@ bool Chat::setMessageSeen(Id msgid)
 
 int Chat::unreadMsgCount() const
 {
-    if (!mLastSeenId) //not received SEEN yet
-        return 0;
     if (mLastSeenIdx == CHATD_IDX_INVALID)
-        return -mDbInterface->getPeerMsgCountAfterIdx(CHATD_IDX_INVALID);
+    {
+        Message* msg;
+        if (!empty() && ((msg = newest())->type == Message::kMsgTruncate))
+        {
+            assert(size() == 1);
+            return (msg->userid != client().userId()) ? 1 : 0;
+        }
+        else
+        {
+            return -mDbInterface->getPeerMsgCountAfterIdx(CHATD_IDX_INVALID);
+        }
+    }
     else if (mLastSeenIdx < lownum())
+    {
         return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
+    }
 
     Idx first = mLastSeenIdx+1;
     unsigned count = 0;
@@ -1783,10 +1747,12 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         //update in memory, if loaded
         auto msgit = mIdToIndexMap.find(msg->id());
         Idx idx;
+        uint8_t prevType;
         if (msgit != mIdToIndexMap.end())
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
+            prevType = histmsg.type;
             histmsg.takeFrom(std::move(*msg));
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
@@ -1796,12 +1762,19 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         else
         {
             idx = CHATD_IDX_INVALID;
+            prevType = Message::kMsgInvalid;
         }
 
         if (msg->type == Message::kMsgTruncate)
         {
-            CHATID_LOG_DEBUG("Truncating chat history before msgid %s", ID_CSTR(msg->id()));
-            handleTruncate(*msg, idx);
+            if (prevType != Message::kMsgTruncate)
+            {
+                handleTruncate(*msg, idx);
+            }
+            else
+            {
+                CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
+            }
         }
     })
     .fail([this, cipherMsg](const promise::Error& err)
@@ -1812,6 +1785,19 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)
 {
+// chatd may re-send a MSGUPD at login, if there are no newer messages in the
+// chat. We have to be prepared to handle this, i.e. handleTruncate() must
+// be idempotent.
+// However, handling the SEEN and RECEIVED pointers in in a replayed truncate
+// is a bit tricky, because if they point to the truncate point (i.e. idx)
+// normally we would set them in a way that makes the truncate management message
+// at the truncation point unseen. But in case of a replay, we don't want it
+// to be unseen, as this will reset the unread message count to '1+' every time
+// the client connects, until someoone posts a new message in the chat.
+// To avoid this, we have to detect the replay. But if we detect it, we can actually
+// avoid the whole replay (even the idempotent part), and just bail out.
+
+    CHATID_LOG_DEBUG("Truncating chat history before msgid %s", ID_CSTR(msg.id()));
     CALL_DB(truncateHistory, msg);
     if (idx != CHATD_IDX_INVALID)
     {
@@ -1819,6 +1805,26 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         //messages older than the one specified
         CALL_LISTENER(onHistoryTruncated, msg, idx);
         deleteMessagesBefore(idx);
+        if (mLastSeenIdx != CHATD_IDX_INVALID)
+        {
+            if (mLastSeenIdx <= idx)
+            {
+                //if we haven't seen even messages before the truncation point,
+                //now we will have not seen any message after the truncation
+                mLastSeenIdx = CHATD_IDX_INVALID;
+                mLastSeenId = 0;
+                CALL_DB(setLastSeen, 0);
+            }
+        }
+        if (mLastReceivedIdx != CHATD_IDX_INVALID)
+        {
+            if (mLastReceivedIdx <= idx)
+            {
+                mLastReceivedIdx = CHATD_IDX_INVALID;
+                mLastReceivedId = 0;
+                CALL_DB(setLastReceived, 0);
+            }
+        }
     }
 
     mOldestKnownMsgId = mDbInterface->getOldestMsgid();
@@ -1831,7 +1837,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         mHasMoreHistoryInDb = false;
     }
     CALL_LISTENER(onUnreadChanged);
-
 }
 
 Id Chat::makeRandomId()
@@ -2149,7 +2154,6 @@ void Chat::onUserJoin(Id userid, Priv priv)
     else if (mOnlineState == kChatStateOnline)
     {
         mUsers.insert(userid);
-        CALL_DB(addUser, userid, priv);
         CALL_CRYPTO(onUserJoin, userid);
         CALL_LISTENER(onUserJoin, userid, priv);
     }
@@ -2165,7 +2169,6 @@ void Chat::onUserLeave(Id userid)
         throw std::runtime_error("onUserLeave received while not online");
 
     mUsers.erase(userid);
-    CALL_DB(removeUser, userid);
     CALL_CRYPTO(onUserLeave, userid);
     CALL_LISTENER(onUserLeave, userid);
 }
@@ -2203,6 +2206,24 @@ void Chat::setOnlineState(ChatState state)
     mOnlineState = state;
     CALL_CRYPTO(onOnlineStateChange, state);
     CALL_LISTENER(onOnlineStateChange, state);
+}
+
+Message* Chat::lastMessage() const
+{
+    if (empty())
+        return nullptr;
+    return &at(highnum());
+}
+
+void Chat::sendTypingNotification()
+{
+    sendCommand(Command(OP_BROADCAST) + mChatId + karere::Id::null() +(uint8_t)Command::kBroadcastUserTyping);
+}
+
+void Chat::handleBroadcast(karere::Id from, uint8_t type)
+{
+    if (type == Command::kBroadcastUserTyping)
+        CALL_LISTENER(onUserTyping, from);
 }
 
 void Client::leave(Id chatid)

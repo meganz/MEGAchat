@@ -6,10 +6,9 @@
 #include <QInputDialog>
 #include <QDrag>
 #include <QMimeData>
-#include <mstrophepp.h>
+//#include <mstrophepp.h>
 #include <IRtcModule.h>
-#include <mstrophepp.h>
-#include <../strophe.disco.h>
+//#include <../strophe.disco.h>
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>
 #include <ui_loginDialog.h>
@@ -53,12 +52,17 @@ public:
     virtual karere::IApp::IContactListHandler* contactListHandler() { return this; }
     virtual karere::IApp::IChatListHandler* chatListHandler() { return this; }
     IChatHandler* createChatHandler(karere::ChatRoom& room);
+    virtual void onInitStateChange(int newState);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
     {
+#ifndef KARERE_DISABLE_WEBRTC
         return new CallAnswerGui(*this, ans);
+#else
+        return nullptr;
+#endif
     }
     virtual karere::IApp::ILoginDialog* createLoginDialog();
-    virtual void onOwnPresence(karere::Presence pres);
+    virtual void onOwnPresence(karere::Presence pres, bool inProgress);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest &req);
 protected:
     karere::IApp::IContactListItem* addItem(bool front, karere::Contact* contact,
@@ -83,11 +87,13 @@ class SettingsDialog: public QDialog
     Q_OBJECT
 protected:
     Ui::SettingsDialog ui;
-    int mAudioInIdx;
-    int mVideoInIdx;
     MainWindow& mMainWindow;
+#ifndef KARERE_DISABLE_WEBRTC
     void selectVideoInput();
     void selectAudioInput();
+    int mAudioInIdx;
+    int mVideoInIdx;
+#endif
 protected slots:
 public:
     SettingsDialog(MainWindow &parent);
@@ -204,7 +210,6 @@ public:
         text.append(tr("Email: "));
         text.append(QString::fromStdString(mContact.email())).append(lf);
         text.append(tr("User handle: ")).append(QString::fromStdString(karere::Id(mContact.userId()).toString())).append(lf);
-        text.append(tr("XMPP jid: ")).append(QString::fromStdString(mContact.jid())).append(lf);
         if (mContact.chatRoom())
             text.append(tr("Chat handle: ")).append(QString::fromStdString(karere::Id(mContact.chatRoom()->chatid()).toString()));
         else

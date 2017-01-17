@@ -8,7 +8,6 @@
 #include <IRtcModule.h>
 #include <mstrophepp.h>
 #include <../strophe.disco.h>
-#include <IJingleSession.h>
 #include <chatClient.h>
 
 class ChatWindow;

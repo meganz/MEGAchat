@@ -163,7 +163,7 @@ typedef Key<32> EcKey;
 
 class ProtocolHandler;
 /** Class to parse an encrypted message and store its attributes and content */
-struct ParsedMessage: public chatd::Message::ManagementInfo, public karere::TrackDelete
+struct ParsedMessage: public chatd::Message::ManagementInfo, public karere::DeleteTrackable
 {
     ProtocolHandler& mProtoHandler;
     uint8_t protocolVersion;
@@ -235,7 +235,7 @@ struct UserKeyId
 
 class TlvWriter;
 
-class ProtocolHandler: public chatd::ICrypto, public karere::TrackDelete
+class ProtocolHandler: public chatd::ICrypto, public karere::DeleteTrackable
 {
 protected:
     karere::Id mOwnHandle;

@@ -14,6 +14,8 @@ set (SRCS
 )
 
 add_subdirectory(../base base)
+get_property(SERVICES_INCLUDE_DIRS GLOBAL PROPERTY SERVICES_INCLUDE_DIRS)
+get_property(SERVICES_DEFINES GLOBAL PROPERTY SERVICES_DEFINES)
 add_subdirectory(../../webrtc-build webrtc)
 
 

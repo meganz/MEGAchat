@@ -1,14 +1,15 @@
 #ifndef IAPP_H
 #define IAPP_H
-
 #include <rtcModule/IRtcModule.h>
 #include <chatd.h>
+#include <presenced.h>
 
 namespace karere
 {
 class ChatRoom;
 class PeerChatRoom;
 class GroupChatRoom;
+class Contact;
 
 /**
  * @brief The karere chat application class that the app needs to
@@ -45,7 +46,7 @@ public:
          *
          * @param state The presence code
          */
-        virtual void onPresenceChanged(karere::Presence state) = 0;
+        virtual void onPresenceChanged(Presence state) = 0;
 
         /**
          * @brief The number of unread messages for that chat has changed. It can be used
@@ -66,6 +67,7 @@ public:
      * As currently there are no additional methods besides the inherited from
      * \c  IEventHandler, the class is empty.
      */
+
     class ICallHandler: public rtcModule::IEventHandler
     {
     public:
@@ -88,15 +90,6 @@ public:
          * NULL should be returned
          */
         virtual ICallHandler* callHandler() = 0;
-        /**
-         * @brief onUserTyping Called when a signal is received that a peer
-         * is typing a message. Normally the app should have a timer that
-         * is reset each time a typing notification is received. When the timer
-         * expires, it should hide the notification GUI.
-         * @param user The user that is typing. The app can use the user attrib
-         * cache to get a human-readable name for the user.
-         */
-        virtual void onUserTyping(karere::Id user) {}
 
         /** @brief Called when the name of a member changes
          * @param userid The member user handle
@@ -205,6 +198,15 @@ public:
          */
         virtual void onRejoinedChat() {}
 
+        /** @brief The last message in the history sequence has changed.
+         * This means that either a new message has been received, or the last
+         * message of existing history was just fetched (this is the first message
+         * received when fetching history, because it is fetched from newest to oldest).
+         * @param msg The message object
+         * @param idx The index of the message in the history buffer. Can be used to
+         * access the message via the \c at(idx) interface
+         */
+        virtual void onLastMessageUpdated(const chatd::Message& msg, chatd::Message::Status status, chatd::Idx idx) {}
     };
 
     /**
@@ -236,6 +238,7 @@ public:
          * @param userid - the user handle of the user who left the chat.
          */
         virtual void onUserLeave(uint64_t userid) {}
+        virtual void onPeerPresence(Presence pres) {}
     };
 
     /** @brief Manages contactlist items that in turn receive events
@@ -308,7 +311,7 @@ public:
      * @brief Called by karere when our own online state/presence has changed.
      * @param pres
      */
-    virtual void onOwnPresence(Presence pres) {} //may include flags
+    virtual void onOwnPresence(Presence pres, bool inProgress) {} //may include flags
 
     /**
      * @brief Called when an incoming contact request has been received.
@@ -318,7 +321,7 @@ public:
      * @param req The mega SDK contact request object
      */
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) = 0;
-
+#ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Called by karere when there is an incoming call.
      *
@@ -332,15 +335,18 @@ public:
      */
     virtual rtcModule::IEventHandler*
         onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
-
+#endif
     /**
      * @brief Called by karere when we become participants in a 1on1 or a group chat.
      * @param room The chat room object.
      */
     virtual void notifyInvited(const ChatRoom& room) {}
 
-    /** @brief Called when karere is about to terminate */
-    virtual void onTerminate() {}
+    /** @brief Called when the karere::Client changes its initialization or termination state.
+     * Look at karere::Client::InitState for the possible values of the client init
+     * state and their meaning.
+     */
+    virtual void onInitStateChange(int newState) {}
     virtual ~IApp() {}
 };
 }

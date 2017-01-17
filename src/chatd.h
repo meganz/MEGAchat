@@ -12,11 +12,14 @@
 #include <base/promise.h>
 #include <base/timers.hpp>
 #include "chatdMsg.h"
+#include "url.h"
 
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
+
+enum: uint32_t { kPromiseErrtype_chatd = 0x3e9ac47d }; //should resemble 'megachtd'
 
 #define CHATD_MAX_EDIT_AGE 3600
 namespace chatd
@@ -33,27 +36,13 @@ typedef int32_t Idx;
 class Chat;
 class ICrypto;
 
-class Url
-{
-protected:
-    uint16_t getPortFromProtocol() const;
-public:
-    std::string protocol;
-    std::string host;
-    uint16_t port;
-    std::string path;
-    bool isSecure;
-    Url(const std::string& url) { parse(url); }
-    Url(): isSecure(false) {}
-    void parse(const std::string& url);
-    bool isValid() const { return !host.empty(); }
-};
 
 /** @brief Reason codes passed to Listener::onManualSendRequired() */
 enum ManualSendReason: uint8_t
 {
+    kManualSendNoWriteAccess = 0,    ///< Read-only privilege or not belong to the chatroom
     kManualSendUsersChanged = 1, ///< Group chat participants have changed
-    kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_AUTOSEND_AGE seconds
+    kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_EDIT_AGE seconds
 };
 
 /** The source from where history is being retrieved by the app */
@@ -201,10 +190,14 @@ public:
 
     /** @brief A message could not be sent automatically, due to some reason.
      * User-initiated retry is required.
+     * @attention Ownership of \c msg is passed to application.
+     * The application can re-send or discard the message. In both cases, it should
+     * call removeManualSend() when it's about to resend or discard, in order to
+     * remove the message from the pending-manual-action list.
+     * To re-send, just call msgSubmit() in the normal way.
      * @param id The send queue id of the message. As the message has no msgid,
      * this is used to identify the message in seubsequent retry/cancel
      * @param reason - The code of the reason why the message could not be auto sent
-     * @attention Ownership of \c msg is passed to application.
      */
     virtual void onManualSendRequired(Message* msg, uint64_t id, ManualSendReason reason) {}
 
@@ -229,6 +222,16 @@ public:
     {
         CHATD_LOG_ERROR("msgOrderFail[msgid %s]: %s", msg.id().toString().c_str(), errmsg.c_str());
     }
+
+    /**
+     * @brief onUserTyping Called when a signal is received that a peer
+     * is typing a message. Normally the app should have a timer that
+     * is reset each time a typing notification is received. When the timer
+     * expires, it should hide the notification GUI.
+     * @param user The user that is typing. The app can use the user attrib
+     * cache to get a human-readable name for the user.
+     */
+    virtual void onUserTyping(karere::Id userid) {}
 };
 
 class Client;
@@ -243,7 +246,7 @@ protected:
     std::set<karere::Id> mChatIds;
     ws_t mWebSocket = nullptr;
     State mState = kStateNew;
-    Url mUrl;
+    karere::Url mUrl;
     megaHandle mInactivityTimer = 0;
     int mInactivityBeats = 0;
     bool mTerminating = false;
@@ -423,8 +426,8 @@ protected:
          const karere::SetOfIds& users, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
-    Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front().get() : mForwardList.back().get(); }
-    Message* last() const { return (!mForwardList.empty())? mForwardList.front().get() : mBackwardList.back().get(); }
+    Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
+    Message* newest() const { return (!mForwardList.empty())? mForwardList.back().get() : mBackwardList.front().get(); }
     void clear()
     {
         mBackwardList.clear();
@@ -466,6 +469,7 @@ protected:
     void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
     void onNewKeys(StaticBuffer&& keybuf);
     void logSend(const Command& cmd);
+    void handleBroadcast(karere::Id userid, uint8_t type);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -737,6 +741,11 @@ public:
       */
     int unreadMsgCount() const;
 
+    /** @brief Returns the most-recent message in the RAM history buffer.
+     * If the buffer is empty, returns \c NULL
+     */
+    Message* lastMessage() const;
+
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
 
@@ -761,9 +770,15 @@ public:
     Message* getMsgByXid(karere::Id msgxid);
     /**
      * @brief Removes the specified manual-send message, from the manual send queue.
-     * Normally should be called when the user opts to not retry sending the message */
+     * Normally should be called when the user opts to not retry sending the message
+     * @param id The id of the message, provided by \c onManualSendRequired()
+     */
     void removeManualSend(uint64_t id);
 
+    /** @brief Broadcasts a notification that the user is typing. This will trigged
+     * other clients receiving \c onUserTyping() callbacks
+     */
+    void sendTypingNotification();
     /**
      * @brief Generates a backreference id. Must be public because strongvelope
      *  uses it to generate chat title messages
@@ -845,10 +860,19 @@ public:
     friend class Chat;
 };
 
+struct ChatDbInfo
+{
+    karere::Id oldestDbId;
+    karere::Id newestDbId;
+    Idx newestDbIdx;
+    karere::Id lastSeenId;
+    karere::Id lastRecvId;
+};
+
 class DbInterface
 {
 public:
-    virtual void getHistoryInfo(karere::Id& oldestDbId, karere::Id& newestDbId, Idx& newestDbIdx) = 0;
+    virtual void getHistoryInfo(ChatDbInfo& info) = 0;
     /// Called when the client was requested to fetch history, and it knows the db contains the requested
     /// history range.
     /// @param startIdx - the start index of the requested history range
@@ -876,10 +900,10 @@ public:
     virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
     virtual void truncateHistory(const chatd::Message& msg) = 0;
+    virtual void setLastSeen(karere::Id msgid) = 0;
+    virtual void setLastReceived(karere::Id msgid) = 0;
     virtual karere::Id getOldestMsgid() = 0;
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
-    virtual void addUser(karere::Id userid, Priv priv) = 0;
-    virtual void removeUser(karere::Id userid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
     virtual ~DbInterface(){}

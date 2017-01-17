@@ -10,17 +10,21 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
+add_subdirectory(../../src karere)
+
 set (SRCS
      mainwindow.cpp
      chatWindow.cpp
-     callGui.cpp
      main.cpp
-     ../../src/videoRenderer_Qt.cpp
 #need to include also headers with Q_OBJECTs so that automoc knows to parse them
      widgetSubclass.h
 #==
      res/resources.qrc
 )
+if (NOT optKarereDisableWebrtc)
+    list(APPEND SRCS callGui.cpp ../../src/videoRenderer_Qt.cpp)
+endif()
+
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     add_definitions(-D_DEBUG -fvisibility=hidden -Wall -Wno-unused-local-typedef)
@@ -31,9 +35,12 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STRE
 #    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 endif()
 
-add_subdirectory(../../src karere)
+get_property(KARERE_INCLUDE_DIRS GLOBAL PROPERTY KARERE_INCLUDE_DIRS)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${KARERE_INCLUDE_DIRS})
-add_definitions(-DHAVE_KARERE_LOGGER ${LIBMEGA_DEFINES})
+
+get_property(KARERE_DEFINES GLOBAL PROPERTY KARERE_DEFINES)
+add_definitions(${KARERE_DEFINES})
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(SYSLIBS)
 if (CLANG_STDLIB)
