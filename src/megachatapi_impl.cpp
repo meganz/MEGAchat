@@ -64,6 +64,7 @@ MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
         services_init(MegaChatApiImpl::megaApiPostMessage, 0);
     }
     refsMutex.unlock();
+    sdkMutex.lock();
 
     init(chatApi, megaApi);
 }
