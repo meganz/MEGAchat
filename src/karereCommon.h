@@ -145,7 +145,15 @@ enum: uint8_t
     kClientIsMobile = 0x40
 };
 
-extern const char* gKarereDbSchema;
+// These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql
+extern const char* gDbSchema;
+extern const char* gDbSchemaHash;
+
+// If the schema hasn't changed but its usage by the karere lib has,
+// the lib can force a new version via this suffix
+// Defined in karereCommon.cpp
+extern const char* gDbSchemaVersionSuffix;
+
 static inline int64_t timestampMs() { return services_get_time_ms(); }
 
 //logging stuff
