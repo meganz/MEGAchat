@@ -19,13 +19,13 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    t.TEST_offlineMode();
+//    t.TEST_offlineMode();
     t.TEST_resumeSession();
-    t.TEST_setOnlineStatus();
-    t.TEST_getChatRoomsAndMessages();
-    t.TEST_editAndDeleteMessages();
-    t.TEST_groupChatManagement();
-    t.TEST_clearHistory();
+//    t.TEST_setOnlineStatus();
+//    t.TEST_getChatRoomsAndMessages();
+//    t.TEST_editAndDeleteMessages();
+//    t.TEST_groupChatManagement();
+//    t.TEST_clearHistory();
 
     t.terminate();
 
@@ -367,7 +367,8 @@ void MegaChatApiTest::TEST_resumeSession()
     assert(waitForResponse(flag));
     assert(!lastError[0]);
     megaChatApi[0]->setLoggerObject(NULL);
-    delete megaChatApi[0];
+//    delete megaChatApi[0];
+    megaChatApi[0] = NULL;
     // create a new MegaChatApi instance
     MegaChatApi::setLoggerObject(chatLogger);
     megaChatApi[0] = new MegaChatApi(megaApi[0]);
