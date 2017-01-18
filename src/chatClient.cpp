@@ -56,7 +56,6 @@ Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint
   mOwnPresence(Presence::kInvalid),
   mPresencedClient(*this, caps)
 {
-    api.sdk.addGlobalListener(this);
 }
 
 KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *envVarName)
@@ -333,6 +332,9 @@ Client::InitState Client::init(const char* sid)
 {
     if (mInitState > kInitCreated)
         return kInitErrAlready;
+
+    api.sdk.addGlobalListener(this);
+
     if (sid)
     {
         initWithDbSession(sid);
