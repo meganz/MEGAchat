@@ -1223,20 +1223,8 @@ void ChatRoom::notifyExcludedFromChat()
     auto listItem = roomGui();
     if (listItem)
         listItem->onExcludedFromChat();
-
-    if (parent.client.skipInactiveChatrooms) //remove from app
-    {
-        if (mAppChatHandler)
-            mAppChatHandler->onDestroy();
-        if (listItem)
-        {
-            if (isGroup())
-                parent.client.app.chatListHandler()->removeGroupChatItem(*dynamic_cast<IApp::IGroupChatListItem*>(listItem));
-            else
-                parent.client.app.chatListHandler()->removePeerChatItem(*dynamic_cast<IApp::IPeerChatListItem*>(listItem));
-        }
-    }
 }
+
 void ChatRoom::notifyRejoinedChat()
 {
     if (mAppChatHandler)
@@ -1260,6 +1248,11 @@ void GroupChatRoom::setRemoved()
     mOwnPriv = chatd::PRIV_NOTPRESENT;
     sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
     notifyExcludedFromChat();
+    if (parent.client.skipInactiveChatrooms)
+    {
+        parent.erase(mChatid);
+        delete this;
+    }
 }
 
 void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
