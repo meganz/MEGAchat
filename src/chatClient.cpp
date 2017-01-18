@@ -908,6 +908,10 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
     {
         addMember(stmt.uint64Col(0), (chatd::Priv)stmt.intCol(1), false);
     }
+
+    if (mOwnPriv == chatd::PRIV_NOTPRESENT && parent.client.skipInactiveChatrooms)
+        return;
+
     if (mTitleString.empty())
     {
         makeTitleFromMemberNames();
@@ -1055,7 +1059,8 @@ void GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv, bool saveToDb)
     else
     {
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
-        if (parent.client.initState() >= Client::kInitHasOnlineSession)
+        if ((mOwnPriv != chatd::PRIV_NOTPRESENT) &&
+           (parent.client.initState() >= Client::kInitHasOnlineSession))
             parent.client.presenced().addPeer(userid);
     }
     if (saveToDb)
@@ -1163,11 +1168,6 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
     {
         auto& apiRoom = *rooms.get(i);
         bool isInactive = apiRoom.getOwnPrivilege()  == -1;
-        if (isInactive && client.skipInactiveChatrooms)
-        {
-            KR_LOG_DEBUG("Skipping inactive chatroom %s", Id(apiRoom.getHandle()).toString().c_str());
-            continue;
-        }
         auto chatid = apiRoom.getHandle();
         auto it = find(chatid);
         if (it != end())
@@ -1178,14 +1178,14 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
         auto& room = addRoom(apiRoom);
         chatids.insert(room.chatid());
 
-        if (client.connected())
+        if (!isInactive && client.connected())
         {
             KR_LOG_DEBUG("Connecting new room to chatd...");
             room.connect();
         }
         else
         {
-            KR_LOG_DEBUG("Client is not connected, not connecting new room");
+            KR_LOG_DEBUG("Client is not connected or room is inactive, not connecting new room");
         }
     }
 }
@@ -1223,6 +1223,19 @@ void ChatRoom::notifyExcludedFromChat()
     auto listItem = roomGui();
     if (listItem)
         listItem->onExcludedFromChat();
+
+    if (parent.client.skipInactiveChatrooms) //remove from app
+    {
+        if (mAppChatHandler)
+            mAppChatHandler->onDestroy();
+        if (listItem)
+        {
+            if (isGroup())
+                parent.client.app.chatListHandler()->removeGroupChatItem(*dynamic_cast<IApp::IGroupChatListItem*>(listItem));
+            else
+                parent.client.app.chatListHandler()->removePeerChatItem(*dynamic_cast<IApp::IPeerChatListItem*>(listItem));
+        }
+    }
 }
 void ChatRoom::notifyRejoinedChat()
 {
@@ -1237,24 +1250,16 @@ void ChatRoomList::removeRoom(GroupChatRoom& room)
 {
     auto it = find(room.chatid());
     if (it == end())
-        throw std::runtime_error("removRoom:: Room not in chat list");
+        throw std::runtime_error("removeRoom:: Room not in chat list");
     room.deleteSelf();
     erase(it);
 }
 
 void GroupChatRoom::setRemoved()
 {
-    if (parent.client.skipInactiveChatrooms)
-    {
-        notifyExcludedFromChat();
-        parent.removeRoom(*this);
-    }
-    else
-    {
-        mOwnPriv = chatd::PRIV_NOTPRESENT;
-        sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
-        notifyExcludedFromChat();
-    }
+    mOwnPriv = chatd::PRIV_NOTPRESENT;
+    sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
+    notifyExcludedFromChat();
 }
 
 void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
@@ -1302,16 +1307,20 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             if (priv == chatd::PRIV_NOTPRESENT) //we were removed by someone else
             {
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(chatid).toString().c_str());
+                assert(localRoom->isGroup()); //NOTPRESENT cant be set in a 1on1 room
+                static_cast<GroupChatRoom*>(localRoom)->setRemoved();
             }
-            it->second->syncWithApi(*apiRoom);
+            else
+            {
+                it->second->syncWithApi(*apiRoom);
+            }
         }
         else
-        {   //we don't have the room locally
+        {   //we don't have the room locally, add it to local cache
+            KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
+            auto& room = addRoom(*apiRoom);
             if (priv != chatd::PRIV_NOTPRESENT)
             {
-                //we are in the room, add it to local cache
-                KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
-                auto& room = addRoom(*apiRoom);
                 client.app.notifyInvited(room);
                 if (client.connected())
                 {
@@ -1920,7 +1929,8 @@ void Client::connectToChatd()
 {
     for (auto& chatItem: *chats)
     {
-        chatItem.second->connect();
+        if (chatItem.second->ownPriv() != chatd::PRIV_NOTPRESENT)
+            chatItem.second->connect();
     }
 }
 
