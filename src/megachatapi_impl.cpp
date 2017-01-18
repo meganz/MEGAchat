@@ -1808,8 +1808,11 @@ void MegaChatApiImpl::onInitStateChange(int newState)
     int state = MegaChatApiImpl::convertInitState(newState);
 
     // only notify meaningful state to the app
-    if (state >= MegaChatApi::INIT_ERROR &&
-            state <= MegaChatApi::INIT_ONLINE_SESSION)
+    if (state == MegaChatApi::INIT_ERROR ||
+            state == MegaChatApi::INIT_WAITING_NEW_SESSION ||
+            state == MegaChatApi::INIT_OFFLINE_SESSION ||
+            state == MegaChatApi::INIT_ONLINE_SESSION ||
+            state == MegaChatApi::INIT_NO_CACHE)
     {
         fireOnChatInitStateUpdate(state);
     }
