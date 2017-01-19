@@ -922,10 +922,10 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::INIT_ERROR = -1
-     *  - MegaChatApi::INIT_NO_CACHE = 0
      *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 1
      *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
      *  - MegaChatApi::INIT_ONLINE_SESSION = 3
+     *  - MegaChatApi::INIT_NO_CACHE = 7
      *
      * The returned value will be undefined if \c init(sid) has not been called yet.
      *
