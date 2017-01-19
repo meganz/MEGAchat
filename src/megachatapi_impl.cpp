@@ -85,7 +85,6 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
 {
     this->chatApi = chatApi;
     this->megaApi = megaApi;
-    this->megaApi->addRequestListener(this);
 
     this->waiter = new MegaWaiter();
     this->mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), karere::kClientIsMobile);
@@ -255,7 +254,6 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_INFO("Chat engine closed!");
                 threadExit = 1;
-                megaApi->removeRequestListener(this);
             })
             .fail([](const promise::Error& err)
             {
