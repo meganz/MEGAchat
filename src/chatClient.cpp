@@ -264,7 +264,7 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 }
 void Client::loadContactListFromApi()
 {
-    auto contacts = api.sdk.getContacts();
+    std::unique_ptr<::mega::MegaUserList> contacts(api.sdk.getContacts());
     assert(contacts);
 #ifndef NDEBUG
     dumpContactList(*contacts);
@@ -386,12 +386,12 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         marshallCall([this, reqSid]()
         {
             api.sdk.removeRequestListener(this);
-            auto sid = api.sdk.dumpSession();
+            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
             assert(sid);
             if (mInitState == kInitHasOfflineSession)
             {
                 //verify the SDK sid is the same as ours
-                if (mSid != sid)
+                if (mSid != sid.get())
                 {
                     setInitState(kInitErrSidMismatch);
                     return;
@@ -401,7 +401,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             }
             else if (mInitState == kInitWaitingNewSession || mInitState == kInitErrNoCache)
             {
-                initWithNewSession(sid)
+                initWithNewSession(sid.get())
                 .then([this]()
                 {
                     setInitState(kInitHasOnlineSession);
