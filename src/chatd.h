@@ -40,9 +40,10 @@ class ICrypto;
 /** @brief Reason codes passed to Listener::onManualSendRequired() */
 enum ManualSendReason: uint8_t
 {
-    kManualSendNoWriteAccess = 0,    ///< Read-only privilege or not belong to the chatroom
     kManualSendUsersChanged = 1, ///< Group chat participants have changed
-    kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_EDIT_AGE seconds
+    kManualSendTooOld = 2, ///< Message is older than CHATD_MAX_EDIT_AGE seconds
+    kManualSendGeneralReject = 3, ///< chatd rejected the message, for unknown reason
+    kManualSendNoWriteAccess = 4  ///< Read-only privilege or not belong to the chatroom
 };
 
 /** The source from where history is being retrieved by the app */
@@ -371,6 +372,7 @@ protected:
     bool mHasMoreHistoryInDb = false;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
+    Priv mOwnPrivilege = PRIV_INVALID;
     karere::SetOfIds mUsers;
     karere::SetOfIds mUserDump; //< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId

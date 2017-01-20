@@ -532,6 +532,11 @@ ManualSendMsgWidget::ManualSendMsgWidget(ChatWindow& chatWin, chatd::Message* aM
     else if (reason == chatd::kManualSendNoWriteAccess)
     {
         ui.mReasonDisplay->setText(tr("No write access"));
+
+    }
+    else if (reason == chatd::kManualSendGeneralReject)
+    {
+        ui.mReasonDisplay->setText(tr("Rejected for unknown reason"));
     }
     else
     {

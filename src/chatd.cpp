@@ -1609,7 +1609,9 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
 
     if (!msgid)
     {
-        moveItemToManualSending(mSending.begin(), kManualSendNoWriteAccess); //deletes item
+        moveItemToManualSending(mSending.begin(), (mOwnPrivilege == PRIV_RDONLY)
+            ? kManualSendNoWriteAccess
+            : kManualSendGeneralReject); //deletes item
         return CHATD_IDX_INVALID;
     }
     auto msg = item.msg;
@@ -2144,6 +2146,8 @@ void Chat::handleLastReceivedSeen(Id msgid)
 
 void Chat::onUserJoin(Id userid, Priv priv)
 {
+    if (userid == client().userId())
+        mOwnPrivilege = priv;
     if (mOnlineState == kChatStateJoining)
     {
         mUserDump.insert(userid);
