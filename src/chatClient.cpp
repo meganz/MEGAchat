@@ -788,10 +788,12 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
     if (!aUsers)
         return;
-    assert(mUserAttrCache);
+
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
     marshallCall([this, users]()
     {
+        assert(mUserAttrCache);
+
         auto count = users->size();
         for (int i=0; i<count; i++)
         {
