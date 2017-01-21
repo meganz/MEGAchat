@@ -835,10 +835,10 @@ public:
     enum
     {
         INIT_ERROR                  = -1,   /// Initialization failed --> force a logout
-        INIT_NO_CACHE               = 0,    /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
         INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
-        INIT_ONLINE_SESSION         = 3     /// Initialization successful for online operation --> login+fetchnodes completed
+        INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
+        INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
     };
 
 
@@ -922,10 +922,10 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::INIT_ERROR = -1
-     *  - MegaChatApi::INIT_NO_CACHE = 0
      *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 1
      *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
      *  - MegaChatApi::INIT_ONLINE_SESSION = 3
+     *  - MegaChatApi::INIT_NO_CACHE = 7
      *
      * The returned value will be undefined if \c init(sid) has not been called yet.
      *

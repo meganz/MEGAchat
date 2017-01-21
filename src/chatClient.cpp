@@ -56,7 +56,6 @@ Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint
   mOwnPresence(Presence::kInvalid),
   mPresencedClient(*this, caps)
 {
-    api.sdk.addGlobalListener(this);
 }
 
 KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *envVarName)
@@ -353,6 +352,9 @@ Client::InitState Client::init(const char* sid)
 {
     if (mInitState > kInitCreated)
         return kInitErrAlready;
+
+    api.sdk.addGlobalListener(this);
+
     if (sid)
     {
         initWithDbSession(sid);
@@ -806,10 +808,12 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
     if (!aUsers)
         return;
-    assert(mUserAttrCache);
+
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
     marshallCall([this, users]()
     {
+        assert(mUserAttrCache);
+
         auto count = users->size();
         for (int i=0; i<count; i++)
         {
