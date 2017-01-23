@@ -1665,7 +1665,10 @@ void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
     if (userid == parent.client.myHandle())
+    {
+        syncOwnPriv(privilege);
         return;
+    }
     addMember(userid, privilege, false);
     if (mRoomGui)
         mRoomGui->onUserJoin(userid, privilege);
