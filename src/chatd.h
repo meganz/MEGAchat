@@ -745,10 +745,12 @@ public:
       */
     int unreadMsgCount() const;
 
-    /** @brief Returns the most-recent message in the RAM history buffer.
-     * If the buffer is empty, returns \c NULL
+    /** @brief Returns the text of the most-recent non-management message in the
+     * chat. If it is not found in RAM, the database will be queried. If not found
+     * there as well (there stilll may be one, but on server, not fetched),
+     * an empty string will be returned.
      */
-    Message* lastMessage() const;
+    std::string lastMessage() const;
 
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
@@ -911,6 +913,7 @@ public:
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
+    virtual bool getLastNonMgmtMessage(Idx from, Buffer& buf);
     virtual ~DbInterface(){}
 };
 

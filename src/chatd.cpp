@@ -2227,11 +2227,21 @@ void Chat::setOnlineState(ChatState state)
     CALL_LISTENER(onOnlineStateChange, state);
 }
 
-Message* Chat::lastMessage() const
+std::string Chat::lastMessage() const
 {
     if (empty())
-        return nullptr;
-    return &at(highnum());
+        return std::string();
+    auto low = lownum();
+    for (Idx i=highnum(); i >= low; i--)
+    {
+        auto& msg = at(i);
+        if (!msg.isManagementMessage())
+            return std::string(msg.buf(), msg.dataSize());
+    }
+    Buffer buf;
+    if (!mDbInterface->getLastNonMgmtMessage(lownum()-1, buf))
+        return std::string();
+    return std::string(buf.buf(), buf.dataSize());
 }
 
 void Chat::sendTypingNotification()

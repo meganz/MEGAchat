@@ -325,6 +325,16 @@ public:
             return false;
         return stmt.stringCol(0) == "1";
     }
+    virtual bool getLastNonMgmtMessage(chatd::Idx from, Buffer& buf)
+    {
+        SqliteStmt stmt(mDb, "select data from history where chatid=? and type=1 and idx <= from order by idx desc limit 1");
+        stmt << mMessages.chatId() << from;
+        if (!stmt.step())
+            return false;
+
+        stmt.blobCol(0, buf);
+        return true;
+    }
 };
 
 #endif
