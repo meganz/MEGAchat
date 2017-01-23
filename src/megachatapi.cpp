@@ -873,6 +873,11 @@ bool MegaChatMessage::hasChanged(int) const
     return false;
 }
 
+int MegaChatMessage::getCode() const
+{
+    return 0;
+}
+
 
 void MegaChatLogger::log(int , const char *)
 {

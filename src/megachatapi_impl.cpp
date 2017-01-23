@@ -3364,6 +3364,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->edited = msg->isEdited();
     this->deleted = msg->isDeleted();
     this->priv = msg->getPrivilege();
+    this->code = msg->getCode();
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
@@ -3388,6 +3389,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->changed = 0;
     this->edited = msg.updated && msg.size();
     this->deleted = msg.updated && !msg.size();
+    this->code = 0;
 
     switch (type)
     {
@@ -3494,6 +3496,11 @@ int MegaChatMessagePrivate::getPrivilege() const
     return priv;
 }
 
+int MegaChatMessagePrivate::getCode() const
+{
+    return code;
+}
+
 int MegaChatMessagePrivate::getChanges() const
 {
     return changed;
@@ -3518,6 +3525,11 @@ void MegaChatMessagePrivate::setTempId(MegaChatHandle tempId)
 void MegaChatMessagePrivate::setContentChanged()
 {
     this->changed |= MegaChatMessage::CHANGE_TYPE_CONTENT;
+}
+
+void MegaChatMessagePrivate::setCode(int code)
+{
+    this->code = code;
 }
 
 LoggerHandler::LoggerHandler()
