@@ -1027,7 +1027,7 @@ uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
     return peers.getPeerHandle(0);
 }
 
-bool PeerChatRoom::syncOwnPriv(chatd::Priv priv)
+bool ChatRoom::syncOwnPriv(chatd::Priv priv)
 {
     if (mOwnPriv == priv)
         return false;
