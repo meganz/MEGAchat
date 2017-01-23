@@ -285,6 +285,14 @@ public:
         CHANGE_TYPE_CONTENT         = 0x02
     };
 
+    enum
+    {
+        REASON_PEERS_CHANGED = 1,   /// Group chat participants have changed
+        REASON_TOO_OLD = 2,         /// Message is too old to auto-retry sending
+        REASON_GENERAL_REJECT = 3,  /// chatd rejected the message, for unknown reason
+        REASON_NO_WRITE_ACCESS = 4  /// Read-only privilege or not belong to the chatroom
+    };
+
     virtual ~MegaChatMessage() {}
     virtual MegaChatMessage *copy() const;
 
@@ -443,6 +451,22 @@ public:
      * @return Privilege level as above
      */
     virtual int getPrivilege() const;
+
+    /**
+     * @brief Return a generic code used for different purposes
+     *
+     * The code returned by this method is valid only in the following cases:
+     *
+     *  - Messages with status MegaChatMessage::STATUS_SENDING_MANUAL: the code specifies
+     * the reason because the server rejects the message. The possible values are:
+     *      - MegaChatMessage::REASON_PEERS_CHANGED = 1
+     *      - MegaChatMessage::REASON_TOO_OLD = 2
+     *      - MegaChatMessage::REASON_GENERAL_REJECT = 3
+     *      - MegaChatMessage::REASON_NO_WRITE_ACCESS = 4
+     *
+     * @return A generic code for additional information about the message.
+     */
+    virtual int getCode() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;

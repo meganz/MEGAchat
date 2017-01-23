@@ -1622,22 +1622,24 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         return CHATD_IDX_INVALID;
     }
 
+
+    if (mNextUnsent == mSending.begin())
+        mNextUnsent++; //because we remove the first element
+
+    if (!msgid)
+    {
+        moveItemToManualSending(mSending.begin(), (mOwnPrivilege == PRIV_RDONLY)
+            ? kManualSendNoWriteAccess
+            : kManualSendGeneralReject); //deletes item
+        return CHATD_IDX_INVALID;
+    }
     auto msg = item.msg;
     item.msg = nullptr;
     assert(msg);
     assert(msg->isSending());
+
     CALL_DB(deleteItemFromSending, item.rowid);
-
-    if (mNextUnsent == mSending.begin())
-        mNextUnsent++; //because we remove the first element
     mSending.pop_front(); //deletes item
-
-    if (!msgid)
-    {
-        CALL_LISTENER(onMessageRejected, *msg);
-        return CHATD_IDX_INVALID;
-    }
-
     CHATID_LOG_DEBUG("recv NEWMSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
     //put into history
     msg->setId(msgid, false);
@@ -1714,22 +1716,19 @@ void Chat::rejectMsgupd(uint8_t opcode, Id id)
 template<bool mustBeInSending>
 void Chat::rejectGeneric(uint8_t opcode)
 {
+    if (!mustBeInSending)
+        return;
+
     if (mSending.empty())
     {
-        if (!mustBeInSending)
-            return;
-        else
-            throw std::runtime_error("rejectGeneric(mustBeInSending): Send queue is empty");
+        throw std::runtime_error("rejectGeneric(mustBeInSending): Send queue is empty");
     }
-    if (mSending.front().opcode() == opcode)
-    {
-        CALL_DB(deleteItemFromSending, mSending.front().rowid);
-        mSending.pop_front();
-    }
-    else
+    if (mSending.front().opcode() != opcode)
     {
         throw std::runtime_error("rejectGeneric(mustBeInSending): Rejected command is not at the front of the send queue");
     }
+    CALL_DB(deleteItemFromSending, mSending.front().rowid);
+    mSending.pop_front();
 }
 
 void Chat::onMsgUpdated(Message* cipherMsg)
@@ -2166,6 +2165,8 @@ void Chat::handleLastReceivedSeen(Id msgid)
 
 void Chat::onUserJoin(Id userid, Priv priv)
 {
+    if (userid == client().userId())
+        mOwnPrivilege = priv;
     if (mOnlineState == kChatStateJoining)
     {
         mUserDump.insert(userid);
