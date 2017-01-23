@@ -40,9 +40,10 @@ class ICrypto;
 /** @brief Reason codes passed to Listener::onManualSendRequired() */
 enum ManualSendReason: uint8_t
 {
-    kManualSendNoWriteAccess = 0,    ///< Read-only privilege or not belong to the chatroom
     kManualSendUsersChanged = 1, ///< Group chat participants have changed
-    kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_EDIT_AGE seconds
+    kManualSendTooOld = 2, ///< Message is older than CHATD_MAX_EDIT_AGE seconds
+    kManualSendGeneralReject = 3, ///< chatd rejected the message, for unknown reason
+    kManualSendNoWriteAccess = 4  ///< Read-only privilege or not belong to the chatroom
 };
 
 /** The source from where history is being retrieved by the app */
@@ -368,8 +369,10 @@ protected:
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     karere::Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
+    bool mHasMoreHistoryInDb = false;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
+    Priv mOwnPrivilege = PRIV_INVALID;
     karere::SetOfIds mUsers;
     karere::SetOfIds mUserDump; //< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
@@ -384,10 +387,8 @@ protected:
     /** @brief The state of history fetching from server */
     ServerHistFetchState mServerFetchState = kHistNotFetching;
     /** @brief @The state of history sending to the app via getHistory() */
-    bool mHasMoreHistoryInDb = false;
     bool mServerOldHistCbEnabled = false;
     bool mHaveAllHistory = false;
-    bool mIsDisabled = false;
     Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
     ICrypto* mCrypto;
@@ -494,8 +495,6 @@ public:
     Idx size() const { return mForwardList.size() + mBackwardList.size(); }
     /** @brief Whether we have any messages in the history buffer */
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
-    bool isDisabled() const { return mIsDisabled; }
-    void disable(bool state) { mIsDisabled = state; }
     /** The index of the oldest decrypted message in the RAM history buffer.
      * This will be greater than lownum() if there are not-yet-decrypted messages
      * at the start of the buffer, i.e. when more history has been fetched, but
@@ -521,7 +520,6 @@ public:
       */
     void connect(const std::string& url=std::string());
 
-    void disconnect();
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
 
@@ -859,7 +857,6 @@ public:
         Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
-    void connect();
     void disconnect();
     friend class Connection;
     friend class Chat;

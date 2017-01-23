@@ -285,6 +285,14 @@ public:
         CHANGE_TYPE_CONTENT         = 0x02
     };
 
+    enum
+    {
+        REASON_PEERS_CHANGED = 1,   /// Group chat participants have changed
+        REASON_TOO_OLD = 2,         /// Message is too old to auto-retry sending
+        REASON_GENERAL_REJECT = 3,  /// chatd rejected the message, for unknown reason
+        REASON_NO_WRITE_ACCESS = 4  /// Read-only privilege or not belong to the chatroom
+    };
+
     virtual ~MegaChatMessage() {}
     virtual MegaChatMessage *copy() const;
 
@@ -443,6 +451,22 @@ public:
      * @return Privilege level as above
      */
     virtual int getPrivilege() const;
+
+    /**
+     * @brief Return a generic code used for different purposes
+     *
+     * The code returned by this method is valid only in the following cases:
+     *
+     *  - Messages with status MegaChatMessage::STATUS_SENDING_MANUAL: the code specifies
+     * the reason because the server rejects the message. The possible values are:
+     *      - MegaChatMessage::REASON_PEERS_CHANGED = 1
+     *      - MegaChatMessage::REASON_TOO_OLD = 2
+     *      - MegaChatMessage::REASON_GENERAL_REJECT = 3
+     *      - MegaChatMessage::REASON_NO_WRITE_ACCESS = 4
+     *
+     * @return A generic code for additional information about the message.
+     */
+    virtual int getCode() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -835,10 +859,10 @@ public:
     enum
     {
         INIT_ERROR                  = -1,   /// Initialization failed --> force a logout
-        INIT_NO_CACHE               = 0,    /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
         INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
-        INIT_ONLINE_SESSION         = 3     /// Initialization successful for online operation --> login+fetchnodes completed
+        INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
+        INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
     };
 
 
@@ -922,10 +946,10 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::INIT_ERROR = -1
-     *  - MegaChatApi::INIT_NO_CACHE = 0
      *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 1
      *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
      *  - MegaChatApi::INIT_ONLINE_SESSION = 3
+     *  - MegaChatApi::INIT_NO_CACHE = 7
      *
      * The returned value will be undefined if \c init(sid) has not been called yet.
      *
