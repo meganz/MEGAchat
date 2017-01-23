@@ -2612,13 +2612,14 @@ void MegaChatRoomHandler::onUnreadChanged()
     }
 }
 
-void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id, chatd::ManualSendReason /*reason*/)
+void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id, chatd::ManualSendReason reason)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(*msg, Message::kSendingManual, MEGACHAT_INVALID_INDEX);
     delete msg; // we take ownership of the Message
 
     message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
     message->setTempId(id); // identifier for the manual-send queue, for removal from queue
+    message->setCode(reason);
     chatApi->fireOnMessageLoaded(message);
 }
 
