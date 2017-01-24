@@ -85,10 +85,9 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
 {
     this->chatApi = chatApi;
     this->megaApi = megaApi;
-    this->megaApi->addRequestListener(this);
 
     this->waiter = new MegaWaiter();
-    this->mClient = new karere::Client(*megaApi, *this, megaApi->getBasePath(), karere::kClientIsMobile);
+    this->mClient = NULL;
 
     this->resumeSession = nullptr;
     this->initResult = NULL;
@@ -190,6 +189,12 @@ void MegaChatApiImpl::sendPendingRequests()
 
         fireOnChatRequestStart(request);
 
+        if (!mClient && request->getType() != MegaChatRequest::TYPE_DELETE)
+        {
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
+            fireOnChatRequestFinish(request, megaChatError);
+        }
+
         switch (request->getType())
         {
         case MegaChatRequest::TYPE_CONNECT:
@@ -234,11 +239,11 @@ void MegaChatApiImpl::sendPendingRequests()
 
                 marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
                 {
-                     delete mClient;
-                     mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), karere::kClientIsMobile);
+                    delete mClient;
+                    mClient = NULL;
 
-                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                     fireOnChatRequestFinish(request, megaChatError);
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
                  });
             })
             .fail([request, this](const promise::Error& e)
@@ -250,17 +255,23 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_DELETE:
         {
-            mClient->terminate()
-            .then([this]()
+            if (mClient)
             {
-                API_LOG_INFO("Chat engine closed!");
+                mClient->terminate()
+                .then([this]()
+                {
+                    API_LOG_INFO("Chat engine closed!");
+                    threadExit = 1;
+                })
+                .fail([](const promise::Error& err)
+                {
+                    API_LOG_ERROR("Error closing chat engine: %s", err.what());
+                });
+            }
+            else
+            {
                 threadExit = 1;
-                megaApi->removeRequestListener(this);
-            })
-            .fail([](const promise::Error& err)
-            {
-                API_LOG_ERROR("Error closing chat engine: %s", err.what());
-            });
+            }
             break;
         }
         case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
@@ -725,6 +736,11 @@ int MegaChatApiImpl::init(const char *sid)
     int ret;
 
     sdkMutex.lock();
+    if (!mClient)
+    {
+        mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), karere::kClientIsMobile);
+    }
+
     ret = MegaChatApiImpl::convertInitState(mClient->init(sid));
     sdkMutex.unlock();
 
@@ -736,7 +752,14 @@ int MegaChatApiImpl::getInitState()
     int initState;
 
     sdkMutex.lock();
-    initState = MegaChatApiImpl::convertInitState(mClient->initState());
+    if (mClient)
+    {
+        initState = MegaChatApiImpl::convertInitState(mClient->initState());
+    }
+    else
+    {
+        initState = MegaChatApi::INIT_ERROR;
+    }
     sdkMutex.unlock();
 
     return initState;
@@ -1808,8 +1831,11 @@ void MegaChatApiImpl::onInitStateChange(int newState)
     int state = MegaChatApiImpl::convertInitState(newState);
 
     // only notify meaningful state to the app
-    if (state >= MegaChatApi::INIT_ERROR &&
-            state <= MegaChatApi::INIT_ONLINE_SESSION)
+    if (state == MegaChatApi::INIT_ERROR ||
+            state == MegaChatApi::INIT_WAITING_NEW_SESSION ||
+            state == MegaChatApi::INIT_OFFLINE_SESSION ||
+            state == MegaChatApi::INIT_ONLINE_SESSION ||
+            state == MegaChatApi::INIT_NO_CACHE)
     {
         fireOnChatInitStateUpdate(state);
     }
@@ -2610,13 +2636,14 @@ void MegaChatRoomHandler::onUnreadChanged()
     }
 }
 
-void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id, chatd::ManualSendReason /*reason*/)
+void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id, chatd::ManualSendReason reason)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(*msg, Message::kSendingManual, MEGACHAT_INVALID_INDEX);
     delete msg; // we take ownership of the Message
 
     message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
     message->setTempId(id); // identifier for the manual-send queue, for removal from queue
+    message->setCode(reason);
     chatApi->fireOnMessageLoaded(message);
 }
 
@@ -3376,6 +3403,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->edited = msg->isEdited();
     this->deleted = msg->isDeleted();
     this->priv = msg->getPrivilege();
+    this->code = msg->getCode();
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
@@ -3400,6 +3428,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->changed = 0;
     this->edited = msg.updated && msg.size();
     this->deleted = msg.updated && !msg.size();
+    this->code = 0;
 
     switch (type)
     {
@@ -3506,6 +3535,11 @@ int MegaChatMessagePrivate::getPrivilege() const
     return priv;
 }
 
+int MegaChatMessagePrivate::getCode() const
+{
+    return code;
+}
+
 int MegaChatMessagePrivate::getChanges() const
 {
     return changed;
@@ -3530,6 +3564,11 @@ void MegaChatMessagePrivate::setTempId(MegaChatHandle tempId)
 void MegaChatMessagePrivate::setContentChanged()
 {
     this->changed |= MegaChatMessage::CHANGE_TYPE_CONTENT;
+}
+
+void MegaChatMessagePrivate::setCode(int code)
+{
+    this->code = code;
 }
 
 LoggerHandler::LoggerHandler()

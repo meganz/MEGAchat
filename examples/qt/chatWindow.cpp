@@ -529,6 +529,15 @@ ManualSendMsgWidget::ManualSendMsgWidget(ChatWindow& chatWin, chatd::Message* aM
     {
         ui.mReasonDisplay->setText(tr("Participants changed"));
     }
+    else if (reason == chatd::kManualSendNoWriteAccess)
+    {
+        ui.mReasonDisplay->setText(tr("No write access"));
+
+    }
+    else if (reason == chatd::kManualSendGeneralReject)
+    {
+        ui.mReasonDisplay->setText(tr("Rejected for unknown reason"));
+    }
     else
     {
         GUI_LOG_ERROR("Don't know how to handle manual send reason %d", reason);
