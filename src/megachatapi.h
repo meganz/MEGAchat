@@ -1717,6 +1717,10 @@ public:
      *
      * You can use MegaChatApi::removeChatRoomListener to stop receiving events.
      *
+     * Note this listener is feeded with data from a chatroom that is opened. It
+     * is required to call \c MegaChatApi::openChatRoom. Otherwise, the listener
+     * will NOT receive any callback.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener Listener that will receive all events about an specific chat
      */
