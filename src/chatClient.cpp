@@ -415,14 +415,14 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             assert(sid);
             if (mInitState == kInitHasOfflineSession)
             {
-                //verify the SDK sid is the same as ours
+                // we loaded our state from db
+                // verify the SDK sid is the same as ours
                 if (mSid != sid)
                 {
                     setInitState(kInitErrSidMismatch);
                     return;
                 }
                 checkSyncWithSdkDb();
-                loadContactListFromApi();
                 setInitState(kInitHasOnlineSession);
             }
             else if (mInitState == kInitWaitingNewSession || mInitState == kInitErrNoCache)
@@ -468,6 +468,9 @@ void Client::createDb()
 
 bool Client::checkSyncWithSdkDb()
 {
+    // TODO: We have to somehow lock the SDK write to database in order to
+    // be able to atomically make a consistent snapshot of contactlist
+    // and chatlist
     SqliteStmt stmt(db, "select value from vars where name='scsn'");
     stmt.stepMustHaveData("get karere scsn");
     auto pSdkScsn = api.sdk.getSequenceNumber();
@@ -476,12 +479,16 @@ bool Client::checkSyncWithSdkDb()
         KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
         return true;
     }
+
+    // We are not in sync, probably karere is one or more commits behind
     KR_LOG_WARNING("Karere db out of sync with sdk - scsn-s don't match");
     std::string scsn = pSdkScsn ? pSdkScsn : "";
-    //we are not in sync, probably karere is one or more commits behind
-    //sync the chatroom list
+
+    //sync contactlist first
+    loadContactListFromApi();
+    // sync the chatroom list and commit
     chats->onChatsUpdate(*api.sdk.getChatList(), &scsn);
-    return true;
+    return false;
 }
 
 void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
@@ -1339,24 +1346,11 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
-    if (!mContactsLoaded)
+    assert(mContactsLoaded);
+    marshallCall([this, copy, scsn]()
     {
-        // No need for weak ptr guard, as we are marshalling immediately,
-        // and client deletion is done via a posted message, which is guaranteed
-        // be processed after all currently posted
-        marshallCall([this, copy]()
-        {
-            KR_LOG_DEBUG("onChatsUpdate: no contactlist yet, caching the update info");
-            mInitialChats.push_back(copy);
-        });
-    }
-    else
-    {
-        marshallCall([this, copy, scsn]()
-        {
-            chats->onChatsUpdate(*copy, &scsn);
-        });
-    }
+        chats->onChatsUpdate(*copy, &scsn);
+    });
 }
 
 void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms,
