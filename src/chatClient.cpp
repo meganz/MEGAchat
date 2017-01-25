@@ -265,14 +265,19 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
         return sdkLoginExistingSession(sid);
     }
 }
+
 void Client::loadContactListFromApi()
 {
-    auto contacts = api.sdk.getContacts();
-    assert(contacts);
+    std::unique_ptr<::mega::MegaUserList> contacts(api.sdk.getContacts());
+    loadContactListFromApi(*contacts);
+}
+
+void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
+{
 #ifndef NDEBUG
-    dumpContactList(*contacts);
+    dumpContactList(contacts);
 #endif
-    contactList->syncWithApi(*contacts);
+    contactList->syncWithApi(contacts);
     mContactsLoaded = true;
 }
 
@@ -401,40 +406,46 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     if (!request)
         return;
     auto type = request->getType();
-    auto s = request->getSessionKey();
-    std::string reqSid;
-    if (s)
+    if (type != mega::MegaRequest::TYPE_FETCH_NODES)
+        return;
+
+    api.sdk.pauseActionPackets();
+    api.sdk.removeRequestListener(this);
+    auto state = mInitState;
+    if (state == kInitHasOfflineSession)
     {
-        reqSid = s;
-    }
-    if (type == mega::MegaRequest::TYPE_FETCH_NODES)
-    {
-        api.sdk.pauseActionPackets();
-        marshallCall([this, reqSid]()
+        auto pscsn = api.sdk.getSequenceNumber();
+        assert(pscsn);
+        std::string scsn(pscsn);
+        printf("FETCH_NODES: scsn=%s\n", pscsn);
+        std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
+        std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
+        marshallCall([this, scsn, contactList, chatList]()
         {
-            api.sdk.removeRequestListener(this);
             auto sid = api.sdk.dumpSession();
             assert(sid);
-            if (mInitState == kInitHasOfflineSession)
+            // we loaded our state from db
+            // verify the SDK sid is the same as ours
+            if (mSid != sid)
             {
-                // we loaded our state from db
-                // verify the SDK sid is the same as ours
-                if (mSid != sid)
-                {
-                    setInitState(kInitErrSidMismatch);
-                    return;
-                }
-                checkSyncWithSdkDb();
+                setInitState(kInitErrSidMismatch);
+                return;
+            }
+            checkSyncWithSdkDb(scsn, *contactList, *chatList);
+            setInitState(kInitHasOnlineSession);
+        });
+    }
+    else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
+    {
+        marshallCall([this]()
+        {
+            auto sid = api.sdk.dumpSession();
+            assert(sid);
+            initWithNewSession(sid)
+            .then([this]()
+            {
                 setInitState(kInitHasOnlineSession);
-            }
-            else if (mInitState == kInitWaitingNewSession || mInitState == kInitErrNoCache)
-            {
-                initWithNewSession(sid)
-                .then([this]()
-                {
-                    setInitState(kInitHasOnlineSession);
-                });
-            }
+            });
             api.sdk.resumeActionPackets();
         });
     }
@@ -467,28 +478,27 @@ void Client::createDb()
     createDbSchema(); //calls commit() at the end
 }
 
-bool Client::checkSyncWithSdkDb()
+bool Client::checkSyncWithSdkDb(const std::string& scsn,
+    ::mega::MegaUserList& contactList, ::mega::MegaTextChatList& chatList)
 {
     // TODO: We have to somehow lock the SDK write to database in order to
     // be able to atomically make a consistent snapshot of contactlist
     // and chatlist
     SqliteStmt stmt(db, "select value from vars where name='scsn'");
     stmt.stepMustHaveData("get karere scsn");
-    auto pSdkScsn = api.sdk.getSequenceNumber();
-    if (pSdkScsn && (stmt.stringCol(0) == pSdkScsn))
+/*    if (stmt.stringCol(0) == scsn)
     {
         KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
         return true;
     }
-
+*/
     // We are not in sync, probably karere is one or more commits behind
     KR_LOG_WARNING("Karere db out of sync with sdk - scsn-s don't match");
-    std::string scsn = pSdkScsn ? pSdkScsn : "";
 
     //sync contactlist first
-    loadContactListFromApi();
+    loadContactListFromApi(contactList);
     // sync the chatroom list and commit
-    chats->onChatsUpdate(*api.sdk.getChatList(), &scsn);
+    chats->onChatsUpdate(chatList, &scsn);
     return false;
 }
 

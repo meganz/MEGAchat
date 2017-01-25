@@ -592,7 +592,6 @@ public:
     presenced::Client& presenced() { return mPresencedClient; }
     bool contactsLoaded() const { return mContactsLoaded; }
     bool connected() const { return mConnected; }
-    std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
     /** @endcond PRIVATE */
 
     /** @brief The contact list of the client */
@@ -763,6 +762,7 @@ protected:
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
     void loadContactListFromApi();
+    void loadContactListFromApi(::mega::MegaUserList& contactList);
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
@@ -784,7 +784,7 @@ protected:
      * there is no existing code that logs in the Mega SDK instance.
      */
     promise::Promise<void> sdkLoginExistingSession(const char* sid);
-    bool checkSyncWithSdkDb();
+    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
     void commit(const std::string& scsn);
     void commit();
 #ifndef KARERE_DISABLE_WEBRTC
