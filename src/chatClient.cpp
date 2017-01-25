@@ -206,7 +206,7 @@ Client::~Client()
 promise::Promise<void> Client::sdkLoginNewSession()
 {
     mLoginDlg.reset(app.createLoginDialog());
-    return async::loop((int)0, [](int) { return true; }, [](int&){},
+    async::loop((int)0, [](int) { return true; }, [](int&){},
     [this](async::Loop<int>& loop)
     {
         return mLoginDlg->requestCredentials()
@@ -238,15 +238,18 @@ promise::Promise<void> Client::sdkLoginNewSession()
     {
         mLoginDlg.reset();
     });
+    return mInitCompletePromise;
 }
+
 promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
 {
     assert(sid);
-    return api.callIgnoreResult(&::mega::MegaApi::fastLogin, sid)
+    api.callIgnoreResult(&::mega::MegaApi::fastLogin, sid)
     .then([this]()
     {
         return api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
     });
+    return mInitCompletePromise;
 }
 
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
@@ -392,6 +395,7 @@ Client::InitState Client::init(const char* sid)
         {
             wipeDb(sid);
         }
+        mInitCompletePromise.resolve();
     }
     else
     {
@@ -906,15 +910,16 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
         sdkPeers->addPeer(peer.first, peer.second);
     }
     return api.call(&mega::MegaApi::createChat, true, sdkPeers.get())
-    .then([this](ReqResult result)
+    .then([this](ReqResult result)->Promise<karere::Id>
     {
         auto& list = *result->getMegaTextChatList();
         if (list.size() < 1)
             throw std::runtime_error("Empty chat list returned from API");
-        auto& room = chats->addRoom(*list.get(0));
-        assert(room.isGroup());
-        room.connect();
-        return karere::Id(room.chatid());
+        auto room = chats->addRoom(*list.get(0));
+        if (!room || !room->isGroup())
+            return promise::Error("API created incorrect group");
+        room->connect();
+        return karere::Id(room->chatid());
     });
 }
 
@@ -1042,7 +1047,7 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* aUrl,
     unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv)
 :ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer),
-  mPeerPriv(peerPriv), mContact(parent.client.contactList->contactFromUserId(peer)),
+  mPeerPriv(peerPriv), mContact(*parent.client.contactList->contactFromUserId(peer)),
   mRoomGui(nullptr)
 {
     //mTitleString is set by Contact::attachChatRoom() via updateTitle()
@@ -1052,11 +1057,11 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const c
     mIsInitializing = false;
 }
 
-PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
+PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, Contact& contact)
     :ChatRoom(parent, chat.getHandle(), false, chat.getUrl(), chat.getShard(),
      (chatd::Priv)chat.getOwnPrivilege()),
     mPeer(getSdkRoomPeer(chat)), mPeerPriv(chatd::PRIV_RDONLY),
-    mContact(parent.client.contactList->contactFromUserId(mPeer)),
+    mContact(contact),
     mRoomGui(nullptr)
 {
     assert(!chat.isGroup());
@@ -1265,13 +1270,15 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
         KR_LOG_DEBUG("Adding %sroom %s from API",
             isInactive ? "(inactive) " : "",
             Id(apiRoom.getHandle()).toString().c_str());
-        auto& room = addRoom(apiRoom);
-        chatids.insert(room.chatid());
+        auto room = addRoom(apiRoom);
+        if (!room)
+            continue;
+        chatids.insert(room->chatid());
 
         if (client.connected())
         {
             KR_LOG_DEBUG("Connecting new room to chatd...");
-            room.connect();
+            room->connect();
         }
         else
         {
@@ -1280,7 +1287,7 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
     }
 }
 
-ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
+ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
 {
     auto chatid = apiRoom.getHandle();
 
@@ -1295,15 +1302,26 @@ ChatRoom& ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     }
     else
     {
-        assert(apiRoom.getPeerList()->size() == 1);
-        room = new PeerChatRoom(*this, apiRoom);
+        if (apiRoom.getPeerList()->size() != 1)
+        {
+            KR_LOG_ERROR("addRoom: Trying to load a 1on1 room %s with more than one peer, ignoring room", Id(apiRoom.getHandle()).toString().c_str());
+            return nullptr;
+        }
+        auto peer = apiRoom.getPeerList()->getPeerHandle(0);
+        auto contact = client.contactList->contactFromUserId(peer);
+        if (!contact) //trying to create a 1on1 chatroom with a user that is not a contact. handle it gracfully
+        {
+            KR_LOG_ERROR("addRoom: Trying to load a 1on1 chat with a non-contact %s, ignoring chatroom", karere::Id(peer).toString().c_str());
+            return nullptr;
+        }
+        room = new PeerChatRoom(*this, apiRoom, *contact);
     }
 #ifndef NDEBUG
     auto ret =
 #endif
     emplace(chatid, room);
     assert(ret.second); //we should not have that room
-    return *room;
+    return room;
 }
 
 void ChatRoom::notifyExcludedFromChat()
@@ -1391,13 +1409,29 @@ void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms,
         {   //we don't have the room locally
             if (priv != chatd::PRIV_NOTPRESENT)
             {
-                //we are in the room, add it to local cache
-                KR_LOG_DEBUG("Chatroom[%s]: Received invite to join",  Id(chatid).toString().c_str());
-                auto& room = addRoom(*apiRoom);
-                client.app.notifyInvited(room);
+                KR_LOG_DEBUG("Chatroom[%s]: Received new room",  Id(chatid).toString().c_str());
+                auto room = addRoom(*apiRoom);
+                if (!room)
+                    continue;
+                client.app.notifyInvited(*room);
                 if (client.connected())
                 {
-                    room.connect();
+                    room->connect();
+                }
+            }
+            else
+            {
+                KR_LOG_DEBUG("Chatroom[%s]: Received new INACTIVE room",  Id(chatid).toString().c_str());
+                if (!client.skipInactiveChatrooms)
+                {
+                    auto room = addRoom(*apiRoom);
+                    if (!room)
+                        continue;
+                    if (!room->isGroup())
+                    {
+                        KR_LOG_ERROR("... inactive room is 1on1: only group chatrooms can be inactive");
+                        continue;
+                    }
                 }
             }
         }
@@ -2149,12 +2183,10 @@ const std::string* ContactList::getUserEmail(uint64_t userid) const
     return &(it->second->email());
 }
 
-Contact& ContactList::contactFromUserId(uint64_t userid) const
+Contact* ContactList::contactFromUserId(uint64_t userid) const
 {
     auto it = find(userid);
-    if (it == end())
-        throw std::runtime_error("contactFromFromUserId: There is no contact with userid "+karere::Id(userid).toString());
-    return *it->second;
+    return (it == end())? nullptr : it->second;
 }
 
 void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactRequestList* reqs)
@@ -2285,8 +2317,10 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
         auto& list = *result->getMegaTextChatList();
         if (list.size() < 1)
             return promise::Error("Empty chat list returned from API");
-        auto& room = mClist.client.chats->addRoom(*list.get(0));
-        return &room;
+        auto room = mClist.client.chats->addRoom(*list.get(0));
+        if (!room)
+            return promise::Error("API created an incorrect 1on1 room");
+        return room;
     });
 }
 
