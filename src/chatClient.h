@@ -637,7 +637,9 @@ public:
      * @brief Performs karere-only login, assuming the Mega SDK is already logged
      * in with a new session
      */
-    promise::Promise<void> initWithNewSession(const char* sid);
+    promise::Promise<void> initWithNewSession(const char* sid, const std::string& scsn,
+        const std::shared_ptr<::mega::MegaUserList>& contactList,
+        const std::shared_ptr<::mega::MegaTextChatList>& chatList);
 
     /**
      * @brief Initializes karere, opening or creating the local db cache
