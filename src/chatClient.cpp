@@ -157,12 +157,12 @@ bool Client::openDb(const std::string& sid)
     return true;
 }
 
-void Client::createDbSchema(sqlite3*& database)
+void Client::createDbSchema()
 {
     mMyHandle = Id::null();
-//    SqliteTransaction trans(db);
+    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
     MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
-    int ret = sqlite3_exec(database, gDbSchema, nullptr, nullptr, errmsg.handlePtr());
+    int ret = sqlite3_exec(db, gDbSchema, nullptr, nullptr, errmsg.handlePtr());
     if (ret)
     {
         if (errmsg)
@@ -170,9 +170,11 @@ void Client::createDbSchema(sqlite3*& database)
         else
             throw std::runtime_error("Error "+std::to_string(ret)+" initializing database");
     }
+    commit();
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
-    sqliteQuery(database, "insert into vars(name, value) values('schema_version', ?)", ver);
+    sqliteQuery(db, "insert into vars(name, value) values('schema_version', ?)", ver);
+    commit();
 }
 
 void Client::heartbeat()
@@ -462,8 +464,7 @@ void Client::createDb()
     int ret = sqlite3_open(path.c_str(), &db);
     if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+mAppDir);
-    createDbSchema(db);
-    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
+    createDbSchema(); //calls commit() at the end
 }
 
 bool Client::checkSyncWithSdkDb()

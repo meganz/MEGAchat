@@ -754,7 +754,7 @@ protected:
     bool openDb(const std::string& sid);
     void createDb();
     void wipeDb(const std::string& sid);
-    void createDbSchema(sqlite3*& database);
+    void createDbSchema();
     void connectToChatd();
     karere::Id getMyHandleFromDb();
     karere::Id getMyHandleFromSdk();
