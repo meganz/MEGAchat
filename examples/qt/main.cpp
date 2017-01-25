@@ -129,6 +129,7 @@ int main(int argc, char **argv)
         {
             KR_LOG_DEBUG("Client initialized");
         }
+        printf("ABOUT TO CONNECT\n");
         return gClient->connect(Presence::kInvalid);
     })
     .then([]()

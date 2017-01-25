@@ -153,12 +153,14 @@ bool Client::openDb(const std::string& sid)
         return false;
     }
     mSid = sid;
+    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
     return true;
 }
 
 void Client::createDbSchema(sqlite3*& database)
 {
     mMyHandle = Id::null();
+//    SqliteTransaction trans(db);
     MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
     int ret = sqlite3_exec(database, gDbSchema, nullptr, nullptr, errmsg.handlePtr());
     if (ret)
@@ -292,15 +294,36 @@ promise::Promise<void> Client::initWithNewSession(const char* sid)
     {
         loadContactListFromApi();
         chatd.reset(new chatd::Client(mMyHandle));
-        if (!mInitialChats.empty())
-        {
-            for (auto& list: mInitialChats)
-            {
-                chats->onChatsUpdate(list);
-            }
-            mInitialChats.clear();
-        }
+        chats->onChatsUpdate(*api.sdk.getChatList(), nullptr);
     });
+}
+
+void Client::commit(const std::string& scsn)
+{
+    if (scsn.empty())
+    {
+        KR_LOG_DEBUG("Committing with empty scsn");
+        commit();
+        return;
+    }
+    if (scsn == mLastScsn)
+    {
+        KR_LOG_DEBUG("Committing with same scsn");
+        commit();
+        return;
+    }
+
+    sqliteQuery(db, "insert or replace into vars(name,value) values('scsn',?)", scsn);
+    printf("commit %s\n", scsn.c_str());
+    sqliteSimpleQuery(db, "COMMIT TRANSACTION");
+    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
+    mLastScsn = scsn;
+}
+
+void Client::commit()
+{
+    sqliteSimpleQuery(db, "COMMIT TRANSACTION");
+    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
 }
 
 void Client::initWithDbSession(const char* sid)
@@ -398,6 +421,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                     setInitState(kInitErrSidMismatch);
                     return;
                 }
+                checkSyncWithSdkDb();
                 loadContactListFromApi();
                 setInitState(kInitHasOnlineSession);
             }
@@ -439,6 +463,25 @@ void Client::createDb()
     if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+mAppDir);
     createDbSchema(db);
+    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
+}
+
+bool Client::checkSyncWithSdkDb()
+{
+    SqliteStmt stmt(db, "select value from vars where name='scsn'");
+    stmt.stepMustHaveData("get karere scsn");
+    auto pSdkScsn = api.sdk.getSequenceNumber();
+    if (pSdkScsn && (stmt.stringCol(0) == pSdkScsn))
+    {
+        KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
+        return true;
+    }
+    KR_LOG_WARNING("Karere db out of sync with sdk - scsn-s don't match");
+    std::string scsn = pSdkScsn ? pSdkScsn : "";
+    //we are not in sync, probably karere is one or more commits behind
+    //sync the chatroom list
+    chats->onChatsUpdate(*api.sdk.getChatList(), &scsn);
+    return true;
 }
 
 void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
@@ -617,10 +660,10 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
             return promise::Error("No private RSA key in getUserData API response");
         mMyPrivRsaLen = base64urldecode(privrsa, strlen(privrsa), mMyPrivRsa, sizeof(mMyPrivRsa));
         // write to db
-        sqliteQuery(db, "insert into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
-        sqliteQuery(db, "insert into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
-        sqliteQuery(db, "insert into vars(name, value) values('pub_rsa', ?)", StaticBuffer(mMyPubRsa, mMyPubRsaLen));
-        sqliteQuery(db, "insert into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
+        sqliteQuery(db, "insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
+        sqliteQuery(db, "insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
+        sqliteQuery(db, "insert or replace into vars(name, value) values('pub_rsa', ?)", StaticBuffer(mMyPubRsa, mMyPubRsaLen));
+        sqliteQuery(db, "insert or replace into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });
@@ -771,6 +814,8 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     setInitState(kInitTerminating);
     api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
+    KR_LOG_INFO("Doing final COMMIT to database");
+    commit();
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
@@ -808,12 +853,12 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
     if (!aUsers)
         return;
-
+    auto pscsn = api->getSequenceNumber();
+    std::string scsn = pscsn ? pscsn : "";
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
-    marshallCall([this, users]()
+    marshallCall([this, users, scsn]()
     {
         assert(mUserAttrCache);
-
         auto count = users->size();
         for (int i=0; i<count; i++)
         {
@@ -826,8 +871,11 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
                 }
             }
             else
+            {
                 contactList->onUserAddRemove(user);
+            }
         };
+        commit(scsn);
     });
 }
 
@@ -1283,7 +1331,11 @@ void GroupChatRoom::setRemoved()
 
 void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 {
+    if (!rooms)
+        return;
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
+    const char* pscsn = api.sdk.getSequenceNumber();
+    std::string scsn = pscsn ? pscsn : "";
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
@@ -1300,21 +1352,22 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     }
     else
     {
-        marshallCall([this, copy]()
+        marshallCall([this, copy, scsn]()
         {
-            chats->onChatsUpdate(copy);
+            chats->onChatsUpdate(*copy, &scsn);
         });
     }
 }
 
-void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
+void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms,
+    const std::string* scsn)
 {
     SetOfIds added;
-    addMissingRoomsFromApi(*rooms, added);
-    auto count = rooms->size();
+    addMissingRoomsFromApi(rooms, added);
+    auto count = rooms.size();
     for (int i = 0; i < count; i++)
     {
-        auto apiRoom = rooms->get(i);
+        auto apiRoom = rooms.get(i);
         auto chatid = apiRoom->getHandle();
         if (added.has(chatid)) //room was just added, no need to sync
             continue;
@@ -1344,6 +1397,10 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
             }
         }
     }
+    if (scsn)
+        client.commit(*scsn);
+    else
+        client.commit();
 }
 
 ChatRoomList::~ChatRoomList()
@@ -2095,12 +2152,21 @@ Contact& ContactList::contactFromUserId(uint64_t userid) const
     return *it->second;
 }
 
-void Client::onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs)
+void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactRequestList* reqs)
 {
+    auto pscsn = api->getSequenceNumber();
+    std::string scsn(pscsn?pscsn:"");
     if (!reqs)
+    {
+        marshallCall([this, scsn]()
+        {
+            commit(scsn);
+        });
         return;
+    }
+
     std::shared_ptr<mega::MegaContactRequestList> copy(reqs->copy());
-    marshallCall([this, copy]()
+    marshallCall([this, copy, scsn]()
     {
         auto count = copy->size();
         for (int i=0; i<count; i++)
@@ -2111,6 +2177,7 @@ void Client::onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestLis
             if (req.getStatus() == mega::MegaContactRequest::STATUS_UNRESOLVED)
                 app.onIncomingContactRequest(req);
         }
+        commit(scsn);
     });
 }
 

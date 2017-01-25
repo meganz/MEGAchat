@@ -365,7 +365,7 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
-    void onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& chats);
+    void onChatsUpdate(mega::MegaTextChatList& chats, const std::string* scsn);
 /** @endcond PRIVATE */
 };
 
@@ -746,6 +746,7 @@ protected:
     std::string mPresencedUrl;
     UserAttrCache::Handle mOwnNameAttrHandle;
     megaHandle mHeartbeatTimer = 0;
+    std::string mLastScsn;
     void heartbeat();
     InitState mInitState = kInitCreated;
     void setInitState(InitState newState);
@@ -783,7 +784,9 @@ protected:
      * there is no existing code that logs in the Mega SDK instance.
      */
     promise::Promise<void> sdkLoginExistingSession(const char* sid);
-
+    bool checkSyncWithSdkDb();
+    void commit(const std::string& scsn);
+    void commit();
 #ifndef KARERE_DISABLE_WEBRTC
     // rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
@@ -804,6 +807,7 @@ protected:
     virtual void onPresence(Id userid, Presence pres);
     //==
     friend class ChatRoom;
+    friend class ChatRoomList;
 /** @endcond PRIVATE */
 };
 
