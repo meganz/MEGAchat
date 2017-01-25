@@ -1285,6 +1285,66 @@ MegaChatListItem *MegaChatApiImpl::getChatListItem(MegaChatHandle chatid)
     return item;
 }
 
+int MegaChatApiImpl::getUnreadChats()
+{
+    int count = 0;
+
+    sdkMutex.lock();
+
+    ChatRoomList::iterator it;
+    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+        if (it->second->chat().unreadMsgCount())
+        {
+            count++;
+        }
+    }
+
+    sdkMutex.unlock();
+
+    return count;
+}
+
+MegaChatListItemList *MegaChatApiImpl::getActiveChatListItems()
+{
+    MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
+
+    sdkMutex.lock();
+
+    ChatRoomList::iterator it;
+    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+        if (it->second->isActive())
+        {
+            items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+        }
+    }
+
+    sdkMutex.unlock();
+
+    return items;
+}
+
+MegaChatListItemList *MegaChatApiImpl::getInactiveChatListItems()
+{
+    MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
+
+    sdkMutex.lock();
+
+    ChatRoomList::iterator it;
+    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+        if (!it->second->isActive())
+        {
+            items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+        }
+    }
+
+    sdkMutex.unlock();
+
+    return items;
+}
+
 MegaChatHandle MegaChatApiImpl::getChatHandleByUser(MegaChatHandle userhandle)
 {
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
