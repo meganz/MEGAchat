@@ -232,6 +232,14 @@ public:
      * cache to get a human-readable name for the user.
      */
     virtual void onUserTyping(karere::Id userid) {}
+    /**
+     * @brief Called when the last known text message changes/is updated, so that
+     * the app can display it next to the chat title
+     * @param type The type of the message, as in Message::type. See the Message::kMsgXXX enums
+     * @param data The message contents. Note that it can contain binary data
+     * @param ts The message timestamp, as in Message::ts
+     */
+    virtual void onLastMessageUpdated(uint8_t type, const std::string& data, uint32_t ts) {}
 };
 
 class Client;
@@ -388,6 +396,7 @@ protected:
     bool mServerOldHistCbEnabled = false;
     bool mHaveAllHistory = false;
     bool mIsDisabled = false;
+    bool mHasLastTextMsg = false;
     Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
     ICrypto* mCrypto;
@@ -750,7 +759,7 @@ public:
      * there as well (there stilll may be one, but on server, not fetched),
      * an empty string will be returned.
      */
-    std::string lastMessage() const;
+    uint8_t lastTextMessage(std::string& data, uint32_t& ts);
 
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
@@ -812,6 +821,7 @@ protected:
      * This may be needed when the listener is switched, in order to init the new
      * listener state */
     void replayUnsentNotifications();
+    void onLastTextMsgUpdated(const Message& msg);
 
     /**
      * @brief Initiates loading of the queue with messages that require user
@@ -913,7 +923,7 @@ public:
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
-    virtual bool getLastNonMgmtMessage(Idx from, Buffer& buf);
+    virtual uint8_t getLastNonMgmtMessage(Idx from, Buffer& buf, uint32_t& ts);
     virtual ~DbInterface(){}
 };
 

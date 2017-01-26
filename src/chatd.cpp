@@ -2119,6 +2119,9 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
     if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
         CALL_LISTENER(onUnreadChanged);
+
+    if (!mHasLastTextMsg && !msg.isManagementMessage())
+        onLastTextMsgUpdated(msg);
 }
 
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
@@ -2227,21 +2230,39 @@ void Chat::setOnlineState(ChatState state)
     CALL_LISTENER(onOnlineStateChange, state);
 }
 
-std::string Chat::lastMessage() const
+void Chat::onLastTextMsgUpdated(const Message& msg)
+{
+    if (!msg.buf())
+        return;
+    mHasLastTextMsg = true;
+    CALL_LISTENER(onLastMessageUpdated, msg.type, std::string(msg.buf(), msg.dataSize()), msg.ts);
+}
+
+uint8_t Chat::lastTextMessage(std::string& contents, uint32_t& ts)
 {
     if (empty())
-        return std::string();
+        return Message::kMsgInvalid;
+
     auto low = lownum();
     for (Idx i=highnum(); i >= low; i--)
     {
         auto& msg = at(i);
         if (!msg.isManagementMessage())
-            return std::string(msg.buf(), msg.dataSize());
+        {
+            contents.assign(msg.buf(), msg.dataSize());
+            ts = msg.ts;
+            mHasLastTextMsg = true;
+            return msg.type;
+        }
     }
     Buffer buf;
-    if (!mDbInterface->getLastNonMgmtMessage(lownum()-1, buf))
-        return std::string();
-    return std::string(buf.buf(), buf.dataSize());
+    auto type = mDbInterface->getLastNonMgmtMessage(lownum()-1, buf, ts);
+    if (type)
+    {
+        contents.assign(buf.buf(), buf.dataSize());
+        mHasLastTextMsg = true;
+    }
+    return type;
 }
 
 void Chat::sendTypingNotification()

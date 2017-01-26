@@ -1696,22 +1696,12 @@ void PeerChatRoom::onUserLeave(Id userid)
     KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
 }
 
-void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message &msg, chatd::Message::Status status)
+void ChatRoom::onLastMessageUpdated(uint8_t type, const std::string& data, uint32_t ts)
 {
     auto display = roomGui();
-    if (display)
-    {
-        display->onLastMessageUpdated(msg, status, idx);
-    }
-}
-void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool)
-{
-    if (mChat->size() == 1)
-    {
-        auto display = roomGui();
-        if (display)
-            display->onLastMessageUpdated(msg, status, idx);
-    }
+    if (!display)
+        return;
+    display->onLastMessageUpdated(type, data, ts);
 }
 
 //chatd notification

@@ -55,7 +55,7 @@ enum Priv: signed char
 class Message: public Buffer
 {
 public:
-    enum: unsigned char
+    enum: uint8_t
     {
         kMsgInvalid = 0,
         kMsgNormal = 1,

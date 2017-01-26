@@ -3171,7 +3171,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
 
     this->lastMsg = NULL;
     Chat &chat = chatroom.chat();
-    Message *msg = chat.lastMessage();
+    Message *msg = chat.lastTextMessage();
     if (msg)
     {
         Idx index = chat.msgIndexFromId(msg->id());
