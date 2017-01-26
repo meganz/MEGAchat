@@ -1375,16 +1375,6 @@ void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& 
                     }
                 }
             }
-            else
-            {
-                KR_LOG_DEBUG("Chatroom[%s]: Received new inactive room",  Id(chatid).toString().c_str());
-                if (!client.skipInactiveChatrooms)
-                {
-                    auto& room = addRoom(*apiRoom);
-                    if (!room.isGroup())
-                        throw std::runtime_error("Received an inactive 1on1 chatroom: only group chatrooms can be inactive");
-                }
-            }
         }
     }
 }
