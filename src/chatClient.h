@@ -203,7 +203,7 @@ protected:
     friend class ChatRoomList;
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* url,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
-    PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
+    PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room, Contact& contact);
     ~PeerChatRoom();
     //@endcond
 public:
@@ -360,7 +360,7 @@ class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr 
 public:
     Client& client;
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
-    ChatRoom& addRoom(const mega::MegaTextChat &room);
+    ChatRoom* addRoom(const mega::MegaTextChat &room);
     void removeRoom(GroupChatRoom& room);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
@@ -466,7 +466,7 @@ public:
      * otherwise returns NULL
      */
     Contact* contactFromJid(const std::string& jid) const;
-    Contact& contactFromUserId(uint64_t userid) const;
+    Contact* contactFromUserId(uint64_t userid) const;
 
     /** @cond PRIVATE */
     ContactList(Client& aClient);
@@ -736,6 +736,7 @@ public:
 protected:
     std::string mMyName;
     bool mContactsLoaded = false;
+    promise::Promise<void> mInitCompletePromise;
     Presence mOwnPresence;
     /** @brief Our own email address */
     std::string mEmail;

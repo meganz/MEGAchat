@@ -1297,6 +1297,34 @@ public:
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
 
     /**
+     * @brief Return the number of chatrooms with unread messages
+     * @return The number of chatrooms with unread messages
+     */
+    int getUnreadChats();
+
+    /**
+     * @brief Return the chatrooms that are currently active
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the active chatrooms
+     */
+    MegaChatListItemList *getActiveChatListItems();
+
+    /**
+     * @brief Return the chatrooms that are currently inactive
+     *
+     * Chatrooms became inactive when you left a groupchat or, for 1on1 chats,
+     * when the contact-relationship is broken (you remove the contact or you are
+     * removed by the other contact).
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the active chatrooms
+     */
+    MegaChatListItemList *getInactiveChatListItems();
+
+    /**
      * @brief Get the chat id for the 1on1 chat with the specified user
      *
      * If the 1on1 chat with the user specified doesn't exist, this function will
@@ -1716,6 +1744,10 @@ public:
      * @brief Register a listener to receive all events about an specific chat
      *
      * You can use MegaChatApi::removeChatRoomListener to stop receiving events.
+     *
+     * Note this listener is feeded with data from a chatroom that is opened. It
+     * is required to call \c MegaChatApi::openChatRoom. Otherwise, the listener
+     * will NOT receive any callback.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener Listener that will receive all events about an specific chat

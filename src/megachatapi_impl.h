@@ -710,6 +710,9 @@ public:
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
     MegaChatListItemList *getChatListItems();
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
+    int getUnreadChats();
+    MegaChatListItemList *getActiveChatListItems();
+    MegaChatListItemList *getInactiveChatListItems();
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
