@@ -773,9 +773,19 @@ int MegaChatListItem::getOnlineStatus() const
     return MegaChatApi::STATUS_OFFLINE;
 }
 
-MegaChatMessage *MegaChatListItem::getLastMessage() const
+const char *MegaChatListItem::getLastMessage() const
 {
     return NULL;
+}
+
+int MegaChatListItem::getLastMessageType() const
+{
+    return MegaChatMessage::TYPE_UNKNOWN;
+}
+
+int64_t MegaChatListItem::getLastTimestamp() const
+{
+    return 0;
 }
 
 bool MegaChatListItem::isGroup() const

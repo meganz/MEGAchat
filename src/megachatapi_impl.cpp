@@ -3264,16 +3264,11 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
-    this->lastMsg = NULL;
-    Chat &chat = chatroom.chat();
-    Message *msg = chat.lastTextMessage();
-    if (msg)
-    {
-        Idx index = chat.msgIndexFromId(msg->id());
-        Message::Status status = (index != MEGACHAT_INVALID_INDEX) ?
-                    chat.getMsgStatus(*msg, index) : (Message::Status) MegaChatMessage::STATUS_UNKNOWN;
-        this->lastMsg = new MegaChatMessagePrivate(*msg, status, index);
-    }
+    string buf;
+    uint32_t ts;
+    this->lastMsgType = chatroom.chat().lastTextMessage(buf, ts);
+    this->lastTs = ts;
+    this->lastMsg = buf;
 }
 
 MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
@@ -3284,7 +3279,9 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->unreadCount = item->getUnreadCount();
     this->status = item->getOnlineStatus();
     this->changed = item->getChanges();
-    this->lastMsg = item->getLastMessage() ? item->getLastMessage()->copy() : NULL;
+    this->lastTs = item->getLastTimestamp();
+    this->lastMsg = item->getLastMessage();
+    this->lastMsgType = item->getLastMessageType();
     this->group = item->isGroup();
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
@@ -3292,7 +3289,6 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
 {
-    delete lastMsg;
 }
 
 MegaChatListItem *MegaChatListItemPrivate::copy() const
@@ -3335,9 +3331,19 @@ int MegaChatListItemPrivate::getOnlineStatus() const
     return status;
 }
 
-MegaChatMessage *MegaChatListItemPrivate::getLastMessage() const
+const char *MegaChatListItemPrivate::getLastMessage() const
 {
-    return lastMsg;
+    return lastMsg.c_str();
+}
+
+int MegaChatListItemPrivate::getLastMessageType() const
+{
+    return lastMsgType;
+}
+
+int64_t MegaChatListItemPrivate::getLastTimestamp() const
+{
+    return lastTs;
 }
 
 bool MegaChatListItemPrivate::isGroup() const
@@ -3389,13 +3395,21 @@ void MegaChatListItemPrivate::setClosed()
     this->changed |= MegaChatListItem::CHANGE_TYPE_CLOSED;
 }
 
-void MegaChatListItemPrivate::setLastMessage(MegaChatMessage *msg)
+void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
 {
-    if (lastMsg)
-    {
-        delete lastMsg;
-    }
+    this->lastTs = ts;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
+}
+
+void MegaChatListItemPrivate::setLastMessage(const string &msg)
+{
     this->lastMsg = msg;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
+}
+
+void MegaChatListItemPrivate::setLastMessageType(int type)
+{
+    this->lastMsgType = type;
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
 }
 
@@ -3440,14 +3454,14 @@ void MegaChatListItemHandler::onRejoinedChat()
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onLastMessageUpdated(const Message& msg, Message::Status status, Idx idx)
+void MegaChatListItemHandler::onLastMessageUpdated(uint8_t type, const std::string &data, uint32_t ts)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    MegaChatMessagePrivate *megaMsg = new MegaChatMessagePrivate(msg, status, idx);
-    item->setLastMessage(megaMsg);
+    item->setLastMessage(data);
+    item->setLastTimestamp(ts);
+    item->setLastMessageType(type);
     chatApi.fireOnChatListItemUpdate(item);
 }
-
 
 MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)
     : MegaChatListItemHandler(chatApi, room)

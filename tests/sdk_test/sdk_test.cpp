@@ -267,9 +267,9 @@ void MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
 
     cout << "id: " << item->getChatId() << ", title: " << title;
     cout << ", status: " << item->getOnlineStatus() << ", visibility: " << item->getVisibility();
-    cout << ", unread: " << item->getUnreadCount() << ", changes: " << item->getChanges() << endl;
-    cout << "Last message in the chat: " << endl;
-    printMessageInfo(item->getLastMessage());
+    cout << ", unread: " << item->getUnreadCount() << ", changes: " << item->getChanges();
+    cout << ", lastMsg: " << item->getLastMessage() << ", lastMsgType: " << item->getLastMessageType();
+    cout << ", lastTs: " << item->getLastTimestamp() << endl;
     fflush(stdout);
 }
 
@@ -1092,11 +1092,15 @@ void MegaChatApiTest::TEST_clearHistory()
 
     MegaChatListItem *item0 = megaChatApi[0]->getChatListItem(chatid);
     assert(item0->getUnreadCount() == 0);
-    assert(item0->getLastMessage()->getContent() == NULL);
+    assert(!strcmp(item0->getLastMessage(), ""));
+    assert(item0->getLastMessageType() == 0);
+    assert(item0->getLastTimestamp() != 0);
     delete item0; item0 = NULL;
     MegaChatListItem *item1 = megaChatApi[1]->getChatListItem(chatid);
-//    assert(item1->getUnreadCount() == 1); // Redmine ticket: #5925
-    assert(item1->getLastMessage()->getContent() == NULL);
+    assert(item1->getUnreadCount() == 1);
+    assert(!strcmp(item1->getLastMessage(), ""));
+    assert(item1->getLastMessageType() == 0);
+    assert(item1->getLastTimestamp() != 0);
     delete item1; item1 = NULL;
 
     // Close and re-open chatrooms

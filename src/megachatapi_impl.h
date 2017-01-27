@@ -200,7 +200,9 @@ private:
     std::string title;
     int unreadCount;
     int status;
-    MegaChatMessage *lastMsg;
+    std::string lastMsg;
+    int lastMsgType;
+    int64_t lastTs;
     bool group;
     bool active;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
@@ -214,7 +216,9 @@ public:
     virtual int getVisibility() const;
     virtual int getUnreadCount() const;
     virtual int getOnlineStatus() const;
-    virtual MegaChatMessage *getLastMessage() const;
+    virtual const char *getLastMessage() const;
+    virtual int getLastMessageType() const;
+    virtual int64_t getLastTimestamp() const;
     virtual bool isGroup() const;
     virtual bool isActive() const;
     virtual MegaChatHandle getPeerHandle() const;
@@ -225,7 +229,9 @@ public:
     void setOnlineStatus(int status);
     void setMembersUpdated();
     void setClosed();
-    void setLastMessage(MegaChatMessage *msg);
+    void setLastTimestamp(int64_t ts);
+    void setLastMessage(const std::string &msg);
+    void setLastMessageType(int type);
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
@@ -241,7 +247,8 @@ public:
     // karere::IApp::IListItem::IChatListItem implementation
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
-    virtual void onLastMessageUpdated(const chatd::Message& msg, chatd::Message::Status status, chatd::Idx idx);
+    virtual void onLastMessageUpdated(uint8_t type, const std::string& data, uint32_t ts);
+//    virtual void onLastMessageUpdated(const chatd::Message& msg, chatd::Message::Status status, chatd::Idx idx);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
@@ -286,7 +293,6 @@ public:
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
     virtual void onPresenceChanged(karere::Presence state);
-//    virtual void onLastMessageUpdate();   // TBD in IGui.h
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);

@@ -1910,7 +1910,9 @@ public:
      *
      * @return The last message received.
      */
-    virtual MegaChatMessage *getLastMessage() const;
+    virtual const char *getLastMessage() const;
+    virtual int getLastMessageType() const;
+    virtual int64_t getLastTimestamp() const;
 
     /**
      * @brief Returns whether this chat is a group chat or not
