@@ -231,26 +231,34 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOGOUT:
         {
-            bool deleteDb = request->getFlag();
-            mClient->terminate(deleteDb)
-            .then([request, this]()
+            if (mClient)
             {
-                API_LOG_INFO("Chat engine is logged out!");
-
-                marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
+                bool deleteDb = request->getFlag();
+                mClient->terminate(deleteDb)
+                .then([request, this]()
                 {
-                    delete mClient;
-                    mClient = NULL;
+                    API_LOG_INFO("Chat engine is logged out!");
 
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
+                    {
+                        delete mClient;
+                        mClient = NULL;
+
+                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                     });
+                })
+                .fail([request, this](const promise::Error& e)
+                {
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
                     fireOnChatRequestFinish(request, megaChatError);
-                 });
-            })
-            .fail([request, this](const promise::Error& e)
+                });
+            }
+            else
             {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
                 fireOnChatRequestFinish(request, megaChatError);
-            });
+            }
             break;
         }
         case MegaChatRequest::TYPE_DELETE:

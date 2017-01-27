@@ -989,10 +989,10 @@ public:
     /**
      * @brief Logout of chat servers invalidating the session
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT
+     * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT.
      *
-     * After calling \c logout, the subsequent call to MegaChatApi::init expects to
-     * have a new session created by MegaApi::login.
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without a previous call to \c MegaChatApi::init.
      *
      * @param listener MegaChatRequestListener to track this request
      */
