@@ -164,8 +164,6 @@ public:
 
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
-    virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status) {}
-    virtual void onRecvHistoryMessage(chatd::Idx, chatd::Message&, chatd::Message::Status, bool isLocal) {}
     virtual void onLastMessageUpdated(uint8_t type, const std::string& data, uint32_t ts);
     virtual void onExcludedFromRoom() {}
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
