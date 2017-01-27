@@ -285,6 +285,14 @@ public:
         CHANGE_TYPE_CONTENT         = 0x02
     };
 
+    enum
+    {
+        REASON_PEERS_CHANGED = 1,   /// Group chat participants have changed
+        REASON_TOO_OLD = 2,         /// Message is too old to auto-retry sending
+        REASON_GENERAL_REJECT = 3,  /// chatd rejected the message, for unknown reason
+        REASON_NO_WRITE_ACCESS = 4  /// Read-only privilege or not belong to the chatroom
+    };
+
     virtual ~MegaChatMessage() {}
     virtual MegaChatMessage *copy() const;
 
@@ -443,6 +451,22 @@ public:
      * @return Privilege level as above
      */
     virtual int getPrivilege() const;
+
+    /**
+     * @brief Return a generic code used for different purposes
+     *
+     * The code returned by this method is valid only in the following cases:
+     *
+     *  - Messages with status MegaChatMessage::STATUS_SENDING_MANUAL: the code specifies
+     * the reason because the server rejects the message. The possible values are:
+     *      - MegaChatMessage::REASON_PEERS_CHANGED = 1
+     *      - MegaChatMessage::REASON_TOO_OLD = 2
+     *      - MegaChatMessage::REASON_GENERAL_REJECT = 3
+     *      - MegaChatMessage::REASON_NO_WRITE_ACCESS = 4
+     *
+     * @return A generic code for additional information about the message.
+     */
+    virtual int getCode() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -835,10 +859,10 @@ public:
     enum
     {
         INIT_ERROR                  = -1,   /// Initialization failed --> force a logout
-        INIT_NO_CACHE               = 0,    /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
         INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
-        INIT_ONLINE_SESSION         = 3     /// Initialization successful for online operation --> login+fetchnodes completed
+        INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
+        INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
     };
 
 
@@ -922,10 +946,10 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::INIT_ERROR = -1
-     *  - MegaChatApi::INIT_NO_CACHE = 0
      *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 1
      *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
      *  - MegaChatApi::INIT_ONLINE_SESSION = 3
+     *  - MegaChatApi::INIT_NO_CACHE = 7
      *
      * The returned value will be undefined if \c init(sid) has not been called yet.
      *
@@ -965,10 +989,10 @@ public:
     /**
      * @brief Logout of chat servers invalidating the session
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT
+     * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT.
      *
-     * After calling \c logout, the subsequent call to MegaChatApi::init expects to
-     * have a new session created by MegaApi::login.
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without a previous call to \c MegaChatApi::init.
      *
      * @param listener MegaChatRequestListener to track this request
      */
@@ -1271,6 +1295,34 @@ public:
      * @return MegaChatListItem object for the specified \c chatid
      */
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
+
+    /**
+     * @brief Return the number of chatrooms with unread messages
+     * @return The number of chatrooms with unread messages
+     */
+    int getUnreadChats();
+
+    /**
+     * @brief Return the chatrooms that are currently active
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the active chatrooms
+     */
+    MegaChatListItemList *getActiveChatListItems();
+
+    /**
+     * @brief Return the chatrooms that are currently inactive
+     *
+     * Chatrooms became inactive when you left a groupchat or, for 1on1 chats,
+     * when the contact-relationship is broken (you remove the contact or you are
+     * removed by the other contact).
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the active chatrooms
+     */
+    MegaChatListItemList *getInactiveChatListItems();
 
     /**
      * @brief Get the chat id for the 1on1 chat with the specified user
@@ -1692,6 +1744,10 @@ public:
      * @brief Register a listener to receive all events about an specific chat
      *
      * You can use MegaChatApi::removeChatRoomListener to stop receiving events.
+     *
+     * Note this listener is feeded with data from a chatroom that is opened. It
+     * is required to call \c MegaChatApi::openChatRoom. Otherwise, the listener
+     * will NOT receive any callback.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener Listener that will receive all events about an specific chat

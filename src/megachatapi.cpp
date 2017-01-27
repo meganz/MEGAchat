@@ -213,6 +213,21 @@ MegaChatListItem *MegaChatApi::getChatListItem(MegaChatHandle chatid)
     return pImpl->getChatListItem(chatid);
 }
 
+int MegaChatApi::getUnreadChats()
+{
+    return pImpl->getUnreadChats();
+}
+
+MegaChatListItemList *MegaChatApi::getActiveChatListItems()
+{
+    return pImpl->getActiveChatListItems();
+}
+
+MegaChatListItemList *MegaChatApi::getInactiveChatListItems()
+{
+    return pImpl->getInactiveChatListItems();
+}
+
 MegaChatHandle MegaChatApi::getChatHandleByUser(MegaChatHandle userhandle)
 {
     return pImpl->getChatHandleByUser(userhandle);
@@ -881,6 +896,11 @@ int MegaChatMessage::getChanges() const
 bool MegaChatMessage::hasChanged(int) const
 {
     return false;
+}
+
+int MegaChatMessage::getCode() const
+{
+    return 0;
 }
 
 

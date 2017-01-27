@@ -504,6 +504,7 @@ public:
     virtual bool isManagementMessage() const;
     virtual MegaChatHandle getUserHandleOfAction() const;
     virtual int getPrivilege() const;
+    virtual int getCode() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -511,6 +512,7 @@ public:
     void setStatus(int status);
     void setTempId(MegaChatHandle tempId);
     void setContentChanged();
+    void setCode(int code);
 
 private:
     int changed;
@@ -527,6 +529,7 @@ private:
     bool edited;
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
+    int code;               // generic field for additional information (ie. the reason of manual sending)
 };
 
 //Thread safe request queue
@@ -707,6 +710,9 @@ public:
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
     MegaChatListItemList *getChatListItems();
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
+    int getUnreadChats();
+    MegaChatListItemList *getActiveChatListItems();
+    MegaChatListItemList *getInactiveChatListItems();
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
