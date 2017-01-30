@@ -365,7 +365,7 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
-    void onChatsUpdate(mega::MegaTextChatList& chats, const std::string* scsn);
+    void onChatsUpdate(mega::MegaTextChatList& chats);
 /** @endcond PRIVATE */
 };
 
@@ -800,7 +800,7 @@ protected:
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);
     virtual void onUsersUpdate(mega::MegaApi*, mega::MegaUserList* users);
     virtual void onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs);
-
+    virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
     // MegaRequestListener interface
     virtual void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
 

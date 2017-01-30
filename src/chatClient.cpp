@@ -292,6 +292,8 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mSid = sid;
     createDb();
 
+// We have a complete snapshot of the SDK contact and chat list state.
+// Commit it with the accompanying scsn
     mMyHandle = getMyHandleFromSdk();
     sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
 
@@ -305,7 +307,8 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     {
         loadContactListFromApi(*contactList);
         chatd.reset(new chatd::Client(mMyHandle));
-        chats->onChatsUpdate(*chatList, &scsn);
+        chats->onChatsUpdate(*chatList);
+        commit(scsn);
     });
 }
 
@@ -329,12 +332,32 @@ void Client::commit(const std::string& scsn)
     sqliteSimpleQuery(db, "COMMIT TRANSACTION");
     sqliteSimpleQuery(db, "BEGIN TRANSACTION");
     mLastScsn = scsn;
+    KR_LOG_DEBUG("Commit with scsn %s", scsn.c_str());
 }
 
 void Client::commit()
 {
     sqliteSimpleQuery(db, "COMMIT TRANSACTION");
     sqliteSimpleQuery(db, "BEGIN TRANSACTION");
+}
+
+void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
+{
+    assert(event);
+    if (event->getType() == ::mega::MegaEvent::EVENT_COMMIT_DB)
+    {
+        auto pscsn = event->getText();
+        if (!pscsn)
+        {
+            KR_LOG_WARNING("EVENT_COMMIT_DB with NULL scsn, ignoring");
+            return;
+        }
+        std::string scsn = pscsn;
+        marshallCall([this, scsn]()
+        {
+            commit(scsn);
+        });
+    }
 }
 
 void Client::initWithDbSession(const char* sid)
@@ -419,7 +442,6 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     auto pscsn = api.sdk.getSequenceNumber();
     assert(pscsn);
     std::string scsn(pscsn);
-    printf("FETCH_NODES: scsn=%s\n", pscsn);
     std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
     std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
@@ -501,7 +523,7 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
     //sync contactlist first
     loadContactListFromApi(contactList);
     // sync the chatroom list and commit
-    chats->onChatsUpdate(chatList, &scsn);
+    chats->onChatsUpdate(chatList);
     return false;
 }
 
@@ -874,10 +896,8 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
     if (!aUsers)
         return;
-    auto pscsn = api->getSequenceNumber();
-    std::string scsn = pscsn ? pscsn : "";
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
-    marshallCall([this, users, scsn]()
+    marshallCall([this, users]()
     {
         assert(mUserAttrCache);
         auto count = users->size();
@@ -896,7 +916,6 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
                 contactList->onUserAddRemove(user);
             }
         };
-        commit(scsn);
     });
 }
 
@@ -1377,12 +1396,11 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     assert(mContactsLoaded);
     marshallCall([this, copy, scsn]()
     {
-        chats->onChatsUpdate(*copy, &scsn);
+        chats->onChatsUpdate(*copy);
     });
 }
 
-void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms,
-    const std::string* scsn)
+void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
 {
     SetOfIds added;
     addMissingRoomsFromApi(rooms, added);
@@ -1435,10 +1453,6 @@ void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms,
             }
         }
     }
-    if (scsn)
-        client.commit(*scsn);
-    else
-        client.commit();
 }
 
 ChatRoomList::~ChatRoomList()
@@ -2190,19 +2204,11 @@ Contact* ContactList::contactFromUserId(uint64_t userid) const
 
 void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactRequestList* reqs)
 {
-    auto pscsn = api->getSequenceNumber();
-    std::string scsn(pscsn?pscsn:"");
     if (!reqs)
-    {
-        marshallCall([this, scsn]()
-        {
-            commit(scsn);
-        });
         return;
-    }
 
     std::shared_ptr<mega::MegaContactRequestList> copy(reqs->copy());
-    marshallCall([this, copy, scsn]()
+    marshallCall([this, copy]()
     {
         auto count = copy->size();
         for (int i=0; i<count; i++)
@@ -2213,7 +2219,6 @@ void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactReques
             if (req.getStatus() == mega::MegaContactRequest::STATUS_UNRESOLVED)
                 app.onIncomingContactRequest(req);
         }
-        commit(scsn);
     });
 }
 
