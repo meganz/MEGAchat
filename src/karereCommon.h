@@ -3,7 +3,7 @@
 
 #include <string>
 #include <logger.h>
-#include <mstrophe.h> //needed for timestampMs()
+#include <cservices.h> //needed for timestampMs()
 #include <string.h>
 
 /** @cond PRIVATE */
@@ -44,8 +44,8 @@
     #endif
 #endif
 
-#define KARERE_DEFAULT_XMPP_SERVER "xmpp270n001.karere.mega.nz"
-#define KARERE_XMPP_DOMAIN "karere.mega.nz"
+#define KARERE_GELB_HOST "gelb.karere.mega.nz"
+#define KARERE_PRESENCED_URL "mcd270n310.userstorage.mega.co.nz"
 #define KARERE_LOGIN_TIMEOUT 15000
 #define KARERE_RECONNECT_DELAY_MAX 10000
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
@@ -60,9 +60,6 @@
 
 #define KARERE_TURN_USERNAME "inoo20jdnH"
 #define KARERE_TURN_PASSWORD "02nNKDBkkS"
-
-#define KARERE_FALLBACK_XMPP_SERVERS "[\
-{\"host\":\"xmpp270n001.karere.mega.nz\",\"port\":443}]"
 
 #if defined(__ANDROID__) && !defined(HAVE_STD_TO_STRING)
 //Android is missing std::to_string
@@ -105,7 +102,7 @@ typedef std::map<std::string, std::string> StringMap;
  * @param options Various flags that modify the behaviour of the karere
  * services subsystem. Normally this is 0
  */
-void globalInit(const std::string& logPath, size_t logSize, void(*postFunc)(void*), uint32_t options=0);
+void globalInit(void(*postFunc)(void*), uint32_t options=0, const char* logPath=nullptr, size_t logSize=0);
 
 /** @brief Stops the karere services susbsystem and frees global resources
  * used by Karere
@@ -114,13 +111,6 @@ void globalCleanup();
 
 /** @cond PRIVATE */
 
-//time function
-typedef xmpp_ts Ts;
-static inline Ts timestampMs()
-{
-    //use strophe's timestamp function
-    return xmpp_time_stamp();
-}
 struct AvFlags
 {
     bool audio;
@@ -145,11 +135,29 @@ struct AvFlags
     }
 };
 
-extern const char* gKarereDbSchema;
+/** @brief Client capability flags. There are defined by the presenced protocol */
+//defined here and not in karere::Client to avoid presenced.cpp depending on chatClient.cpp
+enum: uint8_t
+{
+    /** Client has webrtc capabilities */
+    kClientCanWebrtc = 0x80,
+    /** Client is a mobile application */
+    kClientIsMobile = 0x40
+};
+
+// These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql
+extern const char* gDbSchema;
+extern const char* gDbSchemaHash;
+
+// If the schema hasn't changed but its usage by the karere lib has,
+// the lib can force a new version via this suffix
+// Defined in karereCommon.cpp
+extern const char* gDbSchemaVersionSuffix;
+
+static inline int64_t timestampMs() { return services_get_time_ms(); }
 
 //logging stuff
 
-#define KR_LOG_RTC_EVENT(fmtString,...) KARERE_LOG_INFO(krLogChannel_rtcevent, fmtString, ##__VA_ARGS__)
 #define KR_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_default, fmtString, ##__VA_ARGS__)
 #define KR_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_default, fmtString, ##__VA_ARGS__)
 #define KR_LOG_WARNING(fmtString,...)  KARERE_LOG_WARNING(krLogChannel_default, fmtString, ##__VA_ARGS__)
@@ -165,6 +173,11 @@ extern const char* gKarereDbSchema;
 #define GUI_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_gui, fmtString, ##__VA_ARGS__)
 
 #define JINGLE_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_jingle, fmtString, ##__VA_ARGS__)
+
+#define API_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)
+#define API_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)
+#define API_LOG_WARNING(fmtString,...)  KARERE_LOG_WARNING(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)
+#define API_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)
 /*
 #ifndef NDEBUG
 #undef assert
@@ -182,6 +195,14 @@ extern const char* gKarereDbSchema;
      } \
  } while(0)
 
+#define KR_EXCEPTION_TO_PROMISE(type)                 \
+    catch(std::exception& e)                          \
+    {                                                 \
+        const char* what = e.what();                  \
+        if (!what) what = "(no exception message)";   \
+        return promise::Error(what, type);            \
+    }
+
 class Client;
 /** @endcond PRIVATE */
 
@@ -192,7 +213,7 @@ class Client;
  *  Usage:
  * \c gLogger.addUserLogger("karere-remote", new RemoteLogger);
  */
-class RemoteLogger: public Logger::ILoggerBackend
+class RemoteLogger: public karere::Logger::ILoggerBackend
 {
 public:
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);

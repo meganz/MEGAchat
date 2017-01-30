@@ -170,14 +170,14 @@ public:
 
 /** An implementation of a server data provider that gets the servers from the GeLB server */
 template <class S>
-class GelbProvider: public ListProvider<S>
+class GelbProvider: public ListProvider<S>, public DeleteTrackable
 {
 protected:
     std::string mGelbHost;
     std::string mService;
     int64_t mMaxReuseOldServersAge;
     int64_t mLastUpdateTs = 0;
-    std::unique_ptr<http::Client> mClient;
+    std::shared_ptr<http::Client> mClient;
     std::unique_ptr<rh::IRetryController> mRetryController;
     promise::Promise<void> mOutputPromise;
     void parseServersJson(const std::string& json);
@@ -248,9 +248,18 @@ GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
     int reqCount, unsigned reqTimeout, int64_t maxReuseOldServersAge)
     :mGelbHost(gelbHost), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
 {
+    auto wptr = getDelTracker();
     mRetryController.reset(::karere::createRetryController("gelb",
-        [this](int no) { return exec(no); },
-        [this]() { giveup(); },
+        [this, wptr](int no)
+        {
+            wptr.throwIfDeleted();
+            return exec(no);
+        },
+        [this, wptr]()
+        {
+            wptr.throwIfDeleted();
+            giveup();
+        },
         reqTimeout, reqCount, 1, 1
     ));
 }
@@ -258,9 +267,10 @@ template <class S>
 promise::Promise<void> GelbProvider<S>::exec(int no)
 {
     assert(!mClient); //don't destroy it as it may be still working, the promise handlers will destroy it when it resolves/fails the promise
-    mClient.reset(new http::Client);
+    mClient = std::make_shared<http::Client>();
+    auto client = mClient; //keep the client alive in case we destroy the provider
     return mClient->pget<std::string>(mGelbHost+"/?service="+mService)
-    .then([this](std::shared_ptr<http::Response<std::string> > response)
+    .then([this, client](std::shared_ptr<http::Response<std::string> > response)
         -> promise::Promise<void>
     {
         if (response->httpCode() != 200)
@@ -271,10 +281,10 @@ promise::Promise<void> GelbProvider<S>::exec(int no)
         mClient.reset();
         parseServersJson(*(response->data()));
         this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
-        this->mLastUpdateTs = timestampMs();
+        this->mLastUpdateTs = services_get_time_ms();
         return promise::_Void();
     })
-    .fail([this](const promise::Error& err)
+    .fail([this, client](const promise::Error& err)
     {
         mClient.reset();
         return err;
@@ -313,7 +323,7 @@ promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeout)
     mOutputPromise = pms
     .fail([this](const promise::Error& err) -> promise::Promise<void>
     {
-        if (!this->mLastUpdateTs || ((timestampMs() - mLastUpdateTs)/1000 > mMaxReuseOldServersAge))
+        if (!this->mLastUpdateTs || ((services_get_time_ms() - mLastUpdateTs)/1000 > mMaxReuseOldServersAge))
         {
             return err;
         }
@@ -344,8 +354,16 @@ void GelbProvider<S>::parseServersJson(const std::string& json)
     }
     auto arr = doc.FindMember(mService.c_str());
     if (arr == doc.MemberEnd())
-        throw std::runtime_error("JSON receoved does not have a '"+mService+"' member");
-    parseServerList(arr->value, *this);
+        throw std::runtime_error("JSON received does not have a '"+mService+"' member");
+    try
+    {
+        parseServerList(arr->value, *this);
+    }
+    catch (std::exception& e)
+    {
+        KR_LOG_ERROR("Error parsing GeLB response: JSON dump:\n %s", json.c_str());
+        throw;
+    }
 }
 
 template <class S>

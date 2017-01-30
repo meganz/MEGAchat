@@ -10,7 +10,8 @@ CREATE TABLE manual_sending(rowid integer primary key autoincrement, msgid int64
 CREATE TABLE vars(name text not null primary key, value blob);
 
 CREATE TABLE chats(chatid int64 unique primary key, url text, shard tinyint,
-    own_priv tinyint, peer int64 default -1, peer_priv tinyint default 0, title text);
+    own_priv tinyint, peer int64 default -1, peer_priv tinyint default 0,
+    title text, last_seen int64 default 0, last_recv int64 default 0);
 CREATE TABLE contacts(userid int64 PRIMARY KEY, email text, visibility int,
     since int64 not null default 0);
 
@@ -18,8 +19,11 @@ CREATE TABLE userattrs(userid int64 not null, type tinyint not null, data blob,
     err tinyint default 0, ts int default (cast(strftime('%s', 'now') as int)),
     UNIQUE(userid, type) ON CONFLICT REPLACE);
 
-CREATE TABLE chat_peers(chatid int64, userid int64, priv tinyint,
+CREATE TABLE chat_peers(chatid int64 not null, userid int64, priv tinyint,
     UNIQUE(chatid, userid));
+
+CREATE TABLE chat_vars(chatid int64 not null, name text not null, value text,
+    UNIQUE(chatid, name));
 
 CREATE TABLE history(idx int not null, chatid int64 not null, msgid int64 primary key,
     userid int64, keyid int not null, type tinyint, updated smallint, ts int,
@@ -27,3 +31,4 @@ CREATE TABLE history(idx int not null, chatid int64 not null, msgid int64 primar
 
 CREATE TABLE sendkeys(chatid int64 not null, userid int64 not null, keyid int64 not null, key blob not null,
     ts int not null, UNIQUE(chatid, userid, keyid));
+

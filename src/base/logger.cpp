@@ -60,6 +60,14 @@ void Logger::logToConsole(bool enable)
     }
 }
 
+void Logger::logToConsoleUseColors(bool useColors)
+{
+    if (mConsoleLogger)
+    {
+        mConsoleLogger->setUseColors(useColors);
+    }
+}
+
 void Logger::logToFile(const char* fileName, size_t rotateSizeKb)
 {
     if (!fileName) //disable
@@ -174,7 +182,7 @@ void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t
     if (len == (size_t)-1)
         len = strlen(msg);
 
-    std::lock_guard<std::mutex> lock(mMutex);
+    LockGuard lock(mMutex);
     if (mConsoleLogger && ((flags & krLogNoConsole) == 0))
         mConsoleLogger->logString(level, msg, flags);
     if ((mFileLogger) && ((flags & krLogNoFile) == 0))
@@ -183,7 +191,7 @@ void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t
     {
         for (auto& logger: mUserLoggers)
         {
-            ILoggerBackend* backend = logger.second.get();
+            ILoggerBackend* backend = logger.second;
             if(level <= backend->maxLogLevel)
                 backend->log(level, msg, len, flags);
         }
@@ -203,29 +211,39 @@ std::shared_ptr<Logger::LogBuffer> Logger::loadLog()
 {
     if (!mFileLogger)
         return NULL;
-    std::lock_guard<std::mutex> lock(mMutex);
+    LockGuard lock(mMutex);
     return mFileLogger->loadLog();
 }
 
 Logger::~Logger()
 {
+    LockGuard lock(mMutex);
+    if (!mUserLoggers.empty())
+    {
+        mUserLoggers.clear();
+    }
     if ((mFlags & krLogNoTerminateMessage) == 0)
         log("LOGGER", 0, 0, "========== Application terminate ===========\n");
 }
 
- void Logger::addUserLogger(const char* tag, ILoggerBackend* logger)
+Logger::ILoggerBackend* Logger::addUserLogger(const char* tag, ILoggerBackend* logger)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
-    mUserLoggers[tag].reset(logger);
+    LockGuard lock(mMutex);
+    auto& item = mUserLoggers[tag];
+    auto ret = item;
+    item = logger;
+    return ret;
 }
- bool Logger::removeUserLogger(const char* tag)
+
+Logger::ILoggerBackend* Logger::removeUserLogger(const char* tag)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
-    auto item = mUserLoggers.find(tag);
-    if (item == mUserLoggers.end())
-        return false;
-    mUserLoggers.erase(item);
-    return true;
+    LockGuard lock(mMutex);
+    auto it = mUserLoggers.find(tag);
+    if (it == mUserLoggers.end())
+        return nullptr;
+    auto ret = it->second;
+    mUserLoggers.erase(it);
+    return ret;
 }
 
 void Logger::setupFromEnvVar()

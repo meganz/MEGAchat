@@ -1,8 +1,8 @@
 #include "callGui.h"
 #include "chatWindow.h"
-#include <chatRoom.h>
 #include "mainwindow.h"
 #include <QPainter>
+#include <IRtcStats.h>
 
 using namespace std;
 using namespace mega;
@@ -46,7 +46,7 @@ void CallGui::drawPeerAvatar(QImage& image)
 }
 void CallGui::drawOwnAvatar(QImage& image)
 {
-    karere::Client& client = mChatWindow.mainWindow.client();
+    karere::Client& client = mChatWindow.client;
     const std::string& name = client.myName();
     QChar letter = name.empty() ? QChar('?'): QString::fromStdString(name)[0];
     drawAvatar(image, letter, client.myHandle());
@@ -100,37 +100,6 @@ void CallGui::onMuteCam(bool checked)
     else
         ui.localRenderer->disableStaticImage();
 }
-void CallGui::call()
-{
-    Id peer = static_cast<PeerChatRoom&>(mChatWindow.mRoom).peer();
-    string peerJid = karere::useridToJid(peer.val);
-    auto& client = mChatWindow.mainWindow.client();
-    karere::XmppChatRoom::create(client, peerJid)
-    .then([&client, peer](shared_ptr<karere::XmppChatRoom> xmppRoom)
-    {
-        auto it = client.contactList->find(peer);
-        if (it == client.contactList->end())
-            return;
-        auto room = it->second->chatRoom();
-        if (!room || !room->hasAppChatHandler())
-            return;
-        auto& win = room->appChatHandler();
-        auto self = win.callHandler();
-        if (!self)
-            return;
-        rtcModule::AvFlags av(true,true);
-        client.rtc->startMediaCall(self, xmppRoom->peerFullJid(), av, nullptr);
-        xmppRoom->addUserToChat(xmppRoom->peerFullJid());
-    })
-    .fail([](const promise::Error& err)
-    {
-        if (err.type() == 0x3e9aab10)
-            QMessageBox::critical(nullptr, "Error", "Callee user not recognized");
-        else
-            QMessageBox::critical(nullptr, "Error", QString("Error calling user:")+err.msg().c_str());
-        return err;
-    });
-}
 
 void CallGui::onCallEnded(rtcModule::TermCode code, const std::string& text,
     const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj)
@@ -148,6 +117,19 @@ void CallGui::onPeerUnmute(AvFlags what)
 {
     if (what.video)
         ui.remoteRenderer->disableStaticImage();
+}
+
+void CallGui::onMediaRecv(rtcModule::stats::Options& statOptions)
+{
+    ui.remoteRenderer->disableStaticImage();
+    statOptions.onSample = [](void* data, int type)
+    {
+        if (type != 1)
+            return;
+
+        auto& stats = *static_cast<rtcModule::stats::Sample*>(data);
+        printf("vsend bps: %ld (target: %ld)\n", stats.vstats.s.bps, stats.vstats.s.targetEncBitrate);
+    };
 }
 
 void CallGui::setAvatarOnRemote()
@@ -199,12 +181,23 @@ void CallAnswerGui::onSession()
 {
     auto it = mParent.client().contactList->find(mContact->userId());
     if (it == mParent.client().contactList->end())
-        throw std::runtime_error("chatWindowForPeer: peer '"+Id(mContact->userId()).toString()+"' not in contact list");
-    auto room = it->second->chatRoom();
-    if (!room)
-        throw std::runtime_error("chatWindowForPeer: peer contact has no chatroom");
-
-//handover event handling and local video renderer to chat window
-    static_cast<ChatWindow&>(room->appChatHandler()).createCallGui(mAns->call());
+        throw std::runtime_error("CallAnswerGui::onSession: peer '"+Id(mContact->userId()).toString()+"' not in contact list");
+    auto room = mContact->chatRoom();
+    assert(room);
+    auto chatWin = static_cast<ChatWindow*>(room->appChatHandler());
+    if (chatWin)
+    {
+        //handover event handling and local video renderer to chat window
+        chatWin->createCallGui(mAns->call());
+    }
+    else
+    {
+        auto contactGui = static_cast<CListContactItem*>(mContact->appItem()->userp);
+        contactGui->showChatWindow()
+        .then([this](ChatWindow* window)
+        {
+            window->createCallGui(mAns->call());
+        });
+    }
     delete this;
 }

@@ -36,13 +36,14 @@ public:
         SESSTATE_ERROR = 3,
         SESSTATE_PENDING = 4
     };
-    struct MediaConstraints
+/*    struct MediaConstraints
     {
         bool audio = false;
         bool video = false;
         int width = 0;
         int height = 0;
     };
+    */
     Call& mCall;
     Jingle& mJingle; //needs to be public for makeCallId()
 protected:
@@ -58,13 +59,15 @@ protected:
     sdpUtil::ParsedSdp mLocalSdp;
     sdpUtil::ParsedSdp mRemoteSdp;
     std::unique_ptr<FileTransferHandler> mFtHandler;
-//    bool mLastIceCandidate = false;
     void reportError(const std::string& msg, const char* reason, const char* text, unsigned flags=0);
     void addFingerprintMac(strophe::Stanza jingle);
+    bool tweakEncoding(sdpUtil::ParsedSdp& sdp);
+    int findCodecNo(const std::string& sdp, const char* codecName);
+    bool tweakCodec(sdpUtil::MGroup& sdp, int codecId);
 public:
     artc::myPeerConnection<JingleSession> mPeerConn;
     std::unique_ptr<StanzaQueue> inputQueue;
-    karere::Ts tsMediaStart = 0;
+    int64_t tsMediaStart = 0;
     std::unique_ptr<stats::Recorder> mStatsRecorder;
 
 //PeerConnection callback interface
@@ -91,18 +94,18 @@ public:
     promise::Promise<strophe::Stanza> sendOffer();
     artc::tspMediaStream& getRemoteStream() {return mRemoteStream;}
     void terminate(const std::string& reason, const std::string& text="", bool nosend=false); //TODO: maybe can be integrated in another place
-    inline bool isActive()
+    bool isActive()
     {
          return (mPeerConn && (mState != SESSTATE_ENDED) && (mState != SESSTATE_ERROR)
          && (mPeerConn->signaling_state() != webrtc::PeerConnectionInterface::kClosed));
     }
-    inline void checkActive(const char* opname)
+    void checkActive(const char* opname)
     {
         if (!isActive())
             throw std::runtime_error((opname?opname:"")+std::string(": Session '")+mSid+
             "' is not active anymore or peerconnection has been closed");
     }
-    inline const char* jCreator() const
+    const char* jCreator() const
     {
         return (mIsInitiator?"initiator":"responder");
     }

@@ -2,8 +2,8 @@
 #include "mainwindow.h"
 using namespace karere;
 
-ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&parent),
-    mainWindow(parent), mRoom(room), mWaitMsg(*this)
+ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
+    : QDialog(parent), client(room.parent.client), mRoom(room), mWaitMsg(*this)
 {
     userp = this;
     ui.setupUi(this);
@@ -14,12 +14,15 @@ ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&par
     connect(ui.mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
     connect(ui.mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
     connect(ui.mMessageList, SIGNAL(requestHistory()), this, SLOT(onMsgListRequestHistory()));
-    connect(ui.mVideoCallBtn, SIGNAL(clicked(bool)), this, SLOT(onVideoCallBtn(bool)));
-    connect(ui.mAudioCallBtn, SIGNAL(clicked(bool)), this, SLOT(onAudioCallBtn(bool)));
     connect(ui.mMembersBtn, SIGNAL(clicked(bool)), this, SLOT(onMembersBtn(bool)));
     connect(ui.mMessageList->verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScroll(int)));
+#ifndef KARERE_DISABLE_WEBRTC
+    connect(ui.mVideoCallBtn, SIGNAL(clicked(bool)), this, SLOT(onVideoCallBtn(bool)));
+    connect(ui.mAudioCallBtn, SIGNAL(clicked(bool)), this, SLOT(onAudioCallBtn(bool)));
+#endif
     ui.mAudioCallBtn->hide();
     ui.mVideoCallBtn->hide();
+
     ui.mChatdStatusDisplay->hide();
     if (!mRoom.isGroup())
         ui.mMembersBtn->hide();
@@ -27,13 +30,61 @@ ChatWindow::ChatWindow(karere::ChatRoom& room, MainWindow& parent): QDialog(&par
         setAcceptDrops(true);
 
     setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint);
+    setAttribute(Qt::WA_DeleteOnClose);
+    if (!mRoom.isActive())
+        ui.mMessageEdit->setEnabled(false);
+
     QDialog::show();
 }
 
 ChatWindow::~ChatWindow()
 {
-    mChat->setListener(static_cast<chatd::Listener*>(&mRoom));
+    mRoom.removeAppChatHandler();
+    //Quite possible mRoom is already destroyed, and the reference is invalid
+    //because widget destructors may be called asynchronously
+    GUI_LOG_DEBUG("Destroying chat window for chat %s", Id(mRoom.chatid()).toString().c_str());
+    if (mUpdateSeenTimer)
+    {
+        cancelTimeout(mUpdateSeenTimer);
+        mUpdateSeenTimer = 0;
+    }
 }
+#ifndef KARERE_DISABLE_WEBRTC
+void ChatWindow::createCallGui(const std::shared_ptr<rtcModule::ICall>& call)
+{
+    assert(!mCallGui);
+    auto layout = qobject_cast<QBoxLayout*>(ui.mCentralWidget->layout());
+    mCallGui = new CallGui(*this, call);
+    layout->insertWidget(1, mCallGui, 1);
+    ui.mTitlebar->hide();
+    ui.mTextChatWidget->hide();
+}
+
+void ChatWindow::closeEvent(QCloseEvent* event)
+{
+    if (mCallGui)
+        mCallGui->hangup();
+    event->accept();
+}
+
+void ChatWindow::onCallBtn(bool video)
+{
+    if (mRoom.isGroup())
+    {
+        QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
+        return;
+    }
+    if (mCallGui)
+        return;
+    createCallGui();
+    mRoom.mediaCall(karere::AvFlags(true, video))
+    .fail([this](const promise::Error& err)
+    {
+        QMessageBox::critical(this, "Call", QString::fromStdString(err.msg()));
+    });
+}
+#endif
+
 MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     chatd::Message::Status status, chatd::Idx idx)
 : QWidget(&parent), mChatWindow(parent), mMessage(&msg),
@@ -43,12 +94,20 @@ MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     setAuthor(msg.userid);
     setTimestamp(msg.ts);
     setStatus(status);
-    setText(msg);
-    auto tooltip = QString("msgid: %1\nkeyid: %2\nuserid: %3\nchatid: %4\nbackrefs: %5")
-           .arg(QString::fromStdString(mMessage->id().toString()))
-           .arg(mMessage->keyid).arg(QString::fromStdString(mMessage->userid.toString()))
-           .arg(QString::fromStdString(parent.chat().chatId().toString()))
-           .arg(mMessage->backRefs.size());
+    if (msg.updated)
+        setEdited();
+
+    if (!msg.isManagementMessage())
+        setText(msg);
+    else
+        setText(msg.managementInfoToString());
+
+    auto tooltip = QString("msgid: %1\ntype:%2\nkeyid: %3\nuserid: %4\nchatid: %5\nbackrefs: %6")
+            .arg(QString::fromStdString(mMessage->id().toString()))
+            .arg(mMessage->type)
+            .arg(mMessage->keyid).arg(QString::fromStdString(mMessage->userid.toString()))
+            .arg(QString::fromStdString(parent.chat().chatId().toString()))
+            .arg(mMessage->backRefs.size());
     ui.mHeader->setToolTip(tooltip);
     show();
 }
@@ -64,7 +123,8 @@ void ChatWindow::createMembersMenu(QMenu& menu)
     }
     for (auto& item: room.peers())
     {
-        auto entry = menu.addMenu(QString::fromStdString(item.second->name()));
+        auto& name = item.second->name();
+        auto entry = menu.addMenu(QString::fromUtf8(name.c_str()+1, name.size()-1));
         if (room.ownPriv() == chatd::PRIV_OPER)
         {
             auto actRemove = entry->addAction(tr("Remove from chat"));
@@ -101,7 +161,7 @@ void ChatWindow::onMemberRemove()
     uint64_t handle(handleFromAction(QObject::sender()));
     mWaitMsg.addMsg(tr("Removing user(s), please wait..."));
     auto waitMsgKeepalive = mWaitMsg;
-    mainWindow.client().api.call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
+    client.api.call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
     .fail([this, waitMsgKeepalive](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Remove member from group chat"),
@@ -121,7 +181,7 @@ void ChatWindow::onMemberSetPrivReadOnly()
 
 void ChatWindow::onMemberPrivateChat()
 {
-    auto& clist = *mainWindow.client().contactList;
+    auto& clist = *client.contactList;
     auto it = clist.find(handleFromAction(QObject::sender()));
     if (it == clist.end())
     {
@@ -175,14 +235,11 @@ void ChatWindow::updateSeen()
         return;
     int i = msglist.indexAt(QPoint(4, 1)).row();
     if (i < 0) //message list is empty
-    {
-//      printf("no visible messages\n");
         return;
-    }
 
     auto lastidx = mChat->lastSeenIdx();
     if (lastidx == CHATD_IDX_INVALID)
-        lastidx = mChat->lownum();
+        lastidx = mChat->lownum()-1;
     auto rect = msglist.rect();
     chatd::Idx idx = CHATD_IDX_INVALID;
     //find last visible message widget
@@ -215,34 +272,38 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     auto widget = widgetFromMessage(msg);
     if (!widget)
     {
-        CHAT_LOG_WARNING("onMessageEdited: No widget is associated with message with idx %d", idx);
+        GUI_LOG_WARNING("onMessageEdited: No widget is associated with message with idx %d", idx);
         return;
     }
-    if (msg.empty())
+    if (msg.isManagementMessage())
     {
-        widget->msgDeleted();
-        return;
+        widget->setText(msg.managementInfoToString());
     }
-    widget->setText(msg);
+    else
+    {
+        if (msg.empty())
+        {
+            widget->msgDeleted();
+            return;
+        }
+        assert(msg.ts);
+        widget->setText(msg);
+        widget->setEdited();
+    }
     if (msg.userid == mChat->client().userId()) //edit of our own message
     {
         //edited state must have been set earlier, on posting the edit
         widget->updateStatus(chatd::Message::kServerReceived);
-        widget->setEdited();
-    }
-    else
-    {
-        widget->setEdited();
     }
     widget->fadeIn(QColor(Qt::yellow));
 }
 
-void ChatWindow::onEditRejected(const chatd::Message& msg, uint8_t opcode)
+void ChatWindow::onEditRejected(const chatd::Message& msg, bool oriIsConfirmed)
 {
     auto widget = widgetFromMessage(msg);
     if (!widget)
     {
-        CHAT_LOG_ERROR("onEditRejected: No widget associated with message");
+        GUI_LOG_ERROR("onEditRejected: No widget associated with message");
         return;
     }
 //    widget->setText(*widget->mMessage); //restore original
@@ -272,7 +333,7 @@ void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg, bool oriMsgIsSendin
         }
         if (!widget)
         {
-            CHAT_LOG_WARNING("onUnsentEditLoaded: Could not find the orignal message among the ones being in sending state");
+            GUI_LOG_WARNING("onUnsentEditLoaded: Could not find the orignal message among the ones being in sending state");
             return;
         }
         assert(widget->mMessage->dataEquals(editmsg.buf(), editmsg.dataSize()));
@@ -287,7 +348,7 @@ void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg, bool oriMsgIsSendin
         widget = widgetFromMessage(msg);
         if (!widget)
         {
-            CHAT_LOG_WARNING("onUnsentEditLoaded: No widget associated with msgid %s", msg.id().toString().c_str());
+            GUI_LOG_WARNING("onUnsentEditLoaded: No widget associated with msgid %s", msg.id().toString().c_str());
             return;
         }
         widget->setText(msg);
@@ -397,20 +458,20 @@ MessageWidget& MessageWidget::setAuthor(karere::Id userid)
         ui.mAuthorDisplay->setText(tr("me"));
         return *this;
     }
-    auto email = mChatWindow.mainWindow.client().contactList->getUserEmail(userid);
+    auto email = mChatWindow.client.contactList->getUserEmail(userid);
     if (email)
         ui.mAuthorDisplay->setText(QString::fromStdString(*email));
     else
         ui.mAuthorDisplay->setText(tr("?"));
 
-    mChatWindow.mainWindow.client().userAttrCache.getAttr(userid, mega::MegaApi::USER_ATTR_LASTNAME, this,
+    mChatWindow.client.userAttrCache().getAttr(userid, USER_ATTR_FULLNAME, this,
     [](Buffer* data, void* userp)
     {
         //buffer contains an unsigned char prefix that is the strlen() of the first name
-        if (!data || data->dataSize() < 2)
+        if (!data || data->empty())
             return;
         auto self = static_cast<MessageWidget*>(userp);
-        self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1));
+        self->ui.mAuthorDisplay->setText(QString::fromUtf8(data->buf()+1, data->dataSize()-1));
     });
     return *this;
 }
@@ -421,7 +482,7 @@ void MessageWidget::msgDeleted()
     assert(mMessage->userp);
     auto& list = *mChatWindow.ui.mMessageList;
     auto visualRect = list.visualItemRect(static_cast<QListWidgetItem*>(mMessage->userp));
-    if (mChatWindow.mChat->isFetchingHistory() || !list.rect().contains(visualRect))
+    if (mChatWindow.mChat->isFetchingFromServer() || !list.rect().contains(visualRect))
     {
         removeFromList();
         return;
@@ -468,9 +529,18 @@ ManualSendMsgWidget::ManualSendMsgWidget(ChatWindow& chatWin, chatd::Message* aM
     {
         ui.mReasonDisplay->setText(tr("Participants changed"));
     }
+    else if (reason == chatd::kManualSendNoWriteAccess)
+    {
+        ui.mReasonDisplay->setText(tr("No write access"));
+
+    }
+    else if (reason == chatd::kManualSendGeneralReject)
+    {
+        ui.mReasonDisplay->setText(tr("Rejected for unknown reason"));
+    }
     else
     {
-        CHAT_LOG_ERROR("Don't know how to handle manual send reason %d", reason);
+        GUI_LOG_ERROR("Don't know how to handle manual send reason %d", reason);
     }
     connect(ui.mSendBtn, SIGNAL(clicked()), this, SLOT(onSendBtn()));
     connect(ui.mDiscardBtn, SIGNAL(clicked()), this, SLOT(onDiscardBtn()));

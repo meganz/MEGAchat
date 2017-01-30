@@ -8,7 +8,6 @@
 #include <IRtcModule.h>
 #include <mstrophepp.h>
 #include <../strophe.disco.h>
-#include <IJingleSession.h>
 #include <chatClient.h>
 
 class ChatWindow;
@@ -69,7 +68,6 @@ public slots:
 public:
     Ui::CallGui ui;
     CallGui(ChatWindow& parent, const std::shared_ptr<rtcModule::ICall>& call=nullptr);
-    void call();
     void hangup(const std::string& msg="") { mCall->hangup(msg); }
     virtual void onOutgoingCallCreated(const std::shared_ptr<rtcModule::ICall> &aCall)
     {mCall = aCall;}
@@ -81,7 +79,7 @@ public:
     {
         rendererRet = ui.remoteRenderer;
     }
-    virtual void onMediaRecv(rtcModule::stats::Options&) { ui.remoteRenderer->disableStaticImage(); }
+    virtual void onMediaRecv(rtcModule::stats::Options& statOptions);
     virtual void onCallEnded(rtcModule::TermCode code, const std::string& text,
         const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj);
     virtual void onLocalMediaFail(const std::string& err, bool* cont)

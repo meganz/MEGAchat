@@ -62,6 +62,33 @@ public:
     }
 };
 
+class MyListenerNoResult: public ::mega::MegaRequestListener
+{
+public:
+    promise::Promise<void> mPromise;
+    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
+    {
+        int errCode = e->getErrorCode();
+        karere::marshallCall([this, errCode]()
+        {
+            if (mPromise.done())
+                return; //a timeout timer may resolve it before the actual callback
+            if(errCode != mega::MegaError::API_OK)
+            {
+                std::string errmsg = "Mega API error ";
+                errmsg.append(std::to_string(errCode)).append(" (")
+                      .append(::mega::MegaError::getErrorString(errCode))+=')';
+                mPromise.reject(errmsg, errCode, ERRTYPE_MEGASDK);
+            }
+            else
+            {
+                mPromise.resolve();
+            }
+            delete this;
+        });
+    }
+};
+
 class MyMegaLogger: public ::mega::MegaLogger
 {
     virtual void log(const char *time, int loglevel, const char *source, const char *message)
@@ -71,7 +98,22 @@ class MyMegaLogger: public ::mega::MegaLogger
             krLogLevelError, krLogLevelError, krLogLevelWarn,
             krLogLevelInfo, krLogLevelDebug, krLogLevelDebugVerbose
         };
-        KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s", message);
+        std::string sourceFile;
+        if (source)
+        {
+            std::string tmp = std::string(source);
+            size_t start = tmp.rfind('/');
+            if (start == std::string::npos)
+            {
+                start = tmp.rfind('\\');
+            }
+
+            if (start != std::string::npos)
+            {
+                sourceFile = "(" + tmp.substr(start+1) + ")";
+            }
+        }
+        KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s %s", message, sourceFile.c_str());
     }
 };
 
@@ -93,15 +135,19 @@ public:
         (sdk.*method)(args..., listener);
         return listener->mPromise;
     }
+    template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
+    promise::Promise<void> callIgnoreResult(MSig method, Args... args)
+    {
+        auto listener = new MyListenerNoResult;
+        (sdk.*method)(args..., listener);
+        return listener->mPromise;
+    }
+
     ~MyMegaApi()
     {
-        //we need to destroy the logger after the base mega::MegaApi, because the MegaApi dtor uses the logger
-        MyMegaLogger* logger = mLogger.release();
-        karere::marshallCall([logger]()
-        {
-            delete logger;
-            KR_LOG_DEBUG("Deleted SDK logger");
-        });
+        sdk.setLoggerObject(nullptr);
+        mLogger.reset();
+        KR_LOG_DEBUG("Deleted SDK logger");
     }
 };
 

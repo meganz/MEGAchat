@@ -21,9 +21,8 @@ void ParsedSdp::parse(const string& strSdp)
 {
     media.clear();
     session.clear();
-    raw = strSdp;
     vector<string> lines;
-    tokenize(raw.c_str(), "\r\n", lines);
+    tokenize(strSdp.c_str(), "\r\n", lines);
 
     size_t i = 0;
     for (; i<lines.size(); i++)
@@ -33,19 +32,22 @@ void ParsedSdp::parse(const string& strSdp)
             break;
         session.push_back(line);
     }
-    unique_ptr<LineGroup> curMedia;
+    unique_ptr<MGroup> curMedia;
     for (;i<lines.size(); i++)
     {
         string& line = lines[i];
         if (startsWith(line, "m="))
         {
+            if (line.size() < 3)
+                throw std::runtime_error("Empty 'm=' line");
+
             if (curMedia)
             {
                 if (curMedia->empty())
                     throw runtime_error("Empty 'm=' line group in input sdp");
                 media.push_back(std::move(*curMedia));
             }
-            curMedia.reset(new LineGroup);
+            curMedia.reset(new MGroup(line));
         }
         curMedia->push_back(std::move(line));
     }
@@ -97,14 +99,14 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
 
     for (auto& m: media)
     {
-        MLine mline(m[0]);
-        if ((mline.media != "audio") && (mline.media != "video"))
+        auto& name = m.name();
+        if ((name != "audio") && (name != "video"))
             continue;
         string ssrc = find_line<>(m, "a=ssrc:");
         if (!ssrc.empty())
             ssrc = beforeFirst(ssrc, " "); // take the first
 
-        Stanza content = elem.c("content", {{"creator", creator}, {"name", mline.media}});
+        Stanza content = elem.c("content", {{"creator", creator}, {"name", name}});
         string mid = find_line<>(m, "a=mid:");
         if (!mid.empty())
         {
@@ -116,12 +118,12 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
         {
             auto desc = content.c("description",
                  {{"xmlns", "urn:xmpp:jingle:apps:rtp:1"},
-                  {"media", mline.media}
+                  {"media", name}
                  });
             if (!ssrc.empty())
                 desc.setAttr("ssrc", ssrc.c_str());
 
-            for (auto fmt: mline.fmt)
+            for (auto fmt: m.mline.fmt)
             {
                 rtpmap = find_line<>(m, "a=rtpmap:" + fmt+" ");
                 if (rtpmap.empty())
@@ -237,7 +239,7 @@ Stanza ParsedSdp::toJingle(Stanza elem, const char* creator)
                 }
         }
 
-        if (mline.port == "0")
+        if (m.mline.port == "0")
             // estos hack to reject an m-line
             content.setAttr("senders", "rejected");
           else if (hasLine(m, "a=sendrecv", session))
@@ -354,12 +356,18 @@ void ParsedSdp::parse(Stanza jingle)
         this.session += "a=msid-semantic: WMS " + msid.mslabel + "\r\n";
     }
     */
+}
+
+std::string ParsedSdp::toString() const
+{
+    std::string raw;
     for (auto& line: session)
         raw.append(line).append("\r\n");
 
     for (auto& m: media)
         for (auto& line: m)
             raw.append(line).append("\r\n");
+    return raw;
 }
 
 MLine::MLine(Stanza content)
@@ -385,58 +393,57 @@ MLine::MLine(Stanza content)
 }
 
 // translate a jingle content element into an an SDP media part
-unique_ptr<LineGroup> ParsedSdp::jingle2media(Stanza content)
+unique_ptr<MGroup> ParsedSdp::jingle2media(Stanza content)
 {
     Stanza desc = content.child("description");
-    MLine mline(content);
-    unique_ptr<LineGroup> retMedia(new LineGroup);
-    LineGroup& media = *retMedia;
-    media.push_back(mline.toSdp());
-    media.push_back("c=IN IP4 0.0.0.0");
-    media.push_back("a=rtcp:1 IN IP4 0.0.0.0");
+    unique_ptr<MGroup> retMedia(new MGroup(content));
+    MGroup& mgroup = *retMedia;
+    mgroup.push_back(mgroup.mline.toSdp());
+    mgroup.push_back("c=IN IP4 0.0.0.0");
+    mgroup.push_back("a=rtcp:1 IN IP4 0.0.0.0");
 
     auto transport = content.childByAttr("transport", "xmlns", "urn:xmpp:jingle:transports:ice-udp:1", true);
     if (transport)
     {
         const char* ufrag = transport.attrOrNull("ufrag");
         if (ufrag)
-            media.push_back("a=ice-ufrag:"+string(ufrag));
+            mgroup.push_back("a=ice-ufrag:"+string(ufrag));
 
         const char* pwd = transport.attrOrNull("pwd");
         if (pwd)
-            media.push_back("a=ice-pwd:"+string(pwd));
+            mgroup.push_back("a=ice-pwd:"+string(pwd));
     }
-    transport.forEachChild("fingerprint", [&media](Stanza child)
+    transport.forEachChild("fingerprint", [&mgroup](Stanza child)
     {
       // FIXME: check namespace at some point
-        media.push_back("a=fingerprint:"+string(child.attr("hash"))+" "+
+        mgroup.push_back("a=fingerprint:"+string(child.attr("hash"))+" "+
              child.text().c_str());
         const char* setup = child.attrOrNull("setup");
         if (setup)
-             media.push_back(string("a=setup:")+setup);
+             mgroup.push_back(string("a=setup:")+setup);
     });
     string senders = content.attr("senders");
     if (senders == "initiator")
-        media.push_back("a=sendonly");
+        mgroup.push_back("a=sendonly");
      else if (senders == "responder")
-        media.push_back("a=recvonly");
+        mgroup.push_back("a=recvonly");
      else if (senders == "none")
-        media.push_back("a=inactive");
+        mgroup.push_back("a=inactive");
      else if (senders == "both")
-        media.push_back("a=sendrecv");
+        mgroup.push_back("a=sendrecv");
 
-     media.push_back(string("a=mid:")+content.attr("name"));
+     mgroup.push_back(string("a=mid:")+content.attr("name"));
 
     // <description><rtcp-mux/></description>
     // see http://code.google.com/p/libjingle/issues/detail?id=309 -- no spec though
     // and http://mail.jabber.org/pipermail/jingle/2011-December/001761.html
     if (desc.child("rtcp-mux", true))
-        media.push_back("a=rtcp-mux");
+        mgroup.push_back("a=rtcp-mux");
 
     Stanza enc = desc.child("encryption", true);
     if (enc)
     {
-       enc.forEachChild("crypto", [&media](Stanza crypto)
+       enc.forEachChild("crypto", [&mgroup](Stanza crypto)
        {
            string sdpCrypto = "a=crypto:";
            sdpCrypto.append(crypto.attr("tag"))
@@ -445,12 +452,12 @@ unique_ptr<LineGroup> ParsedSdp::jingle2media(Stanza content)
            const char* sesp = crypto.attr("session-params");
            if (sesp)
                sdpCrypto.append(" ").append(sesp);
-           media.push_back(std::move(sdpCrypto));
+           mgroup.push_back(std::move(sdpCrypto));
        });
     }
-    desc.forEachChild("payload-type", [&media, this](Stanza payload)
+    desc.forEachChild("payload-type", [&mgroup, this](Stanza payload)
     {
-        media.push_back(build_rtpmap(payload));
+        mgroup.push_back(build_rtpmap(payload));
         if (payload.child("parameter", true))
         {
             string fmtp = "a=fmtp:";
@@ -466,43 +473,44 @@ unique_ptr<LineGroup> ParsedSdp::jingle2media(Stanza content)
             });
             if (hasParam)
                 fmtp.resize(fmtp.size()-1);
-            media.push_back(std::move(fmtp));
+            mgroup.push_back(std::move(fmtp));
         }
         // xep-0293
-        rtcpFbFromJingle(payload, payload.attr("id"), media);
+        rtcpFbFromJingle(payload, payload.attr("id"), mgroup);
     });
 
     // xep-0293
-    rtcpFbFromJingle(desc, "*", media);
+    rtcpFbFromJingle(desc, "*", mgroup);
 
     // xep-0294
-    desc.forEachChildByAttr("rtp-hdrext", "xmlns",
-      "urn:xmpp:jingle:apps:rtp:rtp-hdrext:0", [&media](Stanza hdrext)
+    desc.forEachChildByAttr("rtp-hdrext", "xmlns", "urn:xmpp:jingle:apps:rtp:rtp-hdrext:0",
+    [&mgroup](Stanza hdrext)
     {
-        media.push_back(string("a=extmap:")+
+        mgroup.push_back(string("a=extmap:")+
         hdrext.attr("id")+" "+hdrext.attr("uri"));
     });
 
-    content.forEachChildByAttr("transport", "xmlns", "urn:xmpp:jingle:transports:ice-udp:1", [&media](Stanza transport)
+    content.forEachChildByAttr("transport", "xmlns", "urn:xmpp:jingle:transports:ice-udp:1",
+    [&mgroup](Stanza transport)
     {
-      transport.forEachChild("candidate", [&media](Stanza cand)
-      {
-        media.push_back(candidateFromJingle(cand, true));
-      });
+        transport.forEachChild("candidate", [&mgroup](Stanza cand)
+        {
+            mgroup.push_back(candidateFromJingle(cand, true));
+        });
     });
 
     desc.forEachChildByAttr("source", "xmlns", "urn:xmpp:jingle:apps:rtp:ssma:0",
-    [&media](Stanza source)
+    [&mgroup](Stanza source)
     {
         const char* ssrc = source.attr("ssrc");
-        source.forEachChild("parameter", [&media, ssrc](Stanza par)
+        source.forEachChild("parameter", [&mgroup, ssrc](Stanza par)
         {
             string ln = "a=ssrc:";
             ln.append(ssrc).append(" ").append(par.attr("name"));
             const char* val = par.attrOrNull("value");
             if (val)
                ln.append(":").append(val);
-            media.push_back(std::move(ln));
+            mgroup.push_back(std::move(ln));
         });
     });
 
@@ -526,7 +534,7 @@ MLine::MLine(const string& mline)
 {
 //should be a debug assertion as it is is giaranteed by the code, but just in case
     if ((mline.size() < 2) || (strncmp(mline.c_str(), "m=", 2) != 0))
-        throw runtime_error("MLine::MLine: string is not an mline");
+        throw runtime_error("MLine::MLine: string is not an mline: '"+mline+"'");
 
     tokenize(mline.c_str()+2, " ", fmt);
     media = fmt[0];

@@ -60,27 +60,34 @@ If you get a libtool error that a tag is missing, you can try setting this env v
 `export LIBTOOLFLAGS ="--tag CXX"`  
 
 ## Build webrtc ##
-Karere provides an autmated system for building webrtc for any of the supported
+Karere provides an automated system for building webrtc for any of the supported
 desktop and mobile platforms. This is made very easy by using the
 `/webrtc-build/build-webrtc.sh` script. Run it without arguments to see help on
-usage. This system is generally an addon to the stock webrtc (actually chromium)
+usage.
+
+*IMPORTANT:* Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh  
+
+This system is generally an addon to the stock webrtc (actually chromium)
 build system, but it strips it down to download only a few hundred megabytes
 of source code and tools instead of 10-12GB. It also patches webrtc to fix
 several issues (use normal openssl instead of its own included boringssl
 lib, replace macos capturer that uses obsolete API and problematic threading
 model with modified iOS capturer, etc).
 
-###Python version###  
+### Python version ###
 Since the Chromium build system (at least the curent revision) relies heavily
 on python, and it assumes the python version is 2.7, the `python` command must
 map to python2 instead of python3. This may not be true on more recent systems.
-To easily accomodate forthis, you can create a symlink named `python` that
-points to `/usr/bin/python2`. Put that symlink in a private directory that
-doesn't contain other executables, and include this directory to be first in
-the system PATH in the shell where you build webrtc, before invoking
-`build-webrtc.sh`:  
+To check, just type `python --version`. If it says version 2.x, then you are ok
+and can skip the rest of this section.
+To easily make python2 default in the current shell, you can create a symlink
+named `python` that points to `/usr/bin/python2`. Put that symlink in a private directory that
+doesn't contain other executables with names clashing with ones in the system path,
+and include this directory to be first in the system PATH in the shell where you
+build webrtc, before invoking `build-webrtc.sh`:  
 `export PATH=/path/to/dir-with-python-symlink:$PATH`  
 
+### Third party deps ###
 On any platform other than Linux, set the following two env vars, to make the webrtc build system
 find libs not located in standard system paths:  
 `export WEBRTC_DEPS_INCLUDE=/path/to/prefix/include`
@@ -89,14 +96,11 @@ Depending on the plaform, `/path/to/prefix` will be:
 - iOS, Android, Windows: `$builddir/usr`, where `$builddir` is the builddir parameter that you passed to the `setup-deps.sh` script.
 - MacOS: The prefix where MacPorts/HomeBrew installs libraries.  
 
-*IMPORTANT*  
-Do not run build-webrtc.sh in a shell with sourced env-ios.sh or env-android.sh
-
 *Android*  
 You need to set ANDROID_NDK to an NDK installation. The current webrtc revision
 has been tested with NDK r10d.
 
-### Verify the build ###
+### Verify the webrtc build ###
 * Cd to the directory you passed to build-webrtc.sh, and then:  
    - non-iOS  
   `cd src/out/Release|Debug`  
@@ -222,4 +226,3 @@ For more details, read the comments in base/gcm.h, and for reference implementat
 ## If Mega API calls are required ##
   * To integrate with the environment, a simple bridge class called MyMegaApi is implemented in /src/sdkApi.h.
     Example usage of it is in /src/chatClient.cpp. 
-

@@ -18,9 +18,18 @@
 #include <QToolTip>
 #include <chatdDb.h>
 #include <chatClient.h>
-#include "callGui.h"
 #include <mega/base64.h> //for jid base32 conversion
 #include <strongvelope/strongvelope.h>
+#ifndef KARERE_DISABLE_WEBRTC
+    #include "callGui.h"
+#else
+    namespace rtcmodule
+    {
+        class ICall{};
+    }
+    class CallGui: public karere::IApp::ICallHandler {};
+#endif
+
 namespace Ui
 {
 class ChatWindow;
@@ -66,23 +75,17 @@ public:
     }
     MessageWidget& setText(const chatd::Message& msg)
     {
+        assert(!msg.isManagementMessage());
         auto& txt = *ui.mMsgDisplay;
-        printf("msg.type = %d\n", msg.type);
-        if (msg.type == (int)strongvelope::SVCRYPTO_MSGTYPE_CHAT_TITLE)
-        {
-            std::string display = "<Chat title was set by user ";
-            display.append(msg.userid.toString());
-            display.append(" to '").append(msg.buf(), msg.dataSize())
-            .append("'>");
-
-            txt.setText(QString::fromStdString(display));
-        }
-        else
-        {
-            txt.setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
-        }
+        txt.setText(QString::fromUtf8(msg.buf(), msg.dataSize()));
         return *this;
     }
+    MessageWidget& setText(const std::string& str)
+    {
+        ui.mMsgDisplay->setText(QString::fromStdString(str));
+        return *this;
+    }
+
     MessageWidget& updateStatus(chatd::Message::Status newStatus)
     {
         ui.mStatusDisplay->setText(chatd::Message::statusToStr(newStatus));
@@ -139,6 +142,7 @@ public:
     MessageWidget& setEdited(const QString& txt=QObject::tr("(Edited)"))
     {
         ui.mEditDisplay->setText(txt);
+        ui.mEditDisplay->setToolTip(tr("After %1 seconds").arg(mMessage->updated));
         return *this;
     }
     void msgDeleted();
@@ -188,7 +192,7 @@ class ChatWindow: public QDialog, public karere::IApp::IChatHandler
 {
     Q_OBJECT
 public:
-    MainWindow& mainWindow;
+    karere::Client& client;
     Ui::ChatWindow ui;
     QListWidget* mManualSendList = nullptr;
 protected:
@@ -203,6 +207,7 @@ protected:
  *  and after which are all unsent messages, in order
  */
     int mHistAddPos = 0;
+    megaHandle mUpdateSeenTimer = 0;
     friend class CallGui;
     friend class CallAnswerGui;
     friend class WaitMsg;
@@ -264,7 +269,7 @@ public slots:
 noedit:
         widget->disableEditGui();
     }
-    void postNewMessage(const char* data, size_t size, chatd::Message::Type type=chatd::Message::kMsgNormal)
+    void postNewMessage(const char* data, size_t size, unsigned char type=chatd::Message::kMsgNormal)
     {
         if (!data)
             throw std::runtime_error("postNewMessage: Can't post message with NULL data");
@@ -343,17 +348,15 @@ noedit:
     void fetchMoreHistory(bool byScroll)
     {
         mLastHistReqByScroll = byScroll;
-//        if (mChat->isFetchingHistory() && !mChat->isFetchDecrypting())
-//            return;
-        if (mChat->histFetchState() == chatd::kHistNoMore)
-        {
-            //TODO: Show in some way in the GUI that we have reached the start of history
-            return;
-        }
-        bool isRemote = mChat->getHistory(kHistBatchSize);
-        if (isRemote)
+        auto source = mChat->getHistory(kHistBatchSize);
+        printf("source = %d\n", source);
+        if (source == chatd::kHistSourceServer)
         {
             createHistFetchUi();
+        }
+        else if (source == chatd::kHistSourceNone)
+        {
+            //TODO: Show in some way in the GUI that we have reached the start of history
         }
     }
     void createHistFetchUi()
@@ -362,11 +365,13 @@ noedit:
         auto layout = qobject_cast<QBoxLayout*>(ui.mTitlebar->layout());
         auto bar = mHistFetchUi->progressBar();
         bar->setMinimum(0);
-        bar->setMaximum(mChat->lastReqdHistCount());
+        bar->setMaximum(kHistBatchSize);
         layout->insertWidget(2, bar);
     }
+#ifndef KARERE_DISABLE_WEBRTC
     void onVideoCallBtn(bool) { onCallBtn(true); }
     void onAudioCallBtn(bool) { onCallBtn(false); }
+#endif
     void onMembersBtn(bool);
     void onMemberRemove();
     void onMemberSetPrivFull();
@@ -374,19 +379,13 @@ noedit:
     void onMemberPrivateChat();
     void onScroll(int value);
 public:
-    ChatWindow(karere::ChatRoom& room, MainWindow& parent);
+    ChatWindow(QWidget* parent, karere::ChatRoom& room);
     virtual ~ChatWindow();
     chatd::Chat& chat() const { return *mChat; }
 protected:
-    void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr)
-    {
-        assert(!mCallGui);
-        auto layout = qobject_cast<QBoxLayout*>(ui.mCentralWidget->layout());
-        mCallGui = new CallGui(*this, call);
-        layout->insertWidget(1, mCallGui, 1);
-        ui.mTitlebar->hide();
-        ui.mTextChatWidget->hide();
-    }
+#ifndef KARERE_DISABLE_WEBRTC
+    void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr);
+    virtual void closeEvent(QCloseEvent* event);
     void deleteCallGui()
     {
         assert(mCallGui);
@@ -395,16 +394,11 @@ protected:
         ui.mTitlebar->show();
         ui.mTextChatWidget->show();
     }
+#endif
     void updateSeen();
     virtual void showEvent(QShowEvent* event)
     {
-        karere::setTimeout([this]() { updateSeen(); }, 2000);
-    }
-    void closeEvent(QCloseEvent* event)
-    {
-        if (mCallGui)
-            mCallGui->hangup();
-        event->accept();
+        mUpdateSeenTimer = karere::setTimeout([this]() { updateSeen(); }, 2000);
     }
     virtual void dragEnterEvent(QDragEnterEvent* event)
     {
@@ -413,21 +407,7 @@ protected:
     }
     virtual void dropEvent(QDropEvent* event);
     void createMembersMenu(QMenu& menu);
-    void onCallBtn(bool video)
-    {
-        if (mCallGui)
-            return;
-        if (mRoom.isGroup())
-        {
-            QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
-            return;
-        }
-        auto uh = static_cast<karere::PeerChatRoom&>(mRoom).peer();
-        auto jid = karere::useridToJid(uh);
-        createCallGui();
-        mRoom.parent.client.rtc->startMediaCall(mCallGui, jid, karere::AvFlags(true, video));
-    }
-
+    void onCallBtn(bool video);
     static MessageWidget* widgetFromMessage(const chatd::Message& msg)
     {
         if (!msg.userp)
@@ -448,7 +428,7 @@ protected:
         item->setSizeHint(widget->size());
         if (msg.isSending()) //we need to add it to the actual end of the list
         {
-            CHAT_LOG_DEBUG("Adding unsent message widget of msgxid %s", msg.id().toString().c_str());
+            GUI_LOG_DEBUG("Adding unsent message widget of msgxid %s", msg.id().toString().c_str());
             ui.mMessageList->addItem(item);
         }
         else
@@ -480,6 +460,7 @@ protected:
     }
     void onPresenceChanged(karere::Presence pres)
     {
+#ifndef KARERE_DISABLE_WEBRTC
         if (pres == karere::Presence::kOffline)
         {
             ui.mAudioCallBtn->hide();
@@ -490,9 +471,10 @@ protected:
             ui.mAudioCallBtn->show();
             ui.mVideoCallBtn->show();
         }
+#endif
         ui.mOnlineIndicator->setStyleSheet(
             QString("border-radius: 4px; background-color: ")+
-            gOnlineIndColors[pres.val()]);
+            gOnlineIndColors[pres.code()]);
     }
     //we are online - we need to have fetched all new messages to be able to send unsent ones,
     //because the crypto layer needs to have received the most recent keys
@@ -504,25 +486,11 @@ public:
         mChat = &chat;
         onPresenceChanged(mRoom.presence());
         updateChatdStatusDisplay(mChat->onlineState());
-        if (mChat->empty())
-            return;
-        mChat->replayUnsentNotifications(); //works synchronously
-        auto first = mChat->decryptedLownum();
-        for (chatd::Idx idx = mChat->decryptedHighnum(); idx>=first; idx--)
-        {
-            auto& msg = mChat->at(idx);
-            handleHistoryMsg(msg, idx, mChat->getMsgStatus(msg, idx));
-        }
-        mChat->loadManualSending();
-        if (mChat->isFetchingHistory())
-        {
+        mChat->resetListenerState();
+        auto source = mChat->getHistory(kHistBatchSize);
+        printf("initial getHistory: source = %d\n", source);
+        if (source == chatd::kHistSourceServer)
             createHistFetchUi();
-        }
-        else
-        {
-            if ((mChat->size() < 16) && (mChat->onlineState() == chatd::kChatStateOnline))
-            QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
-        }
     }
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -542,7 +510,8 @@ public:
 //            file->open(QIODevice::ReadOnly);
         }
     }
-    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isFromDb)
+    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg,
+        chatd::Message::Status status, bool isLocal)
     {
         assert(idx != CHATD_IDX_INVALID); assert(msg.id());
         if (mHistFetchUi)
@@ -555,7 +524,7 @@ public:
     }
     virtual void handleHistoryMsg(chatd::Message& msg, chatd::Idx idx, chatd::Message::Status status)
     {
-        if (msg.empty())
+        if (msg.empty() && !msg.isManagementMessage())
             return;// once a message becomes empty(i.e. deleted), it can't be edited anymore, so no pending edit handling is necessary
         addMsgWidget(msg, idx, status, true);
         handlePendingEdits(msg);
@@ -574,16 +543,16 @@ public:
         }
     }
     void showCantEditNotice(const QString& action=QObject::tr("edit"));
-    virtual void onHistoryDone(bool isFromDb)
+    virtual void onHistoryDone(chatd::HistSource source)
     {
         mHistFetchUi.reset();
-        if (!mChat->lastHistObtainCount())
+        if (source == chatd::kHistSourceNone) // no more history
             return;
 
         auto& list = *ui.mMessageList;
-        //chech if we have filled the window height with history, if not, fetch more
+        //check if we have filled the window height with history, if not, fetch more
         auto idx = list.indexAt(QPoint(list.rect().left()+10, list.rect().bottom()-2));
-        if (!idx.isValid() && mChat->histFetchState() != chatd::kHistNoMore)
+        if (!idx.isValid() && !mChat->haveAllHistory())
         {
             fetchMoreHistory(false);
             return;
@@ -595,7 +564,7 @@ public:
         else
         {
             int last = idx.isValid()
-              ?(std::min((unsigned)idx.row(), mChat->lastHistObtainCount()))
+              ?(std::min((unsigned)idx.row(), mChat->lastHistDecryptCount()))
               :list.count()-1;
             for (int i=0; i<=last; i++)
                 qobject_cast<MessageWidget*>(list.itemWidget(list.item(i)))->fadeIn(QColor(250,250,250));
@@ -615,7 +584,7 @@ public:
         auto widget = widgetFromMessage(msg);
         if (!widget)
         {
-            CHAT_LOG_ERROR("onMessageConfirmed: No widget assigned for message with msgxid %s", msgxid.toString().c_str());
+            GUI_LOG_ERROR("onMessageConfirmed: No widget assigned for message with msgxid %s", msgxid.toString().c_str());
             return;
         }
 #ifndef NDEBUG
@@ -626,14 +595,14 @@ public:
         widget->updateStatus(chatd::Message::kServerReceived);
     }
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
-    virtual void onEditRejected(const chatd::Message& msg, uint8_t opcode);
-    virtual void onOnlineStateChanged(chatd::ChatState state)
+    virtual void onEditRejected(const chatd::Message& msg, bool oriIsConfirmed);
+    virtual void onOnlineStateChange(chatd::ChatState state)
     {
         mRoom.onOnlineStateChange(state);
         updateChatdStatusDisplay(state);
 
         if ((state == chatd::kChatStateOnline) && (mChat->size() < 2)
-        && ((!mChat->isFetchingHistory())))
+        && ((!mChat->isFetchingFromServer())))
         {
             // avoid re-entrancy - we are in a chatd callback. We could use mega::marshallCall instead,
             // but this is safer as the window may get destroyed before the message is processed
@@ -660,6 +629,15 @@ public:
         mRoom.onUserJoin(userid, priv);
     }
     virtual void onUserLeave(karere::Id userid) { mRoom.onUserLeave(userid); }
+    virtual void onExcludedFromChat()
+    {
+        ui.mMessageEdit->setEnabled(false);
+    }
+    virtual void onRejoinedChat()
+    {
+        ui.mMessageEdit->setEnabled(true);
+    }
+
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //IChatWindow interface
     virtual void onUnreadChanged() { mRoom.onUnreadChanged(); }

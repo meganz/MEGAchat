@@ -36,24 +36,22 @@ protected:
     std::shared_ptr<JingleSession> mSess;
     std::string mOwnFprMacKey;
     std::string mPeerFprMacKey;
-    template <class F>
+    std::unique_ptr<webrtc::FakeConstraints> pcConstraints;
+
     JingleCall(RtcModule& aRtc, bool isCaller, CallState aState, IEventHandler* aHandler,
-         const std::string& aSid, F&& hangupFunc, const std::string& aPeerJid,
-         AvFlags localAv, bool aIsFt, const std::string& aOwnJid)
-    : ICall(aRtc, isCaller, aState, aHandler, aSid, aPeerJid, aIsFt, aOwnJid),
-      mHangupFunc(std::forward<F>(hangupFunc)), mLocalAv(localAv)
-    {
-        if (!mHandler && mIsCaller) //handler is set after creation when we answer
-            throw std::runtime_error("Call::Call: NULL user handler passed");
-    }
+         const std::string& aSid, HangupFunc&& hangupFunc, const std::string& aPeerJid,
+         AvFlags localAv, bool aIsFt, const std::string& aOwnJid);
     void initiate();
+    void createPcConstraints();
     friend class Jingle;
     friend class JingleSession;
     friend class RtcModule;
 public:
     virtual ~JingleCall(){ KR_LOG_DEBUG("Call %s destroy", mSid.c_str()); } //we shouldn't need it virtual, as the map type is of the actual class Call, but just in case
     void setState(CallState newState) { mHangupFunc = nullptr; mState = newState; }
+    virtual void setPcConstraint(const std::string& name, const std::string& value, bool optional=false);
 };
+
 class ScopedCallRemover
 {
 protected:
@@ -127,12 +125,14 @@ protected:
     friend class ScopedCallDestroy; friend class ScopedCallHangup;
     friend class JingleSession;
 public:
-    enum {DISABLE_MIC = 1, DISABLE_CAM = 2, HAS_MIC = 4, HAS_CAM = 8};
-    int mediaFlags = 0;
+    enum MediaOptions {DISABLE_MIC = 1, DISABLE_CAM = 2};
+    int mediaOptions = 0;
 
     std::shared_ptr<webrtc::PeerConnectionInterface::IceServers> mIceServers;
-    webrtc::FakeConstraints mMediaConstraints;
     artc::DeviceManager deviceManager;
+
+    webrtc::FakeConstraints mediaConstraints;
+    webrtc::FakeConstraints pcConstraints;
     ICryptoFunctions& crypto() {return *mCrypto;}
     const std::string& ownAnonId() const { return mOwnAnonId; }
 //==
@@ -166,6 +166,8 @@ public:
                                              const char* sid=nullptr);
     std::string getFingerprintsFromJingle(strophe::Stanza j);
     bool verifyMac(const std::string& msg, const std::string& key, const std::string& actualMac);
+    virtual void setMediaConstraint(const std::string& key, const std::string& value, bool optional=false);
+    virtual void setPcConstraint(const std::string& key, const std::string& value, bool optional=false);
 };
 
 }

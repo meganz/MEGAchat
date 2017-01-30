@@ -12,11 +12,14 @@
 #include <base/promise.h>
 #include <base/timers.hpp>
 #include "chatdMsg.h"
+#include "url.h"
 
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
+
+enum: uint32_t { kPromiseErrtype_chatd = 0x3e9ac47d }; //should resemble 'megachtd'
 
 #define CHATD_MAX_EDIT_AGE 3600
 namespace chatd
@@ -33,27 +36,24 @@ typedef int32_t Idx;
 class Chat;
 class ICrypto;
 
-class Url
-{
-protected:
-    uint16_t getPortFromProtocol() const;
-public:
-    std::string protocol;
-    std::string host;
-    uint16_t port;
-    std::string path;
-    bool isSecure;
-    Url(const std::string& url) { parse(url); }
-    Url(): isSecure(false) {}
-    void parse(const std::string& url);
-    bool isValid() const { return !host.empty(); }
-};
 
 /** @brief Reason codes passed to Listener::onManualSendRequired() */
 enum ManualSendReason: uint8_t
 {
     kManualSendUsersChanged = 1, ///< Group chat participants have changed
-    kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_AUTOSEND_AGE seconds
+    kManualSendTooOld = 2, ///< Message is older than CHATD_MAX_EDIT_AGE seconds
+    kManualSendGeneralReject = 3, ///< chatd rejected the message, for unknown reason
+    kManualSendNoWriteAccess = 4  ///< Read-only privilege or not belong to the chatroom
+};
+
+/** The source from where history is being retrieved by the app */
+enum HistSource
+{
+    kHistSourceNone = 0, //< History is not being retrieved
+    kHistSourceRam = 1, //< History is being retrieved from the history buffer in RAM
+    kHistSourceDb = 2, //<History is being retrieved from the local DB
+    kHistSourceServer = 3, //< History is being retrieved from the server
+//    kHistSourceMask = 3
 };
 
 class DbInterface;
@@ -63,6 +63,8 @@ public:
     /** @brief
      * This is the first call chatd makes to the Listener, passing it necessary objects and
      * retrieving info about the local history database
+     * If you want to replay notifications related to this chat and the history retrieval to
+     * start from the beginning (so every message is notified again), call \c Chat::resetListenerState
      * @param chat - the Chat object that can be used to access the message buffer etc
      * @param dbIntf[out] reference to the internal pointer to the database abstraction
      * layer interface. Set this pointer to a newly created instance of a db abstraction
@@ -81,27 +83,37 @@ public:
      * 'not seen', until we call setMessageSeen() on it
      */
     virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status){}
-    /** @brief A history message has been received.
+
+    /** @brief A history message has been received, as a result of getHistory().
      * @param The index of the message in the history buffer
      * @param The message itself
      * @param status The 'seen' status of the message
      * @param isFromDb The message can be received from the server, or from the app's local
      * history db via \c fetchDbHistory() - this parameter specifies the source
      */
-    virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isFromDb){}
-    /** @brief The retrieval of the requested history batch, via \c getHistory(), was completed
-     * @param isFromDb Whether the history was retrieved from localDb,
-     * via \c fetchDbHistory() or from the server
+    virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isLocal){}
+
+    /**
+     * @brief The retrieval of the requested history batch, via \c getHistory(), was completed
+     * @param source The source from where the last message of the history
+     * chunk was returned. This basically means that if some of it was returned from RAM
+     * and then from DB, then source will be kHistSourceDb. This is not valid
+     * from mixing messages from local source and from server, as they are never
+     * mixed in one history chunk.
      */
-    virtual void onHistoryDone(bool isFromDb) {}
-    /** @brief An unsent message was loaded from local db. The app should normally
+    virtual void onHistoryDone(HistSource source) {}
+
+    /**
+     * @brief An unsent message was loaded from local db. The app should normally
      * display it at the end of the message history, indicating that it has not been
      * sent. This callback is called for all unsent messages, in order in which
      * the message posting ocurrent, from the oldest to the newest,
      * i.e. subsequent onUnsentMsgLoaded() calls are for newer unsent messages
      */
     virtual void onUnsentMsgLoaded(Message& msg) {}
-    /** @brief An unsent edit of a message was loaded. Similar to \c onUnsentMsgLoaded()
+
+    /**
+     * @brief An unsent edit of a message was loaded. Similar to \c onUnsentMsgLoaded()
      * @param msg The edited message
      * @param oriIsSending - whether the original message has been sent or not
      * yet sent (on the send queue).
@@ -109,7 +121,8 @@ public:
      * are done in the order of the corresponding events (send, edit)
      */
     virtual void onUnsentEditLoaded(Message& msg, bool oriMsgIsSending) {}
-     /** @brief A message sent by us was acknoledged by the server, assigning it a MSGID.
+
+    /** @brief A message sent by us was acknoledged by the server, assigning it a MSGID.
       * At this stage, the message state is "received-by-server", and it is in the history
       * buffer when this callback is called.
       * @param msgxid - The request-response match id that we generated for the sent message.
@@ -118,52 +131,77 @@ public:
       * @param idx - The history buffer index at which the message was put
       */
     virtual void onMessageConfirmed(karere::Id msgxid, const Message& msg, Idx idx){}
-    /** @brief A message was rejected by the server for some reason. As the message is not yet
+
+    /**
+     * @brief A message was rejected by the server for some reason. As the message is not yet
      * in the history buffer, its \c id() is a msgxid, and \c msg.isSending() is true
      */
     virtual void onMessageRejected(const Message& msg){}
+
     /** @brief A message was delivered, seen, etc. When the seen/received pointers are advanced,
      * this will be called for each message of the pointer-advanced range, so the application
      * doesn't need to iterate over ranges by itself
      */
     virtual void onMessageStatusChange(Idx idx, Message::Status newStatus, const Message& msg){}
-   /** @brief Called when a message edit is received, i.e. MSGUPD is received.
-    * The message is already updated in the history buffer and in the db,
-    * and the GUI should also update it.
-    * \attention If the edited message is not in memory, it is still updated in
-    * the database, but this callback will not be called.
-    * @param msg The edited message
-    * @param idx - the index of the edited message
-    */
-    virtual void onMessageEdited(const Message& msg, Idx idx){}
-    /** @brief An edit posted by us was rejected for some reason.
-     * @param opcode The chatd code of the operation that was rejected
+
+    /**
+     * @brief Called when a message edit is received, i.e. MSGUPD is received.
+     * The message is already updated in the history buffer and in the db,
+     * and the GUI should also update it.
+     * \attention If the edited message is not in memory, it is still updated in
+     * the database, but this callback will not be called.
+     * @param msg The edited message
+     * @param idx - the index of the edited message
      */
-    virtual void onEditRejected(const Message& msg, uint8_t opcode){}
+    virtual void onMessageEdited(const Message& msg, Idx idx){}
+
+    /** @brief An edit posted by us was rejected for some reason.
+     * @param oriIsConfirmed - whether the original of the edit was already
+     * confirmed by the server and has a proper msgid as msg.id(),
+     * or has not been confirmed and only a transaction id (msgxid),
+     * hence msg.id() returns the msgxid.
+     */
+    virtual void onEditRejected(const Message& msg, bool oriIsConfirmed){}
+
     /** @brief The chatroom connection (to the chatd server shard) state
      * has changed.
      */
-    virtual void onOnlineStateChange(ChatState state){}
-     /** @brief A user has joined the room, or their privilege has
-      * changed.
-      */
+    virtual void onOnlineStateChange(ChatState state) = 0;
+
+    /** @brief A user has joined the room, or their privilege has
+     * changed.
+     */
     virtual void onUserJoin(karere::Id userid, Priv privilege){}
+
     /**
      * @brief onUserLeave User has been excluded from the group chat
      * @param userid The userid of the user
      */
     virtual void onUserLeave(karere::Id userid){}
 
+    /** @brief We have been excluded from this chatroom */
+    virtual void onExcludedFromChat() {}
+
+    /** @brief We have rejoined the room
+     */
+    virtual void onRejoinedChat() {}
+
     /** @brief Unread message count has changed */
     virtual void onUnreadChanged() {}
+
     /** @brief A message could not be sent automatically, due to some reason.
      * User-initiated retry is required.
+     * @attention Ownership of \c msg is passed to application.
+     * The application can re-send or discard the message. In both cases, it should
+     * call removeManualSend() when it's about to resend or discard, in order to
+     * remove the message from the pending-manual-action list.
+     * To re-send, just call msgSubmit() in the normal way.
      * @param id The send queue id of the message. As the message has no msgid,
      * this is used to identify the message in seubsequent retry/cancel
      * @param reason - The code of the reason why the message could not be auto sent
-     * @attention Ownership of \c msg is passed to application.
      */
     virtual void onManualSendRequired(Message* msg, uint64_t id, ManualSendReason reason) {}
+
     /**
      * @brief onHistoryTruncated The history of the chat was truncated by someone
      * at the message \c msg.
@@ -173,6 +211,7 @@ public:
      * @param idx - The index of \c msg
      */
     virtual void onHistoryTruncated(const Message& msg, Idx idx) {}
+
     /**
      * @brief onMsgOrderVerificationFail The message ordering check for \c msg has
      * failed. The message may have been tampered.
@@ -184,6 +223,16 @@ public:
     {
         CHATD_LOG_ERROR("msgOrderFail[msgid %s]: %s", msg.id().toString().c_str(), errmsg.c_str());
     }
+
+    /**
+     * @brief onUserTyping Called when a signal is received that a peer
+     * is typing a message. Normally the app should have a timer that
+     * is reset each time a typing notification is received. When the timer
+     * expires, it should hide the notification GUI.
+     * @param user The user that is typing. The app can use the user attrib
+     * cache to get a human-readable name for the user.
+     */
+    virtual void onUserTyping(karere::Id userid) {}
 };
 
 class Client;
@@ -191,20 +240,20 @@ class Client;
 class Connection
 {
 public:
-    enum State { kStateDisconnected, kStateConnecting, kStateConnected };
+    enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected };
 protected:
     Client& mClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
     ws_t mWebSocket = nullptr;
-    State mState = kStateDisconnected;
-    Url mUrl;
+    State mState = kStateNew;
+    karere::Url mUrl;
     megaHandle mInactivityTimer = 0;
     int mInactivityBeats = 0;
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
-    State getState() { return mState; }
+    State state() { return mState; }
     bool isOnline() const
     {
         return (mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
@@ -213,7 +262,7 @@ protected:
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
         size_t reason_len, void *arg);
     void onSocketClose(int ercode, int errtype, const std::string& reason);
-    promise::Promise<void> reconnect();
+    promise::Promise<void> reconnect(const std::string& url=std::string());
     void disconnect();
     void enableInactivityTimer();
     void disableInactivityTimer();
@@ -235,24 +284,24 @@ public:
     }
 };
 
-enum HistFetchState
+enum ServerHistFetchState
 {
-/** History is not being fetched, and we don't have any more history neither in db nor on server */
-    kHistNoMore = 0,
+/** Thie least significant 2 bits signify the history fetch source,
+ * and correspond to HistSource values */
+
 /** History is not being fetched, and there is probably history to fetch available */
-    kHistNotFetching = 1,
+    kHistNotFetching = 4,
 /** We are fetching old messages if this flag is set, i.e. ones added to the back of
  *  the history buffer. If this flag is no set, we are fetching new messages, i.e. ones
  *  appended to the front of the history buffer */
-    kHistOldFlag = 2,
+    kHistOldFlag = 8,
 /** We are fetching from the server if flag is set, otherwise we are fetching from
  * local db */
-    kHistFetchingFromServerFlag = 4,
-    kHistFetchingOldFromServer = kHistFetchingFromServerFlag | kHistOldFlag,
-    kHistFetchingNewFromServer = kHistFetchingFromServerFlag | 0,
+    kHistFetchingOldFromServer = kHistSourceServer | kHistOldFlag,
+    kHistFetchingNewFromServer = kHistSourceServer | 0,
 /** We are currently fetching history from db - always old messages */
-    kHistFetchingFromDb = 0 | kHistOldFlag,
-    kHistDecryptingFlag = 8,
+/** Fething from RAM history buffer, always old messages */
+    kHistDecryptingFlag = 16,
     kHistDecryptingOld = kHistDecryptingFlag | kHistOldFlag,
     kHistDecryptingNew = kHistDecryptingFlag | 0
 };
@@ -323,6 +372,7 @@ protected:
     bool mHasMoreHistoryInDb = false;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
+    Priv mOwnPrivilege = PRIV_INVALID;
     karere::SetOfIds mUsers;
     karere::SetOfIds mUserDump; //< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
@@ -332,10 +382,14 @@ protected:
     /// range() only from the buffer items
     karere::Id mOldestKnownMsgId;
     karere::Id mNewestKnownMsgId;
-    unsigned mLastReqdHistCount = 0; ///< The amount of old/new history messages last requested either from server or from db
-    unsigned mLastHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
-    unsigned mLastHistObtainCount = 0; ///< Similar to mLastHistFetchCount, but reflects the current number of message passed through the decrypt process, which may be less than mLastHistFetchCount at a given moment
-    HistFetchState mHistFetchState = kHistNotFetching;
+    unsigned mLastServerHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
+    unsigned mLastHistDecryptCount = 0; ///< Similar to mLastServerHistFetchCount, but reflects the current number of message passed through the decrypt process, which may be less than mLastServerHistFetchCount at a given moment
+    /** @brief The state of history fetching from server */
+    ServerHistFetchState mServerFetchState = kHistNotFetching;
+    /** @brief @The state of history sending to the app via getHistory() */
+    bool mServerOldHistCbEnabled = false;
+    bool mHaveAllHistory = false;
+    Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
     ICrypto* mCrypto;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
@@ -374,8 +428,8 @@ protected:
          const karere::SetOfIds& users, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
-    Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front().get() : mForwardList.back().get(); }
-    Message* last() const { return (!mForwardList.empty())? mForwardList.front().get() : mBackwardList.back().get(); }
+    Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
+    Message* newest() const { return (!mForwardList.empty())? mForwardList.back().get() : mBackwardList.front().get(); }
     void clear()
     {
         mBackwardList.clear();
@@ -392,7 +446,8 @@ protected:
     void loadAndProcessUnsent();
     void initialFetchHistory(karere::Id serverNewest);
     void requestHistoryFromServer(int32_t count);
-    void getHistoryFromDb(unsigned count);
+    Idx getHistoryFromDb(unsigned count);
+    HistSource getHistoryFromDbOrServer(unsigned count);
     void onLastReceived(karere::Id msgid);
     void onLastSeen(karere::Id msgid);
     void handleLastReceivedSeen(karere::Id msgid);
@@ -411,9 +466,12 @@ protected:
     void login();
     void join();
     void joinRangeHist();
+    void onDisconnect();
     void onHistDone(); //called upont receipt of HISTDONE from server
+    void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
     void onNewKeys(StaticBuffer&& keybuf);
     void logSend(const Command& cmd);
+    void handleBroadcast(karere::Id userid, uint8_t type);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -453,37 +511,76 @@ public:
         return(mDecryptNewHaltedAt == CHATD_IDX_INVALID)
             ? highnum() : mDecryptNewHaltedAt-1;
     }
+
+    /** @brief connects the chatroom for the first time. A chatroom
+      * is initialized in two stages: first it is created via Client::createChatRoom(),
+      * after which it can be accessed in offline mode. The second stage is
+      * connect(), after which it initiates or uses an existing connection to
+      * chatd
+      */
+    void connect(const std::string& url=std::string());
+
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
+
     /** @brief Get the seen/received status of a message. Both the message object
      * and its index in the history buffer must be provided */
     Message::Status getMsgStatus(const Message& msg, Idx idx);
+
     /** @brief Contains all not-yet-confirmed edits of messages.
       *  This can be used by the app to replace the text of messages who have
       * been edited before they have been sent/confirmed. Normally the app needs
       * to display the edited text in the unsent message.*/
     const std::map<karere::Id, Message*>& pendingEdits() const { return mPendingEdits; }
-    /** @brief listener The chatd::Listener currently attached to this chat */
+
+    /** @brief The chatd::Listener currently attached to this chat */
     Listener* listener() const { return mListener; }
-    /** @brief Whether history is being retrieved at the moment */
-    bool isFetchingHistory() const { return mHistFetchState > kHistNotFetching; }
-    /** @brief Whether we are fetching history from local database */
-    bool isFetchingFromDb() const { return mHistFetchState & kHistFetchingFromDb; }
+
+    /** @brief Whether the listener will be notified upon receiving
+     * old history messages from the server.
+     */
+    bool isServerOldHistCbEnabled() const { return mServerOldHistCbEnabled;}
+
+    /** @brief Returns whether history is being fetched from server _and_
+     * send to the application callback via \c onRecvHistoryMsg().
+     */
+    bool isNotifyingOldHistFromServer() const { return mServerOldHistCbEnabled && (mServerFetchState & kHistOldFlag); }
+
+    /** @brief Returns whether we are fetching old or new history at the moment */
+    bool isFetchingFromServer() const { return (mServerFetchState & kHistNotFetching) == 0; }
+
     /** @brief The current history fetch state */
-    HistFetchState histFetchState() const { return mHistFetchState; }
+    ServerHistFetchState serverFetchState() const { return mServerFetchState; }
+
     /** @brief Whether we are decrypting the fetched history. The app may need
-     * to differentiate whether the hitory fetch process is doing the actual fetch, or
+     * to differentiate whether the history fetch process is doing the actual fetch, or
      * is waiting for the decryption (i.e. fetching chat keys etc)
      */
-    bool isFetchDecrypting() const { return ((mHistFetchState > kHistNotFetching) && (mHistFetchState < kHistDecryptingFlag)); }
-    /** @brief The last number of history messages that have been requested via
-     * \c getHitory() */
-    unsigned lastReqdHistCount() const { return mLastReqdHistCount; }
-    /**  @brief The last number of history messages that have actually been
+    bool isServerFetchDecrypting() const { return mServerFetchState & kHistDecryptingFlag; }
+
+    /**
+     * @brief haveAllHistory
+     * Returned whether we have locally all existing history.
+     * Note that this doesn't mean that we have sent all history the app
+     * via getHistory() - the client may still have history that hasn't yet
+     * been sent to the app after a getHistory(), i.e. because resetGetHistory()
+     * has been called.
+     */
+    bool haveAllHistory() const { return mHaveAllHistory; }
+    /** @brief returns whether the app has received all existing history
+     * for the current history fetch session (since the chat creation or
+     * sinte the last call to \c resetGetHistory()
+     */
+    bool haveAllHistoryNotified() const;
+    /**
+     * @brief The last number of history messages that have actually been
      * returned to the app via * \c getHitory() */
-    unsigned lastHistObtainCount() const { return mLastHistObtainCount; }
-    /** Get the message with the specified index, or \c NULL if that
-     * index is out of range */
+    unsigned lastHistDecryptCount() const { return mLastHistDecryptCount; }
+
+    /** @brief
+     * Get the message with the specified index, or \c NULL if that
+     * index is out of range
+     */
     inline Message* findOrNull(Idx num) const
     {
         if (num < mForwardStart) //look in mBackwardList
@@ -501,8 +598,11 @@ public:
             return mForwardList[idx].get();
         }
     }
-    /** @brief Returns the message at the specified index in the RAM history buffer.
-     * Throws if index is out of range */
+
+    /**
+     * @brief Returns the message at the specified index in the RAM history buffer.
+     * Throws if index is out of range
+     */
     Message& at(Idx num) const
     {
         Message* msg = findOrNull(num);
@@ -514,11 +614,16 @@ public:
         }
         return *msg;
     }
-    /** @brief Returns the message at the specified index in the RAM history buffer.
-     * Throws if index is out of range */
+
+    /**
+     * @brief Returns the message at the specified index in the RAM history buffer.
+     * Throws if index is out of range
+     */
     Message& operator[](Idx num) const { return at(num); }
-    /** @brief Returnd whether the specified RAM history buffer index is valid or out
-     * of range */
+
+    /** @brief Returns whether the specified RAM history buffer index is valid or out
+     * of range
+     */
     bool hasNum(Idx num) const
     {
         if (num < mForwardStart)
@@ -526,25 +631,45 @@ public:
         else
             return (num < mForwardStart + static_cast<int>(mForwardList.size()));
     }
-    /** @brief Returns the index of the message with the specified msgid.
-      * Throws if no such message exists in the RAM history buffer */
-    Idx msgIndexFromId(karere::Id id)
+
+    /**
+     * @brief Returns the index of the message with the specified msgid.
+     * @param msgid The message id whose index to find
+     * @returns The index of the message inside the RAM history buffer.
+     *  If no such message exists in the RAM history buffer, CHATD_IDX_INVALID
+     * is returned
+     */
+    Idx msgIndexFromId(karere::Id msgid)
     {
-        auto it = mIdToIndexMap.find(id);
+        auto it = mIdToIndexMap.find(msgid);
         return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;
     }
-    /** @brief Initiates fetching more history - from local db or from
-     * server. If there is more history in local db, it is loaded from there.
-     * If local db has less than the number of requested messages, loading stops
-     * when local db is exhausted. Next call to this function will fetch history
-     * from server.
+
+    /**
+     * @brief Initiates fetching more history - from local RAM history buffer,
+     * from local db or from server.
+     * If ram + local db have less than the number of requested messages,
+     * loading stops when local db is exhausted, returning less than \count
+     * messages. Next call to this function will fetch history from server.
      * If there is no history in local db, loading is done from the chatd server.
+     * Fetching from RAM and DB can be combined, if there is not enough history
+     * in RAM. In that case, kHistSourceDb will be returned.
      * @param count - The number of requested messages to load. The actual number
      * of messages loaded can be less than this.
-     * @returns Whether the fetch is from network (true), or database (false).
-     * The app may use this to decide whether to display a progress bar/ui or not
+     * @returns The source from where history is fetched.
+     * The app may use this to decide whether to display a progress bar/ui in case
+     * the fetch is from server.
      */
-    bool getHistory(int count);
+    HistSource getHistory(unsigned count);
+
+    /**
+     * @brief Resets sending of history to the app, so that next getHistory()
+     * will start from the newest known message. Note that this doesn't affect
+     * the actual fetching of history from the server to the chatd client,
+     * only the sending from the chatd client to the app.
+     */
+    void resetGetHistory();
+
     /**
      * @brief setMessageSeen Move the last-seen-by-us pointer to the message with the
      * specified index.
@@ -552,27 +677,26 @@ public:
      * it was attempted to set the pointer to an older than the current position.
      */
     bool setMessageSeen(Idx idx);
-    /** @brief Sets the last-see-by-us pointer to the message with the specified
+
+    /**
+     * @brief Sets the last-seen-by-us pointer to the message with the specified
      * msgid.
      * @return Whether the pointer was successfully set. Setting may fail if
      * it was attempted to set the pointer to an older than the current position.
      */
     bool setMessageSeen(karere::Id msgid);
+
     /** @brief The last-seen-by-us pointer */
     Idx lastSeenIdx() const { return mLastSeenIdx; }
+
     /** @brief Whether the next history fetch will be from local db or from server */
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
-    /** @brief Initiates replaying of callbacks about unsent messages and unsent
-     * edits, i.e. \c onUnsentMsgLoaded() and \c onUnsentEditLoaded().
-     * This may be needed when the listener is switched, in order to init the new
-     * listener state */
-    void replayUnsentNotifications();
-    /** @brief Initiates loading of the queue with messages that require user
-     * approval for re-sending */
-    void loadManualSending();
+
     /** @brief The interface of the Strongvelope crypto module instance associated with this
-      * chat */
+      * chat
+      */
     ICrypto* crypto() const { return mCrypto; }
+
     /** @group Message output methods */
 
     /** @brief Submits a message for sending.
@@ -582,7 +706,8 @@ public:
      * application-specific type like link, share, picture etc.
      * @param userp - An optional user pointer to associate with the message object
      */
-    Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
+    Message* msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp);
+
     /** @brief Queues a message as an edit message for the specified original message.
      * @param msg - the original message
      * @param newdata - The new contents
@@ -596,14 +721,68 @@ public:
      * dangling pointer.
      */
     Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp);
-    /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer */
+
+    /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer.
+      * It's possible that the exact count is not yet known, if the last seen message is not
+      * known by the client yet. In that case, the client knows the minumum count,
+      * (which is the total count of locally loaded messages at the moment),
+      * and returns the number as negative. The application may use this to
+      * to display for example '1+' instead of '1' in the unread indicator.
+      * When more history is fetched, the negative count increases in absolute value,
+      * (but is still negative), until the actual last seen message is obtained,
+      * at which point the count becomes positive.
+      * An example: client has only one message pre-fetched from server, and
+      * its msgid is not the same as the last-seen-by-us msgid. The client
+      * will then return the unread count as -1. When one more message is loaded
+      * from server but it's still not the last-seen one, the count will become
+      * -2. A third message is fetched, and its msgid matches the last-seen-msgid.
+      * The client will then return the unread count as +2, and will not change
+      * as more history is fetched from server.
+      * Example 1: Client has 1 message pre-fetched and its msgid is the same
+      * as the last-seen-msgid. The count will be returned as 0.
+      */
     int unreadMsgCount() const;
+
+    /** @brief Returns the most-recent message in the RAM history buffer.
+     * If the buffer is empty, returns \c NULL
+     */
+    Message* lastMessage() const;
+
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
-    /** @brief Removes the specified manual-send message, from the manual send queue.
-     * Normally should be called when the user opts to not retry sending the message */
+
+    /**
+     * @brief Resets the state of the listener, initiating all initial
+     * callbacks, such as the onManualSendRequired(), onUnsentMsgLoaded,
+     * and resets the getHistory() pointer, so that subsequent getHistory()
+     * calls will start returning history from the newest message.
+     * You may want to call this method at \c chatd::Listener::init, so the
+     * history retrieval starts from the beginning.
+     */
+    void resetListenerState();
+    /**
+     * @brief getMsgByXid searches the send queue for a message with the specified
+     * msgxid. The message is supposed to be unconfirmed, but in reality the
+     * message may have been received and recorded by the server,
+     * and the client may have not received the confirmation.
+     * @param msgxid - The transaction id of the message
+     * @returns Pointer to the Message object, or nullptr if a message with
+     * that msgxid does not exist in the send queue.
+     */
+    Message* getMsgByXid(karere::Id msgxid);
+    /**
+     * @brief Removes the specified manual-send message, from the manual send queue.
+     * Normally should be called when the user opts to not retry sending the message
+     * @param id The id of the message, provided by \c onManualSendRequired()
+     */
     void removeManualSend(uint64_t id);
-    /** @brief Generates a backreference id. Must be public because strongvelope
+
+    /** @brief Broadcasts a notification that the user is typing. This will trigged
+     * other clients receiving \c onUserTyping() callbacks
+     */
+    void sendTypingNotification();
+    /**
+     * @brief Generates a backreference id. Must be public because strongvelope
      *  uses it to generate chat title messages
      * @param aCrypto - the crypto module interface to use for random number
      * generation.
@@ -618,11 +797,23 @@ protected:
     void rejectMsgupd(uint8_t opcode, karere::Id id);
     template <bool mustBeInSending=false>
     void rejectGeneric(uint8_t opcode);
-    void moveItemToManualSending(OutputQueue::iterator it, int reason);
+    void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
     void handleTruncate(const Message& msg, Idx idx);
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(Message& msg);
     void verifyMsgOrder(const Message& msg, Idx idx);
+    /**
+     * @brief Initiates replaying of callbacks about unsent messages and unsent
+     * edits, i.e. \c onUnsentMsgLoaded() and \c onUnsentEditLoaded().
+     * This may be needed when the listener is switched, in order to init the new
+     * listener state */
+    void replayUnsentNotifications();
+
+    /**
+     * @brief Initiates loading of the queue with messages that require user
+     * approval for re-sending */
+    void loadManualSending();
+
 //===
 };
 
@@ -662,18 +853,28 @@ public:
      * url, and assocuates the specified Listener and ICRypto instances
      * with the newly created Chat object.
      */
-    void join(karere::Id chatid, int shardNo, const std::string& url,
+    Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
         Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
+    void disconnect();
     friend class Connection;
     friend class Chat;
+};
+
+struct ChatDbInfo
+{
+    karere::Id oldestDbId;
+    karere::Id newestDbId;
+    Idx newestDbIdx;
+    karere::Id lastSeenId;
+    karere::Id lastRecvId;
 };
 
 class DbInterface
 {
 public:
-    virtual void getHistoryInfo(karere::Id& oldestDbId, karere::Id& newestDbId, Idx& newestDbIdx) = 0;
+    virtual void getHistoryInfo(ChatDbInfo& info) = 0;
     /// Called when the client was requested to fetch history, and it knows the db contains the requested
     /// history range.
     /// @param startIdx - the start index of the requested history range
@@ -694,17 +895,19 @@ public:
     virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
     virtual void confirmKeyOfSendingItem(uint64_t rowid, KeyId keyid) = 0;
-    virtual void updateMsgInHistory(karere::Id msgid, const StaticBuffer& newdata) = 0;
+    virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
     virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
     virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
     virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
     virtual void truncateHistory(const chatd::Message& msg) = 0;
+    virtual void setLastSeen(karere::Id msgid) = 0;
+    virtual void setLastReceived(karere::Id msgid) = 0;
     virtual karere::Id getOldestMsgid() = 0;
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
-    virtual void addUser(karere::Id userid, Priv priv) = 0;
-    virtual void removeUser(karere::Id userid) = 0;
+    virtual void setHaveAllHistory() = 0;
+    virtual bool haveAllHistory() = 0;
     virtual ~DbInterface(){}
 };
 

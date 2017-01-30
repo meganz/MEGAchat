@@ -18,10 +18,12 @@
 #include <chatdICrypto.h>
 #include <promise.h>
 #include <logger.h>
+#include <karereCommon.h>
+#include <base/trackDelete.h>
 
 #define STRONGVELOPE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
-#define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, fmtString, ##__VA_ARGS__)
-#define STRONGVELOPE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_strongvelope, fmtString, ##__VA_ARGS__)
+#define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
+#define STRONGVELOPE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_strongvelope, fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
 
 #define SVCRYPTO_ERRTYPE 0x3e9a5419 //should resemble megasvlp
 
@@ -106,17 +108,12 @@ enum
 };
 
 /** Message types used for the chat message transport. */
-enum MessageType
+enum: unsigned char
 {
     ///Legacy message containing a sender key (initial, key rotation, key re-send).
     SVCRYPTO_MSGTYPE_KEYED                     = 0x00,
     ///Message using an existing sender key for encryption.
     SVCRYPTO_MSGTYPE_FOLLOWUP                  = 0x01,
-    ///Notification form API user that user(s) have been added and/or removed
-    SVCRYPTO_MSGTYPE_ALTER_PARTICIPANTS        = 0x02,
-    SVCRYPTO_MSGTYPE_TRUNCATE                  = 0x03,
-    SVCRYPTO_MSGTYPE_PRIVCHANGE                = 0x04,
-    SVCRYPTO_MSGTYPE_CHAT_TITLE                = 0x05,
     SVCRYPTO_MSGTYPES_COUNT
 };
 
@@ -166,24 +163,22 @@ typedef Key<32> EcKey;
 
 class ProtocolHandler;
 /** Class to parse an encrypted message and store its attributes and content */
-struct ParsedMessage
+struct ParsedMessage: public chatd::Message::ManagementInfo, public karere::DeleteTrackable
 {
     ProtocolHandler& mProtoHandler;
     uint8_t protocolVersion;
     karere::Id sender;
-    karere::Id receiver = 0;
     Key<32> nonce;
     Buffer payload;
     Buffer signedContent;
     Buffer signature;
-    MessageType type;
+    unsigned char type;
     chatd::BackRefId backRefId = 0;
     std::vector<chatd::BackRefId> backRefs;
     //legacy key stuff
     uint64_t keyId;
     uint64_t prevKeyId;
     Buffer encryptedKey; //may contain also the prev key, concatenated
-    chatd::Priv privilege;
     ParsedMessage(const chatd::Message& src, ProtocolHandler& protoHandler);
     bool verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey);
     void parsePayload(const StaticBuffer& data, chatd::Message& msg);
@@ -240,7 +235,7 @@ struct UserKeyId
 
 class TlvWriter;
 
-class ProtocolHandler: public chatd::ICrypto
+class ProtocolHandler: public chatd::ICrypto, public karere::DeleteTrackable
 {
 protected:
     karere::Id mOwnHandle;
@@ -263,6 +258,7 @@ protected:
     std::map<UserKeyId, KeyEntry> mKeys;
     karere::SetOfIds* mParticipants = nullptr;
     bool mParticipantsChanged = true;
+    bool mIsDestroying = false;
 public:
     karere::Id chatid;
     karere::Id ownHandle() const { return mOwnHandle; }
@@ -305,7 +301,7 @@ protected:
     promise::Promise<std::shared_ptr<Buffer>>
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-    encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key);
+    encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, uint64_t extraUser=0);
 
     void msgEncryptWithKey(chatd::Message &src, chatd::MsgCommand& dest,
         const StaticBuffer& key);
@@ -339,7 +335,7 @@ public:
         virtual void resetSendKey();
         virtual bool handleLegacyKeys(chatd::Message& msg);
         virtual void randomBytes(void* buf, size_t bufsize) const;
-        virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data);
+        virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
         virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
 
         //====
@@ -348,5 +344,8 @@ public:
 
     };
 }
-
+namespace chatd
+{
+    std::string managementInfoToString(const chatd::Message& msg);
+}
 #endif /* STRONGVELOPE_H_ */

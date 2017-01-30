@@ -4,6 +4,7 @@
 #include "db.h"
 #include <codecvt>
 #include <locale>
+#include <mega/types.h>
 
 using namespace promise;
 using namespace std;
@@ -33,24 +34,74 @@ const char* nonWhitespaceStr(const char* str)
     return nullptr;
 }
 
-UserAttrDesc gUserAttrDescs[8] =
-{ //getData func | changeMask
-  //0 - avatar
-   { [](const ::mega::MegaRequest& req)->Buffer* { return new Buffer(req.getFile(), strlen(req.getFile())); }, ::mega::MegaUser::CHANGE_TYPE_AVATAR},
-  //1 - first name
-   { [](const ::mega::MegaRequest& req)->Buffer* { return new Buffer(req.getText(), strlen(req.getText())); }, ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME},
-  //2 - lastname is handled specially, so we don't use a descriptor for it
-   { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_LASTNAME},
-  //3 - authring
-  { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_AUTHRING},
-  //4 - last interaction
-  { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implementyed"); }, ::mega::MegaUser::CHANGE_TYPE_LSTINT},
-  //5 - ed25519 signing key
-  { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); }, ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255},
-  //6 - cu25519 encryption key
-  { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); }, ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255},
-  //7 - keyring - not used by userAttrCache
-  { [](const ::mega::MegaRequest& req)->Buffer* { throw std::runtime_error("Not implemented"); }, ::mega::MegaUser::CHANGE_TYPE_KEYRING}
+inline static Buffer* bufFromCstr(const char* cstr)
+{
+    return new Buffer(cstr, strlen(cstr));
+}
+
+Buffer* getDataNotImpl(const ::mega::MegaRequest& req)
+{
+     throw std::runtime_error("Not implemented");
+}
+
+UserAttrDesc gUserAttrDescs[10] =
+{ //attrib code, getData func, changeMask
+  //avatar
+    {
+      ::mega::MegaApi::USER_ATTR_AVATAR,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getFile()); },
+      ::mega::MegaUser::CHANGE_TYPE_AVATAR
+    },
+  //first name
+    {
+      ::mega::MegaApi::USER_ATTR_FIRSTNAME,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME
+    },
+  //last name
+    {
+      ::mega::MegaApi::USER_ATTR_LASTNAME,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+      ::mega::MegaUser::CHANGE_TYPE_LASTNAME
+    },
+  //authring
+    {
+      ::mega::MegaApi::USER_ATTR_AUTHRING,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_AUTHRING
+    },
+  //last interaction
+    {
+      ::mega::MegaApi::USER_ATTR_LAST_INTERACTION,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_LSTINT
+    },
+  //ed25519 signing key
+    {
+      ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY,
+      [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
+      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255
+    },
+  //cu25519 encryption key
+    {
+      ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY,
+      [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
+      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255
+    },
+  //keyring - not used by userAttrCache
+    {
+      ::mega::MegaApi::USER_ATTR_KEYRING,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_KEYRING
+    },
+  //email
+  {
+      USER_ATTR_EMAIL,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_EMAIL
+  },
+  //FULLNAME - virtual attrib with no DB backing
+    {
+      USER_ATTR_FULLNAME,
+      &getDataNotImpl,
+      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME
+    }
 };
 
 UserAttrCache::~UserAttrCache()
@@ -103,7 +154,9 @@ const char* attrName(uint8_t type)
     case ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY: return "PUB_ED25519";
     case ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY: return "PUB_CU25519";
     case ::mega::MegaApi::USER_ATTR_KEYRING: return "KEYRING";
+    case USER_ATTR_EMAIL: return "EMAIL";
     case USER_ATTR_RSA_PUBKEY: return "PUB_RSA";
+    case USER_ATTR_FULLNAME: return "FULLNAME";
     default: return "(invalid)";
     }
 }
@@ -112,19 +165,24 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
 {
     int changed = user.getChanges();
 //  printf("user %s changed %u\n", Id(user.getHandle()).toString().c_str(), changed);
-    for (size_t t = 0; t < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); t++)
+    for (size_t i = 0; i < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); i++)
     {
-        if ((changed & gUserAttrDescs[t].changeMask) == 0)
-            continue;
-        UserAttrPair key(user.getHandle(), t);
+        auto& desc = gUserAttrDescs[i];
+        if ((changed & desc.changeMask) == 0)
+            continue; //the change is not of this attrib type
+        int type = desc.type;
+        UserAttrPair key(user.getHandle(), type);
         auto it = find(key);
         if (it == end()) //we don't have such attribute
         {
-            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(t));
+            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(type));
             continue;
         }
         auto& item = it->second;
-        dbInvalidateItem(key); //immediately invalidate parsistent cache
+        if ((type & USER_ATTR_FLAG_COMPOSITE) == 0)
+        {
+            dbInvalidateItem(key); //immediately invalidate persistent cache
+        }
         if (item->cbs.empty()) //we aren't using that item atm
         { //delete it from memory as well, forcing it to be freshly fetched if it's requested
             erase(key);
@@ -156,10 +214,17 @@ void UserAttrCacheItem::notify()
     for (auto it=cbs.begin(); it!=cbs.end();)
     {
         auto curr = it;
-        it++;
-        curr->cb(data.get(), curr->userp); //may erase curr
+        ++it; //curr may be deleted in the callback
         if (curr->oneShot)
-            cbs.erase(curr);
+        {
+            auto wref = curr->getWeakHandle();
+            curr->cb(data.get(), curr->userp); //may erase curr
+            parent.removeCb(wref); //checks if already deleted
+        }
+        else
+        {
+            curr->cb(data.get(), curr->userp);
+        }
     }
 }
 
@@ -192,70 +257,81 @@ void UserAttrCacheItem::error(UserAttrPair key, int errCode)
     notify();
 }
 
-uint64_t UserAttrCache::addCb(iterator itemit, UserAttrReqCbFunc cb, void* userp, bool oneShot)
+void UserAttrCacheItem::errorNoDb(int errCode)
 {
-    auto& cbs = itemit->second->cbs;
-    auto it = cbs.emplace(cbs.end(), cb, userp, oneShot);
-    mCallbacks.emplace(std::piecewise_construct, std::forward_as_tuple(++mCbId),
-                       std::forward_as_tuple(itemit, it));
-    return mCbId;
+    pending = kCacheFetchNotPending;
+    data.reset();
+    notify();
 }
 
-bool UserAttrCache::removeCb(const uint64_t& cbid)
+UserAttrCache::Handle UserAttrCacheItem::addCb(UserAttrReqCbFunc cb, void* userp, bool oneShot)
 {
-    auto it = mCallbacks.find(cbid);
-    if (it == mCallbacks.end())
+    auto it = cbs.emplace(cbs.end(), *this, cb, userp, oneShot);
+    it->listIt = it;
+    return it->getWeakHandle();
+}
+
+bool UserAttrCache::removeCb(Handle h)
+{
+    if (!h.isValid())
         return false;
-    auto& cbDesc = it->second;
-    cbDesc.itemit->second->cbs.erase(cbDesc.cbit);
+    h->owner.cbs.erase(h->listIt);
     return true;
 }
 
-uint64_t UserAttrCache::getAttr(const uint64_t& userHandle, unsigned type,
+UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
             void* userp, UserAttrReqCbFunc cb, bool oneShot)
 {
     UserAttrPair key(userHandle, type);
     auto it = find(key);
     if (it != end())
     {
-        auto& item = it->second;
+        auto& item = *it->second;
         if (cb)
-        { //TODO: not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
-            if (item->pending != kCacheFetchNewPending)
+        { // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
+            if (item.pending != kCacheFetchNewPending)
             {
-                auto cbid = oneShot ? 0 : addCb(it, cb, userp, false);
-                cb(item->data.get(), userp);
-                return cbid;
+                // we have something in the cache, call the cb
+                auto handle = oneShot ? Handle::invalid() : item.addCb(cb, userp, false);
+                cb(item.data.get(), userp);
+                return handle;
             }
-            else
+            else //nothing in cache, must always add a callback, even if one shot
             {
-                return addCb(it, cb, userp, oneShot);
+                return item.addCb(cb, userp, oneShot);
             }
         }
         else
         {
-            return 0;
+            // no callback, user wants to force pre-fetching of attribute, but we are
+            // already subscribed to it
+            return Handle::invalid();
         }
     }
+
+    //we don't have the attrib item, create it
     UACACHE_LOG_DEBUG("Attibute %s not found in cache, fetching", key.toString().c_str());
     auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, kCacheFetchNewPending);
     it = emplace(key, item).first;
-    uint64_t cbid = cb ? addCb(it, cb, userp, oneShot) : 0;
+    Handle handle = cb ? item->addCb(cb, userp, oneShot) : Handle::invalid();
     fetchAttr(key, item);
-    return cbid;
+    return handle;
 }
 
 void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    if (!mClient.isLoggedIn())
+    if (!mIsLoggedIn && !(key.attrType & USER_ATTR_FLAG_COMPOSITE))
         return;
     switch (key.attrType)
     {
-        case ::mega::MegaApi::USER_ATTR_LASTNAME:
+        case USER_ATTR_FULLNAME:
             fetchUserFullName(key, item);
             break;
         case USER_ATTR_RSA_PUBKEY:
             fetchRsaPubkey(key, item);
+            break;
+        case USER_ATTR_EMAIL:
+            fetchEmail(key, item);
             break;
         default:
             fetchStandardAttr(key, item);
@@ -277,92 +353,86 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
         return err;
     });
 }
-void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
+
+void UserAttrCache::fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    std::string userid = key.user.toString();
-    mClient.api.call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
-            (int)::mega::MegaApi::USER_ATTR_FIRSTNAME)
-    .then([this, userid, item](ReqResult result)
+    mClient.api.call(&::mega::MegaApi::getUserEmail,
+        key.user.val)
+    .then([this, key, item](ReqResult result)
     {
-        //first name. Write a prefix byte with the first name data length,
-        //and then the name string in utf8
-        const char* name = nonWhitespaceStr(result->getText());
-        if (name)
-        {
-            item->data.reset(new Buffer);
-            auto& data = *(item->data);
-            size_t len = strlen(name);
-            if (len > 255) //FIXME: This is utf8, so can't truncate arbitrarily
-            {
-                //truncate first name
-                data.append<unsigned char>(255);
-                data.append(name, 252);
-                data.append("...", 3);
-            }
-            else
-            {
-                data.append<unsigned char>(len);
-                data.append(name);
-            }
-        }
-    })
-    .fail([this](const promise::Error& err) -> promise::Promise<void>
-    {
-        if (err.code() != ::mega::API_EARGS)
-            return err;
-        KR_LOG_DEBUG("No first name for user, proceeding with fetching second name");
-         //silently ignore errors for the first name, in case we can still retrieve the second name
-        return promise::_Void();
-    })
-    .then([this, userid]()
-    {
-        return mClient.api.call(&::mega::MegaApi::getUserAttribute, userid.c_str(),
-            (int)::mega::MegaApi::USER_ATTR_LASTNAME);
-    })
-    .then([this, item, key](ReqResult result)
-    { //second name
-        const char* name = nonWhitespaceStr(result->getText());
-        if (name)
-        {
-            if (!item->data)
-            {
-                item->data.reset(new Buffer);
-            }
-            else
-            {
-                item->data->append(' ');
-            }
-            item->data->append(name).append<char>(0);
-            item->resolve(key);
-        }
-        else //second name is NULL
-        {
-            if (item->data)
-                item->resolve(key);
-            else
-                item->error(key, ::mega::API_ENOENT);
-        }
+        auto email = result->getEmail();
+        item->data.reset(new Buffer(email, strlen(email)));
+        item->resolve(key);
     })
     .fail([this, key, item](const promise::Error& err)
     {
-//even if we have error here, we don't clear item->data as we may have the
-//first name, but won't cache it in db, so the next app run will retry
-        if (err.code() == ::mega::API_ENOENT)
-        {
-            if (item->data) //has only one name, still good
-                item->resolve(key);
-            else
-                item->error(key, ::mega::API_ENOENT);
-        }
-        else //some other error
-        {
-            if (item->data)
-                item->resolveNoDb(key);
-            else
-                item->error(key, err.code());
-        }
+        item->error(key, err.code());
+        return err;
     });
 }
+
+void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
+{
+    struct Context
+    {
+        std::string firstname;
+        std::string lastname;
+    };
+    auto ctx = std::make_shared<Context>();
+
+    auto pms1 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_FIRSTNAME)
+    .then([ctx](Buffer* data)
+    {
+        if (!data->empty())
+            ctx->firstname.assign(data->buf(), data->dataSize());
+    })
+    .fail([](const Error& err)
+    {
+        return _Void();
+    });
+
+    auto pms2 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_LASTNAME)
+    .then([ctx](Buffer* data)
+    {
+        if (!data->empty())
+            ctx->lastname.assign(data->buf(), data->dataSize());
+    })
+    .fail([](const Error& err)
+    {
+        return _Void();
+    });
+
+    promise::when(pms1, pms2)
+    .then([ctx, this, key, item]()
+    {
+        item->data.reset(new Buffer(ctx->firstname.size()+ctx->lastname.size()+1));
+        auto& data = *item->data;
+        auto& fn = ctx->firstname;
+        if (fn.size() > 255)
+        {
+            fn.resize(252);
+            fn.append("...");
+        }
+        data.append<uint8_t>(fn.size());
+        if (!fn.empty())
+        {
+            data.append(fn);
+        }
+        if (!ctx->lastname.empty())
+        {
+            if (!fn.empty())
+                data.append<char>(' ');
+            data.append(ctx->lastname);
+        }
+        item->resolveNoDb(key);
+    })
+    .fail([item](const Error& err)
+    {
+        item->errorNoDb(err.code());
+        return err;
+    });
+}
+
 void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     mClient.api.call(&::mega::MegaApi::getUserData, key.user.toString().c_str())
@@ -391,6 +461,7 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
 
 void UserAttrCache::onLogin()
 {
+    mIsLoggedIn = true;
     for (auto& item: *this)
     {
         if (item.second->pending != kCacheFetchNotPending)
@@ -398,8 +469,13 @@ void UserAttrCache::onLogin()
     }
 }
 
+void UserAttrCache::onLogOut()
+{
+    mIsLoggedIn = false;
+}
+
 promise::Promise<Buffer*>
-UserAttrCache::getAttr(const uint64_t &user, unsigned attrType)
+UserAttrCache::getAttr(uint64_t user, unsigned attrType)
 {
     auto pms = new Promise<Buffer*>;
     auto ret = *pms;

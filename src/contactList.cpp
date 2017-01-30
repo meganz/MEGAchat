@@ -78,6 +78,11 @@ void XmppContactList::receivePresences()
         }
         else
         {
+            if (it->second->mPresence == status)
+            {
+                KR_LOG_WARNING("Duplicate presence received for %s", jid);
+                return;
+            }
             it->second->onPresence(status, jid);
         }
     }, nullptr, "presence", nullptr, nullptr);
@@ -106,9 +111,6 @@ std::shared_ptr<XmppContact> XmppContactList::addContact(Contact& contact)
     {
         auto xmppContact = it->second;
         xmppContact->setPresenceListener(&contact);
-        auto pres = xmppContact->presence();
-        if (pres != Presence::kOffline)
-            contact.onPresence(pres);
         return xmppContact;
     }
     else
