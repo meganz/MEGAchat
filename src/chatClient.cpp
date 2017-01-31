@@ -1667,15 +1667,23 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
     if (userid == parent.client.myHandle())
     {
         syncOwnPriv(privilege);
-        return;
     }
-    addMember(userid, privilege, false);
+    else
+    {
+        addMember(userid, privilege, false);
+    }
     if (mRoomGui)
+    {
         mRoomGui->onUserJoin(userid, privilege);
+    }
 }
 
 void GroupChatRoom::onUserLeave(Id userid)
 {
+    //TODO: We should handle leaving from the chatd event, not from API.
+    if (userid == parent.client.myHandle())
+        return;
+
     removeMember(userid);
     if (mRoomGui)
         mRoomGui->onUserLeave(userid);
@@ -1862,6 +1870,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         {
             if (mOwnPriv != chatd::PRIV_NOTPRESENT)
             {
+                //TODO: We should handle leaving from the chatd event, not from API.
                 //we were reinvited
                 notifyRejoinedChat();
             }
@@ -1870,6 +1879,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         {
             if (mOwnPriv == chatd::PRIV_NOTPRESENT)
             {
+                //TODO: We should handle leaving from the chatd event, not from API.
                 notifyExcludedFromChat();
             }
         }

@@ -411,6 +411,11 @@ public:
     {
         showAsHidden();
     }
+    virtual void onUserJoin(uint64_t userid, chatd::Priv priv)
+    {
+        GUI_LOG_DEBUG("ChatListItem::onUserJoin for user %s with priv %s", karere::Id(userid).toString().c_str(), chatd::privToString(priv));
+    }
+
     virtual void onRejoinedChat()
     {
         unshowAsHidden();
