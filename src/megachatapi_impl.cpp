@@ -2546,12 +2546,6 @@ void MegaChatRoomHandler::onDestroy()
 
 void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Status status)
 {
-    // forward the event to the chatroom, so chatlist items also receive the notification
-    if (mRoom)
-    {
-        mRoom->onRecvNewMessage(idx, msg, status);
-    }
-
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     chatApi->fireOnMessageReceived(message);
 }
