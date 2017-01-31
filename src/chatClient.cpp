@@ -1232,12 +1232,12 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
 
         if (!isInactive && client.connected())
         {
-            KR_LOG_DEBUG("Connecting new room to chatd...");
+            KR_LOG_DEBUG("...connecting new room to chatd...");
             room->connect();
         }
         else
         {
-            KR_LOG_DEBUG("Client is not connected or room is inactive, not connecting new room");
+            KR_LOG_DEBUG("...client is not connected or room is inactive, not connecting new room");
         }
     }
 }
@@ -1999,7 +1999,12 @@ GroupChatRoom::Member::~Member()
 
 void Client::connectToChatd()
 {
-    chatd->connect();
+    for (auto& item: *chats)
+    {
+        auto& chat = *item.second;
+        if (!chat.chat().isDisabled())
+            chat.connect();
+    }
 }
 
 ContactList::ContactList(Client& aClient)

@@ -357,16 +357,6 @@ void Connection::disconnect() //should be graceful disconnect
         ws_close(mWebSocket);
 }
 
-void Client::connect()
-{
-    for (auto& item: mChatForChatId)
-    {
-        auto& chat = *item.second;
-        if (!chat.isDisabled())
-            chat.connect();
-    }
-}
-
 void Client::disconnect()
 {
     for (auto& conn: mConnections)

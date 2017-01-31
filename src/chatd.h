@@ -861,7 +861,6 @@ public:
         Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
-    void connect();
     void disconnect();
     friend class Connection;
     friend class Chat;
