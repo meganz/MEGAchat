@@ -234,7 +234,7 @@ promise::Promise<void> Client::sdkLoginNewSession()
     {
         mLoginDlg.reset();
     });
-    return mInitCompletePromise;
+    return mCanConnectPromise;
 }
 
 promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
@@ -245,7 +245,7 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
     {
         return api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
     });
-    return mInitCompletePromise;
+    return promise::_Void();
 }
 
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
@@ -365,7 +365,6 @@ Client::InitState Client::init(const char* sid)
         {
             wipeDb(sid);
         }
-        mInitCompletePromise.resolve();
     }
     else
     {
@@ -404,6 +403,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 }
                 loadContactListFromApi();
                 setInitState(kInitHasOnlineSession);
+                mCanConnectPromise.resolve();
             }
             else if (mInitState == kInitWaitingNewSession || mInitState == kInitErrNoCache)
             {
@@ -411,7 +411,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 .then([this]()
                 {
                     setInitState(kInitHasOnlineSession);
-                    mInitCompletePromise.resolve();
+                    mCanConnectPromise.resolve();
                 });
             }
             api.sdk.resumeActionPackets();
@@ -494,6 +494,23 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
 
 promise::Promise<void> Client::connect(Presence pres)
 {
+    promise::Promise<void> connectPromise;
+
+    mCanConnectPromise
+    .then([this, pres, connectPromise]()
+    {
+        doConnect(pres)
+        .then([connectPromise]() mutable
+        {
+            connectPromise.resolve();
+        });
+    });
+    return connectPromise;
+}
+
+promise::Promise<void> Client::doConnect(Presence pres)
+{
+    assert(mCanConnectPromise.succeeded());
     mOwnPresence = pres;
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     assert(mUserAttrCache);
@@ -1304,6 +1321,8 @@ void GroupChatRoom::setRemoved()
 
 void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 {
+    if (!rooms)
+        return;
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
 #ifndef NDEBUG
     dumpChatrooms(*copy);
