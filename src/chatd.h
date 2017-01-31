@@ -925,7 +925,7 @@ public:
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
-    virtual uint8_t getLastNonMgmtMessage(Idx from, Buffer& buf, uint32_t& ts);
+    virtual uint8_t getLastNonMgmtMessage(Idx from, Buffer& buf, uint32_t& ts) = 0;
     virtual ~DbInterface(){}
 };
 

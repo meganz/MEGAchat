@@ -1304,6 +1304,8 @@ void GroupChatRoom::setRemoved()
 
 void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
 {
+    if (!rooms)
+        return;
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
 #ifndef NDEBUG
     dumpChatrooms(*copy);
