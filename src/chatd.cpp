@@ -164,10 +164,10 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     // map chatid to this shard
     mConnectionForChatId[chatid] = conn;
 
-    // add chatid to the connection's chatids
-    conn->mChatIds.insert(chatid);
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
     Chat* chat = new Chat(*conn, chatid, listener, users, crypto);
+    // add chatid to the connection's chatids
+    conn->mChatIds.insert(chatid);
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
     return *chat;
 }
@@ -2256,7 +2256,14 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
 
 void Client::leave(Id chatid)
 {
-    mConnectionForChatId.erase(chatid);
+    auto conn = mConnectionForChatId.find(chatid);
+    if (conn == mConnectionForChatId.end())
+    {
+        CHATD_LOG_ERROR("Client::leave: Unknown chat %s", ID_CSTR(chatid));
+        return;
+    }
+    conn->second->mChatIds.erase(chatid);
+    mConnectionForChatId.erase(conn);
     mChatForChatId.erase(chatid);
 }
 
