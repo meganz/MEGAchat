@@ -238,12 +238,12 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         CHATD_LOG_WARNING("->DNS error: forcing libevent to re-read /etc/resolv.conf");
         //if we didn't have our network interface up at app startup, and resolv.conf is
         //genereated dynamically, dns may never work unless we re-read the resolv.conf file
-#ifndef _WIN32
+#ifdef _WIN32
+        evdns_config_windows_nameservers();
+#elif !(TARGET_OS_IPHONE)
         evdns_base_clear_host_addresses(services_dns_eventbase);
         evdns_base_resolv_conf_parse(services_dns_eventbase,
             DNS_OPTIONS_ALL & (~DNS_OPTION_SEARCH), "/etc/resolv.conf");
-#else
-        evdns_config_windows_nameservers();
 #endif
     }
     disableInactivityTimer();
