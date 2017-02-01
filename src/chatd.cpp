@@ -252,8 +252,13 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         auto& chat = mClient.chats(chatid);
         chat.onDisconnect();
     }
+
     if (mTerminating)
+    {
+        if (!mDisconnectPromise.done())
+            mDisconnectPromise.resolve();
         return;
+    }
 
     if (mState == kStateConnecting) //tell retry controller that the connect attempt failed
     {
@@ -350,19 +355,32 @@ void Connection::enableInactivityTimer()
     }, 10000);
 }
 
-void Connection::disconnect() //should be graceful disconnect
+promise::Promise<void> Connection::disconnect() //should be graceful disconnect
 {
     mTerminating = true;
-    if (mWebSocket)
-        ws_close(mWebSocket);
+    if (!mWebSocket)
+    {
+        onSocketClose(0, 0, "terminating");
+        return promise::Void();
+    }
+
+    setTimeout([this]()
+    {
+        if (!mDisconnectPromise.done())
+            mDisconnectPromise.resolve();
+    }, 2000);
+    ws_close(mWebSocket);
+    return mDisconnectPromise;
 }
 
-void Client::disconnect()
+promise::Promise<void> Client::disconnect()
 {
+    std::vector<Promise<void>> promises;
     for (auto& conn: mConnections)
     {
-        conn.second->disconnect();
+        promises.push_back(conn.second->disconnect());
     }
+    return promise::when(promises);
 }
 
 void Connection::reset() //immediate disconnect

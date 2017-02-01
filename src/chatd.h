@@ -252,6 +252,7 @@ protected:
     int mInactivityBeats = 0;
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
+    promise::Promise<void> mDisconnectPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
     State state() { return mState; }
     bool isOnline() const
@@ -263,7 +264,7 @@ protected:
         size_t reason_len, void *arg);
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
-    void disconnect();
+    promise::Promise<void> disconnect();
     void enableInactivityTimer();
     void disableInactivityTimer();
     void reset();
@@ -861,7 +862,7 @@ public:
         Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
-    void disconnect();
+    promise::Promise<void> disconnect();
     friend class Connection;
     friend class Chat;
 };
