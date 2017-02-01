@@ -551,10 +551,10 @@ promise::Promise<void> Client::disconnect()
     mUserAttrCache->onLogOut();
     karere::cancelInterval(mHeartbeatTimer);
     mHeartbeatTimer = 0;
-    chatd->disconnect();
+    auto pms = chatd->disconnect();
     mPresencedClient.disconnect();
     mConnected = false;
-    return promise::_Void();
+    return pms;
 }
 
 karere::Id Client::getMyHandleFromSdk()
