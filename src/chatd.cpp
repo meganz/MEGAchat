@@ -256,7 +256,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     if (mTerminating)
     {
         if (!mDisconnectPromise.done())
-            mDisconnectPromise.resolve();
+            mDisconnectPromise.resolve(); //may delete this
         return;
     }
 
@@ -355,7 +355,7 @@ void Connection::enableInactivityTimer()
     }, 10000);
 }
 
-promise::Promise<void> Connection::disconnect() //should be graceful disconnect
+promise::Promise<void> Connection::disconnect(int timeoutMs) //should be graceful disconnect
 {
     mTerminating = true;
     if (!mWebSocket)
@@ -363,12 +363,14 @@ promise::Promise<void> Connection::disconnect() //should be graceful disconnect
         onSocketClose(0, 0, "terminating");
         return promise::Void();
     }
-
-    setTimeout([this]()
+    auto wptr = getDelTracker();
+    setTimeout([this, wptr]()
     {
+        if (wptr.deleted())
+            return;
         if (!mDisconnectPromise.done())
             mDisconnectPromise.resolve();
-    }, 2000);
+    }, timeoutMs);
     ws_close(mWebSocket);
     return mDisconnectPromise;
 }
