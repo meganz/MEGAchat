@@ -189,6 +189,12 @@ void Chat::connect(const std::string& url)
     }
 }
 
+void Chat::disconnect()
+{
+    disable(true);
+    setOnlineState(kChatStateOffline);
+}
+
 void Chat::login()
 {
     if (mOldestKnownMsgId) //if we have local history
@@ -310,7 +316,9 @@ Promise<void> Connection::reconnect(const std::string& url)
             }
             for (auto& chatid: mChatIds)
             {
-                mClient.chats(chatid).setOnlineState(kChatStateConnecting);
+                auto& chat = mClient.chats(chatid);
+                if (!chat.isDisabled())
+                    chat.setOnlineState(kChatStateConnecting);
             }
             checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str())), "connect");
             return mConnectPromise;
@@ -347,6 +355,16 @@ void Connection::disconnect() //should be graceful disconnect
     mTerminating = true;
     if (mWebSocket)
         ws_close(mWebSocket);
+}
+
+void Client::connect()
+{
+    for (auto& item: mChatForChatId)
+    {
+        auto& chat = *item.second;
+        if (!chat.isDisabled())
+            chat.connect();
+    }
 }
 
 void Client::disconnect()
@@ -439,8 +457,9 @@ void Connection::rejoinExistingChats()
     {
         try
         {
-            Chat& msgs = mClient.chats(chatid);
-            msgs.login();
+            Chat& chat = mClient.chats(chatid);
+            if (!chat.isDisabled())
+                chat.login();
         }
         catch(std::exception& e)
         {
