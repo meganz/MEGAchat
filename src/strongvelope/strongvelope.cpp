@@ -918,7 +918,7 @@ void ProtocolHandler::onKeyReceived(uint32_t keyid, Id sender, Id receiver,
     pms.fail([this, wptr, sender, keyid](const promise::Error& err)
     {
         wptr.throwIfDeleted();
-        STRONGVELOPE_LOG_ERROR("Removing key entry for key %d - decryptKey() failed with error '%s'", keyid, err.what());
+        STRONGVELOPE_LOG_ERROR("Removing key entry for key %u - decryptKey() failed with error '%s'", keyid, err.what());
         auto it = mKeys.find(UserKeyId(sender, keyid));
         assert(it != mKeys.end());
         assert(it->second.pms);
