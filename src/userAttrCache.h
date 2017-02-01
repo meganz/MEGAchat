@@ -138,6 +138,10 @@ protected:
 //==
     void onUserAttrChange(mega::MegaUser& user);
     void onLogin();
+    /** @brief Invalidates the whole cache, and re-fetches all registered queries.
+     * Used when we discover that karere state is out of sync with SDK state
+     */
+    void invalidate();
     void onLogOut();
     friend struct UserAttrCacheItem;
     friend class Client;

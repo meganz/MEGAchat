@@ -328,7 +328,6 @@ void Client::commit(const std::string& scsn)
     }
 
     sqliteQuery(db, "insert or replace into vars(name,value) values('scsn',?)", scsn);
-    printf("commit %s\n", scsn.c_str());
     sqliteSimpleQuery(db, "COMMIT TRANSACTION");
     sqliteSimpleQuery(db, "BEGIN TRANSACTION");
     mLastScsn = scsn;
@@ -506,9 +505,6 @@ void Client::createDb()
 bool Client::checkSyncWithSdkDb(const std::string& scsn,
     ::mega::MegaUserList& contactList, ::mega::MegaTextChatList& chatList)
 {
-    // TODO: We have to somehow lock the SDK write to database in order to
-    // be able to atomically make a consistent snapshot of contactlist
-    // and chatlist
     SqliteStmt stmt(db, "select value from vars where name='scsn'");
     stmt.stepMustHaveData("get karere scsn");
     if (stmt.stringCol(0) == scsn)
@@ -518,12 +514,16 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
     }
 
     // We are not in sync, probably karere is one or more commits behind
-    KR_LOG_WARNING("Karere db out of sync with sdk - scsn-s don't match");
+    KR_LOG_WARNING("Karere db out of sync with sdk - scsn-s don't match. Will reload all state from SDK");
 
-    //sync contactlist first
+    // invalidate user attrib cache
+    mUserAttrCache->invalidate();
+    // sync contactlist first
     loadContactListFromApi(contactList);
-    // sync the chatroom list and commit
+    // sync the chatroom list
     chats->onChatsUpdate(chatList);
+    // commit the snapshot
+    commit(scsn);
     return false;
 }
 
