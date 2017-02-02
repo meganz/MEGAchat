@@ -192,7 +192,7 @@ void MegaChatApiImpl::sendPendingRequests()
         if (!mClient && request->getType() != MegaChatRequest::TYPE_DELETE)
         {
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
-            API_LOG_WARN("Chat engine not initialized yet, cannot process the request");
+            API_LOG_WARNING("Chat engine not initialized yet, cannot process the request");
             fireOnChatRequestFinish(request, megaChatError);
             continue;
         }
@@ -259,7 +259,7 @@ void MegaChatApiImpl::sendPendingRequests()
             else
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
-                API_LOG_WARN("Logout attempt without previous initialization");
+                API_LOG_WARNING("Logout attempt without previous initialization");
                 fireOnChatRequestFinish(request, megaChatError);
             }
             break;
