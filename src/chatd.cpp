@@ -1882,7 +1882,7 @@ void Chat::deleteMessagesBefore(Idx idx)
     }
 }
 
-Message::Status Chat::getMsgStatus(const Message& msg, Idx idx)
+Message::Status Chat::getMsgStatus(const Message& msg, Idx idx) const
 {
     assert(idx != CHATD_IDX_INVALID);
     if (msg.userid == mClient.mUserId)
