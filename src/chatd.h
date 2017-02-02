@@ -12,11 +12,14 @@
 #include <base/promise.h>
 #include <base/timers.hpp>
 #include "chatdMsg.h"
+#include "url.h"
 
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
+
+enum: uint32_t { kPromiseErrtype_chatd = 0x3e9ac47d }; //should resemble 'megachtd'
 
 #define CHATD_MAX_EDIT_AGE 3600
 namespace chatd
@@ -33,27 +36,14 @@ typedef int32_t Idx;
 class Chat;
 class ICrypto;
 
-class Url
-{
-protected:
-    uint16_t getPortFromProtocol() const;
-public:
-    std::string protocol;
-    std::string host;
-    uint16_t port;
-    std::string path;
-    bool isSecure;
-    Url(const std::string& url) { parse(url); }
-    Url(): isSecure(false) {}
-    void parse(const std::string& url);
-    bool isValid() const { return !host.empty(); }
-};
 
 /** @brief Reason codes passed to Listener::onManualSendRequired() */
 enum ManualSendReason: uint8_t
 {
     kManualSendUsersChanged = 1, ///< Group chat participants have changed
-    kManualSendTooOld = 2 ///< Message is older than CHATD_MAX_AUTOSEND_AGE seconds
+    kManualSendTooOld = 2, ///< Message is older than CHATD_MAX_EDIT_AGE seconds
+    kManualSendGeneralReject = 3, ///< chatd rejected the message, for unknown reason
+    kManualSendNoWriteAccess = 4  ///< Read-only privilege or not belong to the chatroom
 };
 
 /** The source from where history is being retrieved by the app */
@@ -233,6 +223,16 @@ public:
     {
         CHATD_LOG_ERROR("msgOrderFail[msgid %s]: %s", msg.id().toString().c_str(), errmsg.c_str());
     }
+
+    /**
+     * @brief onUserTyping Called when a signal is received that a peer
+     * is typing a message. Normally the app should have a timer that
+     * is reset each time a typing notification is received. When the timer
+     * expires, it should hide the notification GUI.
+     * @param user The user that is typing. The app can use the user attrib
+     * cache to get a human-readable name for the user.
+     */
+    virtual void onUserTyping(karere::Id userid) {}
 };
 
 class Client;
@@ -247,7 +247,7 @@ protected:
     std::set<karere::Id> mChatIds;
     ws_t mWebSocket = nullptr;
     State mState = kStateNew;
-    Url mUrl;
+    karere::Url mUrl;
     megaHandle mInactivityTimer = 0;
     int mInactivityBeats = 0;
     bool mTerminating = false;
@@ -369,9 +369,9 @@ protected:
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     karere::Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
-    bool mHasMoreHistoryInDb = false;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
+    Priv mOwnPrivilege = PRIV_INVALID;
     karere::SetOfIds mUsers;
     karere::SetOfIds mUserDump; //< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
@@ -386,8 +386,10 @@ protected:
     /** @brief The state of history fetching from server */
     ServerHistFetchState mServerFetchState = kHistNotFetching;
     /** @brief @The state of history sending to the app via getHistory() */
+    bool mHasMoreHistoryInDb = false;
     bool mServerOldHistCbEnabled = false;
     bool mHaveAllHistory = false;
+    bool mIsDisabled = false;
     Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
     ICrypto* mCrypto;
@@ -427,8 +429,8 @@ protected:
          const karere::SetOfIds& users, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
-    Message* first() const { return (!mBackwardList.empty()) ? mBackwardList.front().get() : mForwardList.back().get(); }
-    Message* last() const { return (!mForwardList.empty())? mForwardList.front().get() : mBackwardList.back().get(); }
+    Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
+    Message* newest() const { return (!mForwardList.empty())? mForwardList.back().get() : mBackwardList.front().get(); }
     void clear()
     {
         mBackwardList.clear();
@@ -470,6 +472,7 @@ protected:
     void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
     void onNewKeys(StaticBuffer&& keybuf);
     void logSend(const Command& cmd);
+    void handleBroadcast(karere::Id userid, uint8_t type);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -493,6 +496,8 @@ public:
     Idx size() const { return mForwardList.size() + mBackwardList.size(); }
     /** @brief Whether we have any messages in the history buffer */
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
+    bool isDisabled() const { return mIsDisabled; }
+    void disable(bool state) { mIsDisabled = state; }
     /** The index of the oldest decrypted message in the RAM history buffer.
      * This will be greater than lownum() if there are not-yet-decrypted messages
      * at the start of the buffer, i.e. when more history has been fetched, but
@@ -518,6 +523,7 @@ public:
       */
     void connect(const std::string& url=std::string());
 
+    void disconnect();
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
 
@@ -775,6 +781,10 @@ public:
      */
     void removeManualSend(uint64_t id);
 
+    /** @brief Broadcasts a notification that the user is typing. This will trigged
+     * other clients receiving \c onUserTyping() callbacks
+     */
+    void sendTypingNotification();
     /**
      * @brief Generates a backreference id. Must be public because strongvelope
      *  uses it to generate chat title messages
@@ -851,6 +861,7 @@ public:
         Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
+    void connect();
     void disconnect();
     friend class Connection;
     friend class Chat;
@@ -900,8 +911,6 @@ public:
     virtual void setLastReceived(karere::Id msgid) = 0;
     virtual karere::Id getOldestMsgid() = 0;
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
-    virtual void addUser(karere::Id userid, Priv priv) = 0;
-    virtual void removeUser(karere::Id userid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
     virtual ~DbInterface(){}

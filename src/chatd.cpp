@@ -177,12 +177,22 @@ void Chat::connect(const std::string& url)
     // attempt a connection ONLY if this is a new shard.
     if (mConnection.state() == Connection::kStateNew)
     {
-        mConnection.reconnect(url);
+        mConnection.reconnect(url)
+        .fail([this](const promise::Error& err)
+        {
+            CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+        });
     }
     else if (mConnection.isOnline())
     {
         login();
     }
+}
+
+void Chat::disconnect()
+{
+    disable(true);
+    setOnlineState(kChatStateOffline);
 }
 
 void Chat::login()
@@ -203,76 +213,6 @@ void Connection::websockConnectCb(ws_t ws, void* arg)
     self->mConnectPromise.resolve();
 }
 
-void Url::parse(const std::string& url)
-{
-    if (url.empty())
-        throw std::runtime_error("Url::Parse: Url is empty");
-    protocol.clear();
-    port = 0;
-    host.clear();
-    path.clear();
-    size_t ss = url.find("://");
-    if (ss != std::string::npos)
-    {
-        protocol = url.substr(0, ss);
-        std::transform(protocol.begin(), protocol.end(), protocol.begin(), ::tolower);
-        ss += 3;
-    }
-    else
-    {
-        ss = 0;
-        protocol = "http";
-    }
-    char last = protocol[protocol.size()-1];
-    isSecure = (last == 's');
-
-    size_t i = ss;
-    for (; i<url.size(); i++)
-    {
-        char ch = url[i];
-        if (ch == ':') //we have port
-        {
-            size_t ps = i+1;
-            host = url.substr(ss, i-ss);
-            for (; i<url.size(); i++)
-            {
-                ch = url[i];
-                if ((ch == '/') || (ch == '?'))
-                {
-                    break;
-                }
-            }
-            port = std::stol(url.substr(ps, i-ps));
-            break;
-        }
-        else if ((ch == '/') || (ch == '?'))
-            break;
-    }
-
-    host = url.substr(ss, i-ss);
-
-    if (i < url.size()) //not only host and protocol
-    {
-        //i now points to '/' or '?' and host and port must have been set
-        path = (url[i] == '/') ? url.substr(i+1) : url.substr(i); //ignore the leading '/'
-    }
-    if (!port)
-    {
-        port = getPortFromProtocol();
-    }
-    if (host.empty())
-        throw std::runtime_error("Url::parse: Invalid URL '"+url+"', host is empty");
-}
-
-uint16_t Url::getPortFromProtocol() const
-{
-    if ((protocol == "http") || (protocol == "ws"))
-        return 80;
-    else if ((protocol == "https") || (protocol == "wss"))
-        return 443;
-    else
-        return 0;
-}
 void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preason,
                                 size_t reason_len, void *arg)
 {
@@ -376,7 +316,9 @@ Promise<void> Connection::reconnect(const std::string& url)
             }
             for (auto& chatid: mChatIds)
             {
-                mClient.chats(chatid).setOnlineState(kChatStateConnecting);
+                auto& chat = mClient.chats(chatid);
+                if (!chat.isDisabled())
+                    chat.setOnlineState(kChatStateConnecting);
             }
             checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str())), "connect");
             return mConnectPromise;
@@ -387,7 +329,7 @@ Promise<void> Connection::reconnect(const std::string& url)
             rejoinExistingChats();
         });
     }
-    KR_EXCEPTION_TO_PROMISE(CHATD);
+    KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
 }
 
 void Connection::enableInactivityTimer()
@@ -413,6 +355,16 @@ void Connection::disconnect() //should be graceful disconnect
     mTerminating = true;
     if (mWebSocket)
         ws_close(mWebSocket);
+}
+
+void Client::connect()
+{
+    for (auto& item: mChatForChatId)
+    {
+        auto& chat = *item.second;
+        if (!chat.isDisabled())
+            chat.connect();
+    }
 }
 
 void Client::disconnect()
@@ -505,8 +457,9 @@ void Connection::rejoinExistingChats()
     {
         try
         {
-            Chat& msgs = mClient.chats(chatid);
-            msgs.login();
+            Chat& chat = mClient.chats(chatid);
+            if (!chat.isDisabled())
+                chat.login();
         }
         catch(std::exception& e)
         {
@@ -756,6 +709,15 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 //CHATD_LOG_DEBUG("Server heartbeat received");
                 sendBuf(Command(OP_KEEPALIVE));
+                break;
+            }
+            case OP_BROADCAST:
+            {
+                READ_CHATID(0);
+                READ_ID(userid, 8);
+                READ_8(bcastType, 16);
+                auto& chat = mClient.chats(chatid);
+                chat.handleBroadcast(userid, bcastType);
                 break;
             }
             case OP_JOIN:
@@ -1498,9 +1460,22 @@ bool Chat::setMessageSeen(Id msgid)
 int Chat::unreadMsgCount() const
 {
     if (mLastSeenIdx == CHATD_IDX_INVALID)
-        return -mDbInterface->getPeerMsgCountAfterIdx(CHATD_IDX_INVALID);
+    {
+        Message* msg;
+        if (!empty() && ((msg = newest())->type == Message::kMsgTruncate))
+        {
+            assert(size() == 1);
+            return (msg->userid != client().userId()) ? 1 : 0;
+        }
+        else
+        {
+            return -mDbInterface->getPeerMsgCountAfterIdx(CHATD_IDX_INVALID);
+        }
+    }
     else if (mLastSeenIdx < lownum())
+    {
         return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
+    }
 
     Idx first = mLastSeenIdx+1;
     unsigned count = 0;
@@ -1647,22 +1622,24 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         return CHATD_IDX_INVALID;
     }
 
+
+    if (mNextUnsent == mSending.begin())
+        mNextUnsent++; //because we remove the first element
+
+    if (!msgid)
+    {
+        moveItemToManualSending(mSending.begin(), (mOwnPrivilege == PRIV_RDONLY)
+            ? kManualSendNoWriteAccess
+            : kManualSendGeneralReject); //deletes item
+        return CHATD_IDX_INVALID;
+    }
     auto msg = item.msg;
     item.msg = nullptr;
     assert(msg);
     assert(msg->isSending());
+
     CALL_DB(deleteItemFromSending, item.rowid);
-
-    if (mNextUnsent == mSending.begin())
-        mNextUnsent++; //because we remove the first element
     mSending.pop_front(); //deletes item
-
-    if (!msgid)
-    {
-        CALL_LISTENER(onMessageRejected, *msg);
-        return CHATD_IDX_INVALID;
-    }
-
     CHATID_LOG_DEBUG("recv NEWMSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
     //put into history
     msg->setId(msgid, false);
@@ -1739,22 +1716,19 @@ void Chat::rejectMsgupd(uint8_t opcode, Id id)
 template<bool mustBeInSending>
 void Chat::rejectGeneric(uint8_t opcode)
 {
+    if (!mustBeInSending)
+        return;
+
     if (mSending.empty())
     {
-        if (!mustBeInSending)
-            return;
-        else
-            throw std::runtime_error("rejectGeneric(mustBeInSending): Send queue is empty");
+        throw std::runtime_error("rejectGeneric(mustBeInSending): Send queue is empty");
     }
-    if (mSending.front().opcode() == opcode)
-    {
-        CALL_DB(deleteItemFromSending, mSending.front().rowid);
-        mSending.pop_front();
-    }
-    else
+    if (mSending.front().opcode() != opcode)
     {
         throw std::runtime_error("rejectGeneric(mustBeInSending): Rejected command is not at the front of the send queue");
     }
+    CALL_DB(deleteItemFromSending, mSending.front().rowid);
+    mSending.pop_front();
 }
 
 void Chat::onMsgUpdated(Message* cipherMsg)
@@ -1791,10 +1765,12 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         //update in memory, if loaded
         auto msgit = mIdToIndexMap.find(msg->id());
         Idx idx;
+        uint8_t prevType;
         if (msgit != mIdToIndexMap.end())
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
+            prevType = histmsg.type;
             histmsg.takeFrom(std::move(*msg));
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
@@ -1804,11 +1780,19 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         else
         {
             idx = CHATD_IDX_INVALID;
+            prevType = Message::kMsgInvalid;
         }
 
         if (msg->type == Message::kMsgTruncate)
         {
-            handleTruncate(*msg, idx);
+            if (prevType != Message::kMsgTruncate)
+            {
+                handleTruncate(*msg, idx);
+            }
+            else
+            {
+                CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
+            }
         }
     })
     .fail([this, cipherMsg](const promise::Error& err)
@@ -1830,16 +1814,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 // the client connects, until someoone posts a new message in the chat.
 // To avoid this, we have to detect the replay. But if we detect it, we can actually
 // avoid the whole replay (even the idempotent part), and just bail out.
-
-    if (idx != CHATD_IDX_INVALID)
-    {
-        auto last = highnum();
-        if (idx == last && at(last).type == Message::kMsgTruncate)
-        {
-            CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
-            return;
-        }
-    }
 
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s", ID_CSTR(msg.id()));
     CALL_DB(truncateHistory, msg);
@@ -2191,6 +2165,8 @@ void Chat::handleLastReceivedSeen(Id msgid)
 
 void Chat::onUserJoin(Id userid, Priv priv)
 {
+    if (userid == client().userId())
+        mOwnPrivilege = priv;
     if (mOnlineState == kChatStateJoining)
     {
         mUserDump.insert(userid);
@@ -2198,7 +2174,6 @@ void Chat::onUserJoin(Id userid, Priv priv)
     else if (mOnlineState == kChatStateOnline)
     {
         mUsers.insert(userid);
-        CALL_DB(addUser, userid, priv);
         CALL_CRYPTO(onUserJoin, userid);
         CALL_LISTENER(onUserJoin, userid, priv);
     }
@@ -2214,7 +2189,6 @@ void Chat::onUserLeave(Id userid)
         throw std::runtime_error("onUserLeave received while not online");
 
     mUsers.erase(userid);
-    CALL_DB(removeUser, userid);
     CALL_CRYPTO(onUserLeave, userid);
     CALL_LISTENER(onUserLeave, userid);
 }
@@ -2259,6 +2233,17 @@ Message* Chat::lastMessage() const
     if (empty())
         return nullptr;
     return &at(highnum());
+}
+
+void Chat::sendTypingNotification()
+{
+    sendCommand(Command(OP_BROADCAST) + mChatId + karere::Id::null() +(uint8_t)Command::kBroadcastUserTyping);
+}
+
+void Chat::handleBroadcast(karere::Id from, uint8_t type)
+{
+    if (type == Command::kBroadcastUserTyping)
+        CALL_LISTENER(onUserTyping, from);
 }
 
 void Client::leave(Id chatid)

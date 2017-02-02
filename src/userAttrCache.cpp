@@ -4,6 +4,7 @@
 #include "db.h"
 #include <codecvt>
 #include <locale>
+#include <mega/types.h>
 
 using namespace promise;
 using namespace std;
@@ -43,33 +44,64 @@ Buffer* getDataNotImpl(const ::mega::MegaRequest& req)
      throw std::runtime_error("Not implemented");
 }
 
-UserAttrDesc gUserAttrDescs[9] =
-{ //getData func | changeMask
-  //0 - avatar
-    { [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getFile()); },
-      ::mega::MegaUser::CHANGE_TYPE_AVATAR },
-  //1 - first name
-    { [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
-      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME },
-  //2 - last name
-    { [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
-      ::mega::MegaUser::CHANGE_TYPE_LASTNAME },
-  //3 - authring
-    { &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_AUTHRING },
-  //4 - last interaction
-    { &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_LSTINT },
-  //5 - ed25519 signing key
-    { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
-      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255 },
-  //6 - cu25519 encryption key
-    { [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
-      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255 },
-  //7 - keyring - not used by userAttrCache
-    { &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_KEYRING },
+UserAttrDesc gUserAttrDescs[10] =
+{ //attrib code, getData func, changeMask
+  //avatar
+    {
+      ::mega::MegaApi::USER_ATTR_AVATAR,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getFile()); },
+      ::mega::MegaUser::CHANGE_TYPE_AVATAR
+    },
+  //first name
+    {
+      ::mega::MegaApi::USER_ATTR_FIRSTNAME,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME
+    },
+  //last name
+    {
+      ::mega::MegaApi::USER_ATTR_LASTNAME,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+      ::mega::MegaUser::CHANGE_TYPE_LASTNAME
+    },
+  //authring
+    {
+      ::mega::MegaApi::USER_ATTR_AUTHRING,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_AUTHRING
+    },
+  //last interaction
+    {
+      ::mega::MegaApi::USER_ATTR_LAST_INTERACTION,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_LSTINT
+    },
+  //ed25519 signing key
+    {
+      ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY,
+      [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
+      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255
+    },
+  //cu25519 encryption key
+    {
+      ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY,
+      [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
+      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255
+    },
+  //keyring - not used by userAttrCache
+    {
+      ::mega::MegaApi::USER_ATTR_KEYRING,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_KEYRING
+    },
+  //email
+  {
+      USER_ATTR_EMAIL,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_EMAIL
+  },
   //FULLNAME - virtual attrib with no DB backing
-    { &getDataNotImpl,
-      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME,
-      UserAttrDesc::kNoDb }
+    {
+      USER_ATTR_FULLNAME,
+      &getDataNotImpl,
+      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME
+    }
 };
 
 UserAttrCache::~UserAttrCache()
@@ -122,6 +154,7 @@ const char* attrName(uint8_t type)
     case ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY: return "PUB_ED25519";
     case ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY: return "PUB_CU25519";
     case ::mega::MegaApi::USER_ATTR_KEYRING: return "KEYRING";
+    case USER_ATTR_EMAIL: return "EMAIL";
     case USER_ATTR_RSA_PUBKEY: return "PUB_RSA";
     case USER_ATTR_FULLNAME: return "FULLNAME";
     default: return "(invalid)";
@@ -132,21 +165,21 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
 {
     int changed = user.getChanges();
 //  printf("user %s changed %u\n", Id(user.getHandle()).toString().c_str(), changed);
-    for (size_t t = 0; t < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); t++)
+    for (size_t i = 0; i < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); i++)
     {
-        auto& desc = gUserAttrDescs[t];
+        auto& desc = gUserAttrDescs[i];
         if ((changed & desc.changeMask) == 0)
             continue; //the change is not of this attrib type
-
-        UserAttrPair key(user.getHandle(), t);
+        int type = desc.type;
+        UserAttrPair key(user.getHandle(), type);
         auto it = find(key);
         if (it == end()) //we don't have such attribute
         {
-            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(t));
+            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(type));
             continue;
         }
         auto& item = it->second;
-        if (!(desc.flags & UserAttrDesc::kNoDb))
+        if ((type & USER_ATTR_FLAG_COMPOSITE) == 0)
         {
             dbInvalidateItem(key); //immediately invalidate persistent cache
         }
@@ -287,7 +320,7 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
 
 void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    if (!mIsLoggedIn)
+    if (!mIsLoggedIn && !(key.attrType & USER_ATTR_FLAG_COMPOSITE))
         return;
     switch (key.attrType)
     {
@@ -296,6 +329,9 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
             break;
         case USER_ATTR_RSA_PUBKEY:
             fetchRsaPubkey(key, item);
+            break;
+        case USER_ATTR_EMAIL:
+            fetchEmail(key, item);
             break;
         default:
             fetchStandardAttr(key, item);
@@ -309,6 +345,23 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
     .then([this, key, item](ReqResult result)
     {
         item->data.reset(gUserAttrDescs[key.attrType].getData(*result));
+        item->resolve(key);
+    })
+    .fail([this, key, item](const promise::Error& err)
+    {
+        item->error(key, err.code());
+        return err;
+    });
+}
+
+void UserAttrCache::fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
+{
+    mClient.api.call(&::mega::MegaApi::getUserEmail,
+        key.user.val)
+    .then([this, key, item](ReqResult result)
+    {
+        auto email = result->getEmail();
+        item->data.reset(new Buffer(email, strlen(email)));
         item->resolve(key);
     })
     .fail([this, key, item](const promise::Error& err)
@@ -414,6 +467,11 @@ void UserAttrCache::onLogin()
         if (item.second->pending != kCacheFetchNotPending)
             fetchAttr(item.first, item.second);
     }
+}
+
+void UserAttrCache::onLogOut()
+{
+    mIsLoggedIn = false;
 }
 
 promise::Promise<Buffer*>

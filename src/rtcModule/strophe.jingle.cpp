@@ -279,7 +279,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         string sid;
         string from;
         string ownJid;
-        Ts tsReceived = -1;
+        int64_t tsReceived = -1;
         string fromBare;
         string ownFprMacKey;
         void* userp = nullptr;
@@ -297,7 +297,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
         {
             if (mCall->state() != kCallStateInReq)
                 return false;
-            Ts tsTillUser = tsReceived + self.callAnswerTimeout+10000;
+            int64_t tsTillUser = tsReceived + self.callAnswerTimeout+10000;
             return (timestampMs() < tsTillUser);
         }
         bool reqStillValid() const
@@ -446,7 +446,7 @@ void Jingle::onIncomingCallMsg(Stanza callmsg)
                 if (peerFprMacKey.empty())
                     throw std::runtime_error("Faield to verify peer's fprmackey from call request");
 // tsTillJingle measures the time since we sent megaCallAnswer till we receive jingle-initiate
-                Ts tsTillJingle = timestampMs()+mJingleAutoAcceptTimeout;
+                int64_t tsTillJingle = timestampMs()+mJingleAutoAcceptTimeout;
                 call->mPeerFprMacKey = peerFprMacKey;
                 call->mOwnFprMacKey = state->ownFprMacKey;
                 call->mPeerAnonId = state->callmsg.attr("anonid");

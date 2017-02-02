@@ -1,12 +1,12 @@
 #include "karereCommon.h"
 #include <services-http.hpp>
-//#include "chatClient.h"
 #include "stringUtils.h"
-//#include <rtcModule.h>
 #include "rtcModule/IRtcModule.h"
 
 namespace karere
 {
+const char* gDbSchemaVersionSuffix = "1";
+
 class Client;
 void globalInit(void(*postFunc)(void*), uint32_t options, const char* logPath, size_t logSize)
 {
@@ -19,7 +19,9 @@ void globalInit(void(*postFunc)(void*), uint32_t options, const char* logPath, s
 
 void globalCleanup()
 {
+#ifndef KARERE_DISABLE_WEBRTC
     rtcModule::globalCleanup();
+#endif
     services_shutdown();
 }
 

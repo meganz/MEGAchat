@@ -80,9 +80,12 @@ public:
     MegaApi* megaApi[NUM_ACCOUNTS];
     MegaChatApi* megaChatApi[NUM_ACCOUNTS];
 
-    // flags to monitor the completion of requests/transfers
+    // flags to monitor the completion of requests
     bool requestFlags[NUM_ACCOUNTS][MegaRequest::TYPE_CHAT_SET_TITLE];
     bool requestFlagsChat[NUM_ACCOUNTS][MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
+
+    bool initStateChanged[NUM_ACCOUNTS];
+    int initState[NUM_ACCOUNTS];
 
     int lastError[NUM_ACCOUNTS];
     int lastErrorChat[NUM_ACCOUNTS];
@@ -93,6 +96,7 @@ public:
     void TEST_editAndDeleteMessages();
     void TEST_groupChatManagement();
     void TEST_offlineMode();
+    void TEST_clearHistory();
 
 private:
     std::string email[NUM_ACCOUNTS];
@@ -110,7 +114,7 @@ private:
     std::string firstname, lastname;
     bool nameReceived[NUM_ACCOUNTS];
 
-    std::string chatFirstname, chatLastname; // requested via karere
+    std::string chatFirstname, chatLastname, chatEmail; // requested via karere
     bool chatNameReceived[NUM_ACCOUNTS];
 
 //    MegaContactRequest* cr[2];
@@ -140,8 +144,9 @@ public:
     virtual void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaChatError* error) {}
 
     // implementation for MegaChatListener
-    virtual void onChatRoomUpdate(MegaChatApi* api, MegaChatRoom *chat);
+    virtual void onChatInitStateUpdate(MegaChatApi *api, int newState);
     virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
+    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status);
 
 //    void onUsersUpdate(MegaApi* api, MegaUserList *users);
 //    void onNodesUpdate(MegaApi* api, MegaNodeList *nodes);
@@ -174,13 +179,16 @@ public:
     bool msgDelivered[NUM_ACCOUNTS];
     bool msgReceived[NUM_ACCOUNTS];
     bool msgEdited[NUM_ACCOUNTS];
+    bool msgRejected[NUM_ACCOUNTS];
 
     MegaChatMessage *message;
     MegaChatHandle msgId[NUM_ACCOUNTS];
+    int msgCount[NUM_ACCOUNTS];
     MegaChatHandle uhAction[NUM_ACCOUNTS];
     int priv[NUM_ACCOUNTS];
     std::string content[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
+    bool userTyping[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     virtual void onChatRoomUpdate(MegaChatApi* megaChatApi, MegaChatRoom *chat);

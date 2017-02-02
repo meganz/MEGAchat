@@ -166,9 +166,9 @@ void MainWindow::onOnlineStatusBtn(bool)
         "}");
     list->exec();
 }
-void MainWindow::onOwnPresence(Presence pres)
+void MainWindow::onOwnPresence(Presence pres, bool inProgress)
 {
-    ui.mOnlineStatusBtn->setText((pres.val() & Presence::kInProgress)
+    ui.mOnlineStatusBtn->setText(inProgress
         ?kOnlineSymbol_InProgress
         :kOnlineSymbol_Set);
     ui.mOnlineStatusBtn->setStyleSheet(
@@ -186,13 +186,22 @@ void MainWindow::setOnlineStatus()
         GUI_LOG_WARNING("setOnlineStatus: action data is not a valid presence code");
         return;
     }
-    client().setPresence(pres);
+    if (pres == Presence::kOnline)
+    {
+        client().setPresence(Presence::kClear, Client::kSetPresOverride);
+        client().setPresence(Presence::kOnline, Client::kSetPresDynamic);
+    }
+    else
+    {
+        client().setPresence(pres, Client::kSetPresOverride);
+    }
 }
 
 SettingsDialog::SettingsDialog(MainWindow &parent)
     :QDialog(&parent), mMainWindow(parent)
 {
     ui.setupUi(this);
+#ifndef KARERE_DISABLE_WEBRTC
     vector<string> audio;
     mMainWindow.client().rtc->getAudioInDevices(audio);
     for (auto& name: audio)
@@ -204,16 +213,20 @@ SettingsDialog::SettingsDialog(MainWindow &parent)
     for (auto& name: video)
         ui.videoInCombo->addItem(name.c_str());
     mVideoInIdx = 0;
+#endif
 }
 
 void SettingsDialog::applySettings()
 {
+#ifndef KARERE_DISABLE_WEBRTC
     if (ui.audioInCombo->currentIndex() != mAudioInIdx)
         selectAudioInput();
     if (ui.videoInCombo->currentIndex() != mVideoInIdx)
         selectVideoInput();
+#endif
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 void SettingsDialog::selectAudioInput()
 {
     auto combo = ui.audioInCombo;
@@ -239,6 +252,7 @@ void SettingsDialog::selectVideoInput()
     }
     KR_LOG_DEBUG("Selected video device '%s'", device.c_str());
 }
+#endif
 
 MainWindow::~MainWindow()
 {}
@@ -250,7 +264,7 @@ QColor gAvatarColors[16] = {
 };
 
 QString gOnlineIndColors[karere::Presence::kLast+1] =
-{  "lightgray", "red", "orange", "lightgreen", "lightblue" };
+{ "black", "lightgray", "orange", "lightgreen", "red" };
 
 
 karere::IApp::IContactListItem*
@@ -407,6 +421,12 @@ void MainWindow::onAddContact()
         QMessageBox::critical(this, tr("Add contact"), msg);
         return err;
     });
+}
+void MainWindow::onInitStateChange(int newState)
+{
+    if (!isVisible() && (newState == karere::Client::kInitHasOfflineSession
+                      || newState == karere::Client::kInitHasOnlineSession))
+        show();
 }
 
 QString prettyInterval(int64_t secs)

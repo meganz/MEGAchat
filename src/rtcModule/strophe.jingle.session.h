@@ -67,7 +67,7 @@ protected:
 public:
     artc::myPeerConnection<JingleSession> mPeerConn;
     std::unique_ptr<StanzaQueue> inputQueue;
-    karere::Ts tsMediaStart = 0;
+    int64_t tsMediaStart = 0;
     std::unique_ptr<stats::Recorder> mStatsRecorder;
 
 //PeerConnection callback interface

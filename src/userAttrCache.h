@@ -21,15 +21,25 @@ namespace karere
  * \c by MegaApi::getUserAttribute()
  */
 enum {
-    /** RSA Public key ofg user */
-    USER_ATTR_RSA_PUBKEY = 128,
+    /** First attribute that is not directly supported by the SDK via getUserAttribute()*/
+    USER_ATTR_VIRTUAL_FIRST = 64,
 
+    /** RSA Public key of user */
+    USER_ATTR_RSA_PUBKEY = USER_ATTR_VIRTUAL_FIRST,
+
+    /** The email of the user, as returned bh getUserEmail() */
+    USER_ATTR_EMAIL,
+
+    /** The most significant bit in the attribute type is 1, then the attribute is
+     * not directly backed by the db, but rather synthesized by other attributes
+     */
+    USER_ATTR_FLAG_COMPOSITE = 128,
     /** Returns firstname and secondname in one string. Tolerates either name
      * missing. If both are present, they are separated with a space.
-     * Fetchs both names using the cache, and does it in parallel. Does not
+     * Fetches both names using the cache, and does it in parallel. Does not
      * cache the full name itself, but relies on each name being cached separately
      */
-    USER_ATTR_FULLNAME = 129
+    USER_ATTR_FULLNAME = USER_ATTR_FLAG_COMPOSITE | 1
 };
 
 const char* attrName(uint8_t type);
@@ -37,19 +47,15 @@ const char* attrName(uint8_t type);
 class Client;
 struct UserAttrDesc
 {
-    enum Flags: unsigned char
-    {
-        kNoDb = 1
-    };
     typedef Buffer*(*GetDataFunc)(const mega::MegaRequest&);
+    int type;
     GetDataFunc getData;
     int changeMask;
-    unsigned char flags;
-    UserAttrDesc(GetDataFunc aGetData, int aChangeMask, unsigned char aFlags = kNoDb)
-        :getData(aGetData), changeMask(aChangeMask), flags(aFlags){}
+    UserAttrDesc(int aType, GetDataFunc aGetData, int aChangeMask, unsigned char aFlags = 0)
+        :type(aType), getData(aGetData), changeMask(aChangeMask){}
 };
 
-extern UserAttrDesc gUserAttrDescs[9];
+extern UserAttrDesc gUserAttrDescs[10];
 
 struct UserAttrPair
 {
@@ -65,7 +71,8 @@ struct UserAttrPair
     UserAttrPair(uint64_t aUser, uint8_t aType): user(aUser), attrType(aType)
     {
         if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
-         && (attrType != USER_ATTR_RSA_PUBKEY) && (attrType != USER_ATTR_FULLNAME))
+         && (attrType != USER_ATTR_RSA_PUBKEY) && (attrType != USER_ATTR_FULLNAME)
+         && (attrType != USER_ATTR_EMAIL))
             throw std::runtime_error("UserAttrPair: Invalid user attribute id specified");
     }
     std::string toString()
@@ -127,9 +134,11 @@ protected:
     void fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
+    void fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
 //==
     void onUserAttrChange(mega::MegaUser& user);
     void onLogin();
+    void onLogOut();
     friend struct UserAttrCacheItem;
     friend class Client;
 public:

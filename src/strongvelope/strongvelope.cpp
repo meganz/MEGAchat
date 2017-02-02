@@ -14,6 +14,10 @@
     static inline uint64_t be64toh(uint64_t x) { return _byteswap_uint64(x); }
 #else
     #include <endian.h>
+    #ifndef __STDC_FORMAT_MACROS
+        #define __STDC_FORMAT_MACROS 1
+    #endif
+    #include <inttypes.h>
 #endif
 
 #include "strongvelope.h"
@@ -290,8 +294,8 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_EXC_PARTICIPANT:
             {
-            if (target || privilege != PRIV_INVALID)
-                throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
+                if (target || privilege != PRIV_INVALID)
+                    throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
                 privilege = chatd::PRIV_NOTPRESENT;
                 target = record.read<uint64_t>();
                 break;
@@ -427,9 +431,11 @@ void ParsedMessage::parsePayload(const StaticBuffer &data, Message &msg)
     size_t binsize = 10+refsSize;
     if (data.dataSize() < binsize)
         throw std::runtime_error("parsePayload: Payload size "+std::to_string(data.dataSize())+" is less than size of backrefs "+std::to_string(binsize)+"\nMessage:"+data.toString());
-    uint64_t* end = (uint64_t*)(data.buf()+binsize);
-    for (uint64_t* prefid = (uint64_t*)(data.buf()+10); prefid < end; prefid++)
-        msg.backRefs.push_back(*prefid);
+    char* end = data.buf() + binsize;
+    for (char* prefid = data.buf() + 10; prefid < end; prefid += sizeof(uint64_t))
+    {
+        msg.backRefs.push_back(Buffer::alignSafeRead<uint64_t>(prefid));
+    }
     if (data.dataSize() > binsize)
     {
         msg.assign(data.buf()+binsize, data.dataSize()-binsize);
@@ -897,7 +903,7 @@ void ProtocolHandler::onKeyReceived(uint32_t keyid, Id sender, Id receiver,
     STRONGVELOPE_LOG_DEBUG("onKeyReceived: Created a key entry with promise for key %d of user %s", keyid, sender.toString().c_str());
     if (entry.pms)
     {
-        STRONGVELOPE_LOG_WARNING("Key % from user %s is already being decrypted", keyid, sender.toString().c_str());
+        STRONGVELOPE_LOG_WARNING("Key %d from user %s is already being decrypted", keyid, sender.toString().c_str());
         return;
     }
     auto wptr = weakHandle();
@@ -1094,15 +1100,15 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg)
     const char* end = encryptedKey.buf()+encryptedKey.dataSize();
     karere::Id receiver;
     if (sender == mProtoHandler.ownHandle())
-    {   //any version is ok, pick the first
-        receiver = *(uint64_t*)(pos);
+    {   //any version of the encrypted key is ok, pick the first
+        receiver = Buffer::alignSafeRead<uint64_t>(pos);
         pos += 10; //userid.8+keylen.2
     }
     else
-    {
+    { //pick the version that is encrypted for us
         while (pos < end)
         {
-            receiver = *(uint64_t*)(pos);
+            receiver = Buffer::alignSafeRead<uint64_t>(pos);
             pos+=8;
             uint16_t keylen = *(uint16_t*)(pos);
             pos+=2;
