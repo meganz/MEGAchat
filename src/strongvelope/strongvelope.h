@@ -22,8 +22,8 @@
 #include <base/trackDelete.h>
 
 #define STRONGVELOPE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
-#define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
-#define STRONGVELOPE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_strongvelope, fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
+#define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
+#define STRONGVELOPE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
 
 #define SVCRYPTO_ERRTYPE 0x3e9a5419 //should resemble megasvlp
 
