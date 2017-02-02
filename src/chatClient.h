@@ -737,7 +737,7 @@ public:
 protected:
     std::string mMyName;
     bool mContactsLoaded = false;
-    promise::Promise<void> mInitCompletePromise;
+    promise::Promise<void> mCanConnectPromise;
     Presence mOwnPresence;
     /** @brief Our own email address */
     std::string mEmail;
@@ -790,6 +790,13 @@ protected:
     bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
     void commit(const std::string& scsn);
     void commit();
+
+    /** @brief Does the actual connect, once the SDK is online.
+     * connect() waits for the mCanConnect promise to be resolved and then calls
+     * this method
+     */
+    promise::Promise<void> doConnect(Presence pres);
+
 #ifndef KARERE_DISABLE_WEBRTC
     // rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
