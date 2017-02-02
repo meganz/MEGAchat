@@ -11,9 +11,9 @@
 #include <deque>
 #include <base/promise.h>
 #include <base/timers.hpp>
+#include <base/trackDelete.h>
 #include "chatdMsg.h"
 #include "url.h"
-
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
@@ -237,7 +237,8 @@ public:
 
 class Client;
 
-class Connection
+// need DeleteTrackable for graceful disconnect timeout
+class Connection: public karere::DeleteTrackable
 {
 public:
     enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected };
@@ -252,6 +253,7 @@ protected:
     int mInactivityBeats = 0;
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
+    promise::Promise<void> mDisconnectPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
     State state() { return mState; }
     bool isOnline() const
@@ -263,7 +265,7 @@ protected:
         size_t reason_len, void *arg);
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
-    void disconnect();
+    promise::Promise<void> disconnect(int timeoutMs=2000);
     void enableInactivityTimer();
     void disableInactivityTimer();
     void reset();
@@ -861,8 +863,7 @@ public:
         Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
-    void connect();
-    void disconnect();
+    promise::Promise<void> disconnect();
     friend class Connection;
     friend class Chat;
 };
