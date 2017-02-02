@@ -129,7 +129,6 @@ int main(int argc, char **argv)
         {
             KR_LOG_DEBUG("Client initialized");
         }
-        return gClient->connect(Presence::kInvalid);
     })
     .then([]()
     {
@@ -142,6 +141,7 @@ int main(int argc, char **argv)
 //        exit(1);
     });
 
+    gClient->connect(Presence::kInvalid);
     signal(SIGINT, sigintHandler);
     return a.exec();
 }

@@ -736,7 +736,7 @@ public:
 protected:
     std::string mMyName;
     bool mContactsLoaded = false;
-    promise::Promise<void> mInitCompletePromise;
+    promise::Promise<void> mCanConnectPromise;
     Presence mOwnPresence;
     /** @brief Our own email address */
     std::string mEmail;
@@ -784,6 +784,12 @@ protected:
      * there is no existing code that logs in the Mega SDK instance.
      */
     promise::Promise<void> sdkLoginExistingSession(const char* sid);
+
+    /** @brief Does the actual connect, once the SDK is online.
+     * connect() waits for the mCanConnect promise to be resolved and then calls
+     * this method
+     */
+    promise::Promise<void> doConnect(Presence pres);
 
 #ifndef KARERE_DISABLE_WEBRTC
     // rtcModule::IGlobalEventHandler interface
