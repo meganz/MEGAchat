@@ -430,9 +430,7 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
-    if (!request)
-        return;
-    if (request->getType() != mega::MegaRequest::TYPE_FETCH_NODES)
+    if (!request || (request->getType() != mega::MegaRequest::TYPE_FETCH_NODES))
         return;
 
     api.sdk.pauseActionPackets();
@@ -470,8 +468,8 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 setInitState(kInitHasOnlineSession);
                 mInitCompletePromise.resolve();
             });
-            api.sdk.resumeActionPackets();
         }
+        api.sdk.resumeActionPackets();
     });
 }
 
