@@ -446,11 +446,11 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     {
         if (state == kInitHasOfflineSession)
         {
-            auto sid = api.sdk.dumpSession();
+            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
             assert(sid);
             // we loaded our state from db
             // verify the SDK sid is the same as ours
-            if (mSid != sid)
+            if (mSid != sid.get())
             {
                 setInitState(kInitErrSidMismatch);
                 return;
@@ -461,9 +461,9 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         }
         else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
         {
-            auto sid = api.sdk.dumpSession();
+            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
             assert(sid);
-            initWithNewSession(sid, scsn, contactList, chatList)
+            initWithNewSession(sid.get(), scsn, contactList, chatList)
             .then([this]()
             {
                 setInitState(kInitHasOnlineSession);
