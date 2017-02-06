@@ -943,7 +943,18 @@ void MegaChatApiTest::TEST_offlineMode()
     MegaChatRoomList *chats = megaChatApi[0]->getChatRooms();
     cout << chats->size() << " chat/s received: " << endl;
 
-    if (chats->size())
+    // Redmine ticket: #5721 (history from inactive chats is not retrievable)
+    const MegaChatRoom *chatroom = NULL;
+    for (int i = 0; i < chats->size(); i++)
+    {
+        if (chats->get(i)->isActive())
+        {
+            chatroom = chats->get(i);
+            break;
+        }
+    }
+
+    if (chatroom)
     {
         // Open a chatroom
         const MegaChatRoom *chatroom = chats->get(0);
