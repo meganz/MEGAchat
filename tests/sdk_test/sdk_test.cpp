@@ -957,7 +957,6 @@ void MegaChatApiTest::TEST_offlineMode()
     if (chatroom)
     {
         // Open a chatroom
-        const MegaChatRoom *chatroom = chats->get(0);
         MegaChatHandle chatid = chatroom->getChatId();
 
         printChatRoomInfo(chatroom);
