@@ -494,11 +494,15 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
 
 promise::Promise<void> Client::connect(Presence pres)
 {
-    return mCanConnectPromise
-    .then([this, pres]() mutable
-    {
-        return doConnect(pres);
-    });
+// only the first connect() needs to wait for init complete. Any subsequent
+// connect()-s (preceded by disconnect()) can initiate the connect immediately
+    return (mInitState < kInitHasOnlineSession)
+        ? mCanConnectPromise
+          .then([this, pres]() mutable
+          {
+               return doConnect(pres);
+          })
+        : doConnect(pres);
 }
 
 promise::Promise<void> Client::doConnect(Presence pres)
