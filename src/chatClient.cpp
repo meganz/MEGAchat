@@ -497,7 +497,7 @@ promise::Promise<void> Client::connect(Presence pres)
     promise::Promise<void> connectPromise;
 
     mCanConnectPromise
-    .then([this, pres, connectPromise]()
+    .then([this, pres, connectPromise]() mutable
     {
         doConnect(pres)
         .then([connectPromise]() mutable
