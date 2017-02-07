@@ -574,18 +574,11 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
 
 promise::Promise<void> Client::connect(Presence pres)
 {
-    promise::Promise<void> connectPromise;
-
-    mCanConnectPromise
-    .then([this, pres, connectPromise]() mutable
+    return mCanConnectPromise
+    .then([this, pres]() mutable
     {
-        doConnect(pres)
-        .then([connectPromise]() mutable
-        {
-            connectPromise.resolve();
-        });
+        return doConnect(pres);
     });
-    return connectPromise;
 }
 
 promise::Promise<void> Client::doConnect(Presence pres)
