@@ -830,6 +830,9 @@ inline Promise<void> when(Args... inputs)
 template <class P>
 inline Promise<void> when(std::vector<Promise<P>>& promises)
 {
+    if (promises.empty())
+        return Void();
+
     WhenState state;
     size_t countMinus1 = promises.size()-1;
     for (size_t i=0; i < countMinus1; i++)
