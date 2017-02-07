@@ -153,14 +153,16 @@ bool Client::openDb(const std::string& sid)
         return false;
     }
     mSid = sid;
+    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
     return true;
 }
 
-void Client::createDbSchema(sqlite3*& database)
+void Client::createDbSchema()
 {
     mMyHandle = Id::null();
+    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
     MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
-    int ret = sqlite3_exec(database, gDbSchema, nullptr, nullptr, errmsg.handlePtr());
+    int ret = sqlite3_exec(db, gDbSchema, nullptr, nullptr, errmsg.handlePtr());
     if (ret)
     {
         if (errmsg)
@@ -168,9 +170,11 @@ void Client::createDbSchema(sqlite3*& database)
         else
             throw std::runtime_error("Error "+std::to_string(ret)+" initializing database");
     }
+    commit();
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
-    sqliteQuery(database, "insert into vars(name, value) values('schema_version', ?)", ver);
+    sqliteQuery(db, "insert into vars(name, value) values('schema_version', ?)", ver);
+    commit();
 }
 
 void Client::heartbeat()
@@ -243,9 +247,9 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
     api.callIgnoreResult(&::mega::MegaApi::fastLogin, sid)
     .then([this]()
     {
-        return api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
+        api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
     });
-    return promise::_Void();
+    return mCanConnectPromise;
 }
 
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
@@ -264,24 +268,33 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
         return sdkLoginExistingSession(sid);
     }
 }
+
 void Client::loadContactListFromApi()
 {
     std::unique_ptr<::mega::MegaUserList> contacts(api.sdk.getContacts());
-    assert(contacts);
+    loadContactListFromApi(*contacts);
+}
+
+void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
+{
 #ifndef NDEBUG
-    dumpContactList(*contacts);
+    dumpContactList(contacts);
 #endif
-    contactList->syncWithApi(*contacts);
+    contactList->syncWithApi(contacts);
     mContactsLoaded = true;
 }
 
-promise::Promise<void> Client::initWithNewSession(const char* sid)
+promise::Promise<void> Client::initWithNewSession(const char* sid, const std::string& scsn,
+    const std::shared_ptr<::mega::MegaUserList>& contactList,
+    const std::shared_ptr<::mega::MegaTextChatList>& chatList)
 {
     assert(sid);
 
     mSid = sid;
     createDb();
 
+// We have a complete snapshot of the SDK contact and chat list state.
+// Commit it with the accompanying scsn
     mMyHandle = getMyHandleFromSdk();
     sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
 
@@ -291,19 +304,60 @@ promise::Promise<void> Client::initWithNewSession(const char* sid)
     mUserAttrCache.reset(new UserAttrCache(*this));
 
     return loadOwnKeysFromApi()
-    .then([this]()
+    .then([this, scsn, contactList, chatList]()
     {
-        loadContactListFromApi();
+        loadContactListFromApi(*contactList);
         chatd.reset(new chatd::Client(mMyHandle));
-        if (!mInitialChats.empty())
-        {
-            for (auto& list: mInitialChats)
-            {
-                chats->onChatsUpdate(list);
-            }
-            mInitialChats.clear();
-        }
+        chats->onChatsUpdate(*chatList);
+        commit(scsn);
     });
+}
+
+void Client::commit(const std::string& scsn)
+{
+    if (scsn.empty())
+    {
+        KR_LOG_DEBUG("Committing with empty scsn");
+        commit();
+        return;
+    }
+    if (scsn == mLastScsn)
+    {
+        KR_LOG_DEBUG("Committing with same scsn");
+        commit();
+        return;
+    }
+
+    sqliteQuery(db, "insert or replace into vars(name,value) values('scsn',?)", scsn);
+    sqliteSimpleQuery(db, "COMMIT TRANSACTION");
+    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
+    mLastScsn = scsn;
+    KR_LOG_DEBUG("Commit with scsn %s", scsn.c_str());
+}
+
+void Client::commit()
+{
+    sqliteSimpleQuery(db, "COMMIT TRANSACTION");
+    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
+}
+
+void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
+{
+    assert(event);
+    if (event->getType() == ::mega::MegaEvent::EVENT_COMMIT_DB)
+    {
+        auto pscsn = event->getText();
+        if (!pscsn)
+        {
+            KR_LOG_WARNING("EVENT_COMMIT_DB with NULL scsn, ignoring");
+            return;
+        }
+        std::string scsn = pscsn;
+        marshallCall([this, scsn]()
+        {
+            commit(scsn);
+        });
+    }
 }
 
 void Client::initWithDbSession(const char* sid)
@@ -376,47 +430,48 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
-    if (!request)
+    if (!request || (request->getType() != mega::MegaRequest::TYPE_FETCH_NODES))
         return;
-    auto type = request->getType();
-    auto s = request->getSessionKey();
-    std::string reqSid;
-    if (s)
+
+    api.sdk.pauseActionPackets();
+    api.sdk.removeRequestListener(this);
+    auto state = mInitState;
+    auto pscsn = api.sdk.getSequenceNumber();
+    assert(pscsn);
+    std::string scsn(pscsn);
+    std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
+    std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
+
+    marshallCall([this, state, scsn, contactList, chatList]()
     {
-        reqSid = s;
-    }
-    if (type == mega::MegaRequest::TYPE_FETCH_NODES)
-    {
-        api.sdk.pauseActionPackets();
-        marshallCall([this, reqSid]()
+        if (state == kInitHasOfflineSession)
         {
-            api.sdk.removeRequestListener(this);
             std::unique_ptr<char[]> sid(api.sdk.dumpSession());
             assert(sid);
-            if (mInitState == kInitHasOfflineSession)
+            // we loaded our state from db
+            // verify the SDK sid is the same as ours
+            if (mSid != sid.get())
             {
-                //verify the SDK sid is the same as ours
-                if (mSid != sid.get())
-                {
-                    setInitState(kInitErrSidMismatch);
-                    return;
-                }
-                loadContactListFromApi();
+                setInitState(kInitErrSidMismatch);
+                return;
+            }
+            checkSyncWithSdkDb(scsn, *contactList, *chatList);
+            setInitState(kInitHasOnlineSession);
+            mCanConnectPromise.resolve();
+        }
+        else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
+        {
+            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+            assert(sid);
+            initWithNewSession(sid.get(), scsn, contactList, chatList)
+            .then([this]()
+            {
                 setInitState(kInitHasOnlineSession);
                 mCanConnectPromise.resolve();
-            }
-            else if (mInitState == kInitWaitingNewSession || mInitState == kInitErrNoCache)
-            {
-                initWithNewSession(sid.get())
-                .then([this]()
-                {
-                    setInitState(kInitHasOnlineSession);
-                    mCanConnectPromise.resolve();
-                });
-            }
-            api.sdk.resumeActionPackets();
-        });
-    }
+            });
+        }
+        api.sdk.resumeActionPackets();
+    });
 }
 
 //TODO: We should actually wipe the whole app dir, but the log file may
@@ -443,7 +498,32 @@ void Client::createDb()
     int ret = sqlite3_open(path.c_str(), &db);
     if (ret != SQLITE_OK || !db)
         throw std::runtime_error("Can't access application database at "+mAppDir);
-    createDbSchema(db);
+    createDbSchema(); //calls commit() at the end
+}
+
+bool Client::checkSyncWithSdkDb(const std::string& scsn,
+    ::mega::MegaUserList& contactList, ::mega::MegaTextChatList& chatList)
+{
+    SqliteStmt stmt(db, "select value from vars where name='scsn'");
+    stmt.stepMustHaveData("get karere scsn");
+    if (stmt.stringCol(0) == scsn)
+    {
+        KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
+        return true;
+    }
+
+    // We are not in sync, probably karere is one or more commits behind
+    KR_LOG_WARNING("Karere db out of sync with sdk - scsn-s don't match. Will reload all state from SDK");
+
+    // invalidate user attrib cache
+    mUserAttrCache->invalidate();
+    // sync contactlist first
+    loadContactListFromApi(contactList);
+    // sync the chatroom list
+    chats->onChatsUpdate(chatList);
+    // commit the snapshot
+    commit(scsn);
+    return false;
 }
 
 void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
@@ -632,10 +712,10 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
             return promise::Error("No private RSA key in getUserData API response");
         mMyPrivRsaLen = base64urldecode(privrsa, strlen(privrsa), mMyPrivRsa, sizeof(mMyPrivRsa));
         // write to db
-        sqliteQuery(db, "insert into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
-        sqliteQuery(db, "insert into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
-        sqliteQuery(db, "insert into vars(name, value) values('pub_rsa', ?)", StaticBuffer(mMyPubRsa, mMyPubRsaLen));
-        sqliteQuery(db, "insert into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
+        sqliteQuery(db, "insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
+        sqliteQuery(db, "insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
+        sqliteQuery(db, "insert or replace into vars(name, value) values('pub_rsa', ?)", StaticBuffer(mMyPubRsa, mMyPubRsaLen));
+        sqliteQuery(db, "insert or replace into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });
@@ -786,6 +866,8 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     setInitState(kInitTerminating);
     api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
+    KR_LOG_INFO("Doing final COMMIT to database");
+    commit();
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
@@ -823,12 +905,10 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
     if (!aUsers)
         return;
-
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
     marshallCall([this, users]()
     {
         assert(mUserAttrCache);
-
         auto count = users->size();
         for (int i=0; i<count; i++)
         {
@@ -841,7 +921,9 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
                 }
             }
             else
+            {
                 contactList->onUserAddRemove(user);
+            }
         };
     });
 }
@@ -1317,37 +1399,26 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     if (!rooms)
         return;
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
+    const char* pscsn = api.sdk.getSequenceNumber();
+    std::string scsn = pscsn ? pscsn : "";
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
-    if (!mContactsLoaded)
+    assert(mContactsLoaded);
+    marshallCall([this, copy, scsn]()
     {
-        // No need for weak ptr guard, as we are marshalling immediately,
-        // and client deletion is done via a posted message, which is guaranteed
-        // be processed after all currently posted
-        marshallCall([this, copy]()
-        {
-            KR_LOG_DEBUG("onChatsUpdate: no contactlist yet, caching the update info");
-            mInitialChats.push_back(copy);
-        });
-    }
-    else
-    {
-        marshallCall([this, copy]()
-        {
-            chats->onChatsUpdate(copy);
-        });
-    }
+        chats->onChatsUpdate(*copy);
+    });
 }
 
-void ChatRoomList::onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& rooms)
+void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
 {
     SetOfIds added;
-    addMissingRoomsFromApi(*rooms, added);
-    auto count = rooms->size();
+    addMissingRoomsFromApi(rooms, added);
+    auto count = rooms.size();
     for (int i = 0; i < count; i++)
     {
-        auto apiRoom = rooms->get(i);
+        auto apiRoom = rooms.get(i);
         auto chatid = apiRoom->getHandle();
         if (added.has(chatid)) //room was just added, no need to sync
             continue;
@@ -2139,10 +2210,11 @@ Contact* ContactList::contactFromUserId(uint64_t userid) const
     return (it == end())? nullptr : it->second;
 }
 
-void Client::onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs)
+void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactRequestList* reqs)
 {
     if (!reqs)
         return;
+
     std::shared_ptr<mega::MegaContactRequestList> copy(reqs->copy());
     marshallCall([this, copy]()
     {

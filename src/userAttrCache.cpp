@@ -459,6 +459,15 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
     });
 }
 
+void UserAttrCache::invalidate()
+{
+    sqliteQuery(mClient.db, "delete from userattrs");
+    for (auto& item: *this)
+    {
+        item.second->pending = kCacheFetchUpdatePending;
+    }
+}
+
 void UserAttrCache::onLogin()
 {
     mIsLoggedIn = true;

@@ -365,7 +365,7 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
-    void onChatsUpdate(const std::shared_ptr<mega::MegaTextChatList>& chats);
+    void onChatsUpdate(mega::MegaTextChatList& chats);
 /** @endcond PRIVATE */
 };
 
@@ -592,7 +592,6 @@ public:
     presenced::Client& presenced() { return mPresencedClient; }
     bool contactsLoaded() const { return mContactsLoaded; }
     bool connected() const { return mConnected; }
-    std::vector<std::shared_ptr<::mega::MegaTextChatList>> mInitialChats;
     /** @endcond PRIVATE */
 
     /** @brief The contact list of the client */
@@ -638,7 +637,9 @@ public:
      * @brief Performs karere-only login, assuming the Mega SDK is already logged
      * in with a new session
      */
-    promise::Promise<void> initWithNewSession(const char* sid);
+    promise::Promise<void> initWithNewSession(const char* sid, const std::string& scsn,
+        const std::shared_ptr<::mega::MegaUserList>& contactList,
+        const std::shared_ptr<::mega::MegaTextChatList>& chatList);
 
     /**
      * @brief Initializes karere, opening or creating the local db cache
@@ -747,6 +748,7 @@ protected:
     std::string mPresencedUrl;
     UserAttrCache::Handle mOwnNameAttrHandle;
     megaHandle mHeartbeatTimer = 0;
+    std::string mLastScsn;
     void heartbeat();
     InitState mInitState = kInitCreated;
     void setInitState(InitState newState);
@@ -754,7 +756,7 @@ protected:
     bool openDb(const std::string& sid);
     void createDb();
     void wipeDb(const std::string& sid);
-    void createDbSchema(sqlite3*& database);
+    void createDbSchema();
     void connectToChatd();
     karere::Id getMyHandleFromDb();
     karere::Id getMyHandleFromSdk();
@@ -763,6 +765,7 @@ protected:
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
     void loadContactListFromApi();
+    void loadContactListFromApi(::mega::MegaUserList& contactList);
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
@@ -784,6 +787,9 @@ protected:
      * there is no existing code that logs in the Mega SDK instance.
      */
     promise::Promise<void> sdkLoginExistingSession(const char* sid);
+    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
+    void commit(const std::string& scsn);
+    void commit();
 
     /** @brief Does the actual connect, once the SDK is online.
      * connect() waits for the mCanConnect promise to be resolved and then calls
@@ -801,7 +807,7 @@ protected:
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);
     virtual void onUsersUpdate(mega::MegaApi*, mega::MegaUserList* users);
     virtual void onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs);
-
+    virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
     // MegaRequestListener interface
     virtual void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
 
@@ -811,6 +817,7 @@ protected:
     virtual void onPresence(Id userid, Presence pres);
     //==
     friend class ChatRoom;
+    friend class ChatRoomList;
 /** @endcond PRIVATE */
 };
 
