@@ -340,15 +340,18 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
 }
 void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
+    auto wptr = weakHandle();
     mClient.api.call(&::mega::MegaApi::getUserAttribute,
         key.user.toString().c_str(), (int)key.attrType)
-    .then([this, key, item](ReqResult result)
+    .then([wptr, this, key, item](ReqResult result)
     {
+        wptr.throwIfDeleted();
         item->data.reset(gUserAttrDescs[key.attrType].getData(*result));
         item->resolve(key);
     })
-    .fail([this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const promise::Error& err)
     {
+        wptr.throwIfDeleted();
         item->error(key, err.code());
         return err;
     });
@@ -356,16 +359,19 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
 
 void UserAttrCache::fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
+    auto wptr = weakHandle();
     mClient.api.call(&::mega::MegaApi::getUserEmail,
         key.user.val)
-    .then([this, key, item](ReqResult result)
+    .then([wptr, this, key, item](ReqResult result)
     {
+        wptr.throwIfDeleted();
         auto email = result->getEmail();
         item->data.reset(new Buffer(email, strlen(email)));
         item->resolve(key);
     })
-    .fail([this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const promise::Error& err)
     {
+        wptr.throwIfDeleted();
         item->error(key, err.code());
         return err;
     });
@@ -379,7 +385,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         std::string lastname;
     };
     auto ctx = std::make_shared<Context>();
-
+    auto wptr = weakHandle();
     auto pms1 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_FIRSTNAME)
     .then([ctx](Buffer* data)
     {
@@ -403,8 +409,9 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
     });
 
     promise::when(pms1, pms2)
-    .then([ctx, this, key, item]()
+    .then([wptr, this, ctx, key, item]()
     {
+        wptr.throwIfDeleted();
         item->data.reset(new Buffer(ctx->firstname.size()+ctx->lastname.size()+1));
         auto& data = *item->data;
         auto& fn = ctx->firstname;
@@ -426,8 +433,9 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         }
         item->resolveNoDb(key);
     })
-    .fail([item](const Error& err)
+    .fail([wptr, item](const Error& err)
     {
+        wptr.throwIfDeleted();
         item->errorNoDb(err.code());
         return err;
     });
@@ -435,14 +443,17 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
 
 void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
+    auto wptr = weakHandle();
     mClient.api.call(&::mega::MegaApi::getUserData, key.user.toString().c_str())
-    .fail([this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const promise::Error& err)
     {
+        wptr.throwIfDeleted();
         item->error(key, err.code());
         return err;
     })
-    .then([this, key, item](ReqResult result) -> promise::Promise<void>
+    .then([wptr, this, key, item](ReqResult result) -> promise::Promise<void>
     {
+        wptr.throwIfDeleted();
         auto rsakey = result->getPassword();
         size_t keylen;
         if (!rsakey || ((keylen = strlen(rsakey)) < 1))
