@@ -440,18 +440,21 @@ void MegaChatApiTest::TEST_resumeSession()
 
 
     // ___ Disconnect from chat server and reconnect ___
-    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_DISCONNECT]; *flag = false;
-    megaChatApi[0]->disconnect();
-    assert(waitForResponse(flag));
-    assert(!lastError[0]);
-    // reconnect
-    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
-    megaChatApi[0]->connect();
-    assert(waitForResponse(flag));
-    assert(!lastError[0]);
-    // check there's a list of chats already available
-    list = megaChatApi[0]->getChatListItems();
-    assert(list->size());
+    for (int i = 0; i < 5; i++)
+    {
+        flag = &requestFlagsChat[0][MegaChatRequest::TYPE_DISCONNECT]; *flag = false;
+        megaChatApi[0]->disconnect();
+        assert(waitForResponse(flag));
+        assert(!lastError[0]);
+        // reconnect
+        flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
+        megaChatApi[0]->connect();
+        assert(waitForResponse(flag));
+        assert(!lastError[0]);
+        // check there's a list of chats already available
+        list = megaChatApi[0]->getChatListItems();
+        assert(list->size());
+    }
 
     logout(0, true);
     delete [] session; session = NULL;
