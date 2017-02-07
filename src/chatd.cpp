@@ -535,7 +535,7 @@ HistSource Chat::getHistory(unsigned count)
             for (Idx i = mNextHistFetchIdx; i > fetchEnd; i--)
             {
                 auto& msg = at(i);
-                CALL_LISTENER(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), kHistSourceRam);
+                CALL_LISTENER(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), true);
             }
             countSoFar = mNextHistFetchIdx - fetchEnd;
             mNextHistFetchIdx -= countSoFar;
@@ -555,10 +555,11 @@ HistSource Chat::getHistory(unsigned count)
         CALL_LISTENER(onHistoryDone, source);
         return source;
     }
-    else
+    if (nextSource == kHistSourceDb)
     {
-        return nextSource;
+        CALL_LISTENER(onHistoryDone, kHistSourceDb);
     }
+    return nextSource;
 }
 
 HistSource Chat::getHistoryFromDbOrServer(unsigned count)
