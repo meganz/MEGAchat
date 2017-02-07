@@ -121,7 +121,7 @@ struct UserAttrCacheItem
  * User attribute cache, prividing notifications when an attribute is changed
  */
 class UserAttrCache: public std::map<UserAttrPair, std::shared_ptr<UserAttrCacheItem>>,
-                     public mega::MegaGlobalListener
+                     public mega::MegaGlobalListener, public karere::DeleteTrackable
 {
 protected:
     Client& mClient;

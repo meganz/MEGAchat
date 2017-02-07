@@ -866,8 +866,6 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     setInitState(kInitTerminating);
     api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
-    KR_LOG_INFO("Doing final COMMIT to database");
-    commit();
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
@@ -875,8 +873,17 @@ promise::Promise<void> Client::terminate(bool deleteDb)
 #endif
 
     return disconnect()
+    .fail([](const promise::Error& err)
+    {
+        KR_LOG_ERROR("Error disconnecting client: %s", err.toString().c_str());
+        return promise::_Void();
+    })
     .then([this, deleteDb]()
     {
+        mUserAttrCache.reset();
+        KR_LOG_INFO("Doing final COMMIT to database");
+        commit();
+
         if (deleteDb && !mSid.empty())
         {
             wipeDb(mSid);
