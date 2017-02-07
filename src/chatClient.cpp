@@ -382,6 +382,7 @@ void Client::initWithDbSession(const char* sid)
 
         loadOwnKeysFromDb();
         contactList->loadFromDb();
+        mContactsLoaded = true;
         chatd.reset(new chatd::Client(mMyHandle));
         chats->loadFromDb();
     }
@@ -2332,6 +2333,7 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
         auto room = mClist.client.chats->addRoom(*list.get(0));
         if (!room)
             return promise::Error("API created an incorrect 1on1 room");
+        room->connect();
         return room;
     });
 }
