@@ -143,7 +143,8 @@ void Client::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preas
     //we don't want to initiate websocket reconnect from within a websocket callback
     marshallCall([&self, track, reason, errcode, errtype]()
     {
-        track.throwIfDeleted();
+        if (track.deleted())
+            return;
         self.onSocketClose(errcode, errtype, reason);
     });
 }
