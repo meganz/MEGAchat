@@ -95,7 +95,8 @@ public:
     virtual void connect() = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const char* url,
-             unsigned char shard, chatd::Priv ownPriv, const std::string& aTitle=std::string());
+             unsigned char shard, chatd::Priv ownPriv, uint32_t ts,
+             const std::string& aTitle=std::string());
 
     virtual ~ChatRoom(){}
 
@@ -207,7 +208,8 @@ protected:
     friend class Contact;
     friend class ChatRoomList;
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* url,
-            unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
+            unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
+            chatd::Priv peerPriv, uint32_t ts);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room, Contact& contact);
     ~PeerChatRoom();
     //@endcond
@@ -309,7 +311,8 @@ public:
     friend class Client;
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* aUrl,
-                  unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
+                  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
+                  const std::string& title);
     ~GroupChatRoom();
 public:
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);

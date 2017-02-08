@@ -223,8 +223,6 @@ public:
             text.append(tr("Chat handle: ")).append(QString::fromStdString(karere::Id(mContact.chatRoom()->chatid()).toString()));
         else
             text.append(tr("You have never chatted with this person"));
-//        auto now = time(NULL);
-//        text.append(tr("\nFriends since: ")).append(prettyInterval(now-contact.since())).append(lf);
         setToolTip(text);
     }
     virtual promise::Promise<ChatWindow*> showChatWindow()

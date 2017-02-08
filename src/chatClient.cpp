@@ -971,10 +971,10 @@ promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
 
 ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
   const char* aUrl, unsigned char aShard, chatd::Priv aOwnPriv,
-  const std::string& aTitle)
+  uint32_t ts, const std::string& aTitle)
    :parent(aParent), mChatid(chatid), mUrl(aUrl ? aUrl : std::string()),
     mShardNo(aShard), mIsGroup(aIsGroup),
-    mOwnPriv(aOwnPriv), mTitleString(aTitle)
+    mOwnPriv(aOwnPriv), mTitleString(aTitle), mLastMsgTs(ts)
 {}
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
@@ -1071,8 +1071,8 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     const char* aUrl, unsigned char aShard,
-    chatd::Priv aOwnPriv, const std::string& title)
-:ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv, title),
+    chatd::Priv aOwnPriv, uint32_t ts, const std::string& title)
+:ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv, ts, title),
 mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
@@ -1126,8 +1126,8 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* aUrl,
-    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv)
-:ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv), mPeer(peer),
+    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, uint32_t ts)
+:ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv, ts), mPeer(peer),
   mPeerPriv(peerPriv), mContact(*parent.client.contactList->contactFromUserId(peer)),
   mRoomGui(nullptr)
 {
@@ -1140,7 +1140,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const c
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, Contact& contact)
     :ChatRoom(parent, chat.getHandle(), false, chat.getUrl(), chat.getShard(),
-     (chatd::Priv)chat.getOwnPrivilege()),
+     (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime()),
     mPeer(getSdkRoomPeer(chat)), mPeerPriv(chatd::PRIV_RDONLY),
     mContact(contact),
     mRoomGui(nullptr)
@@ -1152,8 +1152,8 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat,
     mPeer = peers->getPeerHandle(0);
     mPeerPriv = (chatd::Priv)peers->getPeerPrivilege(0);
 
-    sqliteQuery(parent.client.db, "insert into chats(chatid, url, shard, peer, peer_priv, own_priv) values (?,?,?,?,?,?)",
-        mChatid, mUrl, mShardNo, mPeer, mPeerPriv, mOwnPriv);
+    sqliteQuery(parent.client.db, "insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created) values (?,?,?,?,?,?)",
+        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime());
 //just in case
     sqliteQuery(parent.client.db, "delete from chat_peers where chatid = ?", mChatid);
 
@@ -1299,7 +1299,6 @@ promise::Promise<void> ChatRoom::updateUrl()
         if (sUrl == mUrl)
             return;
         mUrl = sUrl;
-        sqliteQuery(parent.client.db, "update chats set url=? where chatid=?", mUrl, mChatid);
         KR_LOG_DEBUG("Updated chatroom %s url", Id(mChatid).toString().c_str());
     });
 }
@@ -1310,7 +1309,7 @@ ChatRoomList::ChatRoomList(Client& aClient)
 
 void ChatRoomList::loadFromDb()
 {
-    SqliteStmt stmt(client.db, "select chatid, url, shard, own_priv, peer, peer_priv, title from chats");
+    SqliteStmt stmt(client.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title from chats");
     while(stmt.step())
     {
         if ((stmt.intCol(3) == chatd::PRIV_NOTPRESENT) && client.skipInactiveChatrooms)
@@ -1321,17 +1320,12 @@ void ChatRoomList::loadFromDb()
             KR_LOG_WARNING("ChatRoomList: Attempted to load from db cache a chatid that is already in memory");
             continue;
         }
-        auto url = stmt.stringCol(1);
-        if (url.empty())
-        {
-            KR_LOG_WARNING("ChatRoomList::loadFromDb: Chatroom has empty URL in database");
-        }
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
-            room = new PeerChatRoom(*this, chatid, url.c_str(), stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5));
+            room = new PeerChatRoom(*this, chatid, "", stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1));
         else
-            room = new GroupChatRoom(*this, chatid, url.c_str(), stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.stringCol(6));
+            room = new GroupChatRoom(*this, chatid, "", stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6));
         emplace(chatid, room);
     }
 }
@@ -1525,7 +1519,8 @@ ChatRoomList::~ChatRoomList()
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getUrl(), aChat.getShard(),
-  (chatd::Priv)aChat.getOwnPrivilege()), mHasTitle(false), mRoomGui(nullptr)
+  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()),
+  mHasTitle(false), mRoomGui(nullptr)
 {
     auto peers = aChat.getPeerList();
     if (peers)
@@ -1541,8 +1536,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 //save to db
     auto db = parent.client.db;
     sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
-    sqliteQuery(db, "insert or replace into chats(chatid, url, shard, peer, peer_priv, own_priv) values(?,?,?,-1,0,?)",
-        mChatid, mUrl, mShardNo, mOwnPriv);
+    sqliteQuery(db,
+        "insert or replace into chats(chatid, shard, peer, peer_priv, "
+        "own_priv, ts_created) values(?,?,-1,0,?,?)",
+        mChatid, mShardNo, mOwnPriv, aChat.getCreationTime());
 
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
