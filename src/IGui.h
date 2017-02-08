@@ -206,7 +206,7 @@ public:
          * @param contents The contents of the message. May contain binary data
          * @param ts The message timestamp, as in chatd::Message::ts
          */
-        virtual void onLastMessageUpdated(uint8_t type, const std::string& data, uint32_t ts) {}
+        virtual void onLastMessageUpdated(uint8_t type, const std::string& data) {}
     };
 
     /**

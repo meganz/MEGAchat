@@ -240,7 +240,7 @@ public:
      * @param data The message contents. Note that it can contain binary data
      * @param ts The message timestamp, as in Message::ts
      */
-    virtual void onLastMessageUpdated(uint8_t type, const std::string& data, uint32_t ts) {}
+    virtual void onLastMessageUpdated(uint8_t type, const std::string& data) {}
 };
 
 class Client;
@@ -312,6 +312,13 @@ enum ServerHistFetchState
     kHistDecryptingFlag = 16,
     kHistDecryptingOld = kHistDecryptingFlag | kHistOldFlag,
     kHistDecryptingNew = kHistDecryptingFlag | 0
+};
+
+enum LastTxtMsgState: uint8_t
+{
+    kLastTxtMsgNone,
+    kLastTxtMsgFetching,
+    kLastTxtMsgHave
 };
 
 /** @brief Represents a single chatroom together with the message history.
@@ -398,9 +405,12 @@ protected:
     bool mServerOldHistCbEnabled = false;
     bool mHaveAllHistory = false;
     bool mIsDisabled = false;
-    bool mHasLastTextMsg = false;
     Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
+    // last text message stuff
+    LastTxtMsgState mLastTxtMsgState = kLastTxtMsgNone;
+    Idx mLastTxtMsgIdx = CHATD_IDX_INVALID;
+    // crypto stuff
     ICrypto* mCrypto;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
      * path of further messages to be sent is written to db, without calling encrypt().
@@ -432,6 +442,7 @@ protected:
      * of new messages may work synchronously and not be delayed.
      */
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
+    // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
@@ -761,7 +772,7 @@ public:
      * there as well (there stilll may be one, but on server, not fetched),
      * an empty string will be returned.
      */
-    uint8_t lastTextMessage(std::string& data, uint32_t& ts);
+    uint8_t lastTextMessage(std::string& data);
 
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
@@ -925,7 +936,7 @@ public:
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
-    virtual uint8_t getLastNonMgmtMessage(Idx from, Buffer& buf, uint32_t& ts) = 0;
+    virtual uint8_t getLastNonMgmtMessage(Idx from, std::string& buf, Idx& ts) = 0;
     virtual ~DbInterface(){}
 };
 

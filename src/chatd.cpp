@@ -950,6 +950,13 @@ void Chat::onFetchHistDone()
         if (mLastSeenIdx == CHATD_IDX_INVALID)
             CALL_LISTENER(onUnreadChanged);
     }
+
+    // handle last text message fetching
+    if (mLastTxtMsgState == kLastTxtMsgFetching)
+    {
+        CHATID_LOG_DEBUG("No text message seen yet, fetching more history from server");
+        getHistory(16);
+    }
 }
 
 void Chat::loadAndProcessUnsent()
@@ -2119,8 +2126,12 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
         CALL_LISTENER(onUnreadChanged);
 
-    if (!mHasLastTextMsg && !msg.isManagementMessage())
-        onLastTextMsgUpdated(msg);
+    //handle last text message
+    if (!msg.isManagementMessage())
+    {
+        if ((mLastTxtMsgState != kLastTxtMsgHave) || (idx > mLastTxtMsgIdx))
+            onLastTextMsgUpdated(msg);
+    }
 }
 
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
@@ -2235,35 +2246,58 @@ void Chat::onLastTextMsgUpdated(const Message& msg)
 {
     if (!msg.buf())
         return;
-    mHasLastTextMsg = true;
-    CALL_LISTENER(onLastMessageUpdated, msg.type, std::string(msg.buf(), msg.dataSize()), msg.ts);
+    mLastTxtMsgState = kLastTxtMsgHave;
+    CALL_LISTENER(onLastMessageUpdated, msg.type, std::string(msg.buf(), msg.dataSize()));
 }
 
-uint8_t Chat::lastTextMessage(std::string& contents, uint32_t& ts)
+uint8_t Chat::lastTextMessage(std::string& contents)
 {
     if (empty())
-        return Message::kMsgInvalid;
-
-    auto low = lownum();
-    for (Idx i=highnum(); i >= low; i--)
     {
-        auto& msg = at(i);
-        if (!msg.isManagementMessage())
+        if (mHaveAllHistory)
+            return Message::kMsgInvalid;
+        if (mServerFetchState)
+            return 0xff;
+    }
+    else
+    {
+        //check in ram
+        auto low = lownum();
+        for (Idx i=highnum(); i >= low; i--)
         {
-            contents.assign(msg.buf(), msg.dataSize());
-            ts = msg.ts;
-            mHasLastTextMsg = true;
-            return msg.type;
+            auto& msg = at(i);
+            if (!msg.isManagementMessage())
+            {
+                contents.assign(msg.buf(), msg.dataSize());
+                mLastTxtMsgState = kLastTxtMsgHave;
+                return msg.type;
+            }
+        }
+        //check in db
+        Idx idx;
+        auto type = mDbInterface->getLastNonMgmtMessage(lownum()-1, contents, idx);
+        if (type)
+        {
+            mLastTxtMsgIdx = idx;
+            mLastTxtMsgState = kLastTxtMsgHave;
+            return type;
         }
     }
-    Buffer buf;
-    auto type = mDbInterface->getLastNonMgmtMessage(lownum()-1, buf, ts);
-    if (type)
+
+    //we are empty or there is no text messsage in ram or db - fetch from server
+    HistSource src;
+    do
     {
-        contents.assign(buf.buf(), buf.dataSize());
-        mHasLastTextMsg = true;
+        src = getHistory(16);
+        if (src == kHistSourceNone)
+        {
+            CHATID_LOG_ERROR("getLastTextMsg: We should have more history on server, but getHistory() never returned kHistSourceServer");
+            return Message::kMsgInvalid;
+        }
     }
-    return type;
+    while(src != kHistSourceServer);
+    mLastTxtMsgState = kLastTxtMsgFetching;
+    return 0xff;
 }
 
 void Chat::sendTypingNotification()

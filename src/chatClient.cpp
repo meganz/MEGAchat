@@ -1728,12 +1728,12 @@ void PeerChatRoom::onUserLeave(Id userid)
     KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
 }
 
-void ChatRoom::onLastMessageUpdated(uint8_t type, const std::string& data, uint32_t ts)
+void ChatRoom::onLastMessageUpdated(uint8_t type, const std::string& data)
 {
     auto display = roomGui();
     if (!display)
         return;
-    display->onLastMessageUpdated(type, data, ts);
+    display->onLastMessageUpdated(type, data);
 }
 
 //chatd notification

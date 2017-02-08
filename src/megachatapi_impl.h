@@ -247,7 +247,7 @@ public:
     // karere::IApp::IListItem::IChatListItem implementation
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
-    virtual void onLastMessageUpdated(uint8_t type, const std::string& data, uint32_t ts);
+    virtual void onLastMessageUpdated(uint8_t type, const std::string& data);
 //    virtual void onLastMessageUpdated(const chatd::Message& msg, chatd::Message::Status status, chatd::Idx idx);
 
     virtual const karere::ChatRoom& getChatRoom() const;
