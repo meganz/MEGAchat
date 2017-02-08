@@ -53,7 +53,7 @@ enum HistSource
     kHistSourceRam = 1, //< History is being retrieved from the history buffer in RAM
     kHistSourceDb = 2, //<History is being retrieved from the local DB
     kHistSourceServer = 3, //< History is being retrieved from the server
-//    kHistSourceMask = 3
+    kHistSourceServerOffline = 4 //< History has to be fetched from server, but we are offline
 };
 
 class DbInterface;
@@ -328,7 +328,7 @@ enum LastTxtMsgState: uint8_t
  * The history buffer can grow in two directions and is always contiguous, i.e.
  * there are no "holes".
  */
-class Chat
+class Chat: public karere::DeleteTrackable
 {
 ///@cond PRIVATE
 public:
@@ -414,6 +414,7 @@ protected:
     // last text message stuff
     LastTxtMsgState mLastTxtMsgState = kLastTxtMsgNone;
     Idx mLastTxtMsgIdx = CHATD_IDX_INVALID;
+    karere::Id mLastTxtMsgXid;
     // crypto stuff
     ICrypto* mCrypto;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
@@ -521,6 +522,7 @@ public:
     /** @brief Whether we have any messages in the history buffer */
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
     bool isDisabled() const { return mIsDisabled; }
+    bool isFirstJoin() const { return mIsFirstJoin; }
     void disable(bool state) { mIsDisabled = state; }
     /** The index of the oldest decrypted message in the RAM history buffer.
      * This will be greater than lownum() if there are not-yet-decrypted messages
@@ -838,7 +840,8 @@ protected:
      * This may be needed when the listener is switched, in order to init the new
      * listener state */
     void replayUnsentNotifications();
-    void onLastTextMsgUpdated(const Message& msg);
+    void onLastTextMsgUpdated(const Message& msg, Idx idx); //user when receiving or having a message confirmed by server
+    void onLastTextMsgUpdated(const Message& msg); //used to immediately update when posting a new msg
 
     /**
      * @brief Initiates loading of the queue with messages that require user

@@ -992,6 +992,47 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
     if (mOwnPriv == chatd::PRIV_NOTPRESENT)
         mChat->disable(true);
 }
+void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
+{
+    if (msg.ts <= mLastMsgTs)
+        return;
+    mLastMsgTs = msg.ts;
+    callAfterInit(&std::remove_pointer<decltype(this)>::type::notifyLastMsgTsUpdated, msg.ts);
+}
+
+void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal)
+{
+    if (msg.ts <= mLastMsgTs)
+        return;
+    mLastMsgTs = msg.ts;
+    callAfterInit(&std::remove_pointer<decltype(this)>::type::notifyLastMsgTsUpdated, msg.ts);
+}
+
+template <typename... Args, typename MSig>
+void ChatRoom::callAfterInit(MSig method, Args... args)
+{
+    if (mIsInitializing)
+    {
+        auto wptr = this->weakHandle();
+        marshallCall([wptr, this, method, args...]()
+        {
+            if (wptr.deleted())
+                return;
+            (this->*method)(args...);
+        });
+    }
+    else
+    {
+        (this->*method)(args...);
+    }
+}
+
+void ChatRoom::notifyLastMsgTsUpdated(uint32_t ts)
+{
+    auto display = roomGui();
+    if (display)
+        display->onLastTsUpdated(ts);
+}
 
 void PeerChatRoom::initWithChatd()
 {
@@ -1836,10 +1877,24 @@ void PeerChatRoom::onUserLeave(Id userid)
 
 void ChatRoom::onLastMessageUpdated(uint8_t type, const std::string& data)
 {
-    auto display = roomGui();
-    if (!display)
-        return;
-    display->onLastMessageUpdated(type, data);
+    if (mIsInitializing)
+    {
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, type, data]()
+        {
+            if (wptr.deleted())
+                return;
+            auto display = roomGui();
+            if (display)
+                display->onLastMessageUpdated(type, data);
+        });
+    }
+    else
+    {
+        auto display = roomGui();
+        if (display)
+           display->onLastMessageUpdated(type, data);
+    }
 }
 
 //chatd notification
@@ -1877,7 +1932,8 @@ void ChatRoom::notifyTitleChanged()
         auto wptr = getDelTracker();
         marshallCall([this, wptr]()
         {
-            wptr.throwIfDeleted();
+            if (wptr.deleted())
+                return;
             synchronousNotifyTitleChanged();
         });
     }

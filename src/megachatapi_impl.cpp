@@ -3249,7 +3249,7 @@ MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl &chatApi, ChatR
 {
 }
 
-MegaChatListItemPrivate::MegaChatListItemPrivate(const ChatRoom &chatroom)
+MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     : MegaChatListItem()
 {
     this->chatid = chatroom.chatid();

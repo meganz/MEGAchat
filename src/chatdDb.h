@@ -261,7 +261,7 @@ public:
         stmt << mMessages.chatId() << mMessages.client().userId();
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
-        stmt.step();
+        stmt.stepMustHaveData("get peer msg count");
         return stmt.intCol(0);
     }
     virtual void saveItemToManualSending(const chatd::Chat::SendingItem& item, int reason)
@@ -346,7 +346,7 @@ public:
     }
     virtual uint8_t getLastNonMgmtMessage(chatd::Idx from, std::string& buf, chatd::Idx& idx)
     {
-        SqliteStmt stmt(mDb, "select type, idx, data from history where chatid=? and (type=1 or type >= 16) and (idx <= from) order by idx desc limit 1");
+        SqliteStmt stmt(mDb, "select type, idx, data from history where chatid=? and (type=1 or type >= 16) and (idx <= ?) order by idx desc limit 1");
         stmt << mMessages.chatId() << from;
         if (!stmt.step())
             return chatd::Message::kMsgInvalid;

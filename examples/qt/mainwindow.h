@@ -175,6 +175,15 @@ public:
     }
     CListChatItem(QWidget* parent): CListItem(parent){}
     virtual void onVisibilityChanged(int newVisibility) {}
+    virtual void onLastMessageUpdated(uint8_t type, const std::string& contents)
+    {
+        GUI_LOG_DEBUG("%s: onLastMessageUpdated: %s", karere::Id(room().chatid()).toString().c_str(), contents.c_str());
+    }
+    virtual void onLastTsUpdated(uint32_t ts)
+    {
+        GUI_LOG_DEBUG("%s: onLastTsUpdated: %u", karere::Id(room().chatid()).toString().c_str(), ts);
+    }
+
 //==
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
     {

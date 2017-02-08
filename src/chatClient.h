@@ -64,6 +64,7 @@ protected:
     chatd::Chat* mChat = nullptr;
     bool mIsInitializing = true;
     std::string mTitleString;
+    uint32_t mLastMsgTs;
     void notifyTitleChanged();
     void synchronousNotifyTitleChanged();
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
@@ -72,6 +73,9 @@ protected:
     void notifyExcludedFromChat();
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv priv);
+    void notifyLastMsgTsUpdated(uint32_t ts);
+    template <typename... Args, typename MSig=void(ChatRoom::*)(Args...)>
+    void callAfterInit(MSig method, Args... args);
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
@@ -166,6 +170,8 @@ public:
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onLastMessageUpdated(uint8_t type, const std::string& data);
+    virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
+    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal);
     virtual void onExcludedFromRoom() {}
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
     {

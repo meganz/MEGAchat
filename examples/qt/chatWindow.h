@@ -495,7 +495,6 @@ public:
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
     {
-        mRoom.onRecvNewMessage(idx, msg, status);
         if (msg.empty())
             return;
         auto sbar = ui.mMessageList->verticalScrollBar();
@@ -576,6 +575,10 @@ public:
         auto widget = widgetFromMessage(msg);
         if (widget)
             widget->updateStatus(newStatus);
+    }
+    virtual void onLastMessageUpdated(uint8_t type, const std::string& data)
+    {
+        mRoom.onLastMessageUpdated(type, data);
     }
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx)
     {

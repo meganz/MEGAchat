@@ -584,6 +584,9 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
         }
         else
         {
+            if (!mConnection.isOnline())
+                return kHistSourceServerOffline;
+
             CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
             requestHistoryFromServer(-count);
         }
@@ -593,6 +596,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 
 void Chat::requestHistoryFromServer(int32_t count)
 {
+    assert(mConnection.isOnline());
     mLastServerHistFetchCount = mLastHistDecryptCount = 0;
     mServerFetchState = (count > 0)
         ? kHistFetchingNewFromServer
@@ -942,6 +946,11 @@ void Chat::onFetchHistDone()
             mHaveAllHistory = true;
             CALL_DB(setHaveAllHistory);
             CHATID_LOG_DEBUG("Start of history reached");
+            //last text msg stuff
+            if (mLastTxtMsgState == kLastTxtMsgFetching)
+            {
+                mLastTxtMsgState = kLastTxtMsgNone;
+            }
         }
     }
     else
@@ -965,6 +974,7 @@ void Chat::onFetchHistDone()
     // handle last text message fetching
     if (mLastTxtMsgState == kLastTxtMsgFetching)
     {
+        assert(!mHaveAllHistory); //if we reach start of history, mLastTxtMsgState will be set to None
         CHATID_LOG_DEBUG("No text message seen yet, fetching more history from server");
         getHistory(16);
     }
@@ -978,6 +988,10 @@ void Chat::loadAndProcessUnsent()
         return;
     mNextUnsent = mSending.begin();
     replayUnsentNotifications();
+
+    //last text message stuff
+    auto& last = *mSending.back().msg;
+    onLastTextMsgUpdated(last);
 }
 
 void Chat::resetListenerState()
@@ -1075,6 +1089,12 @@ void Chat::msgSubmit(Message* msg)
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
     msgEncryptAndSend(msg, OP_NEWMSG);
+
+    // last text msg stuff
+    if (!msg->isManagementMessage())
+    {
+        onLastTextMsgUpdated(*msg);
+    }
 }
 
 void Chat::createMsgBackRefs(Message& msg)
@@ -1108,7 +1128,6 @@ void Chat::createMsgBackRefs(Message& msg)
         Idx back =  (range > 1)
             ? (start + (distrib(rd) % range))
             : (start);
-//        printf("back = %d\n", back);
         uint64_t backref = (back < (Idx)mSending.size()) //reference a not-yet confirmed message
             ? (sendingIdx[mSending.size()-1-back]->msg->backRefId)
             : (at(highnum()-(back-mSending.size())).backRefId);
@@ -1521,11 +1540,6 @@ bool Chat::flushOutputQueue(bool fromStart)
         if ((mNextUnsent->recipients != mUsers) && !mNextUnsent->isEdit())
         {
             assert(!mNextUnsent->recipients.empty());
-            for (auto user: mUsers)
-                printf("user: %s\n", user.toString().c_str());
-            for (auto user: mNextUnsent->recipients)
-                printf("msg user: %s\n", user.toString().c_str());
-
             auto erased = mNextUnsent;
             mNextUnsent++;
             moveItemToManualSending(erased, kManualSendUsersChanged);
@@ -1676,6 +1690,17 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         }
     }
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
+
+    // last text message stuff
+    if (mLastTxtMsgIdx == CHATD_IDX_INVALID)
+    {
+        if (mLastTxtMsgXid != msgxid) //avoid double notification
+            onLastTextMsgUpdated(*msg, idx);
+    }
+    else if (idx > mLastTxtMsgIdx)
+    {
+        onLastTextMsgUpdated(*msg, idx);
+    }
     return idx;
 }
 
@@ -1887,7 +1912,6 @@ void Chat::deleteMessagesBefore(Idx idx)
     //delete everything before idx, but not including idx
     if (idx > mForwardStart)
     {
-        printf("deleteMessages before: all backward %d, mForwardStart = %u\n", idx, mForwardStart);
         mBackwardList.clear();
         auto delCount = idx-mForwardStart;
         mForwardList.erase(mForwardList.begin(), mForwardList.begin()+delCount);
@@ -1895,7 +1919,6 @@ void Chat::deleteMessagesBefore(Idx idx)
     }
     else
     {
-        printf("deleteMessages before: partial backward %d\n", idx);
         mBackwardList.erase(mBackwardList.begin()+mForwardStart-idx, mBackwardList.end());
     }
 }
@@ -2140,8 +2163,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     //handle last text message
     if (!msg.isManagementMessage())
     {
-        if ((mLastTxtMsgState != kLastTxtMsgHave) || (idx > mLastTxtMsgIdx))
-            onLastTextMsgUpdated(msg);
+        if ((mLastTxtMsgState != kLastTxtMsgHave) //we don't have any last-text-msg yet, just use any
+        || (mLastTxtMsgIdx == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
+        || (idx > mLastTxtMsgIdx)) //we have a newer message
+            onLastTextMsgUpdated(msg, idx);
     }
 }
 
@@ -2227,17 +2252,32 @@ void Chat::onJoinComplete()
     }
     mUserDump.clear();
 
+    flushOutputQueue(true); //flush encrypted messages
+
+    if (mNextUnsent != mSending.end() && !mNextUnsent->msgCmd)
+    {
+        //there are unencrypted messages still, kickstart encryption
+        msgEncryptAndSend(mNextUnsent->msg, mNextUnsent->opcode(), &(*mNextUnsent));
+    }
     setOnlineState(kChatStateOnline);
     if (mIsFirstJoin)
     {
         mIsFirstJoin = false;
-    }
-    flushOutputQueue(true);
-    if (mNextUnsent != mSending.end() && !mNextUnsent->msgCmd)
-    {
-        msgEncryptAndSend(mNextUnsent->msg, mNextUnsent->opcode(), &(*mNextUnsent));
+        auto wptr = weakHandle();
+        marshallCall([wptr, this]()
+        {
+            if (wptr.deleted())
+                return;
+            std::string data;
+            auto type = lastTextMessage(data);
+            if (type && (type < 0xfe))
+            {
+                CALL_LISTENER(onLastMessageUpdated, type, data);
+            }
+        });
     }
 }
+
 void Chat::resetGetHistory()
 {
     mNextHistFetchIdx = CHATD_IDX_INVALID;
@@ -2253,16 +2293,45 @@ void Chat::setOnlineState(ChatState state)
     CALL_LISTENER(onOnlineStateChange, state);
 }
 
-void Chat::onLastTextMsgUpdated(const Message& msg)
+void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
 {
+    assert(!msg.isSending());
     if (!msg.buf())
         return;
+    mLastTxtMsgIdx = idx;
+    mLastTxtMsgState = kLastTxtMsgHave;
+    CALL_LISTENER(onLastMessageUpdated, msg.type, std::string(msg.buf(), msg.dataSize()));
+}
+
+void Chat::onLastTextMsgUpdated(const Message& msg)
+{
+    assert(msg.isSending());
+    if (!msg.buf())
+        return;
+    mLastTxtMsgIdx = CHATD_IDX_INVALID;
+    mLastTxtMsgXid = msg.id();
     mLastTxtMsgState = kLastTxtMsgHave;
     CALL_LISTENER(onLastMessageUpdated, msg.type, std::string(msg.buf(), msg.dataSize()));
 }
 
 uint8_t Chat::lastTextMessage(std::string& contents)
 {
+    if (!mSending.empty())
+    {
+        for (auto& item: mSending)
+        {
+            assert(item.msg);
+            auto& msg = *item.msg;
+            if (msg.isManagementMessage())
+            {
+                contents.assign(msg.buf(), msg.dataSize());
+                mLastTxtMsgState = kLastTxtMsgHave;
+                mLastTxtMsgIdx = CHATD_IDX_INVALID;
+                mLastTxtMsgXid = msg.id();
+                return msg.type;
+            }
+        }
+    }
     if (empty())
     {
         if (mHaveAllHistory)
@@ -2280,6 +2349,7 @@ uint8_t Chat::lastTextMessage(std::string& contents)
             if (!msg.isManagementMessage())
             {
                 contents.assign(msg.buf(), msg.dataSize());
+                mLastTxtMsgIdx = i;
                 mLastTxtMsgState = kLastTxtMsgHave;
                 return msg.type;
             }
@@ -2304,6 +2374,11 @@ uint8_t Chat::lastTextMessage(std::string& contents)
         {
             CHATID_LOG_ERROR("getLastTextMsg: We should have more history on server, but getHistory() never returned kHistSourceServer");
             return Message::kMsgInvalid;
+        }
+        else if (src == kHistSourceServerOffline)
+        {
+            CHATID_LOG_DEBUG("getLastTextMsg: Can't get more history, we are offline");
+            return 0xfe;
         }
     }
     while(src != kHistSourceServer);
