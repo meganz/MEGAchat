@@ -1340,7 +1340,13 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     }
     else
     {
-        if (apiRoom.getPeerList()->size() != 1)
+        auto peers = apiRoom.getPeerList();
+        if (!peers)
+        {
+            KR_LOG_WARNING("addRoom: Ignoring 1on1 room %s with no peers", Id(apiRoom.getHandle()).toString().c_str());
+            return nullptr;
+        }
+        if (peers->size() != 1)
         {
             KR_LOG_ERROR("addRoom: Trying to load a 1on1 room %s with more than one peer, ignoring room", Id(apiRoom.getHandle()).toString().c_str());
             return nullptr;
