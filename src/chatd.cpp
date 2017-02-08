@@ -675,7 +675,14 @@ Idx Chat::getHistoryFromDb(unsigned count)
     {
         msgIncoming(false, msg, true); //increments mLastHistFetch/DecryptCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid
     }
-    mNextHistFetchIdx -= messages.size();
+    if (mNextHistFetchIdx == CHATD_IDX_INVALID)
+    {
+        mNextHistFetchIdx = mForwardStart - 1 - messages.size();
+    }
+    else
+    {
+        mNextHistFetchIdx -= messages.size();
+    }
     CALL_LISTENER(onHistoryDone, kHistSourceDb);
 
     // If we haven't yet seen the message with the last-seen msgid, then all messages
@@ -1091,7 +1098,7 @@ void Chat::msgSubmit(Message* msg)
     msgEncryptAndSend(msg, OP_NEWMSG);
 
     // last text msg stuff
-    if (!msg->isManagementMessage())
+    if (msg->isText())
     {
         onLastTextMsgUpdated(*msg);
     }
@@ -2161,7 +2168,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         CALL_LISTENER(onUnreadChanged);
 
     //handle last text message
-    if (!msg.isManagementMessage())
+    if (!msg.isText())
     {
         if ((mLastTxtMsgState != kLastTxtMsgHave) //we don't have any last-text-msg yet, just use any
         || (mLastTxtMsgIdx == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
@@ -2264,7 +2271,7 @@ void Chat::onJoinComplete()
     {
         mIsFirstJoin = false;
         auto wptr = weakHandle();
-        marshallCall([wptr, this]()
+        marshallCall([wptr, this]() //prevent re-entrancy
         {
             if (wptr.deleted())
                 return;
@@ -2300,7 +2307,7 @@ void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
         return;
     mLastTxtMsgIdx = idx;
     mLastTxtMsgState = kLastTxtMsgHave;
-    CALL_LISTENER(onLastMessageUpdated, msg.type, std::string(msg.buf(), msg.dataSize()));
+    CALL_LISTENER(onLastMessageUpdated, msg.type, msg.toText());
 }
 
 void Chat::onLastTextMsgUpdated(const Message& msg)
@@ -2311,7 +2318,7 @@ void Chat::onLastTextMsgUpdated(const Message& msg)
     mLastTxtMsgIdx = CHATD_IDX_INVALID;
     mLastTxtMsgXid = msg.id();
     mLastTxtMsgState = kLastTxtMsgHave;
-    CALL_LISTENER(onLastMessageUpdated, msg.type, std::string(msg.buf(), msg.dataSize()));
+    CALL_LISTENER(onLastMessageUpdated, msg.type, msg.toText());
 }
 
 uint8_t Chat::lastTextMessage(std::string& contents)
@@ -2322,12 +2329,13 @@ uint8_t Chat::lastTextMessage(std::string& contents)
         {
             assert(item.msg);
             auto& msg = *item.msg;
-            if (msg.isManagementMessage())
+            if (!msg.isText())
             {
                 contents.assign(msg.buf(), msg.dataSize());
                 mLastTxtMsgState = kLastTxtMsgHave;
                 mLastTxtMsgIdx = CHATD_IDX_INVALID;
                 mLastTxtMsgXid = msg.id();
+                CHATID_LOG_DEBUG("lastTextMessage: Text message found in send queue");
                 return msg.type;
             }
         }
@@ -2335,9 +2343,14 @@ uint8_t Chat::lastTextMessage(std::string& contents)
     if (empty())
     {
         if (mHaveAllHistory)
+        {
+            CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
             return Message::kMsgInvalid;
+        }
         if (mServerFetchState)
+        {
             return 0xff;
+        }
     }
     else
     {
@@ -2346,11 +2359,12 @@ uint8_t Chat::lastTextMessage(std::string& contents)
         for (Idx i=highnum(); i >= low; i--)
         {
             auto& msg = at(i);
-            if (!msg.isManagementMessage())
+            if (msg.isText())
             {
                 contents.assign(msg.buf(), msg.dataSize());
                 mLastTxtMsgIdx = i;
                 mLastTxtMsgState = kLastTxtMsgHave;
+                CHATID_LOG_DEBUG("lastTextMessage: Text message found in RAM");
                 return msg.type;
             }
         }
@@ -2361,6 +2375,7 @@ uint8_t Chat::lastTextMessage(std::string& contents)
         {
             mLastTxtMsgIdx = idx;
             mLastTxtMsgState = kLastTxtMsgHave;
+            CHATID_LOG_DEBUG("lastTextMessage: Text message found in DB");
             return type;
         }
     }
@@ -2383,6 +2398,7 @@ uint8_t Chat::lastTextMessage(std::string& contents)
     }
     while(src != kHistSourceServer);
     mLastTxtMsgState = kLastTxtMsgFetching;
+    CHATID_LOG_DEBUG("lastTextMessage: No text message found locally, fetching more history from server");
     return 0xff;
 }
 

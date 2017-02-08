@@ -57,15 +57,19 @@ class Message: public Buffer
 public:
     enum: uint8_t
     {
-        kMsgInvalid = 0,
-        kMsgNormal = 1,
-        kMsgManagementLowest = 2,
-        kMsgAlterParticipants = 2,
-        kMsgTruncate = 3,
-        kMsgPrivChange = 4,
-        kMsgChatTitle = 5,
-        kMsgManagementHighest = 5,
-        kMsgUserFirst = 16
+        kMsgInvalid           = 0x00,
+        kMsgNormal            = 0x01,
+        kMsgManagementLowest  = 0x02,
+        kMsgAlterParticipants = 0x02,
+        kMsgTruncate          = 0x03,
+        kMsgPrivChange        = 0x04,
+        kMsgChatTitle         = 0x05,
+        kMsgManagementHighest = 0x05,
+        kMsgUserFirst         = 0x10,
+        kMsgAttachment        = 0x10,
+        kMsgRevokeAttachment  = 0x11,
+        kMsgContact           = 0x12
+
     };
     enum Status
     {
@@ -180,6 +184,18 @@ public:
 
     /** @brief Returns whether this message is a management message. */
     bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
+    bool isText() const
+    {
+        return type == kMsgNormal || type == kMsgAttachment
+            || type == kMsgRevokeAttachment || type == kMsgContact;
+    }
+
+    /** @brief Convert attachment etc. special messages to text */
+    std::string toText() const
+
+    {
+        return std::string(buf(), dataSize());
+    }
 
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
