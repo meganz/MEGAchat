@@ -11,9 +11,9 @@
 #include <deque>
 #include <base/promise.h>
 #include <base/timers.hpp>
+#include <base/trackDelete.h>
 #include "chatdMsg.h"
 #include "url.h"
-
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
@@ -245,7 +245,8 @@ public:
 
 class Client;
 
-class Connection
+// need DeleteTrackable for graceful disconnect timeout
+class Connection: public karere::DeleteTrackable
 {
 public:
     enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected };
@@ -260,6 +261,7 @@ protected:
     int mInactivityBeats = 0;
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
+    promise::Promise<void> mDisconnectPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
     State state() { return mState; }
     bool isOnline() const
@@ -271,7 +273,7 @@ protected:
         size_t reason_len, void *arg);
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
-    void disconnect();
+    promise::Promise<void> disconnect(int timeoutMs=2000);
     void enableInactivityTimer();
     void disableInactivityTimer();
     void reset();
@@ -398,9 +400,11 @@ protected:
     karere::Id mNewestKnownMsgId;
     unsigned mLastServerHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
     unsigned mLastHistDecryptCount = 0; ///< Similar to mLastServerHistFetchCount, but reflects the current number of message passed through the decrypt process, which may be less than mLastServerHistFetchCount at a given moment
+
     /** @brief The state of history fetching from server */
     ServerHistFetchState mServerFetchState = kHistNotFetching;
-    /** @brief @The state of history sending to the app via getHistory() */
+
+    /** @brief Whether we have more not-loaded history in db */
     bool mHasMoreHistoryInDb = false;
     bool mServerOldHistCbEnabled = false;
     bool mHaveAllHistory = false;
@@ -549,7 +553,7 @@ public:
 
     /** @brief Get the seen/received status of a message. Both the message object
      * and its index in the history buffer must be provided */
-    Message::Status getMsgStatus(const Message& msg, Idx idx);
+    Message::Status getMsgStatus(const Message& msg, Idx idx) const;
 
     /** @brief Contains all not-yet-confirmed edits of messages.
       *  This can be used by the app to replace the text of messages who have
@@ -663,7 +667,7 @@ public:
      *  If no such message exists in the RAM history buffer, CHATD_IDX_INVALID
      * is returned
      */
-    Idx msgIndexFromId(karere::Id msgid)
+    Idx msgIndexFromId(karere::Id msgid) const
     {
         auto it = mIdToIndexMap.find(msgid);
         return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;
@@ -884,8 +888,7 @@ public:
         Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
-    void connect();
-    void disconnect();
+    promise::Promise<void> disconnect();
     friend class Connection;
     friend class Chat;
 };

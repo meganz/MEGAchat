@@ -192,7 +192,9 @@ void MegaChatApiImpl::sendPendingRequests()
         if (!mClient && request->getType() != MegaChatRequest::TYPE_DELETE)
         {
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
+            API_LOG_WARNING("Chat engine not initialized yet, cannot process the request");
             fireOnChatRequestFinish(request, megaChatError);
+            continue;
         }
 
         switch (request->getType())
@@ -257,6 +259,7 @@ void MegaChatApiImpl::sendPendingRequests()
             else
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
+                API_LOG_WARNING("Logout attempt without previous initialization");
                 fireOnChatRequestFinish(request, megaChatError);
             }
             break;
@@ -2713,12 +2716,13 @@ void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id,
 MegaChatErrorPrivate::MegaChatErrorPrivate(const string &msg, int code, int type)
     : promise::Error(msg, code, type)
 {
-
+    this->setHandled();
 }
 
 MegaChatErrorPrivate::MegaChatErrorPrivate(int code, int type)
     : promise::Error(MegaChatErrorPrivate::getGenericErrorString(code), code, type)
 {
+    this->setHandled();
 }
 
 const char* MegaChatErrorPrivate::getGenericErrorString(int errorCode)
@@ -2739,7 +2743,7 @@ const char* MegaChatErrorPrivate::getGenericErrorString(int errorCode)
 MegaChatErrorPrivate::MegaChatErrorPrivate(const MegaChatErrorPrivate *error)
     : promise::Error(error->getErrorString(), error->getErrorCode(), error->getErrorType())
 {
-
+    this->setHandled();
 }
 
 int MegaChatErrorPrivate::getErrorCode() const
@@ -2834,7 +2838,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->uh = chat->getUserTyping();
 }
 
-MegaChatRoomPrivate::MegaChatRoomPrivate(const karere::ChatRoom &chat)
+MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
 {
     this->changed = 0;
     this->chatid = chat.chatid();
@@ -3245,7 +3249,7 @@ MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl &chatApi, ChatR
 {
 }
 
-MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
+MegaChatListItemPrivate::MegaChatListItemPrivate(const ChatRoom &chatroom)
     : MegaChatListItem()
 {
     this->chatid = chatroom.chatid();
