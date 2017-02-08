@@ -71,6 +71,7 @@ protected:
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
     void notifyRejoinedChat();
+    bool syncOwnPriv(chatd::Priv priv);
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
@@ -191,7 +192,6 @@ protected:
     friend class ContactList;
     IApp::IPeerChatListItem* addAppItem();
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
-    bool syncOwnPriv(chatd::Priv priv);
     bool syncPeerPriv(chatd::Priv priv);
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     void notifyPresenceChange(Presence pres);

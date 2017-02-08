@@ -1138,7 +1138,7 @@ uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
     return peers.getPeerHandle(0);
 }
 
-bool PeerChatRoom::syncOwnPriv(chatd::Priv priv)
+bool ChatRoom::syncOwnPriv(chatd::Priv priv)
 {
     if (mOwnPriv == priv)
         return false;
@@ -1796,14 +1796,25 @@ void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
     if (userid == parent.client.myHandle())
-        return;
-    addMember(userid, privilege, false);
+    {
+        syncOwnPriv(privilege);
+    }
+    else
+    {
+        addMember(userid, privilege, false);
+    }
     if (mRoomGui)
+    {
         mRoomGui->onUserJoin(userid, privilege);
+    }
 }
 
 void GroupChatRoom::onUserLeave(Id userid)
 {
+    //TODO: We should handle leaving from the chatd event, not from API.
+    if (userid == parent.client.myHandle())
+        return;
+
     removeMember(userid);
     if (mRoomGui)
         mRoomGui->onUserLeave(userid);
