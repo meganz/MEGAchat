@@ -193,14 +193,15 @@ public:
     /** @brief Convert attachment etc. special messages to text */
     std::string toText() const
     {
+        if (empty())
+            return std::string();
+
         if (type == kMsgNormal)
             return std::string(buf(), dataSize());
-        else
-        {
-            //special messages have a 2-byte binary prefix
-            assert(dataSize() > 2);
-            return std::string(buf()+2, dataSize()-2);
-        }
+
+        //special messages have a 2-byte binary prefix
+        assert(dataSize() > 2);
+        return std::string(buf()+2, dataSize()-2);
     }
 
     /** @brief Throws an exception if this is not a management message. */
