@@ -483,6 +483,7 @@ void Chat::join()
 {
 //We don't have any local history, otherwise joinRangeHist() would be called instead of this
 //Reset handshake state, as we may be reconnecting
+    assert(mConnection.isOnline());
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
     mServerFetchState = kHistNotFetching;
@@ -997,8 +998,14 @@ void Chat::loadAndProcessUnsent()
     replayUnsentNotifications();
 
     //last text message stuff
-    auto& last = *mSending.back().msg;
-    onLastTextMsgUpdated(last);
+    for (auto it = mSending.rbegin(); it!=mSending.rend(); it++)
+    {
+        if (it->msg->isText())
+        {
+            onLastTextMsgUpdated(*it->msg);
+            return;
+        }
+    }
 }
 
 void Chat::resetListenerState()
@@ -1614,6 +1621,7 @@ void Chat::removeManualSend(uint64_t rowid)
 // after a reconnect, we tell the chatd the oldest and newest buffered message
 void Chat::joinRangeHist()
 {
+    assert(mConnection.isOnline());
     assert(mOldestKnownMsgId && mNewestKnownMsgId);
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
@@ -1702,7 +1710,13 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     if (mLastTxtMsgIdx == CHATD_IDX_INVALID)
     {
         if (mLastTxtMsgXid != msgxid) //avoid double notification
+        {
             onLastTextMsgUpdated(*msg, idx);
+        }
+        else
+        {
+            mLastTxtMsgIdx = idx;
+        }
     }
     else if (idx > mLastTxtMsgIdx)
     {
@@ -1826,6 +1840,14 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.type = msg->type;
             // msg.ts is zero - chatd doesn't send the original timestamp
             CALL_LISTENER(onMessageEdited, histmsg, idx);
+            //last text msg stuff
+            if (mLastTxtMsgIdx == idx && msg->type != Message::kMsgTruncate) //our last text message was edited
+            {
+                if (histmsg.isText())
+                    CALL_LISTENER(onLastTextMessageUpdated, histmsg.type, histmsg.toText());
+                else //our last text msg was deleted, find another one
+                    findAndNotifyLastTextMsg();
+            }
         }
         else
         {
@@ -1905,6 +1927,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         mHasMoreHistoryInDb = false;
     }
     CALL_LISTENER(onUnreadChanged);
+    findAndNotifyLastTextMsg();
 }
 
 Id Chat::makeRandomId()
@@ -2156,7 +2179,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     else
     {
         // old message
-        // local messages are obtained synchronously, so if isLocal,
+        // local messages are obtained on-demand, so if isLocal,
         // then always send to app
         if (isLocal || mServerOldHistCbEnabled)
         {
@@ -2168,7 +2191,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         CALL_LISTENER(onUnreadChanged);
 
     //handle last text message
-    if (!msg.isText())
+    if (msg.isText())
     {
         if ((mLastTxtMsgState != kLastTxtMsgHave) //we don't have any last-text-msg yet, just use any
         || (mLastTxtMsgIdx == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
@@ -2270,18 +2293,11 @@ void Chat::onJoinComplete()
     if (mIsFirstJoin)
     {
         mIsFirstJoin = false;
-        auto wptr = weakHandle();
-        marshallCall([wptr, this]() //prevent re-entrancy
+        if (mLastTxtMsgState == kLastTxtMsgNone)
         {
-            if (wptr.deleted())
-                return;
-            std::string data;
-            auto type = lastTextMessage(data);
-            if (type && (type < 0xfe))
-            {
-                CALL_LISTENER(onLastMessageUpdated, type, data);
-            }
-        });
+            CHATID_LOG_DEBUG("onJoinComplete: Haven't received a text message during join, getting last text message on-demand");
+            findAndNotifyLastTextMsg();
+        }
     }
 }
 
@@ -2303,33 +2319,31 @@ void Chat::setOnlineState(ChatState state)
 void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
 {
     assert(!msg.isSending());
-    if (!msg.buf())
-        return;
+    assert(!msg.empty());
     mLastTxtMsgIdx = idx;
     mLastTxtMsgState = kLastTxtMsgHave;
-    CALL_LISTENER(onLastMessageUpdated, msg.type, msg.toText());
+    CALL_LISTENER(onLastTextMessageUpdated, msg.type, msg.toText());
 }
 
 void Chat::onLastTextMsgUpdated(const Message& msg)
 {
     assert(msg.isSending());
-    if (!msg.buf())
-        return;
+    assert(!msg.empty());
     mLastTxtMsgIdx = CHATD_IDX_INVALID;
     mLastTxtMsgXid = msg.id();
     mLastTxtMsgState = kLastTxtMsgHave;
-    CALL_LISTENER(onLastMessageUpdated, msg.type, msg.toText());
+    CALL_LISTENER(onLastTextMessageUpdated, msg.type, msg.toText());
 }
 
 uint8_t Chat::lastTextMessage(std::string& contents)
 {
     if (!mSending.empty())
     {
-        for (auto& item: mSending)
+        for (auto it = mSending.rbegin(); it!= mSending.rend(); it++)
         {
-            assert(item.msg);
-            auto& msg = *item.msg;
-            if (!msg.isText())
+            assert(it->msg);
+            auto& msg = *it->msg;
+            if (msg.isText())
             {
                 contents.assign(msg.buf(), msg.dataSize());
                 mLastTxtMsgState = kLastTxtMsgHave;
@@ -2347,7 +2361,7 @@ uint8_t Chat::lastTextMessage(std::string& contents)
             CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
             return Message::kMsgInvalid;
         }
-        if (mServerFetchState)
+        if (mServerFetchState & kHistFetchingOldFromServer)
         {
             return 0xff;
         }
@@ -2370,7 +2384,7 @@ uint8_t Chat::lastTextMessage(std::string& contents)
         }
         //check in db
         Idx idx;
-        auto type = mDbInterface->getLastNonMgmtMessage(lownum()-1, contents, idx);
+        auto type = mDbInterface->getLastTextMessage(lownum()-1, contents, idx);
         if (type)
         {
             mLastTxtMsgIdx = idx;
@@ -2381,25 +2395,35 @@ uint8_t Chat::lastTextMessage(std::string& contents)
     }
 
     //we are empty or there is no text messsage in ram or db - fetch from server
-    HistSource src;
-    do
+    if (!mConnection.isOnline())
     {
-        src = getHistory(16);
-        if (src == kHistSourceNone)
-        {
-            CHATID_LOG_ERROR("getLastTextMsg: We should have more history on server, but getHistory() never returned kHistSourceServer");
-            return Message::kMsgInvalid;
-        }
-        else if (src == kHistSourceServerOffline)
-        {
-            CHATID_LOG_DEBUG("getLastTextMsg: Can't get more history, we are offline");
-            return 0xfe;
-        }
+        CHATID_LOG_DEBUG("getLastTextMsg: Can't get more history, we are offline");
+        return 0xfe;
     }
-    while(src != kHistSourceServer);
+    if (mServerFetchState & kHistFetchingOldFromServer)
+    {
+        return 0xff;
+    }
+
+    mServerOldHistCbEnabled = false;
+    requestHistoryFromServer(-16);
     mLastTxtMsgState = kLastTxtMsgFetching;
     CHATID_LOG_DEBUG("lastTextMessage: No text message found locally, fetching more history from server");
     return 0xff;
+}
+
+void Chat::findAndNotifyLastTextMsg()
+{
+    auto wptr = weakHandle();
+    marshallCall([wptr, this]() //prevent re-entrancy
+    {
+        if (wptr.deleted())
+            return;
+        std::string data;
+        auto type = lastTextMessage(data);
+        CALL_LISTENER(onLastTextMessageUpdated, type, data);
+    });
+
 }
 
 void Chat::sendTypingNotification()

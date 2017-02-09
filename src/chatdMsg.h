@@ -186,8 +186,8 @@ public:
     bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
     bool isText() const
     {
-        return type == kMsgNormal || type == kMsgAttachment
-            || type == kMsgRevokeAttachment || type == kMsgContact;
+        return !empty() && (type == kMsgNormal || type == kMsgAttachment
+            || type == kMsgRevokeAttachment || type == kMsgContact);
     }
 
     /** @brief Convert attachment etc. special messages to text */

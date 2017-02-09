@@ -344,9 +344,12 @@ public:
             return false;
         return stmt.stringCol(0) == "1";
     }
-    virtual uint8_t getLastNonMgmtMessage(chatd::Idx from, std::string& buf, chatd::Idx& idx)
+    virtual uint8_t getLastTextMessage(chatd::Idx from, std::string& buf, chatd::Idx& idx)
     {
-        SqliteStmt stmt(mDb, "select type, idx, data from history where chatid=? and (type=1 or type >= 16) and (idx <= ?) order by idx desc limit 1");
+        SqliteStmt stmt(mDb,
+            "select type, idx, data from history where chatid=? and "
+            "(type=1 or type >= 16) and (idx <= ?) and length(data) > 0 "
+            "order by idx desc limit 1");
         stmt << mMessages.chatId() << from;
         if (!stmt.step())
             return chatd::Message::kMsgInvalid;

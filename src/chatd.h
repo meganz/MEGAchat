@@ -237,10 +237,14 @@ public:
      * @brief Called when the last known text message changes/is updated, so that
      * the app can display it next to the chat title
      * @param type The type of the message, as in Message::type. See the Message::kMsgXXX enums
-     * @param data The message contents. Note that it can contain binary data
-     * @param ts The message timestamp, as in Message::ts
+     * If no text message exists in history, type is 0 (kMsgInvalid)
+     * If an error has occurred when trying to determine the message, like server
+     * is offline, then 0xfe will be returned.
+     * @param data The message contents in text form. If it's a special message,
+     * then this string contains the most important part, like file name for
+     * file attachment messages.
      */
-    virtual void onLastMessageUpdated(uint8_t type, const std::string& data) {}
+    virtual void onLastTextMessageUpdated(uint8_t type, const std::string& data) {}
 };
 
 class Client;
@@ -498,6 +502,7 @@ protected:
     void onNewKeys(StaticBuffer&& keybuf);
     void logSend(const Command& cmd);
     void handleBroadcast(karere::Id userid, uint8_t type);
+    void findAndNotifyLastTextMsg();
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -773,10 +778,14 @@ public:
       */
     int unreadMsgCount() const;
 
-    /** @brief Returns the text of the most-recent non-management message in the
-     * chat. If it is not found in RAM, the database will be queried. If not found
-     * there as well (there stilll may be one, but on server, not fetched),
-     * an empty string will be returned.
+    /** @brief Returns the text of the most-recent message in the chat that can
+     * be displayed as text in the chat list. If it is not found in RAM,
+     * the database will be queried. If not found there as well, server is queried,
+     * and 0xff is returned. When the message is received from server, the
+     * \c onLastTextMsgUpdated callback will be called. If the network connection
+     * is offline, then 0xfe will be returned, and upon reconnect and join, the
+     * client will fetch messages from the server until it finds a text message
+     * and passes it to the callback.
      */
     uint8_t lastTextMessage(std::string& data);
 
@@ -942,7 +951,7 @@ public:
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
-    virtual uint8_t getLastNonMgmtMessage(Idx from, std::string& buf, Idx& ts) = 0;
+    virtual uint8_t getLastTextMessage(Idx from, std::string& buf, Idx& ts) = 0;
     virtual ~DbInterface(){}
 };
 

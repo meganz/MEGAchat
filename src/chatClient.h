@@ -118,6 +118,11 @@ public:
     /** @brief The chatd shart number for that chatroom */
     unsigned char shardNo() const { return mShardNo; }
 
+    /** @brief Returns the timestamp of the most recent message in the chatroom,
+     * or if there are no messages - the creation time of the chatroom
+     */
+    uint32_t lastMessageTs() const { return mLastMsgTs; }
+
     /** @brief Our own privilege within this chat */
     chatd::Priv ownPriv() const { return mOwnPriv; }
 
@@ -170,9 +175,10 @@ public:
 
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
-    virtual void onLastMessageUpdated(uint8_t type, const std::string& data);
+    virtual void onLastTextMessageUpdated(uint8_t type, const std::string& data);
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal);
+    virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx);
     virtual void onExcludedFromRoom() {}
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
     {

@@ -1008,6 +1008,14 @@ void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::
     callAfterInit(&std::remove_pointer<decltype(this)>::type::notifyLastMsgTsUpdated, msg.ts);
 }
 
+void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx)
+{
+    auto ts = msg.ts+msg.updated-1;
+    if (ts <= mLastMsgTs)
+        return;
+    callAfterInit(&std::remove_pointer<decltype(this)>::type::notifyLastMsgTsUpdated, ts);
+}
+
 template <typename... Args, typename MSig>
 void ChatRoom::callAfterInit(MSig method, Args... args)
 {
@@ -1872,7 +1880,7 @@ void PeerChatRoom::onUserLeave(Id userid)
     KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
 }
 
-void ChatRoom::onLastMessageUpdated(uint8_t type, const std::string& data)
+void ChatRoom::onLastTextMessageUpdated(uint8_t type, const std::string& data)
 {
     if (mIsInitializing)
     {
