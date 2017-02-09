@@ -495,6 +495,7 @@ public:
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
     {
+        mRoom.onRecvNewMessage(idx, msg, status);
         if (msg.empty())
             return;
         auto sbar = ui.mMessageList->verticalScrollBar();
@@ -512,6 +513,7 @@ public:
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg,
         chatd::Message::Status status, bool isLocal)
     {
+        mRoom.onRecvHistoryMessage(idx, msg, status, isLocal);
         assert(idx != CHATD_IDX_INVALID); assert(msg.id());
         if (mHistFetchUi)
         {
