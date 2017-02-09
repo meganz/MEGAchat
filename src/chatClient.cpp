@@ -1591,10 +1591,14 @@ void GroupChatRoom::makeTitleFromMemberNames()
         {
             //name has binary layout
             auto& name = m.second->mName;
-            assert(!name.empty()); //is initialized to '\3...', so is never empty
+            assert(!name.empty()); //is initialized to '\0', so is never empty
             if (name.size() <= 1)
             {
-                mTitleString.append("..., ");
+                auto& email = m.second->mEmail;
+                if (!email.empty())
+                    mTitleString.append(email).append(", ");
+                else
+                    mTitleString.append("..., ");
             }
             else
             {
@@ -2038,7 +2042,7 @@ UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, User
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
-: mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\3...")
+: mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0", 1)
 {
     mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(
         user, USER_ATTR_FULLNAME, this,
@@ -2051,7 +2055,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         }
         else
         {
-            self->mName.assign("\3...");
+            self->mName.assign("\0", 1);
         }
         if (self->mRoom.mAppChatHandler)
         {
@@ -2076,6 +2080,10 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         if (buf && !buf->empty())
         {
             self->mEmail.assign(buf->buf(), buf->dataSize());
+            if (!self->mRoom.isInitializing() && !self->mRoom.hasTitle() && self->mName.size() <= 1)
+            {
+                self->mRoom.makeTitleFromMemberNames();
+            }
         }
     });
 }
