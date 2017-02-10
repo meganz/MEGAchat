@@ -719,7 +719,9 @@ void MegaChatApiTest::TEST_groupChatManagement()
     // --> Create the GroupChat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
     bool *chatItemReceived0 = &chatItemUpdated[0]; *chatItemReceived0 = false;
+    MegaChatListItem *chatItemCreated0 = chatListItem[0];   chatListItem[0] = NULL;
     bool *chatItemReceived1 = &chatItemUpdated[1]; *chatItemReceived1 = false;
+    MegaChatListItem *chatItemCreated1 = chatListItem[1];   chatListItem[1] = NULL;
     chatListItem[0] = chatListItem[1] = NULL;
     this->chatid[0] = MEGACHAT_INVALID_HANDLE;
 
@@ -731,14 +733,32 @@ void MegaChatApiTest::TEST_groupChatManagement()
     delete peers;   peers = NULL;
 
     assert(waitForResponse(chatItemReceived0));
-    MegaChatListItem *chatItemCreated0 = chatListItem[0];   chatListItem[0] = NULL;
     assert(chatItemCreated0);
+    // FIXME: find a safe way to control when the auxiliar account receives the
+    // new chatroom, since we may have multiple notifications for other chats
+    while (!chatItemCreated1)
+    {
+        assert(waitForResponse(chatItemReceived1));
+        assert(chatItemCreated1);
+        if (chatItemCreated1->getChatId() == chatid)
+        {
+            break;
+        }
+        else
+        {
+            delete chatItemCreated1;    chatItemCreated1 = NULL;
+            *chatItemReceived1 = false;
+        }
+    }
     delete chatItemCreated0;    chatItemCreated0 = NULL;
-
-    assert(waitForResponse(chatItemReceived1));
-    MegaChatListItem *chatItemCreated1 = chatListItem[1];   chatListItem[1] = NULL;
-    assert(chatItemCreated1);
     delete chatItemCreated1;    chatItemCreated1 = NULL;
+
+    // Check the auxiliar account also received the chatroom
+//    MegaChatRoom *chatroom = megaChatApi[1]->getChatRoom(chatid);
+//    assert (chatroom);
+//    delete chatroom;    chatroom = NULL;
+//    assert(!strcmp(chatItemCreated1->getTitle(), peerFullname.c_str())); ERROR: we get empty title
+
 
     // --> Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
@@ -762,7 +782,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(*uhAction == peer->getHandle());
     assert(*priv == MegaChatRoom::PRIV_RM);
 
-    chatroom = megaChatApi[0]->getChatRoom(chatid);
+    MegaChatRoom *chatroom = megaChatApi[0]->getChatRoom(chatid);
     assert (chatroom);
     assert(chatroom->getPeerCount() == 0);
     delete chatroom;
@@ -922,19 +942,28 @@ void MegaChatApiTest::TEST_groupChatManagement()
     megaChatApi[1]->closeChatRoom(chatid, chatroomListener);
     delete chatroomListener;
 
+    // --> Remove peer from groupchat
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
+    bool *chatClosed = &chatItemClosed[1]; *chatClosed = false;
+    megaChatApi[0]->removeFromChat(chatid, peer->getHandle());
+    assert(waitForResponse(flag));
+    assert(!lastErrorChat[0]);
+    assert(waitForResponse(chatClosed));
+    chatroom = megaChatApi[1]->getChatRoom(chatid);
+    assert(chatroom);
+    assert(!chatroom->isActive());
+    delete chatroom;    chatroom = NULL;
+
     // --> Leave the GroupChat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
-    bool *chatClosed = &chatItemClosed[0]; *chatClosed = false;
+    chatClosed = &chatItemClosed[0]; *chatClosed = false;
     megaChatApi[0]->leaveChat(chatid);
     assert(waitForResponse(flag));
     assert(!lastErrorChat[0]);
     assert(waitForResponse(chatClosed));
-
-    flag = &requestFlagsChat[1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
-    chatClosed = &chatItemClosed[1]; *chatClosed = false;
-    megaChatApi[1]->leaveChat(chatid);
-    assert(waitForResponse(flag));
-    assert(!lastErrorChat[1]);
+    chatroom = megaChatApi[0]->getChatRoom(chatid);
+    assert(!chatroom->isActive());
+    delete chatroom;    chatroom = NULL;
 
     logout(1, true);
     logout(0, true);
