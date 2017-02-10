@@ -84,8 +84,9 @@ MegaChatApiTest::MegaChatApiTest()
             exit(-1);
         }
 
-        chatroom = NULL;
-        chatListItem = NULL;
+        chatid[i] = MEGACHAT_INVALID_HANDLE;
+        chatroom[i] = NULL;
+        chatListItem[i] = NULL;
     }
 }
 
@@ -717,24 +718,27 @@ void MegaChatApiTest::TEST_groupChatManagement()
 
     // --> Create the GroupChat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
-    bool *chatItemReceived = &chatItemUpdated[1]; *chatItemReceived = false;
-    chatListItem = NULL;
+    bool *chatItemReceived0 = &chatItemUpdated[0]; *chatItemReceived0 = false;
+    bool *chatItemReceived1 = &chatItemUpdated[1]; *chatItemReceived1 = false;
+    chatListItem[0] = chatListItem[1] = NULL;
+    this->chatid[0] = MEGACHAT_INVALID_HANDLE;
+
     megaChatApi[0]->createChat(true, peers);
     assert(waitForResponse(flag));
     assert(!lastErrorChat[0]);
-    assert(waitForResponse(chatItemReceived));
-    assert(chatListItem);
-//    assert(!strcmp(chatListItem->getTitle(), peerFullname.c_str())); ERROR: we get empty title
-    delete chatListItem; chatListItem = NULL;
-
-    // Check we got a new chat ID...
-    delete peers;   peers = NULL;
-    chatid = this->chatid;
+    chatid = this->chatid[0];
     assert (chatid != MEGACHAT_INVALID_HANDLE);
-    // ...and the auxiliar account also received the chatroom
-    MegaChatRoom *chatroom = megaChatApi[1]->getChatRoom(chatid);
-    assert (chatroom);
-    delete chatroom;
+    delete peers;   peers = NULL;
+
+    assert(waitForResponse(chatItemReceived0));
+    MegaChatListItem *chatItemCreated0 = chatListItem[0];   chatListItem[0] = NULL;
+    assert(chatItemCreated0);
+    delete chatItemCreated0;    chatItemCreated0 = NULL;
+
+    assert(waitForResponse(chatItemReceived1));
+    MegaChatListItem *chatItemCreated1 = chatListItem[1];   chatListItem[1] = NULL;
+    assert(chatItemCreated1);
+    delete chatItemCreated1;    chatItemCreated1 = NULL;
 
     // --> Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
@@ -799,6 +803,9 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(chatroom->getPeerCount() == 1);
     delete chatroom;
 
+    // since we were expulsed from chatroom, we need to open it again
+    assert(megaChatApi[1]->openChatRoom(chatid, chatroomListener));
+
     // invite again --> error
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flag = false;
     megaChatApi[0]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
@@ -841,7 +848,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(waitForResponse(flag));
     assert(!lastErrorChat[0]);
     assert(waitForResponse(peerUpdated0));
-//    assert(waitForResponse(peerUpdated1));    Redmine ticket: #5668
+    assert(waitForResponse(peerUpdated1));
     assert(waitForResponse(mngMsgRecv));
     assert(*uhAction == peer->getHandle());
     assert(*priv == MegaChatRoom::PRIV_MODERATOR);
@@ -858,7 +865,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(waitForResponse(flag));
     assert(!lastErrorChat[0]);
     assert(waitForResponse(peerUpdated0));
-//    assert(waitForResponse(peerUpdated1));    Redmine ticket: #5668
+    assert(waitForResponse(peerUpdated1));
     assert(waitForResponse(mngMsgRecv));
     assert(*uhAction == peer->getHandle());
     assert(*priv == MegaChatRoom::PRIV_RO);
@@ -927,7 +934,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     chatClosed = &chatItemClosed[1]; *chatClosed = false;
     megaChatApi[1]->leaveChat(chatid);
     assert(waitForResponse(flag));
-    assert(!lastErrorChat[0]);
+    assert(!lastErrorChat[1]);
 
     logout(1, true);
     logout(0, true);
@@ -1021,23 +1028,32 @@ void MegaChatApiTest::TEST_clearHistory()
 
     // --> Create the GroupChat
     bool *flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
-    bool *chatItemReceived = &chatItemUpdated[1]; *chatItemReceived = false;
-    chatListItem = NULL;
+    bool *chatItemReceived0 = &chatItemUpdated[0]; *chatItemReceived0 = false;
+    bool *chatItemReceived1 = &chatItemUpdated[1]; *chatItemReceived1 = false;
+    chatListItem[0] = chatListItem[1] = NULL;
+    this->chatid[0] = MEGACHAT_INVALID_HANDLE;
+
     megaChatApi[0]->createChat(true, peers);
     assert(waitForResponse(flag));
     assert(!lastErrorChat[0]);
-    assert(waitForResponse(chatItemReceived));
-    assert(chatListItem);
-    delete chatListItem; chatListItem = NULL;
-    delete peers; peers = NULL;
-
-    // Check we got a new chat ID...
-    MegaChatHandle chatid = this->chatid;
+    MegaChatHandle chatid = this->chatid[0];
     assert (chatid != MEGACHAT_INVALID_HANDLE);
-    // ...and the auxiliar account also received the chatroom
+    delete peers;   peers = NULL;
+
+    assert(waitForResponse(chatItemReceived0));
+    MegaChatListItem *chatItemCreated0 = chatListItem[0];   chatListItem[0] = NULL;
+    assert(chatItemCreated0);
+    delete chatItemCreated0;    chatItemCreated0 = NULL;
+
+    assert(waitForResponse(chatItemReceived1));
+    MegaChatListItem *chatItemCreated1 = chatListItem[1];   chatListItem[1] = NULL;
+    assert(chatItemCreated1);
+    delete chatItemCreated1;    chatItemCreated1 = NULL;
+
+    // Check the auxiliar account also received the chatroom
     MegaChatRoom *chatroom = megaChatApi[1]->getChatRoom(chatid);
     assert (chatroom);
-    delete chatroom; chatroom = NULL;
+    delete chatroom;    chatroom = NULL;
 
     // Open chatrooms
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
@@ -1179,7 +1195,7 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
         switch(request->getType())
         {
             case MegaChatRequest::TYPE_CREATE_CHATROOM:
-                chatid = request->getChatHandle();
+                chatid[apiIndex] = request->getChatHandle();
                 break;
 
             case MegaChatRequest::TYPE_GET_FIRSTNAME:
@@ -1243,7 +1259,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
     if (item)
     {
         cout << "[api: " << apiIndex << "] Chat list item added or updated - ";
-        chatListItem = item->copy();
+        chatListItem[apiIndex] = item->copy();
         printChatListItemInfo(item);
 
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_CLOSED))
@@ -1357,6 +1373,14 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
         cout << "[api: " << apiIndex << "] Message loaded - ";
         MegaChatApiTest::printMessageInfo(msg);
 
+        if (msg->getStatus() == MegaChatMessage::STATUS_SENDING_MANUAL)
+        {
+            if (msg->getCode() == MegaChatMessage::REASON_NO_WRITE_ACCESS)
+            {
+                msgRejected[apiIndex] = true;
+            }
+        }
+
         msgCount[apiIndex]++;
         msgId[apiIndex] = msg->getMsgId();
         msgLoaded[apiIndex] = true;
@@ -1432,10 +1456,6 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
     else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
     {
         msgDelivered[apiIndex] = true;
-    }
-    else if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_REJECTED)
-    {
-        msgRejected[apiIndex] = true;
     }
 
     if (msg->isEdited())
