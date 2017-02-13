@@ -558,8 +558,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 messageid = chatroom->chat().at(chatroom->chat().highnum()).id().val;
             }
 
-            mClient->api.call(&MegaApi::truncateChat, chatid, messageid)
-            .then([request, this](ReqResult result)
+            chatroom->truncateHistory(messageid)
+            .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
