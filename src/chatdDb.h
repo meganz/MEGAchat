@@ -282,7 +282,7 @@ public:
         {
             Buffer buf;
             stmt.blobCol(5, buf);
-            auto msg = new chatd::Message(stmt.uint64Col(1), 0,
+            auto msg = new chatd::Message(stmt.uint64Col(1), mMessages.client().userId(),
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), (chatd::ManualSendReason)stmt.intCol(7));
