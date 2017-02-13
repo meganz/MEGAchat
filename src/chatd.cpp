@@ -431,27 +431,27 @@ void Chat::logSend(const Command& cmd)
     auto op = cmd.opcode();
     switch (op)
     {
-      case OP_NEWMSG:
-      {
-        auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgxid: %s\n",
-            ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
-        break;
-      }
-      case OP_MSGUPD:
-      {
-        auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPD - msgid: %s\n",
-            ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
-        break;
-      }
-      case OP_MSGUPDX:
-      {
-        auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPDX - msgxid: %s, tsdelta: %hu\n",
-            ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.updated());
-        break;
-      }
+        case OP_NEWMSG:
+        {
+            auto& msgcmd = static_cast<const MsgCommand&>(cmd);
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgxid: %s\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
+            break;
+        }
+        case OP_MSGUPD:
+        {
+            auto& msgcmd = static_cast<const MsgCommand&>(cmd);
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPD - msgid: %s\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
+            break;
+        }
+        case OP_MSGUPDX:
+        {
+            auto& msgcmd = static_cast<const MsgCommand&>(cmd);
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPDX - msgxid: %s, tsdelta: %hu\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.updated());
+            break;
+        }
       default:
       {
         krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send %s\n", ID_CSTR(mChatId), cmd.opcodeName());
@@ -492,6 +492,14 @@ void Chat::join()
     mServerOldHistCbEnabled = false;
     sendCommand(Command(OP_JOIN) + mChatId + mClient.mUserId + (int8_t)PRIV_NOCHANGE);
     requestHistoryFromServer(-initialHistoryFetchCount);
+}
+
+void Chat::onJoinRejected()
+{
+    CHATID_LOG_WARNING("JOIN was rejected, setting chat offline and disabling it");
+    mServerFetchState = kHistNotFetching;
+    setOnlineState(kChatStateOffline);
+    disable(true);
 }
 
 void Chat::onDisconnect()
@@ -852,6 +860,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 else if ((op == OP_MSGUPD) || (op == OP_MSGUPDX))
                 {
                     chat.rejectMsgupd(op, id);
+                }
+                else if (op == OP_JOIN)
+                {
+                    chat.onJoinRejected();
                 }
                 else
                 {
@@ -2312,6 +2324,7 @@ void Chat::setOnlineState(ChatState state)
     if (state == mOnlineState)
         return;
     mOnlineState = state;
+    CHATID_LOG_DEBUG("Online state changed to %s", chatStateToStr(mOnlineState));
     CALL_CRYPTO(onOnlineStateChange, state);
     CALL_LISTENER(onOnlineStateChange, state);
 }
@@ -2354,19 +2367,7 @@ uint8_t Chat::lastTextMessage(std::string& contents)
             }
         }
     }
-    if (empty())
-    {
-        if (mHaveAllHistory)
-        {
-            CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
-            return Message::kMsgInvalid;
-        }
-        if (mServerFetchState & kHistFetchingOldFromServer)
-        {
-            return 0xff;
-        }
-    }
-    else
+    if (!empty())
     {
         //check in ram
         auto low = lownum();
@@ -2393,22 +2394,27 @@ uint8_t Chat::lastTextMessage(std::string& contents)
             return type;
         }
     }
+    if (mHaveAllHistory)
+    {
+        CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
+        return Message::kMsgInvalid;
+    }
 
     //we are empty or there is no text messsage in ram or db - fetch from server
-    if (!mConnection.isOnline())
+    if (mOnlineState <= kChatStateConnecting)
     {
         CHATID_LOG_DEBUG("getLastTextMsg: Can't get more history, we are offline");
         return 0xfe;
     }
-    if (mServerFetchState & kHistFetchingOldFromServer)
+    if ((mOnlineState == kChatStateJoining) || (mServerFetchState & kHistFetchingOldFromServer))
     {
         return 0xff;
     }
-
+    assert(mOnlineState == kChatStateOnline);
+    CHATID_LOG_DEBUG("lastTextMessage: No text message found locally, fetching more history from server");
     mServerOldHistCbEnabled = false;
     requestHistoryFromServer(-16);
     mLastTxtMsgState = kLastTxtMsgFetching;
-    CHATID_LOG_DEBUG("lastTextMessage: No text message found locally, fetching more history from server");
     return 0xff;
 }
 

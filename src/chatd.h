@@ -834,6 +834,7 @@ protected:
     bool msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existingItem=nullptr);
     void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);
+    void onJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
     void rejectMsgupd(uint8_t opcode, karere::Id id);
     template <bool mustBeInSending=false>
