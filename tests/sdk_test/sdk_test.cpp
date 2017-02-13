@@ -949,10 +949,11 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(waitForResponse(flag));
     assert(!lastErrorChat[0]);
     assert(waitForResponse(chatClosed));
-    chatroom = megaChatApi[1]->getChatRoom(chatid);
-    assert(chatroom);
-    assert(!chatroom->isActive());
-    delete chatroom;    chatroom = NULL;
+    // Redmine ticket: #6083 (inactive groupchats are removed)
+//    MegaChatRoom *chatroom = megaChatApi[1]->getChatRoom(chatid);
+//    assert(chatroom);
+//    assert(!chatroom->isActive());
+//    delete chatroom;    chatroom = NULL;
 
     // --> Leave the GroupChat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
@@ -961,9 +962,10 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(waitForResponse(flag));
     assert(!lastErrorChat[0]);
     assert(waitForResponse(chatClosed));
-    chatroom = megaChatApi[0]->getChatRoom(chatid);
-    assert(!chatroom->isActive());
-    delete chatroom;    chatroom = NULL;
+    // Redmine ticket: #6083 (inactive groupchats are removed)
+//    MegaChatRoom *chatroom = megaChatApi[0]->getChatRoom(chatid);
+//    assert(!chatroom->isActive());
+//    delete chatroom;    chatroom = NULL;
 
     logout(1, true);
     logout(0, true);
@@ -1232,15 +1234,15 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
                 chatNameReceived[apiIndex] = true;
                 break;
 
-        case MegaChatRequest::TYPE_GET_LASTNAME:
-            chatLastname = request->getText() ? request->getText() : "";
-            chatNameReceived[apiIndex] = true;
-            break;
+            case MegaChatRequest::TYPE_GET_LASTNAME:
+                chatLastname = request->getText() ? request->getText() : "";
+                chatNameReceived[apiIndex] = true;
+                break;
 
-        case MegaChatRequest::TYPE_GET_EMAIL:
-            chatEmail = request->getText() ? request->getText() : "";
-            chatNameReceived[apiIndex] = true;
-            break;
+            case MegaChatRequest::TYPE_GET_EMAIL:
+                chatEmail = request->getText() ? request->getText() : "";
+                chatNameReceived[apiIndex] = true;
+                break;
         }
     }
 
