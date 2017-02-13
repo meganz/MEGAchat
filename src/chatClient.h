@@ -343,19 +343,20 @@ public:
      * operator privileges to do that.
      * @note Do not use this method to exclude yourself. Instead, call leave()
      * @param user The handle of the user to remove from the chatroom.
-     * @returns A promise with the MegaRequest result, returned by the mega SDK.
+     * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> excludeMember(uint64_t user);
 
-    /** @brief Removes yourself from the chatroom.
-     * @returns A promise with the MegaRequest result, returned by the mega SDK.
+    /**
+     * @brief Removes yourself from the chatroom.
+     * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> leave();
 
     /** TODO
      * @brief setTitle
      * @param title
-     * @return
+     * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> setTitle(const std::string& title);
 
@@ -363,7 +364,7 @@ public:
      * @brief invite
      * @param userid
      * @param priv
-     * @return
+     * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
 
@@ -371,7 +372,7 @@ public:
      * @brief setPrivilege
      * @param userid
      * @param priv
-     * @return
+     * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
 };
