@@ -2834,6 +2834,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
         peers.push_back(userpriv_pair(uh, (privilege_t) chat->getPeerPrivilege(i)));
         peerFirstnames.push_back(chat->getPeerFirstname(i));
         peerLastnames.push_back(chat->getPeerLastname(i));
+        peerEmails.push_back(chat->getPeerEmail(i));
     }
     this->group = chat->isGroup();
     this->title = chat->getTitle();
@@ -2872,6 +2873,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
             buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
             this->peerLastnames.push_back(buffer ? buffer : "");
             delete [] buffer;
+
+            this->peerEmails.push_back(it->second->email());
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2970,6 +2973,19 @@ const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhand
     return NULL;
 }
 
+const char *MegaChatRoomPrivate::getPeerEmailByHandle(MegaChatHandle userhandle) const
+{
+    for (unsigned int i = 0; i < peerEmails.size(); i++)
+    {
+        if (peers.at(i).first == userhandle)
+        {
+            return peerEmails.at(i).c_str();
+        }
+    }
+
+    return NULL;
+}
+
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
 {
     if (i >= peers.size())
@@ -3030,6 +3046,16 @@ const char *MegaChatRoomPrivate::getPeerFullname(unsigned int i) const
     ret.append(peerLastnames.at(i));
 
     return MegaApi::strdup(ret.c_str());
+}
+
+const char *MegaChatRoomPrivate::getPeerEmail(unsigned int i) const
+{
+    if (i >= peerEmails.size())
+    {
+        return NULL;
+    }
+
+    return peerEmails.at(i).c_str();
 }
 
 bool MegaChatRoomPrivate::isGroup() const
