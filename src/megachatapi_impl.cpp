@@ -510,8 +510,21 @@ void MegaChatApiImpl::sendPendingRequests()
                 }
                 else    // uh is optional. If not provided, own user wants to leave the chat
                 {
-                    uh = mClient->myHandle();
                     request->setUserHandle(uh);
+
+                    ((GroupChatRoom *)chatroom)->leave()
+                    .then([request, this]()
+                    {
+                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                    .fail([request, this](const promise::Error& err)
+                    {
+                        API_LOG_ERROR("Error leaving chat: %s", err.what());
+
+                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
                 }
             }
 
