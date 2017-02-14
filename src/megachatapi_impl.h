@@ -415,12 +415,14 @@ public:
     virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
     virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
     virtual const char *getPeerFullnameByHandle(MegaChatHandle userhandle) const;
+    virtual const char *getPeerEmailByHandle(MegaChatHandle userhandle) const;
     virtual int getPeerPrivilege(unsigned int i) const;
     virtual unsigned int getPeerCount() const;
     virtual MegaChatHandle getPeerHandle(unsigned int i) const;
     virtual const char *getPeerFirstname(unsigned int i) const;
     virtual const char *getPeerLastname(unsigned int i) const;
     virtual const char *getPeerFullname(unsigned int i) const;
+    virtual const char *getPeerEmail(unsigned int i) const;
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
     virtual bool isActive() const;
@@ -447,6 +449,7 @@ private:
     mega::userpriv_vector peers;
     std::vector<std::string> peerFirstnames;
     std::vector<std::string> peerLastnames;
+    std::vector<std::string> peerEmails;
     bool group;
     bool active;
 
