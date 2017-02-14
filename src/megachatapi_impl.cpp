@@ -2895,6 +2895,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         this->peerLastnames.push_back(buffer ? buffer : "");
         delete [] buffer;
 
+        this->peerEmails.push_back(peerchat.contact().email());
+
         this->status = chat.presence().status();
     }
 }
