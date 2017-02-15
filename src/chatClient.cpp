@@ -1231,6 +1231,20 @@ promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Pri
     });
 }
 
+promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
+{
+    auto wptr = getDelTracker();
+    return parent.client.api.callIgnoreResult(
+                &::mega::MegaApi::truncateChat,
+                chatid(),
+                msgId)
+    .then([this, wptr]()
+    {
+        wptr.throwIfDeleted();
+        // TODO: update indexes, last message and so on
+    });
+}
+
 void GroupChatRoom::deleteSelf()
 {
     //have to post a delete on the event loop, as there may be pending

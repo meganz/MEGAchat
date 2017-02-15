@@ -103,9 +103,9 @@ private:
     std::string pwd[NUM_ACCOUNTS];
 
 
-    MegaChatHandle chatid;  // chatroom id from request
-    MegaChatRoom *chatroom;
-    MegaChatListItem *chatListItem;
+    MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
+    MegaChatRoom *chatroom[NUM_ACCOUNTS];
+    MegaChatListItem *chatListItem[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
     bool chatItemUpdated[NUM_ACCOUNTS];
     bool chatItemClosed[NUM_ACCOUNTS];
