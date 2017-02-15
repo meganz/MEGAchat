@@ -3304,11 +3304,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
-
-    string buf;
-    this->lastMsgType = chatroom.chat().lastTextMessage(buf);
+    this->lastMsgType = chatroom.chat().lastTextMessage(this->lastMsg);
     this->lastTs = chatroom.lastMessageTs();
-    this->lastMsg = buf;
 }
 
 MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
@@ -3569,10 +3566,14 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             this->uhAction = mngInfo.target;
             break;
         }
+        // TODO: get the nodehandle from the content (a JSON to be parsed)
+        case MegaChatMessage::TYPE_ATTACHMENT:
+        case MegaChatMessage::TYPE_REVOKE_ATTACHMENT:
+        // TODO: get the userhandle from the content (a JSON to be parsed)
+        case MegaChatMessage::TYPE_CONTACT:
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:
-        case MegaChatMessage::TYPE_USER_MSG:
         default:
             this->priv = PRIV_UNKNOWN;
             this->uhAction = MEGACHAT_INVALID_HANDLE;

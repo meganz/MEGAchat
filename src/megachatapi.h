@@ -270,13 +270,15 @@ public:
 
     // Types of message
     enum {
-        TYPE_UNKNOWN                = -1,   /// Invalid type
+        TYPE_INVALID                = 0,    /// Invalid type
         TYPE_NORMAL                 = 1,    /// Regular text message
         TYPE_ALTER_PARTICIPANTS     = 2,    /// Management message indicating the participants in the chat have changed
         TYPE_TRUNCATE               = 3,    /// Management message indicating the history of the chat has been truncated
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
-        TYPE_USER_MSG               = 16    /// User-specific message: links, share, picture, etc.
+        TYPE_ATTACHMENT             = 16,   /// User message including info about a shared node
+        TYPE_REVOKE_ATTACHMENT      = 17,   /// User message including info about a node that has stopped being shared
+        TYPE_CONTACT                = 18,   /// User message including info about a contact
     };
 
     enum
@@ -368,13 +370,15 @@ public:
      * @brief Returns the type of message.
      *
      * Valid values are:
-     *  - TYPE_UNKNOWN              = -1
-     *  - TYPE_NORMAL               = 1
-     *  - TYPE_ALTER_PARTICIPANTS   = 2
-     *  - TYPE_TRUNCATE             = 3
-     *  - TYPE_PRIV_CHANGE          = 4
-     *  - TYPE_CHAT_TITLE           = 5
-     *  - TYPE_USER_MSG             = 16
+     *  - TYPE_INVALID: Invalid type
+     *  - TYPE_NORMAL: Regular text message
+     *  - TYPE_ALTER_PARTICIPANTS: Management message indicating the participants in the chat have changed
+     *  - TYPE_TRUNCATE: Management message indicating the history of the chat has been truncated
+     *  - TYPE_PRIV_CHANGE: Management message indicating the privilege level of a user has changed
+     *  - TYPE_CHAT_TITLE: Management message indicating the title of the chat has changed
+     *  - TYPE_ATTACHMENT: User message including info about a shared node
+     *  - TYPE_REVOKE_ATTACHMENT: User message including info about a node that has stopped being shared
+     *  - TYPE_CONTACT: User message including info about a contact
      *
      * @return Returns the Type of message.
      */
@@ -1820,7 +1824,7 @@ public:
         CHANGE_TYPE_PARTICIPANTS    = 0x08,
         CHANGE_TYPE_TITLE           = 0x10,
         CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
-        CHANGE_TYPE_LAST_MSG        = 0x40  /// Last message recorded in the history
+        CHANGE_TYPE_LAST_MSG        = 0x40  /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
     };
 
     virtual ~MegaChatListItem() {}
@@ -1900,10 +1904,15 @@ public:
     virtual int getUnreadCount() const;
 
     /**
-     * @brief Returns the last message for the chatroom
+     * @brief Returns the content of the last message for the chatroom
      *
      * If there are no messages in the history or the last message is still
-     * pending to be retrieved from the server, the returned value will be NULL.
+     * pending to be retrieved from the server, it returns an empty string.
+     *
+     * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
+     * returns the filename of the attached node.
+     * If the message is of type MegaChatMessage::TYPE_CONTACT, this function
+     * returns the username.
      * 
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatListItem object is deleted. If you want to save the MegaChatMessage,
@@ -1912,7 +1921,31 @@ public:
      * @return The last message received.
      */
     virtual const char *getLastMessage() const;
+
+    /**
+     * @brief Returns the type of last message
+     *
+     * The possible values are as follows:
+     *  - MegaChatMessage::TYPE_INVALID:  when no history (or truncate message)
+     *  - MegaChatMessage::TYPE_NORMAL: for regular text messages
+     *  - MegaChatMessage::TYPE_ATTACHMENT: for messages sharing a node
+     *  - MegaChatMessage::TYPE_CONTACT: for messages sharing a contact
+     *  - 0xFF when it's still fetching from server (for the public API)
+     *  - 0xFE when cannot fetch from server, since we're offline (for the public API)
+     *
+     * @return The type of the last message
+     */
     virtual int getLastMessageType() const;
+
+    /**
+     * @brief Returns the timestamp of the latest activity in the chatroom
+     *
+     * If there's no history at all, it will return the creation date of the chatroom.
+     * If there's some history (including management messages), it will from the latest message.
+     * If there's some history but still unknown (fetching from server), it will be 0xFFFFFFFF.
+     *
+     * @return The timestamp relative to the latest activity in the chatroom.
+     */
     virtual int64_t getLastTimestamp() const;
 
     /**
@@ -2215,6 +2248,8 @@ public:
      *  - Online status
      *  - Visibility: the contact of 1on1 chat has changed. i.e. added or removed
      *  - Participants: new peer added or existing peer removed
+     *  - Last message: the last relevant message in the chatroom
+     *  - Last timestamp: the last date of any activity in the chatroom
      *
      * The SDK retains the ownership of the MegaChatListItem in the second parameter.
      * The MegaChatListItem object will be valid until this function returns. If you

@@ -790,7 +790,7 @@ const char *MegaChatListItem::getLastMessage() const
 
 int MegaChatListItem::getLastMessageType() const
 {
-    return MegaChatMessage::TYPE_UNKNOWN;
+    return MegaChatMessage::TYPE_INVALID;
 }
 
 int64_t MegaChatListItem::getLastTimestamp() const
@@ -865,7 +865,7 @@ MegaChatHandle MegaChatMessage::getUserHandle() const
 
 int MegaChatMessage::getType() const
 {
-    return MegaChatMessage::TYPE_UNKNOWN;
+    return MegaChatMessage::TYPE_INVALID;
 }
 
 int64_t MegaChatMessage::getTimestamp() const
