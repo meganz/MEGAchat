@@ -188,6 +188,7 @@ public:
             errmsg.c_str());
     }
 
+    promise::Promise<void> truncateHistory(karere::Id msgId);
 };
 /** @brief Represents a 1on1 chatd chatroom */
 class PeerChatRoom: public ChatRoom
@@ -321,10 +322,6 @@ public:
                   const std::string& title);
     ~GroupChatRoom();
 public:
-    promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
-    promise::Promise<void> setTitle(const std::string& title);
-    promise::Promise<void> leave();
-    promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
     virtual promise::Promise<void> mediaCall(AvFlags av);
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
@@ -358,10 +355,40 @@ public:
 
     /** @brief Removes the specifid user from the chatroom. You must have
      * operator privileges to do that.
+     * @note Do not use this method to exclude yourself. Instead, call leave()
      * @param user The handle of the user to remove from the chatroom.
-     * @returns A promise with the MegaRequest result, returned by the mega SDK.
+     * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> excludeMember(uint64_t user);
+
+    /**
+     * @brief Removes yourself from the chatroom.
+     * @returns A void promise, which will fail if the MegaApi request fails.
+     */
+    promise::Promise<void> leave();
+
+    /** TODO
+     * @brief setTitle
+     * @param title
+     * @returns A void promise, which will fail if the MegaApi request fails.
+     */
+    promise::Promise<void> setTitle(const std::string& title);
+
+    /** TODO
+     * @brief invite
+     * @param userid
+     * @param priv
+     * @returns A void promise, which will fail if the MegaApi request fails.
+     */
+    promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
+
+    /** TODO
+     * @brief setPrivilege
+     * @param userid
+     * @param priv
+     * @returns A void promise, which will fail if the MegaApi request fails.
+     */
+    promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,

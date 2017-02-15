@@ -443,7 +443,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             handle chatid = request->getChatHandle();
             handle uh = request->getUserHandle();
-            int privilege = request->getPrivilege();
+            Priv privilege = (Priv) request->getPrivilege();
 
             if (chatid == MEGACHAT_INVALID_HANDLE || uh == MEGACHAT_INVALID_HANDLE)
             {
@@ -463,8 +463,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            mClient->api.call(&MegaApi::updateChatPermissions, chatid, uh, privilege)
-            .then([request, this](ReqResult result)
+            ((GroupChatRoom *)chatroom)->setPrivilege(uh, privilege)
+            .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
@@ -501,33 +501,47 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR)
+            if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR &&
+                    uh != MEGACHAT_INVALID_HANDLE)
             {
-                if (uh != MEGACHAT_INVALID_HANDLE)
-                {
                     errorCode = MegaChatError::ERROR_ACCESS;
                     break;
-                }
-                else    // uh is optional. If not provided, own user wants to leave the chat
-                {
-                    uh = mClient->myHandle();
-                    request->setUserHandle(uh);
-                }
             }
 
-            ((GroupChatRoom *)chatroom)->excludeMember(uh)
-            .then([request, this]()
+            if ( uh == MEGACHAT_INVALID_HANDLE || uh == mClient->myHandle())
             {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const promise::Error& err)
-            {
-                API_LOG_ERROR("Error removing peer from chat: %s", err.what());
+                request->setUserHandle(uh);
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                ((GroupChatRoom *)chatroom)->leave()
+                .then([request, this]()
+                {
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                })
+                .fail([request, this](const promise::Error& err)
+                {
+                    API_LOG_ERROR("Error leaving chat: %s", err.what());
+
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
+            }
+            else
+            {
+                ((GroupChatRoom *)chatroom)->excludeMember(uh)
+                .then([request, this]()
+                {
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                })
+                .fail([request, this](const promise::Error& err)
+                {
+                    API_LOG_ERROR("Error removing peer from chat: %s", err.what());
+
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
+            }
             break;
         }
         case MegaChatRequest::TYPE_TRUNCATE_HISTORY:
@@ -558,8 +572,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 messageid = chatroom->chat().at(chatroom->chat().highnum()).id().val;
             }
 
-            mClient->api.call(&MegaApi::truncateChat, chatid, messageid)
-            .then([request, this](ReqResult result)
+            chatroom->truncateHistory(messageid)
+            .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
@@ -2828,6 +2842,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
         peers.push_back(userpriv_pair(uh, (privilege_t) chat->getPeerPrivilege(i)));
         peerFirstnames.push_back(chat->getPeerFirstname(i));
         peerLastnames.push_back(chat->getPeerLastname(i));
+        peerEmails.push_back(chat->getPeerEmail(i));
     }
     this->group = chat->isGroup();
     this->title = chat->getTitle();
@@ -2866,6 +2881,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
             buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
             this->peerLastnames.push_back(buffer ? buffer : "");
             delete [] buffer;
+
+            this->peerEmails.push_back(it->second->email());
         }
         this->status = chat.chatdOnlineState();
     }
@@ -2885,6 +2902,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
         this->peerLastnames.push_back(buffer ? buffer : "");
         delete [] buffer;
+
+        this->peerEmails.push_back(peerchat.contact().email());
 
         this->status = chat.presence().status();
     }
@@ -2964,6 +2983,19 @@ const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhand
     return NULL;
 }
 
+const char *MegaChatRoomPrivate::getPeerEmailByHandle(MegaChatHandle userhandle) const
+{
+    for (unsigned int i = 0; i < peerEmails.size(); i++)
+    {
+        if (peers.at(i).first == userhandle)
+        {
+            return peerEmails.at(i).c_str();
+        }
+    }
+
+    return NULL;
+}
+
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
 {
     if (i >= peers.size())
@@ -3024,6 +3056,16 @@ const char *MegaChatRoomPrivate::getPeerFullname(unsigned int i) const
     ret.append(peerLastnames.at(i));
 
     return MegaApi::strdup(ret.c_str());
+}
+
+const char *MegaChatRoomPrivate::getPeerEmail(unsigned int i) const
+{
+    if (i >= peerEmails.size())
+    {
+        return NULL;
+    }
+
+    return peerEmails.at(i).c_str();
 }
 
 bool MegaChatRoomPrivate::isGroup() const

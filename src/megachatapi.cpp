@@ -581,6 +581,11 @@ const char *MegaChatRoom::getPeerFullnameByHandle(MegaChatHandle userhandle) con
     return NULL;
 }
 
+const char *MegaChatRoom::getPeerEmailByHandle(MegaChatHandle userhandle) const
+{
+    return NULL;
+}
+
 unsigned int MegaChatRoom::getPeerCount() const
 {
     return 0;
@@ -607,6 +612,11 @@ const char *MegaChatRoom::getPeerLastname(unsigned int i) const
 }
 
 const char *MegaChatRoom::getPeerFullname(unsigned int i) const
+{
+    return NULL;
+}
+
+const char *MegaChatRoom::getPeerEmail(unsigned int i) const
 {
     return NULL;
 }
