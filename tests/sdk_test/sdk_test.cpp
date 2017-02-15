@@ -534,9 +534,11 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
         while (1)
         {
             bool *flag = &chatroomListener->historyLoaded[0]; *flag = false;
-            if (!megaChatApi[0]->loadMessages(chatid, 16))
+            int source = megaChatApi[0]->loadMessages(chatid, 16);
+            if (source == MegaChatApi::SOURCE_NONE ||
+                    source == MegaChatApi::SOURCE_ERROR)
             {
-                break;  // no more history
+                break;  // no more history or cannot retrieve it
             }
             assert(waitForResponse(flag));
             assert(!lastErrorChat[0]);
@@ -553,9 +555,11 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
         while (1)
         {
             bool *flag = &chatroomListener->historyLoaded[0]; *flag = false;
-            if (!megaChatApi[0]->loadMessages(chatid, 16))
+            int source = megaChatApi[0]->loadMessages(chatid, 16);
+            if (source == MegaChatApi::SOURCE_NONE ||
+                    source == MegaChatApi::SOURCE_ERROR)
             {
-                break;  // no more history
+                break;  // no more history or cannot retrieve it
             }
             assert(waitForResponse(flag));
             assert(!lastErrorChat[0]);
