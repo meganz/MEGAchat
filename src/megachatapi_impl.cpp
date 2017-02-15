@@ -3435,7 +3435,7 @@ void MegaChatListItemPrivate::setClosed()
 void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
 {
     this->lastTs = ts;
-    this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
 }
 
 void MegaChatListItemPrivate::setLastMessage(const string &msg)
