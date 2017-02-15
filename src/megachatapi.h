@@ -1941,9 +1941,9 @@ public:
     /**
      * @brief Returns the timestamp of the latest activity in the chatroom
      *
-     * If there's no history at all, it will return the creation date of the chatroom.
-     * If there's some history (including management messages), it will from the latest message.
-     * If there's some history but still unknown (fetching from server), it will be 0xFFFFFFFF.
+     * This function returns the timestamp of the latest message, including management messages.
+     * If there's no history at all, or is still being fetched from server, it will return
+     * the creation timestamp of the chatroom.
      *
      * @return The timestamp relative to the latest activity in the chatroom.
      */
