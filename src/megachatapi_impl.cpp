@@ -3305,9 +3305,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
     string buf;
-//    uint32_t ts;
     this->lastMsgType = chatroom.chat().lastTextMessage(buf);
-//    this->lastTs = ts;
+    this->lastTs = chatroom.lastMessageTs();
     this->lastMsg = buf;
 }
 
@@ -3498,8 +3497,14 @@ void MegaChatListItemHandler::onLastMessageUpdated(uint8_t type, const std::stri
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setLastMessage(data);
-//    item->setLastTimestamp(ts);
     item->setLastMessageType(type);
+    chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatListItemHandler::onLastTsUpdated(uint32_t ts)
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setLastTimestamp(ts);
     chatApi.fireOnChatListItemUpdate(item);
 }
 

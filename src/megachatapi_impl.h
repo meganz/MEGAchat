@@ -248,7 +248,7 @@ public:
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
     virtual void onLastMessageUpdated(uint8_t type, const std::string& data);
-//    virtual void onLastMessageUpdated(const chatd::Message& msg, chatd::Message::Status status, chatd::Idx idx);
+    virtual void onLastTsUpdated(uint32_t ts);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
