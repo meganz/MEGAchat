@@ -1939,6 +1939,12 @@ public:
     virtual int getLastMessageType() const;
 
     /**
+     * @brief Returns the sender of last message
+     * @return MegaChatHandle representing the user who sent the last message
+     */
+    virtual MegaChatHandle getLastMessageSender() const;
+
+    /**
      * @brief Returns the timestamp of the latest activity in the chatroom
      *
      * This function returns the timestamp of the latest message, including management messages.

@@ -3304,7 +3304,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
-    this->lastMsgType = chatroom.chat().lastTextMessage(this->lastMsg);
+    this->lastMsgType = chatroom.chat().lastTextMessage(this->lastMsg, this->lastMsgSender);
     this->lastTs = chatroom.lastMessageTs();
 }
 
@@ -3319,6 +3319,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->lastTs = item->getLastTimestamp();
     this->lastMsg = item->getLastMessage();
     this->lastMsgType = item->getLastMessageType();
+    this->lastMsgSender = item->getLastMessageSender();
     this->group = item->isGroup();
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
@@ -3376,6 +3377,11 @@ const char *MegaChatListItemPrivate::getLastMessage() const
 int MegaChatListItemPrivate::getLastMessageType() const
 {
     return lastMsgType;
+}
+
+MegaChatHandle MegaChatListItemPrivate::getLastMessageSender() const
+{
+    return lastMsgSender;
 }
 
 int64_t MegaChatListItemPrivate::getLastTimestamp() const
@@ -3438,18 +3444,13 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
 }
 
-void MegaChatListItemPrivate::setLastMessage(const string &msg)
+void MegaChatListItemPrivate::setLastMessage(int type, const string &msg, const uint64_t &uh)
 {
     this->lastMsg = msg;
-    this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
-}
-
-void MegaChatListItemPrivate::setLastMessageType(int type)
-{
     this->lastMsgType = type;
+    this->lastMsgSender = uh;
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
 }
-
 
 MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)
     : MegaChatListItemHandler(chatApi, room)
@@ -3491,11 +3492,10 @@ void MegaChatListItemHandler::onRejoinedChat()
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onLastMessageUpdated(uint8_t type, const std::string &data)
+void MegaChatListItemHandler::onLastMessageUpdated(uint8_t type, const std::string &data, uint64_t uh)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    item->setLastMessage(data);
-    item->setLastMessageType(type);
+    item->setLastMessage(type, data, uh);
     chatApi.fireOnChatListItemUpdate(item);
 }
 

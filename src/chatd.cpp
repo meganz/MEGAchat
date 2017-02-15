@@ -1856,7 +1856,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             if (mLastTxtMsgIdx == idx && msg->type != Message::kMsgTruncate) //our last text message was edited
             {
                 if (histmsg.isText())
-                    CALL_LISTENER(onLastTextMessageUpdated, histmsg.type, histmsg.toText());
+                    CALL_LISTENER(onLastTextMessageUpdated, histmsg.type, histmsg.toText(), histmsg.userid);
                 else //our last text msg was deleted, find another one
                     findAndNotifyLastTextMsg();
             }
@@ -2335,7 +2335,7 @@ void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
     assert(!msg.empty());
     mLastTxtMsgIdx = idx;
     mLastTxtMsgState = kLastTxtMsgHave;
-    CALL_LISTENER(onLastTextMessageUpdated, msg.type, msg.toText());
+    CALL_LISTENER(onLastTextMessageUpdated, msg.type, msg.toText(), msg.userid);
 }
 
 void Chat::onLastTextMsgUpdated(const Message& msg)
@@ -2345,10 +2345,10 @@ void Chat::onLastTextMsgUpdated(const Message& msg)
     mLastTxtMsgIdx = CHATD_IDX_INVALID;
     mLastTxtMsgXid = msg.id();
     mLastTxtMsgState = kLastTxtMsgHave;
-    CALL_LISTENER(onLastTextMessageUpdated, msg.type, msg.toText());
+    CALL_LISTENER(onLastTextMessageUpdated, msg.type, msg.toText(), msg.userid);
 }
 
-uint8_t Chat::lastTextMessage(std::string& contents)
+uint8_t Chat::lastTextMessage(std::string& contents, uint64_t &userid)
 {
     if (!mSending.empty())
     {
@@ -2359,6 +2359,7 @@ uint8_t Chat::lastTextMessage(std::string& contents)
             if (msg.isText())
             {
                 contents.assign(msg.buf(), msg.dataSize());
+                userid = msg.userid;
                 mLastTxtMsgState = kLastTxtMsgHave;
                 mLastTxtMsgIdx = CHATD_IDX_INVALID;
                 mLastTxtMsgXid = msg.id();
@@ -2377,6 +2378,7 @@ uint8_t Chat::lastTextMessage(std::string& contents)
             if (msg.isText())
             {
                 contents.assign(msg.buf(), msg.dataSize());
+                userid = msg.userid;
                 mLastTxtMsgIdx = i;
                 mLastTxtMsgState = kLastTxtMsgHave;
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in RAM");
@@ -2385,7 +2387,7 @@ uint8_t Chat::lastTextMessage(std::string& contents)
         }
         //check in db
         Idx idx;
-        auto type = mDbInterface->getLastTextMessage(lownum()-1, contents, idx);
+        auto type = mDbInterface->getLastTextMessage(lownum()-1, contents, userid, idx);
         if (type)
         {
             mLastTxtMsgIdx = idx;
@@ -2426,8 +2428,9 @@ void Chat::findAndNotifyLastTextMsg()
         if (wptr.deleted())
             return;
         std::string data;
-        auto type = lastTextMessage(data);
-        CALL_LISTENER(onLastTextMessageUpdated, type, data);
+        uint64_t userid;
+        auto type = lastTextMessage(data, userid);
+        CALL_LISTENER(onLastTextMessageUpdated, type, data, userid);
     });
 
 }

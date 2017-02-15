@@ -243,8 +243,9 @@ public:
      * @param data The message contents in text form. If it's a special message,
      * then this string contains the most important part, like file name for
      * file attachment messages.
+     * @param userid Id of the sender of the message.
      */
-    virtual void onLastTextMessageUpdated(uint8_t type, const std::string& data) {}
+    virtual void onLastTextMessageUpdated(uint8_t type, const std::string& data, uint64_t userid) {}
 };
 
 class Client;
@@ -786,8 +787,11 @@ public:
      * is offline, then 0xfe will be returned, and upon reconnect and join, the
      * client will fetch messages from the server until it finds a text message
      * and passes it to the callback.
+     * @param data
+     * @param userid
+     * @return
      */
-    uint8_t lastTextMessage(std::string& data);
+    uint8_t lastTextMessage(std::string& data, uint64_t &userid);
 
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
@@ -952,7 +956,7 @@ public:
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
-    virtual uint8_t getLastTextMessage(Idx from, std::string& buf, Idx& ts) = 0;
+    virtual uint8_t getLastTextMessage(Idx from, std::string& buf, uint64_t &userid, Idx& ts) = 0;
     virtual ~DbInterface(){}
 };
 

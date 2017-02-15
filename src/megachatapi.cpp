@@ -793,6 +793,11 @@ int MegaChatListItem::getLastMessageType() const
     return MegaChatMessage::TYPE_INVALID;
 }
 
+MegaChatHandle MegaChatListItem::getLastMessageSender() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 int64_t MegaChatListItem::getLastTimestamp() const
 {
     return 0;

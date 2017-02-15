@@ -1898,25 +1898,25 @@ void PeerChatRoom::onUserLeave(Id userid)
     KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
 }
 
-void ChatRoom::onLastTextMessageUpdated(uint8_t type, const std::string& data)
+void ChatRoom::onLastTextMessageUpdated(uint8_t type, const std::string& data, uint64_t userid)
 {
     if (mIsInitializing)
     {
         auto wptr = weakHandle();
-        marshallCall([wptr, this, type, data]()
+        marshallCall([wptr, this, type, data, userid]()
         {
             if (wptr.deleted())
                 return;
             auto display = roomGui();
             if (display)
-                display->onLastMessageUpdated(type, data);
+                display->onLastMessageUpdated(type, data, userid);
         });
     }
     else
     {
         auto display = roomGui();
         if (display)
-           display->onLastMessageUpdated(type, data);
+           display->onLastMessageUpdated(type, data, userid);
     }
 }
 

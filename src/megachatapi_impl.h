@@ -202,6 +202,7 @@ private:
     int status;
     std::string lastMsg;
     int lastMsgType;
+    MegaChatHandle lastMsgSender;
     int64_t lastTs;
     bool group;
     bool active;
@@ -218,6 +219,7 @@ public:
     virtual int getOnlineStatus() const;
     virtual const char *getLastMessage() const;
     virtual int getLastMessageType() const;
+    virtual MegaChatHandle getLastMessageSender() const;
     virtual int64_t getLastTimestamp() const;
     virtual bool isGroup() const;
     virtual bool isActive() const;
@@ -230,8 +232,7 @@ public:
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
-    void setLastMessage(const std::string &msg);
-    void setLastMessageType(int type);
+    void setLastMessage(int type, const std::string &msg, const uint64_t &uh);
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
@@ -247,7 +248,7 @@ public:
     // karere::IApp::IListItem::IChatListItem implementation
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
-    virtual void onLastMessageUpdated(uint8_t type, const std::string& data);
+    virtual void onLastMessageUpdated(uint8_t type, const std::string& data, uint64_t uh);
     virtual void onLastTsUpdated(uint32_t ts);
 
     virtual const karere::ChatRoom& getChatRoom() const;

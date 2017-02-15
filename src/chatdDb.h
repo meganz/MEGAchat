@@ -344,7 +344,7 @@ public:
             return false;
         return stmt.stringCol(0) == "1";
     }
-    virtual uint8_t getLastTextMessage(chatd::Idx from, std::string& buf, chatd::Idx& idx)
+    virtual uint8_t getLastTextMessage(chatd::Idx from, std::string& buf, uint64_t &userid, chatd::Idx& idx)
     {
         SqliteStmt stmt(mDb,
             "select type, idx, data from history where chatid=? and "
