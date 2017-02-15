@@ -347,7 +347,7 @@ public:
     virtual uint8_t getLastTextMessage(chatd::Idx from, std::string& buf, uint64_t &userid, chatd::Idx& idx)
     {
         SqliteStmt stmt(mDb,
-            "select type, idx, data from history where chatid=? and "
+            "select type, idx, data, userid from history where chatid=? and "
             "(type=1 or type >= 16) and (idx <= ?) and length(data) > 0 "
             "order by idx desc limit 1");
         stmt << mMessages.chatId() << from;
@@ -356,6 +356,7 @@ public:
 
         buf = stmt.stringCol(2);
         idx = stmt.intCol(1);
+        userid = stmt.uint64Col(3);
         return static_cast<uint8_t>(stmt.intCol(0));
     }
 };
