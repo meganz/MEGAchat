@@ -2516,6 +2516,15 @@ void MegaChatRoomHandler::onUserTyping(karere::Id user)
     chatApi->fireOnChatRoomUpdate(chat);
 }
 
+void MegaChatRoomHandler::onLastTextMessageUpdated(uint8_t type, const std::string &data, uint64_t userid)
+{
+    if (mRoom)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        mRoom->onLastTextMessageUpdated(type, data, userid);
+    }
+}
+
 void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &newName)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
