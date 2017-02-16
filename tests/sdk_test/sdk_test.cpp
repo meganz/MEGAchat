@@ -19,6 +19,7 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
+    t.TEST_switchAccounts();
     t.TEST_offlineMode();
     t.TEST_resumeSession();
     t.TEST_setOnlineStatus();
@@ -1182,6 +1183,43 @@ void MegaChatApiTest::TEST_clearHistory()
     delete chatroomListener;
 
     logout(0, true);
+}
+
+void MegaChatApiTest::TEST_switchAccounts()
+{
+    // ___ Log with account 0 ___
+    char *session = login(0);
+
+    logout(0, true);    // terminate() and destroy Client
+
+    // 1. Initialize chat engine
+    bool *flagInit = &initStateChanged[0]; *flagInit = false;
+    megaChatApi[0]->init(NULL);
+    assert(waitForResponse(flagInit));
+    assert(initState[0] == MegaChatApi::INIT_WAITING_NEW_SESSION);
+
+    // 2. Login with account 1
+    bool *flag = &requestFlags[0][MegaRequest::TYPE_LOGIN]; *flag = false;
+    megaApi[0]->login(email[1].c_str(), pwd[1].c_str());
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+
+    // 3. Fetchnodes
+    flagInit = &initStateChanged[0]; *flagInit = false;
+    flag = &requestFlags[0][MegaRequest::TYPE_FETCH_NODES]; *flag = false;
+    megaApi[0]->fetchNodes();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    // after fetchnodes, karere should be ready for offline, at least
+    assert(waitForResponse(flagInit));
+    assert(initState[0] == MegaChatApi::INIT_ONLINE_SESSION);
+
+    // 4. Connect to chat servers
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
+    megaChatApi[0]->connect();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+
 }
 
 MegaLoggerSDK::MegaLoggerSDK(const char *filename)

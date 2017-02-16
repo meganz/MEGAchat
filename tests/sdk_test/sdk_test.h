@@ -97,6 +97,7 @@ public:
     void TEST_groupChatManagement();
     void TEST_offlineMode();
     void TEST_clearHistory();
+    void TEST_switchAccounts();
 
 private:
     std::string email[NUM_ACCOUNTS];
