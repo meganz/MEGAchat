@@ -308,6 +308,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     {
         loadContactListFromApi(*contactList);
         chatd.reset(new chatd::Client(mMyHandle));
+        assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
     });
@@ -465,6 +466,11 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             std::unique_ptr<char[]> sid(api.sdk.dumpSession());
             assert(sid);
             initWithNewSession(sid.get(), scsn, contactList, chatList)
+            .fail([this](const promise::Error& err)
+            {
+                mCanConnectPromise.reject(err);
+                return err;
+            })
             .then([this]()
             {
                 setInitState(kInitHasOnlineSession);
