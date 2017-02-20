@@ -1993,8 +1993,8 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
 //            listItem->setClosed();
 //            fireOnChatListItemUpdate(listItem);
 
-            chatGroupListItemHandler.erase(*it);
-            delete (*it);
+            delete (itemHandler);
+            chatGroupListItemHandler.erase(it);
             return;
         }
 
@@ -2015,8 +2015,8 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
 //            listItem->setClosed();
 //            fireOnChatListItemUpdate(listItem);
 
-            chatPeerListItemHandler.erase(*it);
-            delete (*it);
+            delete (itemHandler);
+            chatPeerListItemHandler.erase(it);
             return;
         }
 
