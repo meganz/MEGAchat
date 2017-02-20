@@ -207,7 +207,7 @@ public:
          * @param ts The message timestamp, as in chatd::Message::ts
          * @param userid Id of the sender of the message
          */
-        virtual void onLastMessageUpdated(uint8_t type, const std::string& data, uint64_t userid) {}
+        virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg) {}
 
         /** @brief Called when the timestamp of the most-recent message has changed.
          * This happens when a new message is received, or when there were no locally

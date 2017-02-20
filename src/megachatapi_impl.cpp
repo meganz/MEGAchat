@@ -2516,12 +2516,12 @@ void MegaChatRoomHandler::onUserTyping(karere::Id user)
     chatApi->fireOnChatRoomUpdate(chat);
 }
 
-void MegaChatRoomHandler::onLastTextMessageUpdated(uint8_t type, const std::string &data, uint64_t userid)
+void MegaChatRoomHandler::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
 {
     if (mRoom)
     {
         // forward the event to the chatroom, so chatlist items also receive the notification
-        mRoom->onLastTextMessageUpdated(type, data, userid);
+        mRoom->onLastTextMessageUpdated(msg);
     }
 }
 
@@ -3313,7 +3313,14 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
-    this->lastMsgType = chatroom.chat().lastTextMessage(this->lastMsg, this->lastMsgSender);
+    chatd::LastTextMsg* msg;
+    if ((this->lastMsgType = chatroom.chat().lastTextMessage(msg)) == 1)
+    {
+        this->lastMsg = msg->contents();
+        this->lastMsgSender = msg->userid();
+        this->lastMsgType = msg->type();
+    }
+
     this->lastTs = chatroom.lastMessageTs();
 }
 

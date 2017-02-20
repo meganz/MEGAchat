@@ -578,9 +578,9 @@ public:
         if (widget)
             widget->updateStatus(newStatus);
     }
-    virtual void onLastTextMessageUpdated(uint8_t type, const std::string& data, uint64_t userid)
+    virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
     {
-        mRoom.onLastTextMessageUpdated(type, data, userid);
+        mRoom.onLastTextMessageUpdated(msg);
     }
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx)
     {

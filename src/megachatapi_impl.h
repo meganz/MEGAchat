@@ -318,7 +318,7 @@ public:
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
     //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
     virtual void onUserTyping(karere::Id user);
-    virtual void onLastTextMessageUpdated(uint8_t type, const std::string& data, uint64_t userid);
+    virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
 
 
 protected:

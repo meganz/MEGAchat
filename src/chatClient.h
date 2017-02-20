@@ -175,7 +175,7 @@ public:
 
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
-    virtual void onLastTextMessageUpdated(uint8_t type, const std::string& data, uint64_t userid);
+    virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal);
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx);

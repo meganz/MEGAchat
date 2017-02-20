@@ -57,6 +57,8 @@ enum HistSource
 };
 
 class DbInterface;
+class LastTextMsg;
+
 class Listener
 {
 public:
@@ -233,19 +235,13 @@ public:
      * cache to get a human-readable name for the user.
      */
     virtual void onUserTyping(karere::Id userid) {}
+
     /**
      * @brief Called when the last known text message changes/is updated, so that
      * the app can display it next to the chat title
-     * @param type The type of the message, as in Message::type. See the Message::kMsgXXX enums
-     * If no text message exists in history, type is 0 (kMsgInvalid)
-     * If an error has occurred when trying to determine the message, like server
-     * is offline, then 0xfe will be returned.
-     * @param data The message contents in text form. If it's a special message,
-     * then this string contains the most important part, like file name for
-     * file attachment messages.
-     * @param userid Id of the sender of the message.
+     * @param msg Contains the properties of the last text message
      */
-    virtual void onLastTextMessageUpdated(uint8_t type, const std::string& data, uint64_t userid) {}
+    virtual void onLastTextMessageUpdated(const LastTextMsg& msg) {}
 };
 
 class Client;
@@ -321,11 +317,51 @@ enum ServerHistFetchState
     kHistDecryptingNew = kHistDecryptingFlag | 0
 };
 
-enum LastTxtMsgState: uint8_t
+/** @brief This is a class used to hold all properties of the last text
+ * message that the app is interested in
+ */
+struct LastTextMsg
 {
-    kLastTxtMsgNone,
-    kLastTxtMsgFetching,
-    kLastTxtMsgHave
+    enum: uint8_t { kNone, kFetching, kHave };
+    karere::Id userid() const { return mUserid; }
+    uint8_t type() const { return mType; }
+    const std::string& contents() const { return mContents; }
+protected:
+    uint8_t mType;
+    karere::Id mUserid;
+    std::string mContents;
+};
+
+/** @brief Internal class that maintains the last-text-message state */
+struct LastTextMsgState: public LastTextMsg
+{
+    uint8_t state() const { return mState; }
+    Idx idx() const { return mIdx; }
+    karere::Id id() const { assert(mIdx != CHATD_IDX_INVALID); return mId; }
+    karere::Id xid() const { assert(mIdx == CHATD_IDX_INVALID); return mId; }
+    bool isValid() const { return mState == kHave; }
+    bool isFetching() const { return mState == kFetching; }
+    void setState(uint8_t state) { mState = state; }
+    void setIdx(Idx idx) { mIdx = idx; } //used when a message is confirmed
+    void assign(const chatd::Message& from, Idx idx)
+    {
+        assign(from, from.type, from.id(), idx, from.userid);
+    }
+    void assign(const Buffer& buf, uint8_t type, karere::Id id, Idx idx, karere::Id userid)
+    {
+        mType = type;
+        mIdx = idx;
+        mId = id;
+        mContents.assign(buf.buf(), buf.dataSize());
+        mUserid = userid;
+        mState = kHave;
+    }
+    void clear() { mState = kNone; }
+protected:
+    friend class Chat;
+    uint8_t mState = kNone;
+    Idx mIdx = CHATD_IDX_INVALID;
+    karere::Id mId;
 };
 
 /** @brief Represents a single chatroom together with the message history.
@@ -417,9 +453,7 @@ protected:
     Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
     // last text message stuff
-    LastTxtMsgState mLastTxtMsgState = kLastTxtMsgNone;
-    Idx mLastTxtMsgIdx = CHATD_IDX_INVALID;
-    karere::Id mLastTxtMsgXid;
+    LastTextMsgState mLastTextMsg;
     // crypto stuff
     ICrypto* mCrypto;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
@@ -791,8 +825,7 @@ public:
      * @param userid
      * @return
      */
-    uint8_t lastTextMessage(std::string& data, uint64_t &userid);
-
+    uint8_t lastTextMessage(LastTextMsg*& msg);
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
 
@@ -856,7 +889,7 @@ protected:
     void replayUnsentNotifications();
     void onLastTextMsgUpdated(const Message& msg, Idx idx); //user when receiving or having a message confirmed by server
     void onLastTextMsgUpdated(const Message& msg); //used to immediately update when posting a new msg
-
+    void findLastTextMsg();
     /**
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */
@@ -956,7 +989,7 @@ public:
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
-    virtual uint8_t getLastTextMessage(Idx from, std::string& buf, uint64_t &userid, Idx& ts) = 0;
+    virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
     virtual ~DbInterface(){}
 };
 

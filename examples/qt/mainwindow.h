@@ -175,11 +175,11 @@ public:
     }
     CListChatItem(QWidget* parent): CListItem(parent){}
     virtual void onVisibilityChanged(int newVisibility) {}
-    virtual void onLastMessageUpdated(uint8_t type, const std::string& contents, uint64_t userid)
+    virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg)
     {
-        mLastTextMsg = contents;
+        mLastTextMsg = msg.contents();
         updateToolTip();
-        GUI_LOG_DEBUG("%s: onLastMessageUpdated: %s", karere::Id(room().chatid()).toString().c_str(), contents.c_str());
+        GUI_LOG_DEBUG("%s: onLastMessageUpdated: %s", karere::Id(room().chatid()).toString().c_str(), mLastTextMsg.c_str());
     }
     virtual void onLastTsUpdated(uint32_t ts)
     {
