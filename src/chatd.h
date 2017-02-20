@@ -322,7 +322,7 @@ enum ServerHistFetchState
  */
 struct LastTextMsg
 {
-    enum: uint8_t { kNone, kFetching, kHave };
+    enum: uint8_t { kNone = 0x0, kFetching = 0xff, kHave = 0x1 };
     karere::Id userid() const { return mUserid; }
     uint8_t type() const { return mType; }
     const std::string& contents() const { return mContents; }

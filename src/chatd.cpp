@@ -2372,8 +2372,17 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
         CHATID_LOG_DEBUG("getLastTextMsg: We are joining or fetch is in progress");
         return 0xff;
     }
-    assert(mHaveAllHistory);
-    return LastTextMsg::kNone;
+    findLastTextMsg();
+    if (mLastTextMsg.isValid())
+    {
+        msg = &mLastTextMsg;
+        return 1;
+    }
+    else
+    {
+        msg = nullptr;
+        return mLastTextMsg.state();
+    }
 }
 
 void Chat::findLastTextMsg()
