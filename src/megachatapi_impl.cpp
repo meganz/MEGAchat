@@ -2518,7 +2518,6 @@ void MegaChatRoomHandler::onUserTyping(karere::Id user)
 
 void MegaChatRoomHandler::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
 {
-    printf("onLastTextMessageUpdated intermediate layer\n");
     if (mRoom)
     {
         // forward the event to the chatroom, so chatlist items also receive the notification

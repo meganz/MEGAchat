@@ -59,7 +59,6 @@ public:
     }
     void commit()
     {
-        return;
         sqliteSimpleQuery(mDb, "COMMIT TRANSACTION");
         sqliteSimpleQuery(mDb, "BEGIN TRANSACTION");
     }
