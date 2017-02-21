@@ -232,7 +232,7 @@ public:
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
-    void setLastMessage(int type, const std::string &msg, const uint64_t &uh);
+    void setLastMessage(int type, const std::string &msg, const uint64_t uh);
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
@@ -248,7 +248,7 @@ public:
     // karere::IApp::IListItem::IChatListItem implementation
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
-    virtual void onLastMessageUpdated(uint8_t type, const std::string& data, uint64_t uh);
+    virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastTsUpdated(uint32_t ts);
 
     virtual const karere::ChatRoom& getChatRoom() const;

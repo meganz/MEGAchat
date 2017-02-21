@@ -3313,12 +3313,20 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
-    chatd::LastTextMsg* msg;
-    if ((this->lastMsgType = chatroom.chat().lastTextMessage(msg)) == 1)
+
+    LastTextMsg* msg;
+    int lastMsgStatus = chatroom.chat().lastTextMessage(msg);
+    if (lastMsgStatus == 1)
     {
         this->lastMsg = msg->contents();
         this->lastMsgSender = msg->userid();
         this->lastMsgType = msg->type();
+    }
+    else
+    {
+        this->lastMsg = "";
+        this->lastMsgSender = MEGACHAT_INVALID_HANDLE;
+        this->lastMsgType = lastMsgStatus;
     }
 
     this->lastTs = chatroom.lastMessageTs();
@@ -3460,7 +3468,7 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
 }
 
-void MegaChatListItemPrivate::setLastMessage(int type, const string &msg, const uint64_t &uh)
+void MegaChatListItemPrivate::setLastMessage(int type, const string &msg, const uint64_t uh)
 {
     this->lastMsg = msg;
     this->lastMsgType = type;
@@ -3508,10 +3516,10 @@ void MegaChatListItemHandler::onRejoinedChat()
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onLastMessageUpdated(uint8_t type, const std::string &data, uint64_t uh)
+void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    item->setLastMessage(type, data, uh);
+    item->setLastMessage(msg.type(), msg.contents(), msg.userid());
     chatApi.fireOnChatListItemUpdate(item);
 }
 
