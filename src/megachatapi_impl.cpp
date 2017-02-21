@@ -1566,9 +1566,8 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        Chat &chat = chatroom->chat();
         unsigned char t = MegaChatMessage::TYPE_NORMAL;
-        Message *m = chat.msgSubmit(msg, strlen(msg), t, NULL);
+        Message *m = chatroom->sendMessage(msg, strlen(msg), t, NULL);
 
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
@@ -1600,7 +1599,7 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
         if (originalMsg)
         {
-            const Message *editedMsg = chat.msgModify(*originalMsg, msg, msg ? strlen(msg) : 0, NULL);
+            const Message *editedMsg = chatroom->editMessage(*originalMsg, msg, msg ? strlen(msg) : 0, NULL);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
