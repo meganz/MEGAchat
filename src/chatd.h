@@ -342,7 +342,6 @@ struct LastTextMsgState: public LastTextMsg
     bool isValid() const { return mState == kHave; }
     bool isFetching() const { return mState == kFetching; }
     void setState(uint8_t state) { mState = state; }
-    void setIdx(Idx idx) { mIdx = idx; } //used when a message is confirmed
     void assign(const chatd::Message& from, Idx idx)
     {
         assign(from, from.type, from.id(), idx, from.userid);
@@ -356,6 +355,8 @@ struct LastTextMsgState: public LastTextMsg
         mUserid = userid;
         mState = kHave;
     }
+    //assign both idx and proper msgid (was msgxid until now)
+    void confirm(Idx idx, karere::Id msgid) { mIdx = idx; mId = msgid; }
     void clear() { mState = kNone; }
 protected:
     friend class Chat;
@@ -820,10 +821,14 @@ public:
      * \c onLastTextMsgUpdated callback will be called. If the network connection
      * is offline, then 0xfe will be returned, and upon reconnect and join, the
      * client will fetch messages from the server until it finds a text message
-     * and passes it to the callback.
-     * @param data
-     * @param userid
-     * @return
+     * and will call the callback with it.
+     * @param [out] msg Output pointer that will be set to the internal last-text-message
+     * object. The object is owned by the client, and you should use this
+     * pointer synchronously after the call to this function, and not in an
+     * async-delayed way.
+     * @return If there is currently a last-text-message, 1 is returned and
+     * the output pointer will be set to the internal object. Otherwise,
+     * the output pointer will be set to \c NULL, and an error code will be
      */
     uint8_t lastTextMessage(LastTextMsg*& msg);
     /** @brief Changes the Listener */
