@@ -1298,6 +1298,9 @@ public:
 
     /**
      * @brief Return the number of chatrooms with unread messages
+     *
+     * Inactive chatrooms with unread messages are not considered.
+     *
      * @return The number of chatrooms with unread messages
      */
     int getUnreadChats();

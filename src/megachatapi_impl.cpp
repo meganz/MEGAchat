@@ -1319,7 +1319,8 @@ int MegaChatApiImpl::getUnreadChats()
     ChatRoomList::iterator it;
     for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
     {
-        if (it->second->chat().unreadMsgCount())
+        ChatRoom *room = it->second;
+        if (room->isActive() && room->chat().unreadMsgCount())
         {
             count++;
         }
