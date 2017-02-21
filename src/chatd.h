@@ -358,7 +358,7 @@ struct LastTextMsgState: public LastTextMsg
     }
     //assign both idx and proper msgid (was msgxid until now)
     void confirm(Idx idx, karere::Id msgid) { mIdx = idx; mId = msgid; }
-    void clear() { mState = kNone; }
+    void clear() { mState = kNone; mType = 0; mContents.clear(); }
 protected:
     friend class Chat;
     uint8_t mState = kNone;

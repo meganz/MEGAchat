@@ -969,7 +969,8 @@ void Chat::onFetchHistDone()
             //last text msg stuff
             if (mLastTextMsg.isFetching())
             {
-                mLastTextMsg.setState(LastTextMsg::kNone);
+                mLastTextMsg.clear();
+                CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
             }
         }
     }
@@ -2447,9 +2448,13 @@ void Chat::findAndNotifyLastTextMsg()
             return;
         findLastTextMsg();
         if (mLastTextMsg.state() == LastTextMsg::kNone)
-            mLastTextMsg.mType = 0;
+        {
+            assert(mLastTextMsg.type() == 0);
+        }
         else if (mLastTextMsg.state() == LastTextMsg::kFetching)
+        {
             return;
+        }
         CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
     });
 

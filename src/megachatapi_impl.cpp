@@ -2489,7 +2489,6 @@ void MegaChatVideoReceiver::clearViewport()
 
 void MegaChatVideoReceiver::released()
 {
-
 }
 
 

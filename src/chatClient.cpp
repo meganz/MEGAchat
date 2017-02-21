@@ -1025,14 +1025,6 @@ void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::
     onMessageTimestamp(msg.ts);
 }
 
-void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx)
-{
-    auto ts = msg.ts+msg.updated-1;
-    if (ts <= mLastMsgTs)
-        return;
-    callAfterInit(&std::remove_pointer<decltype(this)>::type::notifyLastMsgTsUpdated, ts);
-}
-
 template <typename... Args, typename MSig>
 void ChatRoom::callAfterInit(MSig method, Args... args)
 {
