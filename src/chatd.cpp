@@ -2427,6 +2427,7 @@ void Chat::findLastTextMsg()
     {
         CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
         assert(mLastTextMsg.state() == LastTextMsg::kNone);
+        mLastTextMsg.mType = 0; //the callback will be called, and it only has access to 'type'
         return;
     }
 
