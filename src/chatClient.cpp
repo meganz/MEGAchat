@@ -979,12 +979,16 @@ ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
 
 chatd::Message* ChatRoom::editMessage(chatd::Message& msg, const char* newdata, size_t newlen, void* userp)
 {
-    return mChat->msgModify(msg, newdata, newlen, userp);
+    auto ret = mChat->msgModify(msg, newdata, newlen, userp);
+    onMessageTimestamp(time(NULL));
+    return ret;
 }
 
 chatd::Message* ChatRoom::sendMessage(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
-    return mChat->msgSubmit(msg, msglen, type, userp);
+    auto ret = mChat->msgSubmit(msg, msglen, type, userp);
+    onMessageTimestamp(ret->ts);
+    return ret;
 }
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
