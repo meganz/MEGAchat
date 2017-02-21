@@ -187,7 +187,7 @@ public:
     bool isText() const
     {
         return !empty() && (type == kMsgNormal || type == kMsgAttachment
-            || type == kMsgRevokeAttachment || type == kMsgContact);
+            || type == kMsgContact);
     }
 
     /** @brief Convert attachment etc. special messages to text */
