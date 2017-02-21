@@ -6,12 +6,6 @@
 
 #include <signal.h>
 
-void sigintHandler(int)
-{
-    printf("SIGINT Received\n");
-    fflush(stdout);
-}
-
 int main(int argc, char **argv)
 {
 //    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
@@ -19,13 +13,7 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    t.TEST_offlineMode();
-    t.TEST_resumeSession();
-    t.TEST_setOnlineStatus();
-    t.TEST_getChatRoomsAndMessages();
     t.TEST_editAndDeleteMessages();
-    t.TEST_groupChatManagement();
-    t.TEST_clearHistory();
 
     t.terminate();
 
@@ -106,7 +94,6 @@ void MegaChatApiTest::init()
         megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
         megaChatApi[i]->addChatRequestListener(this);
         megaChatApi[i]->addChatListener(this);
-        signal(SIGINT, sigintHandler);
         megaApi[i]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");
     }
 }
@@ -644,6 +631,7 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
     assert(msgReceived && !strcmp(msg0.c_str(), msgReceived->getContent()));
     assert(waitForResponse(flagDelivered));    // for delivery
     delete msgReceived; msgReceived = NULL;
+    return;
 
     // edit the message
     msg0 = "This is an edited message to " + email[0];

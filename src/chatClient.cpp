@@ -977,6 +977,16 @@ ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
     mOwnPriv(aOwnPriv), mTitleString(aTitle), mLastMsgTs(ts)
 {}
 
+chatd::Message* ChatRoom::editMessage(chatd::Message& msg, const char* newdata, size_t newlen, void* userp)
+{
+    return mChat->msgModify(msg, newdata, newlen, userp);
+}
+
+chatd::Message* ChatRoom::sendMessage(const char* msg, size_t msglen, unsigned char type, void* userp)
+{
+    return mChat->msgSubmit(msg, msglen, type, userp);
+}
+
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
@@ -992,20 +1002,23 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
     if (mOwnPriv == chatd::PRIV_NOTPRESENT)
         mChat->disable(true);
 }
+
+void ChatRoom::onMessageTimestamp(uint32_t ts)
+{
+    if (ts <= mLastMsgTs)
+        return;
+    mLastMsgTs = ts;
+    callAfterInit(&std::remove_pointer<decltype(this)>::type::notifyLastMsgTsUpdated, ts);
+}
+
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
 {
-    if (msg.ts <= mLastMsgTs)
-        return;
-    mLastMsgTs = msg.ts;
-    callAfterInit(&std::remove_pointer<decltype(this)>::type::notifyLastMsgTsUpdated, msg.ts);
+    onMessageTimestamp(msg.ts);
 }
 
 void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal)
 {
-    if (msg.ts <= mLastMsgTs)
-        return;
-    mLastMsgTs = msg.ts;
-    callAfterInit(&std::remove_pointer<decltype(this)>::type::notifyLastMsgTsUpdated, msg.ts);
+    onMessageTimestamp(msg.ts);
 }
 
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx)

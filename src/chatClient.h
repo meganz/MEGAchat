@@ -76,6 +76,7 @@ protected:
     void notifyLastMsgTsUpdated(uint32_t ts);
     template <typename... Args, typename MSig=void(ChatRoom::*)(Args...)>
     void callAfterInit(MSig method, Args... args);
+    void onMessageTimestamp(uint32_t ts);
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
@@ -136,6 +137,18 @@ public:
 
     /** @brief send a notification to the chatroom that the user is typing. */
     virtual void sendTypingNotification() { mChat->sendTypingNotification(); }
+
+    /** @brief Edits a message in the chatroom. Forwards the call to
+     * \c chatd::Chat::msgModify() (look at its documentation for details),
+     * but also does last timestamp bookkeeping
+     */
+    chatd::Message* editMessage(chatd::Message& msg, const char* newdata, size_t newlen, void* userp);
+
+    /** @brief Sends a new message to the chatroom. Forwards the call to
+     * \c chatd::Chat::msgSubmit() (look at its documentation for detaild),
+     * but also does last timestamp bookkeeping
+     */
+    chatd::Message* sendMessage(const char* msg, size_t msglen, unsigned char type, void* userp);
 
     /** @brief The application-side event handler that receives events from
      * the chatd chatroom and events about title, online status and unread
