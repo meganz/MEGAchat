@@ -1727,7 +1727,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         }
         else
         { //it's the same message - set its index, and don't notify again
-            mLastTextMsg.setIdx(idx);
+            mLastTextMsg.confirm(idx, msgid);
         }
     }
     else if (idx > mLastTextMsg.idx())
@@ -2427,7 +2427,6 @@ void Chat::findLastTextMsg()
     {
         CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
         assert(mLastTextMsg.state() == LastTextMsg::kNone);
-        mLastTextMsg.mType = 0; //the callback will be called, and it only has access to 'type'
         return;
     }
 
@@ -2447,6 +2446,10 @@ void Chat::findAndNotifyLastTextMsg()
         if (wptr.deleted())
             return;
         findLastTextMsg();
+        if (mLastTextMsg.state() == LastTextMsg::kNone)
+            mLastTextMsg.mType = 0;
+        else if (mLastTextMsg.state() == LastTextMsg::kFetching)
+            return;
         CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
     });
 
