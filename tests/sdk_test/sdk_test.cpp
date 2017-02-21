@@ -619,7 +619,7 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
     assert(waitForResponse(flag));
     assert(!lastErrorChat[1]);
 
-    string msg0 = "HOLA " + email[0] + " - This is a testing message automatically sent to you";
+    string msg0 = "HOLA " + email[0] + " - This is a testing message automatically sent to you\n\r\n";
     bool *flagConfirmed = &chatroomListener->msgConfirmed[0]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
     bool *flagDelivered = &chatroomListener->msgDelivered[0]; *flagDelivered = false;
@@ -628,6 +628,7 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
 
     MegaChatMessage *msgSent = megaChatApi[0]->sendMessage(chatid0, msg0.c_str());
     assert(msgSent);
+    msg0 = msgSent->getContent();
     delete msgSent; msgSent = NULL;
 
     assert(waitForResponse(flagConfirmed));    // for confirmation, sendMessage() is synchronous
@@ -643,7 +644,7 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
     delete msgReceived; msgReceived = NULL;
 
     // edit the message
-    msg0 = "This is an edited message to " + email[0];
+    msg0 = "This is an edited message to " + email[0] + "\n\r";
     bool *flagEdited = &chatroomListener->msgEdited[0]; *flagEdited = false;
     flagReceived = &chatroomListener->msgEdited[1]; *flagReceived = false;  // target user receives a message status update
     flagDelivered = &chatroomListener->msgDelivered[0]; *flagDelivered = false;
@@ -652,6 +653,7 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
 
     MegaChatMessage *msgEdited = megaChatApi[0]->editMessage(chatid0, msgId0, msg0.c_str());
     assert(msgEdited);  // rejected because of age (more than one hour) --> shouldn't happen
+    msg0 = msgEdited->getContent();
     delete msgEdited; msgEdited = NULL;
 
     assert(waitForResponse(flagEdited));    // for confirmation, editMessage() is synchronous

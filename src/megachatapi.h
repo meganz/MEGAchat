@@ -1626,6 +1626,8 @@ public:
      *
      * You take the ownership of the returned value.
      *
+     * @note Any tailing carriage return and/or line feed ('\r' and '\n') will be removed.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param msg Content of the message
      *

@@ -1560,6 +1560,23 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
         return NULL;
     }
 
+    size_t msgLen = strlen(msg);
+    while (msgLen)
+    {
+        if (msg[msgLen-1] == '\n' || msg[msgLen-1] == '\r')
+        {
+            msgLen--;
+        }
+        else
+        {
+            break;
+        }
+    }
+    if (!msgLen)
+    {
+        return NULL;
+    }
+
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
 
@@ -1568,7 +1585,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     {
         Chat &chat = chatroom->chat();
         unsigned char t = MegaChatMessage::TYPE_NORMAL;
-        Message *m = chat.msgSubmit(msg, strlen(msg), t, NULL);
+        Message *m = chat.msgSubmit(msg, msgLen, t, NULL);
 
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
@@ -1600,7 +1617,28 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
         if (originalMsg)
         {
-            const Message *editedMsg = chat.msgModify(*originalMsg, msg, msg ? strlen(msg) : 0, NULL);
+            size_t msgLen = msg ? strlen(msg) : 0;
+            if (msg)    // actually not deletion, but edit
+            {
+                while (msgLen)
+                {
+                    if (msg[msgLen-1] == '\n' || msg[msgLen-1] == '\r')
+                    {
+                        msgLen--;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                if (!msgLen)
+                {
+                    sdkMutex.unlock();
+                    return NULL;
+                }
+            }
+
+            const Message *editedMsg = chat.msgModify(*originalMsg, msg, msgLen, NULL);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
