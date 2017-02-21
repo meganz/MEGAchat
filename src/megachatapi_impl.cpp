@@ -3319,7 +3319,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     if (lastMsgStatus == 1)
     {
         this->lastMsg = msg->contents();
-        this->lastMsgSender = msg->userid();
+        this->lastMsgSender = msg->sender();
         this->lastMsgType = msg->type();
     }
     else
@@ -3519,7 +3519,7 @@ void MegaChatListItemHandler::onRejoinedChat()
 void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    item->setLastMessage(msg.type(), msg.contents(), msg.userid());
+    item->setLastMessage(msg.type(), msg.contents(), msg.sender());
     chatApi.fireOnChatListItemUpdate(item);
 }
 
