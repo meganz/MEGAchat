@@ -323,12 +323,13 @@ enum ServerHistFetchState
 struct LastTextMsg
 {
     enum: uint8_t { kNone = 0x0, kFetching = 0xff, kOffline = 0xfe, kHave = 0x1 };
-    karere::Id userid() const { return mUserid; }
+    /** @brief The sender of the message */
+    karere::Id sender() const { return mSender; }
     uint8_t type() const { return mType; }
     const std::string& contents() const { return mContents; }
 protected:
     uint8_t mType;
-    karere::Id mUserid;
+    karere::Id mSender;
     std::string mContents;
 };
 
@@ -346,13 +347,13 @@ struct LastTextMsgState: public LastTextMsg
     {
         assign(from, from.type, from.id(), idx, from.userid);
     }
-    void assign(const Buffer& buf, uint8_t type, karere::Id id, Idx idx, karere::Id userid)
+    void assign(const Buffer& buf, uint8_t type, karere::Id id, Idx idx, karere::Id sender)
     {
         mType = type;
         mIdx = idx;
         mId = id;
         mContents.assign(buf.buf(), buf.dataSize());
-        mUserid = userid;
+        mSender = sender;
         mState = kHave;
     }
     //assign both idx and proper msgid (was msgxid until now)
@@ -829,6 +830,14 @@ public:
      * @return If there is currently a last-text-message, 1 is returned and
      * the output pointer will be set to the internal object. Otherwise,
      * the output pointer will be set to \c NULL, and an error code will be
+     * returner, as follows:
+     *   0xff - no text message is avaliable locally, the client is fetching
+     * more history from server. The fetching will continue until a text
+     * message is found, at which point the callback will be called.
+     *   0xfe - no text message is available locally, and there is no internet
+     * connection to fetch more history from server. When connection is
+     * restored, the client will fetch history until a text message is found,
+     * then it will call the callback.
      */
     uint8_t lastTextMessage(LastTextMsg*& msg);
     /** @brief Changes the Listener */

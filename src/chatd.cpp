@@ -2356,29 +2356,27 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
     if (mLastTextMsg.isValid())
     {
         msg = &mLastTextMsg;
-        return LastTextMsg::kHave;
+        return 1;
     }
     if (mLastTextMsg.isFetching())
-    {
-        return LastTextMsg::kFetching;
-    }
+        return 0xff;
 
     //state is kNone, but check first if we should return in-progress or error
     if (mOnlineState <= kChatStateConnecting)
     {
         CHATID_LOG_DEBUG("getLastTextMsg: Can't get more history, we are offline");
-        return LastTextMsg::kOffline;
+        return 0xfe;
     }
     if ((mOnlineState == kChatStateJoining) || (mServerFetchState & kHistFetchingOldFromServer))
     {
         CHATID_LOG_DEBUG("getLastTextMsg: We are joining or fetch is in progress");
-        return LastTextMsg::kFetching;
+        return 0xff;
     }
     findLastTextMsg();
     if (mLastTextMsg.isValid())
     {
         msg = &mLastTextMsg;
-        return LastTextMsg::kHave;
+        return 1;
     }
     else
     {
