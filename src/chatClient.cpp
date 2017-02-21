@@ -41,6 +41,9 @@ using namespace promise;
 namespace karere
 {
 
+template <class T, class F>
+void callAfterInit(T* self, F&& func);
+
 std::string encodeFirstName(const std::string& first);
 
 
@@ -1012,7 +1015,12 @@ void ChatRoom::onMessageTimestamp(uint32_t ts)
     if (ts <= mLastMsgTs)
         return;
     mLastMsgTs = ts;
-    callAfterInit(&std::remove_pointer<decltype(this)>::type::notifyLastMsgTsUpdated, ts);
+    callAfterInit(this, [this, ts]()
+    {
+        auto display = roomGui();
+        if (display)
+            display->onLastTsUpdated(ts);
+    });
 }
 
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -1025,30 +1033,22 @@ void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::
     onMessageTimestamp(msg.ts);
 }
 
-template <typename... Args, typename MSig>
-void ChatRoom::callAfterInit(MSig method, Args... args)
+template <class T, typename F>
+void callAfterInit(T* self, F&& func)
 {
-    if (mIsInitializing)
+    if (self->isInitializing())
     {
-        auto wptr = this->weakHandle();
-        marshallCall([wptr, this, method, args...]()
+        auto wptr = self->weakHandle();
+        marshallCall([wptr, func]()
         {
-            if (wptr.deleted())
-                return;
-            (this->*method)(args...);
+            if (!wptr.deleted())
+                func();
         });
     }
     else
     {
-        (this->*method)(args...);
+        func();
     }
-}
-
-void ChatRoom::notifyLastMsgTsUpdated(uint32_t ts)
-{
-    auto display = roomGui();
-    if (display)
-        display->onLastTsUpdated(ts);
 }
 
 void PeerChatRoom::initWithChatd()
@@ -1959,33 +1959,15 @@ void PeerChatRoom::updateTitle(const std::string& title)
 
 void ChatRoom::notifyTitleChanged()
 {
-    if (mIsInitializing)
+    callAfterInit(this, [this]
     {
-        auto wptr = getDelTracker();
-        marshallCall([this, wptr]()
-        {
-            if (wptr.deleted())
-                return;
-            synchronousNotifyTitleChanged();
-        });
-    }
-    else
-    {
-        synchronousNotifyTitleChanged();
-    }
-}
+        auto display = roomGui();
+        if (display)
+            display->onTitleChanged(mTitleString);
 
-void ChatRoom::synchronousNotifyTitleChanged()
-{
-    auto display = roomGui();
-    if (display)
-    {
-        display->onTitleChanged(mTitleString);
-    }
-    if (mAppChatHandler)
-    {
-        mAppChatHandler->onTitleChanged(mTitleString);
-    }
+        if (mAppChatHandler)
+            mAppChatHandler->onTitleChanged(mTitleString);
+    });
 }
 
 void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
@@ -2379,31 +2361,15 @@ void Contact::updateTitle(const std::string& str)
 
 void Contact::notifyTitleChanged()
 {
-    if (mIsInitializing)
-    {
-        auto wptr = getDelTracker();
-        marshallCall([this, wptr]()
-        {
-            wptr.throwIfDeleted();
-            //if it's initializing, then there is no mChatRoom
-            if (mDisplay)
-            {
-                mDisplay->onTitleChanged(mTitleString);
-            }
-        });
-    }
-    else
+    callAfterInit(this, [this]
     {
         if (mDisplay)
-        {
             mDisplay->onTitleChanged(mTitleString);
-        }
+
+        //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
-        {
-            //1on1 chatrooms don't have a binary layout for the title
             mChatRoom->updateTitle(mTitleString.substr(1));
-        }
-    }
+    });
 }
 
 Contact::~Contact()

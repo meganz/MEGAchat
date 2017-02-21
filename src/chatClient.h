@@ -66,16 +66,12 @@ protected:
     std::string mTitleString;
     uint32_t mLastMsgTs;
     void notifyTitleChanged();
-    void synchronousNotifyTitleChanged();
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv priv);
-    void notifyLastMsgTsUpdated(uint32_t ts);
-    template <typename... Args, typename MSig=void(ChatRoom::*)(Args...)>
-    void callAfterInit(MSig method, Args... args);
     void onMessageTimestamp(uint32_t ts);
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
@@ -492,7 +488,7 @@ public:
 
     /** @brief The presence of the contact */
     Presence presence() const { return mPresence; }
-
+    bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);
     void updateAllOnlineDisplays(Presence pres)
