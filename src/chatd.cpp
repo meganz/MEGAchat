@@ -2322,7 +2322,7 @@ void Chat::onJoinComplete()
     if (mIsFirstJoin)
     {
         mIsFirstJoin = false;
-        if (mLastTextMsg.state() == LastTextMsg::kNone)
+        if (!mLastTextMsg.isValid())
         {
             CHATID_LOG_DEBUG("onJoinComplete: Haven't received a text message during join, getting last text message on-demand");
             findAndNotifyLastTextMsg();
@@ -2438,7 +2438,7 @@ void Chat::findLastTextMsg()
     if (mHaveAllHistory)
     {
         CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
-        assert(mLastTextMsg.state() == LastTextMsg::kNone);
+        assert(!mLastTextMsg.isValid());
         return;
     }
 
@@ -2458,14 +2458,9 @@ void Chat::findAndNotifyLastTextMsg()
         if (wptr.deleted())
             return;
         findLastTextMsg();
-        if (mLastTextMsg.state() == LastTextMsg::kNone)
-        {
-            assert(mLastTextMsg.type() == 0);
-        }
-        else if (mLastTextMsg.state() == LastTextMsg::kFetching)
-        {
+        if (mLastTextMsg.state() == LastTextMsg::kFetching)
             return;
-        }
+
         CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
     });
 

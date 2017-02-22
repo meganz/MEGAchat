@@ -82,6 +82,7 @@ public:
         kNotSeen, //< User hasn't read this message yet
         kSeen //< User has read this message
     };
+    enum { kFlagForceNonText = 0x01 };
     /** @brief Info recorder in a management message.
      * When a message is a management message, _and_ it needs to carry additional
      * info besides the standard fields (such as sender), the additional data
@@ -118,6 +119,7 @@ private:
     bool mIdIsXid = false;
 protected:
     bool mIsEncrypted = false;
+    uint8_t mFlags = 0;
 public:
     karere::Id userid;
     uint32_t ts;
@@ -127,7 +129,7 @@ public:
     BackRefId backRefId;
     std::vector<BackRefId> backRefs;
     mutable void* userp;
-    mutable uint16_t userFlags = 0;
+    mutable uint8_t userFlags = 0;
     karere::Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
     bool isEncrypted() const { return mIsEncrypted; }
@@ -186,8 +188,9 @@ public:
     bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
     bool isText() const
     {
-        return !empty() && (type == kMsgNormal || type == kMsgAttachment
-            || type == kMsgContact);
+        return !empty() && ((mFlags & kFlagForceNonText) == 0) &&
+            (type == kMsgNormal || type == kMsgAttachment
+          || type == kMsgContact);
     }
 
     /** @brief Convert attachment etc. special messages to text */
