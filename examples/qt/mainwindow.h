@@ -179,7 +179,9 @@ public:
     {
         mLastTextMsg = msg.type() ? msg.contents() : "<none>";
         updateToolTip();
-        GUI_LOG_DEBUG("%s: onLastMessageUpdated: %s", karere::Id(room().chatid()).toString().c_str(), mLastTextMsg.c_str());
+        GUI_LOG_DEBUG("%s: onLastMessageUpdated: type 0x%x, data: %s",
+            karere::Id(room().chatid()).toString().c_str(),
+                      msg.type(), mLastTextMsg.c_str());
     }
     virtual void onLastTsUpdated(uint32_t ts)
     {
