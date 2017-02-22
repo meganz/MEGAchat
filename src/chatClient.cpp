@@ -2296,8 +2296,10 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         USER_ATTR_FULLNAME, this,
         [](Buffer* data, void* userp)
         {
+            //even if both first and last name are null, the data is at least
+            //one byte - the firstname-size-prefix, which will be zero
             auto self = static_cast<Contact*>(userp);
-            if (!data || data->empty())
+            if (!data || data->empty() || (*data->buf() == 0))
                 self->updateTitle(encodeFirstName(self->mEmail));
             else
                 self->updateTitle(std::string(data->buf(), data->dataSize()));
