@@ -1302,6 +1302,9 @@ public:
 
     /**
      * @brief Return the number of chatrooms with unread messages
+     *
+     * Inactive chatrooms with unread messages are not considered.
+     *
      * @return The number of chatrooms with unread messages
      */
     int getUnreadChats();
@@ -1627,6 +1630,8 @@ public:
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
      * You take the ownership of the returned value.
+     *
+     * @note Any tailing carriage return and/or line feed ('\r' and '\n') will be removed.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param msg Content of the message

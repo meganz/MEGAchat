@@ -311,6 +311,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     {
         loadContactListFromApi(*contactList);
         chatd.reset(new chatd::Client(mMyHandle));
+        assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
     });
@@ -468,6 +469,11 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             std::unique_ptr<char[]> sid(api.sdk.dumpSession());
             assert(sid);
             initWithNewSession(sid.get(), scsn, contactList, chatList)
+            .fail([this](const promise::Error& err)
+            {
+                mCanConnectPromise.reject(err);
+                return err;
+            })
             .then([this]()
             {
                 setInitState(kInitHasOnlineSession);
@@ -2332,8 +2338,10 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         USER_ATTR_FULLNAME, this,
         [](Buffer* data, void* userp)
         {
+            //even if both first and last name are null, the data is at least
+            //one byte - the firstname-size-prefix, which will be zero
             auto self = static_cast<Contact*>(userp);
-            if (!data || data->empty())
+            if (!data || data->empty() || (*data->buf() == 0))
                 self->updateTitle(encodeFirstName(self->mEmail));
             else
                 self->updateTitle(std::string(data->buf(), data->dataSize()));

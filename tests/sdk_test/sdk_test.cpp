@@ -19,6 +19,7 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
+    t.TEST_switchAccounts();
     t.TEST_offlineMode();
     t.TEST_resumeSession();
     t.TEST_setOnlineStatus();
@@ -622,7 +623,7 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
     assert(waitForResponse(flag));
     assert(!lastErrorChat[1]);
 
-    string msg0 = "HOLA " + email[0] + " - This is a testing message automatically sent to you";
+    string msg0 = "HOLA " + email[0] + " - This is a testing message automatically sent to you\n\r\n";
     bool *flagConfirmed = &chatroomListener->msgConfirmed[0]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
     bool *flagDelivered = &chatroomListener->msgDelivered[0]; *flagDelivered = false;
@@ -631,6 +632,7 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
 
     MegaChatMessage *msgSent = megaChatApi[0]->sendMessage(chatid0, msg0.c_str());
     assert(msgSent);
+    msg0 = msgSent->getContent();
     delete msgSent; msgSent = NULL;
 
     assert(waitForResponse(flagConfirmed));    // for confirmation, sendMessage() is synchronous
@@ -646,7 +648,7 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
     delete msgReceived; msgReceived = NULL;
 
     // edit the message
-    msg0 = "This is an edited message to " + email[0];
+    msg0 = "This is an edited message to " + email[0] + "\n\r";
     bool *flagEdited = &chatroomListener->msgEdited[0]; *flagEdited = false;
     flagReceived = &chatroomListener->msgEdited[1]; *flagReceived = false;  // target user receives a message status update
     flagDelivered = &chatroomListener->msgDelivered[0]; *flagDelivered = false;
@@ -655,6 +657,7 @@ void MegaChatApiTest::TEST_editAndDeleteMessages()
 
     MegaChatMessage *msgEdited = megaChatApi[0]->editMessage(chatid0, msgId0, msg0.c_str());
     assert(msgEdited);  // rejected because of age (more than one hour) --> shouldn't happen
+    msg0 = msgEdited->getContent();
     delete msgEdited; msgEdited = NULL;
 
     assert(waitForResponse(flagEdited));    // for confirmation, editMessage() is synchronous
@@ -1190,6 +1193,43 @@ void MegaChatApiTest::TEST_clearHistory()
     delete chatroomListener;
 
     logout(0, true);
+}
+
+void MegaChatApiTest::TEST_switchAccounts()
+{
+    // ___ Log with account 0 ___
+    char *session = login(0);
+
+    logout(0, true);    // terminate() and destroy Client
+
+    // 1. Initialize chat engine
+    bool *flagInit = &initStateChanged[0]; *flagInit = false;
+    megaChatApi[0]->init(NULL);
+    assert(waitForResponse(flagInit));
+    assert(initState[0] == MegaChatApi::INIT_WAITING_NEW_SESSION);
+
+    // 2. Login with account 1
+    bool *flag = &requestFlags[0][MegaRequest::TYPE_LOGIN]; *flag = false;
+    megaApi[0]->login(email[1].c_str(), pwd[1].c_str());
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+
+    // 3. Fetchnodes
+    flagInit = &initStateChanged[0]; *flagInit = false;
+    flag = &requestFlags[0][MegaRequest::TYPE_FETCH_NODES]; *flag = false;
+    megaApi[0]->fetchNodes();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+    // after fetchnodes, karere should be ready for offline, at least
+    assert(waitForResponse(flagInit));
+    assert(initState[0] == MegaChatApi::INIT_ONLINE_SESSION);
+
+    // 4. Connect to chat servers
+    flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
+    megaChatApi[0]->connect();
+    assert(waitForResponse(flag));
+    assert(!lastError[0]);
+
 }
 
 MegaLoggerSDK::MegaLoggerSDK(const char *filename)

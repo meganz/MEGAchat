@@ -1319,7 +1319,8 @@ int MegaChatApiImpl::getUnreadChats()
     ChatRoomList::iterator it;
     for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
     {
-        if (it->second->chat().unreadMsgCount())
+        ChatRoom *room = it->second;
+        if (room->isActive() && room->chat().unreadMsgCount())
         {
             count++;
         }
@@ -1560,6 +1561,23 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
         return NULL;
     }
 
+    size_t msgLen = strlen(msg);
+    while (msgLen)
+    {
+        if (msg[msgLen-1] == '\n' || msg[msgLen-1] == '\r')
+        {
+            msgLen--;
+        }
+        else
+        {
+            break;
+        }
+    }
+    if (!msgLen)
+    {
+        return NULL;
+    }
+
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
 
@@ -1567,7 +1585,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     if (chatroom)
     {
         unsigned char t = MegaChatMessage::TYPE_NORMAL;
-        Message *m = chatroom->sendMessage(msg, strlen(msg), t, NULL);
+        Message *m = chatroom->sendMessage(msg, msgLen, t, NULL);
 
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
@@ -1599,7 +1617,28 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
         if (originalMsg)
         {
-            const Message *editedMsg = chatroom->editMessage(*originalMsg, msg, msg ? strlen(msg) : 0, NULL);
+            size_t msgLen = msg ? strlen(msg) : 0;
+            if (msg)    // actually not deletion, but edit
+            {
+                while (msgLen)
+                {
+                    if (msg[msgLen-1] == '\n' || msg[msgLen-1] == '\r')
+                    {
+                        msgLen--;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                if (!msgLen)
+                {
+                    sdkMutex.unlock();
+                    return NULL;
+                }
+            }
+
+            const Message *editedMsg = chatroom->editMessage(*originalMsg, msg, msgLen, NULL);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
