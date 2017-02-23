@@ -1230,6 +1230,8 @@ void MegaChatApiTest::TEST_switchAccounts()
     assert(waitForResponse(flag));
     assert(!lastError[0]);
 
+    logout(0, true);
+
 }
 
 MegaLoggerSDK::MegaLoggerSDK(const char *filename)
