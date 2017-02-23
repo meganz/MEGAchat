@@ -54,7 +54,8 @@ Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
   mOwnPresence(Presence::kInvalid),
-  mPresencedClient(*this, caps)
+  mPresencedClient(*this, caps),
+  mMyName("\0", 1)
 {
 }
 
@@ -380,6 +381,15 @@ void Client::initWithDbSession(const char* sid)
         assert(mMyHandle);
 
         mMyEmail = getMyEmailFromDb();
+
+        mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
+        [](Buffer* buf, void* userp)
+        {
+            if (!buf || buf->empty())
+                return;
+            auto& name = static_cast<Client*>(userp)->mMyName;
+            name.assign(buf->buf(), buf->dataSize());
+        });
 
         loadOwnKeysFromDb();
         contactList->loadFromDb();
