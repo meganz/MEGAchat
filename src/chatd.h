@@ -325,7 +325,25 @@ struct LastTextMsg
     enum: uint8_t { kNone = 0x0, kFetching = 0xff, kOffline = 0xfe, kHave = 0x1 };
     /** @brief The sender of the message */
     karere::Id sender() const { return mSender; }
+    /**
+     * @brief Type of the last message
+     *
+     * This function returns the type of the message, as in Message::type.
+     * @see \c Message::kMsgXXX enums.
+     *
+     * If no text message exists in history, type is \c LastTextMsg::kNone.
+     * If the message is being fetched from server, type is \c LastTextMsg::kFetching.
+     * If an error has occurred when trying to determine the message, like
+     * server being offline, then LastTextMsg::kOffline will be returned.
+     */
     uint8_t type() const { return mType; }
+    /**
+     * @brief Content of the message
+     *
+     * The message contents in text form, so it can be displayed as it is in the UI.
+     * If it's a special message, then this string contains the most important part,
+     * like filename for attachment messages.
+     */
     const std::string& contents() const { return mContents; }
 protected:
     uint8_t mType;
