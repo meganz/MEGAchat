@@ -243,11 +243,11 @@ void MegaChatApiImpl::sendPendingRequests()
 
                     marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
                     {
-                        delete mClient;
-                        mClient = NULL;
-
                         MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                         fireOnChatRequestFinish(request, megaChatError);
+
+                        delete mClient;
+                        mClient = NULL;
                      });
                 })
                 .fail([request, this](const promise::Error& e)
