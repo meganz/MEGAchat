@@ -544,12 +544,9 @@ void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
         auto& room = *chatRooms.get(i);
         if (room.isGroup())
         {
-            auto url = room.getUrl();
-            const char* noUrlMsg = (!url || (url[0] == 0) ? ", no url":"");
-            KR_LOG_DEBUG("%s(group, ownPriv=%s%s):",
+            KR_LOG_DEBUG("%s(group, ownPriv=%s):",
                 Id(room.getHandle()).toString().c_str(),
-                privToString((chatd::Priv)room.getOwnPrivilege()),
-                noUrlMsg);
+                privToString((chatd::Priv)room.getOwnPrivilege()));
         }
         else
         {
@@ -979,9 +976,8 @@ promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
 }
 
 ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
-  const char* aUrl, unsigned char aShard, chatd::Priv aOwnPriv,
-  uint32_t ts, const std::string& aTitle)
-   :parent(aParent), mChatid(chatid), mUrl(aUrl ? aUrl : std::string()),
+  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& aTitle)
+   :parent(aParent), mChatid(chatid),
     mShardNo(aShard), mIsGroup(aIsGroup),
     mOwnPriv(aOwnPriv), mTitleString(aTitle), mLastMsgTs(ts)
 {}
@@ -1093,9 +1089,8 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    const char* aUrl, unsigned char aShard,
-    chatd::Priv aOwnPriv, uint32_t ts, const std::string& title)
-:ChatRoom(parent, chatid, true, aUrl, aShard, aOwnPriv, ts, title),
+    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title)
+:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
 mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
@@ -1148,9 +1143,9 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
     return list ? list->addPeerChatItem(*this) : nullptr;
 }
 
-PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* aUrl,
+PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, uint32_t ts)
-:ChatRoom(parent, chatid, false, aUrl, aShard, aOwnPriv, ts), mPeer(peer),
+:ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts), mPeer(peer),
   mPeerPriv(peerPriv), mContact(*parent.client.contactList->contactFromUserId(peer)),
   mRoomGui(nullptr)
 {
@@ -1162,7 +1157,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const c
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, Contact& contact)
-    :ChatRoom(parent, chat.getHandle(), false, chat.getUrl(), chat.getShard(),
+    :ChatRoom(parent, chat.getHandle(), false, chat.getShard(),
      (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime()),
     mPeer(getSdkRoomPeer(chat)), mPeerPriv(chatd::PRIV_RDONLY),
     mContact(contact),
@@ -1360,9 +1355,9 @@ void ChatRoomList::loadFromDb()
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
-            room = new PeerChatRoom(*this, chatid, "", stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1));
+            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1));
         else
-            room = new GroupChatRoom(*this, chatid, "", stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6));
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6));
         emplace(chatid, room);
     }
 }
@@ -1555,7 +1550,7 @@ ChatRoomList::~ChatRoomList()
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
-:ChatRoom(parent, aChat.getHandle(), true, aChat.getUrl(), aChat.getShard(),
+:ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()),
   mHasTitle(false), mRoomGui(nullptr)
 {
@@ -1796,17 +1791,6 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
     if (chat.isGroup() != mIsGroup)
         throw std::runtime_error("syncWithApi: isGroup flag can't change");
     auto db = parent.client.db;
-    auto url = chat.getUrl();
-    if (url && url[0])
-    {
-        if (strcmp(url, mUrl.c_str()))
-        {
-            mUrl = url;
-            changed = true;
-            sqliteQuery(db, "update chats set url=? where chatid=?", mUrl, mChatid);
-            KR_LOG_DEBUG("Chatroom %s: URL updated from API", Id(mChatid).toString().c_str());
-        }
-    }
     chatd::Priv ownPriv = (chatd::Priv)chat.getOwnPrivilege();
     if (ownPriv != mOwnPriv)
     {

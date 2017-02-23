@@ -91,7 +91,7 @@ public:
     /** @brief Connects to the chatd chatroom */
     virtual void connect() = 0;
 
-    ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const char* url,
+    ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup,
              unsigned char shard, chatd::Priv ownPriv, uint32_t ts,
              const std::string& aTitle=std::string());
 
@@ -222,7 +222,7 @@ protected:
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
-    PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* url,
+    PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
             chatd::Priv peerPriv, uint32_t ts);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room, Contact& contact);
@@ -325,7 +325,7 @@ public:
     friend class Member;
     friend class Client;
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
-    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* aUrl,
+    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                   unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
                   const std::string& title);
     ~GroupChatRoom();
