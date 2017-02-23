@@ -164,10 +164,10 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     // map chatid to this shard
     mConnectionForChatId[chatid] = conn;
 
-    // add chatid to the connection's chatids
-    conn->mChatIds.insert(chatid);
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
     Chat* chat = new Chat(*conn, chatid, listener, users, crypto);
+    // add chatid to the connection's chatids
+    conn->mChatIds.insert(chatid);
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
     return *chat;
 }
@@ -187,6 +187,12 @@ void Chat::connect(const std::string& url)
     {
         login();
     }
+}
+
+void Chat::disconnect()
+{
+    disable(true);
+    setOnlineState(kChatStateOffline);
 }
 
 void Chat::login()
@@ -246,8 +252,13 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         auto& chat = mClient.chats(chatid);
         chat.onDisconnect();
     }
+
     if (mTerminating)
+    {
+        if (!mDisconnectPromise.done())
+            mDisconnectPromise.resolve(); //may delete this
         return;
+    }
 
     if (mState == kStateConnecting) //tell retry controller that the connect attempt failed
     {
@@ -310,7 +321,9 @@ Promise<void> Connection::reconnect(const std::string& url)
             }
             for (auto& chatid: mChatIds)
             {
-                mClient.chats(chatid).setOnlineState(kChatStateConnecting);
+                auto& chat = mClient.chats(chatid);
+                if (!chat.isDisabled())
+                    chat.setOnlineState(kChatStateConnecting);
             }
             checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str())), "connect");
             return mConnectPromise;
@@ -342,19 +355,34 @@ void Connection::enableInactivityTimer()
     }, 10000);
 }
 
-void Connection::disconnect() //should be graceful disconnect
+promise::Promise<void> Connection::disconnect(int timeoutMs) //should be graceful disconnect
 {
     mTerminating = true;
-    if (mWebSocket)
-        ws_close(mWebSocket);
+    if (!mWebSocket)
+    {
+        onSocketClose(0, 0, "terminating");
+        return promise::Void();
+    }
+    auto wptr = getDelTracker();
+    setTimeout([this, wptr]()
+    {
+        if (wptr.deleted())
+            return;
+        if (!mDisconnectPromise.done())
+            mDisconnectPromise.resolve();
+    }, timeoutMs);
+    ws_close(mWebSocket);
+    return mDisconnectPromise;
 }
 
-void Client::disconnect()
+promise::Promise<void> Client::disconnect()
 {
+    std::vector<Promise<void>> promises;
     for (auto& conn: mConnections)
     {
-        conn.second->disconnect();
+        promises.push_back(conn.second->disconnect());
     }
+    return promise::when(promises);
 }
 
 void Connection::reset() //immediate disconnect
@@ -439,8 +467,9 @@ void Connection::rejoinExistingChats()
     {
         try
         {
-            Chat& msgs = mClient.chats(chatid);
-            msgs.login();
+            Chat& chat = mClient.chats(chatid);
+            if (!chat.isDisabled())
+                chat.login();
         }
         catch(std::exception& e)
         {
@@ -506,7 +535,7 @@ HistSource Chat::getHistory(unsigned count)
             for (Idx i = mNextHistFetchIdx; i > fetchEnd; i--)
             {
                 auto& msg = at(i);
-                CALL_LISTENER(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), kHistSourceRam);
+                CALL_LISTENER(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), true);
             }
             countSoFar = mNextHistFetchIdx - fetchEnd;
             mNextHistFetchIdx -= countSoFar;
@@ -526,10 +555,11 @@ HistSource Chat::getHistory(unsigned count)
         CALL_LISTENER(onHistoryDone, source);
         return source;
     }
-    else
+    if (nextSource == kHistSourceDb)
     {
-        return nextSource;
+        CALL_LISTENER(onHistoryDone, kHistSourceDb);
     }
+    return nextSource;
 }
 
 HistSource Chat::getHistoryFromDbOrServer(unsigned count)
@@ -1863,7 +1893,7 @@ void Chat::deleteMessagesBefore(Idx idx)
     }
 }
 
-Message::Status Chat::getMsgStatus(const Message& msg, Idx idx)
+Message::Status Chat::getMsgStatus(const Message& msg, Idx idx) const
 {
     assert(idx != CHATD_IDX_INVALID);
     if (msg.userid == mClient.mUserId)
@@ -2229,7 +2259,14 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
 
 void Client::leave(Id chatid)
 {
-    mConnectionForChatId.erase(chatid);
+    auto conn = mConnectionForChatId.find(chatid);
+    if (conn == mConnectionForChatId.end())
+    {
+        CHATD_LOG_ERROR("Client::leave: Unknown chat %s", ID_CSTR(chatid));
+        return;
+    }
+    conn->second->mChatIds.erase(chatid);
+    mConnectionForChatId.erase(conn);
     mChatForChatId.erase(chatid);
 }
 
