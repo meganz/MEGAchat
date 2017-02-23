@@ -55,17 +55,21 @@ enum Priv: signed char
 class Message: public Buffer
 {
 public:
-    enum: unsigned char
+    enum: uint8_t
     {
-        kMsgInvalid = 0,
-        kMsgNormal = 1,
-        kMsgManagementLowest = 2,
-        kMsgAlterParticipants = 2,
-        kMsgTruncate = 3,
-        kMsgPrivChange = 4,
-        kMsgChatTitle = 5,
-        kMsgManagementHighest = 5,
-        kMsgUserFirst = 16
+        kMsgInvalid           = 0x00,
+        kMsgNormal            = 0x01,
+        kMsgManagementLowest  = 0x02,
+        kMsgAlterParticipants = 0x02,
+        kMsgTruncate          = 0x03,
+        kMsgPrivChange        = 0x04,
+        kMsgChatTitle         = 0x05,
+        kMsgManagementHighest = 0x05,
+        kMsgUserFirst         = 0x10,
+        kMsgAttachment        = 0x10,
+        kMsgRevokeAttachment  = 0x11,
+        kMsgContact           = 0x12
+
     };
     enum Status
     {
@@ -78,6 +82,7 @@ public:
         kNotSeen, //< User hasn't read this message yet
         kSeen //< User has read this message
     };
+    enum { kFlagForceNonText = 0x01 };
     /** @brief Info recorder in a management message.
      * When a message is a management message, _and_ it needs to carry additional
      * info besides the standard fields (such as sender), the additional data
@@ -114,6 +119,7 @@ private:
     bool mIdIsXid = false;
 protected:
     bool mIsEncrypted = false;
+    uint8_t mFlags = 0;
 public:
     karere::Id userid;
     uint32_t ts;
@@ -123,7 +129,7 @@ public:
     BackRefId backRefId;
     std::vector<BackRefId> backRefs;
     mutable void* userp;
-    mutable uint16_t userFlags = 0;
+    mutable uint8_t userFlags = 0;
     karere::Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
     bool isEncrypted() const { return mIsEncrypted; }
@@ -180,6 +186,26 @@ public:
 
     /** @brief Returns whether this message is a management message. */
     bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
+    bool isText() const
+    {
+        return !empty() && ((mFlags & kFlagForceNonText) == 0) &&
+            (type == kMsgNormal || type == kMsgAttachment
+          || type == kMsgContact);
+    }
+
+    /** @brief Convert attachment etc. special messages to text */
+    std::string toText() const
+    {
+        if (empty())
+            return std::string();
+
+        if (type == kMsgNormal)
+            return std::string(buf(), dataSize());
+
+        //special messages have a 2-byte binary prefix
+        assert(dataSize() > 2);
+        return std::string(buf()+2, dataSize()-2);
+    }
 
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }

@@ -243,11 +243,11 @@ void MegaChatApiImpl::sendPendingRequests()
 
                     marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
                     {
-                        delete mClient;
-                        mClient = NULL;
-
                         MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                         fireOnChatRequestFinish(request, megaChatError);
+
+                        delete mClient;
+                        mClient = NULL;
                      });
                 })
                 .fail([request, this](const promise::Error& e)
@@ -1495,6 +1495,7 @@ int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
         case kHistSourceRam:
         case kHistSourceDb:     ret = MegaChatApi::SOURCE_LOCAL; break;
         case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
+        case kHistSourceServerOffline: ret = MegaChatApi::SOURCE_ERROR; break;
         default:
             API_LOG_ERROR("Unknown source of messages at loadMessages()");
             break;
@@ -1583,9 +1584,8 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        Chat &chat = chatroom->chat();
         unsigned char t = MegaChatMessage::TYPE_NORMAL;
-        Message *m = chat.msgSubmit(msg, msgLen, t, NULL);
+        Message *m = chatroom->sendMessage(msg, msgLen, t, NULL);
 
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
@@ -1638,7 +1638,7 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
                 }
             }
 
-            const Message *editedMsg = chat.msgModify(*originalMsg, msg, msgLen, NULL);
+            const Message *editedMsg = chatroom->editMessage(*originalMsg, msg, msgLen, NULL);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
@@ -2527,7 +2527,6 @@ void MegaChatVideoReceiver::clearViewport()
 
 void MegaChatVideoReceiver::released()
 {
-
 }
 
 
@@ -2552,6 +2551,15 @@ void MegaChatRoomHandler::onUserTyping(karere::Id user)
     chat->setUserTyping(user.val);
 
     chatApi->fireOnChatRoomUpdate(chat);
+}
+
+void MegaChatRoomHandler::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
+{
+    if (mRoom)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        mRoom->onLastTextMessageUpdated(msg);
+    }
 }
 
 void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &newName)
@@ -2602,12 +2610,6 @@ void MegaChatRoomHandler::onDestroy()
 
 void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Status status)
 {
-    // forward the event to the chatroom, so chatlist items also receive the notification
-    if (mRoom)
-    {
-        mRoom->onRecvNewMessage(idx, msg, status);
-    }
-
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     chatApi->fireOnMessageReceived(message);
 }
@@ -3336,7 +3338,7 @@ MegaChatListItemHandler::MegaChatListItemHandler(MegaChatApiImpl &chatApi, ChatR
 {
 }
 
-MegaChatListItemPrivate::MegaChatListItemPrivate(const ChatRoom &chatroom)
+MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     : MegaChatListItem()
 {
     this->chatid = chatroom.chatid();
@@ -3349,16 +3351,22 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const ChatRoom &chatroom)
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
-    this->lastMsg = NULL;
-    const Chat &chat = chatroom.chat();
-    Message *msg = chat.lastMessage();
-    if (msg)
+    LastTextMsg* msg;
+    int lastMsgStatus = chatroom.chat().lastTextMessage(msg);
+    if (lastMsgStatus == 1)
     {
-        Idx index = chat.msgIndexFromId(msg->id());
-        Message::Status status = (index != MEGACHAT_INVALID_INDEX) ?
-                    chat.getMsgStatus(*msg, index) : (Message::Status) MegaChatMessage::STATUS_UNKNOWN;
-        this->lastMsg = new MegaChatMessagePrivate(*msg, status, index);
+        this->lastMsg = msg->contents();
+        this->lastMsgSender = msg->sender();
+        this->lastMsgType = msg->type();
     }
+    else
+    {
+        this->lastMsg = "";
+        this->lastMsgSender = MEGACHAT_INVALID_HANDLE;
+        this->lastMsgType = lastMsgStatus;
+    }
+
+    this->lastTs = chatroom.lastMessageTs();
 }
 
 MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
@@ -3369,7 +3377,10 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->unreadCount = item->getUnreadCount();
     this->status = item->getOnlineStatus();
     this->changed = item->getChanges();
-    this->lastMsg = item->getLastMessage() ? item->getLastMessage()->copy() : NULL;
+    this->lastTs = item->getLastTimestamp();
+    this->lastMsg = item->getLastMessage();
+    this->lastMsgType = item->getLastMessageType();
+    this->lastMsgSender = item->getLastMessageSender();
     this->group = item->isGroup();
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
@@ -3377,7 +3388,6 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
 {
-    delete lastMsg;
 }
 
 MegaChatListItem *MegaChatListItemPrivate::copy() const
@@ -3420,9 +3430,24 @@ int MegaChatListItemPrivate::getOnlineStatus() const
     return status;
 }
 
-MegaChatMessage *MegaChatListItemPrivate::getLastMessage() const
+const char *MegaChatListItemPrivate::getLastMessage() const
 {
-    return lastMsg;
+    return lastMsg.c_str();
+}
+
+int MegaChatListItemPrivate::getLastMessageType() const
+{
+    return lastMsgType;
+}
+
+MegaChatHandle MegaChatListItemPrivate::getLastMessageSender() const
+{
+    return lastMsgSender;
+}
+
+int64_t MegaChatListItemPrivate::getLastTimestamp() const
+{
+    return lastTs;
 }
 
 bool MegaChatListItemPrivate::isGroup() const
@@ -3474,16 +3499,19 @@ void MegaChatListItemPrivate::setClosed()
     this->changed |= MegaChatListItem::CHANGE_TYPE_CLOSED;
 }
 
-void MegaChatListItemPrivate::setLastMessage(MegaChatMessage *msg)
+void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
 {
-    if (lastMsg)
-    {
-        delete lastMsg;
-    }
-    this->lastMsg = msg;
-    this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
+    this->lastTs = ts;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
 }
 
+void MegaChatListItemPrivate::setLastMessage(int type, const string &msg, const uint64_t uh)
+{
+    this->lastMsg = msg;
+    this->lastMsgType = type;
+    this->lastMsgSender = uh;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
+}
 
 MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)
     : MegaChatListItemHandler(chatApi, room)
@@ -3525,14 +3553,19 @@ void MegaChatListItemHandler::onRejoinedChat()
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onLastMessageUpdated(const Message& msg, Message::Status status, Idx idx)
+void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    MegaChatMessagePrivate *megaMsg = new MegaChatMessagePrivate(msg, status, idx);
-    item->setLastMessage(megaMsg);
+    item->setLastMessage(msg.type(), msg.contents(), msg.sender());
     chatApi.fireOnChatListItemUpdate(item);
 }
 
+void MegaChatListItemHandler::onLastTsUpdated(uint32_t ts)
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setLastTimestamp(ts);
+    chatApi.fireOnChatListItemUpdate(item);
+}
 
 MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)
     : MegaChatListItemHandler(chatApi, room)
@@ -3594,10 +3627,14 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             this->uhAction = mngInfo.target;
             break;
         }
+        // TODO: get the nodehandle from the content (a JSON to be parsed)
+        case MegaChatMessage::TYPE_ATTACHMENT:
+        case MegaChatMessage::TYPE_REVOKE_ATTACHMENT:
+        // TODO: get the userhandle from the content (a JSON to be parsed)
+        case MegaChatMessage::TYPE_CONTACT:
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:
-        case MegaChatMessage::TYPE_USER_MSG:
         default:
             this->priv = PRIV_UNKNOWN;
             this->uhAction = MEGACHAT_INVALID_HANDLE;

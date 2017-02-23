@@ -53,10 +53,12 @@ enum HistSource
     kHistSourceRam = 1, //< History is being retrieved from the history buffer in RAM
     kHistSourceDb = 2, //<History is being retrieved from the local DB
     kHistSourceServer = 3, //< History is being retrieved from the server
-//    kHistSourceMask = 3
+    kHistSourceServerOffline = 4 //< History has to be fetched from server, but we are offline
 };
 
 class DbInterface;
+class LastTextMsg;
+
 class Listener
 {
 public:
@@ -233,6 +235,13 @@ public:
      * cache to get a human-readable name for the user.
      */
     virtual void onUserTyping(karere::Id userid) {}
+
+    /**
+     * @brief Called when the last known text message changes/is updated, so that
+     * the app can display it next to the chat title
+     * @param msg Contains the properties of the last text message
+     */
+    virtual void onLastTextMessageUpdated(const LastTextMsg& msg) {}
 };
 
 class Client;
@@ -308,12 +317,79 @@ enum ServerHistFetchState
     kHistDecryptingNew = kHistDecryptingFlag | 0
 };
 
+/** @brief This is a class used to hold all properties of the last text
+ * message that the app is interested in
+ */
+struct LastTextMsg
+{
+    enum: uint8_t { kNone = 0x0, kFetching = 0xff, kOffline = 0xfe, kHave = 0x1 };
+    /** @brief The sender of the message */
+    karere::Id sender() const { return mSender; }
+    /**
+     * @brief Type of the last message
+     *
+     * This function returns the type of the message, as in Message::type.
+     * @see \c Message::kMsgXXX enums.
+     *
+     * If no text message exists in history, type is \c LastTextMsg::kNone.
+     * If the message is being fetched from server, type is \c LastTextMsg::kFetching.
+     * If an error has occurred when trying to determine the message, like
+     * server being offline, then LastTextMsg::kOffline will be returned.
+     */
+    uint8_t type() const { return mType; }
+    /**
+     * @brief Content of the message
+     *
+     * The message contents in text form, so it can be displayed as it is in the UI.
+     * If it's a special message, then this string contains the most important part,
+     * like filename for attachment messages.
+     */
+    const std::string& contents() const { return mContents; }
+protected:
+    uint8_t mType;
+    karere::Id mSender;
+    std::string mContents;
+};
+
+/** @brief Internal class that maintains the last-text-message state */
+struct LastTextMsgState: public LastTextMsg
+{
+    uint8_t state() const { return mState; }
+    Idx idx() const { return mIdx; }
+    karere::Id id() const { assert(mIdx != CHATD_IDX_INVALID); return mId; }
+    karere::Id xid() const { assert(mIdx == CHATD_IDX_INVALID); return mId; }
+    bool isValid() const { return mState == kHave; }
+    bool isFetching() const { return mState == kFetching; }
+    void setState(uint8_t state) { mState = state; }
+    void assign(const chatd::Message& from, Idx idx)
+    {
+        assign(from, from.type, from.id(), idx, from.userid);
+    }
+    void assign(const Buffer& buf, uint8_t type, karere::Id id, Idx idx, karere::Id sender)
+    {
+        mType = type;
+        mIdx = idx;
+        mId = id;
+        mContents.assign(buf.buf(), buf.dataSize());
+        mSender = sender;
+        mState = kHave;
+    }
+    //assign both idx and proper msgid (was msgxid until now)
+    void confirm(Idx idx, karere::Id msgid) { mIdx = idx; mId = msgid; }
+    void clear() { mState = kNone; mType = 0; mContents.clear(); }
+protected:
+    friend class Chat;
+    uint8_t mState = kNone;
+    Idx mIdx = CHATD_IDX_INVALID;
+    karere::Id mId;
+};
+
 /** @brief Represents a single chatroom together with the message history.
  * Message sending is done by calling methods on this class.
  * The history buffer can grow in two directions and is always contiguous, i.e.
  * there are no "holes".
  */
-class Chat
+class Chat: public karere::DeleteTrackable
 {
 ///@cond PRIVATE
 public:
@@ -396,6 +472,9 @@ protected:
     bool mIsDisabled = false;
     Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
+    // last text message stuff
+    LastTextMsgState mLastTextMsg;
+    // crypto stuff
     ICrypto* mCrypto;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
      * path of further messages to be sent is written to db, without calling encrypt().
@@ -427,6 +506,7 @@ protected:
      * of new messages may work synchronously and not be delayed.
      */
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
+    // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
@@ -477,6 +557,7 @@ protected:
     void onNewKeys(StaticBuffer&& keybuf);
     void logSend(const Command& cmd);
     void handleBroadcast(karere::Id userid, uint8_t type);
+    void findAndNotifyLastTextMsg();
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -501,6 +582,7 @@ public:
     /** @brief Whether we have any messages in the history buffer */
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
     bool isDisabled() const { return mIsDisabled; }
+    bool isFirstJoin() const { return mIsFirstJoin; }
     void disable(bool state) { mIsDisabled = state; }
     /** The index of the oldest decrypted message in the RAM history buffer.
      * This will be greater than lownum() if there are not-yet-decrypted messages
@@ -751,11 +833,31 @@ public:
       */
     int unreadMsgCount() const;
 
-    /** @brief Returns the most-recent message in the RAM history buffer.
-     * If the buffer is empty, returns \c NULL
+    /** @brief Returns the text of the most-recent message in the chat that can
+     * be displayed as text in the chat list. If it is not found in RAM,
+     * the database will be queried. If not found there as well, server is queried,
+     * and 0xff is returned. When the message is received from server, the
+     * \c onLastTextMsgUpdated callback will be called. If the network connection
+     * is offline, then 0xfe will be returned, and upon reconnect and join, the
+     * client will fetch messages from the server until it finds a text message
+     * and will call the callback with it.
+     * @param [out] msg Output pointer that will be set to the internal last-text-message
+     * object. The object is owned by the client, and you should use this
+     * pointer synchronously after the call to this function, and not in an
+     * async-delayed way.
+     * @return If there is currently a last-text-message, 1 is returned and
+     * the output pointer will be set to the internal object. Otherwise,
+     * the output pointer will be set to \c NULL, and an error code will be
+     * returner, as follows:
+     *   0xff - no text message is avaliable locally, the client is fetching
+     * more history from server. The fetching will continue until a text
+     * message is found, at which point the callback will be called.
+     *   0xfe - no text message is available locally, and there is no internet
+     * connection to fetch more history from server. When connection is
+     * restored, the client will fetch history until a text message is found,
+     * then it will call the callback.
      */
-    Message* lastMessage() const;
-
+    uint8_t lastTextMessage(LastTextMsg*& msg);
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
 
@@ -801,6 +903,7 @@ protected:
     bool msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existingItem=nullptr);
     void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);
+    void onJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
     void rejectMsgupd(uint8_t opcode, karere::Id id);
     template <bool mustBeInSending=false>
@@ -816,7 +919,9 @@ protected:
      * This may be needed when the listener is switched, in order to init the new
      * listener state */
     void replayUnsentNotifications();
-
+    void onLastTextMsgUpdated(const Message& msg, Idx idx); //user when receiving or having a message confirmed by server
+    void onLastTextMsgUpdated(const Message& msg); //used to immediately update when posting a new msg
+    void findLastTextMsg();
     /**
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */
@@ -916,14 +1021,13 @@ public:
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
+    virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
     virtual ~DbInterface(){}
 };
 
 }
 
 #endif
-
-
 
 
 

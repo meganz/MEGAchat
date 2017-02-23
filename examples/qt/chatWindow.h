@@ -513,6 +513,7 @@ public:
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg,
         chatd::Message::Status status, bool isLocal)
     {
+        mRoom.onRecvHistoryMessage(idx, msg, status, isLocal);
         assert(idx != CHATD_IDX_INVALID); assert(msg.id());
         if (mHistFetchUi)
         {
@@ -576,6 +577,10 @@ public:
         auto widget = widgetFromMessage(msg);
         if (widget)
             widget->updateStatus(newStatus);
+    }
+    virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
+    {
+        mRoom.onLastTextMessageUpdated(msg);
     }
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx)
     {
