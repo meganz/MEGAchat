@@ -56,9 +56,9 @@ Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint
   api(sdk), app(aApp),
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
+  mMyName("\0", 1),
   mOwnPresence(Presence::kInvalid),
-  mPresencedClient(*this, caps),
-  mMyName("\0", 1)
+  mPresencedClient(*this, caps)
 {
 }
 

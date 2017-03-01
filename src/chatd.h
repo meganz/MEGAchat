@@ -57,7 +57,7 @@ enum HistSource
 };
 
 class DbInterface;
-class LastTextMsg;
+struct LastTextMsg;
 
 class Listener
 {
