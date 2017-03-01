@@ -1354,8 +1354,6 @@ void ChatRoomList::loadFromDb()
     SqliteStmt stmt(client.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title from chats");
     while(stmt.step())
     {
-        if ((stmt.intCol(3) == chatd::PRIV_NOTPRESENT) && client.skipInactiveChatrooms)
-            continue;
         auto chatid = stmt.uint64Col(0);
         if (find(chatid) != end())
         {
@@ -1478,11 +1476,6 @@ void GroupChatRoom::setRemoved()
     mOwnPriv = chatd::PRIV_NOTPRESENT;
     sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
     notifyExcludedFromChat();
-    if (parent.client.skipInactiveChatrooms)
-    {
-        parent.erase(mChatid);
-        delete this;
-    }
 }
 
 void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
@@ -1537,16 +1530,13 @@ void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
             else
             {
                 KR_LOG_DEBUG("Chatroom[%s]: Received new INACTIVE room",  Id(chatid).toString().c_str());
-                if (!client.skipInactiveChatrooms)
+                auto room = addRoom(*apiRoom);
+                if (!room)
+                    continue;
+                if (!room->isGroup())
                 {
-                    auto room = addRoom(*apiRoom);
-                    if (!room)
-                        continue;
-                    if (!room->isGroup())
-                    {
-                        KR_LOG_ERROR("... inactive room is 1on1: only group chatrooms can be inactive");
-                        continue;
-                    }
+                    KR_LOG_ERROR("... inactive room is 1on1: only group chatrooms can be inactive");
+                    continue;
                 }
             }
         }
