@@ -3704,7 +3704,7 @@ bool MegaChatMessagePrivate::isDeleted() const
 
 bool MegaChatMessagePrivate::isEditable() const
 {
-    return (!isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
+    return (type == TYPE_NORMAL && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
 }
 
 bool MegaChatMessagePrivate::isManagementMessage() const
