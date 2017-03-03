@@ -1585,7 +1585,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     if (chatroom)
     {
         unsigned char t = MegaChatMessage::TYPE_NORMAL;
-        Message *m = chatroom->sendMessage(msg, msgLen, t, NULL);
+        Message *m = chatroom->chat().msgSubmit(msg, msgLen, t, NULL);
 
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
@@ -1638,7 +1638,7 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
                 }
             }
 
-            const Message *editedMsg = chatroom->editMessage(*originalMsg, msg, msgLen, NULL);
+            const Message *editedMsg = chatroom->chat().msgModify(*originalMsg, msg, msgLen, NULL);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
@@ -3366,7 +3366,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
         this->lastMsgType = lastMsgStatus;
     }
 
-    this->lastTs = chatroom.lastMessageTs();
+    this->lastTs = chatroom.chat().lastMessageTs();
 }
 
 MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)

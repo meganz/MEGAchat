@@ -242,6 +242,14 @@ public:
      * @param msg Contains the properties of the last text message
      */
     virtual void onLastTextMessageUpdated(const LastTextMsg& msg) {}
+    /**
+     * @brief Called when a message with a newer timestamp/modification time
+     * is encountered. This can be used by the app to order chats in the chat
+     * list GUI based on last interaction.
+     * @param ts The timestamp of the newer message. If a message is edited,
+     * ts is the sum of the original message timestamp and the update delta.
+     */
+    virtual void onLastMessageTsUpdated(uint32_t ts) {}
 };
 
 class Client;
@@ -506,11 +514,12 @@ protected:
      * of new messages may work synchronously and not be delayed.
      */
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
+    uint32_t mLastMsgTs;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
-         const karere::SetOfIds& users, ICrypto* crypto);
+         const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
     Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
@@ -558,6 +567,7 @@ protected:
     void logSend(const Command& cmd);
     void handleBroadcast(karere::Id userid, uint8_t type);
     void findAndNotifyLastTextMsg();
+    void onMsgTimestamp(uint32_t ts); //support for newest-message-timestamp
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -858,6 +868,10 @@ public:
      * then it will call the callback.
      */
     uint8_t lastTextMessage(LastTextMsg*& msg);
+
+    /** @brief Returns the timestamp of the newest known message */
+    uint32_t lastMessageTs();
+
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
 
@@ -967,7 +981,7 @@ public:
      * with the newly created Chat object.
      */
     Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
-        Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
+        Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     promise::Promise<void> disconnect();

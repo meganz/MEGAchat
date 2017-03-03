@@ -134,7 +134,7 @@ Client::Client(Id userId)
     }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
-    Listener* listener, const karere::SetOfIds& users, ICrypto* crypto)
+    Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs)
 {
     auto chatit = mChatForChatId.find(chatid);
     if (chatit != mChatForChatId.end())
@@ -165,7 +165,7 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     mConnectionForChatId[chatid] = conn;
 
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
-    Chat* chat = new Chat(*conn, chatid, listener, users, crypto);
+    Chat* chat = new Chat(*conn, chatid, listener, users, chatCreationTs, crypto);
     // add chatid to the connection's chatids
     conn->mChatIds.insert(chatid);
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
@@ -615,9 +615,11 @@ void Chat::requestHistoryFromServer(int32_t count)
 }
 
 Chat::Chat(Connection& conn, Id chatid, Listener* listener,
-    const karere::SetOfIds& initialUsers, ICrypto* crypto)
+    const karere::SetOfIds& initialUsers, uint32_t chatCreationTs,
+    ICrypto* crypto)
     : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
-      mListener(listener), mUsers(initialUsers), mCrypto(crypto)
+      mListener(listener), mUsers(initialUsers), mCrypto(crypto),
+      mLastMsgTs(chatCreationTs)
 {
     assert(mChatId);
     assert(mListener);
@@ -1122,6 +1124,7 @@ void Chat::msgSubmit(Message* msg)
     {
         onLastTextMsgUpdated(*msg);
     }
+    onMsgTimestamp(msg->ts);
 }
 
 void Chat::createMsgBackRefs(Message& msg)
@@ -1338,6 +1341,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
         msg.isSending(), msg.keyid, msg.type, userp);
     msgEncryptAndSend(upd, upd->isSending() ? OP_MSGUPDX : OP_MSGUPD);
+    onMsgTimestamp(msg.ts+age);
     return upd;
 }
 
@@ -2227,6 +2231,15 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         || (idx > mLastTextMsg.idx())) //we have a newer message
             onLastTextMsgUpdated(msg, idx);
     }
+    onMsgTimestamp(msg.ts);
+}
+
+void Chat::onMsgTimestamp(uint32_t ts)
+{
+    if (ts <= mLastMsgTs)
+        return;
+    mLastMsgTs = ts;
+    CALL_LISTENER(onLastMessageTsUpdated, ts);
 }
 
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
