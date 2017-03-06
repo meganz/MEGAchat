@@ -64,7 +64,7 @@ protected:
     chatd::Chat* mChat = nullptr;
     bool mIsInitializing = true;
     std::string mTitleString;
-    uint32_t mLastMsgTs;
+    uint32_t mCreationTs;
     void notifyTitleChanged();
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
@@ -115,11 +115,6 @@ public:
     /** @brief The chatd shart number for that chatroom */
     unsigned char shardNo() const { return mShardNo; }
 
-    /** @brief Returns the timestamp of the most recent message in the chatroom,
-     * or if there are no messages - the creation time of the chatroom
-     */
-    uint32_t lastMessageTs() const { return mLastMsgTs; }
-
     /** @brief Our own privilege within this chat */
     chatd::Priv ownPriv() const { return mOwnPriv; }
 
@@ -134,23 +129,12 @@ public:
     /** @brief send a notification to the chatroom that the user is typing. */
     virtual void sendTypingNotification() { mChat->sendTypingNotification(); }
 
-    /** @brief Edits a message in the chatroom. Forwards the call to
-     * \c chatd::Chat::msgModify() (look at its documentation for details),
-     * but also does last timestamp bookkeeping
-     */
-    chatd::Message* editMessage(chatd::Message& msg, const char* newdata, size_t newlen, void* userp);
-
-    /** @brief Sends a new message to the chatroom. Forwards the call to
-     * \c chatd::Chat::msgSubmit() (look at its documentation for detaild),
-     * but also does last timestamp bookkeeping
-     */
-    chatd::Message* sendMessage(const char* msg, size_t msglen, unsigned char type, void* userp);
-
     /** @brief The application-side event handler that receives events from
      * the chatd chatroom and events about title, online status and unread
      * message count change.
      */
     IApp::IChatHandler* appChatHandler() { return mAppChatHandler; }
+
     /** @brief Attaches an app-provided event handler to the chatroom
      * The handler must forward some events to the chatroom in order to
      * have the chat list item still receive events. The events that need
@@ -185,8 +169,7 @@ public:
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
-    virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
-    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal);
+    virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onExcludedFromRoom() {}
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
     {

@@ -989,21 +989,18 @@ ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
   unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& aTitle)
    :parent(aParent), mChatid(chatid),
     mShardNo(aShard), mIsGroup(aIsGroup),
-    mOwnPriv(aOwnPriv), mTitleString(aTitle), mLastMsgTs(ts)
+    mOwnPriv(aOwnPriv), mTitleString(aTitle), mCreationTs(ts)
 {}
 
-chatd::Message* ChatRoom::editMessage(chatd::Message& msg, const char* newdata, size_t newlen, void* userp)
+//chatd::Listener
+void ChatRoom::onLastMessageTsUpdated(uint32_t ts)
 {
-    auto ret = mChat->msgModify(msg, newdata, newlen, userp);
-    onMessageTimestamp(time(NULL));
-    return ret;
-}
-
-chatd::Message* ChatRoom::sendMessage(const char* msg, size_t msglen, unsigned char type, void* userp)
-{
-    auto ret = mChat->msgSubmit(msg, msglen, type, userp);
-    onMessageTimestamp(ret->ts);
-    return ret;
+    callAfterInit(this, [this, ts]()
+    {
+        auto display = roomGui();
+        if (display)
+            display->onLastTsUpdated(ts);
+    });
 }
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
@@ -1017,32 +1014,9 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
 {
     mChat = &parent.client.chatd->createChat(
         mChatid, mShardNo, mUrl, this, initialUsers,
-        parent.client.newStrongvelope(chatid()));
+        parent.client.newStrongvelope(chatid()), mCreationTs);
     if (mOwnPriv == chatd::PRIV_NOTPRESENT)
         mChat->disable(true);
-}
-
-void ChatRoom::onMessageTimestamp(uint32_t ts)
-{
-    if (ts <= mLastMsgTs)
-        return;
-    mLastMsgTs = ts;
-    callAfterInit(this, [this, ts]()
-    {
-        auto display = roomGui();
-        if (display)
-            display->onLastTsUpdated(ts);
-    });
-}
-
-void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
-{
-    onMessageTimestamp(msg.ts);
-}
-
-void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal)
-{
-    onMessageTimestamp(msg.ts);
 }
 
 template <class T, typename F>

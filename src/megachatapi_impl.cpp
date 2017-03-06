@@ -1585,7 +1585,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     if (chatroom)
     {
         unsigned char t = MegaChatMessage::TYPE_NORMAL;
-        Message *m = chatroom->sendMessage(msg, msgLen, t, NULL);
+        Message *m = chatroom->chat().msgSubmit(msg, msgLen, t, NULL);
 
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
@@ -1638,7 +1638,7 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
                 }
             }
 
-            const Message *editedMsg = chatroom->editMessage(*originalMsg, msg, msgLen, NULL);
+            const Message *editedMsg = chatroom->chat().msgModify(*originalMsg, msg, msgLen, NULL);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
@@ -2562,6 +2562,15 @@ void MegaChatRoomHandler::onLastTextMessageUpdated(const chatd::LastTextMsg& msg
     }
 }
 
+void MegaChatRoomHandler::onLastMessageTsUpdated(uint32_t ts)
+{
+    if (mRoom)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        mRoom->onLastMessageTsUpdated(ts);
+    }
+}
+
 void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &newName)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
@@ -3366,7 +3375,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
         this->lastMsgType = lastMsgStatus;
     }
 
-    this->lastTs = chatroom.lastMessageTs();
+    this->lastTs = chatroom.chat().lastMessageTs();
 }
 
 MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
