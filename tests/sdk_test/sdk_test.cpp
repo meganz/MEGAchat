@@ -983,7 +983,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
 
 void MegaChatApiTest::TEST_offlineMode()
 {
-    login(0);
+    char *session = login(0);
 
     MegaChatRoomList *chats = megaChatApi[0]->getChatRooms();
     cout << chats->size() << " chat/s received: " << endl;
@@ -1028,6 +1028,36 @@ void MegaChatApiTest::TEST_offlineMode()
         assert(msgSent->getStatus() == MegaChatMessage::STATUS_SENDING);
 
         megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
+
+        // close session and resume it while offline
+        logout(0, false);
+        bool *flagInit = &initStateChanged[0]; *flagInit = false;
+        megaChatApi[0]->init(session);
+        assert(waitForResponse(flagInit));
+        assert(initState[0] == MegaChatApi::INIT_OFFLINE_SESSION);
+
+        // check the unsent message is properly loaded
+        flag = &chatroomListener->historyLoaded[0]; *flag = false;
+        bool *msgUnsentLoaded = &chatroomListener->msgLoaded[0]; *msgUnsentLoaded = false;
+        chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;
+        assert(megaChatApi[0]->openChatRoom(chatid, chatroomListener));
+        bool msgUnsentFound = false;
+        do
+        {
+            assert(waitForResponse(msgUnsentLoaded));
+            if (chatroomListener->msgId[0] == msgSent->getMsgId())
+            {
+                msgUnsentFound = true;
+                break;
+            }
+            *msgUnsentLoaded = false;
+        } while (*flag);
+        assert(msgUnsentFound);
+
+
+        cout << endl << endl << "Connect to the Internet now" << endl << endl;
+//        system("pause");
+
 
         flag = &chatroomListener->historyLoaded[0]; *flag = false;
         bool *msgSentLoaded = &chatroomListener->msgLoaded[0]; *msgSentLoaded = false;
@@ -1199,6 +1229,29 @@ void MegaChatApiTest::TEST_switchAccounts()
 {
     // ___ Log with account 0 ___
     char *session = login(0);
+
+    MegaChatListItemList *items = megaChatApi[0]->getChatListItems();
+    for (int i = 0; i < items->size(); i++)
+    {
+        const MegaChatListItem *item = items->get(i);
+        if (!item->isActive())
+        {
+            continue;
+        }
+
+        printChatListItemInfo(item);
+
+        sleep(3);
+
+        MegaChatHandle chatid = item->getChatId();
+        MegaChatListItem *itemUpdated = megaChatApi[0]->getChatListItem(chatid);
+
+        printChatListItemInfo(itemUpdated);
+
+        continue;
+    }
+
+
 
     logout(0, true);    // terminate() and destroy Client
 
