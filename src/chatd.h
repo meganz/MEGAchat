@@ -870,7 +870,7 @@ public:
     uint8_t lastTextMessage(LastTextMsg*& msg);
 
     /** @brief Returns the timestamp of the newest known message */
-    uint32_t lastMessageTs();
+    uint32_t lastMessageTs() { return mLastMsgTs; }
 
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
