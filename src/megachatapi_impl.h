@@ -319,7 +319,7 @@ public:
     //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
     virtual void onUserTyping(karere::Id user);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
-    virtual void onLastMessageTsUpdated(uint32_t ts){}
+    virtual void onLastMessageTsUpdated(uint32_t ts);
 
 
 protected:
