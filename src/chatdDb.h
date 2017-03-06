@@ -69,10 +69,10 @@ public:
         auto msg = item.msg;
         Buffer rcpts;
         item.recipients.save(rcpts);
-        sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, msg, updated, "
-                         "recipients, backrefid, backrefs, msg_cmd, key_cmd) values(?,?,?,?,?,?,?,?,?,?,?)",
+        sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, msg, type, updated, "
+                         "recipients, backrefid, backrefs, msg_cmd, key_cmd) values(?,?,?,?,?,?,?,?,?,?,?,?)",
             (uint64_t)mMessages.chatId(), item.opcode(), (int)time(NULL), msg->id(),
-            *msg, msg->updated, rcpts, msg->backRefId, msg->backrefBuf(),
+            *msg, msg->type, msg->updated, rcpts, msg->backRefId, msg->backrefBuf(),
             item.msgCmd ? (*item.msgCmd) : StaticBuffer(nullptr, 0),
             item.keyCmd ? (*item.keyCmd) : StaticBuffer(nullptr, 0));
         item.rowid = sqlite3_last_insert_rowid(mDb);
