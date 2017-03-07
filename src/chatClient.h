@@ -64,14 +64,15 @@ protected:
     chatd::Chat* mChat = nullptr;
     bool mIsInitializing = true;
     std::string mTitleString;
+    uint32_t mLastMsgTs;
     void notifyTitleChanged();
-    void synchronousNotifyTitleChanged();
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv priv);
+    void onMessageTimestamp(uint32_t ts);
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
@@ -90,8 +91,9 @@ public:
     /** @brief Connects to the chatd chatroom */
     virtual void connect() = 0;
 
-    ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup, const char* url,
-             unsigned char shard, chatd::Priv ownPriv, const std::string& aTitle=std::string());
+    ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup,
+             unsigned char shard, chatd::Priv ownPriv, uint32_t ts,
+             const std::string& aTitle=std::string());
 
     virtual ~ChatRoom(){}
 
@@ -113,6 +115,11 @@ public:
     /** @brief The chatd shart number for that chatroom */
     unsigned char shardNo() const { return mShardNo; }
 
+    /** @brief Returns the timestamp of the most recent message in the chatroom,
+     * or if there are no messages - the creation time of the chatroom
+     */
+    uint32_t lastMessageTs() const { return mLastMsgTs; }
+
     /** @brief Our own privilege within this chat */
     chatd::Priv ownPriv() const { return mOwnPriv; }
 
@@ -126,6 +133,18 @@ public:
 
     /** @brief send a notification to the chatroom that the user is typing. */
     virtual void sendTypingNotification() { mChat->sendTypingNotification(); }
+
+    /** @brief Edits a message in the chatroom. Forwards the call to
+     * \c chatd::Chat::msgModify() (look at its documentation for details),
+     * but also does last timestamp bookkeeping
+     */
+    chatd::Message* editMessage(chatd::Message& msg, const char* newdata, size_t newlen, void* userp);
+
+    /** @brief Sends a new message to the chatroom. Forwards the call to
+     * \c chatd::Chat::msgSubmit() (look at its documentation for detaild),
+     * but also does last timestamp bookkeeping
+     */
+    chatd::Message* sendMessage(const char* msg, size_t msglen, unsigned char type, void* userp);
 
     /** @brief The application-side event handler that receives events from
      * the chatd chatroom and events about title, online status and unread
@@ -165,8 +184,9 @@ public:
 
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
-    virtual void onRecvNewMessage(chatd::Idx, chatd::Message&, chatd::Message::Status);
-    virtual void onRecvHistoryMessage(chatd::Idx, chatd::Message&, chatd::Message::Status, bool isLocal);
+    virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
+    virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
+    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal);
     virtual void onExcludedFromRoom() {}
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
     {
@@ -176,6 +196,7 @@ public:
             errmsg.c_str());
     }
 
+    promise::Promise<void> truncateHistory(karere::Id msgId);
 };
 /** @brief Represents a 1on1 chatd chatroom */
 class PeerChatRoom: public ChatRoom
@@ -201,8 +222,9 @@ protected:
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
-    PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* url,
-            unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer, chatd::Priv peerPriv);
+    PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
+            unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
+            chatd::Priv peerPriv, uint32_t ts);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room, Contact& contact);
     ~PeerChatRoom();
     //@endcond
@@ -303,14 +325,11 @@ public:
     friend class Member;
     friend class Client;
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
-    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid, const char* aUrl,
-                  unsigned char aShard, chatd::Priv aOwnPriv, const std::string& title);
+    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
+                  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
+                  const std::string& title);
     ~GroupChatRoom();
 public:
-    promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
-    promise::Promise<void> setTitle(const std::string& title);
-    promise::Promise<void> leave();
-    promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
     virtual promise::Promise<void> mediaCall(AvFlags av);
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
@@ -344,10 +363,40 @@ public:
 
     /** @brief Removes the specifid user from the chatroom. You must have
      * operator privileges to do that.
+     * @note Do not use this method to exclude yourself. Instead, call leave()
      * @param user The handle of the user to remove from the chatroom.
-     * @returns A promise with the MegaRequest result, returned by the mega SDK.
+     * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> excludeMember(uint64_t user);
+
+    /**
+     * @brief Removes yourself from the chatroom.
+     * @returns A void promise, which will fail if the MegaApi request fails.
+     */
+    promise::Promise<void> leave();
+
+    /** TODO
+     * @brief setTitle
+     * @param title
+     * @returns A void promise, which will fail if the MegaApi request fails.
+     */
+    promise::Promise<void> setTitle(const std::string& title);
+
+    /** TODO
+     * @brief invite
+     * @param userid
+     * @param priv
+     * @returns A void promise, which will fail if the MegaApi request fails.
+     */
+    promise::Promise<void> invite(uint64_t userid, chatd::Priv priv);
+
+    /** TODO
+     * @brief setPrivilege
+     * @param userid
+     * @param priv
+     * @returns A void promise, which will fail if the MegaApi request fails.
+     */
+    promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -439,7 +488,7 @@ public:
 
     /** @brief The presence of the contact */
     Presence presence() const { return mPresence; }
-
+    bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);
     void updateAllOnlineDisplays(Presence pres)

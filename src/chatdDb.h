@@ -261,7 +261,7 @@ public:
         stmt << mMessages.chatId() << mMessages.client().userId();
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
-        stmt.step();
+        stmt.stepMustHaveData("get peer msg count");
         return stmt.intCol(0);
     }
     virtual void saveItemToManualSending(const chatd::Chat::SendingItem& item, int reason)
@@ -343,6 +343,22 @@ public:
         if (!stmt.step())
             return false;
         return stmt.stringCol(0) == "1";
+    }
+    virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg)
+    {
+        SqliteStmt stmt(mDb,
+            "select type, idx, data, msgid, userid from history where chatid=? and "
+            "(type=1 or type >= 16) and (idx <= ?) and length(data) > 0 "
+            "order by idx desc limit 1");
+        stmt << mMessages.chatId() << from;
+        if (!stmt.step())
+        {
+            msg.clear();
+            return;
+        }
+        Buffer buf(128);
+        stmt.blobCol(2, buf);
+        msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
     }
 };
 

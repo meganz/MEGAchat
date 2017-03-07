@@ -97,15 +97,16 @@ public:
     void TEST_groupChatManagement();
     void TEST_offlineMode();
     void TEST_clearHistory();
+    void TEST_switchAccounts();
 
 private:
     std::string email[NUM_ACCOUNTS];
     std::string pwd[NUM_ACCOUNTS];
 
 
-    MegaChatHandle chatid;  // chatroom id from request
-    MegaChatRoom *chatroom;
-    MegaChatListItem *chatListItem;
+    MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
+    MegaChatRoom *chatroom[NUM_ACCOUNTS];
+    MegaChatListItem *chatListItem[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
     bool chatItemUpdated[NUM_ACCOUNTS];
     bool chatItemClosed[NUM_ACCOUNTS];

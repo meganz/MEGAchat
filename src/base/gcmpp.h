@@ -16,7 +16,7 @@ namespace karere
  * it. Further, it allows for code optimization as all types are known at compile time
  * and all code is in the same compilation unit, so it can be inlined
  */
-template <class F>
+template <class F, bool nocatch=false>
 static inline void marshallCall(F&& func)
 {
     struct Msg: public megaMessage
@@ -46,7 +46,21 @@ static inline void marshallCall(F&& func)
     {
         AutoDel pMsg(static_cast<Msg*>(ptr));
         assert(pMsg->magic == 0x3e9a3591);
-        pMsg->mFunc();
+        if (nocatch)
+        {
+            pMsg->mFunc();
+        }
+        else
+        {
+            try
+            {
+                pMsg->mFunc();
+            }
+            catch(std::exception& e)
+            {
+                fprintf(stderr, "ERROR: Exception in a marshalled call: %s\n", e.what());
+            }
+        }
     });
     megaPostMessageToGui(static_cast<void*>(msg));
 }
