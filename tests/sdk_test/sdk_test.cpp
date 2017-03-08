@@ -19,32 +19,16 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    t.TEST_switchAccounts();
-    t.TEST_offlineMode();
     t.TEST_resumeSession();
     t.TEST_setOnlineStatus();
     t.TEST_getChatRoomsAndMessages();
     t.TEST_editAndDeleteMessages();
     t.TEST_groupChatManagement();
     t.TEST_clearHistory();
+    t.TEST_switchAccounts();
+    t.TEST_offlineMode();
 
     t.terminate();
-
-        /*  - Establish contact relationship: invite, accept
-     *  - Create group chat
-     *  - Invite the contact
-     *  - Update permissions of peer
-     *  - Remove the peer from chat
-     *  - Set title
-     *  - Send a message
-     *  - Edit a message
-     *  - Delete a message
-     *  - Send 5 messages
-     *  - Truncate history from 3rd message
-     *  - Attach node
-     *  - Attach contact
-     */
-
     return 0;
 }
 
