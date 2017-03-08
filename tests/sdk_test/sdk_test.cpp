@@ -805,6 +805,9 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(chatroom->getPeerCount() == 0);
     delete chatroom;
 
+    // Close the chatroom, even if we've been removed from it
+    megaChatApi[1]->closeChatRoom(chatid, chatroomListener);
+
     // --> Invite to chat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flag = false;
     bool *chatItemJoined0 = &chatItemUpdated[0]; *chatItemJoined0 = false;
@@ -842,10 +845,10 @@ void MegaChatApiTest::TEST_groupChatManagement()
     // --> Set title
     string title = "My groupchat with title";
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flag = false;
-    bool *titleItemChanged0 = &chatItemUpdated[0]; *titleItemChanged0 = false;
-    bool *titleItemChanged1 = &chatItemUpdated[1]; *titleItemChanged1 = false;
-    bool *titleChanged0 = &chatroomListener->chatUpdated[0]; *titleChanged0 = false;
-    bool *titleChanged1 = &chatroomListener->chatUpdated[1]; *titleChanged1 = false;
+    bool *titleItemChanged0 = &titleUpdated[0]; *titleItemChanged0 = false;
+    bool *titleItemChanged1 = &titleUpdated[1]; *titleItemChanged1 = false;
+    bool *titleChanged0 = &chatroomListener->titleUpdated[0]; *titleChanged0 = false;
+    bool *titleChanged1 = &chatroomListener->titleUpdated[1]; *titleChanged1 = false;
     mngMsgRecv = &chatroomListener->msgReceived[0]; *mngMsgRecv = false;
     string *msgContent = &chatroomListener->content[0]; *msgContent = "";
     megaChatApi[0]->setChatTitle(chatid, title.c_str());
@@ -1404,6 +1407,10 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         {
             peersUpdated[apiIndex] = true;
         }
+        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_TITLE))
+        {
+            titleUpdated[apiIndex] = true;
+        }
 
         chatItemUpdated[apiIndex] = true;
     }
@@ -1449,6 +1456,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApi **apis, MegaChatHandle ch
         this->msgId[i] = MEGACHAT_INVALID_HANDLE;
         this->chatUpdated[i] = false;
         this->userTyping[i] = false;
+        this->titleUpdated[i] = false;
     }
 }
 
@@ -1474,10 +1482,17 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
         cout << "[api: " << apiIndex << "] Initialization completed!" << endl;
         return;
     }
-    if (chat && chat->hasChanged(MegaChatRoom::CHANGE_TYPE_USER_TYPING))
+    if (chat)
     {
-        uhAction[apiIndex] = chat->getUserTyping();
-        userTyping[apiIndex] = true;
+        if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_USER_TYPING))
+        {
+            uhAction[apiIndex] = chat->getUserTyping();
+            userTyping[apiIndex] = true;
+        }
+        else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_TITLE))
+        {
+            titleUpdated[apiIndex] = true;
+        }
     }
 
     cout << "[api: " << apiIndex << "] Chat updated - ";
@@ -1555,6 +1570,7 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
     if (msg->getType() == MegaChatMessage::TYPE_CHAT_TITLE)
     {
         content[apiIndex] = msg->getContent() ? msg->getContent() : "<empty>";
+        titleUpdated[apiIndex] = true;
     }
 
     msgId[apiIndex] = msg->getMsgId();

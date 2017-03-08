@@ -111,6 +111,7 @@ private:
     bool chatItemUpdated[NUM_ACCOUNTS];
     bool chatItemClosed[NUM_ACCOUNTS];
     bool peersUpdated[NUM_ACCOUNTS];
+    bool titleUpdated[NUM_ACCOUNTS];
 
     std::string firstname, lastname;
     bool nameReceived[NUM_ACCOUNTS];
@@ -190,6 +191,7 @@ public:
     std::string content[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
     bool userTyping[NUM_ACCOUNTS];
+    bool titleUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     virtual void onChatRoomUpdate(MegaChatApi* megaChatApi, MegaChatRoom *chat);
