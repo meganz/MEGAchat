@@ -1099,27 +1099,21 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg)
     const char* pos = encryptedKey.buf();
     const char* end = encryptedKey.buf()+encryptedKey.dataSize();
     karere::Id receiver;
-    if (sender == mProtoHandler.ownHandle())
-    {   //any version of the encrypted key is ok, pick the first
-        receiver = Buffer::alignSafeRead<uint64_t>(pos);
-        pos += 10; //userid.8+keylen.2
-    }
-    else
-    { //pick the version that is encrypted for us
-        while (pos < end)
-        {
-            receiver = Buffer::alignSafeRead<uint64_t>(pos);
-            pos+=8;
-            uint16_t keylen = *(uint16_t*)(pos);
-            pos+=2;
-            if (receiver == mProtoHandler.ownHandle())
-                break;
-            pos+=keylen;
-        }
 
-        if (pos >= end)
-            throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
+    //pick the version that is encrypted for us
+    while (pos < end)
+    {
+        receiver = Buffer::alignSafeRead<uint64_t>(pos);
+        pos+=8;
+        uint16_t keylen = *(uint16_t*)(pos);
+        pos+=2;
+        if (receiver == mProtoHandler.ownHandle())
+            break;
+        pos+=keylen;
     }
+
+    if (pos >= end)
+        throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
     if (end-pos < 16)
         throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
     auto buf = std::make_shared<Buffer>(16);
