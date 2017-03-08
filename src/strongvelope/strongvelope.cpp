@@ -732,13 +732,15 @@ ProtocolHandler::decryptChatTitle(const Buffer& data)
     {
         Buffer copy(data.dataSize());
         copy.copyFrom(data);
-        chatd::Message* msg = new chatd::Message(karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
+        auto msg = std::make_shared<chatd::Message>(
+            karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
 
         auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
-        return parsedMsg->decryptChatTitle(msg)
-        //warning: parsedMsg must be kept alive when .then() is executed, so we
-        //capture the shared pointer to it
-        .then([parsedMsg](Message* retMsg)
+        return parsedMsg->decryptChatTitle(msg.get())
+        // warning: parsedMsg must be kept alive when .then() is executed, so we
+        // capture the shared pointer to it. Msg also must be kept alive, as
+        // the promise returns it
+        .then([msg, parsedMsg](Message* retMsg)
         {
             return std::string(retMsg->buf(), retMsg->dataSize());
         });
