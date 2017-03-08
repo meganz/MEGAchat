@@ -971,7 +971,6 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(waitForResponse(flag));
     assert(!lastErrorChat[0]);
     assert(waitForResponse(chatClosed));
-    // Redmine ticket: #6083 (inactive groupchats are removed)
     chatroom = megaChatApi[0]->getChatRoom(chatid);
     assert(!chatroom->isActive());
     delete chatroom;    chatroom = NULL;
