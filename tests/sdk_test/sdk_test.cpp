@@ -757,15 +757,15 @@ void MegaChatApiTest::TEST_groupChatManagement()
             *chatItemReceived1 = false;
         }
     }
-    delete chatItemCreated0;    chatItemCreated0 = NULL;
-    delete chatItemCreated1;    chatItemCreated1 = NULL;
 
     // Check the auxiliar account also received the chatroom
-//    MegaChatRoom *chatroom = megaChatApi[1]->getChatRoom(chatid);
-//    assert (chatroom);
-//    delete chatroom;    chatroom = NULL;
-//    assert(!strcmp(chatItemCreated1->getTitle(), peerFullname.c_str())); ERROR: we get empty title
+    MegaChatRoom *chatroom = megaChatApi[1]->getChatRoom(chatid);
+    assert (chatroom);
+    delete chatroom;    chatroom = NULL;
 
+    assert(!strcmp(chatItemCreated1->getTitle(), peerFullname.c_str())); // ERROR: we get empty title
+    delete chatItemCreated0;    chatItemCreated0 = NULL;
+    delete chatItemCreated1;    chatItemCreated1 = NULL;
 
     // --> Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
@@ -789,7 +789,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(*uhAction == peer->getHandle());
     assert(*priv == MegaChatRoom::PRIV_RM);
 
-    MegaChatRoom *chatroom = megaChatApi[0]->getChatRoom(chatid);
+    chatroom = megaChatApi[0]->getChatRoom(chatid);
     assert (chatroom);
     assert(chatroom->getPeerCount() == 0);
     delete chatroom;
@@ -823,7 +823,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(waitForResponse(chatItemJoined0));
     assert(waitForResponse(chatItemJoined1));
     assert(waitForResponse(chatJoined0));
-//    assert(waitForResponse(chatJoined1)); // Redmine ticket: #5668
+//    assert(waitForResponse(chatJoined1)); --> account 1 haven't opened chat, won't receive callback
     assert(waitForResponse(mngMsgRecv));
     assert(*uhAction == peer->getHandle());
     assert(*priv == MegaChatRoom::PRIV_UNKNOWN);    // the message doesn't report the new priv
@@ -857,7 +857,7 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(waitForResponse(titleItemChanged0));
     assert(waitForResponse(titleItemChanged1));
     assert(waitForResponse(titleChanged0));
-//    assert(waitForResponse(titleChanged1)); // Redmine ticket: #5668
+    assert(waitForResponse(titleChanged1));
     assert(waitForResponse(mngMsgRecv));
     assert(!strcmp(title.c_str(), msgContent->c_str()));
 
@@ -959,11 +959,10 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(waitForResponse(flag));
     assert(!lastErrorChat[0]);
     assert(waitForResponse(chatClosed));
-    // Redmine ticket: #6083 (inactive groupchats are removed)
-//    MegaChatRoom *chatroom = megaChatApi[1]->getChatRoom(chatid);
-//    assert(chatroom);
-//    assert(!chatroom->isActive());
-//    delete chatroom;    chatroom = NULL;
+    chatroom = megaChatApi[1]->getChatRoom(chatid);
+    assert(chatroom);
+    assert(!chatroom->isActive());
+    delete chatroom;    chatroom = NULL;
 
     // --> Leave the GroupChat
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flag = false;
@@ -973,9 +972,9 @@ void MegaChatApiTest::TEST_groupChatManagement()
     assert(!lastErrorChat[0]);
     assert(waitForResponse(chatClosed));
     // Redmine ticket: #6083 (inactive groupchats are removed)
-//    MegaChatRoom *chatroom = megaChatApi[0]->getChatRoom(chatid);
-//    assert(!chatroom->isActive());
-//    delete chatroom;    chatroom = NULL;
+    chatroom = megaChatApi[0]->getChatRoom(chatid);
+    assert(!chatroom->isActive());
+    delete chatroom;    chatroom = NULL;
 
     logout(1, true);
     logout(0, true);
