@@ -349,7 +349,7 @@ void Client::commit()
 void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
 {
     assert(event);
-    if (db && event->getType() == ::mega::MegaEvent::EVENT_COMMIT_DB)
+    if ((event->getType() == ::mega::MegaEvent::EVENT_COMMIT_DB) && db)
     {
         auto pscsn = event->getText();
         if (!pscsn)
