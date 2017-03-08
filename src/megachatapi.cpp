@@ -581,6 +581,11 @@ const char *MegaChatRoom::getPeerFullnameByHandle(MegaChatHandle userhandle) con
     return NULL;
 }
 
+const char *MegaChatRoom::getPeerEmailByHandle(MegaChatHandle userhandle) const
+{
+    return NULL;
+}
+
 unsigned int MegaChatRoom::getPeerCount() const
 {
     return 0;
@@ -607,6 +612,11 @@ const char *MegaChatRoom::getPeerLastname(unsigned int i) const
 }
 
 const char *MegaChatRoom::getPeerFullname(unsigned int i) const
+{
+    return NULL;
+}
+
+const char *MegaChatRoom::getPeerEmail(unsigned int i) const
 {
     return NULL;
 }
@@ -773,9 +783,24 @@ int MegaChatListItem::getOnlineStatus() const
     return MegaChatApi::STATUS_OFFLINE;
 }
 
-MegaChatMessage *MegaChatListItem::getLastMessage() const
+const char *MegaChatListItem::getLastMessage() const
 {
     return NULL;
+}
+
+int MegaChatListItem::getLastMessageType() const
+{
+    return MegaChatMessage::TYPE_INVALID;
+}
+
+MegaChatHandle MegaChatListItem::getLastMessageSender() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+int64_t MegaChatListItem::getLastTimestamp() const
+{
+    return 0;
 }
 
 bool MegaChatListItem::isGroup() const
@@ -845,7 +870,7 @@ MegaChatHandle MegaChatMessage::getUserHandle() const
 
 int MegaChatMessage::getType() const
 {
-    return MegaChatMessage::TYPE_UNKNOWN;
+    return MegaChatMessage::TYPE_INVALID;
 }
 
 int64_t MegaChatMessage::getTimestamp() const

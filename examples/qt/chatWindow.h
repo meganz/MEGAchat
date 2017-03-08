@@ -495,7 +495,6 @@ public:
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
     {
-        mRoom.onRecvNewMessage(idx, msg, status);
         if (msg.empty())
             return;
         auto sbar = ui.mMessageList->verticalScrollBar();
@@ -577,6 +576,15 @@ public:
         if (widget)
             widget->updateStatus(newStatus);
     }
+    virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
+    {
+        mRoom.onLastTextMessageUpdated(msg);
+    }
+    virtual void onLastMessageTsUpdated(uint32_t ts)
+    {
+        mRoom.onLastMessageTsUpdated(ts);
+    }
+
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx)
     {
         // add to history, message was just created at the server

@@ -121,7 +121,7 @@ struct UserAttrCacheItem
  * User attribute cache, prividing notifications when an attribute is changed
  */
 class UserAttrCache: public std::map<UserAttrPair, std::shared_ptr<UserAttrCacheItem>>,
-                     public mega::MegaGlobalListener
+                     public mega::MegaGlobalListener, public karere::DeleteTrackable
 {
 protected:
     Client& mClient;
@@ -138,6 +138,10 @@ protected:
 //==
     void onUserAttrChange(mega::MegaUser& user);
     void onLogin();
+    /** @brief Invalidates the whole cache, and re-fetches all registered queries.
+     * Used when we discover that karere state is out of sync with SDK state
+     */
+    void invalidate();
     void onLogOut();
     friend struct UserAttrCacheItem;
     friend class Client;
