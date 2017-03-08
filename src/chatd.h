@@ -867,7 +867,7 @@ public:
      * restored, the client will fetch history until a text message is found,
      * then it will call the callback.
      */
-    uint8_t lastTextMessage(LastTextMsg*& msg);
+    uint8_t lastTextMessage(LastTextMsg *msg);
 
     /** @brief Returns the timestamp of the newest known message */
     uint32_t lastMessageTs() { return mLastMsgTs; }

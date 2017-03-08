@@ -2376,7 +2376,7 @@ void Chat::onLastTextMsgUpdated(const Message& msg)
     CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
 }
 
-uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
+uint8_t Chat::lastTextMessage(LastTextMsg* msg)
 {
     if (mLastTextMsg.isValid())
     {
