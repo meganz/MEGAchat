@@ -451,9 +451,9 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     api.sdk.pauseActionPackets();
     api.sdk.removeRequestListener(this);
     auto state = mInitState;
-    auto pscsn = api.sdk.getSequenceNumber();
-    assert(pscsn);
-    std::string scsn(pscsn);
+    char* pscsn = api.sdk.getSequenceNumber();
+    std::string scsn = pscsn ? pscsn : "";
+    delete pscsn;
     std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
     std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
@@ -1457,8 +1457,9 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     if (!rooms)
         return;
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
-    const char* pscsn = api.sdk.getSequenceNumber();
+    char* pscsn = api.sdk.getSequenceNumber();
     std::string scsn = pscsn ? pscsn : "";
+    delete pscsn;
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
