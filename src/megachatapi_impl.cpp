@@ -619,7 +619,7 @@ void MegaChatApiImpl::sendPendingRequests()
             strTitle = strTitle.substr(0, 30);
             request->setText(strTitle.c_str()); // update, in case it's been truncated
 
-            ((GroupChatRoom *)chatroom)->setTitle(strTitle.c_str())
+            ((GroupChatRoom *)chatroom)->setTitle(strTitle)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
