@@ -72,11 +72,11 @@ enum: uint8_t
 {
     OP_KEEPALIVE = 0,
     OP_HELLO = 1,
-    OP_STATUSOVERRIDE = 2, //notifies own presence, sets 'manual' presence
-    OP_SETSTATUS = 3,
+    OP_USERACTIVE = 3,
     OP_ADDPEERS = 4,
     OP_DELPEERS = 5,
-    OP_PEERSTATUS = 6 //notifies about presence of user
+    OP_PEERSTATUS = 6, //notifies about presence of user
+    OP_PREFS = 7
 };
 
 class Command: public Buffer
@@ -161,6 +161,7 @@ protected:
     void login();
     bool sendBuf(Buffer&& buf);
     void logSend(const Command& cmd);
+    bool sendUserActive(bool active, bool force);
     uint8_t presenceToDynFlags(karere::Presence pres);
     void setOnlineState(State state);
     void pingWithPresence();
@@ -202,9 +203,9 @@ inline const char* Command::opcodeToStr(uint8_t opcode)
     switch (opcode)
     {
         case OP_PEERSTATUS: return "PEERSTATUS";
-        case OP_SETSTATUS: return "SETSTATUS";
+        case OP_USERACTIVE: return "USERACTIVE";
         case OP_KEEPALIVE: return "KEEPALIVE";
-        case OP_STATUSOVERRIDE: return "STATUSOVERRIDE";
+        case OP_PREFS: return "PREFS";
         case OP_HELLO: return "HELLO";
         case OP_ADDPEERS: return "ADDPEERS";
         case OP_DELPEERS: return "DELPEERS";

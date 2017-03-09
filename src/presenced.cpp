@@ -182,21 +182,50 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     }
 }
 
-bool Client::setPresence(Presence pres, bool force)
+uint16_t Client::prefsCode()
 {
-    if (force)
+    uint16_t t = (mAutoAwayTimeout > 600)
+        ? 600+(mAutoAwayTimeout-600)/60;
+        : mAutoAwayTimeout;
+
+     return (t << 4)
+          | (mAutoAwayActive ? 0 : 8)
+          | (mPersist ? 4 : 0)
+          | (mPresence-Presence::kOffline);
+}
+
+bool Client::setPresence(Presence pres)
+{
+    if (pres == mPresence)
+        return;
+    mPresence = presence;
+    signalActivity(true);
+    auto ret = sendPrefs();
+    updateUi();
+    PRESENCED_LOG_DEBUG("setPresence-> %s", pres.toString());
+    return ret;
+}
+
+void Client::signalActivity(bool force)
+{
+    bool needTimer = !mPersist
+                && mPresence != Presence::kOffline
+                && mPresence != Presence::kAway
+                && mAutoawayTimeout
+                && mAutoawayActive;
+
+    // stop timer if running for more than 50 seconds or no longer needed
+    if (!needTimer)
     {
-        mForcedPresence = pres;
-        PRESENCED_LOG_DEBUG("setOwnPresence-> %s(forced)", pres.toString());
-        return sendCommand(Command(OP_STATUSOVERRIDE)+pres.code());
+        mTsLastUiActivity = 0;
+        return;
     }
-    else
-    {
-        PRESENCED_LOG_DEBUG("setOwnPresence-> %s", pres.toString());
-        //FIXME
-        mDynamicPresence = pres;
-        return sendCommand(Command(OP_SETSTATUS) + presenceToDynFlags(pres));
-    }
+
+    mTsLastUiActivity = time(NULL);
+    else if (mPresence == Presence::kAway)
+        sendUserActive(false);
+    else if (mPresence != Presence::kOffline)
+        sendUserActive(true, force);
 }
 
 uint8_t Client::presenceToDynFlags(Presence pres)
@@ -250,7 +279,7 @@ Client::reconnect(const std::string& url)
             {
                 ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
             }
-            checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str())), "connect");
+            checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str(), services_http_use_ipv6)), "connect");
             return mConnectPromise;
         }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
         .then([this]()
@@ -264,6 +293,17 @@ Client::reconnect(const std::string& url)
 
 void Client::heartbeat()
 {
+    if (mTsLastUserActivity)
+    {
+        assert(mAutoawayActive);
+        auto now = time(NULL);
+        if (now - mTsLastUserActivity > mAutoAwayTimeout)
+        {
+            sendUserActive(false);
+            mTsLastUserActivity = 0;
+        }
+    }
+
     if (!mHeartbeatEnabled)
         return;
     mHeartBeats++;
@@ -344,25 +384,23 @@ void Command::toString(char* buf, size_t bufsize) const
     auto op = opcode();
     switch (op)
     {
-        case OP_SETSTATUS:
+        case OP_USERACTIVE:
         {
             auto code = read<uint8_t>(1);
-            const char* flags;
-            if ((code & 0x03) == 0)
-                flags = "Away";
-            else if (code & 0x01)
-                flags = "Online";
-            else if (code & 0x02)
-                flags = "Busy";
-            else
-                flags = "invalid(both DnD and Online set)";
-            snprintf(buf, bufsize, "SETSTATUS - %s%s", flags, (code & 0x80)?"(mobile)":"");
+            snprintf(buf, bufsize, "USERACTIVE - %d", code);
             break;
         }
-        case OP_STATUSOVERRIDE:
+        case OP_PREFS:
         {
-            snprintf(buf, bufsize, "STATUSOVERRIDE - presence: %s",
-                Presence::toString(read<uint8_t>(1)));
+            uint16_t prefs = read<uint16_t>(1);
+            uint16_t aaTimeout = prefs >> 4;
+            if (aaTimeout > 600)
+                aaTimeout = 600+(aaTimeout-600)/60;
+
+            snprintf(buf, bufsize,
+                "PREFS - presence: %s, persist: %d, autoawayActive: %d, aaTimeout: %u",
+                Presence::toString((prefs & 3)+Presence::kOffline),
+                     !!(prefs & 4), !(prefs & 8), aaTimeout);
             break;
         }
         case OP_HELLO:
@@ -396,11 +434,32 @@ void Command::toString(char* buf, size_t bufsize) const
 void Client::login()
 {
     sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion+mCapabilities);
-    if (mForcedPresence.isValid())
-        sendCommand(Command(OP_STATUSOVERRIDE) + mForcedPresence.code());
-    sendCommand(Command(OP_SETSTATUS) + presenceToDynFlags(mDynamicPresence));
+
+    if (mPrefsChanged)
+        sendPrefs();
+
+    if (mTsLastUserActivity)
+        sendUserActive(time(NULL) - mTsLastUserActivity > mAutoAwayTimeout, true);
+    else
+        sendUserActive(true, true);
 
     pushPeers();
+}
+
+bool Client::sendUserActive(bool active, bool force)
+{
+    if ((active == mLastSentUserActive) && !force)
+        return;
+    bool sent = sendCommand(Command(OP_USERACTIVE) + (uint8_t)(active ? 1 : 0));
+    if (!sent)
+        return false;
+    mLastSentUserActive = active;
+    return true;
+}
+
+bool Client::sendPrefs()
+{
+    return sendCommand(Command(OP_PREFS) + prefsCode());
 }
 
 Client::~Client()
@@ -460,14 +519,27 @@ void Client::handleMessage(const StaticBuffer& buf)
                 }
                 break;
             }
-            case OP_STATUSOVERRIDE:
+            case OP_PREFS:
             {
-                READ_8(pres, 0);
-                PRESENCED_LOG_DEBUG("recv STATUSOVERRIDE - presence %s", Presence::toString(pres));
-                //FIXME - maybe we should have an ACK
-                mForcedPresence = Presence::kInvalid;
-//                if (pres != Presence::kClear)
-//                    CALL_LISTENER(onOwnPresence, pres);
+                READ_16(prefs, 0);
+                if (prefs == mCurrentPrefs) //ack
+                {
+                    mPrefsChanged = false;
+                    PRESENCED_LOG_DEBUG("recv PREFS - ackknowledged the prefs we sent (%u)", mCurrentPrefs);
+                    break;
+                }
+                mPresence = (prefs & 3)+Presence::kOffline;
+                mPersist = !!(prefs & 4);
+                mAutoawayActive = !(prefs & 8);
+                mAutoawayTimeout = prefs >> 4;
+                if (mAutoawayTimeout > 600)
+                {
+                    mAutoawayTimeout = 600+(mAutoawayTimeout-600)/60;
+                }
+                PRESENCED_LOG_DEBUG("recv PREFS - presence %s, persist: %u, autowayActive: %d, autoawayTimeout: %u",
+                    Presence::toString(pres), mPersist, mAutoawayActive, mAutoawayTimeout);
+                signalActivity(true);
+                updateUi();
                 break;
             }
             default:
