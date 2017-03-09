@@ -3360,7 +3360,9 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
-    LastTextMsg* msg = NULL;
+    LastTextMsg tmp;
+    LastTextMsg *message = &tmp;
+    LastTextMsg *&msg = message;
     int lastMsgStatus = chatroom.chat().lastTextMessage(msg);
     if (lastMsgStatus == 1)
     {
