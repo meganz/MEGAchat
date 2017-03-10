@@ -770,6 +770,7 @@ public:
     virtual IApp::IContactListHandler *contactListHandler();
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onOwnPresence(karere::Presence pres, bool inProgress);
+    virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
     virtual void notifyInvited(const karere::ChatRoom& room);

@@ -843,9 +843,13 @@ protected:
     virtual void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
 
     // presenced listener interface
+    virtual void onConnStateChange(presenced::Client::ConnState state);
+    virtual void onPeerPresence(Id userid, Presence pres);
     virtual void onOwnPresence(Presence pres);
-    virtual void onConnStateChange(presenced::Client::State state);
-    virtual void onPresence(Id userid, Presence pres);
+    virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending)
+    {
+        app.onPresenceConfigChanged(state, pending);
+    }
     //==
     friend class ChatRoom;
     friend class ChatRoomList;

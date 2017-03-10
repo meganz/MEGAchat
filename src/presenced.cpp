@@ -37,11 +37,11 @@ ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
 Client::Client(Listener& listener, uint8_t caps)
-: mListener(&listener), mCapabilities(caps)
+: mListener(&listener), mCapabilities(caps), mConfig(karere::Presence::kOffline)
 {
     if (!sWebsockCtxInitialized)
         initWebsocketCtx();
-    CALL_LISTENER(onOwnPresence, Presence::kOffline);
+    CALL_LISTENER(onPresenceConfigChanged, mConfig, false);
 }
 
 void Client::initWebsocketCtx()
@@ -92,11 +92,10 @@ void Client::initWebsocketCtx()
 
 promise::Promise<void>
 Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
-    Presence forcedPres, Presence dynPres)
+    const Config& config)
 {
     mMyHandle = myHandle;
-    mDynamicPresence = dynPres;
-    mForcedPresence = forcedPres;
+    mConfig = config;
     mCurrentPeers = std::move(currentPeers);
     return reconnect(url);
 }
@@ -125,7 +124,7 @@ void Client::websockConnectCb(ws_t ws, void* arg)
         if (wptr.deleted())
             return;
         assert(!self.mConnectPromise.done());
-        self.setConnState(kStateConnected);
+        self.setConnState(kConnected);
         self.mConnectPromise.resolve();
     });
 }
@@ -169,74 +168,79 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     if (mTerminating)
         return;
 
-    if (mState == kStateConnecting) //tell retry controller that the connect attempt failed
+    if (mConnState == kConnecting) //tell retry controller that the connect attempt failed
     {
         assert(!mConnectPromise.done());
         mConnectPromise.reject(reason, errcode, errtype);
     }
     else
     {
-        CALL_LISTENER(onOwnPresence, Presence::kOffline);
-        setConnState(kStateDisconnected);
+        setConnState(kDisconnected);
         reconnect(); //start retry controller
     }
 }
 
-uint16_t Client::prefsCode()
+std::string Config::toString() const
 {
-    uint16_t t = (mAutoAwayTimeout > 600)
-        ? 600+(mAutoAwayTimeout-600)/60;
-        : mAutoAwayTimeout;
-
-     return (t << 4)
-          | (mAutoAwayActive ? 0 : 8)
-          | (mPersist ? 4 : 0)
-          | (mPresence-Presence::kOffline);
+    std::string result;
+    result.reserve(64);
+    result.append("pres: ").append(mPresence.toString())
+          .append(", persist: ").append(mPersist ? "1":"0")
+          .append(", aaActive: ").append(mAutoawayActive ? "1":"0")
+          .append(", aaTimeout: ").append(std::to_string(mAutoawayTimeout));
+    return result;
 }
 
 bool Client::setPresence(Presence pres)
 {
-    if (pres == mPresence)
-        return;
-    mPresence = presence;
-    signalActivity(true);
+    if (pres == mConfig.mPresence)
+        return true;
+    mConfig.mPresence = pres;
+    checkEnableAutoaway();
     auto ret = sendPrefs();
-    updateUi();
+    signalActivity(true);
     PRESENCED_LOG_DEBUG("setPresence-> %s", pres.toString());
     return ret;
 }
 
-void Client::signalActivity(bool force)
+bool Client::setPersist(bool enable)
 {
-    bool needTimer = !mPersist
-                && mPresence != Presence::kOffline
-                && mPresence != Presence::kAway
-                && mAutoawayTimeout
-                && mAutoawayActive;
-
-    // stop timer if running for more than 50 seconds or no longer needed
-    if (!needTimer)
-    {
-        mTsLastUiActivity = 0;
-        return;
-    }
-
-    mTsLastUiActivity = time(NULL);
-    else if (mPresence == Presence::kAway)
-        sendUserActive(false);
-    else if (mPresence != Presence::kOffline)
-        sendUserActive(true, force);
+    if (enable == mConfig.mPersist)
+        return true;
+    mConfig.mPersist = enable;
+    signalActivity(true);
+    checkEnableAutoaway();
+    return sendPrefs();
 }
 
-uint8_t Client::presenceToDynFlags(Presence pres)
+bool Client::setAutoaway(bool enable, uint16_t timeout)
 {
-    uint8_t code = 0;
-    uint8_t presCode = pres.code();
-    if (presCode == Presence::kOnline)
-        code |= 0x01;
-    else if (presCode == Presence::kBusy)
-        code |= 0x02;
-    return code;
+    if (enable)
+        mConfig.mPersist = false;
+    mConfig.mAutoawayTimeout = timeout;
+    mConfig.mAutoawayActive = enable;
+    signalActivity(true);
+    return sendPrefs();
+}
+
+void Client::checkEnableAutoaway()
+{
+    bool needTimer = !mConfig.mPersist
+                && mConfig.mPresence != Presence::kOffline
+                && mConfig.mPresence != Presence::kAway
+                && mConfig.mAutoawayTimeout
+                && mConfig.mAutoawayActive;
+    if (!needTimer)
+        mTsLastUserActivity = 0;
+}
+
+void Client::signalActivity(bool force)
+{
+    mTsLastUserActivity = time(NULL);
+    if (mConfig.mPresence == Presence::kAway)
+        sendUserActive(false);
+    else if (mConfig.mPresence != Presence::kOffline)
+        sendUserActive(true, force);
 }
 
 Promise<void>
@@ -245,7 +249,7 @@ Client::reconnect(const std::string& url)
     assert(!mHeartbeatEnabled);
     try
     {
-        if (mState >= kStateConnecting) //would be good to just log and return, but we have to return a promise
+        if (mConnState >= kConnecting) //would be good to just log and return, but we have to return a promise
             return promise::Error("Already connecting/connected");
         if (!url.empty())
         {
@@ -257,7 +261,7 @@ Client::reconnect(const std::string& url)
                 return promise::Error("No valid URL provided and current URL is not valid");
         }
 
-        setConnState(kStateConnecting);
+        setConnState(kConnecting);
         return retry("presenced", [this](int no)
         {
             reset();
@@ -295,9 +299,9 @@ void Client::heartbeat()
 {
     if (mTsLastUserActivity)
     {
-        assert(mAutoawayActive);
+        assert(mConfig.mAutoawayActive);
         auto now = time(NULL);
-        if (now - mTsLastUserActivity > mAutoAwayTimeout)
+        if (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
         {
             sendUserActive(false);
             mTsLastUserActivity = 0;
@@ -309,7 +313,7 @@ void Client::heartbeat()
     mHeartBeats++;
     if (!mPacketReceived) //one heartbeat interval for server pong
     {
-        mState = kStateDisconnected;
+        mConnState = kDisconnected;
         mHeartbeatEnabled = false;
         PRESENCED_LOG_WARNING("Connection inactive for too long, reconnecting...");
         reconnect();
@@ -392,15 +396,8 @@ void Command::toString(char* buf, size_t bufsize) const
         }
         case OP_PREFS:
         {
-            uint16_t prefs = read<uint16_t>(1);
-            uint16_t aaTimeout = prefs >> 4;
-            if (aaTimeout > 600)
-                aaTimeout = 600+(aaTimeout-600)/60;
-
-            snprintf(buf, bufsize,
-                "PREFS - presence: %s, persist: %d, autoawayActive: %d, aaTimeout: %u",
-                Presence::toString((prefs & 3)+Presence::kOffline),
-                     !!(prefs & 4), !(prefs & 8), aaTimeout);
+            Config config(read<uint16_t>(1));
+            snprintf(buf, bufsize, "PREFS - %s", config.toString().c_str());
             break;
         }
         case OP_HELLO:
@@ -435,11 +432,11 @@ void Client::login()
 {
     sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion+mCapabilities);
 
-    if (mPrefsChanged)
+    if (mPrefsAckWait)
         sendPrefs();
 
     if (mTsLastUserActivity)
-        sendUserActive(time(NULL) - mTsLastUserActivity > mAutoAwayTimeout, true);
+        sendUserActive(time(NULL) - mTsLastUserActivity > mConfig.mAutoawayTimeout, true);
     else
         sendUserActive(true, true);
 
@@ -449,7 +446,7 @@ void Client::login()
 bool Client::sendUserActive(bool active, bool force)
 {
     if ((active == mLastSentUserActive) && !force)
-        return;
+        return true;
     bool sent = sendCommand(Command(OP_USERACTIVE) + (uint8_t)(active ? 1 : 0));
     if (!sent)
         return false;
@@ -459,7 +456,35 @@ bool Client::sendUserActive(bool active, bool force)
 
 bool Client::sendPrefs()
 {
-    return sendCommand(Command(OP_PREFS) + prefsCode());
+    mPrefsAckWait = true;
+    configChanged();
+    return sendCommand(Command(OP_PREFS) + mConfig.toCode());
+}
+
+void Client::configChanged()
+{
+    CALL_LISTENER(onPresenceConfigChanged, mConfig, mPrefsAckWait);
+}
+
+void Config::fromCode(uint16_t code)
+{
+    mPresence = (code & 3) + karere::Presence::kOffline;
+    mPersist = !!(code & 4);
+    mAutoawayActive = !(code & 8);
+    mAutoawayTimeout = code >> 4;
+    if (mAutoawayTimeout > 600)
+        mAutoawayTimeout = (600+(mAutoawayTimeout-600)*60);
+}
+
+uint16_t Config::toCode() const
+{
+    return ((mPresence.code() - karere::Presence::kOffline) & 3)
+          | (mPersist ? 4 : 0)
+          | (mAutoawayActive ? 0 : 8)
+          | (((mAutoawayTimeout > 600)
+               ? (600+(mAutoawayTimeout-600)/60)
+               : mAutoawayTimeout)
+            << 4);
 }
 
 Client::~Client()
@@ -509,37 +534,34 @@ void Client::handleMessage(const StaticBuffer& buf)
                 READ_ID(userid, 1);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
-                if (userid != mMyHandle)
-                {
-                    CALL_LISTENER(onPresence, userid, pres);
-                }
-                else
-                {
+                if (userid == mMyHandle)
                     CALL_LISTENER(onOwnPresence, pres);
-                }
+                else
+                    CALL_LISTENER(onPeerPresence, userid, pres);
                 break;
             }
             case OP_PREFS:
             {
                 READ_16(prefs, 0);
-                if (prefs == mCurrentPrefs) //ack
+                if (prefs == mConfig.toCode()) //ack
                 {
-                    mPrefsChanged = false;
-                    PRESENCED_LOG_DEBUG("recv PREFS - ackknowledged the prefs we sent (%u)", mCurrentPrefs);
-                    break;
+                    PRESENCED_LOG_DEBUG("recv PREFS - server ack to the prefs we sent(0x%x)", prefs);
                 }
-                mPresence = (prefs & 3)+Presence::kOffline;
-                mPersist = !!(prefs & 4);
-                mAutoawayActive = !(prefs & 8);
-                mAutoawayTimeout = prefs >> 4;
-                if (mAutoawayTimeout > 600)
+                else
                 {
-                    mAutoawayTimeout = 600+(mAutoawayTimeout-600)/60;
+                    mConfig.fromCode(prefs);
+                    if (mPrefsAckWait)
+                    {
+                        PRESENCED_LOG_DEBUG("recv other PREFS while waiting for our PREFS ack, cancelling our send.\nPrefs: %s",
+                          mConfig.toString().c_str());
+                    }
+                    else
+                    {
+                        PRESENCED_LOG_DEBUG("recv PREFS from another client: %s", mConfig.toString().c_str());
+                    }
                 }
-                PRESENCED_LOG_DEBUG("recv PREFS - presence %s, persist: %u, autowayActive: %d, autoawayTimeout: %u",
-                    Presence::toString(pres), mPersist, mAutoawayActive, mAutoawayTimeout);
-                signalActivity(true);
-                updateUi();
+                mPrefsAckWait = false;
+                configChanged();
                 break;
             }
             default:
@@ -562,15 +584,20 @@ void Client::handleMessage(const StaticBuffer& buf)
     }
 }
 
-void Client::setConnState(State newState)
+void Client::setConnState(ConnState newState)
 {
-    if (newState == mState)
+    if (newState == mConnState)
         return;
-    mState = newState;
+    mConnState = newState;
 #ifndef LOG_LISTENER_CALLS
-    PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mState));
+    PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mConnState));
 #endif
-    mListener->onConnStateChange(mState);
+    //dont use CALL_LISTENER because we need more intelligent logging
+    try
+    {
+        mListener->onConnStateChange(mConnState);
+    }
+    catch(...){}
 }
 void Client::addPeer(karere::Id peer)
 {
