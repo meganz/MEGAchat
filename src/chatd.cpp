@@ -826,6 +826,17 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 ID_CSTR(chatid), ID_CSTR(userid), period);
                 break;
             }
+            case OP_MSGID:
+            {
+                READ_ID(msgxid, 0);
+                READ_ID(msgid, 8);
+                if (!msgid)
+                {
+                    CHATD_LOG_ERROR("MSGID with zero message id received, ignoring");
+                    break;
+                }
+                mClient.onMsgAlreadySent(msgxid, msgid);
+            }
             case OP_NEWMSGID:
             {
                 READ_ID(msgxid, 0);
@@ -1660,32 +1671,52 @@ void Client::msgConfirm(Id msgxid, Id msgid)
     CHATD_LOG_DEBUG("msgConfirm: No chat knows about message transaction id %s", ID_CSTR(msgxid));
 }
 
-// msgid can be 0 in case of rejections
-Idx Chat::msgConfirm(Id msgxid, Id msgid)
+//called when MSGID is received
+bool Client::onMsgAlreadySent(Id msgxid, Id msgid)
+{
+    for (auto& chat: mChatForChatId)
+    {
+        if (chat.second->msgAlreadySent(msgxid, msgid))
+            return true;
+    }
+    return false;
+}
+bool Chat::msgAlreadySent(Id msgxid, Id msgid)
+{
+    auto msg = msgRemoveFromSending(msgxid, msgid);
+    if (!msg)
+        return false;
+
+    CHATID_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
+    CALL_LISTENER(onMessageRejected, *msg, 0);
+    delete msg;
+    return true;
+}
+
+Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 {
     // as msgConirm() is tried on all chatids, it's normal that we don't have the message,
     // so no error logging of error, just return invalid index
     if (mSending.empty())
-        return CHATD_IDX_INVALID;
+        return nullptr;
 
     auto& item = mSending.front();
     if (item.opcode() != OP_NEWMSG)
     {
 //        CHATID_LOG_DEBUG("msgConfirm: sendQueue doesnt start with NEWMSG, but with %s", Command::opcodeToStr(item.opcode()));
-        return CHATD_IDX_INVALID;
+        return nullptr;
     }
     if (item.msg->id() != msgxid)
     {
 //        CHATID_LOG_DEBUG("msgConfirm: sendQueue starts with NEWMSG, but the msgxid is different");
-        return CHATD_IDX_INVALID;
+        return nullptr;
     }
 
     if (!item.msgCmd)
     {//don't assert as this depends on external input
         CHATID_LOG_ERROR("msgConfirm: Sending item has no associated Command object");
-        return CHATD_IDX_INVALID;
+        return nullptr;
     }
-
 
     if (mNextUnsent == mSending.begin())
         mNextUnsent++; //because we remove the first element
@@ -1695,7 +1726,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         moveItemToManualSending(mSending.begin(), (mOwnPrivilege == PRIV_RDONLY)
             ? kManualSendNoWriteAccess
             : kManualSendGeneralReject); //deletes item
-        return CHATD_IDX_INVALID;
+        return nullptr;
     }
     auto msg = item.msg;
     item.msg = nullptr;
@@ -1704,6 +1735,16 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
 
     CALL_DB(deleteItemFromSending, item.rowid);
     mSending.pop_front(); //deletes item
+    return msg;
+}
+
+// msgid can be 0 in case of rejections
+Idx Chat::msgConfirm(Id msgxid, Id msgid)
+{
+    Message* msg = msgRemoveFromSending(msgxid, msgid);
+    if (!msg)
+        return CHATD_IDX_INVALID;
+
     CHATID_LOG_DEBUG("recv NEWMSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
     //put into history
     msg->setId(msgid, false);

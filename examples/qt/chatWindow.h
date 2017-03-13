@@ -602,6 +602,22 @@ public:
         mHistAddPos++;
         widget->updateStatus(chatd::Message::kServerReceived);
     }
+    virtual void onMessageRejected(const chatd::Message& msg, uint8_t reason)
+    {
+        assert(msg.id() && msg.isSending());
+        auto widget = widgetFromMessage(msg);
+        if (!widget)
+        {
+            GUI_LOG_ERROR("onMessageConfirmed: No widget assigned for message with msgxid %s", msg.id().toString().c_str());
+            return;
+        }
+#ifndef NDEBUG
+        auto item = static_cast<QListWidgetItem*>(msg.userp);
+        assert(item->listWidget()->row(item) == mHistAddPos);
+#endif
+        widget->removeFromList();
+    }
+
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onEditRejected(const chatd::Message& msg, bool oriIsConfirmed);
     virtual void onOnlineStateChange(chatd::ChatState state)
