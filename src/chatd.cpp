@@ -836,6 +836,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     break;
                 }
                 mClient.onMsgAlreadySent(msgxid, msgid);
+                break;
             }
             case OP_NEWMSGID:
             {
