@@ -735,7 +735,9 @@ public:
  *
  * - Persist: if enabled, the online status will be preserved, even if user goes offline or closes the app
  *
- * @note the presence configuration can be \c pending, meaning the setting are being saved in the server.
+ * - Pending: if true, it means the configuration is being saved in the server, but not confirmed yet
+ *
+ * @note When the online status is pending, apps may notice showing a blinking status or similar.
  */
 class MegaChatPresenceConfig
 {
@@ -2415,6 +2417,8 @@ public:
      * @param api MegaChatApi connected to the account
      * @param status New online status
      * @param inProgress Whether the reported status is being set or it is definitive
+     *
+     * @note When the online status is in progress, apps may notice showing a blinking status or similar.
      */
     virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status, bool inProgress);
 
