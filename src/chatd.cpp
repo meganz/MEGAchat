@@ -1578,7 +1578,7 @@ int Chat::unreadMsgCount() const
 
 bool Chat::flushOutputQueue(bool fromStart)
 {
-//We assume that is fromStart is set, then we have to set mIgnoreKeyAcks
+//We assume that if fromStart is set, then we have to set mIgnoreKeyAcks
 //Indeed, if we flush the send queue from the start, this means that
 //the crypto module would get out of sync with the I/O sequence, which means
 //that it must have been reset/freshly initialized, and we have to skip
