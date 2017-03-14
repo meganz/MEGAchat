@@ -137,7 +137,7 @@ public:
      /** @brief A message was rejected by the server for some reason.
       * As the message is not yet in the history buffer, its \c id()
       * is a msgxid, and \c msg.isSending() is \c true.
-      * The message may hav actually been received by the server but we
+      * The message may have actually been received by the server but we
       * didn't know about that.
       * The message is already removed from the client's send queue.
       * The app must remove this message from the 'pending' GUI list.
