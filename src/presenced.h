@@ -197,7 +197,7 @@ protected:
 public:
     Client(Listener& listener, uint8_t caps);
     const Config& config() const { return mConfig; }
-    bool isConfigAcknowledge() { return mPrefsAckWait; }
+    bool isConfigAcknowledged() { return mPrefsAckWait; }
     bool isOnline() const
     {
         return (mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));

@@ -133,9 +133,29 @@ void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
     pImpl->setOnlineStatus(status, listener);
 }
 
+void MegaChatApi::setPresenceAutoaway(bool enable, int timeout)
+{
+    pImpl->setPresenceAutoaway(enable, timeout);
+}
+
+void MegaChatApi::setPresencePersist(bool enable)
+{
+    pImpl->setPresencePersist(enable);
+}
+
+void MegaChatApi::signalPresenceActivity()
+{
+    pImpl->signalPresenceActivity();
+}
+
 int MegaChatApi::getOnlineStatus()
 {
     return pImpl->getOnlineStatus();
+}
+
+MegaChatPresenceConfig *MegaChatApi::getPresenceConfig()
+{
+    return pImpl->getPresenceConfig();
 }
 
 int MegaChatApi::getUserOnlineStatus(MegaChatHandle userhandle)
@@ -738,7 +758,12 @@ void MegaChatListener::onChatInitStateUpdate(MegaChatApi *api, int newState)
 
 }
 
-void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi *api, int status)
+void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi *api, int status, bool inProgress)
+{
+
+}
+
+void MegaChatListener::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPresenceConfig *config)
 {
 
 }
@@ -948,4 +973,34 @@ const MegaChatListItem *MegaChatListItemList::get(unsigned int i) const
 unsigned int MegaChatListItemList::size() const
 {
     return 0;
+}
+
+MegaChatPresenceConfig *MegaChatPresenceConfig::copy() const
+{
+    return NULL;
+}
+
+int MegaChatPresenceConfig::getOnlineStatus() const
+{
+    return MegaChatApi::STATUS_INVALID;
+}
+
+bool MegaChatPresenceConfig::isAutoawayEnabled() const
+{
+    return false;
+}
+
+int64_t MegaChatPresenceConfig::getAutoawayTimeout() const
+{
+    return 0;
+}
+
+bool MegaChatPresenceConfig::isPersist() const
+{
+    return false;
+}
+
+bool MegaChatPresenceConfig::isPending() const
+{
+    return false;
 }

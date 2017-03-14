@@ -712,6 +712,89 @@ public:
 };
 
 /**
+ * @brief Represents the configuration of the online presence for the account
+ *
+ * The online presence configuration includes the following:
+ *
+ * - Online status - it can be one of the following values:
+ *
+ *      - MegaChatApi::STATUS_OFFLINE = 1
+ *          The user appears as being offline
+ *
+ *      - MegaChatApi::STATUS_AWAY = 2
+ *          The user is away and might not answer.
+ *
+ *      - MegaChatApi::STATUS_ONLINE = 3
+ *          The user is connected and online.
+ *
+ *      - MegaChatApi::STATUS_BUSY = 4
+ *          The user is busy and don't want to be disturbed.
+ *
+ * - Autoway: if enabled, the online status will change from MegaChatApi::STATUS_ONLINE to
+ *  MegaChatApi::STATUS_AWAY automatically after a timeout.
+ *
+ * - Persist: if enabled, the online status will be preserved, even if user goes offline or closes the app
+ *
+ * @note the presence configuration can be \c pending, meaning the setting are being saved in the server.
+ */
+class MegaChatPresenceConfig
+{
+public:
+    virtual ~MegaChatPresenceConfig() {}
+
+    /**
+     * @brief Creates a copy of this MegaChatPresenceConfig object
+     *
+     * The resulting object is fully independent of the source MegaChatPresenceConfig,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You are the owner of the returned object
+     *
+     * @return Copy of the MegaChatRequest object
+     */
+    virtual MegaChatPresenceConfig *copy() const;
+
+    /**
+     * @brief Get the online status specified in the settings
+     *
+     * It can be one of the following values:
+     * - MegaChatApi::STATUS_OFFLINE = 1
+     * The user appears as being offline
+     *
+     * - MegaChatApi::STATUS_AWAY = 2
+     * The user is away and might not answer.
+     *
+     * - MegaChatApi::STATUS_ONLINE = 3
+     * The user is connected and online.
+     *
+     * - MegaChatApi::STATUS_BUSY = 4
+     * The user is busy and don't want to be disturbed.
+     */
+    virtual int getOnlineStatus() const;
+
+    /**
+     * @return True if the user will be away after a timeout.
+     */
+    virtual bool isAutoawayEnabled() const;
+
+    /**
+     * @return Number of seconds to change the online status to away
+     */
+    virtual int64_t getAutoawayTimeout() const;
+
+    /**
+     * @return True if the online status will persist after going offline and/or closing the app
+     */
+    virtual bool isPersist() const;
+
+    /**
+     * @return True if the presence configuration is pending to be confirmed by server
+     */
+    virtual bool isPending() const;
+};
+
+/**
  * @brief Interface to receive SDK logs
  *
  * You can implement this class and pass an object of your subclass to MegaChatApi::setLoggerObject
@@ -835,10 +918,11 @@ class MegaChatApi
 
 public:
     enum {
-        STATUS_OFFLINE    = 1,  /// Can be used for invisible mode
-        STATUS_AWAY       = 2,  /// User is not available
-        STATUS_ONLINE     = 3,  /// User is available
-        STATUS_BUSY       = 4   /// User don't expect notifications nor call requests
+        STATUS_OFFLINE    = 1,      /// Can be used for invisible mode
+        STATUS_AWAY       = 2,      /// User is not available
+        STATUS_ONLINE     = 3,      /// User is available
+        STATUS_BUSY       = 4,      /// User don't expect notifications nor call requests
+        STATUS_INVALID    = 0xFF    /// Invalid value
     };
 
     enum
@@ -1041,6 +1125,36 @@ public:
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Enable/disable the autoaway option, with one specific timeout
+     *
+     * When autoaway is enabled and persist is false, the app should call to
+     * \c signalPresenceActivity regularly in order to keep the current online status.
+     * Otherwise, after \c timeout seconds, the online status will be changed to away.
+     *
+     * @param enable True to enable the autoaway feature
+     * @param timeout Seconds to wait before turning away (if no activity has been signalled)
+     */
+    void setPresenceAutoaway(bool enable, int timeout);
+
+    /**
+     * @brief Enable/disable the persist option
+     *
+     * When this option is enable, the online status shown to other users will be the
+     * one specified by the user, even when you are disconnected.
+     *
+     * @param enable True to enable the persist feature
+     */
+    void setPresencePersist(bool enable);
+
+    /**
+     * @brief Signal there is some user activity
+     *
+     * When the presence configuration is set to autoaway (and persist is false), this
+     * function should be called regularly to not turn into away status automatically.
+     */
+    void signalPresenceActivity();
+
+    /**
      * @brief Get your online status.
      *
      * It can be one of the following values:
@@ -1057,6 +1171,15 @@ public:
      * The user is busy and don't want to be disturbed.
      */
     int getOnlineStatus();
+
+    /**
+     * @brief Get the current presence configuration
+     *
+     * @see \c MegaChatPresenceConfig for further details.
+     *
+     * @return The current presence configuration
+     */
+    MegaChatPresenceConfig *getPresenceConfig();
 
     /**
      * @brief Get the online status of a user.
@@ -2290,9 +2413,18 @@ public:
      * @brief This function is called when the own online status has changed
      *
      * @param api MegaChatApi connected to the account
-     * @param newState New online status
+     * @param status New online status
+     * @param inProgress Whether the reported status is being set or it is definitive
      */
-    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status);
+    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status, bool inProgress);
+
+    /**
+     * @brief This function is called when the presence configuration has changed
+     *
+     * @param api MegaChatApi connected to the account
+     * @param config New presence configuration
+     */
+    virtual void onChatPresenceConfigUpdate(MegaChatApi* api, MegaChatPresenceConfig *config);
 };
 
 /**

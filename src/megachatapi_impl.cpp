@@ -89,12 +89,6 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->waiter = new MegaWaiter();
     this->mClient = NULL;
 
-    this->resumeSession = nullptr;
-    this->initResult = NULL;
-    this->initRequest = NULL;
-
-    this->status = MegaChatApi::STATUS_OFFLINE;
-
     //Start blocking thread
     threadExit = 0;
     thread.start(threadEntryPoint, this);
@@ -1091,12 +1085,22 @@ void MegaChatApiImpl::fireOnChatInitStateUpdate(int newState)
     }
 }
 
-void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(int status)
+void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(int status, bool inProgress)
 {
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
-        (*it)->onChatOnlineStatusUpdate(chatApi, status);
+        (*it)->onChatOnlineStatusUpdate(chatApi, status, inProgress);
     }
+}
+
+void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatPresenceConfigUpdate(chatApi, config);
+    }
+
+    delete config;
 }
 
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
@@ -1137,9 +1141,71 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
     waiter->notify();
 }
 
+void MegaChatApiImpl::setPresenceAutoaway(bool enable, int timeout)
+{
+    sdkMutex.lock();
+
+    mClient->presenced().setAutoaway(enable, timeout);
+
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::setPresencePersist(bool enable)
+{
+    sdkMutex.lock();
+
+    mClient->presenced().setPersist(enable);
+
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::signalPresenceActivity()
+{
+    sdkMutex.lock();
+
+    mClient->presenced().signalActivity();
+
+    sdkMutex.unlock();
+}
+
+MegaChatPresenceConfig *MegaChatApiImpl::getPresenceConfig()
+{
+    MegaChatPresenceConfigPrivate *config = NULL;
+
+    sdkMutex.lock();
+
+    config = new MegaChatPresenceConfigPrivate(mClient->presenced().config(),
+                                               mClient->presenced().isConfigAcknowledged());
+
+    sdkMutex.unlock();
+
+    return config;
+}
+
 int MegaChatApiImpl::getOnlineStatus()
 {
+    int status = MegaChatApi::STATUS_INVALID;
+
+    sdkMutex.lock();
+
+    status = mClient->presenced().config().presence().status();
+
+    sdkMutex.unlock();
+
     return status;
+}
+
+bool MegaChatApiImpl::isOnlineStatusPending()
+{
+    bool statusInProgress = false;
+
+    sdkMutex.lock();
+
+    statusInProgress = mClient->presenced().isConfigAcknowledged();
+
+    sdkMutex.unlock();
+
+    return statusInProgress;
 }
 
 int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
@@ -2066,18 +2132,21 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
 void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
 {
     if (inProgress)
-        return;
-
-    if (pres.status() == this->status)
     {
-        API_LOG_DEBUG("onOwnPresence() notifies the same status: %s", pres.toString());
-        return;
+        API_LOG_INFO("My own presence is being changed to %s", pres.toString());
+    }
+    else
+    {
+        API_LOG_INFO("My own presence has been changed to %s", pres.toString());
     }
 
-    this->status = pres.status();
+    fireOnChatOnlineStatusUpdate(pres.status(), inProgress);
+}
 
-    fireOnChatOnlineStatusUpdate(status);
-    API_LOG_INFO("My own presence has changed to %s", pres.toString());
+void MegaChatApiImpl::onPresenceConfigChanged(const presenced::Config &state, bool pending)
+{
+    MegaChatPresenceConfigPrivate *config = new MegaChatPresenceConfigPrivate(state, pending);
+    fireOnChatPresenceConfigUpdate(config);
 }
 
 ChatRequestQueue::ChatRequestQueue()
@@ -3851,4 +3920,57 @@ unsigned int MegaChatListItemListPrivate::size() const
 void MegaChatListItemListPrivate::addChatListItem(MegaChatListItem *item)
 {
     list.push_back(item);
+}
+
+MegaChatPresenceConfigPrivate::MegaChatPresenceConfigPrivate(const MegaChatPresenceConfigPrivate &config)
+{
+    this->status = config.getOnlineStatus();
+    this->autoawayEnabled = config.isAutoawayEnabled();
+    this->autoawayTimeout = config.getAutoawayTimeout();
+    this->persistEnabled = config.isPersist();
+    this->pending = config.isPending();
+}
+
+MegaChatPresenceConfigPrivate::MegaChatPresenceConfigPrivate(const presenced::Config &config, bool isPending)
+{
+    this->status = config.presence().status();
+    this->autoawayEnabled = config.autoawayActive();
+    this->autoawayTimeout = config.autoawayTimeout();
+    this->persistEnabled = config.persist();
+    this->pending = isPending;
+}
+
+MegaChatPresenceConfigPrivate::~MegaChatPresenceConfigPrivate()
+{
+
+}
+
+MegaChatPresenceConfig *MegaChatPresenceConfigPrivate::copy() const
+{
+    return new MegaChatPresenceConfigPrivate(*this);
+}
+
+int MegaChatPresenceConfigPrivate::getOnlineStatus() const
+{
+    return status;
+}
+
+bool MegaChatPresenceConfigPrivate::isAutoawayEnabled() const
+{
+    return autoawayEnabled;
+}
+
+int64_t MegaChatPresenceConfigPrivate::getAutoawayTimeout() const
+{
+    return autoawayTimeout;
+}
+
+bool MegaChatPresenceConfigPrivate::isPersist() const
+{
+    return persistEnabled;
+}
+
+bool MegaChatPresenceConfigPrivate::isPending() const
+{
+    return pending;
 }
