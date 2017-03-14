@@ -197,6 +197,7 @@ protected:
 public:
     Client(Listener& listener, uint8_t caps);
     const Config& config() const { return mConfig; }
+    bool isConfigAcknowledge() { return mPrefsAckWait; }
     bool isOnline() const
     {
         return (mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
@@ -213,7 +214,7 @@ public:
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
     void heartbeat();
-    void signalActivity(bool force);
+    void signalActivity(bool force = false);
     void addPeer(karere::Id peer);
     void removePeer(karere::Id peer, bool force=false);
     ~Client();
