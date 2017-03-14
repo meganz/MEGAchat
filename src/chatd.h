@@ -145,7 +145,7 @@ public:
       * Possible scenarions when this can happens are:
       * - We went offline just before receiving the confirmation
       * - We tried to send the message while offline and restarted the app
-      * while still offline, then went online. On *nix system, the packets
+      * while still offline, then went online. On *nix systems, the packets
       * from the previous app run are kept in the TCP output queue, and once
       * the machine goes online, they are sent, effectively behaving like a
       * second client that sent the same message with the same msgxid.
