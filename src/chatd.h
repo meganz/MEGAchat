@@ -143,7 +143,8 @@ public:
       * The app must remove this message from the 'pending' GUI list.
       * @param msg - The message that was rejected.
       * @param reason - The reason for the reject.
-      * When the reason code is 0, the client has received a MSGID.
+      * When the reason code is 0, the client has received a MSGID, i.e.
+      * the message is already received by the server.
       * Possible scenarions when this can happens are:
       * - We went offline after sending a message bug just before receiving
       *  the confirmation for it.
