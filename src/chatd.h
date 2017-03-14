@@ -141,7 +141,7 @@ public:
       * didn't know about that.
       * The message is already removed from the client's send queue.
       * The app must remove this message from the 'pending' GUI list.
-      * @param msgxid - identifies the message in the send queue.
+      * @param msg - The message that was rejected.
       * Possible scenarions when this can happens are:
       * - We went offline just before receiving the confirmation
       * - We tried to send the message while offline and restarted the app
