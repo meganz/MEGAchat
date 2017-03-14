@@ -452,6 +452,13 @@ void Chat::logSend(const Command& cmd)
                 ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.updated());
             break;
         }
+    case OP_NEWKEY:
+    {
+        auto& keycmd = static_cast<const KeyCommand&>(cmd);
+        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWKEY - %s\n",
+            ID_CSTR(mChatId), keycmd.toString().c_str());
+        break;
+    }
       default:
       {
         krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send %s\n", ID_CSTR(mChatId), cmd.opcodeName());
@@ -1571,28 +1578,30 @@ int Chat::unreadMsgCount() const
 
 bool Chat::flushOutputQueue(bool fromStart)
 {
+//We assume that is fromStart is set, then we have to set mIgnoreKeyAcks
+//Indeed, if we flush the send queue from the start, this means that
+//the crypto module would get out of sync with the I/O sequence, which means
+//that it must have been reset/freshly initialized, and we have to skip
+//the KEYID responses for the keys we flush from the output queue
     if(!mConnection.isOnline())
         return false;
 
     if (fromStart)
+    {
         mNextUnsent = mSending.begin();
+        mIgnoreKeyAcks = 0;
+    }
     // resend all pending new messages
     auto now = time(NULL);
     while(mNextUnsent!=mSending.end())
     {
-        if ((mNextUnsent->recipients != mUsers) && !mNextUnsent->isEdit())
-        {
-            assert(!mNextUnsent->recipients.empty());
-            auto erased = mNextUnsent;
-            mNextUnsent++;
-            moveItemToManualSending(erased, kManualSendUsersChanged);
-            continue;
-        }
-        if (now - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE)
+        if (((mNextUnsent->recipients != mUsers) && !mNextUnsent->isEdit())
+        || (now - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE))
         {
             auto start = mNextUnsent;
             mNextUnsent = mSending.end();
-            //too old message or edit, move it and all following items as well
+            // Too old message or edit, or group composition has changed.
+            // Move it and all following items as well
             for (auto it = start; it != mSending.end();)
             {
                 auto erased = it;
@@ -1604,6 +1613,7 @@ bool Chat::flushOutputQueue(bool fromStart)
         }
         if (!mNextUnsent->msgCmd)
         {
+            assert(!mNextUnsent->keyCmd);
             //only not-yet-encrypted messages are allowed to have cmd=nullptr
             return false;
         }
@@ -1611,6 +1621,8 @@ bool Chat::flushOutputQueue(bool fromStart)
         {
             if (!sendCommand(*mNextUnsent->keyCmd))
                 return false;
+            if (fromStart)
+                mIgnoreKeyAcks++;
         }
         //it's possible that the key gets sent, but the message not. In that case
         //mNextUnsent won't be incremented and the key may be re-sent, which is ok
@@ -1786,6 +1798,25 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
 
 void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 {
+    //If there are key commands in the output queue, we will receive KEYID
+    //for each of them, which would normally be forwarded to stringvelope.
+    //But strongvelope knows nothing about these cached commands, so we have
+    //to ignore them. The result of ignoring them is that the keys will not
+    //be known to strongvelope, but that's ok, as these keys are only used to
+    //decrypt the messages we send from the output queue, and we already
+    //have them in plaintext. On eventual re-request from the server, it will
+    //send us the key properly.
+    bool dontSendToCrypto;
+    if (mIgnoreKeyAcks > 0)
+    {
+        mIgnoreKeyAcks--;
+        dontSendToCrypto = true;
+    }
+    else
+    {
+        dontSendToCrypto = false;
+    }
+
     if (keyxid != 0xffffffff)
     {
         CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xffffffff, continuing anyway");
@@ -1817,7 +1848,14 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
             CALL_DB(updateMsgKeyIdInSending, it->rowid, keyid);
         }
     }
-    CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
+    if (dontSendToCrypto)
+    {
+        CHATID_LOG_DEBUG("Not forwarding KEYID to crypto module, as it is a result of a NEWKEY from a previous run");
+    }
+    else
+    {
+        CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
+    }
 }
 
 void Chat::rejectMsgupd(uint8_t opcode, Id id)
@@ -2365,7 +2403,7 @@ void Chat::onJoinComplete()
         CALL_CRYPTO(setUsers, &mUsers);
     }
     mUserDump.clear();
-
+    mIgnoreKeyAcks = 0;
     flushOutputQueue(true); //flush encrypted messages
 
     if (mNextUnsent != mSending.end() && !mNextUnsent->msgCmd)

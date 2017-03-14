@@ -538,6 +538,7 @@ protected:
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
+    size_t mIgnoreKeyAcks = 0;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
          const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }

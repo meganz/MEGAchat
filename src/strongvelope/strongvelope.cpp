@@ -520,7 +520,8 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid)
             return promise::Error("Empty Cu25519 chat key for user "+userid.toString());
         Key<crypto_scalarmult_BYTES> sharedSecret;
         sharedSecret.setDataSize(crypto_scalarmult_BYTES);
-        crypto_scalarmult(sharedSecret.ubuf(), myPrivCu25519.ubuf(), pubKey->ubuf());
+        auto ignore = crypto_scalarmult(sharedSecret.ubuf(), myPrivCu25519.ubuf(), pubKey->ubuf());
+        (void)ignore;
         auto result = std::make_shared<SendKey>();
         deriveSharedKey(sharedSecret, *result);
         return result;
@@ -1029,7 +1030,7 @@ ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key
 {
     // Users and send key may change while we are getting pubkeys of current
     // users, so make a snapshot
-    auto keyCmd = new KeyCommand;
+    auto keyCmd = new KeyCommand(Id::null());
     SetOfIds users = *mParticipants;
     if (extraUser)
     {
