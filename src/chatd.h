@@ -142,6 +142,8 @@ public:
       * The message is already removed from the client's send queue.
       * The app must remove this message from the 'pending' GUI list.
       * @param msg - The message that was rejected.
+      * @param reason - The reason for the reject.
+      * When the reason code is 0, the client has received a OP_MSGID.
       * Possible scenarions when this can happens are:
       * - We went offline just before receiving the confirmation
       * - We tried to send the message while offline and restarted the app
