@@ -150,7 +150,7 @@ public:
       * the machine goes online, they are sent, effectively behaving like a
       * second client that sent the same message with the same msgxid.
       * When the actual client tries to send it again, the server sees the
-      * same msgxid and returns OP_MSGID returning the already assigned id
+      * same msgxid and returns OP_MSGID with the already assigned id
       * of the message. The client must have already received this message as
       * a NEWMSG upon reconnect, so it can just remove the pending message.
       */
