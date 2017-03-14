@@ -418,7 +418,7 @@ class MegaChatListItemListPrivate :  public MegaChatListItemList
 {
 public:
     MegaChatListItemListPrivate();
-    virtual ~MegaChatListItemListPrivate() {}
+    virtual ~MegaChatListItemListPrivate();
     virtual MegaChatListItemListPrivate *copy() const;
 
     virtual const MegaChatListItem *get(unsigned int i) const;
