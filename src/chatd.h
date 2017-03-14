@@ -145,7 +145,8 @@ public:
       * @param reason - The reason for the reject.
       * When the reason code is 0, the client has received a OP_MSGID.
       * Possible scenarions when this can happens are:
-      * - We went offline just before receiving the confirmation
+      * - We went offline after sending a message bug just before receiving
+      *  the confirmation for it.
       * - We tried to send the message while offline and restarted the app
       * while still offline, then went online. On *nix systems, the packets
       * from the previous app run are kept in the TCP output queue, and once
