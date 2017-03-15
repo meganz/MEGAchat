@@ -1153,6 +1153,12 @@ public:
      *
      * When the presence configuration is set to autoaway (and persist is false), this
      * function should be called regularly to not turn into away status automatically.
+     *
+     * A good approach is to call this function with every mouse move or keypress on desktop
+     * platforms; or at any finger tap or gesture and any keypress on mobile platforms.
+     *
+     * Failing to call this function, you risk a user going "Away" while typing a lengthy message,
+     * which would be awkward.
      */
     void signalPresenceActivity();
 
