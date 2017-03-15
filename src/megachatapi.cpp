@@ -305,6 +305,11 @@ MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg
 
 MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
 {
+    if (!msg)   // force to use deleteMessage() to delete message instead
+    {
+        return NULL;
+    }
+
     return pImpl->editMessage(chatid, msgid, msg);
 }
 

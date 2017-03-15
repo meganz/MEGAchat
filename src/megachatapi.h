@@ -1650,7 +1650,7 @@ public:
      * discard previous edits that haven't been notified via MegaChatRoomListener::onMessageUpdate
      * where the message has MegaChatMessage::hasChanged(MegaChatMessage::CHANGE_TYPE_CONTENT).
      *
-     * If the edits is rejected... // TODO:
+     * If the edit is rejected because the original message is too old, this function return NULL.
      *
      * You take the ownership of the returned value.
      *

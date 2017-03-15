@@ -1605,14 +1605,17 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
         Chat &chat = chatroom->chat();
         Message *originalMsg = findMessage(chatid, msgid);
         Idx index;
+        Message::Status status;
         if (originalMsg)
         {
             index = chat.msgIndexFromId(msgid);
+            status = chat.getMsgStatus(*originalMsg, index);
         }
         else   // message may not have an index yet (not confirmed)
         {
             index = MEGACHAT_INVALID_INDEX;
             originalMsg = findMessageNotConfirmed(chatid, msgid);   // find by transactional id
+            status = Message::kSending;
         }
 
         if (originalMsg)
@@ -1641,7 +1644,7 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
             const Message *editedMsg = chatroom->chat().msgModify(*originalMsg, msg, msgLen, NULL);
             if (editedMsg)
             {
-                megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::Status::kSending, index);
+                megaMsg = new MegaChatMessagePrivate(*editedMsg, status, index);
             }
         }
     }
@@ -2696,7 +2699,7 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, bool oriIsConfirmed
     else // both, original message and edit, have been rejected
     {
         index = MEGACHAT_INVALID_INDEX;
-        status = Message::kSending;
+        status = Message::kServerRejected;
     }
 
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, index);
