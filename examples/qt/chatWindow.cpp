@@ -29,7 +29,7 @@ ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
     else
         setAcceptDrops(true);
 
-    setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint);
+    setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
     setAttribute(Qt::WA_DeleteOnClose);
     if (!mRoom.isActive())
         ui.mMessageEdit->setEnabled(false);
