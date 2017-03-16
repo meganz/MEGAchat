@@ -2404,6 +2404,8 @@ void Chat::onJoinComplete()
     }
     mUserDump.clear();
     mIgnoreKeyAcks = 0;
+
+    setOnlineState(kChatStateOnline);
     flushOutputQueue(true); //flush encrypted messages
 
     if (mNextUnsent != mSending.end() && !mNextUnsent->msgCmd)
@@ -2411,7 +2413,6 @@ void Chat::onJoinComplete()
         //there are unencrypted messages still, kickstart encryption
         msgEncryptAndSend(mNextUnsent->msg, mNextUnsent->opcode(), &(*mNextUnsent));
     }
-    setOnlineState(kChatStateOnline);
     if (mIsFirstJoin)
     {
         mIsFirstJoin = false;
