@@ -59,8 +59,12 @@ public:
     }
     void commit()
     {
+        static int count = 0;
+        if (count++ < 60)
+            return;
         sqliteSimpleQuery(mDb, "COMMIT TRANSACTION");
         sqliteSimpleQuery(mDb, "BEGIN TRANSACTION");
+        count = 0;
     }
     void saveMsgToSending(chatd::Chat::SendingItem& item)
     {

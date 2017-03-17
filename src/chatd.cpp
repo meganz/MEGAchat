@@ -1442,13 +1442,9 @@ void Chat::onLastSeen(Id msgid)
         {
             if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx < mLastSeenIdx))
             {
-                CHATD_LOG_ERROR("onLastSeen: Can't set last seen index to an older message");
-                return;
+                CHATD_LOG_WARNING("onLastSeen: Setting last seen index to an older message");
             }
-            else
-            {
-                mLastSeenIdx = idx;
-            }
+            mLastSeenIdx = idx;
         }
     }
     else
@@ -1465,8 +1461,10 @@ void Chat::onLastSeen(Id msgid)
         if (mLastSeenIdx != CHATD_IDX_INVALID)
         {
             if (idx < mLastSeenIdx)
-                CHATID_LOG_ERROR("onLastSeen: Can't set last seen index to an older "
+            {
+                CHATID_LOG_WARNING("onLastSeen: Setting last seen index to an older "
                     "message: current idx: %d, new: %d", mLastSeenIdx, idx);
+            }
             notifyOldest = mLastSeenIdx + 1;
             auto low = lownum();
             if (notifyOldest < low)
@@ -2019,7 +2017,10 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         }
     }
 
-    mOldestKnownMsgId = mDbInterface->getOldestMsgid();
+    ChatDbInfo info;
+    mDbInterface->getHistoryInfo(info);
+    mOldestKnownMsgId = info.oldestDbId;
+    mNewestKnownMsgId = info.newestDbId;
     if (mOldestKnownMsgId)
     {
         mHasMoreHistoryInDb = (at(lownum()).id() != mOldestKnownMsgId);
@@ -2537,7 +2538,11 @@ void Chat::findLastTextMsg()
     }
 
     //we are empty or there is no text messsage in ram or db - fetch from server
-    assert(mOnlineState == kChatStateOnline);
+    if (mOnlineState != kChatStateOnline)
+    {
+        CHATID_LOG_DEBUG("lastTextMesage: We are not online, can't fetch messages from server");
+        return;
+    }
     CHATID_LOG_DEBUG("lastTextMessage: No text message found locally, fetching more history from server");
     mServerOldHistCbEnabled = false;
     requestHistoryFromServer(-16);
