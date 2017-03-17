@@ -441,7 +441,7 @@ public:
      *
      * @return Handle of the user
      */
-    virtual MegaChatHandle getUserHandleOfAction() const;
+    virtual MegaChatHandle getHandleOfAction() const;
 
     /**
      * @brief Return the privilege of the user relative to the action
@@ -471,6 +471,53 @@ public:
      * @return A generic code for additional information about the message.
      */
     virtual int getCode() const;
+
+    /**
+     * @brief Return number of contacts that have been attached in the message
+     * @return Number of contacts that have been attached in the message
+     */
+    virtual int getContactsCount() const;
+
+    /**
+     * @brief Return the handle of the contact that has been attached in 'contact' position
+     * @param position of the contact inside contact vector
+     * @return The handle of the contact
+     */
+    virtual MegaChatHandle getContactUserHandle(int contact) const;
+
+    /**
+     * @brief Return the name of the contact that has been attached in 'contact' position
+     * @param position of the contact inside contact vector
+     * @return The name of the contact
+     */
+    virtual const char *getContactName(int contact) const;
+
+    /**
+     * @brief Return the email of the contact that has been attached in 'contact' position
+     * @param position of the contact inside contact vector
+     * @return The email of the contact
+     */
+    virtual const char *getContactEmail(int contact) const;
+
+    /**
+     * @brief Return number of files that have been attached in the message
+     * @return Number of files that have been attached in the message
+     */
+    virtual int getFilesCount() const;
+
+    /**
+     * @brief Return the handle of the node that has been attached in 'node' position
+     * @param position of node inside attach nodes vector
+     * @return The handle of the contact
+     */
+    virtual MegaChatHandle getAttachNodeHandle(int node) const;
+
+    /**
+     * @brief Return the name of the node that has been attached in 'node' position
+     * @param position of node inside attach nodes vector
+     * @return The name of the node
+     */
+    virtual const char *getAttachNodeName(int node) const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;

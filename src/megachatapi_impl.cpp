@@ -32,6 +32,7 @@
 
 #include <megaapi_impl.h>
 
+#include <jsonnode.h>
 #include "megachatapi_impl.h"
 #include <base/cservices.h>
 #include <base/logger.h>
@@ -2620,12 +2621,17 @@ void MegaChatRoomHandler::onDestroy()
 
 void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Status status)
 {
+
+    std::cout << "MegaChatRoomHandler::onRecvNewMessage  " << std::endl;
+
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     chatApi->fireOnMessageReceived(message);
 }
 
 void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isLocal)
 {
+    std::cout << "MegaChatRoomHandler::onRecvHistoryMessage  " << std::endl;
+
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     chatApi->fireOnMessageLoaded(message);
 }
@@ -3568,6 +3574,11 @@ void MegaChatListItemHandler::onRejoinedChat()
 void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    // TODO: if type of message is ATTACHMENT or CONTACT, parse the content and
+    // pass to the apps the usernames/filenames with separators (TBD the separator)
+    // Alternative: first byte specifies the number of items. In case there is only
+    // one item, the following bytes specifies the name of file/contact. If more
+    // than one item, there is no names.
     item->setLastMessage(msg.type(), msg.contents(), msg.sender());
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -3590,7 +3601,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 {
     this->msg = MegaApi::strdup(msg->getContent());
     this->uh = msg->getUserHandle();
-    this->uhAction = msg->getUserHandleOfAction();
+    this->hAction = msg->getHandleOfAction();
     this->msgId = msg->getMsgId();
     this->tempId = msg->getTempId();
     this->index = msg->getMsgIndex();
@@ -3636,20 +3647,90 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             const Message::ManagementInfo mngInfo = msg.mgmtInfo();
 
             this->priv = mngInfo.privilege;
-            this->uhAction = mngInfo.target;
+            this->hAction = mngInfo.target;
             break;
         }
-        // TODO: get the nodehandle from the content (a JSON to be parsed)
         case MegaChatMessage::TYPE_ATTACHMENT:
+        {
+            this->hAction = MEGACHAT_INVALID_HANDLE;
+            JSonNode attachments(msg.toText());
+
+            int attachmentNumber = attachments.getNumberVectorElement();
+            for (int i = 0; i < attachmentNumber; ++i)
+            {
+                JSonNode file = attachments.getVectorElement(i);
+
+                JSonNode handle = file.getMapElement("h");
+                std::string handleString = handle.getFinalNode().getFinalValue();
+                if (handleString.length() > 2)
+                {
+                    handleString.erase(0, 1);
+                    handleString.erase(handleString.length() - 1, handleString.length());
+                }
+
+                JSonNode name = file.getMapElement("name");
+                std::string nameString = name.getFinalNode().getFinalValue();
+                if (nameString.length() > 2)
+                {
+                    nameString.erase(0, 1);
+                    nameString.erase(nameString.length() - 1, nameString.length());
+                }
+
+                MegaChatNode megaChatNode(MegaApi::base64ToHandle(handleString.c_str()), nameString);
+
+                megaChatNodes.push_back(megaChatNode);
+            }
+
+            break;
+        }
         case MegaChatMessage::TYPE_REVOKE_ATTACHMENT:
-        // TODO: get the userhandle from the content (a JSON to be parsed)
+            this->hAction = MegaApi::base64ToHandle(msg.toText().c_str());
+            break;
         case MegaChatMessage::TYPE_CONTACT:
+        {
+            this->hAction = MEGACHAT_INVALID_HANDLE;
+            JSonNode contacts(msg.toText());
+
+            int contactNumber = contacts.getNumberVectorElement();
+            for (int i = 0; i < contactNumber; ++i)
+            {
+                JSonNode user = contacts.getVectorElement(i);
+                JSonNode email = user.getMapElement("email");
+                std::string emailString = email.getFinalNode().getFinalValue();
+                if (emailString.length() > 2)
+                {
+                    emailString.erase(0, 1);
+                    emailString.erase(emailString.length() - 1, emailString.length());
+                }
+
+                JSonNode handle = user.getMapElement("u");
+                std::string handleString = handle.getFinalNode().getFinalValue();
+                if (handleString.length() > 2)
+                {
+                    handleString.erase(0, 1);
+                    handleString.erase(handleString.length() - 1, handleString.length());
+                }
+
+                JSonNode name = user.getMapElement("name");
+                std::string nameString = name.getFinalNode().getFinalValue();
+                if (nameString.length() > 2)
+                {
+                    nameString.erase(0, 1);
+                    nameString.erase(nameString.length() - 1, nameString.length());
+                }
+
+                MegaChatUser megaChatUser(MegaApi::base64ToUserHandle(handleString.c_str()) , emailString, nameString);
+                megaChatUsers.push_back(megaChatUser);
+            }
+
+            break;
+        }
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:
         default:
             this->priv = PRIV_UNKNOWN;
-            this->uhAction = MEGACHAT_INVALID_HANDLE;
+            this->hAction = MEGACHAT_INVALID_HANDLE;
             break;
     }
 }
@@ -3727,9 +3808,9 @@ bool MegaChatMessagePrivate::isManagementMessage() const
             type == TYPE_CHAT_TITLE);
 }
 
-MegaChatHandle MegaChatMessagePrivate::getUserHandleOfAction() const
+MegaChatHandle MegaChatMessagePrivate::getHandleOfAction() const
 {
-    return uhAction;
+    return hAction;
 }
 
 int MegaChatMessagePrivate::getPrivilege() const
@@ -3771,6 +3852,41 @@ void MegaChatMessagePrivate::setContentChanged()
 void MegaChatMessagePrivate::setCode(int code)
 {
     this->code = code;
+}
+
+int MegaChatMessagePrivate::getContactsCount() const
+{
+    return megaChatUsers.size();
+}
+
+MegaChatHandle MegaChatMessagePrivate::getContactUserHandle(int contact) const
+{
+    return megaChatUsers.at(contact).getId();
+}
+
+const char *MegaChatMessagePrivate::getContactName(int contact) const
+{
+    return megaChatUsers.at(contact).getName().c_str();
+}
+
+const char *MegaChatMessagePrivate::getContactEmail(int contact) const
+{
+    return megaChatUsers.at(contact).getEmail().c_str();
+}
+
+int MegaChatMessagePrivate::getFilesCount() const
+{
+    return megaChatNodes.size();
+}
+
+MegaChatHandle MegaChatMessagePrivate::getAttachNodeHandle(int node) const
+{
+    return megaChatNodes.at(node).getId();
+}
+
+const char *MegaChatMessagePrivate::getAttachNodeName(int node) const
+{
+    return megaChatNodes.at(node).getName().c_str();
 }
 
 LoggerHandler::LoggerHandler()

@@ -903,7 +903,7 @@ bool MegaChatMessage::isManagementMessage() const
     return false;
 }
 
-MegaChatHandle MegaChatMessage::getUserHandleOfAction() const
+MegaChatHandle MegaChatMessage::getHandleOfAction() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
@@ -928,6 +928,40 @@ int MegaChatMessage::getCode() const
     return 0;
 }
 
+int MegaChatMessage::getContactsCount() const
+{
+    return 0;
+}
+
+MegaChatHandle MegaChatMessage::getContactUserHandle(int contact) const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+const char *MegaChatMessage::getContactName(int contact) const
+{
+    return NULL;
+}
+
+const char *MegaChatMessage::getContactEmail(int contact) const
+{
+    return NULL;
+}
+
+int MegaChatMessage::getFilesCount() const
+{
+    return 0;
+}
+
+MegaChatHandle MegaChatMessage::getAttachNodeHandle(int node) const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+const char *MegaChatMessage::getAttachNodeName(int node) const
+{
+    return NULL;
+}
 
 void MegaChatLogger::log(int , const char *)
 {

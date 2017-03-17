@@ -24,6 +24,8 @@
 
 
 #include "megachatapi.h"
+#include "megachatnode.h"
+#include "megachatuser.h"
 
 //the megaapi.h header needs this defined externally
 //#ifndef ENABLE_CHAT
@@ -41,7 +43,6 @@
 //#include <mstrophepp.h>
 #include <karereCommon.h>
 #include <logger.h>
-
 
 namespace megachat
 {
@@ -514,7 +515,7 @@ public:
     virtual bool isDeleted() const;
     virtual bool isEditable() const;
     virtual bool isManagementMessage() const;
-    virtual MegaChatHandle getUserHandleOfAction() const;
+    virtual MegaChatHandle getHandleOfAction() const;
     virtual int getPrivilege() const;
     virtual int getCode() const;
 
@@ -526,6 +527,15 @@ public:
     void setContentChanged();
     void setCode(int code);
 
+    int getContactsCount() const;
+    MegaChatHandle getContactUserHandle(int contact) const;
+    const char *getContactName(int contact) const;
+    const char *getContactEmail(int contact) const;
+
+    int getFilesCount() const;
+    MegaChatHandle getAttachNodeHandle(int node) const;
+    const char *getAttachNodeName(int node) const;
+
 private:
     int changed;
 
@@ -534,7 +544,7 @@ private:
     MegaChatHandle msgId;   // definitive unique ID given by server
     MegaChatHandle tempId;  // used until it's given a definitive ID by server
     MegaChatHandle uh;
-    MegaChatHandle uhAction;// certain messages need additional userhandle, such us priv changes
+    MegaChatHandle hAction;// certain messages need additional handle: such us priv changes, revoke attachment
     int index;              // position within the history buffer
     int64_t ts;
     char *msg;
@@ -542,6 +552,8 @@ private:
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
+    std::vector<MegaChatUser> megaChatUsers;
+    std::vector<MegaChatNode> megaChatNodes;
 };
 
 //Thread safe request queue

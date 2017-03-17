@@ -36,6 +36,9 @@ set (SRCS
     presenced.cpp
     megachatapi.cpp
     megachatapi_impl.cpp
+    jsonnode.cpp
+    megachatuser.cpp
+    megachatnode.cpp
 )
 
 if (NOT optKarereDisableWebrtc)
