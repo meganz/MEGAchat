@@ -615,10 +615,11 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            string strTitle(title, 30);
+            string strTitle(title);
+            strTitle = strTitle.substr(0, 30);
             request->setText(strTitle.c_str()); // update, in case it's been truncated
 
-            ((GroupChatRoom *)chatroom)->setTitle(strTitle.c_str())
+            ((GroupChatRoom *)chatroom)->setTitle(strTitle)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -3363,7 +3364,9 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
-    LastTextMsg* msg;
+    LastTextMsg tmp;
+    LastTextMsg *message = &tmp;
+    LastTextMsg *&msg = message;
     int lastMsgStatus = chatroom.chat().lastTextMessage(msg);
     if (lastMsgStatus == 1)
     {
@@ -3816,6 +3819,17 @@ void LoggerHandler::log(krLogLevel level, const char *msg, size_t len, unsigned 
 
 MegaChatListItemListPrivate::MegaChatListItemListPrivate()
 {
+}
+
+MegaChatListItemListPrivate::~MegaChatListItemListPrivate()
+{
+    for (unsigned int i = 0; i < list.size(); i++)
+    {
+        delete list[i];
+        list[i] = NULL;
+    }
+
+    list.clear();
 }
 
 MegaChatListItemListPrivate::MegaChatListItemListPrivate(const MegaChatListItemListPrivate *list)

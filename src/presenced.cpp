@@ -250,7 +250,7 @@ Client::reconnect(const std::string& url)
             {
                 ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
             }
-            checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str())), "connect");
+            checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str(), services_http_use_ipv6)), "connect");
             return mConnectPromise;
         }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
         .then([this]()
