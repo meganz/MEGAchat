@@ -576,8 +576,7 @@ public:
 
 class MegaChatApiImpl :
         public karere::IApp,
-        public karere::IApp::IChatListHandler,
-        public mega::MegaRequestListener
+        public karere::IApp::IChatListHandler
 {
 public:
 
@@ -780,13 +779,6 @@ public:
     virtual void removeGroupChatItem(IApp::IGroupChatListItem& item);
     virtual IApp::IPeerChatListItem *addPeerChatItem(karere::PeerChatRoom& chat);
     virtual void removePeerChatItem(IApp::IPeerChatListItem& item);
-
-    // mega::MegaRequestListener implementation
-//    virtual void onRequestStart(MegaApi* api, MegaRequest *request);
-//    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
-//    virtual void onRequestUpdate(MegaApi*api, MegaRequest *request);
-//    virtual void onRequestTemporaryError(MegaApi *api, MegaRequest *request, MegaError* error);
-
 };
 
 
