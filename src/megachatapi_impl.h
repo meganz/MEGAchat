@@ -730,6 +730,7 @@ public:
     void setPresencePersist(bool enable);
     void signalPresenceActivity();
     MegaChatPresenceConfig *getPresenceConfig();
+    bool isAutoawayEnabled();
 
     int getUserOnlineStatus(MegaChatHandle userhandle);
 

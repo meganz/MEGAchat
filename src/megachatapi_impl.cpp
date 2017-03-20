@@ -1171,16 +1171,25 @@ void MegaChatApiImpl::signalPresenceActivity()
 
 MegaChatPresenceConfig *MegaChatApiImpl::getPresenceConfig()
 {
-    MegaChatPresenceConfigPrivate *config = NULL;
-
     sdkMutex.lock();
 
-    config = new MegaChatPresenceConfigPrivate(mClient->presenced().config(),
+    MegaChatPresenceConfigPrivate *config = new MegaChatPresenceConfigPrivate(mClient->presenced().config(),
                                                mClient->presenced().isConfigAcknowledged());
 
     sdkMutex.unlock();
 
     return config;
+}
+
+bool MegaChatApiImpl::isAutoawayEnabled()
+{
+    sdkMutex.lock();
+
+    bool enabled = mClient->presenced().config().autoawayActive();
+
+    sdkMutex.unlock();
+
+    return enabled;
 }
 
 int MegaChatApiImpl::getOnlineStatus()

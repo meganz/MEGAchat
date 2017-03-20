@@ -138,6 +138,11 @@ void MegaChatApi::setPresenceAutoaway(bool enable, int timeout)
     pImpl->setPresenceAutoaway(enable, timeout);
 }
 
+bool MegaChatApi::isAutoawayEnabled()
+{
+    pImpl->isAutoawayEnabled();
+}
+
 void MegaChatApi::setPresencePersist(bool enable)
 {
     pImpl->setPresencePersist(enable);
