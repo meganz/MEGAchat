@@ -91,7 +91,7 @@ public:
           bool persist=false, bool aaEnabled=true, time_t aaTimeout=600)
         :mPresence(pres), mPersist(persist), mAutoawayActive(aaEnabled),
           mAutoawayTimeout(aaTimeout){}
-    Config(uint16_t code) { fromCode(code); }
+    explicit Config(uint16_t code) { fromCode(code); }
     karere::Presence presence() const { return mPresence; }
     bool persist() const { return mPersist; }
     bool autoawayActive() const { return mAutoawayActive; }
