@@ -192,7 +192,6 @@ protected:
     void pingWithPresence();
     void pushPeers();
     void configChanged();
-    void checkEnableAutoaway();
     std::string prefsString() const;
 public:
     Client(Listener& listener, uint8_t caps);
@@ -215,6 +214,7 @@ public:
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
     void heartbeat();
     void signalActivity(bool force = false);
+    bool checkEnableAutoaway();
     void addPeer(karere::Id peer);
     void removePeer(karere::Id peer, bool force=false);
     ~Client();

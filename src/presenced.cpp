@@ -208,8 +208,6 @@ bool Client::setPersist(bool enable)
     if (enable == mConfig.mPersist)
         return true;
     mConfig.mPersist = enable;
-    if (enable)
-        mConfig.mAutoawayActive = false;
     signalActivity(true);
     checkEnableAutoaway();
     return sendPrefs();
@@ -225,7 +223,7 @@ bool Client::setAutoaway(bool enable, uint16_t timeout)
     return sendPrefs();
 }
 
-void Client::checkEnableAutoaway()
+bool Client::checkEnableAutoaway()
 {
     bool needTimer = !mConfig.mPersist
                 && mConfig.mPresence != Presence::kOffline
@@ -234,6 +232,8 @@ void Client::checkEnableAutoaway()
                 && mConfig.mAutoawayActive;
     if (!needTimer)
         mTsLastUserActivity = 0;
+
+    return needTimer;
 }
 
 void Client::signalActivity(bool force)
