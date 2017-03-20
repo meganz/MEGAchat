@@ -1181,11 +1181,11 @@ MegaChatPresenceConfig *MegaChatApiImpl::getPresenceConfig()
     return config;
 }
 
-bool MegaChatApiImpl::isAutoawayEnabled()
+bool MegaChatApiImpl::isSignalActivityRequired()
 {
     sdkMutex.lock();
 
-    bool enabled = mClient->presenced().config().autoawayActive();
+    bool enabled = mClient->presenced().checkEnableAutoaway();
 
     sdkMutex.unlock();
 
@@ -3996,4 +3996,12 @@ bool MegaChatPresenceConfigPrivate::isPersist() const
 bool MegaChatPresenceConfigPrivate::isPending() const
 {
     return pending;
+}
+
+bool MegaChatPresenceConfigPrivate::isSignalActivityRequired() const
+{
+    return (!persistEnabled
+            && status != MegaChatApi::STATUS_OFFLINE
+            && status != MegaChatApi::STATUS_AWAY
+            && autoawayEnabled && autoawayTimeout);
 }

@@ -107,6 +107,7 @@ public:
     virtual int64_t getAutoawayTimeout() const;
     virtual bool isPersist() const;
     virtual bool isPending() const;
+    virtual bool isSignalActivityRequired() const;
 
 private:
     int status;
@@ -730,7 +731,7 @@ public:
     void setPresencePersist(bool enable);
     void signalPresenceActivity();
     MegaChatPresenceConfig *getPresenceConfig();
-    bool isAutoawayEnabled();
+    bool isSignalActivityRequired();
 
     int getUserOnlineStatus(MegaChatHandle userhandle);
 

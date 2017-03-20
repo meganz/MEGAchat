@@ -138,9 +138,9 @@ void MegaChatApi::setPresenceAutoaway(bool enable, int timeout)
     pImpl->setPresenceAutoaway(enable, timeout);
 }
 
-bool MegaChatApi::isAutoawayEnabled()
+bool MegaChatApi::isSignalActivityRequired()
 {
-    pImpl->isAutoawayEnabled();
+    return pImpl->isSignalActivityRequired();
 }
 
 void MegaChatApi::setPresencePersist(bool enable)
@@ -1006,6 +1006,11 @@ bool MegaChatPresenceConfig::isPersist() const
 }
 
 bool MegaChatPresenceConfig::isPending() const
+{
+    return false;
+}
+
+bool MegaChatPresenceConfig::isSignalActivityRequired() const
 {
     return false;
 }

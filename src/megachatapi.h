@@ -794,6 +794,11 @@ public:
      * @return True if the presence configuration is pending to be confirmed by server
      */
     virtual bool isPending() const;
+
+    /**
+     * @return True if the app is required to call MegaChatApi::signalPresenceActivity
+     */
+    virtual bool isSignalActivityRequired() const;
 };
 
 /**
@@ -1197,7 +1202,7 @@ public:
      *
      * @return True if autoaway is enabled.
      */
-    bool isAutoawayEnabled();
+    bool isSignalActivityRequired();
 
     /**
      * @brief Get the online status of a user.
