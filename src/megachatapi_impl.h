@@ -304,7 +304,7 @@ public:
     virtual void onUnsentMsgLoaded(chatd::Message& msg);
     virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx);
-    virtual void onMessageRejected(const chatd::Message& msg);
+    virtual void onMessageRejected(const chatd::Message& msg, uint8_t reason);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onEditRejected(const chatd::Message& msg, bool oriIsConfirmed);

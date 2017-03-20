@@ -314,8 +314,14 @@ protected:
 public:
     enum { kBroadcastUserTyping = 1 };
     Command(): Buffer(){}
-    Command(Command&& other): Buffer(std::forward<Buffer>(other)) {assert(!other.buf() && !other.bufSize() && !other.dataSize());}
-    Command(uint8_t opcode, uint8_t reserve=64): Buffer(reserve) { write(0, opcode); }
+
+    Command(Command&& other)
+    : Buffer(std::forward<Buffer>(other))
+    { assert(!other.buf() && !other.bufSize() && !other.dataSize()); }
+
+    explicit Command(uint8_t opcode, size_t reserve=64)
+    : Buffer(reserve) { write(0, opcode); }
+
     template<class T>
     Command&& operator+(const T& val)
     {
@@ -349,12 +355,13 @@ public:
 class KeyCommand: public Command
 {
 public:
-    explicit KeyCommand(karere::Id chatid=karere::Id::null(), uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
-        uint8_t reserve=128)
+    explicit KeyCommand(karere::Id chatid, uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
+        size_t reserve=128)
     : Command(OP_NEWKEY, reserve)
     {
         append(chatid.val).append<uint32_t>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
+    KeyCommand(): Command(){} //for db loading
     KeyId keyId() const { return read<uint32_t>(9); }
     void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
     void setKeyId(uint32_t keyid) { write(9, keyid); }
@@ -383,7 +390,7 @@ public:
         write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
         write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
-    MsgCommand(): Command() {} //for loading the buffer
+    MsgCommand(size_t reserve): Command(reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
     void setId(karere::Id aMsgid) { write(17, aMsgid.val); }
     KeyId keyId() const { return read<KeyId>(31); }
