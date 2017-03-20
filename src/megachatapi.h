@@ -733,6 +733,13 @@ public:
  * - Autoway: if enabled, the online status will change from MegaChatApi::STATUS_ONLINE to
  *  MegaChatApi::STATUS_AWAY automatically after a timeout.
  *
+ * @note The autoaway settings are preserved even when the auto-away mechanism is inactive (i.e. when
+ * the status is other than online or the user has enabled the persistence of the status.
+ * When the autoaway mechanish is enabled, it requires the app calls \c MegaChatApi::signalPresenceActivity
+ * in order to prevent becoming MegaChatApi::STATUS_AWAY automatically after the timeout. *
+ * You can check if the autoaway mechanism is active by calling \c MegaChatApi::isSignalActivityRequired
+ * or also by checking \c MegaChatPresenceConfig::isSignalActivityRequired.
+ *
  * - Persist: if enabled, the online status will be preserved, even if user goes offline or closes the app
  *
  * - Pending: if true, it means the configuration is being saved in the server, but not confirmed yet
@@ -776,6 +783,13 @@ public:
     virtual int getOnlineStatus() const;
 
     /**
+     * Whether the autoaway setting is enabled or disabled. Note
+     * that the option can be enabled, but the auto-away mechanism
+     * can be inactive. I.e. when the status is not online or the user
+     * has enabled the persistence of the status.
+     *
+     * @see \c MegaChatPresenceConfig::isPersist
+     *
      * @return True if the user will be away after a timeout.
      */
     virtual bool isAutoawayEnabled() const;
@@ -1195,12 +1209,13 @@ public:
     MegaChatPresenceConfig *getPresenceConfig();
 
     /**
-     * @brief Returns whether the autoaway option is enabled.
+     * @brief Returns whether the autoaway mechanism is active.
      *
-     * @note This function returns true even when the Presence Config
-     * is pending to be confirmed by the server.
+     * @note This function may return false even when the Presence settings
+     * establish that autoaway option is active. It happens when the persist
+     * option is enabled and when the status is offline or away.
      *
-     * @return True if autoaway is enabled.
+     * @return True if the app should call \c MegaChatApi::signalPresenceActivity
      */
     bool isSignalActivityRequired();
 
