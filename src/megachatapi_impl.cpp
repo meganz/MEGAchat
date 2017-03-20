@@ -1164,7 +1164,10 @@ void MegaChatApiImpl::signalPresenceActivity()
 {
     sdkMutex.lock();
 
-    mClient->presenced().signalActivity();
+    if (mClient)
+    {
+        mClient->presenced().signalActivity();
+    }
 
     sdkMutex.unlock();
 }
@@ -1185,7 +1188,7 @@ bool MegaChatApiImpl::isSignalActivityRequired()
 {
     sdkMutex.lock();
 
-    bool enabled = mClient->presenced().checkEnableAutoaway();
+    bool enabled = mClient ? mClient->presenced().checkEnableAutoaway() : false;
 
     sdkMutex.unlock();
 
@@ -1194,11 +1197,9 @@ bool MegaChatApiImpl::isSignalActivityRequired()
 
 int MegaChatApiImpl::getOnlineStatus()
 {
-    int status = MegaChatApi::STATUS_INVALID;
-
     sdkMutex.lock();
 
-    status = mClient->presenced().config().presence().status();
+    int status = mClient ? mClient->presenced().config().presence().status() : MegaChatApi::STATUS_INVALID;
 
     sdkMutex.unlock();
 
@@ -1207,11 +1208,9 @@ int MegaChatApiImpl::getOnlineStatus()
 
 bool MegaChatApiImpl::isOnlineStatusPending()
 {
-    bool statusInProgress = false;
-
     sdkMutex.lock();
 
-    statusInProgress = mClient->presenced().isConfigAcknowledged();
+    bool statusInProgress = mClient ? mClient->presenced().isConfigAcknowledged() : false;
 
     sdkMutex.unlock();
 
