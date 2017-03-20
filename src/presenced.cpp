@@ -41,7 +41,6 @@ Client::Client(Listener& listener, uint8_t caps)
 {
     if (!sWebsockCtxInitialized)
         initWebsocketCtx();
-    CALL_LISTENER(onPresenceConfigChanged, mConfig, false);
 }
 
 void Client::initWebsocketCtx()
