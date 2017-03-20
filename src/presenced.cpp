@@ -208,6 +208,8 @@ bool Client::setPersist(bool enable)
     if (enable == mConfig.mPersist)
         return true;
     mConfig.mPersist = enable;
+    if (enable)
+        mConfig.mAutoawayActive = false;
     signalActivity(true);
     checkEnableAutoaway();
     return sendPrefs();
