@@ -101,15 +101,19 @@ MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
         setText(msg);
     else
         setText(msg.managementInfoToString());
+    updateToolTip();
+    show();
+}
 
+void MessageWidget::updateToolTip()
+{
     auto tooltip = QString("msgid: %1\ntype:%2\nkeyid: %3\nuserid: %4\nchatid: %5\nbackrefs: %6")
-            .arg(QString::fromStdString(mMessage->id().toString()))
+            .arg(QString::fromStdString(mMessage->id().toString()+(mMessage->isSending()?"(msgxid)":"")))
             .arg(mMessage->type)
             .arg(mMessage->keyid).arg(QString::fromStdString(mMessage->userid.toString()))
-            .arg(QString::fromStdString(parent.chat().chatId().toString()))
+            .arg(QString::fromStdString(mChatWindow.chat().chatId().toString()))
             .arg(mMessage->backRefs.size());
     ui.mHeader->setToolTip(tooltip);
-    show();
 }
 
 void ChatWindow::createMembersMenu(QMenu& menu)
@@ -269,11 +273,13 @@ void ChatWindow::updateSeen()
 }
 void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
+    printf("onMessageEdited: msgid %s\n", msg.id().toString().c_str());
+    assert(msg.userp);
     mRoom.onMessageEdited(msg, idx);
     auto widget = widgetFromMessage(msg);
     if (!widget)
     {
-        GUI_LOG_WARNING("onMessageEdited: No widget is associated with message with idx %d", idx);
+        GUI_LOG_WARNING("onMessageEdited: No widget is associated with message with idx %d (userp=%p)", idx, msg.userp);
         return;
     }
     if (msg.isManagementMessage())
@@ -299,16 +305,16 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     widget->fadeIn(QColor(Qt::yellow));
 }
 
-void ChatWindow::onEditRejected(const chatd::Message& msg, bool oriIsConfirmed)
+void ChatWindow::onEditDuplicate(const chatd::Message& msg)
 {
     auto widget = widgetFromMessage(msg);
     if (!widget)
     {
-        GUI_LOG_ERROR("onEditRejected: No widget associated with message");
+        GUI_LOG_ERROR("onEditRejected: No widget associated with message (userp=%p)", msg.userp);
         return;
     }
-//    widget->setText(*widget->mMessage); //restore original
-    showCantEditNotice();
+    widget->setText(*widget->mMessage); //restore original
+    widget->setStatus(chatd::Message::kServerReceived);
 }
 
 void ChatWindow::showCantEditNotice(const QString& action)
@@ -379,7 +385,10 @@ void ChatWindow::onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::M
     item->setSizeHint(widget->size());
     mManualSendList->addItem(item);
     mManualSendList->setItemWidget(item, widget);
+    if (reason == chatd::kManualSendTooOld)
+        showCantEditNotice();
 }
+
 void ChatWindow::onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx)
 {
     for (auto i=mChat->lownum(); i<idx; i++)

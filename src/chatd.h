@@ -40,10 +40,12 @@ class ICrypto;
 /** @brief Reason codes passed to Listener::onManualSendRequired() */
 enum ManualSendReason: uint8_t
 {
+    kManualSendInvalidReason = 0,
     kManualSendUsersChanged = 1, ///< Group chat participants have changed
     kManualSendTooOld = 2, ///< Message is older than CHATD_MAX_EDIT_AGE seconds
     kManualSendGeneralReject = 3, ///< chatd rejected the message, for unknown reason
-    kManualSendNoWriteAccess = 4  ///< Read-only privilege or not belong to the chatroom
+    kManualSendNoWriteAccess = 4,  ///< Read-only privilege or not belong to the chatroom
+    kManualSendEditNoChange = 6
 };
 
 /** The source from where history is being retrieved by the app */
@@ -183,7 +185,7 @@ public:
      * or has not been confirmed and only a transaction id (msgxid),
      * hence msg.id() returns the msgxid.
      */
-    virtual void onEditRejected(const Message& msg, bool oriIsConfirmed){}
+    virtual void onEditDuplicate(const Message& msg){}
 
     /** @brief The chatroom connection (to the chatd server shard) state
      * has changed.
@@ -431,22 +433,18 @@ public:
   * double-converting it when queued as a raw command in Sending, and after
   * that (when server confirms) move it as a Message object to history buffer */
         Message* msg;
-        std::unique_ptr<MsgCommand> msgCmd;
-        std::unique_ptr<KeyCommand> keyCmd;
         karere::SetOfIds recipients;
         uint8_t opcode() const { return mOpcode; }
         void setOpcode(uint8_t op) { mOpcode = op; }
-        SendingItem(uint8_t aOpcode, Message* aMsg, MsgCommand* aMsgCmd,
-            KeyCommand* aKeyCmd, const karere::SetOfIds& aRcpts, uint64_t aRowid=0)
-        : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), msgCmd(aMsgCmd), keyCmd(aKeyCmd),
-            recipients(aRcpts){}
+        SendingItem(uint8_t aOpcode, Message* aMsg, const karere::SetOfIds& aRcpts,
+            uint64_t aRowid=0)
+        : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), recipients(aRcpts){}
         ~SendingItem(){ if (msg) delete msg; }
         bool isMessage() const { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
         bool isEdit() const { return mOpcode == OP_MSGUPD || mOpcode == OP_MSGUPDX; }
         void setKeyId(KeyId keyid)
         {
             msg->keyid = keyid;
-            if (msgCmd) msgCmd->setKeyId(keyid);
         }
     };
     typedef std::list<SendingItem> OutputQueue;
@@ -538,7 +536,6 @@ protected:
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
-    size_t mIgnoreKeyAcks = 0;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
          const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
@@ -576,9 +573,9 @@ protected:
     bool sendCommand(const Command& cmd);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
-    SendingItem* postItemToSending(uint8_t opcode, Message* msg, MsgCommand* msgCmd,
-        KeyCommand* keyCmd);
-    bool flushOutputQueue(bool fromStart=false);
+    SendingItem* postMsgToSending(uint8_t opcode, Message* msg);
+    bool sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd);
+    void flushOutputQueue(bool fromStart=false);
     karere::Id makeRandomId();
     void login();
     void join();
@@ -937,12 +934,12 @@ public:
     static uint64_t generateRefId(const ICrypto* aCrypto);
 protected:
     void msgSubmit(Message* msg);
-    bool msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existingItem=nullptr);
+    bool msgEncryptAndSend(OutputQueue::iterator it);
     void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);
     void onJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
-    void rejectMsgupd(uint8_t opcode, karere::Id id);
+    void rejectMsgupd(uint8_t opcode, karere::Id id, uint8_t serverReason);
     template <bool mustBeInSending=false>
     void rejectGeneric(uint8_t opcode);
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);

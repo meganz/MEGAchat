@@ -74,26 +74,23 @@ public:
         Buffer rcpts;
         item.recipients.save(rcpts);
         sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, msg, type, updated, "
-                         "recipients, backrefid, backrefs, msg_cmd, key_cmd) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                         "recipients, backrefid, backrefs) values(?,?,?,?,?,?,?,?,?,?)",
             (uint64_t)mMessages.chatId(), item.opcode(), (int)time(NULL), msg->id(),
-            *msg, msg->type, msg->updated, rcpts, msg->backRefId, msg->backrefBuf(),
-            item.msgCmd ? (*item.msgCmd) : StaticBuffer(nullptr, 0),
-            item.keyCmd ? (*item.keyCmd) : StaticBuffer(nullptr, 0));
+            *msg, msg->type, msg->updated, rcpts, msg->backRefId, msg->backrefBuf());
         item.rowid = sqlite3_last_insert_rowid(mDb);
         commit();
     }
     virtual void updateMsgInSending(const chatd::Chat::SendingItem& item)
     {
         assert(item.msg);
-        assert(item.msgCmd);
-        sqliteQuery(mDb, "update sending set msg = ?, updated = ?, msg_cmd = ? where rowid = ?",
-            *item.msg, item.msg->updated, *item.msgCmd, item.rowid);
+        sqliteQuery(mDb, "update sending set msg = ?, updated = ? where rowid = ?",
+            *item.msg, item.msg->updated, item.rowid);
         assertAffectedRowCount(1, "updateMsgInSending");
         commit();
     }
     virtual void confirmKeyOfSendingItem(uint64_t rowid, chatd::KeyId keyid)
     {
-        sqliteQuery(mDb, "update sending set keyid = ?, key_cmd = NULL where rowid = ?",
+        sqliteQuery(mDb, "update sending set keyid = ? where rowid = ?",
                     keyid, rowid);
         assertAffectedRowCount(1, "confirmKeyOfSendingItem");
         commit();
@@ -169,23 +166,12 @@ public:
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
         SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, msg, type, "
-            "ts, updated, backrefid, backrefs, msg_cmd, key_cmd, recipients from sending where chatid=? order by rowid asc");
+            "ts, updated, backrefid, backrefs, recipients from sending where chatid=? order by rowid asc");
         stmt << mMessages.chatId();
         queue.clear();
         while(stmt.step())
         {
             uint8_t opcode = stmt.intCol(1);
-            chatd::MsgCommand* msgCmd;
-            if (stmt.hasBlobCol(10))
-            {
-                msgCmd = new chatd::MsgCommand(64);
-                stmt.blobCol(10, *msgCmd);
-                assert(msgCmd->opcode() == opcode);
-            }
-            else
-            {
-                msgCmd = nullptr;
-            }
 
             assert((opcode == chatd::OP_NEWMSG) || (opcode == chatd::OP_MSGUPD)
                    || (opcode == chatd::OP_MSGUPDX));
@@ -201,20 +187,9 @@ public:
                 stmt.blobCol(9, refs);
                 refs.read(0, msg->backRefs);
             }
-            chatd::KeyCommand* keyCmd;
-            if (stmt.hasBlobCol(11)) //key_cmd
-            {
-                keyCmd = new chatd::KeyCommand(64);
-                stmt.blobCol(11, *keyCmd);
-                assert(keyCmd->opcode() == chatd::OP_NEWKEY);
-            }
-            else
-            {
-                keyCmd = nullptr;
-            }
             Buffer recpts;
-            stmt.blobCol(12, recpts);
-            queue.emplace_back(opcode, msg, msgCmd, keyCmd, recpts, stmt.intCol(0));
+            stmt.blobCol(10, recpts);
+            queue.emplace_back(opcode, msg, recpts, stmt.intCol(0));
         }
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)

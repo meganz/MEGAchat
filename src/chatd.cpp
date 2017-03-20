@@ -197,6 +197,9 @@ void Chat::disconnect()
 
 void Chat::login()
 {
+//    if(mChatId.toString() != "lVrMjr3lHBg")
+//        return;
+
     if (mOldestKnownMsgId) //if we have local history
         joinRangeHist();
     else
@@ -454,9 +457,9 @@ void Chat::logSend(const Command& cmd)
         }
     case OP_NEWKEY:
     {
-        auto& keycmd = static_cast<const KeyCommand&>(cmd);
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWKEY - %s\n",
-            ID_CSTR(mChatId), keycmd.toString().c_str());
+        //auto& keycmd = static_cast<const KeyCommand&>(cmd);
+        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWKEY\n",
+            ID_CSTR(mChatId));
         break;
     }
       default:
@@ -880,7 +883,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
                 else if ((op == OP_MSGUPD) || (op == OP_MSGUPDX))
                 {
-                    chat.rejectMsgupd(op, id);
+                    chat.rejectMsgupd(op, id, reason);
                 }
                 else if (op == OP_JOIN)
                 {
@@ -1136,7 +1139,7 @@ void Chat::msgSubmit(Message* msg)
 {
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
-    msgEncryptAndSend(msg, OP_NEWMSG);
+    postMsgToSending(OP_NEWMSG, msg);
 
     // last text msg stuff
     if (msg->isText())
@@ -1187,94 +1190,67 @@ void Chat::createMsgBackRefs(Message& msg)
     }
 }
 
-Chat::SendingItem* Chat::postItemToSending(uint8_t opcode, Message* msg,
-        MsgCommand* msgCmd, KeyCommand* keyCmd)
+Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg)
 {
-    mSending.emplace_back(opcode, msg, msgCmd, keyCmd, mUsers);
+    mSending.emplace_back(opcode, msg, mUsers);
     CALL_DB(saveMsgToSending, mSending.back());
     if (mNextUnsent == mSending.end())
     {
         mNextUnsent--;
     }
-    if (mNextUnsent->msgCmd)
-    {
 //The mSending queue should not change, as we never delete items upon sending, only upon confirmation
 #ifndef NDEBUG
-        auto save = &mSending.back();
+    auto save = &mSending.back();
 #endif
-        flushOutputQueue();
-        assert(&mSending.back() == save);
-    }
-    else
-    {
-        CHATID_LOG_DEBUG("Can't send queued message, the next pending message (%s) is not yet encrypted",
-            Command::opcodeToStr(mNextUnsent->opcode()));
-    }
+    flushOutputQueue();
+    assert(&mSending.back() == save);
     return &mSending.back();
 }
 
-bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existingItem)
+bool Chat::sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd)
 {
-    //opcode can be NEWMSG, MSGUPD or MSGUPDX
-    assert(msg->id() != Id::null());
-    if (opcode == OP_NEWMSG)
-        createMsgBackRefs(*msg);
-    if (mEncryptionHalted || (mOnlineState != kChatStateOnline))
+    assert(cmd.first);
+    if (cmd.second)
     {
-        assert(!existingItem);
-        postItemToSending(opcode, msg, nullptr, nullptr);
-        return false;
+        cmd.second->setChatId(mChatId);
+        if (!sendCommand(*cmd.second))
+            return false;
     }
-    auto msgCmd = new MsgCommand(opcode, mChatId, client().userId(),
+    return sendCommand(*cmd.first);
+}
+
+bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
+{
+    auto msg = it->msg;
+    //opcode can be NEWMSG, MSGUPD or MSGUPDX
+    assert(msg->id());
+/*FIXME: Find a place for this
+    if (opcode == OP_NEWMSG)
+        createMsgBackRefs(msg);
+*/
+    if (mEncryptionHalted || (mOnlineState != kChatStateOnline))
+        return false;
+
+    auto msgCmd = new MsgCommand(it->opcode(), mChatId, client().userId(),
          msg->id(), msg->ts, msg->updated, msg->keyid);
 
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
-    auto pms = mCrypto->msgEncrypt(msg, msgCmd);
+    auto pms = mCrypto->msgEncrypt(it->msg, msgCmd);
     if (pms.succeeded())
-    {
-        auto result = pms.value();
-        if (result.second)
-        {
-            result.second->setChatId(mChatId);
-        }
-        if (existingItem)
-        {
-            existingItem->msgCmd.reset(result.first);
-            existingItem->keyCmd.reset(result.second);
-            CALL_DB(addBlobsToSendingItem, existingItem->rowid, result.first, result.second);
-            flushOutputQueue();
-        }
-        else
-        {
-            postItemToSending(opcode, msg, result.first, result.second); //calls flusheOutputQueue()
-        }
-        continueEncryptNextPending();
-        return true;
-    }
+        return sendKeyAndMessage(pms.value());
 
     mEncryptionHalted = true;
     CHATID_LOG_DEBUG("Can't encrypt message immediately, halting output");
-    if (!existingItem)
-        existingItem = postItemToSending(opcode, msg, nullptr, nullptr);
-    assert(existingItem);
-    pms.then([this, existingItem](std::pair<MsgCommand*, KeyCommand*> result)
+    auto rowid = mSending.front().rowid;
+    pms.then([this, rowid](std::pair<MsgCommand*, KeyCommand*> result)
     {
-        assert(result.first);
-        assert(!existingItem->msgCmd);
-        if (result.second)
-        {
-            result.second->setChatId(mChatId);
-        }
-        existingItem->msgCmd.reset(result.first);
-        existingItem->keyCmd.reset(result.second);
-        CALL_DB(addBlobsToSendingItem, existingItem->rowid, result.first, result.second);
+        assert(mEncryptionHalted);
+        assert(!mSending.empty());
+        assert(mSending.front().rowid == rowid);
 
-        //mNextUnsent points to the message that was just encrypted
-        assert(mNextUnsent->rowid == existingItem->rowid);
-        assert(mNextUnsent->msgCmd);
+        sendKeyAndMessage(result);
         mEncryptionHalted = false;
         flushOutputQueue();
-        continueEncryptNextPending();
     });
 
     pms.fail([this, msg, msgCmd](const promise::Error& err)
@@ -1287,20 +1263,6 @@ bool Chat::msgEncryptAndSend(Message* msg, uint8_t opcode, SendingItem* existing
     //we don't sent a msgStatusChange event to the listener, as the GUI should initialize the
     //message's status with something already, so it's redundant.
     //The GUI should by default show it as sending
-}
-
-void Chat::continueEncryptNextPending()
-{
-    //continue encryption of next queued messages, if any
-    marshallCall([this]()
-    {
-        if (mNextUnsent != mSending.end() && !mNextUnsent->msgCmd)
-        {
-//          CHATID_LOG_DEBUG("Continuing with encryption of the next msg (%s) in send queue",
-//                Command::opcodeToStr(mNextUnsent->opcode()));
-            msgEncryptAndSend(mNextUnsent->msg, mNextUnsent->opcode(), &(*mNextUnsent));
-        }
-    });
 }
 
 // Can be called for a message in history or a NEWMSG,MSGUPD,MSGUPDX message in sending queue
@@ -1329,37 +1291,11 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             item->msg->updated = age + 1;
         }
         msg.assign((void*)newdata, newlen);
-        auto cmd = item->msgCmd.get();
-        if (cmd) //it's already encrypted, re-encrypt
-        {
-            cmd->clearMsg();
-            auto pms = mCrypto->msgEncrypt(&msg, cmd);
-            if (!pms.succeeded())
-            {
-                //delete the blobs of the old message, before raising the error
-                CALL_DB(addBlobsToSendingItem, item->rowid, nullptr, nullptr);
-                if (pms.failed())
-                {
-                    CHATID_LOG_ERROR("msgModify: Message re-encrypt failed with error %s", pms.error().what());
-                }
-                else
-                {
-                    throw std::runtime_error(mChatId.toString()+": msgModify: Message re-encrypt did not succeed immediately, and it should");
-                }
-            }
-            else
-            {   //updates plaintext msg and msgCmd, does not touch keyCmd
-                CALL_DB(updateMsgInSending, *item);
-            }
-        }
-        else
-        {
-            CALL_DB(updateMsgPlaintextInSending, item->rowid, msg);
-        }
+        CALL_DB(updateMsgPlaintextInSending, item->rowid, msg);
     } //end msg.isSending()
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
         msg.isSending(), msg.keyid, msg.type, userp);
-    msgEncryptAndSend(upd, upd->isSending() ? OP_MSGUPDX : OP_MSGUPD);
+    postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
     onMsgTimestamp(msg.ts+age);
     return upd;
 }
@@ -1574,27 +1510,32 @@ int Chat::unreadMsgCount() const
     return count;
 }
 
-bool Chat::flushOutputQueue(bool fromStart)
+void Chat::flushOutputQueue(bool fromStart)
 {
 //We assume that if fromStart is set, then we have to set mIgnoreKeyAcks
 //Indeed, if we flush the send queue from the start, this means that
 //the crypto module would get out of sync with the I/O sequence, which means
 //that it must have been reset/freshly initialized, and we have to skip
 //the KEYID responses for the keys we flush from the output queue
-    if(!mConnection.isOnline())
-        return false;
+    if(mEncryptionHalted || !mConnection.isOnline())
+        return;
 
     if (fromStart)
-    {
         mNextUnsent = mSending.begin();
-        mIgnoreKeyAcks = 0;
-    }
-    // resend all pending new messages
-    auto now = time(NULL);
-    while(mNextUnsent!=mSending.end())
+
+    if (mNextUnsent == mSending.end())
+        return;
+
+    while (mNextUnsent != mSending.end())
     {
-        if (((mNextUnsent->recipients != mUsers) && !mNextUnsent->isEdit())
-        || (now - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE))
+        ManualSendReason reason =
+            ((mNextUnsent->recipients != mUsers) && !mNextUnsent->isEdit())
+            ? kManualSendUsersChanged : kManualSendInvalidReason;
+
+        if ((reason == kManualSendInvalidReason) && (time(NULL) - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE))
+            reason = kManualSendTooOld;
+
+        if (reason != kManualSendInvalidReason)
         {
             auto start = mNextUnsent;
             mNextUnsent = mSending.end();
@@ -1604,48 +1545,30 @@ bool Chat::flushOutputQueue(bool fromStart)
             {
                 auto erased = it;
                 it++;
-                moveItemToManualSending(erased, kManualSendTooOld);
+                moveItemToManualSending(erased, reason);
             }
             CALL_CRYPTO(resetSendKey);
-            return false;
+            return;
         }
-        if (!mNextUnsent->msgCmd)
-        {
-            assert(!mNextUnsent->keyCmd);
-            //only not-yet-encrypted messages are allowed to have cmd=nullptr
-            return false;
-        }
-        if (mNextUnsent->keyCmd)
-        {
-            if (!sendCommand(*mNextUnsent->keyCmd))
-                return false;
-            if (fromStart)
-                mIgnoreKeyAcks++;
-        }
-        //it's possible that the key gets sent, but the message not. In that case
-        //mNextUnsent won't be incremented and the key may be re-sent, which is ok
-        if (!sendCommand(*mNextUnsent->msgCmd))
-            return false;
-        mNextUnsent++;
+
+        //kickstart encryption
+        //return true if we encrypted and sent at least one message
+        if (!msgEncryptAndSend(mNextUnsent++))
+            return;
     }
-    return true;
 }
 
 void Chat::moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason)
 {
-    if ((it->isEdit()) && (reason == kManualSendTooOld))
+    CALL_DB(deleteItemFromSending, it->rowid);
+    CALL_DB(saveItemToManualSending, *it, reason);
+    if (it->isEdit() && reason == kManualSendEditNoChange)
     {
-        CALL_LISTENER(onEditRejected, *it->msg, it->opcode() == OP_MSGUPD);
+        CALL_LISTENER(onEditDuplicate, *it->msg);
     }
     else
     {
-        //we save only new messages, old edits are discarded, and edits after group change are not a problem
-        assert(it->opcode() == OP_NEWMSG);
-        it->msgCmd.reset();
-        it->keyCmd.reset();
-        CALL_DB(deleteItemFromSending, it->rowid);
-        CALL_DB(saveItemToManualSending, *it, reason);
-        CALL_LISTENER(onManualSendRequired, it->msg, it->rowid, (ManualSendReason)reason); //GUI should this message at end of that list of messages requiring 'manual' resend
+        CALL_LISTENER(onManualSendRequired, it->msg, it->rowid, reason); //GUI should put this message at end of that list of messages requiring 'manual' resend
         it->msg = nullptr; //don't delete the Message object, it will be owned by the app
     }
     mSending.erase(it);
@@ -1706,8 +1629,8 @@ bool Chat::msgAlreadySent(Id msgxid, Id msgid)
 
 Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 {
-    // as msgConirm() is tried on all chatids, it's normal that we don't have the message,
-    // so no error logging of error, just return invalid index
+    // as msgConirm() is tried on all chatids, it's normal that we don't have
+    // the message, so no error logging of error, just return invalid index
     if (mSending.empty())
         return nullptr;
 
@@ -1720,12 +1643,6 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
     if (item.msg->id() != msgxid)
     {
 //        CHATID_LOG_DEBUG("msgConfirm: sendQueue starts with NEWMSG, but the msgxid is different");
-        return nullptr;
-    }
-
-    if (!item.msgCmd)
-    {//don't assert as this depends on external input
-        CHATID_LOG_ERROR("msgConfirm: Sending item has no associated Command object");
         return nullptr;
     }
 
@@ -1796,25 +1713,6 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
 
 void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 {
-    //If there are key commands in the output queue, we will receive KEYID
-    //for each of them, which would normally be forwarded to stringvelope.
-    //But strongvelope knows nothing about these cached commands, so we have
-    //to ignore them. The result of ignoring them is that the keys will not
-    //be known to strongvelope, but that's ok, as these keys are only used to
-    //decrypt the messages we send from the output queue, and we already
-    //have them in plaintext. On eventual re-request from the server, it will
-    //send us the key properly.
-    bool dontSendToCrypto;
-    if (mIgnoreKeyAcks > 0)
-    {
-        mIgnoreKeyAcks--;
-        dontSendToCrypto = true;
-    }
-    else
-    {
-        dontSendToCrypto = false;
-    }
-
     if (keyxid != 0xffffffff)
     {
         CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xffffffff, continuing anyway");
@@ -1824,39 +1722,10 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         CHATID_LOG_ERROR("keyConfirm: Sending queue is empty");
         return;
     }
-    if (!mSending.front().keyCmd)
-    {
-        CHATID_LOG_ERROR("keyConfirm: Front of sending queue does not have a NEWKEY command");
-        return;
-    }
-    mSending.front().msg->keyid = keyid;
-    mSending.front().keyCmd = nullptr;
-    CALL_DB(confirmKeyOfSendingItem, mSending.front().rowid, keyid);
-    //update keyxids to keyids, because if client disconnects the keyxids will become invalid
-    //don't confirm key id to the crypto module if there is a more recent key cmd
-    //in the key queue, as the crypto module expects confirmation of the most
-    //recent one
-    for (auto it = ++mSending.begin(); it!=mSending.end(); it++)
-    {
-        if (it->keyCmd)
-            return;
-        if (it->msg->keyid == CHATD_KEYID_UNCONFIRMED)
-        {
-            it->msg->keyid = keyid;
-            CALL_DB(updateMsgKeyIdInSending, it->rowid, keyid);
-        }
-    }
-    if (dontSendToCrypto)
-    {
-        CHATID_LOG_DEBUG("Not forwarding KEYID to crypto module, as it is a result of a NEWKEY from a previous run");
-    }
-    else
-    {
-        CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
-    }
+    CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
 }
 
-void Chat::rejectMsgupd(uint8_t opcode, Id id)
+void Chat::rejectMsgupd(uint8_t opcode, Id id, uint8_t serverReason)
 {
     if (mSending.empty())
         throw std::runtime_error("rejectMsgupd: Send queue is empty");
@@ -1868,10 +1737,24 @@ void Chat::rejectMsgupd(uint8_t opcode, Id id)
     if (msg.id() != id)
         throw std::runtime_error("rejectMsgupd: Message msgid/msgxid does not match the one at the front of send queue");
 
-    CALL_LISTENER(onEditRejected, msg, opcode == OP_MSGUPD);
-    CALL_DB(deleteItemFromSending, mSending.front().rowid);
-    mSending.pop_front();
+    if (serverReason == 2)
+    { //edit with same content
+        CALL_LISTENER(onEditDuplicate, msg);
+        CALL_DB(deleteItemFromSending, mSending.front().rowid);
+        mSending.pop_front();
+    }
+    else
+    {
+        /* Server reason:
+            0 - insufficient privs or not in chat
+            1 - message is not your own or you are outside the time window
+            2 - message did not change
+        */
+        moveItemToManualSending(mSending.begin(), (serverReason == 0)
+            ? kManualSendNoWriteAccess : kManualSendTooOld);
+    }
 }
+
 template<bool mustBeInSending>
 void Chat::rejectGeneric(uint8_t opcode)
 {
@@ -1908,8 +1791,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             }
             //erase item
             CALL_DB(deleteItemFromSending, item.rowid);
-            if (!cipherMsg->dataEquals(item.msgCmd->msg()))
-                CHATD_LOG_WARNING("msgUpdConfirm: Discarding a different queued edit than the one received: %s\n%s", item.msgCmd->toString().c_str(), cipherMsg->toString().c_str());
             auto erased = it;
             it++;
             mPendingEdits.erase(cipherMsg->id());
@@ -2404,16 +2285,10 @@ void Chat::onJoinComplete()
         CALL_CRYPTO(setUsers, &mUsers);
     }
     mUserDump.clear();
-    mIgnoreKeyAcks = 0;
-
+    mEncryptionHalted = false;
     setOnlineState(kChatStateOnline);
     flushOutputQueue(true); //flush encrypted messages
 
-    if (mNextUnsent != mSending.end() && !mNextUnsent->msgCmd)
-    {
-        //there are unencrypted messages still, kickstart encryption
-        msgEncryptAndSend(mNextUnsent->msg, mNextUnsent->opcode(), &(*mNextUnsent));
-    }
     if (mIsFirstJoin)
     {
         mIsFirstJoin = false;
