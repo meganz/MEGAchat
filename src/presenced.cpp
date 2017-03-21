@@ -298,9 +298,8 @@ Client::reconnect(const std::string& url)
 
 void Client::heartbeat()
 {
-    if (mTsLastUserActivity)
+    if (mConfig.mAutoawayActive && mTsLastUserActivity)
     {
-        assert(mConfig.mAutoawayActive);
         auto now = time(NULL);
         if (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
         {
