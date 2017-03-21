@@ -701,7 +701,7 @@ public:
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
 
-    /** @brief Does the actual connection to chatd, xmpp and gelb. Assumes the
+    /** @brief Does the actual connection to chatd and presenced. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initNewSession() or \c initExistingSession() completes
      * @param pres The presence which should be set. This is a forced presence,
