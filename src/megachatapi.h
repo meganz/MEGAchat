@@ -1204,7 +1204,7 @@ public:
      *
      * @see \c MegaChatPresenceConfig for further details.
      *
-     * @return The current presence configuration
+     * @return The current presence configuration, or NULL if not received yet from server
      */
     MegaChatPresenceConfig *getPresenceConfig();
 
