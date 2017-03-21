@@ -544,7 +544,7 @@ void Client::handleMessage(const StaticBuffer& buf)
             case OP_PREFS:
             {
                 READ_16(prefs, 0);
-                if (prefs == mConfig.toCode()) //ack
+                if (mPrefsAckWait && prefs == mConfig.toCode()) //ack
                 {
                     PRESENCED_LOG_DEBUG("recv PREFS - server ack to the prefs we sent(0x%x)", prefs);
                 }
