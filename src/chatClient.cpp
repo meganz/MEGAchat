@@ -862,7 +862,7 @@ void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
         return;
     it->second->mPresence = pres;
     if (mRoomGui)
-        mRoomGui->onPeerPresence(pres);
+        mRoomGui->onPeerPresence(userid, pres);
 }
 
 void Client::notifyNetworkOffline()

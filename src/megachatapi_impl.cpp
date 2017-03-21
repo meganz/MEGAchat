@@ -1086,11 +1086,11 @@ void MegaChatApiImpl::fireOnChatInitStateUpdate(int newState)
     }
 }
 
-void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(int status, bool inProgress)
+void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, int status, bool inProgress)
 {
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
-        (*it)->onChatOnlineStatusUpdate(chatApi, status, inProgress);
+        (*it)->onChatOnlineStatusUpdate(chatApi, userhandle, status, inProgress);
     }
 }
 
@@ -2157,7 +2157,8 @@ void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
         API_LOG_INFO("My own presence has been changed to %s", pres.toString());
     }
 
-    fireOnChatOnlineStatusUpdate(pres.status(), inProgress);
+    MegaChatHandle userhandle = mClient->myHandle();
+    fireOnChatOnlineStatusUpdate(userhandle, pres.status(), inProgress);
 }
 
 void MegaChatApiImpl::onPresenceConfigChanged(const presenced::Config &state, bool pending)
@@ -3632,9 +3633,9 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatGroupListItemHandler::onPeerPresence(Presence pres)
+void MegaChatGroupListItemHandler::onPeerPresence(uint64_t userid, Presence pres)
 {
-    // apps don't show the presence of each peer individually
+    chatApi.fireOnChatOnlineStatusUpdate(userid, pres.status(), false);
 }
 
 void MegaChatListItemHandler::onExcludedFromChat()

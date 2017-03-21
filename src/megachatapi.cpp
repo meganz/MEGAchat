@@ -768,7 +768,7 @@ void MegaChatListener::onChatInitStateUpdate(MegaChatApi *api, int newState)
 
 }
 
-void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi *api, int status, bool inProgress)
+void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress)
 {
 
 }

@@ -245,7 +245,7 @@ public:
          * @param userid - the user handle of the user who left the chat.
          */
         virtual void onUserLeave(uint64_t userid) {}
-        virtual void onPeerPresence(Presence pres) {}
+        virtual void onPeerPresence(uint64_t userid, Presence pres) {}
     };
 
     /** @brief Manages contactlist items that in turn receive events
