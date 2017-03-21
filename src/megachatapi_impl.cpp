@@ -2146,7 +2146,7 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
     }
 }
 
-void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
+void MegaChatApiImpl::onPresenceChanged(Id userid, Presence pres, bool inProgress)
 {
     if (inProgress)
     {
@@ -2154,11 +2154,9 @@ void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
     }
     else
     {
-        API_LOG_INFO("My own presence has been changed to %s", pres.toString());
+        API_LOG_INFO("Presence of user %s has been changed to %s", userid.toString().c_str(), pres.toString());
     }
-
-    MegaChatHandle userhandle = mClient->myHandle();
-    fireOnChatOnlineStatusUpdate(userhandle, pres.status(), inProgress);
+    fireOnChatOnlineStatusUpdate(userid.val, pres.status(), inProgress);
 }
 
 void MegaChatApiImpl::onPresenceConfigChanged(const presenced::Config &state, bool pending)
@@ -3631,11 +3629,6 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
     item->setMembersUpdated();
 
     chatApi.fireOnChatListItemUpdate(item);
-}
-
-void MegaChatGroupListItemHandler::onPeerPresence(uint64_t userid, Presence pres)
-{
-    chatApi.fireOnChatOnlineStatusUpdate(userid, pres.status(), false);
 }
 
 void MegaChatListItemHandler::onExcludedFromChat()

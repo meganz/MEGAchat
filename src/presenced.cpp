@@ -535,10 +535,7 @@ void Client::handleMessage(const StaticBuffer& buf)
                 READ_ID(userid, 1);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
-                if (userid == mMyHandle)
-                    CALL_LISTENER(onOwnPresence, pres);
-                else
-                    CALL_LISTENER(onPeerPresence, userid, pres);
+                CALL_LISTENER(onPresenceChange, userid, pres);
                 break;
             }
             case OP_PREFS:

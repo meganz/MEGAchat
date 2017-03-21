@@ -245,7 +245,6 @@ public:
          * @param userid - the user handle of the user who left the chat.
          */
         virtual void onUserLeave(uint64_t userid) {}
-        virtual void onPeerPresence(uint64_t userid, Presence pres) {}
     };
 
     /** @brief Manages contactlist items that in turn receive events
@@ -316,9 +315,11 @@ public:
 
     /**
      * @brief Called by karere when our own online state/presence has changed.
+     * @param userid
      * @param pres
+     * @param inProgress
      */
-    virtual void onOwnPresence(Presence pres, bool inProgress) {} //may include flags
+    virtual void onPresenceChanged(Id userid, Presence pres, bool inProgress) {} //may include flags
 
     /**
      * @brief Called when the presence preferences have changed due to
