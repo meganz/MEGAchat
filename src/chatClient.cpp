@@ -809,7 +809,7 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         mOwnPresence = forcedPres;
         app.onOwnPresence(forcedPres, true);
     }
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), forcedPres);
+    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(forcedPres));
 
 // Create and register the rtcmodule plugin
 // the MegaCryptoFuncs object needs api.userData (to initialize the private key etc)
@@ -824,14 +824,8 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
 void Client::setOwnPresence(Presence pres, bool force)
 {
     mOwnPresence = pres;
-    mPresencedClient.setPresence(pres, force);
+    mPresencedClient.setPresence(pres);
     app.onOwnPresence(pres, true);
-}
-
-void Client::onOwnPresence(Presence pres)
-{
-    mOwnPresence = pres;
-    app.onOwnPresence(pres, false);
 }
 
 void Contact::updatePresence(Presence pres)
@@ -840,7 +834,13 @@ void Contact::updatePresence(Presence pres)
     updateAllOnlineDisplays(pres);
 }
 
-void Client::onPresence(Id userid, Presence pres)
+void Client::onOwnPresence(Presence pres)
+{
+    mOwnPresence = pres;
+    app.onOwnPresence(pres, false);
+}
+
+void Client::onPeerPresence(Id userid, Presence pres)
 {
     auto it = contactList->find(userid);
     if (it != contactList->end())
@@ -916,7 +916,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
 
 promise::Promise<void> Client::setPresence(Presence pres, bool force)
 {
-    if (!mPresencedClient.setPresence(pres, force))
+    if (!mPresencedClient.setPresence(pres))
         return promise::Error("Not connected");
     else
     {
@@ -2423,7 +2423,7 @@ Contact* ContactList::contactFromJid(const std::string& jid) const
         return it->second;
 }
 
-void Client::onConnStateChange(presenced::Client::State state)
+void Client::onConnStateChange(presenced::Client::ConnState state)
 {
 }
 
