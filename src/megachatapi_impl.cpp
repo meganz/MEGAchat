@@ -1179,7 +1179,7 @@ MegaChatPresenceConfig *MegaChatApiImpl::getPresenceConfig()
     sdkMutex.lock();
 
     const ::presenced::Config &cfg = mClient->presenced().config();
-    if (cfg.isValid())
+    if (cfg.presence().isValid())
     {
         config = new MegaChatPresenceConfigPrivate(cfg, mClient->presenced().isConfigAcknowledged());
     }
