@@ -1223,10 +1223,9 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     auto msg = it->msg;
     //opcode can be NEWMSG, MSGUPD or MSGUPDX
     assert(msg->id());
-/*FIXME: Find a place for this
-    if (opcode == OP_NEWMSG)
-        createMsgBackRefs(msg);
-*/
+    if (it->opcode() == OP_NEWMSG && msg->backRefs.empty())
+        createMsgBackRefs(*msg);
+
     if (mEncryptionHalted || (mOnlineState != kChatStateOnline))
         return false;
 
@@ -1868,7 +1867,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 // To avoid this, we have to detect the replay. But if we detect it, we can actually
 // avoid the whole replay (even the idempotent part), and just bail out.
 
-    CHATID_LOG_DEBUG("Truncating chat history before msgid %s", ID_CSTR(msg.id()));
+    CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
     CALL_DB(truncateHistory, msg);
     if (idx != CHATD_IDX_INVALID)
     {
@@ -1903,12 +1902,10 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     mOldestKnownMsgId = info.oldestDbId;
     if (mOldestKnownMsgId)
     {
-        mForwardStart = info.newestDbIdx + 1;
         mHasMoreHistoryInDb = (at(lownum()).id() != mOldestKnownMsgId);
     }
     else
     {
-        mForwardStart = CHATD_IDX_RANGE_MIDDLE;
         mHasMoreHistoryInDb = false;
     }
     CALL_LISTENER(onUnreadChanged);
@@ -2292,6 +2289,13 @@ void Chat::onJoinComplete()
     }
     mUserDump.clear();
     mEncryptionHalted = false;
+    auto unconfirmedKeyCmd = mCrypto->unconfirmedKeyCmd();
+    if (unconfirmedKeyCmd)
+    {
+        CHATID_LOG_DEBUG("Re-sending unconfirmed key");
+        sendCommand(*unconfirmedKeyCmd);
+    }
+
     setOnlineState(kChatStateOnline);
     flushOutputQueue(true); //flush encrypted messages
 

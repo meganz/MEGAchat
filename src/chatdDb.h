@@ -144,9 +144,9 @@ public:
         {
             CHATD_LOG_ERROR("chatid %s(%" PRId64 "): addMsgToHistory: history discontinuity detected: "
                 "index of added msg is not adjacent to neither end of db history: "
-                "add idx=%d, histlow=%d, histhigh=%d, histcount= %d, fwdStart=%d",
+                "add idx=%d, histlow=%d, histhigh=%d, histcount= %d, fwdStart=%d, lownum=%d, highnum=%d",
                 mMessages.chatId().toString().c_str(), mMessages.chatId().val,
-                idx, low, high, count, mMessages.forwardStart());
+                idx, low, high, count, mMessages.forwardStart(), mMessages.lownum(), mMessages.highnum());
             assert(false);
         }
 #endif
