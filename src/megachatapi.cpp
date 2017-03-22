@@ -303,6 +303,11 @@ MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg
     return pImpl->sendMessage(chatid, msg);
 }
 
+MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle *contacts)
+{
+    return pImpl->attachContacts(chatid, contactsNumber, contacts);
+}
+
 MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
 {
     return pImpl->editMessage(chatid, msgid, msg);
@@ -982,4 +987,54 @@ const MegaChatListItem *MegaChatListItemList::get(unsigned int i) const
 unsigned int MegaChatListItemList::size() const
 {
     return 0;
+}
+
+MegaChatHandle MegaChatNode::getHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+const char *MegaChatNode::getName() const
+{
+    return NULL;
+}
+
+long long MegaChatNode::getTimeStamp() const
+{
+    return 0;
+}
+
+long long MegaChatNode::getSize() const
+{
+    return 0;
+}
+
+const char *MegaChatNode::getFa() const
+{
+    return NULL;
+}
+
+const int MegaChatNode::getType() const
+{
+    return 0;
+}
+
+long long MegaChatNode::getK(int index) const
+{
+    return 0;
+}
+
+MegaChatHandle MegaChatUser::getHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+const char *MegaChatUser::getEmail() const
+{
+    return NULL;
+}
+
+const char *MegaChatUser::getName() const
+{
+    return NULL;
 }

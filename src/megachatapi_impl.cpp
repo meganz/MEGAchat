@@ -1593,7 +1593,79 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     }
 
     sdkMutex.unlock();
-    return megaMsg;    
+    return megaMsg;
+}
+
+MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle *contacts)
+{
+    if (contactsNumber < 1 || contacts == NULL)
+    {
+        return NULL;
+    }
+
+    MegaChatMessagePrivate *megaMsg = NULL;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        bool error = false;
+        JSonNode jSonContacts;
+        for (unsigned int i = 0; i < contactsNumber; ++i)
+        {
+            auto contactIterator = mClient->contactList->find(contacts[i]);
+            if (contactIterator != mClient->contactList->end())
+            {
+                karere::Contact* contact = contactIterator->second;
+
+                JSonNode jsonContact;
+                JSonNode handleNode;
+                JSonNode handleValue;
+                std::string contactString = "\"" + std::string(MegaApi::userHandleToBase64(contacts[i])) + "\"";
+                handleValue.setFinalValue(contactString);
+                handleNode.setKeyValueNode("u", handleValue);
+                jsonContact.setMapNode(handleNode);
+
+                JSonNode emailNode;
+                JSonNode emailValue;
+                std::string emailString = "\"" + contact->email() + "\"";
+                emailValue.setFinalValue(emailString);
+                emailNode.setKeyValueNode("email", emailValue);
+                jsonContact.setMapNode(emailNode);
+
+                JSonNode nameNode;
+                JSonNode nameValue;
+                std::string nameString = contact->titleString();
+                nameString.erase(0, 1);
+                nameString = "\"" + nameString + "\"";
+                nameValue.setFinalValue(nameString);
+                nameNode.setKeyValueNode("name", nameValue);
+                jsonContact.setMapNode(nameNode);
+
+                jSonContacts.setVectorNode(jsonContact);
+            }
+            else
+            {
+                error = true;
+                break;
+            }
+        }
+
+        if (!error)
+        {
+            unsigned char t = MegaChatMessage::TYPE_CONTACT;
+            char zero = 0x0;
+            char contactType = 0x12;
+            std::string stringToSend = jSonContacts.getString();
+            stringToSend.insert(stringToSend.begin(), contactType);
+            stringToSend.insert(stringToSend.begin(), zero);
+            Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
+            megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+        }
+    }
+
+    sdkMutex.unlock();
+    return megaMsg;
 }
 
 MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
@@ -3652,6 +3724,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         }
         case MegaChatMessage::TYPE_ATTACHMENT:
         {
+            std::cerr << "ATTACHMENT -> " << msg.toText() << std::endl;
             this->hAction = MEGACHAT_INVALID_HANDLE;
             JSonNode attachments(msg.toText());
 
@@ -3661,7 +3734,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 JSonNode file = attachments.getVectorElement(i);
 
                 JSonNode handle = file.getMapElement("h");
-                std::string handleString = handle.getFinalNode().getFinalValue();
+                std::string handleString = handle.getValueNode().getFinalValue();
                 if (handleString.length() > 2)
                 {
                     handleString.erase(0, 1);
@@ -3669,14 +3742,38 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 }
 
                 JSonNode name = file.getMapElement("name");
-                std::string nameString = name.getFinalNode().getFinalValue();
+                std::string nameString = name.getValueNode().getFinalValue();
                 if (nameString.length() > 2)
                 {
                     nameString.erase(0, 1);
                     nameString.erase(nameString.length() - 1, nameString.length());
                 }
 
-                MegaChatNode megaChatNode(MegaApi::base64ToHandle(handleString.c_str()), nameString);
+                JSonNode k = file.getMapElement("k");
+                JSonNode vectorK = k.getValueNode();
+                std::vector<long long> kElements;
+                for (int i = 0; i < vectorK.getNumberVectorElement(); ++i)
+                {
+                    vectorK.getVectorElement(i).getFinalValue();
+                    long long value = atol(vectorK.getVectorElement(i).getFinalValue().c_str());
+                    kElements.push_back(value);
+                }
+
+                JSonNode size = file.getMapElement("s");
+                long long sizeValue = atol(size.getValueNode().getFinalValue().c_str());
+
+
+                JSonNode type = file.getMapElement("t");
+                long long typeValue = atoi(type.getValueNode().getFinalValue().c_str());
+
+                JSonNode timeStamp = file.getMapElement("ts");
+                long long timeStampValue = atol(timeStamp.getValueNode().getFinalValue().c_str());
+
+                JSonNode fa = file.getMapElement("fa");
+                std::string faValue = fa.getValueNode().getFinalValue();
+
+                MegaChatNodePrivate megaChatNode(MegaApi::base64ToHandle(handleString.c_str()), nameString, kElements,
+                                                 typeValue, sizeValue, faValue, timeStampValue);
 
                 megaChatNodes.push_back(megaChatNode);
             }
@@ -3696,7 +3793,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             {
                 JSonNode user = contacts.getVectorElement(i);
                 JSonNode email = user.getMapElement("email");
-                std::string emailString = email.getFinalNode().getFinalValue();
+                std::string emailString = email.getValueNode().getFinalValue();
                 if (emailString.length() > 2)
                 {
                     emailString.erase(0, 1);
@@ -3704,7 +3801,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 }
 
                 JSonNode handle = user.getMapElement("u");
-                std::string handleString = handle.getFinalNode().getFinalValue();
+                std::string handleString = handle.getValueNode().getFinalValue();
                 if (handleString.length() > 2)
                 {
                     handleString.erase(0, 1);
@@ -3712,14 +3809,14 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 }
 
                 JSonNode name = user.getMapElement("name");
-                std::string nameString = name.getFinalNode().getFinalValue();
+                std::string nameString = name.getValueNode().getFinalValue();
                 if (nameString.length() > 2)
                 {
                     nameString.erase(0, 1);
                     nameString.erase(nameString.length() - 1, nameString.length());
                 }
 
-                MegaChatUser megaChatUser(MegaApi::base64ToUserHandle(handleString.c_str()) , emailString, nameString);
+                MegaChatUserPrivate megaChatUser(MegaApi::base64ToUserHandle(handleString.c_str()) , emailString, nameString);
                 megaChatUsers.push_back(megaChatUser);
             }
 
@@ -3861,17 +3958,17 @@ int MegaChatMessagePrivate::getContactsCount() const
 
 MegaChatHandle MegaChatMessagePrivate::getContactUserHandle(int contact) const
 {
-    return megaChatUsers.at(contact).getId();
+    return megaChatUsers.at(contact).getHandle();
 }
 
 const char *MegaChatMessagePrivate::getContactName(int contact) const
 {
-    return megaChatUsers.at(contact).getName().c_str();
+    return megaChatUsers.at(contact).getName();
 }
 
 const char *MegaChatMessagePrivate::getContactEmail(int contact) const
 {
-    return megaChatUsers.at(contact).getEmail().c_str();
+    return megaChatUsers.at(contact).getEmail();
 }
 
 int MegaChatMessagePrivate::getFilesCount() const
@@ -3881,12 +3978,12 @@ int MegaChatMessagePrivate::getFilesCount() const
 
 MegaChatHandle MegaChatMessagePrivate::getAttachNodeHandle(int node) const
 {
-    return megaChatNodes.at(node).getId();
+    return megaChatNodes.at(node).getHandle();
 }
 
 const char *MegaChatMessagePrivate::getAttachNodeName(int node) const
 {
-    return megaChatNodes.at(node).getName().c_str();
+    return megaChatNodes.at(node).getName();
 }
 
 LoggerHandler::LoggerHandler()
@@ -3981,4 +4078,81 @@ unsigned int MegaChatListItemListPrivate::size() const
 void MegaChatListItemListPrivate::addChatListItem(MegaChatListItem *item)
 {
     list.push_back(item);
+}
+
+MegaChatNodePrivate::MegaChatNodePrivate(MegaChatHandle nodeId, const std::string &name, const std::vector<long long> &k,
+                                         int type, long long size, const string &fa, long long timeStamp)
+    : mFa(fa)
+    , mHandle(nodeId)
+    , mK(k)
+    , mName(name)
+    , mTimeStamp(timeStamp)
+    , mType(type)
+    , mSize(size)
+{
+}
+
+MegaChatNodePrivate::~MegaChatNodePrivate()
+{
+}
+
+MegaChatHandle MegaChatNodePrivate::getHandle() const
+{
+    return mHandle;
+}
+
+const char *MegaChatNodePrivate::getName() const
+{
+    return mName.c_str();
+}
+
+long long MegaChatNodePrivate::getTimeStamp() const
+{
+    return mTimeStamp;
+}
+
+long long MegaChatNodePrivate::getSize() const
+{
+    return mSize;
+}
+
+const char *MegaChatNodePrivate::getFa() const
+{
+    return mFa.c_str();
+}
+
+const int MegaChatNodePrivate::getType() const
+{
+    return mType;
+}
+
+long long MegaChatNodePrivate::getK(int index) const
+{
+    return mK[index];
+}
+
+MegaChatUserPrivate::MegaChatUserPrivate(MegaChatHandle contactId, const std::string &email, const std::string& name)
+    : mHandle(contactId)
+    , mEmail(email)
+    , mName(name)
+{
+}
+
+MegaChatUserPrivate::~MegaChatUserPrivate()
+{
+}
+
+MegaChatHandle MegaChatUserPrivate::getHandle() const
+{
+    return mHandle;
+}
+
+const char *MegaChatUserPrivate::getEmail() const
+{
+    return mEmail.c_str();
+}
+
+const char *MegaChatUserPrivate::getName() const
+{
+    return mName.c_str();
 }

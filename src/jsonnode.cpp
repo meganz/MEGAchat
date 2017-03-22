@@ -17,13 +17,8 @@ JSonNode::JSonNode(const std::string &data)
     , mElementNumber(0)
 {
     if (mData[0] == '{' && mData[mData.length() - 1] == '}')
-    { 
-        std::vector<JSonNode> nodes = getNodes(mData);
-
-        for (auto iterator = nodes.begin(); iterator != nodes.end(); ++ iterator)
-        {
-            mMapNodes[iterator->getKey()] = *iterator;
-        }
+    {
+        mKeyNodes = getNodes(mData);
     }
     else if (mData[0] == '[' && mData[data.length() - 1] == ']')
     {
@@ -31,23 +26,25 @@ JSonNode::JSonNode(const std::string &data)
     }
     else
     {
-        int commaPosition = mData.find(':');
-        if (commaPosition != std::string::npos)
+        std::string token = extractToken(mData);
+
+        if (token == mData)
         {
-            mKey = mData.substr(0, commaPosition);
+            mFinalValue = mData;
+        }
+        else
+        {
+            mKey = token;
             if (mKey.length() > 2)
             {
                 mKey.erase(0, 1);
                 mKey.erase(mKey.length() - 1, mKey.length());
             }
-            std::string value = mData.substr(commaPosition + 1);
 
+            // Format Token:Value
+            std::string value = mData.substr(token.length() + 1);
             JSonNode node(value);
             mFinalNode.push_back(node);
-        }
-        else
-        {
-            mFinalValue = mData;
         }
     }
 }
@@ -74,9 +71,12 @@ const JSonNode JSonNode::getVectorElement(int index) const
 
 const JSonNode JSonNode::getMapElement(const std::string &key) const
 {
-    if (mMapNodes.find(key) != mMapNodes.end());
+    for (int i = 0; i < mKeyNodes.size(); i++)
     {
-        return mMapNodes.at(key);
+        if (mKeyNodes[i].getKey() == key)
+        {
+            return mKeyNodes[i];
+        }
     }
 
     return JSonNode();
@@ -97,7 +97,7 @@ void JSonNode::setKey(const std::string &key)
     mKey = key;
 }
 
-JSonNode JSonNode::getFinalNode() const
+JSonNode JSonNode::getValueNode() const
 {
     if (mFinalNode.size() == 1)
     {
@@ -119,13 +119,13 @@ std::string JSonNode::getString() const
     {
         jSonString = mFinalNode[0].getString();
     }
-    else if (mMapNodes.size() > 0)
+    else if (mKeyNodes.size() > 0)
     {
         jSonString = "{";
 
-        for (auto iterator = mMapNodes.begin(); iterator != mMapNodes.end(); ++ iterator)
+        for (int i = 0; i < mKeyNodes.size(); ++ i)
         {
-            jSonString += "\"" + iterator->second.getKey() + "\"" + ":" + iterator->second.getString() + ",";
+            jSonString += "\"" + mKeyNodes[i].getKey() + "\"" + ":" + mKeyNodes[i].getString() + ",";
         }
 
         jSonString[jSonString.length() - 1] = '}';
@@ -147,29 +147,30 @@ std::string JSonNode::getString() const
 
 void JSonNode::setFinalValue(const std::string &value)
 {
-    assert(mVectorNodes.size() == 0 && mMapNodes.size() == 0 && mFinalNode.size() == 0);
+    assert(mVectorNodes.size() == 0 && mKeyNodes.size() == 0 && mFinalNode.size() == 0);
 
     mFinalValue = value;
 }
 
-void JSonNode::setFinalNode(JSonNode node)
+void JSonNode::setKeyValueNode(const std::string &key, JSonNode node)
 {
-    assert(mVectorNodes.size() == 0 && mMapNodes.size() == 0 && mFinalValue.length() == 0);
+    assert(mVectorNodes.size() == 0 && mKeyNodes.size() == 0 && mFinalValue.length() == 0);
+
+    setKey(key);
 
     mFinalNode.push_back(node);
 }
 
-void JSonNode::setMapNode(const std::string &key, JSonNode node)
+void JSonNode::setMapNode(JSonNode node)
 {
     assert(mVectorNodes.size() == 0 && mFinalNode.size() == 0 && mFinalValue.length() == 0);
 
-    node.setKey(key);
-    mMapNodes[key] = node;
+    mKeyNodes.push_back(node);
 }
 
 void JSonNode::setVectorNode(JSonNode node)
 {
-    assert(mMapNodes.size() == 0 && mFinalNode.size() == 0 && mFinalValue.length() == 0);
+    assert(mKeyNodes.size() == 0 && mFinalNode.size() == 0 && mFinalValue.length() == 0);
 
     mVectorNodes.push_back(node);
 }
@@ -235,6 +236,33 @@ std::vector<JSonNode> JSonNode::getNodes(const std::string &data)
     }
 
     return nodes;
+}
+
+std::string JSonNode::extractToken(const std::string &data)
+{
+    std::string token;
+
+    if (data[0] == '"')
+    {
+        int i = 1;
+        token.push_back('"');
+        while (data[i] != '"' && i < data.length())
+        {
+            token.push_back(data[i]);
+            ++i;
+        }
+
+        if (data[i] == '"')
+        {
+            token.push_back('"');
+        }
+    }
+    else
+    {
+        token = data;
+    }
+
+    return token;
 }
 }  // namespace megachat
 

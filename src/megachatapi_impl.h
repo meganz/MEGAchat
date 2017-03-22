@@ -24,8 +24,6 @@
 
 
 #include "megachatapi.h"
-#include "megachatnode.h"
-#include "megachatuser.h"
 
 //the megaapi.h header needs this defined externally
 //#ifndef ENABLE_CHAT
@@ -754,6 +752,7 @@ public:
     bool isFullHistoryLoaded(MegaChatHandle chatid);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
@@ -799,6 +798,48 @@ public:
 //    virtual void onRequestUpdate(MegaApi*api, MegaRequest *request);
 //    virtual void onRequestTemporaryError(MegaApi *api, MegaRequest *request, MegaError* error);
 
+};
+
+class MegaChatNodePrivate : public MegaChatNode
+{
+public:
+    MegaChatNodePrivate(MegaChatHandle nodeId, const std::string &name, const std::vector<long long>& k, int type,
+                        long long size, const std::string &fa, long long timeStamp);
+    virtual ~MegaChatNodePrivate();
+
+    virtual MegaChatHandle getHandle() const;
+    virtual const char *getName() const;
+    virtual long long getTimeStamp() const;
+    virtual long long getSize() const;
+    const char *getFa() const;
+    const int getType() const;
+    long long getK(int index) const;
+
+protected:
+    std::string mFa;
+    megachat::MegaChatHandle mHandle;
+    std::vector<long long> mK;
+    std::string mName;
+    long long mSize;
+    long long mTimeStamp;
+    int mType;
+
+};
+
+class MegaChatUserPrivate : public MegaChatUser
+{
+public:
+    MegaChatUserPrivate(MegaChatHandle contactId, const std::string& email, const std::string& name);
+    virtual ~MegaChatUserPrivate();
+
+    virtual MegaChatHandle getHandle() const;
+    virtual const char *getEmail() const;
+    virtual const char *getName() const;
+
+protected:
+    megachat::MegaChatHandle mHandle;
+    std::string mEmail;
+    std::string mName;
 };
 
 

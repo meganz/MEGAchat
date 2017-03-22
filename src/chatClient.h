@@ -450,7 +450,9 @@ public:
      */
     promise::Promise<ChatRoom *> createChatRoom();
 
-    /** @brief Returns the current screen name of this contact */
+    /** @brief Returns the current screen name of this contact. It is not pure std::string. It has binary layout
+      * First byte indicate first name length
+      */
     const std::string& titleString() const { return mTitleString; }
 
     /** @brief Returns the userid of this contact */
