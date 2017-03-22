@@ -59,12 +59,8 @@ public:
     }
     void commit()
     {
-        static int count = 0;
-        if (count++ < 60)
-            return;
         sqliteSimpleQuery(mDb, "COMMIT TRANSACTION");
         sqliteSimpleQuery(mDb, "BEGIN TRANSACTION");
-        count = 0;
     }
     void saveMsgToSending(chatd::Chat::SendingItem& item)
     {
@@ -145,12 +141,16 @@ public:
         int high = stmt.intCol(1);
         int count = stmt.intCol(2);
         if ((count > 0) && (idx != low-1) && (idx != high+1))
-            throw std::runtime_error("addMsgToHistory: index of added msg is "
-                "not adjacent to neither end of db history: add idx="+
-                std::to_string(idx)+", histlow="+std::to_string(low)+
-                ", histhigh="+std::to_string(high)+" histcount="+std::to_string(count));
+        {
+            CHATD_LOG_ERROR("chatid %s(%" PRId64 "): addMsgToHistory: history discontinuity detected: "
+                "index of added msg is not adjacent to neither end of db history: "
+                "add idx=%d, histlow=%d, histhigh=%d, histcount= %d, fwdStart=%d",
+                mMessages.chatId().toString().c_str(), mMessages.chatId().val,
+                idx, low, high, count, mMessages.forwardStart());
+            assert(false);
+        }
 #endif
-        sqliteQuery(mDb, "insert or replace into history"
+        sqliteQuery(mDb, "insert into history"
             "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid) "
             "values(?,?,?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
             msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId);
@@ -211,10 +211,10 @@ public:
             auto idx = stmt.intCol(5);
             if(idx != mMessages.lownum()-1-(int)messages.size()) //we go backward in history, hence the -messages.size()
             {
-                CHATD_LOG_ERROR("chatid %" PRId64 ": fetchDbHistory: History discontinuity detected: "
-                    "expected idx %d, retrieved from db:%d", mMessages.chatId().val,
+                CHATD_LOG_ERROR("chatid %s (%" PRId64 "): fetchDbHistory: History discontinuity detected: "
+                    "expected idx %d, retrieved from db:%d", mMessages.chatId().toString().c_str(), mMessages.chatId().val,
                     mMessages.lownum()-1-(int)messages.size(), idx);
-                abort();
+                assert(false);
             }
 #endif
             auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
@@ -288,10 +288,9 @@ public:
 #endif
         commit();
     }
-    virtual karere::Id getOldestMsgid()
+    virtual chatd::Idx getOldestIdx()
     {
-        SqliteStmt stmt(mDb, "select msgid from history where chatid = ?1 and "
-            "idx = (select min(idx) from history where chatid=?1)");
+        SqliteStmt stmt(mDb, "select min(idx) from history where chatid = ?");
         stmt << mMessages.chatId();
         stmt.stepMustHaveData(__FUNCTION__);
         return stmt.uint64Col(0);

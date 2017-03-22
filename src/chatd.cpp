@@ -197,11 +197,11 @@ void Chat::disconnect()
 
 void Chat::login()
 {
-//    if(mChatId.toString() != "lVrMjr3lHBg")
-//        return;
-
+    ChatDbInfo info;
+    mDbInterface->getHistoryInfo(info);
+    mOldestKnownMsgId = info.oldestDbId;
     if (mOldestKnownMsgId) //if we have local history
-        joinRangeHist();
+        joinRangeHist(info);
     else
         join();
 }
@@ -642,8 +642,6 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     assert(mDbInterface);
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId;
-    mNewestKnownMsgId = info.newestDbId;
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
@@ -656,19 +654,19 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
 
     if (!mOldestKnownMsgId)
     {
+        //no history in db
         mHasMoreHistoryInDb = false;
         mForwardStart = CHATD_IDX_RANGE_MIDDLE;
-        mNewestKnownMsgId = Id::null();
         CHATID_LOG_DEBUG("Db has no local history for chat");
         loadAndProcessUnsent();
     }
     else
     {
-        assert(mNewestKnownMsgId); assert(info.newestDbIdx != CHATD_IDX_INVALID);
+        assert(info.newestDbIdx != CHATD_IDX_INVALID);
         mHasMoreHistoryInDb = true;
         mForwardStart = info.newestDbIdx + 1;
         CHATID_LOG_DEBUG("Db has local history: %s - %s (middle point: %u)",
-            ID_CSTR(mOldestKnownMsgId), ID_CSTR(mNewestKnownMsgId), mForwardStart);
+            ID_CSTR(info.oldestDbId), ID_CSTR(info.newestDbId), mForwardStart);
         loadAndProcessUnsent();
         getHistoryFromDb(1); //to know if we have the latest message on server, we must at least load the latest db message
     }
@@ -883,7 +881,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
                 else if ((op == OP_MSGUPD) || (op == OP_MSGUPDX))
                 {
-                    chat.rejectMsgupd(op, id, reason);
+                    chat.rejectMsgupd(id, reason);
                 }
                 else if (op == OP_JOIN)
                 {
@@ -1581,17 +1579,17 @@ void Chat::removeManualSend(uint64_t rowid)
 }
 
 // after a reconnect, we tell the chatd the oldest and newest buffered message
-void Chat::joinRangeHist()
+void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 {
     assert(mConnection.isOnline());
-    assert(mOldestKnownMsgId && mNewestKnownMsgId);
+    assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
     mServerOldHistCbEnabled = false;
     mServerFetchState = kHistFetchingNewFromServer;
     CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
-            mOldestKnownMsgId.toString().c_str(), mNewestKnownMsgId.toString().c_str());
-    sendCommand(Command(OP_JOINRANGEHIST) + mChatId + mOldestKnownMsgId + mNewestKnownMsgId);
+            dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
+    sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + dbInfo.newestDbId);
 }
 
 void Client::msgConfirm(Id msgxid, Id msgid)
@@ -1725,14 +1723,15 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
 }
 
-void Chat::rejectMsgupd(uint8_t opcode, Id id, uint8_t serverReason)
+void Chat::rejectMsgupd(Id id, uint8_t serverReason)
 {
     if (mSending.empty())
         throw std::runtime_error("rejectMsgupd: Send queue is empty");
     auto& front = mSending.front();
-    if (front.opcode() != opcode)
-        throw std::runtime_error(std::string("rejectMsgupd: Front of send queue does not match - expected opcode ")
-            +Command::opcodeToStr(opcode)+ ", actual opcode: "+Command::opcodeToStr(front.opcode()));
+    auto opcode = front.opcode();
+    if (opcode != OP_MSGUPD && opcode != OP_MSGUPDX)
+        throw std::runtime_error(std::string("rejectMsgupd: Front of send queue does not match - expected opcode MSGUPD or MSGUPDX, actual opcode: ")
+        +Command::opcodeToStr(opcode));
     auto& msg = *front.msg;
     if (msg.id() != id)
         throw std::runtime_error("rejectMsgupd: Message msgid/msgxid does not match the one at the front of send queue");
@@ -1901,13 +1900,14 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
     mOldestKnownMsgId = info.oldestDbId;
-    mNewestKnownMsgId = info.newestDbId;
     if (mOldestKnownMsgId)
     {
+        mForwardStart = info.newestDbIdx + 1;
         mHasMoreHistoryInDb = (at(lownum()).id() != mOldestKnownMsgId);
     }
     else
     {
+        mForwardStart = CHATD_IDX_RANGE_MIDDLE;
         mHasMoreHistoryInDb = false;
     }
     CALL_LISTENER(onUnreadChanged);
@@ -1977,30 +1977,38 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
     if (isNew)
     {
         push_forward(message);
-        if (mOldestKnownMsgId)
-        {
-            mNewestKnownMsgId = msgid; //expand the range with newer network-received messages, we don't fetch new messages from db
-        }
         idx = highnum();
+        if (!mOldestKnownMsgId)
+            mOldestKnownMsgId = msgid;
     }
     else
     {
-        push_back(message);
-        idx = lownum();
         if (!isLocal)
         {
+            //history message older than the oldest we have
             assert(isFetchingFromServer());
             mLastServerHistFetchCount++;
+            if (mHasMoreHistoryInDb)
+            { //we have db history that is not loaded, so we determine the index
+              //by the db, and don't add the message to RAM
+                idx = mDbInterface->getOldestIdx()-1;
+            }
+            else
+            {
+                //all history is in RAM, determine the index from RAM
+                push_back(message);
+                idx = lownum();
+            }
+            //shouldn't we update this only after we save the msg to db?
+            mOldestKnownMsgId = msgid;
         }
-        if (!mHasMoreHistoryInDb)
+        else //local history message - load from DB to RAM
         {
-            if (mOldestKnownMsgId)
-                mOldestKnownMsgId = msgid;
-        }
-        else if (msgid == mOldestKnownMsgId)
-        {
+            push_back(message);
+            idx = lownum();
+            if (msgid == mOldestKnownMsgId)
             //we have just processed the oldest message from the db
-            mHasMoreHistoryInDb = false;
+                mHasMoreHistoryInDb = false;
         }
     }
     mIdToIndexMap[msgid] = idx;
@@ -2149,14 +2157,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         if (!msg.empty() && (*msg.buf() == 0)) //'special' message - attachment etc
         {
             if (msg.dataSize() < 2)
-            {
                 CHATID_LOG_ERROR("Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
-            }
             else
-            {
                 msg.type = msg.buf()[1];
-            }
         }
+
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
         if ((msg.userid != mClient.mUserId) &&

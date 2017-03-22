@@ -354,7 +354,7 @@ noedit:
     {
         mLastHistReqByScroll = byScroll;
         auto source = mChat->getHistory(kHistBatchSize);
-        printf("source = %d\n", source);
+        GUI_LOG_DEBUG("History source = %d", source);
         if (source == chatd::kHistSourceServer)
         {
             createHistFetchUi();
@@ -493,7 +493,7 @@ public:
         updateChatdStatusDisplay(mChat->onlineState());
         mChat->resetListenerState();
         auto source = mChat->getHistory(kHistBatchSize);
-        printf("initial getHistory: source = %d\n", source);
+        GUI_LOG_DEBUG("Initial getHistory: source = %d", source);
         if (source == chatd::kHistSourceServer)
             createHistFetchUi();
     }
@@ -595,11 +595,7 @@ public:
         // add to history, message was just created at the server
         assert(msgxid); assert(msg.id()); assert(idx != CHATD_IDX_INVALID);
         auto widget = widgetFromMessage(msg);
-        if (!widget)
-        {
-            GUI_LOG_ERROR("onMessageConfirmed: No widget assigned for message with msgxid %s", msgxid.toString().c_str());
-            return;
-        }
+        assert(widget);
 #ifndef NDEBUG
         auto item = static_cast<QListWidgetItem*>(msg.userp);
         assert(item->listWidget()->row(item) == mHistAddPos);

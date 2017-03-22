@@ -414,6 +414,8 @@ protected:
     karere::Id mId;
 };
 
+struct ChatDbInfo;
+
 /** @brief Represents a single chatroom together with the message history.
  * Message sending is done by calling methods on this class.
  * The history buffer can grow in two directions and is always contiguous, i.e.
@@ -484,7 +486,6 @@ protected:
     /// we disable this range by setting mOldestKnownMsgId to 0, and recalculate
     /// range() only from the buffer items
     karere::Id mOldestKnownMsgId;
-    karere::Id mNewestKnownMsgId;
     unsigned mLastServerHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
     unsigned mLastHistDecryptCount = 0; ///< Similar to mLastServerHistFetchCount, but reflects the current number of message passed through the decrypt process, which may be less than mLastServerHistFetchCount at a given moment
 
@@ -579,7 +580,7 @@ protected:
     karere::Id makeRandomId();
     void login();
     void join();
-    void joinRangeHist();
+    void joinRangeHist(const ChatDbInfo& dbInfo);
     void onDisconnect();
     void onHistDone(); //called upont receipt of HISTDONE from server
     void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
@@ -604,10 +605,11 @@ public:
     Idx lownum() const { return mForwardStart - (Idx)mBackwardList.size(); }
     /** @brief The highest index of a message in the RAM history buffer */
     Idx highnum() const { return mForwardStart + (Idx)mForwardList.size()-1;}
+    /** @brief Needed only for debugging purposes */
+    Idx forwardStart() const { return mForwardStart; }
     /** The number of messages currently in the history buffer (in RAM).
      * @note Note that there may be more messages in history db, but not loaded
-     * into memory
-     */
+     * into memory*/
     Idx size() const { return mForwardList.size() + mBackwardList.size(); }
     /** @brief Whether we have any messages in the history buffer */
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
@@ -939,7 +941,7 @@ protected:
     void onMsgUpdated(Message* msg);
     void onJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
-    void rejectMsgupd(uint8_t opcode, karere::Id id, uint8_t serverReason);
+    void rejectMsgupd(karere::Id id, uint8_t serverReason);
     template <bool mustBeInSending=false>
     void rejectGeneric(uint8_t opcode);
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
@@ -1052,7 +1054,7 @@ public:
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void setLastSeen(karere::Id msgid) = 0;
     virtual void setLastReceived(karere::Id msgid) = 0;
-    virtual karere::Id getOldestMsgid() = 0;
+    virtual chatd::Idx getOldestIdx() = 0;
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;

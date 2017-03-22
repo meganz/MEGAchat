@@ -273,7 +273,6 @@ void ChatWindow::updateSeen()
 }
 void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
-    printf("onMessageEdited: msgid %s\n", msg.id().toString().c_str());
     assert(msg.userp);
     mRoom.onMessageEdited(msg, idx);
     auto widget = widgetFromMessage(msg);
