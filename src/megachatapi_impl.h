@@ -94,6 +94,29 @@ protected:
     const char* text;
 };
 
+class MegaChatPresenceConfigPrivate : public MegaChatPresenceConfig
+{
+public:
+    MegaChatPresenceConfigPrivate(const MegaChatPresenceConfigPrivate &config);
+    MegaChatPresenceConfigPrivate(const presenced::Config &config, bool isPending);
+    virtual ~MegaChatPresenceConfigPrivate();
+    virtual MegaChatPresenceConfig *copy() const;
+
+    virtual int getOnlineStatus() const;
+    virtual bool isAutoawayEnabled() const;
+    virtual int64_t getAutoawayTimeout() const;
+    virtual bool isPersist() const;
+    virtual bool isPending() const;
+    virtual bool isSignalActivityRequired() const;
+
+private:
+    int status;
+    bool persistEnabled;
+    bool autoawayEnabled;
+    int64_t autoawayTimeout;
+    bool pending;
+};
+
 class MegaChatVideoReceiver;
 
 class MegaChatCallPrivate :
@@ -601,9 +624,6 @@ private:
     void loop();
 
     void init(MegaChatApi *chatApi, mega::MegaApi *megaApi);
-    const char* resumeSession;
-    MegaChatError *initResult;
-    MegaChatRequestPrivate *initRequest;
 
     static LoggerHandler *loggerHandler;
 
@@ -625,9 +645,6 @@ private:
     std::map<int, MegaChatRequestPrivate *> requestMap;
     std::map<int, MegaChatCallPrivate *> callMap;
     MegaChatVideoReceiver *localVideoReceiver;
-
-    // online status of user
-    int status;
 
     static int convertInitState(int state);
 
@@ -694,7 +711,8 @@ public:
     // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
     void fireOnChatInitStateUpdate(int newState);
-    void fireOnChatOnlineStatusUpdate(int status);
+    void fireOnChatOnlineStatusUpdate(int status, bool inProgress);
+    void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
 
     // ============= API requests ================
 
@@ -706,7 +724,16 @@ public:
 
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     int getOnlineStatus();
+    bool isOnlineStatusPending();
+
+    void setPresenceAutoaway(bool enable, int timeout);
+    void setPresencePersist(bool enable);
+    void signalPresenceActivity();
+    MegaChatPresenceConfig *getPresenceConfig();
+    bool isSignalActivityRequired();
+
     int getUserOnlineStatus(MegaChatHandle userhandle);
+
     void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
@@ -769,6 +796,7 @@ public:
     virtual IApp::IContactListHandler *contactListHandler();
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onOwnPresence(karere::Presence pres, bool inProgress);
+    virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
     virtual void notifyInvited(const karere::ChatRoom& room);
