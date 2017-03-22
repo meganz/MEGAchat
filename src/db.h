@@ -104,14 +104,15 @@ public:
     {
         return sqlite3_column_blob(mStmt, num) != nullptr;
     }
-    bool blobCol(int num, Buffer& buf)
+    void blobCol(int num, Buffer& buf)
     {
         const void* data = sqlite3_column_blob(mStmt, num);
-        if (!data)
-            return false;
         int size = sqlite3_column_bytes(mStmt, num);
-        buf.append(data, size);
-        return true;
+        if (!data || !size)
+        {
+            buf.clear();
+        }
+        buf.assign(data, size);
     }
     void blobCol(int num, StaticBuffer& buf)
     {

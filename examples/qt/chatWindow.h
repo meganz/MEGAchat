@@ -495,7 +495,6 @@ public:
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
     {
-        mRoom.onRecvNewMessage(idx, msg, status);
         if (msg.empty())
             return;
         auto sbar = ui.mMessageList->verticalScrollBar();
@@ -513,7 +512,6 @@ public:
     virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg,
         chatd::Message::Status status, bool isLocal)
     {
-        mRoom.onRecvHistoryMessage(idx, msg, status, isLocal);
         assert(idx != CHATD_IDX_INVALID); assert(msg.id());
         if (mHistFetchUi)
         {
@@ -582,6 +580,11 @@ public:
     {
         mRoom.onLastTextMessageUpdated(msg);
     }
+    virtual void onLastMessageTsUpdated(uint32_t ts)
+    {
+        mRoom.onLastMessageTsUpdated(ts);
+    }
+
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx)
     {
         // add to history, message was just created at the server
@@ -599,6 +602,22 @@ public:
         mHistAddPos++;
         widget->updateStatus(chatd::Message::kServerReceived);
     }
+    virtual void onMessageRejected(const chatd::Message& msg, uint8_t reason)
+    {
+        assert(msg.id() && msg.isSending());
+        auto widget = widgetFromMessage(msg);
+        if (!widget)
+        {
+            GUI_LOG_ERROR("onMessageConfirmed: No widget assigned for message with msgxid %s", msg.id().toString().c_str());
+            return;
+        }
+#ifndef NDEBUG
+        auto item = static_cast<QListWidgetItem*>(msg.userp);
+        assert(item->listWidget()->row(item) == mHistAddPos);
+#endif
+        widget->removeFromList();
+    }
+
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onEditRejected(const chatd::Message& msg, bool oriIsConfirmed);
     virtual void onOnlineStateChange(chatd::ChatState state)

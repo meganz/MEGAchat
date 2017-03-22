@@ -321,6 +321,23 @@ public:
     virtual void onOwnPresence(Presence pres, bool inProgress) {} //may include flags
 
     /**
+     * @brief Called when the presence preferences have changed due to
+     * our or another client of our account updating them.
+     * @param state - the new state of the preferences
+     * @param pending - whether the preferences have actually been applied
+     * on the server (\c false), or we have just sent them and they are not yet
+     * confirmed by the server (\c true). When setAutoaway(), setPersist() or
+     * setPresence() are called, a new presence config is sent to the server,
+     * and this callback is immediately called with the new settings and \pending
+     * set to true. When the server confirms the settings, this callback will
+     * be called with the same config, but with \pending equal to \c false
+     * Thus, the app can display a blinking online status when the user changes
+     * it, until the server confirms it, at which point the status GUI will stop
+     * blinking
+     */
+    virtual void onPresenceConfigChanged(const presenced::Config& config, bool pending) = 0;
+
+    /**
      * @brief Called when an incoming contact request has been received.
      *
      *  To accept or decline the request, the GUI should call

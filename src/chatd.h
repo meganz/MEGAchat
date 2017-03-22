@@ -57,7 +57,7 @@ enum HistSource
 };
 
 class DbInterface;
-class LastTextMsg;
+struct LastTextMsg;
 
 class Listener
 {
@@ -134,11 +134,31 @@ public:
       */
     virtual void onMessageConfirmed(karere::Id msgxid, const Message& msg, Idx idx){}
 
-    /**
-     * @brief A message was rejected by the server for some reason. As the message is not yet
-     * in the history buffer, its \c id() is a msgxid, and \c msg.isSending() is true
-     */
-    virtual void onMessageRejected(const Message& msg){}
+     /** @brief A message was rejected by the server for some reason.
+      * As the message is not yet in the history buffer, its \c id()
+      * is a msgxid, and \c msg.isSending() is \c true.
+      * The message may have actually been received by the server, but we
+      * didn't know about that.
+      * The message is already removed from the client's send queue.
+      * The app must remove this message from the 'pending' GUI list.
+      * @param msg - The message that was rejected.
+      * @param reason - The reason for the reject.
+      * When the reason code is 0, the client has received a MSGID, i.e.
+      * the message is already received by the server.
+      * Possible scenarions when this can happens are:
+      * - We went offline after sending a message bug just before receiving
+      *  the confirmation for it.
+      * - We tried to send the message while offline and restarted the app
+      * while still offline, then went online. On *nix systems, the packets
+      * from the previous app run are kept in the TCP output queue, and once
+      * the machine goes online, they are sent, effectively behaving like a
+      * second client that sent the same message with the same msgxid.
+      * When the actual client tries to send it again, the server sees the
+      * same msgxid and returns OP_MSGID with the already assigned id
+      * of the message. The client must have already received this message as
+      * a NEWMSG upon reconnect, so it can just remove the pending message.
+      */
+    virtual void onMessageRejected(const Message& msg, uint8_t reason){}
 
     /** @brief A message was delivered, seen, etc. When the seen/received pointers are advanced,
      * this will be called for each message of the pointer-advanced range, so the application
@@ -242,6 +262,14 @@ public:
      * @param msg Contains the properties of the last text message
      */
     virtual void onLastTextMessageUpdated(const LastTextMsg& msg) {}
+    /**
+     * @brief Called when a message with a newer timestamp/modification time
+     * is encountered. This can be used by the app to order chats in the chat
+     * list GUI based on last interaction.
+     * @param ts The timestamp of the newer message. If a message is edited,
+     * ts is the sum of the original message timestamp and the update delta.
+     */
+    virtual void onLastMessageTsUpdated(uint32_t ts) {}
 };
 
 class Client;
@@ -506,11 +534,13 @@ protected:
      * of new messages may work synchronously and not be delayed.
      */
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
+    uint32_t mLastMsgTs;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
+    size_t mIgnoreKeyAcks = 0;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
-         const karere::SetOfIds& users, ICrypto* crypto);
+         const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
     Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
@@ -522,6 +552,8 @@ protected:
     }
     // msgid can be 0 in case of rejections
     Idx msgConfirm(karere::Id msgxid, karere::Id msgid);
+    bool msgAlreadySent(karere::Id msgxid, karere::Id msgid);
+    Message* msgRemoveFromSending(karere::Id msgxid, karere::Id msgid);
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
     bool msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx);
     void msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx);
@@ -558,6 +590,7 @@ protected:
     void logSend(const Command& cmd);
     void handleBroadcast(karere::Id userid, uint8_t type);
     void findAndNotifyLastTextMsg();
+    void onMsgTimestamp(uint32_t ts); //support for newest-message-timestamp
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -858,6 +891,10 @@ public:
      * then it will call the callback.
      */
     uint8_t lastTextMessage(LastTextMsg*& msg);
+
+    /** @brief Returns the timestamp of the newest known message */
+    uint32_t lastMessageTs() { return mLastMsgTs; }
+
     /** @brief Changes the Listener */
     void setListener(Listener* newListener) { mListener = newListener; }
 
@@ -948,6 +985,7 @@ protected:
             throw std::runtime_error("chatidConn: Unknown chatid "+chatid.toString());
         return *it->second;
     }
+    bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
 public:
     static ws_base_s sWebsocketContext;
@@ -967,7 +1005,7 @@ public:
      * with the newly created Chat object.
      */
     Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
-        Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto);
+        Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     promise::Promise<void> disconnect();

@@ -50,7 +50,8 @@ void Url::parse(const std::string& url)
             break;
     }
 
-    host = url.substr(ss, i-ss);
+    if (host.empty())
+        host = url.substr(ss, i-ss);
 
     if (i < url.size()) //not only host and protocol
     {

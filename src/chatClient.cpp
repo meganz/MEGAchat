@@ -56,9 +56,9 @@ Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint
   api(sdk), app(aApp),
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
+  mMyName("\0", 1),
   mOwnPresence(Presence::kInvalid),
-  mPresencedClient(*this, caps),
-  mMyName("\0", 1)
+  mPresencedClient(*this, caps)
 {
 }
 
@@ -349,7 +349,7 @@ void Client::commit()
 void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
 {
     assert(event);
-    if (event->getType() == ::mega::MegaEvent::EVENT_COMMIT_DB)
+    if ((event->getType() == ::mega::MegaEvent::EVENT_COMMIT_DB) && db)
     {
         auto pscsn = event->getText();
         if (!pscsn)
@@ -451,9 +451,9 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     api.sdk.pauseActionPackets();
     api.sdk.removeRequestListener(this);
     auto state = mInitState;
-    auto pscsn = api.sdk.getSequenceNumber();
-    assert(pscsn);
-    std::string scsn(pscsn);
+    char* pscsn = api.sdk.getSequenceNumber();
+    std::string scsn = pscsn ? pscsn : "";
+    delete pscsn;
     std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
     std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
@@ -809,7 +809,7 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         mOwnPresence = forcedPres;
         app.onOwnPresence(forcedPres, true);
     }
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), forcedPres);
+    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(forcedPres));
 
 // Create and register the rtcmodule plugin
 // the MegaCryptoFuncs object needs api.userData (to initialize the private key etc)
@@ -824,14 +824,8 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
 void Client::setOwnPresence(Presence pres, bool force)
 {
     mOwnPresence = pres;
-    mPresencedClient.setPresence(pres, force);
+    mPresencedClient.setPresence(pres);
     app.onOwnPresence(pres, true);
-}
-
-void Client::onOwnPresence(Presence pres)
-{
-    mOwnPresence = pres;
-    app.onOwnPresence(pres, false);
 }
 
 void Contact::updatePresence(Presence pres)
@@ -840,7 +834,13 @@ void Contact::updatePresence(Presence pres)
     updateAllOnlineDisplays(pres);
 }
 
-void Client::onPresence(Id userid, Presence pres)
+void Client::onOwnPresence(Presence pres)
+{
+    mOwnPresence = pres;
+    app.onOwnPresence(pres, false);
+}
+
+void Client::onPeerPresence(Id userid, Presence pres)
 {
     auto it = contactList->find(userid);
     if (it != contactList->end())
@@ -916,7 +916,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
 
 promise::Promise<void> Client::setPresence(Presence pres, bool force)
 {
-    if (!mPresencedClient.setPresence(pres, force))
+    if (!mPresencedClient.setPresence(pres))
         return promise::Error("Not connected");
     else
     {
@@ -989,21 +989,18 @@ ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
   unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& aTitle)
    :parent(aParent), mChatid(chatid),
     mShardNo(aShard), mIsGroup(aIsGroup),
-    mOwnPriv(aOwnPriv), mTitleString(aTitle), mLastMsgTs(ts)
+    mOwnPriv(aOwnPriv), mTitleString(aTitle), mCreationTs(ts)
 {}
 
-chatd::Message* ChatRoom::editMessage(chatd::Message& msg, const char* newdata, size_t newlen, void* userp)
+//chatd::Listener
+void ChatRoom::onLastMessageTsUpdated(uint32_t ts)
 {
-    auto ret = mChat->msgModify(msg, newdata, newlen, userp);
-    onMessageTimestamp(time(NULL));
-    return ret;
-}
-
-chatd::Message* ChatRoom::sendMessage(const char* msg, size_t msglen, unsigned char type, void* userp)
-{
-    auto ret = mChat->msgSubmit(msg, msglen, type, userp);
-    onMessageTimestamp(ret->ts);
-    return ret;
+    callAfterInit(this, [this, ts]()
+    {
+        auto display = roomGui();
+        if (display)
+            display->onLastTsUpdated(ts);
+    });
 }
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
@@ -1017,32 +1014,9 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
 {
     mChat = &parent.client.chatd->createChat(
         mChatid, mShardNo, mUrl, this, initialUsers,
-        parent.client.newStrongvelope(chatid()));
+        parent.client.newStrongvelope(chatid()), mCreationTs);
     if (mOwnPriv == chatd::PRIV_NOTPRESENT)
         mChat->disable(true);
-}
-
-void ChatRoom::onMessageTimestamp(uint32_t ts)
-{
-    if (ts <= mLastMsgTs)
-        return;
-    mLastMsgTs = ts;
-    callAfterInit(this, [this, ts]()
-    {
-        auto display = roomGui();
-        if (display)
-            display->onLastTsUpdated(ts);
-    });
-}
-
-void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
-{
-    onMessageTimestamp(msg.ts);
-}
-
-void ChatRoom::onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal)
-{
-    onMessageTimestamp(msg.ts);
 }
 
 template <class T, typename F>
@@ -1354,8 +1328,6 @@ void ChatRoomList::loadFromDb()
     SqliteStmt stmt(client.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title from chats");
     while(stmt.step())
     {
-        if ((stmt.intCol(3) == chatd::PRIV_NOTPRESENT) && client.skipInactiveChatrooms)
-            continue;
         auto chatid = stmt.uint64Col(0);
         if (find(chatid) != end())
         {
@@ -1478,11 +1450,6 @@ void GroupChatRoom::setRemoved()
     mOwnPriv = chatd::PRIV_NOTPRESENT;
     sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
     notifyExcludedFromChat();
-    if (parent.client.skipInactiveChatrooms)
-    {
-        parent.erase(mChatid);
-        delete this;
-    }
 }
 
 void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
@@ -1490,8 +1457,9 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     if (!rooms)
         return;
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
-    const char* pscsn = api.sdk.getSequenceNumber();
+    char* pscsn = api.sdk.getSequenceNumber();
     std::string scsn = pscsn ? pscsn : "";
+    delete pscsn;
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
@@ -1537,16 +1505,13 @@ void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
             else
             {
                 KR_LOG_DEBUG("Chatroom[%s]: Received new INACTIVE room",  Id(chatid).toString().c_str());
-                if (!client.skipInactiveChatrooms)
+                auto room = addRoom(*apiRoom);
+                if (!room)
+                    continue;
+                if (!room->isGroup())
                 {
-                    auto room = addRoom(*apiRoom);
-                    if (!room)
-                        continue;
-                    if (!room->isGroup())
-                    {
-                        KR_LOG_ERROR("... inactive room is 1on1: only group chatrooms can be inactive");
-                        continue;
-                    }
+                    KR_LOG_ERROR("... inactive room is 1on1: only group chatrooms can be inactive");
+                    continue;
                 }
             }
         }
@@ -2458,7 +2423,7 @@ Contact* ContactList::contactFromJid(const std::string& jid) const
         return it->second;
 }
 
-void Client::onConnStateChange(presenced::Client::State state)
+void Client::onConnStateChange(presenced::Client::ConnState state)
 {
 }
 
