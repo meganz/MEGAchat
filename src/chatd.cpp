@@ -642,6 +642,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     assert(mDbInterface);
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
+    mOldestKnownMsgId = info.oldestDbId;
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
