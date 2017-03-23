@@ -293,11 +293,11 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 // if setting to online, better to use dynamic in order to avoid sticky online that
                 // would be kept even when the user goes offline
-                mClient->setPresence(karere::Presence::kClear, karere::Client::kSetPresOverride);
+                mClient->setPresence(karere::Presence::kClear);
                 presenceType = karere::Client::kSetPresDynamic;
             }
 
-            mClient->setPresence(request->getNumber(), presenceType)
+            mClient->setPresence(request->getNumber())
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);

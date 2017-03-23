@@ -195,12 +195,11 @@ void MainWindow::setOnlineStatus()
     }
     if (pres == Presence::kOnline)
     {
-        client().setPresence(Presence::kClear, Client::kSetPresOverride);
-        client().setPresence(Presence::kOnline, Client::kSetPresDynamic);
+        client().setPresence(Presence::kOnline);
     }
     else
     {
-        client().setPresence(pres, Client::kSetPresOverride);
+        client().setPresence(pres);
     }
 }
 

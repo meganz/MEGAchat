@@ -130,12 +130,6 @@ public:
         }
         mLastOverlayCount = count;
     }
-    virtual void onPresenceChanged(karere::Presence state)
-    {
-        ui.mOnlineIndicator->setStyleSheet(
-            QString("background-color: ")+gOnlineIndColors[state]+
-            ";border-radius: 4px");
-    }
 //===
     CListItem(QWidget* parent)
     : QWidget(parent)
@@ -189,9 +183,15 @@ public:
         GUI_LOG_DEBUG("%s: onLastTsUpdated: %u", karere::Id(room().chatid()).toString().c_str(), ts);
     }
 
-    virtual void onOnlineChatState(const chatd::ChatState state)
+    virtual void onChatOnlineState(const chatd::ChatState state)
     {
-        // TODO: update the status of the chatd connection
+        karere::Presence virtPresence = (state==chatd::kChatStateOnline)
+            ? karere::Presence::kOnline
+            : karere::Presence::kOffline;
+
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[virtPresence]
+            +";border-radius: 4px");
     }
 
 //==
@@ -351,7 +351,9 @@ public:
     }
     virtual void onPresenceChanged(karere::Presence state)
     {
-        // TODO: update the presence for contacts
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[state]+
+            ";border-radius: 4px");
     }
 
     virtual void mouseDoubleClickEvent(QMouseEvent* event)

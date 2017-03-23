@@ -164,6 +164,7 @@ public:
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onExcludedFromRoom() {}
+    virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
     {
         KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, userid %s]: %s",
@@ -218,7 +219,6 @@ public:
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
     virtual void onUserLeave(Id userid);
-    virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUnreadChanged();
 /** @endcond */
 };
@@ -300,7 +300,6 @@ public:
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
     void onUserLeave(Id userid);
-    void onOnlineStateChange(chatd::ChatState);
     void onUnreadChanged();
 //====
     /** @endcond PRIVATE */
@@ -728,7 +727,7 @@ public:
     * @param force Forces re-setting the presence, even if the current presence
     * is the same. Normally is \c false
     */
-    promise::Promise<void> setPresence(const Presence pres, bool force = kSetPresDynamic);
+    promise::Promise<void> setPresence(const Presence pres);
 
     /** @brief Creates a group chatroom with the specified peers, privileges
      * and title.
@@ -781,7 +780,7 @@ protected:
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
-    void setOwnPresence(Presence pres, bool force);
+ //   void setOwnPresence(Presence pres);
     promise::Promise<int> initializeContactList();
     /** @brief A convenience method to log in the associated Mega SDK instance,
      *  using IApp::ILoginDialog to ask the user/app for credentials. This

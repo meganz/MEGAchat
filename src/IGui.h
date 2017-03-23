@@ -215,7 +215,9 @@ public:
          */
         virtual void onLastTsUpdated(uint32_t ts) {}
 
-        virtual void onOnlineChatState(const chatd::ChatState state) {}
+        /** @brief Called when the connection state to the chatroom shard changes.
+         */
+        virtual void onChatOnlineState(const chatd::ChatState state) {}
     };
 
     /**
