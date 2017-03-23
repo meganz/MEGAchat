@@ -351,7 +351,7 @@ void MegaChatApiTest::TEST_resumeSession()
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_LOGOUT]; *flag = false;
     megaChatApi[0]->logout();
     assert(waitForResponse(flag));
-    assert(!lastChatError[0]);
+    assert(!lastErrorChat[0]);
     megaChatApi[0]->setLoggerObject(NULL);
     delete megaChatApi[0];
     // create a new MegaChatApi instance
@@ -372,7 +372,7 @@ void MegaChatApiTest::TEST_resumeSession()
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
     megaChatApi[0]->connect();
     assert(waitForResponse(flag));
-    assert(!lastChatError[0]);
+    assert(!lastErrorChat[0]);
     // check there's a list of chats already available
     list = megaChatApi[0]->getChatListItems();
     assert(list->size());
@@ -418,7 +418,7 @@ void MegaChatApiTest::TEST_resumeSession()
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
     megaChatApi[0]->connect();
     assert(waitForResponse(flag));
-    assert(!lastChatError[0]);
+    assert(!lastErrorChat[0]);
     // check there's a list of chats already available
     list = megaChatApi[0]->getChatListItems();
     assert(list->size());
