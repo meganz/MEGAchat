@@ -2764,7 +2764,7 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onEditRejected(const Message &msg, bool oriIsConfirmed)
+void MegaChatRoomHandler::onEditRejected(const Message &msg, chatd::ManualSendReason oriIsConfirmed)
 {
     Idx index;
     Message::Status status;

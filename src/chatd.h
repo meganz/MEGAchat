@@ -185,7 +185,7 @@ public:
      * or has not been confirmed and only a transaction id (msgxid),
      * hence msg.id() returns the msgxid.
      */
-    virtual void onEditDuplicate(const Message& msg){}
+    virtual void onEditRejected(const Message& msg, ManualSendReason reason){}
 
     /** @brief The chatroom connection (to the chatd server shard) state
      * has changed.

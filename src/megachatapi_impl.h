@@ -330,7 +330,7 @@ public:
     virtual void onMessageRejected(const chatd::Message& msg, uint8_t reason);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
-    virtual void onEditRejected(const chatd::Message& msg, bool oriIsConfirmed);
+    virtual void onEditRejected(const chatd::Message& msg, chatd::ManualSendReason reason);
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUserJoin(karere::Id userid, chatd::Priv privilege);
     virtual void onUserLeave(karere::Id userid);

@@ -1562,7 +1562,7 @@ void Chat::moveItemToManualSending(OutputQueue::iterator it, ManualSendReason re
     CALL_DB(saveItemToManualSending, *it, reason);
     if (it->isEdit() && reason == kManualSendEditNoChange)
     {
-        CALL_LISTENER(onEditDuplicate, *it->msg);
+        CALL_LISTENER(onEditRejected, *it->msg, reason);
     }
     else
     {
@@ -1738,7 +1738,7 @@ void Chat::rejectMsgupd(Id id, uint8_t serverReason)
 
     if (serverReason == 2)
     { //edit with same content
-        CALL_LISTENER(onEditDuplicate, msg);
+        CALL_LISTENER(onEditRejected, msg, kManualSendEditNoChange);
         CALL_DB(deleteItemFromSending, mSending.front().rowid);
         mSending.pop_front();
     }
