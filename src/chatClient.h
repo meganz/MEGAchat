@@ -603,7 +603,10 @@ public:
         kInitErrSidMismatch,
 
         /** init() has already been called on that client instance */
-        kInitErrAlready
+        kInitErrAlready,
+
+        /** The session has expired or has been closed. */
+        kInitErrSidInvalid
     };
 
     sqlite3* db = nullptr;

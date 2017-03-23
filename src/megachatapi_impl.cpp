@@ -2035,6 +2035,13 @@ void MegaChatApiImpl::onInitStateChange(int newState)
 {
     API_LOG_DEBUG("Karere initialization state has changed: %d", newState);
 
+    if (newState == karere::Client::kInitErrSidInvalid)
+    {
+        API_LOG_WARNING("Invalid session detected (API_ESID). Logging out...");
+        logout();
+        return;
+    }
+
     int state = MegaChatApiImpl::convertInitState(newState);
 
     // only notify meaningful state to the app
@@ -2073,6 +2080,7 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitCreated:
     case karere::Client::kInitTerminating:
     case karere::Client::kInitTerminated:
+    case karere::Client::kInitErrSidInvalid:
     default:
         return state;
     }

@@ -291,6 +291,17 @@ void MegaChatApiTest::TEST_resumeSession()
     cout << "My email is: " << myEmail << endl;
     delete [] myEmail; myEmail = NULL;
 
+    // Test for management of ESID:
+    // (uncomment the following block)
+//    {
+//        bool *flag = &requestFlagsChat[0][MegaChatRequest::TYPE_LOGOUT]; *flag = false;
+//        // ---> NOW close session remotely ---
+//        sleep(30);
+//        // and wait for forced logout of megachatapi due to ESID
+//        assert(waitForResponse(flag));
+//        session = login(0);
+//    }
+
     // ___ Resume an existing session ___
     logout(0, false); // keeps session alive
     char *tmpSession = login(0, session);

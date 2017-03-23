@@ -445,11 +445,18 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
+    if (e->getErrorCode() == mega::MegaError::API_ESID ||
+            (request->getType() == mega::MegaRequest::TYPE_LOGOUT &&
+             request->getParamType() == mega::MegaError::API_ESID))
+    {
+        setInitState(kInitErrSidInvalid);
+        return;
+    }
+
     if (!request || (request->getType() != mega::MegaRequest::TYPE_FETCH_NODES))
         return;
 
     api.sdk.pauseActionPackets();
-    api.sdk.removeRequestListener(this);
     auto state = mInitState;
     char* pscsn = api.sdk.getSequenceNumber();
     std::string scsn = pscsn ? pscsn : "";
