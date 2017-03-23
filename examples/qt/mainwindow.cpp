@@ -434,6 +434,12 @@ void MainWindow::onInitStateChange(int newState)
     if (!isVisible() && (newState == karere::Client::kInitHasOfflineSession
                       || newState == karere::Client::kInitHasOnlineSession))
         show();
+
+    if (newState == karere::Client::kInitErrSidInvalid)
+    {
+       // TODO: manage the invalid/closed session by showing a warning to user
+       // and terminate karere client (remove caches, close app)
+    }
 }
 
 QString prettyInterval(int64_t secs)
