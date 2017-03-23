@@ -1142,7 +1142,7 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
     waiter->notify();
 }
 
-void MegaChatApiImpl::setPresenceAutoaway(bool enable, int timeout)
+void MegaChatApiImpl::setPresenceAutoaway(bool enable, int64_t timeout)
 {
     sdkMutex.lock();
 

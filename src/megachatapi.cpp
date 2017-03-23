@@ -133,7 +133,7 @@ void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
     pImpl->setOnlineStatus(status, listener);
 }
 
-void MegaChatApi::setPresenceAutoaway(bool enable, int timeout)
+void MegaChatApi::setPresenceAutoaway(bool enable, int64_t timeout)
 {
     pImpl->setPresenceAutoaway(enable, timeout);
 }

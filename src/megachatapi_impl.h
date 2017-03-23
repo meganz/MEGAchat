@@ -725,7 +725,7 @@ public:
     int getOnlineStatus();
     bool isOnlineStatusPending();
 
-    void setPresenceAutoaway(bool enable, int timeout);
+    void setPresenceAutoaway(bool enable, int64_t timeout);
     void setPresencePersist(bool enable);
     void signalPresenceActivity();
     MegaChatPresenceConfig *getPresenceConfig();
