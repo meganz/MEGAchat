@@ -1811,27 +1811,6 @@ void ChatRoom::removeAppChatHandler()
     mChat->setListener(this);
 }
 
-Presence PeerChatRoom::presence() const
-{
-    return calculatePresence(mContact.presence());
-}
-
-void PeerChatRoom::notifyPresenceChange(Presence pres)
-{
-    if (mRoomGui)
-        mRoomGui->onPresenceChanged(pres);
-    if (mAppChatHandler)
-        mAppChatHandler->onPresenceChanged(pres);
-}
-
-void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
-{
-    if (mRoomGui)
-        mRoomGui->onPresenceChanged(pres);
-    if (mAppChatHandler)
-        mAppChatHandler->onPresenceChanged(pres);
-}
-
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
     if (userid == parent.client.myHandle())
@@ -1898,13 +1877,9 @@ void ChatRoom::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
 //chatd notification
 void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
-    if (state == chatd::kChatStateOnline)
+    if (mRoomGui)
     {
-        notifyPresenceChange(presence());
-    }
-    else
-    {
-        notifyPresenceChange(Presence::kOffline);
+        mRoomGui->onOnlineChatState(state);
     }
 }
 
@@ -1938,9 +1913,10 @@ void ChatRoom::notifyTitleChanged()
 
 void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
-    updateAllOnlineDisplays((state == chatd::kChatStateOnline)
-        ? Presence::kOnline
-        : Presence::kOffline);
+    if (mRoomGui)
+    {
+        mRoomGui->onOnlineChatState(state);
+    }
 }
 
 void GroupChatRoom::onUnreadChanged()

@@ -222,7 +222,6 @@ private:
     mega::visibility_t visibility;
     std::string title;
     int unreadCount;
-    int status;
     std::string lastMsg;
     int lastMsgType;
     MegaChatHandle lastMsgSender;
@@ -239,7 +238,6 @@ public:
     virtual const char *getTitle() const;
     virtual int getVisibility() const;
     virtual int getUnreadCount() const;
-    virtual int getOnlineStatus() const;
     virtual const char *getLastMessage() const;
     virtual int getLastMessageType() const;
     virtual MegaChatHandle getLastMessageSender() const;
@@ -251,7 +249,6 @@ public:
     void setVisibility(mega::visibility_t visibility);
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
-    void setOnlineStatus(int status);
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
@@ -266,13 +263,13 @@ public:
     // karere::IApp::IListItem::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
-    virtual void onPresenceChanged(karere::Presence state);
 
     // karere::IApp::IListItem::IChatListItem implementation
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
     virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastTsUpdated(uint32_t ts);
+    virtual void onOnlineChatState(const chatd::ChatState state);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
@@ -315,7 +312,6 @@ public:
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
-    virtual void onPresenceChanged(karere::Presence state);
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
@@ -462,12 +458,10 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     virtual int getUnreadCount() const;
-    virtual int getOnlineStatus() const;
     virtual MegaChatHandle getUserTyping() const;
 
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
-    void setOnlineStatus(int status);
     void setMembersUpdated();
     void setUserTyping(MegaChatHandle uh);
     void setClosed();
@@ -486,7 +480,6 @@ private:
 
     std::string title;
     int unreadCount;
-    int status;
     MegaChatHandle uh;
 
 public:
