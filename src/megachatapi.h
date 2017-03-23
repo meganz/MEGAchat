@@ -1155,7 +1155,7 @@ public:
      * @param enable True to enable the autoaway feature
      * @param timeout Seconds to wait before turning away (if no activity has been signalled)
      */
-    void setPresenceAutoaway(bool enable, int timeout);
+    void setPresenceAutoaway(bool enable, int64_t timeout);
 
     /**
      * @brief Enable/disable the persist option
@@ -1204,7 +1204,7 @@ public:
      *
      * @see \c MegaChatPresenceConfig for further details.
      *
-     * @return The current presence configuration
+     * @return The current presence configuration, or NULL if not received yet from server
      */
     MegaChatPresenceConfig *getPresenceConfig();
 
@@ -2448,15 +2448,16 @@ public:
     virtual void onChatInitStateUpdate(MegaChatApi* api, int newState);
 
     /**
-     * @brief This function is called when the own online status has changed
+     * @brief This function is called when the online status of a user has changed
      *
      * @param api MegaChatApi connected to the account
+     * @param userhandle MegaChatHandle of the user whose online status has changed
      * @param status New online status
-     * @param inProgress Whether the reported status is being set or it is definitive
+     * @param inProgress Whether the reported status is being set or it is definitive (only for your own changes)
      *
      * @note When the online status is in progress, apps may notice showing a blinking status or similar.
      */
-    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status, bool inProgress);
+    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress);
 
     /**
      * @brief This function is called when the presence configuration has changed
