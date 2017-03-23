@@ -484,7 +484,8 @@ public:
     virtual void init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
     {
         mChat = &chat;
-        onOnlineStateChange(mChat->onlineState());
+        onPresenceChanged(mRoom.presence());
+        updateChatdStatusDisplay(mChat->onlineState());
         mChat->resetListenerState();
         auto source = mChat->getHistory(kHistBatchSize);
         printf("initial getHistory: source = %d\n", source);

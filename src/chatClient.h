@@ -81,6 +81,13 @@ public:
     /** @brief The text that will be displayed on the chat list for that chat */
     virtual const std::string& titleString() const = 0;
 
+    /**
+     * @brief The current presence status of the chat. If this is a 1on1 chat, this is
+     * the same as the presence of the peer. If it is a groupchat, it is
+     * derived from the chatd chatroom status
+     */
+    virtual Presence presence() const = 0;
+
     /** @brief Connects to the chatd chatroom */
     virtual void connect() = 0;
 
@@ -191,8 +198,10 @@ protected:
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
     bool syncPeerPriv(chatd::Priv priv);
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
+    void notifyPresenceChange(Presence pres);
     void initWithChatd();
     virtual void connect();
+    inline Presence calculatePresence(Presence pres) const;
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
@@ -213,6 +222,13 @@ public:
     /** @brief The screen name of the peer */
     virtual const std::string& titleString() const;
 
+    /** @brief The presence status of the chatroom. Derived from the presence
+     * of the peer and the status of the chatroom reported by chatd. For example,
+     * the peer may be online, but the chatd connection may be offline or there may
+     * be a problem joining the chatroom on chatd. In such a case, the presence
+     * will be `offline`
+     */
+    virtual Presence presence() const;
     promise::Promise<void> mediaCall(AvFlags av);
 /** @cond PRIVATE */
     //chatd::Listener interface
@@ -275,6 +291,7 @@ public:
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
+    void updateAllOnlineDisplays(Presence pres);
     void addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(uint64_t userid);
     void updatePeerPresence(uint64_t peer, Presence pres);
@@ -461,6 +478,8 @@ public:
     {
         if (mDisplay)
             mDisplay->onPresenceChanged(pres);
+        if (mChatRoom)
+            mChatRoom->notifyPresenceChange(mChatRoom->calculatePresence(pres));
     }
 };
 
@@ -835,6 +854,13 @@ protected:
     friend class ChatRoomList;
 /** @endcond PRIVATE */
 };
+
+inline Presence PeerChatRoom::calculatePresence(Presence pres) const
+{
+     if (mChat && mChat->onlineState() != chatd::kChatStateOnline)
+         return Presence::kOffline;
+     return pres;
+}
 
 }
 #endif // CHATCLIENT_H

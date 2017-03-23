@@ -1984,7 +1984,7 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS          = 0x01, /// obsolete
+        CHANGE_TYPE_STATUS          = 0x01,
         CHANGE_TYPE_VISIBILITY      = 0x02, /// The contact of 1on1 chat has changed: added/removed... (chat remains even for removed contacts)
         CHANGE_TYPE_UNREAD_COUNT    = 0x04,
         CHANGE_TYPE_PARTICIPANTS    = 0x08,
@@ -2012,6 +2012,31 @@ public:
      * @return The title of the chat as a null-terminated char array.
      */
     virtual const char *getTitle() const;
+
+    /**
+     * @brief Returns the online status of the chatroom
+     *
+     * The app may use this value to show in the chatlist the status of the chat
+     *
+     * It can be one of the following values:
+     *
+     * - MegaChatApi::STATUS_OFFLINE = 1
+     * It is not connected
+     *
+     * - MegaChatApi::STATUS_ONLINE = 3
+     * The connection is alive and properly joined to the chatroom.
+     *
+     * Additionally, for 1on1 chatrooms, the following values are also valid:
+     *
+     * - MegaChatApi::STATUS_AWAY = 2
+     * The peer of the chat is away and might not answer
+     *
+     * - MegaChatApi::STATUS_BUSY = 4
+     * The peer of the chat is busy and don't want to be disturbed.
+     *
+     * @return Online status of the chat
+     */
+    virtual int getOnlineStatus() const;
 
     /**
      * @brief Returns the visibility of the peer in a 1on1 chatroom.
@@ -2127,7 +2152,7 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS          = 0x01, /// obsolete
+        CHANGE_TYPE_STATUS          = 0x01,
         CHANGE_TYPE_UNREAD_COUNT    = 0x02,
         CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
         CHANGE_TYPE_TITLE           = 0x08,
@@ -2311,6 +2336,31 @@ public:
      * @return The title of the chat as a null-terminated char array.
      */
     virtual const char *getTitle() const;
+
+    /**
+     * @brief Returns the online status of the chatroom
+     *
+     * The app may use this value to show in the chatlist the status of the chat
+     *
+     * It can be one of the following values:
+     *
+     * - MegaChatApi::STATUS_OFFLINE = 1
+     * It is not connected
+     *
+     * - MegaChatApi::STATUS_ONLINE = 3
+     * The connection is alive and properly joined to the chatroom.
+     *
+     * Additionally, for 1on1 chatrooms, the following values are also valid:
+     *
+     * - MegaChatApi::STATUS_AWAY = 2
+     * The peer of the chat is away and might not answer
+     *
+     * - MegaChatApi::STATUS_BUSY = 4
+     * The peer of the chat is busy and don't want to be disturbed.
+     *
+     * @return Online status of the chat
+     */
+    virtual int getOnlineStatus() const;
 
     /**
      * @brief Returns the number of unread messages for the chatroom

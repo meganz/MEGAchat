@@ -2680,6 +2680,14 @@ void MegaChatRoomHandler::onUnreadCountChanged(int count)
     chatApi->fireOnChatRoomUpdate(chat);
 }
 
+void MegaChatRoomHandler::onPresenceChanged(Presence state)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chat->setOnlineStatus(state.status());
+
+    chatApi->fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::init(Chat &chat, DbInterface *&)
 {
     mChat = &chat;
@@ -2980,6 +2988,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->group = chat->isGroup();
     this->title = chat->getTitle();
     this->unreadCount = chat->getUnreadCount();
+    this->status = chat->getOnlineStatus();
     this->active = chat->isActive();
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
@@ -3016,6 +3025,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
 
             this->peerEmails.push_back(it->second->email());
         }
+        this->status = chat.chatdOnlineState();
     }
     else
     {
@@ -3035,6 +3045,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         delete [] buffer;
 
         this->peerEmails.push_back(peerchat.contact().email());
+
+        this->status = chat.presence().status();
     }
 }
 
@@ -3227,6 +3239,11 @@ int MegaChatRoomPrivate::getUnreadCount() const
     return unreadCount;
 }
 
+int MegaChatRoomPrivate::getOnlineStatus() const
+{
+    return status;
+}
+
 MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
 {
     return uh;
@@ -3242,6 +3259,12 @@ void MegaChatRoomPrivate::setUnreadCount(int count)
 {
     this->unreadCount = count;
     this->changed |= MegaChatRoom::CHANGE_TYPE_UNREAD_COUNT;
+}
+
+void MegaChatRoomPrivate::setOnlineStatus(int status)
+{
+    this->status = status;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_STATUS;
 }
 
 void MegaChatRoomPrivate::setMembersUpdated()
@@ -3312,6 +3335,14 @@ void MegaChatListItemHandler::onUnreadCountChanged(int count)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setUnreadCount(count);
+
+    chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatListItemHandler::onPresenceChanged(Presence state)
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setOnlineStatus(state.status());
 
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -3409,6 +3440,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->unreadCount = chatroom.chat().unreadMsgCount();
     this->group = chatroom.isGroup();
     this->active = chatroom.isActive();
+    this->status = group ? chatroom.chatdOnlineState() : chatroom.presence().status();
     this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
@@ -3439,6 +3471,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->title = item->getTitle();
     this->visibility = (visibility_t) item->getVisibility();
     this->unreadCount = item->getUnreadCount();
+    this->status = item->getOnlineStatus();
     this->changed = item->getChanges();
     this->lastTs = item->getLastTimestamp();
     this->lastMsg = item->getLastMessage();
@@ -3486,6 +3519,11 @@ int MegaChatListItemPrivate::getVisibility() const
 int MegaChatListItemPrivate::getUnreadCount() const
 {
     return unreadCount;
+}
+
+int MegaChatListItemPrivate::getOnlineStatus() const
+{
+    return status;
 }
 
 const char *MegaChatListItemPrivate::getLastMessage() const
@@ -3539,6 +3577,12 @@ void MegaChatListItemPrivate::setUnreadCount(int count)
 {
     this->unreadCount = count;
     this->changed |= MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT;
+}
+
+void MegaChatListItemPrivate::setOnlineStatus(int status)
+{
+    this->status = status;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_STATUS;
 }
 
 void MegaChatListItemPrivate::setMembersUpdated()
@@ -3612,11 +3656,6 @@ void MegaChatListItemHandler::onLastTsUpdated(uint32_t ts)
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setLastTimestamp(ts);
     chatApi.fireOnChatListItemUpdate(item);
-}
-
-void MegaChatListItemHandler::onOnlineChatState(const ChatState state)
-{
-    // apps are not interested on this event
 }
 
 MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)

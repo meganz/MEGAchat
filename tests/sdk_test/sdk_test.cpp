@@ -218,6 +218,7 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
     {
         cout << "\tTitle: " << chat->getTitle() << endl;
     }
+    cout << "\tOnline state: " << MegaChatRoom::statusToString(chat->getOnlineStatus()) << endl;
     cout << "\tUnread count: " << chat->getUnreadCount() << " message/s" << endl;
     cout << "-------------------------------------------------" << endl;
     fflush(stdout);
@@ -251,7 +252,7 @@ void MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
     const char *title = item->getTitle() ? item->getTitle() : "<empty>";
 
     cout << "id: " << item->getChatId() << ", title: " << title;
-    cout << ", visibility: " << item->getVisibility();
+    cout << ", status: " << item->getOnlineStatus() << ", visibility: " << item->getVisibility();
     cout << ", unread: " << item->getUnreadCount() << ", changes: " << item->getChanges();
     cout << ", lastMsg: " << item->getLastMessage() << ", lastMsgType: " << item->getLastMessageType();
     cout << ", lastTs: " << item->getLastTimestamp() << endl;
