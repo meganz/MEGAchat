@@ -203,7 +203,12 @@ public:
     }
     bool setPresence(karere::Presence pres);
     bool setPersist(bool enable);
-    bool setAutoaway(bool enable, uint16_t timeout);
+
+    /** @brief Enables or disables autoaway
+     * @param timeout The timeout in seconds after which the presence will be
+     *  set to away
+     */
+    bool setAutoaway(bool enable, time_t timeout);
     promise::Promise<void>
     connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
         const Config& Config);

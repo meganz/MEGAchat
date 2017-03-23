@@ -212,7 +212,7 @@ bool Client::setPersist(bool enable)
     return sendPrefs();
 }
 
-bool Client::setAutoaway(bool enable, uint16_t timeout)
+bool Client::setAutoaway(bool enable, time_t timeout)
 {
     if (enable)
         mConfig.mPersist = false;
