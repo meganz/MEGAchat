@@ -189,6 +189,11 @@ public:
         GUI_LOG_DEBUG("%s: onLastTsUpdated: %u", karere::Id(room().chatid()).toString().c_str(), ts);
     }
 
+    virtual void onOnlineChatState(const chatd::ChatState state)
+    {
+        // TODO: update the status of the chatd connection
+    }
+
 //==
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
     {
@@ -344,6 +349,11 @@ public:
         }
         updateToolTip();
     }
+    virtual void onPresenceChanged(karere::Presence state)
+    {
+        // TODO: update the presence for contacts
+    }
+
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
     {
         showChatWindow();
