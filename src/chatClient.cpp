@@ -449,7 +449,10 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             (request->getType() == mega::MegaRequest::TYPE_LOGOUT &&
              request->getParamType() == mega::MegaError::API_ESID))
     {
-        setInitState(kInitErrSidInvalid);
+        marshallCall([this]() // update state in the karere thread
+        {
+            setInitState(kInitErrSidInvalid);
+        });
         return;
     }
 
