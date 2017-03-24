@@ -88,6 +88,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
 
     this->waiter = new MegaWaiter();
     this->mClient = NULL;
+    this->terminating = false;
 
     //Start blocking thread
     threadExit = 0;
@@ -191,6 +192,14 @@ void MegaChatApiImpl::sendPendingRequests()
             continue;
         }
 
+        if (terminating)
+        {
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
+            API_LOG_WARNING("Chat engine is being terminated, cannot process the request");
+            fireOnChatRequestFinish(request, megaChatError);
+            continue;
+        }
+
         switch (request->getType())
         {
         case MegaChatRequest::TYPE_CONNECT:
@@ -242,6 +251,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
                         delete mClient;
                         mClient = NULL;
+                        terminating = false;
                      });
                 })
                 .fail([request, this](const promise::Error& e)
@@ -759,6 +769,7 @@ int MegaChatApiImpl::init(const char *sid)
     if (!mClient)
     {
         mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), karere::kClientIsMobile);
+        terminating = false;
     }
 
     ret = MegaChatApiImpl::convertInitState(mClient->init(sid));
@@ -2040,6 +2051,11 @@ void MegaChatApiImpl::onInitStateChange(int newState)
         API_LOG_WARNING("Invalid session detected (API_ESID). Logging out...");
         logout();
         return;
+    }
+
+    if (newState == karere::Client::kInitTerminating)
+    {
+        terminating = true;
     }
 
     int state = MegaChatApiImpl::convertInitState(newState);
