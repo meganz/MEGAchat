@@ -304,8 +304,9 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     widget->fadeIn(QColor(Qt::yellow));
 }
 
-void ChatWindow::onEditDuplicate(const chatd::Message& msg)
+void ChatWindow::onEditRejected(const chatd::Message& msg, chatd::ManualSendReason reason)
 {
+    assert(reason == chatd::kManualSendEditNoChange); //that's the only possible reason
     auto widget = widgetFromMessage(msg);
     if (!widget)
     {
@@ -313,7 +314,9 @@ void ChatWindow::onEditDuplicate(const chatd::Message& msg)
         return;
     }
     widget->setText(*widget->mMessage); //restore original
-    widget->setStatus(chatd::Message::kServerReceived);
+    auto idx = mChat->msgIndexFromId(msg.id());
+    assert(idx != CHATD_IDX_INVALID);
+    widget->setStatus(mChat->getMsgStatus(mChat->at(idx), idx));
 }
 
 void ChatWindow::showCantEditNotice(const QString& action)

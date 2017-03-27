@@ -621,7 +621,7 @@ public:
     }
 
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
-    virtual void onEditDuplicate(const chatd::Message& msg);
+    virtual void onEditRejected(const chatd::Message& msg, chatd::ManualSendReason reason);
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
         mRoom.onOnlineStateChange(state);

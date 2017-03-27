@@ -1560,15 +1560,8 @@ void Chat::moveItemToManualSending(OutputQueue::iterator it, ManualSendReason re
 {
     CALL_DB(deleteItemFromSending, it->rowid);
     CALL_DB(saveItemToManualSending, *it, reason);
-    if (it->isEdit() && reason == kManualSendEditNoChange)
-    {
-        CALL_LISTENER(onEditRejected, *it->msg, reason);
-    }
-    else
-    {
-        CALL_LISTENER(onManualSendRequired, it->msg, it->rowid, reason); //GUI should put this message at end of that list of messages requiring 'manual' resend
-        it->msg = nullptr; //don't delete the Message object, it will be owned by the app
-    }
+    CALL_LISTENER(onManualSendRequired, it->msg, it->rowid, reason); //GUI should put this message at end of that list of messages requiring 'manual' resend
+    it->msg = nullptr; //don't delete the Message object, it will be owned by the app
     mSending.erase(it);
 }
 
