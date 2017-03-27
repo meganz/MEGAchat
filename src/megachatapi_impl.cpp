@@ -2764,24 +2764,19 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onEditRejected(const Message &msg, chatd::ManualSendReason oriIsConfirmed)
+void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason reason)
 {
-    Idx index;
-    Message::Status status;
-
-    if (oriIsConfirmed)    // message is confirmed, but edit has been rejected
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kSendingManual, MEGACHAT_INVALID_INDEX);
+    if (reason == ManualSendReason::kManualSendEditNoChange)
     {
-        index = mChat->msgIndexFromId(msg.id());
-        status = mChat->getMsgStatus(msg, index);
+        API_LOG_WARNING("Edit message rejected because of same content");
+        message->setStatus(mChat->getMsgStatus(msg, msg.id()));
     }
-    else // both, original message and edit, have been rejected
+    else
     {
-        index = MEGACHAT_INVALID_INDEX;
-        status = Message::kServerRejected;
+        message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
+        message->setCode(reason);
     }
-
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, index);
-    message->setStatus(status);
     chatApi->fireOnMessageUpdate(message);
 }
 

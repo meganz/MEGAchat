@@ -261,7 +261,7 @@ public:
         STATUS_SENDING              = 0,    /// Message has not been sent or is not yet confirmed by the server
         STATUS_SENDING_MANUAL       = 1,    /// Message is too old to auto-retry sending, or group composition has changed, or user has read-only privilege, or user doesn't belong to chatroom. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
         STATUS_SERVER_RECEIVED      = 2,    /// Message confirmed by server, but not yet delivered to recepient(s)
-        STATUS_SERVER_REJECTED      = 3,    /// Message is rejected by server for some reason (editing too old message for example, or the message was confirmed but we didn't receive the confirmation because went offline or closed the app before)
+        STATUS_SERVER_REJECTED      = 3,    /// Message is rejected by server for some reason (the message was confirmed but we didn't receive the confirmation because went offline or closed the app before)
         STATUS_DELIVERED            = 4,    /// Peer confirmed message receipt. Used only for 1on1 chats
         // for incoming messages
         STATUS_NOT_SEEN             = 5,    /// User hasn't read this message yet
@@ -289,10 +289,11 @@ public:
 
     enum
     {
-        REASON_PEERS_CHANGED = 1,   /// Group chat participants have changed
-        REASON_TOO_OLD = 2,         /// Message is too old to auto-retry sending
-        REASON_GENERAL_REJECT = 3,  /// chatd rejected the message, for unknown reason
-        REASON_NO_WRITE_ACCESS = 4  /// Read-only privilege or not belong to the chatroom
+        REASON_PEERS_CHANGED        = 1,    /// Group chat participants have changed
+        REASON_TOO_OLD              = 2,    /// Message is too old to auto-retry sending
+        REASON_GENERAL_REJECT       = 3,    /// chatd rejected the message, for unknown reason
+        REASON_NO_WRITE_ACCESS      = 4,    /// Read-only privilege or not belong to the chatroom
+        REASON_NO_CHANGES           = 6     /// Edited message has the same content than original message
     };
 
     virtual ~MegaChatMessage() {}
@@ -463,10 +464,11 @@ public:
      *
      *  - Messages with status MegaChatMessage::STATUS_SENDING_MANUAL: the code specifies
      * the reason because the server rejects the message. The possible values are:
-     *      - MegaChatMessage::REASON_PEERS_CHANGED = 1
-     *      - MegaChatMessage::REASON_TOO_OLD = 2
-     *      - MegaChatMessage::REASON_GENERAL_REJECT = 3
-     *      - MegaChatMessage::REASON_NO_WRITE_ACCESS = 4
+     *      - MegaChatMessage::REASON_PEERS_CHANGED     = 1
+     *      - MegaChatMessage::REASON_TOO_OLD           = 2
+     *      - MegaChatMessage::REASON_GENERAL_REJECT    = 3
+     *      - MegaChatMessage::REASON_NO_WRITE_ACCESS   = 4
+     *      - MegaChatMessage::REASON_NO_CHANGES        = 6
      *
      * @return A generic code for additional information about the message.
      */
@@ -2531,6 +2533,10 @@ public:
      *
      * i.e. When a submitted message is confirmed by the server, the status chages
      * to MegaChatMessage::STATUS_SERVER_RECEIVED and its message id is considered definitive.
+     *
+     * An important case is when the edition of a message is rejected. In those cases, the message
+     * status of \c msg will be MegaChatMessage::STATUS_SENDING_MANUAL and the app reason of rejection
+     * is recorded in MegaChatMessage::getCode().
      *
      * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
      * object will be valid until this function returns. If you want to save the MegaChatMessage object,
