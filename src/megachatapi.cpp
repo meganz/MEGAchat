@@ -133,7 +133,7 @@ void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
     pImpl->setOnlineStatus(status, listener);
 }
 
-void MegaChatApi::setPresenceAutoaway(bool enable, int timeout)
+void MegaChatApi::setPresenceAutoaway(bool enable, int64_t timeout)
 {
     pImpl->setPresenceAutoaway(enable, timeout);
 }
@@ -768,7 +768,7 @@ void MegaChatListener::onChatInitStateUpdate(MegaChatApi *api, int newState)
 
 }
 
-void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi *api, int status, bool inProgress)
+void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress)
 {
 
 }

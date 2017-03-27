@@ -212,7 +212,7 @@ bool Client::setPersist(bool enable)
     return sendPrefs();
 }
 
-bool Client::setAutoaway(bool enable, uint16_t timeout)
+bool Client::setAutoaway(bool enable, time_t timeout)
 {
     if (enable)
         mConfig.mPersist = false;
@@ -534,10 +534,7 @@ void Client::handleMessage(const StaticBuffer& buf)
                 READ_ID(userid, 1);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
-                if (userid == mMyHandle)
-                    CALL_LISTENER(onOwnPresence, pres);
-                else
-                    CALL_LISTENER(onPeerPresence, userid, pres);
+                CALL_LISTENER(onPresenceChange, userid, pres);
                 break;
             }
             case OP_PREFS:
