@@ -45,7 +45,7 @@ enum ManualSendReason: uint8_t
     kManualSendTooOld = 2, ///< Message is older than CHATD_MAX_EDIT_AGE seconds
     kManualSendGeneralReject = 3, ///< chatd rejected the message, for unknown reason
     kManualSendNoWriteAccess = 4,  ///< Read-only privilege or not belong to the chatroom
-    kManualSendEditNoChange = 6
+    kManualSendEditNoChange = 6     /// Edit message has same content than message in server
 };
 
 /** The source from where history is being retrieved by the app */
@@ -148,7 +148,7 @@ public:
       * When the reason code is 0, the client has received a MSGID, i.e.
       * the message is already received by the server.
       * Possible scenarions when this can happens are:
-      * - We went offline after sending a message bug just before receiving
+      * - We went offline after sending a message but just before receiving
       *  the confirmation for it.
       * - We tried to send the message while offline and restarted the app
       * while still offline, then went online. On *nix systems, the packets
@@ -180,10 +180,9 @@ public:
     virtual void onMessageEdited(const Message& msg, Idx idx){}
 
     /** @brief An edit posted by us was rejected for some reason.
-     * @param oriIsConfirmed - whether the original of the edit was already
-     * confirmed by the server and has a proper msgid as msg.id(),
-     * or has not been confirmed and only a transaction id (msgxid),
-     * hence msg.id() returns the msgxid.
+     * // TODO
+     * @param msg
+     * @param reason
      */
     virtual void onEditRejected(const Message& msg, ManualSendReason reason){}
 

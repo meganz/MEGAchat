@@ -1736,19 +1736,19 @@ void Chat::rejectMsgupd(Id id, uint8_t serverReason)
     if (msg.id() != id)
         throw std::runtime_error("rejectMsgupd: Message msgid/msgxid does not match the one at the front of send queue");
 
+    /* Server reason:
+        0 - insufficient privs or not in chat
+        1 - message is not your own or you are outside the time window
+        2 - message did not change (with same content)
+    */
     if (serverReason == 2)
-    { //edit with same content
+    {
         CALL_LISTENER(onEditRejected, msg, kManualSendEditNoChange);
         CALL_DB(deleteItemFromSending, mSending.front().rowid);
         mSending.pop_front();
     }
     else
     {
-        /* Server reason:
-            0 - insufficient privs or not in chat
-            1 - message is not your own or you are outside the time window
-            2 - message did not change
-        */
         moveItemToManualSending(mSending.begin(), (serverReason == 0)
             ? kManualSendNoWriteAccess : kManualSendTooOld);
     }
