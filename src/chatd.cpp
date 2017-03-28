@@ -210,10 +210,13 @@ void Connection::websockConnectCb(ws_t ws, void* arg)
 {
     Connection* self = static_cast<Connection*>(arg);
     ASSERT_NOT_ANOTHER_WS("connect");
-    self->mState = kStateConnected;
     CHATD_LOG_DEBUG("Chatd connected to shard %d", self->mShardNo);
-    assert(!self->mConnectPromise.done());
-    self->mConnectPromise.resolve();
+    ::marshallCall([self]()
+    {
+        self->mState = kStateConnected;
+        assert(!self->mConnectPromise.done());
+        self->mConnectPromise.resolve();
+    });
 }
 
 void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preason,
@@ -263,13 +266,14 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         return;
     }
 
-    if (mState == kStateConnecting) //tell retry controller that the connect attempt failed
+    if (mState < kStateLoggedIn) //tell retry controller that the connect attempt failed
     {
-        assert(!mConnectPromise.done());
-        mConnectPromise.reject(reason, errcode, errtype);
+        assert(!mLoginPromise.done());
+        mLoginPromise.reject(reason, errcode, errtype);
     }
     else
     {
+        CHATD_LOG_DEBUG("Socket close and state is not kLoggedIn (but %d), start retry controller", mState);
         mState = kStateDisconnected;
         reconnect(); //start retry controller
     }
@@ -288,8 +292,8 @@ Promise<void> Connection::reconnect(const std::string& url)
 {
     try
     {
-        if (mState == kStateConnecting) //would be good to just log and return, but we have to return a promise
-            throw std::runtime_error(std::string("Already connecting to shard ")+std::to_string(mShardNo));
+        if (mState >= kStateConnecting) //would be good to just log and return, but we have to return a promise
+            throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
         if (!url.empty())
         {
             mUrl.parse(url);
@@ -305,6 +309,8 @@ Promise<void> Connection::reconnect(const std::string& url)
         {
             reset();
             mConnectPromise = Promise<void>();
+            mLoginPromise = Promise<void>();
+            mDisconnectPromise = Promise<void>();
             CHATD_LOG_DEBUG("Chatd connecting to shard %d...", mShardNo);
             checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
             ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
@@ -329,13 +335,14 @@ Promise<void> Connection::reconnect(const std::string& url)
                     chat.setOnlineState(kChatStateConnecting);
             }
             checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str(), services_http_use_ipv6)), "connect");
-            return mConnectPromise;
-        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
-        .then([this]()
-        {
-            enableInactivityTimer();
-            rejoinExistingChats();
-        });
+            return mConnectPromise
+            .then([this]() -> promise::Promise<void>
+            {
+                assert(mState >= kStateConnected);
+                enableInactivityTimer();
+                return rejoinExistingChats();
+            });
+        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
 }
@@ -455,23 +462,23 @@ void Chat::logSend(const Command& cmd)
                 ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.updated());
             break;
         }
-    case OP_NEWKEY:
-    {
-        //auto& keycmd = static_cast<const KeyCommand&>(cmd);
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWKEY\n",
-            ID_CSTR(mChatId));
-        break;
-    }
-      default:
-      {
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send %s\n", ID_CSTR(mChatId), cmd.opcodeName());
-        break;
-      }
+        case OP_NEWKEY:
+        {
+            //auto& keycmd = static_cast<const KeyCommand&>(cmd);
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWKEY\n",
+                        ID_CSTR(mChatId));
+            break;
+        }
+        default:
+        {
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send %s\n", ID_CSTR(mChatId), cmd.opcodeName());
+            break;
+        }
     }
 }
 
 // rejoin all open chats after reconnection (this is mandatory)
-void Connection::rejoinExistingChats()
+promise::Promise<void> Connection::rejoinExistingChats()
 {
     for (auto& chatid: mChatIds)
     {
@@ -483,9 +490,10 @@ void Connection::rejoinExistingChats()
         }
         catch(std::exception& e)
         {
-            CHATD_LOG_ERROR("%s: rejoinExistingChats: Exception: %s", chatid.toString().c_str(), e.what());
+            mLoginPromise.reject(std::string("rejoinExistingChats: Exception: ")+e.what());
         }
     }
+    return mLoginPromise;
 }
 
 // send JOIN
@@ -2273,8 +2281,18 @@ void Chat::onUserLeave(Id userid)
     CALL_LISTENER(onUserLeave, userid);
 }
 
+void Connection::notifyLoggedIn()
+{
+    if (mLoginPromise.done())
+        return;
+    mState = kStateLoggedIn;
+    assert(mConnectPromise.succeeded());
+    mLoginPromise.resolve();
+}
+
 void Chat::onJoinComplete()
 {
+    mConnection.notifyLoggedIn();
     if (mUsers != mUserDump)
     {
         mUsers.swap(mUserDump);

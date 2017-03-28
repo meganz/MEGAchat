@@ -279,7 +279,7 @@ class Client;
 class Connection: public karere::DeleteTrackable
 {
 public:
-    enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected };
+    enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected, kStateLoggedIn };
 protected:
     Client& mClient;
     int mShardNo;
@@ -292,11 +292,12 @@ protected:
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mDisconnectPromise;
+    promise::Promise<void> mLoginPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
     State state() { return mState; }
     bool isOnline() const
     {
-        return (mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
+        return mState >= kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
     }
     static void websockConnectCb(ws_t ws, void* arg);
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
@@ -304,12 +305,13 @@ protected:
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
     promise::Promise<void> disconnect(int timeoutMs=2000);
+    void notifyLoggedIn();
     void enableInactivityTimer();
     void disableInactivityTimer();
     void reset();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
-    void rejoinExistingChats();
+    promise::Promise<void> rejoinExistingChats();
     void resendPending();
     void join(karere::Id chatid);
     void hist(karere::Id chatid, long count);
