@@ -5,6 +5,7 @@
  *      Author: admin2
  */
 #include <stdint.h>
+#include <mega.h>
 #define _DEFAULT_SOURCE 1
 #ifdef __APPLE__
     #include <libkern/OSByteOrder.h>
@@ -26,7 +27,6 @@
 #include "sodium.h"
 #include "tlvstore.h"
 #include <userAttrCache.h>
-#include <mega.h>
 #include <db.h>
 #include <codecvt>
 #include <locale>
