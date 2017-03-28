@@ -1155,7 +1155,7 @@ public:
      * @param enable True to enable the autoaway feature
      * @param timeout Seconds to wait before turning away (if no activity has been signalled)
      */
-    void setPresenceAutoaway(bool enable, int timeout);
+    void setPresenceAutoaway(bool enable, int64_t timeout);
 
     /**
      * @brief Enable/disable the persist option
