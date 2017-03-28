@@ -269,6 +269,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     if (mState < kStateLoggedIn) //tell retry controller that the connect attempt failed
     {
         assert(!mLoginPromise.done());
+        mConnectPromise.reject(reason, errcode, errtype);
         mLoginPromise.reject(reason, errcode, errtype);
     }
     else
@@ -1535,7 +1536,7 @@ void Chat::flushOutputQueue(bool fromStart)
     while (mNextUnsent != mSending.end())
     {
         ManualSendReason reason =
-            ((mNextUnsent->recipients != mUsers) && !mNextUnsent->isEdit())
+             (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients < mUsers))
             ? kManualSendUsersChanged : kManualSendInvalidReason;
 
         if ((reason == kManualSendInvalidReason) && (time(NULL) - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE))
@@ -2470,6 +2471,11 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
 {
     if (type == Command::kBroadcastUserTyping)
         CALL_LISTENER(onUserTyping, from);
+}
+
+bool Chat::manualResendWhenUserJoins() const
+{
+    return mClient.manualResendWhenUserJoins();
 }
 
 void Client::leave(Id chatid)

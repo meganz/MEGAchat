@@ -590,6 +590,7 @@ protected:
     void handleBroadcast(karere::Id userid, uint8_t type);
     void findAndNotifyLastTextMsg();
     void onMsgTimestamp(uint32_t ts); //support for newest-message-timestamp
+    bool manualResendWhenUserJoins() const;
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -988,8 +989,10 @@ protected:
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
 public:
+    enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
     static ws_base_s sWebsocketContext;
     unsigned inactivityCheckIntervalSec = 20;
+    uint32_t options = 0;
     karere::Id userId() const { return mUserId; }
     Client(karere::Id userId);
     ~Client(){}
@@ -1009,6 +1012,7 @@ public:
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     promise::Promise<void> disconnect();
+    bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     friend class Connection;
     friend class Chat;
 };
