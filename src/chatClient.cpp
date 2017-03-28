@@ -807,7 +807,7 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
     if (forcedPres.isValid())
     {
         mOwnPresence = forcedPres;
-        app.onOwnPresence(forcedPres, true);
+        app.onPresenceChanged(mMyHandle, forcedPres, true);
     }
     return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(forcedPres));
 
@@ -825,7 +825,7 @@ void Client::setOwnPresence(Presence pres, bool force)
 {
     mOwnPresence = pres;
     mPresencedClient.setPresence(pres);
-    app.onOwnPresence(pres, true);
+    app.onPresenceChanged(mMyHandle, pres, true);
 }
 
 void Contact::updatePresence(Presence pres)
@@ -834,18 +834,19 @@ void Contact::updatePresence(Presence pres)
     updateAllOnlineDisplays(pres);
 }
 
-void Client::onOwnPresence(Presence pres)
-{
-    mOwnPresence = pres;
-    app.onOwnPresence(pres, false);
-}
-
-void Client::onPeerPresence(Id userid, Presence pres)
+void Client::onPresenceChange(Id userid, Presence pres)
 {
     auto it = contactList->find(userid);
     if (it != contactList->end())
     {
-        it->second->updatePresence(pres);
+        if (it->second->userId() == mMyHandle)
+        {
+            mOwnPresence = pres;
+        }
+        else
+        {
+            it->second->updatePresence(pres);
+        }
     }
     for (auto& item: *chats)
     {
@@ -854,6 +855,8 @@ void Client::onPeerPresence(Id userid, Presence pres)
             continue;
         static_cast<GroupChatRoom&>(chat).updatePeerPresence(userid, pres);
     }
+
+    app.onPresenceChanged(userid, pres, false);
 }
 void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
 {
@@ -861,8 +864,6 @@ void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
     if (it == mPeers.end())
         return;
     it->second->mPresence = pres;
-    if (mRoomGui)
-        mRoomGui->onPeerPresence(pres);
 }
 
 void Client::notifyNetworkOffline()
@@ -920,7 +921,7 @@ promise::Promise<void> Client::setPresence(Presence pres, bool force)
         return promise::Error("Not connected");
     else
     {
-        app.onOwnPresence(pres, true);
+        app.onPresenceChanged(mMyHandle, pres, true);
         return promise::_Void();
     }
 }

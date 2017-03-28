@@ -291,7 +291,6 @@ public:
     // karere::IApp::IListItem::IGroupChatListItem implementation
     virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
     virtual void onUserLeave(uint64_t userid);
-    virtual void onPeerPresence(karere::Presence pres);
 };
 
 class MegaChatPeerListItemHandler :
@@ -304,7 +303,7 @@ public:
 
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
 {
-public:    
+public:
     MegaChatRoomHandler(MegaChatApiImpl*, MegaChatHandle chatid);
 
     // karere::IApp::IChatHandler implementation
@@ -648,7 +647,7 @@ private:
 
     static int convertInitState(int state);
 
-public:    
+public:
     static void megaApiPostMessage(void* msg);
     void postMessage(void *msg);
 
@@ -711,7 +710,7 @@ public:
     // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
     void fireOnChatInitStateUpdate(int newState);
-    void fireOnChatOnlineStatusUpdate(int status, bool inProgress);
+    void fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, int status, bool inProgress);
     void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
 
     // ============= API requests ================
@@ -726,7 +725,7 @@ public:
     int getOnlineStatus();
     bool isOnlineStatusPending();
 
-    void setPresenceAutoaway(bool enable, int timeout);
+    void setPresenceAutoaway(bool enable, int64_t timeout);
     void setPresencePersist(bool enable);
     void signalPresenceActivity();
     MegaChatPresenceConfig *getPresenceConfig();
@@ -795,7 +794,7 @@ public:
     virtual IApp::IChatHandler *createChatHandler(karere::ChatRoom &chat);
     virtual IApp::IContactListHandler *contactListHandler();
     virtual IApp::IChatListHandler *chatListHandler();
-    virtual void onOwnPresence(karere::Presence pres, bool inProgress);
+    virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
