@@ -1790,7 +1790,6 @@ MegaChatMessage *MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeLis
             char zero = 0x0;
             char attachmentType = chatd::Message::kMsgAttachment;
             std::string stringToSend = jSonAttachmentNodes.getString();
-            std::cerr << "MSG -> " << stringToSend << std::endl;
             stringToSend.insert(stringToSend.begin(), attachmentType);
             stringToSend.insert(stringToSend.begin(), zero);
             Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
@@ -3882,8 +3881,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         {
             this->hAction = MEGACHAT_INVALID_HANDLE;
             JSonNode attachments(msg.toText());
-
-            std::cerr << "RECV -> " << msg.toText() << std::endl;
 
             int attachmentNumber = attachments.getNumberVectorElement();
             for (int i = 0; i < attachmentNumber; ++i)
