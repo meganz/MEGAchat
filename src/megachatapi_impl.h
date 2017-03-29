@@ -42,6 +42,8 @@
 #include <karereCommon.h>
 #include <logger.h>
 
+#include <stdint.h>
+
 namespace megachat
 {
 
@@ -525,14 +527,12 @@ public:
     void setContentChanged();
     void setCode(int code);
 
-    int getContactsCount() const;
-    MegaChatHandle getContactUserHandle(int contact) const;
-    const char *getContactName(int contact) const;
-    const char *getContactEmail(int contact) const;
+    virtual int getContactsCount() const;
+    virtual MegaChatHandle getContactUserHandle(int contact) const;
+    virtual const char *getContactName(int contact) const;
+    virtual const char *getContactEmail(int contact) const;
 
-    int getFilesCount() const;
-    MegaChatHandle getAttachNodeHandle(int node) const;
-    const char *getAttachNodeName(int node) const;
+    virtual mega::MegaNodeList *getAttachmentNodeList();
 
 private:
     int changed;
@@ -551,7 +551,7 @@ private:
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
     std::vector<MegaChatUser> megaChatUsers;
-    std::vector<MegaChatNode> megaChatNodes;
+    mega::MegaNodeListPrivate megaNodeList;
 };
 
 //Thread safe request queue
@@ -753,6 +753,8 @@ public:
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
     MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
+    MegaChatMessage *attachNodes(MegaChatHandle chatid, mega::MegaNodeList &nodes);
+    MegaChatMessage *revokeAttachment(MegaChatHandle chatid, MegaChatHandle node);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
@@ -800,32 +802,6 @@ public:
 
 };
 
-class MegaChatNodePrivate : public MegaChatNode
-{
-public:
-    MegaChatNodePrivate(MegaChatHandle nodeId, const std::string &name, const std::vector<long long>& k, int type,
-                        long long size, const std::string &fa, long long timeStamp);
-    virtual ~MegaChatNodePrivate();
-
-    virtual MegaChatHandle getHandle() const;
-    virtual const char *getName() const;
-    virtual long long getTimeStamp() const;
-    virtual long long getSize() const;
-    const char *getFa() const;
-    const int getType() const;
-    long long getK(int index) const;
-
-protected:
-    std::string mFa;
-    megachat::MegaChatHandle mHandle;
-    std::vector<long long> mK;
-    std::string mName;
-    long long mSize;
-    long long mTimeStamp;
-    int mType;
-
-};
-
 class MegaChatUserPrivate : public MegaChatUser
 {
 public:
@@ -840,6 +816,16 @@ protected:
     megachat::MegaChatHandle mHandle;
     std::string mEmail;
     std::string mName;
+};
+
+class DataTranslation
+{
+public:
+    static std::vector<int32_t> b_to_vector(const std::string& datadata);
+
+    //the caller takes the ownership of the returned value
+    static std::string vector_to_b(std::vector<int32_t> vector);
+
 };
 
 

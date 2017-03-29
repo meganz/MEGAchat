@@ -62,10 +62,11 @@ protected:
     void log(int loglevel, const char *message);
 };
 
-class MegaChatApiTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener
+class MegaChatApiTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener, mega::MegaTransferListener
 {
 public:
     MegaChatApiTest();
+    ~MegaChatApiTest();
     void init();
     char *login(int accountIndex, const char *session = NULL);
     void logout(int accountIndex, bool closeSession = false);
@@ -98,6 +99,21 @@ public:
     void TEST_offlineMode();
     void TEST_clearHistory();
     void TEST_switchAccounts();
+    void TEST_downloadAttachment();
+    void TEST_sendAttachment();
+    void TEST_receiveContact();
+    void TEST_sendContact();
+    void TEST_receiveRevokeAttachment();
+    void TEST_sendRevokeAttachment();
+
+    mega::MegaNodeList *getAttachmentNodeList();
+    void setAttachmentNodeList(mega::MegaNodeList *nodeList);
+    void setAttachmentContactList(std::vector<megachat::MegaChatUser> contactList);
+    void setRevokeAttachNode(MegaChatHandle megaChatNode);
+
+    void addDownload();
+    bool &isDownloadRunning();
+    int getTotalDownload() const;
 
 private:
     std::string email[NUM_ACCOUNTS];
@@ -119,6 +135,10 @@ private:
     std::string chatFirstname, chatLastname, chatEmail; // requested via karere
     bool chatNameReceived[NUM_ACCOUNTS];
 
+    mega::MegaNodeList *mAttachmentNodeList;
+    std::vector<megachat::MegaChatUser> mAttachmentUserList;
+    megachat::MegaChatHandle mAttachmentRevokeNode;
+
 //    MegaContactRequest* cr[2];
 
     // flags to monitor the updates of nodes/users/PCRs due to actionpackets
@@ -131,6 +151,10 @@ private:
 
     MegaLoggerSDK *logger;
     MegaChatLoggerSDK *chatLogger;
+
+    unsigned int mActiveDownload;
+    bool mNotDownloadRunning;
+    unsigned int mTotalDownload;
 
 public:
     // implementation for MegaRequestListener
@@ -149,6 +173,12 @@ public:
     virtual void onChatInitStateUpdate(MegaChatApi *api, int newState);
     virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
     virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status);
+
+    virtual void onTransferStart(mega::MegaApi *api, mega::MegaTransfer *transfer);
+    virtual void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error);
+    virtual void onTransferUpdate(mega::MegaApi *api, mega::MegaTransfer *transfer);
+    virtual void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* error);
+    virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
 
 //    void onUsersUpdate(MegaApi* api, MegaUserList *users);
 //    void onNodesUpdate(MegaApi* api, MegaNodeList *nodes);
@@ -169,10 +199,11 @@ public:
 class TestChatRoomListener : public MegaChatRoomListener
 {
 public:
-    TestChatRoomListener(MegaChatApi **apis, MegaChatHandle chatid);
+    TestChatRoomListener(MegaChatApi **apis, MegaChatHandle chatid, MegaChatApiTest* megaChatApi);
 
     MegaChatApi **megaChatApi;
     MegaChatHandle chatid;
+    MegaChatApiTest *mMegaChatApiTest;
 
     bool historyLoaded[NUM_ACCOUNTS];   // when, after loadMessage(X), X messages have been loaded
     bool historyTruncated[NUM_ACCOUNTS];
@@ -182,6 +213,9 @@ public:
     bool msgReceived[NUM_ACCOUNTS];
     bool msgEdited[NUM_ACCOUNTS];
     bool msgRejected[NUM_ACCOUNTS];
+    bool msgAttachmentReceived[NUM_ACCOUNTS];
+    bool msgContactReceived[NUM_ACCOUNTS];
+    bool msgRevokeAttachmentReceived[NUM_ACCOUNTS];
 
     MegaChatMessage *message;
     MegaChatHandle msgId[NUM_ACCOUNTS];
@@ -199,3 +233,4 @@ public:
     virtual void onMessageReceived(MegaChatApi* megaChatApi, MegaChatMessage *msg);
     virtual void onMessageUpdate(MegaChatApi* megaChatApi, MegaChatMessage *msg);   // new or updated
 };
+

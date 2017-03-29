@@ -500,24 +500,10 @@ public:
     virtual const char *getContactEmail(int contact) const;
 
     /**
-     * @brief Return number of files that have been attached in the message
-     * @return Number of files that have been attached in the message
+     * @brief Return a list with all MegaNode received
+     * @return list with MegaNode
      */
-    virtual int getFilesCount() const;
-
-    /**
-     * @brief Return the handle of the node that has been attached in 'node' position
-     * @param position of node inside attach nodes vector
-     * @return The handle of the contact
-     */
-    virtual MegaChatHandle getAttachNodeHandle(int node) const;
-
-    /**
-     * @brief Return the name of the node that has been attached in 'node' position
-     * @param position of node inside attach nodes vector
-     * @return The name of the node
-     */
-    virtual const char *getAttachNodeName(int node) const;
+    virtual mega::MegaNodeList *getAttachmentNodeList();
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -1706,11 +1692,62 @@ public:
      *
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param msg Content of the message
-     *
+     * @param nodesNumber Number of contacts to attach
+     * @param nodes Array of contacts
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
     MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
+
+    /**
+     * @brief Sends a node o group of nodes to the specified chatroom
+     *
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId()
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * You take the ownership of the returned value.
+     *
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param nodesNumber Number of nodes to attach
+     * @param nodes Array of nodes
+     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+     */
+    MegaChatMessage *attachNodes(MegaChatHandle chatid, mega::MegaNodeList &nodes);
+
+
+    /**
+     * @brief Revoke attach node
+     *
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId()
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * You take the ownership of the returned value.
+     *
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param node Node to revoke
+     *
+     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+     */
+    MegaChatMessage *revokeAttachment(MegaChatHandle chatid, MegaChatHandle node);
 
     /**
      * @brief Edits an existing message
@@ -2440,59 +2477,6 @@ public:
      * @param msg MegaChatMessage representing the updated message
      */
     virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);
-};
-
-/**
- * @brief Interface to receive information about one node.
- */
-class MegaChatNode
-{
-public:
-    virtual ~MegaChatNode(){}
-
-    /**
-     * @brief return node's handle
-     * @return
-     */
-    virtual MegaChatHandle getHandle() const;
-
-    /**
-     * @brief return node's name
-     * @return
-     */
-    virtual const char *getName() const;
-
-    /**
-     * @brief return node time stamp
-     * @return
-     */
-    virtual long long getTimeStamp() const;
-
-    /**
-     * @brief return file size
-     * @return
-     */
-    virtual long long getSize() const;
-
-    /**
-     * @brief return a checksum to identify the node inside thumbails server
-     * @return
-     */
-    virtual const char *getFa() const;
-
-    /**
-     * @brief return node type. 0 -> files and 1 -> folders
-     * @return
-     */
-    virtual const int getType() const;
-
-    /**
-     * @brief return node key in base64
-     * @param element that we want get
-     * @return
-     */
-    virtual long long getK(int index) const;
-
 };
 
 /**
