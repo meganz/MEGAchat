@@ -168,7 +168,21 @@ public:
         window->show();
         return window;
     }
-    CListChatItem(QWidget* parent): CListItem(parent){}
+    CListChatItem(QWidget* parent): CListItem(parent)
+    {
+        //getLastTextMsg needs to call a virtual method, which is not available
+        //during construction
+        karere::marshallCall([this] { getLastTextMsg(); });
+    }
+    void getLastTextMsg()
+    {
+        chatd::LastTextMsg* msg;
+        auto ret = room().chat().lastTextMessage(msg);
+        if (ret != 0 && ret < 0xfe)
+            onLastMessageUpdated(*msg);
+        else
+            mLastTextMsg = "<none>";
+    }
     virtual void onVisibilityChanged(int newVisibility) {}
     virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg)
     {
