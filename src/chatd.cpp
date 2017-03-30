@@ -1333,9 +1333,9 @@ void Chat::onLastReceived(Id msgid)
     auto idx = it->second;
     if (idx == mLastReceivedIdx)
         return; //probably set from db
-    if (at(idx).userid == mClient.mUserId)
+    if (at(idx).userid != mClient.mUserId)
     {
-        CHATID_LOG_WARNING("Last-received pointer points to a message by us,"
+        CHATID_LOG_WARNING("Last-received pointer points to a message not by us,"
             " possibly the pointer was set incorrectly");
     }
     //notify about messages that become 'received'
