@@ -313,9 +313,9 @@ MegaChatMessage *MegaChatApi::attachNodes(MegaChatHandle chatid, MegaNodeList &n
     return pImpl->attachNodes(chatid, nodes);
 }
 
-MegaChatMessage *MegaChatApi::revokeAttachment(MegaChatHandle chatid, MegaChatHandle node)
+MegaChatMessage *MegaChatApi::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle)
 {
-    return pImpl->revokeAttachment(chatid, node);
+    return pImpl->revokeAttachment(chatid, handle);
 }
 
 MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)

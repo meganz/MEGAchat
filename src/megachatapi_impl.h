@@ -754,7 +754,7 @@ public:
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
     MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
     MegaChatMessage *attachNodes(MegaChatHandle chatid, mega::MegaNodeList &nodes);
-    MegaChatMessage *revokeAttachment(MegaChatHandle chatid, MegaChatHandle node);
+    MegaChatMessage *revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);

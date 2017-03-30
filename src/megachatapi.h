@@ -1743,11 +1743,11 @@ public:
      *
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param node Node to revoke
+     * @param handle MegaChatHandle that identifies the node to revoke
      *
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
-    MegaChatMessage *revokeAttachment(MegaChatHandle chatid, MegaChatHandle node);
+    MegaChatMessage *revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle);
 
     /**
      * @brief Edits an existing message

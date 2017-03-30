@@ -1648,6 +1648,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
             else
             {
                 error = true;
+                API_LOG_ERROR("Failed to find a contact");
                 break;
             }
         }
@@ -1692,6 +1693,12 @@ MegaChatMessage *MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeLis
 
             if (megaNode != NULL)
             {
+                if (dynamic_cast<PeerChatRoom*>(chatroom) != NULL)
+                {
+                    PeerChatRoom* peerChatRoom = static_cast<PeerChatRoom*>(chatroom);
+                    megaApi->grantAccessInChat(chatid, megaNode, peerChatRoom->peer());
+                }
+
                 // h -> handle
                 std::string handleString = "\"" + std::string(MegaApi::handleToBase64(megaNode->getHandle())) + "\"";
                 JSonNode handleNode;
@@ -1776,10 +1783,12 @@ MegaChatMessage *MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeLis
                 jsonNode.setMapNode(timeStampNode);
 
                 jSonAttachmentNodes.setVectorNode(jsonNode);
+
             }
             else
             {
                 error = true;
+                API_LOG_ERROR("Failed to find a node");
                 break;
             }
         }
@@ -1801,7 +1810,7 @@ MegaChatMessage *MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeLis
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle node)
+MegaChatMessage *MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
@@ -1812,7 +1821,7 @@ MegaChatMessage *MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaCh
         unsigned char t = MegaChatMessage::TYPE_REVOKE_ATTACHMENT;
         char zero = 0x0;
         char revokeAttachmentType = chatd::Message::kMsgRevokeAttachment;
-        std::string stringToSend = MegaApi::handleToBase64(node);
+        std::string stringToSend = MegaApi::handleToBase64(handle);
         stringToSend.insert(stringToSend.begin(), revokeAttachmentType);
         stringToSend.insert(stringToSend.begin(), zero);
         Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
