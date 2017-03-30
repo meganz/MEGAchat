@@ -40,15 +40,6 @@ public:
         virtual void onTitleChanged(const std::string& title) = 0;
 
         /**
-         * @brief The online state of the person/chatroom has changed. This can be used
-         * to update the indicator that shows the online status
-         * of the contact/groupchat (online, offline, busy, etc)
-         *
-         * @param state The presence code
-         */
-        virtual void onPresenceChanged(Presence state) = 0;
-
-        /**
          * @brief The number of unread messages for that chat has changed. It can be used
          * to display an unread message counter next to the contact/groupchat
          * name.
@@ -173,6 +164,15 @@ public:
          * class mega::MegaUser
          */
         virtual void onVisibilityChanged(int newVisibility) = 0;
+
+        /**
+         * @brief The online state of the person/chatroom has changed. This can be used
+         * to update the indicator that shows the online status
+         * of the contact/groupchat (online, offline, busy, etc)
+         *
+         * @param state The presence code
+         */
+        virtual void onPresenceChanged(Presence state) = 0;
     };
     /**
      * @brief The IChatListItem class represents an interface to a 1on1 or group
@@ -214,6 +214,10 @@ public:
          * kown messages and the first old message is received
          */
         virtual void onLastTsUpdated(uint32_t ts) {}
+
+        /** @brief Called when the connection state to the chatroom shard changes.
+         */
+        virtual void onChatOnlineState(const chatd::ChatState state) {}
     };
 
     /**
@@ -314,12 +318,16 @@ public:
     virtual IChatListHandler* chatListHandler() = 0;
 
     /**
-     * @brief Called by karere when our own online state/presence has changed.
-     * @param userid
-     * @param pres
-     * @param inProgress
+     * @brief Called when our own online status (presence) has changed.
+     *
+     * This can be used to update the indicator that shows the online status
+     * of a contact/peer (online, offline, busy, away)
+     *
+     * @param userid User id whose presence has changed
+     * @param pres The presence code
+     * @param inProgress Whether the presence is being set or not
      */
-    virtual void onPresenceChanged(Id userid, Presence pres, bool inProgress) {} //may include flags
+    virtual void onPresenceChanged(Id userid, Presence pres, bool inProgress) {}
 
     /**
      * @brief Called when the presence preferences have changed due to

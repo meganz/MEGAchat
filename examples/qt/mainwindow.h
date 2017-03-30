@@ -130,12 +130,6 @@ public:
         }
         mLastOverlayCount = count;
     }
-    virtual void onPresenceChanged(karere::Presence state)
-    {
-        ui.mOnlineIndicator->setStyleSheet(
-            QString("background-color: ")+gOnlineIndColors[state]+
-            ";border-radius: 4px");
-    }
 //===
     CListItem(QWidget* parent)
     : QWidget(parent)
@@ -187,6 +181,17 @@ public:
     virtual void onLastTsUpdated(uint32_t ts)
     {
         GUI_LOG_DEBUG("%s: onLastTsUpdated: %u", karere::Id(room().chatid()).toString().c_str(), ts);
+    }
+
+    virtual void onChatOnlineState(const chatd::ChatState state)
+    {
+        karere::Presence virtPresence = (state==chatd::kChatStateOnline)
+            ? karere::Presence::kOnline
+            : karere::Presence::kOffline;
+
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[virtPresence]
+            +";border-radius: 4px");
     }
 
 //==
@@ -344,6 +349,13 @@ public:
         }
         updateToolTip();
     }
+    virtual void onPresenceChanged(karere::Presence state)
+    {
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[state]+
+            ";border-radius: 4px");
+    }
+
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
     {
         showChatWindow();

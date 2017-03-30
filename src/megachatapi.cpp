@@ -686,11 +686,6 @@ bool MegaChatRoom::isActive() const
     return false;
 }
 
-int MegaChatRoom::getOnlineStatus() const
-{
-    return MegaChatApi::STATUS_OFFLINE;
-}
-
 MegaChatPeerList * MegaChatPeerList::createInstance()
 {
     return new MegaChatPeerListPrivate();
@@ -811,11 +806,6 @@ int MegaChatListItem::getVisibility() const
 int MegaChatListItem::getUnreadCount() const
 {
     return 0;
-}
-
-int MegaChatListItem::getOnlineStatus() const
-{
-    return MegaChatApi::STATUS_OFFLINE;
 }
 
 const char *MegaChatListItem::getLastMessage() const
