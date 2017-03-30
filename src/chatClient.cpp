@@ -2454,6 +2454,7 @@ const char* Client::initStateToStr(unsigned char state)
         RETURN_ENUM_NAME(kInitErrNoCache);
         RETURN_ENUM_NAME(kInitErrCorruptCache);
         RETURN_ENUM_NAME(kInitErrSidMismatch);
+        RETURN_ENUM_NAME(kInitErrSidInvalid);
     default:
         return "(unknown)";
     }
