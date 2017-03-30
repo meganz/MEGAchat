@@ -142,10 +142,10 @@ public:
         int count = stmt.intCol(2);
         if ((count > 0) && (idx != low-1) && (idx != high+1))
         {
-            CHATD_LOG_ERROR("chatid %s(%" PRId64 "): addMsgToHistory: history discontinuity detected: "
+            CHATD_LOG_ERROR("chatid %s: addMsgToHistory: history discontinuity detected: "
                 "index of added msg is not adjacent to neither end of db history: "
                 "add idx=%d, histlow=%d, histhigh=%d, histcount= %d, fwdStart=%d, lownum=%d, highnum=%d",
-                mMessages.chatId().toString().c_str(), mMessages.chatId().val,
+                mMessages.chatId().toString().c_str(),
                 idx, low, high, count, mMessages.forwardStart(), mMessages.lownum(), mMessages.highnum());
             assert(false);
         }
@@ -211,8 +211,8 @@ public:
             auto idx = stmt.intCol(5);
             if(idx != mMessages.lownum()-1-(int)messages.size()) //we go backward in history, hence the -messages.size()
             {
-                CHATD_LOG_ERROR("chatid %s (%" PRId64 "): fetchDbHistory: History discontinuity detected: "
-                    "expected idx %d, retrieved from db:%d", mMessages.chatId().toString().c_str(), mMessages.chatId().val,
+                CHATD_LOG_ERROR("chatid %s: fetchDbHistory: History discontinuity detected: "
+                    "expected idx %d, retrieved from db:%d", mMessages.chatId().toString().c_str(),
                     mMessages.lownum()-1-(int)messages.size(), idx);
                 assert(false);
             }
