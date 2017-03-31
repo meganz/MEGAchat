@@ -432,7 +432,17 @@ void MainWindow::onInitStateChange(int newState)
 {
     if (!isVisible() && (newState == karere::Client::kInitHasOfflineSession
                       || newState == karere::Client::kInitHasOnlineSession))
+    {
         show();
+    }
+    else if (newState == karere::Client::kInitErrSidInvalid)
+    {
+        hide();
+        marshallCall([this]()
+        {
+            Q_EMIT esidLogout();
+        });
+    }
 }
 
 QString prettyInterval(int64_t secs)

@@ -81,6 +81,8 @@ protected slots:
     void onSettingsBtn(bool);
     void onOnlineStatusBtn(bool);
     void setOnlineStatus();
+signals:
+    void esidLogout();
 };
 
 class SettingsDialog: public QDialog

@@ -608,6 +608,7 @@ private:
     mega::MegaApi *megaApi;
 
     karere::Client *mClient;
+    bool terminating;
 
     mega::MegaWaiter *waiter;
     mega::MegaThread thread;

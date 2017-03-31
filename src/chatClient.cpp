@@ -445,11 +445,21 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
+    if (e->getErrorCode() == mega::MegaError::API_ESID ||
+            (request->getType() == mega::MegaRequest::TYPE_LOGOUT &&
+             request->getParamType() == mega::MegaError::API_ESID))
+    {
+        marshallCall([this]() // update state in the karere thread
+        {
+            setInitState(kInitErrSidInvalid);
+        });
+        return;
+    }
+
     if (!request || (request->getType() != mega::MegaRequest::TYPE_FETCH_NODES))
         return;
 
     api.sdk.pauseActionPackets();
-    api.sdk.removeRequestListener(this);
     auto state = mInitState;
     char* pscsn = api.sdk.getSequenceNumber();
     std::string scsn = pscsn ? pscsn : "";
@@ -2406,6 +2416,7 @@ const char* Client::initStateToStr(unsigned char state)
         RETURN_ENUM_NAME(kInitErrNoCache);
         RETURN_ENUM_NAME(kInitErrCorruptCache);
         RETURN_ENUM_NAME(kInitErrSidMismatch);
+        RETURN_ENUM_NAME(kInitErrSidInvalid);
     default:
         return "(unknown)";
     }
