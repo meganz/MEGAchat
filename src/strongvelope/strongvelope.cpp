@@ -14,6 +14,9 @@
     static inline uint64_t be64toh(uint64_t x) { return _byteswap_uint64(x); }
 #else
     #include <endian.h>
+    #ifndef __STDC_FORMAT_MACROS
+        #define __STDC_FORMAT_MACROS 1
+    #endif
     #include <inttypes.h>
 #endif
 
