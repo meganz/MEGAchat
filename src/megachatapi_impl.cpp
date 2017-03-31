@@ -1670,166 +1670,214 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList &nodes)
+void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
 {
-    if (nodes.size() <= 0)
+    if (nodes->size() <= 0)
     {
-        return NULL;
+        return;
     }
 
-    MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+
+    std::vector<ApiPromise> promises = chatroom->requesGrantAccessToNodes(nodes, megaApi);
+
+    promise::when(promises)
+    .then([this, nodes, chatroom, listener]()
     {
-        bool error = false;
-        JSonNode jSonAttachmentNodes;
-        for (int i = 0; i < nodes.size(); ++i)
+        std::cerr << "PROMISE THEN" << std::endl;
+        sendAttachMessage(nodes, chatroom, listener);
+
+    })
+    .fail([this, nodes, chatroom, listener](const promise::Error& err)
+    {
+        std::cerr << "PROMISE FAIL" << std::endl;
+        sendAttachMessage(nodes, chatroom, listener);
+
+        if (err.code() != mega::MegaError::API_EEXIST)
         {
-            JSonNode jsonNode;
+            API_LOG_ERROR("Failed to grant access to some node");
+        }
+    });
 
-            mega::MegaNode *megaNode = nodes.get(i);
+    sdkMutex.unlock();
+    return ;
+}
 
-            if (megaNode != NULL)
+void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom, MegaChatRequestListener *listener)
+{
+    bool error = false;
+    JSonNode jSonAttachmentNodes;
+    for (int i = 0; i < nodes->size(); ++i)
+    {
+        JSonNode jsonNode;
+
+        mega::MegaNode *megaNode = nodes->get(i);
+
+        if (megaNode != NULL)
+        {
+            // h -> handle
+            std::string handleString = "\"" + std::string(mega::MegaApi::handleToBase64(megaNode->getHandle())) + "\"";
+            JSonNode handleNode;
+            JSonNode handleValue;
+            handleValue.setFinalValue(handleString);
+            handleNode.setKeyValueNode("h", handleValue);
+            jsonNode.setMapNode(handleNode);
+
+            // k -> binary key
+            char keyIntermedia[mega::FILENODEKEYLENGTH];
+            char *base64Key = megaNode->getBase64Key();
+            mega::Base64::atob(base64Key, (byte*)keyIntermedia, mega::FILENODEKEYLENGTH);
+            delete base64Key;
+
+            std::vector<int32_t> keyVector = DataTranslation::b_to_vector(std::string(keyIntermedia, mega::FILENODEKEYLENGTH));
+            JSonNode keyVectorNode;
+            for (int j = 0; j < 8; ++j)
             {
-                if (dynamic_cast<PeerChatRoom*>(chatroom) != NULL)
-                {
-                    PeerChatRoom* peerChatRoom = static_cast<PeerChatRoom*>(chatroom);
-                    megaApi->grantAccessInChat(chatid, megaNode, peerChatRoom->peer());
-                }
+                std::string keyString = std::to_string(keyVector[j]);
+                JSonNode keyElementNode;
+                keyElementNode.setFinalValue(keyString);
+                keyVectorNode.setVectorNode(keyElementNode);
+            }
 
-                // h -> handle
-                std::string handleString = "\"" + std::string(MegaApi::handleToBase64(megaNode->getHandle())) + "\"";
-                JSonNode handleNode;
-                JSonNode handleValue;
-                handleValue.setFinalValue(handleString);
-                handleNode.setKeyValueNode("h", handleValue);
-                jsonNode.setMapNode(handleNode);
+            JSonNode keyNode;
+            keyNode.setKeyValueNode("k", keyVectorNode);
+            jsonNode.setMapNode(keyNode);
 
-                // k -> binary key
-                char keyIntermedia[mega::FILENODEKEYLENGTH];
-                char *base64Key = megaNode->getBase64Key();
-                Base64::atob(base64Key, (byte*)keyIntermedia, mega::FILENODEKEYLENGTH);
-                delete base64Key;
+            // t -> type
+            std::string typeString = std::to_string(megaNode->getType());
+            JSonNode typeNode;
+            JSonNode typeValue;
+            typeValue.setFinalValue(typeString);
+            typeNode.setKeyValueNode("t", typeValue);
+            jsonNode.setMapNode(typeNode);
 
-                std::vector<int32_t> keyVector = DataTranslation::b_to_vector(std::string(keyIntermedia, mega::FILENODEKEYLENGTH));
-                JSonNode keyVectorNode;
-                for (int j = 0; j < 8; ++j)
-                {
-                    std::string keyString = std::to_string(keyVector[j]);
-                    JSonNode keyElementNode;
-                    keyElementNode.setFinalValue(keyString);
-                    keyVectorNode.setVectorNode(keyElementNode);
-                }               
+            // name -> name
+            std::string nameString =  "\"" + std::string(megaNode->getName()) + "\"";
+            JSonNode nameNode;
+            JSonNode nameValue;
+            nameValue.setFinalValue(nameString);
+            nameNode.setKeyValueNode("name", nameValue);
+            jsonNode.setMapNode(nameNode);
 
-                JSonNode keyNode;
-                keyNode.setKeyValueNode("k", keyVectorNode);
-                jsonNode.setMapNode(keyNode);
+            // s -> size
+            std::string sizeString = std::to_string(megaNode->getSize());
+            JSonNode sizeNode;
+            JSonNode sizeValue;
+            sizeValue.setFinalValue(sizeString);
+            sizeNode.setKeyValueNode("s", sizeValue);
+            jsonNode.setMapNode(sizeNode);
 
-                // t -> type
-                std::string typeString = std::to_string(megaNode->getType());
-                JSonNode typeNode;
-                JSonNode typeValue;
-                typeValue.setFinalValue(typeString);
-                typeNode.setKeyValueNode("t", typeValue);
-                jsonNode.setMapNode(typeNode);
-
-                // name -> name
-                std::string nameString =  "\"" + std::string(megaNode->getName()) + "\"";
-                JSonNode nameNode;
-                JSonNode nameValue;
-                nameValue.setFinalValue(nameString);
-                nameNode.setKeyValueNode("name", nameValue);
-                jsonNode.setMapNode(nameNode);
-
-                // s -> size
-                std::string sizeString = std::to_string(megaNode->getSize());
-                JSonNode sizeNode;
-                JSonNode sizeValue;
-                sizeValue.setFinalValue(sizeString);
-                sizeNode.setKeyValueNode("s", sizeValue);
-                jsonNode.setMapNode(sizeNode);
-
-                // fa -> image thumbail
-                if (megaNode->hasThumbnail() || megaNode->hasPreview())
-                {
-                    mega::MegaClient* megaClient = megaApi->getMegaClient();
-                    mega::Node* node = megaClient->nodebyhandle(megaNode->getHandle());
-                    string faString = "\"" + node->fileattrstring + "\"";
-                    JSonNode faNode;
-                    JSonNode faValue;
-                    faValue.setFinalValue(faString);
-                    faNode.setKeyValueNode("fa", faValue);
-                    jsonNode.setMapNode(faNode);
-                }
-                else
-                {
-                    // ar -> empty
-                    std::string arString = "{}";
-                    JSonNode arNode;
-                    JSonNode arValue;
-                    arValue.setFinalValue(arString);
-                    arNode.setKeyValueNode("ar", arValue);
-                    jsonNode.setMapNode(arNode);
-                }
-
-                // ts -> time stamp
-                std::string timeStampString = std::to_string(megaNode->getModificationTime());
-                JSonNode timeStampNode;
-                JSonNode timeStampValue;
-                timeStampValue.setFinalValue(timeStampString);
-                timeStampNode.setKeyValueNode("ts", timeStampValue);
-                jsonNode.setMapNode(timeStampNode);
-
-                jSonAttachmentNodes.setVectorNode(jsonNode);
-
+            // fa -> image thumbail
+            if (megaNode->hasThumbnail() || megaNode->hasPreview())
+            {
+                mega::MegaClient* megaClient = megaApi->getMegaClient();
+                mega::Node* node = megaClient->nodebyhandle(megaNode->getHandle());
+                std::string faString = "\"" + node->fileattrstring + "\"";
+                JSonNode faNode;
+                JSonNode faValue;
+                faValue.setFinalValue(faString);
+                faNode.setKeyValueNode("fa", faValue);
+                jsonNode.setMapNode(faNode);
             }
             else
             {
-                error = true;
-                API_LOG_ERROR("Failed to find a node");
-                break;
+                // ar -> empty
+                std::string arString = "{}";
+                JSonNode arNode;
+                JSonNode arValue;
+                arValue.setFinalValue(arString);
+                arNode.setKeyValueNode("ar", arValue);
+                jsonNode.setMapNode(arNode);
             }
-        }
 
-        if (!error)
+            // ts -> time stamp
+            std::string timeStampString = std::to_string(megaNode->getModificationTime());
+            JSonNode timeStampNode;
+            JSonNode timeStampValue;
+            timeStampValue.setFinalValue(timeStampString);
+            timeStampNode.setKeyValueNode("ts", timeStampValue);
+            jsonNode.setMapNode(timeStampNode);
+
+            jSonAttachmentNodes.setVectorNode(jsonNode);
+
+        }
+        else
         {
-            unsigned char t = MegaChatMessage::TYPE_ATTACHMENT;
-            char zero = 0x0;
-            char attachmentType = chatd::Message::kMsgAttachment;
-            std::string stringToSend = jSonAttachmentNodes.getString();
-            stringToSend.insert(stringToSend.begin(), attachmentType);
-            stringToSend.insert(stringToSend.begin(), zero);
-            Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
-            megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+            error = true;
+            API_LOG_ERROR("Failed to find a node");
+            break;
         }
     }
 
-    sdkMutex.unlock();
-    return megaMsg;
-}
-
-MegaChatMessage *MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle)
-{
-    MegaChatMessagePrivate *megaMsg = NULL;
-    sdkMutex.lock();
-
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    if (!error)
     {
-        unsigned char t = MegaChatMessage::TYPE_REVOKE_ATTACHMENT;
+        unsigned char t = MegaChatMessage::TYPE_ATTACHMENT;
         char zero = 0x0;
-        char revokeAttachmentType = chatd::Message::kMsgRevokeAttachment;
-        std::string stringToSend = MegaApi::handleToBase64(handle);
-        stringToSend.insert(stringToSend.begin(), revokeAttachmentType);
+        char attachmentType = chatd::Message::kMsgAttachment;
+        std::string stringToSend = jSonAttachmentNodes.getString();
+        stringToSend.insert(stringToSend.begin(), attachmentType);
         stringToSend.insert(stringToSend.begin(), zero);
         Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
-        megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-    }
+        MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
 
-    sdkMutex.unlock();
-    return megaMsg;
+        MegaChatRequestPrivate request(MegaChatRequest::TYPE_ATTACH_REVOKE_NODE_MESSAGE, listener);
+        request.setAttachRevokeNodesMessage(megaMsg);
+        MegaChatErrorPrivate error;
+        if (listener != NULL)
+        {
+            listener->onRequestFinish(chatApi, &request, &error);
+        }
+    }
+}
+
+void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL)
+{    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+
+    std::vector<ApiPromise> promises = chatroom->revokeGrantAccessToNode(megaApi->getNodeByHandle(handle), megaApi);
+
+    promise::when(promises)
+    .then([this, handle, chatroom, listener]()
+    {
+        std::cerr << "PROMISE THEN" << std::endl;
+        sendRevokeAttach(handle, chatroom, listener);
+
+
+    })
+    .fail([this, handle, chatroom, listener](const promise::Error& err)
+    {
+        std::cerr << "PROMISE FAIL" << std::endl;
+        sendRevokeAttach(handle, chatroom, listener);
+
+        if (err.code() != mega::MegaError::API_EEXIST)
+        {
+            API_LOG_ERROR("Failed to grant access to some node");
+        }
+    });
+
+     sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::sendRevokeAttach(MegaChatHandle handle, ChatRoom *chatroom, MegaChatRequestListener *listener)
+{
+    unsigned char t = MegaChatMessage::TYPE_REVOKE_ATTACHMENT;
+    char zero = 0x0;
+    char revokeAttachmentType = chatd::Message::kMsgRevokeAttachment;
+    std::string stringToSend = MegaApi::handleToBase64(handle);
+    stringToSend.insert(stringToSend.begin(), revokeAttachmentType);
+    stringToSend.insert(stringToSend.begin(), zero);
+    Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
+    MegaChatMessage* message = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+    MegaChatRequestPrivate request(MegaChatRequest::TYPE_ATTACH_REVOKE_NODE_MESSAGE, listener);
+    request.setAttachRevokeNodesMessage(message);
+    MegaChatErrorPrivate error;
+    if (listener != NULL)
+    {
+        listener->onRequestFinish(chatApi, &request, &error);
+    }
 }
 
 MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
@@ -2414,6 +2462,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->userHandle = MEGACHAT_INVALID_HANDLE;
     this->privilege = MegaChatPeerList::PRIV_UNKNOWN;
     this->text = NULL;
+    this->mAttachNodesMessage = NULL;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
@@ -2432,12 +2481,18 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setUserHandle(request.getUserHandle());
     this->setPrivilege(request.getPrivilege());
     this->setText(request.getText());
+    this->setAttachRevokeNodesMessage(request.getAttachRevokeNodesMessage());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
 {
     delete peerList;
     delete [] text;
+
+    if (mAttachNodesMessage != NULL)
+    {
+        delete mAttachNodesMessage;
+    }
 }
 
 MegaChatRequest *MegaChatRequestPrivate::copy()
@@ -2527,6 +2582,11 @@ const char *MegaChatRequestPrivate::getText() const
     return text;
 }
 
+const MegaChatMessage *MegaChatRequestPrivate::getAttachRevokeNodesMessage() const
+{
+    return mAttachNodesMessage;
+}
+
 int MegaChatRequestPrivate::getTag() const
 {
     return tag;
@@ -2587,6 +2647,16 @@ void MegaChatRequestPrivate::setText(const char *text)
         delete [] this->text;
     }
     this->text = MegaApi::strdup(text);
+}
+
+void MegaChatRequestPrivate::setAttachRevokeNodesMessage(const MegaChatMessage *attachNodesMessage)
+{
+    if (mAttachNodesMessage != NULL)
+    {
+        delete mAttachNodesMessage;
+    }
+
+    mAttachNodesMessage = attachNodesMessage->copy();
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const shared_ptr<rtcModule::ICallAnswer> &ans)

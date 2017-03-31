@@ -308,14 +308,16 @@ MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, unsigned int
     return pImpl->attachContacts(chatid, contactsNumber, contacts);
 }
 
-MegaChatMessage *MegaChatApi::attachNodes(MegaChatHandle chatid, MegaNodeList &nodes)
+void MegaChatApi::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
 {
-    return pImpl->attachNodes(chatid, nodes);
+    pImpl->attachNodes(chatid, nodes, listener);
+    return;
 }
 
-MegaChatMessage *MegaChatApi::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle)
+void MegaChatApi::revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener)
 {
-    return pImpl->revokeAttachment(chatid, handle);
+    pImpl->revokeAttachment(chatid, nodeHandle, listener);
+    return;
 }
 
 MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
@@ -505,6 +507,11 @@ int MegaChatRequest::getPrivilege()
 }
 
 const char *MegaChatRequest::getText() const
+{
+    return NULL;
+}
+
+const MegaChatMessage *MegaChatRequest::getAttachRevokeNodesMessage() const
 {
     return NULL;
 }

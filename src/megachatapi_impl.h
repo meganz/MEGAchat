@@ -68,6 +68,7 @@ public:
     virtual MegaChatHandle getUserHandle();
     virtual int getPrivilege();
     virtual const char *getText() const;
+    virtual const MegaChatMessage *getAttachRevokeNodesMessage() const;
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -79,6 +80,7 @@ public:
     void setUserHandle(MegaChatHandle userhandle);
     void setPrivilege(int priv);
     void setText(const char *text);
+    void setAttachRevokeNodesMessage(const MegaChatMessage* attachNodesMessage);
 
 protected:
     int type;
@@ -93,6 +95,7 @@ protected:
     MegaChatHandle userHandle;
     int privilege;
     const char* text;
+    const MegaChatMessage* mAttachNodesMessage;
 };
 
 class MegaChatVideoReceiver;
@@ -642,6 +645,9 @@ private:
 
     static int convertInitState(int state);
 
+    void sendAttachMessage(mega::MegaNodeList* nodes, karere::ChatRoom *chatroom, MegaChatRequestListener *listener);
+    void sendRevokeAttach(MegaChatHandle handle, karere::ChatRoom *chatroom, MegaChatRequestListener *listener);
+
 public:    
     static void megaApiPostMessage(void* msg);
     void postMessage(void *msg);
@@ -753,8 +759,8 @@ public:
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
     MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
-    MegaChatMessage *attachNodes(MegaChatHandle chatid, mega::MegaNodeList &nodes);
-    MegaChatMessage *revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle);
+    void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
+    void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
@@ -827,7 +833,6 @@ public:
     static std::string vector_to_b(std::vector<int32_t> vector);
 
 };
-
 
 //public karere::IApp::IChatHandler
 // public rtcModule::IEventHandler

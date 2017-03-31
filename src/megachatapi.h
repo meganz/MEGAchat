@@ -543,6 +543,7 @@ public:
         TYPE_SHARE_CONTACT,
         TYPE_GET_FIRSTNAME, TYPE_GET_LASTNAME,
         TYPE_DISCONNECT, TYPE_GET_EMAIL,
+        TYPE_ATTACH_REVOKE_NODE_MESSAGE,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -658,6 +659,16 @@ public:
      * @return Text relative to this request
      */
     virtual const char *getText() const;
+
+    /**
+     * @brief Returns a message contained on request
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * @return Message relative to this request
+     */
+    virtual const MegaChatMessage *getAttachRevokeNodesMessage() const;
 };
 
 /**
@@ -1701,7 +1712,13 @@ public:
     /**
      * @brief Sends a node o group of nodes to the specified chatroom
      *
-     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * This function doesn't return a message. This function is asynchronous.
+     * First step is grand access for all nodes and chat member. This operation is send to server
+     * and the you have to wait for response.
+     * Finally the message is send.
+     *
+     * To obtain the message, you have to register a listener (MegaChatRequestListener). The message,
+     * that you get in this listener, includes a message transaction id,
      * That id is not the definitive id, which will be assigned by the server. You can obtain the
      * temporal id with MegaChatMessage::getTempId()
      *
@@ -1713,21 +1730,24 @@ public:
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
-     * You take the ownership of the returned value.
-     *
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param nodesNumber Number of nodes to attach
-     * @param nodes Array of nodes
+     * @param nodes Array of nodes that the user want to attach
+     * @param listener to receive the temporal message
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
-    MegaChatMessage *attachNodes(MegaChatHandle chatid, mega::MegaNodeList &nodes);
-
+     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Revoke attach node
      *
-     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * This function doesn't return a message. This function is asynchronous.
+     * First step is grand access for all nodes and chat member. This operation is send to server
+     * and the you have to wait for response.
+     * Finally the message is send.
+     *
+     * To obtain the message, you have to register a listener (MegaChatRequestListener). The message,
+     * that you get in this listener, includes a message transaction id,
      * That id is not the definitive id, which will be assigned by the server. You can obtain the
      * temporal id with MegaChatMessage::getTempId()
      *
@@ -1739,15 +1759,14 @@ public:
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
-     * You take the ownership of the returned value.
-     *
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param handle MegaChatHandle that identifies the node to revoke
+     * @param handle MegaChatHandle that identifies the node to revoke grant access
+     * @param listener to receive the temporal message
      *
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
-    MegaChatMessage *revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle);
+    void revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Edits an existing message

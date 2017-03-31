@@ -73,6 +73,9 @@ protected:
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv priv);
     void onMessageTimestamp(uint32_t ts);
+    ApiPromise requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle, mega::MegaApi *megaApi);
+    ApiPromise revokeGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle, mega::MegaApi *megaApi);
+
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
@@ -180,6 +183,9 @@ public:
     }
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
+
+    virtual std::vector<ApiPromise> requesGrantAccessToNodes(mega::MegaNodeList *nodes, mega::MegaApi* megaApi) = 0;
+    virtual std::vector<ApiPromise> revokeGrantAccessToNode(mega::MegaNode *node, mega::MegaApi* megaApi) = 0;
 };
 /** @brief Represents a 1on1 chatd chatroom */
 class PeerChatRoom: public ChatRoom
@@ -237,6 +243,9 @@ public:
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUnreadChanged();
 /** @endcond */
+
+    virtual std::vector<ApiPromise> requesGrantAccessToNodes(mega::MegaNodeList *nodes, mega::MegaApi* megaApi);
+    virtual std::vector<ApiPromise> revokeGrantAccessToNode(mega::MegaNode *node, mega::MegaApi* megaApi);
 };
 
 /** @brief Represents a chatd chatroom that is a groupchat */
@@ -380,6 +389,9 @@ public:
      * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
+
+    virtual std::vector<ApiPromise> requesGrantAccessToNodes(mega::MegaNodeList *nodes, mega::MegaApi* megaApi);
+    virtual std::vector<ApiPromise> revokeGrantAccessToNode(mega::MegaNode *node, mega::MegaApi* megaApi);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
