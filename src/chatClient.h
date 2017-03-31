@@ -511,7 +511,8 @@ public:
 class Client: public rtcModule::IGlobalEventHandler,
               public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
-              public presenced::Listener
+              public presenced::Listener,
+              public karere::DeleteTrackable
 {
 /** @cond PRIVATE */
 protected:
@@ -601,7 +602,7 @@ public:
     unsigned short mMyPrivRsaLen = 0;
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
-    std::unique_ptr<IApp::ILoginDialog> mLoginDlg;
+    IApp::ILoginDialog::Handle mLoginDlg;
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     presenced::Client& presenced() { return mPresencedClient; }
     bool contactsLoaded() const { return mContactsLoaded; }

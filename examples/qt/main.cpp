@@ -113,8 +113,6 @@ int main(int argc, char **argv)
     a.setQuitOnLastWindowClosed(false);
     createWindowAndClient();
 
-    QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-
     char buf[256];
     const char* sid = nullptr;
     std::ifstream sidf(gAppDir+"/sid");
@@ -137,20 +135,22 @@ int main(int argc, char **argv)
         {
             KR_LOG_DEBUG("Client initialized");
         }
-    })
-    .then([]()
-    {
         setVidencParams();
+        signal(SIGINT, sigintHandler);
+        QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
+        gClient->connect(Presence::kInvalid);
     })
-    .fail([](const promise::Error& error)
+    .fail([](const promise::Error& err)
     {
-        QMessageBox::critical(mainWin, "rtctestapp", QString::fromLatin1("Client startup failed with error:\n")+QString::fromStdString(error.msg()));
-//        mainWin->close();
-//        exit(1);
+        if (err.type() != 0 || err.code() != 0)
+        {
+            QMessageBox::critical(nullptr, "rtctestapp", QString::fromLatin1("Client startup failed with error:\n")+QString::fromStdString(err.msg()));
+        }
+        marshallCall([]()
+        {
+            appDelegate.onAppTerminate();
+        });
     });
-
-    gClient->connect(Presence::kInvalid);
-    signal(SIGINT, sigintHandler);
     return a.exec();
 }
 void setVidencParams()
@@ -188,6 +188,9 @@ void setVidencParams()
 
 void AppDelegate::onAppTerminate()
 {
+    static bool called = false;
+    assert(!called);
+    called = true;
     gClient->terminate()
     .then([this]()
     {
@@ -231,12 +234,12 @@ void AppDelegate::onEsidLogout()
             QMessageBox::critical(nullptr, tr("Logout"), tr("Your session has been closed remotely"));
             createWindowAndClient();
 
-            QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
             gClient->loginSdkAndInit(nullptr)
             .then([]()
             {
                 KR_LOG_DEBUG("New client initialized with new session");
                 saveSid(gSdk->dumpSession());
+                QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
                 gClient->connect(Presence::kInvalid);
             })
             .fail([](const promise::Error& err)
