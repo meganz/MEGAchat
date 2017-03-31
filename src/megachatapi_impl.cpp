@@ -288,13 +288,11 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool presenceType = karere::Client::kSetPresOverride;
             if (status == MegaChatApi::STATUS_ONLINE)
             {
                 // if setting to online, better to use dynamic in order to avoid sticky online that
                 // would be kept even when the user goes offline
                 mClient->setPresence(karere::Presence::kClear);
-                presenceType = karere::Client::kSetPresDynamic;
             }
 
             mClient->setPresence(request->getNumber())
@@ -3409,7 +3407,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->unreadCount = chatroom.chat().unreadMsgCount();
     this->group = chatroom.isGroup();
     this->active = chatroom.isActive();
-    this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
+    this->ownPriv = chatroom.ownPriv();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
@@ -3437,7 +3435,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
 {
     this->chatid = item->getChatId();
     this->title = item->getTitle();
-    this->visibility = (visibility_t) item->getVisibility();
+    this->ownPriv = item->getOwnPrivilege();
     this->unreadCount = item->getUnreadCount();
     this->changed = item->getChanges();
     this->lastTs = item->getLastTimestamp();
@@ -3478,9 +3476,9 @@ const char *MegaChatListItemPrivate::getTitle() const
     return title.c_str();
 }
 
-int MegaChatListItemPrivate::getVisibility() const
+int MegaChatListItemPrivate::getOwnPrivilege() const
 {
-    return visibility;
+    return ownPriv;
 }
 
 int MegaChatListItemPrivate::getUnreadCount() const
@@ -3523,10 +3521,10 @@ MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
     return peerHandle;
 }
 
-void MegaChatListItemPrivate::setVisibility(visibility_t visibility)
+void MegaChatListItemPrivate::setOwnPriv(int ownPriv)
 {
-    this->visibility = visibility;
-    this->changed |= MegaChatListItem::CHANGE_TYPE_VISIBILITY;
+    this->ownPriv = ownPriv;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_OWN_PRIV;
 }
 
 void MegaChatListItemPrivate::setTitle(const string &title)
@@ -3590,6 +3588,7 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
 void MegaChatListItemHandler::onExcludedFromChat()
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setOwnPriv(item->getOwnPrivilege());
     item->setClosed();
     chatApi.fireOnChatListItemUpdate(item);
 }

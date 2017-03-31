@@ -1985,7 +1985,7 @@ public:
     enum
     {
         CHANGE_TYPE_STATUS          = 0x01, /// obsolete
-        CHANGE_TYPE_VISIBILITY      = 0x02, /// The contact of 1on1 chat has changed: added/removed... (chat remains even for removed contacts)
+        CHANGE_TYPE_OWN_PRIV        = 0x02, /// Our privilege level has changed
         CHANGE_TYPE_UNREAD_COUNT    = 0x04,
         CHANGE_TYPE_PARTICIPANTS    = 0x08,
         CHANGE_TYPE_TITLE           = 0x10,
@@ -2014,23 +2014,23 @@ public:
     virtual const char *getTitle() const;
 
     /**
-     * @brief Returns the visibility of the peer in a 1on1 chatroom.
+     * @brief Returns the own privilege level in this chatroom.
      *
-     * This visibility is the same from MegaUser::getVisibility.
+     * This privilege is the same from MegaChatRoom::getOwnPrivilege.
+     *
+     * It could be used to show/hide options at the chatlist level that
+     * are only allowed to peers with the highest privilege level.
      *
      * The returned value will be one of these:
-     * - VISIBILITY_UNKNOWN = -1 The visibility of the contact isn't know
-     * - VISIBILITY_HIDDEN = 0 The contact is currently hidden
-     * - VISIBILITY_VISIBLE = 1 The contact is currently visible
-     * - VISIBILITY_INACTIVE = 2 The contact is currently inactive
-     * - VISIBILITY_BLOCKED = 3 The contact is currently blocked
+     * - MegaChatRoom::PRIV_UNKNOWN = -2
+     * - MegaChatRoom::PRIV_RM = -1
+     * - MegaChatRoom::PRIV_RO = 0
+     * - MegaChatRoom::PRIV_STANDARD = 2
+     * - MegaChatRoom::PRIV_MODERATOR = 3
      *
-     * @note The returned value is only valid for 1on1 chatrooms. It shouldn't be
-     * used for Groupchats.
-     *
-     * @return The current visibility of the peer in 1on1 chatrooms.
+     * @return The current privilege of the logged in user in this chatroom.
      */
-    virtual int getVisibility() const;
+    virtual int getOwnPrivilege() const;
 
     /**
      * @brief Returns the number of unread messages for the chatroom
