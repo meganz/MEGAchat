@@ -62,7 +62,8 @@ public:
 #endif
     }
     virtual karere::IApp::ILoginDialog* createLoginDialog();
-    virtual void onOwnPresence(karere::Presence pres, bool inProgress);
+    virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
+    virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending) {}
     virtual void onIncomingContactRequest(const mega::MegaContactRequest &req);
 protected:
     karere::IApp::IContactListItem* addItem(bool front, karere::Contact* contact,
@@ -80,6 +81,8 @@ protected slots:
     void onSettingsBtn(bool);
     void onOnlineStatusBtn(bool);
     void setOnlineStatus();
+signals:
+    void esidLogout();
 };
 
 class SettingsDialog: public QDialog
@@ -129,12 +132,6 @@ public:
         }
         mLastOverlayCount = count;
     }
-    virtual void onPresenceChanged(karere::Presence state)
-    {
-        ui.mOnlineIndicator->setStyleSheet(
-            QString("background-color: ")+gOnlineIndColors[state]+
-            ";border-radius: 4px");
-    }
 //===
     CListItem(QWidget* parent)
     : QWidget(parent)
@@ -173,14 +170,55 @@ public:
         window->show();
         return window;
     }
-    CListChatItem(QWidget* parent): CListItem(parent){}
+    CListChatItem(QWidget* parent): CListItem(parent)
+    {
+        //getLastTextMsg needs to call a virtual method, which is not available
+        //during construction
+        karere::marshallCall([this] { getLastTextMsg(); });
+    }
+    void getLastTextMsg()
+    {
+        chatd::LastTextMsg* msg;
+        auto ret = room().chat().lastTextMessage(msg);
+        if (ret != 0 && ret < 0xfe)
+            onLastMessageUpdated(*msg);
+        else
+            mLastTextMsg = "<none>";
+    }
     virtual void onVisibilityChanged(int newVisibility) {}
+    virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg)
+    {
+        mLastTextMsg = msg.type() ? msg.contents() : "<none>";
+        updateToolTip();
+        GUI_LOG_DEBUG("%s: onLastMessageUpdated: type 0x%x, data: %s",
+            karere::Id(room().chatid()).toString().c_str(),
+                      msg.type(), mLastTextMsg.c_str());
+    }
+    virtual void onLastTsUpdated(uint32_t ts)
+    {
+        GUI_LOG_DEBUG("%s: onLastTsUpdated: %u", karere::Id(room().chatid()).toString().c_str(), ts);
+    }
+
+    virtual void onChatOnlineState(const chatd::ChatState state)
+    {
+        karere::Presence virtPresence = (state==chatd::kChatStateOnline)
+            ? karere::Presence::kOnline
+            : karere::Presence::kOffline;
+
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[virtPresence]
+            +";border-radius: 4px");
+    }
+
 //==
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
     {
         showChatWindow();
     }
     virtual karere::ChatRoom& room() const = 0;
+protected:
+    std::string mLastTextMsg;
+    virtual void updateToolTip() = 0;
 protected slots:
     void truncateChat();
 };
@@ -211,11 +249,13 @@ public:
         text.append(QString::fromStdString(mContact.email())).append(lf);
         text.append(tr("User handle: ")).append(QString::fromStdString(karere::Id(mContact.userId()).toString())).append(lf);
         if (mContact.chatRoom())
+        {
             text.append(tr("Chat handle: ")).append(QString::fromStdString(karere::Id(mContact.chatRoom()->chatid()).toString()));
+        }
         else
+        {
             text.append(tr("You have never chatted with this person"));
-//        auto now = time(NULL);
-//        text.append(tr("\nFriends since: ")).append(prettyInterval(now-contact.since())).append(lf);
+        }
         setToolTip(text);
     }
     virtual promise::Promise<ChatWindow*> showChatWindow()
@@ -325,6 +365,13 @@ public:
         }
         updateToolTip();
     }
+    virtual void onPresenceChanged(karere::Presence state)
+    {
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[state]+
+            ";border-radius: 4px");
+    }
+
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
     {
         showChatWindow();
@@ -387,23 +434,32 @@ public:
         if (!mRoom.isActive())
             showAsHidden();
     }
-    void updateToolTip()
+    virtual void updateToolTip()
     {
         QString text(tr("Group chat room: "));
-        text.append(QString::fromStdString(karere::Id(mRoom.chatid()).toString())).append(QChar('\n'))
-            .append(tr("Own privilege: ").append(QString::number(mRoom.ownPriv())).append(QChar('\n')))
-            .append(tr("Other participants:\n"));
-        for (const auto& item: mRoom.peers())
+        text.append(QString::fromStdString(karere::Id(mRoom.chatid()).toString()))
+            .append(tr("\nOwn privilege: ")).append(QString(chatd::privToString(mRoom.ownPriv())))
+            .append(tr("\nOther participants:"));
+        if (mRoom.peers().empty())
         {
-            auto& peer = *item.second;
-            const std::string* email = mRoom.parent.client.contactList->getUserEmail(item.first);
-            auto line = QString(" %1 (%2, %3): priv %4\n").arg(QString::fromStdString(peer.name()))
-                .arg(email?QString::fromStdString(*email):tr("(email unknown)"))
-                .arg(QString::fromStdString(karere::Id(item.first).toString()))
-                .arg((int)item.second->priv());
-            text.append(line);
+            text.append(" (none)");
         }
-        text.truncate(text.size()-1);
+        else
+        {
+            text.append("\n");
+            for (const auto& item: mRoom.peers())
+            {
+                auto& peer = *item.second;
+                const std::string* email = mRoom.parent.client.contactList->getUserEmail(item.first);
+                auto line = QString(" %1 (%2, %3): priv %4\n").arg(QString(peer.name().c_str()+1))
+                        .arg(email?QString::fromStdString(*email):tr("(email unknown)"))
+                        .arg(QString::fromStdString(karere::Id(item.first).toString()))
+                        .arg(QString(chatd::privToString(item.second->priv())));
+                text.append(line);
+            }
+            text.resize(text.size()-1);
+        }
+        text.append(tr("\nLast message:\n ")).append(QString::fromStdString(mLastTextMsg));
         setToolTip(text);
     }
     virtual void onMembersUpdated() { updateToolTip(); }
@@ -411,6 +467,11 @@ public:
     {
         showAsHidden();
     }
+    virtual void onUserJoin(uint64_t userid, chatd::Priv priv)
+    {
+        GUI_LOG_DEBUG("ChatListItem::onUserJoin for user %s with priv %s", karere::Id(userid).toString().c_str(), chatd::privToString(priv));
+    }
+
     virtual void onRejoinedChat()
     {
         unshowAsHidden();
@@ -460,12 +521,12 @@ public:
     }
     void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
     {
-        QChar lf('\n');
         QString text(tr("1on1 Chat room: "));
-        text.append(QString::fromStdString(karere::Id(mRoom.chatid()).toString())).append(lf);
-        text.append(tr("Email: "));
-        text.append(QString::fromStdString(mRoom.contact().email())).append(lf);
-        text.append(tr("User handle: ")).append(QString::fromStdString(karere::Id(mRoom.contact().userId()).toString()));
+        text.append(QString::fromStdString(karere::Id(mRoom.chatid()).toString()));
+        text.append(tr("\nEmail: "));
+        text.append(QString::fromStdString(mRoom.contact().email()));
+        text.append(tr("\nUser handle: ")).append(QString::fromStdString(karere::Id(mRoom.contact().userId()).toString()));
+        text.append(tr("\nLast message:\n")).append(QString::fromStdString(mLastTextMsg));
         setToolTip(text);
     }
     void contextMenuEvent(QContextMenuEvent* event)

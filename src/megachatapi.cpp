@@ -133,9 +133,34 @@ void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
     pImpl->setOnlineStatus(status, listener);
 }
 
+void MegaChatApi::setPresenceAutoaway(bool enable, int64_t timeout)
+{
+    pImpl->setPresenceAutoaway(enable, timeout);
+}
+
+bool MegaChatApi::isSignalActivityRequired()
+{
+    return pImpl->isSignalActivityRequired();
+}
+
+void MegaChatApi::setPresencePersist(bool enable)
+{
+    pImpl->setPresencePersist(enable);
+}
+
+void MegaChatApi::signalPresenceActivity()
+{
+    pImpl->signalPresenceActivity();
+}
+
 int MegaChatApi::getOnlineStatus()
 {
     return pImpl->getOnlineStatus();
+}
+
+MegaChatPresenceConfig *MegaChatApi::getPresenceConfig()
+{
+    return pImpl->getPresenceConfig();
 }
 
 int MegaChatApi::getUserOnlineStatus(MegaChatHandle userhandle)
@@ -305,6 +330,11 @@ MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg
 
 MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
 {
+    if (!msg)   // force to use deleteMessage() to delete message instead
+    {
+        return NULL;
+    }
+
     return pImpl->editMessage(chatid, msgid, msg);
 }
 
@@ -581,6 +611,11 @@ const char *MegaChatRoom::getPeerFullnameByHandle(MegaChatHandle userhandle) con
     return NULL;
 }
 
+const char *MegaChatRoom::getPeerEmailByHandle(MegaChatHandle userhandle) const
+{
+    return NULL;
+}
+
 unsigned int MegaChatRoom::getPeerCount() const
 {
     return 0;
@@ -607,6 +642,11 @@ const char *MegaChatRoom::getPeerLastname(unsigned int i) const
 }
 
 const char *MegaChatRoom::getPeerFullname(unsigned int i) const
+{
+    return NULL;
+}
+
+const char *MegaChatRoom::getPeerEmail(unsigned int i) const
 {
     return NULL;
 }
@@ -644,11 +684,6 @@ MegaChatHandle MegaChatRoom::getUserTyping() const
 bool MegaChatRoom::isActive() const
 {
     return false;
-}
-
-int MegaChatRoom::getOnlineStatus() const
-{
-    return MegaChatApi::STATUS_OFFLINE;
 }
 
 MegaChatPeerList * MegaChatPeerList::createInstance()
@@ -728,7 +763,12 @@ void MegaChatListener::onChatInitStateUpdate(MegaChatApi *api, int newState)
 
 }
 
-void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi *api, int status)
+void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress)
+{
+
+}
+
+void MegaChatListener::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPresenceConfig *config)
 {
 
 }
@@ -768,14 +808,24 @@ int MegaChatListItem::getUnreadCount() const
     return 0;
 }
 
-int MegaChatListItem::getOnlineStatus() const
-{
-    return MegaChatApi::STATUS_OFFLINE;
-}
-
-MegaChatMessage *MegaChatListItem::getLastMessage() const
+const char *MegaChatListItem::getLastMessage() const
 {
     return NULL;
+}
+
+int MegaChatListItem::getLastMessageType() const
+{
+    return MegaChatMessage::TYPE_INVALID;
+}
+
+MegaChatHandle MegaChatListItem::getLastMessageSender() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+int64_t MegaChatListItem::getLastTimestamp() const
+{
+    return 0;
 }
 
 bool MegaChatListItem::isGroup() const
@@ -845,7 +895,7 @@ MegaChatHandle MegaChatMessage::getUserHandle() const
 
 int MegaChatMessage::getType() const
 {
-    return MegaChatMessage::TYPE_UNKNOWN;
+    return MegaChatMessage::TYPE_INVALID;
 }
 
 int64_t MegaChatMessage::getTimestamp() const
@@ -923,4 +973,39 @@ const MegaChatListItem *MegaChatListItemList::get(unsigned int i) const
 unsigned int MegaChatListItemList::size() const
 {
     return 0;
+}
+
+MegaChatPresenceConfig *MegaChatPresenceConfig::copy() const
+{
+    return NULL;
+}
+
+int MegaChatPresenceConfig::getOnlineStatus() const
+{
+    return MegaChatApi::STATUS_INVALID;
+}
+
+bool MegaChatPresenceConfig::isAutoawayEnabled() const
+{
+    return false;
+}
+
+int64_t MegaChatPresenceConfig::getAutoawayTimeout() const
+{
+    return 0;
+}
+
+bool MegaChatPresenceConfig::isPersist() const
+{
+    return false;
+}
+
+bool MegaChatPresenceConfig::isPending() const
+{
+    return false;
+}
+
+bool MegaChatPresenceConfig::isSignalActivityRequired() const
+{
+    return false;
 }

@@ -38,6 +38,7 @@ class AppDelegate: public QObject
     Q_OBJECT
 public slots:
     void onAppTerminate();
+    void onEsidLogout();
 public:
     virtual bool event(QEvent* event)
     {
@@ -60,23 +61,37 @@ extern "C" void myMegaPostMessageToGui(void* msg)
 using namespace strophe;
 
 void setVidencParams();
-void applyEnvSettings();
+void saveSid(const char* sdkSid);
 
 void sigintHandler(int)
 {
-    printf("SIGINT Received\n");
+    printf("SIGINT Received\n"); //don't use the logger, as it may cause a deadlock
     fflush(stdout);
     marshallCall([]{appDelegate.onAppTerminate();});
-
 }
 
 std::string gAppDir = karere::createAppDir();
 std::unique_ptr<karere::Client> gClient;
 std::unique_ptr<::mega::MegaApi> gSdk;
+
+void createWindowAndClient()
+{
+    mainWin = new MainWindow();
+    gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));
+    gClient.reset(new karere::Client(*gSdk, *mainWin, gAppDir, 0));
+    mainWin->setClient(*gClient);
+    QObject::connect(mainWin, SIGNAL(esidLogout()), &appDelegate, SLOT(onEsidLogout()));
+}
+
 int main(int argc, char **argv)
 {
     karere::globalInit(myMegaPostMessageToGui, 0, (gAppDir+"/log.txt").c_str(), 500);
-    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
+    const char* staging = getenv("KR_USE_STAGING");
+    if (staging && strcmp(staging, "1") == 0)
+    {
+        KR_LOG_WARNING("Using staging API server, due to KR_USE_STAGING env variable");
+        ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
+    }
 //    gLogger.addUserLogger("karere-remote", new RemoteLogger);
 
 #ifdef __APPLE__
@@ -96,13 +111,10 @@ int main(int argc, char **argv)
 #endif
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
+    createWindowAndClient();
 
-    mainWin = new MainWindow();
-    gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));
-    gClient.reset(new karere::Client(*gSdk, *mainWin, gAppDir, 0));
-    applyEnvSettings();
-    mainWin->setClient(*gClient);
     QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
+
     char buf[256];
     const char* sid = nullptr;
     std::ifstream sidf(gAppDir+"/sid");
@@ -119,11 +131,7 @@ int main(int argc, char **argv)
         if (!sid)
         {
             KR_LOG_DEBUG("Client initialized with new session");
-            std::ofstream osidf(gAppDir+"/sid");
-            const char* sdkSid = gSdk->dumpSession();
-            assert(sdkSid);
-            osidf << sdkSid;
-            osidf.close();
+            saveSid(gSdk->dumpSession());
         }
         else
         {
@@ -177,16 +185,6 @@ void setVidencParams()
     }
 #endif
 }
-void applyEnvSettings()
-{
-    const char* val = getenv("KR_SKIP_INACTIVE_CHATS");
-    if (!val)
-        return;
-    if (strcmp(val, "1") == 0)
-        gClient->skipInactiveChatrooms = true;
-    else if (strcmp(val, "0") == 0)
-        gClient->skipInactiveChatrooms = false;
-}
 
 void AppDelegate::onAppTerminate()
 {
@@ -201,7 +199,6 @@ void AppDelegate::onAppTerminate()
     })
     .then([this]()
     {
-
         marshallCall([]() //post destruction asynchronously so that all pending messages get processed before that
         {
             qApp->quit(); //stop processing marshalled call messages
@@ -210,4 +207,44 @@ void AppDelegate::onAppTerminate()
         });
     });
 }
+
+void saveSid(const char* sdkSid)
+{
+    std::ofstream osidf(gAppDir+"/sid");
+    assert(sdkSid);
+    osidf << sdkSid;
+    osidf.close();
+}
+
+void AppDelegate::onEsidLogout()
+{
+    gClient->terminate(true)
+    .then([this]()
+    {
+        marshallCall([this]() //post destruction asynchronously so that all pending messages get processed before that
+        {
+            QObject::disconnect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
+
+            gClient.reset();
+            remove((gAppDir+"/sid").c_str());
+            delete mainWin;
+            QMessageBox::critical(nullptr, tr("Logout"), tr("Your session has been closed remotely"));
+            createWindowAndClient();
+
+            QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
+            gClient->loginSdkAndInit(nullptr)
+            .then([]()
+            {
+                KR_LOG_DEBUG("New client initialized with new session");
+                saveSid(gSdk->dumpSession());
+                gClient->connect(Presence::kInvalid);
+            })
+            .fail([](const promise::Error& err)
+            {
+                KR_LOG_ERROR("Error re-creating or logging in chat client after ESID: ", err.what());
+            });
+        });
+    });
+}
+
 #include <main.moc>

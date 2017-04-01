@@ -1,6 +1,6 @@
 [submodule "third-party/libws"]
 	path = third-party/libws
-	url = https://github.com/alxvasilev/libws.git
+	url = git@code.developers.mega.co.nz:messenger/libws.git
 [submodule "third-party/strophe-native"]
 	path = third-party/strophe-native
 	url = git@code.developers.mega.co.nz:messenger/strophe-native.git

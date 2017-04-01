@@ -104,14 +104,15 @@ public:
     {
         return sqlite3_column_blob(mStmt, num) != nullptr;
     }
-    bool blobCol(int num, Buffer& buf)
+    void blobCol(int num, Buffer& buf)
     {
         const void* data = sqlite3_column_blob(mStmt, num);
-        if (!data)
-            return false;
         int size = sqlite3_column_bytes(mStmt, num);
-        buf.append(data, size);
-        return true;
+        if (!data || !size)
+        {
+            buf.clear();
+        }
+        buf.assign(data, size);
     }
     void blobCol(int num, StaticBuffer& buf)
     {
@@ -153,5 +154,58 @@ bool sqliteQuery(sqlite3* db, const char* sql, Args&&... args)
     stmt.bindV(args...);
     return stmt.step();
 }
+
+struct SqliteString
+{
+    char* mStr;
+    SqliteString() = default;
+    SqliteString(char* str): mStr(str){}
+    ~SqliteString()
+    {
+        if (mStr)
+            sqlite3_free(mStr);
+    }
+};
+
+static inline void sqliteSimpleQuery(sqlite3* db, const char* sql)
+{
+    SqliteString err;
+    auto ret = sqlite3_exec(db, sql, nullptr, nullptr, &err.mStr);
+    if (ret == SQLITE_OK)
+        return;
+    std::string msg("Error executing '");
+    msg.append(sql);
+    if (err.mStr)
+        msg.append("': ").append(err.mStr);
+    else
+        msg+='\'';
+
+    throw std::runtime_error(msg);
+}
+
+class SqliteTransaction
+{
+protected:
+    sqlite3* mDb;
+public:
+    SqliteTransaction(sqlite3* db): mDb(db)
+    {
+        sqliteSimpleQuery(mDb, "BEGIN TRANSACTION");
+    }
+    void commit()
+    {
+        assert(mDb);
+        sqliteSimpleQuery(mDb, "COMMIT TRANSACTION");
+        mDb = nullptr;
+    }
+    ~SqliteTransaction()
+    {
+// the rollback may fail - in case of some critical errors, sqlite automatically
+// does a rollback. In such cases, we should ignore the error returned by
+// rollback, it's harmless
+        if (mDb)
+            sqlite3_exec(mDb, "ROLLBACK", nullptr, nullptr, nullptr);
+    }
+};
 
 #endif

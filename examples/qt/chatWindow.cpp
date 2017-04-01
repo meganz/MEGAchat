@@ -29,7 +29,7 @@ ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
     else
         setAcceptDrops(true);
 
-    setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint);
+    setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
     setAttribute(Qt::WA_DeleteOnClose);
     if (!mRoom.isActive())
         ui.mMessageEdit->setEnabled(false);
@@ -269,6 +269,7 @@ void ChatWindow::updateSeen()
 }
 void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
+    mRoom.onMessageEdited(msg, idx);
     auto widget = widgetFromMessage(msg);
     if (!widget)
     {

@@ -57,6 +57,15 @@ public:
            .append(std::to_string(actual));
         throw std::runtime_error(msg);
     }
+    void commit()
+    {
+        static int count = 0;
+        if (count++ < 60)
+            return;
+        sqliteSimpleQuery(mDb, "COMMIT TRANSACTION");
+        sqliteSimpleQuery(mDb, "BEGIN TRANSACTION");
+        count = 0;
+    }
     void saveMsgToSending(chatd::Chat::SendingItem& item)
     {
         assert(item.msg);
@@ -64,13 +73,14 @@ public:
         auto msg = item.msg;
         Buffer rcpts;
         item.recipients.save(rcpts);
-        sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, msg, updated, "
-                         "recipients, backrefid, backrefs, msg_cmd, key_cmd) values(?,?,?,?,?,?,?,?,?,?,?)",
+        sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, msg, type, updated, "
+                         "recipients, backrefid, backrefs, msg_cmd, key_cmd) values(?,?,?,?,?,?,?,?,?,?,?,?)",
             (uint64_t)mMessages.chatId(), item.opcode(), (int)time(NULL), msg->id(),
-            *msg, msg->updated, rcpts, msg->backRefId, msg->backrefBuf(),
+            *msg, msg->type, msg->updated, rcpts, msg->backRefId, msg->backrefBuf(),
             item.msgCmd ? (*item.msgCmd) : StaticBuffer(nullptr, 0),
             item.keyCmd ? (*item.keyCmd) : StaticBuffer(nullptr, 0));
         item.rowid = sqlite3_last_insert_rowid(mDb);
+        commit();
     }
     virtual void updateMsgInSending(const chatd::Chat::SendingItem& item)
     {
@@ -79,14 +89,15 @@ public:
         sqliteQuery(mDb, "update sending set msg = ?, updated = ?, msg_cmd = ? where rowid = ?",
             *item.msg, item.msg->updated, *item.msgCmd, item.rowid);
         assertAffectedRowCount(1, "updateMsgInSending");
+        commit();
     }
     virtual void confirmKeyOfSendingItem(uint64_t rowid, chatd::KeyId keyid)
     {
         sqliteQuery(mDb, "update sending set keyid = ?, key_cmd = NULL where rowid = ?",
                     keyid, rowid);
         assertAffectedRowCount(1, "confirmKeyOfSendingItem");
+        commit();
     }
-
     virtual void addBlobsToSendingItem(uint64_t rowid,
                     const chatd::MsgCommand* msgCmd, const chatd::Command* keyCmd)
     {
@@ -98,6 +109,7 @@ public:
             msgCmd?static_cast<StaticBuffer>(*msgCmd):StaticBuffer(nullptr, 0),
             keyCmd?static_cast<StaticBuffer>(*keyCmd):StaticBuffer(nullptr, 0), rowid);
         assertAffectedRowCount(1,"addCommandBlobToSendingItem");
+        commit();
     }
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid)
     {
@@ -106,22 +118,25 @@ public:
             "update sending set opcode=?, msgid=? where chatid=? and rowid=? and opcode=? and msgid=?",
             chatd::OP_MSGUPD, msgid, mMessages.chatId(), item.rowid, chatd::OP_MSGUPDX, item.msg->id());
         assertAffectedRowCount(1, "updateSendingItemMsgidAndOpcode");
+        commit();
     }
     virtual void deleteItemFromSending(uint64_t rowid)
     {
         sqliteQuery(mDb, "delete from sending where rowid = ?1", rowid);
         assertAffectedRowCount(1, "deleteItemFromSending");
+        commit();
     }
     virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data)
     {
         sqliteQuery(mDb, "update sending set msg = ? where rowid = ?", data, rowid);
         assertAffectedRowCount(1, "updateMsgPlaintextInSending");
+        commit();
     }
-
     virtual void updateMsgKeyIdInSending(uint64_t rowid, chatd::KeyId keyid)
     {
         sqliteQuery(mDb, "update sending set keyid = ? where rowid = ?", keyid, rowid);
         assertAffectedRowCount(1, "updateMsgKeyIdInSending");
+        commit();
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
@@ -142,12 +157,14 @@ public:
             "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid) "
             "values(?,?,?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
             msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId);
+        commit();
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
     {
         sqliteQuery(mDb, "update history set type = ?, data = ?, updated = ? where chatid = ? and msgid = ?",
             msg.type, msg, msg.updated, mMessages.chatId(), msgid);
         assertAffectedRowCount(1, "updateMsgInHistory");
+        commit();
     }
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
@@ -161,7 +178,7 @@ public:
             chatd::MsgCommand* msgCmd;
             if (stmt.hasBlobCol(10))
             {
-                msgCmd = new chatd::MsgCommand;
+                msgCmd = new chatd::MsgCommand(64);
                 stmt.blobCol(10, *msgCmd);
                 assert(msgCmd->opcode() == opcode);
             }
@@ -187,7 +204,7 @@ public:
             chatd::KeyCommand* keyCmd;
             if (stmt.hasBlobCol(11)) //key_cmd
             {
-                keyCmd = new chatd::KeyCommand;
+                keyCmd = new chatd::KeyCommand(64);
                 stmt.blobCol(11, *keyCmd);
                 assert(keyCmd->opcode() == chatd::OP_NEWKEY);
             }
@@ -248,7 +265,7 @@ public:
         stmt << mMessages.chatId() << mMessages.client().userId();
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
-        stmt.step();
+        stmt.stepMustHaveData("get peer msg count");
         return stmt.intCol(0);
     }
     virtual void saveItemToManualSending(const chatd::Chat::SendingItem& item, int reason)
@@ -258,6 +275,7 @@ public:
             "ts, updated, msg, opcode, reason) values(?,?,?,?,?,?,?,?,?)",
             mMessages.chatId(), item.rowid, item.msg->id(), msg.type, msg.ts,
             msg.updated, msg, item.opcode(), reason);
+        commit();
     }
     virtual void loadManualSendItems(std::vector<chatd::Chat::ManualSendItem>& items)
     {
@@ -268,7 +286,7 @@ public:
         {
             Buffer buf;
             stmt.blobCol(5, buf);
-            auto msg = new chatd::Message(stmt.uint64Col(1), 0,
+            auto msg = new chatd::Message(stmt.uint64Col(1), mMessages.client().userId(),
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), (chatd::ManualSendReason)stmt.intCol(7));
@@ -277,6 +295,7 @@ public:
     virtual bool deleteManualSendItem(uint64_t rowid)
     {
         sqliteQuery(mDb, "delete from manual_sending where rowid = ?", rowid);
+        commit();
         return sqlite3_changes(mDb) != 0;
     }
     virtual void truncateHistory(const chatd::Message& msg)
@@ -292,6 +311,7 @@ public:
         if (stmt.intCol(0) != chatd::Message::kMsgTruncate)
             throw std::runtime_error("DbInterface::truncateHistory: Truncate message type is not 'truncate'");
 #endif
+        commit();
     }
     virtual karere::Id getOldestMsgid()
     {
@@ -305,17 +325,20 @@ public:
     {
         sqliteQuery(mDb, "update chats set last_seen=? where chatid=?", msgid, mMessages.chatId());
         assertAffectedRowCount(1);
+        commit();
     }
     virtual void setLastReceived(karere::Id msgid)
     {
         sqliteQuery(mDb, "update chats set last_recv=? where chatid=?", msgid, mMessages.chatId());
         assertAffectedRowCount(1);
+        commit();
     }
     virtual void setHaveAllHistory()
     {
         sqliteQuery(mDb,
             "insert or replace into chat_vars(chatid, name, value) "
             "values(?, 'have_all_history', '1')", mMessages.chatId());
+        commit();
     }
     virtual bool haveAllHistory()
     {
@@ -324,6 +347,22 @@ public:
         if (!stmt.step())
             return false;
         return stmt.stringCol(0) == "1";
+    }
+    virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg)
+    {
+        SqliteStmt stmt(mDb,
+            "select type, idx, data, msgid, userid from history where chatid=? and "
+            "(type=1 or type >= 16) and (idx <= ?) and length(data) > 0 "
+            "order by idx desc limit 1");
+        stmt << mMessages.chatId() << from;
+        if (!stmt.step())
+        {
+            msg.clear();
+            return;
+        }
+        Buffer buf(128);
+        stmt.blobCol(2, buf);
+        msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
     }
 };
 
