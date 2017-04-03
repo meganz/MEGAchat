@@ -333,11 +333,12 @@ public:
      *
      * The temporal identifier has different usages depending on the status of the message:
      *  - MegaChatMessage::STATUS_SENDING: valid until it's confirmed by the server.
-     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's removed from manual-send queue.
+     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's remove from manual-send queue.
      *
      * @note If status is STATUS_SENDING_MANUAL, this value can be used to identify the
-     * message in the manual-send queue and can be passed to MegaChatApi::removeUnsentMessage
-     * to definitely remove the message.
+     * message moved into the manual-send queue. The message itself will be identified by its
+     * MegaChatMessage::getRowId from now on. The row id can be passed to
+     * MegaChatApi::removeUnsentMessage to definitely remove the message.
      *
      * For messages in a different status than above, this identifier should not be used.
      *
@@ -473,6 +474,20 @@ public:
      * @return A generic code for additional information about the message.
      */
     virtual int getCode() const;
+
+    /**
+     * @brief Return the id for messages in manual sending status / queue
+     *
+     * This value can be used to identify the message moved into the manual-send
+     * queue. The row id can be passed to MegaChatApi::removeUnsentMessage to
+     * definitely remove the message.
+     *
+     * @note this id is only valid for messages in STATUS_SENDING_MANUAL. For any
+     * other message, the function returns MEGACHAT_INVALID_HANDLE.
+     *
+     * @return The id of the message in the manual sending queue.
+     */
+    virtual MegaChatHandle getRowId() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -1867,10 +1882,15 @@ public:
      * Messages with status MegaChatMessage::STATUS_SENDING_MANUAL should be
      * removed from the manual send queue after user discards them or resends them.
      *
+     * The identifier of messages in manual sending status is notified when the
+     * message is moved into that queue or while loading history. In both cases,
+     * the callback MegaChatRoomListener::onMessageLoaded will be received with a
+     * message object including the row id.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param tempId Temporal id of the message, as returned by MegaChatMessage::getTempId.
+     * @param rowId Manual sending queue id of the message
      */
-    void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempId);
+    void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowId);
 
     /**
      * @brief Send a notification to the chatroom that the user is typing

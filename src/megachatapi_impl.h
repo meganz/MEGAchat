@@ -539,12 +539,14 @@ public:
     virtual MegaChatHandle getUserHandleOfAction() const;
     virtual int getPrivilege() const;
     virtual int getCode() const;
+    virtual MegaChatHandle getRowId() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 
     void setStatus(int status);
     void setTempId(MegaChatHandle tempId);
+    void setRowId(int id);
     void setContentChanged();
     void setCode(int code);
 
@@ -555,6 +557,7 @@ private:
     int status;
     MegaChatHandle msgId;   // definitive unique ID given by server
     MegaChatHandle tempId;  // used until it's given a definitive ID by server
+    MegaChatHandle rowId;   // used to identify messages in the manual-sending queue
     MegaChatHandle uh;
     MegaChatHandle uhAction;// certain messages need additional userhandle, such us priv changes
     int index;              // position within the history buffer

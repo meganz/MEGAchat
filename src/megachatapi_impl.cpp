@@ -1777,7 +1777,7 @@ MegaChatMessage *MegaChatApiImpl::getLastMessageSeen(MegaChatHandle chatid)
     return megaMsg;
 }
 
-void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempid)
+void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowid)
 {
     sdkMutex.lock();
 
@@ -1785,7 +1785,7 @@ void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle 
     if (chatroom)
     {
         Chat &chat = chatroom->chat();
-        chat.removeManualSend(tempid);
+        chat.removeManualSend(rowid);
     }
 
     sdkMutex.unlock();
@@ -2778,7 +2778,7 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason re
     }
     else
     {
-        message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
+        API_LOG_WARNING("Edit message rejected, reason: %d", reason);
         message->setCode(reason);
     }
     chatApi->fireOnMessageUpdate(message);
@@ -2857,7 +2857,7 @@ void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id,
     delete msg; // we take ownership of the Message
 
     message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
-    message->setTempId(id); // identifier for the manual-send queue, for removal from queue
+    message->setRowId(id); // identifier for the manual-send queue, for removal from queue
     message->setCode(reason);
     chatApi->fireOnMessageLoaded(message);
 }
@@ -3676,6 +3676,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->deleted = msg->isDeleted();
     this->priv = msg->getPrivilege();
     this->code = msg->getCode();
+    this->rowId = msg->getRowId();
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
@@ -3693,6 +3694,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->uh = msg.userid;
     this->msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
     this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
+    this->rowId = MEGACHAT_INVALID_HANDLE;
     this->type = msg.type;
     this->ts = msg.ts;
     this->status = status;
@@ -3816,6 +3818,11 @@ int MegaChatMessagePrivate::getCode() const
     return code;
 }
 
+MegaChatHandle MegaChatMessagePrivate::getRowId() const
+{
+    return rowId;
+}
+
 int MegaChatMessagePrivate::getChanges() const
 {
     return changed;
@@ -3835,6 +3842,11 @@ void MegaChatMessagePrivate::setStatus(int status)
 void MegaChatMessagePrivate::setTempId(MegaChatHandle tempId)
 {
     this->tempId = tempId;
+}
+
+void MegaChatMessagePrivate::setRowId(int id)
+{
+    this->rowId = id;
 }
 
 void MegaChatMessagePrivate::setContentChanged()
