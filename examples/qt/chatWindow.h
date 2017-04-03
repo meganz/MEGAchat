@@ -494,6 +494,10 @@ public:
     virtual void onDestroy(){ close(); }
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
     {
+        //mimic app usage - call lastTextMessage() from within onRecvXXXMessage()
+        chatd::LastTextMsg* dummy;
+        mRoom.chat().lastTextMessage(dummy);
+        //====
         if (msg.empty())
             return;
         auto sbar = ui.mMessageList->verticalScrollBar();

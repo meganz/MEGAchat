@@ -991,7 +991,7 @@ void Chat::onFetchHistDone()
             if (mLastTextMsg.isFetching())
             {
                 mLastTextMsg.clear();
-                CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
+                notifyLastTextMsg();
             }
         }
     }
@@ -1785,11 +1785,17 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         else
         { //it's the same message - set its index, and don't notify again
             mLastTextMsg.confirm(idx, msgid);
+            if (!mLastTextMsg.mIsNotified)
+                notifyLastTextMsg();
         }
     }
     else if (idx > mLastTextMsg.idx())
     {
         onLastTextMsgUpdated(*msg, idx);
+    }
+    else if (idx == mLastTextMsg.idx() && !mLastTextMsg.mIsNotified)
+    {
+        notifyLastTextMsg();
     }
     return idx;
 }
@@ -2258,6 +2264,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 // Save to history db, handle received and seen pointers, call new/old message user callbacks
 void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx)
 {
+    assert(idx != CHATD_IDX_INVALID);
     if (!isNew)
     {
         mLastHistDecryptCount++;
@@ -2310,7 +2317,15 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         if ((mLastTextMsg.state() != LastTextMsg::kHave) //we don't have any last-text-msg yet, just use any
         || (mLastTextMsg.idx() == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
         || (idx > mLastTextMsg.idx())) //we have a newer message
+        {
             onLastTextMsgUpdated(msg, idx);
+        }
+        else if (idx == mLastTextMsg.idx() && !mLastTextMsg.mIsNotified)
+        { //we have already updated mLastTextMsg because app called
+          //lastTextMessage() from the onRecvXXX callback, but we haven't done
+          //onLastTextMessageUpdated() with it
+            notifyLastTextMsg();
+        }
     }
     onMsgTimestamp(msg.ts);
 }
@@ -2443,19 +2458,18 @@ void Chat::setOnlineState(ChatState state)
 
 void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
 {
-    assert(!msg.isSending());
+    //idx == CHATD_IDX_INVALID when we notify about a message in the send queue
+    //either (msg.isSending() && idx-is-invalid) or (!msg.isSending() && index-is-valid)
+    assert(!((idx == CHATD_IDX_INVALID) ^ msg.isSending()));
     assert(!msg.empty());
     mLastTextMsg.assign(msg, idx);
-    CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
+    notifyLastTextMsg();
 }
 
-void Chat::onLastTextMsgUpdated(const Message& msg)
+void Chat::notifyLastTextMsg()
 {
-    assert(msg.isSending());
-    assert(!msg.empty());
-    mLastTextMsg.assign(msg, CHATD_IDX_INVALID);
-//    mLastTxtMsgXid = msg.id();
     CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
+    mLastTextMsg.mIsNotified = true;
 }
 
 uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
@@ -2553,8 +2567,7 @@ void Chat::findAndNotifyLastTextMsg()
         findLastTextMsg();
         if (mLastTextMsg.state() == LastTextMsg::kFetching)
             return;
-
-        CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
+        notifyLastTextMsg();
     });
 
 }

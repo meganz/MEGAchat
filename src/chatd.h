@@ -382,6 +382,7 @@ protected:
 /** @brief Internal class that maintains the last-text-message state */
 struct LastTextMsgState: public LastTextMsg
 {
+    bool mIsNotified = false;
     uint8_t state() const { return mState; }
     Idx idx() const { return mIdx; }
     karere::Id id() const { assert(mIdx != CHATD_IDX_INVALID); return mId; }
@@ -401,9 +402,15 @@ struct LastTextMsgState: public LastTextMsg
         mContents.assign(buf.buf(), buf.dataSize());
         mSender = sender;
         mState = kHave;
+        mIsNotified = false;
     }
     //assign both idx and proper msgid (was msgxid until now)
-    void confirm(Idx idx, karere::Id msgid) { mIdx = idx; mId = msgid; }
+    void confirm(Idx idx, karere::Id msgid)
+    {
+        assert(mIdx == CHATD_IDX_INVALID);
+        mIdx = idx;
+        mId = msgid;
+    }
     void clear() { mState = kNone; mType = 0; mContents.clear(); }
 protected:
     friend class Chat;
@@ -590,6 +597,7 @@ protected:
     void logSend(const Command& cmd);
     void handleBroadcast(karere::Id userid, uint8_t type);
     void findAndNotifyLastTextMsg();
+    void notifyLastTextMsg();
     void onMsgTimestamp(uint32_t ts); //support for newest-message-timestamp
     friend class Connection;
     friend class Client;
@@ -956,8 +964,7 @@ protected:
      * This may be needed when the listener is switched, in order to init the new
      * listener state */
     void replayUnsentNotifications();
-    void onLastTextMsgUpdated(const Message& msg, Idx idx); //user when receiving or having a message confirmed by server
-    void onLastTextMsgUpdated(const Message& msg); //used to immediately update when posting a new msg
+    void onLastTextMsgUpdated(const Message& msg, Idx idx=CHATD_IDX_INVALID);
     void findLastTextMsg();
     /**
      * @brief Initiates loading of the queue with messages that require user
