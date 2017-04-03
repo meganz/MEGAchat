@@ -98,6 +98,29 @@ protected:
     const MegaChatMessage* mAttachNodesMessage;
 };
 
+class MegaChatPresenceConfigPrivate : public MegaChatPresenceConfig
+{
+public:
+    MegaChatPresenceConfigPrivate(const MegaChatPresenceConfigPrivate &config);
+    MegaChatPresenceConfigPrivate(const presenced::Config &config, bool isPending);
+    virtual ~MegaChatPresenceConfigPrivate();
+    virtual MegaChatPresenceConfig *copy() const;
+
+    virtual int getOnlineStatus() const;
+    virtual bool isAutoawayEnabled() const;
+    virtual int64_t getAutoawayTimeout() const;
+    virtual bool isPersist() const;
+    virtual bool isPending() const;
+    virtual bool isSignalActivityRequired() const;
+
+private:
+    int status;
+    bool persistEnabled;
+    bool autoawayEnabled;
+    int64_t autoawayTimeout;
+    bool pending;
+};
+
 class MegaChatVideoReceiver;
 
 class MegaChatCallPrivate :
@@ -203,7 +226,6 @@ private:
     mega::visibility_t visibility;
     std::string title;
     int unreadCount;
-    int status;
     std::string lastMsg;
     int lastMsgType;
     MegaChatHandle lastMsgSender;
@@ -220,7 +242,6 @@ public:
     virtual const char *getTitle() const;
     virtual int getVisibility() const;
     virtual int getUnreadCount() const;
-    virtual int getOnlineStatus() const;
     virtual const char *getLastMessage() const;
     virtual int getLastMessageType() const;
     virtual MegaChatHandle getLastMessageSender() const;
@@ -232,7 +253,6 @@ public:
     void setVisibility(mega::visibility_t visibility);
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
-    void setOnlineStatus(int status);
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
@@ -247,13 +267,13 @@ public:
     // karere::IApp::IListItem::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
-    virtual void onPresenceChanged(karere::Presence state);
 
     // karere::IApp::IListItem::IChatListItem implementation
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
     virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastTsUpdated(uint32_t ts);
+    virtual void onOnlineChatState(const chatd::ChatState state);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
@@ -272,7 +292,6 @@ public:
     // karere::IApp::IListItem::IGroupChatListItem implementation
     virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
     virtual void onUserLeave(uint64_t userid);
-    virtual void onPeerPresence(karere::Presence pres);
 };
 
 class MegaChatPeerListItemHandler :
@@ -285,7 +304,7 @@ public:
 
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
 {
-public:    
+public:
     MegaChatRoomHandler(MegaChatApiImpl*, MegaChatHandle chatid);
 
     // karere::IApp::IChatHandler implementation
@@ -297,7 +316,6 @@ public:
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
-    virtual void onPresenceChanged(karere::Presence state);
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
@@ -308,7 +326,7 @@ public:
     virtual void onUnsentMsgLoaded(chatd::Message& msg);
     virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
     virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx);
-    virtual void onMessageRejected(const chatd::Message& msg);
+    virtual void onMessageRejected(const chatd::Message& msg, uint8_t reason);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onEditRejected(const chatd::Message& msg, bool oriIsConfirmed);
@@ -444,12 +462,10 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     virtual int getUnreadCount() const;
-    virtual int getOnlineStatus() const;
     virtual MegaChatHandle getUserTyping() const;
 
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
-    void setOnlineStatus(int status);
     void setMembersUpdated();
     void setUserTyping(MegaChatHandle uh);
     void setClosed();
@@ -468,7 +484,6 @@ private:
 
     std::string title;
     int unreadCount;
-    int status;
     MegaChatHandle uh;
 
 public:
@@ -589,8 +604,7 @@ public:
 
 class MegaChatApiImpl :
         public karere::IApp,
-        public karere::IApp::IChatListHandler,
-        public mega::MegaRequestListener
+        public karere::IApp::IChatListHandler
 {
 public:
 
@@ -607,6 +621,7 @@ private:
     mega::MegaApi *megaApi;
 
     karere::Client *mClient;
+    bool terminating;
 
     mega::MegaWaiter *waiter;
     mega::MegaThread thread;
@@ -615,9 +630,6 @@ private:
     void loop();
 
     void init(MegaChatApi *chatApi, mega::MegaApi *megaApi);
-    const char* resumeSession;
-    MegaChatError *initResult;
-    MegaChatRequestPrivate *initRequest;
 
     static LoggerHandler *loggerHandler;
 
@@ -640,15 +652,12 @@ private:
     std::map<int, MegaChatCallPrivate *> callMap;
     MegaChatVideoReceiver *localVideoReceiver;
 
-    // online status of user
-    int status;
-
     static int convertInitState(int state);
 
     void sendAttachMessage(mega::MegaNodeList* nodes, karere::ChatRoom *chatroom, MegaChatRequestListener *listener);
     void sendRevokeAttach(MegaChatHandle handle, karere::ChatRoom *chatroom, MegaChatRequestListener *listener);
 
-public:    
+public:
     static void megaApiPostMessage(void* msg);
     void postMessage(void *msg);
 
@@ -711,7 +720,8 @@ public:
     // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
     void fireOnChatInitStateUpdate(int newState);
-    void fireOnChatOnlineStatusUpdate(int status);
+    void fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, int status, bool inProgress);
+    void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
 
     // ============= API requests ================
 
@@ -723,7 +733,16 @@ public:
 
     void setOnlineStatus(int status, MegaChatRequestListener *listener = NULL);
     int getOnlineStatus();
+    bool isOnlineStatusPending();
+
+    void setPresenceAutoaway(bool enable, int64_t timeout);
+    void setPresencePersist(bool enable);
+    void signalPresenceActivity();
+    MegaChatPresenceConfig *getPresenceConfig();
+    bool isSignalActivityRequired();
+
     int getUserOnlineStatus(MegaChatHandle userhandle);
+
     void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
@@ -788,7 +807,8 @@ public:
     virtual IApp::IChatHandler *createChatHandler(karere::ChatRoom &chat);
     virtual IApp::IContactListHandler *contactListHandler();
     virtual IApp::IChatListHandler *chatListHandler();
-    virtual void onOwnPresence(karere::Presence pres, bool inProgress);
+    virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
+    virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
     virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
     virtual void notifyInvited(const karere::ChatRoom& room);
@@ -799,13 +819,6 @@ public:
     virtual void removeGroupChatItem(IApp::IGroupChatListItem& item);
     virtual IApp::IPeerChatListItem *addPeerChatItem(karere::PeerChatRoom& chat);
     virtual void removePeerChatItem(IApp::IPeerChatListItem& item);
-
-    // mega::MegaRequestListener implementation
-//    virtual void onRequestStart(MegaApi* api, MegaRequest *request);
-//    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
-//    virtual void onRequestUpdate(MegaApi*api, MegaRequest *request);
-//    virtual void onRequestTemporaryError(MegaApi *api, MegaRequest *request, MegaError* error);
-
 };
 
 class MegaChatUserPrivate : public MegaChatUser

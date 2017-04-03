@@ -237,7 +237,6 @@ void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
     {
         cout << "\tTitle: " << chat->getTitle() << endl;
     }
-    cout << "\tOnline state: " << MegaChatRoom::statusToString(chat->getOnlineStatus()) << endl;
     cout << "\tUnread count: " << chat->getUnreadCount() << " message/s" << endl;
     cout << "-------------------------------------------------" << endl;
     fflush(stdout);
@@ -271,7 +270,7 @@ void MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
     const char *title = item->getTitle() ? item->getTitle() : "<empty>";
 
     cout << "id: " << item->getChatId() << ", title: " << title;
-    cout << ", status: " << item->getOnlineStatus() << ", visibility: " << item->getVisibility();
+    cout << ", visibility: " << item->getVisibility();
     cout << ", unread: " << item->getUnreadCount() << ", changes: " << item->getChanges();
     cout << ", lastMsg: " << item->getLastMessage() << ", lastMsgType: " << item->getLastMessageType();
     cout << ", lastTs: " << item->getLastTimestamp() << endl;
@@ -309,6 +308,17 @@ void MegaChatApiTest::TEST_resumeSession()
     assert(string(myEmail) == this->email[0]);
     cout << "My email is: " << myEmail << endl;
     delete [] myEmail; myEmail = NULL;
+
+    // Test for management of ESID:
+    // (uncomment the following block)
+//    {
+//        bool *flag = &requestFlagsChat[0][MegaChatRequest::TYPE_LOGOUT]; *flag = false;
+//        // ---> NOW close session remotely ---
+//        sleep(30);
+//        // and wait for forced logout of megachatapi due to ESID
+//        assert(waitForResponse(flag));
+//        session = login(0);
+//    }
 
     // ___ Resume an existing session ___
     logout(0, false); // keeps session alive
@@ -370,7 +380,7 @@ void MegaChatApiTest::TEST_resumeSession()
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_LOGOUT]; *flag = false;
     megaChatApi[0]->logout();
     assert(waitForResponse(flag));
-    assert(!lastError[0]);
+    assert(!lastErrorChat[0]);
     megaChatApi[0]->setLoggerObject(NULL);
     delete megaChatApi[0];
     // create a new MegaChatApi instance
@@ -391,7 +401,7 @@ void MegaChatApiTest::TEST_resumeSession()
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
     megaChatApi[0]->connect();
     assert(waitForResponse(flag));
-    assert(!lastError[0]);
+    assert(!lastErrorChat[0]);
     // check there's a list of chats already available
     list = megaChatApi[0]->getChatListItems();
     assert(list->size());
@@ -437,7 +447,7 @@ void MegaChatApiTest::TEST_resumeSession()
     flag = &requestFlagsChat[0][MegaChatRequest::TYPE_CONNECT]; *flag = false;
     megaChatApi[0]->connect();
     assert(waitForResponse(flag));
-    assert(!lastError[0]);
+    assert(!lastErrorChat[0]);
     // check there's a list of chats already available
     list = megaChatApi[0]->getChatListItems();
     assert(list->size());

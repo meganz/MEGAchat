@@ -62,7 +62,8 @@ public:
 #endif
     }
     virtual karere::IApp::ILoginDialog* createLoginDialog();
-    virtual void onOwnPresence(karere::Presence pres, bool inProgress);
+    virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
+    virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending) {}
     virtual void onIncomingContactRequest(const mega::MegaContactRequest &req);
 protected:
     karere::IApp::IContactListItem* addItem(bool front, karere::Contact* contact,
@@ -80,6 +81,8 @@ protected slots:
     void onSettingsBtn(bool);
     void onOnlineStatusBtn(bool);
     void setOnlineStatus();
+signals:
+    void esidLogout();
 };
 
 class SettingsDialog: public QDialog
@@ -129,12 +132,6 @@ public:
         }
         mLastOverlayCount = count;
     }
-    virtual void onPresenceChanged(karere::Presence state)
-    {
-        ui.mOnlineIndicator->setStyleSheet(
-            QString("background-color: ")+gOnlineIndColors[state]+
-            ";border-radius: 4px");
-    }
 //===
     CListItem(QWidget* parent)
     : QWidget(parent)
@@ -173,7 +170,21 @@ public:
         window->show();
         return window;
     }
-    CListChatItem(QWidget* parent): CListItem(parent){}
+    CListChatItem(QWidget* parent): CListItem(parent)
+    {
+        //getLastTextMsg needs to call a virtual method, which is not available
+        //during construction
+        karere::marshallCall([this] { getLastTextMsg(); });
+    }
+    void getLastTextMsg()
+    {
+        chatd::LastTextMsg* msg;
+        auto ret = room().chat().lastTextMessage(msg);
+        if (ret != 0 && ret < 0xfe)
+            onLastMessageUpdated(*msg);
+        else
+            mLastTextMsg = "<none>";
+    }
     virtual void onVisibilityChanged(int newVisibility) {}
     virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg)
     {
@@ -186,6 +197,17 @@ public:
     virtual void onLastTsUpdated(uint32_t ts)
     {
         GUI_LOG_DEBUG("%s: onLastTsUpdated: %u", karere::Id(room().chatid()).toString().c_str(), ts);
+    }
+
+    virtual void onChatOnlineState(const chatd::ChatState state)
+    {
+        karere::Presence virtPresence = (state==chatd::kChatStateOnline)
+            ? karere::Presence::kOnline
+            : karere::Presence::kOffline;
+
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[virtPresence]
+            +";border-radius: 4px");
     }
 
 //==
@@ -343,6 +365,13 @@ public:
         }
         updateToolTip();
     }
+    virtual void onPresenceChanged(karere::Presence state)
+    {
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[state]+
+            ";border-radius: 4px");
+    }
+
     virtual void mouseDoubleClickEvent(QMouseEvent* event)
     {
         showChatWindow();

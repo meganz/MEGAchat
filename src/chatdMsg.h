@@ -20,22 +20,113 @@ enum { kMaxBackRefs = 32 };
 enum Opcode
 {
     OP_KEEPALIVE = 0,
+
+    /**
+      * @brief It must be the very first command to send, so the user actually join the chatroom.
+      *
+      * Send: <chatid> <userid> <user_priv>
+      * @note user_priv is usually Priv::PRIV_NOCHANGE, so chatd replies with the actual privilege.
+      *
+      * Receive: <chatid> <userid> <priv>
+      * @note a JOIN is received per user, with its corresponding privilege
+      *
+      */
     OP_JOIN = 1,
+
+    /**
+      * @brief Received as result of HIST command. It reports an old message.
+      *
+      * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
+      */
     OP_OLDMSG = 2,
+
+    /**
+      * @brief Received as result of HIST command. It reports a new message.
+      *
+      * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
+      */
     OP_NEWMSG = 3,
+
+    /**
+      * @brief Received as result of HIST command. It reports the edition of an existing message.
+      *
+      * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
+      */
     OP_MSGUPD = 4,
+
+    /**
+      * @brief Received as result of HIST comand. It reports the last seen message id
+      *
+      * Receive: <chatid> <msgid>
+      *
+      */
     OP_SEEN = 5,
+
+    /**
+      * @brief It notifies about reception of a message
+      *
+      * Send: <chatid> <msgid>
+      *
+      * Receive: <chatid> <msgid>
+      *
+      */
     OP_RECEIVED = 6,
+
     OP_RETENTION = 7,
+
+    /**
+      * @brief Usually sent immediately after JOIN, it retrieves history from the chatroom.
+      *
+      * Send: <chatid> <count>
+      * @note count is usually a negative number to fetch old history, possitive for new history.
+      *
+      * This command results in receiving:
+      *  - the last SEEN message
+      *  - the last RECEIVED message
+      *  - the NEWKEY to encrypt/decrypt history
+      *  - zero or more OLDMSG
+      *  - a notification when HISTDONE
+      *
+      */
     OP_HIST = 8,
+
     OP_RANGE = 9,
     OP_NEWMSGID = 10,
+
+    /**
+      * @brief Received when the server rejects a command
+      *
+      * Received: <chatid> <generic_id> <op_code> <reason>
+      *
+      * Server can reject:
+      *  - JOIN: the user doesn't participate in the chatroom
+      *  - NEWMSG | MSGUPD | MSGUPDX: participants have changed or the message is too old
+      */
     OP_REJECT = 11,
+
     OP_BROADCAST = 12,
+
+    /**
+      * @brief Received as result of HIST command, it notifies the end of history fetch.
+      *
+      * Receive: <chatid>
+      *
+      * @note There may be more history in server, but the HIST <count> is already satisfied.
+      *
+      */
     OP_HISTDONE = 13,
+
+    /**
+      * @brief Received when there's a new key for the chatroom.
+      *
+      * Send: <chatid> <keyid> <keylen> <key>
+      * @note keyid is currently not used for any purpose.
+      *
+      */
     OP_NEWKEY = 17,
+
     OP_KEYID = 18,
-    OP_JOINRANGEHIST = 19,
+    OP_JOINRANGEHIST = 19,  /// <chatid> <oldest_known_msgid> <newest_known_msgid>
     OP_MSGUPDX = 20,
     OP_MSGID = 21,
     OP_LAST = OP_MSGID
@@ -223,8 +314,14 @@ protected:
 public:
     enum { kBroadcastUserTyping = 1 };
     Command(): Buffer(){}
-    Command(Command&& other): Buffer(std::forward<Buffer>(other)) {assert(!other.buf() && !other.bufSize() && !other.dataSize());}
-    Command(uint8_t opcode, uint8_t reserve=64): Buffer(reserve) { write(0, opcode); }
+
+    Command(Command&& other)
+    : Buffer(std::forward<Buffer>(other))
+    { assert(!other.buf() && !other.bufSize() && !other.dataSize()); }
+
+    explicit Command(uint8_t opcode, size_t reserve=64)
+    : Buffer(reserve) { write(0, opcode); }
+
     template<class T>
     Command&& operator+(const T& val)
     {
@@ -258,12 +355,13 @@ public:
 class KeyCommand: public Command
 {
 public:
-    explicit KeyCommand(karere::Id chatid=karere::Id::null(), uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
-        uint8_t reserve=128)
+    explicit KeyCommand(karere::Id chatid, uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
+        size_t reserve=128)
     : Command(OP_NEWKEY, reserve)
     {
         append(chatid.val).append<uint32_t>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
+    KeyCommand(): Command(){} //for db loading
     KeyId keyId() const { return read<uint32_t>(9); }
     void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
     void setKeyId(uint32_t keyid) { write(9, keyid); }
@@ -292,7 +390,7 @@ public:
         write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
         write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
-    MsgCommand(): Command() {} //for loading the buffer
+    MsgCommand(size_t reserve): Command(reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
     void setId(karere::Id aMsgid) { write(17, aMsgid.val); }
     KeyId keyId() const { return read<KeyId>(31); }

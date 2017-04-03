@@ -59,8 +59,12 @@ public:
     }
     void commit()
     {
+        static int count = 0;
+        if (count++ < 60)
+            return;
         sqliteSimpleQuery(mDb, "COMMIT TRANSACTION");
         sqliteSimpleQuery(mDb, "BEGIN TRANSACTION");
+        count = 0;
     }
     void saveMsgToSending(chatd::Chat::SendingItem& item)
     {
@@ -174,7 +178,7 @@ public:
             chatd::MsgCommand* msgCmd;
             if (stmt.hasBlobCol(10))
             {
-                msgCmd = new chatd::MsgCommand;
+                msgCmd = new chatd::MsgCommand(64);
                 stmt.blobCol(10, *msgCmd);
                 assert(msgCmd->opcode() == opcode);
             }
@@ -200,7 +204,7 @@ public:
             chatd::KeyCommand* keyCmd;
             if (stmt.hasBlobCol(11)) //key_cmd
             {
-                keyCmd = new chatd::KeyCommand;
+                keyCmd = new chatd::KeyCommand(64);
                 stmt.blobCol(11, *keyCmd);
                 assert(keyCmd->opcode() == chatd::OP_NEWKEY);
             }
