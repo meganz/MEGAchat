@@ -81,13 +81,6 @@ public:
     /** @brief The text that will be displayed on the chat list for that chat */
     virtual const std::string& titleString() const = 0;
 
-    /**
-     * @brief The current presence status of the chat. If this is a 1on1 chat, this is
-     * the same as the presence of the peer. If it is a groupchat, it is
-     * derived from the chatd chatroom status
-     */
-    virtual Presence presence() const = 0;
-
     /** @brief Connects to the chatd chatroom */
     virtual void connect() = 0;
 
@@ -171,6 +164,7 @@ public:
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onExcludedFromRoom() {}
+    virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
     {
         KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, userid %s]: %s",
@@ -198,10 +192,8 @@ protected:
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
     bool syncPeerPriv(chatd::Priv priv);
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
-    void notifyPresenceChange(Presence pres);
     void initWithChatd();
     virtual void connect();
-    inline Presence calculatePresence(Presence pres) const;
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
@@ -222,19 +214,11 @@ public:
     /** @brief The screen name of the peer */
     virtual const std::string& titleString() const;
 
-    /** @brief The presence status of the chatroom. Derived from the presence
-     * of the peer and the status of the chatroom reported by chatd. For example,
-     * the peer may be online, but the chatd connection may be offline or there may
-     * be a problem joining the chatroom on chatd. In such a case, the presence
-     * will be `offline`
-     */
-    virtual Presence presence() const;
     promise::Promise<void> mediaCall(AvFlags av);
 /** @cond PRIVATE */
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
     virtual void onUserLeave(Id userid);
-    virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUnreadChanged();
 /** @endcond */
 };
@@ -291,7 +275,6 @@ public:
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
-    void updateAllOnlineDisplays(Presence pres);
     void addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(uint64_t userid);
     void updatePeerPresence(uint64_t peer, Presence pres);
@@ -317,7 +300,6 @@ public:
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
     void onUserLeave(Id userid);
-    void onOnlineStateChange(chatd::ChatState);
     void onUnreadChanged();
 //====
     /** @endcond PRIVATE */
@@ -478,8 +460,6 @@ public:
     {
         if (mDisplay)
             mDisplay->onPresenceChanged(pres);
-        if (mChatRoom)
-            mChatRoom->notifyPresenceChange(mChatRoom->calculatePresence(pres));
     }
 };
 
@@ -701,7 +681,7 @@ public:
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
 
-    /** @brief Does the actual connection to chatd, xmpp and gelb. Assumes the
+    /** @brief Does the actual connection to chatd and presenced. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initNewSession() or \c initExistingSession() completes
      * @param pres The presence which should be set. This is a forced presence,
@@ -747,7 +727,7 @@ public:
     * @param force Forces re-setting the presence, even if the current presence
     * is the same. Normally is \c false
     */
-    promise::Promise<void> setPresence(const Presence pres, bool force = kSetPresDynamic);
+    promise::Promise<void> setPresence(const Presence pres);
 
     /** @brief Creates a group chatroom with the specified peers, privileges
      * and title.
@@ -800,7 +780,7 @@ protected:
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
-    void setOwnPresence(Presence pres, bool force);
+ //   void setOwnPresence(Presence pres);
     promise::Promise<int> initializeContactList();
     /** @brief A convenience method to log in the associated Mega SDK instance,
      *  using IApp::ILoginDialog to ask the user/app for credentials. This
@@ -844,8 +824,7 @@ protected:
 
     // presenced listener interface
     virtual void onConnStateChange(presenced::Client::ConnState state);
-    virtual void onPeerPresence(Id userid, Presence pres);
-    virtual void onOwnPresence(Presence pres);
+    virtual void onPresenceChange(Id userid, Presence pres);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending)
     {
         app.onPresenceConfigChanged(state, pending);
@@ -855,13 +834,6 @@ protected:
     friend class ChatRoomList;
 /** @endcond PRIVATE */
 };
-
-inline Presence PeerChatRoom::calculatePresence(Presence pres) const
-{
-     if (mChat && mChat->onlineState() != chatd::kChatStateOnline)
-         return Presence::kOffline;
-     return pres;
-}
 
 }
 #endif // CHATCLIENT_H

@@ -166,13 +166,20 @@ void MainWindow::onOnlineStatusBtn(bool)
         "}");
     list->exec();
 }
-void MainWindow::onOwnPresence(Presence pres, bool inProgress)
+void MainWindow::onPresenceChanged(Id userid, Presence pres, bool inProgress)
 {
-    ui.mOnlineStatusBtn->setText(inProgress
-        ?kOnlineSymbol_InProgress
-        :kOnlineSymbol_Set);
-    ui.mOnlineStatusBtn->setStyleSheet(
-        kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.status()]));
+    if (userid == client().myHandle())
+    {
+        ui.mOnlineStatusBtn->setText(inProgress
+            ?kOnlineSymbol_InProgress
+            :kOnlineSymbol_Set);
+        ui.mOnlineStatusBtn->setStyleSheet(
+            kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.status()]));
+    }
+    else
+    {
+        // TODO: update the presence for contacts
+    }
 }
 
 void MainWindow::setOnlineStatus()
@@ -188,12 +195,11 @@ void MainWindow::setOnlineStatus()
     }
     if (pres == Presence::kOnline)
     {
-        client().setPresence(Presence::kClear, Client::kSetPresOverride);
-        client().setPresence(Presence::kOnline, Client::kSetPresDynamic);
+        client().setPresence(Presence::kOnline);
     }
     else
     {
-        client().setPresence(pres, Client::kSetPresOverride);
+        client().setPresence(pres);
     }
 }
 

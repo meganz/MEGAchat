@@ -1155,7 +1155,7 @@ public:
      * @param enable True to enable the autoaway feature
      * @param timeout Seconds to wait before turning away (if no activity has been signalled)
      */
-    void setPresenceAutoaway(bool enable, int timeout);
+    void setPresenceAutoaway(bool enable, int64_t timeout);
 
     /**
      * @brief Enable/disable the persist option
@@ -1204,7 +1204,7 @@ public:
      *
      * @see \c MegaChatPresenceConfig for further details.
      *
-     * @return The current presence configuration
+     * @return The current presence configuration, or NULL if not received yet from server
      */
     MegaChatPresenceConfig *getPresenceConfig();
 
@@ -1984,7 +1984,7 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS          = 0x01,
+        CHANGE_TYPE_STATUS          = 0x01, /// obsolete
         CHANGE_TYPE_VISIBILITY      = 0x02, /// The contact of 1on1 chat has changed: added/removed... (chat remains even for removed contacts)
         CHANGE_TYPE_UNREAD_COUNT    = 0x04,
         CHANGE_TYPE_PARTICIPANTS    = 0x08,
@@ -2012,31 +2012,6 @@ public:
      * @return The title of the chat as a null-terminated char array.
      */
     virtual const char *getTitle() const;
-
-    /**
-     * @brief Returns the online status of the chatroom
-     *
-     * The app may use this value to show in the chatlist the status of the chat
-     *
-     * It can be one of the following values:
-     *
-     * - MegaChatApi::STATUS_OFFLINE = 1
-     * It is not connected
-     *
-     * - MegaChatApi::STATUS_ONLINE = 3
-     * The connection is alive and properly joined to the chatroom.
-     *
-     * Additionally, for 1on1 chatrooms, the following values are also valid:
-     *
-     * - MegaChatApi::STATUS_AWAY = 2
-     * The peer of the chat is away and might not answer
-     *
-     * - MegaChatApi::STATUS_BUSY = 4
-     * The peer of the chat is busy and don't want to be disturbed.
-     *
-     * @return Online status of the chat
-     */
-    virtual int getOnlineStatus() const;
 
     /**
      * @brief Returns the visibility of the peer in a 1on1 chatroom.
@@ -2152,7 +2127,7 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS          = 0x01,
+        CHANGE_TYPE_STATUS          = 0x01, /// obsolete
         CHANGE_TYPE_UNREAD_COUNT    = 0x02,
         CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
         CHANGE_TYPE_TITLE           = 0x08,
@@ -2338,31 +2313,6 @@ public:
     virtual const char *getTitle() const;
 
     /**
-     * @brief Returns the online status of the chatroom
-     *
-     * The app may use this value to show in the chatlist the status of the chat
-     *
-     * It can be one of the following values:
-     *
-     * - MegaChatApi::STATUS_OFFLINE = 1
-     * It is not connected
-     *
-     * - MegaChatApi::STATUS_ONLINE = 3
-     * The connection is alive and properly joined to the chatroom.
-     *
-     * Additionally, for 1on1 chatrooms, the following values are also valid:
-     *
-     * - MegaChatApi::STATUS_AWAY = 2
-     * The peer of the chat is away and might not answer
-     *
-     * - MegaChatApi::STATUS_BUSY = 4
-     * The peer of the chat is busy and don't want to be disturbed.
-     *
-     * @return Online status of the chat
-     */
-    virtual int getOnlineStatus() const;
-
-    /**
      * @brief Returns the number of unread messages for the chatroom
      *
      * It can be used to display an unread message counter next to the chatroom name
@@ -2448,15 +2398,16 @@ public:
     virtual void onChatInitStateUpdate(MegaChatApi* api, int newState);
 
     /**
-     * @brief This function is called when the own online status has changed
+     * @brief This function is called when the online status of a user has changed
      *
      * @param api MegaChatApi connected to the account
+     * @param userhandle MegaChatHandle of the user whose online status has changed
      * @param status New online status
-     * @param inProgress Whether the reported status is being set or it is definitive
+     * @param inProgress Whether the reported status is being set or it is definitive (only for your own changes)
      *
      * @note When the online status is in progress, apps may notice showing a blinking status or similar.
      */
-    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status, bool inProgress);
+    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress);
 
     /**
      * @brief This function is called when the presence configuration has changed

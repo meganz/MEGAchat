@@ -785,7 +785,7 @@ promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
     }
 }
 
-promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence forcedPres)
+promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
 {
 //we assume app.onOwnPresence(Presence::kOffline) has been called at application start
     presenced::IdRefMap peers;
@@ -804,12 +804,12 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
             peers.insert(peer.first);
         }
     }
-    if (forcedPres.isValid())
+    if (pres.isValid())
     {
-        mOwnPresence = forcedPres;
-        app.onOwnPresence(forcedPres, true);
+        mOwnPresence = pres;
+        app.onPresenceChanged(mMyHandle, pres, true);
     }
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(forcedPres));
+    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
 
 // Create and register the rtcmodule plugin
 // the MegaCryptoFuncs object needs api.userData (to initialize the private key etc)
@@ -821,31 +821,25 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
 //        return mXmppContactList.ready();
 }
 
-void Client::setOwnPresence(Presence pres, bool force)
-{
-    mOwnPresence = pres;
-    mPresencedClient.setPresence(pres);
-    app.onOwnPresence(pres, true);
-}
-
 void Contact::updatePresence(Presence pres)
 {
     mPresence = pres;
     updateAllOnlineDisplays(pres);
 }
 
-void Client::onOwnPresence(Presence pres)
-{
-    mOwnPresence = pres;
-    app.onOwnPresence(pres, false);
-}
-
-void Client::onPeerPresence(Id userid, Presence pres)
+void Client::onPresenceChange(Id userid, Presence pres)
 {
     auto it = contactList->find(userid);
     if (it != contactList->end())
     {
-        it->second->updatePresence(pres);
+        if (it->second->userId() == mMyHandle)
+        {
+            mOwnPresence = pres;
+        }
+        else
+        {
+            it->second->updatePresence(pres);
+        }
     }
     for (auto& item: *chats)
     {
@@ -854,6 +848,8 @@ void Client::onPeerPresence(Id userid, Presence pres)
             continue;
         static_cast<GroupChatRoom&>(chat).updatePeerPresence(userid, pres);
     }
+
+    app.onPresenceChanged(userid, pres, false);
 }
 void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
 {
@@ -861,8 +857,6 @@ void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
     if (it == mPeers.end())
         return;
     it->second->mPresence = pres;
-    if (mRoomGui)
-        mRoomGui->onPeerPresence(pres);
 }
 
 void Client::notifyNetworkOffline()
@@ -914,13 +908,13 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     });
 }
 
-promise::Promise<void> Client::setPresence(Presence pres, bool force)
+promise::Promise<void> Client::setPresence(Presence pres)
 {
     if (!mPresencedClient.setPresence(pres))
         return promise::Error("Not connected");
     else
     {
-        app.onOwnPresence(pres, true);
+        app.onPresenceChanged(mMyHandle, pres, true);
         return promise::_Void();
     }
 }
@@ -1810,27 +1804,6 @@ void ChatRoom::removeAppChatHandler()
     mChat->setListener(this);
 }
 
-Presence PeerChatRoom::presence() const
-{
-    return calculatePresence(mContact.presence());
-}
-
-void PeerChatRoom::notifyPresenceChange(Presence pres)
-{
-    if (mRoomGui)
-        mRoomGui->onPresenceChanged(pres);
-    if (mAppChatHandler)
-        mAppChatHandler->onPresenceChanged(pres);
-}
-
-void GroupChatRoom::updateAllOnlineDisplays(Presence pres)
-{
-    if (mRoomGui)
-        mRoomGui->onPresenceChanged(pres);
-    if (mAppChatHandler)
-        mAppChatHandler->onPresenceChanged(pres);
-}
-
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
     if (userid == parent.client.myHandle())
@@ -1895,15 +1868,12 @@ void ChatRoom::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
 }
 
 //chatd notification
-void PeerChatRoom::onOnlineStateChange(chatd::ChatState state)
+void ChatRoom::onOnlineStateChange(chatd::ChatState state)
 {
-    if (state == chatd::kChatStateOnline)
+    auto display = roomGui();
+    if (display)
     {
-        notifyPresenceChange(presence());
-    }
-    else
-    {
-        notifyPresenceChange(Presence::kOffline);
+        display->onChatOnlineState(state);
     }
 }
 
@@ -1933,13 +1903,6 @@ void ChatRoom::notifyTitleChanged()
         if (mAppChatHandler)
             mAppChatHandler->onTitleChanged(mTitleString);
     });
-}
-
-void GroupChatRoom::onOnlineStateChange(chatd::ChatState state)
-{
-    updateAllOnlineDisplays((state == chatd::kChatStateOnline)
-        ? Presence::kOnline
-        : Presence::kOffline);
 }
 
 void GroupChatRoom::onUnreadChanged()

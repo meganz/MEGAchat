@@ -75,7 +75,12 @@ std::unique_ptr<::mega::MegaApi> gSdk;
 int main(int argc, char **argv)
 {
     karere::globalInit(myMegaPostMessageToGui, 0, (gAppDir+"/log.txt").c_str(), 500);
-//    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
+    const char* staging = getenv("KR_USE_STAGING");
+    if (staging && strcmp(staging, "1") == 0)
+    {
+        KR_LOG_WARNING("Using staging API server, due to KR_USE_STAGING env variable");
+        ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
+    }
 //    gLogger.addUserLogger("karere-remote", new RemoteLogger);
 
 #ifdef __APPLE__

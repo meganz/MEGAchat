@@ -203,7 +203,12 @@ public:
     }
     bool setPresence(karere::Presence pres);
     bool setPersist(bool enable);
-    bool setAutoaway(bool enable, uint16_t timeout);
+
+    /** @brief Enables or disables autoaway
+     * @param timeout The timeout in seconds after which the presence will be
+     *  set to away
+     */
+    bool setAutoaway(bool enable, time_t timeout);
     promise::Promise<void>
     connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
         const Config& Config);
@@ -224,8 +229,7 @@ class Listener
 {
 public:
     virtual void onConnStateChange(Client::ConnState state) = 0;
-    virtual void onOwnPresence(karere::Presence pres) = 0;
-    virtual void onPeerPresence(karere::Id userid, karere::Presence pres) = 0;
+    virtual void onPresenceChange(karere::Id userid, karere::Presence pres) = 0;
     virtual void onPresenceConfigChanged(const Config& Config, bool pending) = 0;
     virtual void onDestroy(){}
 };

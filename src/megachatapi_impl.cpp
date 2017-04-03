@@ -293,11 +293,11 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 // if setting to online, better to use dynamic in order to avoid sticky online that
                 // would be kept even when the user goes offline
-                mClient->setPresence(karere::Presence::kClear, karere::Client::kSetPresOverride);
+                mClient->setPresence(karere::Presence::kClear);
                 presenceType = karere::Client::kSetPresDynamic;
             }
 
-            mClient->setPresence(request->getNumber(), presenceType)
+            mClient->setPresence(request->getNumber())
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1086,11 +1086,11 @@ void MegaChatApiImpl::fireOnChatInitStateUpdate(int newState)
     }
 }
 
-void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(int status, bool inProgress)
+void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, int status, bool inProgress)
 {
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
-        (*it)->onChatOnlineStatusUpdate(chatApi, status, inProgress);
+        (*it)->onChatOnlineStatusUpdate(chatApi, userhandle, status, inProgress);
     }
 }
 
@@ -1142,7 +1142,7 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
     waiter->notify();
 }
 
-void MegaChatApiImpl::setPresenceAutoaway(bool enable, int timeout)
+void MegaChatApiImpl::setPresenceAutoaway(bool enable, int64_t timeout)
 {
     sdkMutex.lock();
 
@@ -1174,10 +1174,15 @@ void MegaChatApiImpl::signalPresenceActivity()
 
 MegaChatPresenceConfig *MegaChatApiImpl::getPresenceConfig()
 {
+    MegaChatPresenceConfigPrivate *config = NULL;
+
     sdkMutex.lock();
 
-    MegaChatPresenceConfigPrivate *config = new MegaChatPresenceConfigPrivate(mClient->presenced().config(),
-                                               mClient->presenced().isConfigAcknowledged());
+    const ::presenced::Config &cfg = mClient->presenced().config();
+    if (cfg.presence().isValid())
+    {
+        config = new MegaChatPresenceConfigPrivate(cfg, mClient->presenced().isConfigAcknowledged());
+    }
 
     sdkMutex.unlock();
 
@@ -2141,7 +2146,7 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
     }
 }
 
-void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
+void MegaChatApiImpl::onPresenceChanged(Id userid, Presence pres, bool inProgress)
 {
     if (inProgress)
     {
@@ -2149,10 +2154,9 @@ void MegaChatApiImpl::onOwnPresence(Presence pres, bool inProgress)
     }
     else
     {
-        API_LOG_INFO("My own presence has been changed to %s", pres.toString());
+        API_LOG_INFO("Presence of user %s has been changed to %s", userid.toString().c_str(), pres.toString());
     }
-
-    fireOnChatOnlineStatusUpdate(pres.status(), inProgress);
+    fireOnChatOnlineStatusUpdate(userid.val, pres.status(), inProgress);
 }
 
 void MegaChatApiImpl::onPresenceConfigChanged(const presenced::Config &state, bool pending)
@@ -2676,14 +2680,6 @@ void MegaChatRoomHandler::onUnreadCountChanged(int count)
     chatApi->fireOnChatRoomUpdate(chat);
 }
 
-void MegaChatRoomHandler::onPresenceChanged(Presence state)
-{
-    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
-    chat->setOnlineStatus(state.status());
-
-    chatApi->fireOnChatRoomUpdate(chat);
-}
-
 void MegaChatRoomHandler::init(Chat &chat, DbInterface *&)
 {
     mChat = &chat;
@@ -2984,7 +2980,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->group = chat->isGroup();
     this->title = chat->getTitle();
     this->unreadCount = chat->getUnreadCount();
-    this->status = chat->getOnlineStatus();
     this->active = chat->isActive();
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
@@ -3021,7 +3016,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
 
             this->peerEmails.push_back(it->second->email());
         }
-        this->status = chat.chatdOnlineState();
     }
     else
     {
@@ -3041,8 +3035,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         delete [] buffer;
 
         this->peerEmails.push_back(peerchat.contact().email());
-
-        this->status = chat.presence().status();
     }
 }
 
@@ -3235,11 +3227,6 @@ int MegaChatRoomPrivate::getUnreadCount() const
     return unreadCount;
 }
 
-int MegaChatRoomPrivate::getOnlineStatus() const
-{
-    return status;
-}
-
 MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
 {
     return uh;
@@ -3255,12 +3242,6 @@ void MegaChatRoomPrivate::setUnreadCount(int count)
 {
     this->unreadCount = count;
     this->changed |= MegaChatRoom::CHANGE_TYPE_UNREAD_COUNT;
-}
-
-void MegaChatRoomPrivate::setOnlineStatus(int status)
-{
-    this->status = status;
-    this->changed |= MegaChatRoom::CHANGE_TYPE_STATUS;
 }
 
 void MegaChatRoomPrivate::setMembersUpdated()
@@ -3331,14 +3312,6 @@ void MegaChatListItemHandler::onUnreadCountChanged(int count)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setUnreadCount(count);
-
-    chatApi.fireOnChatListItemUpdate(item);
-}
-
-void MegaChatListItemHandler::onPresenceChanged(Presence state)
-{
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    item->setOnlineStatus(state.status());
 
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -3436,7 +3409,6 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->unreadCount = chatroom.chat().unreadMsgCount();
     this->group = chatroom.isGroup();
     this->active = chatroom.isActive();
-    this->status = group ? chatroom.chatdOnlineState() : chatroom.presence().status();
     this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
@@ -3467,7 +3439,6 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->title = item->getTitle();
     this->visibility = (visibility_t) item->getVisibility();
     this->unreadCount = item->getUnreadCount();
-    this->status = item->getOnlineStatus();
     this->changed = item->getChanges();
     this->lastTs = item->getLastTimestamp();
     this->lastMsg = item->getLastMessage();
@@ -3515,11 +3486,6 @@ int MegaChatListItemPrivate::getVisibility() const
 int MegaChatListItemPrivate::getUnreadCount() const
 {
     return unreadCount;
-}
-
-int MegaChatListItemPrivate::getOnlineStatus() const
-{
-    return status;
 }
 
 const char *MegaChatListItemPrivate::getLastMessage() const
@@ -3575,12 +3541,6 @@ void MegaChatListItemPrivate::setUnreadCount(int count)
     this->changed |= MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT;
 }
 
-void MegaChatListItemPrivate::setOnlineStatus(int status)
-{
-    this->status = status;
-    this->changed |= MegaChatListItem::CHANGE_TYPE_STATUS;
-}
-
 void MegaChatListItemPrivate::setMembersUpdated()
 {
     this->changed |= MegaChatListItem::CHANGE_TYPE_PARTICIPANTS;
@@ -3627,11 +3587,6 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatGroupListItemHandler::onPeerPresence(Presence pres)
-{
-    // apps don't show the presence of each peer individually
-}
-
 void MegaChatListItemHandler::onExcludedFromChat()
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
@@ -3657,6 +3612,11 @@ void MegaChatListItemHandler::onLastTsUpdated(uint32_t ts)
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setLastTimestamp(ts);
     chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatListItemHandler::onOnlineChatState(const ChatState state)
+{
+    // apps are not interested on this event
 }
 
 MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)
