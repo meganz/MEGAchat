@@ -1785,16 +1785,14 @@ void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, Me
     promise::when(promises)
     .then([this, nodes, chatroom, listener]()
     {
-        std::cerr << "PROMISE THEN" << std::endl;
         sendAttachMessage(nodes, chatroom, listener);
 
     })
     .fail([this, nodes, chatroom, listener](const promise::Error& err)
     {
-        std::cerr << "PROMISE FAIL" << std::endl;
         sendAttachMessage(nodes, chatroom, listener);
 
-        if (err.code() != mega::MegaError::API_EEXIST)
+        if (err.code() != MegaError::API_EEXIST)
         {
             API_LOG_ERROR("Failed to grant access to some node");
         }
@@ -1812,12 +1810,12 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
     {
         JSonNode jsonNode;
 
-        mega::MegaNode *megaNode = nodes->get(i);
+        MegaNode *megaNode = nodes->get(i);
 
         if (megaNode != NULL)
         {
             // h -> handle
-            std::string handleString = "\"" + std::string(mega::MegaApi::handleToBase64(megaNode->getHandle())) + "\"";
+            std::string handleString = "\"" + std::string(MegaApi::handleToBase64(megaNode->getHandle())) + "\"";
             JSonNode handleNode;
             JSonNode handleValue;
             handleValue.setFinalValue(handleString);
@@ -1825,12 +1823,12 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
             jsonNode.setMapNode(handleNode);
 
             // k -> binary key
-            char keyIntermedia[mega::FILENODEKEYLENGTH];
+            char keyIntermedia[FILENODEKEYLENGTH];
             char *base64Key = megaNode->getBase64Key();
-            mega::Base64::atob(base64Key, (byte*)keyIntermedia, mega::FILENODEKEYLENGTH);
+            Base64::atob(base64Key, (byte*)keyIntermedia, FILENODEKEYLENGTH);
             delete base64Key;
 
-            std::vector<int32_t> keyVector = DataTranslation::b_to_vector(std::string(keyIntermedia, mega::FILENODEKEYLENGTH));
+            std::vector<int32_t> keyVector = DataTranslation::b_to_vector(std::string(keyIntermedia, FILENODEKEYLENGTH));
             JSonNode keyVectorNode;
             for (int j = 0; j < 8; ++j)
             {
@@ -1871,8 +1869,8 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
             // fa -> image thumbail
             if (megaNode->hasThumbnail() || megaNode->hasPreview())
             {
-                mega::MegaClient* megaClient = megaApi->getMegaClient();
-                mega::Node* node = megaClient->nodebyhandle(megaNode->getHandle());
+                MegaClient* megaClient = megaApi->getMegaClient();
+                Node* node = megaClient->nodebyhandle(megaNode->getHandle());
                 std::string faString = "\"" + node->fileattrstring + "\"";
                 JSonNode faNode;
                 JSonNode faValue;
@@ -1941,17 +1939,15 @@ void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle han
     promise::when(promises)
     .then([this, handle, chatroom, listener]()
     {
-        std::cerr << "PROMISE THEN" << std::endl;
         sendRevokeAttach(handle, chatroom, listener);
 
 
     })
     .fail([this, handle, chatroom, listener](const promise::Error& err)
     {
-        std::cerr << "PROMISE FAIL" << std::endl;
         sendRevokeAttach(handle, chatroom, listener);
 
-        if (err.code() != mega::MegaError::API_EEXIST)
+        if (err.code() != MegaError::API_EEXIST)
         {
             API_LOG_ERROR("Failed to grant access to some node");
         }
@@ -4078,15 +4074,15 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 std::string faValue = fa.getValueNode().getFinalValue();
 
 
-                mega::MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
+                MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
                 std::string attrstring;
                 char *fingerprint = NULL;
 
                 std::string key = DataTranslation::vector_to_b(kElements);
 
-                mega::MegaNodePrivate node(nameString.c_str(), typeValue, sizeValue, timeStampValue, timeStampValue,
-                                           megaHandle, &key, &attrstring, fingerprint, INVALID_HANDLE,
-                                           NULL, NULL, false, true);
+                MegaNodePrivate node(nameString.c_str(), typeValue, sizeValue, timeStampValue, timeStampValue,
+                                     megaHandle, &key, &attrstring, fingerprint, INVALID_HANDLE,
+                                     NULL, NULL, false, true);
 
                 megaNodeList.addNode(&node);
             }
@@ -4495,7 +4491,7 @@ std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
 
     std::string dataToReturn(data, length);
 
-    delete data;
+    delete[] data;
 
     return dataToReturn;
 }
