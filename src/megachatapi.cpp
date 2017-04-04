@@ -798,9 +798,9 @@ const char *MegaChatListItem::getTitle() const
     return NULL;
 }
 
-int MegaChatListItem::getVisibility() const
+int MegaChatListItem::getOwnPrivilege() const
 {
-    return VISIBILITY_UNKNOWN;
+    return PRIV_UNKNOWN;
 }
 
 int MegaChatListItem::getUnreadCount() const

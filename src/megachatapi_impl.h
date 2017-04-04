@@ -219,7 +219,7 @@ private:
     int changed;
 
     MegaChatHandle chatid;
-    mega::visibility_t visibility;
+    int ownPriv;
     std::string title;
     int unreadCount;
     std::string lastMsg;
@@ -236,7 +236,7 @@ public:
 
     virtual MegaChatHandle getChatId() const;
     virtual const char *getTitle() const;
-    virtual int getVisibility() const;
+    virtual int getOwnPrivilege() const;
     virtual int getUnreadCount() const;
     virtual const char *getLastMessage() const;
     virtual int getLastMessageType() const;
@@ -246,7 +246,7 @@ public:
     virtual bool isActive() const;
     virtual MegaChatHandle getPeerHandle() const;
 
-    void setVisibility(mega::visibility_t visibility);
+    void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
     void setMembersUpdated();
