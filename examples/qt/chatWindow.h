@@ -56,6 +56,7 @@ protected:
         p.setColor(QPalette::Base, color);
         ui.mMsgDisplay->setPalette(p);
     }
+    void updateToolTip();
     friend class ChatWindow;
 public:
     MessageWidget(ChatWindow& parent, chatd::Message& msg,
@@ -93,6 +94,7 @@ public:
     }
     QPushButton* startEditing()
     {
+        assert(mMessage->userp);
         setBgColor(Qt::yellow);
         ui.mEditDisplay->hide();
         ui.mStatusDisplay->hide();
@@ -238,6 +240,7 @@ public slots:
         mEditedWidget = nullptr;
         if (!data) //delete message
         {
+            assert(msg.userp);
             if (!mChat->msgModify(msg, nullptr, 0, msg.userp))
             {
                 showCantEditNotice();
@@ -259,6 +262,8 @@ public slots:
                 showCantEditNotice();
                 goto noedit;
             }
+            assert(widget->mMessage->userp);
+            assert(edited->userp);
             //successfully edited, don't fade back to white until edit is comfirmed by server
             widget->setText(*edited);
             widget->disableEditGui(false);
@@ -349,7 +354,7 @@ noedit:
     {
         mLastHistReqByScroll = byScroll;
         auto source = mChat->getHistory(kHistBatchSize);
-        printf("source = %d\n", source);
+        GUI_LOG_DEBUG("History source = %d", source);
         if (source == chatd::kHistSourceServer)
         {
             createHistFetchUi();
@@ -487,7 +492,7 @@ public:
         onOnlineStateChange(mChat->onlineState());
         mChat->resetListenerState();
         auto source = mChat->getHistory(kHistBatchSize);
-        printf("initial getHistory: source = %d\n", source);
+        GUI_LOG_DEBUG("Initial getHistory: source = %d", source);
         if (source == chatd::kHistSourceServer)
             createHistFetchUi();
     }
@@ -593,17 +598,14 @@ public:
         // add to history, message was just created at the server
         assert(msgxid); assert(msg.id()); assert(idx != CHATD_IDX_INVALID);
         auto widget = widgetFromMessage(msg);
-        if (!widget)
-        {
-            GUI_LOG_ERROR("onMessageConfirmed: No widget assigned for message with msgxid %s", msgxid.toString().c_str());
-            return;
-        }
+        assert(widget);
 #ifndef NDEBUG
         auto item = static_cast<QListWidgetItem*>(msg.userp);
         assert(item->listWidget()->row(item) == mHistAddPos);
 #endif
         mHistAddPos++;
         widget->updateStatus(chatd::Message::kServerReceived);
+        widget->updateToolTip();
     }
     virtual void onMessageRejected(const chatd::Message& msg, uint8_t reason)
     {
@@ -622,7 +624,7 @@ public:
     }
 
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
-    virtual void onEditRejected(const chatd::Message& msg, bool oriIsConfirmed);
+    virtual void onEditRejected(const chatd::Message& msg, chatd::ManualSendReason reason);
     virtual void onOnlineStateChange(chatd::ChatState state)
     {
         mRoom.onOnlineStateChange(state);
@@ -646,8 +648,7 @@ public:
     }
     virtual void onUnsentMsgLoaded(chatd::Message& msg)
     {
-        auto item = addMsgWidget(msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
-        msg.userp = item;
+        addMsgWidget(msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
         ui.mMessageList->scrollToBottom();
     }
     virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);

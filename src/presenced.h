@@ -149,7 +149,8 @@ public:
         kConnNew = 0,
         kDisconnected,
         kConnecting,
-        kConnected
+        kConnected,
+        kLoggedIn
     };
     enum: uint16_t { kProtoVersion = 0x0001 };
 protected:
@@ -164,6 +165,7 @@ protected:
     bool mPacketReceived = true; //used for connection activity detection
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
+    promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
     karere::Id mMyHandle;
     Config mConfig;
@@ -180,6 +182,7 @@ protected:
     promise::Promise<void> reconnect(const std::string& url=std::string());
     void enableInactivityTimer();
     void disableInactivityTimer();
+    void notifyLoggedIn();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
@@ -255,6 +258,7 @@ static inline const char* connStateToStr(Client::ConnState state)
     case Client::kDisconnected: return "Disconnected";
     case Client::kConnecting: return "Connecting";
     case Client::kConnected: return "Connected";
+    case Client::kLoggedIn: return "Logged-in";
     case Client::kConnNew: return "New";
     default: return "(invalid)";
     }

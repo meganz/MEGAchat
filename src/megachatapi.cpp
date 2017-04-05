@@ -353,9 +353,9 @@ MegaChatMessage *MegaChatApi::getLastMessageSeen(MegaChatHandle chatid)
     return  pImpl->getLastMessageSeen(chatid);
 }
 
-void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempId)
+void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowId)
 {
-    pImpl->removeUnsentMessage(chatid, tempId);
+    pImpl->removeUnsentMessage(chatid, rowId);
 }
 
 void MegaChatApi::sendTypingNotification(MegaChatHandle chatid)
@@ -951,6 +951,11 @@ bool MegaChatMessage::hasChanged(int) const
 int MegaChatMessage::getCode() const
 {
     return 0;
+}
+
+MegaChatHandle MegaChatMessage::getRowId() const
+{
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 

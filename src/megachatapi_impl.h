@@ -325,7 +325,7 @@ public:
     virtual void onMessageRejected(const chatd::Message& msg, uint8_t reason);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
-    virtual void onEditRejected(const chatd::Message& msg, bool oriIsConfirmed);
+    virtual void onEditRejected(const chatd::Message& msg, chatd::ManualSendReason reason);
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onUserJoin(karere::Id userid, chatd::Priv privilege);
     virtual void onUserLeave(karere::Id userid);
@@ -532,12 +532,14 @@ public:
     virtual MegaChatHandle getUserHandleOfAction() const;
     virtual int getPrivilege() const;
     virtual int getCode() const;
+    virtual MegaChatHandle getRowId() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 
     void setStatus(int status);
     void setTempId(MegaChatHandle tempId);
+    void setRowId(int id);
     void setContentChanged();
     void setCode(int code);
 
@@ -548,6 +550,7 @@ private:
     int status;
     MegaChatHandle msgId;   // definitive unique ID given by server
     MegaChatHandle tempId;  // used until it's given a definitive ID by server
+    MegaChatHandle rowId;   // used to identify messages in the manual-sending queue
     MegaChatHandle uh;
     MegaChatHandle uhAction;// certain messages need additional userhandle, such us priv changes
     int index;              // position within the history buffer
@@ -764,7 +767,7 @@ public:
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
-    void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempid);
+    void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowid);
     void sendTypingNotification(MegaChatHandle chatid);
 
     // Audio/Video devices

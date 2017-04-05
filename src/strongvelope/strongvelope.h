@@ -247,6 +247,9 @@ protected:
     uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
     sqlite3* mDb;
     std::shared_ptr<SendKey> mCurrentKey;
+    // When we generate a new key, it may not get sent successfully if the connection
+    // gets broken. So we need to send it again upon re-login, until it gets confirmed.
+    std::shared_ptr<chatd::KeyCommand> mUnconfirmedKeyCmd;
     bool mForceRsa = false;
     struct KeyEntry
     {
@@ -337,6 +340,7 @@ public:
         virtual void randomBytes(void* buf, size_t bufsize) const;
         virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
         virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
+        virtual const chatd::KeyCommand* unconfirmedKeyCmd() const { return mUnconfirmedKeyCmd.get(); }
 
         //====
         promise::Promise<std::shared_ptr<SendKey>>
