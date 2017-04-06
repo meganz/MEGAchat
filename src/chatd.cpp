@@ -1950,7 +1950,18 @@ Message::Status Chat::getMsgStatus(const Message& msg, Idx idx) const
     {
         if (msg.isSending())
             return Message::kSending;
-        else if (idx <= mLastReceivedIdx)
+
+        // Check if we have an unconfirmed edit
+        for (auto& item: mSending)
+        {
+            if (item.msg->id() == msg.id())
+            {
+                auto op = item.opcode();
+                if (op == OP_MSGUPD || op == OP_MSGUPDX)
+                    return Message::kSending;
+            }
+        }
+        if (idx <= mLastReceivedIdx)
             return Message::kDelivered;
         else
         {

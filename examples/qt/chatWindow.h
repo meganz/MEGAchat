@@ -248,7 +248,7 @@ public slots:
             }
             widget->disableEditGui();
             widget->setEdited("deleting");
-            widget->updateStatus(chatd::Message::kSending);
+            widget->updateStatus(mChat->getMsgStatus(msg, mChat->msgIndexFromId(msg.id()))); //chatd::Message::kSending);
             return;
         }
         else //try to edit message
