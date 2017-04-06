@@ -251,7 +251,7 @@ void MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
     const char *title = item->getTitle() ? item->getTitle() : "<empty>";
 
     cout << "id: " << item->getChatId() << ", title: " << title;
-    cout << ", visibility: " << item->getVisibility();
+    cout << ", ownPriv: " << item->getOwnPrivilege();
     cout << ", unread: " << item->getUnreadCount() << ", changes: " << item->getChanges();
     cout << ", lastMsg: " << item->getLastMessage() << ", lastMsgType: " << item->getLastMessageType();
     cout << ", lastTs: " << item->getLastTimestamp() << endl;
