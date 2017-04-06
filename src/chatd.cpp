@@ -1821,6 +1821,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.takeFrom(std::move(*msg));
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
+            histmsg.userid = msg->userid;
             // msg.ts is zero - chatd doesn't send the original timestamp
             CALL_LISTENER(onMessageEdited, histmsg, idx);
             //last text msg stuff

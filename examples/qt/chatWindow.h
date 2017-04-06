@@ -46,7 +46,6 @@ protected:
     Ui::ChatMessage ui;
     ChatWindow& mChatWindow;
     chatd::Message* mMessage; ///The message whose contents is displayed
-    bool mIsMine;
     chatd::Idx mIndex;
     Q_PROPERTY(QColor msgColor READ msgColor WRITE setMsgColor)
     QColor msgColor() { return palette().color(QPalette::Base); }
@@ -61,6 +60,7 @@ protected:
 public:
     MessageWidget(ChatWindow& parent, chatd::Message& msg,
                   chatd::Message::Status status, chatd::Idx idx);
+    inline bool isMine() const;
     MessageWidget& setAuthor(karere::Id userid);
     MessageWidget& setTimestamp(uint32_t ts)
     {
@@ -289,7 +289,7 @@ noedit:
         //enable edit action only if the message is ours
         auto menu = msgWidget->ui.mMsgDisplay->createStandardContextMenu(point);
 
-        if (msgWidget->mIsMine)
+        if (msgWidget->isMine())
         {
             auto action = menu->addAction(tr("&Edit message"));
             action->setData(QVariant::fromValue(msgWidget));
@@ -331,7 +331,7 @@ noedit:
         {
             auto item = msglist->item(i);
             auto widget = qobject_cast<MessageWidget*>(msglist->itemWidget(item));
-            if (widget->mIsMine && !(widget->mMessage->userFlags & kMsgfDeleted))
+            if (widget->isMine() && !(widget->mMessage->userFlags & kMsgfDeleted))
             {
                 msglist->scrollToItem(item);
                 startEditingMsgWidget(*widget);
@@ -604,6 +604,7 @@ public:
         assert(item->listWidget()->row(item) == mHistAddPos);
 #endif
         mHistAddPos++;
+        widget->mIndex = idx;
         widget->updateStatus(chatd::Message::kServerReceived);
         widget->updateToolTip();
     }
@@ -679,7 +680,11 @@ public:
     //===
     void show() { QDialog::show(); raise(); }
     void hide() { QDialog::hide(); }
-
 };
+
+inline bool MessageWidget::isMine() const
+{
+    return mMessage->userid == mChatWindow.chat().client().userId();
+}
 
 #endif // CHATWINDOW_H
