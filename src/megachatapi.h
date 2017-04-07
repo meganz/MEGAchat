@@ -668,7 +668,7 @@ public:
      *
      * @return Message relative to this request
      */
-    virtual MegaChatMessage *getMessage();
+    virtual MegaChatMessage *getMegaChatMessage();
 };
 
 /**
@@ -1930,7 +1930,7 @@ public:
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param handle MegaChatHandle that identifies the node to revoke grant access
+     * @param nodeHandle MegaChatHandle that identifies the node to revoke grant access
      * @param listener to receive the temporal message
      *
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.

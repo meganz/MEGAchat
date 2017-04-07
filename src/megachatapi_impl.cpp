@@ -2624,7 +2624,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setUserHandle(request.getUserHandle());
     this->setPrivilege(request.getPrivilege());
     this->setText(request.getText());
-    this->setMessage(request.getMessage()->copy());
+    this->setMessage(request.getMegaChatMessage()->copy());
     this->mMegaNodeList = request.getNodeList()->copy();
 }
 
@@ -2734,7 +2734,7 @@ const char *MegaChatRequestPrivate::getText() const
     return text;
 }
 
-MegaChatMessage *MegaChatRequestPrivate::getMessage()
+MegaChatMessage *MegaChatRequestPrivate::getMegaChatMessage()
 {
     return mMessage;
 }

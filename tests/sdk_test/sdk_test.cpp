@@ -1718,7 +1718,7 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
 
             case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
             {
-                MegaChatMessage* messageAttach = request->getMessage()->copy();
+                MegaChatMessage* messageAttach = request->getMegaChatMessage()->copy();
                 std::cout << "MESSAGE Attach: " << messageAttach->getType() << std::endl;
                 std::cout << "" << std::endl;
                 attachNodeSend[apiIndex] = true;
@@ -1727,7 +1727,7 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
 
             case MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE:
             {
-                MegaChatMessage* messageRevoke = request->getMessage()->copy();
+                MegaChatMessage* messageRevoke = request->getMegaChatMessage()->copy();
                 revokeNodeSend[apiIndex] = true;
                 break;
             }

@@ -541,7 +541,7 @@ const char *MegaChatRequest::getText() const
     return NULL;
 }
 
-MegaChatMessage *MegaChatRequest::getMessage()
+MegaChatMessage *MegaChatRequest::getMegaChatMessage()
 {
     return NULL;
 }

@@ -68,7 +68,7 @@ public:
     virtual MegaChatHandle getUserHandle();
     virtual int getPrivilege();
     virtual const char *getText() const;
-    virtual MegaChatMessage *getMessage();
+    virtual MegaChatMessage *getMegaChatMessage();
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);

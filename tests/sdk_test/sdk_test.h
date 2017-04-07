@@ -99,16 +99,16 @@ public:
     void TEST_offlineMode();
     void TEST_clearHistory();
     void TEST_switchAccounts();
-    int downloadAttachment(int downloadCount, int senderCount, const std::string& fileName);
-    void sendAttachment(int sendCountIndex, int receiverCountIndex, const std::string fileName);
-    void revokeAttachment(int sendCountIndex, int receiverCountIndex, const std::string filename);
     void TEST_receiveContact();
     void TEST_sendContact();
     void TEST_receiveRevokeAttachment();
     void TEST_sendRevokeAttachment();
     void TEST_attachment();
-    string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
 
+    string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
+    int downloadAttachment(int downloadCount, int senderCount, const std::string& fileName);
+    void sendAttachment(int sendCountIndex, int receiverCountIndex, const std::string fileName);
+    void revokeAttachment(int sendCountIndex, int receiverCountIndex, const std::string filename);
     mega::MegaNodeList *getAttachmentNodeList();
     void addAttachmentNodeList(mega::MegaNodeList *nodeList);
     void setRevokeAttachNode(MegaChatHandle megaChatNode);
