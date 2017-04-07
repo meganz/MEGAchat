@@ -158,8 +158,8 @@ public:
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
     {
-        sqliteQuery(mDb, "update history set type = ?, data = ?, updated = ? where chatid = ? and msgid = ?",
-            msg.type, msg, msg.updated, mMessages.chatId(), msgid);
+        sqliteQuery(mDb, "update history set type = ?, data = ?, updated = ?, userid=? where chatid = ? and msgid = ?",
+            msg.type, msg, msg.updated, msg.userid, mMessages.chatId(), msgid);
         assertAffectedRowCount(1, "updateMsgInHistory");
         commit();
     }
