@@ -309,13 +309,11 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool presenceType = karere::Client::kSetPresOverride;
             if (status == MegaChatApi::STATUS_ONLINE)
             {
                 // if setting to online, better to use dynamic in order to avoid sticky online that
                 // would be kept even when the user goes offline
                 mClient->setPresence(karere::Presence::kClear);
-                presenceType = karere::Client::kSetPresDynamic;
             }
 
             mClient->setPresence(request->getNumber())
@@ -2107,7 +2105,7 @@ MegaChatMessage *MegaChatApiImpl::getLastMessageSeen(MegaChatHandle chatid)
     return megaMsg;
 }
 
-void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempid)
+void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowid)
 {
     sdkMutex.lock();
 
@@ -2115,7 +2113,7 @@ void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle 
     if (chatroom)
     {
         Chat &chat = chatroom->chat();
-        chat.removeManualSend(tempid);
+        chat.removeManualSend(rowid);
     }
 
     sdkMutex.unlock();
@@ -3155,24 +3153,19 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onEditRejected(const Message &msg, bool oriIsConfirmed)
+void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason reason)
 {
-    Idx index;
-    Message::Status status;
-
-    if (oriIsConfirmed)    // message is confirmed, but edit has been rejected
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kSendingManual, MEGACHAT_INVALID_INDEX);
+    if (reason == ManualSendReason::kManualSendEditNoChange)
     {
-        index = mChat->msgIndexFromId(msg.id());
-        status = mChat->getMsgStatus(msg, index);
+        API_LOG_WARNING("Edit message rejected because of same content");
+        message->setStatus(mChat->getMsgStatus(msg, msg.id()));
     }
-    else // both, original message and edit, have been rejected
+    else
     {
-        index = MEGACHAT_INVALID_INDEX;
-        status = Message::kServerRejected;
+        API_LOG_WARNING("Edit message rejected, reason: %d", reason);
+        message->setCode(reason);
     }
-
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, index);
-    message->setStatus(status);
     chatApi->fireOnMessageUpdate(message);
 }
 
@@ -3249,7 +3242,7 @@ void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id,
     delete msg; // we take ownership of the Message
 
     message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
-    message->setTempId(id); // identifier for the manual-send queue, for removal from queue
+    message->setRowId(id); // identifier for the manual-send queue, for removal from queue
     message->setCode(reason);
     chatApi->fireOnMessageLoaded(message);
 }
@@ -3804,7 +3797,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->unreadCount = chatroom.chat().unreadMsgCount();
     this->group = chatroom.isGroup();
     this->active = chatroom.isActive();
-    this->visibility = group ? VISIBILITY_UNKNOWN : (visibility_t)((PeerChatRoom&) chatroom).contact().visibility();
+    this->ownPriv = chatroom.ownPriv();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
@@ -3832,7 +3825,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
 {
     this->chatid = item->getChatId();
     this->title = item->getTitle();
-    this->visibility = (visibility_t) item->getVisibility();
+    this->ownPriv = item->getOwnPrivilege();
     this->unreadCount = item->getUnreadCount();
     this->changed = item->getChanges();
     this->lastTs = item->getLastTimestamp();
@@ -3873,9 +3866,9 @@ const char *MegaChatListItemPrivate::getTitle() const
     return title.c_str();
 }
 
-int MegaChatListItemPrivate::getVisibility() const
+int MegaChatListItemPrivate::getOwnPrivilege() const
 {
-    return visibility;
+    return ownPriv;
 }
 
 int MegaChatListItemPrivate::getUnreadCount() const
@@ -3918,10 +3911,10 @@ MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
     return peerHandle;
 }
 
-void MegaChatListItemPrivate::setVisibility(visibility_t visibility)
+void MegaChatListItemPrivate::setOwnPriv(int ownPriv)
 {
-    this->visibility = visibility;
-    this->changed |= MegaChatListItem::CHANGE_TYPE_VISIBILITY;
+    this->ownPriv = ownPriv;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_OWN_PRIV;
 }
 
 void MegaChatListItemPrivate::setTitle(const string &title)
@@ -3985,6 +3978,7 @@ void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
 void MegaChatListItemHandler::onExcludedFromChat()
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setOwnPriv(item->getOwnPrivilege());
     item->setClosed();
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -4061,6 +4055,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(MegaChatMessage *msg)
     {
         this->megaNodeList = msg->getMegaNodeList()->copy();
     }
+
+    this->rowId = msg->getRowId();
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
@@ -4080,6 +4076,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->uh = msg.userid;
     this->msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
     this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
+    this->rowId = MEGACHAT_INVALID_HANDLE;
     this->type = msg.type;
     this->ts = msg.ts;
     this->status = status;
@@ -4318,6 +4315,11 @@ int MegaChatMessagePrivate::getCode() const
     return code;
 }
 
+MegaChatHandle MegaChatMessagePrivate::getRowId() const
+{
+    return rowId;
+}
+
 int MegaChatMessagePrivate::getChanges() const
 {
     return changed;
@@ -4337,6 +4339,11 @@ void MegaChatMessagePrivate::setStatus(int status)
 void MegaChatMessagePrivate::setTempId(MegaChatHandle tempId)
 {
     this->tempId = tempId;
+}
+
+void MegaChatMessagePrivate::setRowId(int id)
+{
+    this->rowId = id;
 }
 
 void MegaChatMessagePrivate::setContentChanged()
