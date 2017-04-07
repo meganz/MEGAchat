@@ -1,0 +1,406 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A838B2071E9685A200875D96 /* cservices-dns.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2021E9685A200875D96 /* cservices-dns.cpp */; };
+		A838B2081E9685A200875D96 /* cservices-http.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2031E9685A200875D96 /* cservices-http.cpp */; };
+		A838B2091E9685A200875D96 /* cservices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2041E9685A200875D96 /* cservices.cpp */; };
+		A838B20A1E9685A200875D96 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2051E9685A200875D96 /* logger.cpp */; };
+		A838B20B1E9685A200875D96 /* services-dns.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2061E9685A200875D96 /* services-dns.cpp */; };
+		A838B2171E9685DF00875D96 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B20E1E9685DF00875D96 /* base64.cpp */; };
+		A838B2181E9685DF00875D96 /* chatClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B20F1E9685DF00875D96 /* chatClient.cpp */; };
+		A838B2191E9685DF00875D96 /* chatd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2101E9685DF00875D96 /* chatd.cpp */; };
+		A838B21A1E9685DF00875D96 /* karereCommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2111E9685DF00875D96 /* karereCommon.cpp */; };
+		A838B21B1E9685DF00875D96 /* megachatapi_impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2121E9685DF00875D96 /* megachatapi_impl.cpp */; };
+		A838B21C1E9685DF00875D96 /* megachatapi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2131E9685DF00875D96 /* megachatapi.cpp */; };
+		A838B21D1E9685DF00875D96 /* presenced.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2141E9685DF00875D96 /* presenced.cpp */; };
+		A838B21E1E9685DF00875D96 /* url.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2151E9685DF00875D96 /* url.cpp */; };
+		A838B21F1E9685DF00875D96 /* userAttrCache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2161E9685DF00875D96 /* userAttrCache.cpp */; };
+		A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2201E9685F000875D96 /* strongvelope.cpp */; };
+		A838B2251E96879F00875D96 /* karereDbSchema.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2241E96879F00875D96 /* karereDbSchema.cpp */; };
+		A838B2281E96884A00875D96 /* libMEGASDK.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A838B2271E96884A00875D96 /* libMEGASDK.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A838B1F61E96855400875D96 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "include/$(PRODUCT_NAME)";
+			dstSubfolderSpec = 16;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		A838B1F81E96855400875D96 /* libKarere.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKarere.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		A838B2021E9685A200875D96 /* cservices-dns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cservices-dns.cpp"; path = "../../src/base/cservices-dns.cpp"; sourceTree = "<group>"; };
+		A838B2031E9685A200875D96 /* cservices-http.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cservices-http.cpp"; path = "../../src/base/cservices-http.cpp"; sourceTree = "<group>"; };
+		A838B2041E9685A200875D96 /* cservices.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cservices.cpp; path = ../../src/base/cservices.cpp; sourceTree = "<group>"; };
+		A838B2051E9685A200875D96 /* logger.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = logger.cpp; path = ../../src/base/logger.cpp; sourceTree = "<group>"; };
+		A838B2061E9685A200875D96 /* services-dns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "services-dns.cpp"; path = "../../src/base/services-dns.cpp"; sourceTree = "<group>"; };
+		A838B20E1E9685DF00875D96 /* base64.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = base64.cpp; path = ../../src/base64.cpp; sourceTree = "<group>"; };
+		A838B20F1E9685DF00875D96 /* chatClient.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = chatClient.cpp; path = ../../src/chatClient.cpp; sourceTree = "<group>"; };
+		A838B2101E9685DF00875D96 /* chatd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = chatd.cpp; path = ../../src/chatd.cpp; sourceTree = "<group>"; };
+		A838B2111E9685DF00875D96 /* karereCommon.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = karereCommon.cpp; path = ../../src/karereCommon.cpp; sourceTree = "<group>"; };
+		A838B2121E9685DF00875D96 /* megachatapi_impl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = megachatapi_impl.cpp; path = ../../src/megachatapi_impl.cpp; sourceTree = "<group>"; };
+		A838B2131E9685DF00875D96 /* megachatapi.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = megachatapi.cpp; path = ../../src/megachatapi.cpp; sourceTree = "<group>"; };
+		A838B2141E9685DF00875D96 /* presenced.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = presenced.cpp; path = ../../src/presenced.cpp; sourceTree = "<group>"; };
+		A838B2151E9685DF00875D96 /* url.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = url.cpp; path = ../../src/url.cpp; sourceTree = "<group>"; };
+		A838B2161E9685DF00875D96 /* userAttrCache.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = userAttrCache.cpp; path = ../../src/userAttrCache.cpp; sourceTree = "<group>"; };
+		A838B2201E9685F000875D96 /* strongvelope.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = strongvelope.cpp; path = ../../src/strongvelope/strongvelope.cpp; sourceTree = "<group>"; };
+		A838B2241E96879F00875D96 /* karereDbSchema.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = karereDbSchema.cpp; path = ../../src/karereDbSchema.cpp; sourceTree = "<group>"; };
+		A838B2271E96884A00875D96 /* libMEGASDK.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libMEGASDK.a; path = "../../../../../../../../Library/Developer/Xcode/DerivedData/iMEGA-bkcumhpxojccqgcecezcgurbavov/Build/Products/Debug-iphonesimulator/libMEGASDK.a"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A838B1F51E96855400875D96 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A838B2281E96884A00875D96 /* libMEGASDK.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A838B1ED1E96850700875D96 = {
+			isa = PBXGroup;
+			children = (
+				A838B20D1E9685AD00875D96 /* src */,
+				A838B1F91E96855400875D96 /* Products */,
+				A838B2261E96884A00875D96 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		A838B1F91E96855400875D96 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A838B1F81E96855400875D96 /* libKarere.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A838B20C1E9685A600875D96 /* base */ = {
+			isa = PBXGroup;
+			children = (
+				A838B2021E9685A200875D96 /* cservices-dns.cpp */,
+				A838B2031E9685A200875D96 /* cservices-http.cpp */,
+				A838B2041E9685A200875D96 /* cservices.cpp */,
+				A838B2051E9685A200875D96 /* logger.cpp */,
+				A838B2061E9685A200875D96 /* services-dns.cpp */,
+			);
+			name = base;
+			sourceTree = "<group>";
+		};
+		A838B20D1E9685AD00875D96 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				A838B2241E96879F00875D96 /* karereDbSchema.cpp */,
+				A838B2221E9685F300875D96 /* strongvelope */,
+				A838B20E1E9685DF00875D96 /* base64.cpp */,
+				A838B20F1E9685DF00875D96 /* chatClient.cpp */,
+				A838B2101E9685DF00875D96 /* chatd.cpp */,
+				A838B2111E9685DF00875D96 /* karereCommon.cpp */,
+				A838B2121E9685DF00875D96 /* megachatapi_impl.cpp */,
+				A838B2131E9685DF00875D96 /* megachatapi.cpp */,
+				A838B2141E9685DF00875D96 /* presenced.cpp */,
+				A838B2151E9685DF00875D96 /* url.cpp */,
+				A838B2161E9685DF00875D96 /* userAttrCache.cpp */,
+				A838B20C1E9685A600875D96 /* base */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		A838B2221E9685F300875D96 /* strongvelope */ = {
+			isa = PBXGroup;
+			children = (
+				A838B2201E9685F000875D96 /* strongvelope.cpp */,
+			);
+			name = strongvelope;
+			sourceTree = "<group>";
+		};
+		A838B2261E96884A00875D96 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A838B2271E96884A00875D96 /* libMEGASDK.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A838B1F71E96855400875D96 /* Karere */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A838B2011E96855400875D96 /* Build configuration list for PBXNativeTarget "Karere" */;
+			buildPhases = (
+				A838B2231E96860900875D96 /* ShellScript */,
+				A838B1F41E96855400875D96 /* Sources */,
+				A838B1F51E96855400875D96 /* Frameworks */,
+				A838B1F61E96855400875D96 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Karere;
+			productName = Karere;
+			productReference = A838B1F81E96855400875D96 /* libKarere.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A838B1EE1E96850700875D96 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0830;
+				TargetAttributes = {
+					A838B1F71E96855400875D96 = {
+						CreatedOnToolsVersion = 8.3;
+						DevelopmentTeam = T9RH74Y7L9;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = A838B1F11E96850700875D96 /* Build configuration list for PBXProject "Karere" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = A838B1ED1E96850700875D96;
+			productRefGroup = A838B1F91E96855400875D96 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A838B1F71E96855400875D96 /* Karere */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A838B2231E96860900875D96 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd ../../src\ncmake -P genDbSchema.cmake";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A838B1F41E96855400875D96 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A838B21E1E9685DF00875D96 /* url.cpp in Sources */,
+				A838B2071E9685A200875D96 /* cservices-dns.cpp in Sources */,
+				A838B2091E9685A200875D96 /* cservices.cpp in Sources */,
+				A838B2171E9685DF00875D96 /* base64.cpp in Sources */,
+				A838B2251E96879F00875D96 /* karereDbSchema.cpp in Sources */,
+				A838B21F1E9685DF00875D96 /* userAttrCache.cpp in Sources */,
+				A838B21D1E9685DF00875D96 /* presenced.cpp in Sources */,
+				A838B2081E9685A200875D96 /* cservices-http.cpp in Sources */,
+				A838B2181E9685DF00875D96 /* chatClient.cpp in Sources */,
+				A838B20A1E9685A200875D96 /* logger.cpp in Sources */,
+				A838B2191E9685DF00875D96 /* chatd.cpp in Sources */,
+				A838B21C1E9685DF00875D96 /* megachatapi.cpp in Sources */,
+				A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */,
+				A838B20B1E9685A200875D96 /* services-dns.cpp in Sources */,
+				A838B21B1E9685DF00875D96 /* megachatapi_impl.cpp in Sources */,
+				A838B21A1E9685DF00875D96 /* karereCommon.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A838B1F21E96850700875D96 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		A838B1F31E96850700875D96 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		A838B1FF1E96855400875D96 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = T9RH74Y7L9;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					../../src/base,
+					../../src/rtcModule,
+					"../../third-party",
+					../../src,
+					../../../SDK/include,
+					../../../SDK/bindings/ios/3rdparty/include/libws,
+					../../../SDK/bindings/ios/3rdparty/include,
+					../../../SDK/bindings/ios/3rdparty/include/libevent,
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 10.3;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = (
+					"-DENABLE_CHAT",
+					"-DHAVE_CONFIG_H",
+					"-DHAVE_KARERE_LOGGER",
+					"-DKARERE_DISABLE_WEBRTC",
+					"-DSVC_DISABLE_STROPHE",
+					"-D_DARWIN_C_SOURCE",
+				);
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix";
+			};
+			name = Debug;
+		};
+		A838B2001E96855400875D96 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = T9RH74Y7L9;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					../../src/base,
+					../../src/rtcModule,
+					"../../third-party",
+					../../src,
+					../../../SDK/include,
+					../../../SDK/bindings/ios/3rdparty/include/libws,
+					../../../SDK/bindings/ios/3rdparty/include,
+					../../../SDK/bindings/ios/3rdparty/include/libevent,
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 10.3;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				OTHER_CFLAGS = (
+					"-DENABLE_CHAT",
+					"-DHAVE_CONFIG_H",
+					"-DHAVE_KARERE_LOGGER",
+					"-DKARERE_DISABLE_WEBRTC",
+					"-DSVC_DISABLE_STROPHE",
+					"-D_DARWIN_C_SOURCE",
+				);
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A838B1F11E96850700875D96 /* Build configuration list for PBXProject "Karere" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A838B1F21E96850700875D96 /* Debug */,
+				A838B1F31E96850700875D96 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A838B2011E96855400875D96 /* Build configuration list for PBXNativeTarget "Karere" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A838B1FF1E96855400875D96 /* Debug */,
+				A838B2001E96855400875D96 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A838B1EE1E96850700875D96 /* Project object */;
+}
