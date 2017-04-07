@@ -1015,7 +1015,7 @@ ApiPromise ChatRoom::requestGrantAccess(mega::MegaNode *node, mega::MegaHandle u
     return listener->mPromise;
 }
 
-ApiPromise ChatRoom::revokeGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle, mega::MegaApi *megaApi)
+ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle, mega::MegaApi *megaApi)
 {
     MyListener *listener = new MyListener();
     megaApi->removeAccessInChat(mChatid, node, userHandle, listener);
@@ -1094,11 +1094,11 @@ std::vector<ApiPromise> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeLis
     return promises;
 }
 
-std::vector<ApiPromise> PeerChatRoom::revokeGrantAccessToNode(mega::MegaNode *node, mega::MegaApi* megaApi)
+std::vector<ApiPromise> PeerChatRoom::requestRevokeAccessToNode(mega::MegaNode *node, mega::MegaApi* megaApi)
 {
     std::vector<ApiPromise> promises;
 
-    ApiPromise promise = requestGrantAccess(node, peer(), megaApi);
+    ApiPromise promise = requestRevokeAccess(node, peer(), megaApi);
     promises.push_back(promise);
 
     return promises;
@@ -1120,13 +1120,13 @@ std::vector<ApiPromise> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeLi
     return promises;
 }
 
-std::vector<ApiPromise> GroupChatRoom::revokeGrantAccessToNode(mega::MegaNode *node, mega::MegaApi* megaApi)
+std::vector<ApiPromise> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *node, mega::MegaApi* megaApi)
 {
     std::vector<ApiPromise> promises;
 
     for (auto iterator = mPeers.begin(); iterator != mPeers.end(); ++iterator)
     {
-        ApiPromise promise = requestGrantAccess(node, iterator->second->mHandle, megaApi);
+        ApiPromise promise = requestRevokeAccess(node, iterator->second->mHandle, megaApi);
         promises.push_back(promise);
     }
 

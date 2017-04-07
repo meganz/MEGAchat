@@ -99,20 +99,22 @@ public:
     void TEST_offlineMode();
     void TEST_clearHistory();
     void TEST_switchAccounts();
-    void TEST_downloadAttachment();
-    void TEST_sendAttachment();
+    int downloadAttachment(int downloadCount, int senderCount, const std::string& fileName);
+    void sendAttachment(int sendCountIndex, int receiverCountIndex, const std::string fileName);
+    void revokeAttachment(int sendCountIndex, int receiverCountIndex, const std::string filename);
     void TEST_receiveContact();
     void TEST_sendContact();
     void TEST_receiveRevokeAttachment();
     void TEST_sendRevokeAttachment();
+    void TEST_attachment();
+    string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
 
     mega::MegaNodeList *getAttachmentNodeList();
-    void setAttachmentNodeList(mega::MegaNodeList *nodeList);
-    void setAttachmentContactList(std::vector<megachat::MegaChatUser> contactList);
+    void addAttachmentNodeList(mega::MegaNodeList *nodeList);
     void setRevokeAttachNode(MegaChatHandle megaChatNode);
 
     void addDownload();
-    bool &isDownloadRunning();
+    bool &isNotDownloadRunning();
     int getTotalDownload() const;
 
 private:
@@ -136,7 +138,6 @@ private:
     bool chatNameReceived[NUM_ACCOUNTS];
 
     mega::MegaNodeList *mAttachmentNodeList;
-    std::vector<megachat::MegaChatUser> mAttachmentUserList;
     megachat::MegaChatHandle mAttachmentRevokeNode;
 
 //    MegaContactRequest* cr[2];
@@ -155,6 +156,9 @@ private:
     unsigned int mActiveDownload;
     bool mNotDownloadRunning;
     unsigned int mTotalDownload;
+
+    bool attachNodeSend[NUM_ACCOUNTS];
+    bool revokeNodeSend[NUM_ACCOUNTS];
 
 public:
     // implementation for MegaRequestListener

@@ -68,7 +68,7 @@ public:
     virtual MegaChatHandle getUserHandle();
     virtual int getPrivilege();
     virtual const char *getText() const;
-    virtual const MegaChatMessage *getAttachRevokeNodesMessage() const;
+    virtual MegaChatMessage *getMessage();
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -81,6 +81,12 @@ public:
     void setPrivilege(int priv);
     void setText(const char *text);
     void setAttachRevokeNodesMessage(const MegaChatMessage* attachNodesMessage);
+
+    void setMessage(MegaChatMessage *message);
+    mega::MegaNodeList *getNodeList();
+    void setNodeList(mega::MegaNodeList *attachNodes);
+    mega::MegaHandle getMegaHandleNode();
+    void setMegaHandleNode(mega::MegaHandle megaHandle);
 
 protected:
     int type;
@@ -95,7 +101,9 @@ protected:
     MegaChatHandle userHandle;
     int privilege;
     const char* text;
-    const MegaChatMessage* mAttachNodesMessage;
+    MegaChatMessage* mMessage;
+    mega::MegaNodeList* mMegaNodeList;
+    mega::MegaHandle mMegaHandle;
 };
 
 class MegaChatPresenceConfigPrivate : public MegaChatPresenceConfig
@@ -511,14 +519,16 @@ private:
     std::vector<MegaChatRoom*> list;
 };
 
+class MegaChatUserPrivate;
+
 class MegaChatMessagePrivate : public MegaChatMessage
 {
 public:
-    MegaChatMessagePrivate(const MegaChatMessage *msg);
+    MegaChatMessagePrivate(MegaChatMessage *msg);
     MegaChatMessagePrivate(const chatd::Message &msg, chatd::Message::Status status, chatd::Idx index);
 
     virtual ~MegaChatMessagePrivate();
-    virtual MegaChatMessage *copy() const;
+    virtual MegaChatMessage *copy();
 
     // MegaChatMessage interface
     virtual int getStatus() const;
@@ -550,7 +560,7 @@ public:
     virtual const char *getContactName(int contact) const;
     virtual const char *getContactEmail(int contact) const;
 
-    virtual mega::MegaNodeList *getAttachmentNodeList();
+    virtual mega::MegaNodeList *getMegaNodeList();
 
 private:
     int changed;
@@ -568,8 +578,8 @@ private:
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
-    std::vector<MegaChatUser> megaChatUsers;
-    mega::MegaNodeListPrivate megaNodeList;
+    std::vector<MegaChatUserPrivate>* megaChatUsers;
+    mega::MegaNodeList* megaNodeList;
 };
 
 //Thread safe request queue
@@ -821,7 +831,7 @@ public:
     virtual void removePeerChatItem(IApp::IPeerChatListItem& item);
 };
 
-class MegaChatUserPrivate : public MegaChatUser
+class MegaChatUserPrivate
 {
 public:
     MegaChatUserPrivate(MegaChatHandle contactId, const std::string& email, const std::string& name);

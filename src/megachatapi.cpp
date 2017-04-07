@@ -541,7 +541,7 @@ const char *MegaChatRequest::getText() const
     return NULL;
 }
 
-const MegaChatMessage *MegaChatRequest::getAttachRevokeNodesMessage() const
+MegaChatMessage *MegaChatRequest::getMessage()
 {
     return NULL;
 }
@@ -885,7 +885,7 @@ void MegaChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 
 }
 
-MegaChatMessage *MegaChatMessage::copy() const
+MegaChatMessage *MegaChatMessage::copy()
 {
     return NULL;
 }
@@ -995,7 +995,7 @@ const char *MegaChatMessage::getContactEmail(int contact) const
     return NULL;
 }
 
-MegaNodeList *MegaChatMessage::getAttachmentNodeList()
+MegaNodeList *MegaChatMessage::getMegaNodeList()
 {
     return NULL;
 }
@@ -1019,21 +1019,6 @@ const MegaChatListItem *MegaChatListItemList::get(unsigned int i) const
 unsigned int MegaChatListItemList::size() const
 {
     return 0;
-}
-
-MegaChatHandle MegaChatUser::getHandle() const
-{
-    return MEGACHAT_INVALID_HANDLE;
-}
-
-const char *MegaChatUser::getEmail() const
-{
-    return NULL;
-}
-
-const char *MegaChatUser::getName() const
-{
-    return NULL;
 }
 
 MegaChatPresenceConfig *MegaChatPresenceConfig::copy() const

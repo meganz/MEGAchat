@@ -713,6 +713,64 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
+        {
+            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+            MegaNodeList *nodes = request->getNodeList();
+            MegaChatRequestListener *listener = request->getListener();
+
+            std::vector<ApiPromise> promises = chatroom->requesGrantAccessToNodes(nodes, megaApi);
+
+            promise::when(promises)
+            .then([this, nodes, chatroom, listener]()
+            {
+                sendAttachMessage(nodes, chatroom, listener);
+
+            })
+            .fail([this, nodes, chatroom, listener](const promise::Error& err)
+            {
+                sendAttachMessage(nodes, chatroom, listener);
+
+                if (err.code() != MegaError::API_EEXIST)
+                {
+                    API_LOG_ERROR("Failed to grant access to some node");
+                }
+            });
+
+            break;
+        }
+        case MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE:
+        {
+            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+            MegaHandle handle = request->getMegaHandleNode();
+            MegaChatRequestListener *listener = request->getListener();
+
+            MegaNode *node = megaApi->getNodeByHandle(handle);
+
+            if (node != NULL)
+            {
+                std::vector<ApiPromise> promises = chatroom->requestRevokeAccessToNode(node, megaApi);
+
+                promise::when(promises)
+                .then([this, handle, chatroom, listener]()
+                {
+                    sendRevokeAttach(handle, chatroom, listener);
+                })
+                .fail([this, handle, chatroom, listener](const promise::Error& err)
+                {
+                    sendRevokeAttach(handle, chatroom, listener);
+
+                    if (err.code() != MegaError::API_EEXIST)
+                    {
+                        API_LOG_ERROR("Failed to grant access to some node");
+                    }
+                });
+
+                delete node;
+            }
+
+            break;
+        }
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -1696,9 +1754,9 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle *contacts)
+MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle *handleContacts)
 {
-    if (contactsNumber < 1 || contacts == NULL)
+    if (contactsNumber < 1 || handleContacts == NULL)
     {
         return NULL;
     }
@@ -1713,7 +1771,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
         JSonNode jSonContacts;
         for (unsigned int i = 0; i < contactsNumber; ++i)
         {
-            auto contactIterator = mClient->contactList->find(contacts[i]);
+            auto contactIterator = mClient->contactList->find(handleContacts[i]);
             if (contactIterator != mClient->contactList->end())
             {
                 karere::Contact* contact = contactIterator->second;
@@ -1721,7 +1779,9 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
                 JSonNode jsonContact;
                 JSonNode handleNode;
                 JSonNode handleValue;
-                std::string handleString = "\"" + std::string(MegaApi::userHandleToBase64(contacts[i])) + "\"";
+                char *base64Handle = MegaApi::userHandleToBase64(contact->userId());
+                std::string handleString = "\"" + std::string(base64Handle) + "\"";
+                delete base64Handle;
                 handleValue.setFinalValue(handleString);
                 handleNode.setKeyValueNode("u", handleValue);
                 jsonContact.setMapNode(handleNode);
@@ -1747,7 +1807,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
             else
             {
                 error = true;
-                API_LOG_ERROR("Failed to find a contact");
+                API_LOG_ERROR("Failed to find the contact: %d", handleContacts[i]);
                 break;
             }
         }
@@ -1776,29 +1836,12 @@ void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, Me
         return;
     }
 
-    sdkMutex.lock();
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
+    request->setChatHandle(chatid);
+    request->setNodeList(nodes);
+    requestQueue.push(request);
+    waiter->notify();
 
-    ChatRoom *chatroom = findChatRoom(chatid);
-
-    std::vector<ApiPromise> promises = chatroom->requesGrantAccessToNodes(nodes, megaApi);
-
-    promise::when(promises)
-    .then([this, nodes, chatroom, listener]()
-    {
-        sendAttachMessage(nodes, chatroom, listener);
-
-    })
-    .fail([this, nodes, chatroom, listener](const promise::Error& err)
-    {
-        sendAttachMessage(nodes, chatroom, listener);
-
-        if (err.code() != MegaError::API_EEXIST)
-        {
-            API_LOG_ERROR("Failed to grant access to some node");
-        }
-    });
-
-    sdkMutex.unlock();
     return ;
 }
 
@@ -1815,7 +1858,9 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
         if (megaNode != NULL)
         {
             // h -> handle
-            std::string handleString = "\"" + std::string(MegaApi::handleToBase64(megaNode->getHandle())) + "\"";
+            char *base64Handle = MegaApi::handleToBase64(megaNode->getHandle());
+            std::string handleString = "\"" +  std::string(base64Handle) + "\"";
+            delete base64Handle;
             JSonNode handleNode;
             JSonNode handleValue;
             handleValue.setFinalValue(handleString);
@@ -1869,9 +1914,7 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
             // fa -> image thumbail
             if (megaNode->hasThumbnail() || megaNode->hasPreview())
             {
-                MegaClient* megaClient = megaApi->getMegaClient();
-                Node* node = megaClient->nodebyhandle(megaNode->getHandle());
-                std::string faString = "\"" + node->fileattrstring + "\"";
+                std::string faString = "\"" + megaApi->getFileAttribute(megaNode->getHandle()) + "\"";
                 JSonNode faNode;
                 JSonNode faValue;
                 faValue.setFinalValue(faString);
@@ -1898,7 +1941,6 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
             jsonNode.setMapNode(timeStampNode);
 
             jSonAttachmentNodes.setVectorNode(jsonNode);
-
         }
         else
         {
@@ -1919,41 +1961,26 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
         Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
         MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
 
-        MegaChatRequestPrivate request(MegaChatRequest::TYPE_ATTACH_REVOKE_NODE_MESSAGE, listener);
-        request.setAttachRevokeNodesMessage(megaMsg);
+        MegaChatRequestPrivate request(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
+        request.setMessage(megaMsg);
         MegaChatErrorPrivate error;
         if (listener != NULL)
         {
             listener->onRequestFinish(chatApi, &request, &error);
         }
     }
+
 }
 
 void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL)
-{    sdkMutex.lock();
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
+    request->setChatHandle(chatid);
+    request->setMegaHandleNode(handle);
+    requestQueue.push(request);
+    waiter->notify();
 
-    ChatRoom *chatroom = findChatRoom(chatid);
-
-    std::vector<ApiPromise> promises = chatroom->revokeGrantAccessToNode(megaApi->getNodeByHandle(handle), megaApi);
-
-    promise::when(promises)
-    .then([this, handle, chatroom, listener]()
-    {
-        sendRevokeAttach(handle, chatroom, listener);
-
-
-    })
-    .fail([this, handle, chatroom, listener](const promise::Error& err)
-    {
-        sendRevokeAttach(handle, chatroom, listener);
-
-        if (err.code() != MegaError::API_EEXIST)
-        {
-            API_LOG_ERROR("Failed to grant access to some node");
-        }
-    });
-
-     sdkMutex.unlock();
+    return ;
 }
 
 void MegaChatApiImpl::sendRevokeAttach(MegaChatHandle handle, ChatRoom *chatroom, MegaChatRequestListener *listener)
@@ -1961,13 +1988,15 @@ void MegaChatApiImpl::sendRevokeAttach(MegaChatHandle handle, ChatRoom *chatroom
     unsigned char t = MegaChatMessage::TYPE_REVOKE_ATTACHMENT;
     char zero = 0x0;
     char revokeAttachmentType = chatd::Message::kMsgRevokeAttachment;
-    std::string stringToSend = MegaApi::handleToBase64(handle);
+    char *base64Handle = MegaApi::handleToBase64(handle);
+    std::string stringToSend = std::string(base64Handle);
+    delete base64Handle;
     stringToSend.insert(stringToSend.begin(), revokeAttachmentType);
     stringToSend.insert(stringToSend.begin(), zero);
     Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
     MegaChatMessage* message = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-    MegaChatRequestPrivate request(MegaChatRequest::TYPE_ATTACH_REVOKE_NODE_MESSAGE, listener);
-    request.setAttachRevokeNodesMessage(message);
+    MegaChatRequestPrivate request(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
+    request.setMessage(message);
     MegaChatErrorPrivate error;
     if (listener != NULL)
     {
@@ -2575,7 +2604,8 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->userHandle = MEGACHAT_INVALID_HANDLE;
     this->privilege = MegaChatPeerList::PRIV_UNKNOWN;
     this->text = NULL;
-    this->mAttachNodesMessage = NULL;
+    this->mMessage = NULL;
+    this->mMegaNodeList = NULL;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
@@ -2594,7 +2624,8 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setUserHandle(request.getUserHandle());
     this->setPrivilege(request.getPrivilege());
     this->setText(request.getText());
-    this->setAttachRevokeNodesMessage(request.getAttachRevokeNodesMessage());
+    this->setMessage(request.getMessage()->copy());
+    this->mMegaNodeList = request.getNodeList()->copy();
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -2602,9 +2633,14 @@ MegaChatRequestPrivate::~MegaChatRequestPrivate()
     delete peerList;
     delete [] text;
 
-    if (mAttachNodesMessage != NULL)
+    if (mMessage != NULL)
     {
-        delete mAttachNodesMessage;
+        delete mMessage;
+    }
+
+    if (mMegaNodeList != NULL)
+    {
+        delete mMegaNodeList;
     }
 }
 
@@ -2636,6 +2672,9 @@ const char *MegaChatRequestPrivate::getRequestString() const
 
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
+        case TYPE_ATTACH_NODE_MESSAGE: return "ATTACH_NODE_MESSAGE";
+        case TYPE_REVOKE_NODE_MESSAGE: return "REVOKE_NODE_MESSAGE";
+
     }
     return "UNKNOWN";
 }
@@ -2695,9 +2734,9 @@ const char *MegaChatRequestPrivate::getText() const
     return text;
 }
 
-const MegaChatMessage *MegaChatRequestPrivate::getAttachRevokeNodesMessage() const
+MegaChatMessage *MegaChatRequestPrivate::getMessage()
 {
-    return mAttachNodesMessage;
+    return mMessage;
 }
 
 int MegaChatRequestPrivate::getTag() const
@@ -2762,14 +2801,34 @@ void MegaChatRequestPrivate::setText(const char *text)
     this->text = MegaApi::strdup(text);
 }
 
-void MegaChatRequestPrivate::setAttachRevokeNodesMessage(const MegaChatMessage *attachNodesMessage)
+void MegaChatRequestPrivate::setMessage(MegaChatMessage *message)
 {
-    if (mAttachNodesMessage != NULL)
+    if (mMessage != NULL)
     {
-        delete mAttachNodesMessage;
+        delete mMessage;
     }
 
-    mAttachNodesMessage = attachNodesMessage->copy();
+    mMessage = message->copy();
+}
+
+MegaNodeList *MegaChatRequestPrivate::getNodeList()
+{
+    return mMegaNodeList;
+}
+
+void MegaChatRequestPrivate::setNodeList(MegaNodeList *attachNodes)
+{
+    mMegaNodeList = attachNodes->copy();
+}
+
+MegaHandle MegaChatRequestPrivate::getMegaHandleNode()
+{
+    return mMegaHandle;
+}
+
+void MegaChatRequestPrivate::setMegaHandleNode(MegaHandle megaHandle)
+{
+    mMegaHandle = megaHandle;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const shared_ptr<rtcModule::ICallAnswer> &ans)
@@ -3032,17 +3091,12 @@ void MegaChatRoomHandler::onDestroy()
 
 void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Status status)
 {
-
-    std::cout << "MegaChatRoomHandler::onRecvNewMessage  " << std::endl;
-
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     chatApi->fireOnMessageReceived(message);
 }
 
 void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isLocal)
 {
-    std::cout << "MegaChatRoomHandler::onRecvHistoryMessage  " << std::endl;
-
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     chatApi->fireOnMessageLoaded(message);
 }
@@ -3972,7 +4026,9 @@ MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatAp
 }
 
 
-MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
+MegaChatMessagePrivate::MegaChatMessagePrivate(MegaChatMessage *msg)
+    : megaChatUsers(NULL)
+    , megaNodeList(NULL)
 {
     this->msg = MegaApi::strdup(msg->getContent());
     this->uh = msg->getUserHandle();
@@ -3988,9 +4044,28 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->deleted = msg->isDeleted();
     this->priv = msg->getPrivilege();
     this->code = msg->getCode();
+
+    if (msg->getContactsCount() != 0)
+    {
+        this->megaChatUsers = new std::vector<MegaChatUserPrivate>();
+
+        for (int i = 0; i < msg->getContactsCount(); ++i)
+        {
+            MegaChatUserPrivate megaChatUser(msg->getContactUserHandle(i), msg->getContactEmail(i), msg->getContactName(i));
+
+            this->megaChatUsers->push_back(megaChatUser);
+        }
+    }
+
+    if (msg->getMegaNodeList() != NULL)
+    {
+        this->megaNodeList = msg->getMegaNodeList()->copy();
+    }
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
+    : megaChatUsers(NULL)
+    , megaNodeList(NULL)
 {
     string tmp(msg.buf(), msg.size());
 
@@ -4029,6 +4104,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         {
             this->hAction = MEGACHAT_INVALID_HANDLE;
             JSonNode attachments(msg.toText());
+
+            megaNodeList = new MegaNodeListPrivate();
 
             int attachmentNumber = attachments.getNumberVectorElement();
             for (int i = 0; i < attachmentNumber; ++i)
@@ -4084,7 +4161,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                                      megaHandle, &key, &attrstring, fingerprint, INVALID_HANDLE,
                                      NULL, NULL, false, true);
 
-                megaNodeList.addNode(&node);
+                megaNodeList->addNode(&node);
             }
 
             break;
@@ -4096,6 +4173,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         {
             this->hAction = MEGACHAT_INVALID_HANDLE;
             JSonNode contacts(msg.toText());
+
+            megaChatUsers = new std::vector<MegaChatUserPrivate>();
 
             int contactNumber = contacts.getNumberVectorElement();
             for (int i = 0; i < contactNumber; ++i)
@@ -4126,7 +4205,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 }
 
                 MegaChatUserPrivate megaChatUser(MegaApi::base64ToUserHandle(handleString.c_str()) , emailString, nameString);
-                megaChatUsers.push_back(megaChatUser);
+                megaChatUsers->push_back(megaChatUser);
             }
 
             break;
@@ -4144,9 +4223,19 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
 MegaChatMessagePrivate::~MegaChatMessagePrivate()
 {
     delete [] msg;
+
+    if (megaChatUsers != NULL)
+    {
+        delete megaChatUsers;
+    }
+
+    if (megaNodeList != NULL)
+    {
+        delete megaNodeList;
+    }
 }
 
-MegaChatMessage *MegaChatMessagePrivate::copy() const
+MegaChatMessage *MegaChatMessagePrivate::copy()
 {
     return new MegaChatMessagePrivate(this);
 }
@@ -4262,27 +4351,33 @@ void MegaChatMessagePrivate::setCode(int code)
 
 int MegaChatMessagePrivate::getContactsCount() const
 {
-    return megaChatUsers.size();
+    int size = 0;
+    if (megaChatUsers != NULL)
+    {
+        size = megaChatUsers->size();
+    }
+
+    return size;
 }
 
-MegaChatHandle MegaChatMessagePrivate::getContactUserHandle(int contact) const
+MegaChatHandle MegaChatMessagePrivate::getContactUserHandle(int index) const
 {
-    return megaChatUsers.at(contact).getHandle();
+    return megaChatUsers->at(index).getHandle();
 }
 
-const char *MegaChatMessagePrivate::getContactName(int contact) const
+const char *MegaChatMessagePrivate::getContactName(int index) const
 {
-    return megaChatUsers.at(contact).getName();
+    return megaChatUsers->at(index).getName();
 }
 
-const char *MegaChatMessagePrivate::getContactEmail(int contact) const
+const char *MegaChatMessagePrivate::getContactEmail(int index) const
 {
-    return megaChatUsers.at(contact).getEmail();
+    return megaChatUsers->at(index).getEmail();
 }
 
-MegaNodeList *MegaChatMessagePrivate::getAttachmentNodeList()
+MegaNodeList *MegaChatMessagePrivate::getMegaNodeList()
 {
-    return &megaNodeList;
+    return megaNodeList;
 }
 
 LoggerHandler::LoggerHandler()
