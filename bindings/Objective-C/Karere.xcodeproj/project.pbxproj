@@ -7,6 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */; };
+		A82750D31E9788A3007CD9E2 /* MEGAChatListItem.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BD1E9788A3007CD9E2 /* MEGAChatListItem.mm */; };
+		A82750D41E9788A3007CD9E2 /* MEGAChatListItemList.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BF1E9788A3007CD9E2 /* MEGAChatListItemList.mm */; };
+		A82750D51E9788A3007CD9E2 /* MEGAChatMessage.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750C21E9788A3007CD9E2 /* MEGAChatMessage.mm */; };
+		A82750D61E9788A3007CD9E2 /* MEGAChatPeerList.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750C41E9788A3007CD9E2 /* MEGAChatPeerList.mm */; };
+		A82750D71E9788A3007CD9E2 /* MEGAChatPresenceConfig.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750C61E9788A3007CD9E2 /* MEGAChatPresenceConfig.mm */; };
+		A82750D81E9788A3007CD9E2 /* MEGAChatRequest.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750C81E9788A3007CD9E2 /* MEGAChatRequest.mm */; };
+		A82750D91E9788A3007CD9E2 /* MEGAChatRoom.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750CB1E9788A3007CD9E2 /* MEGAChatRoom.mm */; };
+		A82750DA1E9788A3007CD9E2 /* MEGAChatRoomList.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750CE1E9788A3007CD9E2 /* MEGAChatRoomList.mm */; };
+		A82750DB1E9788A3007CD9E2 /* MEGAChatSdk.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750D01E9788A3007CD9E2 /* MEGAChatSdk.mm */; };
+		A82750EE1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750DD1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm */; };
+		A82750EF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750DF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm */; };
+		A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750E11E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm */; };
+		A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750E31E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm */; };
 		A838B2071E9685A200875D96 /* cservices-dns.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2021E9685A200875D96 /* cservices-dns.cpp */; };
 		A838B2081E9685A200875D96 /* cservices-http.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2031E9685A200875D96 /* cservices-http.cpp */; };
 		A838B2091E9685A200875D96 /* cservices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2041E9685A200875D96 /* cservices.cpp */; };
@@ -39,6 +53,48 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A82750B91E9788A3007CD9E2 /* MEGAChatDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatDelegate.h; sourceTree = "<group>"; };
+		A82750BA1E9788A3007CD9E2 /* MEGAChatError.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatError.h; sourceTree = "<group>"; };
+		A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatError.mm; sourceTree = "<group>"; };
+		A82750BC1E9788A3007CD9E2 /* MEGAChatListItem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatListItem.h; sourceTree = "<group>"; };
+		A82750BD1E9788A3007CD9E2 /* MEGAChatListItem.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatListItem.mm; sourceTree = "<group>"; };
+		A82750BE1E9788A3007CD9E2 /* MEGAChatListItemList.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatListItemList.h; sourceTree = "<group>"; };
+		A82750BF1E9788A3007CD9E2 /* MEGAChatListItemList.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatListItemList.mm; sourceTree = "<group>"; };
+		A82750C01E9788A3007CD9E2 /* MEGAChatLoggerDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatLoggerDelegate.h; sourceTree = "<group>"; };
+		A82750C11E9788A3007CD9E2 /* MEGAChatMessage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatMessage.h; sourceTree = "<group>"; };
+		A82750C21E9788A3007CD9E2 /* MEGAChatMessage.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatMessage.mm; sourceTree = "<group>"; };
+		A82750C31E9788A3007CD9E2 /* MEGAChatPeerList.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatPeerList.h; sourceTree = "<group>"; };
+		A82750C41E9788A3007CD9E2 /* MEGAChatPeerList.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatPeerList.mm; sourceTree = "<group>"; };
+		A82750C51E9788A3007CD9E2 /* MEGAChatPresenceConfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatPresenceConfig.h; sourceTree = "<group>"; };
+		A82750C61E9788A3007CD9E2 /* MEGAChatPresenceConfig.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatPresenceConfig.mm; sourceTree = "<group>"; };
+		A82750C71E9788A3007CD9E2 /* MEGAChatRequest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatRequest.h; sourceTree = "<group>"; };
+		A82750C81E9788A3007CD9E2 /* MEGAChatRequest.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatRequest.mm; sourceTree = "<group>"; };
+		A82750C91E9788A3007CD9E2 /* MEGAChatRequestDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatRequestDelegate.h; sourceTree = "<group>"; };
+		A82750CA1E9788A3007CD9E2 /* MEGAChatRoom.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatRoom.h; sourceTree = "<group>"; };
+		A82750CB1E9788A3007CD9E2 /* MEGAChatRoom.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatRoom.mm; sourceTree = "<group>"; };
+		A82750CC1E9788A3007CD9E2 /* MEGAChatRoomDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatRoomDelegate.h; sourceTree = "<group>"; };
+		A82750CD1E9788A3007CD9E2 /* MEGAChatRoomList.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatRoomList.h; sourceTree = "<group>"; };
+		A82750CE1E9788A3007CD9E2 /* MEGAChatRoomList.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatRoomList.mm; sourceTree = "<group>"; };
+		A82750CF1E9788A3007CD9E2 /* MEGAChatSdk.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatSdk.h; sourceTree = "<group>"; };
+		A82750D01E9788A3007CD9E2 /* MEGAChatSdk.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatSdk.mm; sourceTree = "<group>"; };
+		A82750DC1E9788D8007CD9E2 /* DelegateMEGAChatListener.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatListener.h; path = Private/DelegateMEGAChatListener.h; sourceTree = "<group>"; };
+		A82750DD1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatListener.mm; path = Private/DelegateMEGAChatListener.mm; sourceTree = "<group>"; };
+		A82750DE1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatLoggerListener.h; path = Private/DelegateMEGAChatLoggerListener.h; sourceTree = "<group>"; };
+		A82750DF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatLoggerListener.mm; path = Private/DelegateMEGAChatLoggerListener.mm; sourceTree = "<group>"; };
+		A82750E01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatRequestListener.h; path = Private/DelegateMEGAChatRequestListener.h; sourceTree = "<group>"; };
+		A82750E11E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatRequestListener.mm; path = Private/DelegateMEGAChatRequestListener.mm; sourceTree = "<group>"; };
+		A82750E21E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatRoomListener.h; path = Private/DelegateMEGAChatRoomListener.h; sourceTree = "<group>"; };
+		A82750E31E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatRoomListener.mm; path = Private/DelegateMEGAChatRoomListener.mm; sourceTree = "<group>"; };
+		A82750E41E9788D8007CD9E2 /* MEGAChatError+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatError+init.h"; path = "Private/MEGAChatError+init.h"; sourceTree = "<group>"; };
+		A82750E51E9788D8007CD9E2 /* MEGAChatListItem+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatListItem+init.h"; path = "Private/MEGAChatListItem+init.h"; sourceTree = "<group>"; };
+		A82750E61E9788D8007CD9E2 /* MEGAChatListItemList+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatListItemList+init.h"; path = "Private/MEGAChatListItemList+init.h"; sourceTree = "<group>"; };
+		A82750E71E9788D8007CD9E2 /* MEGAChatMessage+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatMessage+init.h"; path = "Private/MEGAChatMessage+init.h"; sourceTree = "<group>"; };
+		A82750E81E9788D8007CD9E2 /* MEGAChatPeerList+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatPeerList+init.h"; path = "Private/MEGAChatPeerList+init.h"; sourceTree = "<group>"; };
+		A82750E91E9788D8007CD9E2 /* MEGAChatPresenceConfig+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatPresenceConfig+init.h"; path = "Private/MEGAChatPresenceConfig+init.h"; sourceTree = "<group>"; };
+		A82750EA1E9788D8007CD9E2 /* MEGAChatRequest+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatRequest+init.h"; path = "Private/MEGAChatRequest+init.h"; sourceTree = "<group>"; };
+		A82750EB1E9788D8007CD9E2 /* MEGAChatRoom+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatRoom+init.h"; path = "Private/MEGAChatRoom+init.h"; sourceTree = "<group>"; };
+		A82750EC1E9788D8007CD9E2 /* MEGAChatRoomList+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatRoomList+init.h"; path = "Private/MEGAChatRoomList+init.h"; sourceTree = "<group>"; };
+		A82750ED1E9788D8007CD9E2 /* MEGAChatSdk+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatSdk+init.h"; path = "Private/MEGAChatSdk+init.h"; sourceTree = "<group>"; };
 		A838B1F81E96855400875D96 /* libKarere.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKarere.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A838B2021E9685A200875D96 /* cservices-dns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cservices-dns.cpp"; path = "../../src/base/cservices-dns.cpp"; sourceTree = "<group>"; };
 		A838B2031E9685A200875D96 /* cservices-http.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cservices-http.cpp"; path = "../../src/base/cservices-http.cpp"; sourceTree = "<group>"; };
@@ -71,9 +127,67 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		A82750F21E9788E5007CD9E2 /* private */ = {
+			isa = PBXGroup;
+			children = (
+				A82750DC1E9788D8007CD9E2 /* DelegateMEGAChatListener.h */,
+				A82750DD1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm */,
+				A82750DE1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.h */,
+				A82750DF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm */,
+				A82750E01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.h */,
+				A82750E11E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm */,
+				A82750E21E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.h */,
+				A82750E31E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm */,
+				A82750E41E9788D8007CD9E2 /* MEGAChatError+init.h */,
+				A82750E51E9788D8007CD9E2 /* MEGAChatListItem+init.h */,
+				A82750E61E9788D8007CD9E2 /* MEGAChatListItemList+init.h */,
+				A82750E71E9788D8007CD9E2 /* MEGAChatMessage+init.h */,
+				A82750E81E9788D8007CD9E2 /* MEGAChatPeerList+init.h */,
+				A82750E91E9788D8007CD9E2 /* MEGAChatPresenceConfig+init.h */,
+				A82750EA1E9788D8007CD9E2 /* MEGAChatRequest+init.h */,
+				A82750EB1E9788D8007CD9E2 /* MEGAChatRoom+init.h */,
+				A82750EC1E9788D8007CD9E2 /* MEGAChatRoomList+init.h */,
+				A82750ED1E9788D8007CD9E2 /* MEGAChatSdk+init.h */,
+			);
+			name = private;
+			sourceTree = "<group>";
+		};
+		A82750F31E978908007CD9E2 /* binding */ = {
+			isa = PBXGroup;
+			children = (
+				A82750F21E9788E5007CD9E2 /* private */,
+				A82750B91E9788A3007CD9E2 /* MEGAChatDelegate.h */,
+				A82750BA1E9788A3007CD9E2 /* MEGAChatError.h */,
+				A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */,
+				A82750BC1E9788A3007CD9E2 /* MEGAChatListItem.h */,
+				A82750BD1E9788A3007CD9E2 /* MEGAChatListItem.mm */,
+				A82750BE1E9788A3007CD9E2 /* MEGAChatListItemList.h */,
+				A82750BF1E9788A3007CD9E2 /* MEGAChatListItemList.mm */,
+				A82750C01E9788A3007CD9E2 /* MEGAChatLoggerDelegate.h */,
+				A82750C11E9788A3007CD9E2 /* MEGAChatMessage.h */,
+				A82750C21E9788A3007CD9E2 /* MEGAChatMessage.mm */,
+				A82750C31E9788A3007CD9E2 /* MEGAChatPeerList.h */,
+				A82750C41E9788A3007CD9E2 /* MEGAChatPeerList.mm */,
+				A82750C51E9788A3007CD9E2 /* MEGAChatPresenceConfig.h */,
+				A82750C61E9788A3007CD9E2 /* MEGAChatPresenceConfig.mm */,
+				A82750C71E9788A3007CD9E2 /* MEGAChatRequest.h */,
+				A82750C81E9788A3007CD9E2 /* MEGAChatRequest.mm */,
+				A82750C91E9788A3007CD9E2 /* MEGAChatRequestDelegate.h */,
+				A82750CA1E9788A3007CD9E2 /* MEGAChatRoom.h */,
+				A82750CB1E9788A3007CD9E2 /* MEGAChatRoom.mm */,
+				A82750CC1E9788A3007CD9E2 /* MEGAChatRoomDelegate.h */,
+				A82750CD1E9788A3007CD9E2 /* MEGAChatRoomList.h */,
+				A82750CE1E9788A3007CD9E2 /* MEGAChatRoomList.mm */,
+				A82750CF1E9788A3007CD9E2 /* MEGAChatSdk.h */,
+				A82750D01E9788A3007CD9E2 /* MEGAChatSdk.mm */,
+			);
+			name = binding;
+			sourceTree = "<group>";
+		};
 		A838B1ED1E96850700875D96 = {
 			isa = PBXGroup;
 			children = (
+				A82750F31E978908007CD9E2 /* binding */,
 				A838B20D1E9685AD00875D96 /* src */,
 				A838B1F91E96855400875D96 /* Products */,
 				A838B2261E96884A00875D96 /* Frameworks */,
@@ -211,16 +325,30 @@
 			files = (
 				A838B21E1E9685DF00875D96 /* url.cpp in Sources */,
 				A838B2071E9685A200875D96 /* cservices-dns.cpp in Sources */,
+				A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */,
+				A82750EE1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm in Sources */,
 				A838B2091E9685A200875D96 /* cservices.cpp in Sources */,
 				A838B2171E9685DF00875D96 /* base64.cpp in Sources */,
+				A82750D81E9788A3007CD9E2 /* MEGAChatRequest.mm in Sources */,
 				A838B2251E96879F00875D96 /* karereDbSchema.cpp in Sources */,
+				A82750DB1E9788A3007CD9E2 /* MEGAChatSdk.mm in Sources */,
+				A82750D91E9788A3007CD9E2 /* MEGAChatRoom.mm in Sources */,
+				A82750D51E9788A3007CD9E2 /* MEGAChatMessage.mm in Sources */,
+				A82750D41E9788A3007CD9E2 /* MEGAChatListItemList.mm in Sources */,
 				A838B21F1E9685DF00875D96 /* userAttrCache.cpp in Sources */,
+				A82750DA1E9788A3007CD9E2 /* MEGAChatRoomList.mm in Sources */,
+				A82750D71E9788A3007CD9E2 /* MEGAChatPresenceConfig.mm in Sources */,
+				A82750D61E9788A3007CD9E2 /* MEGAChatPeerList.mm in Sources */,
 				A838B21D1E9685DF00875D96 /* presenced.cpp in Sources */,
+				A82750EF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm in Sources */,
 				A838B2081E9685A200875D96 /* cservices-http.cpp in Sources */,
 				A838B2181E9685DF00875D96 /* chatClient.cpp in Sources */,
 				A838B20A1E9685A200875D96 /* logger.cpp in Sources */,
+				A82750D31E9788A3007CD9E2 /* MEGAChatListItem.mm in Sources */,
 				A838B2191E9685DF00875D96 /* chatd.cpp in Sources */,
 				A838B21C1E9685DF00875D96 /* megachatapi.cpp in Sources */,
+				A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */,
+				A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */,
 				A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */,
 				A838B20B1E9685A200875D96 /* services-dns.cpp in Sources */,
 				A838B21B1E9685DF00875D96 /* megachatapi_impl.cpp in Sources */,
@@ -310,7 +438,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private";
 			};
 			name = Debug;
 		};
@@ -374,7 +502,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
