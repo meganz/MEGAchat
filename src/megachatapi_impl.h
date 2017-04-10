@@ -524,11 +524,11 @@ class MegaChatUserPrivate;
 class MegaChatMessagePrivate : public MegaChatMessage
 {
 public:
-    MegaChatMessagePrivate(MegaChatMessage *msg);
+    MegaChatMessagePrivate(const MegaChatMessage *msg);
     MegaChatMessagePrivate(const chatd::Message &msg, chatd::Message::Status status, chatd::Idx index);
 
     virtual ~MegaChatMessagePrivate();
-    virtual MegaChatMessage *copy();
+    virtual MegaChatMessage *copy() const;
 
     // MegaChatMessage interface
     virtual int getStatus() const;
@@ -562,7 +562,7 @@ public:
     virtual const char *getContactName(int contact) const;
     virtual const char *getContactEmail(int contact) const;
 
-    virtual mega::MegaNodeList *getMegaNodeList();
+    virtual mega::MegaNodeList *getMegaNodeList() const;
 
 private:
     int changed;
