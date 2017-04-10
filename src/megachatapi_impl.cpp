@@ -1703,17 +1703,14 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
         Chat &chat = chatroom->chat();
         Message *originalMsg = findMessage(chatid, msgid);
         Idx index;
-        Message::Status status;
         if (originalMsg)
         {
             index = chat.msgIndexFromId(msgid);
-            status = chat.getMsgStatus(*originalMsg, index);
         }
         else   // message may not have an index yet (not confirmed)
         {
             index = MEGACHAT_INVALID_INDEX;
             originalMsg = findMessageNotConfirmed(chatid, msgid);   // find by transactional id
-            status = Message::kSending;
         }
 
         if (originalMsg)
@@ -1742,7 +1739,7 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
             const Message *editedMsg = chatroom->chat().msgModify(*originalMsg, msg, msgLen, NULL);
             if (editedMsg)
             {
-                megaMsg = new MegaChatMessagePrivate(*editedMsg, status, index);
+                megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::kSending, index);
             }
         }
     }
