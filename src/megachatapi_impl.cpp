@@ -1951,13 +1951,12 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
 
     if (!error)
     {
-        unsigned char t = MegaChatMessage::TYPE_ATTACHMENT;
         char zero = 0x0;
-        char attachmentType = chatd::Message::kMsgAttachment;
+        char attachmentType = Message::kMsgAttachment;
         std::string stringToSend = jSonAttachmentNodes.getString();
         stringToSend.insert(stringToSend.begin(), attachmentType);
         stringToSend.insert(stringToSend.begin(), zero);
-        Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
+        Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgAttachment, NULL);
         MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
 
         MegaChatRequestPrivate request(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
@@ -1984,7 +1983,6 @@ void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle han
 
 void MegaChatApiImpl::sendRevokeAttach(MegaChatHandle handle, ChatRoom *chatroom, MegaChatRequestListener *listener)
 {
-    unsigned char t = MegaChatMessage::TYPE_REVOKE_ATTACHMENT;
     char zero = 0x0;
     char revokeAttachmentType = chatd::Message::kMsgRevokeAttachment;
     char *base64Handle = MegaApi::handleToBase64(handle);
@@ -1992,7 +1990,7 @@ void MegaChatApiImpl::sendRevokeAttach(MegaChatHandle handle, ChatRoom *chatroom
     delete base64Handle;
     stringToSend.insert(stringToSend.begin(), revokeAttachmentType);
     stringToSend.insert(stringToSend.begin(), zero);
-    Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
+    Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgRevokeAttachment, NULL);
     MegaChatMessage* message = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     MegaChatRequestPrivate request(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
     request.setMegaChatMessage(message);
