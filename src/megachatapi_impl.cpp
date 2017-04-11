@@ -1812,13 +1812,12 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
 
         if (!error)
         {
-            unsigned char t = MegaChatMessage::TYPE_CONTACT;
             char zero = 0x0;
-            char contactType = chatd::Message::kMsgContact;
+            char contactType = Message::kMsgContact;
             std::string stringToSend = jSonContacts.getString();
             stringToSend.insert(stringToSend.begin(), contactType);
             stringToSend.insert(stringToSend.begin(), zero);
-            Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
+            Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgContact, NULL);
             megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
         }
     }
@@ -1962,7 +1961,7 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
         MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
 
         MegaChatRequestPrivate request(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
-        request.setMessage(megaMsg);
+        request.setMegaChatMessage(megaMsg);
         MegaChatErrorPrivate error;
         if (listener != NULL)
         {
@@ -1996,7 +1995,7 @@ void MegaChatApiImpl::sendRevokeAttach(MegaChatHandle handle, ChatRoom *chatroom
     Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), t, NULL);
     MegaChatMessage* message = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     MegaChatRequestPrivate request(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
-    request.setMessage(message);
+    request.setMegaChatMessage(message);
     MegaChatErrorPrivate error;
     if (listener != NULL)
     {
@@ -2624,7 +2623,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setUserHandle(request.getUserHandle());
     this->setPrivilege(request.getPrivilege());
     this->setText(request.getText());
-    this->setMessage(request.getMegaChatMessage()->copy());
+    this->setMegaChatMessage(request.getMegaChatMessage()->copy());
     this->mMegaNodeList = request.getNodeList()->copy();
 }
 
@@ -2801,7 +2800,7 @@ void MegaChatRequestPrivate::setText(const char *text)
     this->text = MegaApi::strdup(text);
 }
 
-void MegaChatRequestPrivate::setMessage(MegaChatMessage *message)
+void MegaChatRequestPrivate::setMegaChatMessage(MegaChatMessage *message)
 {
     if (mMessage != NULL)
     {

@@ -82,7 +82,7 @@ public:
     void setText(const char *text);
     void setAttachRevokeNodesMessage(const MegaChatMessage* attachNodesMessage);
 
-    void setMessage(MegaChatMessage *message);
+    void setMegaChatMessage(MegaChatMessage *message);
     mega::MegaNodeList *getNodeList();
     void setNodeList(mega::MegaNodeList *attachNodes);
     mega::MegaHandle getMegaHandleNode();
