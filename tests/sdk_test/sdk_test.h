@@ -104,6 +104,7 @@ public:
     void TEST_receiveRevokeAttachment();
     void TEST_sendRevokeAttachment();
     void TEST_attachment();
+    void TEST_attachmentV2();
 
     string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
     int downloadAttachment(int downloadCount, int senderCount, const std::string& fileName);
@@ -159,6 +160,8 @@ private:
 
     bool attachNodeSend[NUM_ACCOUNTS];
     bool revokeNodeSend[NUM_ACCOUNTS];
+
+    std::string mDownloadPath;
 
 public:
     // implementation for MegaRequestListener
