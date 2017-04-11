@@ -4045,7 +4045,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     {
         this->megaChatUsers = new std::vector<MegaChatUserPrivate>();
 
-        for (int i = 0; i < msg->getContactsCount(); ++i)
+        for (unsigned int i = 0; i < msg->getContactsCount(); ++i)
         {
             MegaChatUserPrivate megaChatUser(msg->getContactUserHandle(i), msg->getContactEmail(i), msg->getContactName(i));
 
@@ -4358,9 +4358,9 @@ void MegaChatMessagePrivate::setCode(int code)
     this->code = code;
 }
 
-int MegaChatMessagePrivate::getContactsCount() const
+unsigned int MegaChatMessagePrivate::getContactsCount() const
 {
-    int size = 0;
+    unsigned int size = 0;
     if (megaChatUsers != NULL)
     {
         size = megaChatUsers->size();
@@ -4369,18 +4369,33 @@ int MegaChatMessagePrivate::getContactsCount() const
     return size;
 }
 
-MegaChatHandle MegaChatMessagePrivate::getContactUserHandle(int index) const
+MegaChatHandle MegaChatMessagePrivate::getContactUserHandle(unsigned int index) const
 {
+    if (megaChatUsers && index >= megaChatUsers->size())
+    {
+        return MEGACHAT_INVALID_HANDLE;
+    }
+
     return megaChatUsers->at(index).getHandle();
 }
 
-const char *MegaChatMessagePrivate::getContactName(int index) const
+const char *MegaChatMessagePrivate::getContactName(unsigned int index) const
 {
+    if (megaChatUsers && index >= megaChatUsers->size())
+    {
+        return NULL;
+    }
+
     return megaChatUsers->at(index).getName();
 }
 
-const char *MegaChatMessagePrivate::getContactEmail(int index) const
+const char *MegaChatMessagePrivate::getContactEmail(unsigned int index) const
 {
+    if (megaChatUsers && index >= megaChatUsers->size())
+    {
+        return NULL;
+    }
+
     return megaChatUsers->at(index).getEmail();
 }
 

@@ -975,12 +975,12 @@ int MegaChatMessage::getCode() const
     return 0;
 }
 
-int MegaChatMessage::getContactsCount() const
+unsigned int MegaChatMessage::getContactsCount() const
 {
     return 0;
 }
 
-MegaChatHandle MegaChatMessage::getContactUserHandle(int) const
+MegaChatHandle MegaChatMessage::getContactUserHandle(unsigned int) const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
@@ -990,12 +990,12 @@ MegaChatHandle MegaChatMessage::getRowId() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-const char *MegaChatMessage::getContactName(int) const
+const char *MegaChatMessage::getContactName(unsigned int) const
 {
     return NULL;
 }
 
-const char *MegaChatMessage::getContactEmail(int) const
+const char *MegaChatMessage::getContactEmail(unsigned int) const
 {
     return NULL;
 }

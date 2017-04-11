@@ -557,10 +557,10 @@ public:
     void setContentChanged();
     void setCode(int code);
 
-    virtual int getContactsCount() const;
-    virtual MegaChatHandle getContactUserHandle(int contact) const;
-    virtual const char *getContactName(int contact) const;
-    virtual const char *getContactEmail(int contact) const;
+    virtual unsigned int getContactsCount() const;
+    virtual MegaChatHandle getContactUserHandle(unsigned int index) const;
+    virtual const char *getContactName(unsigned int index) const;
+    virtual const char *getContactEmail(unsigned int index) const;
 
     virtual mega::MegaNodeList *getMegaNodeList() const;
 
