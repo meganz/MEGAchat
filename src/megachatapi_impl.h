@@ -84,7 +84,7 @@ public:
 
     void setMegaChatMessage(MegaChatMessage *message);
     mega::MegaNodeList *getNodeList();
-    void setNodeList(mega::MegaNodeList *attachNodes);
+    void setMegaNodeList(mega::MegaNodeList *nodelist);
     mega::MegaHandle getMegaHandleNode();
     void setMegaHandleNode(mega::MegaHandle megaHandle);
 

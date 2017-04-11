@@ -1835,7 +1835,7 @@ void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, Me
 
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
     request->setChatHandle(chatid);
-    request->setNodeList(nodes);
+    request->setMegaNodeList(nodes);
     requestQueue.push(request);
     waiter->notify();
 
@@ -2621,8 +2621,8 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setUserHandle(request.getUserHandle());
     this->setPrivilege(request.getPrivilege());
     this->setText(request.getText());
-    this->setMegaChatMessage(request.getMegaChatMessage()->copy());
-    this->mMegaNodeList = request.getNodeList()->copy();
+    this->setMegaChatMessage(request.getMegaChatMessage());
+    this->setMegaNodeList(request.getNodeList());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -2805,7 +2805,7 @@ void MegaChatRequestPrivate::setMegaChatMessage(MegaChatMessage *message)
         delete mMessage;
     }
 
-    mMessage = message->copy();
+    mMessage = message ? message->copy() : NULL;
 }
 
 MegaNodeList *MegaChatRequestPrivate::getNodeList()
@@ -2813,9 +2813,14 @@ MegaNodeList *MegaChatRequestPrivate::getNodeList()
     return mMegaNodeList;
 }
 
-void MegaChatRequestPrivate::setNodeList(MegaNodeList *attachNodes)
+void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
 {
-    mMegaNodeList = attachNodes->copy();
+    if (mMegaNodeList != NULL)
+    {
+        delete mMegaNodeList;
+    }
+
+    mMegaNodeList = nodelist ? nodelist->copy() : NULL;
 }
 
 MegaHandle MegaChatRequestPrivate::getMegaHandleNode()
