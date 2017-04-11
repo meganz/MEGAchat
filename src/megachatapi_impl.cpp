@@ -717,7 +717,7 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaNodeList *nodes = request->getNodeList();
             MegaChatRequestListener *listener = request->getListener();
 
-            std::vector<ApiPromise> promises = chatroom->requesGrantAccessToNodes(nodes, megaApi);
+            std::vector<ApiPromise> promises = chatroom->requesGrantAccessToNodes(nodes);
 
             promise::when(promises)
             .then([this, nodes, chatroom, listener]()
@@ -747,7 +747,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (node != NULL)
             {
-                std::vector<ApiPromise> promises = chatroom->requestRevokeAccessToNode(node, megaApi);
+                std::vector<ApiPromise> promises = chatroom->requestRevokeAccessToNode(node);
 
                 promise::when(promises)
                 .then([this, handle, chatroom, listener]()
@@ -1912,7 +1912,7 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
             // fa -> image thumbail
             if (megaNode->hasThumbnail() || megaNode->hasPreview())
             {
-                std::string faString = "\"" + megaApi->getFileAttribute(megaNode->getHandle()) + "\"";
+                std::string faString = "\"" + std::string(megaApi->getFileAttribute(megaNode->getHandle())) + "\"";
                 JSonNode faNode;
                 JSonNode faValue;
                 faValue.setFinalValue(faString);
