@@ -1912,7 +1912,9 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
             // fa -> image thumbail
             if (megaNode->hasThumbnail() || megaNode->hasPreview())
             {
-                std::string faString = "\"" + std::string(megaApi->getFileAttribute(megaNode->getHandle())) + "\"";
+                const char *fa = megaApi->getFileAttribute(megaNode->getHandle());
+                std::string faString = "\"" + std::string(fa) + "\"";
+                delete [] fa;
                 JSonNode faNode;
                 JSonNode faValue;
                 faValue.setFinalValue(faString);
@@ -4020,7 +4022,7 @@ MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatAp
 }
 
 
-MegaChatMessagePrivate::MegaChatMessagePrivate(MegaChatMessage *msg)
+MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     : megaChatUsers(NULL)
     , megaNodeList(NULL)
 {
@@ -4232,7 +4234,7 @@ MegaChatMessagePrivate::~MegaChatMessagePrivate()
     }
 }
 
-MegaChatMessage *MegaChatMessagePrivate::copy()
+MegaChatMessage *MegaChatMessagePrivate::copy() const
 {
     return new MegaChatMessagePrivate(this);
 }
@@ -4382,7 +4384,7 @@ const char *MegaChatMessagePrivate::getContactEmail(int index) const
     return megaChatUsers->at(index).getEmail();
 }
 
-MegaNodeList *MegaChatMessagePrivate::getMegaNodeList()
+MegaNodeList *MegaChatMessagePrivate::getMegaNodeList() const
 {
     return megaNodeList;
 }

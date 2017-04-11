@@ -297,7 +297,7 @@ public:
     };
 
     virtual ~MegaChatMessage() {}
-    virtual MegaChatMessage *copy();
+    virtual MegaChatMessage *copy() const;
 
     /**
      * @brief Returns the status of the message.
@@ -483,21 +483,21 @@ public:
 
     /**
      * @brief Return the handle of the contact that has been attached in 'contact' position
-     * @param position of the contact inside contact vector
+     * @param index of the contact inside contact vector
      * @return The handle of the contact
      */
     virtual MegaChatHandle getContactUserHandle(int index) const;
 
     /**
      * @brief Return the name of the contact that has been attached in 'contact' position
-     * @param position of the contact inside contact vector
+     * @param index of the contact inside contact vector
      * @return The name of the contact
      */
     virtual const char *getContactName(int index) const;
 
     /**
      * @brief Return the email of the contact that has been attached in 'contact' position
-     * @param position of the contact inside contact vector
+     * @param index of the contact inside contact vector
      * @return The email of the contact
      */
     virtual const char *getContactEmail(int index) const;
@@ -506,7 +506,7 @@ public:
      * @brief Return a list with all MegaNode received
      * @return list with MegaNode
      */
-    virtual mega::MegaNodeList *getMegaNodeList();
+    virtual mega::MegaNodeList *getMegaNodeList() const;
 
      /** @brief Return the id for messages in manual sending status / queue
      *
@@ -1862,7 +1862,7 @@ public:
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
 
     /**
-     * @brief Sends a contact or group of contacts to the specified chatroom
+     * @brief Sends a contact or a group of contacts to the specified chatroom
      *
      * The MegaChatMessage object returned by this function includes a message transaction id,
      * That id is not the definitive id, which will be assigned by the server. You can obtain the
@@ -1878,7 +1878,6 @@ public:
      *
      * You take the ownership of the returned value.
      *
-     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param contactsNumber Number of contacts to attach
      * @param handleContacts Array of contacts
@@ -1887,22 +1886,21 @@ public:
     MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* handleContacts);
 
     /**
-     * @brief Sends a node or group of nodes to the specified chatroom
+     * @brief Sends a node or a group of nodes to the specified chatroom
      *
-     * First step is grand access for all nodes and chat member. This operation is send to server
-     * and then you have to wait for response. Finally the message is send.
-     * In contrast to other functions to send messages, such as MegaChatApi::sendMessage or
-     * MegaChatApi::attachContacts, this function is asynchronous and does not return a MegaChatMessage directly.
+     * In contrast to other functions to send messages, such as
+     * MegaChatApi::sendMessage or MegaChatApi::attachContacts, this function
+     * is asynchronous and does not return a MegaChatMessage directly. Instead, the
+     * MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getNodes - Returns the list of nodes
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getNodeList - Returns the list of nodes
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getMessage - Returns the message that has been send. This message includes
-     * a message transaction id, that id is not the definitive id, which will be assigned by the server.
-     * You can obtain the temporal id with MegaChatMessage::getTempId()
+     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
      *
      * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
      * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
@@ -1914,28 +1912,27 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodes Array of nodes that the user want to attach
-     * @param listener to receive the temporal message
+     * @param listener MegaChatRequestListener to track this request
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
      void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Revoke attach node
+     * @brief Revoke the access to a node in the specified chatroom
      *
-     * First step is revoke access for the node and chat member. This operation is send to server
-     * and then you have to wait for response. Finally the message is send.
-     * In contrast to other functions to send messages, such as MegaChatApi::sendMessage or
-     * MegaChatApi::attachContacts, this function is asynchronous and does not return a MegaChatMessage directly.
+     * In contrast to other functions to send messages, such as
+     * MegaChatApi::sendMessage or MegaChatApi::attachContacts, this function
+     * is asynchronous and does not return a MegaChatMessage directly. Instead, the
+     * MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getNode - Returns the node
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getMegaHandleNode - Returns the handle of the node
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getMessage - Returns the message that has been send. This message includes
-     * a message transaction id, that id is not the definitive id, which will be assigned by the server.
-     * You can obtain the temporal id with MegaChatMessage::getTempId()
+     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
      *
      * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
      * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
@@ -1946,8 +1943,8 @@ public:
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param nodeHandle MegaChatHandle that identifies the node to revoke grant access
-     * @param listener to receive the temporal message
+     * @param nodeHandle MegaChatHandle that identifies the node to revoke access to
+     * @param listener MegaChatRequestListener to track this request
      *
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */

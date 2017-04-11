@@ -885,7 +885,7 @@ void MegaChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 
 }
 
-MegaChatMessage *MegaChatMessage::copy()
+MegaChatMessage *MegaChatMessage::copy() const
 {
     return NULL;
 }
@@ -980,7 +980,7 @@ int MegaChatMessage::getContactsCount() const
     return 0;
 }
 
-MegaChatHandle MegaChatMessage::getContactUserHandle(int contact) const
+MegaChatHandle MegaChatMessage::getContactUserHandle(int) const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
@@ -990,17 +990,17 @@ MegaChatHandle MegaChatMessage::getRowId() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-const char *MegaChatMessage::getContactName(int contact) const
+const char *MegaChatMessage::getContactName(int) const
 {
     return NULL;
 }
 
-const char *MegaChatMessage::getContactEmail(int contact) const
+const char *MegaChatMessage::getContactEmail(int) const
 {
     return NULL;
 }
 
-MegaNodeList *MegaChatMessage::getMegaNodeList()
+MegaNodeList *MegaChatMessage::getMegaNodeList() const
 {
     return NULL;
 }
