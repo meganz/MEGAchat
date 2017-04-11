@@ -477,43 +477,56 @@ public:
     virtual int getCode() const;
 
     /**
-     * @brief Return number of contacts that have been attached to the message
-     * @return Number of contacts that have been attached to the message
+     * @brief Return number of user that have been attached to the message
+     *
+     * Only valid for management messages:
+     *  - MegaChatMessage::TYPE_CONTACT_ATTACHMENT: the number of users in the message
+     *
+     * @return Number of users that have been attached to the message
      */
-    virtual unsigned int getContactsCount() const;
+    virtual unsigned int getUsersCount() const;
 
     /**
-     * @brief Return the handle of the contact that has been attached in \c index position
+     * @brief Return the handle of the user that has been attached in \c index position
      *
-     * If the index is >= the number of contacts attached to the message, this function
+     * Only valid for management messages:
+     *  - MegaChatMessage::TYPE_CONTACT_ATTACHMENT: the handle of the user
+     *
+     * If the index is >= the number of users attached to the message, this function
      * will return MEGACHAT_INVALID_HANDLE.
      *
-     * @param index of the contact inside contact vector
-     * @return The handle of the contact
+     * @param index of the users inside user vector
+     * @return The handle of the user
      */
-    virtual MegaChatHandle getContactUserHandle(unsigned int index) const;
+    virtual MegaChatHandle getUserHandle(unsigned int index) const;
 
     /**
-     * @brief Return the name of the contact that has been attached in \c index position
+     * @brief Return the name of the user that has been attached in \c index position
      *
-     * If the index is >= the number of contacts attached to the message, this function
+     * Only valid for management messages:
+     *  - MegaChatMessage::TYPE_CONTACT_ATTACHMENT: the name of the user
+     *
+     * If the index is >= the number of users attached to the message, this function
      * will return NULL.
      *
-     * @param index of the contact inside contact vector
-     * @return The name of the contact
+     * @param index of the users inside user vector
+     * @return The name of the user
      */
-    virtual const char *getContactName(unsigned int index) const;
+    virtual const char *getUserName(unsigned int index) const;
 
     /**
-     * @brief Return the email of the contact that has been attached in \c index position
+     * @brief Return the email of the user that has been attached in \c index position
      *
-     * If the index is >= the number of contacts attached to the message, this function
+     * Only valid for management messages:
+     *  - MegaChatMessage::TYPE_CONTACT_ATTACHMENT: the handle of the user
+     *
+     * If the index is >= the number of users attached to the message, this function
      * will return NULL.
      *
-     * @param index of the contact inside contact vector
-     * @return The email of the contact
+     * @param index of the users inside user vector
+     * @return The email of the user
      */
-    virtual const char *getContactEmail(unsigned int index) const;
+    virtual const char *getUserEmail(unsigned int index) const;
 
     /**
      * @brief Return a list with all MegaNode attached to the message

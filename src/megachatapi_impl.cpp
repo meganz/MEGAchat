@@ -4035,13 +4035,13 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->priv = msg->getPrivilege();
     this->code = msg->getCode();
 
-    if (msg->getContactsCount() != 0)
+    if (msg->getUsersCount() != 0)
     {
         this->megaChatUsers = new std::vector<MegaChatUserPrivate>();
 
-        for (unsigned int i = 0; i < msg->getContactsCount(); ++i)
+        for (unsigned int i = 0; i < msg->getUsersCount(); ++i)
         {
-            MegaChatUserPrivate megaChatUser(msg->getContactUserHandle(i), msg->getContactEmail(i), msg->getContactName(i));
+            MegaChatUserPrivate megaChatUser(msg->getUserHandle(i), msg->getUserEmail(i), msg->getUserName(i));
 
             this->megaChatUsers->push_back(megaChatUser);
         }
@@ -4081,6 +4081,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->edited = msg.updated && msg.size();
     this->deleted = msg.updated && !msg.size();
     this->code = 0;
+    this->priv = PRIV_UNKNOWN;
+    this->hAction = MEGACHAT_INVALID_HANDLE;
 
     switch (type)
     {
@@ -4095,7 +4097,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         }
         case MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
-            this->hAction = MEGACHAT_INVALID_HANDLE;
             JSonNode attachments(msg.toText());
 
             megaNodeList = new MegaNodeListPrivate();
@@ -4165,7 +4166,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             break;
         case MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
         {
-            this->hAction = MEGACHAT_INVALID_HANDLE;
             JSonNode contacts(msg.toText());
 
             megaChatUsers = new std::vector<MegaChatUserPrivate>();
@@ -4208,8 +4208,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:
         default:
-            this->priv = PRIV_UNKNOWN;
-            this->hAction = MEGACHAT_INVALID_HANDLE;
             break;
     }
 }
@@ -4353,7 +4351,7 @@ void MegaChatMessagePrivate::setCode(int code)
     this->code = code;
 }
 
-unsigned int MegaChatMessagePrivate::getContactsCount() const
+unsigned int MegaChatMessagePrivate::getUsersCount() const
 {
     unsigned int size = 0;
     if (megaChatUsers != NULL)
@@ -4364,7 +4362,7 @@ unsigned int MegaChatMessagePrivate::getContactsCount() const
     return size;
 }
 
-MegaChatHandle MegaChatMessagePrivate::getContactUserHandle(unsigned int index) const
+MegaChatHandle MegaChatMessagePrivate::getUserHandle(unsigned int index) const
 {
     if (megaChatUsers && index >= megaChatUsers->size())
     {
@@ -4374,7 +4372,7 @@ MegaChatHandle MegaChatMessagePrivate::getContactUserHandle(unsigned int index) 
     return megaChatUsers->at(index).getHandle();
 }
 
-const char *MegaChatMessagePrivate::getContactName(unsigned int index) const
+const char *MegaChatMessagePrivate::getUserName(unsigned int index) const
 {
     if (megaChatUsers && index >= megaChatUsers->size())
     {
@@ -4384,7 +4382,7 @@ const char *MegaChatMessagePrivate::getContactName(unsigned int index) const
     return megaChatUsers->at(index).getName();
 }
 
-const char *MegaChatMessagePrivate::getContactEmail(unsigned int index) const
+const char *MegaChatMessagePrivate::getUserEmail(unsigned int index) const
 {
     if (megaChatUsers && index >= megaChatUsers->size())
     {
