@@ -122,10 +122,18 @@ void Client::websockConnectCb(ws_t ws, void* arg)
     {
         if (wptr.deleted())
             return;
-        assert(!self.mConnectPromise.done());
         self.setConnState(kConnected);
         self.mConnectPromise.resolve();
     });
+}
+
+void Client::notifyLoggedIn()
+{
+    assert(mConnState < kLoggedIn);
+    assert(mConnectPromise.succeeded());
+    assert(!mLoginPromise.done());
+    setConnState(kLoggedIn);
+    mLoginPromise.resolve();
 }
 
 void Client::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preason,
@@ -155,21 +163,21 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
         PRESENCED_LOG_WARNING("->DNS error: forcing libevent to re-read /etc/resolv.conf");
         //if we didn't have our network interface up at app startup, and resolv.conf is
         //genereated dynamically, dns may never work unless we re-read the resolv.conf file
-#ifndef _WIN32
+#ifdef _WIN32
+        evdns_config_windows_nameservers();
+#elif !(TARGET_OS_IPHONE)
         evdns_base_clear_host_addresses(services_dns_eventbase);
         evdns_base_resolv_conf_parse(services_dns_eventbase,
             DNS_OPTIONS_ALL & (~DNS_OPTION_SEARCH), "/etc/resolv.conf");
-#else
-        evdns_config_windows_nameservers();
 #endif
     }
     mHeartbeatEnabled = false;
     if (mTerminating)
         return;
 
-    if (mConnState == kConnecting) //tell retry controller that the connect attempt failed
+    if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
-        assert(!mConnectPromise.done());
+        assert(!mLoginPromise.done());
         mConnectPromise.reject(reason, errcode, errtype);
     }
     else
@@ -267,6 +275,7 @@ Client::reconnect(const std::string& url)
         {
             reset();
             mConnectPromise = Promise<void>();
+            mLoginPromise = Promise<void>();
             PRESENCED_LOG_DEBUG("Attempting connect...");
             checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
             ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
@@ -285,13 +294,13 @@ Client::reconnect(const std::string& url)
                 ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
             }
             checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str(), services_http_use_ipv6)), "connect");
-            return mConnectPromise;
-        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL)
-        .then([this]()
-        {
-            mHeartbeatEnabled = true;
-            return login();
-        });
+            return mConnectPromise
+            .then([this]()
+            {
+                mHeartbeatEnabled = true;
+                return login();
+            });
+        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
@@ -539,6 +548,8 @@ void Client::handleMessage(const StaticBuffer& buf)
             }
             case OP_PREFS:
             {
+                if (mConnState < kLoggedIn)
+                    notifyLoggedIn();
                 READ_16(prefs, 0);
                 if (mPrefsAckWait && prefs == mConfig.toCode()) //ack
                 {

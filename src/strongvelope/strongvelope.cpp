@@ -1005,6 +1005,7 @@ void ProtocolHandler::onKeyConfirmed(uint32_t keyxid, uint32_t keyid)
     if (keyxid != CHATD_KEYID_UNCONFIRMED)
         throw std::runtime_error("strongvelope: setCurrentKeyId: Usage error: trying to set keyid to the UNOCNFIRMED value");
 
+    mUnconfirmedKeyCmd.reset();
     mCurrentKeyId = keyid;
     UserKeyId userKeyId(mOwnHandle, keyid);
     assert(mKeys.find(userKeyId) == mKeys.end());
@@ -1015,6 +1016,7 @@ promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
 ProtocolHandler::updateSenderKey()
 {
     mCurrentKeyId = CHATD_KEYID_UNCONFIRMED;
+    mUnconfirmedKeyCmd.reset();
     mCurrentKey.reset(new SendKey);
     mCurrentKey->setDataSize(AES::BLOCKSIZE);
     randombytes_buf(mCurrentKey->ubuf(), AES::BLOCKSIZE);
@@ -1022,7 +1024,17 @@ ProtocolHandler::updateSenderKey()
 
     // Assemble the output for all recipients.
     assert(mParticipants && !mParticipants->empty());
-    return encryptKeyToAllParticipants(mCurrentKey);
+    return encryptKeyToAllParticipants(mCurrentKey)
+    .then([this](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
+    {
+        if (mCurrentKeyId == CHATD_KEYID_UNCONFIRMED &&
+            memcmp(mCurrentKey->buf(), result.second->buf(), mCurrentKey->dataSize()) == 0)
+        {
+            mUnconfirmedKeyCmd.reset(result.first);
+        }
+        return result;
+    });
+
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>

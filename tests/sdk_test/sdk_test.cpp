@@ -251,7 +251,7 @@ void MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
     const char *title = item->getTitle() ? item->getTitle() : "<empty>";
 
     cout << "id: " << item->getChatId() << ", title: " << title;
-    cout << ", visibility: " << item->getVisibility();
+    cout << ", ownPriv: " << item->getOwnPrivilege();
     cout << ", unread: " << item->getUnreadCount() << ", changes: " << item->getChanges();
     cout << ", lastMsg: " << item->getLastMessage() << ", lastMsgType: " << item->getLastMessageType();
     cout << ", lastTs: " << item->getLastTimestamp() << endl;
@@ -289,6 +289,17 @@ void MegaChatApiTest::TEST_resumeSession()
     assert(string(myEmail) == this->email[0]);
     cout << "My email is: " << myEmail << endl;
     delete [] myEmail; myEmail = NULL;
+
+    // Test for management of ESID:
+    // (uncomment the following block)
+//    {
+//        bool *flag = &requestFlagsChat[0][MegaChatRequest::TYPE_LOGOUT]; *flag = false;
+//        // ---> NOW close session remotely ---
+//        sleep(30);
+//        // and wait for forced logout of megachatapi due to ESID
+//        assert(waitForResponse(flag));
+//        session = login(0);
+//    }
 
     // ___ Resume an existing session ___
     logout(0, false); // keeps session alive

@@ -261,7 +261,7 @@ public:
         STATUS_SENDING              = 0,    /// Message has not been sent or is not yet confirmed by the server
         STATUS_SENDING_MANUAL       = 1,    /// Message is too old to auto-retry sending, or group composition has changed, or user has read-only privilege, or user doesn't belong to chatroom. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
         STATUS_SERVER_RECEIVED      = 2,    /// Message confirmed by server, but not yet delivered to recepient(s)
-        STATUS_SERVER_REJECTED      = 3,    /// Message is rejected by server for some reason (editing too old message for example, or the message was confirmed but we didn't receive the confirmation because went offline or closed the app before)
+        STATUS_SERVER_REJECTED      = 3,    /// Message is rejected by server for some reason (the message was confirmed but we didn't receive the confirmation because went offline or closed the app before)
         STATUS_DELIVERED            = 4,    /// Peer confirmed message receipt. Used only for 1on1 chats
         // for incoming messages
         STATUS_NOT_SEEN             = 5,    /// User hasn't read this message yet
@@ -289,10 +289,11 @@ public:
 
     enum
     {
-        REASON_PEERS_CHANGED = 1,   /// Group chat participants have changed
-        REASON_TOO_OLD = 2,         /// Message is too old to auto-retry sending
-        REASON_GENERAL_REJECT = 3,  /// chatd rejected the message, for unknown reason
-        REASON_NO_WRITE_ACCESS = 4  /// Read-only privilege or not belong to the chatroom
+        REASON_PEERS_CHANGED        = 1,    /// Group chat participants have changed
+        REASON_TOO_OLD              = 2,    /// Message is too old to auto-retry sending
+        REASON_GENERAL_REJECT       = 3,    /// chatd rejected the message, for unknown reason
+        REASON_NO_WRITE_ACCESS      = 4,    /// Read-only privilege or not belong to the chatroom
+        REASON_NO_CHANGES           = 6     /// Edited message has the same content than original message
     };
 
     virtual ~MegaChatMessage() {}
@@ -332,11 +333,12 @@ public:
      *
      * The temporal identifier has different usages depending on the status of the message:
      *  - MegaChatMessage::STATUS_SENDING: valid until it's confirmed by the server.
-     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's removed from manual-send queue.
+     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's remove from manual-send queue.
      *
      * @note If status is STATUS_SENDING_MANUAL, this value can be used to identify the
-     * message in the manual-send queue and can be passed to MegaChatApi::removeUnsentMessage
-     * to definitely remove the message.
+     * message moved into the manual-send queue. The message itself will be identified by its
+     * MegaChatMessage::getRowId from now on. The row id can be passed to
+     * MegaChatApi::removeUnsentMessage to definitely remove the message.
      *
      * For messages in a different status than above, this identifier should not be used.
      *
@@ -463,14 +465,29 @@ public:
      *
      *  - Messages with status MegaChatMessage::STATUS_SENDING_MANUAL: the code specifies
      * the reason because the server rejects the message. The possible values are:
-     *      - MegaChatMessage::REASON_PEERS_CHANGED = 1
-     *      - MegaChatMessage::REASON_TOO_OLD = 2
-     *      - MegaChatMessage::REASON_GENERAL_REJECT = 3
-     *      - MegaChatMessage::REASON_NO_WRITE_ACCESS = 4
+     *      - MegaChatMessage::REASON_PEERS_CHANGED     = 1
+     *      - MegaChatMessage::REASON_TOO_OLD           = 2
+     *      - MegaChatMessage::REASON_GENERAL_REJECT    = 3
+     *      - MegaChatMessage::REASON_NO_WRITE_ACCESS   = 4
+     *      - MegaChatMessage::REASON_NO_CHANGES        = 6
      *
      * @return A generic code for additional information about the message.
      */
     virtual int getCode() const;
+
+    /**
+     * @brief Return the id for messages in manual sending status / queue
+     *
+     * This value can be used to identify the message moved into the manual-send
+     * queue. The row id can be passed to MegaChatApi::removeUnsentMessage to
+     * definitely remove the message.
+     *
+     * @note this id is only valid for messages in STATUS_SENDING_MANUAL. For any
+     * other message, the function returns MEGACHAT_INVALID_HANDLE.
+     *
+     * @return The id of the message in the manual sending queue.
+     */
+    virtual MegaChatHandle getRowId() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -1865,10 +1882,15 @@ public:
      * Messages with status MegaChatMessage::STATUS_SENDING_MANUAL should be
      * removed from the manual send queue after user discards them or resends them.
      *
+     * The identifier of messages in manual sending status is notified when the
+     * message is moved into that queue or while loading history. In both cases,
+     * the callback MegaChatRoomListener::onMessageLoaded will be received with a
+     * message object including the row id.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param tempId Temporal id of the message, as returned by MegaChatMessage::getTempId.
+     * @param rowId Manual sending queue id of the message
      */
-    void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle tempId);
+    void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowId);
 
     /**
      * @brief Send a notification to the chatroom that the user is typing
@@ -1985,9 +2007,9 @@ public:
     enum
     {
         CHANGE_TYPE_STATUS          = 0x01, /// obsolete
-        CHANGE_TYPE_VISIBILITY      = 0x02, /// The contact of 1on1 chat has changed: added/removed... (chat remains even for removed contacts)
+        CHANGE_TYPE_OWN_PRIV        = 0x02, /// Our privilege level has changed
         CHANGE_TYPE_UNREAD_COUNT    = 0x04,
-        CHANGE_TYPE_PARTICIPANTS    = 0x08,
+        CHANGE_TYPE_PARTICIPANTS    = 0x08, /// A participant joined/left the chatroom or its privilege changed
         CHANGE_TYPE_TITLE           = 0x10,
         CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_LAST_MSG        = 0x40, /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
@@ -2014,23 +2036,23 @@ public:
     virtual const char *getTitle() const;
 
     /**
-     * @brief Returns the visibility of the peer in a 1on1 chatroom.
+     * @brief Returns the own privilege level in this chatroom.
      *
-     * This visibility is the same from MegaUser::getVisibility.
+     * This privilege is the same from MegaChatRoom::getOwnPrivilege.
+     *
+     * It could be used to show/hide options at the chatlist level that
+     * are only allowed to peers with the highest privilege level.
      *
      * The returned value will be one of these:
-     * - VISIBILITY_UNKNOWN = -1 The visibility of the contact isn't know
-     * - VISIBILITY_HIDDEN = 0 The contact is currently hidden
-     * - VISIBILITY_VISIBLE = 1 The contact is currently visible
-     * - VISIBILITY_INACTIVE = 2 The contact is currently inactive
-     * - VISIBILITY_BLOCKED = 3 The contact is currently blocked
+     * - MegaChatRoom::PRIV_UNKNOWN = -2
+     * - MegaChatRoom::PRIV_RM = -1
+     * - MegaChatRoom::PRIV_RO = 0
+     * - MegaChatRoom::PRIV_STANDARD = 2
+     * - MegaChatRoom::PRIV_MODERATOR = 3
      *
-     * @note The returned value is only valid for 1on1 chatrooms. It shouldn't be
-     * used for Groupchats.
-     *
-     * @return The current visibility of the peer in 1on1 chatrooms.
+     * @return The current privilege of the logged in user in this chatroom.
      */
-    virtual int getVisibility() const;
+    virtual int getOwnPrivilege() const;
 
     /**
      * @brief Returns the number of unread messages for the chatroom
@@ -2482,6 +2504,10 @@ public:
      *
      * i.e. When a submitted message is confirmed by the server, the status chages
      * to MegaChatMessage::STATUS_SERVER_RECEIVED and its message id is considered definitive.
+     *
+     * An important case is when the edition of a message is rejected. In those cases, the message
+     * status of \c msg will be MegaChatMessage::STATUS_SENDING_MANUAL and the app reason of rejection
+     * is recorded in MegaChatMessage::getCode().
      *
      * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
      * object will be valid until this function returns. If you want to save the MegaChatMessage object,
