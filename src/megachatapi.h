@@ -276,9 +276,9 @@ public:
         TYPE_TRUNCATE               = 3,    /// Management message indicating the history of the chat has been truncated
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
-        TYPE_ATTACHMENT             = 16,   /// User message including info about a shared node
-        TYPE_REVOKE_ATTACHMENT      = 17,   /// User message including info about a node that has stopped being shared
-        TYPE_CONTACT                = 18,   /// User message including info about a contact
+        TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
+        TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared
+        TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
     };
 
     enum

@@ -1413,7 +1413,7 @@ void MegaChatApiTest::TEST_attachmentV2()
     assert(msgReceived);
 
     // Download File
-    assert(msgReceived->getType() == MegaChatMessage::TYPE_ATTACHMENT);
+    assert(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT);
     mega::MegaNodeList *nodeList = msgReceived->getMegaNodeList();
 
     int downLoadFiles = 0;
@@ -1462,7 +1462,7 @@ void MegaChatApiTest::TEST_attachmentV2()
     assert(msgReceived);
 
     // Download File
-    assert(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_ATTACHMENT);
+    assert(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT);
     mega::MegaHandle nodeHandle = msgReceived->getHandleOfAction();
     assert(nodeHandle == node1->getHandle());
 
@@ -2095,13 +2095,13 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
             }
         }
 
-        if (msg->getType() == MegaChatMessage::TYPE_ATTACHMENT)
+        if (msg->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
         {
             std::cerr << msg->getContent() << std::endl;
             mMegaChatApiTest->addAttachmentNodeList(msg->getMegaNodeList());
             msgAttachmentReceived[apiIndex] = true;
         }
-        else if (msg->getType() == MegaChatMessage::TYPE_CONTACT)
+        else if (msg->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT)
         {
             msgContactReceived[apiIndex] = true;
         }
@@ -2149,17 +2149,17 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
         titleUpdated[apiIndex] = true;
     }
 
-    if (msg->getType() == MegaChatMessage::TYPE_ATTACHMENT)
+    if (msg->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
         mMegaChatApiTest->addAttachmentNodeList(msg->getMegaNodeList());
         msgAttachmentReceived[apiIndex] = true;
     }
-    else if (msg->getType() == MegaChatMessage::TYPE_CONTACT)
+    else if (msg->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT)
     {
         msgContactReceived[apiIndex] = true;
 
     }
-    else if(msg->getType() == MegaChatMessage::TYPE_REVOKE_ATTACHMENT)
+    else if(msg->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT)
     {
         msgRevokeAttachmentReceived[apiIndex] = true;
 

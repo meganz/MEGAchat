@@ -2629,16 +2629,8 @@ MegaChatRequestPrivate::~MegaChatRequestPrivate()
 {
     delete peerList;
     delete [] text;
-
-    if (mMessage != NULL)
-    {
-        delete mMessage;
-    }
-
-    if (mMegaNodeList != NULL)
-    {
-        delete mMegaNodeList;
-    }
+    delete mMessage;
+    delete mMegaNodeList;
 }
 
 MegaChatRequest *MegaChatRequestPrivate::copy()
@@ -4101,7 +4093,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             this->hAction = mngInfo.target;
             break;
         }
-        case MegaChatMessage::TYPE_ATTACHMENT:
+        case MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
             this->hAction = MEGACHAT_INVALID_HANDLE;
             JSonNode attachments(msg.toText());
@@ -4148,6 +4140,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 JSonNode timeStamp = file.getMapElement("ts");
                 int64_t timeStampValue = atol(timeStamp.getValueNode().getFinalValue().c_str());
 
+
                 JSonNode fa = file.getMapElement("fa");
                 std::string faValue = fa.getValueNode().getFinalValue();
 
@@ -4167,10 +4160,10 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
 
             break;
         }
-        case MegaChatMessage::TYPE_REVOKE_ATTACHMENT:
+        case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:
             this->hAction = MegaApi::base64ToHandle(msg.toText().c_str());
             break;
-        case MegaChatMessage::TYPE_CONTACT:
+        case MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
         {
             this->hAction = MEGACHAT_INVALID_HANDLE;
             JSonNode contacts(msg.toText());
