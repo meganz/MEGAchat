@@ -4037,11 +4037,11 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 
     if (msg->getUsersCount() != 0)
     {
-        this->megaChatUsers = new std::vector<MegaChatUserPrivate>();
+        this->megaChatUsers = new std::vector<MegaChatAttachedUser>();
 
         for (unsigned int i = 0; i < msg->getUsersCount(); ++i)
         {
-            MegaChatUserPrivate megaChatUser(msg->getUserHandle(i), msg->getUserEmail(i), msg->getUserName(i));
+            MegaChatAttachedUser megaChatUser(msg->getUserHandle(i), msg->getUserEmail(i), msg->getUserName(i));
 
             this->megaChatUsers->push_back(megaChatUser);
         }
@@ -4168,7 +4168,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         {
             JSonNode contacts(msg.toText());
 
-            megaChatUsers = new std::vector<MegaChatUserPrivate>();
+            megaChatUsers = new std::vector<MegaChatAttachedUser>();
 
             int contactNumber = contacts.getNumberVectorElement();
             for (int i = 0; i < contactNumber; ++i)
@@ -4198,7 +4198,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                     nameString.erase(nameString.length() - 1, nameString.length());
                 }
 
-                MegaChatUserPrivate megaChatUser(MegaApi::base64ToUserHandle(handleString.c_str()) , emailString, nameString);
+                MegaChatAttachedUser megaChatUser(MegaApi::base64ToUserHandle(handleString.c_str()) , emailString, nameString);
                 megaChatUsers->push_back(megaChatUser);
             }
 
@@ -4215,16 +4215,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
 MegaChatMessagePrivate::~MegaChatMessagePrivate()
 {
     delete [] msg;
-
-    if (megaChatUsers != NULL)
-    {
-        delete megaChatUsers;
-    }
-
-    if (megaNodeList != NULL)
-    {
-        delete megaNodeList;
-    }
+    delete megaChatUsers;
+    delete megaNodeList;
 }
 
 MegaChatMessage *MegaChatMessagePrivate::copy() const
@@ -4364,7 +4356,7 @@ unsigned int MegaChatMessagePrivate::getUsersCount() const
 
 MegaChatHandle MegaChatMessagePrivate::getUserHandle(unsigned int index) const
 {
-    if (megaChatUsers && index >= megaChatUsers->size())
+    if (megaChatUsers || index >= megaChatUsers->size())
     {
         return MEGACHAT_INVALID_HANDLE;
     }
@@ -4374,7 +4366,7 @@ MegaChatHandle MegaChatMessagePrivate::getUserHandle(unsigned int index) const
 
 const char *MegaChatMessagePrivate::getUserName(unsigned int index) const
 {
-    if (megaChatUsers && index >= megaChatUsers->size())
+    if (megaChatUsers || index >= megaChatUsers->size())
     {
         return NULL;
     }
@@ -4384,7 +4376,7 @@ const char *MegaChatMessagePrivate::getUserName(unsigned int index) const
 
 const char *MegaChatMessagePrivate::getUserEmail(unsigned int index) const
 {
-    if (megaChatUsers && index >= megaChatUsers->size())
+    if (megaChatUsers || index >= megaChatUsers->size())
     {
         return NULL;
     }
@@ -4552,28 +4544,28 @@ bool MegaChatPresenceConfigPrivate::isSignalActivityRequired() const
             && autoawayEnabled && autoawayTimeout);
 }
 
-MegaChatUserPrivate::MegaChatUserPrivate(MegaChatHandle contactId, const std::string &email, const std::string& name)
+MegaChatAttachedUser::MegaChatAttachedUser(MegaChatHandle contactId, const std::string &email, const std::string& name)
     : mHandle(contactId)
     , mEmail(email)
     , mName(name)
 {
 }
 
-MegaChatUserPrivate::~MegaChatUserPrivate()
+MegaChatAttachedUser::~MegaChatAttachedUser()
 {
 }
 
-MegaChatHandle MegaChatUserPrivate::getHandle() const
+MegaChatHandle MegaChatAttachedUser::getHandle() const
 {
     return mHandle;
 }
 
-const char *MegaChatUserPrivate::getEmail() const
+const char *MegaChatAttachedUser::getEmail() const
 {
     return mEmail.c_str();
 }
 
-const char *MegaChatUserPrivate::getName() const
+const char *MegaChatAttachedUser::getName() const
 {
     return mName.c_str();
 }

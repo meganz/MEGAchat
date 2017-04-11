@@ -519,7 +519,7 @@ private:
     std::vector<MegaChatRoom*> list;
 };
 
-class MegaChatUserPrivate;
+class MegaChatAttachedUser;
 
 class MegaChatMessagePrivate : public MegaChatMessage
 {
@@ -581,7 +581,7 @@ private:
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
-    std::vector<MegaChatUserPrivate>* megaChatUsers;
+    std::vector<MegaChatAttachedUser>* megaChatUsers;
     mega::MegaNodeList* megaNodeList;
 };
 
@@ -834,11 +834,23 @@ public:
     virtual void removePeerChatItem(IApp::IPeerChatListItem& item);
 };
 
-class MegaChatUserPrivate
+/**
+ * @brief This class represents users attached to a message
+ *
+ * Messages of type MegaChatMessage::TYPE_CONTACT_ATTACHMENT include a list of
+ * users with handle, email and name. The MegaChatMessage provides methods to
+ * get each of them separatedly.
+ *
+ * This class is used internally by MegaChatMessagePrivate, not exposed to apps.
+ *
+ * @see MegaChatMessage::getUserHandle, MegaChatMessage::getUserName and
+ * MegaChatMessage::getUserEmail.
+ */
+class MegaChatAttachedUser
 {
 public:
-    MegaChatUserPrivate(MegaChatHandle contactId, const std::string& email, const std::string& name);
-    virtual ~MegaChatUserPrivate();
+    MegaChatAttachedUser(MegaChatHandle contactId, const std::string& email, const std::string& name);
+    virtual ~MegaChatAttachedUser();
 
     virtual MegaChatHandle getHandle() const;
     virtual const char *getEmail() const;
