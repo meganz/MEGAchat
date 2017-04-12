@@ -1911,97 +1911,99 @@ void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, Me
 
 const char *MegaChatApiImpl::generateAttachNodeJSon(MegaNodeList *nodes)
 {
-    bool error = false;
-    rapidjson::Document jSonAttachmentNodes(rapidjson::kArrayType);;
+    if (!nodes)
+    {
+        return NULL;
+    }
+
+    rapidjson::Document jSonAttachmentNodes(rapidjson::kArrayType);
     for (int i = 0; i < nodes->size(); ++i)
     {
         rapidjson::Value jsonNode(rapidjson::kObjectType);
 
         MegaNode *megaNode = nodes->get(i);
 
-        if (megaNode != NULL)
+        if (megaNode == NULL)
         {
-            // h -> handle
-            char *base64Handle = MegaApi::handleToBase64(megaNode->getHandle());
-            std::string handleString(base64Handle);
-            delete [] base64Handle;
-            rapidjson::Value nodeHandleValue(rapidjson::kStringType);
-            nodeHandleValue.SetString(handleString.c_str(), handleString.length(), jSonAttachmentNodes.GetAllocator());
-            jsonNode.AddMember(rapidjson::Value("h"), nodeHandleValue, jSonAttachmentNodes.GetAllocator());
+            API_LOG_ERROR("Invalid node at index %d", i);
+            return NULL;
+        }
 
-            // k -> binary key
-            char keyIntermedia[FILENODEKEYLENGTH];
-            char *base64Key = megaNode->getBase64Key();
-            Base64::atob(base64Key, (byte*)keyIntermedia, FILENODEKEYLENGTH);
-            delete base64Key;
+        // h -> handle
+        char *base64Handle = MegaApi::handleToBase64(megaNode->getHandle());
+        std::string handleString(base64Handle);
+        delete [] base64Handle;
+        rapidjson::Value nodeHandleValue(rapidjson::kStringType);
+        nodeHandleValue.SetString(handleString.c_str(), handleString.length(), jSonAttachmentNodes.GetAllocator());
+        jsonNode.AddMember(rapidjson::Value("h"), nodeHandleValue, jSonAttachmentNodes.GetAllocator());
 
-            std::vector<int32_t> keyVector = DataTranslation::b_to_vector(std::string(keyIntermedia, FILENODEKEYLENGTH));
-            rapidjson::Value keyVectorNode(rapidjson::kArrayType);
-            for (int j = 0; j < 8; ++j)
+        // k -> binary key
+        char tempKey[FILENODEKEYLENGTH];
+        char *base64Key = megaNode->getBase64Key();
+        Base64::atob(base64Key, (byte*)tempKey, FILENODEKEYLENGTH);
+        delete base64Key;
+
+        std::vector<int32_t> keyVector = DataTranslation::b_to_vector(std::string(tempKey, FILENODEKEYLENGTH));
+        rapidjson::Value keyVectorNode(rapidjson::kArrayType);
+        if (keyVector.size() != 8)
+        {
+            API_LOG_ERROR("Invalid nodekey for attached node: %d", megaNode->getHandle());
+            return NULL;
+        }
+        for (unsigned int j = 0; j < keyVector.size(); ++j)
+        {
+            keyVectorNode.PushBack(rapidjson::Value(keyVector[j]), jSonAttachmentNodes.GetAllocator());
+        }
+
+        jsonNode.AddMember(rapidjson::Value("k"), keyVectorNode, jSonAttachmentNodes.GetAllocator());
+
+        // t -> type
+        jsonNode.AddMember(rapidjson::Value("t"), rapidjson::Value(megaNode->getType()), jSonAttachmentNodes.GetAllocator());
+
+        // name -> name
+        std::string nameString = std::string(megaNode->getName());
+        rapidjson::Value nameValue(rapidjson::kStringType);
+        nameValue.SetString(nameString.c_str(), nameString.length(), jSonAttachmentNodes.GetAllocator());
+        jsonNode.AddMember(rapidjson::Value("name"), nameValue, jSonAttachmentNodes.GetAllocator());
+
+        // s -> size
+        jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
+
+        // fa -> image thumbail
+        if (megaNode->hasThumbnail() || megaNode->hasPreview())
+        {
+            const char *fa = megaApi->getFileAttribute(megaNode->getHandle());
+            if (!fa)
             {
-                keyVectorNode.PushBack(rapidjson::Value(keyVector[j]), jSonAttachmentNodes.GetAllocator());
+                API_LOG_ERROR("Failed to get the fileattribute string of node %d", megaNode->getHandle());
+                return NULL;
             }
 
-            jsonNode.AddMember(rapidjson::Value("k"), keyVectorNode, jSonAttachmentNodes.GetAllocator());
+            std::string faString(fa);
+            delete [] fa;
 
-            // t -> type
-            jsonNode.AddMember(rapidjson::Value("t"), rapidjson::Value(megaNode->getType()), jSonAttachmentNodes.GetAllocator());
-
-            // name -> name
-            std::string nameString = std::string(megaNode->getName());
-            rapidjson::Value nameValue(rapidjson::kStringType);
-            nameValue.SetString(nameString.c_str(), nameString.length(), jSonAttachmentNodes.GetAllocator());
-            jsonNode.AddMember(rapidjson::Value("name"), nameValue, jSonAttachmentNodes.GetAllocator());
-
-            // s -> size
-            jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
-
-            // fa -> image thumbail
-            if (megaNode->hasThumbnail() || megaNode->hasPreview())
-            {
-                const char *fa = megaApi->getFileAttribute(megaNode->getHandle());
-                std::string faString;
-                if (fa)
-                {
-                    faString = std::string(fa);
-                    delete [] fa;
-                }
-
-                rapidjson::Value faValue(rapidjson::kStringType);
-                faValue.SetString(faString.c_str(), faString.length(), jSonAttachmentNodes.GetAllocator());
-                jsonNode.AddMember(rapidjson::Value("fa"), faValue, jSonAttachmentNodes.GetAllocator());
-            }
-            else
-            {
-                // ar -> empty
-                rapidjson::Value arValue(rapidjson::kObjectType);
-                jsonNode.AddMember(rapidjson::Value("ar"), arValue, jSonAttachmentNodes.GetAllocator());
-            }
-
-            // ts -> time stamp
-            jsonNode.AddMember(rapidjson::Value("ts"), rapidjson::Value(megaNode->getModificationTime()), jSonAttachmentNodes.GetAllocator());
-
-            jSonAttachmentNodes.PushBack(jsonNode, jSonAttachmentNodes.GetAllocator());
+            rapidjson::Value faValue(rapidjson::kStringType);
+            faValue.SetString(faString.c_str(), faString.length(), jSonAttachmentNodes.GetAllocator());
+            jsonNode.AddMember(rapidjson::Value("fa"), faValue, jSonAttachmentNodes.GetAllocator());
         }
         else
         {
-            error = true;
-            API_LOG_ERROR("Failed to find a node");
-            break;
+            // ar -> empty
+            rapidjson::Value arValue(rapidjson::kObjectType);
+            jsonNode.AddMember(rapidjson::Value("ar"), arValue, jSonAttachmentNodes.GetAllocator());
         }
+
+        // ts -> time stamp
+        jsonNode.AddMember(rapidjson::Value("ts"), rapidjson::Value(megaNode->getModificationTime()), jSonAttachmentNodes.GetAllocator());
+
+        jSonAttachmentNodes.PushBack(jsonNode, jSonAttachmentNodes.GetAllocator());
     }
 
-    if (!error)
-    {
-        rapidjson::StringBuffer buffer;
-        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        jSonAttachmentNodes.Accept(writer);
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    jSonAttachmentNodes.Accept(writer);
 
-        return MegaApi::strdup(buffer.GetString());
-    }
-
-    return NULL;
-
+    return MegaApi::strdup(buffer.GetString());
 }
 
 mega::MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json)
