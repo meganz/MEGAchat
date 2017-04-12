@@ -4077,8 +4077,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             rapidjson::Document document;
             document.ParseStream(stringStream);
 
-            std::cout << "MSG:" << attachmentNodeMessage << "    " << attachmentNodeMessage.length() << std::endl;
-
             megaNodeList = new MegaNodeListPrivate();
 
             int attachmentNumber = document.Capacity();
@@ -4146,7 +4144,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                     error = true;
                 }
 
-
                 rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
                 int type = 0;
                 if (iteratorType != file.MemberEnd() && iteratorType->value.IsInt())
@@ -4158,7 +4155,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 {
                     error = true;
                 }
-
 
                 rapidjson::Value::ConstMemberIterator iteratorTimeStamp = file.FindMember("ts");
                 int64_t timeStamp  = 0;
