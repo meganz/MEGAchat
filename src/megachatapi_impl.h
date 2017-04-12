@@ -81,8 +81,6 @@ public:
     void setUserHandle(MegaChatHandle userhandle);
     void setPrivilege(int priv);
     void setText(const char *text);
-    void setAttachRevokeNodesMessage(const MegaChatMessage* attachNodesMessage);
-
     void setMegaChatMessage(MegaChatMessage *message);
     void setMegaNodeList(mega::MegaNodeList *nodelist);
 
@@ -544,6 +542,11 @@ public:
     virtual int getPrivilege() const;
     virtual int getCode() const;
     virtual MegaChatHandle getRowId() const;
+    virtual unsigned int getUsersCount() const;
+    virtual MegaChatHandle getUserHandle(unsigned int index) const;
+    virtual const char *getUserName(unsigned int index) const;
+    virtual const char *getUserEmail(unsigned int index) const;
+    virtual mega::MegaNodeList *getMegaNodeList() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -553,13 +556,6 @@ public:
     void setRowId(int id);
     void setContentChanged();
     void setCode(int code);
-
-    virtual unsigned int getUsersCount() const;
-    virtual MegaChatHandle getUserHandle(unsigned int index) const;
-    virtual const char *getUserName(unsigned int index) const;
-    virtual const char *getUserEmail(unsigned int index) const;
-
-    virtual mega::MegaNodeList *getMegaNodeList() const;
 
 private:
     int changed;
@@ -580,6 +576,10 @@ private:
     int code;               // generic field for additional information (ie. the reason of manual sending)
     std::vector<MegaChatAttachedUser>* megaChatUsers;
     mega::MegaNodeList* megaNodeList;
+
+    // you take the ownership of returned value. NULL if error
+    static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
+    static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
 };
 
 //Thread safe request queue

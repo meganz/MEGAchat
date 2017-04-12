@@ -2023,6 +2023,204 @@ const char *MegaChatApiImpl::generateAttachNodeJSon(MegaNodeList *nodes)
 
 }
 
+mega::MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json)
+{
+    rapidjson::StringStream stringStream(json);
+    rapidjson::Document document;
+    document.ParseStream(stringStream);
+
+    mega::MegaNodeList *megaNodeList = new MegaNodeListPrivate();
+
+    int attachmentNumber = document.Capacity();
+    for (int i = 0; i < attachmentNumber; ++i)
+    {
+        const rapidjson::Value& file = document[i];
+        bool error = false;
+
+        rapidjson::Value::ConstMemberIterator iteratorHandle = file.FindMember("h");
+        std::string handleString;
+        if (iteratorHandle != file.MemberEnd() && iteratorHandle->value.IsString())
+        {
+            handleString = iteratorHandle->value.GetString();
+
+        }
+        else
+        {
+            error = true;
+        }
+
+        rapidjson::Value::ConstMemberIterator iteratorName = file.FindMember("name");
+        std::string nameString;
+        if (iteratorName != file.MemberEnd() && iteratorName->value.IsString())
+        {
+            nameString = iteratorName->value.GetString();
+
+        }
+        else
+        {
+            error = true;
+        }
+
+        rapidjson::Value::ConstMemberIterator iteratorKey = file.FindMember("k");
+        std::vector<int32_t> kElements;
+        if (iteratorKey != file.MemberEnd() && iteratorKey->value.IsArray())
+        {
+            for (unsigned int j = 0; j < iteratorKey->value.Capacity(); ++j)
+            {
+                if (iteratorKey->value[j].IsInt())
+                {
+                    int32_t value = iteratorKey->value[j].GetInt();
+                    kElements.push_back(value);
+                }
+                else
+                {
+                    error = true;
+                }
+            }
+
+        }
+        else
+        {
+            error = true;
+        }
+
+        rapidjson::Value::ConstMemberIterator iteratorSize = file.FindMember("s");
+        int64_t size = 0;
+        if (iteratorSize != file.MemberEnd() && iteratorSize->value.IsInt64())
+        {
+            size = iteratorSize->value.GetInt64();
+
+        }
+        else
+        {
+            error = true;
+        }
+
+        rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
+        int type = 0;
+        if (iteratorType != file.MemberEnd() && iteratorType->value.IsInt())
+        {
+            type = iteratorType->value.GetInt();
+
+        }
+        else
+        {
+            error = true;
+        }
+
+        rapidjson::Value::ConstMemberIterator iteratorTimeStamp = file.FindMember("ts");
+        int64_t timeStamp  = 0;
+        if (iteratorTimeStamp != file.MemberEnd() && iteratorTimeStamp->value.IsInt64())
+        {
+            timeStamp = iteratorTimeStamp->value.GetInt64();
+
+        }
+        else
+        {
+            error = true;
+        }
+
+        rapidjson::Value::ConstMemberIterator iteratorFa = file.FindMember("fa");
+        std::string fa;
+        if (iteratorFa != file.MemberEnd() && iteratorFa->value.IsString())
+        {
+            fa = iteratorFa->value.GetString();
+
+        }
+
+        if (!error)
+        {
+            MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
+            std::string attrstring;
+            char *fingerprint = NULL;
+
+            std::string key = DataTranslation::vector_to_b(kElements);
+
+            MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
+                                 megaHandle, &key, &attrstring, fingerprint, INVALID_HANDLE,
+                                 NULL, NULL, false, true);
+
+            megaNodeList->addNode(&node);
+        }
+        else
+        {
+            API_LOG_ERROR("Node received with bad format");
+            delete megaNodeList;
+            megaNodeList = NULL;
+        }
+    }
+
+    return megaNodeList;
+}
+
+std::vector<MegaChatAttachedUser> *MegaChatMessagePrivate::parseAttachContactJSon(const char *json)
+{
+    rapidjson::StringStream stringStream(json);
+
+    rapidjson::Document document;
+    document.ParseStream(stringStream);
+
+    std::vector<MegaChatAttachedUser> *megaChatUsers = new std::vector<MegaChatAttachedUser>();
+
+    int contactNumber = document.Capacity();
+    for (int i = 0; i < contactNumber; ++i)
+    {
+        bool error = false;
+
+        const rapidjson::Value& user = document[i];
+
+        std::string emailString;
+        rapidjson::Value::ConstMemberIterator iteratorEmail = user.FindMember("email");
+        if (iteratorEmail != user.MemberEnd() && iteratorEmail->value.IsString())
+        {
+            emailString = iteratorEmail->value.GetString();
+
+        }
+        else
+        {
+            error = true;
+        }
+
+        rapidjson::Value::ConstMemberIterator iteratorHandle = user.FindMember("u");
+        std::string handleString;
+        if (iteratorHandle != user.MemberEnd() && iteratorHandle->value.IsString())
+        {
+            handleString = iteratorHandle->value.GetString();
+
+        }
+        else
+        {
+            error = true;
+        }
+
+        rapidjson::Value::ConstMemberIterator iteratorName = user.FindMember("name");
+        std::string nameString;
+        if (iteratorName != user.MemberEnd() && iteratorName->value.IsString())
+        {
+            nameString = iteratorName->value.GetString();
+
+        }
+        else
+        {
+            error = true;
+        }
+
+        if (!error)
+        {
+            MegaChatAttachedUser megaChatUser(MegaApi::base64ToUserHandle(handleString.c_str()) , emailString, nameString);
+            megaChatUsers->push_back(megaChatUser);
+        }
+        else
+        {
+            API_LOG_ERROR("User received with bad format");
+            delete megaChatUsers;
+            megaChatUsers = NULL;
+        }
+    }
+
+    return megaChatUsers;
+}
+
 void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
@@ -4041,7 +4239,6 @@ MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatAp
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     : megaChatUsers(NULL)
-    , megaNodeList(NULL)
 {
     this->msg = MegaApi::strdup(msg->getContent());
     this->uh = msg->getUserHandle();
@@ -4057,6 +4254,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->deleted = msg->isDeleted();
     this->priv = msg->getPrivilege();
     this->code = msg->getCode();
+    this->rowId = msg->getRowId();
+    this->megaNodeList = msg->getMegaNodeList() ? msg->getMegaNodeList()->copy() : NULL;
 
     if (msg->getUsersCount() != 0)
     {
@@ -4069,13 +4268,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
             this->megaChatUsers->push_back(megaChatUser);
         }
     }
-
-    if (msg->getMegaNodeList() != NULL)
-    {
-        this->megaNodeList = msg->getMegaNodeList()->copy();
-    }
-
-    this->rowId = msg->getRowId();
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
@@ -4120,201 +4312,17 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         }
         case MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
-            std::string attachmentNodeMessage(msg.toText());
-            attachmentNodeMessage.push_back('\0');
-            rapidjson::StringStream stringStream(attachmentNodeMessage.c_str());
-            rapidjson::Document document;
-            document.ParseStream(stringStream);
-
-            megaNodeList = new MegaNodeListPrivate();
-
-            int attachmentNumber = document.Capacity();
-            for (int i = 0; i < attachmentNumber; ++i)
-            {
-                const rapidjson::Value& file = document[i];
-                bool error = false;
-
-                rapidjson::Value::ConstMemberIterator iteratorHandle = file.FindMember("h");
-                std::string handleString;
-                if (iteratorHandle != file.MemberEnd() && iteratorHandle->value.IsString())
-                {
-                    handleString = iteratorHandle->value.GetString();
-
-                }
-                else
-                {
-                    error = true;
-                }
-
-                rapidjson::Value::ConstMemberIterator iteratorName = file.FindMember("name");
-                std::string nameString;
-                if (iteratorName != file.MemberEnd() && iteratorName->value.IsString())
-                {
-                    nameString = iteratorName->value.GetString();
-
-                }
-                else
-                {
-                    error = true;
-                }
-
-                rapidjson::Value::ConstMemberIterator iteratorKey = file.FindMember("k");
-                std::vector<int32_t> kElements;
-                if (iteratorKey != file.MemberEnd() && iteratorKey->value.IsArray())
-                {
-                    for (unsigned int j = 0; j < iteratorKey->value.Capacity(); ++j)
-                    {
-                        if (iteratorKey->value[j].IsInt())
-                        {
-                            int32_t value = iteratorKey->value[j].GetInt();
-                            kElements.push_back(value);
-                        }
-                        else
-                        {
-                            error = true;
-                        }
-                    }
-
-                }
-                else
-                {
-                    error = true;
-                }
-
-                rapidjson::Value::ConstMemberIterator iteratorSize = file.FindMember("s");
-                int64_t size = 0;
-                if (iteratorSize != file.MemberEnd() && iteratorSize->value.IsInt64())
-                {
-                    size = iteratorSize->value.GetInt64();
-
-                }
-                else
-                {
-                    error = true;
-                }
-
-                rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
-                int type = 0;
-                if (iteratorType != file.MemberEnd() && iteratorType->value.IsInt())
-                {
-                    type = iteratorType->value.GetInt();
-
-                }
-                else
-                {
-                    error = true;
-                }
-
-                rapidjson::Value::ConstMemberIterator iteratorTimeStamp = file.FindMember("ts");
-                int64_t timeStamp  = 0;
-                if (iteratorTimeStamp != file.MemberEnd() && iteratorTimeStamp->value.IsInt64())
-                {
-                    timeStamp = iteratorTimeStamp->value.GetInt64();
-
-                }
-                else
-                {
-                    error = true;
-                }
-
-                rapidjson::Value::ConstMemberIterator iteratorFa = file.FindMember("fa");
-                std::string fa;
-                if (iteratorFa != file.MemberEnd() && iteratorFa->value.IsString())
-                {
-                    fa = iteratorFa->value.GetString();
-
-                }
-
-                if (!error)
-                {
-                    MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
-                    std::string attrstring;
-                    char *fingerprint = NULL;
-
-                    std::string key = DataTranslation::vector_to_b(kElements);
-
-                    MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                                         megaHandle, &key, &attrstring, fingerprint, INVALID_HANDLE,
-                                         NULL, NULL, false, true);
-
-                    megaNodeList->addNode(&node);
-                }
-                else
-                {
-                    API_LOG_ERROR("Node received with bad format");
-                }
-            }
-
+            megaNodeList = MegaChatMessagePrivate::parseAttachNodeJSon(msg.toText().c_str());
             break;
         }
         case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:
+        {
             this->hAction = MegaApi::base64ToHandle(msg.toText().c_str());
             break;
+        }
         case MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
         {
-            std::string attachmentContactMessage(msg.toText());
-            attachmentContactMessage.push_back('\0');
-            rapidjson::StringStream stringStream(attachmentContactMessage.c_str());
-
-            rapidjson::Document document;
-            document.ParseStream(stringStream);
-
-            megaChatUsers = new std::vector<MegaChatAttachedUser>();
-
-            int contactNumber = document.Capacity();
-            for (int i = 0; i < contactNumber; ++i)
-            {
-                bool error = false;
-
-                const rapidjson::Value& user = document[i];
-
-                std::string emailString;
-                rapidjson::Value::ConstMemberIterator iteratorEmail = user.FindMember("email");
-                if (iteratorEmail != user.MemberEnd() && iteratorEmail->value.IsString())
-                {
-                    emailString = iteratorEmail->value.GetString();
-
-                }
-                else
-                {
-                    error = true;
-                }
-
-                rapidjson::Value::ConstMemberIterator iteratorHandle = user.FindMember("u");
-                std::string handleString;
-                if (iteratorHandle != user.MemberEnd() && iteratorHandle->value.IsString())
-                {
-                    handleString = iteratorHandle->value.GetString();
-
-                }
-                else
-                {
-                    error = true;
-                }
-
-                rapidjson::Value::ConstMemberIterator iteratorName = user.FindMember("name");
-                std::string nameString;
-                if (iteratorName != user.MemberEnd() && iteratorName->value.IsString())
-                {
-                    nameString = iteratorName->value.GetString();
-
-                }
-                else
-                {
-                    error = true;
-                }
-
-                if (!error)
-                {
-                    MegaChatAttachedUser megaChatUser(MegaApi::base64ToUserHandle(handleString.c_str()) , emailString, nameString);
-                    megaChatUsers->push_back(megaChatUser);
-                }
-                else
-                {
-                    API_LOG_ERROR("User received with bad format");
-                }
-            }
-
+            megaChatUsers = MegaChatMessagePrivate::parseAttachContactJSon(msg.toText().c_str());
             break;
         }
         case MegaChatMessage::TYPE_NORMAL:
