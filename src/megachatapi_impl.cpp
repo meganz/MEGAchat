@@ -1967,8 +1967,12 @@ const char *MegaChatApiImpl::generateAttachNodeJSon(MegaNodeList *nodes)
             if (megaNode->hasThumbnail() || megaNode->hasPreview())
             {
                 const char *fa = megaApi->getFileAttribute(megaNode->getHandle());
-                std::string faString = std::string(fa);
-                delete [] fa;
+                std::string faString;
+                if (fa)
+                {
+                    faString = std::string(fa);
+                    delete [] fa;
+                }
 
                 rapidjson::Value faValue(rapidjson::kStringType);
                 faValue.SetString(faString.c_str(), faString.length(), jSonAttachmentNodes.GetAllocator());
