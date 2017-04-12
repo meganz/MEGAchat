@@ -546,6 +546,11 @@ MegaChatMessage *MegaChatRequest::getMegaChatMessage()
     return NULL;
 }
 
+MegaNodeList *MegaChatRequest::getMegaNodeList()
+{
+    return NULL;
+}
+
 MegaChatRoomList *MegaChatRoomList::copy() const
 {
     return NULL;

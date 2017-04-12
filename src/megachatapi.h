@@ -711,6 +711,19 @@ public:
      * @return Message relative to this request
      */
     virtual MegaChatMessage *getMegaChatMessage();
+
+    /**
+     * @brief Returns the list of nodes on this request.
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * This value is valid for these requests:
+     * - MegaChatApi::attachNodes - Returns the list of nodes attached to the message
+     *
+     * @return List of nodes in this request
+     */
+    virtual mega::MegaNodeList *getMegaNodeList();
 };
 
 /**
@@ -1954,7 +1967,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getMegaHandleNode - Returns the handle of the node
+     * - MegaChatRequest::geUserHandle - Returns the handle of the node
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:

@@ -69,6 +69,7 @@ public:
     virtual int getPrivilege();
     virtual const char *getText() const;
     virtual MegaChatMessage *getMegaChatMessage();
+    virtual mega::MegaNodeList *getMegaNodeList();
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -83,10 +84,7 @@ public:
     void setAttachRevokeNodesMessage(const MegaChatMessage* attachNodesMessage);
 
     void setMegaChatMessage(MegaChatMessage *message);
-    mega::MegaNodeList *getNodeList();
     void setMegaNodeList(mega::MegaNodeList *nodelist);
-    mega::MegaHandle getMegaHandleNode();
-    void setMegaHandleNode(mega::MegaHandle megaHandle);
 
 protected:
     int type;
@@ -103,7 +101,6 @@ protected:
     const char* text;
     MegaChatMessage* mMessage;
     mega::MegaNodeList* mMegaNodeList;
-    mega::MegaHandle mMegaHandle;
 };
 
 class MegaChatPresenceConfigPrivate : public MegaChatPresenceConfig
@@ -667,8 +664,8 @@ private:
 
     static int convertInitState(int state);
 
-    void sendAttachMessage(mega::MegaNodeList* nodes, karere::ChatRoom *chatroom, MegaChatRequestListener *listener);
-    void sendRevokeAttach(MegaChatHandle handle, karere::ChatRoom *chatroom, MegaChatRequestListener *listener);
+    // You take posesion of returned value
+    const char* generateAttachNodeJSon(mega::MegaNodeList* nodes);
 
 public:
     static void megaApiPostMessage(void* msg);

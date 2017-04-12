@@ -101,18 +101,9 @@ public:
     void TEST_switchAccounts();
     void TEST_receiveContact();
     void TEST_sendContact();
-    void TEST_receiveRevokeAttachment();
-    void TEST_sendRevokeAttachment();
     void TEST_attachment();
-    void TEST_attachmentV2();
 
     string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
-    int downloadAttachment(int downloadCount, int senderCount, const std::string& fileName);
-    void sendAttachment(int sendCountIndex, int receiverCountIndex, const std::string fileName);
-    void revokeAttachment(int sendCountIndex, int receiverCountIndex, const std::string filename);
-    mega::MegaNodeList *getAttachmentNodeList();
-    void addAttachmentNodeList(mega::MegaNodeList *nodeList);
-    void setRevokeAttachNode(MegaChatHandle megaChatNode);
 
     void addDownload();
     bool &isNotDownloadRunning();
@@ -206,11 +197,10 @@ public:
 class TestChatRoomListener : public MegaChatRoomListener
 {
 public:
-    TestChatRoomListener(MegaChatApi **apis, MegaChatHandle chatid, MegaChatApiTest* megaChatApi);
+    TestChatRoomListener(MegaChatApi **apis, MegaChatHandle chatid);
 
     MegaChatApi **megaChatApi;
     MegaChatHandle chatid;
-    MegaChatApiTest *mMegaChatApiTest;
 
     bool historyLoaded[NUM_ACCOUNTS];   // when, after loadMessage(X), X messages have been loaded
     bool historyTruncated[NUM_ACCOUNTS];

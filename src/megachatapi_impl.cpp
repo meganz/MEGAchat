@@ -716,25 +716,81 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
         {
-            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-            MegaNodeList *nodes = request->getNodeList();
-            MegaChatRequestListener *listener = request->getListener();
+            handle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE )
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
 
-            std::vector<ApiPromise> promises = chatroom->requesGrantAccessToNodes(nodes);
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            std::vector<ApiPromise> promises = chatroom->requesGrantAccessToNodes(request->getMegaNodeList());
 
             promise::when(promises)
-            .then([this, nodes, chatroom, listener]()
+            .then([this, request]()
             {
-                sendAttachMessage(nodes, chatroom, listener);
+                ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+                const char *buffer = generateAttachNodeJSon(request->getMegaNodeList());
+
+                if (buffer)
+                {
+                    std::string stringToSend(buffer);
+
+                    stringToSend.insert(stringToSend.begin(), Message::kMsgAttachment);
+                    stringToSend.insert(stringToSend.begin(), 0x0);
+                    Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgAttachment, NULL);
+                    MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+
+                    request->setMegaChatMessage(megaMsg);
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                }
+                else
+                {
+                    API_LOG_ERROR("Failed generate the message to send");
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
+                    fireOnChatRequestFinish(request, megaChatError);
+                }
 
             })
-            .fail([this, nodes, chatroom, listener](const promise::Error& err)
+            .fail([this, request](const promise::Error& err)
             {
-                sendAttachMessage(nodes, chatroom, listener);
-
+                MegaChatErrorPrivate *megaChatError;
                 if (err.code() != MegaError::API_EEXIST)
                 {
                     API_LOG_ERROR("Failed to grant access to some node");
+                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                }
+                else
+                {
+                    megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                }
+
+                ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+                const char *buffer = generateAttachNodeJSon(request->getMegaNodeList());
+
+                if (buffer)
+                {
+                    std::string stringToSend(buffer);
+                    delete []buffer;
+                    stringToSend.insert(stringToSend.begin(), Message::kMsgAttachment);
+                    stringToSend.insert(stringToSend.begin(), 0x0);
+                    Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgAttachment, NULL);
+                    MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+                    request->setMegaChatMessage(megaMsg);
+                    fireOnChatRequestFinish(request, megaChatError);
+                }
+                else
+                {
+                    API_LOG_ERROR("Failed generate the message to send");
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
+                    fireOnChatRequestFinish(request, megaChatError);
                 }
             });
 
@@ -742,29 +798,65 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE:
         {
-            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-            MegaHandle handle = request->getMegaHandleNode();
-            MegaChatRequestListener *listener = request->getListener();
+            handle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE )
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
 
-            MegaNode *node = megaApi->getNodeByHandle(handle);
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
 
-            if (node != NULL)
+            MegaNode *node = megaApi->getNodeByHandle(request->getUserHandle());
+
+            if (node == NULL)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
+                fireOnChatRequestFinish(request, megaChatError);
+            }
+            else
             {
                 std::vector<ApiPromise> promises = chatroom->requestRevokeAccessToNode(node);
 
                 promise::when(promises)
-                .then([this, handle, chatroom, listener]()
+                .then([this, request]()
                 {
-                    sendRevokeAttach(handle, chatroom, listener);
-                })
-                .fail([this, handle, chatroom, listener](const promise::Error& err)
-                {
-                    sendRevokeAttach(handle, chatroom, listener);
+                    ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+                    char *base64Handle = MegaApi::handleToBase64(request->getUserHandle());
+                    std::string stringToSend = std::string(base64Handle);
+                    delete base64Handle;
+                    stringToSend.insert(stringToSend.begin(), Message::kMsgRevokeAttachment);
+                    stringToSend.insert(stringToSend.begin(), 0x0);
+                    Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgRevokeAttachment, NULL);
+                    MegaChatMessage* megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+                    request->setMegaChatMessage(megaMsg);
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
 
+                })
+                .fail([this, request](const promise::Error& err)
+                {
                     if (err.code() != MegaError::API_EEXIST)
                     {
                         API_LOG_ERROR("Failed to grant access to some node");
                     }
+
+                    ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+                    char *base64Handle = MegaApi::handleToBase64(request->getUserHandle());
+                    std::string stringToSend = std::string(base64Handle);
+                    delete base64Handle;
+                    stringToSend.insert(stringToSend.begin(), Message::kMsgRevokeAttachment);
+                    stringToSend.insert(stringToSend.begin(), 0x0);
+                    Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgRevokeAttachment, NULL);
+                    MegaChatMessage* megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+                    request->setMegaChatMessage(megaMsg);
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                    fireOnChatRequestFinish(request, megaChatError);
                 });
 
                 delete node;
@@ -1840,7 +1932,7 @@ void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, Me
     return ;
 }
 
-void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom, MegaChatRequestListener *listener)
+const char *MegaChatApiImpl::generateAttachNodeJSon(MegaNodeList *nodes)
 {
     bool error = false;
     rapidjson::Document jSonAttachmentNodes(rapidjson::kArrayType);;
@@ -1920,27 +2012,14 @@ void MegaChatApiImpl::sendAttachMessage(MegaNodeList *nodes, ChatRoom *chatroom,
 
     if (!error)
     {
-        char zero = 0x0;
-        char attachmentType = Message::kMsgAttachment;
-
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
         jSonAttachmentNodes.Accept(writer);
-        std::string stringToSend(buffer.GetString());
 
-        stringToSend.insert(stringToSend.begin(), attachmentType);
-        stringToSend.insert(stringToSend.begin(), zero);
-        Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgAttachment, NULL);
-        MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-
-        MegaChatRequestPrivate request(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
-        request.setMegaChatMessage(megaMsg);
-        MegaChatErrorPrivate error;
-        if (listener != NULL)
-        {
-            listener->onRequestFinish(chatApi, &request, &error);
-        }
+        return MegaApi::strdup(buffer.GetString());
     }
+
+    return NULL;
 
 }
 
@@ -1948,31 +2027,11 @@ void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle han
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
     request->setChatHandle(chatid);
-    request->setMegaHandleNode(handle);
+    request->setUserHandle(handle);
     requestQueue.push(request);
     waiter->notify();
 
     return ;
-}
-
-void MegaChatApiImpl::sendRevokeAttach(MegaChatHandle handle, ChatRoom *chatroom, MegaChatRequestListener *listener)
-{
-    char zero = 0x0;
-    char revokeAttachmentType = chatd::Message::kMsgRevokeAttachment;
-    char *base64Handle = MegaApi::handleToBase64(handle);
-    std::string stringToSend = std::string(base64Handle);
-    delete base64Handle;
-    stringToSend.insert(stringToSend.begin(), revokeAttachmentType);
-    stringToSend.insert(stringToSend.begin(), zero);
-    Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgRevokeAttachment, NULL);
-    MegaChatMessage* message = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-    MegaChatRequestPrivate request(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
-    request.setMegaChatMessage(message);
-    MegaChatErrorPrivate error;
-    if (listener != NULL)
-    {
-        listener->onRequestFinish(chatApi, &request, &error);
-    }
 }
 
 MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
@@ -2596,7 +2655,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setPrivilege(request.getPrivilege());
     this->setText(request.getText());
     this->setMegaChatMessage(request.getMegaChatMessage());
-    this->setMegaNodeList(request.getNodeList());
+    this->setMegaNodeList(request.getMegaNodeList());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -2774,7 +2833,7 @@ void MegaChatRequestPrivate::setMegaChatMessage(MegaChatMessage *message)
     mMessage = message ? message->copy() : NULL;
 }
 
-MegaNodeList *MegaChatRequestPrivate::getNodeList()
+MegaNodeList *MegaChatRequestPrivate::getMegaNodeList()
 {
     return mMegaNodeList;
 }
@@ -2787,16 +2846,6 @@ void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
     }
 
     mMegaNodeList = nodelist ? nodelist->copy() : NULL;
-}
-
-MegaHandle MegaChatRequestPrivate::getMegaHandleNode()
-{
-    return mMegaHandle;
-}
-
-void MegaChatRequestPrivate::setMegaHandleNode(MegaHandle megaHandle)
-{
-    mMegaHandle = megaHandle;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const shared_ptr<rtcModule::ICallAnswer> &ans)
