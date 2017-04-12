@@ -579,6 +579,7 @@ private:
 
     // you take the ownership of returned value. NULL if error
     static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
+    // you take the ownership of returned value. NULL if error
     static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
 };
 
@@ -664,7 +665,7 @@ private:
 
     static int convertInitState(int state);
 
-    // You take posesion of returned value
+    // you take the ownership of the returned value. NULL if error
     const char* generateAttachNodeJSon(mega::MegaNodeList* nodes);
 
 public:
@@ -789,7 +790,7 @@ public:
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
     MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
-    void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener);
+    void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
