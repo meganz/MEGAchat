@@ -2170,7 +2170,7 @@ std::vector<MegaChatAttachedUser> *MegaChatMessagePrivate::parseAttachContactJSo
     return megaChatUsers;
 }
 
-void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL)
+void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
     request->setChatHandle(chatid);
