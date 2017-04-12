@@ -718,7 +718,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             handle chatid = request->getChatHandle();
             mega::MegaNodeList *nodeList = request->getMegaNodeList();
-            if (chatid == MEGACHAT_INVALID_HANDLE || !nodeList)
+            if (chatid == MEGACHAT_INVALID_HANDLE || !nodeList || !nodeList->size())
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -1833,7 +1833,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
 
 MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle *handleContacts)
 {
-    if (contactsNumber < 1 || handleContacts == NULL)
+    if (chatid == MEGACHAT_INVALID_HANDLE || contactsNumber < 1 || handleContacts == NULL)
     {
         return NULL;
     }
@@ -1902,18 +1902,11 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
 
 void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
 {
-    if (nodes->size() <= 0)
-    {
-        return;
-    }
-
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
     request->setChatHandle(chatid);
     request->setMegaNodeList(nodes);
     requestQueue.push(request);
     waiter->notify();
-
-    return ;
 }
 
 const char *MegaChatApiImpl::generateAttachNodeJSon(MegaNodeList *nodes)
