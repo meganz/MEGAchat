@@ -865,9 +865,20 @@ protected:
 class DataTranslation
 {
 public:
-    static std::vector<int32_t> b_to_vector(const std::string& datadata);
+    /**
+     * @brief Transform binary string into a vector. For example: string.length() = 32 => vector.size() = 8
+     * The vector output is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
+     * @param data string in binary format
+     * @return vector
+     */
+    static std::vector<int32_t> b_to_vector(const std::string& data);
 
-    //the caller takes the ownership of the returned value
+    /**
+     * @brief Transform int32_t vector into a birnary string. For example: string.length() = 32 => vector.size() = 8
+     * The vector input is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
+     * @param data vector of int32_t
+     * @return binary string
+     */
     static std::string vector_to_b(std::vector<int32_t> vector);
 
 };

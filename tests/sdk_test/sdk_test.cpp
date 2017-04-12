@@ -1432,10 +1432,10 @@ void MegaChatApiTest::TEST_attachmentV2()
 
     assert(downLoadFiles == 1);
 
-//    *flagConfirmed = &revokeNodeSend[0]; *flagConfirmed = false;
-//    megachat::MegaChatHandle revokeAttachmentNode = node0->getHandle();
-//    megaChatApi[0]->revokeAttachment(chatid0, revokeAttachmentNode, this);
-//    assert(waitForResponse(flagConfirmed));
+    *flagConfirmed = &revokeNodeSend[0]; *flagConfirmed = false;
+    megachat::MegaChatHandle revokeAttachmentNode = node0->getHandle();
+    megaChatApi[0]->revokeAttachment(chatid0, revokeAttachmentNode, this);
+    assert(waitForResponse(flagConfirmed));
 
     // Remove file downloaded to try to download after revoke
     std::string filePath = mDownloadPath + std::string(formatDate);
