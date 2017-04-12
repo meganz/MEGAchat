@@ -1401,25 +1401,13 @@ void MegaChatApiTest::TEST_attachment()
     assert(downLoadFiles == 1);
 
     *flagConfirmed = &revokeNodeSend[0]; *flagConfirmed = false;
-    megachat::MegaChatHandle revokeAttachmentNode = node0->getHandle();
-    megaChatApi[0]->revokeAttachment(chatid0, revokeAttachmentNode, this);
-    assert(waitForResponse(flagConfirmed));
-
-    // Remove file downloaded to try to download after revoke
-    std::string filePath = mDownloadPath + std::string(formatDate);
-    std::string secondaryFilePath = mDownloadPath + std::string("remove");
-    rename(filePath.c_str(), secondaryFilePath.c_str());
-
-    flagConfirmed = &chatroomListener->msgConfirmed[0]; *flagConfirmed = false;
-    flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
-    flagDelivered = &chatroomListener->msgDelivered[0]; *flagDelivered = false;
+    *flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
     chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
     chatroomListener->msgId[1] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
-
-    megaChatApi[0]->revokeAttachment(chatid0, node0->getHandle(), this);
+    megachat::MegaChatHandle revokeAttachmentNode = node0->getHandle();
+    megaChatApi[0]->revokeAttachment(chatid0, revokeAttachmentNode, this);
 
     assert(waitForResponse(flagConfirmed));
-    assert(waitForResponse(flagConfirmed));    // for confirmation, sendMessage() is synchronous
     msgId0 = chatroomListener->msgId[0];
     assert (msgId0 != MEGACHAT_INVALID_HANDLE);
 
@@ -1428,9 +1416,14 @@ void MegaChatApiTest::TEST_attachment()
     assert (msgId0 == msgId1);
     msgReceived = megaChatApi[1]->getMessage(chatid1, msgId0);   // message should be already received, so in RAM
     assert(msgReceived);
+    assert(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT);
+
+    // Remove file downloaded to try to download after revoke
+    std::string filePath = mDownloadPath + std::string(formatDate);
+    std::string secondaryFilePath = mDownloadPath + std::string("remove");
+    rename(filePath.c_str(), secondaryFilePath.c_str());
 
     // Download File
-    assert(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT);
     mega::MegaHandle nodeHandle = msgReceived->getHandleOfAction();
     assert(nodeHandle == node1->getHandle());
 
