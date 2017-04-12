@@ -807,7 +807,8 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            if (chatid == MEGACHAT_INVALID_HANDLE )
+            MegaNode *node = megaApi->getNodeByHandle(request->getUserHandle());
+            if (chatid == MEGACHAT_INVALID_HANDLE || !node)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -817,13 +818,6 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!chatroom)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
-            MegaNode *node = megaApi->getNodeByHandle(request->getUserHandle());
-            if (node == NULL)
-            {
-                errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
