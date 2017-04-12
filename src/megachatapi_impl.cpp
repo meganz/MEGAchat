@@ -2023,7 +2023,6 @@ mega::MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json
     for (int i = 0; i < attachmentNumber; ++i)
     {
         const rapidjson::Value& file = document[i];
-        bool error = false;
 
         rapidjson::Value::ConstMemberIterator iteratorHandle = file.FindMember("h");
         if (iteratorHandle == file.MemberEnd() || !iteratorHandle->value.IsString())
@@ -2120,6 +2119,11 @@ mega::MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json
 
 std::vector<MegaChatAttachedUser> *MegaChatMessagePrivate::parseAttachContactJSon(const char *json)
 {
+    if (!json)
+    {
+        return NULL;
+    }
+
     rapidjson::StringStream stringStream(json);
 
     rapidjson::Document document;
@@ -2130,57 +2134,37 @@ std::vector<MegaChatAttachedUser> *MegaChatMessagePrivate::parseAttachContactJSo
     int contactNumber = document.Capacity();
     for (int i = 0; i < contactNumber; ++i)
     {
-        bool error = false;
-
         const rapidjson::Value& user = document[i];
 
-        std::string emailString;
         rapidjson::Value::ConstMemberIterator iteratorEmail = user.FindMember("email");
-        if (iteratorEmail != user.MemberEnd() && iteratorEmail->value.IsString())
+        if (iteratorEmail == user.MemberEnd() || !iteratorEmail->value.IsString())
         {
-            emailString = iteratorEmail->value.GetString();
-
+            API_LOG_ERROR("Invalid email in contact-attachment JSON");
+            delete megaChatUsers;
+            return NULL;
         }
-        else
-        {
-            error = true;
-        }
+        std::string emailString = iteratorEmail->value.GetString();
 
         rapidjson::Value::ConstMemberIterator iteratorHandle = user.FindMember("u");
-        std::string handleString;
-        if (iteratorHandle != user.MemberEnd() && iteratorHandle->value.IsString())
+        if (iteratorHandle == user.MemberEnd() || !iteratorHandle->value.IsString())
         {
-            handleString = iteratorHandle->value.GetString();
-
+            API_LOG_ERROR("Invalid userhandle in contact-attachment JSON");
+            delete megaChatUsers;
+            return NULL;
         }
-        else
-        {
-            error = true;
-        }
+        std::string handleString = iteratorHandle->value.GetString();
 
         rapidjson::Value::ConstMemberIterator iteratorName = user.FindMember("name");
-        std::string nameString;
-        if (iteratorName != user.MemberEnd() && iteratorName->value.IsString())
+        if (iteratorName == user.MemberEnd() || !iteratorName->value.IsString())
         {
-            nameString = iteratorName->value.GetString();
-
-        }
-        else
-        {
-            error = true;
-        }
-
-        if (!error)
-        {
-            MegaChatAttachedUser megaChatUser(MegaApi::base64ToUserHandle(handleString.c_str()) , emailString, nameString);
-            megaChatUsers->push_back(megaChatUser);
-        }
-        else
-        {
-            API_LOG_ERROR("User received with bad format");
+            API_LOG_ERROR("Invalid username in contact-attachment JSON");
             delete megaChatUsers;
-            megaChatUsers = NULL;
+            return NULL;
         }
+        std::string nameString = iteratorName->value.GetString();
+
+        MegaChatAttachedUser megaChatUser(MegaApi::base64ToUserHandle(handleString.c_str()) , emailString, nameString);
+        megaChatUsers->push_back(megaChatUser);
     }
 
     return megaChatUsers;
