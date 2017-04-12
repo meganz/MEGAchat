@@ -2008,6 +2008,11 @@ const char *MegaChatApiImpl::generateAttachNodeJSon(MegaNodeList *nodes)
 
 mega::MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json)
 {
+    if (!json)
+    {
+        return NULL;
+    }
+
     rapidjson::StringStream stringStream(json);
     rapidjson::Document document;
     document.ParseStream(stringStream);
@@ -2021,87 +2026,73 @@ mega::MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json
         bool error = false;
 
         rapidjson::Value::ConstMemberIterator iteratorHandle = file.FindMember("h");
-        std::string handleString;
-        if (iteratorHandle != file.MemberEnd() && iteratorHandle->value.IsString())
+        if (iteratorHandle == file.MemberEnd() || !iteratorHandle->value.IsString())
         {
-            handleString = iteratorHandle->value.GetString();
-
+            API_LOG_ERROR("Invalid nodehandle in attachment JSON");
+            delete megaNodeList;
+            return NULL;
         }
-        else
-        {
-            error = true;
-        }
+        std::string handleString = iteratorHandle->value.GetString();
 
         rapidjson::Value::ConstMemberIterator iteratorName = file.FindMember("name");
-        std::string nameString;
-        if (iteratorName != file.MemberEnd() && iteratorName->value.IsString())
+        if (iteratorName == file.MemberEnd() || !iteratorName->value.IsString())
         {
-            nameString = iteratorName->value.GetString();
-
+            API_LOG_ERROR("Invalid filename in attachment JSON");
+            delete megaNodeList;
+            return NULL;
         }
-        else
-        {
-            error = true;
-        }
+        std::string nameString = iteratorName->value.GetString();
 
         rapidjson::Value::ConstMemberIterator iteratorKey = file.FindMember("k");
-        std::vector<int32_t> kElements;
-        if (iteratorKey != file.MemberEnd() && iteratorKey->value.IsArray())
+        if (iteratorKey == file.MemberEnd() || !iteratorKey->value.IsArray()
+                || iteratorKey->value.Capacity() != 8)
         {
-            for (unsigned int j = 0; j < iteratorKey->value.Capacity(); ++j)
-            {
-                if (iteratorKey->value[j].IsInt())
-                {
-                    int32_t value = iteratorKey->value[j].GetInt();
-                    kElements.push_back(value);
-                }
-                else
-                {
-                    error = true;
-                }
-            }
-
+            API_LOG_ERROR("Invalid nodekey in attachment JSON");
+            delete megaNodeList;
+            return NULL;
         }
-        else
+        std::vector<int32_t> kElements;
+        for (unsigned int j = 0; j < iteratorKey->value.Capacity(); ++j)
         {
-            error = true;
+            if (iteratorKey->value[j].IsInt())
+            {
+                int32_t value = iteratorKey->value[j].GetInt();
+                kElements.push_back(value);
+            }
+            else
+            {
+                API_LOG_ERROR("Invalid nodekey data in attachment JSON");
+                delete megaNodeList;
+                return NULL;
+            }
         }
 
         rapidjson::Value::ConstMemberIterator iteratorSize = file.FindMember("s");
-        int64_t size = 0;
-        if (iteratorSize != file.MemberEnd() && iteratorSize->value.IsInt64())
+        if (iteratorSize == file.MemberEnd() || !iteratorSize->value.IsInt64())
         {
-            size = iteratorSize->value.GetInt64();
-
+            API_LOG_ERROR("Invalid size in attachment JSON");
+            delete megaNodeList;
+            return NULL;
         }
-        else
-        {
-            error = true;
-        }
+        int64_t size = iteratorSize->value.GetInt64();
 
         rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
-        int type = 0;
-        if (iteratorType != file.MemberEnd() && iteratorType->value.IsInt())
+        if (iteratorType == file.MemberEnd() || !iteratorType->value.IsInt())
         {
-            type = iteratorType->value.GetInt();
-
+            API_LOG_ERROR("Invalid type in attachment JSON");
+            delete megaNodeList;
+            return NULL;
         }
-        else
-        {
-            error = true;
-        }
+        int type = iteratorType->value.GetInt();
 
         rapidjson::Value::ConstMemberIterator iteratorTimeStamp = file.FindMember("ts");
-        int64_t timeStamp  = 0;
-        if (iteratorTimeStamp != file.MemberEnd() && iteratorTimeStamp->value.IsInt64())
+        if (iteratorTimeStamp == file.MemberEnd() || !iteratorTimeStamp->value.IsInt64())
         {
-            timeStamp = iteratorTimeStamp->value.GetInt64();
-
+            API_LOG_ERROR("Invalid type in attachment JSON");
+            delete megaNodeList;
+            return NULL;
         }
-        else
-        {
-            error = true;
-        }
+        int64_t timeStamp = iteratorTimeStamp->value.GetInt64();
 
         rapidjson::Value::ConstMemberIterator iteratorFa = file.FindMember("fa");
         std::string fa;
@@ -2111,26 +2102,17 @@ mega::MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json
 
         }
 
-        if (!error)
-        {
-            MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
-            std::string attrstring;
-            char *fingerprint = NULL;
+        MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
+        std::string attrstring;
+        char *fingerprint = NULL;
 
-            std::string key = DataTranslation::vector_to_b(kElements);
+        std::string key = DataTranslation::vector_to_b(kElements);
 
-            MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                                 megaHandle, &key, &attrstring, fingerprint, INVALID_HANDLE,
-                                 NULL, NULL, false, true);
+        MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
+                             megaHandle, &key, &attrstring, fingerprint, INVALID_HANDLE,
+                             NULL, NULL, false, true);
 
-            megaNodeList->addNode(&node);
-        }
-        else
-        {
-            API_LOG_ERROR("Node received with bad format");
-            delete megaNodeList;
-            megaNodeList = NULL;
-        }
+        megaNodeList->addNode(&node);
     }
 
     return megaNodeList;
