@@ -1868,7 +1868,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
                 std::string nameString = contact->titleString();
                 nameString.erase(0, 1);
                 rapidjson::Value nameValue(rapidjson::kStringType);
-                emailValue.SetString(nameString.c_str(), nameString.length(), jSonDocument.GetAllocator());
+                nameValue.SetString(nameString.c_str(), nameString.length(), jSonDocument.GetAllocator());
                 jSonContact.AddMember(rapidjson::Value("name"), nameValue, jSonDocument.GetAllocator());
 
                 jSonDocument.PushBack(jSonContact, jSonDocument.GetAllocator());
@@ -4426,7 +4426,7 @@ unsigned int MegaChatMessagePrivate::getUsersCount() const
 
 MegaChatHandle MegaChatMessagePrivate::getUserHandle(unsigned int index) const
 {
-    if (megaChatUsers || index >= megaChatUsers->size())
+    if (!megaChatUsers || index >= megaChatUsers->size())
     {
         return MEGACHAT_INVALID_HANDLE;
     }
@@ -4436,7 +4436,7 @@ MegaChatHandle MegaChatMessagePrivate::getUserHandle(unsigned int index) const
 
 const char *MegaChatMessagePrivate::getUserName(unsigned int index) const
 {
-    if (megaChatUsers || index >= megaChatUsers->size())
+    if (!megaChatUsers || index >= megaChatUsers->size())
     {
         return NULL;
     }
@@ -4446,7 +4446,7 @@ const char *MegaChatMessagePrivate::getUserName(unsigned int index) const
 
 const char *MegaChatMessagePrivate::getUserEmail(unsigned int index) const
 {
-    if (megaChatUsers || index >= megaChatUsers->size())
+    if (!megaChatUsers || index >= megaChatUsers->size())
     {
         return NULL;
     }
