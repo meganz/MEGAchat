@@ -328,6 +328,23 @@ MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg
     return pImpl->sendMessage(chatid, msg);
 }
 
+MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle *contacts)
+{
+    return pImpl->attachContacts(chatid, contactsNumber, contacts);
+}
+
+void MegaChatApi::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
+{
+    pImpl->attachNodes(chatid, nodes, listener);
+    return;
+}
+
+void MegaChatApi::revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener)
+{
+    pImpl->revokeAttachment(chatid, nodeHandle, listener);
+    return;
+}
+
 MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
 {
     if (!msg)   // force to use deleteMessage() to delete message instead
@@ -520,6 +537,16 @@ int MegaChatRequest::getPrivilege()
 }
 
 const char *MegaChatRequest::getText() const
+{
+    return NULL;
+}
+
+MegaChatMessage *MegaChatRequest::getMegaChatMessage()
+{
+    return NULL;
+}
+
+MegaNodeList *MegaChatRequest::getMegaNodeList()
 {
     return NULL;
 }
@@ -928,7 +955,7 @@ bool MegaChatMessage::isManagementMessage() const
     return false;
 }
 
-MegaChatHandle MegaChatMessage::getUserHandleOfAction() const
+MegaChatHandle MegaChatMessage::getHandleOfAction() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
@@ -953,11 +980,35 @@ int MegaChatMessage::getCode() const
     return 0;
 }
 
+unsigned int MegaChatMessage::getUsersCount() const
+{
+    return 0;
+}
+
+MegaChatHandle MegaChatMessage::getUserHandle(unsigned int) const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 MegaChatHandle MegaChatMessage::getRowId() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
 
+const char *MegaChatMessage::getUserName(unsigned int) const
+{
+    return NULL;
+}
+
+const char *MegaChatMessage::getUserEmail(unsigned int) const
+{
+    return NULL;
+}
+
+MegaNodeList *MegaChatMessage::getMegaNodeList() const
+{
+    return NULL;
+}
 
 void MegaChatLogger::log(int , const char *)
 {

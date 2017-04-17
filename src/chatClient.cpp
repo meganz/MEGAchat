@@ -1007,6 +1007,22 @@ void ChatRoom::onLastMessageTsUpdated(uint32_t ts)
     });
 }
 
+ApiPromise ChatRoom::requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
+{
+    MyListener *listener = new MyListener();
+    parent.client.api.sdk.grantAccessInChat(mChatid, node, userHandle, listener);
+
+    return listener->mPromise;
+}
+
+ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
+{
+    MyListener *listener = new MyListener();
+    parent.client.api.sdk.removeAccessInChat(mChatid, node, userHandle, listener);
+
+    return listener->mPromise;
+}
+
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
@@ -1063,6 +1079,58 @@ promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
     assert(mAppChatHandler);
 //    parent.client.rtc->startMediaCall(mAppChatHandler->callHandler(), jid, av);
     return promise::_Void();
+}
+
+std::vector<ApiPromise> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
+{
+    std::vector<ApiPromise> promises;
+
+    for (int i = 0; i < nodes->size(); ++i)
+    {
+        ApiPromise promise = requestGrantAccess(nodes->get(i), peer());
+        promises.push_back(promise);
+    }
+
+    return promises;
+}
+
+std::vector<ApiPromise> PeerChatRoom::requestRevokeAccessToNode(mega::MegaNode *node)
+{
+    std::vector<ApiPromise> promises;
+
+    ApiPromise promise = requestRevokeAccess(node, peer());
+    promises.push_back(promise);
+
+    return promises;
+}
+
+std::vector<ApiPromise> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
+{
+    std::vector<ApiPromise> promises;
+
+    for (int i = 0; i < nodes->size(); ++i)
+    {
+        for (auto iterator = mPeers.begin(); iterator != mPeers.end(); ++iterator)
+        {
+            ApiPromise promise = requestGrantAccess(nodes->get(i), iterator->second->mHandle);
+            promises.push_back(promise);
+        }
+    }
+
+    return promises;
+}
+
+std::vector<ApiPromise> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *node)
+{
+    std::vector<ApiPromise> promises;
+
+    for (auto iterator = mPeers.begin(); iterator != mPeers.end(); ++iterator)
+    {
+        ApiPromise promise = requestRevokeAccess(node, iterator->second->mHandle);
+        promises.push_back(promise);
+    }
+
+    return promises;
 }
 
 promise::Promise<void> GroupChatRoom::mediaCall(AvFlags av)
@@ -2441,4 +2509,5 @@ std::string encodeFirstName(const std::string& first)
     }
     return result;
 }
+
 }

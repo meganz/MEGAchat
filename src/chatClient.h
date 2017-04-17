@@ -73,6 +73,9 @@ protected:
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv priv);
     void onMessageTimestamp(uint32_t ts);
+    ApiPromise requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
+    ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
+
 public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
@@ -174,6 +177,9 @@ public:
     }
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
+
+    virtual std::vector<ApiPromise> requesGrantAccessToNodes(mega::MegaNodeList *nodes) = 0;
+    virtual std::vector<ApiPromise> requestRevokeAccessToNode(mega::MegaNode *node) = 0;
 };
 /** @brief Represents a 1on1 chatd chatroom */
 class PeerChatRoom: public ChatRoom
@@ -221,6 +227,9 @@ public:
     virtual void onUserLeave(Id userid);
     virtual void onUnreadChanged();
 /** @endcond */
+
+    virtual std::vector<ApiPromise> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
+    virtual std::vector<ApiPromise> requestRevokeAccessToNode(mega::MegaNode *node);
 };
 
 /** @brief Represents a chatd chatroom that is a groupchat */
@@ -362,6 +371,9 @@ public:
      * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
+
+    virtual std::vector<ApiPromise> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
+    virtual std::vector<ApiPromise> requestRevokeAccessToNode(mega::MegaNode *node);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -432,7 +444,9 @@ public:
      */
     promise::Promise<ChatRoom *> createChatRoom();
 
-    /** @brief Returns the current screen name of this contact */
+    /** @brief Returns the current screen name of this contact. It is not pure std::string. It has binary layout
+      * First byte indicate first name length
+      */
     const std::string& titleString() const { return mTitleString; }
 
     /** @brief Returns the userid of this contact */

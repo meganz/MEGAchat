@@ -5,6 +5,10 @@
 #include "../../src/karereCommon.h" // for logging with karere facility
 
 #include <signal.h>
+#include <stdio.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 void sigintHandler(int)
 {
@@ -28,11 +32,17 @@ int main(int argc, char **argv)
     t.TEST_switchAccounts();
     t.TEST_offlineMode();
 
+    t.TEST_attachment();
+    t.TEST_sendContact();
+
     t.terminate();
     return 0;
 }
 
 MegaChatApiTest::MegaChatApiTest()
+    : mActiveDownload(0)
+    , mNotDownloadRunning(true)
+    , mTotalDownload(0)
 {
     logger = new MegaLoggerSDK("SDK.log");
     MegaApi::setLoggerObject(logger);
@@ -73,6 +83,13 @@ MegaChatApiTest::MegaChatApiTest()
         chatroom[i] = NULL;
         chatListItem[i] = NULL;
     }
+
+    mAttachmentNodeList = mega::MegaNodeList::createInstance();
+}
+
+MegaChatApiTest::~MegaChatApiTest()
+{
+    delete mAttachmentNodeList;
 }
 
 void MegaChatApiTest::init()
@@ -559,6 +576,8 @@ void MegaChatApiTest::TEST_getChatRoomsAndMessages()
             assert(waitForResponse(flag));
             assert(!lastErrorChat[0]);
         }
+
+        // Close the chatroom
         megaChatApi[0]->closeChatRoom(chatid, chatroomListener);
         delete chatroomListener;
     }
@@ -1282,6 +1301,310 @@ void MegaChatApiTest::TEST_switchAccounts()
 
 }
 
+void MegaChatApiTest::TEST_attachment()
+{
+    login(0);
+    login(1);
+
+    MegaUser *peer0 = megaApi[0]->getContact(email[1].c_str());
+    MegaUser *peer1 = megaApi[1]->getContact(email[0].c_str());
+    assert(peer0 && peer1);
+
+    MegaChatRoom *chatroom0 = megaChatApi[0]->getChatRoomByUser(peer0->getHandle());
+
+    MegaChatHandle chatid0 = chatroom0->getChatId();
+    assert (chatid0 != MEGACHAT_INVALID_HANDLE);
+    delete chatroom0; chatroom0 = NULL;
+
+    MegaChatRoom *chatroom1 = megaChatApi[1]->getChatRoomByUser(peer1->getHandle());
+    MegaChatHandle chatid1 = chatroom1->getChatId();
+    assert (chatid0 == chatid1);
+
+    // 1. A sends a message to B while B has the chat opened.
+    // --> check the confirmed in A, the received message in B, the delivered in A
+
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid0);
+    assert(megaChatApi[0]->openChatRoom(chatid0, chatroomListener));
+    assert(megaChatApi[1]->openChatRoom(chatid1, chatroomListener));
+
+    // Load some message to feed history
+    bool *flag = &chatroomListener->historyLoaded[0]; *flag = false;
+    int source = megaChatApi[0]->loadMessages(chatid0, 16);
+    if (source != MegaChatApi::SOURCE_NONE &&
+            source != MegaChatApi::SOURCE_ERROR)
+    {
+        assert(waitForResponse(flag));
+        assert(!lastErrorChat[0]);
+    }
+    flag = &chatroomListener->historyLoaded[1]; *flag = false;
+    source = megaChatApi[1]->loadMessages(chatid1, 16);
+    if (source != MegaChatApi::SOURCE_NONE &&
+            source != MegaChatApi::SOURCE_ERROR)
+    {
+
+        assert(waitForResponse(flag));
+        assert(!lastErrorChat[1]);
+    }
+
+
+    bool *flagConfirmed = &chatroomListener->msgConfirmed[0]; *flagConfirmed = false;
+    bool *flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
+    bool *flagDelivered = &chatroomListener->msgDelivered[0]; *flagDelivered = false;
+    chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
+    chatroomListener->msgId[1] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+
+    struct stat st = {0};
+
+    mDownloadPath = "/tmp/download/";
+    if (stat(mDownloadPath.c_str(), &st) == -1)
+    {
+        mkdir(mDownloadPath.c_str(), 0700);
+    }
+
+    time_t rawTime;
+    struct tm * timeInfo;
+    char formatDate[80];
+    time(&rawTime);
+    timeInfo = localtime(&rawTime);
+    //strftime(formatDate, 80, "%Y%m%d-%H:%M:%S", timeInfo);
+    strftime(formatDate, 80, "%Y%m%d_%H%M%S", timeInfo);
+
+    std::string fileDestination = uploadFile(0, formatDate, "/tmp/", formatDate, "/");
+
+    MegaNode* node0 = megaApi[0]->getNodeByPath(fileDestination.c_str());
+    assert(node0 != NULL);
+
+    MegaNodeList *megaNodeList = MegaNodeList::createInstance();
+    megaNodeList->addNode(node0);
+
+    megaChatApi[0]->attachNodes(chatid0, megaNodeList, this);
+    delete megaNodeList;
+    assert(waitForResponse(flagConfirmed));
+    assert(waitForResponse(flagConfirmed));    // for confirmation, sendMessage() is synchronous
+    MegaChatHandle msgId0 = chatroomListener->msgId[0];
+    assert (msgId0 != MEGACHAT_INVALID_HANDLE);
+
+    assert(waitForResponse(flagReceived));    // for reception
+    MegaChatHandle msgId1 = chatroomListener->msgId[1];
+    assert (msgId0 == msgId1);
+    MegaChatMessage *msgReceived = megaChatApi[1]->getMessage(chatid1, msgId0);   // message should be already received, so in RAM
+    assert(msgReceived);
+
+    // Download File
+    assert(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT);
+    mega::MegaNodeList *nodeList = msgReceived->getMegaNodeList();
+
+    int downLoadFiles = 0;
+    addDownload();
+    MegaNode* node1 = nodeList->get(0);
+    megaApi[1]->startDownload(node1, mDownloadPath.c_str(), this);
+    assert(waitForResponse(&isNotDownloadRunning()));
+    if (lastError[1] == API_OK)
+    {
+        downLoadFiles = 1;
+    }
+    else
+    {
+        downLoadFiles = 0;
+    }
+
+    assert(downLoadFiles == 1);
+
+    *flagConfirmed = &revokeNodeSend[0]; *flagConfirmed = false;
+    *flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
+    chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
+    chatroomListener->msgId[1] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+    megachat::MegaChatHandle revokeAttachmentNode = node0->getHandle();
+    megaChatApi[0]->revokeAttachment(chatid0, revokeAttachmentNode, this);
+
+    assert(waitForResponse(flagConfirmed));
+    msgId0 = chatroomListener->msgId[0];
+    assert (msgId0 != MEGACHAT_INVALID_HANDLE);
+
+    assert(waitForResponse(flagReceived));    // for reception
+    msgId1 = chatroomListener->msgId[1];
+    assert (msgId0 == msgId1);
+    msgReceived = megaChatApi[1]->getMessage(chatid1, msgId0);   // message should be already received, so in RAM
+    assert(msgReceived);
+    assert(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT);
+
+    // Remove file downloaded to try to download after revoke
+    std::string filePath = mDownloadPath + std::string(formatDate);
+    std::string secondaryFilePath = mDownloadPath + std::string("remove");
+    rename(filePath.c_str(), secondaryFilePath.c_str());
+
+    // Download File
+    mega::MegaHandle nodeHandle = msgReceived->getHandleOfAction();
+    assert(nodeHandle == node1->getHandle());
+
+    addDownload();
+    megaApi[1]->startDownload(node1, mDownloadPath.c_str(), this);
+    assert(waitForResponse(&isNotDownloadRunning()));
+    if (lastError[1] == API_OK)
+    {
+        downLoadFiles = 1;
+    }
+    else
+    {
+        downLoadFiles = 0;
+    }
+
+    assert(downLoadFiles == 0);
+
+    delete node0;
+
+    logout(0, true);
+    logout(1, true);
+}
+
+string MegaChatApiTest::uploadFile(int account, const string& fileName, const string& originPath, const string& contain, const string& destinationPath)
+{
+    std::string filePath = originPath + fileName;
+    FILE* fileDescriptor = fopen(filePath.c_str(), "w");
+    fprintf(fileDescriptor, "%s", contain.c_str());
+    fclose(fileDescriptor);
+
+    addDownload();
+    megaApi[account]->startUpload(filePath.c_str(), megaApi[0]->getNodeByPath(destinationPath.c_str()), this);
+    assert(waitForResponse(&isNotDownloadRunning()));
+    assert(!lastError[0]);
+
+    return destinationPath + fileName;
+}
+
+void MegaChatApiTest::TEST_receiveContact()
+{
+    login(0);
+
+    MegaChatRoomList *chats = megaChatApi[0]->getChatRooms();
+
+    // Open chats and print history
+    for (int i = 0; i < chats->size(); i++)
+    {
+        // Open a chatroom
+        const MegaChatRoom *chatroom = chats->get(i);
+        MegaChatHandle chatid = chatroom->getChatId();
+        TestChatRoomListener *listener = new TestChatRoomListener(megaChatApi, chatid);
+        assert(megaChatApi[0]->openChatRoom(chatid, listener));
+
+
+        // Load history
+        cout << "Loading messages for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
+        while (1)
+        {
+            int source = megaChatApi[0]->loadMessages(chatid, 16);
+            if (source == MegaChatApi::SOURCE_NONE ||
+                    source == MegaChatApi::SOURCE_ERROR)
+            {
+                break;  // no more history or cannot retrieve it
+            }
+            assert(waitForResponse(&listener->msgContactReceived[0]));
+            assert(!lastErrorChat[0]);
+        }
+
+        // Close the chatroom
+        megaChatApi[0]->closeChatRoom(chatid, listener);
+        delete listener;
+    }
+
+    logout(0, true);
+}
+
+void MegaChatApiTest::TEST_sendContact()
+{
+    login(0);
+    login(1);
+
+    MegaUser *peer0 = megaApi[0]->getContact(email[1].c_str());
+    MegaUser *peer1 = megaApi[1]->getContact(email[0].c_str());
+    assert(peer0 && peer1);
+
+    MegaChatRoom *chatroom0 = megaChatApi[0]->getChatRoomByUser(peer0->getHandle());
+
+    MegaChatHandle chatid0 = chatroom0->getChatId();
+    assert (chatid0 != MEGACHAT_INVALID_HANDLE);
+
+    MegaChatRoom *chatroom1 = megaChatApi[1]->getChatRoomByUser(peer1->getHandle());
+    MegaChatHandle chatid1 = chatroom1->getChatId();
+    assert (chatid0 == chatid1);
+
+    // 1. A sends a message to B while B has the chat opened.
+    // --> check the confirmed in A, the received message in B, the delivered in A
+
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid0);
+    assert(megaChatApi[0]->openChatRoom(chatid0, chatroomListener));
+    assert(megaChatApi[1]->openChatRoom(chatid1, chatroomListener));
+
+    // Load some message to feed history
+    bool *flag = &chatroomListener->historyLoaded[0]; *flag = false;
+    int source = megaChatApi[0]->loadMessages(chatid0, 16);
+    if (source != MegaChatApi::SOURCE_NONE &&
+            source != MegaChatApi::SOURCE_ERROR)
+    {
+        assert(waitForResponse(flag));
+        assert(!lastErrorChat[0]);
+    }
+    flag = &chatroomListener->historyLoaded[1]; *flag = false;
+    source = megaChatApi[1]->loadMessages(chatid1, 16);
+    if (source != MegaChatApi::SOURCE_NONE &&
+            source != MegaChatApi::SOURCE_ERROR)
+    {
+
+        assert(waitForResponse(flag));
+        assert(!lastErrorChat[1]);
+    }
+
+    bool *flagConfirmed = &chatroomListener->msgConfirmed[0]; *flagConfirmed = false;
+    bool *flagReceived = &chatroomListener->msgContactReceived[1]; *flagReceived = false;
+    bool *flagDelivered = &chatroomListener->msgDelivered[0]; *flagDelivered = false;
+    chatroomListener->msgId[0] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
+    chatroomListener->msgId[1] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+
+    MegaChatHandle handle = chatroom0->getPeerHandle(0);
+    megaChatApi[0]->attachContacts(chatid0, 1, &handle);
+    assert(waitForResponse(flagConfirmed));
+    assert(waitForResponse(flagConfirmed));
+    MegaChatHandle msgId0 = chatroomListener->msgId[0];
+    assert (msgId0 != MEGACHAT_INVALID_HANDLE);
+
+    assert(waitForResponse(flagReceived));    // for reception
+    MegaChatHandle msgId1 = chatroomListener->msgId[1];
+    assert (msgId0 == msgId1);
+    MegaChatMessage *msgReceived = megaChatApi[1]->getMessage(chatid1, msgId0);   // message should be already received, so in RAM
+    assert(msgReceived);
+
+    assert(msgReceived->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT);
+    assert(msgReceived->getUsersCount() > 0);
+
+    assert(strcmp(msgReceived->getUserEmail(0), chatroom0->getPeerEmail(0)) == 0);
+
+    delete chatroom0;
+    chatroom0 = NULL;
+    delete chatroom1;
+    chatroom1 = NULL;
+
+    logout(0, true);
+    logout(1, true);
+
+}
+
+void MegaChatApiTest::addDownload()
+{
+    ++mActiveDownload;
+    ++mTotalDownload;
+    mNotDownloadRunning = false;
+}
+
+bool &MegaChatApiTest::isNotDownloadRunning()
+{
+    return mNotDownloadRunning;
+}
+
+int MegaChatApiTest::getTotalDownload() const
+{
+    return mTotalDownload;
+}
+
 MegaLoggerSDK::MegaLoggerSDK(const char *filename)
 {
     sdklog.open(filename, ios::out | ios::app);
@@ -1341,6 +1664,20 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
                 chatEmail = request->getText() ? request->getText() : "";
                 chatNameReceived[apiIndex] = true;
                 break;
+
+            case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
+            {
+                MegaChatMessage* messageAttach = request->getMegaChatMessage()->copy();
+                attachNodeSend[apiIndex] = true;
+                break;
+            }
+
+            case MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE:
+            {
+                MegaChatMessage* messageRevoke = request->getMegaChatMessage()->copy();
+                revokeNodeSend[apiIndex] = true;
+                break;
+            }
         }
     }
 
@@ -1428,6 +1765,37 @@ void MegaChatApiTest::onChatOnlineStatusUpdate(MegaChatApi *api, int status)
     cout << "[api: " << apiIndex << "] Online status updated to " << status << endl;
 }
 
+void MegaChatApiTest::onTransferStart(mega::MegaApi *api, mega::MegaTransfer *transfer)
+{
+}
+void MegaChatApiTest::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error)
+{
+    std::cerr << "MegaChatApiTest::onTransferFinish" << std::endl;
+
+    --mActiveDownload;
+    if (mActiveDownload == 0)
+    {
+        mNotDownloadRunning = true;
+    }
+
+    lastError[1] = error->getErrorCode();
+}
+
+void MegaChatApiTest::onTransferUpdate(mega::MegaApi *api, mega::MegaTransfer *transfer)
+{
+    std::cerr << "MegaChatApiTest::onTransferUpdate" << std::endl;
+}
+
+void MegaChatApiTest::onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* error)
+{
+    std::cerr << "MegaChatApiTest::onTransferTemporaryError" << std::endl;
+}
+
+bool MegaChatApiTest::onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size)
+{
+    std::cerr << "MegaChatApiTest::onTransferData" << std::endl;
+}
+
 TestChatRoomListener::TestChatRoomListener(MegaChatApi **apis, MegaChatHandle chatid)
 {
     this->megaChatApi = apis;
@@ -1449,6 +1817,9 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApi **apis, MegaChatHandle ch
         this->chatUpdated[i] = false;
         this->userTyping[i] = false;
         this->titleUpdated[i] = false;
+        this->msgAttachmentReceived[i] = false;
+        this->msgContactReceived[i] = false;
+        this->msgRevokeAttachmentReceived[i] = false;
     }
 }
 
@@ -1511,7 +1882,7 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
 
     if (msg)
     {
-        cout << "[api: " << apiIndex << "] Message loaded - ";
+        cout << endl << "[api: " << apiIndex << "] Message loaded - ";
         MegaChatApiTest::printMessageInfo(msg);
 
         if (msg->getStatus() == MegaChatMessage::STATUS_SENDING_MANUAL)
@@ -1520,6 +1891,15 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
             {
                 msgRejected[apiIndex] = true;
             }
+        }
+
+        if (msg->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
+        {
+            msgAttachmentReceived[apiIndex] = true;
+        }
+        else if (msg->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT)
+        {
+            msgContactReceived[apiIndex] = true;
         }
 
         msgCount[apiIndex]++;
@@ -1556,13 +1936,27 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
     if (msg->getType() == MegaChatMessage::TYPE_ALTER_PARTICIPANTS ||
             msg->getType() == MegaChatMessage::TYPE_PRIV_CHANGE)
     {
-        uhAction[apiIndex] = msg->getUserHandleOfAction();
+        uhAction[apiIndex] = msg->getHandleOfAction();
         priv[apiIndex] = msg->getPrivilege();
     }
     if (msg->getType() == MegaChatMessage::TYPE_CHAT_TITLE)
     {
         content[apiIndex] = msg->getContent() ? msg->getContent() : "<empty>";
         titleUpdated[apiIndex] = true;
+    }
+
+    if (msg->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
+    {
+        msgAttachmentReceived[apiIndex] = true;
+    }
+    else if (msg->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT)
+    {
+        msgContactReceived[apiIndex] = true;
+
+    }
+    else if(msg->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT)
+    {
+        msgRevokeAttachmentReceived[apiIndex] = true;
     }
 
     msgId[apiIndex] = msg->getMsgId();
