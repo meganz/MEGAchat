@@ -717,7 +717,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
         {
             handle chatid = request->getChatHandle();
-            mega::MegaNodeList *nodeList = request->getMegaNodeList();
+            MegaNodeList *nodeList = request->getMegaNodeList();
             if (chatid == MEGACHAT_INVALID_HANDLE || !nodeList || !nodeList->size())
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -2006,7 +2006,7 @@ const char *MegaChatApiImpl::generateAttachNodeJSon(MegaNodeList *nodes)
     return MegaApi::strdup(buffer.GetString());
 }
 
-mega::MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json)
+MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json)
 {
     if (!json)
     {
@@ -2017,7 +2017,7 @@ mega::MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json
     rapidjson::Document document;
     document.ParseStream(stringStream);
 
-    mega::MegaNodeList *megaNodeList = new MegaNodeListPrivate();
+    MegaNodeList *megaNodeList = new MegaNodeListPrivate();
 
     int attachmentNumber = document.Capacity();
     for (int i = 0; i < attachmentNumber; ++i)
