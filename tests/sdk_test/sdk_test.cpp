@@ -34,6 +34,7 @@ int main(int argc, char **argv)
 
     t.TEST_attachment();
     t.TEST_sendContact();
+    t.TEST_lastMessage();
 
     t.terminate();
     return 0;
@@ -1457,6 +1458,58 @@ void MegaChatApiTest::TEST_attachment()
     logout(1, true);
 }
 
+void MegaChatApiTest::TEST_lastMessage()
+{
+    // Send file with account 1 to account 0, direct chat. After send, open account 0 and wait for lastMessage.
+    // Last message contain have to be the same that the file name.
+
+    login(1);
+
+    MegaUser *peer1 = megaApi[1]->getContact(email[0].c_str());
+    assert(peer1);
+
+    MegaChatRoom *chatroom1 = megaChatApi[1]->getChatRoomByUser(peer1->getHandle());
+
+    MegaChatHandle chatid1 = chatroom1->getChatId();
+    assert (chatid1 != MEGACHAT_INVALID_HANDLE);
+    mChatIdForLastMessage = chatid1;
+
+    TestChatRoomListener *chatroomListener1 = new TestChatRoomListener(megaChatApi, chatid1);
+    assert(megaChatApi[1]->openChatRoom(chatid1, chatroomListener1));
+
+    time_t rawTime;
+    struct tm * timeInfo;
+    char formatDate[80];
+    time(&rawTime);
+    timeInfo = localtime(&rawTime);
+    //strftime(formatDate, 80, "%Y%m%d-%H:%M:%S", timeInfo);
+    strftime(formatDate, 80, "%Y%m%d_%H%M%S", timeInfo);
+
+    std::string fileDestination = uploadFile(1, formatDate, "/tmp/", formatDate, "/");
+
+    MegaNode* node1 = megaApi[1]->getNodeByPath(fileDestination.c_str());
+    assert(node1 != NULL);
+
+    MegaNodeList *megaNodeList = MegaNodeList::createInstance();
+    megaNodeList->addNode(node1);
+
+    bool *flagConfirmed = &attachNodeSend[1]; *flagConfirmed = false;
+    megaChatApi[1]->attachNodes(chatid1, megaNodeList, this);
+    delete megaNodeList;
+    assert(waitForResponse(flagConfirmed));
+    MegaChatHandle msgId1 = chatroomListener1->msgId[1];
+    assert (msgId1 != MEGACHAT_INVALID_HANDLE);
+
+    logout(1, true);
+
+    bool *lastMessageFlag = &lastMessageUpdate[0]; *lastMessageFlag = false;
+    login(0);
+    assert(waitForResponse(lastMessageFlag));
+    assert(formatDate == lastMessageContent[0]);
+
+    logout(0, true);
+}
+
 string MegaChatApiTest::uploadFile(int account, const string& fileName, const string& originPath, const string& contain, const string& destinationPath)
 {
     std::string filePath = originPath + fileName;
@@ -1465,9 +1518,9 @@ string MegaChatApiTest::uploadFile(int account, const string& fileName, const st
     fclose(fileDescriptor);
 
     addDownload();
-    megaApi[account]->startUpload(filePath.c_str(), megaApi[0]->getNodeByPath(destinationPath.c_str()), this);
+    megaApi[account]->startUpload(filePath.c_str(), megaApi[account]->getNodeByPath(destinationPath.c_str()), this);
     assert(waitForResponse(&isNotDownloadRunning()));
-    assert(!lastError[0]);
+    assert(!lastError[account]);
 
     return destinationPath + fileName;
 }
@@ -1739,6 +1792,14 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_TITLE))
         {
             titleUpdated[apiIndex] = true;
+        }
+        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_LAST_MSG))
+        {
+            if (item->getChatId() == mChatIdForLastMessage)
+            {
+                lastMessageUpdate[apiIndex] = true;
+                lastMessageContent[apiIndex] = item->getLastMessage();
+            }
         }
 
         chatItemUpdated[apiIndex] = true;

@@ -103,6 +103,9 @@ public:
     void TEST_sendContact();
     void TEST_attachment();
 
+
+    void TEST_lastMessage();
+
     string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
 
     void addDownload();
@@ -122,6 +125,8 @@ private:
     bool chatItemClosed[NUM_ACCOUNTS];
     bool peersUpdated[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
+    bool lastMessageUpdate[NUM_ACCOUNTS];
+    std::string lastMessageContent[NUM_ACCOUNTS];
 
     std::string firstname, lastname;
     bool nameReceived[NUM_ACCOUNTS];
@@ -153,6 +158,8 @@ private:
     bool revokeNodeSend[NUM_ACCOUNTS];
 
     std::string mDownloadPath;
+
+    MegaChatHandle mChatIdForLastMessage;
 
 public:
     // implementation for MegaRequestListener

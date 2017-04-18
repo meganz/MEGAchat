@@ -259,6 +259,15 @@ public:
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
+
+    /**
+     * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
+     * recives the filenames of the attached nodes. The filenames of nodes are separated
+     * by ASCII character '0x001'
+     * If the message is of type MegaChatMessage::TYPE_CONTACT, this function
+     * recives the usernames. The usernames are separated
+     * by ASCII character '0x001'
+     */
     void setLastMessage(int type, const std::string &msg, const uint64_t uh);
 };
 
@@ -557,6 +566,11 @@ public:
     void setContentChanged();
     void setCode(int code);
 
+    // you take the ownership of returned value. NULL if error
+    static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
+    // you take the ownership of returned value. NULL if error
+    static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
+
 private:
     int changed;
 
@@ -576,11 +590,6 @@ private:
     int code;               // generic field for additional information (ie. the reason of manual sending)
     std::vector<MegaChatAttachedUser>* megaChatUsers;
     mega::MegaNodeList* megaNodeList;
-
-    // you take the ownership of returned value. NULL if error
-    static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
-    // you take the ownership of returned value. NULL if error
-    static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
 };
 
 //Thread safe request queue
