@@ -3970,7 +3970,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     int lastMsgStatus = chatroom.chat().lastTextMessage(msg);
     if (lastMsgStatus == 1)
     {
-        this->lastMsg = msg->contents();
+        this->lastMsg = MegaChatLastMessageParser::getLastMessageContent(msg->contents(), msg->type());
         this->lastMsgSender = msg->sender();
         this->lastMsgType = msg->type();
     }
@@ -4156,63 +4156,9 @@ void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
 
-    std::string messageContents;
-    switch (msg.type())
-    {
-        case MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
-        {
-            //Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgContact
-            std::string messageAttach = msg.contents();
-            messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
+    std::string lastMessageContent = MegaChatLastMessageParser::getLastMessageContent(msg.contents(), msg.type());
 
-            std::vector<MegaChatAttachedUser> *userVector = MegaChatMessagePrivate::parseAttachContactJSon(messageAttach.c_str());
-            if (userVector && userVector->size() > 0)
-            {
-                for (unsigned int i = 0; i < userVector->size() - 1; ++i)
-                {
-                    messageContents.insert(messageContents.length(), userVector->at(i).getName());
-                    // We use like separateor character 0x01
-                    messageContents.push_back(0x01);
-                }
-
-                messageContents.insert(messageContents.length(), userVector->at(userVector->size() - 1).getName());
-
-                delete userVector;
-            }
-
-            break;
-        }
-        case MegaChatMessage::TYPE_NODE_ATTACHMENT:
-        {
-            //Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgAttachment
-            std::string messageAttach = msg.contents();
-            messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
-
-            MegaNodeList *megaNodeList = MegaChatMessagePrivate::parseAttachNodeJSon(messageAttach.c_str());
-            if (megaNodeList && megaNodeList->size() > 0)
-            {
-                for (int i = 0; i < megaNodeList->size() - 1; ++i)
-                {
-                    messageContents.insert(messageContents.length(), megaNodeList->get(i)->getName());
-                    // We use like separateor character 0x01
-                    messageContents.push_back(0x01);
-                }
-
-                messageContents.insert(messageContents.length(), megaNodeList->get(megaNodeList->size() - 1)->getName());
-
-                delete megaNodeList;
-            }
-
-            break;
-        }
-        default:
-        {
-            messageContents = msg.contents();
-            break;
-        }
-    }
-
-    item->setLastMessage(msg.type(), messageContents, msg.sender());
+    item->setLastMessage(msg.type(), lastMessageContent, msg.sender());
     chatApi.fireOnChatListItemUpdate(item);
 }
 
@@ -4718,4 +4664,65 @@ std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
     delete[] data;
 
     return dataToReturn;
+}
+
+string MegaChatLastMessageParser::getLastMessageContent(const string& content, uint8_t type)
+{
+    std::string messageContents;
+    switch (type)
+    {
+        case MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
+        {
+            //Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgContact
+            std::string messageAttach = content;
+            messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
+
+            std::vector<MegaChatAttachedUser> *userVector = MegaChatMessagePrivate::parseAttachContactJSon(messageAttach.c_str());
+            if (userVector && userVector->size() > 0)
+            {
+                for (unsigned int i = 0; i < userVector->size() - 1; ++i)
+                {
+                    messageContents.insert(messageContents.length(), userVector->at(i).getName());
+                    // We use like separateor character 0x01
+                    messageContents.push_back(0x01);
+                }
+
+                messageContents.insert(messageContents.length(), userVector->at(userVector->size() - 1).getName());
+
+                delete userVector;
+            }
+
+            break;
+        }
+        case MegaChatMessage::TYPE_NODE_ATTACHMENT:
+        {
+            //Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgAttachment
+            std::string messageAttach = content;
+            messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
+
+            MegaNodeList *megaNodeList = MegaChatMessagePrivate::parseAttachNodeJSon(messageAttach.c_str());
+            if (megaNodeList && megaNodeList->size() > 0)
+            {
+                for (int i = 0; i < megaNodeList->size() - 1; ++i)
+                {
+                    messageContents.insert(messageContents.length(), megaNodeList->get(i)->getName());
+                    // We use like separateor character 0x01
+                    messageContents.push_back(0x01);
+                }
+
+                messageContents.insert(messageContents.length(), megaNodeList->get(megaNodeList->size() - 1)->getName());
+
+                delete megaNodeList;
+            }
+
+            break;
+        }
+        default:
+        {
+            messageContents = content;
+            break;
+        }
+    }
+
+    return messageContents;
 }

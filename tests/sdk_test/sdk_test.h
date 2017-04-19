@@ -125,8 +125,6 @@ private:
     bool chatItemClosed[NUM_ACCOUNTS];
     bool peersUpdated[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
-    bool lastMessageUpdate[NUM_ACCOUNTS];
-    std::string lastMessageContent[NUM_ACCOUNTS];
 
     std::string firstname, lastname;
     bool nameReceived[NUM_ACCOUNTS];
@@ -158,8 +156,6 @@ private:
     bool revokeNodeSend[NUM_ACCOUNTS];
 
     std::string mDownloadPath;
-
-    MegaChatHandle mChatIdForLastMessage;
 
 public:
     // implementation for MegaRequestListener

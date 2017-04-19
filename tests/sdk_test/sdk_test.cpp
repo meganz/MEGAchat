@@ -1464,6 +1464,13 @@ void MegaChatApiTest::TEST_lastMessage()
     // Last message contain have to be the same that the file name.
 
     login(1);
+    login(0);
+
+    MegaUser *peer0 = megaApi[0]->getContact(email[1].c_str());
+    assert(peer0);
+
+    MegaChatRoom *chatroom0 = megaChatApi[0]->getChatRoomByUser(peer0->getHandle());
+    MegaChatHandle chatid0 = chatroom0->getChatId();
 
     MegaUser *peer1 = megaApi[1]->getContact(email[0].c_str());
     assert(peer1);
@@ -1472,7 +1479,6 @@ void MegaChatApiTest::TEST_lastMessage()
 
     MegaChatHandle chatid1 = chatroom1->getChatId();
     assert (chatid1 != MEGACHAT_INVALID_HANDLE);
-    mChatIdForLastMessage = chatid1;
 
     TestChatRoomListener *chatroomListener1 = new TestChatRoomListener(megaChatApi, chatid1);
     assert(megaChatApi[1]->openChatRoom(chatid1, chatroomListener1));
@@ -1500,14 +1506,11 @@ void MegaChatApiTest::TEST_lastMessage()
     MegaChatHandle msgId1 = chatroomListener1->msgId[1];
     assert (msgId1 != MEGACHAT_INVALID_HANDLE);
 
-    logout(1, true);
-
-    bool *lastMessageFlag = &lastMessageUpdate[0]; *lastMessageFlag = false;
-    login(0);
-    assert(waitForResponse(lastMessageFlag));
-    assert(formatDate == lastMessageContent[0]);
+    MegaChatListItem *item = megaChatApi[0]->getChatListItem(chatid0);
+    assert(strcmp(formatDate, item->getLastMessage()) == 0);
 
     logout(0, true);
+    logout(1, true);
 }
 
 string MegaChatApiTest::uploadFile(int account, const string& fileName, const string& originPath, const string& contain, const string& destinationPath)
@@ -1539,7 +1542,6 @@ void MegaChatApiTest::TEST_receiveContact()
         MegaChatHandle chatid = chatroom->getChatId();
         TestChatRoomListener *listener = new TestChatRoomListener(megaChatApi, chatid);
         assert(megaChatApi[0]->openChatRoom(chatid, listener));
-
 
         // Load history
         cout << "Loading messages for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
@@ -1792,14 +1794,6 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_TITLE))
         {
             titleUpdated[apiIndex] = true;
-        }
-        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_LAST_MSG))
-        {
-            if (item->getChatId() == mChatIdForLastMessage)
-            {
-                lastMessageUpdate[apiIndex] = true;
-                lastMessageContent[apiIndex] = item->getLastMessage();
-            }
         }
 
         chatItemUpdated[apiIndex] = true;
