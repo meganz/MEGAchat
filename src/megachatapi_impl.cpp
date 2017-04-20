@@ -2786,6 +2786,8 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
 {
     this->text = NULL;
     this->peerList = NULL;
+    this->mMessage = NULL;
+    this->mMegaNodeList = NULL;
 
     this->type = request.getType();
     this->listener = request.getListener();
