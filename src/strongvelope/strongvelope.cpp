@@ -957,7 +957,7 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
             throw;
         }
     }
-    if (entry.pms)
+    if (entry.pms && !entry.pms->done())
     {
         entry.pms->resolve(entry.key);
         entry.pms.reset();
