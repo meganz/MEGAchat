@@ -87,8 +87,7 @@ void ChatWindow::onCallBtn(bool video)
 
 MessageWidget::MessageWidget(ChatWindow& parent, chatd::Message& msg,
     chatd::Message::Status status, chatd::Idx idx)
-: QWidget(&parent), mChatWindow(parent), mMessage(&msg),
-    mIsMine(msg.userid == parent.chat().client().userId()), mIndex(idx)
+: QWidget(&parent), mChatWindow(parent), mMessage(&msg), mIndex(idx)
 {
     ui.setupUi(this);
     setAuthor(msg.userid);
@@ -253,7 +252,7 @@ void ChatWindow::updateSeen()
         if (msglist.visualItemRect(item).bottom() > rect.bottom())
             break;
         auto lastWidget = qobject_cast<MessageWidget*>(msglist.itemWidget(item));
-        if (lastWidget->mIsMine)
+        if (lastWidget->isMine())
             continue;
         idx = lastWidget->mIndex;
         assert(idx != CHATD_IDX_INVALID);
@@ -284,6 +283,7 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     if (msg.isManagementMessage())
     {
         widget->setText(msg.managementInfoToString());
+        widget->setAuthor(msg.userid);
     }
     else
     {
@@ -465,7 +465,7 @@ void WaitMsgWidget::show()
 }
 MessageWidget& MessageWidget::setAuthor(karere::Id userid)
 {
-    if (mIsMine)
+    if (isMine())
     {
         ui.mAuthorDisplay->setText(tr("me"));
         return *this;

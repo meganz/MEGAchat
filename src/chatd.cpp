@@ -1821,6 +1821,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.takeFrom(std::move(*msg));
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
+            histmsg.userid = msg->userid;
             // msg.ts is zero - chatd doesn't send the original timestamp
             CALL_LISTENER(onMessageEdited, histmsg, idx);
             //last text msg stuff
@@ -1950,7 +1951,18 @@ Message::Status Chat::getMsgStatus(const Message& msg, Idx idx) const
     {
         if (msg.isSending())
             return Message::kSending;
-        else if (idx <= mLastReceivedIdx)
+
+        // Check if we have an unconfirmed edit
+        for (auto& item: mSending)
+        {
+            if (item.msg->id() == msg.id())
+            {
+                auto op = item.opcode();
+                if (op == OP_MSGUPD || op == OP_MSGUPDX)
+                    return Message::kSending;
+            }
+        }
+        if (idx <= mLastReceivedIdx)
             return Message::kDelivered;
         else
         {
