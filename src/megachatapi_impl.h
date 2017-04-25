@@ -396,6 +396,22 @@ public:
     const char *toString() const;
 };
 
+class MegaChatHandleListPrivate : public MegaChatHandleList
+{
+public:
+    MegaChatHandleListPrivate();
+    MegaChatHandleListPrivate(const MegaChatHandleListPrivate *nodeList);
+    virtual ~MegaChatHandleListPrivate();
+
+    virtual MegaChatHandleList *copy() const;
+    virtual MegaChatHandle get(unsigned int i) const;
+    virtual unsigned int size() const;
+    virtual void addMegaChatHandle(MegaChatHandle megaChatHandle);
+
+private:
+    std::vector<MegaChatHandle> mList;
+};
+
 class MegaChatPeerListPrivate : public MegaChatPeerList
 {
 public:
@@ -789,6 +805,7 @@ public:
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
     MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, MegaChatHandleList* handles);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);

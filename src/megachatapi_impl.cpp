@@ -1900,6 +1900,27 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
     return megaMsg;
 }
 
+MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaChatHandleList *handles)
+{
+    if (handles == NULL || handles->size() == 0)
+    {
+        return NULL;
+    }
+
+    MegaChatHandle *handleContacts = new MegaChatHandle[handles->size()];
+
+    for (unsigned int i = 0; i < handles->size(); ++i)
+    {
+        handleContacts[i] = handles->get(i);
+    }
+
+    MegaChatMessage *message = attachContacts(chatid, handles->size(), handleContacts);
+
+    delete handleContacts;
+
+    return message;
+}
+
 void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
@@ -4669,4 +4690,46 @@ std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
     delete[] data;
 
     return dataToReturn;
+}
+
+MegaChatHandleListPrivate::MegaChatHandleListPrivate()
+{
+
+}
+
+MegaChatHandleListPrivate::MegaChatHandleListPrivate(const MegaChatHandleListPrivate *nodeList)
+{
+    mList = nodeList->mList;
+}
+
+MegaChatHandleListPrivate::~MegaChatHandleListPrivate()
+{
+
+}
+
+MegaChatHandleList *MegaChatHandleListPrivate::copy() const
+{
+    return new MegaChatHandleListPrivate(this);
+}
+
+MegaChatHandle MegaChatHandleListPrivate::get(unsigned int i) const
+{
+    MegaChatHandle handle = MEGACHAT_INVALID_HANDLE;
+
+    if (i < mList.size())
+    {
+        handle = mList.at(i);
+    }
+
+    return handle;
+}
+
+unsigned int MegaChatHandleListPrivate::size() const
+{
+    return mList.size();
+}
+
+void MegaChatHandleListPrivate::addMegaChatHandle(MegaChatHandle megaChatHandle)
+{
+    mList.push_back(megaChatHandle);
 }
