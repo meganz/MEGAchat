@@ -2029,7 +2029,7 @@ const char *MegaChatApiImpl::generateAttachNodeJSon(MegaNodeList *nodes)
 
 MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json)
 {
-    if (!json)
+    if (!json || strcmp(json, "") == 0)
     {
         return NULL;
     }
@@ -2140,7 +2140,7 @@ MegaNodeList *MegaChatMessagePrivate::parseAttachNodeJSon(const char *json)
 
 std::vector<MegaChatAttachedUser> *MegaChatMessagePrivate::parseAttachContactJSon(const char *json)
 {
-    if (!json)
+    if (!json  || strcmp(json, "") == 0)
     {
         return NULL;
     }
@@ -3993,7 +3993,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     int lastMsgStatus = chatroom.chat().lastTextMessage(msg);
     if (lastMsgStatus == 1)
     {
-        this->lastMsg = msg->contents();
+        this->lastMsg = MegaChatLastMessageParser::getLastMessageContent(msg->contents(), msg->type());
         this->lastMsgSender = msg->sender();
         this->lastMsgType = msg->type();
     }
@@ -4178,12 +4178,10 @@ void MegaChatListItemHandler::onRejoinedChat()
 void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    // TODO: if type of message is ATTACHMENT or CONTACT, parse the content and
-    // pass to the apps the usernames/filenames with separators (TBD the separator)
-    // Alternative: first byte specifies the number of items. In case there is only
-    // one item, the following bytes specifies the name of file/contact. If more
-    // than one item, there is no names.
-    item->setLastMessage(msg.type(), msg.contents(), msg.sender());
+
+    std::string lastMessageContent = MegaChatLastMessageParser::getLastMessageContent(msg.contents(), msg.type());
+
+    item->setLastMessage(msg.type(), lastMessageContent, msg.sender());
     chatApi.fireOnChatListItemUpdate(item);
 }
 
@@ -4204,7 +4202,6 @@ MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatAp
 {
 
 }
-
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     : megaChatUsers(NULL)
@@ -4732,4 +4729,66 @@ unsigned int MegaChatHandleListPrivate::size() const
 void MegaChatHandleListPrivate::addMegaChatHandle(MegaChatHandle megaChatHandle)
 {
     mList.push_back(megaChatHandle);
+
+}
+
+string MegaChatLastMessageParser::getLastMessageContent(const string& content, uint8_t type)
+{
+    std::string messageContents;
+    switch (type)
+    {
+        case MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
+        {
+            //Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgContact
+            std::string messageAttach = content;
+            messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
+
+            std::vector<MegaChatAttachedUser> *userVector = MegaChatMessagePrivate::parseAttachContactJSon(messageAttach.c_str());
+            if (userVector && userVector->size() > 0)
+            {
+                for (unsigned int i = 0; i < userVector->size() - 1; ++i)
+                {
+                    messageContents.insert(messageContents.length(), userVector->at(i).getName());
+                    // We use like separateor character 0x01
+                    messageContents.push_back(0x01);
+                }
+
+                messageContents.insert(messageContents.length(), userVector->at(userVector->size() - 1).getName());
+
+                delete userVector;
+            }
+
+            break;
+        }
+        case MegaChatMessage::TYPE_NODE_ATTACHMENT:
+        {
+            //Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgAttachment
+            std::string messageAttach = content;
+            messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
+
+            MegaNodeList *megaNodeList = MegaChatMessagePrivate::parseAttachNodeJSon(messageAttach.c_str());
+            if (megaNodeList && megaNodeList->size() > 0)
+            {
+                for (int i = 0; i < megaNodeList->size() - 1; ++i)
+                {
+                    messageContents.insert(messageContents.length(), megaNodeList->get(i)->getName());
+                    // We use like separateor character 0x01
+                    messageContents.push_back(0x01);
+                }
+
+                messageContents.insert(messageContents.length(), megaNodeList->get(megaNodeList->size() - 1)->getName());
+
+                delete megaNodeList;
+            }
+
+            break;
+        }
+        default:
+        {
+            messageContents = content;
+            break;
+        }
+    }
+
+    return messageContents;
 }

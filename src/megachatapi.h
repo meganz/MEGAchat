@@ -2322,9 +2322,11 @@ public:
      * pending to be retrieved from the server, it returns an empty string.
      *
      * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
-     * returns the filename of the attached node.
+     * returns the filenames of the attached nodes. The filenames of nodes are separated
+     * by ASCII character '0x01'
      * If the message is of type MegaChatMessage::TYPE_CONTACT, this function
-     * returns the username.
+     * returns the usernames. The usernames are separated
+     * by ASCII character '0x01'
      * 
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatListItem object is deleted. If you want to save the MegaChatMessage,
