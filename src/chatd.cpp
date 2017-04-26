@@ -2383,6 +2383,8 @@ void Chat::notifyLastTextMsg()
 
 uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
 {
+    findLastTextMsg();
+
     if (mLastTextMsg.isValid())
     {
         msg = &mLastTextMsg;
@@ -2391,12 +2393,6 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
     if (mLastTextMsg.isFetching())
         return 0xff;
 
-    findLastTextMsg();
-    if (mLastTextMsg.isValid())
-    {
-        msg = &mLastTextMsg;
-        return 1;
-    }
     msg = nullptr;
     if ((mOnlineState == kChatStateJoining) || (mServerFetchState & kHistFetchingOldFromServer))
     {
