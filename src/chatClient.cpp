@@ -209,11 +209,12 @@ Client::~Client()
 //This is a convenience method to log in the SDK in case the app does not do it.
 promise::Promise<void> Client::sdkLoginNewSession()
 {
-    mLoginDlg.reset(app.createLoginDialog());
+    mLoginDlg.assign(app.createLoginDialog());
     async::loop((int)0, [](int) { return true; }, [](int&){},
     [this](async::Loop<int>& loop)
     {
-        return mLoginDlg->requestCredentials()
+        auto pms = mLoginDlg->requestCredentials();
+        return pms
         .then([this](const std::pair<std::string, std::string>& cred)
         {
             mLoginDlg->setState(IApp::ILoginDialog::kLoggingIn);
@@ -238,9 +239,16 @@ promise::Promise<void> Client::sdkLoginNewSession()
         mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
         return api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
     })
+    .fail([this](const promise::Error& err)
+    {
+        marshallCall([this, err]()
+        {
+            mCanConnectPromise.reject(err);
+        });
+    })
     .then([this]()
     {
-        mLoginDlg.reset();
+        mLoginDlg.free();
     });
     return mCanConnectPromise;
 }
@@ -902,14 +910,16 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     .then([this, deleteDb]()
     {
         mUserAttrCache.reset();
-        KR_LOG_INFO("Doing final COMMIT to database");
-        commit();
-
+        if (db)
+        {
+            KR_LOG_INFO("Doing final COMMIT to database");
+            commit();
+        }
         if (deleteDb && !mSid.empty())
         {
             wipeDb(mSid);
         }
-        else
+        else if (db)
         {
             sqlite3_close(db);
             db = nullptr;

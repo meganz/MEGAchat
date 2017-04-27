@@ -3,6 +3,7 @@
 #include <rtcModule/IRtcModule.h>
 #include <chatd.h>
 #include <presenced.h>
+#include <autoHandle.h>
 
 namespace karere
 {
@@ -104,7 +105,6 @@ public:
     class ILoginDialog
     {
     public:
-
         enum LoginStage {
             kAuthenticating,
             kBadCredentials,
@@ -113,25 +113,25 @@ public:
             kLoginComplete,
             kLast=kLoginComplete
         };
-
+        static void destroyInstance(ILoginDialog* inst) { inst->destroy(); }
+        typedef MyAutoHandle<ILoginDialog*, void(*)(ILoginDialog*), &destroyInstance, nullptr> Handle;
+        virtual ~ILoginDialog() {}
         /**
          * @brief This is the method that karere calls when it needs the dialog shown
-         * and credentials entered. It should return the username and password
-         * via the returned promise
-         *
-         * @return
+         * and credentials entered.
+         * @returns A promise with a pair of (username, password)
          */
         virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials() = 0;
 
         /**
          * @brief Called when the state of the login operation changes,
          * to inform the user about the progress of the login operation.
-         *
-         * @param state
          */
         virtual void setState(LoginStage state) {}
+        /** @brief Destroys the dialog. Directly deleting it may not be appropriate
+         * for the GUI toolkit used */
+        virtual void destroy() = 0;
 
-        virtual ~ILoginDialog() {}
     };
 
     /** @brief

@@ -6,13 +6,13 @@ class MyAutoHandle
 protected:
     T mHandle;
 public:
-    inline MyAutoHandle(T handle): mHandle(handle){};
+    inline MyAutoHandle(T handle): mHandle(handle){}
     ~MyAutoHandle()
     {
         if (mHandle != InvalidValue)
             CloseFunc(mHandle);
     }
-    inline MyAutoHandle():mHandle(InvalidValue){};
+    inline MyAutoHandle():mHandle(InvalidValue){}
     inline void free()
     {
         if (mHandle == InvalidValue)
@@ -20,7 +20,9 @@ public:
         CloseFunc(mHandle);
         mHandle = InvalidValue;
     }
+    void reset(T other=InvalidValue) {assign(other); }
     inline operator T() const {return mHandle;}
+    inline T operator->() { return mHandle; }
     inline T handle() const {return mHandle;}
     inline T* handlePtr() {return &mHandle;}
     inline MyAutoHandle& assign(T handle)
