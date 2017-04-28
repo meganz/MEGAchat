@@ -35,6 +35,8 @@ int main(int argc, char **argv)
     t.TEST_attachment();
     t.TEST_sendContact();
 
+    t.TEST_lastMessageGroup();
+
     t.terminate();
     return 0;
 }
@@ -1455,6 +1457,38 @@ void MegaChatApiTest::TEST_attachment()
 
     logout(0, true);
     logout(1, true);
+}
+
+void MegaChatApiTest::TEST_lastMessageGroup()
+{
+    // Send file with account 1 to account 0, direct chat. After send, open account 0 and wait for lastMessage.
+    // Last message contain have to be the same that the file name.
+    login(0);
+
+//    MegaUser *peer0 = megaApi[0]->getContact(email[1].c_str());
+//    assert(peer0);
+
+    MegaChatRoomList *chatrooms = megaChatApi[0]->getChatRooms();
+    assert(chatrooms);
+    const MegaChatRoom *chatroom0 = NULL;
+    for (unsigned int i = 0; i < chatrooms->size(); i++)
+    {
+        if (strcmp(chatrooms->get(i)->getTitle(), "grupal5") == 0)
+        {
+            chatroom0 = chatrooms->get(i);
+            break;
+        }
+    }
+
+    assert(chatroom0);
+    MegaChatHandle chatid0 = chatroom0->getChatId();
+
+    sleep(5);
+
+    MegaChatListItem *item = megaChatApi[0]->getChatListItem(chatid0);
+    std::cout << "LAST Message -- Type: " << item->getLastMessageType() << "    Content: "  << item->getLastMessage() << std::endl;
+
+    logout(0, true);
 }
 
 string MegaChatApiTest::uploadFile(int account, const string& fileName, const string& originPath, const string& contain, const string& destinationPath)

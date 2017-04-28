@@ -102,6 +102,7 @@ public:
     void TEST_receiveContact();
     void TEST_sendContact();
     void TEST_attachment();
+    void TEST_lastMessageGroup();
 
     string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
 
