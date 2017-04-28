@@ -165,6 +165,10 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (MEGAChatMessage *)messageForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
 - (MEGAChatMessage *)sendMessageToChat:(uint64_t)chatId message:(NSString *)message;
 - (MEGAChatMessage *)attachContactsToChat:(uint64_t)chatId contacts:(NSArray *)contacts;
+- (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray;
+- (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle;
 - (MEGAChatMessage *)editMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId message:(NSString *)message;
 - (MEGAChatMessage *)deleteMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
 - (BOOL)setMessageSeenForChat:(uint64_t)chatId messageId:(uint64_t)messageId;

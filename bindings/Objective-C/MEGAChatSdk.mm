@@ -10,6 +10,7 @@
 #import "MEGAChatListItem+init.h"
 #import "MEGAChatListItemList+init.h"
 #import "MEGAChatPresenceConfig+init.h"
+#import "MEGANodeList+init.h"
 #import "DelegateMEGAChatRequestListener.h"
 #import "DelegateMEGAChatLoggerListener.h"
 #import "DelegateMEGAChatRoomListener.h"
@@ -453,6 +454,36 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
         handleContacts[i] = [[contacts objectAtIndex:i] handle];
     }
     return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->attachContacts(chatId, (unsigned int) contacts.count, handleContacts) cMemoryOwn:YES] : nil;
+}
+
+- (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray delegate:(id<MEGAChatRequestDelegate>)delegate {
+    MEGANodeList *nodeList = [[MEGANodeList alloc] init];
+    NSUInteger count = nodesArray.count;
+    for (NSUInteger i = 0; i < count; i++) {
+        MEGANode *node = [nodesArray objectAtIndex:i];
+        [nodeList addNode:node];
+    }
+    
+    self.megaChatApi->attachNodes(chatId, (nodeList != nil) ? [nodeList getCPtr] : NULL, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray {
+    MEGANodeList *nodeList = [[MEGANodeList alloc] init];
+    NSUInteger count = nodesArray.count;
+    for (NSUInteger i = 0; i < count; i++) {
+        MEGANode *node = [nodesArray objectAtIndex:i];
+        [nodeList addNode:node];
+    }
+    
+    self.megaChatApi->attachNodes(chatId, (nodeList != nil) ? [nodeList getCPtr] : NULL, NULL);
+}
+
+- (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->revokeAttachment(chatId, nodeHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle {
+    self.megaChatApi->revokeAttachment(chatId, nodeHandle, NULL);
 }
 
 - (MEGAChatMessage *)editMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId message:(NSString *)message {
