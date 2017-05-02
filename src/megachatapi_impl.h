@@ -263,10 +263,10 @@ public:
     /**
      * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
      * recives the filenames of the attached nodes. The filenames of nodes are separated
-     * by ASCII character '0x001'
+     * by ASCII character '0x01'
      * If the message is of type MegaChatMessage::TYPE_CONTACT, this function
      * recives the usernames. The usernames are separated
-     * by ASCII character '0x001'
+     * by ASCII character '0x01'
      */
     void setLastMessage(int type, const std::string &msg, const uint64_t uh);
 };
