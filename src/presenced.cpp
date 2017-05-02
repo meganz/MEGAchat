@@ -172,7 +172,7 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 #endif
     }
     mHeartbeatEnabled = false;
-    if (mState == kStateDisconnected)
+    if (mConnState == kDisconnected)
         return;
 
     if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
@@ -344,7 +344,7 @@ void Client::disconnect() //should be graceful disconnect
         ws_close(mWebSocket);
         mWebSocket = nullptr;
     }
-    mState = kStateDisconnected;
+    mConnState = kDisconnected;
 }
 
 void Client::reset() //immediate disconnect
