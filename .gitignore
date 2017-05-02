@@ -1,3 +1,4 @@
+/src/karereDbSchema.cpp
 *.user
 deps/
 build/

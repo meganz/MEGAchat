@@ -3,6 +3,7 @@
 #include <rtcModule/IRtcModule.h>
 #include <chatd.h>
 #include <presenced.h>
+#include <autoHandle.h>
 
 namespace karere
 {
@@ -38,15 +39,6 @@ public:
          * name.
          */
         virtual void onTitleChanged(const std::string& title) = 0;
-
-        /**
-         * @brief The online state of the person/chatroom has changed. This can be used
-         * to update the indicator that shows the online status
-         * of the contact/groupchat (online, offline, busy, etc)
-         *
-         * @param state The presence code
-         */
-        virtual void onPresenceChanged(Presence state) = 0;
 
         /**
          * @brief The number of unread messages for that chat has changed. It can be used
@@ -113,7 +105,6 @@ public:
     class ILoginDialog
     {
     public:
-
         enum LoginStage {
             kAuthenticating,
             kBadCredentials,
@@ -122,25 +113,25 @@ public:
             kLoginComplete,
             kLast=kLoginComplete
         };
-
+        static void destroyInstance(ILoginDialog* inst) { inst->destroy(); }
+        typedef MyAutoHandle<ILoginDialog*, void(*)(ILoginDialog*), &destroyInstance, nullptr> Handle;
+        virtual ~ILoginDialog() {}
         /**
          * @brief This is the method that karere calls when it needs the dialog shown
-         * and credentials entered. It should return the username and password
-         * via the returned promise
-         *
-         * @return
+         * and credentials entered.
+         * @returns A promise with a pair of (username, password)
          */
         virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials() = 0;
 
         /**
          * @brief Called when the state of the login operation changes,
          * to inform the user about the progress of the login operation.
-         *
-         * @param state
          */
         virtual void setState(LoginStage state) {}
+        /** @brief Destroys the dialog. Directly deleting it may not be appropriate
+         * for the GUI toolkit used */
+        virtual void destroy() = 0;
 
-        virtual ~ILoginDialog() {}
     };
 
     /** @brief
@@ -173,6 +164,15 @@ public:
          * class mega::MegaUser
          */
         virtual void onVisibilityChanged(int newVisibility) = 0;
+
+        /**
+         * @brief The online state of the person/chatroom has changed. This can be used
+         * to update the indicator that shows the online status
+         * of the contact/groupchat (online, offline, busy, etc)
+         *
+         * @param state The presence code
+         */
+        virtual void onPresenceChanged(Presence state) = 0;
     };
     /**
      * @brief The IChatListItem class represents an interface to a 1on1 or group
@@ -202,11 +202,22 @@ public:
          * This means that either a new message has been received, or the last
          * message of existing history was just fetched (this is the first message
          * received when fetching history, because it is fetched from newest to oldest).
-         * @param msg The message object
-         * @param idx The index of the message in the history buffer. Can be used to
-         * access the message via the \c at(idx) interface
+         * @param type The message type, as in chatd::Message::type
+         * @param contents The contents of the message. May contain binary data
+         * @param ts The message timestamp, as in chatd::Message::ts
+         * @param userid Id of the sender of the message
          */
-        virtual void onLastMessageUpdated(const chatd::Message& msg, chatd::Message::Status status, chatd::Idx idx) {}
+        virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg) {}
+
+        /** @brief Called when the timestamp of the most-recent message has changed.
+         * This happens when a new message is received, or when there were no locally
+         * kown messages and the first old message is received
+         */
+        virtual void onLastTsUpdated(uint32_t ts) {}
+
+        /** @brief Called when the connection state to the chatroom shard changes.
+         */
+        virtual void onChatOnlineState(const chatd::ChatState state) {}
     };
 
     /**
@@ -238,7 +249,6 @@ public:
          * @param userid - the user handle of the user who left the chat.
          */
         virtual void onUserLeave(uint64_t userid) {}
-        virtual void onPeerPresence(Presence pres) {}
     };
 
     /** @brief Manages contactlist items that in turn receive events
@@ -308,10 +318,33 @@ public:
     virtual IChatListHandler* chatListHandler() = 0;
 
     /**
-     * @brief Called by karere when our own online state/presence has changed.
-     * @param pres
+     * @brief Called when our own online status (presence) has changed.
+     *
+     * This can be used to update the indicator that shows the online status
+     * of a contact/peer (online, offline, busy, away)
+     *
+     * @param userid User id whose presence has changed
+     * @param pres The presence code
+     * @param inProgress Whether the presence is being set or not
      */
-    virtual void onOwnPresence(Presence pres, bool inProgress) {} //may include flags
+    virtual void onPresenceChanged(Id userid, Presence pres, bool inProgress) {}
+
+    /**
+     * @brief Called when the presence preferences have changed due to
+     * our or another client of our account updating them.
+     * @param state - the new state of the preferences
+     * @param pending - whether the preferences have actually been applied
+     * on the server (\c false), or we have just sent them and they are not yet
+     * confirmed by the server (\c true). When setAutoaway(), setPersist() or
+     * setPresence() are called, a new presence config is sent to the server,
+     * and this callback is immediately called with the new settings and \pending
+     * set to true. When the server confirms the settings, this callback will
+     * be called with the same config, but with \pending equal to \c false
+     * Thus, the app can display a blinking online status when the user changes
+     * it, until the server confirms it, at which point the status GUI will stop
+     * blinking
+     */
+    virtual void onPresenceConfigChanged(const presenced::Config& config, bool pending) = 0;
 
     /**
      * @brief Called when an incoming contact request has been received.

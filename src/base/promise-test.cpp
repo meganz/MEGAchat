@@ -237,6 +237,20 @@ TestGroup("General")
       });
       pms.resolve(1);
   });
+  asyncTest("Already failed promise should handle fail() and continue to then()")
+  {
+      Promise<int> pms;
+      pms.reject("test");
+      pms.fail([&](const Error& err)
+      {
+          return 1;
+      })
+      .then([&](int a)
+      {
+          doneOrError(a == 1, );
+      });
+  });
+
   asyncTest("Should hold the resolved value even if handlers alerady attached")
   {
      Promise<std::pair<std::string, std::string>> pms;

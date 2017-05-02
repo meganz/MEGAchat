@@ -171,6 +171,8 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
     bytesLogged+=sprintfRv;
     buf[bytesLogged] = 0;
     logString(level, buf, flags, bytesLogged);
+    if (buf != statBuf)
+        delete[] buf;
 }
 
 /** This is the low-level log function that does the actual logging
