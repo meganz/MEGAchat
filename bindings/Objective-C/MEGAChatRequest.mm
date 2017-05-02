@@ -1,6 +1,10 @@
 #import "MEGAChatRequest.h"
+
 #import "megachatapi.h"
+
+#import "MEGAChatMessage+init.h"
 #import "MEGAChatPeerList+init.h"
+#import "MEGANodeList+init.h"
 
 using namespace megachat;
 
@@ -85,6 +89,14 @@ using namespace megachat;
     if (!self.megaChatRequest) return nil;
     const char *ret = self.megaChatRequest->getText();
     return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
+}
+
+- (MEGAChatMessage *)chatMessage {
+    return self.megaChatRequest ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatRequest->getMegaChatMessage()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (MEGANodeList *)nodeList {
+    return self.megaChatRequest ? [[MEGANodeList alloc] initWithNodeList:self.megaChatRequest->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
 }
 
 @end
