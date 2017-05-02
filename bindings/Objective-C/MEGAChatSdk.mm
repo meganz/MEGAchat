@@ -475,7 +475,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
         [nodeList addNode:node];
     }
     
-    self.megaChatApi->attachNodes(chatId, (nodeList != nil) ? [nodeList getCPtr] : NULL, NULL);
+    self.megaChatApi->attachNodes(chatId, (nodeList != nil) ? [nodeList getCPtr] : NULL);
 }
 
 - (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
@@ -483,7 +483,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle {
-    self.megaChatApi->revokeAttachment(chatId, nodeHandle, NULL);
+    self.megaChatApi->revokeAttachment(chatId, nodeHandle);
 }
 
 - (MEGAChatMessage *)editMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId message:(NSString *)message {
