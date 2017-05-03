@@ -1463,6 +1463,8 @@ void MegaChatApiTest::TEST_lastMessage()
     // Send file with account 1 to account 0, direct chat. After send, open account 0 and wait for lastMessage.
     // Last message contain have to be the same that the file name.
 
+    // Prerequisites: both accounts should be contacts and the 1on1 chatroom between them must exist
+
     login(1);
     login(0);
 
@@ -1479,6 +1481,7 @@ void MegaChatApiTest::TEST_lastMessage()
 
     MegaChatHandle chatid1 = chatroom1->getChatId();
     assert (chatid1 != MEGACHAT_INVALID_HANDLE);
+    assert (chatid0 == chatid1);
 
     TestChatRoomListener *chatroomListener1 = new TestChatRoomListener(megaChatApi, chatid1);
     assert(megaChatApi[1]->openChatRoom(chatid1, chatroomListener1));
@@ -1500,9 +1503,11 @@ void MegaChatApiTest::TEST_lastMessage()
     megaNodeList->addNode(node1);
 
     bool *flagConfirmed = &attachNodeSend[1]; *flagConfirmed = false;
+    bool *flagDelivered = &chatroomListener1->msgDelivered[1]; *flagDelivered = false;
     megaChatApi[1]->attachNodes(chatid1, megaNodeList, this);
     delete megaNodeList;
     assert(waitForResponse(flagConfirmed));
+    assert(waitForResponse(flagDelivered));    // for delivery, to ensure account 0 has received it
     MegaChatHandle msgId1 = chatroomListener1->msgId[1];
     assert (msgId1 != MEGACHAT_INVALID_HANDLE);
 
@@ -1722,14 +1727,12 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
 
             case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
             {
-                MegaChatMessage* messageAttach = request->getMegaChatMessage()->copy();
                 attachNodeSend[apiIndex] = true;
                 break;
             }
 
             case MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE:
             {
-                MegaChatMessage* messageRevoke = request->getMegaChatMessage()->copy();
                 revokeNodeSend[apiIndex] = true;
                 break;
             }

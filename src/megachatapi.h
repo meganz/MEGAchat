@@ -1008,9 +1008,7 @@ public:
 };
 
 /**
- * @brief List of MegaChatHandle
- *
- * Objects of this class are immutable
+ * @brief List of MegaChatHandle objects
  *
  */
 class MegaChatHandleList
@@ -1018,7 +1016,7 @@ class MegaChatHandleList
 public:
     /**
      * @brief Creates a new instance of MegaChatHandleList
-     * @return A pointer to the superclass of the private object
+     * @return A pointer the new object
      */
     static MegaChatHandleList *createInstance();
 

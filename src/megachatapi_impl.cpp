@@ -4730,6 +4730,7 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
     }
 
     return megaChatUsers;
+
 }
 
 string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
@@ -4739,7 +4740,7 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
     {
         case MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
         {
-            //Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgContact
+            // Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgContact
             std::string messageAttach = content;
             messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
 
@@ -4748,12 +4749,12 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
             {
                 for (unsigned int i = 0; i < userVector->size() - 1; ++i)
                 {
-                    messageContents.insert(messageContents.length(), userVector->at(i).getName());
-                    // We use like separateor character 0x01
+                    messageContents.append(userVector->at(i).getName());
+                    // We use character 0x01 as separator
                     messageContents.push_back(0x01);
                 }
 
-                messageContents.insert(messageContents.length(), userVector->at(userVector->size() - 1).getName());
+                messageContents.append(userVector->at(userVector->size() - 1).getName());
             }
 
             delete userVector;
@@ -4762,7 +4763,7 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
         }
         case MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
-            //Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgAttachment
+            // Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgAttachment
             std::string messageAttach = content;
             messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
 
@@ -4771,12 +4772,12 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
             {
                 for (int i = 0; i < megaNodeList->size() - 1; ++i)
                 {
-                    messageContents.insert(messageContents.length(), megaNodeList->get(i)->getName());
-                    // We use like separateor character 0x01
+                    messageContents.append(megaNodeList->get(i)->getName());
+                    // We use character 0x01 as separator
                     messageContents.push_back(0x01);
                 }
 
-                messageContents.insert(messageContents.length(), megaNodeList->get(megaNodeList->size() - 1)->getName());
+                messageContents.append(megaNodeList->get(megaNodeList->size() - 1)->getName());
             }
 
             delete megaNodeList;
