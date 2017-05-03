@@ -4471,7 +4471,7 @@ void MegaChatHandleListPrivate::addMegaChatHandle(MegaChatHandle megaChatHandle)
 
 }
 
-const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, mega::MegaApi* megaApi)
+const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, MegaApi* megaApi)
 {
     if (!nodes)
     {
