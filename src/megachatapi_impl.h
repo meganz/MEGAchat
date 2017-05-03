@@ -259,6 +259,15 @@ public:
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
+
+    /**
+     * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
+     * recives the filenames of the attached nodes. The filenames of nodes are separated
+     * by ASCII character '0x01'
+     * If the message is of type MegaChatMessage::TYPE_CONTACT, this function
+     * recives the usernames. The usernames are separated
+     * by ASCII character '0x01'
+     */
     void setLastMessage(int type, const std::string &msg, const uint64_t uh);
 };
 
@@ -394,6 +403,22 @@ public:
     int getErrorType() const;
     const char *getErrorString() const;
     const char *toString() const;
+};
+
+class MegaChatHandleListPrivate : public MegaChatHandleList
+{
+public:
+    MegaChatHandleListPrivate();
+    MegaChatHandleListPrivate(const MegaChatHandleListPrivate *nodeList);
+    virtual ~MegaChatHandleListPrivate();
+
+    virtual MegaChatHandleList *copy() const;
+    virtual MegaChatHandle get(unsigned int i) const;
+    virtual unsigned int size() const;
+    virtual void addMegaChatHandle(MegaChatHandle megaChatHandle);
+
+private:
+    std::vector<MegaChatHandle> mList;
 };
 
 class MegaChatPeerListPrivate : public MegaChatPeerList
@@ -576,11 +601,6 @@ private:
     int code;               // generic field for additional information (ie. the reason of manual sending)
     std::vector<MegaChatAttachedUser>* megaChatUsers;
     mega::MegaNodeList* megaNodeList;
-
-    // you take the ownership of returned value. NULL if error
-    static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
-    // you take the ownership of returned value. NULL if error
-    static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
 };
 
 //Thread safe request queue
@@ -664,9 +684,6 @@ private:
     MegaChatVideoReceiver *localVideoReceiver;
 
     static int convertInitState(int state);
-
-    // you take the ownership of the returned value. NULL if error
-    const char* generateAttachNodeJSon(mega::MegaNodeList* nodes);
 
 public:
     static void megaApiPostMessage(void* msg);
@@ -789,6 +806,7 @@ public:
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
     MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, MegaChatHandleList* handles);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
@@ -878,6 +896,19 @@ public:
      * @return binary string
      */
     static std::string vector_to_b(std::vector<int32_t> vector);
+
+};
+
+class JSonUtils
+{
+public:
+    // you take the ownership of the returned value. NULL if error
+    static const char* generateAttachNodeJSon(mega::MegaNodeList* nodes, mega::MegaApi* megaApi);
+    // you take the ownership of returned value. NULL if error
+    static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
+    // you take the ownership of returned value. NULL if error
+    static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
+    static std::string getLastMessageContent(const std::string &content, uint8_t type);
 
 };
 
