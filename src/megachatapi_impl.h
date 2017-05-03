@@ -582,11 +582,6 @@ public:
     void setContentChanged();
     void setCode(int code);
 
-    // you take the ownership of returned value. NULL if error
-    static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
-    // you take the ownership of returned value. NULL if error
-    static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
-
 private:
     int changed;
 
@@ -689,9 +684,6 @@ private:
     MegaChatVideoReceiver *localVideoReceiver;
 
     static int convertInitState(int state);
-
-    // you take the ownership of the returned value. NULL if error
-    const char* generateAttachNodeJSon(mega::MegaNodeList* nodes);
 
 public:
     static void megaApiPostMessage(void* msg);
@@ -907,9 +899,15 @@ public:
 
 };
 
-class MegaChatLastMessageParser
+class JSonUtils
 {
 public:
+    // you take the ownership of the returned value. NULL if error
+    static const char* generateAttachNodeJSon(mega::MegaNodeList* nodes, mega::MegaApi* megaApi);
+    // you take the ownership of returned value. NULL if error
+    static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
+    // you take the ownership of returned value. NULL if error
+    static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
     static std::string getLastMessageContent(const std::string &content, uint8_t type);
 
 };
