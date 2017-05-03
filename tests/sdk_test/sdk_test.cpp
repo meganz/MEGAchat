@@ -23,17 +23,17 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    t.TEST_resumeSession();
-    t.TEST_setOnlineStatus();
-    t.TEST_getChatRoomsAndMessages();
-    t.TEST_editAndDeleteMessages();
-    t.TEST_groupChatManagement();
-    t.TEST_clearHistory();
-    t.TEST_switchAccounts();
-    t.TEST_offlineMode();
+//    t.TEST_resumeSession();
+//    t.TEST_setOnlineStatus();
+//    t.TEST_getChatRoomsAndMessages();
+//    t.TEST_editAndDeleteMessages();
+//    t.TEST_groupChatManagement();
+//    t.TEST_clearHistory();
+//    t.TEST_switchAccounts();
+//    t.TEST_offlineMode();
 
-    t.TEST_attachment();
-    t.TEST_sendContact();
+//    t.TEST_attachment();
+//    t.TEST_sendContact();
 
     t.TEST_lastMessageGroup();
 

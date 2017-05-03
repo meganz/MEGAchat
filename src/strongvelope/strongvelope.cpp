@@ -755,7 +755,6 @@ ProtocolHandler::decryptChatTitle(const Buffer& data)
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, Message* msg)
 {
-    msg->type = parsedMsg->type;
     msg->userid = parsedMsg->sender;
     msg->clear();
 
@@ -798,6 +797,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 
     auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
     bool isLegacy = parsedMsg->protocolVersion <= 1;
+    message->type = parsedMsg->type;
     if (message->userid == API_USER)
         return handleManagementMessage(parsedMsg, message);
 

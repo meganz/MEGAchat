@@ -804,7 +804,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     ID_CSTR(userid), keyid);
 
                 std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated,
-                    msgdata, msglen, false, keyid));
+                    msgdata, msglen, false, keyid, Message::kMsgInvalid));
                 Chat& chat = mClient.chats(chatid);
                 if (opcode == OP_MSGUPD)
                 {
