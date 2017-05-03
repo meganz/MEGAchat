@@ -1916,7 +1916,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaChat
 
     MegaChatMessage *message = attachContacts(chatid, handles->size(), handleContacts);
 
-    delete handleContacts;
+    delete[] handleContacts;
 
     return message;
 }
