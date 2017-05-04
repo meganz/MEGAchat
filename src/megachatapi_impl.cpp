@@ -4670,7 +4670,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         std::string key = DataTranslation::vector_to_b(kElements);
 
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, fingerprint, INVALID_HANDLE,
+                             megaHandle, &key, &attrstring, fa, fingerprint, INVALID_HANDLE,
                              NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
