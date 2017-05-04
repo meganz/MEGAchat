@@ -120,6 +120,7 @@ public:
     std::string getUniqueString();
     MegaChatMessage *attachNode(mega::MegaNode* node, int accountSend, int accountReception, megachat::MegaChatHandle megaChatId, TestChatRoomListener *chatroomListener);
     int downloadNode(MegaNode *node, int account);
+    void importNode(mega::MegaNode* node, int account, const std::string& destinationName);
 
 private:
     std::string email[NUM_ACCOUNTS];

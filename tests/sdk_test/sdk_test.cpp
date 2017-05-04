@@ -1531,6 +1531,8 @@ void MegaChatApiTest::TEST_attachmentPNG()
     MegaNode* node1 = nodeList->get(0);
     assert(downloadNode(node1, 1) == 1);
 
+    importNode(node1, 1, fileImageName);
+
     bool *flagRequestThumbnail0 = &requestFlags[0][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail0 = false;
     megaApi[0]->getThumbnail(node0, "/tmp/thumbnail0.jpg", this);
     assert(waitForResponse(flagRequestThumbnail0));
@@ -1877,6 +1879,17 @@ int MegaChatApiTest::downloadNode(MegaNode* node, int account)
     }
 
     return downLoadFiles;
+}
+
+void MegaChatApiTest::importNode(MegaNode *node, int account, const string &destinationName)
+{
+    bool *flagCopied = &requestFlags[account][MegaRequest::TYPE_COPY];
+    *flagCopied = false;
+    megaApi[account]->authorizeNode(node);
+    MegaNode *parentNode = megaApi[account]->getNodeByPath("/");
+    megaApi[account]->copyNode(node, parentNode, destinationName.c_str(), this);
+    assert(waitForResponse(flagCopied));
+    assert(!lastError[account]);
 }
 
 MegaLoggerSDK::MegaLoggerSDK(const char *filename)
