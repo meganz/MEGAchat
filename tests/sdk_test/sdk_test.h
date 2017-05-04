@@ -102,15 +102,20 @@ public:
     void TEST_receiveContact();
     void TEST_sendContact();
     void TEST_attachment();
+    void TEST_attachmentPNG();
 
 
     void TEST_lastMessage();
 
-    string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
+    void createSimpleFile(const std::string &fileName, const string &originPath, const std::string &contain);
+    std::string uploadFile(int account, const std::string &fileName, const string &originPath, const string &destinationPath);
+    void getImageFromInternet(const string &path);
+    static size_t writeData(void *data, size_t elementSize, size_t elementNumber, FILE *stream);
 
     void addDownload();
     bool &isNotDownloadRunning();
     int getTotalDownload() const;
+    std::string getUniqueString();
 
 private:
     std::string email[NUM_ACCOUNTS];
