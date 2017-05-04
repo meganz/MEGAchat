@@ -36,6 +36,8 @@ static const unsigned int pollingT      = 500000;   // (microseconds) to check i
 static const unsigned int maxTimeout    = 300;      // Maximum time (seconds) to wait for response from server
 static const unsigned int NUM_ACCOUNTS  = 2;
 
+class TestChatRoomListener;
+
 class MegaLoggerSDK : public MegaLogger {
 
 public:
@@ -109,13 +111,15 @@ public:
 
     void createSimpleFile(const std::string &fileName, const string &originPath, const std::string &contain);
     std::string uploadFile(int account, const std::string &fileName, const string &originPath, const string &destinationPath);
-    void getImageFromInternet(const string &path);
+    void getImageFromInternet(const string &destinationPath);
     static size_t writeData(void *data, size_t elementSize, size_t elementNumber, FILE *stream);
 
     void addDownload();
     bool &isNotDownloadRunning();
     int getTotalDownload() const;
     std::string getUniqueString();
+    MegaChatMessage *attachNode(mega::MegaNode* node, int accountSend, int accountReception, megachat::MegaChatHandle megaChatId, TestChatRoomListener *chatroomListener);
+    int downloadNode(MegaNode *node, int account);
 
 private:
     std::string email[NUM_ACCOUNTS];
