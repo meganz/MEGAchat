@@ -224,6 +224,7 @@ public:
     karere::Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
     bool isEncrypted() const { return mIsEncrypted; }
+    void setEncrypted(bool encrypted) { mIsEncrypted = encrypted; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,

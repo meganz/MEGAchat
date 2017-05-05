@@ -805,6 +805,7 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                 std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated,
                     msgdata, msglen, false, keyid));
+                msg->setEncrypted(true);
                 Chat& chat = mClient.chats(chatid);
                 if (opcode == OP_MSGUPD)
                 {
@@ -2042,6 +2043,10 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         assert(!msg.isEncrypted());
         msgIncomingAfterDecrypt(isNew, true, msg, idx);
         return true;
+    }
+    else
+    {
+        assert(msg.isEncrypted());
     }
 
     try
