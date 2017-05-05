@@ -2053,12 +2053,6 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         CHATID_LOG_WARNING("handleLegacyKeys threw error: %s, ignoring", e.what());
     }
 
-    if (!at(idx).isEncrypted())
-    {
-        CHATID_LOG_DEBUG("handleLegacyKeys already decrypted us, bailing out");
-        return true;
-    }
-
     if (isNew)
     {
         if (mDecryptNewHaltedAt != CHATD_IDX_INVALID)
