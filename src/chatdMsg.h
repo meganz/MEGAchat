@@ -209,7 +209,7 @@ private:
     karere::Id mId;
     bool mIdIsXid = false;
 protected:
-    bool mIsEncrypted = false;
+    uint8_t mIsEncrypted = 0; //0 = not encrypted, 1 = encrypted, 2 = encrypted, there was a decrypt error
     uint8_t mFlags = 0;
 public:
     karere::Id userid;
@@ -223,8 +223,8 @@ public:
     mutable uint8_t userFlags = 0;
     karere::Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
-    bool isEncrypted() const { return mIsEncrypted; }
-    void setEncrypted(bool encrypted) { mIsEncrypted = encrypted; }
+    uint8_t isEncrypted() const { return mIsEncrypted; }
+    void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,
