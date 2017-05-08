@@ -209,11 +209,12 @@ Client::~Client()
 //This is a convenience method to log in the SDK in case the app does not do it.
 promise::Promise<void> Client::sdkLoginNewSession()
 {
-    mLoginDlg.reset(app.createLoginDialog());
+    mLoginDlg.assign(app.createLoginDialog());
     async::loop((int)0, [](int) { return true; }, [](int&){},
     [this](async::Loop<int>& loop)
     {
-        return mLoginDlg->requestCredentials()
+        auto pms = mLoginDlg->requestCredentials();
+        return pms
         .then([this](const std::pair<std::string, std::string>& cred)
         {
             mLoginDlg->setState(IApp::ILoginDialog::kLoggingIn);
@@ -238,9 +239,16 @@ promise::Promise<void> Client::sdkLoginNewSession()
         mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
         return api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
     })
+    .fail([this](const promise::Error& err)
+    {
+        marshallCall([this, err]()
+        {
+            mCanConnectPromise.reject(err);
+        });
+    })
     .then([this]()
     {
-        mLoginDlg.reset();
+        mLoginDlg.free();
     });
     return mCanConnectPromise;
 }
@@ -902,14 +910,16 @@ promise::Promise<void> Client::terminate(bool deleteDb)
     .then([this, deleteDb]()
     {
         mUserAttrCache.reset();
-        KR_LOG_INFO("Doing final COMMIT to database");
-        commit();
-
+        if (db)
+        {
+            KR_LOG_INFO("Doing final COMMIT to database");
+            commit();
+        }
         if (deleteDb && !mSid.empty())
         {
             wipeDb(mSid);
         }
-        else
+        else if (db)
         {
             sqlite3_close(db);
             db = nullptr;
@@ -1007,6 +1017,22 @@ void ChatRoom::onLastMessageTsUpdated(uint32_t ts)
     });
 }
 
+ApiPromise ChatRoom::requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
+{
+    MyListener *listener = new MyListener();
+    parent.client.api.sdk.grantAccessInChat(mChatid, node, userHandle, listener);
+
+    return listener->mPromise;
+}
+
+ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
+{
+    MyListener *listener = new MyListener();
+    parent.client.api.sdk.removeAccessInChat(mChatid, node, userHandle, listener);
+
+    return listener->mPromise;
+}
+
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
@@ -1063,6 +1089,58 @@ promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
     assert(mAppChatHandler);
 //    parent.client.rtc->startMediaCall(mAppChatHandler->callHandler(), jid, av);
     return promise::_Void();
+}
+
+std::vector<ApiPromise> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
+{
+    std::vector<ApiPromise> promises;
+
+    for (int i = 0; i < nodes->size(); ++i)
+    {
+        ApiPromise promise = requestGrantAccess(nodes->get(i), peer());
+        promises.push_back(promise);
+    }
+
+    return promises;
+}
+
+std::vector<ApiPromise> PeerChatRoom::requestRevokeAccessToNode(mega::MegaNode *node)
+{
+    std::vector<ApiPromise> promises;
+
+    ApiPromise promise = requestRevokeAccess(node, peer());
+    promises.push_back(promise);
+
+    return promises;
+}
+
+std::vector<ApiPromise> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
+{
+    std::vector<ApiPromise> promises;
+
+    for (int i = 0; i < nodes->size(); ++i)
+    {
+        for (auto iterator = mPeers.begin(); iterator != mPeers.end(); ++iterator)
+        {
+            ApiPromise promise = requestGrantAccess(nodes->get(i), iterator->second->mHandle);
+            promises.push_back(promise);
+        }
+    }
+
+    return promises;
+}
+
+std::vector<ApiPromise> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *node)
+{
+    std::vector<ApiPromise> promises;
+
+    for (auto iterator = mPeers.begin(); iterator != mPeers.end(); ++iterator)
+    {
+        ApiPromise promise = requestRevokeAccess(node, iterator->second->mHandle);
+        promises.push_back(promise);
+    }
+
+    return promises;
 }
 
 promise::Promise<void> GroupChatRoom::mediaCall(AvFlags av)
@@ -2441,4 +2519,5 @@ std::string encodeFirstName(const std::string& first)
     }
     return result;
 }
+
 }

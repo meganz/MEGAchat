@@ -42,6 +42,7 @@
 #include <karereCommon.h>
 #include <logger.h>
 
+#include <stdint.h>
 
 namespace megachat
 {
@@ -67,6 +68,8 @@ public:
     virtual MegaChatHandle getUserHandle();
     virtual int getPrivilege();
     virtual const char *getText() const;
+    virtual MegaChatMessage *getMegaChatMessage();
+    virtual mega::MegaNodeList *getMegaNodeList();
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -78,6 +81,8 @@ public:
     void setUserHandle(MegaChatHandle userhandle);
     void setPrivilege(int priv);
     void setText(const char *text);
+    void setMegaChatMessage(MegaChatMessage *message);
+    void setMegaNodeList(mega::MegaNodeList *nodelist);
 
 protected:
     int type;
@@ -92,6 +97,8 @@ protected:
     MegaChatHandle userHandle;
     int privilege;
     const char* text;
+    MegaChatMessage* mMessage;
+    mega::MegaNodeList* mMegaNodeList;
 };
 
 class MegaChatPresenceConfigPrivate : public MegaChatPresenceConfig
@@ -252,6 +259,15 @@ public:
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
+
+    /**
+     * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
+     * recives the filenames of the attached nodes. The filenames of nodes are separated
+     * by ASCII character '0x01'
+     * If the message is of type MegaChatMessage::TYPE_CONTACT, this function
+     * recives the usernames. The usernames are separated
+     * by ASCII character '0x01'
+     */
     void setLastMessage(int type, const std::string &msg, const uint64_t uh);
 };
 
@@ -389,6 +405,22 @@ public:
     const char *toString() const;
 };
 
+class MegaChatHandleListPrivate : public MegaChatHandleList
+{
+public:
+    MegaChatHandleListPrivate();
+    MegaChatHandleListPrivate(const MegaChatHandleListPrivate *nodeList);
+    virtual ~MegaChatHandleListPrivate();
+
+    virtual MegaChatHandleList *copy() const;
+    virtual MegaChatHandle get(unsigned int i) const;
+    virtual unsigned int size() const;
+    virtual void addMegaChatHandle(MegaChatHandle megaChatHandle);
+
+private:
+    std::vector<MegaChatHandle> mList;
+};
+
 class MegaChatPeerListPrivate : public MegaChatPeerList
 {
 public:
@@ -507,6 +539,8 @@ private:
     std::vector<MegaChatRoom*> list;
 };
 
+class MegaChatAttachedUser;
+
 class MegaChatMessagePrivate : public MegaChatMessage
 {
 public:
@@ -529,10 +563,15 @@ public:
     virtual bool isDeleted() const;
     virtual bool isEditable() const;
     virtual bool isManagementMessage() const;
-    virtual MegaChatHandle getUserHandleOfAction() const;
+    virtual MegaChatHandle getHandleOfAction() const;
     virtual int getPrivilege() const;
     virtual int getCode() const;
     virtual MegaChatHandle getRowId() const;
+    virtual unsigned int getUsersCount() const;
+    virtual MegaChatHandle getUserHandle(unsigned int index) const;
+    virtual const char *getUserName(unsigned int index) const;
+    virtual const char *getUserEmail(unsigned int index) const;
+    virtual mega::MegaNodeList *getMegaNodeList() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -552,7 +591,7 @@ private:
     MegaChatHandle tempId;  // used until it's given a definitive ID by server
     MegaChatHandle rowId;   // used to identify messages in the manual-sending queue
     MegaChatHandle uh;
-    MegaChatHandle uhAction;// certain messages need additional userhandle, such us priv changes
+    MegaChatHandle hAction;// certain messages need additional handle: such us priv changes, revoke attachment
     int index;              // position within the history buffer
     int64_t ts;
     char *msg;
@@ -560,6 +599,8 @@ private:
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
+    std::vector<MegaChatAttachedUser>* megaChatUsers;
+    mega::MegaNodeList* megaNodeList;
 };
 
 //Thread safe request queue
@@ -764,6 +805,10 @@ public:
     bool isFullHistoryLoaded(MegaChatHandle chatid);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, MegaChatHandleList* handles);
+    void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
+    void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
@@ -805,6 +850,67 @@ public:
     virtual void removePeerChatItem(IApp::IPeerChatListItem& item);
 };
 
+/**
+ * @brief This class represents users attached to a message
+ *
+ * Messages of type MegaChatMessage::TYPE_CONTACT_ATTACHMENT include a list of
+ * users with handle, email and name. The MegaChatMessage provides methods to
+ * get each of them separatedly.
+ *
+ * This class is used internally by MegaChatMessagePrivate, not exposed to apps.
+ *
+ * @see MegaChatMessage::getUserHandle, MegaChatMessage::getUserName and
+ * MegaChatMessage::getUserEmail.
+ */
+class MegaChatAttachedUser
+{
+public:
+    MegaChatAttachedUser(MegaChatHandle contactId, const std::string& email, const std::string& name);
+    virtual ~MegaChatAttachedUser();
+
+    virtual MegaChatHandle getHandle() const;
+    virtual const char *getEmail() const;
+    virtual const char *getName() const;
+
+protected:
+    megachat::MegaChatHandle mHandle;
+    std::string mEmail;
+    std::string mName;
+};
+
+class DataTranslation
+{
+public:
+    /**
+     * @brief Transform binary string into a vector. For example: string.length() = 32 => vector.size() = 8
+     * The vector output is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
+     * @param data string in binary format
+     * @return vector
+     */
+    static std::vector<int32_t> b_to_vector(const std::string& data);
+
+    /**
+     * @brief Transform int32_t vector into a birnary string. For example: string.length() = 32 => vector.size() = 8
+     * The vector input is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
+     * @param data vector of int32_t
+     * @return binary string
+     */
+    static std::string vector_to_b(std::vector<int32_t> vector);
+
+};
+
+class JSonUtils
+{
+public:
+    // you take the ownership of the returned value. NULL if error
+    static const char* generateAttachNodeJSon(mega::MegaNodeList* nodes, mega::MegaApi* megaApi);
+    // you take the ownership of returned value. NULL if error
+    static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
+    // you take the ownership of returned value. NULL if error
+    static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
+    static std::string getLastMessageContent(const std::string &content, uint8_t type);
+
+};
 
 //public karere::IApp::IChatHandler
 // public rtcModule::IEventHandler
