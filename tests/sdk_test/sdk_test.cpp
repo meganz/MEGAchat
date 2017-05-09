@@ -23,18 +23,18 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    t.TEST_resumeSession();
-    t.TEST_setOnlineStatus();
-    t.TEST_getChatRoomsAndMessages();
-    t.TEST_editAndDeleteMessages();
-    t.TEST_groupChatManagement();
-    t.TEST_clearHistory();
-    t.TEST_switchAccounts();
-    t.TEST_offlineMode();
+//    t.TEST_resumeSession();
+//    t.TEST_setOnlineStatus();
+//    t.TEST_getChatRoomsAndMessages();
+//    t.TEST_editAndDeleteMessages();
+//    t.TEST_groupChatManagement();
+//    t.TEST_clearHistory();
+//    t.TEST_switchAccounts();
+//    t.TEST_offlineMode();
 
-    t.TEST_attachment();
-    t.TEST_sendContact();
-    t.TEST_lastMessage();
+//    t.TEST_attachment();
+//    t.TEST_sendContact();
+//    t.TEST_lastMessage();
 
     t.TEST_lastMessageGroup();
 
@@ -1462,19 +1462,18 @@ void MegaChatApiTest::TEST_attachment()
 
 void MegaChatApiTest::TEST_lastMessageGroup()
 {
-    // Send file with account 1 to account 0, direct chat. After send, open account 0 and wait for lastMessage.
-    // Last message contain have to be the same that the file name.
-    login(0);
+    // Read last message from a group chat
+    // Variable GROUP_NAME have to be defined
 
-//    MegaUser *peer0 = megaApi[0]->getContact(email[1].c_str());
-//    assert(peer0);
+    login(0);
 
     MegaChatRoomList *chatrooms = megaChatApi[0]->getChatRooms();
     assert(chatrooms);
     const MegaChatRoom *chatroom0 = NULL;
     for (unsigned int i = 0; i < chatrooms->size(); i++)
     {
-        if (strcmp(chatrooms->get(i)->getTitle(), "grupal6") == 0)
+        assert(getenv("GROUP_NAME"));
+        if (strcmp(chatrooms->get(i)->getTitle(), getenv("GROUP_NAME")) == 0)
         {
             chatroom0 = chatrooms->get(i);
             break;
@@ -1484,7 +1483,7 @@ void MegaChatApiTest::TEST_lastMessageGroup()
     assert(chatroom0);
     MegaChatHandle chatid0 = chatroom0->getChatId();
 
-    sleep(5);
+    sleep(2);
 
     MegaChatListItem *item = megaChatApi[0]->getChatListItem(chatid0);
     std::cout << "LAST Message -- Type: " << item->getLastMessageType() << "    Content: "  << item->getLastMessage() << std::endl;
