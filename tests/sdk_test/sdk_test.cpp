@@ -10,6 +10,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+
+const std::string MegaChatApiTest::PATH = "../tests/sdk_test/";
+const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
+const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
+
 void sigintHandler(int)
 {
     printf("SIGINT Received\n");
@@ -23,19 +28,19 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    t.TEST_resumeSession();
-    t.TEST_setOnlineStatus();
-    t.TEST_getChatRoomsAndMessages();
-    t.TEST_editAndDeleteMessages();
-    t.TEST_groupChatManagement();
-    t.TEST_clearHistory();
-    t.TEST_switchAccounts();
-    t.TEST_offlineMode();
+//    t.TEST_resumeSession();
+//    t.TEST_setOnlineStatus();
+//    t.TEST_getChatRoomsAndMessages();
+//    t.TEST_editAndDeleteMessages();
+//    t.TEST_groupChatManagement();
+//    t.TEST_clearHistory();
+//    t.TEST_switchAccounts();
+//    t.TEST_offlineMode();
 
-    t.TEST_attachment();
+//    t.TEST_attachment();
     t.TEST_attachmentPNG();
-    t.TEST_sendContact();
-    t.TEST_lastMessage();
+//    t.TEST_sendContact();
+//    t.TEST_lastMessage();
 
     t.terminate();
     return 0;
@@ -1464,6 +1469,7 @@ void MegaChatApiTest::TEST_attachment()
 void MegaChatApiTest::TEST_attachmentPNG()
 {
     // Prerequirement email[0] and email[1] are contacts
+    // Image to send has to be at directory ../tests/sdk_test/ from build or define enviroment variable PATH_IMAGE
 
     login(0);
     login(1);
@@ -1508,14 +1514,14 @@ void MegaChatApiTest::TEST_attachmentPNG()
         assert(!lastErrorChat[1]);
     }
 
-    std::string path = "/tmp/";
-    std::string uniqueString = getUniqueString();
+    std::string path = PATH;
 
-    // get image from internet
-    std::string fileImageName = std::string(uniqueString) + ".png";
-    getImageFromInternet(path + fileImageName);
+    if (getenv(PATH_IMAGE.c_str()) != NULL)
+    {
+        path = getenv(PATH_IMAGE.c_str());
+    }
 
-    std::string fileDestination = uploadFile(0, fileImageName, path, "/");
+    std::string fileDestination = uploadFile(0, FILE_IMAGE_NAME, path, "/");
 
     MegaNode* node0 = megaApi[0]->getNodeByPath(fileDestination.c_str());
     assert(node0 != NULL);
@@ -1531,7 +1537,7 @@ void MegaChatApiTest::TEST_attachmentPNG()
     MegaNode* node1 = nodeList->get(0);
     assert(downloadNode(node1, 1) == 1);
 
-    importNode(node1, 1, fileImageName);
+    importNode(node1, 1, FILE_IMAGE_NAME);
 
     bool *flagRequestThumbnail0 = &requestFlags[0][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail0 = false;
     megaApi[0]->getThumbnail(node0, "/tmp/thumbnail0.jpg", this);
@@ -1563,7 +1569,7 @@ void MegaChatApiTest::TEST_attachmentPNG()
     assert(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT);
 
     // Remove file downloaded to try to download after revoke
-    std::string filePath = mDownloadPath + fileImageName;
+    std::string filePath = mDownloadPath + FILE_IMAGE_NAME;
     std::string secondaryFilePath = mDownloadPath + std::string("remove");
     rename(filePath.c_str(), secondaryFilePath.c_str());
 
@@ -1658,24 +1664,6 @@ string MegaChatApiTest::uploadFile(int account, const string& fileName, const st
     assert(!lastError[account]);
 
     return destinationPath + fileName;
-}
-
-void MegaChatApiTest::getImageFromInternet(const std::string& destinationPath)
-{
-    CURL *curl;
-    CURLcode res;
-    char url[] = "https://lh3.googleusercontent.com/97hZGqyyAowKHYFd4HK9MmMfykQ51lem212t-RxrbnOO3X8o3Skatbr695HWEhC0Ss4=w300";
-    curl = curl_easy_init();
-    if (curl) {
-        FILE *fp = fopen(destinationPath.c_str(), "wb");
-        curl_easy_setopt(curl, CURLOPT_URL, url);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, MegaChatApiTest::writeData);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-        res = curl_easy_perform(curl);
-        /* always cleanup */
-        curl_easy_cleanup(curl);
-        fclose(fp);
-    }
 }
 
 size_t MegaChatApiTest::writeData(void *data, size_t elementSize, size_t elementNumber, FILE *stream)

@@ -111,7 +111,6 @@ public:
 
     void createSimpleFile(const std::string &fileName, const string &originPath, const std::string &contain);
     std::string uploadFile(int account, const std::string &fileName, const string &originPath, const string &destinationPath);
-    void getImageFromInternet(const string &destinationPath);
     static size_t writeData(void *data, size_t elementSize, size_t elementNumber, FILE *stream);
 
     void addDownload();
@@ -166,6 +165,10 @@ private:
     bool revokeNodeSend[NUM_ACCOUNTS];
 
     std::string mDownloadPath;
+
+    static const std::string PATH;
+    static const std::string PATH_IMAGE;
+    static const std::string FILE_IMAGE_NAME;
 
 public:
     // implementation for MegaRequestListener
