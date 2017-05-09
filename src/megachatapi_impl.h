@@ -405,22 +405,6 @@ public:
     const char *toString() const;
 };
 
-class MegaChatHandleListPrivate : public MegaChatHandleList
-{
-public:
-    MegaChatHandleListPrivate();
-    MegaChatHandleListPrivate(const MegaChatHandleListPrivate *nodeList);
-    virtual ~MegaChatHandleListPrivate();
-
-    virtual MegaChatHandleList *copy() const;
-    virtual MegaChatHandle get(unsigned int i) const;
-    virtual unsigned int size() const;
-    virtual void addMegaChatHandle(MegaChatHandle megaChatHandle);
-
-private:
-    std::vector<MegaChatHandle> mList;
-};
-
 class MegaChatPeerListPrivate : public MegaChatPeerList
 {
 public:

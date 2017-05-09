@@ -1008,59 +1008,6 @@ public:
 };
 
 /**
- * @brief List of MegaChatHandle objects
- *
- */
-class MegaChatHandleList
-{
-public:
-    /**
-     * @brief Creates a new instance of MegaChatHandleList
-     * @return A pointer the new object
-     */
-    static MegaChatHandleList *createInstance();
-
-    virtual ~MegaChatHandleList();
-
-
-    /**
-     * @brief Creates a copy of this MegaChatHandleList object
-     *
-     * The resulting object is fully independent of the source MegaChatHandleList,
-     * it contains a copy of all internal attributes, so it will be valid after
-     * the original object is deleted.
-     *
-     * You are the owner of the returned object
-     *
-     * @return Copy of the MegaChatHandleList object
-     */
-    virtual MegaChatHandleList *copy() const;
-
-    /**
-     * @brief Returns the MegaChatHandle at the position i in the MegaChatHandleList
-     *
-     *
-     * If the index is >= the size of the list, this function returns MEGACHAT_INVALID_HANDLE.
-     *
-     * @param i Position of the MegaChatHandle that we want to get for the list
-     * @return MegaChatHandle at the position i in the list
-     */
-    virtual MegaChatHandle get(unsigned int i) const;
-
-    /**
-     * @brief Returns the number of MegaChatHandles in the list
-     * @return Number of MegaChatHandles in the list
-     */
-    virtual unsigned int size() const;
-
-    /**
-     * @brief Add new MegaChatHandle to list
-     * @param MegaChatHandle to be added
-     */
-    virtual void addMegaChatHandle(MegaChatHandle megaChatHandle);
-};
-
-/**
  * @brief Allows to manage the chat-related features of a MEGA account
  *
  * You must provide an appKey to use this SDK. You can generate an appKey for your app for free here:

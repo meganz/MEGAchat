@@ -4428,49 +4428,6 @@ std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
     return dataToReturn;
 }
 
-MegaChatHandleListPrivate::MegaChatHandleListPrivate()
-{
-
-}
-
-MegaChatHandleListPrivate::MegaChatHandleListPrivate(const MegaChatHandleListPrivate *nodeList)
-{
-    mList = nodeList->mList;
-}
-
-MegaChatHandleListPrivate::~MegaChatHandleListPrivate()
-{
-
-}
-
-MegaChatHandleList *MegaChatHandleListPrivate::copy() const
-{
-    return new MegaChatHandleListPrivate(this);
-}
-
-MegaChatHandle MegaChatHandleListPrivate::get(unsigned int i) const
-{
-    MegaChatHandle handle = MEGACHAT_INVALID_HANDLE;
-
-    if (i < mList.size())
-    {
-        handle = mList.at(i);
-    }
-
-    return handle;
-}
-
-unsigned int MegaChatHandleListPrivate::size() const
-{
-    return mList.size();
-}
-
-void MegaChatHandleListPrivate::addMegaChatHandle(MegaChatHandle megaChatHandle)
-{
-    mList.push_back(megaChatHandle);
-
-}
-
 const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, MegaApi* megaApi)
 {
     if (!nodes)

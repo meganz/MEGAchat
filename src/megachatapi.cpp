@@ -1070,33 +1070,3 @@ bool MegaChatPresenceConfig::isSignalActivityRequired() const
 {
     return false;
 }
-
-MegaChatHandleList *MegaChatHandleList::createInstance()
-{
-    return new MegaChatHandleListPrivate();
-}
-
-MegaChatHandleList::~MegaChatHandleList()
-{
-
-}
-
-MegaChatHandleList *MegaChatHandleList::copy() const
-{
-    return NULL;
-}
-
-MegaChatHandle MegaChatHandleList::get(unsigned int i) const
-{
-    return MEGACHAT_INVALID_HANDLE;
-}
-
-unsigned int MegaChatHandleList::size() const
-{
-    return 0;
-}
-
-void MegaChatHandleList::addMegaChatHandle(MegaChatHandle megaChatHandle)
-{
-
-}
