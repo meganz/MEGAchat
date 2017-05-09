@@ -26,7 +26,6 @@
 		A82750FD1E97A7F9007CD9E2 /* libevent_openssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750F61E97A7F9007CD9E2 /* libevent_openssl.a */; };
 		A82750FE1E97A7F9007CD9E2 /* libevent_pthreads.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750F71E97A7F9007CD9E2 /* libevent_pthreads.a */; };
 		A82750FF1E97A7F9007CD9E2 /* libevent.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750F81E97A7F9007CD9E2 /* libevent.a */; };
-		A82751001E97A7F9007CD9E2 /* libservices.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750F91E97A7F9007CD9E2 /* libservices.a */; };
 		A82751011E97A7F9007CD9E2 /* libws.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750FA1E97A7F9007CD9E2 /* libws.a */; };
 		A838B2071E9685A200875D96 /* cservices-dns.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2021E9685A200875D96 /* cservices-dns.cpp */; };
 		A838B2081E9685A200875D96 /* cservices-http.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2031E9685A200875D96 /* cservices-http.cpp */; };
@@ -107,7 +106,6 @@
 		A82750F61E97A7F9007CD9E2 /* libevent_openssl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libevent_openssl.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libevent_openssl.a; sourceTree = "<group>"; };
 		A82750F71E97A7F9007CD9E2 /* libevent_pthreads.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libevent_pthreads.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libevent_pthreads.a; sourceTree = "<group>"; };
 		A82750F81E97A7F9007CD9E2 /* libevent.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libevent.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libevent.a; sourceTree = "<group>"; };
-		A82750F91E97A7F9007CD9E2 /* libservices.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libservices.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libservices.a; sourceTree = "<group>"; };
 		A82750FA1E97A7F9007CD9E2 /* libws.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libws.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libws.a; sourceTree = "<group>"; };
 		A838B1F81E96855400875D96 /* libKarere.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKarere.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A838B2021E9685A200875D96 /* cservices-dns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cservices-dns.cpp"; path = "../../src/base/cservices-dns.cpp"; sourceTree = "<group>"; };
@@ -139,7 +137,6 @@
 				A82750FD1E97A7F9007CD9E2 /* libevent_openssl.a in Frameworks */,
 				A82750FE1E97A7F9007CD9E2 /* libevent_pthreads.a in Frameworks */,
 				A82750FF1E97A7F9007CD9E2 /* libevent.a in Frameworks */,
-				A82751001E97A7F9007CD9E2 /* libservices.a in Frameworks */,
 				A82751011E97A7F9007CD9E2 /* libws.a in Frameworks */,
 				A838B2281E96884A00875D96 /* libMEGASDK.a in Frameworks */,
 			);
@@ -270,7 +267,6 @@
 				A82750F61E97A7F9007CD9E2 /* libevent_openssl.a */,
 				A82750F71E97A7F9007CD9E2 /* libevent_pthreads.a */,
 				A82750F81E97A7F9007CD9E2 /* libevent.a */,
-				A82750F91E97A7F9007CD9E2 /* libservices.a */,
 				A82750FA1E97A7F9007CD9E2 /* libws.a */,
 				A838B2271E96884A00875D96 /* libMEGASDK.a */,
 			);
