@@ -1,5 +1,4 @@
 #import <Foundation/Foundation.h>
-#import "MEGAChatPeerList.h"
 
 typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeInitialize,
@@ -22,8 +21,14 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeGetFirstname,
     MEGAChatRequestTypeGetLastname,
     MEGAChatRequestTypeDisconnect,
-    MEGAChatRequestTypeGetEmail
+    MEGAChatRequestTypeGetEmail,
+    MEGAChatRequestTypeNodeMessage,
+    MEGAChatRequestTypeRevokeNodeMessage
 };
+
+@class MEGAChatMessage;
+@class MEGAChatPeerList;
+@class MEGANodeList;
 
 @interface MEGAChatRequest : NSObject
 
@@ -37,6 +42,8 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
 @property (readonly, nonatomic) uint64_t userHandle;
 @property (readonly, nonatomic) NSInteger privilege;
 @property (readonly, nonatomic) NSString *text;
+@property (readonly, nonatomic) MEGAChatMessage *chatMessage;
+@property (readonly, nonatomic) MEGANodeList *nodeList;
 
 - (instancetype)clone;
 

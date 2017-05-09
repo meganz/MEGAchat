@@ -803,8 +803,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                     ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
                     ID_CSTR(userid), keyid);
 
-                std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated,
-                    msgdata, msglen, false, keyid, Message::kMsgInvalid));
+                std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated, msgdata, msglen, false, keyid, Message::kMsgInvalid));
+                msg->setEncrypted(1);
                 Chat& chat = mClient.chats(chatid);
                 if (opcode == OP_MSGUPD)
                 {
@@ -1807,6 +1807,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
     mCrypto->msgDecrypt(cipherMsg)
     .then([this](Message* msg)
     {
+        assert(!msg->isEncrypted());
         //update in db
         CALL_DB(updateMsgInHistory, msg->id(), *msg);
         //update in memory, if loaded
@@ -2005,6 +2006,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
         {
             //history message older than the oldest we have
             assert(isFetchingFromServer());
+            assert(message->isEncrypted() == 1);
             mLastServerHistFetchCount++;
             if (mHasMoreHistoryInDb)
             { //we have db history that is not loaded, so we determine the index
@@ -2043,6 +2045,10 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         msgIncomingAfterDecrypt(isNew, true, msg, idx);
         return true;
     }
+    else
+    {
+        assert(msg.isEncrypted() == 1); //no decrypt attempt was made
+    }
 
     try
     {
@@ -2050,7 +2056,15 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     }
     catch(std::exception& e)
     {
-        CHATID_LOG_WARNING("handleLegacyKeys threw error: %s, ignoring", e.what());
+        CHATID_LOG_WARNING("handleLegacyKeys threw error: %s\n"
+            "Queued messages for decrypt: %d - %d. Ignoring", e.what(),
+            mDecryptOldHaltedAt, idx);
+    }
+
+    if (at(idx).isEncrypted() != 1)
+    {
+        CHATID_LOG_DEBUG("handleLegacyKeys already decrypted msg %s, bailing out", ID_CSTR(msg.id()));
+        return true;
     }
 
     if (isNew)
@@ -2073,6 +2087,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     auto pms = mCrypto->msgDecrypt(&msg);
     if (pms.succeeded())
     {
+        assert(!msg.isEncrypted());
         msgIncomingAfterDecrypt(isNew, false, msg, idx);
         return true;
     }
@@ -2084,13 +2099,16 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         mDecryptOldHaltedAt = idx;
 
     auto message = &msg;
-    pms.fail([this, message](const promise::Error& err) -> promise::Promise<Message*>
+    pms.fail([this, message, idx](const promise::Error& err) -> promise::Promise<Message*>
     {
-        message->mIsEncrypted = true;
+        assert(message->isEncrypted() == 1);
+        message->setEncrypted(2);
         if ((err.type() != SVCRYPTO_ERRTYPE) ||
             (err.code() != SVCRYPTO_ENOKEY))
         {
-            CHATID_LOG_ERROR("Unrecoverable decrypt error at message %s:'%s'\nMessage will not be decrypted", ID_CSTR(message->id()), err.toString().c_str());
+            CHATID_LOG_ERROR(
+                "Unrecoverable decrypt error at message %s(idx %d):'%s'\n"
+                "Message will not be decrypted", ID_CSTR(message->id()), idx, err.toString().c_str());
         }
         else
         {
@@ -2173,6 +2191,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     auto msgid = msg.id();
     if (!isLocal)
     {
+        assert(msg.isEncrypted() != 1); //either decrypted or error
         if (!msg.empty() && (*msg.buf() == 0)) //'special' message - attachment etc
         {
             if (msg.dataSize() < 2)
@@ -2458,7 +2477,7 @@ void Chat::findLastTextMsg()
     //we are empty or there is no text messsage in ram or db - fetch from server
     if (mOnlineState != kChatStateOnline)
     {
-        CHATID_LOG_DEBUG("lastTextMesage: We are not online, can't fetch messages from server");
+//      CHATID_LOG_DEBUG("lastTextMesage: We are not online, can't fetch messages from server");
         return;
     }
     CHATID_LOG_DEBUG("lastTextMessage: No text message found locally, fetching more history from server");

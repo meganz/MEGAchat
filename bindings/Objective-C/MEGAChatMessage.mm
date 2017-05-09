@@ -1,5 +1,6 @@
 #import "MEGAChatMessage.h"
 #import "megachatapi.h"
+#import "MEGANodeList+init.h"
 
 using namespace megachat;
 
@@ -99,7 +100,7 @@ using namespace megachat;
 }
 
 - (uint64_t)userHandleOfAction {
-    return self.megaChatMessage ? self.megaChatMessage->getUserHandleOfAction() : MEGACHAT_INVALID_HANDLE;
+    return self.megaChatMessage ? self.megaChatMessage->getHandleOfAction() : MEGACHAT_INVALID_HANDLE;
 }
 
 - (NSInteger)privilege {
@@ -114,8 +115,28 @@ using namespace megachat;
     return (MEGAChatMessageReason) (self.megaChatMessage ? self.megaChatMessage->getCode() : 0);
 }
 
+- (NSUInteger)usersCount {
+    return self.megaChatMessage ? self.megaChatMessage->getUsersCount() : 0;
+}
+
+- (MEGANodeList *)nodeList {
+    return self.megaChatMessage ? [[MEGANodeList alloc] initWithNodeList:self.megaChatMessage->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
+}
+
 - (BOOL)hasChangedForType:(MEGAChatMessageChangeType)changeType {
     return self.megaChatMessage ? self.megaChatMessage->hasChanged((int)changeType) : NO;
+}
+
+- (uint64_t)userHandleAtIndex:(NSUInteger)index {
+    return self.megaChatMessage ? self.megaChatMessage->getUserHandle((unsigned int)index) : MEGACHAT_INVALID_HANDLE;
+}
+
+- (NSString *)userNameAtIndex:(NSUInteger)index {
+    return self.megaChatMessage ? [[NSString alloc] initWithUTF8String:self.megaChatMessage->getUserName((unsigned int)index)] : nil;
+}
+
+- (NSString *)userEmailAtIndex:(NSUInteger)index {
+    return self.megaChatMessage ? [[NSString alloc] initWithUTF8String:self.megaChatMessage->getUserEmail((unsigned int)index)] : nil;
 }
 
 + (NSString *)stringForChangeType:(MEGAChatMessageChangeType)changeType {

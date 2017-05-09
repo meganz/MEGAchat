@@ -46,6 +46,7 @@ class LoginDialog: public QDialog, public karere::IApp::ILoginDialog
     Ui::LoginDialog ui;
     promise::Promise<std::pair<std::string, std::string>> mPromise;
     static QString sLoginStageStrings[kLast+1];
+    ~LoginDialog(){}
 public:
     LoginDialog(QWidget* parent): QDialog(parent)
     {
@@ -63,7 +64,7 @@ public:
         if (pass)
             ui.mPasswordInput->setText(pass);
     }
-    ~LoginDialog(){}
+    void destroy() { close(); deleteLater(); }
 
     void enableControls(bool enable)
     {
@@ -101,7 +102,7 @@ public slots:
     {
         if (mPromise.done())
             return;
-        mPromise.reject("Login dialog canceled by user");
+        mPromise.reject("Login dialog canceled by user", 0, 0);
     }
     void onType(const QString&)
     {
@@ -110,6 +111,11 @@ public slots:
         enable = enable & email.contains(QChar('@')) && email.contains(QChar('.'));
         if (enable != ui.mOkBtn->isEnabled())
             ui.mOkBtn->setEnabled(enable);
+    }
+    virtual void closeEvent(QCloseEvent *event)
+    {
+        if (!mPromise.done())
+            mPromise.reject("Login dialog closed by user", 0, 0);
     }
 };
 QString LoginDialog::sLoginStageStrings[] = {

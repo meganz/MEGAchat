@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import "MEGANodeList.h"
 
 typedef NS_ENUM(NSInteger, MEGAChatMessageStatus) {
     MEGAChatMessageStatusUnknown        = -1,
@@ -55,10 +56,15 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageReason) {
 @property (readonly, nonatomic) NSInteger privilege;
 @property (readonly, nonatomic) MEGAChatMessageChangeType changes;
 @property (readonly, nonatomic) MEGAChatMessageReason code;
+@property (readonly, nonatomic) NSUInteger usersCount;
+@property (readonly, nonatomic) MEGANodeList *nodeList;
 
 - (instancetype)clone;
 
 - (BOOL)hasChangedForType:(MEGAChatMessageChangeType)changeType;
+- (uint64_t)userHandleAtIndex:(NSUInteger)index;
+- (NSString *)userNameAtIndex:(NSUInteger)index;
+- (NSString *)userEmailAtIndex:(NSUInteger)index;
 
 + (NSString *)stringForChangeType:(MEGAChatMessageChangeType)changeType;
 + (NSString *)stringForStatus:(MEGAChatMessageStatus)status;
