@@ -23,20 +23,18 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-//    t.TEST_resumeSession();
-//    t.TEST_setOnlineStatus();
-//    t.TEST_getChatRoomsAndMessages();
-//    t.TEST_editAndDeleteMessages();
-//    t.TEST_groupChatManagement();
-//    t.TEST_clearHistory();
-//    t.TEST_switchAccounts();
-//    t.TEST_offlineMode();
+    t.TEST_resumeSession();
+    t.TEST_setOnlineStatus();
+    t.TEST_getChatRoomsAndMessages();
+    t.TEST_editAndDeleteMessages();
+    t.TEST_groupChatManagement();
+    t.TEST_clearHistory();
+    t.TEST_switchAccounts();
+    t.TEST_offlineMode();
 
-//    t.TEST_attachment();
-//    t.TEST_sendContact();
-//    t.TEST_lastMessage();
-
-    t.TEST_lastMessageGroup();
+    t.TEST_attachment();
+    t.TEST_sendContact();
+    t.TEST_lastMessage();
 
     t.terminate();
     return 0;
@@ -1458,37 +1456,6 @@ void MegaChatApiTest::TEST_attachment()
 
     logout(0, true);
     logout(1, true);
-}
-
-void MegaChatApiTest::TEST_lastMessageGroup()
-{
-    // Read last message from a group chat
-    // Variable GROUP_NAME have to be defined
-
-    login(0);
-
-    MegaChatRoomList *chatrooms = megaChatApi[0]->getChatRooms();
-    assert(chatrooms);
-    const MegaChatRoom *chatroom0 = NULL;
-    for (unsigned int i = 0; i < chatrooms->size(); i++)
-    {
-        assert(getenv("GROUP_NAME"));
-        if (strcmp(chatrooms->get(i)->getTitle(), getenv("GROUP_NAME")) == 0)
-        {
-            chatroom0 = chatrooms->get(i);
-            break;
-        }
-    }
-
-    assert(chatroom0);
-    MegaChatHandle chatid0 = chatroom0->getChatId();
-
-    sleep(2);
-
-    MegaChatListItem *item = megaChatApi[0]->getChatListItem(chatid0);
-    std::cout << "LAST Message -- Type: " << item->getLastMessageType() << "    Content: "  << item->getLastMessage() << std::endl;
-
-    logout(0, true);
 }
 
 void MegaChatApiTest::TEST_lastMessage()

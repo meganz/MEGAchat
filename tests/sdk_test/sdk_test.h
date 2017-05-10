@@ -102,8 +102,6 @@ public:
     void TEST_receiveContact();
     void TEST_sendContact();
     void TEST_attachment();
-    void TEST_lastMessageGroup();
-
 
     void TEST_lastMessage();
 
