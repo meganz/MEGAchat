@@ -2,6 +2,7 @@
 #import "megachatapi.h"
 #import "MEGAChatMessage.h"
 #import "MEGAChatRoom.h"
+#import "MEGASdk.h"
 
 using namespace megachat;
 
@@ -45,9 +46,17 @@ using namespace megachat;
     NSString *group        = self.isGroup ? @"YES" : @"NO";
     NSString *ownPrivilege = [MEGAChatListItem stringForOwnPrivilege:self.ownPrivilege];
     NSString *type         = [MEGAChatListItem stringForMessageType:self.lastMessageType];
+    NSString *base64ChatId = [MEGASdk base64HandleForUserHandle:self.chatId];
     
-    return [NSString stringWithFormat:@"<%@: chatId=%llu, title=%@, changes=%@, last message=%@, last date=%@, last type=%@, own privilege=%@, unread=%ld, group=%@, active=%@>",
-            [self class], self.chatId, self.title, changes, self.lastMessage, self.lastMessageDate, type, ownPrivilege, (long)self.unreadCount, group, active];
+#ifdef DEBUG
+    return [NSString stringWithFormat:@"<%@: chatId=%@, title=%@, changes=%@, last message=%@, last date=%@, last type=%@, own privilege=%@, unread=%ld, group=%@, active=%@>",
+            [self class], base64ChatId, self.title, changes, self.lastMessage, self.lastMessageDate, type, ownPrivilege, (long)self.unreadCount, group, active];
+#else
+    return [NSString stringWithFormat:@"<%@: chatId=%@, changes=%@, last date=%@, last type=%@, own privilege=%@, unread=%ld, group=%@, active=%@>",
+            [self class], base64ChatId, changes, self.lastMessageDate, type, ownPrivilege, (long)self.unreadCount, group, active];
+#endif
+
+    
 }
 
 - (uint64_t)chatId {
