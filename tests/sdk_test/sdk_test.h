@@ -103,7 +103,6 @@ public:
     void TEST_sendContact();
     void TEST_attachment();
 
-
     void TEST_lastMessage();
 
     string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
@@ -154,6 +153,7 @@ private:
 
     bool attachNodeSend[NUM_ACCOUNTS];
     bool revokeNodeSend[NUM_ACCOUNTS];
+    int mDownloadFinishedError[NUM_ACCOUNTS];
 
     std::string mDownloadPath;
 

@@ -1304,6 +1304,14 @@ void MegaChatApiTest::TEST_switchAccounts()
 
 void MegaChatApiTest::TEST_attachment()
 {
+    // Send file with account 0 to account 1, direct chat.
+    // Prerequisites: both accounts should be contacts and the 1on1 chatroom between them must exist
+    // Procedure:
+    //  - Attach node
+    //  - Receive message and download node (Download is corret)
+    //  - Revoke node
+    //  - Receive message and download node (Download is not correct)
+
     login(0);
     login(1);
 
@@ -1347,7 +1355,6 @@ void MegaChatApiTest::TEST_attachment()
         assert(!lastErrorChat[1]);
     }
 
-
     bool *flagConfirmed = &chatroomListener->msgConfirmed[0]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
     bool *flagDelivered = &chatroomListener->msgDelivered[0]; *flagDelivered = false;
@@ -1367,7 +1374,6 @@ void MegaChatApiTest::TEST_attachment()
     char formatDate[80];
     time(&rawTime);
     timeInfo = localtime(&rawTime);
-    //strftime(formatDate, 80, "%Y%m%d-%H:%M:%S", timeInfo);
     strftime(formatDate, 80, "%Y%m%d_%H%M%S", timeInfo);
 
     std::string fileDestination = uploadFile(0, formatDate, "/tmp/", formatDate, "/");
@@ -1379,6 +1385,7 @@ void MegaChatApiTest::TEST_attachment()
     megaNodeList->addNode(node0);
 
     megaChatApi[0]->attachNodes(chatid0, megaNodeList, this);
+    assert(!lastErrorChat[0]);
     delete megaNodeList;
     assert(waitForResponse(flagConfirmed));
     assert(waitForResponse(flagConfirmed));    // for confirmation, sendMessage() is synchronous
@@ -1395,21 +1402,12 @@ void MegaChatApiTest::TEST_attachment()
     assert(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT);
     mega::MegaNodeList *nodeList = msgReceived->getMegaNodeList();
 
-    int downLoadFiles = 0;
     addDownload();
     MegaNode* node1 = nodeList->get(0);
+    mDownloadFinishedError[1] = API_EACCESS;
     megaApi[1]->startDownload(node1, mDownloadPath.c_str(), this);
     assert(waitForResponse(&isNotDownloadRunning()));
-    if (lastError[1] == API_OK)
-    {
-        downLoadFiles = 1;
-    }
-    else
-    {
-        downLoadFiles = 0;
-    }
-
-    assert(downLoadFiles == 1);
+    assert(mDownloadFinishedError[1] == API_OK);
 
     *flagConfirmed = &revokeNodeSend[0]; *flagConfirmed = false;
     *flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
@@ -1417,7 +1415,7 @@ void MegaChatApiTest::TEST_attachment()
     chatroomListener->msgId[1] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
     megachat::MegaChatHandle revokeAttachmentNode = node0->getHandle();
     megaChatApi[0]->revokeAttachment(chatid0, revokeAttachmentNode, this);
-
+    assert(!lastErrorChat[0]);
     assert(waitForResponse(flagConfirmed));
     msgId0 = chatroomListener->msgId[0];
     assert (msgId0 != MEGACHAT_INVALID_HANDLE);
@@ -1438,19 +1436,11 @@ void MegaChatApiTest::TEST_attachment()
     mega::MegaHandle nodeHandle = msgReceived->getHandleOfAction();
     assert(nodeHandle == node1->getHandle());
 
+    mDownloadFinishedError[1] = API_OK;
     addDownload();
     megaApi[1]->startDownload(node1, mDownloadPath.c_str(), this);
     assert(waitForResponse(&isNotDownloadRunning()));
-    if (lastError[1] == API_OK)
-    {
-        downLoadFiles = 1;
-    }
-    else
-    {
-        downLoadFiles = 0;
-    }
-
-    assert(downLoadFiles == 0);
+    assert(mDownloadFinishedError[1] != API_OK);
 
     delete node0;
 
@@ -1828,7 +1818,20 @@ void MegaChatApiTest::onTransferStart(mega::MegaApi *api, mega::MegaTransfer *tr
 }
 void MegaChatApiTest::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error)
 {
-    std::cerr << "MegaChatApiTest::onTransferFinish" << std::endl;
+    int apiIndex = -1;
+    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    {
+        if (api == megaApi[i])
+        {
+            apiIndex = i;
+            break;
+        }
+    }
+    if (apiIndex == -1)
+    {
+        cout << "Instance of MegaChatApi not recognized" << endl;
+        return;
+    }
 
     --mActiveDownload;
     if (mActiveDownload == 0)
@@ -1836,22 +1839,19 @@ void MegaChatApiTest::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *t
         mNotDownloadRunning = true;
     }
 
-    lastError[1] = error->getErrorCode();
+    mDownloadFinishedError[apiIndex] = error->getErrorCode();
 }
 
 void MegaChatApiTest::onTransferUpdate(mega::MegaApi *api, mega::MegaTransfer *transfer)
 {
-    std::cerr << "MegaChatApiTest::onTransferUpdate" << std::endl;
 }
 
 void MegaChatApiTest::onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* error)
 {
-    std::cerr << "MegaChatApiTest::onTransferTemporaryError" << std::endl;
 }
 
 bool MegaChatApiTest::onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size)
 {
-    std::cerr << "MegaChatApiTest::onTransferData" << std::endl;
 }
 
 TestChatRoomListener::TestChatRoomListener(MegaChatApi **apis, MegaChatHandle chatid)
