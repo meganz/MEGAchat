@@ -1900,7 +1900,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaChatHandleList *handles)
+MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, mega::MegaHandleList *handles)
 {
     if (handles == NULL || handles->size() == 0)
     {

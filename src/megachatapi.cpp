@@ -333,7 +333,7 @@ MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, unsigned int
     return pImpl->attachContacts(chatid, contactsNumber, contacts);
 }
 
-MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, MegaChatHandleList *handles)
+MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, mega::MegaHandleList *handles)
 {
    return pImpl->attachContacts(chatid, handles);
 }

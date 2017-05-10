@@ -1941,10 +1941,10 @@ public:
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param handles MegaChatHandleList with contacts to be attached
+     * @param handles mega::MegaHandleList with contacts to be attached
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
-    MegaChatMessage *attachContacts(MegaChatHandle chatid, MegaChatHandleList* handles);
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* handles);
 
     /**
      * @brief Sends a node or a group of nodes to the specified chatroom
