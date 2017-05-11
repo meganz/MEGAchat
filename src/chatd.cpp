@@ -2406,22 +2406,22 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
     if (mLastTextMsg.isValid())
     {
         msg = &mLastTextMsg;
-        return 1;
+        return LastTextMsg::kHave;
     }
     if (mLastTextMsg.isFetching())
-        return 0xff;
+        return LastTextMsg::kFetching;
 
     findLastTextMsg();
     if (mLastTextMsg.isValid())
     {
         msg = &mLastTextMsg;
-        return 1;
+        return LastTextMsg::kHave;
     }
     msg = nullptr;
     if ((mOnlineState == kChatStateJoining) || (mServerFetchState & kHistFetchingOldFromServer))
     {
         CHATID_LOG_DEBUG("getLastTextMsg: We are joining or fetch is in progress");
-        return 0xff;
+        return LastTextMsg::kFetching;
     }
     else
     {
