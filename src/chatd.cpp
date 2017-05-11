@@ -2231,7 +2231,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     //handle last text message
     if (msg.isText())
     {
-        if ((mLastTextMsg.state() != LastTextMsg::kHave) //we don't have any last-text-msg yet, just use any
+        if ((mLastTextMsg.state() != LastTextMsgState::kHave) //we don't have any last-text-msg yet, just use any
         || (mLastTextMsg.idx() == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
         || (idx > mLastTextMsg.idx())) //we have a newer message
         {
@@ -2483,7 +2483,7 @@ void Chat::findLastTextMsg()
     CHATID_LOG_DEBUG("lastTextMessage: No text message found locally, fetching more history from server");
     mServerOldHistCbEnabled = false;
     requestHistoryFromServer(-16);
-    mLastTextMsg.setState(LastTextMsg::kFetching);
+    mLastTextMsg.setState(LastTextMsgState::kFetching);
 }
 
 void Chat::findAndNotifyLastTextMsg()
@@ -2494,7 +2494,7 @@ void Chat::findAndNotifyLastTextMsg()
         if (wptr.deleted())
             return;
         findLastTextMsg();
-        if (mLastTextMsg.state() == LastTextMsg::kFetching)
+        if (mLastTextMsg.state() == LastTextMsgState::kFetching)
             return;
         notifyLastTextMsg();
     });

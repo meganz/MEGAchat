@@ -353,7 +353,6 @@ enum ServerHistFetchState
  */
 struct LastTextMsg
 {
-    enum: uint8_t { kNone = 0x0, kFetching = 0xff, kOffline = 0xfe, kHave = 0x1 };
     /** @brief The sender of the message */
     karere::Id sender() const { return mSender; }
     /**
@@ -385,6 +384,9 @@ protected:
 /** @brief Internal class that maintains the last-text-message state */
 struct LastTextMsgState: public LastTextMsg
 {
+    /** Enum for mState */
+    enum: uint8_t { kNone = 0x0, kFetching = 0xff, kOffline = 0xfe, kHave = 0x1 };
+
     bool mIsNotified = false;
     uint8_t state() const { return mState; }
     Idx idx() const { return mIdx; }
@@ -414,7 +416,7 @@ struct LastTextMsgState: public LastTextMsg
         mIdx = idx;
         mId = msgid;
     }
-    void clear() { mState = kNone; mType = 0; mContents.clear(); }
+    void clear() { mState = kNone; mType = Message::kMsgInvalid; mContents.clear(); }
 protected:
     friend class Chat;
     uint8_t mState = kNone;
