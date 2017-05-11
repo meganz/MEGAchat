@@ -803,7 +803,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
                     ID_CSTR(userid), keyid);
 
-                std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated, msgdata, msglen, false, keyid, Message::kMsgInvalid));
+                std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated, msgdata, msglen, false, keyid));
                 msg->setEncrypted(1);
                 Chat& chat = mClient.chats(chatid);
                 if (opcode == OP_MSGUPD)
@@ -2405,23 +2405,23 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
     if (mLastTextMsg.isValid())
     {
         msg = &mLastTextMsg;
-        return 1;
+        return LastTextMsgState::kHave;
     }
     if (mLastTextMsg.isFetching())
-        return 0xff;
+        return LastTextMsgState::kFetching;
 
     findLastTextMsg();
     if (mLastTextMsg.isValid())
     {
         msg = &mLastTextMsg;
-        return 1;
+        return LastTextMsgState::kHave;
     }
 
     msg = nullptr;
     if ((mOnlineState == kChatStateJoining) || (mServerFetchState & kHistFetchingOldFromServer))
     {
         CHATID_LOG_DEBUG("getLastTextMsg: We are joining or fetch is in progress");
-        return 0xff;
+        return LastTextMsgState::kFetching;
     }
     else
     {
