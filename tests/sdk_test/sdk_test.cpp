@@ -1399,7 +1399,7 @@ void MegaChatApiTest::TEST_attachment()
     MegaNode *parentNode = megaApi[1]->getNodeByPath("/");
     assert(parentNode);
     megaApi[1]->copyNode(node1, parentNode, formatDate, this);
-    assert(lastError[1] == API_OK);
+    assert(!lastError[1]);
     delete parentNode;
 
     // Download File
