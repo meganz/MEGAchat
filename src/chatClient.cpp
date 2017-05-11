@@ -1132,6 +1132,8 @@ std::vector<ApiPromise> PeerChatRoom::requestRevokeAccessToNode(mega::MegaNode *
         promises.push_back(promise);
     }
 
+    delete megaHandleList;
+
     return promises;
 }
 
@@ -1178,6 +1180,8 @@ std::vector<ApiPromise> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode 
         ApiPromise promise = requestRevokeAccess(node, megaHandleList->get(j));
         promises.push_back(promise);
     }
+
+    delete megaHandleList;
 
     return promises;
 }
