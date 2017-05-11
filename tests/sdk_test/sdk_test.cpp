@@ -1391,15 +1391,23 @@ void MegaChatApiTest::TEST_attachment()
     MegaChatMessage *msgReceived = megaChatApi[1]->getMessage(chatid1, msgId0);   // message should be already received, so in RAM
     assert(msgReceived);
 
-    // Download File
     assert(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT);
     mega::MegaNodeList *nodeList = msgReceived->getMegaNodeList();
+    MegaNode* node1 = nodeList->get(0);
 
+    // Import node
+    MegaNode *parentNode = megaApi[1]->getNodeByPath("/");
+    assert(parentNode);
+    megaApi[1]->copyNode(node1, parentNode, formatDate, this);
+    assert(lastError[1] == API_OK);
+    delete parentNode;
+
+    // Download File
     int downLoadFiles = 0;
     addDownload();
-    MegaNode* node1 = nodeList->get(0);
     megaApi[1]->startDownload(node1, mDownloadPath.c_str(), this);
     assert(waitForResponse(&isNotDownloadRunning()));
+
     if (lastError[1] == API_OK)
     {
         downLoadFiles = 1;
