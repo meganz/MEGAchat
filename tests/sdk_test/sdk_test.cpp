@@ -1395,13 +1395,6 @@ void MegaChatApiTest::TEST_attachment()
     mega::MegaNodeList *nodeList = msgReceived->getMegaNodeList();
     MegaNode* node1 = nodeList->get(0);
 
-    // Import node
-    MegaNode *parentNode = megaApi[1]->getNodeByPath("/");
-    assert(parentNode);
-    megaApi[1]->copyNode(node1, parentNode, formatDate, this);
-    assert(!lastError[1]);
-    delete parentNode;
-
     // Download File
     int downLoadFiles = 0;
     addDownload();
@@ -1418,6 +1411,18 @@ void MegaChatApiTest::TEST_attachment()
     }
 
     assert(downLoadFiles == 1);
+
+    // Import node
+    MegaNode *parentNode = megaApi[1]->getNodeByPath("/");
+    assert(parentNode);
+    bool *flagNodeCopied = &requestFlags[1][mega::MegaRequest::TYPE_COPY]; *flagNodeCopied = false;
+    megaApi[1]->copyNode(node1, parentNode, formatDate, this);
+    delete parentNode;
+    assert(waitForResponse(flagNodeCopied));
+    assert(!lastError[1]);
+    MegaNode *nodeCopied = megaApi[1]->getNodeByHandle(mNodeCopiedHandle);
+    assert(nodeCopied);
+    delete nodeCopied;
 
     *flagConfirmed = &revokeNodeSend[0]; *flagConfirmed = false;
     *flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
@@ -2104,6 +2109,11 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                 }
                 nameReceived[apiIndex] = true;
                 break;
+
+            case MegaRequest::TYPE_COPY:
+                mNodeCopiedHandle = request->getNodeHandle();
+                break;
+
         }
     }
 
