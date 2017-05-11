@@ -1101,15 +1101,12 @@ std::vector<ApiPromise> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeLis
 
         bool accessGranted = false;
 
-        if (megaHandleList)
+        for (unsigned int j = 0; j < megaHandleList->size(); ++j)
         {
-            for (unsigned int j = 0; j < megaHandleList->size(); ++j)
+            if (megaHandleList->get(j) == peer())
             {
-                if (megaHandleList->get(j) == peer())
-                {
-                    accessGranted = true;
-                    break;
-                }
+                accessGranted = true;
+                break;
             }
         }
 
@@ -1129,17 +1126,10 @@ std::vector<ApiPromise> PeerChatRoom::requestRevokeAccessToNode(mega::MegaNode *
 
     mega::MegaHandleList *megaHandleList = parent.client.api.sdk.getAttachmentAccess(mChatid, node->getHandle());
 
-    if (megaHandleList)
+    for (unsigned int j = 0; j < megaHandleList->size(); ++j)
     {
-        for (unsigned int j = 0; j < megaHandleList->size(); ++j)
-        {
-            if (megaHandleList->get(j) == peer())
-            {
-                ApiPromise promise = requestRevokeAccess(node, peer());
-                promises.push_back(promise);
-                break;
-            }
-        }
+        ApiPromise promise = requestRevokeAccess(node, peer());
+        promises.push_back(promise);
     }
 
     return promises;
@@ -1157,15 +1147,12 @@ std::vector<ApiPromise> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeLi
         {
             bool accessGranted = false;
 
-            if (megaHandleList)
+            for (unsigned int j = 0; j < megaHandleList->size(); ++j)
             {
-                for (unsigned int j = 0; j < megaHandleList->size(); ++j)
+                if (megaHandleList->get(j) == iterator->second->mHandle)
                 {
-                    if (megaHandleList->get(j) == iterator->second->mHandle)
-                    {
-                        accessGranted = true;
-                        break;
-                    }
+                    accessGranted = true;
+                    break;
                 }
             }
 
@@ -1186,14 +1173,10 @@ std::vector<ApiPromise> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode 
 
     mega::MegaHandleList *megaHandleList = parent.client.api.sdk.getAttachmentAccess(mChatid, node->getHandle());
 
-    if (megaHandleList)
+    for (unsigned int j = 0; j < megaHandleList->size(); ++j)
     {
-        for (unsigned int j = 0; j < megaHandleList->size(); ++j)
-        {
-
-            ApiPromise promise = requestRevokeAccess(node, megaHandleList->get(j));
-            promises.push_back(promise);
-        }
+        ApiPromise promise = requestRevokeAccess(node, megaHandleList->get(j));
+        promises.push_back(promise);
     }
 
     return promises;
