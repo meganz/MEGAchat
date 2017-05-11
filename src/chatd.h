@@ -377,7 +377,7 @@ struct LastTextMsg
      */
     const std::string& contents() const { return mContents; }
 protected:
-    uint8_t mType;
+    uint8_t mType = Message::kMsgInvalid;
     karere::Id mSender;
     std::string mContents;
 };
