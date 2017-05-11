@@ -1097,20 +1097,7 @@ std::vector<ApiPromise> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeLis
 
     for (int i = 0; i < nodes->size(); ++i)
     {
-        mega::MegaHandleList *megaHandleList = parent.client.api.sdk.getAttachmentAccess(mChatid, nodes->get(i)->getHandle());
-
-        bool accessGranted = false;
-
-        for (unsigned int j = 0; j < megaHandleList->size(); ++j)
-        {
-            if (megaHandleList->get(j) == peer())
-            {
-                accessGranted = true;
-                break;
-            }
-        }
-
-        if (!accessGranted)
+        if (!parent.client.api.sdk.hasAccessToAttachment(mChatid, nodes->get(i)->getHandle(), peer()))
         {
             ApiPromise promise = requestGrantAccess(nodes->get(i), peer());
             promises.push_back(promise);
@@ -1143,24 +1130,11 @@ std::vector<ApiPromise> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeLi
 
     for (int i = 0; i < nodes->size(); ++i)
     {
-        mega::MegaHandleList *megaHandleList = parent.client.api.sdk.getAttachmentAccess(mChatid, nodes->get(i)->getHandle());
-
-        for (auto iterator = mPeers.begin(); iterator != mPeers.end(); ++iterator)
+        for (auto it = mPeers.begin(); it != mPeers.end(); ++it)
         {
-            bool accessGranted = false;
-
-            for (unsigned int j = 0; j < megaHandleList->size(); ++j)
+            if (!parent.client.api.sdk.hasAccessToAttachment(mChatid, nodes->get(i)->getHandle(), it->second->mHandle))
             {
-                if (megaHandleList->get(j) == iterator->second->mHandle)
-                {
-                    accessGranted = true;
-                    break;
-                }
-            }
-
-            if (!accessGranted)
-            {
-                ApiPromise promise = requestGrantAccess(nodes->get(i), iterator->second->mHandle);
+                ApiPromise promise = requestGrantAccess(nodes->get(i), it->second->mHandle);
                 promises.push_back(promise);
             }
         }
