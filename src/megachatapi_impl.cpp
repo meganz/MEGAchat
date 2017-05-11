@@ -3730,7 +3730,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     LastTextMsg *message = &tmp;
     LastTextMsg *&msg = message;
     int lastMsgStatus = chatroom.chat().lastTextMessage(msg);
-    if (lastMsgStatus == 1)
+    if (lastMsgStatus == LastTextMsg::kHave)
     {
         this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
         this->lastMsgSender = msg->sender();
