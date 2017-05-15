@@ -1941,6 +1941,23 @@ void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle han
     return ;
 }
 
+bool MegaChatApiImpl::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const
+{
+    bool ret = false;
+
+    sdkMutex.lock();
+
+    auto it = chatRoomHandler.find(chatid);
+    if (it != chatRoomHandler.end())
+    {
+        ret = it->second->isRevoked(nodeHandle);
+    }
+
+    sdkMutex.unlock();
+
+    return ret;
+}
+
 MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
@@ -2974,6 +2991,88 @@ void MegaChatRoomHandler::onLastMessageTsUpdated(uint32_t ts)
     }
 }
 
+bool MegaChatRoomHandler::isRevoked(MegaChatHandle h)
+{
+    auto it = attachmentsAccess.find(h);
+    if (it != attachmentsAccess.end())
+    {
+        return !it->second;
+    }
+
+    return false;
+}
+
+void MegaChatRoomHandler::handleHistoryMessage(MegaChatMessage *message)
+{
+    if (message->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
+    {
+        mega::MegaNodeList *nodeList = message->getMegaNodeList();
+        for (int i = 0; i < nodeList->size(); i++)
+        {
+            MegaChatHandle h = nodeList->get(i)->getHandle();
+            auto itAccess = attachmentsAccess.find(h);
+            if (itAccess == attachmentsAccess.end())
+            {
+                attachmentsAccess[h] = true;
+            }
+            attachmentsIds[h].insert(message->getMsgId());
+        }
+    }
+    else if (message->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT)
+    {
+        MegaChatHandle h = message->getHandleOfAction();
+        auto itAccess = attachmentsAccess.find(h);
+        if (itAccess == attachmentsAccess.end())
+        {
+            attachmentsAccess[h] = false;
+        }
+    }
+}
+
+std::set<MegaChatHandle> *MegaChatRoomHandler::handleNewMessage(MegaChatMessage *message)
+{
+    set <MegaChatHandle> *msgToUpdate = NULL;
+
+    // new messages overwrite any current access to nodes
+    if (message->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
+    {
+        mega::MegaNodeList *nodeList = message->getMegaNodeList();
+        for (int i = 0; i < nodeList->size(); i++)
+        {
+            MegaChatHandle h = nodeList->get(i)->getHandle();
+            auto itAccess = attachmentsAccess.find(h);
+            if (itAccess != attachmentsAccess.end() && !itAccess->second)
+            {
+                // access changed from revoked to granted --> update attachment messages
+                if (!msgToUpdate)
+                {
+                    msgToUpdate = new set <MegaChatHandle>;
+                }
+                msgToUpdate->insert(attachmentsIds[h].begin(), attachmentsIds[h].end());
+            }
+            attachmentsAccess[h] = true;
+            attachmentsIds[h].insert(message->getMsgId());
+        }
+    }
+    else if (message->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT)
+    {
+        MegaChatHandle h = message->getHandleOfAction();
+        auto itAccess = attachmentsAccess.find(h);
+        if (itAccess != attachmentsAccess.end() && itAccess->second)
+        {
+            // access changed from granted to revoked --> update attachment messages
+            if (!msgToUpdate)
+            {
+                msgToUpdate = new set <MegaChatHandle>;
+            }
+            msgToUpdate->insert(attachmentsIds[h].begin(), attachmentsIds[h].end());
+        }
+        attachmentsAccess[h] = false;
+    }
+
+    return msgToUpdate;
+}
+
 void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &newName)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
@@ -3003,6 +3102,8 @@ void MegaChatRoomHandler::init(Chat &chat, DbInterface *&)
     mChat = &chat;
     mRoom = chatApi->findChatRoom(chatid);
 
+    attachmentsAccess.clear();
+    attachmentsIds.clear();
     mChat->resetListenerState();
 }
 
@@ -3010,17 +3111,37 @@ void MegaChatRoomHandler::onDestroy()
 {
     mChat = NULL;
     mRoom = NULL;
+    attachmentsAccess.clear();
+    attachmentsIds.clear();
 }
 
 void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Status status)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    set <MegaChatHandle> *msgToUpdate = handleNewMessage(message);
+
     chatApi->fireOnMessageReceived(message);
+
+    if (msgToUpdate)
+    {
+        for (auto itMsgId = msgToUpdate->begin(); itMsgId != msgToUpdate->end(); itMsgId++)
+        {
+            MegaChatMessagePrivate *msg = (MegaChatMessagePrivate *)chatApi->getMessage(chatid, *itMsgId);
+            if (msg)
+            {
+                msg->setAccess();
+                chatApi->fireOnMessageUpdate(msg);
+            }
+        }
+        delete msgToUpdate;
+    }
 }
 
 void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isLocal)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    handleHistoryMessage(message);
+
     chatApi->fireOnMessageLoaded(message);
 }
 
@@ -3053,7 +3174,24 @@ void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx 
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kServerReceived, idx);
     message->setStatus(MegaChatMessage::STATUS_SERVER_RECEIVED);
     message->setTempId(msgxid);     // to allow the app to find the "temporal" message
+
+    std::set <MegaChatHandle> *msgToUpdate = handleNewMessage(message);
+
     chatApi->fireOnMessageUpdate(message);
+
+    if (msgToUpdate)
+    {
+        for (auto itMsgId = msgToUpdate->begin(); itMsgId != msgToUpdate->end(); itMsgId++)
+        {
+            MegaChatMessagePrivate *msg = (MegaChatMessagePrivate *)chatApi->getMessage(chatid, *itMsgId);
+            if (msg)
+            {
+                msg->setAccess();
+                chatApi->fireOnMessageUpdate(msg);
+            }
+        }
+        delete msgToUpdate;
+    }
 }
 
 void MegaChatRoomHandler::onMessageRejected(const Message &msg, uint8_t /*reason*/)
@@ -4167,6 +4305,11 @@ void MegaChatMessagePrivate::setContentChanged()
 void MegaChatMessagePrivate::setCode(int code)
 {
     this->code = code;
+}
+
+void MegaChatMessagePrivate::setAccess()
+{
+    this->changed |= MegaChatMessage::CHANGE_TYPE_ACCESS;
 }
 
 unsigned int MegaChatMessagePrivate::getUsersCount() const

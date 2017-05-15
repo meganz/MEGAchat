@@ -284,7 +284,8 @@ public:
     enum
     {
         CHANGE_TYPE_STATUS          = 0x01,
-        CHANGE_TYPE_CONTENT         = 0x02
+        CHANGE_TYPE_CONTENT         = 0x02,
+        CHANGE_TYPE_ACCESS          = 0x04  /// When the access to attached nodes has changed
     };
 
     enum
@@ -547,7 +548,47 @@ public:
      */
     virtual MegaChatHandle getRowId() const;
 
+
+    /**
+     * @brief Returns a bit field with the changes of the message
+     *
+     * This value is only useful for messages notified by MegaChatRoomListener::onMessageUpdate
+     * that can notify about message modifications.
+     *
+     * @return The returned value is an OR combination of these flags:
+     *
+     * - MegaChatMessage::CHANGE_TYPE_STATUS   = 0x01
+     * Check if the status of the message changed
+     *
+     * - MegaChatMessage::CHANGE_TYPE_CONTENT  = 0x02
+     * Check if the content of the message changed
+     *
+     * - MegaChatMessage::CHANGE_TYPE_ACCESS   = 0x04
+     * Check if the access to attached nodes has changed
+     */
     virtual int getChanges() const;
+
+    /**
+     * @brief Returns true if this message has an specific change
+     *
+     * This value is only useful for nodes notified by MegaChatRoomListener::onMessageUpdate
+     * that can notify about the message modifications.
+     *
+     * In other cases, the return value of this function will be always false.
+     *
+     * @param changeType The type of change to check. It can be one of the following values:
+     *
+     * - MegaChatMessage::CHANGE_TYPE_STATUS   = 0x01
+     * Check if the status of the message changed
+     *
+     * - MegaChatMessage::CHANGE_TYPE_CONTENT  = 0x02
+     * Check if the content of the message changed
+     *
+     * - MegaChatMessage::CHANGE_TYPE_ACCESS   = 0x04
+     * Check if the access to attached nodes has changed
+     *
+     * @return true if this message has an specific change
+     */
     virtual bool hasChanged(int changeType) const;
 };
 
@@ -2010,6 +2051,27 @@ public:
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener = NULL);
+
+
+    /** Returns whether the logged in user has been granted access to the node
+     *
+     * Access to attached nodes received in chatrooms is granted when the message
+     * is sent, but it can be revoked afterwards.
+     *
+     * This convenience method allows to check if you still have access to a node
+     * or it was revoked. Usually, apps will show the attachment differently when
+     * access has been revoked.
+     *
+     * @note The returned value will be valid only for nodes attached to messages
+     * already loaded in an opened chatroom. The list of revoked nodes is updated
+     * accordingly while the chatroom is open, based on new messages received.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param nodeHandle MegaChatHandle that identifies the node to check its access
+     *
+     * @return True if the user has access to the node in this chat.
+     */
+    bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const;
 
     /**
      * @brief Edits an existing message

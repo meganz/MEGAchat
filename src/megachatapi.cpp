@@ -350,6 +350,11 @@ void MegaChatApi::revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHan
     return;
 }
 
+bool MegaChatApi::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const
+{
+    return pImpl->isRevoked(chatid, nodeHandle);
+}
+
 MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
 {
     if (!msg)   // force to use deleteMessage() to delete message instead
