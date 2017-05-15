@@ -131,6 +131,8 @@ private:
     std::string chatFirstname, chatLastname, chatEmail; // requested via karere
     bool chatNameReceived[NUM_ACCOUNTS];
 
+    MegaHandle mNodeCopiedHandle;
+
     mega::MegaNodeList *mAttachmentNodeList;
     megachat::MegaChatHandle mAttachmentRevokeNode;
 
