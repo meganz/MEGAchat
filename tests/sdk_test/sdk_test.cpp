@@ -1398,16 +1398,27 @@ void MegaChatApiTest::TEST_attachment()
     MegaChatMessage *msgReceived = megaChatApi[1]->getMessage(chatid1, msgId0);   // message should be already received, so in RAM
     assert(msgReceived);
 
-    // Download File
     assert(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT);
     mega::MegaNodeList *nodeList = msgReceived->getMegaNodeList();
+    MegaNode* node1 = nodeList->get(0);
 
     addDownload();
-    MegaNode* node1 = nodeList->get(0);
     mDownloadFinishedError[1] = API_EACCESS;
     megaApi[1]->startDownload(node1, mDownloadPath.c_str(), this);
     assert(waitForResponse(&isNotDownloadRunning()));
     assert(mDownloadFinishedError[1] == API_OK);
+
+    // Import node
+    MegaNode *parentNode = megaApi[1]->getNodeByPath("/");
+    assert(parentNode);
+    bool *flagNodeCopied = &requestFlags[1][mega::MegaRequest::TYPE_COPY]; *flagNodeCopied = false;
+    megaApi[1]->copyNode(node1, parentNode, formatDate, this);
+    delete parentNode;
+    assert(waitForResponse(flagNodeCopied));
+    assert(!lastError[1]);
+    MegaNode *nodeCopied = megaApi[1]->getNodeByHandle(mNodeCopiedHandle);
+    assert(nodeCopied);
+    delete nodeCopied;
 
     *flagConfirmed = &revokeNodeSend[0]; *flagConfirmed = false;
     *flagReceived = &chatroomListener->msgReceived[1]; *flagReceived = false;
@@ -2096,6 +2107,11 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                 }
                 nameReceived[apiIndex] = true;
                 break;
+
+            case MegaRequest::TYPE_COPY:
+                mNodeCopiedHandle = request->getNodeHandle();
+                break;
+
         }
     }
 

@@ -803,8 +803,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
                     ID_CSTR(userid), keyid);
 
-                std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated,
-                    msgdata, msglen, false, keyid));
+                std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated, msgdata, msglen, false, keyid));
                 msg->setEncrypted(1);
                 Chat& chat = mClient.chats(chatid);
                 if (opcode == OP_MSGUPD)
@@ -2232,7 +2231,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     //handle last text message
     if (msg.isText())
     {
-        if ((mLastTextMsg.state() != LastTextMsg::kHave) //we don't have any last-text-msg yet, just use any
+        if ((mLastTextMsg.state() != LastTextMsgState::kHave) //we don't have any last-text-msg yet, just use any
         || (mLastTextMsg.idx() == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
         || (idx > mLastTextMsg.idx())) //we have a newer message
         {
@@ -2406,22 +2405,23 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
     if (mLastTextMsg.isValid())
     {
         msg = &mLastTextMsg;
-        return LastTextMsg::kHave;
+        return LastTextMsgState::kHave;
     }
     if (mLastTextMsg.isFetching())
-        return LastTextMsg::kFetching;
+        return LastTextMsgState::kFetching;
 
     findLastTextMsg();
     if (mLastTextMsg.isValid())
     {
         msg = &mLastTextMsg;
-        return LastTextMsg::kHave;
+        return LastTextMsgState::kHave;
     }
+
     msg = nullptr;
     if ((mOnlineState == kChatStateJoining) || (mServerFetchState & kHistFetchingOldFromServer))
     {
         CHATID_LOG_DEBUG("getLastTextMsg: We are joining or fetch is in progress");
-        return LastTextMsg::kFetching;
+        return LastTextMsgState::kFetching;
     }
     else
     {
@@ -2483,7 +2483,7 @@ void Chat::findLastTextMsg()
     CHATID_LOG_DEBUG("lastTextMessage: No text message found locally, fetching more history from server");
     mServerOldHistCbEnabled = false;
     requestHistoryFromServer(-16);
-    mLastTextMsg.setState(LastTextMsg::kFetching);
+    mLastTextMsg.setState(LastTextMsgState::kFetching);
 }
 
 void Chat::findAndNotifyLastTextMsg()
@@ -2494,7 +2494,7 @@ void Chat::findAndNotifyLastTextMsg()
         if (wptr.deleted())
             return;
         findLastTextMsg();
-        if (mLastTextMsg.state() == LastTextMsg::kFetching)
+        if (mLastTextMsg.state() == LastTextMsgState::kFetching)
             return;
         notifyLastTextMsg();
     });

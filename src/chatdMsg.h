@@ -233,7 +233,7 @@ public:
           ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
-            KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgNormal, void* aUserp=nullptr)
+            KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
             updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
 
