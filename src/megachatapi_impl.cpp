@@ -2970,7 +2970,7 @@ void MegaChatRoomHandler::handleHistoryMessage(MegaChatMessage *message)
 {
     if (message->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
-        mega::MegaNodeList *nodeList = message->getMegaNodeList();
+        MegaNodeList *nodeList = message->getMegaNodeList();
         for (int i = 0; i < nodeList->size(); i++)
         {
             MegaChatHandle h = nodeList->get(i)->getHandle();
@@ -3000,7 +3000,7 @@ std::set<MegaChatHandle> *MegaChatRoomHandler::handleNewMessage(MegaChatMessage 
     // new messages overwrite any current access to nodes
     if (message->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
-        mega::MegaNodeList *nodeList = message->getMegaNodeList();
+        MegaNodeList *nodeList = message->getMegaNodeList();
         for (int i = 0; i < nodeList->size(); i++)
         {
             MegaChatHandle h = nodeList->get(i)->getHandle();
