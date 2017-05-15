@@ -58,6 +58,7 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageReason) {
 @property (readonly, nonatomic) MEGAChatMessageReason code;
 @property (readonly, nonatomic) NSUInteger usersCount;
 @property (readonly, nonatomic) MEGANodeList *nodeList;
+@property (readonly, nonatomic) uint64_t rowId;
 
 - (instancetype)clone;
 
