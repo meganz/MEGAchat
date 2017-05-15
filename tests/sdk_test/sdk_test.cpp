@@ -1308,7 +1308,7 @@ void MegaChatApiTest::TEST_attachment()
     // Prerequisites: both accounts should be contacts and the 1on1 chatroom between them must exist
     // Procedure:
     //  - Attach node
-    //  - Receive message and download node (Download is corret)
+    //  - Receive message and download node (Download is correct)
     //  - Revoke node
     //  - Receive message and download node (Download is not correct)
 

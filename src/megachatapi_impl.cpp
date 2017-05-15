@@ -731,74 +731,38 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            for (int i = 0; i < nodeList->size(); ++i)
+            const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList(), megaApi);
+            if (!buffer)
             {
-                if (!nodeList->get(i))
-                {
-                    errorCode = MegaChatError::ERROR_ARGS;
-                    break;
-                }
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
             }
 
             std::vector<ApiPromise> promises = chatroom->requesGrantAccessToNodes(nodeList);
 
             promise::when(promises)
-            .then([this, request]()
+            .then([this, request, buffer]()
             {
-                MegaChatErrorPrivate *megaChatError = NULL;
                 ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-                const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList(), megaApi);
 
-                if (buffer)
-                {
-                    std::string stringToSend(buffer);
+                std::string stringToSend(buffer);
+                delete [] buffer;
+                stringToSend.insert(stringToSend.begin(), Message::kMsgAttachment);
+                stringToSend.insert(stringToSend.begin(), 0x0);
 
-                    stringToSend.insert(stringToSend.begin(), Message::kMsgAttachment);
-                    stringToSend.insert(stringToSend.begin(), 0x0);
-                    Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgAttachment, NULL);
-                    MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+                Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgAttachment, NULL);
+                MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+                request->setMegaChatMessage(megaMsg);
 
-                    request->setMegaChatMessage(megaMsg);
-                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                }
-                else
-                {
-                    API_LOG_ERROR("Failed generate the message to send");
-                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
-                }
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
 
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([this, request](const promise::Error& err)
+            .fail([this, request, buffer](const promise::Error& err)
             {
-                MegaChatErrorPrivate *megaChatError = NULL;
-                if (err.code() == MegaError::API_EEXIST)    // access already granted previously
-                {
-                    ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-                    const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList(), megaApi);
-
-                    if (buffer)
-                    {
-                        std::string stringToSend(buffer);
-                        delete []buffer;
-                        stringToSend.insert(stringToSend.begin(), Message::kMsgAttachment);
-                        stringToSend.insert(stringToSend.begin(), 0x0);
-                        Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgAttachment, NULL);
-                        MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-                        request->setMegaChatMessage(megaMsg);
-                        megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    }
-                    else
-                    {
-                        API_LOG_ERROR("Failed to generate JSON for the message to send");
-                        megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
-                    }
-                }
-                else
-                {
-                    API_LOG_ERROR("Failed to grant access to some node");
-                    megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                }
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                API_LOG_ERROR("Failed to grant access to some node");
+                delete [] buffer;
 
                 fireOnChatRequestFinish(request, megaChatError);
             });
