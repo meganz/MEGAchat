@@ -226,4 +226,3 @@ For more details, read the comments in base/gcm.h, and for reference implementat
 ## If Mega API calls are required ##
   * To integrate with the environment, a simple bridge class called MyMegaApi is implemented in /src/sdkApi.h.
     Example usage of it is in /src/chatClient.cpp. 
-
