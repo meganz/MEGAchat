@@ -1,6 +1,7 @@
 #import "MEGAChatMessage.h"
 #import "megachatapi.h"
 #import "MEGANodeList+init.h"
+#import "MEGASdk.h"
 
 using namespace megachat;
 
@@ -44,9 +45,17 @@ using namespace megachat;
     NSString *type = [MEGAChatMessage stringForType:self.type];
     NSString *changes = [MEGAChatMessage stringForChangeType:self.changes];
     NSString *code = [MEGAChatMessage stringForCode:self.code];
-    
-    return [NSString stringWithFormat:@"<%@: messageId=%llu, temporalId=%llu, status=%@, index=%ld, user handle=%llu, type=%@, timestamp=%@, content=%@, edited=%@, deleted=%@, editable=%@, management message=%@, userHandleOfAction=%lld, privilege=%ld, changes=%@, code=%@>",
-            [self class], self.messageId, self.temporalId, status,  self.messageIndex, self.userHandle, type, self.timestamp, self.content, @(self.edited), @(self.deleted), @(self.editable), @(self.managementMessage), self.userHandleOfAction, (long)self.privilege, changes, code];
+    NSString *base64MessageId = [MEGASdk base64HandleForUserHandle:self.messageId];
+    NSString *base64TemporalId = [MEGASdk base64HandleForUserHandle:self.temporalId];
+    NSString *base64userHandle = [MEGASdk base64HandleForUserHandle:self.userHandle];
+
+#ifdef DEBUG
+    return [NSString stringWithFormat:@"<%@: messageId=%@, temporalId=%@, status=%@, index=%ld, user handle=%@, type=%@, timestamp=%@, content=%@, edited=%@, deleted=%@, editable=%@, management message=%@, userHandleOfAction=%lld, privilege=%ld, changes=%@, code=%@>",
+            [self class],base64MessageId, base64TemporalId, status,  self.messageIndex, base64userHandle, type, self.timestamp, self.content, @(self.edited), @(self.deleted), @(self.editable), @(self.managementMessage), self.userHandleOfAction, (long)self.privilege, changes, code];
+#else
+    return [NSString stringWithFormat:@"<%@: messageId=%@, temporalId=%@, status=%@, index=%ld, user handle=%@, type=%@, timestamp=%@, edited=%@, deleted=%@, editable=%@, management message=%@, userHandleOfAction=%lld, privilege=%ld, changes=%@, code=%@>",
+            [self class],base64MessageId, base64TemporalId, status,  self.messageIndex, base64userHandle, type, self.timestamp, @(self.edited), @(self.deleted), @(self.editable), @(self.managementMessage), self.userHandleOfAction, (long)self.privilege, changes, code];
+#endif
 }
 
 - (MEGAChatMessageStatus)status {
@@ -121,6 +130,10 @@ using namespace megachat;
 
 - (MEGANodeList *)nodeList {
     return self.megaChatMessage ? [[MEGANodeList alloc] initWithNodeList:self.megaChatMessage->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (uint64_t)rowId {
+    return self.megaChatMessage ? self.megaChatMessage->getRowId() : MEGACHAT_INVALID_HANDLE;
 }
 
 - (BOOL)hasChangedForType:(MEGAChatMessageChangeType)changeType {

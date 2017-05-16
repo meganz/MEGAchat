@@ -1390,6 +1390,10 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
     {
         status = it->second->presence().status();
     }
+    else if (userhandle == mClient->myHandle())
+    {
+        status = getOnlineStatus();
+    }
 
     sdkMutex.unlock();
 
