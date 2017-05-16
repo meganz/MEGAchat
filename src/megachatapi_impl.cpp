@@ -4109,6 +4109,12 @@ bool MegaChatMessagePrivate::isEditable() const
     return (type == TYPE_NORMAL && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
 }
 
+bool MegaChatMessagePrivate::isDeletable() const
+{
+    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT)
+            && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
+}
+
 bool MegaChatMessagePrivate::isManagementMessage() const
 {
     return (type == TYPE_ALTER_PARTICIPANTS ||

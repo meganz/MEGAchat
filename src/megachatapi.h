@@ -425,6 +425,16 @@ public:
     virtual bool isEditable() const;
 
     /**
+     * @brief Returns whether the message can be deleted
+     *
+     * Currently, messages can be deleted only during a timeframe (1 hour). Later on, the
+     * deletion will be rejected.
+     *
+     * @return True if the message can be deleted. Otherwise, false.
+     */
+    virtual bool isDeletable() const;
+
+    /**
      * @brief Returns whether the message is a management message
      *
      * Management messages are intented to record in the history any change related
