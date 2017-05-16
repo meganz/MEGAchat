@@ -104,6 +104,10 @@ using namespace megachat;
     return self.megaChatMessage ? self.megaChatMessage->isEditable() : NO;
 }
 
+- (BOOL)isDeletable {
+    return self.megaChatMessage ? self.megaChatMessage->isDeletable() : NO;
+}
+
 - (BOOL)isManagementMessage {
     return self.megaChatMessage ? self.megaChatMessage->isManagementMessage() : NO;
 }
