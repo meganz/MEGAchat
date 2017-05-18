@@ -19,131 +19,157 @@
  * program.
  */
 
+#ifndef CHATTEST_H
+#define CHATTEST_H
+
 #include <mega.h>
 #include <megaapi.h>
-#include "../../src/megachatapi.h"
+#include "megachatapi.h"
 
 #include <iostream>
 #include <fstream>
 
-using namespace mega;
-using namespace megachat;
+static const std::string APPLICATION_KEY = "MBoVFSyZ";
+static const std::string USER_AGENT_DESCRIPTION  = "Tests for Karere SDK functionality";
 
-static const string APP_KEY     = "MBoVFSyZ";
-static const string USER_AGENT  = "Tests for Karere SDK functionality";
+static const unsigned int maxTimeout = 300;
+static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
+static const unsigned int NUM_ACCOUNTS = 2;
 
-static const unsigned int pollingT      = 500000;   // (microseconds) to check if response from server is received
-static const unsigned int maxTimeout    = 300;      // Maximum time (seconds) to wait for response from server
-static const unsigned int NUM_ACCOUNTS  = 2;
-
-class MegaLoggerSDK : public MegaLogger {
+class MegaLoggerSDK : public mega::MegaLogger {
 
 public:
     MegaLoggerSDK(const char *filename);
     ~MegaLoggerSDK();
 
 private:
-    ofstream sdklog;
+    std::ofstream sdklog;
 
 protected:
     void log(const char *time, int loglevel, const char *source, const char *message);
 };
 
-class MegaChatLoggerSDK : public MegaChatLogger {
+class MegaChatLoggerSDK : public megachat::MegaChatLogger {
 
 public:
     MegaChatLoggerSDK(const char *filename);
     ~MegaChatLoggerSDK();
 
 private:
-    ofstream sdklog;
+    std::ofstream sdklog;
 
 protected:
     void log(int loglevel, const char *message);
 };
 
-class MegaChatApiTest : public MegaRequestListener, MegaChatRequestListener, MegaChatListener, mega::MegaTransferListener
+class Account
+{
+public:
+    Account();
+    Account(const std::string &email, const std::string &password);
+
+    std::string getEmail() const;
+    std::string getPassword() const;
+private:
+    std::string mEmail;
+    std::string mPassword;
+};
+
+class TestChatRoomListener;
+
+class MegaChatApiTest :
+        public mega::MegaListener,
+        public mega::MegaRequestListener,
+        public mega::MegaTransferListener,
+        public mega::MegaLogger,
+        public megachat::MegaChatRequestListener,
+        public megachat::MegaChatListener
 {
 public:
     MegaChatApiTest();
     ~MegaChatApiTest();
+
     void init();
-    char *login(int accountIndex, const char *session = NULL);
+    char *login(int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
     void logout(int accountIndex, bool closeSession = false);
     void terminate();
 
-    static void printChatRoomInfo(const MegaChatRoom *);
-    static void printMessageInfo(const MegaChatMessage *);
-    static void printChatListItemInfo(const MegaChatListItem *);
+    static void printChatRoomInfo(const megachat::MegaChatRoom *);
+    static void printMessageInfo(const megachat::MegaChatMessage *);
+    static void printChatListItemInfo(const megachat::MegaChatListItem *);
 
-    bool waitForResponse(bool *responseReceived, int timeout = maxTimeout);
+    bool waitForResponse(bool *responseReceived, int timeout = maxTimeout) const;
 
-    MegaApi* megaApi[NUM_ACCOUNTS];
-    MegaChatApi* megaChatApi[NUM_ACCOUNTS];
+    bool TEST_ResumeSession(unsigned int accountIndex);
+    void TEST_SetOnlineStatus(unsigned int accountIndex);
+    void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
+    void TEST_EditAndDeleteMessages(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_GroupChatManagement(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_OfflineMode(unsigned int accountIndex);
+    void TEST_ClearHistory(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_SwitchAccounts(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_SendContact(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_Attachment(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_LastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_GroupLastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
 
-    // flags to monitor the completion of requests
-    bool requestFlags[NUM_ACCOUNTS][MegaRequest::TYPE_CHAT_SET_TITLE];
-    bool requestFlagsChat[NUM_ACCOUNTS][MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
+private:
+    int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
+    void makeContact(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    megachat::MegaChatHandle createGroupChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatPeerList *peers);
+    megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
 
-    bool initStateChanged[NUM_ACCOUNTS];
-    int initState[NUM_ACCOUNTS];
+    megachat::MegaChatMessage *sendTextMessageOrUpdate(unsigned int senderAccountIndex, unsigned int receiverAccountIndex,
+                                               megachat::MegaChatHandle chatid, const std::string& textToSend,
+                                               TestChatRoomListener *chatroomListener, megachat::MegaChatHandle messageId = megachat::MEGACHAT_INVALID_HANDLE);
 
-    int lastError[NUM_ACCOUNTS];
-    int lastErrorChat[NUM_ACCOUNTS];
+    void checkEmail(unsigned int indexAccount);
+    std::string dateToString();
+    mega::MegaHandle createAndSendFile(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatHandle chatid,
+                                    std::string fileName, std::string contain, TestChatRoomListener* chatroomListener);
 
-    void TEST_resumeSession();
-    void TEST_setOnlineStatus();
-    void TEST_getChatRoomsAndMessages();
-    void TEST_editAndDeleteMessages();
-    void TEST_groupChatManagement();
-    void TEST_offlineMode();
-    void TEST_clearHistory();
-    void TEST_switchAccounts();
-    void TEST_receiveContact();
-    void TEST_sendContact();
-    void TEST_attachment();
+    void clearHistory(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
+    void leaveChat(unsigned int accountIndex, megachat::MegaChatHandle chatid);
 
+    unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
+    unsigned int getMegaApiIndex(mega::MegaApi *api);
 
-    void TEST_lastMessage();
-
-    string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
-
+    std::string uploadFile(int accountIndex, const std::string &fileName, const std::string &originPath, const std::string &contain, const std::string &destinationPath);
     void addDownload();
     bool &isNotDownloadRunning();
     int getTotalDownload() const;
 
-private:
-    std::string email[NUM_ACCOUNTS];
-    std::string pwd[NUM_ACCOUNTS];
+    void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
+    Account mAccounts[NUM_ACCOUNTS];
 
-    MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
-    MegaChatRoom *chatroom[NUM_ACCOUNTS];
-    MegaChatListItem *chatListItem[NUM_ACCOUNTS];
+    mega::MegaApi* megaApi[NUM_ACCOUNTS];
+    megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];
+
+    // flags
+    bool requestFlags[NUM_ACCOUNTS][mega::MegaRequest::TYPE_CHAT_SET_TITLE];
+    bool requestFlagsChat[NUM_ACCOUNTS][megachat::MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
+    bool initStateChanged[NUM_ACCOUNTS];
+    int initState[NUM_ACCOUNTS];
+    int lastError[NUM_ACCOUNTS];
+    int lastErrorChat[NUM_ACCOUNTS];
+    int lastErrorTransfer[NUM_ACCOUNTS];
+
+    megachat::MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
+    megachat::MegaChatRoom *chatroom[NUM_ACCOUNTS];
+    megachat::MegaChatListItem *chatListItem[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
     bool chatItemUpdated[NUM_ACCOUNTS];
     bool chatItemClosed[NUM_ACCOUNTS];
     bool peersUpdated[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
 
-    std::string firstname, lastname;
+    std::string mFirstname;
+    std::string mLastname;
+    std::string mEmail;
     bool nameReceived[NUM_ACCOUNTS];
 
-    std::string chatFirstname, chatLastname, chatEmail; // requested via karere
     bool chatNameReceived[NUM_ACCOUNTS];
-
-    mega::MegaNodeList *mAttachmentNodeList;
-    megachat::MegaChatHandle mAttachmentRevokeNode;
-
-//    MegaContactRequest* cr[2];
-
-    // flags to monitor the updates of nodes/users/PCRs due to actionpackets
-//    bool nodeUpdated[2];
-//    bool userUpdated[2];
-//    bool contactRequestUpdated[2];
-
-//    MegaChatRoomList *chats;   //  runtime cache of fetched/updated chats
-//    MegaHandle chatid;         // opened chatroom
 
     MegaLoggerSDK *logger;
     MegaChatLoggerSDK *chatLogger;
@@ -155,55 +181,44 @@ private:
     bool attachNodeSend[NUM_ACCOUNTS];
     bool revokeNodeSend[NUM_ACCOUNTS];
 
-    std::string mDownloadPath;
+    mega::MegaContactRequest* contactRequest[NUM_ACCOUNTS];
+    bool contactRequestUpdated[2];
 
 public:
     // implementation for MegaRequestListener
-    virtual void onRequestStart(MegaApi *api, MegaRequest *request) {}
-    virtual void onRequestUpdate(MegaApi*api, MegaRequest *request) {}
-    virtual void onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e);
-    virtual void onRequestTemporaryError(MegaApi *api, MegaRequest *request, MegaError* error) {}
+    virtual void onRequestStart(mega::MegaApi *api, mega::MegaRequest *request) {}
+    virtual void onRequestUpdate(mega::MegaApi*api, mega::MegaRequest *request) {}
+    virtual void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e);
+    virtual void onRequestTemporaryError(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError* error) {}
+
+    // implementation for MegaListener
+    virtual void onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactRequestList* requests);
 
     // implementation for MegaChatRequestListener
-    virtual void onRequestStart(MegaChatApi* api, MegaChatRequest *request) {}
-    virtual void onRequestFinish(MegaChatApi* api, MegaChatRequest *request, MegaChatError* e);
-    virtual void onRequestUpdate(MegaChatApi*api, MegaChatRequest *request) {}
-    virtual void onRequestTemporaryError(MegaChatApi *api, MegaChatRequest *request, MegaChatError* error) {}
+    virtual void onRequestStart(megachat::MegaChatApi* api, megachat::MegaChatRequest *request) {}
+    virtual void onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e);
+    virtual void onRequestUpdate(megachat::MegaChatApi*api, megachat::MegaChatRequest *request) {}
+    virtual void onRequestTemporaryError(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError* error) {}
 
     // implementation for MegaChatListener
-    virtual void onChatInitStateUpdate(MegaChatApi *api, int newState);
-    virtual void onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item);
-    virtual void onChatOnlineStatusUpdate(MegaChatApi* api, int status);
+    virtual void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState);
+    virtual void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
+    virtual void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, int status);
 
     virtual void onTransferStart(mega::MegaApi *api, mega::MegaTransfer *transfer);
     virtual void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error);
     virtual void onTransferUpdate(mega::MegaApi *api, mega::MegaTransfer *transfer);
     virtual void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* error);
     virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
-
-//    void onUsersUpdate(MegaApi* api, MegaUserList *users);
-//    void onNodesUpdate(MegaApi* api, MegaNodeList *nodes);
-//    void onAccountUpdate(MegaApi *api) {}
-//    void onContactRequestsUpdate(MegaApi* api, MegaContactRequestList* requests);
-//    void onReloadNeeded(MegaApi *api) {}
-//#ifdef ENABLE_SYNC
-//    void onSyncFileStateChanged(MegaApi *api, MegaSync *sync, const char *filePath, int newState) {}
-//    void onSyncEvent(MegaApi *api, MegaSync *sync,  MegaSyncEvent *event) {}
-//    void onSyncStateChanged(MegaApi *api,  MegaSync *sync) {}
-//    void onGlobalSyncStateChanged(MegaApi* api) {}
-//#endif
-//#ifdef ENABLE_CHAT
-//    void onChatsUpdate(MegaApi *api, MegaTextChatList *chats);
-//#endif
 };
 
-class TestChatRoomListener : public MegaChatRoomListener
+class TestChatRoomListener : public megachat::MegaChatRoomListener
 {
 public:
-    TestChatRoomListener(MegaChatApi **apis, MegaChatHandle chatid);
+    TestChatRoomListener(megachat::MegaChatApi **apis, megachat::MegaChatHandle chatid);
 
-    MegaChatApi **megaChatApi;
-    MegaChatHandle chatid;
+    megachat::MegaChatApi **megaChatApi;
+    megachat::MegaChatHandle chatid;
 
     bool historyLoaded[NUM_ACCOUNTS];   // when, after loadMessage(X), X messages have been loaded
     bool historyTruncated[NUM_ACCOUNTS];
@@ -217,10 +232,10 @@ public:
     bool msgContactReceived[NUM_ACCOUNTS];
     bool msgRevokeAttachmentReceived[NUM_ACCOUNTS];
 
-    MegaChatMessage *message;
-    MegaChatHandle msgId[NUM_ACCOUNTS];
+    megachat::MegaChatMessage *message;
+    megachat::MegaChatHandle msgId[NUM_ACCOUNTS];
     int msgCount[NUM_ACCOUNTS];
-    MegaChatHandle uhAction[NUM_ACCOUNTS];
+    megachat::MegaChatHandle uhAction[NUM_ACCOUNTS];
     int priv[NUM_ACCOUNTS];
     std::string content[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
@@ -228,9 +243,16 @@ public:
     bool titleUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
-    virtual void onChatRoomUpdate(MegaChatApi* megaChatApi, MegaChatRoom *chat);
-    virtual void onMessageLoaded(MegaChatApi* megaChatApi, MegaChatMessage *msg);   // loaded by getMessages()
-    virtual void onMessageReceived(MegaChatApi* megaChatApi, MegaChatMessage *msg);
-    virtual void onMessageUpdate(MegaChatApi* megaChatApi, MegaChatMessage *msg);   // new or updated
+    virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);
+    virtual void onMessageLoaded(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // loaded by getMessages()
+    virtual void onMessageReceived(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);
+    virtual void onMessageUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // new or updated
+
+private:
+    unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
+
+
+#endif // CHATTEST_H
+
 
