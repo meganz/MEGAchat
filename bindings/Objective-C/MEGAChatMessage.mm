@@ -104,6 +104,10 @@ using namespace megachat;
     return self.megaChatMessage ? self.megaChatMessage->isEditable() : NO;
 }
 
+- (BOOL)isDeletable {
+    return self.megaChatMessage ? self.megaChatMessage->isDeletable() : NO;
+}
+
 - (BOOL)isManagementMessage {
     return self.megaChatMessage ? self.megaChatMessage->isManagementMessage() : NO;
 }
@@ -130,6 +134,10 @@ using namespace megachat;
 
 - (MEGANodeList *)nodeList {
     return self.megaChatMessage ? [[MEGANodeList alloc] initWithNodeList:self.megaChatMessage->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (uint64_t)rowId {
+    return self.megaChatMessage ? self.megaChatMessage->getRowId() : MEGACHAT_INVALID_HANDLE;
 }
 
 - (BOOL)hasChangedForType:(MEGAChatMessageChangeType)changeType {

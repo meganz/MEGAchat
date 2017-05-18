@@ -169,7 +169,15 @@ private:
     std::string mEmail;
     bool nameReceived[NUM_ACCOUNTS];
 
+    std::string mChatFirstname;
+    std::string mChatLastname;
+    std::string mChatEmail;
     bool chatNameReceived[NUM_ACCOUNTS];
+
+    mega::MegaHandle mNodeCopiedHandle;
+
+    mega::MegaNodeList *mAttachmentNodeList;
+    megachat::MegaChatHandle mAttachmentRevokeNode;
 
     MegaLoggerSDK *logger;
     MegaChatLoggerSDK *chatLogger;

@@ -525,17 +525,17 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
             {
                 MegaChatHandle uh = chatroom->getPeerHandle(i);
 
-                bool *flagNameReceived = &chatNameReceived[accountIndex]; *flagNameReceived = false; mFirstname = "";
+                bool *flagNameReceived = &chatNameReceived[accountIndex]; *flagNameReceived = false; mChatFirstname = "";
                 megaChatApi[accountIndex]->getUserFirstname(uh);
                 assert(waitForResponse(flagNameReceived));
                 assert(!lastErrorChat[accountIndex]);
-                cout << "Peer firstname (" << uh << "): " << mFirstname << " (len: " << mFirstname.length() << ")" << endl;
+                cout << "Peer firstname (" << uh << "): " << mChatFirstname << " (len: " << mChatFirstname.length() << ")" << endl;
 
-                flagNameReceived = &chatNameReceived[accountIndex]; *flagNameReceived = false; mLastname = "";
+                flagNameReceived = &chatNameReceived[accountIndex]; *flagNameReceived = false; mChatLastname = "";
                 megaChatApi[0]->getUserLastname(uh);
                 assert(waitForResponse(flagNameReceived));
                 assert(!lastErrorChat[accountIndex]);
-                cout << "Peer lastname (" << uh << "): " << mLastname << " (len: " << mLastname.length() << ")" << endl;
+                cout << "Peer lastname (" << uh << "): " << mChatLastname << " (len: " << mChatLastname.length() << ")" << endl;
 
                 char *email = megaChatApi[accountIndex]->getContactEmail(uh);
                 if (email)
@@ -545,11 +545,11 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
                 }
                 else
                 {
-                    flagNameReceived = &chatNameReceived[accountIndex]; *flagNameReceived = false; mEmail = "";
+                    flagNameReceived = &chatNameReceived[accountIndex]; *flagNameReceived = false; mChatEmail = "";
                     megaChatApi[accountIndex]->getUserEmail(uh);
                     assert(waitForResponse(flagNameReceived));
                     assert(!lastErrorChat[accountIndex]);
-                    cout << "Peer email (" << uh << "): " << mEmail << " (len: " << mEmail.length() << ")" << endl;
+                    cout << "Peer email (" << uh << "): " << mChatEmail << " (len: " << mChatEmail.length() << ")" << endl;
                 }
             }
         }
@@ -1142,20 +1142,31 @@ void MegaChatApiTest::TEST_Attachment(unsigned int primaryAccountIndex, unsigned
     assert(msgReceived);
     assert(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT);
     mega::MegaNodeList *nodeList = msgReceived->getMegaNodeList();
-
-    addDownload();
     MegaNode* node1 = nodeList->get(0);
+    addDownload();
     megaApi[secondaryAccountIndex]->startDownload(node1, downloadPath.c_str(), this);
     assert(waitForResponse(&isNotDownloadRunning()));
     assert(lastErrorTransfer[secondaryAccountIndex] == API_OK);
 
+    // Import node
+    MegaNode *parentNode = megaApi[secondaryAccountIndex]->getNodeByPath("/");
+    assert(parentNode);
+    bool *flagNodeCopied = &requestFlags[secondaryAccountIndex][mega::MegaRequest::TYPE_COPY]; *flagNodeCopied = false;
+    megaApi[secondaryAccountIndex]->copyNode(node1, parentNode, formatDate.c_str(), this);
+    delete parentNode;
+    assert(waitForResponse(flagNodeCopied));
+    assert(!lastError[secondaryAccountIndex]);
+    MegaNode *nodeCopied = megaApi[secondaryAccountIndex]->getNodeByHandle(mNodeCopiedHandle);
+    assert(nodeCopied);
+    delete nodeCopied;
+
+    // Revoke node
     bool *flagConfirmed = &revokeNodeSend[primaryAccountIndex]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[secondaryAccountIndex]; *flagReceived = false;
     chatroomListener->msgId[primaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
     chatroomListener->msgId[secondaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
     megachat::MegaChatHandle revokeAttachmentNode = nodeSentHandle;
     megaChatApi[primaryAccountIndex]->revokeAttachment(chatid, revokeAttachmentNode, this);
-
     assert(waitForResponse(flagConfirmed));
     MegaChatHandle msgId0 = chatroomListener->msgId[primaryAccountIndex];
     assert (msgId0 != MEGACHAT_INVALID_HANDLE);
@@ -1815,6 +1826,10 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                 }
                 nameReceived[apiIndex] = true;
                 break;
+
+            case MegaRequest::TYPE_COPY:
+                mNodeCopiedHandle = request->getNodeHandle();
+                break;
         }
     }
 
@@ -1842,17 +1857,17 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
                 break;
 
             case MegaChatRequest::TYPE_GET_FIRSTNAME:
-                mFirstname = request->getText() ? request->getText() : "";
+                mChatFirstname = request->getText() ? request->getText() : "";
                 chatNameReceived[apiIndex] = true;
                 break;
 
             case MegaChatRequest::TYPE_GET_LASTNAME:
-                mLastname = request->getText() ? request->getText() : "";
+                mChatLastname = request->getText() ? request->getText() : "";
                 chatNameReceived[apiIndex] = true;
                 break;
 
             case MegaChatRequest::TYPE_GET_EMAIL:
-                mEmail = request->getText() ? request->getText() : "";
+                mChatEmail = request->getText() ? request->getText() : "";
                 chatNameReceived[apiIndex] = true;
                 break;
 
@@ -2114,7 +2129,6 @@ unsigned int TestChatRoomListener::getMegaChatApiIndex(MegaChatApi *api)
         cout << "TEST - Instance of MegaChatApi not recognized" << endl;
         assert(false);
     }
-
     return apiIndex;
 }
 
