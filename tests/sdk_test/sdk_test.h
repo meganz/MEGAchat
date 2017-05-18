@@ -116,7 +116,9 @@ public:
 private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    megachat::MegaChatHandle createGroupChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatPeerList *peers);
+    megachat::MegaChatHandle getGroupChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex,
+                                              megachat::MegaChatPeerList *peers);
+
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
 
     megachat::MegaChatMessage *sendTextMessageOrUpdate(unsigned int senderAccountIndex, unsigned int receiverAccountIndex,

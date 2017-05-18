@@ -656,7 +656,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
 
-    MegaChatHandle chatid = createGroupChatRoom(primaryAccountIndex, secondaryAccountIndex, peers);
+    MegaChatHandle chatid = getGroupChatRoom(primaryAccountIndex, secondaryAccountIndex, peers);
     delete peers;
     peers = NULL;
 
@@ -960,6 +960,9 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
         chatroomListener = NULL;
     }
 
+    delete chats;
+    chats = NULL;
+
     logout(accountIndex, true);
     delete [] session;
 }
@@ -979,7 +982,7 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int primaryAccountIndex, unsign
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
 
-    MegaChatHandle chatid = createGroupChatRoom(primaryAccountIndex, secondaryAccountIndex, peers);
+    MegaChatHandle chatid = getGroupChatRoom(primaryAccountIndex, secondaryAccountIndex, peers);
     delete peers;
     peers = NULL;
 
@@ -1346,7 +1349,7 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int primaryAccountIndex, un
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
 
-    MegaChatHandle chatid = createGroupChatRoom(primaryAccountIndex, secondaryAccountIndex, peers);
+    MegaChatHandle chatid = getGroupChatRoom(primaryAccountIndex, secondaryAccountIndex, peers);
     delete peers;
     peers = NULL;
 
@@ -1444,69 +1447,92 @@ void MegaChatApiTest::makeContact(unsigned int primaryAccountIndex, unsigned int
     contactRequest[secondaryAccountIndex] = NULL;
 }
 
-MegaChatHandle MegaChatApiTest::createGroupChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, MegaChatPeerList *peers)
+MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex,
+                                                 MegaChatPeerList *peers)
 {
-    bool *flagCreateChatRoom = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flagCreateChatRoom = false;
-    bool *chatItemPrimaryReceived = &chatItemUpdated[primaryAccountIndex]; *chatItemPrimaryReceived = false;
-    bool *chatItemSecondaryReceived = &chatItemUpdated[secondaryAccountIndex]; *chatItemSecondaryReceived = false;
-    chatListItem[primaryAccountIndex] = NULL;
-    chatListItem[secondaryAccountIndex] = NULL;
-    this->chatid[primaryAccountIndex] = MEGACHAT_INVALID_HANDLE;
-
-    megaChatApi[primaryAccountIndex]->createChat(true, peers, this);
-    assert(waitForResponse(flagCreateChatRoom));
-    assert(!lastErrorChat[primaryAccountIndex]);
-    MegaChatHandle chatid = this->chatid[primaryAccountIndex];
-    assert (chatid != MEGACHAT_INVALID_HANDLE);
-    assert(waitForResponse(chatItemPrimaryReceived));
-
-    MegaChatListItem *chatItemPrimaryCreated = chatListItem[primaryAccountIndex];   chatListItem[primaryAccountIndex] = NULL;
-    assert(chatItemPrimaryCreated);
-    delete chatItemPrimaryCreated;    chatItemPrimaryCreated = NULL;
-
-    assert(waitForResponse(chatItemSecondaryReceived));
-    MegaChatListItem *chatItemSecondaryCreated = chatListItem[secondaryAccountIndex];   chatListItem[secondaryAccountIndex] = NULL;
-
-    // FIXME: find a safe way to control when the auxiliar account receives the
-    // new chatroom, since we may have multiple notifications for other chats
-    while (!chatItemSecondaryCreated)
-    {
-        assert(waitForResponse(chatItemSecondaryReceived));
-        assert(chatItemSecondaryCreated);
-        if (chatItemSecondaryCreated->getChatId() == chatid)
-        {
-            break;
-        }
-        else
-        {
-            delete chatItemSecondaryCreated;    chatItemSecondaryCreated = NULL;
-            *chatItemSecondaryReceived = false;
-        }
-    }
-
-    MegaChatRoom *chatroom = megaChatApi[secondaryAccountIndex]->getChatRoom(chatid);
-    assert (chatroom);
-    delete chatroom;    chatroom = NULL;
-
+    // Get chatroom name with peer firstname and lastname
     bool *flagAttributeUser = &requestFlags[primaryAccountIndex][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttributeUser = false;
     bool *nameReceivedFlag = &nameReceived[primaryAccountIndex]; *nameReceivedFlag = false; mFirstname = "";
     megaApi[primaryAccountIndex]->getUserAttribute(MegaApi::USER_ATTR_FIRSTNAME);
     assert(waitForResponse(flagAttributeUser));
     assert(!lastError[primaryAccountIndex]);
     assert(waitForResponse(nameReceivedFlag));
-    string peerFirstname = mFirstname;
+    std::string peerFirstname = mFirstname;
     flagAttributeUser = &requestFlags[primaryAccountIndex][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttributeUser = false;
     nameReceivedFlag = &nameReceived[primaryAccountIndex]; *nameReceivedFlag = false; mLastname = "";
     megaApi[primaryAccountIndex]->getUserAttribute(MegaApi::USER_ATTR_LASTNAME);
     assert(waitForResponse(flagAttributeUser));
     assert(!lastError[primaryAccountIndex]);
     assert(waitForResponse(nameReceivedFlag));
-    string peerLastname = mLastname;
-    string peerFullname = peerFirstname + " " + peerLastname;
+    std::string peerLastname = mLastname;
+    std::string peerFullname = peerFirstname + " " + peerLastname;
 
-    assert(!strcmp(chatItemSecondaryCreated->getTitle(), peerFullname.c_str())); // ERROR: we get empty title
-    delete chatItemPrimaryCreated;    chatItemPrimaryCreated = NULL;
-    delete chatItemSecondaryCreated;    chatItemSecondaryCreated = NULL;
+    MegaChatRoomList *chats = megaChatApi[primaryAccountIndex]->getChatRooms();
+
+    bool chatroomExist = false;
+    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
+    for (int i = 0; i < chats->size(); ++i)
+    {
+        if (strcmp(chats->get(i)->getTitle(), peerFullname.c_str()) == 0)
+        {
+            chatroomExist = true;
+            chatid = chats->get(i)->getChatId();
+        }
+    }
+
+    delete chats;
+    chats = NULL;
+
+    if (!chatroomExist)
+    {
+        bool *flagCreateChatRoom = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flagCreateChatRoom = false;
+        bool *chatItemPrimaryReceived = &chatItemUpdated[primaryAccountIndex]; *chatItemPrimaryReceived = false;
+        bool *chatItemSecondaryReceived = &chatItemUpdated[secondaryAccountIndex]; *chatItemSecondaryReceived = false;
+        chatListItem[primaryAccountIndex] = NULL;
+        chatListItem[secondaryAccountIndex] = NULL;
+        this->chatid[primaryAccountIndex] = MEGACHAT_INVALID_HANDLE;
+
+        megaChatApi[primaryAccountIndex]->createChat(true, peers, this);
+        assert(waitForResponse(flagCreateChatRoom));
+        assert(!lastErrorChat[primaryAccountIndex]);
+        chatid = this->chatid[primaryAccountIndex];
+        assert (chatid != MEGACHAT_INVALID_HANDLE);
+        assert(waitForResponse(chatItemPrimaryReceived));
+
+        MegaChatListItem *chatItemPrimaryCreated = chatListItem[primaryAccountIndex];   chatListItem[primaryAccountIndex] = NULL;
+        assert(chatItemPrimaryCreated);
+        delete chatItemPrimaryCreated;    chatItemPrimaryCreated = NULL;
+
+        assert(waitForResponse(chatItemSecondaryReceived));
+        MegaChatListItem *chatItemSecondaryCreated = chatListItem[secondaryAccountIndex];   chatListItem[secondaryAccountIndex] = NULL;
+
+        // FIXME: find a safe way to control when the auxiliar account receives the
+        // new chatroom, since we may have multiple notifications for other chats
+        while (!chatItemSecondaryCreated)
+        {
+            assert(waitForResponse(chatItemSecondaryReceived));
+            assert(chatItemSecondaryCreated);
+            if (chatItemSecondaryCreated->getChatId() == chatid)
+            {
+                break;
+            }
+            else
+            {
+                delete chatItemSecondaryCreated;    chatItemSecondaryCreated = NULL;
+                *chatItemSecondaryReceived = false;
+            }
+        }
+
+        MegaChatRoom *chatroom = megaChatApi[secondaryAccountIndex]->getChatRoom(chatid);
+        assert (chatroom);
+        delete chatroom;    chatroom = NULL;
+
+        assert(!strcmp(chatItemSecondaryCreated->getTitle(), peerFullname.c_str())); // ERROR: we get empty title
+        delete chatItemPrimaryCreated;    chatItemPrimaryCreated = NULL;
+        delete chatItemSecondaryCreated;    chatItemSecondaryCreated = NULL;
+    }
+
+    assert(chatid != MEGACHAT_INVALID_HANDLE);
 
     return chatid;
 }
