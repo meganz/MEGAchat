@@ -55,6 +55,18 @@ private:
         throw ChatTestException(__FILE__, __LINE__); \
     } \
 
+#define EXECUTE_TEST(test, closeTestAfterFail) \
+    try \
+    { \
+        test; \
+    } \
+    catch(ChatTestException e) \
+    { \
+        closeTestAfterFail; \
+        MegaChatApiTest::mFailedTests ++; \
+        std::cout << e.what() << std::endl; \
+    } \
+
 class MegaLoggerSDK : public mega::MegaLogger {
 
 public:
@@ -109,9 +121,11 @@ public:
     ~MegaChatApiTest();
 
     void init();
-    char *login(int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
-    void logout(int accountIndex, bool closeSession = false);
+    char *login(unsigned int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
+    void logout(unsigned int accountIndex, bool closeSession = false);
     void terminate();
+    void closeTestOneAccount(unsigned int accountIndex);
+    void closeTestTwoAccount(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
 
     static void printChatRoomInfo(const megachat::MegaChatRoom *);
     static void printMessageInfo(const megachat::MegaChatMessage *);
@@ -131,6 +145,8 @@ public:
     void TEST_Attachment(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
     void TEST_LastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
     void TEST_GroupLastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+
+    static int mFailedTests;
 
 private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
@@ -158,7 +174,6 @@ private:
     std::string uploadFile(int accountIndex, const std::string &fileName, const std::string &originPath, const std::string &contain, const std::string &destinationPath);
     void addDownload();
     bool &isNotDownloadRunning();
-    int getTotalDownload() const;
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
@@ -203,9 +218,7 @@ private:
     MegaLoggerSDK *logger;
     MegaChatLoggerSDK *chatLogger;
 
-    unsigned int mActiveDownload;
     bool mNotDownloadRunning;
-    unsigned int mTotalDownload;
 
     bool attachNodeSend[NUM_ACCOUNTS];
     bool revokeNodeSend[NUM_ACCOUNTS];

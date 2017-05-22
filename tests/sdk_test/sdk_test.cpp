@@ -13,6 +13,8 @@
 using namespace mega;
 using namespace megachat;
 
+int MegaChatApiTest::mFailedTests = 0;
+
 void sigintHandler(int)
 {
     printf("SIGINT Received\n");
@@ -22,130 +24,23 @@ void sigintHandler(int)
 int main(int argc, char **argv)
 {
 //    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
-    int failedTests = 0;
     MegaChatApiTest t;
     t.init();
 
-    try
-    {
-        t.TEST_ResumeSession(0);
-    }
-    catch(ChatTestException e)
-    {
-        t.logout(0);
-        failedTests ++;
-        std::cout << e.what() << std::endl;
-    }
-
-    try
-    {
-        t.TEST_SetOnlineStatus(0);
-    }
-    catch(ChatTestException e)
-    {
-        t.logout(0);
-        failedTests ++;
-        std::cout << e.what() << std::endl;
-    }
-
-    try
-    {
-        t.TEST_GetChatRoomsAndMessages(0);
-    }
-    catch(ChatTestException e)
-    {
-        t.logout(0);
-        failedTests ++;
-        std::cout << e.what() << std::endl;
-    }
-
-    try
-    {
-        t.TEST_SwitchAccounts(0, 1);
-    }
-    catch(ChatTestException e)
-    {
-        t.logout(0);
-        t.logout(1);
-        failedTests ++;
-        std::cout << e.what() << std::endl;
-    }
-
-    try
-    {
-        t.TEST_ClearHistory(0, 1);
-    }
-    catch(ChatTestException e)
-    {
-        t.logout(0);
-        t.logout(1);
-        failedTests ++;
-        std::cout << e.what() << std::endl;
-    }
-
-    try
-    {
-        t.TEST_EditAndDeleteMessages(0, 1);
-    }
-    catch(ChatTestException e)
-    {
-        t.logout(0);
-        t.logout(1);
-        failedTests ++;
-        std::cout << e.what() << std::endl;
-    }
-
-    try
-    {
-        t.TEST_GroupChatManagement(0, 1);
-    }
-    catch(ChatTestException e)
-    {
-        t.logout(0);
-        t.logout(1);
-        failedTests ++;
-        std::cout << e.what() << std::endl;
-    }
-
-    try
-    {
-        t.TEST_Attachment(0, 1);
-    }
-    catch(ChatTestException e)
-    {
-        t.logout(0);
-        t.logout(1);
-        failedTests ++;
-        std::cout << e.what() << std::endl;
-    }
-
-    try
-    {
-        t.TEST_SendContact(0, 1);
-    }
-    catch(ChatTestException e)
-    {
-        t.logout(0);
-        t.logout(1);
-        failedTests ++;
-        std::cout << e.what() << std::endl;
-    }
-
-    try
-    {
-        t.TEST_GroupLastMessage(0, 1);
-    }
-    catch(const ChatTestException& e)
-    {
-        t.logout(0);
-        t.logout(1);
-        failedTests ++;
-        std::cout << e.what() << std::endl;
-    }
+    EXECUTE_TEST(t.TEST_ResumeSession(0), t.closeTestOneAccount(0))
+    EXECUTE_TEST(t.TEST_SetOnlineStatus(0), t.closeTestOneAccount(0))
+    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), t.closeTestOneAccount(0))
+    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), t.closeTestTwoAccount(0, 1))
+    EXECUTE_TEST(t.TEST_ClearHistory(0, 1), t.closeTestTwoAccount(0, 1))
+    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), t.closeTestTwoAccount(0, 1))
+    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), t.closeTestTwoAccount(0, 1))
+    EXECUTE_TEST(t.TEST_Attachment(0, 1), t.closeTestTwoAccount(0, 1))
+    EXECUTE_TEST(t.TEST_SendContact(0, 1), t.closeTestTwoAccount(0, 1))
+    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), t.closeTestTwoAccount(0, 1))
 
     t.terminate();
 
-    return failedTests;
+    return t.mFailedTests;
 }
 
 void handlerSignalINT(int)
@@ -189,9 +84,7 @@ std::string Account::getPassword() const
 }
 
 MegaChatApiTest::MegaChatApiTest()
-    : mActiveDownload(0)
-    , mNotDownloadRunning(true)
-    , mTotalDownload(0)
+    : mNotDownloadRunning(true)
 {
     logger = new MegaLoggerSDK("SDK.log");
     MegaApi::setLoggerObject(logger);
@@ -199,7 +92,7 @@ MegaChatApiTest::MegaChatApiTest()
     chatLogger = new MegaChatLoggerSDK("SDKchat.log");
     MegaChatApi::setLoggerObject(chatLogger);
 
-    Account account1("ar+test6@mega.nz", "1A2b3C4d5E");
+    Account account1("ar+test5@mega.nz", "1A2b3C4d5E");
     mAccounts[0] = account1;
 
     Account account2("ar+test7@mega.nz", "1A2b3C4d5E");
@@ -233,7 +126,7 @@ void MegaChatApiTest::init()
     }
 }
 
-char *MegaChatApiTest::login(int accountIndex, const char *session, const char *email, const char *password)
+char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, const char *email, const char *password)
 {
     std::string mail;
     std::string pwd;
@@ -295,7 +188,7 @@ char *MegaChatApiTest::login(int accountIndex, const char *session, const char *
     return megaApi[accountIndex]->dumpSession();
 }
 
-void MegaChatApiTest::logout(int accountIndex, bool closeSession)
+void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 {
     bool *flagRequestLogout = &requestFlags[accountIndex][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
     closeSession ? megaApi[accountIndex]->logout() : megaApi[accountIndex]->localLogout();
@@ -322,6 +215,17 @@ void MegaChatApiTest::terminate()
         megaApi[i] = NULL;
         megaChatApi[i] = NULL;
     }
+}
+
+void MegaChatApiTest::closeTestOneAccount(unsigned int accountIndex)
+{
+    logout(accountIndex);
+}
+
+void MegaChatApiTest::closeTestTwoAccount(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+{
+    logout(primaryAccountIndex);
+    logout(secondaryAccountIndex);
 }
 
 void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
@@ -1474,7 +1378,7 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int primaryAccountIndex, un
 
     // --> Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(!megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
     ASSERT_CHAT_TEST(megaChatApi[1]->openChatRoom(chatid, chatroomListener));
 
     std::string textToSend = "Last Message";
@@ -1910,19 +1814,12 @@ std::string MegaChatApiTest::uploadFile(int accountIndex, const std::string& fil
 
 void MegaChatApiTest::addDownload()
 {
-    ++mActiveDownload;
-    ++mTotalDownload;
     mNotDownloadRunning = false;
 }
 
 bool &MegaChatApiTest::isNotDownloadRunning()
 {
     return mNotDownloadRunning;
-}
-
-int MegaChatApiTest::getTotalDownload() const
-{
-    return mTotalDownload;
 }
 
 void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize)
@@ -2078,11 +1975,7 @@ void MegaChatApiTest::onTransferFinish(MegaApi *api, MegaTransfer *transfer, Meg
 {
     unsigned int apiIndex = getMegaApiIndex(api);
 
-    --mActiveDownload;
-    if (mActiveDownload == 0)
-    {
-        mNotDownloadRunning = true;
-    }
+    mNotDownloadRunning = true;
 
     lastErrorTransfer[apiIndex] = error->getErrorCode();
 }
