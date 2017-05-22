@@ -219,6 +219,7 @@ void MegaChatApiTest::init()
         getcwd(path, sizeof path);
         megaApi[i] = new MegaApi(APPLICATION_KEY.c_str(), path, USER_AGENT_DESCRIPTION.c_str());
         megaApi[i]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
+        megaApi[i]->addListener(this);
         megaApi[i]->addRequestListener(this);
         megaApi[i]->log(MegaApi::LOG_LEVEL_INFO, "___ Initializing tests for chat ___");
 
@@ -711,17 +712,17 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int primaryAccountInde
     char *primarySession = login(primaryAccountIndex);
     char *secondarySession = login(secondaryAccountIndex);
 
-    MegaUser *peerPrimary = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
-    if (!peerPrimary)
+    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    if (!peer)
     {
         makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peerPrimary = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
     }
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(primaryAccountIndex, secondaryAccountIndex);
 
-    delete peerPrimary;
-    peerPrimary = NULL;
+    delete peer;
+    peer = NULL;
 
     // 1. A sends a message to B while B has the chat opened.
     // --> check the confirmed in A, the received message in B, the delivered in A
@@ -769,6 +770,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     if (!peer)
     {
         makeContact(primaryAccountIndex, secondaryAccountIndex);
+        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
     }
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
@@ -872,7 +874,6 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv));
     ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()));
 
-
     chatroom = megaChatApi[secondaryAccountIndex]->getChatRoom(chatid);
     ASSERT_CHAT_TEST (chatroom);
     ASSERT_CHAT_TEST(!strcmp(chatroom->getTitle(), title.c_str()));
@@ -894,7 +895,6 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     ASSERT_CHAT_TEST(*uhAction == peer->getHandle());
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_MODERATOR);
 
-
     // --> Change peer privileges to Read-only
     flagUpdatePeerPermision = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
     peerUpdated0 = &peersUpdated[primaryAccountIndex]; *peerUpdated0 = false;
@@ -910,7 +910,6 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv));
     ASSERT_CHAT_TEST(*uhAction == peer->getHandle());
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO);
-
 
     // --> Try to send a message without the right privilege
     string msg1 = "HOLA " + mAccounts[primaryAccountIndex].getEmail()+ " - This message can't be send because I'm read-only";
@@ -1095,6 +1094,7 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int primaryAccountIndex, unsign
     if (!peer)
     {
         makeContact(primaryAccountIndex, secondaryAccountIndex);
+        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
     }
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
@@ -1220,15 +1220,15 @@ void MegaChatApiTest::TEST_Attachment(unsigned int primaryAccountIndex, unsigned
     char *primarySession = login(primaryAccountIndex);
     char *secondarySession = login(secondaryAccountIndex);
 
-    MegaUser *peerPrimary = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
-    if (!peerPrimary)
+    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    if (!peer)
     {
         makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peerPrimary = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
     }
 
-    delete peerPrimary;
-    peerPrimary = NULL;
+    delete peer;
+    peer = NULL;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(primaryAccountIndex, secondaryAccountIndex);
 
@@ -1329,15 +1329,15 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int primaryAccountIndex, unsigne
     char *sessionPrimary = login(primaryAccountIndex);
     char *sessionSecondary = login(secondaryAccountIndex);
 
-    MegaUser *peerPrimary = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
-    if (!peerPrimary)
+    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    if (!peer)
     {
         makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peerPrimary = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
     }
 
-    delete peerPrimary;
-    peerPrimary = NULL;
+    delete peer;
+    peer = NULL;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(primaryAccountIndex, secondaryAccountIndex);
 
@@ -1389,15 +1389,15 @@ void MegaChatApiTest::TEST_SendContact(unsigned int primaryAccountIndex, unsigne
     char *primarySession = login(primaryAccountIndex);
     char *secondarySession = login(secondaryAccountIndex);
 
-    MegaUser *peerPrimary = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
-    if (!peerPrimary)
+    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    if (!peer)
     {
         makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peerPrimary = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
     }
 
-    delete peerPrimary;
-    peerPrimary = NULL;
+    delete peer;
+    peer = NULL;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(primaryAccountIndex, secondaryAccountIndex);
 
@@ -1462,6 +1462,7 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int primaryAccountIndex, un
     if (!peer)
     {
         makeContact(primaryAccountIndex, secondaryAccountIndex);
+        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
     }
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
@@ -1544,7 +1545,7 @@ void MegaChatApiTest::makeContact(unsigned int primaryAccountIndex, unsigned int
     *flagContactRequestUpdatedSecondary = false;
     std::string contactRequestMessage = "Contact Request Message";
     megaApi[primaryAccountIndex]->inviteContact(mAccounts[secondaryAccountIndex].getEmail().c_str(),
-                                                contactRequestMessage.c_str(), MegaContactRequest::INVITE_ACTION_ADD, this);
+                                                contactRequestMessage.c_str(), MegaContactRequest::INVITE_ACTION_ADD);
 
     ASSERT_CHAT_TEST(waitForResponse(flagRequestInviteContact));
     ASSERT_CHAT_TEST(!lastError[primaryAccountIndex]);
@@ -1556,7 +1557,7 @@ void MegaChatApiTest::makeContact(unsigned int primaryAccountIndex, unsigned int
     *flagReplyContactRequest = false;
     bool *flagContactRequestUpdatedPrimary = &contactRequestUpdated[primaryAccountIndex];
     *flagContactRequestUpdatedPrimary = false;
-    megaApi[secondaryAccountIndex]->replyContactRequest(contactRequest[secondaryAccountIndex], MegaContactRequest::REPLY_ACTION_ACCEPT, this);
+    megaApi[secondaryAccountIndex]->replyContactRequest(contactRequest[secondaryAccountIndex], MegaContactRequest::REPLY_ACTION_ACCEPT);
     ASSERT_CHAT_TEST(waitForResponse(flagReplyContactRequest));
     ASSERT_CHAT_TEST(!lastError[secondaryAccountIndex]);
     ASSERT_CHAT_TEST(waitForResponse(flagContactRequestUpdatedPrimary));
@@ -1980,7 +1981,7 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
     requestFlags[apiIndex][request->getType()] = true;
 }
 
-void MegaChatApiTest::onContactRequestsUpdate(MegaApi *api, MegaContactRequestList *requests)
+void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestList* requests)
 {
     unsigned int apiIndex = getMegaApiIndex(api);
 
