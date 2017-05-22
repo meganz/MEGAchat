@@ -562,6 +562,7 @@ public:
     virtual bool isEdited() const;
     virtual bool isDeleted() const;
     virtual bool isEditable() const;
+    virtual bool isDeletable() const;
     virtual bool isManagementMessage() const;
     virtual MegaChatHandle getHandleOfAction() const;
     virtual int getPrivilege() const;

@@ -955,6 +955,11 @@ bool MegaChatMessage::isEditable() const
     return false;
 }
 
+bool MegaChatMessage::isDeletable() const
+{
+    return false;
+}
+
 bool MegaChatMessage::isManagementMessage() const
 {
     return false;

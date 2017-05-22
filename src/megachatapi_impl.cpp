@@ -1390,6 +1390,10 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
     {
         status = it->second->presence().status();
     }
+    else if (userhandle == mClient->myHandle())
+    {
+        status = getOnlineStatus();
+    }
 
     sdkMutex.unlock();
 
@@ -4103,6 +4107,12 @@ bool MegaChatMessagePrivate::isDeleted() const
 bool MegaChatMessagePrivate::isEditable() const
 {
     return (type == TYPE_NORMAL && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
+}
+
+bool MegaChatMessagePrivate::isDeletable() const
+{
+    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT)
+            && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
 }
 
 bool MegaChatMessagePrivate::isManagementMessage() const

@@ -106,7 +106,6 @@ public:
     void TEST_attachment();
     void TEST_attachmentPNG();
 
-
     void TEST_lastMessage();
 
     void createSimpleFile(const std::string &fileName, const string &originPath, const std::string &contain);
@@ -140,6 +139,8 @@ private:
 
     std::string chatFirstname, chatLastname, chatEmail; // requested via karere
     bool chatNameReceived[NUM_ACCOUNTS];
+
+    MegaHandle mNodeCopiedHandle;
 
     mega::MegaNodeList *mAttachmentNodeList;
     megachat::MegaChatHandle mAttachmentRevokeNode;
