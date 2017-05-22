@@ -36,6 +36,25 @@ static const unsigned int maxTimeout = 300;
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 2;
 
+class ChatTestException : public std::exception
+{
+public:
+    ChatTestException(const std::string& file, int line);
+
+    virtual const char *what() const throw();
+
+private:
+    int mLine;
+    std::string mFile;
+    std::string mExceptionText;
+};
+
+#define ASSERT_CHAT_TEST(a) \
+    if (!(a)) \
+    { \
+        throw ChatTestException(__FILE__, __LINE__); \
+    } \
+
 class MegaLoggerSDK : public mega::MegaLogger {
 
 public:
