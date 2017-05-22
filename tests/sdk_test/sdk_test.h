@@ -36,6 +36,8 @@ static const unsigned int pollingT      = 500000;   // (microseconds) to check i
 static const unsigned int maxTimeout    = 300;      // Maximum time (seconds) to wait for response from server
 static const unsigned int NUM_ACCOUNTS  = 2;
 
+class TestChatRoomListener;
+
 class MegaLoggerSDK : public MegaLogger {
 
 public:
@@ -102,14 +104,21 @@ public:
     void TEST_receiveContact();
     void TEST_sendContact();
     void TEST_attachment();
+    void TEST_attachmentPNG();
 
     void TEST_lastMessage();
 
-    string uploadFile(int account, const std::string &fileName, const string &originPath, const std::string &contain, const string &destinationPath);
+    void createSimpleFile(const std::string &fileName, const string &originPath, const std::string &contain);
+    std::string uploadFile(int account, const std::string &fileName, const string &originPath, const string &destinationPath);
+    static size_t writeData(void *data, size_t elementSize, size_t elementNumber, FILE *stream);
 
     void addDownload();
     bool &isNotDownloadRunning();
     int getTotalDownload() const;
+    std::string getUniqueString();
+    MegaChatMessage *attachNode(mega::MegaNode* node, int accountSend, int accountReception, megachat::MegaChatHandle megaChatId, TestChatRoomListener *chatroomListener);
+    int downloadNode(MegaNode *node, int account);
+    void importNode(mega::MegaNode* node, int account, const std::string& destinationName);
 
 private:
     std::string email[NUM_ACCOUNTS];
@@ -158,6 +167,10 @@ private:
     int mDownloadFinishedError[NUM_ACCOUNTS];
 
     std::string mDownloadPath;
+
+    static const std::string PATH;
+    static const std::string PATH_IMAGE;
+    static const std::string FILE_IMAGE_NAME;
 
 public:
     // implementation for MegaRequestListener

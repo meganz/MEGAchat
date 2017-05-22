@@ -506,8 +506,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->getLastMessageSeen(chatId) ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->getLastMessageSeen(chatId) cMemoryOwn:YES] : nil;
 }
 
-- (void)removeUnsentMessageForChat:(uint64_t)chatId temporalId:(uint64_t)temporalId {
-    self.megaChatApi->removeUnsentMessage(chatId, temporalId);
+- (void)removeUnsentMessageForChat:(uint64_t)chatId rowId:(uint64_t)rowId {
+    self.megaChatApi->removeUnsentMessage(chatId, rowId);
 }
 
 - (void)sendTypingNotificationForChat:(uint64_t)chatId {
