@@ -133,8 +133,8 @@ bool Client::openDb(const std::string& sid)
         return false;
     }
 
-    int ret = sqlite3_open(path.c_str(), &db);
-    if (ret != SQLITE_OK || !db)
+    bool ok = db.open(path.c_str());
+    if (!ok)
     {
         KR_LOG_WARNING("Error opening database");
         return false;
@@ -142,8 +142,7 @@ bool Client::openDb(const std::string& sid)
     SqliteStmt stmt(db, "select value from vars where name = 'schema_version'");
     if (!stmt.step())
     {
-        sqlite3_close(db);
-        db = nullptr;
+        db.close();
         KR_LOG_WARNING("Can't get local database version");
         return false;
     }

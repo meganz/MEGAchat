@@ -8,12 +8,12 @@ extern sqlite3* db;
 class ChatdSqliteDb: public chatd::DbInterface
 {
 protected:
-    sqlite3* mDb;
+    SqliteDb& mDb;
     chatd::Chat& mMessages;
     std::string mSendingTblName;
     std::string mHistTblName;
 public:
-    ChatdSqliteDb(chatd::Chat& msgs, sqlite3* db, const std::string& sendingTblName="sending", const std::string& histTblName="history")
+    ChatdSqliteDb(chatd::Chat& msgs, SqliteDb& db, const std::string& sendingTblName="sending", const std::string& histTblName="history")
         :mDb(db), mMessages(msgs), mSendingTblName(sendingTblName), mHistTblName(histTblName){}
     virtual void getHistoryInfo(chatd::ChatDbInfo& info)
     {
@@ -57,11 +57,6 @@ public:
            .append(std::to_string(actual));
         throw std::runtime_error(msg);
     }
-    void commit()
-    {
-        sqliteSimpleQuery(mDb, "COMMIT TRANSACTION");
-        sqliteSimpleQuery(mDb, "BEGIN TRANSACTION");
-    }
     void saveMsgToSending(chatd::Chat::SendingItem& item)
     {
         assert(item.msg);
@@ -69,27 +64,24 @@ public:
         auto msg = item.msg;
         Buffer rcpts;
         item.recipients.save(rcpts);
-        sqliteQuery(mDb, "insert into sending (chatid, opcode, ts, msgid, msg, type, updated, "
+        mDb.query("insert into sending (chatid, opcode, ts, msgid, msg, type, updated, "
                          "recipients, backrefid, backrefs) values(?,?,?,?,?,?,?,?,?,?)",
             (uint64_t)mMessages.chatId(), item.opcode(), (int)time(NULL), msg->id(),
             *msg, msg->type, msg->updated, rcpts, msg->backRefId, msg->backrefBuf());
         item.rowid = sqlite3_last_insert_rowid(mDb);
-        commit();
     }
     virtual void updateMsgInSending(const chatd::Chat::SendingItem& item)
     {
         assert(item.msg);
-        sqliteQuery(mDb, "update sending set msg = ?, updated = ? where rowid = ?",
+        mDb.query("update sending set msg = ?, updated = ? where rowid = ?",
             *item.msg, item.msg->updated, item.rowid);
         assertAffectedRowCount(1, "updateMsgInSending");
-        commit();
     }
     virtual void confirmKeyOfSendingItem(uint64_t rowid, chatd::KeyId keyid)
     {
-        sqliteQuery(mDb, "update sending set keyid = ? where rowid = ?",
+        mDb.query("update sending set keyid = ? where rowid = ?",
                     keyid, rowid);
         assertAffectedRowCount(1, "confirmKeyOfSendingItem");
-        commit();
     }
     virtual void addBlobsToSendingItem(uint64_t rowid,
                     const chatd::MsgCommand* msgCmd, const chatd::Command* keyCmd)
@@ -98,38 +90,33 @@ public:
         //compiler (at least clang on MacOS) seems not able to properly determine
         //the argument type for the template parameter to sqlQuery(), which
         //compiles without any warning, but results is corrupt data written to the db!
-        sqliteQuery(mDb, "update sending set msg_cmd=?, key_cmd=? where rowid=?",
+        mDb.query("update sending set msg_cmd=?, key_cmd=? where rowid=?",
             msgCmd?static_cast<StaticBuffer>(*msgCmd):StaticBuffer(nullptr, 0),
             keyCmd?static_cast<StaticBuffer>(*keyCmd):StaticBuffer(nullptr, 0), rowid);
         assertAffectedRowCount(1,"addCommandBlobToSendingItem");
-        commit();
     }
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid)
     {
         assert(item.opcode() == chatd::OP_MSGUPDX);
-        sqliteQuery(mDb,
+        mDb.query(
             "update sending set opcode=?, msgid=? where chatid=? and rowid=? and opcode=? and msgid=?",
             chatd::OP_MSGUPD, msgid, mMessages.chatId(), item.rowid, chatd::OP_MSGUPDX, item.msg->id());
         assertAffectedRowCount(1, "updateSendingItemMsgidAndOpcode");
-        commit();
     }
     virtual void deleteItemFromSending(uint64_t rowid)
     {
-        sqliteQuery(mDb, "delete from sending where rowid = ?1", rowid);
+        mDb.query("delete from sending where rowid = ?1", rowid);
         assertAffectedRowCount(1, "deleteItemFromSending");
-        commit();
     }
     virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data)
     {
-        sqliteQuery(mDb, "update sending set msg = ? where rowid = ?", data, rowid);
+        mDb.query("update sending set msg = ? where rowid = ?", data, rowid);
         assertAffectedRowCount(1, "updateMsgPlaintextInSending");
-        commit();
     }
     virtual void updateMsgKeyIdInSending(uint64_t rowid, chatd::KeyId keyid)
     {
-        sqliteQuery(mDb, "update sending set keyid = ? where rowid = ?", keyid, rowid);
+        mDb.query("update sending set keyid = ? where rowid = ?", keyid, rowid);
         assertAffectedRowCount(1, "updateMsgKeyIdInSending");
-        commit();
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
@@ -150,18 +137,16 @@ public:
             assert(false);
         }
 #endif
-        sqliteQuery(mDb, "insert into history"
+        mDb.query("insert into history"
             "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid) "
             "values(?,?,?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
             msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId);
-        commit();
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
     {
-        sqliteQuery(mDb, "update history set type = ?, data = ?, updated = ?, userid=? where chatid = ? and msgid = ?",
+        mDb.query("update history set type = ?, data = ?, updated = ?, userid=? where chatid = ? and msgid = ?",
             msg.type, msg, msg.updated, msg.userid, mMessages.chatId(), msgid);
         assertAffectedRowCount(1, "updateMsgInHistory");
-        commit();
     }
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
@@ -246,11 +231,10 @@ public:
     virtual void saveItemToManualSending(const chatd::Chat::SendingItem& item, int reason)
     {
         auto& msg = *item.msg;
-        sqliteQuery(mDb, "insert into manual_sending(chatid, rowid, msgid, type, "
+        mDb.query("insert into manual_sending(chatid, rowid, msgid, type, "
             "ts, updated, msg, opcode, reason) values(?,?,?,?,?,?,?,?,?)",
             mMessages.chatId(), item.rowid, item.msg->id(), msg.type, msg.ts,
             msg.updated, msg, item.opcode(), reason);
-        commit();
     }
     virtual void loadManualSendItems(std::vector<chatd::Chat::ManualSendItem>& items)
     {
@@ -269,8 +253,7 @@ public:
     }
     virtual bool deleteManualSendItem(uint64_t rowid)
     {
-        sqliteQuery(mDb, "delete from manual_sending where rowid = ?", rowid);
-        commit();
+        mDb.query("delete from manual_sending where rowid = ?", rowid);
         return sqlite3_changes(mDb) != 0;
     }
     virtual void truncateHistory(const chatd::Message& msg)
@@ -278,7 +261,7 @@ public:
         auto idx = getIdxOfMsgid(msg.id());
         if (idx == CHATD_IDX_INVALID)
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
-        sqliteQuery(mDb, "delete from history where chatid = ? and idx < ?", mMessages.chatId(), idx);
+        mDb.query("delete from history where chatid = ? and idx < ?", mMessages.chatId(), idx);
 #if 1
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
         stmt << mMessages.chatId() << msg.id();
@@ -287,8 +270,7 @@ public:
             throw std::runtime_error("DbInterface::truncateHistory: Truncate message type is not 'truncate'");
 #endif
 
-        sqliteQuery(mDb, "delete from manual_sending where chatid = ?", mMessages.chatId());
-        commit();
+        mDb.query("delete from manual_sending where chatid = ?", mMessages.chatId());
     }
     virtual chatd::Idx getOldestIdx()
     {
@@ -299,22 +281,19 @@ public:
     }
     virtual void setLastSeen(karere::Id msgid)
     {
-        sqliteQuery(mDb, "update chats set last_seen=? where chatid=?", msgid, mMessages.chatId());
+        mDb.query("update chats set last_seen=? where chatid=?", msgid, mMessages.chatId());
         assertAffectedRowCount(1);
-        commit();
     }
     virtual void setLastReceived(karere::Id msgid)
     {
-        sqliteQuery(mDb, "update chats set last_recv=? where chatid=?", msgid, mMessages.chatId());
+        mDb.query("update chats set last_recv=? where chatid=?", msgid, mMessages.chatId());
         assertAffectedRowCount(1);
-        commit();
     }
     virtual void setHaveAllHistory()
     {
-        sqliteQuery(mDb,
+        mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
             "values(?, 'have_all_history', '1')", mMessages.chatId());
-        commit();
     }
     virtual bool haveAllHistory()
     {

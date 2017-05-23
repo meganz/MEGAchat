@@ -9,6 +9,7 @@
 #include <retryHandler.h>
 #include <serverListProviderForwards.h>
 #include "userAttrCache.h"
+#include <db.h>
 #include "chatd.h"
 #include "presenced.h"
 #include "IGui.h"
@@ -604,7 +605,7 @@ public:
         kInitErrSidInvalid
     };
 
-    sqlite3* db = nullptr;
+    SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
     rtcModule::IRtcModule* rtc = nullptr;
