@@ -121,6 +121,8 @@ public:
     ~MegaChatApiTest();
 
     void init();
+
+    // email and password parameter is used if you don't want to use default values for accountIndex
     char *login(unsigned int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
     void logout(unsigned int accountIndex, bool closeSession = false);
     void terminate();
