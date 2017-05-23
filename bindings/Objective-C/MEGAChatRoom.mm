@@ -1,5 +1,6 @@
 #import "MEGAChatRoom.h"
 #import "megachatapi.h"
+#import "MEGASdk.h"
 
 using namespace megachat;
 
@@ -43,9 +44,15 @@ using namespace megachat;
     NSString *changes      = [MEGAChatRoom stringForChangeType:self.changes];
     NSString *active       = self.isActive ? @"YES" : @"NO";
     NSString *group        = self.isGroup ? @"YES" : @"NO";
-    
-    return [NSString stringWithFormat:@"<%@: chatId=%llu, title=%@, own privilege=%@, peer count=%lu, group=%@, changes=%@, unread=%ld, user typing=%llu, active=%@>",
-            [self class], self.chatId, self.title, ownPrivilege, (unsigned long)self.peerCount, group, changes, (long)self.unreadCount, self.userTypingHandle, active];
+    NSString *base64ChatId = [MEGASdk base64HandleForUserHandle:self.chatId];
+#ifdef DEBUG
+    return [NSString stringWithFormat:@"<%@: chatId=%@, title=%@, own privilege=%@, peer count=%lu, group=%@, changes=%@, unread=%ld, user typing=%llu, active=%@>",
+            [self class], base64ChatId, self.title, ownPrivilege, (unsigned long)self.peerCount, group, changes, (long)self.unreadCount, self.userTypingHandle, active];
+#else
+    return [NSString stringWithFormat:@"<%@: chatId=%@, own privilege=%@, peer count=%lu, group=%@, changes=%@, unread=%ld, user typing=%llu, active=%@>",
+            [self class], base64ChatId, ownPrivilege, (unsigned long)self.peerCount, group, changes, (long)self.unreadCount, self.userTypingHandle, active];
+#endif
+
 }
 
 - (uint64_t)chatId {

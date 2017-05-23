@@ -143,9 +143,9 @@ public:
         if ((count > 0) && (idx != low-1) && (idx != high+1))
         {
             CHATD_LOG_ERROR("chatid %s: addMsgToHistory: history discontinuity detected: "
-                "index of added msg is not adjacent to neither end of db history: "
+                "index of added msg %s is not adjacent to neither end of db history: "
                 "add idx=%d, histlow=%d, histhigh=%d, histcount= %d, fwdStart=%d, lownum=%d, highnum=%d",
-                mMessages.chatId().toString().c_str(),
+                mMessages.chatId().toString().c_str(), msg.id().toString().c_str(),
                 idx, low, high, count, mMessages.forwardStart(), mMessages.lownum(), mMessages.highnum());
             assert(false);
         }
