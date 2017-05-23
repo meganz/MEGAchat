@@ -92,11 +92,40 @@ MegaChatApiTest::MegaChatApiTest()
     chatLogger = new MegaChatLoggerSDK("SDKchat.log");
     MegaChatApi::setLoggerObject(chatLogger);
 
-    Account account1("ar+test5@mega.nz", "1A2b3C4d5E");
-    mAccounts[0] = account1;
+    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    {
+        // get credentials from environment variables
+        std::string varName = "MEGA_EMAIL";
+        varName += std::to_string(i);
+        char *buf = getenv(varName.c_str());
+        std::string email;
+        if (buf)
+        {
+            email.assign(buf);
+        }
+        if (!email.length())
+        {
+            cout << "TEST - Set your username at the environment variable $" << varName << endl;
+            exit(-1);
+        }
 
-    Account account2("ar+test7@mega.nz", "1A2b3C4d5E");
-    mAccounts[1] = account2;
+        varName.assign("MEGA_PWD");
+        varName += std::to_string(i);
+        buf = getenv(varName.c_str());
+        std::string pwd;
+        if (buf)
+        {
+            pwd.assign(buf);
+        }
+        if (!pwd.length())
+        {
+            cout << "TEST - Set your password at the environment variable $" << varName << endl;
+            exit(-1);
+        }
+
+        Account accountPrimary(email, pwd);
+        mAccounts[i] = accountPrimary;
+    }
 }
 
 MegaChatApiTest::~MegaChatApiTest()
