@@ -425,6 +425,16 @@ public:
     virtual bool isEditable() const;
 
     /**
+     * @brief Returns whether the message can be deleted
+     *
+     * Currently, messages can be deleted only during a timeframe (1 hour). Later on, the
+     * deletion will be rejected.
+     *
+     * @return True if the message can be deleted. Otherwise, false.
+     */
+    virtual bool isDeletable() const;
+
+    /**
      * @brief Returns whether the message is a management message
      *
      * Management messages are intented to record in the history any change related
@@ -2076,6 +2086,12 @@ public:
      *
      * If the edit is rejected because the original message is too old, this function return NULL.
      *
+     * When an already delivered message (MegaChatMessage::STATUS_DELIVERED) is edited, the status 
+     * of the message will change from STATUS_SENDING directly to STATUS_DELIVERED again, without
+     * the transition through STATUS_SERVER_RECEIVED. In other words, the protocol doesn't allow
+     * to know when an edit has been delived to the target user, but only when the edit has been
+     * received by the server, so for convenience the status of the original message is kept.
+     * 
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
