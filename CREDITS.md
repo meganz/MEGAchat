@@ -85,7 +85,7 @@ Copyright (c) 2014 Joakim Soderberg
 
 Communicate across application servers, web services, API servers, SSO, SQL, Facebook API and run commands and PHP on remote servers.
 
-http://libevent.org/
+https://github.com/JoakimSoderberg/libws
 
 License: MIT License
 
