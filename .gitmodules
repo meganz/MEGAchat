@@ -1,10 +1,7 @@
 [submodule "third-party/libws"]
 	path = third-party/libws
-	url = git@code.developers.mega.co.nz:messenger/libws.git
-[submodule "third-party/strophe-native"]
-	path = third-party/strophe-native
-	url = git@code.developers.mega.co.nz:messenger/strophe-native.git
+	url = git@github.com:meganz/libws.git
 [submodule "third-party/libevent"]
 	path = third-party/libevent
-	url = git@code.developers.mega.co.nz:messenger/libevent-patched.git
+	url = git@github.com:meganz/libevent.git
 
