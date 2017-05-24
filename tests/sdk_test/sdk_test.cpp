@@ -19,7 +19,7 @@ const std::string MegaChatApiTest::DEFAULT_PATH = "../tests/sdk_test/";
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 
-const std::string MegaChatApiTest::LOCAL_PATH = "/tmp";
+const std::string MegaChatApiTest::LOCAL_PATH = "/tmp/testMega";
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
 const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
 
@@ -141,6 +141,12 @@ MegaChatApiTest::~MegaChatApiTest()
 
 void MegaChatApiTest::init()
 {
+    struct stat st = {0};
+    if (stat(LOCAL_PATH.c_str(), &st) == -1)
+    {
+        mkdir(LOCAL_PATH.c_str(), 0700);
+    }
+
     // do some initialization
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
@@ -156,10 +162,10 @@ void MegaChatApiTest::init()
         megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
         megaChatApi[i]->addChatRequestListener(this);
         megaChatApi[i]->addChatListener(this);
-        megaApi[i]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");
-
-        signal(SIGINT, handlerSignalINT);
+        megaApi[i]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");      
     }
+
+    signal(SIGINT, handlerSignalINT);
 }
 
 char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, const char *email, const char *password)
@@ -241,6 +247,21 @@ void MegaChatApiTest::terminate()
 {
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
+        char *session = login(i);
+        MegaNode* node = megaApi[i]->getNodeByPath(REMOTE_PATH.c_str());
+        ASSERT_CHAT_TEST(node != NULL);
+        purgeCloudTree(i, node);
+        delete node;
+        node = NULL;
+        MegaNode* rubbishNode = megaApi[i]->getRubbishNode();
+        purgeCloudTree(i, rubbishNode);
+        delete rubbishNode;
+        rubbishNode = NULL;
+
+        logout(i, true);
+        delete session;
+        session = NULL;
+
         megaApi[i]->removeRequestListener(this);
         megaChatApi[i]->removeChatRequestListener(this);
         megaChatApi[i]->removeChatListener(this);
@@ -251,6 +272,8 @@ void MegaChatApiTest::terminate()
         megaApi[i] = NULL;
         megaChatApi[i] = NULL;
     }
+
+    purgeLocalTree(LOCAL_PATH);
 }
 
 void MegaChatApiTest::logoutAccounts(bool closeSession)
@@ -1963,6 +1986,88 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
     }
 
     delete crl;
+}
+
+int MegaChatApiTest::purgeLocalTree(const std::string &path)
+{
+    DIR *directory = opendir(path.c_str());
+    size_t path_len = path.length();
+    int r = -1;
+
+    if (directory)
+    {
+        struct dirent *p;
+        r = 0;
+        while (!r && (p=readdir(directory)))
+        {
+            int r2 = -1;
+            char *buf;
+            size_t len;
+            /* Skip the names "." and ".." as we don't want to recurse on them. */
+            if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
+            {
+                continue;
+            }
+
+            len = path_len + strlen(p->d_name) + 2;
+            buf = (char *)malloc(len);
+
+            if (buf)
+            {
+                struct stat statbuf;
+                snprintf(buf, len, "%s/%s", path.c_str(), p->d_name);
+                if (!stat(buf, &statbuf))
+                {
+                    if (S_ISDIR(statbuf.st_mode))
+                    {
+                        r2 = purgeLocalTree(buf);
+                    }
+                    else
+                    {
+                        r2 = unlink(buf);
+                    }
+                }
+
+                free(buf);
+            }
+
+            r = r2;
+        }
+
+        closedir(directory);
+    }
+
+    if (!r)
+    {
+        r = rmdir(path.c_str());
+    }
+
+    return r;
+}
+
+void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
+{
+    MegaNodeList *children;
+    children = megaApi[accountIndex]->getChildren(node);
+
+    for (int i = 0; i < children->size(); i++)
+    {
+        MegaNode *childrenNode = children->get(i);
+        if (childrenNode->isFolder())
+        {
+            purgeCloudTree(accountIndex, childrenNode);
+        }
+
+        bool *flagRemove = &requestFlags[accountIndex][MegaRequest::TYPE_REMOVE];
+        *flagRemove = false;
+
+        megaApi[accountIndex]->remove(childrenNode);
+
+        ASSERT_CHAT_TEST(waitForResponse(flagRemove));
+        ASSERT_CHAT_TEST(!lastError[accountIndex]);
+    }
+
+    delete children;
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)

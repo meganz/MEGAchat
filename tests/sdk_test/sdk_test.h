@@ -192,6 +192,9 @@ private:
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
+    int purgeLocalTree(const std::string& path);
+    void purgeCloudTree(unsigned int accountIndex, mega::MegaNode* node);
+
     Account mAccounts[NUM_ACCOUNTS];
 
     mega::MegaApi* megaApi[NUM_ACCOUNTS];
