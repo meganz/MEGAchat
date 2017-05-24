@@ -36,18 +36,19 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    EXECUTE_TEST(t.TEST_ResumeSession(0), t.closeTestOneAccount(0))
-    EXECUTE_TEST(t.TEST_SetOnlineStatus(0), t.closeTestOneAccount(0))
-    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), t.closeTestOneAccount(0))
-    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), t.closeTestTwoAccount(0, 1))
-    EXECUTE_TEST(t.TEST_ClearHistory(0, 1), t.closeTestTwoAccount(0, 1))
-    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), t.closeTestTwoAccount(0, 1))
-    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), t.closeTestTwoAccount(0, 1))
-    EXECUTE_TEST(t.TEST_Attachment(0, 1), t.closeTestTwoAccount(0, 1))
-    EXECUTE_TEST(t.TEST_SendContact(0, 1), t.closeTestTwoAccount(0, 1))
-    EXECUTE_TEST(t.TEST_LastMessage(0, 1), t.closeTestTwoAccount(0, 1))
-    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), t.closeTestTwoAccount(0, 1))
-    EXECUTE_TEST(t.TEST_attachmentPNG(0, 1), t.closeTestTwoAccount(0, 1));
+    EXECUTE_TEST(t.TEST_ResumeSession(0))
+    EXECUTE_TEST(t.TEST_SetOnlineStatus(0))
+    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0))
+    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1))
+    EXECUTE_TEST(t.TEST_ClearHistory(0, 1))
+    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1))
+    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1))
+    EXECUTE_TEST(t.TEST_OfflineMode(0))
+    EXECUTE_TEST(t.TEST_Attachment(0, 1))
+    EXECUTE_TEST(t.TEST_SendContact(0, 1))
+    EXECUTE_TEST(t.TEST_LastMessage(0, 1))
+    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1))
+    EXECUTE_TEST(t.TEST_attachmentPNG(0, 1));
 
     t.terminate();
 
@@ -251,15 +252,16 @@ void MegaChatApiTest::terminate()
     }
 }
 
-void MegaChatApiTest::closeTestOneAccount(unsigned int accountIndex)
+void MegaChatApiTest::logoutAccounts(bool closeSession)
 {
-    logout(accountIndex);
-}
+    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    {
+        if (megaApi[i]->isLoggedIn())
+        {
+            logout(i, closeSession);
+        }
+    }
 
-void MegaChatApiTest::closeTestTwoAccount(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
-{
-    logout(primaryAccountIndex);
-    logout(secondaryAccountIndex);
 }
 
 void MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
@@ -401,7 +403,7 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     // ___ Resume an existing session ___
     logout(accountIndex, false); // keeps session alive
     char *tmpSession = login(accountIndex, session);
-    ASSERT_CHAT_TEST (!strcmp(session, tmpSession));
+    ASSERT_CHAT_TEST(!strcmp(session, tmpSession));
     delete [] tmpSession;   tmpSession = NULL;
 
     checkEmail(accountIndex);
@@ -541,7 +543,7 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     delete list;
     list = NULL;
 
-    logout(accountIndex, true);
+    logoutAccounts(true);
     delete [] session; session = NULL;
 }
 
@@ -553,7 +555,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_BUSY);
     ASSERT_CHAT_TEST(waitForResponse(flag));
 
-    logout(accountIndex, true);
+    logoutAccounts(true);
     delete sesion;
     sesion = NULL;
 }
@@ -640,7 +642,7 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
         chatroom = NULL;
     }
 
-    logout(accountIndex, true);
+    logoutAccounts(true);
     delete sesion;
     sesion = NULL;
 }
@@ -689,8 +691,7 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int primaryAccountInde
     // 2. A sends a message to B while B doesn't have the chat opened.
     // Then, B opens the chat --> check the received message in B, the delivered in A
 
-    logout(secondaryAccountIndex, true);
-    logout(primaryAccountIndex, true);
+    logoutAccounts(true);
 
     delete [] primarySession;
     primarySession = NULL;
@@ -908,8 +909,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     leaveChat(primaryAccountIndex, chatid);
     leaveChat(secondaryAccountIndex, chatid);
 
-    logout(secondaryAccountIndex, true);
-    logout(primaryAccountIndex, true);
+    logoutAccounts(true);
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
@@ -1018,7 +1018,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
     delete chats;
     chats = NULL;
 
-    logout(accountIndex, true);
+    logoutAccounts(true);
     delete [] session;
 }
 
@@ -1099,8 +1099,7 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int primaryAccountIndex, unsign
     leaveChat(primaryAccountIndex, chatid);
     leaveChat(secondaryAccountIndex, chatid);
 
-    logout(primaryAccountIndex, true);
-    logout(secondaryAccountIndex, true);
+    logoutAccounts(true);
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
@@ -1147,7 +1146,7 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int primaryAccountIndex, unsi
     // LOgin over same index account but with other user
     session = login(primaryAccountIndex, NULL, mAccounts[secondaryAccountIndex].getEmail().c_str(), mAccounts[secondaryAccountIndex].getPassword().c_str());
 
-    logout(primaryAccountIndex, true);
+    logoutAccounts(true);
 
     delete [] session;
     session = NULL;
@@ -1222,8 +1221,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int primaryAccountIndex, unsigned
 
     clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
 
-    logout(primaryAccountIndex, true);
-    logout(secondaryAccountIndex, true);
+    logoutAccounts(true);
 
     delete msgReceived;
     msgReceived = NULL;
@@ -1297,8 +1295,7 @@ void MegaChatApiTest::TEST_attachmentPNG(unsigned int primaryAccountIndex, unsig
     ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail1));
     ASSERT_CHAT_TEST(!lastError[secondaryAccountIndex]);
 
-    logout(primaryAccountIndex, true);
-    logout(secondaryAccountIndex, true);
+    logoutAccounts(true);
 
     delete nodeReceived;
     nodeReceived = NULL;
@@ -1365,8 +1362,7 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int primaryAccountIndex, unsigne
 
     clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
 
-    logout(primaryAccountIndex, true);
-    logout(secondaryAccountIndex, true);
+    logoutAccounts(true);
 
     delete nodeReceived;
     nodeReceived = NULL;
@@ -1440,8 +1436,7 @@ void MegaChatApiTest::TEST_SendContact(unsigned int primaryAccountIndex, unsigne
 
     clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
 
-    logout(primaryAccountIndex, true);
-    logout(secondaryAccountIndex, true);
+    logoutAccounts(true);
 
     delete [] primarySession;
     primarySession = NULL;
@@ -1506,8 +1501,7 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int primaryAccountIndex, un
     leaveChat(primaryAccountIndex, chatid);
     leaveChat(secondaryAccountIndex, chatid);
 
-    logout(secondaryAccountIndex, true);
-    logout(primaryAccountIndex, true);
+    logoutAccounts(true);
 
     delete [] session0;
     session0 = NULL;

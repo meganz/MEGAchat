@@ -55,14 +55,14 @@ private:
         throw ChatTestException(__FILE__, __LINE__); \
     } \
 
-#define EXECUTE_TEST(test, closeTestAfterFail) \
+#define EXECUTE_TEST(test) \
     try \
     { \
         test; \
     } \
     catch(ChatTestException e) \
     { \
-        closeTestAfterFail; \
+        t.logoutAccounts(true); \
         MegaChatApiTest::mFailedTests ++; \
         std::cout << e.what() << std::endl; \
     } \
@@ -128,8 +128,7 @@ public:
     char *login(unsigned int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
     void logout(unsigned int accountIndex, bool closeSession = false);
     void terminate();
-    void closeTestOneAccount(unsigned int accountIndex);
-    void closeTestTwoAccount(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void logoutAccounts(bool closeSession = false);
 
     static void printChatRoomInfo(const megachat::MegaChatRoom *);
     static void printMessageInfo(const megachat::MegaChatMessage *);
