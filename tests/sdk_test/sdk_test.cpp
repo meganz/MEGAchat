@@ -36,19 +36,20 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    EXECUTE_TEST(t.TEST_ResumeSession(0))
-    EXECUTE_TEST(t.TEST_SetOnlineStatus(0))
-    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0))
-    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1))
-    EXECUTE_TEST(t.TEST_ClearHistory(0, 1))
-    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1))
-    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1))
-    EXECUTE_TEST(t.TEST_OfflineMode(0))
-    EXECUTE_TEST(t.TEST_Attachment(0, 1))
-    EXECUTE_TEST(t.TEST_SendContact(0, 1))
-    EXECUTE_TEST(t.TEST_LastMessage(0, 1))
-    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1))
+    EXECUTE_TEST(t.TEST_ResumeSession(0));
+    EXECUTE_TEST(t.TEST_SetOnlineStatus(0));
+    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0));
+    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1));
+    EXECUTE_TEST(t.TEST_ClearHistory(0, 1));
+    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1));
+    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1));
+    EXECUTE_TEST(t.TEST_Attachment(0, 1));
+    EXECUTE_TEST(t.TEST_SendContact(0, 1));
+    EXECUTE_TEST(t.TEST_LastMessage(0, 1));
+    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1));
     EXECUTE_TEST(t.TEST_attachmentPNG(0, 1));
+
+    //EXECUTE_TEST(t.TEST_OfflineMode(0)); // This is a manual test. It is necesary stop intenet conection
 
     t.terminate();
 

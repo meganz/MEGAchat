@@ -50,22 +50,28 @@ private:
 };
 
 #define ASSERT_CHAT_TEST(a) \
-    if (!(a)) \
-    { \
-        throw ChatTestException(__FILE__, __LINE__); \
+    do{ \
+        if (!(a)) \
+        { \
+            throw ChatTestException(__FILE__, __LINE__); \
+        } \
     } \
+    while(false) \
 
 #define EXECUTE_TEST(test) \
-    try \
-    { \
-        test; \
+    do { \
+        try \
+        { \
+            test; \
+        } \
+        catch(ChatTestException e) \
+        { \
+            t.logoutAccounts(true); \
+            MegaChatApiTest::mFailedTests ++; \
+            std::cout << e.what() << std::endl; \
+        } \
     } \
-    catch(ChatTestException e) \
-    { \
-        t.logoutAccounts(true); \
-        MegaChatApiTest::mFailedTests ++; \
-        std::cout << e.what() << std::endl; \
-    } \
+    while(false) \
 
 class TestChatRoomListener;
 
