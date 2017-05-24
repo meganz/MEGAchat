@@ -15,7 +15,16 @@ using namespace megachat;
 
 int MegaChatApiTest::mFailedTests = 0;
 
-void sigintHandler(int)
+const std::string MegaChatApiTest::DEFAULT_PATH = "../tests/sdk_test/";
+const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
+const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
+
+const std::string MegaChatApiTest::LOCAL_PATH = "/tmp";
+const std::string MegaChatApiTest::REMOTE_PATH = "/";
+const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
+
+
+void handlerSignalINT(int)
 {
     printf("SIGINT Received\n");
     fflush(stdout);
@@ -36,17 +45,13 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), t.closeTestTwoAccount(0, 1))
     EXECUTE_TEST(t.TEST_Attachment(0, 1), t.closeTestTwoAccount(0, 1))
     EXECUTE_TEST(t.TEST_SendContact(0, 1), t.closeTestTwoAccount(0, 1))
+    EXECUTE_TEST(t.TEST_LastMessage(0, 1), t.closeTestTwoAccount(0, 1))
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), t.closeTestTwoAccount(0, 1))
+    EXECUTE_TEST(t.TEST_attachmentPNG(0, 1), t.closeTestTwoAccount(0, 1));
 
     t.terminate();
 
     return t.mFailedTests;
-}
-
-void handlerSignalINT(int)
-{
-    printf("SIGINT Received\n");
-    fflush(stdout);
 }
 
 ChatTestException::ChatTestException(const string &file, int line)
@@ -1179,47 +1184,22 @@ void MegaChatApiTest::TEST_Attachment(unsigned int primaryAccountIndex, unsigned
     chatroomListener->msgId[primaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
     chatroomListener->msgId[secondaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
 
-    struct stat st = {0};
-
-    std::string downloadPath = "/tmp/download/";
-    if (stat(downloadPath.c_str(), &st) == -1)
-    {
-        mkdir(downloadPath.c_str(), 0700);
-    }
-
     std::string formatDate = dateToString();
-    MegaHandle nodeSentHandle = createAndSendFile(primaryAccountIndex, secondaryAccountIndex, chatid, formatDate, formatDate, chatroomListener);
 
-    MegaChatMessage* msgReceived = megaChatApi[secondaryAccountIndex]->getMessage(chatid, chatroomListener->msgId[secondaryAccountIndex]);
+    createFile(formatDate, LOCAL_PATH, formatDate);
+    MegaNode* nodeSent = uploadFile(primaryAccountIndex, formatDate, LOCAL_PATH, REMOTE_PATH);
+    MegaNode *nodeReceived = attachNode(primaryAccountIndex, secondaryAccountIndex, chatid, nodeSent, chatroomListener);
 
-    // Download File
-    ASSERT_CHAT_TEST(msgReceived);
-    ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT);
-    mega::MegaNodeList *nodeList = msgReceived->getMegaNodeList();
-    MegaNode* node1 = nodeList->get(0);
-    addDownload();
-    megaApi[secondaryAccountIndex]->startDownload(node1, downloadPath.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(&isNotDownloadRunning()));
-    ASSERT_CHAT_TEST(lastErrorTransfer[secondaryAccountIndex] == API_OK);
+    ASSERT_CHAT_TEST(downloadNode(secondaryAccountIndex, nodeReceived));
 
-    // Import node
-    MegaNode *parentNode = megaApi[secondaryAccountIndex]->getNodeByPath("/");
-    ASSERT_CHAT_TEST(parentNode);
-    bool *flagNodeCopied = &requestFlags[secondaryAccountIndex][mega::MegaRequest::TYPE_COPY]; *flagNodeCopied = false;
-    megaApi[secondaryAccountIndex]->copyNode(node1, parentNode, formatDate.c_str(), this);
-    delete parentNode;
-    ASSERT_CHAT_TEST(waitForResponse(flagNodeCopied));
-    ASSERT_CHAT_TEST(!lastError[secondaryAccountIndex]);
-    MegaNode *nodeCopied = megaApi[secondaryAccountIndex]->getNodeByHandle(mNodeCopiedHandle);
-    ASSERT_CHAT_TEST(nodeCopied);
-    delete nodeCopied;
+    importNode(secondaryAccountIndex, nodeReceived, FILE_IMAGE_NAME);
 
     // Revoke node
     bool *flagConfirmed = &revokeNodeSend[primaryAccountIndex]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[secondaryAccountIndex]; *flagReceived = false;
     chatroomListener->msgId[primaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
     chatroomListener->msgId[secondaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
-    megachat::MegaChatHandle revokeAttachmentNode = nodeSentHandle;
+    megachat::MegaChatHandle revokeAttachmentNode = nodeSent->getHandle();
     megaChatApi[primaryAccountIndex]->revokeAttachment(chatid, revokeAttachmentNode, this);
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed));
     MegaChatHandle msgId0 = chatroomListener->msgId[primaryAccountIndex];
@@ -1228,28 +1208,103 @@ void MegaChatApiTest::TEST_Attachment(unsigned int primaryAccountIndex, unsigned
     ASSERT_CHAT_TEST(waitForResponse(flagReceived));    // for reception
     MegaChatHandle msgId1 = chatroomListener->msgId[1];
     ASSERT_CHAT_TEST (msgId0 == msgId1);
-    msgReceived = megaChatApi[secondaryAccountIndex]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
+    MegaChatMessage *msgReceived = megaChatApi[secondaryAccountIndex]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(msgReceived);
     ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT);
 
     // Remove file downloaded to try to download after revoke
-    std::string filePath = downloadPath + std::string(formatDate);
-    std::string secondaryFilePath = downloadPath + std::string("remove");
+    std::string filePath = DOWNLOAD_PATH + std::string(formatDate);
+    std::string secondaryFilePath = DOWNLOAD_PATH + std::string("remove");
     rename(filePath.c_str(), secondaryFilePath.c_str());
 
     // Download File
-    mega::MegaHandle nodeHandle = msgReceived->getHandleOfAction();
-    ASSERT_CHAT_TEST(nodeHandle == node1->getHandle());
-
-    addDownload();
-    megaApi[secondaryAccountIndex]->startDownload(node1, downloadPath.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(&isNotDownloadRunning()));
-    ASSERT_CHAT_TEST(lastErrorTransfer[secondaryAccountIndex] != API_OK);
+    ASSERT_CHAT_TEST(!downloadNode(1, nodeReceived));
 
     clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
 
     logout(primaryAccountIndex, true);
     logout(secondaryAccountIndex, true);
+
+    delete msgReceived;
+    msgReceived = NULL;
+
+    delete nodeReceived;
+    nodeReceived = NULL;
+
+    delete nodeSent;
+    nodeSent = NULL;
+
+    delete [] primarySession;
+    primarySession = NULL;
+    delete [] secondarySession;
+    secondarySession = NULL;
+}
+
+void MegaChatApiTest::TEST_attachmentPNG(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+{
+    // Prerequirement email[0] and email[1] are contacts
+    // Image to send has to be at directory ../tests/sdk_test/ from build or define enviroment variable PATH_IMAGE
+
+    char *primarySession = login(primaryAccountIndex);
+    char *secondarySession = login(secondaryAccountIndex);
+
+    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    if (!peer)
+    {
+        makeContact(primaryAccountIndex, secondaryAccountIndex);
+        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    }
+
+    delete peer;
+    peer = NULL;
+
+    MegaChatHandle chatid = getPeerToPeerChatRoom(primaryAccountIndex, secondaryAccountIndex);
+
+    // 1. A sends a message to B while B has the chat opened.
+    // --> check the confirmed in A, the received message in B, the delivered in A
+
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
+    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+
+    // Load some message to feed history
+    loadHistory(primaryAccountIndex, chatid, chatroomListener);
+    loadHistory(secondaryAccountIndex, chatid, chatroomListener);
+
+    std::string path = DEFAULT_PATH;
+
+    if (getenv(PATH_IMAGE.c_str()) != NULL)
+    {
+        path = getenv(PATH_IMAGE.c_str());
+    }
+
+    MegaNode *nodeSent = uploadFile(primaryAccountIndex, FILE_IMAGE_NAME, path, REMOTE_PATH);
+    MegaNode *nodeReceived = attachNode(primaryAccountIndex, secondaryAccountIndex, chatid, nodeSent, chatroomListener);
+
+    ASSERT_CHAT_TEST(downloadNode(secondaryAccountIndex, nodeReceived));
+
+    importNode(secondaryAccountIndex, nodeReceived, FILE_IMAGE_NAME);
+
+    bool *flagRequestThumbnail0 = &requestFlags[primaryAccountIndex][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail0 = false;
+    std::string thumbnailPath = LOCAL_PATH + "/thumbnail0.jpg";
+    megaApi[primaryAccountIndex]->getThumbnail(nodeSent, thumbnailPath.c_str(), this);
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail0));
+    ASSERT_CHAT_TEST(!lastError[primaryAccountIndex]);
+
+    bool *flagRequestThumbnail1 = &requestFlags[secondaryAccountIndex][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail1 = false;
+    thumbnailPath = LOCAL_PATH + "/thumbnail1.jpg";
+    megaApi[secondaryAccountIndex]->getThumbnail(nodeReceived, thumbnailPath.c_str(), this);
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail1));
+    ASSERT_CHAT_TEST(!lastError[secondaryAccountIndex]);
+
+    logout(primaryAccountIndex, true);
+    logout(secondaryAccountIndex, true);
+
+    delete nodeReceived;
+    nodeReceived = NULL;
+
+    delete nodeSent;
+    nodeSent = NULL;
 
     delete [] primarySession;
     primarySession = NULL;
@@ -1297,7 +1352,9 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int primaryAccountIndex, unsigne
     clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
 
     formatDate = dateToString();
-    createAndSendFile(primaryAccountIndex, secondaryAccountIndex, chatid, formatDate, formatDate, chatroomListener);
+    createFile(formatDate, LOCAL_PATH, formatDate);
+    MegaNode* nodeSent = uploadFile(primaryAccountIndex, formatDate, LOCAL_PATH, REMOTE_PATH);
+    MegaNode* nodeReceived = attachNode(primaryAccountIndex, secondaryAccountIndex, chatid, nodeSent, chatroomListener);
     msgId1 = chatroomListener->msgId[secondaryAccountIndex];
     ASSERT_CHAT_TEST (msgId1 != MEGACHAT_INVALID_HANDLE);
 
@@ -1310,6 +1367,13 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int primaryAccountIndex, unsigne
 
     logout(primaryAccountIndex, true);
     logout(secondaryAccountIndex, true);
+
+    delete nodeReceived;
+    nodeReceived = NULL;
+
+    delete nodeSent;
+    nodeSent = NULL;
+
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
@@ -1706,16 +1770,11 @@ string MegaChatApiTest::dateToString()
     return formatDate;
 }
 
-MegaHandle MegaChatApiTest::createAndSendFile(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, MegaChatHandle chatid,
-                                        std::string fileName, std::string contain, TestChatRoomListener* chatroomListener)
+MegaNode *MegaChatApiTest::attachNode(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, MegaChatHandle chatid,
+                                        MegaNode* nodeToSend, TestChatRoomListener* chatroomListener)
 {
-    std::string fileDestination = uploadFile(primaryAccountIndex, fileName, "/tmp/", contain, "/");
-
-    MegaNode* node0 = megaApi[primaryAccountIndex]->getNodeByPath(fileDestination.c_str());
-    ASSERT_CHAT_TEST(node0 != NULL);
-
     MegaNodeList *megaNodeList = MegaNodeList::createInstance();
-    megaNodeList->addNode(node0);
+    megaNodeList->addNode(nodeToSend);
 
     bool *flagConfirmed = &chatroomListener->msgConfirmed[primaryAccountIndex]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[secondaryAccountIndex]; *flagReceived = false;
@@ -1735,11 +1794,12 @@ MegaHandle MegaChatApiTest::createAndSendFile(unsigned int primaryAccountIndex, 
     ASSERT_CHAT_TEST (msgId0 == msgId1);
     MegaChatMessage *msgReceived = megaChatApi[secondaryAccountIndex]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(msgReceived);
+    ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT);
+    megaNodeList = msgReceived->getMegaNodeList();
+    MegaNode *nodeReceived = megaNodeList->get(0);
+    ASSERT_CHAT_TEST(nodeReceived);
 
-    MegaHandle nodeSentHandle = node0->getHandle();
-
-    delete node0;
-    return nodeSentHandle;
+    return nodeReceived->copy();
 }
 
 void MegaChatApiTest::clearHistory(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
@@ -1826,19 +1886,27 @@ unsigned int MegaChatApiTest::getMegaApiIndex(MegaApi *api)
     return apiIndex;
 }
 
-std::string MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileName, const std::string& originPath, const std::string& contain, const std::string& destinationPath)
+void MegaChatApiTest::createFile(const string &fileName, const string &originPath, const string &contain)
 {
-    std::string filePath = originPath + fileName;
+    std::string filePath = originPath + "/" + fileName;
     FILE* fileDescriptor = fopen(filePath.c_str(), "w");
     fprintf(fileDescriptor, "%s", contain.c_str());
     fclose(fileDescriptor);
+}
 
+MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileName, const std::string& originPath, const std::string& destinationPath)
+{
     addDownload();
+    std::string filePath = originPath + "/" + fileName;
     megaApi[accountIndex]->startUpload(filePath.c_str(), megaApi[accountIndex]->getNodeByPath(destinationPath.c_str()), this);
     ASSERT_CHAT_TEST(waitForResponse(&isNotDownloadRunning()));
     ASSERT_CHAT_TEST(!lastError[accountIndex]);
 
-    return destinationPath + fileName;
+    std::string pathComplete = destinationPath + fileName;
+    MegaNode *node = megaApi[accountIndex]->getNodeByPath(pathComplete.c_str());
+    ASSERT_CHAT_TEST(node != NULL);
+
+    return node;
 }
 
 void MegaChatApiTest::addDownload()
@@ -1849,6 +1917,31 @@ void MegaChatApiTest::addDownload()
 bool &MegaChatApiTest::isNotDownloadRunning()
 {
     return mNotDownloadRunning;
+}
+
+bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
+{
+    struct stat st = {0};
+    if (stat(DOWNLOAD_PATH.c_str(), &st) == -1)
+    {
+        mkdir(DOWNLOAD_PATH.c_str(), 0700);
+    }
+
+    addDownload();
+    megaApi[accountIndex]->startDownload(nodeToDownload, DOWNLOAD_PATH.c_str(), this);
+    ASSERT_CHAT_TEST(waitForResponse(&isNotDownloadRunning()));
+    return lastErrorTransfer[accountIndex] == API_OK;
+}
+
+void MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string &destinationName)
+{
+    bool *flagCopied = &requestFlags[accountIndex][MegaRequest::TYPE_COPY];
+    *flagCopied = false;
+    megaApi[accountIndex]->authorizeNode(node);
+    MegaNode *parentNode = megaApi[accountIndex]->getNodeByPath("/");
+    megaApi[accountIndex]->copyNode(node, parentNode, destinationName.c_str(), this);
+    ASSERT_CHAT_TEST(waitForResponse(flagCopied));
+    ASSERT_CHAT_TEST(!lastError[accountIndex]);
 }
 
 void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize)

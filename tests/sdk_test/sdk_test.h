@@ -67,6 +67,8 @@ private:
         std::cout << e.what() << std::endl; \
     } \
 
+class TestChatRoomListener;
+
 class MegaLoggerSDK : public mega::MegaLogger {
 
 public:
@@ -145,6 +147,7 @@ public:
     void TEST_SwitchAccounts(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
     void TEST_SendContact(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
     void TEST_Attachment(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_attachmentPNG(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
     void TEST_LastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
     void TEST_GroupLastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
 
@@ -164,8 +167,8 @@ private:
 
     void checkEmail(unsigned int indexAccount);
     std::string dateToString();
-    mega::MegaHandle createAndSendFile(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatHandle chatid,
-                                    std::string fileName, std::string contain, TestChatRoomListener* chatroomListener);
+    mega::MegaNode *attachNode(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatHandle chatid,
+                                    mega::MegaNode *nodeToSend, TestChatRoomListener* chatroomListener);
 
     void clearHistory(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void leaveChat(unsigned int accountIndex, megachat::MegaChatHandle chatid);
@@ -173,9 +176,14 @@ private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
     unsigned int getMegaApiIndex(mega::MegaApi *api);
 
-    std::string uploadFile(int accountIndex, const std::string &fileName, const std::string &originPath, const std::string &contain, const std::string &destinationPath);
+    void createFile(const std::string &fileName, const std::string &originPath, const std::string &contain);
+    mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &originPath, const std::string &destinationPath);
     void addDownload();
     bool &isNotDownloadRunning();
+
+
+    bool downloadNode(int accountIndex, mega::MegaNode *nodeToDownload);
+    void importNode(int accountIndex, mega::MegaNode* node, const std::string& destinationName);
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
@@ -227,6 +235,14 @@ private:
 
     mega::MegaContactRequest* contactRequest[NUM_ACCOUNTS];
     bool contactRequestUpdated[2];
+
+    static const std::string DEFAULT_PATH;
+    static const std::string PATH_IMAGE;
+    static const std::string FILE_IMAGE_NAME;
+
+    static const std::string LOCAL_PATH;
+    static const std::string REMOTE_PATH;
+    static const std::string DOWNLOAD_PATH;
 
 public:
     // implementation for MegaRequestListener
