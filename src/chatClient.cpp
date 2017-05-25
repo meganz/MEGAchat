@@ -161,8 +161,7 @@ bool Client::openDb(const std::string& sid)
 void Client::createDbSchema()
 {
     mMyHandle = Id::null();
-    db.simpleQuery(gDbSchema);
-//    db.commit();
+    db.simpleQuery(gDbSchema); //db.query() uses a prepared statement and will execute only the first statement up to the first semicolon
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
     db.query("insert into vars(name, value) values('schema_version', ?)", ver);
