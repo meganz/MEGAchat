@@ -819,7 +819,6 @@ protected:
     promise::Promise<void> sdkLoginExistingSession(const char* sid);
     bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
     void commit(const std::string& scsn);
-    void commit();
 
     /** @brief Does the actual connect, once the SDK is online.
      * connect() waits for the mCanConnect promise to be resolved and then calls

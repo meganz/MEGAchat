@@ -3,7 +3,7 @@
 
 #include "db.h"
 #include "chatd.h"
-extern sqlite3* db;
+//extern sqlite3* db;
 
 class ChatdSqliteDb: public chatd::DbInterface
 {

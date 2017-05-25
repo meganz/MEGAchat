@@ -133,7 +133,7 @@ bool Client::openDb(const std::string& sid)
         return false;
     }
 
-    bool ok = db.open(path.c_str());
+    bool ok = db.open(path.c_str(), false);
     if (!ok)
     {
         KR_LOG_WARNING("Error opening database");
@@ -150,34 +150,23 @@ bool Client::openDb(const std::string& sid)
     ver.append("_").append(gDbSchemaVersionSuffix);
     if (stmt.stringCol(0) != ver)
     {
-        sqlite3_close(db);
-        db = nullptr;
+        db.close();
         KR_LOG_WARNING("Database schema version is not compatible with app version, will rebuild it");
         return false;
     }
     mSid = sid;
-    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
     return true;
 }
 
 void Client::createDbSchema()
 {
     mMyHandle = Id::null();
-    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
-    MyAutoHandle<char*, void(*)(void*), sqlite3_free, (char*)nullptr> errmsg;
-    int ret = sqlite3_exec(db, gDbSchema, nullptr, nullptr, errmsg.handlePtr());
-    if (ret)
-    {
-        if (errmsg)
-            throw std::runtime_error("Error initializing database: "+std::string(errmsg));
-        else
-            throw std::runtime_error("Error "+std::to_string(ret)+" initializing database");
-    }
-    commit();
+    db.query(gDbSchema);
+//    db.commit(); //without commit, the tables will not be created
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
-    sqliteQuery(db, "insert into vars(name, value) values('schema_version', ?)", ver);
-    commit();
+    db.query("insert into vars(name, value) values('schema_version', ?)", ver);
+//    db.setCommitMode(false);
 }
 
 void Client::heartbeat()
@@ -307,10 +296,10 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
 // We have a complete snapshot of the SDK contact and chat list state.
 // Commit it with the accompanying scsn
     mMyHandle = getMyHandleFromSdk();
-    sqliteQuery(db, "insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
+    db.query("insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
 
     mMyEmail = getMyEmailFromSdk();
-    sqliteQuery(db, "insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
+    db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
     mUserAttrCache.reset(new UserAttrCache(*this));
 
@@ -330,27 +319,20 @@ void Client::commit(const std::string& scsn)
     if (scsn.empty())
     {
         KR_LOG_DEBUG("Committing with empty scsn");
-        commit();
+        db.commit();
         return;
     }
     if (scsn == mLastScsn)
     {
         KR_LOG_DEBUG("Committing with same scsn");
-        commit();
+        db.commit();
         return;
     }
 
-    sqliteQuery(db, "insert or replace into vars(name,value) values('scsn',?)", scsn);
-    sqliteSimpleQuery(db, "COMMIT TRANSACTION");
-    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
+    db.query("insert or replace into vars(name,value) values('scsn',?)", scsn);
+    db.commit();
     mLastScsn = scsn;
     KR_LOG_DEBUG("Commit with scsn %s", scsn.c_str());
-}
-
-void Client::commit()
-{
-    sqliteSimpleQuery(db, "COMMIT TRANSACTION");
-    sqliteSimpleQuery(db, "BEGIN TRANSACTION");
 }
 
 void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
@@ -532,8 +514,7 @@ void Client::createDb()
 {
     wipeDb(mSid);
     std::string path = dbPath(mSid);
-    int ret = sqlite3_open(path.c_str(), &db);
-    if (ret != SQLITE_OK || !db)
+    if (!db.open(path.c_str(), true))
         throw std::runtime_error("Can't access application database at "+mAppDir);
     createDbSchema(); //calls commit() at the end
 }
@@ -746,10 +727,10 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
             return promise::Error("No private RSA key in getUserData API response");
         mMyPrivRsaLen = base64urldecode(privrsa, strlen(privrsa), mMyPrivRsa, sizeof(mMyPrivRsa));
         // write to db
-        sqliteQuery(db, "insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
-        sqliteQuery(db, "insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
-        sqliteQuery(db, "insert or replace into vars(name, value) values('pub_rsa', ?)", StaticBuffer(mMyPubRsa, mMyPubRsaLen));
-        sqliteQuery(db, "insert or replace into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
+        db.query("insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
+        db.query("insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
+        db.query("insert or replace into vars(name, value) values('pub_rsa', ?)", StaticBuffer(mMyPubRsa, mMyPubRsaLen));
+        db.query("insert or replace into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });
@@ -912,7 +893,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
         if (db)
         {
             KR_LOG_INFO("Doing final COMMIT to database");
-            commit();
+            db.commit();
         }
         if (deleteDb && !mSid.empty())
         {
@@ -1235,10 +1216,10 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat,
     mPeer = peers->getPeerHandle(0);
     mPeerPriv = (chatd::Priv)peers->getPeerPrivilege(0);
 
-    sqliteQuery(parent.client.db, "insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created) values (?,?,?,?,?,?)",
+    parent.client.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created) values (?,?,?,?,?,?)",
         mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime());
 //just in case
-    sqliteQuery(parent.client.db, "delete from chat_peers where chatid = ?", mChatid);
+    parent.client.db.query("delete from chat_peers where chatid = ?", mChatid);
 
     mContact.attachChatRoom(*this);
     KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  Id(mChatid).toString().c_str());
@@ -1268,7 +1249,7 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
         return false;
 
     mOwnPriv = priv;
-    sqliteQuery(parent.client.db, "update chats set own_priv = ? where chatid = ?",
+    parent.client.db.query("update chats set own_priv = ? where chatid = ?",
                 priv, mChatid);
     return true;
 }
@@ -1278,7 +1259,7 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
     if (mPeerPriv == priv)
         return false;
     mPeerPriv = priv;
-    sqliteQuery(parent.client.db, "update chats set peer_priv = ? where chatid = ?",
+    parent.client.db.query("update chats set peer_priv = ? where chatid = ?",
                 priv, mChatid);
     return true;
 }
@@ -1320,7 +1301,7 @@ void GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv, bool saveToDb)
     }
     if (saveToDb)
     {
-        sqliteQuery(parent.client.db, "insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",
+        parent.client.db.query("insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",
             mChatid, userid, priv);
     }
 }
@@ -1336,7 +1317,7 @@ bool GroupChatRoom::removeMember(uint64_t userid)
     delete it->second;
     mPeers.erase(it);
     parent.client.presenced().removePeer(userid);
-    sqliteQuery(parent.client.db, "delete from chat_peers where chatid=? and userid=?",
+    parent.client.db.query("delete from chat_peers where chatid=? and userid=?",
                 mChatid, userid);
     if (!mHasTitle)
         makeTitleFromMemberNames();
@@ -1351,7 +1332,7 @@ promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Pri
     .then([this, wptr, userid, priv]()
     {
         wptr.throwIfDeleted();
-        sqliteQuery(parent.client.db, "update chat_peers set priv=? where chatid=? and userid=?", priv, mChatid, userid);
+        parent.client.db.query("update chat_peers set priv=? where chatid=? and userid=?", priv, mChatid, userid);
     });
 }
 
@@ -1376,8 +1357,8 @@ void GroupChatRoom::deleteSelf()
     marshallCall([this]()
     {
         auto db = parent.client.db;
-        sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
-        sqliteQuery(db, "delete from chats where chatid=?", mChatid);
+        db.query("delete from chat_peers where chatid=?", mChatid);
+        db.query("delete from chats where chatid=?", mChatid);
         delete this;
     });
 }
@@ -1529,7 +1510,7 @@ void GroupChatRoom::setRemoved()
 {
     mChat->disconnect();
     mOwnPriv = chatd::PRIV_NOTPRESENT;
-    sqliteQuery(parent.client.db, "update chats set own_priv=-1 where chatid=?", mChatid);
+    parent.client.db.query("update chats set own_priv=-1 where chatid=?", mChatid);
     notifyExcludedFromChat();
 }
 
@@ -1623,8 +1604,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     }
 //save to db
     auto db = parent.client.db;
-    sqliteQuery(db, "delete from chat_peers where chatid=?", mChatid);
-    sqliteQuery(db,
+    db.query("delete from chat_peers where chatid=?", mChatid);
+    db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
         "own_priv, ts_created) values(?,?,-1,0,?,?)",
         mChatid, mShardNo, mOwnPriv, aChat.getCreationTime());
@@ -1687,7 +1668,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         if (!mTitleString.empty())
         {
             mHasTitle = true;
-            sqliteQuery(parent.client.db, "update chats set title=? where chatid=?", mTitleString, mChatid);
+            parent.client.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
         }
         else
         {
@@ -1774,7 +1755,7 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
         if (title.empty())
         {
             mHasTitle = false;
-            sqliteQuery(parent.client.db, "update chats set title=NULL where chatid=?", mChatid);
+            parent.client.db.query("update chats set title=NULL where chatid=?", mChatid);
             makeTitleFromMemberNames();
         }
     });
@@ -1852,7 +1833,7 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
     {
         mOwnPriv = ownPriv;
         changed = true;
-        sqliteQuery(db, "update chats set own_priv=? where chatid=?", ownPriv, mChatid);
+        db.query("update chats set own_priv=? where chatid=?", ownPriv, mChatid);
         KR_LOG_DEBUG("Chatroom %s: own privilege updated from API", Id(mChatid).toString().c_str());
     }
     return changed;
@@ -2015,7 +1996,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
             auto member = erased->second;
             mPeers.erase(erased);
             delete member;
-            sqliteQuery(db, "delete from chat_peers where chatid=? and userid=?", mChatid, userid);
+            db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
             KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Removed member %s",
                  Id(mChatid).toString().c_str(),  Id(userid).toString().c_str());
         }
@@ -2024,7 +2005,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
             if (ourIt->second->mPriv != it->second)
             {
                 changed = true;
-                sqliteQuery(db, "update chat_peers set priv=? where chatid=? and userid=?",
+                db.query("update chat_peers set priv=? where chatid=? and userid=?",
                     it->second, mChatid, userid);
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
                      Id(chatid()).toString().c_str(), Id(userid).toString().c_str(),
@@ -2047,7 +2028,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
 void GroupChatRoom::clearTitle()
 {
     makeTitleFromMemberNames();
-    sqliteQuery(parent.client.db, "update chats set title=NULL where chatid=?", mChatid);
+    parent.client.db.query("update chats set title=NULL where chatid=?", mChatid);
 }
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
@@ -2202,7 +2183,7 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
         {
             return false;
         }
-        sqliteQuery(client.db, "update contacts set visibility = ? where userid = ?",
+        client.db.query("update contacts set visibility = ? where userid = ?",
             newVisibility, userid);
         item->onVisibilityChanged(newVisibility);
         return true;
@@ -2211,7 +2192,7 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
     std::string email(cmail?cmail:"");
     int visibility = user.getVisibility();
     auto ts = user.getTimestamp();
-    sqliteQuery(client.db, "insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
+    client.db.query("insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
             userid, email, visibility, ts);
     item = new Contact(*this, userid, email, visibility, ts, nullptr);
     KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
@@ -2277,7 +2258,7 @@ void ContactList::removeUser(iterator it)
     auto handle = it->first;
     delete it->second;
     erase(it);
-    sqliteQuery(client.db, "delete from contacts where userid=?", handle);
+    client.db.query("delete from contacts where userid=?", handle);
 }
 
 promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)

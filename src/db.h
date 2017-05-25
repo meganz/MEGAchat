@@ -35,11 +35,12 @@ protected:
         mLastCommitTs = time(NULL);
     }
 public:
-    SqliteDb(sqlite3* db, uint16_t commitInterval=20)
+    SqliteDb(sqlite3* db=nullptr, uint16_t commitInterval=20)
     : mDb(db), mCommitInterval(commitInterval)
     {}
     bool open(const char* fname, bool commitEach=true)
     {
+        assert(!mDb);
         int ret = sqlite3_open(fname, &mDb);
         if (!mDb)
             return false;
@@ -49,6 +50,7 @@ public:
             mDb = nullptr;
             return false;
         }
+        mCommitEach = commitEach;
         if (!mCommitEach)
         {
             beginTransaction();
@@ -65,6 +67,7 @@ public:
         sqlite3_close(mDb);
         mDb = nullptr;
     }
+    bool isOpen() const { return mDb != nullptr; }
     void setCommitMode(bool commitEach)
     {
         if (commitEach == mCommitEach)
@@ -78,6 +81,7 @@ public:
     void setCommitInterval(uint16_t sec) { mCommitInterval = sec; }
     bool hasOpenTransaction() const { return !mCommitEach; }
     operator sqlite3*() { return mDb; }
+    operator const sqlite3*() const { return mDb; }
     template <class... Args>
     inline bool query(const char* sql, Args&&... args);
     void simpleQuery(const char* sql)
@@ -274,7 +278,7 @@ public:
 template <class... Args>
 inline bool SqliteDb::query(const char* sql, Args&&... args)
 {
-    SqliteStmt stmt(mDb, sql);
+    SqliteStmt stmt(*this, sql);
     stmt.bindV(args...);
     return stmt.step();
 }
