@@ -177,7 +177,6 @@ void Chat::connect(const std::string& url)
     // attempt a connection ONLY if this is a new shard.
     if (mConnection.state() == Connection::kStateNew)
     {
-        printf("chatd connecting to url '%s'\n", url.c_str());
         mConnection.reconnect(url)
         .fail([this](const promise::Error& err)
         {
