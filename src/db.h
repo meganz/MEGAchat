@@ -22,17 +22,24 @@ protected:
     friend class SqliteStmt;
     sqlite3* mDb = nullptr;
     bool mCommitEach = true;
+    bool mHasOpenTransaction = false;
     uint16_t mCommitInterval = 20;
     time_t mLastCommitTs = 0;
     inline int step(SqliteStmt& stmt);
     void beginTransaction()
     {
+        assert(!mHasOpenTransaction);
         simpleQuery("BEGIN TRANSACTION");
+        mHasOpenTransaction = true;
     }
-    void commitTransaction()
+    bool commitTransaction()
     {
+        if (!mHasOpenTransaction)
+            return false;
         simpleQuery("COMMIT TRANSACTION");
+        mHasOpenTransaction = false;
         mLastCommitTs = time(NULL);
+        return true;
     }
 public:
     SqliteDb(sqlite3* db=nullptr, uint16_t commitInterval=20)
@@ -79,7 +86,7 @@ public:
         }
     }
     void setCommitInterval(uint16_t sec) { mCommitInterval = sec; }
-    bool hasOpenTransaction() const { return !mCommitEach; }
+    bool hasOpenTransaction() const { return !mHasOpenTransaction; }
     operator sqlite3*() { return mDb; }
     operator const sqlite3*() const { return mDb; }
     template <class... Args>

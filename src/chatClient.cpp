@@ -162,14 +162,16 @@ void Client::createDbSchema()
 {
     mMyHandle = Id::null();
     db.simpleQuery(gDbSchema);
+//    db.commit();
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
     db.query("insert into vars(name, value) values('schema_version', ?)", ver);
-    db.setCommitMode(false);
+    db.commit();
 }
 
 void Client::heartbeat()
 {
+    db.timedCommit();
     if (!mConnected)
     {
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
@@ -513,7 +515,7 @@ void Client::createDb()
 {
     wipeDb(mSid);
     std::string path = dbPath(mSid);
-    if (!db.open(path.c_str(), true))
+    if (!db.open(path.c_str(), false))
         throw std::runtime_error("Can't access application database at "+mAppDir);
     createDbSchema(); //calls commit() at the end
 }
