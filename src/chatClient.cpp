@@ -161,12 +161,11 @@ bool Client::openDb(const std::string& sid)
 void Client::createDbSchema()
 {
     mMyHandle = Id::null();
-    db.query(gDbSchema);
-//    db.commit(); //without commit, the tables will not be created
+    db.simpleQuery(gDbSchema);
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
     db.query("insert into vars(name, value) values('schema_version', ?)", ver);
-//    db.setCommitMode(false);
+    db.setCommitMode(false);
 }
 
 void Client::heartbeat()
