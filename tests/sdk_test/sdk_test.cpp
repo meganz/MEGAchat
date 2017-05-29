@@ -1892,7 +1892,7 @@ MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileN
     std::string filePath = sourcePath + "/" + fileName;
     megaApi[accountIndex]->startUpload(filePath.c_str(), megaApi[accountIndex]->getNodeByPath(targetPath.c_str()), this);
     ASSERT_CHAT_TEST(waitForResponse(&isNotDownloadRunning()));
-    ASSERT_CHAT_TEST(!lastError[accountIndex]);
+    ASSERT_CHAT_TEST(!lastErrorTransfer[accountIndex]);
 
     std::string pathComplete = targetPath + fileName;
     MegaNode *node = megaApi[accountIndex]->getNodeByPath(pathComplete.c_str());
