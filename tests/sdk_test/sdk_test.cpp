@@ -13,8 +13,6 @@
 using namespace mega;
 using namespace megachat;
 
-int MegaChatApiTest::mFailedTests = 0;
-
 const std::string MegaChatApiTest::DEFAULT_PATH = "../tests/sdk_test/";
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
@@ -48,9 +46,8 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Sed contact");
     EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
-    EXECUTE_TEST(t.TEST_attachmentPNG(0, 1), "TEST Attachment PNG");
 
-    //EXECUTE_TEST(t.TEST_OfflineMode(0)); // This is a manual test. It is necesary stop intenet conection
+    //EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode"); // This is a manual test. It is necesary stop intenet conection
 
     t.terminate();
 
@@ -148,6 +145,8 @@ MegaChatApiTest::~MegaChatApiTest()
 
 void MegaChatApiTest::init()
 {
+    std::cout << "[==========] Global test environment initialization" << endl; \
+
     struct stat st = {0};
     if (stat(LOCAL_PATH.c_str(), &st) == -1)
     {
@@ -157,22 +156,12 @@ void MegaChatApiTest::init()
     // do some initialization
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
-        char path[1024];
-        getcwd(path, sizeof path);
-        megaApi[i] = new MegaApi(APPLICATION_KEY.c_str(), path, USER_AGENT_DESCRIPTION.c_str());
-        megaApi[i]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
-        megaApi[i]->addListener(this);
-        megaApi[i]->addRequestListener(this);
-        megaApi[i]->log(MegaApi::LOG_LEVEL_INFO, "___ Initializing tests for chat ___");
-
-        megaChatApi[i] = new MegaChatApi(megaApi[i]);
-        megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
-        megaChatApi[i]->addChatRequestListener(this);
-        megaChatApi[i]->addChatListener(this);
-        megaApi[i]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");      
+        megaApi[i] = NULL;
+        megaChatApi[i] = NULL;
     }
 
     signal(SIGINT, handlerSignalINT);
+    mOKTests = mFailedTests = 0;
 }
 
 char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, const char *email, const char *password)
@@ -252,26 +241,79 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 
 void MegaChatApiTest::terminate()
 {
+    std::cout << "[==========] Global test environment termination" << endl; \
+
+    std::cout << "[ PASSED ] " << mOKTests << " test/s." << endl;
+    if (mFailedTests)
+    {
+        std::cout << "[ FAILED ] " << mFailedTests << " test/s, see above." << endl;
+    }
+}
+
+void MegaChatApiTest::SetUp()
+{
+    // TODO:
+    // get credentials for each account
+    // reset flags and values stored by the object MegaChatApiTest
+    // instantiate MegaApi and MegaChatApi objects
+    // set listeners, loggers, maybe log in the primary account directly
+
+    // do some initialization
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
-        char *session = login(i);
-        MegaNode* node = megaApi[i]->getNodeByPath(REMOTE_PATH.c_str());
-        ASSERT_CHAT_TEST(node != NULL, "");
-        purgeCloudTree(i, node);
-        delete node;
-        node = NULL;
-        MegaNode* rubbishNode = megaApi[i]->getRubbishNode();
-        purgeCloudTree(i, rubbishNode);
-        delete rubbishNode;
-        rubbishNode = NULL;
+        char path[1024];
+        getcwd(path, sizeof path);
+        megaApi[i] = new MegaApi(APPLICATION_KEY.c_str(), path, USER_AGENT_DESCRIPTION.c_str());
+        megaApi[i]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
+        megaApi[i]->addListener(this);
+        megaApi[i]->addRequestListener(this);
+        megaApi[i]->log(MegaApi::LOG_LEVEL_INFO, "___ Initializing tests for chat ___");
 
-        logout(i, true);
-        delete session;
-        session = NULL;
+        megaChatApi[i] = new MegaChatApi(megaApi[i]);
+        megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
+        megaChatApi[i]->addChatRequestListener(this);
+        megaChatApi[i]->addChatListener(this);
+        megaApi[i]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");
+    }
+}
 
-        megaApi[i]->removeRequestListener(this);
-        megaChatApi[i]->removeChatRequestListener(this);
-        megaChatApi[i]->removeChatListener(this);
+void MegaChatApiTest::TearDown()
+{
+    // TODO:
+    // delete generated temporal local files
+    // delete any node in the cloud
+    // delete PCRs
+    // leave any active groupchat
+    // clear history of every active chat
+    // logout from MegaApi and MegaChatApi (if logged in)
+    // remove listeners and loggers
+    // delete instances of MegaApi and MegaChatApi
+
+
+    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    {
+        if (megaApi[i]->isLoggedIn())
+        {
+            MegaNode* cloudNode = megaApi[i]->getRootNode();
+            purgeCloudTree(i, cloudNode);
+            delete cloudNode;
+            cloudNode = NULL;
+            MegaNode* rubbishNode = megaApi[i]->getRubbishNode();
+            purgeCloudTree(i, rubbishNode);
+            delete rubbishNode;
+            rubbishNode = NULL;
+
+            logout(i, true);
+
+            megaApi[i]->removeRequestListener(this);
+        }
+
+        if (megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
+                megaChatApi[i]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION )
+        {
+            megaChatApi[i]->removeChatRequestListener(this);
+            megaChatApi[i]->removeChatListener(this);
+        }
 
         delete megaChatApi[i];
         delete megaApi[i];
@@ -1107,6 +1149,8 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
 
     // Clear history
     clearHistory(a1, a2, chatid, chatroomListener);
+    // TODO: in this case, it's not just to clear the history, but
+    // to also check the other user received the corresponding message.
 
     // Close and re-open chatrooms
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
@@ -1187,9 +1231,10 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
  * @brief TEST_Attachment
  *
  * Requirements:
- *      - Both accounts should be conctacts
- *      - The 1on1 chatroom between them should exist
- * (if not accomplished, the test automatically solves them)
+ * - Both accounts should be conctacts
+ * - The 1on1 chatroom between them should exist
+ * (if not accomplished, the test automatically solves the above)
+ * - Image <PATH_IMAGE>/<FILE_IMAGE_NAME> should exist
  *
  * This test does the following:
  *
@@ -1199,6 +1244,10 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
  * + Import received file into the cloud
  * - Revoke access to file
  * + Download received file again --> no access
+ *
+ * - Upload an image
+ * - Download the thumbnail
+ * + Download the thumbnail
  *
  */
 void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
@@ -1220,8 +1269,8 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "");
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "");
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Cannot open chatroom");
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Cannot open chatroom");
 
     // Load some messages to feed history
     loadHistory(a1, chatid, chatroomListener);
@@ -1240,10 +1289,10 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     MegaNode *nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
 
     // B downloads the node
-    ASSERT_CHAT_TEST(downloadNode(a2, nodeReceived), "");
+    ASSERT_CHAT_TEST(downloadNode(a2, nodeReceived), "Cannot download node attached to message");
 
     // B imports the node
-    ASSERT_CHAT_TEST(importNode(a2, nodeReceived, FILE_IMAGE_NAME), "");
+    ASSERT_CHAT_TEST(importNode(a2, nodeReceived, FILE_IMAGE_NAME), "Cannot import node attached to message");
 
     // A revokes access to node
     bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE]; *flagRequest = false;
@@ -1253,8 +1302,8 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     chatroomListener->msgId[a2] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
     megachat::MegaChatHandle revokeAttachmentNode = nodeSent->getHandle();
     megaChatApi[a1]->revokeAttachment(chatid, revokeAttachmentNode, this);
-    ASSERT_CHAT_TEST(waitForResponse(flagRequest), "");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagRequest), "Failed to revoke access to node after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to revoke access: " + std::to_string(lastErrorChat[a1]));
     MegaChatHandle msgId0 = chatroomListener->msgId[a1];
     ASSERT_CHAT_TEST(msgId0 != MEGACHAT_INVALID_HANDLE, "");
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "");    // for reception by server
@@ -1264,8 +1313,8 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(msgId0 == msgId1, "");
     MegaChatMessage *msgReceived = megaChatApi[a2]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(msgReceived, "");
-    ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT, "");
-    ASSERT_CHAT_TEST(msgReceived->getHandleOfAction() == nodeSent->getHandle(), "");
+    ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT, "Unexpected type of message");
+    ASSERT_CHAT_TEST(msgReceived->getHandleOfAction() == nodeSent->getHandle(), "Handle of attached nodes don't match");
 
     // Remove the downloaded file to try to download it again after revoke
     std::string filePath = DOWNLOAD_PATH + std::string(formatDate);
@@ -1273,14 +1322,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     rename(filePath.c_str(), secondaryFilePath.c_str());
 
     // B attempt to download the file after access revocation
-    ASSERT_CHAT_TEST(!downloadNode(1, nodeReceived), "");
-
-    clearHistory(a1, a2, chatid, chatroomListener);
-
-    logoutAccounts(true);
-
-    delete msgReceived;
-    msgReceived = NULL;
+    ASSERT_CHAT_TEST(!downloadNode(1, nodeReceived), "Download succeed, when it should fail");
 
     delete nodeReceived;
     nodeReceived = NULL;
@@ -1288,70 +1330,36 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     delete nodeSent;
     nodeSent = NULL;
 
-    delete [] primarySession;
-    primarySession = NULL;
-    delete [] secondarySession;
-    secondarySession = NULL;
-}
-
-void MegaChatApiTest::TEST_attachmentPNG(unsigned int a1, unsigned int a2)
-{
-    // Prerequirement email[0] and email[1] are contacts
-    // Image to send has to be at directory ../tests/sdk_test/ from build or define enviroment variable PATH_IMAGE
-
-    char *primarySession = login(a1);
-    char *secondarySession = login(a2);
-
-    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    if (!peer)
-    {
-        makeContact(a1, a2);
-        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    }
-
-    delete peer;
-    peer = NULL;
-
-    MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
-
-    // 1. A sends a message to B while B has the chat opened.
-    // --> check the confirmed in A, the received message in B, the delivered in A
-
-    TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "");
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "");
-
-    // Load some message to feed history
-    loadHistory(a1, chatid, chatroomListener);
-    loadHistory(a2, chatid, chatroomListener);
-
+    // A uploads an image to check previews / thumbnails
     std::string path = DEFAULT_PATH;
-
     if (getenv(PATH_IMAGE.c_str()) != NULL)
     {
         path = getenv(PATH_IMAGE.c_str());
     }
+    nodeSent = uploadFile(a1, FILE_IMAGE_NAME, path, REMOTE_PATH);
+    nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
 
-    MegaNode *nodeSent = uploadFile(a1, FILE_IMAGE_NAME, path, REMOTE_PATH);
-    MegaNode *nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
-
-    ASSERT_CHAT_TEST(downloadNode(a2, nodeReceived), "");
-
-    ASSERT_CHAT_TEST(importNode(a2, nodeReceived, FILE_IMAGE_NAME), "");
-
+    // A gets the thumbnail of the uploaded image
     bool *flagRequestThumbnail0 = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail0 = false;
     std::string thumbnailPath = LOCAL_PATH + "/thumbnail0.jpg";
     megaApi[a1]->getThumbnail(nodeSent, thumbnailPath.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail0), "");
-    ASSERT_CHAT_TEST(!lastError[a1], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail0), "Failed to get own thumbnail after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastError[a1], "Failed to get thumbnail" + std::to_string(lastError[a1]));
 
+    // B gets the thumbnail of the attached image
     bool *flagRequestThumbnail1 = &requestFlags[a2][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail1 = false;
     thumbnailPath = LOCAL_PATH + "/thumbnail1.jpg";
     megaApi[a2]->getThumbnail(nodeReceived, thumbnailPath.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail1), "");
-    ASSERT_CHAT_TEST(!lastError[a2], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail1), "Failed to get thumbnail after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastError[a2], "Failed to get thumbnail" + std::to_string(lastError[a2]));
 
+
+    // Clean chatroom history
+    clearHistory(a1, a2, chatid, chatroomListener);
     logoutAccounts(true);
+
+    delete msgReceived;
+    msgReceived = NULL;
 
     delete nodeReceived;
     nodeReceived = NULL;

@@ -65,9 +65,12 @@ private:
     do { \
         try \
         { \
+            t.SetUp(); \
             std::cout << "[" << "RUN     " << "] " << title << endl; \
             test; \
             std::cout << "[" << "      OK" << "] " << title << endl; \
+            t.TearDown(); \
+            t.mOKTests ++; \
         } \
         catch(ChatTestException e) \
         { \
@@ -77,8 +80,8 @@ private:
                 std::cout << e.msg() << std::endl; \
             } \
             std::cout << "[" << " FAILED " << "] " << title << endl; \
-            t.logoutAccounts(true); \
-            MegaChatApiTest::mFailedTests ++; \
+            t.TearDown(); \
+            t.mFailedTests ++; \
         } \
     } \
     while(false) \
@@ -138,12 +141,19 @@ public:
     MegaChatApiTest();
     ~MegaChatApiTest();
 
+    // Global test environment initialization
     void init();
+    // Global test environment clear up
+    void terminate();
+
+    // Specific test environment initialization for each test
+    void SetUp();
+    // Specific test environment clear up for each test
+    void TearDown();
 
     // email and password parameter is used if you don't want to use default values for accountIndex
     char *login(unsigned int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
     void logout(unsigned int accountIndex, bool closeSession = false);
-    void terminate();
     void logoutAccounts(bool closeSession = false);
 
     static void printChatRoomInfo(const megachat::MegaChatRoom *);
@@ -162,11 +172,11 @@ public:
     void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
     void TEST_SendContact(unsigned int a1, unsigned int a2);
     void TEST_Attachment(unsigned int a1, unsigned int a2);
-    void TEST_attachmentPNG(unsigned int a1, unsigned int a2);
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
 
-    static int mFailedTests;
+    unsigned mOKTests;
+    unsigned mFailedTests;
 
 private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
