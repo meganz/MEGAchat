@@ -19,7 +19,6 @@ const std::string MegaChatApiTest::DEFAULT_PATH = "../tests/sdk_test/";
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 
-const std::string MegaChatApiTest::LOCAL_PATH = "/tmp"; // no ending slash
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
 const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
 
@@ -1152,11 +1151,30 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
     session = NULL;
 }
 
+/**
+ * @brief TEST_Attachment
+ *
+ * Requirements:
+ *      - Both accounts should be conctacts
+ *      - The 1on1 chatroom between them should exist
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ *
+ * - Upload new file
+ * - Send file as attachment to chatroom
+ * + Download received file
+ * + Import received file into the cloud
+ * - Revoke access to file
+ * + Download received file again --> no access
+ *
+ */
 void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 {
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
+    // 0. Ensure both accounts are contacts and there's a 1on1 chatroom
     MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!peer)
     {
@@ -1169,14 +1187,11 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
-    // 1. A sends a message to B while B has the chat opened.
-    // --> check the confirmed in A, the received message in B, the delivered in A
-
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
     ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
     ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
-    // Load some message to feed history
+    // Load some messages to feed history
     loadHistory(a1, chatid, chatroomListener);
     loadHistory(a2, chatid, chatroomListener);
 
@@ -1185,10 +1200,14 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 
     std::string formatDate = dateToString();
 
+    // A uploads a new file
     createFile(formatDate, LOCAL_PATH, formatDate);
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
+
+    // A sends the file as attachment to the chatroom
     MegaNode *nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
 
+    // B downloads the node
     ASSERT_CHAT_TEST(downloadNode(a2, nodeReceived));
 
     // B imports the node
@@ -1216,12 +1235,12 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT);
     ASSERT_CHAT_TEST(msgReceived->getHandleOfAction() == nodeSent->getHandle());
 
-    // Remove file downloaded to try to download after revoke
+    // Remove the downloaded file to try to download it again after revoke
     std::string filePath = DOWNLOAD_PATH + std::string(formatDate);
     std::string secondaryFilePath = DOWNLOAD_PATH + std::string("remove");
     rename(filePath.c_str(), secondaryFilePath.c_str());
 
-    // Download File
+    // B attempt to download the file after access revocation
     ASSERT_CHAT_TEST(!downloadNode(1, nodeReceived));
 
     clearHistory(a1, a2, chatid, chatroomListener);
