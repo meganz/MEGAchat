@@ -175,8 +175,8 @@ private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
     unsigned int getMegaApiIndex(mega::MegaApi *api);
 
-    void createFile(const std::string &fileName, const std::string &originPath, const std::string &contain);
-    mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &originPath, const std::string &destinationPath);
+    void createFile(const std::string &fileName, const std::string &sourcePath, const std::string &contain);
+    mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &sourcePath, const std::string &targetPath);
     void addDownload();
     bool &isNotDownloadRunning();
 

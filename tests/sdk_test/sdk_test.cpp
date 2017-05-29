@@ -1878,23 +1878,23 @@ unsigned int MegaChatApiTest::getMegaApiIndex(MegaApi *api)
     return apiIndex;
 }
 
-void MegaChatApiTest::createFile(const string &fileName, const string &originPath, const string &contain)
+void MegaChatApiTest::createFile(const string &fileName, const string &sourcePath, const string &contain)
 {
-    std::string filePath = originPath + "/" + fileName;
+    std::string filePath = sourcePath + "/" + fileName;
     FILE* fileDescriptor = fopen(filePath.c_str(), "w");
     fprintf(fileDescriptor, "%s", contain.c_str());
     fclose(fileDescriptor);
 }
 
-MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileName, const std::string& originPath, const std::string& destinationPath)
+MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileName, const std::string& sourcePath, const std::string& targetPath)
 {
     addDownload();
-    std::string filePath = originPath + "/" + fileName;
-    megaApi[accountIndex]->startUpload(filePath.c_str(), megaApi[accountIndex]->getNodeByPath(destinationPath.c_str()), this);
+    std::string filePath = sourcePath + "/" + fileName;
+    megaApi[accountIndex]->startUpload(filePath.c_str(), megaApi[accountIndex]->getNodeByPath(targetPath.c_str()), this);
     ASSERT_CHAT_TEST(waitForResponse(&isNotDownloadRunning()));
     ASSERT_CHAT_TEST(!lastError[accountIndex]);
 
-    std::string pathComplete = destinationPath + fileName;
+    std::string pathComplete = targetPath + fileName;
     MegaNode *node = megaApi[accountIndex]->getNodeByPath(pathComplete.c_str());
     ASSERT_CHAT_TEST(node != NULL);
 
@@ -1925,13 +1925,13 @@ bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
     return lastErrorTransfer[accountIndex] == API_OK;
 }
 
-void MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string &destinationName)
+void MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string &targetName)
 {
     bool *flagCopied = &requestFlags[accountIndex][MegaRequest::TYPE_COPY];
     *flagCopied = false;
     megaApi[accountIndex]->authorizeNode(node);
     MegaNode *parentNode = megaApi[accountIndex]->getNodeByPath("/");
-    megaApi[accountIndex]->copyNode(node, parentNode, destinationName.c_str(), this);
+    megaApi[accountIndex]->copyNode(node, parentNode, targetName.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagCopied));
     ASSERT_CHAT_TEST(!lastError[accountIndex]);
 }
