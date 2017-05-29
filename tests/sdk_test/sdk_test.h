@@ -55,16 +55,21 @@ private:
         throw ChatTestException(__FILE__, __LINE__); \
     } \
 
-#define EXECUTE_TEST(test) \
+
+
+#define EXECUTE_TEST(test, title) \
     try \
     { \
+        std::cout << "[" << "RUN     " << "] " << title << endl; \
         test; \
+        std::cout << "[" << "      OK" << "] " << title << endl; \
     } \
     catch(ChatTestException e) \
     { \
+        std::cout << e.what() << std::endl; \
+        std::cout << "[" << " FAILED " << "] " << title << endl; \
         t.logoutAccounts(true); \
         MegaChatApiTest::mFailedTests ++; \
-        std::cout << e.what() << std::endl; \
     } \
 
 class TestChatRoomListener;
