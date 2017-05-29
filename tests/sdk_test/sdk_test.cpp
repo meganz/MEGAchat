@@ -1522,7 +1522,6 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
             break;  // no more history or cannot retrieve it
         }
         ASSERT_CHAT_TEST(waitForResponse(flagHistoryLoaded));
-        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex]);
     }
 
     return chatroomListener->msgCount[accountIndex];
