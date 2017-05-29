@@ -1785,11 +1785,14 @@ MegaNode *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, MegaChat
     ASSERT_CHAT_TEST(msgReceived);
     ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT);
     megaNodeList = msgReceived->getMegaNodeList();
-    MegaNode *nodeReceived = megaNodeList->get(0);
-    ASSERT_CHAT_TEST(nodeReceived);
+    ASSERT_CHAT_TEST(megaNodeList);
+    MegaNode *nodeReceived = megaNodeList->get(0)->copy();
     ASSERT_CHAT_TEST(nodeReceived->getHandle() == nodeToSend->getHandle());
 
-    return nodeReceived->copy();
+    delete msgReceived;
+    msgReceived = NULL;
+
+    return nodeReceived;
 }
 
 void MegaChatApiTest::clearHistory(unsigned int a1, unsigned int a2, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
