@@ -19,7 +19,7 @@ const std::string MegaChatApiTest::DEFAULT_PATH = "../tests/sdk_test/";
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 
-const std::string MegaChatApiTest::LOCAL_PATH = "/tmp";
+const std::string MegaChatApiTest::LOCAL_PATH = "/tmp"; // no ending slash
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
 const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
 
@@ -1769,13 +1769,11 @@ MegaNode *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, MegaChat
 
     bool *flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[a2]; *flagReceived = false;
-    bool *flagDelivered = &chatroomListener->msgDelivered[a1]; *flagDelivered = false;
 
     megaChatApi[a1]->attachNodes(chatid, megaNodeList, this);
     delete megaNodeList;
     megaNodeList = NULL;
 
-    ASSERT_CHAT_TEST(waitForResponse(flagConfirmed));
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed));    // for confirmation, sendMessage() is synchronous
     MegaChatHandle msgId0 = chatroomListener->msgId[a1];
     ASSERT_CHAT_TEST (msgId0 != MEGACHAT_INVALID_HANDLE);
@@ -1789,6 +1787,7 @@ MegaNode *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, MegaChat
     megaNodeList = msgReceived->getMegaNodeList();
     MegaNode *nodeReceived = megaNodeList->get(0);
     ASSERT_CHAT_TEST(nodeReceived);
+    ASSERT_CHAT_TEST(nodeReceived->getHandle() == nodeToSend->getHandle());
 
     return nodeReceived->copy();
 }
