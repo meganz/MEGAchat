@@ -1656,11 +1656,8 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
     MegaChatRoom *chatroom0 = megaChatApi[a1]->getChatRoomByUser(peerPrimary->getHandle());
     if (!chatroom0) // chat 1on1 doesn't exist yet --> create it
     {
-        MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-        ASSERT_CHAT_TEST(peer);
-
         MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-        peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+        peers->addPeer(peerPrimary->getHandle(), MegaChatPeerList::PRIV_STANDARD);
 
         bool *flag = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
         bool *chatCreated = &chatItemUpdated[a1]; *chatCreated = false;
@@ -1671,7 +1668,7 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
         ASSERT_CHAT_TEST(waitForResponse(chatCreated));
         ASSERT_CHAT_TEST(waitForResponse(chatReceived));
 
-        chatroom0 = megaChatApi[a1]->getChatRoomByUser(peer->getHandle());
+        chatroom0 = megaChatApi[a1]->getChatRoomByUser(peerPrimary->getHandle());
     }
 
     MegaChatHandle chatid0 = chatroom0->getChatId();
