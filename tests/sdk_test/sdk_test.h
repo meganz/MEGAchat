@@ -39,36 +39,46 @@ static const unsigned int NUM_ACCOUNTS = 2;
 class ChatTestException : public std::exception
 {
 public:
-    ChatTestException(const std::string& file, int line);
+    ChatTestException(const std::string& file, int line, const std::string &msg);
 
     virtual const char *what() const throw();
+    virtual const char *msg() const throw();
 
 private:
     int mLine;
     std::string mFile;
     std::string mExceptionText;
+    std::string mMsg;
 };
 
-#define ASSERT_CHAT_TEST(a) \
-    do{ \
+// do-while is used to forze add semicolon at the end of sentence
+#define ASSERT_CHAT_TEST(a, msg) \
+    do { \
         if (!(a)) \
         { \
-            throw ChatTestException(__FILE__, __LINE__); \
+            throw ChatTestException(__FILE__, __LINE__, msg); \
         } \
     } \
     while(false) \
 
-#define EXECUTE_TEST(test) \
+#define EXECUTE_TEST(test, title) \
     do { \
         try \
         { \
+            std::cout << "[" << "RUN     " << "] " << title << endl; \
             test; \
+            std::cout << "[" << "      OK" << "] " << title << endl; \
         } \
         catch(ChatTestException e) \
         { \
+            std::cout << e.what() << std::endl; \
+            if (e.msg()) \
+            { \
+                std::cout << e.msg() << std::endl; \
+            } \
+            std::cout << "[" << " FAILED " << "] " << title << endl; \
             t.logoutAccounts(true); \
             MegaChatApiTest::mFailedTests ++; \
-            std::cout << e.what() << std::endl; \
         } \
     } \
     while(false) \
@@ -145,26 +155,26 @@ public:
     bool TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
-    void TEST_EditAndDeleteMessages(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_GroupChatManagement(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
+    void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
     void TEST_OfflineMode(unsigned int accountIndex);
-    void TEST_ClearHistory(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_SwitchAccounts(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_SendContact(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_Attachment(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_attachmentPNG(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_LastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_GroupLastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_ClearHistory(unsigned int a1, unsigned int a2);
+    void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
+    void TEST_SendContact(unsigned int a1, unsigned int a2);
+    void TEST_Attachment(unsigned int a1, unsigned int a2);
+    void TEST_attachmentPNG(unsigned int a1, unsigned int a2);
+    void TEST_LastMessage(unsigned int a1, unsigned int a2);
+    void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
 
     static int mFailedTests;
 
 private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
-    void makeContact(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    megachat::MegaChatHandle getGroupChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex,
+    void makeContact(unsigned int a1, unsigned int a2);
+    megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
                                               megachat::MegaChatPeerList *peers);
 
-    megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
     megachat::MegaChatMessage *sendTextMessageOrUpdate(unsigned int senderAccountIndex, unsigned int receiverAccountIndex,
                                                megachat::MegaChatHandle chatid, const std::string& textToSend,
@@ -172,23 +182,23 @@ private:
 
     void checkEmail(unsigned int indexAccount);
     std::string dateToString();
-    mega::MegaNode *attachNode(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatHandle chatid,
+    mega::MegaNode *attachNode(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid,
                                     mega::MegaNode *nodeToSend, TestChatRoomListener* chatroomListener);
 
-    void clearHistory(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
+    void clearHistory(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void leaveChat(unsigned int accountIndex, megachat::MegaChatHandle chatid);
 
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
     unsigned int getMegaApiIndex(mega::MegaApi *api);
 
-    void createFile(const std::string &fileName, const std::string &originPath, const std::string &contain);
-    mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &originPath, const std::string &destinationPath);
-    void addDownload();
-    bool &isNotDownloadRunning();
+    void createFile(const std::string &fileName, const std::string &sourcePath, const std::string &contain);
+    mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &sourcePath, const std::string &targetPath);
+    void addTransfer();
+    bool &isNotTransferRunning();
 
 
     bool downloadNode(int accountIndex, mega::MegaNode *nodeToDownload);
-    void importNode(int accountIndex, mega::MegaNode* node, const std::string& destinationName);
+    bool importNode(int accountIndex, mega::MegaNode* node, const std::string& destinationName);
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
@@ -226,7 +236,6 @@ private:
     std::string mChatFirstname;
     std::string mChatLastname;
     std::string mChatEmail;
-    bool chatNameReceived[NUM_ACCOUNTS];
 
     mega::MegaHandle mNodeCopiedHandle;
 
@@ -236,10 +245,7 @@ private:
     MegaLoggerSDK *logger;
     MegaChatLoggerSDK *chatLogger;
 
-    bool mNotDownloadRunning;
-
-    bool attachNodeSend[NUM_ACCOUNTS];
-    bool revokeNodeSend[NUM_ACCOUNTS];
+    bool mNotTransferRunning;
 
     mega::MegaContactRequest* contactRequest[NUM_ACCOUNTS];
     bool contactRequestUpdated[2];
