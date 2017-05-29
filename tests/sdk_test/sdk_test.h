@@ -39,20 +39,22 @@ static const unsigned int NUM_ACCOUNTS = 2;
 class ChatTestException : public std::exception
 {
 public:
-    ChatTestException(const std::string& file, int line);
+    ChatTestException(const std::string& file, int line, const std::string &msg);
 
     virtual const char *what() const throw();
+    virtual const char *msg() const throw();
 
 private:
     int mLine;
     std::string mFile;
     std::string mExceptionText;
+    std::string mMsg;
 };
 
-#define ASSERT_CHAT_TEST(a) \
+#define ASSERT_CHAT_TEST(a, msg) \
     if (!(a)) \
     { \
-        throw ChatTestException(__FILE__, __LINE__); \
+        throw ChatTestException(__FILE__, __LINE__, msg); \
     } \
 
 
@@ -67,6 +69,10 @@ private:
     catch(ChatTestException e) \
     { \
         std::cout << e.what() << std::endl; \
+        if (e.msg()) \
+        { \
+            std::cout << e.msg() << std::endl; \
+        } \
         std::cout << "[" << " FAILED " << "] " << title << endl; \
         t.logoutAccounts(true); \
         MegaChatApiTest::mFailedTests ++; \
