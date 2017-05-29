@@ -177,12 +177,12 @@ private:
 
     void createFile(const std::string &fileName, const std::string &sourcePath, const std::string &contain);
     mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &sourcePath, const std::string &targetPath);
-    void addDownload();
-    bool &isNotDownloadRunning();
+    void addTransfer();
+    bool &isNotTransferRunning();
 
 
     bool downloadNode(int accountIndex, mega::MegaNode *nodeToDownload);
-    void importNode(int accountIndex, mega::MegaNode* node, const std::string& destinationName);
+    bool importNode(int accountIndex, mega::MegaNode* node, const std::string& destinationName);
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
@@ -226,7 +226,7 @@ private:
     MegaLoggerSDK *logger;
     MegaChatLoggerSDK *chatLogger;
 
-    bool mNotDownloadRunning;
+    bool mNotTransferRunning;
 
     mega::MegaContactRequest* contactRequest[NUM_ACCOUNTS];
     bool contactRequestUpdated[2];

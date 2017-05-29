@@ -90,7 +90,7 @@ std::string Account::getPassword() const
 }
 
 MegaChatApiTest::MegaChatApiTest()
-    : mNotDownloadRunning(true)
+    : mNotTransferRunning(true)
 {
     logger = new MegaLoggerSDK("SDK.log");
     MegaApi::setLoggerObject(logger);
@@ -1191,7 +1191,8 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 
     ASSERT_CHAT_TEST(downloadNode(a2, nodeReceived));
 
-    importNode(a2, nodeReceived, FILE_IMAGE_NAME);
+    // B imports the node
+    ASSERT_CHAT_TEST(importNode(a2, nodeReceived, FILE_IMAGE_NAME));
 
     // A revokes access to node
     bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE]; *flagRequest = false;
@@ -1285,7 +1286,7 @@ void MegaChatApiTest::TEST_attachmentPNG(unsigned int a1, unsigned int a2)
 
     ASSERT_CHAT_TEST(downloadNode(a2, nodeReceived));
 
-    importNode(a2, nodeReceived, FILE_IMAGE_NAME);
+    ASSERT_CHAT_TEST(importNode(a2, nodeReceived, FILE_IMAGE_NAME));
 
     bool *flagRequestThumbnail0 = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail0 = false;
     std::string thumbnailPath = LOCAL_PATH + "/thumbnail0.jpg";
@@ -1896,10 +1897,10 @@ void MegaChatApiTest::createFile(const string &fileName, const string &sourcePat
 
 MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileName, const std::string& sourcePath, const std::string& targetPath)
 {
-    addDownload();
+    addTransfer();
     std::string filePath = sourcePath + "/" + fileName;
     megaApi[accountIndex]->startUpload(filePath.c_str(), megaApi[accountIndex]->getNodeByPath(targetPath.c_str()), this);
-    ASSERT_CHAT_TEST(waitForResponse(&isNotDownloadRunning()));
+    ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning()));
     ASSERT_CHAT_TEST(!lastErrorTransfer[accountIndex]);
 
     std::string pathComplete = targetPath + fileName;
@@ -1909,14 +1910,14 @@ MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileN
     return node;
 }
 
-void MegaChatApiTest::addDownload()
+void MegaChatApiTest::addTransfer()
 {
-    mNotDownloadRunning = false;
+    mNotTransferRunning = false;
 }
 
-bool &MegaChatApiTest::isNotDownloadRunning()
+bool &MegaChatApiTest::isNotTransferRunning()
 {
-    return mNotDownloadRunning;
+    return mNotTransferRunning;
 }
 
 bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
@@ -1927,13 +1928,13 @@ bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
         mkdir(DOWNLOAD_PATH.c_str(), 0700);
     }
 
-    addDownload();
+    addTransfer();
     megaApi[accountIndex]->startDownload(nodeToDownload, DOWNLOAD_PATH.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(&isNotDownloadRunning()));
+    ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning()));
     return lastErrorTransfer[accountIndex] == API_OK;
 }
 
-void MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string &targetName)
+bool MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string &targetName)
 {
     bool *flagCopied = &requestFlags[accountIndex][MegaRequest::TYPE_COPY];
     *flagCopied = false;
@@ -1941,7 +1942,7 @@ void MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string 
     MegaNode *parentNode = megaApi[accountIndex]->getNodeByPath("/");
     megaApi[accountIndex]->copyNode(node, parentNode, targetName.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagCopied));
-    ASSERT_CHAT_TEST(!lastError[accountIndex]);
+    return lastError[accountIndex] == API_OK;
 }
 
 void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize)
@@ -2086,7 +2087,7 @@ void MegaChatApiTest::onTransferFinish(MegaApi *api, MegaTransfer *transfer, Meg
 {
     unsigned int apiIndex = getMegaApiIndex(api);
 
-    mNotDownloadRunning = true;
+    mNotTransferRunning = true;
 
     lastErrorTransfer[apiIndex] = error->getErrorCode();
 }
