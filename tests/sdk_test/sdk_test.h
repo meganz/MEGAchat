@@ -217,7 +217,6 @@ private:
     std::string mChatFirstname;
     std::string mChatLastname;
     std::string mChatEmail;
-    bool chatNameReceived[NUM_ACCOUNTS];
 
     mega::MegaHandle mNodeCopiedHandle;
 
@@ -228,9 +227,6 @@ private:
     MegaChatLoggerSDK *chatLogger;
 
     bool mNotDownloadRunning;
-
-    bool attachNodeSend[NUM_ACCOUNTS];
-    bool revokeNodeSend[NUM_ACCOUNTS];
 
     mega::MegaContactRequest* contactRequest[NUM_ACCOUNTS];
     bool contactRequestUpdated[2];

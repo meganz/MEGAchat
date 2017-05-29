@@ -584,13 +584,13 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
             {
                 MegaChatHandle uh = chatroom->getPeerHandle(i);
 
-                bool *flagNameReceived = &chatNameReceived[accountIndex]; *flagNameReceived = false; mChatFirstname = "";
+                bool *flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_FIRSTNAME]; *flagNameReceived = false; mChatFirstname = "";
                 megaChatApi[accountIndex]->getUserFirstname(uh);
                 ASSERT_CHAT_TEST(waitForResponse(flagNameReceived));
                 ASSERT_CHAT_TEST(!lastErrorChat[accountIndex]);
                 cout << "Peer firstname (" << uh << "): " << mChatFirstname << " (len: " << mChatFirstname.length() << ")" << endl;
 
-                flagNameReceived = &chatNameReceived[accountIndex]; *flagNameReceived = false; mChatLastname = "";
+                flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_LASTNAME]; *flagNameReceived = false; mChatLastname = "";
                 megaChatApi[0]->getUserLastname(uh);
                 ASSERT_CHAT_TEST(waitForResponse(flagNameReceived));
                 ASSERT_CHAT_TEST(!lastErrorChat[accountIndex]);
@@ -604,7 +604,7 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
                 }
                 else
                 {
-                    flagNameReceived = &chatNameReceived[accountIndex]; *flagNameReceived = false; mChatEmail = "";
+                    flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_EMAIL]; *flagNameReceived = false; mChatEmail = "";
                     megaChatApi[accountIndex]->getUserEmail(uh);
                     ASSERT_CHAT_TEST(waitForResponse(flagNameReceived));
                     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex]);
@@ -1193,23 +1193,27 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 
     importNode(a2, nodeReceived, FILE_IMAGE_NAME);
 
-    // Revoke node
-    bool *flagConfirmed = &revokeNodeSend[a1]; *flagConfirmed = false;
+    // A revokes access to node
+    bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE]; *flagRequest = false;
+    bool *flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[a2]; *flagReceived = false;
     chatroomListener->msgId[a1] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
     chatroomListener->msgId[a2] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
     megachat::MegaChatHandle revokeAttachmentNode = nodeSent->getHandle();
     megaChatApi[a1]->revokeAttachment(chatid, revokeAttachmentNode, this);
-    ASSERT_CHAT_TEST(waitForResponse(flagConfirmed));
+    ASSERT_CHAT_TEST(waitForResponse(flagRequest));
+    ASSERT_CHAT_TEST(!lastErrorChat[a1]);
     MegaChatHandle msgId0 = chatroomListener->msgId[a1];
     ASSERT_CHAT_TEST (msgId0 != MEGACHAT_INVALID_HANDLE);
+    ASSERT_CHAT_TEST(waitForResponse(flagConfirmed));    // for reception by server
 
-    ASSERT_CHAT_TEST(waitForResponse(flagReceived));    // for reception
-    MegaChatHandle msgId1 = chatroomListener->msgId[1];
+    ASSERT_CHAT_TEST(waitForResponse(flagReceived));    // for reception by target user
+    MegaChatHandle msgId1 = chatroomListener->msgId[a2];
     ASSERT_CHAT_TEST (msgId0 == msgId1);
     MegaChatMessage *msgReceived = megaChatApi[a2]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(msgReceived);
     ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT);
+    ASSERT_CHAT_TEST(msgReceived->getHandleOfAction() == nodeSent->getHandle());
 
     // Remove file downloaded to try to download after revoke
     std::string filePath = DOWNLOAD_PATH + std::string(formatDate);
@@ -1767,10 +1771,13 @@ MegaNode *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, MegaChat
     MegaNodeList *megaNodeList = MegaNodeList::createInstance();
     megaNodeList->addNode(nodeToSend);
 
+    bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE]; *flagRequest = false;
     bool *flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[a2]; *flagReceived = false;
 
     megaChatApi[a1]->attachNodes(chatid, megaNodeList, this);
+    ASSERT_CHAT_TEST(waitForResponse(flagRequest));
+    ASSERT_CHAT_TEST(!lastErrorChat[a1]);
     delete megaNodeList;
     megaNodeList = NULL;
 
@@ -2015,25 +2022,14 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
 
             case MegaChatRequest::TYPE_GET_FIRSTNAME:
                 mChatFirstname = request->getText() ? request->getText() : "";
-                chatNameReceived[apiIndex] = true;
                 break;
 
             case MegaChatRequest::TYPE_GET_LASTNAME:
                 mChatLastname = request->getText() ? request->getText() : "";
-                chatNameReceived[apiIndex] = true;
                 break;
 
             case MegaChatRequest::TYPE_GET_EMAIL:
                 mChatEmail = request->getText() ? request->getText() : "";
-                chatNameReceived[apiIndex] = true;
-                break;
-
-            case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
-                attachNodeSend[apiIndex] = true;
-                break;
-
-            case MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE:
-                revokeNodeSend[apiIndex] = true;
                 break;
         }
     }
