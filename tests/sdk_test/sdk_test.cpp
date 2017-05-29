@@ -279,19 +279,27 @@ void MegaChatApiTest::SetUp()
 
 void MegaChatApiTest::TearDown()
 {
-    // TODO:
-    // delete generated temporal local files
-    // delete any node in the cloud
-    // delete PCRs
-    // leave any active groupchat
-    // clear history of every active chat
-    // logout from MegaApi and MegaChatApi (if logged in)
-    // remove listeners and loggers
-    // delete instances of MegaApi and MegaChatApi
-
-
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
+        if (megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
+                megaChatApi[i]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION )
+        {
+            // TODO:
+            // leave any active groupchat
+            // clear history of every active chat
+
+            bool *flagRequestLogout = &requestFlagsChat[i][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
+            megaChatApi[i]->logout();
+            ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "");
+        }
+
+        megaChatApi[i]->removeChatRequestListener(this);
+        megaChatApi[i]->removeChatListener(this);
+
+        delete megaChatApi[i];
+        megaChatApi[i] = NULL;
+
+
         if (megaApi[i]->isLoggedIn())
         {
             MegaNode* cloudNode = megaApi[i]->getRootNode();
@@ -303,23 +311,17 @@ void MegaChatApiTest::TearDown()
             delete rubbishNode;
             rubbishNode = NULL;
 
-            logout(i, true);
+            // TODO: delete PCRs
 
-            megaApi[i]->removeRequestListener(this);
+            bool *flagRequestLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
+            megaApi[i]->logout();
+            ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "");
         }
 
-        if (megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
-                megaChatApi[i]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION )
-        {
-            megaChatApi[i]->removeChatRequestListener(this);
-            megaChatApi[i]->removeChatListener(this);
-        }
+        megaApi[i]->removeRequestListener(this);
 
-        delete megaChatApi[i];
         delete megaApi[i];
-
         megaApi[i] = NULL;
-        megaChatApi[i] = NULL;
     }
 
     purgeLocalTree(LOCAL_PATH);
