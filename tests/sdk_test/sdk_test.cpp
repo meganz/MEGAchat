@@ -647,19 +647,19 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
     sesion = NULL;
 }
 
-void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2)
 {
-    char *primarySession = login(primaryAccountIndex);
-    char *secondarySession = login(secondaryAccountIndex);
+    char *primarySession = login(a1);
+    char *secondarySession = login(a2);
 
-    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!peer)
     {
-        makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        makeContact(a1, a2);
+        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
 
-    MegaChatHandle chatid = getPeerToPeerChatRoom(primaryAccountIndex, secondaryAccountIndex);
+    MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     delete peer;
     peer = NULL;
@@ -667,24 +667,24 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int primaryAccountInde
     // 1. A sends a message to B while B has the chat opened.
     // --> check the confirmed in A, the received message in B, the delivered in A
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
-    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
     // Load some message to feed history
-    loadHistory(primaryAccountIndex, chatid, chatroomListener);
-    loadHistory(secondaryAccountIndex, chatid, chatroomListener);
+    loadHistory(a1, chatid, chatroomListener);
+    loadHistory(a2, chatid, chatroomListener);
 
-    std::string messageToSend = "HOLA " + mAccounts[primaryAccountIndex].getEmail() + " - This is a testing message automatically sent to you";
-    MegaChatMessage *msgSent = sendTextMessageOrUpdate(primaryAccountIndex, secondaryAccountIndex, chatid, messageToSend, chatroomListener);
+    std::string messageToSend = "HOLA " + mAccounts[a1].getEmail() + " - This is a testing message automatically sent to you";
+    MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);
 
     // edit the message
-    std::string messageToUpdate = "This is an edited message to " + mAccounts[primaryAccountIndex].getEmail();
-    MegaChatMessage *msgUpdated = sendTextMessageOrUpdate(primaryAccountIndex, secondaryAccountIndex, chatid, messageToUpdate, chatroomListener, msgSent->getMsgId());
+    std::string messageToUpdate = "This is an edited message to " + mAccounts[a1].getEmail();
+    MegaChatMessage *msgUpdated = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate, chatroomListener, msgSent->getMsgId());
     delete msgUpdated; msgUpdated = NULL;
     delete msgSent; msgSent = NULL;
 
     // finally, clear history
-    clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
+    clearHistory(a1, a2, chatid, chatroomListener);
 
     delete chatroomListener;
 
@@ -699,49 +699,49 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int primaryAccountInde
     secondarySession = NULL;
 }
 
-void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
 {
-    char *sessionPrimary = login(primaryAccountIndex);
-    char *sessionSecondary = login(secondaryAccountIndex);
+    char *sessionPrimary = login(a1);
+    char *sessionSecondary = login(a2);
 
     // Prepare peers, privileges...
-    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!peer)
     {
-        makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        makeContact(a1, a2);
+        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
 
-    MegaChatHandle chatid = getGroupChatRoom(primaryAccountIndex, secondaryAccountIndex, peers);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
     delete peers;
     peers = NULL;
 
     // --> Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
-    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
     // --> Remove from chat
-    bool *flagRemoveFromChat = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromChat = false;
-    bool *chatItemLeft0 = &chatItemUpdated[primaryAccountIndex]; *chatItemLeft0 = false;
-    bool *chatItemLeft1 = &chatItemUpdated[secondaryAccountIndex]; *chatItemLeft1 = false;
-    bool *chatItemClosed1 = &chatItemClosed[secondaryAccountIndex]; *chatItemClosed1 = false;
-    bool *chatLeft0 = &chatroomListener->chatUpdated[primaryAccountIndex]; *chatLeft0 = false;
-    bool *chatLeft1 = &chatroomListener->chatUpdated[secondaryAccountIndex]; *chatLeft1 = false;
-    bool *mngMsgRecv = &chatroomListener->msgReceived[primaryAccountIndex]; *mngMsgRecv = false;
-    MegaChatHandle *uhAction = &chatroomListener->uhAction[primaryAccountIndex]; *uhAction = MEGACHAT_INVALID_HANDLE;
-    int *priv = &chatroomListener->priv[primaryAccountIndex]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    megaChatApi[primaryAccountIndex]->removeFromChat(chatid, peer->getHandle());
+    bool *flagRemoveFromChat = &requestFlagsChat[a1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromChat = false;
+    bool *chatItemLeft0 = &chatItemUpdated[a1]; *chatItemLeft0 = false;
+    bool *chatItemLeft1 = &chatItemUpdated[a2]; *chatItemLeft1 = false;
+    bool *chatItemClosed1 = &chatItemClosed[a2]; *chatItemClosed1 = false;
+    bool *chatLeft0 = &chatroomListener->chatUpdated[a1]; *chatLeft0 = false;
+    bool *chatLeft1 = &chatroomListener->chatUpdated[a2]; *chatLeft1 = false;
+    bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
+    megaChatApi[a1]->removeFromChat(chatid, peer->getHandle());
     ASSERT_CHAT_TEST(waitForResponse(flagRemoveFromChat));
-    ASSERT_CHAT_TEST(!lastErrorChat[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastErrorChat[a1]);
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv));
     ASSERT_CHAT_TEST(*uhAction == peer->getHandle());
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RM);
 
-    MegaChatRoom *chatroom = megaChatApi[primaryAccountIndex]->getChatRoom(chatid);
+    MegaChatRoom *chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_CHAT_TEST (chatroom);
     ASSERT_CHAT_TEST(chatroom->getPeerCount() == 0);
     delete chatroom;
@@ -752,26 +752,26 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     ASSERT_CHAT_TEST(waitForResponse(chatLeft0));
 
     ASSERT_CHAT_TEST(waitForResponse(chatLeft1));
-    chatroom = megaChatApi[primaryAccountIndex]->getChatRoom(chatid);
+    chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_CHAT_TEST (chatroom);
     ASSERT_CHAT_TEST(chatroom->getPeerCount() == 0);
     delete chatroom;
 
     // Close the chatroom, even if we've been removed from it
-    megaChatApi[secondaryAccountIndex]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
     // --> Invite to chat
-    bool *flagInviteToChatRoom = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flagInviteToChatRoom = false;
-    bool *chatItemJoined0 = &chatItemUpdated[primaryAccountIndex]; *chatItemJoined0 = false;
-    bool *chatItemJoined1 = &chatItemUpdated[secondaryAccountIndex]; *chatItemJoined1 = false;
-    bool *chatJoined0 = &chatroomListener->chatUpdated[primaryAccountIndex]; *chatJoined0 = false;
-    bool *chatJoined1 = &chatroomListener->chatUpdated[secondaryAccountIndex]; *chatJoined1 = false;
-    mngMsgRecv = &chatroomListener->msgReceived[primaryAccountIndex]; *mngMsgRecv = false;
-    uhAction = &chatroomListener->uhAction[primaryAccountIndex]; *uhAction = MEGACHAT_INVALID_HANDLE;
-    priv = &chatroomListener->priv[primaryAccountIndex]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    megaChatApi[primaryAccountIndex]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    bool *flagInviteToChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flagInviteToChatRoom = false;
+    bool *chatItemJoined0 = &chatItemUpdated[a1]; *chatItemJoined0 = false;
+    bool *chatItemJoined1 = &chatItemUpdated[a2]; *chatItemJoined1 = false;
+    bool *chatJoined0 = &chatroomListener->chatUpdated[a1]; *chatJoined0 = false;
+    bool *chatJoined1 = &chatroomListener->chatUpdated[a2]; *chatJoined1 = false;
+    mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
+    megaChatApi[a1]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
     ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom));
-    ASSERT_CHAT_TEST(!lastErrorChat[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastErrorChat[a1]);
     ASSERT_CHAT_TEST(waitForResponse(chatItemJoined0));
     ASSERT_CHAT_TEST(waitForResponse(chatItemJoined1));
     ASSERT_CHAT_TEST(waitForResponse(chatJoined0));
@@ -780,32 +780,32 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     ASSERT_CHAT_TEST(*uhAction == peer->getHandle());
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_UNKNOWN);    // the message doesn't report the new priv
 
-    chatroom = megaChatApi[primaryAccountIndex]->getChatRoom(chatid);
+    chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_CHAT_TEST (chatroom);
     ASSERT_CHAT_TEST(chatroom->getPeerCount() == 1);
     delete chatroom;
 
     // since we were expulsed from chatroom, we need to open it again
-    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
     // invite again --> error
-    flagInviteToChatRoom = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flagInviteToChatRoom = false;
-    megaChatApi[primaryAccountIndex]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    flagInviteToChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flagInviteToChatRoom = false;
+    megaChatApi[a1]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
     ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom));
-    ASSERT_CHAT_TEST(lastErrorChat[primaryAccountIndex] == MegaChatError::ERROR_EXIST);
+    ASSERT_CHAT_TEST(lastErrorChat[a1] == MegaChatError::ERROR_EXIST);
 
     // --> Set title
     string title = "My groupchat with title";
-    bool *flagChatRoomName = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flagChatRoomName = false;
-    bool *titleItemChanged0 = &titleUpdated[primaryAccountIndex]; *titleItemChanged0 = false;
-    bool *titleItemChanged1 = &titleUpdated[secondaryAccountIndex]; *titleItemChanged1 = false;
-    bool *titleChanged0 = &chatroomListener->titleUpdated[primaryAccountIndex]; *titleChanged0 = false;
-    bool *titleChanged1 = &chatroomListener->titleUpdated[secondaryAccountIndex]; *titleChanged1 = false;
-    mngMsgRecv = &chatroomListener->msgReceived[primaryAccountIndex]; *mngMsgRecv = false;
-    string *msgContent = &chatroomListener->content[primaryAccountIndex]; *msgContent = "";
-    megaChatApi[primaryAccountIndex]->setChatTitle(chatid, title.c_str());
+    bool *flagChatRoomName = &requestFlagsChat[a1][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flagChatRoomName = false;
+    bool *titleItemChanged0 = &titleUpdated[a1]; *titleItemChanged0 = false;
+    bool *titleItemChanged1 = &titleUpdated[a2]; *titleItemChanged1 = false;
+    bool *titleChanged0 = &chatroomListener->titleUpdated[a1]; *titleChanged0 = false;
+    bool *titleChanged1 = &chatroomListener->titleUpdated[a2]; *titleChanged1 = false;
+    mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
+    megaChatApi[a1]->setChatTitle(chatid, title.c_str());
     ASSERT_CHAT_TEST(waitForResponse(flagChatRoomName));
-    ASSERT_CHAT_TEST(!lastErrorChat[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastErrorChat[a1]);
     ASSERT_CHAT_TEST(waitForResponse(titleItemChanged0));
     ASSERT_CHAT_TEST(waitForResponse(titleItemChanged1));
     ASSERT_CHAT_TEST(waitForResponse(titleChanged0));
@@ -813,21 +813,21 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv));
     ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()));
 
-    chatroom = megaChatApi[secondaryAccountIndex]->getChatRoom(chatid);
+    chatroom = megaChatApi[a2]->getChatRoom(chatid);
     ASSERT_CHAT_TEST (chatroom);
     ASSERT_CHAT_TEST(!strcmp(chatroom->getTitle(), title.c_str()));
     delete chatroom;
 
     // --> Change peer privileges to Moderator
-    bool *flagUpdatePeerPermision = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
-    bool *peerUpdated0 = &peersUpdated[primaryAccountIndex]; *peerUpdated0 = false;
-    bool *peerUpdated1 = &peersUpdated[secondaryAccountIndex]; *peerUpdated1 = false;
-    mngMsgRecv = &chatroomListener->msgReceived[primaryAccountIndex]; *mngMsgRecv = false;
-    uhAction = &chatroomListener->uhAction[primaryAccountIndex]; *uhAction = MEGACHAT_INVALID_HANDLE;
-    priv = &chatroomListener->priv[primaryAccountIndex]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    megaChatApi[primaryAccountIndex]->updateChatPermissions(chatid, peer->getHandle(), MegaChatRoom::PRIV_MODERATOR);
+    bool *flagUpdatePeerPermision = &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
+    bool *peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
+    bool *peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
+    mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
+    megaChatApi[a1]->updateChatPermissions(chatid, peer->getHandle(), MegaChatRoom::PRIV_MODERATOR);
     ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision));
-    ASSERT_CHAT_TEST(!lastErrorChat[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastErrorChat[a1]);
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated0));
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated1));
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv));
@@ -835,15 +835,15 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_MODERATOR);
 
     // --> Change peer privileges to Read-only
-    flagUpdatePeerPermision = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
-    peerUpdated0 = &peersUpdated[primaryAccountIndex]; *peerUpdated0 = false;
-    peerUpdated1 = &peersUpdated[secondaryAccountIndex]; *peerUpdated1 = false;
-    mngMsgRecv = &chatroomListener->msgReceived[primaryAccountIndex]; *mngMsgRecv = false;
-    uhAction = &chatroomListener->uhAction[primaryAccountIndex]; *uhAction = MEGACHAT_INVALID_HANDLE;
-    priv = &chatroomListener->priv[primaryAccountIndex]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    megaChatApi[primaryAccountIndex]->updateChatPermissions(chatid, peer->getHandle(), MegaChatRoom::PRIV_RO);
+    flagUpdatePeerPermision = &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
+    peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
+    peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
+    mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
+    megaChatApi[a1]->updateChatPermissions(chatid, peer->getHandle(), MegaChatRoom::PRIV_RO);
     ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision));
-    ASSERT_CHAT_TEST(!lastErrorChat[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastErrorChat[a1]);
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated0));
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated1));
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv));
@@ -851,63 +851,63 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int primaryAccountIndex,
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO);
 
     // --> Try to send a message without the right privilege
-    string msg1 = "HOLA " + mAccounts[primaryAccountIndex].getEmail()+ " - This message can't be send because I'm read-only";
-    bool *flagRejected = &chatroomListener->msgRejected[secondaryAccountIndex]; *flagRejected = false;
-    chatroomListener->msgId[secondaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
-    MegaChatMessage *msgSent = megaChatApi[secondaryAccountIndex]->sendMessage(chatid, msg1.c_str());
+    string msg1 = "HOLA " + mAccounts[a1].getEmail()+ " - This message can't be send because I'm read-only";
+    bool *flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
+    chatroomListener->msgId[a2] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+    MegaChatMessage *msgSent = megaChatApi[a2]->sendMessage(chatid, msg1.c_str());
     ASSERT_CHAT_TEST(msgSent);
     delete msgSent; msgSent = NULL;
     ASSERT_CHAT_TEST(waitForResponse(flagRejected));    // for confirmation, sendMessage() is synchronous
-    MegaChatHandle msgId0 = chatroomListener->msgId[secondaryAccountIndex];
+    MegaChatHandle msgId0 = chatroomListener->msgId[a2];
     ASSERT_CHAT_TEST (msgId0 == MEGACHAT_INVALID_HANDLE);
 
     // --> Load some message to feed history
-    loadHistory(primaryAccountIndex, chatid, chatroomListener);
-    loadHistory(secondaryAccountIndex, chatid, chatroomListener);
+    loadHistory(a1, chatid, chatroomListener);
+    loadHistory(a2, chatid, chatroomListener);
 
     // --> Send typing notification
-    bool *flagTyping1 = &chatroomListener->userTyping[secondaryAccountIndex]; *flagTyping1 = false;
-    uhAction = &chatroomListener->uhAction[secondaryAccountIndex]; *uhAction = MEGACHAT_INVALID_HANDLE;
-    megaChatApi[primaryAccountIndex]->sendTypingNotification(chatid);
+    bool *flagTyping1 = &chatroomListener->userTyping[a2]; *flagTyping1 = false;
+    uhAction = &chatroomListener->uhAction[a2]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    megaChatApi[a1]->sendTypingNotification(chatid);
     ASSERT_CHAT_TEST(waitForResponse(flagTyping1));
-    ASSERT_CHAT_TEST(*uhAction == megaChatApi[primaryAccountIndex]->getMyUserHandle());
+    ASSERT_CHAT_TEST(*uhAction == megaChatApi[a1]->getMyUserHandle());
 
     // --> Send a message and wait for reception by target user
-    string msg0 = "HOLA " + mAccounts[primaryAccountIndex].getEmail() + " - Testing groupchats";
-    bool *msgConfirmed = &chatroomListener->msgConfirmed[primaryAccountIndex]; *msgConfirmed = false;
-    bool *msgReceived = &chatroomListener->msgReceived[secondaryAccountIndex]; *msgReceived = false;
-    bool *msgDelivered = &chatroomListener->msgDelivered[primaryAccountIndex]; *msgDelivered = false;
-    chatroomListener->msgId[primaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
-    chatroomListener->msgId[secondaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
-    megaChatApi[primaryAccountIndex]->sendMessage(chatid, msg0.c_str());
+    string msg0 = "HOLA " + mAccounts[a1].getEmail() + " - Testing groupchats";
+    bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
+    bool *msgReceived = &chatroomListener->msgReceived[a2]; *msgReceived = false;
+    bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
+    chatroomListener->msgId[a1] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
+    chatroomListener->msgId[a2] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+    megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
     ASSERT_CHAT_TEST(waitForResponse(msgConfirmed));    // for confirmation, sendMessage() is synchronous
-    MegaChatHandle msgId = chatroomListener->msgId[primaryAccountIndex];
+    MegaChatHandle msgId = chatroomListener->msgId[a1];
     ASSERT_CHAT_TEST (msgId != MEGACHAT_INVALID_HANDLE);
     ASSERT_CHAT_TEST(waitForResponse(msgReceived));    // for reception
-    ASSERT_CHAT_TEST (msgId == chatroomListener->msgId[secondaryAccountIndex]);
-    MegaChatMessage *msg = megaChatApi[secondaryAccountIndex]->getMessage(chatid, msgId);   // message should be already received, so in RAM
+    ASSERT_CHAT_TEST (msgId == chatroomListener->msgId[a2]);
+    MegaChatMessage *msg = megaChatApi[a2]->getMessage(chatid, msgId);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(msg && !strcmp(msg0.c_str(), msg->getContent()));
     ASSERT_CHAT_TEST(waitForResponse(msgDelivered));    // for delivery
 
     // --> Close the chatroom
-    megaChatApi[primaryAccountIndex]->closeChatRoom(chatid, chatroomListener);
-    megaChatApi[secondaryAccountIndex]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
     delete chatroomListener;
 
     // --> Remove peer from groupchat
-    bool *flagRemoveFromChatRoom = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromChatRoom = false;
-    bool *chatClosed = &chatItemClosed[secondaryAccountIndex]; *chatClosed = false;
-    megaChatApi[primaryAccountIndex]->removeFromChat(chatid, peer->getHandle());
+    bool *flagRemoveFromChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromChatRoom = false;
+    bool *chatClosed = &chatItemClosed[a2]; *chatClosed = false;
+    megaChatApi[a1]->removeFromChat(chatid, peer->getHandle());
     ASSERT_CHAT_TEST(waitForResponse(flagRemoveFromChatRoom));
-    ASSERT_CHAT_TEST(!lastErrorChat[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastErrorChat[a1]);
     ASSERT_CHAT_TEST(waitForResponse(chatClosed));
-    chatroom = megaChatApi[secondaryAccountIndex]->getChatRoom(chatid);
+    chatroom = megaChatApi[a2]->getChatRoom(chatid);
     ASSERT_CHAT_TEST(chatroom);
     ASSERT_CHAT_TEST(!chatroom->isActive());
     delete chatroom;    chatroom = NULL;
 
-    leaveChat(primaryAccountIndex, chatid);
-    leaveChat(secondaryAccountIndex, chatid);
+    leaveChat(a1, chatid);
+    leaveChat(a2, chatid);
 
     logoutAccounts(true);
 
@@ -1022,82 +1022,82 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
     delete [] session;
 }
 
-void MegaChatApiTest::TEST_ClearHistory(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
 {
-    char *sessionPrimary = login(primaryAccountIndex);
-    char *sessionSecondary = login(secondaryAccountIndex);
+    char *sessionPrimary = login(a1);
+    char *sessionSecondary = login(a2);
 
     // Prepare peers, privileges...
-    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!peer)
     {
-        makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        makeContact(a1, a2);
+        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
 
-    MegaChatHandle chatid = getGroupChatRoom(primaryAccountIndex, secondaryAccountIndex, peers);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
     delete peers;
     peers = NULL;
 
     // Open chatrooms
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
-    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
     // Send 5 messages to have some history
     for (int i = 0; i < 5; i++)
     {
-        string msg0 = "HOLA " + mAccounts[primaryAccountIndex].getEmail() + " - Testing clearhistory. This messages is the number " + std::to_string(i);
+        string msg0 = "HOLA " + mAccounts[a1].getEmail() + " - Testing clearhistory. This messages is the number " + std::to_string(i);
 
-        MegaChatMessage *message = sendTextMessageOrUpdate(primaryAccountIndex, secondaryAccountIndex, chatid, msg0, chatroomListener);
+        MegaChatMessage *message = sendTextMessageOrUpdate(a1, a2, chatid, msg0, chatroomListener);
 
         delete message;
         message = NULL;
     }
 
     // Close the chatrooms
-    megaChatApi[primaryAccountIndex]->closeChatRoom(chatid, chatroomListener);
-    megaChatApi[secondaryAccountIndex]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
     delete chatroomListener;
 
     // Open chatrooms
     chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
-    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
     // --> Load some message to feed history
-    int count = loadHistory(primaryAccountIndex, chatid, chatroomListener);
+    int count = loadHistory(a1, chatid, chatroomListener);
     ASSERT_CHAT_TEST(count == 5);
-    count = loadHistory(secondaryAccountIndex, chatid, chatroomListener);
+    count = loadHistory(a2, chatid, chatroomListener);
     ASSERT_CHAT_TEST(count == 5);
 
     // Clear history
-    clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
+    clearHistory(a1, a2, chatid, chatroomListener);
 
     // Close and re-open chatrooms
-    megaChatApi[primaryAccountIndex]->closeChatRoom(chatid, chatroomListener);
-    megaChatApi[secondaryAccountIndex]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
     delete chatroomListener;
     chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
-    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
     // --> Check history is been truncated
-    count = loadHistory(primaryAccountIndex, chatid, chatroomListener);
+    count = loadHistory(a1, chatid, chatroomListener);
     ASSERT_CHAT_TEST(count == 1);
-    count = loadHistory(secondaryAccountIndex, chatid, chatroomListener);
+    count = loadHistory(a2, chatid, chatroomListener);
     ASSERT_CHAT_TEST(count == 1);
 
     // Close the chatrooms
-    megaChatApi[primaryAccountIndex]->closeChatRoom(chatid, chatroomListener);
-    megaChatApi[secondaryAccountIndex]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
     delete chatroomListener;
 
-    leaveChat(primaryAccountIndex, chatid);
-    leaveChat(secondaryAccountIndex, chatid);
+    leaveChat(a1, chatid);
+    leaveChat(a2, chatid);
 
     logoutAccounts(true);
 
@@ -1107,11 +1107,11 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int primaryAccountIndex, unsign
     sessionSecondary = NULL;
 }
 
-void MegaChatApiTest::TEST_SwitchAccounts(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
 {
-    char *session = login(primaryAccountIndex);
+    char *session = login(a1);
 
-    MegaChatListItemList *items = megaChatApi[primaryAccountIndex]->getChatListItems();
+    MegaChatListItemList *items = megaChatApi[a1]->getChatListItems();
     for (int i = 0; i < items->size(); i++)
     {
         const MegaChatListItem *item = items->get(i);
@@ -1125,7 +1125,7 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int primaryAccountIndex, unsi
         sleep(3);
 
         MegaChatHandle chatid = item->getChatId();
-        MegaChatListItem *itemUpdated = megaChatApi[primaryAccountIndex]->getChatListItem(chatid);
+        MegaChatListItem *itemUpdated = megaChatApi[a1]->getChatListItem(chatid);
 
         printChatListItemInfo(itemUpdated);
 
@@ -1138,13 +1138,13 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int primaryAccountIndex, unsi
     delete items;
     items = NULL;
 
-    logout(primaryAccountIndex, true);    // terminate() and destroy Client
+    logout(a1, true);    // terminate() and destroy Client
 
     delete [] session;
     session = NULL;
 
     // LOgin over same index account but with other user
-    session = login(primaryAccountIndex, NULL, mAccounts[secondaryAccountIndex].getEmail().c_str(), mAccounts[secondaryAccountIndex].getPassword().c_str());
+    session = login(a1, NULL, mAccounts[a2].getEmail().c_str(), mAccounts[a2].getPassword().c_str());
 
     logoutAccounts(true);
 
@@ -1152,62 +1152,62 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int primaryAccountIndex, unsi
     session = NULL;
 }
 
-void MegaChatApiTest::TEST_Attachment(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 {
-    char *primarySession = login(primaryAccountIndex);
-    char *secondarySession = login(secondaryAccountIndex);
+    char *primarySession = login(a1);
+    char *secondarySession = login(a2);
 
-    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!peer)
     {
-        makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        makeContact(a1, a2);
+        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
 
     delete peer;
     peer = NULL;
 
-    MegaChatHandle chatid = getPeerToPeerChatRoom(primaryAccountIndex, secondaryAccountIndex);
+    MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     // 1. A sends a message to B while B has the chat opened.
     // --> check the confirmed in A, the received message in B, the delivered in A
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
-    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
     // Load some message to feed history
-    loadHistory(primaryAccountIndex, chatid, chatroomListener);
-    loadHistory(secondaryAccountIndex, chatid, chatroomListener);
+    loadHistory(a1, chatid, chatroomListener);
+    loadHistory(a2, chatid, chatroomListener);
 
-    chatroomListener->msgId[primaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
-    chatroomListener->msgId[secondaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+    chatroomListener->msgId[a1] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
+    chatroomListener->msgId[a2] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
 
     std::string formatDate = dateToString();
 
     createFile(formatDate, LOCAL_PATH, formatDate);
-    MegaNode* nodeSent = uploadFile(primaryAccountIndex, formatDate, LOCAL_PATH, REMOTE_PATH);
-    MegaNode *nodeReceived = attachNode(primaryAccountIndex, secondaryAccountIndex, chatid, nodeSent, chatroomListener);
+    MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
+    MegaNode *nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
 
-    ASSERT_CHAT_TEST(downloadNode(secondaryAccountIndex, nodeReceived));
+    ASSERT_CHAT_TEST(downloadNode(a2, nodeReceived));
 
-    importNode(secondaryAccountIndex, nodeReceived, FILE_IMAGE_NAME);
+    importNode(a2, nodeReceived, FILE_IMAGE_NAME);
 
     // Revoke node
-    bool *flagConfirmed = &revokeNodeSend[primaryAccountIndex]; *flagConfirmed = false;
-    bool *flagReceived = &chatroomListener->msgReceived[secondaryAccountIndex]; *flagReceived = false;
-    chatroomListener->msgId[primaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
-    chatroomListener->msgId[secondaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+    bool *flagConfirmed = &revokeNodeSend[a1]; *flagConfirmed = false;
+    bool *flagReceived = &chatroomListener->msgReceived[a2]; *flagReceived = false;
+    chatroomListener->msgId[a1] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
+    chatroomListener->msgId[a2] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
     megachat::MegaChatHandle revokeAttachmentNode = nodeSent->getHandle();
-    megaChatApi[primaryAccountIndex]->revokeAttachment(chatid, revokeAttachmentNode, this);
+    megaChatApi[a1]->revokeAttachment(chatid, revokeAttachmentNode, this);
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed));
-    MegaChatHandle msgId0 = chatroomListener->msgId[primaryAccountIndex];
+    MegaChatHandle msgId0 = chatroomListener->msgId[a1];
     ASSERT_CHAT_TEST (msgId0 != MEGACHAT_INVALID_HANDLE);
 
     ASSERT_CHAT_TEST(waitForResponse(flagReceived));    // for reception
     MegaChatHandle msgId1 = chatroomListener->msgId[1];
     ASSERT_CHAT_TEST (msgId0 == msgId1);
-    MegaChatMessage *msgReceived = megaChatApi[secondaryAccountIndex]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
+    MegaChatMessage *msgReceived = megaChatApi[a2]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(msgReceived);
     ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT);
 
@@ -1219,7 +1219,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int primaryAccountIndex, unsigned
     // Download File
     ASSERT_CHAT_TEST(!downloadNode(1, nodeReceived));
 
-    clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
+    clearHistory(a1, a2, chatid, chatroomListener);
 
     logoutAccounts(true);
 
@@ -1238,36 +1238,36 @@ void MegaChatApiTest::TEST_Attachment(unsigned int primaryAccountIndex, unsigned
     secondarySession = NULL;
 }
 
-void MegaChatApiTest::TEST_attachmentPNG(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+void MegaChatApiTest::TEST_attachmentPNG(unsigned int a1, unsigned int a2)
 {
     // Prerequirement email[0] and email[1] are contacts
     // Image to send has to be at directory ../tests/sdk_test/ from build or define enviroment variable PATH_IMAGE
 
-    char *primarySession = login(primaryAccountIndex);
-    char *secondarySession = login(secondaryAccountIndex);
+    char *primarySession = login(a1);
+    char *secondarySession = login(a2);
 
-    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!peer)
     {
-        makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        makeContact(a1, a2);
+        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
 
     delete peer;
     peer = NULL;
 
-    MegaChatHandle chatid = getPeerToPeerChatRoom(primaryAccountIndex, secondaryAccountIndex);
+    MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     // 1. A sends a message to B while B has the chat opened.
     // --> check the confirmed in A, the received message in B, the delivered in A
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
-    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
     // Load some message to feed history
-    loadHistory(primaryAccountIndex, chatid, chatroomListener);
-    loadHistory(secondaryAccountIndex, chatid, chatroomListener);
+    loadHistory(a1, chatid, chatroomListener);
+    loadHistory(a2, chatid, chatroomListener);
 
     std::string path = DEFAULT_PATH;
 
@@ -1276,24 +1276,24 @@ void MegaChatApiTest::TEST_attachmentPNG(unsigned int primaryAccountIndex, unsig
         path = getenv(PATH_IMAGE.c_str());
     }
 
-    MegaNode *nodeSent = uploadFile(primaryAccountIndex, FILE_IMAGE_NAME, path, REMOTE_PATH);
-    MegaNode *nodeReceived = attachNode(primaryAccountIndex, secondaryAccountIndex, chatid, nodeSent, chatroomListener);
+    MegaNode *nodeSent = uploadFile(a1, FILE_IMAGE_NAME, path, REMOTE_PATH);
+    MegaNode *nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
 
-    ASSERT_CHAT_TEST(downloadNode(secondaryAccountIndex, nodeReceived));
+    ASSERT_CHAT_TEST(downloadNode(a2, nodeReceived));
 
-    importNode(secondaryAccountIndex, nodeReceived, FILE_IMAGE_NAME);
+    importNode(a2, nodeReceived, FILE_IMAGE_NAME);
 
-    bool *flagRequestThumbnail0 = &requestFlags[primaryAccountIndex][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail0 = false;
+    bool *flagRequestThumbnail0 = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail0 = false;
     std::string thumbnailPath = LOCAL_PATH + "/thumbnail0.jpg";
-    megaApi[primaryAccountIndex]->getThumbnail(nodeSent, thumbnailPath.c_str(), this);
+    megaApi[a1]->getThumbnail(nodeSent, thumbnailPath.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail0));
-    ASSERT_CHAT_TEST(!lastError[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastError[a1]);
 
-    bool *flagRequestThumbnail1 = &requestFlags[secondaryAccountIndex][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail1 = false;
+    bool *flagRequestThumbnail1 = &requestFlags[a2][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail1 = false;
     thumbnailPath = LOCAL_PATH + "/thumbnail1.jpg";
-    megaApi[secondaryAccountIndex]->getThumbnail(nodeReceived, thumbnailPath.c_str(), this);
+    megaApi[a2]->getThumbnail(nodeReceived, thumbnailPath.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail1));
-    ASSERT_CHAT_TEST(!lastError[secondaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastError[a2]);
 
     logoutAccounts(true);
 
@@ -1309,58 +1309,58 @@ void MegaChatApiTest::TEST_attachmentPNG(unsigned int primaryAccountIndex, unsig
     secondarySession = NULL;
 }
 
-void MegaChatApiTest::TEST_LastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
 {
-    char *sessionPrimary = login(primaryAccountIndex);
-    char *sessionSecondary = login(secondaryAccountIndex);
+    char *sessionPrimary = login(a1);
+    char *sessionSecondary = login(a2);
 
-    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!peer)
     {
-        makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        makeContact(a1, a2);
+        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
 
     delete peer;
     peer = NULL;
 
-    MegaChatHandle chatid = getPeerToPeerChatRoom(primaryAccountIndex, secondaryAccountIndex);
+    MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
-    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
     // Load some message to feed history
-    loadHistory(primaryAccountIndex, chatid, chatroomListener);
-    loadHistory(secondaryAccountIndex, chatid, chatroomListener);
+    loadHistory(a1, chatid, chatroomListener);
+    loadHistory(a2, chatid, chatroomListener);
 
     std::string formatDate = dateToString();
 
-    sendTextMessageOrUpdate(primaryAccountIndex, secondaryAccountIndex, chatid, formatDate, chatroomListener);
+    sendTextMessageOrUpdate(a1, a2, chatid, formatDate, chatroomListener);
 
-    MegaChatHandle msgId1 = chatroomListener->msgId[secondaryAccountIndex];
+    MegaChatHandle msgId1 = chatroomListener->msgId[a2];
     ASSERT_CHAT_TEST (msgId1 != MEGACHAT_INVALID_HANDLE);
 
-    MegaChatListItem *item = megaChatApi[primaryAccountIndex]->getChatListItem(chatid);
+    MegaChatListItem *item = megaChatApi[a1]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), item->getLastMessage()) == 0);
     delete item;
     item = NULL;
 
-    clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
+    clearHistory(a1, a2, chatid, chatroomListener);
 
     formatDate = dateToString();
     createFile(formatDate, LOCAL_PATH, formatDate);
-    MegaNode* nodeSent = uploadFile(primaryAccountIndex, formatDate, LOCAL_PATH, REMOTE_PATH);
-    MegaNode* nodeReceived = attachNode(primaryAccountIndex, secondaryAccountIndex, chatid, nodeSent, chatroomListener);
-    msgId1 = chatroomListener->msgId[secondaryAccountIndex];
+    MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
+    MegaNode* nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
+    msgId1 = chatroomListener->msgId[a2];
     ASSERT_CHAT_TEST (msgId1 != MEGACHAT_INVALID_HANDLE);
 
-    item = megaChatApi[primaryAccountIndex]->getChatListItem(chatid);
+    item = megaChatApi[a1]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), item->getLastMessage()) == 0);
     delete item;
     item = NULL;
 
-    clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
+    clearHistory(a1, a2, chatid, chatroomListener);
 
     logoutAccounts(true);
 
@@ -1377,64 +1377,64 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int primaryAccountIndex, unsigne
     sessionSecondary = NULL;
 }
 
-void MegaChatApiTest::TEST_SendContact(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
 {
-    char *primarySession = login(primaryAccountIndex);
-    char *secondarySession = login(secondaryAccountIndex);
+    char *primarySession = login(a1);
+    char *secondarySession = login(a2);
 
-    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!peer)
     {
-        makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        makeContact(a1, a2);
+        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
 
     delete peer;
     peer = NULL;
 
-    MegaChatHandle chatid = getPeerToPeerChatRoom(primaryAccountIndex, secondaryAccountIndex);
+    MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     // 1. A sends a message to B while B has the chat opened.
     // --> check the confirmed in A, the received message in B, the delivered in A
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
-    ASSERT_CHAT_TEST(megaChatApi[secondaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener));
 
-    loadHistory(primaryAccountIndex, chatid, chatroomListener);
-    loadHistory(secondaryAccountIndex, chatid, chatroomListener);
+    loadHistory(a1, chatid, chatroomListener);
+    loadHistory(a2, chatid, chatroomListener);
 
-    bool *flagConfirmed = &chatroomListener->msgConfirmed[primaryAccountIndex]; *flagConfirmed = false;
-    bool *flagReceived = &chatroomListener->msgContactReceived[secondaryAccountIndex]; *flagReceived = false;
-    bool *flagDelivered = &chatroomListener->msgDelivered[primaryAccountIndex]; *flagDelivered = false;
-    chatroomListener->msgId[primaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
-    chatroomListener->msgId[secondaryAccountIndex] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
+    bool *flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
+    bool *flagReceived = &chatroomListener->msgContactReceived[a2]; *flagReceived = false;
+    bool *flagDelivered = &chatroomListener->msgDelivered[a1]; *flagDelivered = false;
+    chatroomListener->msgId[a1] = MEGACHAT_INVALID_HANDLE;   // will be set at confirmation
+    chatroomListener->msgId[a2] = MEGACHAT_INVALID_HANDLE;   // will be set at reception
 
-    MegaUser* user = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    MegaUser* user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     ASSERT_CHAT_TEST(user);
     MegaChatHandle handle = user->getHandle();
     delete user;
     user = NULL;
-    megaChatApi[primaryAccountIndex]->attachContacts(chatid, 1, &handle);
+    megaChatApi[a1]->attachContacts(chatid, 1, &handle);
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed));
-    MegaChatHandle msgId0 = chatroomListener->msgId[primaryAccountIndex];
+    MegaChatHandle msgId0 = chatroomListener->msgId[a1];
     ASSERT_CHAT_TEST (msgId0 != MEGACHAT_INVALID_HANDLE);
 
     ASSERT_CHAT_TEST(waitForResponse(flagReceived));    // for reception
-    MegaChatHandle msgId1 = chatroomListener->msgId[secondaryAccountIndex];
+    MegaChatHandle msgId1 = chatroomListener->msgId[a2];
     ASSERT_CHAT_TEST (msgId0 == msgId1);
-    MegaChatMessage *msgReceived = megaChatApi[secondaryAccountIndex]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
+    MegaChatMessage *msgReceived = megaChatApi[a2]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(msgReceived);
 
     ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT);
     ASSERT_CHAT_TEST(msgReceived->getUsersCount() > 0);
 
-    ASSERT_CHAT_TEST(strcmp(msgReceived->getUserEmail(0), mAccounts[secondaryAccountIndex].getEmail().c_str()) == 0);
+    ASSERT_CHAT_TEST(strcmp(msgReceived->getUserEmail(0), mAccounts[a2].getEmail().c_str()) == 0);
 
     delete msgReceived;
     msgReceived = NULL;
 
-    clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
+    clearHistory(a1, a2, chatid, chatroomListener);
 
     logoutAccounts(true);
 
@@ -1444,46 +1444,46 @@ void MegaChatApiTest::TEST_SendContact(unsigned int primaryAccountIndex, unsigne
     secondarySession = NULL;
 }
 
-void MegaChatApiTest::TEST_GroupLastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
 {
-    char *session0 = login(primaryAccountIndex);
-    char *session1 = login(secondaryAccountIndex);
+    char *session0 = login(a1);
+    char *session1 = login(a2);
 
     // Prepare peers, privileges...
-    MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!peer)
     {
-        makeContact(primaryAccountIndex, secondaryAccountIndex);
-        peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        makeContact(a1, a2);
+        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
 
-    MegaChatHandle chatid = getGroupChatRoom(primaryAccountIndex, secondaryAccountIndex, peers);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
     delete peers;
     peers = NULL;
 
     // --> Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[primaryAccountIndex]->openChatRoom(chatid, chatroomListener));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener));
     ASSERT_CHAT_TEST(megaChatApi[1]->openChatRoom(chatid, chatroomListener));
 
     std::string textToSend = "Last Message";
-    sendTextMessageOrUpdate(primaryAccountIndex, secondaryAccountIndex, chatid, textToSend, chatroomListener);
+    sendTextMessageOrUpdate(a1, a2, chatid, textToSend, chatroomListener);
 
     // --> Set title
     string title = "My groupchat with title 2";
-    bool *flagChatRoomName = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flagChatRoomName = false;
-    bool *titleItemChanged0 = &titleUpdated[primaryAccountIndex]; *titleItemChanged0 = false;
-    bool *titleItemChanged1 = &titleUpdated[secondaryAccountIndex]; *titleItemChanged1 = false;
-    bool *titleChanged0 = &chatroomListener->titleUpdated[primaryAccountIndex]; *titleChanged0 = false;
-    bool *titleChanged1 = &chatroomListener->titleUpdated[secondaryAccountIndex]; *titleChanged1 = false;
-    bool *mngMsgRecv = &chatroomListener->msgReceived[primaryAccountIndex]; *mngMsgRecv = false;
-    string *msgContent = &chatroomListener->content[primaryAccountIndex]; *msgContent = "";
-    megaChatApi[primaryAccountIndex]->setChatTitle(chatid, title.c_str());
+    bool *flagChatRoomName = &requestFlagsChat[a1][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flagChatRoomName = false;
+    bool *titleItemChanged0 = &titleUpdated[a1]; *titleItemChanged0 = false;
+    bool *titleItemChanged1 = &titleUpdated[a2]; *titleItemChanged1 = false;
+    bool *titleChanged0 = &chatroomListener->titleUpdated[a1]; *titleChanged0 = false;
+    bool *titleChanged1 = &chatroomListener->titleUpdated[a2]; *titleChanged1 = false;
+    bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
+    megaChatApi[a1]->setChatTitle(chatid, title.c_str());
     ASSERT_CHAT_TEST(waitForResponse(flagChatRoomName));
-    ASSERT_CHAT_TEST(!lastErrorChat[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastErrorChat[a1]);
     ASSERT_CHAT_TEST(waitForResponse(titleItemChanged0));
     ASSERT_CHAT_TEST(waitForResponse(titleItemChanged1));
     ASSERT_CHAT_TEST(waitForResponse(titleChanged0));
@@ -1491,15 +1491,15 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int primaryAccountIndex, un
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv));
     ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()));
 
-    MegaChatListItem *item = megaChatApi[primaryAccountIndex]->getChatListItem(chatid);
+    MegaChatListItem *item = megaChatApi[a1]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(textToSend.c_str(), item->getLastMessage()) == 0);
     delete item;
     item = NULL;
 
-    clearHistory(primaryAccountIndex, secondaryAccountIndex, chatid, chatroomListener);
+    clearHistory(a1, a2, chatid, chatroomListener);
 
-    leaveChat(primaryAccountIndex, chatid);
-    leaveChat(secondaryAccountIndex, chatid);
+    leaveChat(a1, chatid);
+    leaveChat(a2, chatid);
 
     logoutAccounts(true);
 
@@ -1528,56 +1528,56 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
     return chatroomListener->msgCount[accountIndex];
 }
 
-void MegaChatApiTest::makeContact(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
 {
-    bool *flagRequestInviteContact = &requestFlags[primaryAccountIndex][MegaRequest::TYPE_INVITE_CONTACT];
+    bool *flagRequestInviteContact = &requestFlags[a1][MegaRequest::TYPE_INVITE_CONTACT];
     *flagRequestInviteContact = false;
-    bool *flagContactRequestUpdatedSecondary = &contactRequestUpdated[secondaryAccountIndex];
+    bool *flagContactRequestUpdatedSecondary = &contactRequestUpdated[a2];
     *flagContactRequestUpdatedSecondary = false;
     std::string contactRequestMessage = "Contact Request Message";
-    megaApi[primaryAccountIndex]->inviteContact(mAccounts[secondaryAccountIndex].getEmail().c_str(),
+    megaApi[a1]->inviteContact(mAccounts[a2].getEmail().c_str(),
                                                 contactRequestMessage.c_str(), MegaContactRequest::INVITE_ACTION_ADD);
 
     ASSERT_CHAT_TEST(waitForResponse(flagRequestInviteContact));
-    ASSERT_CHAT_TEST(!lastError[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastError[a1]);
     ASSERT_CHAT_TEST(waitForResponse(flagContactRequestUpdatedSecondary));
 
-    getContactRequest(secondaryAccountIndex, false);
+    getContactRequest(a2, false);
 
-    bool *flagReplyContactRequest = &requestFlags[secondaryAccountIndex][MegaRequest::TYPE_REPLY_CONTACT_REQUEST];
+    bool *flagReplyContactRequest = &requestFlags[a2][MegaRequest::TYPE_REPLY_CONTACT_REQUEST];
     *flagReplyContactRequest = false;
-    bool *flagContactRequestUpdatedPrimary = &contactRequestUpdated[primaryAccountIndex];
+    bool *flagContactRequestUpdatedPrimary = &contactRequestUpdated[a1];
     *flagContactRequestUpdatedPrimary = false;
-    megaApi[secondaryAccountIndex]->replyContactRequest(contactRequest[secondaryAccountIndex], MegaContactRequest::REPLY_ACTION_ACCEPT);
+    megaApi[a2]->replyContactRequest(contactRequest[a2], MegaContactRequest::REPLY_ACTION_ACCEPT);
     ASSERT_CHAT_TEST(waitForResponse(flagReplyContactRequest));
-    ASSERT_CHAT_TEST(!lastError[secondaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastError[a2]);
     ASSERT_CHAT_TEST(waitForResponse(flagContactRequestUpdatedPrimary));
 
-    delete contactRequest[secondaryAccountIndex];
-    contactRequest[secondaryAccountIndex] = NULL;
+    delete contactRequest[a2];
+    contactRequest[a2] = NULL;
 }
 
-MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex,
+MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
                                                  MegaChatPeerList *peers)
 {
     // Get chatroom name with peer firstname and lastname
-    bool *flagAttributeUser = &requestFlags[primaryAccountIndex][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttributeUser = false;
-    bool *nameReceivedFlag = &nameReceived[primaryAccountIndex]; *nameReceivedFlag = false; mFirstname = "";
-    megaApi[primaryAccountIndex]->getUserAttribute(MegaApi::USER_ATTR_FIRSTNAME);
+    bool *flagAttributeUser = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttributeUser = false;
+    bool *nameReceivedFlag = &nameReceived[a1]; *nameReceivedFlag = false; mFirstname = "";
+    megaApi[a1]->getUserAttribute(MegaApi::USER_ATTR_FIRSTNAME);
     ASSERT_CHAT_TEST(waitForResponse(flagAttributeUser));
-    ASSERT_CHAT_TEST(!lastError[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastError[a1]);
     ASSERT_CHAT_TEST(waitForResponse(nameReceivedFlag));
     std::string peerFirstname = mFirstname;
-    flagAttributeUser = &requestFlags[primaryAccountIndex][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttributeUser = false;
-    nameReceivedFlag = &nameReceived[primaryAccountIndex]; *nameReceivedFlag = false; mLastname = "";
-    megaApi[primaryAccountIndex]->getUserAttribute(MegaApi::USER_ATTR_LASTNAME);
+    flagAttributeUser = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttributeUser = false;
+    nameReceivedFlag = &nameReceived[a1]; *nameReceivedFlag = false; mLastname = "";
+    megaApi[a1]->getUserAttribute(MegaApi::USER_ATTR_LASTNAME);
     ASSERT_CHAT_TEST(waitForResponse(flagAttributeUser));
-    ASSERT_CHAT_TEST(!lastError[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastError[a1]);
     ASSERT_CHAT_TEST(waitForResponse(nameReceivedFlag));
     std::string peerLastname = mLastname;
     std::string peerFullname = peerFirstname + " " + peerLastname;
 
-    MegaChatRoomList *chats = megaChatApi[primaryAccountIndex]->getChatRooms();
+    MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
 
     bool chatroomExist = false;
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
@@ -1595,26 +1595,26 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int primaryAccountInde
 
     if (!chatroomExist)
     {
-        bool *flagCreateChatRoom = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flagCreateChatRoom = false;
-        bool *chatItemPrimaryReceived = &chatItemUpdated[primaryAccountIndex]; *chatItemPrimaryReceived = false;
-        bool *chatItemSecondaryReceived = &chatItemUpdated[secondaryAccountIndex]; *chatItemSecondaryReceived = false;
-        chatListItem[primaryAccountIndex] = NULL;
-        chatListItem[secondaryAccountIndex] = NULL;
-        this->chatid[primaryAccountIndex] = MEGACHAT_INVALID_HANDLE;
+        bool *flagCreateChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flagCreateChatRoom = false;
+        bool *chatItemPrimaryReceived = &chatItemUpdated[a1]; *chatItemPrimaryReceived = false;
+        bool *chatItemSecondaryReceived = &chatItemUpdated[a2]; *chatItemSecondaryReceived = false;
+        chatListItem[a1] = NULL;
+        chatListItem[a2] = NULL;
+        this->chatid[a1] = MEGACHAT_INVALID_HANDLE;
 
-        megaChatApi[primaryAccountIndex]->createChat(true, peers, this);
+        megaChatApi[a1]->createChat(true, peers, this);
         ASSERT_CHAT_TEST(waitForResponse(flagCreateChatRoom));
-        ASSERT_CHAT_TEST(!lastErrorChat[primaryAccountIndex]);
-        chatid = this->chatid[primaryAccountIndex];
+        ASSERT_CHAT_TEST(!lastErrorChat[a1]);
+        chatid = this->chatid[a1];
         ASSERT_CHAT_TEST (chatid != MEGACHAT_INVALID_HANDLE);
         ASSERT_CHAT_TEST(waitForResponse(chatItemPrimaryReceived));
 
-        MegaChatListItem *chatItemPrimaryCreated = chatListItem[primaryAccountIndex];   chatListItem[primaryAccountIndex] = NULL;
+        MegaChatListItem *chatItemPrimaryCreated = chatListItem[a1];   chatListItem[a1] = NULL;
         ASSERT_CHAT_TEST(chatItemPrimaryCreated);
         delete chatItemPrimaryCreated;    chatItemPrimaryCreated = NULL;
 
         ASSERT_CHAT_TEST(waitForResponse(chatItemSecondaryReceived));
-        MegaChatListItem *chatItemSecondaryCreated = chatListItem[secondaryAccountIndex];   chatListItem[secondaryAccountIndex] = NULL;
+        MegaChatListItem *chatItemSecondaryCreated = chatListItem[a2];   chatListItem[a2] = NULL;
 
         // FIXME: find a safe way to control when the auxiliar account receives the
         // new chatroom, since we may have multiple notifications for other chats
@@ -1633,7 +1633,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int primaryAccountInde
             }
         }
 
-        MegaChatRoom *chatroom = megaChatApi[secondaryAccountIndex]->getChatRoom(chatid);
+        MegaChatRoom *chatroom = megaChatApi[a2]->getChatRoom(chatid);
         ASSERT_CHAT_TEST (chatroom);
         delete chatroom;    chatroom = NULL;
 
@@ -1647,30 +1647,31 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int primaryAccountInde
     return chatid;
 }
 
-MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex)
+MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned int a2)
 {
-    MegaUser *peerPrimary = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
-    MegaUser *peerSecondary = megaApi[secondaryAccountIndex]->getContact(mAccounts[primaryAccountIndex].getEmail().c_str());
+    MegaUser *peerPrimary = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *peerSecondary = megaApi[a2]->getContact(mAccounts[a1].getEmail().c_str());
     ASSERT_CHAT_TEST(peerPrimary && peerSecondary);
 
-    MegaChatRoom *chatroom0 = megaChatApi[primaryAccountIndex]->getChatRoomByUser(peerPrimary->getHandle());
+    MegaChatRoom *chatroom0 = megaChatApi[a1]->getChatRoomByUser(peerPrimary->getHandle());
     if (!chatroom0) // chat 1on1 doesn't exist yet --> create it
     {
-        MegaUser *peer = megaApi[primaryAccountIndex]->getContact(mAccounts[secondaryAccountIndex].getEmail().c_str());
+        MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
         ASSERT_CHAT_TEST(peer);
 
         MegaChatPeerList *peers = MegaChatPeerList::createInstance();
         peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
 
-        bool *flag = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
-        bool *chatCreated = &chatItemUpdated[primaryAccountIndex]; *chatCreated = false;
-        bool *chatReceived = &chatItemUpdated[secondaryAccountIndex]; *chatReceived = false;
-        megaChatApi[primaryAccountIndex]->createChat(false, peers, this);
-        ASSERT_CHAT_TEST(!lastErrorChat[primaryAccountIndex]);
+        bool *flag = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
+        bool *chatCreated = &chatItemUpdated[a1]; *chatCreated = false;
+        bool *chatReceived = &chatItemUpdated[a2]; *chatReceived = false;
+        megaChatApi[a1]->createChat(false, peers, this);
+        ASSERT_CHAT_TEST(waitForResponse(flag));
+        ASSERT_CHAT_TEST(!lastErrorChat[a1]);
         ASSERT_CHAT_TEST(waitForResponse(chatCreated));
         ASSERT_CHAT_TEST(waitForResponse(chatReceived));
 
-        chatroom0 = megaChatApi[primaryAccountIndex]->getChatRoomByUser(peer->getHandle());
+        chatroom0 = megaChatApi[a1]->getChatRoomByUser(peer->getHandle());
     }
 
     MegaChatHandle chatid0 = chatroom0->getChatId();
@@ -1678,7 +1679,7 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int primaryAccoun
     delete chatroom0;
     chatroom0 = NULL;
 
-    MegaChatRoom *chatroom1 = megaChatApi[secondaryAccountIndex]->getChatRoomByUser(peerSecondary->getHandle());
+    MegaChatRoom *chatroom1 = megaChatApi[a2]->getChatRoomByUser(peerSecondary->getHandle());
     MegaChatHandle chatid1 = chatroom1->getChatId();
     delete chatroom1;
     chatroom1 = NULL;
@@ -1764,29 +1765,29 @@ string MegaChatApiTest::dateToString()
     return formatDate;
 }
 
-MegaNode *MegaChatApiTest::attachNode(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, MegaChatHandle chatid,
+MegaNode *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, MegaChatHandle chatid,
                                         MegaNode* nodeToSend, TestChatRoomListener* chatroomListener)
 {
     MegaNodeList *megaNodeList = MegaNodeList::createInstance();
     megaNodeList->addNode(nodeToSend);
 
-    bool *flagConfirmed = &chatroomListener->msgConfirmed[primaryAccountIndex]; *flagConfirmed = false;
-    bool *flagReceived = &chatroomListener->msgReceived[secondaryAccountIndex]; *flagReceived = false;
-    bool *flagDelivered = &chatroomListener->msgDelivered[primaryAccountIndex]; *flagDelivered = false;
+    bool *flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
+    bool *flagReceived = &chatroomListener->msgReceived[a2]; *flagReceived = false;
+    bool *flagDelivered = &chatroomListener->msgDelivered[a1]; *flagDelivered = false;
 
-    megaChatApi[primaryAccountIndex]->attachNodes(chatid, megaNodeList, this);
+    megaChatApi[a1]->attachNodes(chatid, megaNodeList, this);
     delete megaNodeList;
     megaNodeList = NULL;
 
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed));
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed));    // for confirmation, sendMessage() is synchronous
-    MegaChatHandle msgId0 = chatroomListener->msgId[primaryAccountIndex];
+    MegaChatHandle msgId0 = chatroomListener->msgId[a1];
     ASSERT_CHAT_TEST (msgId0 != MEGACHAT_INVALID_HANDLE);
 
     ASSERT_CHAT_TEST(waitForResponse(flagReceived));    // for reception
-    MegaChatHandle msgId1 = chatroomListener->msgId[secondaryAccountIndex];
+    MegaChatHandle msgId1 = chatroomListener->msgId[a2];
     ASSERT_CHAT_TEST (msgId0 == msgId1);
-    MegaChatMessage *msgReceived = megaChatApi[secondaryAccountIndex]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
+    MegaChatMessage *msgReceived = megaChatApi[a2]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(msgReceived);
     ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT);
     megaNodeList = msgReceived->getMegaNodeList();
@@ -1796,28 +1797,28 @@ MegaNode *MegaChatApiTest::attachNode(unsigned int primaryAccountIndex, unsigned
     return nodeReceived->copy();
 }
 
-void MegaChatApiTest::clearHistory(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
+void MegaChatApiTest::clearHistory(unsigned int a1, unsigned int a2, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
-    bool *flagTruncateHistory = &requestFlagsChat[primaryAccountIndex][MegaChatRequest::TYPE_TRUNCATE_HISTORY]; *flagTruncateHistory = false;
-    bool *flagTruncatedPrimary = &chatroomListener->historyTruncated[primaryAccountIndex]; *flagTruncatedPrimary = false;
-    bool *flagTruncatedSecondary = &chatroomListener->historyTruncated[secondaryAccountIndex]; *flagTruncatedSecondary = false;
-    bool *chatItemUpdated0 = &chatItemUpdated[primaryAccountIndex]; *chatItemUpdated0 = false;
-    bool *chatItemUpdated1 = &chatItemUpdated[secondaryAccountIndex]; *chatItemUpdated1 = false;
-    megaChatApi[primaryAccountIndex]->clearChatHistory(chatid);
+    bool *flagTruncateHistory = &requestFlagsChat[a1][MegaChatRequest::TYPE_TRUNCATE_HISTORY]; *flagTruncateHistory = false;
+    bool *flagTruncatedPrimary = &chatroomListener->historyTruncated[a1]; *flagTruncatedPrimary = false;
+    bool *flagTruncatedSecondary = &chatroomListener->historyTruncated[a2]; *flagTruncatedSecondary = false;
+    bool *chatItemUpdated0 = &chatItemUpdated[a1]; *chatItemUpdated0 = false;
+    bool *chatItemUpdated1 = &chatItemUpdated[a2]; *chatItemUpdated1 = false;
+    megaChatApi[a1]->clearChatHistory(chatid);
     ASSERT_CHAT_TEST(waitForResponse(flagTruncateHistory));
-    ASSERT_CHAT_TEST(!lastErrorChat[primaryAccountIndex]);
+    ASSERT_CHAT_TEST(!lastErrorChat[a1]);
     ASSERT_CHAT_TEST(waitForResponse(flagTruncatedPrimary));
     ASSERT_CHAT_TEST(waitForResponse(flagTruncatedSecondary));
     ASSERT_CHAT_TEST(waitForResponse(chatItemUpdated0));
     ASSERT_CHAT_TEST(waitForResponse(chatItemUpdated1));
 
-    MegaChatListItem *itemPrimary = megaChatApi[primaryAccountIndex]->getChatListItem(chatid);
+    MegaChatListItem *itemPrimary = megaChatApi[a1]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(itemPrimary->getUnreadCount() == 0);
     ASSERT_CHAT_TEST(!strcmp(itemPrimary->getLastMessage(), ""));
     ASSERT_CHAT_TEST(itemPrimary->getLastMessageType() == 0);
     ASSERT_CHAT_TEST(itemPrimary->getLastTimestamp() != 0);
     delete itemPrimary; itemPrimary = NULL;
-    MegaChatListItem *itemSecondary = megaChatApi[secondaryAccountIndex]->getChatListItem(chatid);
+    MegaChatListItem *itemSecondary = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(itemSecondary->getUnreadCount() == 1);
     ASSERT_CHAT_TEST(!strcmp(itemSecondary->getLastMessage(), ""));
     ASSERT_CHAT_TEST(itemSecondary->getLastMessageType() == 0);

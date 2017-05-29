@@ -139,26 +139,26 @@ public:
     bool TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
-    void TEST_EditAndDeleteMessages(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_GroupChatManagement(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
+    void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
     void TEST_OfflineMode(unsigned int accountIndex);
-    void TEST_ClearHistory(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_SwitchAccounts(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_SendContact(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_Attachment(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_attachmentPNG(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_LastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    void TEST_GroupLastMessage(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    void TEST_ClearHistory(unsigned int a1, unsigned int a2);
+    void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
+    void TEST_SendContact(unsigned int a1, unsigned int a2);
+    void TEST_Attachment(unsigned int a1, unsigned int a2);
+    void TEST_attachmentPNG(unsigned int a1, unsigned int a2);
+    void TEST_LastMessage(unsigned int a1, unsigned int a2);
+    void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
 
     static int mFailedTests;
 
 private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
-    void makeContact(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
-    megachat::MegaChatHandle getGroupChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex,
+    void makeContact(unsigned int a1, unsigned int a2);
+    megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
                                               megachat::MegaChatPeerList *peers);
 
-    megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex);
+    megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
     megachat::MegaChatMessage *sendTextMessageOrUpdate(unsigned int senderAccountIndex, unsigned int receiverAccountIndex,
                                                megachat::MegaChatHandle chatid, const std::string& textToSend,
@@ -166,10 +166,10 @@ private:
 
     void checkEmail(unsigned int indexAccount);
     std::string dateToString();
-    mega::MegaNode *attachNode(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatHandle chatid,
+    mega::MegaNode *attachNode(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid,
                                     mega::MegaNode *nodeToSend, TestChatRoomListener* chatroomListener);
 
-    void clearHistory(unsigned int primaryAccountIndex, unsigned int secondaryAccountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
+    void clearHistory(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void leaveChat(unsigned int accountIndex, megachat::MegaChatHandle chatid);
 
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
