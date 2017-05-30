@@ -304,7 +304,8 @@ void MegaChatApiTest::TearDown()
 
             bool *flagRequestLogout = &requestFlagsChat[i][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
             megaChatApi[i]->logout();
-            ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "");
+            TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaChatApi logout");
+            TEST_LOG_ERROR(!lastErrorChat[i], "MegaChatApi logout request error");
         }
 
         megaChatApi[i]->removeChatRequestListener(this);
@@ -329,7 +330,8 @@ void MegaChatApiTest::TearDown()
 
             bool *flagRequestLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
             megaApi[i]->logout();
-            ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "");
+            TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaApi logout");
+            TEST_LOG_ERROR(!lastError[i], "MegaApi logout request error");
         }
 
         megaApi[i]->removeRequestListener(this);
@@ -1914,12 +1916,12 @@ void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid
     bool *flagRemoveFromchatRoom = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromchatRoom = false;
     bool *chatClosed = &chatItemClosed[accountIndex]; *chatClosed = false;
     megaChatApi[accountIndex]->leaveChat(chatid);
-    ASSERT_CHAT_TEST(waitForResponse(flagRemoveFromchatRoom), "");
-//    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "");
-//    ASSERT_CHAT_TEST(waitForResponse(chatClosed), "");
-//    MegaChatRoom *chatroom = megaChatApi[accountIndex]->getChatRoom(chatid);
-//    ASSERT_CHAT_TEST(!chatroom->isActive(), "");
-//    delete chatroom;    chatroom = NULL;
+    TEST_LOG_ERROR(waitForResponse(flagRemoveFromchatRoom), "Time out MegaChatApi remove from chatroom");
+    TEST_LOG_ERROR(!lastErrorChat[accountIndex], "MegaChatApi remove from chatroom request error");
+    TEST_LOG_ERROR(waitForResponse(chatClosed), "Chatroom closed error");
+    MegaChatRoom *chatroom = megaChatApi[accountIndex]->getChatRoom(chatid);
+    TEST_LOG_ERROR(!chatroom->isActive(), "Chatroom active error");
+    delete chatroom;    chatroom = NULL;
 }
 
 unsigned int MegaChatApiTest::getMegaChatApiIndex(MegaChatApi *api)
@@ -2122,9 +2124,8 @@ void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
         *flagRemove = false;
 
         megaApi[accountIndex]->remove(childrenNode);
-
-        ASSERT_CHAT_TEST(waitForResponse(flagRemove), "");
-        ASSERT_CHAT_TEST(!lastError[accountIndex], "");
+        TEST_LOG_ERROR(waitForResponse(flagRemove), "Time out MegaApi remove node");
+        TEST_LOG_ERROR(!lastError[accountIndex], "MegaApi remove node request error");
     }
 
     delete children;
@@ -2142,7 +2143,8 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex)
         {
             bool *flagTruncateHistory = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_TRUNCATE_HISTORY]; *flagTruncateHistory = false;
             megaChatApi[accountIndex]->clearChatHistory(chatroom->getChatId());
-            ASSERT_CHAT_TEST(waitForResponse(flagTruncateHistory), "");
+            TEST_LOG_ERROR(waitForResponse(flagTruncateHistory), "Time out MegaChatApi truncate history");
+            TEST_LOG_ERROR(!lastErrorChat[i], "MegaChatApi truncate history request error");
         }
 
         if (chatroom->isGroup() && chatroom->isActive())
@@ -2164,7 +2166,8 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
         MegaContactRequest *contactRequest = contactRequests->get(i);
         bool *flagRemoveContactRequest = &requestFlags[accountIndex][MegaRequest::TYPE_INVITE_CONTACT]; *flagRemoveContactRequest = false;
         megaApi[accountIndex]->inviteContact(contactRequest->getTargetEmail(), "Removing you", MegaContactRequest::INVITE_ACTION_DELETE);
-        ASSERT_CHAT_TEST(waitForResponse(flagRemoveContactRequest), "");
+        TEST_LOG_ERROR(waitForResponse(flagRemoveContactRequest), "Time out MegaApi remove pending contact request");
+        TEST_LOG_ERROR(!lastError[accountIndex], "MegaApi remove pending contact request error");
     }
 
     delete contactRequests;

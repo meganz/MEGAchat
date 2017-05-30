@@ -86,6 +86,16 @@ private:
     } \
     while(false) \
 
+#define TEST_LOG_ERROR(a, message) \
+    do { \
+        if (!(a)) \
+        { \
+            API_LOG_ERROR(message); \
+        } \
+    } \
+    while(false) \
+
+
 class TestChatRoomListener;
 
 class MegaLoggerSDK : public mega::MegaLogger {
