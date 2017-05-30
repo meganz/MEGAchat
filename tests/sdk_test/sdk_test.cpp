@@ -179,15 +179,6 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
         pwd = password;
     }
 
-    for (int i = 0; i < NUM_ACCOUNTS; ++i)
-    {
-        contactRequest[i] = NULL;
-        chatroom[i] = NULL;
-        chatListItem[i] = NULL;
-        chatid[i] = MEGACHAT_INVALID_HANDLE;
-    }
-
-
     // 1. Initialize chat engine
     bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     megaChatApi[accountIndex]->init(session);
@@ -274,6 +265,40 @@ void MegaChatApiTest::SetUp()
         megaChatApi[i]->addChatRequestListener(this);
         megaChatApi[i]->addChatListener(this);
         megaApi[i]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");
+
+        for (int j = 0; j < mega::MegaRequest::TYPE_CHAT_SET_TITLE; ++j)
+        {
+            requestFlags[i][j] = false;
+        }
+
+        for (int j = 0; j < megachat::MegaChatRequest::TOTAL_OF_REQUEST_TYPES; ++j)
+        {
+            requestFlagsChat[i][j] = false;
+        }
+
+        initStateChanged[i] = false;
+        initState[i] = -1;
+        lastError[i] = -1;
+        lastErrorChat[i] = -1;
+        lastErrorTransfer[i] = -1;
+
+        chatid[i] = MEGACHAT_INVALID_HANDLE;  // chatroom id from request
+        chatroom[i] = NULL;
+        chatListItem[i] = NULL;
+        chatUpdated[i] = false;
+        chatItemUpdated[i] = false;
+        chatItemClosed[i] = false;
+        peersUpdated[i] = false;
+        titleUpdated[i] = false;
+
+        mFirstname = "";
+        mLastname = "";
+        mEmail = "";
+        nameReceived[i] = false;
+
+        mChatFirstname = "";
+        mChatLastname = "";
+        mChatEmail = "";
     }
 }
 
