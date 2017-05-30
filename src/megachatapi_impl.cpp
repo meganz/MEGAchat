@@ -585,6 +585,13 @@ void MegaChatApiImpl::sendPendingRequests()
             handle messageid = request->getUserHandle();
             if (messageid == MEGACHAT_INVALID_HANDLE)   // clear the full history, from current message
             {
+                if (chatroom->chat().empty())
+                {
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                    break;
+                }
+
                 messageid = chatroom->chat().at(chatroom->chat().highnum()).id().val;
             }
 

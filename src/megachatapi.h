@@ -1787,7 +1787,9 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to truncate their chat, i.e. to clear
      * the entire chat history up to a certain message. All earlier messages are wiped,
-     * but his specific message gets overridden with a management message.
+     * but this specific message will be overwritten by a management message. You can
+     * expect a call to \c MegaChatRoomListener::onMessageUpdate where the message
+     * will have no content and it will be of type \c MegaChatMessage::TYPE_TRUNCATE.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1797,7 +1799,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
+     * - MegaChatError::ERROR_ARGS - If the chatid or messageid are invalid
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param messageid MegaChatHandle that identifies the message to truncate from
@@ -1808,9 +1810,10 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to clear the entire history of a chat
      *
-     * The latest message gets overridden with a management message. You can expect a call to
-     * \c MegaChatRoomListener::onMessageUpdate where the message will have no content and it
-     * will be of type \c MegaChatMessage::TYPE_TRUNCATE
+     * If the history is not already empty, the latest message will be overwritten by
+     * a management message. You can expect a call to \c MegaChatRoomListener::onMessageUpdate
+     * where the message will have no content and it will be of type
+     * \c MegaChatMessage::TYPE_TRUNCATE.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1819,7 +1822,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
