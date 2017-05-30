@@ -34,20 +34,20 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
     EXECUTE_TEST(t.TEST_SetOnlineStatus(0), "TEST Online status");
     EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), "TEST Load chatrooms & messages");
     EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
     EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
     EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), "TEST Edit & delete messages");
     EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
-    EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
+    EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
     EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
     EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Sed contact");
     EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
 
-    //EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode"); // This is a manual test. It is necesary stop intenet conection
+    // The test below is a manual test. It requires to stop the intenet conection
+    //EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
 
     t.terminate();
 
@@ -95,11 +95,6 @@ std::string Account::getPassword() const
 MegaChatApiTest::MegaChatApiTest()
     : mNotTransferRunning(true)
 {
-    logger = new MegaLoggerSDK("SDK.log");
-    MegaApi::setLoggerObject(logger);
-
-    chatLogger = new MegaChatLoggerSDK("SDKchat.log");
-    MegaChatApi::setLoggerObject(chatLogger);
 }
 
 MegaChatApiTest::~MegaChatApiTest()
@@ -241,6 +236,11 @@ void MegaChatApiTest::SetUp()
         mAccounts[i] = accountPrimary;
     }
 
+    logger = new MegaLoggerSDK("SDK.log");
+    MegaApi::setLoggerObject(logger);
+
+    chatLogger = new MegaChatLoggerSDK("SDKchat.log");
+    MegaChatApi::setLoggerObject(chatLogger);
 
     // do some initialization
     for (int i = 0; i < NUM_ACCOUNTS; i++)
@@ -251,13 +251,11 @@ void MegaChatApiTest::SetUp()
         megaApi[i]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
         megaApi[i]->addListener(this);
         megaApi[i]->addRequestListener(this);
-        megaApi[i]->log(MegaApi::LOG_LEVEL_INFO, "___ Initializing tests for chat ___");
 
         megaChatApi[i] = new MegaChatApi(megaApi[i]);
         megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
         megaChatApi[i]->addChatRequestListener(this);
         megaChatApi[i]->addChatListener(this);
-        megaApi[i]->log(MegaChatApi::LOG_LEVEL_INFO, "___ Initializing tests for chat SDK___");
 
         for (int j = 0; j < mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
         {
@@ -341,6 +339,12 @@ void MegaChatApiTest::TearDown()
     }
 
     purgeLocalTree(LOCAL_PATH);
+
+    MegaApi::setLoggerObject(NULL);
+    delete logger;  logger = NULL;
+
+    MegaChatApi::setLoggerObject(NULL);
+    delete chatLogger; chatLogger = NULL;
 }
 
 void MegaChatApiTest::logoutAccounts(bool closeSession)
