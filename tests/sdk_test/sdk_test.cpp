@@ -1375,6 +1375,25 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     secondarySession = NULL;
 }
 
+/**
+ * @brief TEST_LastMessage
+ *
+ * Requirements:
+ *      - Both accounts should be conctacts
+ *      - The 1on1 chatroom between them should exist
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ *
+ * - Send a message to chatroom
+ * + Receive message
+ * Check if the last message content is equal to the message sent
+ *
+ * - Upload new file
+ * - Send file as attachment to chatroom
+ * + Receive message with attach node
+ * Check if the last message content is equal to the node's name sent
+ */
 void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
 {
     char *sessionPrimary = login(a1);
@@ -1393,8 +1412,8 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "");
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "");
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 2");
 
     // Load some message to feed history
     loadHistory(a1, chatid, chatroomListener);
@@ -1405,10 +1424,11 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     sendTextMessageOrUpdate(a1, a2, chatid, formatDate, chatroomListener);
 
     MegaChatHandle msgId1 = chatroomListener->msgId[a2];
-    ASSERT_CHAT_TEST(msgId1 != MEGACHAT_INVALID_HANDLE, "");
+    ASSERT_CHAT_TEST(msgId1 != MEGACHAT_INVALID_HANDLE, "Message received has invalid handle");
 
     MegaChatListItem *item = megaChatApi[a1]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), item->getLastMessage()) == 0, "");
+    ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), item->getLastMessage()) == 0,
+                     "Last messge contain has different value from message sent.\n Send: " + formatDate + " Received: " + item->getLastMessage());
     delete item;
     item = NULL;
 
@@ -1419,10 +1439,11 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
     MegaNode* nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
     msgId1 = chatroomListener->msgId[a2];
-    ASSERT_CHAT_TEST(msgId1 != MEGACHAT_INVALID_HANDLE, "");
+    ASSERT_CHAT_TEST(msgId1 != MEGACHAT_INVALID_HANDLE, "Message received has invalid handle");
 
     item = megaChatApi[a1]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), item->getLastMessage()) == 0, "");
+    ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), item->getLastMessage()) == 0,
+                     "Last messge contain has different value from message sent.\n Send: " + formatDate + " Received: " + item->getLastMessage());
     delete item;
     item = NULL;
 
@@ -1435,7 +1456,6 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
 
     delete nodeSent;
     nodeSent = NULL;
-
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
@@ -1464,8 +1484,8 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     // --> check the confirmed in A, the received message in B, the delivered in A
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "");
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "");
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 2");
 
     loadHistory(a1, chatid, chatroomListener);
     loadHistory(a2, chatid, chatroomListener);
@@ -1510,6 +1530,21 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     secondarySession = NULL;
 }
 
+/**
+ * @brief TEST_GroupLastMessage
+ *
+ * Requirements:
+ *      - Both accounts should be conctacts
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ * -Create a group chat room
+ * - Send a message to chatroom
+ * + Receive message
+ * - Change chatroom title
+ * + Check chatroom titles has changed
+ * Check if the last message content is equal to the message sent
+ */
 void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
 {
     char *session0 = login(a1);
@@ -1532,8 +1567,8 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
 
     // --> Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "");
-    ASSERT_CHAT_TEST(megaChatApi[1]->openChatRoom(chatid, chatroomListener), "");
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 2");
 
     std::string textToSend = "Last Message";
     sendTextMessageOrUpdate(a1, a2, chatid, textToSend, chatroomListener);
@@ -1548,17 +1583,19 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
     megaChatApi[a1]->setChatTitle(chatid, title.c_str());
-    ASSERT_CHAT_TEST(waitForResponse(flagChatRoomName), "");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "");
-    ASSERT_CHAT_TEST(waitForResponse(titleItemChanged0), "");
-    ASSERT_CHAT_TEST(waitForResponse(titleItemChanged1), "");
-    ASSERT_CHAT_TEST(waitForResponse(titleChanged0), "");
-    ASSERT_CHAT_TEST(waitForResponse(titleChanged1), "");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "");
-    ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()), "");
+    ASSERT_CHAT_TEST(waitForResponse(flagChatRoomName), "Request change name fail");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Request change name error");
+    ASSERT_CHAT_TEST(waitForResponse(titleItemChanged0), "Fail receive title item change a1");
+    ASSERT_CHAT_TEST(waitForResponse(titleItemChanged1), "TFail receive title item change a2");
+    ASSERT_CHAT_TEST(waitForResponse(titleChanged0), "Fail receive title change a1");
+    ASSERT_CHAT_TEST(waitForResponse(titleChanged1), "Fail receive title change a2");
+    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Fail receive message chat title");
+    ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()),
+                     "Title name has not change correctly. Name stablishes by a1: " + title + "Name received in a2: " + *msgContent);
 
     MegaChatListItem *item = megaChatApi[a1]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(strcmp(textToSend.c_str(), item->getLastMessage()) == 0, "");
+    ASSERT_CHAT_TEST(strcmp(textToSend.c_str(), item->getLastMessage()) == 0,
+                     "Last messge contain has different value from message sent.\n Send: " + textToSend + " Received: " + item->getLastMessage());
     delete item;
     item = NULL;
 
