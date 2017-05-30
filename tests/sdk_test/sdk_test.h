@@ -214,6 +214,8 @@ private:
 
     int purgeLocalTree(const std::string& path);
     void purgeCloudTree(unsigned int accountIndex, mega::MegaNode* node);
+    void clearAndLeaveChats(unsigned int accountIndex);
+    void removePendingContactRequest(unsigned int accountIndex);
 
     Account mAccounts[NUM_ACCOUNTS];
 
@@ -257,8 +259,8 @@ private:
 
     bool mNotTransferRunning;
 
-    mega::MegaContactRequest* contactRequest[NUM_ACCOUNTS];
-    bool contactRequestUpdated[2];
+    mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
+    bool mContactRequestUpdated[2];
 
     static const std::string DEFAULT_PATH;
     static const std::string PATH_IMAGE;
