@@ -66,9 +66,9 @@ private:
         try \
         { \
             t.SetUp(); \
-            std::cout << "[" << "RUN     " << "] " << title << endl; \
+            std::cout << "[" << " RUN    " << "] " << title << endl; \
             test; \
-            std::cout << "[" << "      OK" << "] " << title << endl; \
+            std::cout << "[" << "     OK " << "] " << title << endl; \
             t.TearDown(); \
             t.mOKTests ++; \
         } \

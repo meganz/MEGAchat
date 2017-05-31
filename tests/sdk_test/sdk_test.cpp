@@ -42,7 +42,7 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
     EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
     EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
-    EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Sed contact");
+    EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
     EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
 
