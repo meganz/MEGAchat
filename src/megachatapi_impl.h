@@ -634,6 +634,25 @@ public:
     void* pop();
 };
 
+/**
+ * @brief Any app using this library requires to init some services at startup.
+ * They will be started along with the construction of the first MegaChatApi object created by the app.
+ * When the app terminates, the resources required by the aforementioned services will be automatically
+ * released. In case the app is terminated abruptly and you have a chance to explicitly release them,
+ * call ServiceManager::cleanup.
+ */
+class ServiceManager
+{
+public:
+    static void init();
+    static void cleanup();
+    ~ServiceManager();
+
+private:
+    ServiceManager();
+    static std::shared_ptr<ServiceManager> mInstance;
+};
+
 
 class MegaChatApiImpl :
         public karere::IApp,

@@ -58,16 +58,16 @@ LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 MegaMutex MegaChatApiImpl::sdkMutex(true);
 MegaMutex MegaChatApiImpl::refsMutex(true);
 
+std::shared_ptr<ServiceManager> ServiceManager::mInstance;
+
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 : localVideoReceiver(nullptr)
 {
     refsMutex.lock();
     megaChatApiRefs.push_back(this);
-    if (megaChatApiRefs.size() == 1)
-    {
-        // karere initialization (do NOT use globaInit() since it forces to log to file)
-        services_init(MegaChatApiImpl::megaApiPostMessage, 0);
-    }
+
+    ServiceManager::init();
+
     refsMutex.unlock();
 
     init(chatApi, megaApi);
@@ -143,10 +143,6 @@ void MegaChatApiImpl::loop()
             }
             sendPendingEvents();    // process any pending events in the queue
             refsMutex.unlock();
-            if (!megaChatApiRefs.size())    // if no remaining instances...
-            {
-                globalCleanup();
-            }
             sdkMutex.unlock();
             break;
         }
@@ -4822,4 +4818,27 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
     }
 
     return messageContents;
+}
+
+void ServiceManager::init()
+{
+    if (!mInstance.get())
+    {
+        mInstance = std::shared_ptr<ServiceManager>(new ServiceManager());
+    }
+}
+
+void ServiceManager::cleanup()
+{
+    mInstance.reset();
+}
+
+ServiceManager::ServiceManager()
+{
+    globalInit(MegaChatApiImpl::megaApiPostMessage);
+}
+
+ServiceManager::~ServiceManager()
+{
+    globalCleanup();
 }
