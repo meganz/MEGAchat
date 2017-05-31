@@ -86,6 +86,16 @@ private:
     } \
     while(false) \
 
+#define TEST_LOG_ERROR(a, message) \
+    do { \
+        if (!(a)) \
+        { \
+            postLog(message); \
+        } \
+    } \
+    while(false) \
+
+
 class TestChatRoomListener;
 
 class MegaLoggerTest : public mega::MegaLogger,
