@@ -897,6 +897,14 @@ void MegaChatApiImpl::setLogWithColors(bool useColors)
     }
 }
 
+void MegaChatApiImpl::setLogToConsole(bool enable)
+{
+    if (loggerHandler)
+    {
+        loggerHandler->setLogToConsole(enable);
+    }
+}
+
 void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
 {
     if (!megaLogger)   // removing logger
@@ -4261,6 +4269,11 @@ void LoggerHandler::setLogLevel(int logLevel)
 void LoggerHandler::setLogWithColors(bool useColors)
 {
     gLogger.logToConsoleUseColors(useColors);
+}
+
+void LoggerHandler::setLogToConsole(bool enable)
+{
+    gLogger.logToConsole(enable);
 }
 
 void LoggerHandler::log(krLogLevel level, const char *msg, size_t len, unsigned flags)

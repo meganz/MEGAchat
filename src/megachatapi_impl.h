@@ -375,6 +375,7 @@ public:
     void setMegaChatLogger(MegaChatLogger *logger);
     void setLogLevel(int logLevel);
     void setLogWithColors(bool useColors);
+    void setLogToConsole(bool enable);
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
 
 private:
@@ -696,6 +697,7 @@ public:
     static void setLogLevel(int logLevel);
     static void setLoggerClass(MegaChatLogger *megaLogger);
     static void setLogWithColors(bool useColors);
+    static void setLogToConsole(bool enable);
 
     int init(const char *sid);
     int getInitState();

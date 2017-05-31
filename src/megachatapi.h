@@ -939,8 +939,6 @@ public:
      * @brief This function will be called with all logs with level <= your selected
      * level of logging (by default it is MegaChatApi::LOG_LEVEL_INFO)
      *
-     * @param time Readable string representing the current time.
-     *
      * The SDK retains the ownership of this string, it won't be valid after this funtion returns.
      *
      * @param loglevel Log level of this message
@@ -1194,6 +1192,15 @@ public:
      * @param useColors True to enable them, false to disable.
      */
     static void setLogWithColors(bool useColors);
+
+    /**
+     * @brief Enable the logging in the console
+     *
+     * By default, logging to console is enabled.
+     *
+     * @param enable True to enable it, false to disable.
+     */
+    static void setLogToConsole(bool enable);
 
     /**
      * @brief Initializes karere
