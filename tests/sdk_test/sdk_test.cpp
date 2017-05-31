@@ -101,27 +101,6 @@ MegaChatApiTest::~MegaChatApiTest()
 {
 }
 
-void MegaChatApiTest::init()
-{
-    std::cout << "[==========] Global test environment initialization" << endl; \
-
-    struct stat st = {0};
-    if (stat(LOCAL_PATH.c_str(), &st) == -1)
-    {
-        mkdir(LOCAL_PATH.c_str(), 0700);
-    }
-
-    // do some initialization
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
-    {
-        megaApi[i] = NULL;
-        megaChatApi[i] = NULL;
-    }
-
-    signal(SIGINT, handlerSignalINT);
-    mOKTests = mFailedTests = 0;
-}
-
 char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, const char *email, const char *password)
 {
     std::string mail;
@@ -189,19 +168,19 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     MegaApi::setLoggerObject(logger);   // need to restore customized logger
 }
 
-void MegaChatApiTest::terminate()
+void MegaChatApiTest::init()
 {
-    std::cout << "[==========] Global test environment termination" << endl; \
+    std::cout << "[========] Global test environment initialization" << endl;
 
-    std::cout << "[ PASSED ] " << mOKTests << " test/s." << endl;
-    if (mFailedTests)
-    {
-        std::cout << "[ FAILED ] " << mFailedTests << " test/s, see above." << endl;
-    }
-}
+    signal(SIGINT, handlerSignalINT);
+    mOKTests = mFailedTests = 0;
 
-void MegaChatApiTest::SetUp()
-{
+    logger = new MegaLoggerTest("test.log");
+    MegaApi::setLoggerObject(logger);
+    MegaApi::setLogToConsole(false);
+    MegaChatApi::setLoggerObject(logger);
+    MegaChatApi::setLogToConsole(false);
+
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
         // get credentials from environment variables
@@ -236,14 +215,31 @@ void MegaChatApiTest::SetUp()
         Account accountPrimary(email, pwd);
         mAccounts[i] = accountPrimary;
     }
+}
 
-    logger = new MegaLoggerSDK("SDK.log");
-    MegaApi::setLoggerObject(logger);
+void MegaChatApiTest::terminate()
+{
+    std::cout << "[==========] Global test environment termination" << endl; \
 
-    chatLogger = new MegaChatLoggerSDK("SDKchat.log");
-    MegaChatApi::setLoggerObject(chatLogger);
+    std::cout << "[ PASSED ] " << mOKTests << " test/s." << endl;
+    if (mFailedTests)
+    {
+        std::cout << "[ FAILED ] " << mFailedTests << " test/s, see above." << endl;
+    }
 
-    // do some initialization
+    MegaApi::setLoggerObject(NULL);
+    MegaChatApi::setLoggerObject(NULL);
+    delete logger;  logger = NULL;
+}
+
+void MegaChatApiTest::SetUp()
+{
+    struct stat st = {0};
+    if (stat(LOCAL_PATH.c_str(), &st) == -1)
+    {
+        mkdir(LOCAL_PATH.c_str(), 0700);
+    }
+
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
         char path[1024];
@@ -306,6 +302,7 @@ void MegaChatApiTest::TearDown()
             bool *flagRequestLogout = &requestFlagsChat[i][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
             megaChatApi[i]->logout();
             ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "");
+            MegaApi::setLoggerObject(logger);   // need to restore customized logger
         }
 
         megaChatApi[i]->removeChatRequestListener(this);
@@ -313,7 +310,6 @@ void MegaChatApiTest::TearDown()
 
         delete megaChatApi[i];
         megaChatApi[i] = NULL;
-
 
         if (megaApi[i]->isLoggedIn())
         {
@@ -340,12 +336,6 @@ void MegaChatApiTest::TearDown()
     }
 
     purgeLocalTree(LOCAL_PATH);
-
-    MegaApi::setLoggerObject(NULL);
-    delete logger;  logger = NULL;
-
-    MegaChatApi::setLoggerObject(NULL);
-    delete chatLogger; chatLogger = NULL;
 }
 
 void MegaChatApiTest::logoutAccounts(bool closeSession)
