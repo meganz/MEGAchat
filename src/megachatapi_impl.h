@@ -633,6 +633,18 @@ public:
     void* pop();
 };
 
+class ServiceManager
+{
+public:
+    static void init();
+    static void cleanup();
+    ~ServiceManager();
+
+private:
+    ServiceManager();
+    static std::shared_ptr<ServiceManager> mInstance;
+};
+
 
 class MegaChatApiImpl :
         public karere::IApp,

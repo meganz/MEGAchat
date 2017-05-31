@@ -1149,6 +1149,13 @@ public:
 
     virtual ~MegaChatApi();
 
+    /**
+     * @brief Clean up resources used by application.
+     * This function only has to be called one time just before application closes by external causes.
+     * If application finish correctly, it will not be necessary to call it
+     */
+    static void cleanupServices();
+
 
     /**
      * @brief Set a MegaChatLogger implementation to receive SDK logs
