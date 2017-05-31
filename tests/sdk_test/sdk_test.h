@@ -88,29 +88,21 @@ private:
 
 class TestChatRoomListener;
 
-class MegaLoggerSDK : public mega::MegaLogger {
+class MegaLoggerTest : public mega::MegaLogger,
+        public megachat::MegaChatLogger {
 
 public:
-    MegaLoggerSDK(const char *filename);
-    ~MegaLoggerSDK();
+    MegaLoggerTest(const char *filename);
+    ~MegaLoggerTest();
+
+    std::ofstream *getOutputStream() { return &testlog; }
+    void postLog(const char *message);
 
 private:
-    std::ofstream sdklog;
+    std::ofstream testlog;
 
 protected:
     void log(const char *time, int loglevel, const char *source, const char *message);
-};
-
-class MegaChatLoggerSDK : public megachat::MegaChatLogger {
-
-public:
-    MegaChatLoggerSDK(const char *filename);
-    ~MegaChatLoggerSDK();
-
-private:
-    std::ofstream sdklog;
-
-protected:
     void log(int loglevel, const char *message);
 };
 
@@ -156,9 +148,10 @@ public:
     void logout(unsigned int accountIndex, bool closeSession = false);
     void logoutAccounts(bool closeSession = false);
 
-    static void printChatRoomInfo(const megachat::MegaChatRoom *);
-    static void printMessageInfo(const megachat::MegaChatMessage *);
-    static void printChatListItemInfo(const megachat::MegaChatListItem *);
+    static const char* printChatRoomInfo(const megachat::MegaChatRoom *);
+    static const char* printMessageInfo(const megachat::MegaChatMessage *);
+    static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
+    void postLog(const char *msg);
 
     bool waitForResponse(bool *responseReceived, int timeout = maxTimeout) const;
 
@@ -254,8 +247,7 @@ private:
     mega::MegaNodeList *mAttachmentNodeList;
     megachat::MegaChatHandle mAttachmentRevokeNode;
 
-    MegaLoggerSDK *logger;
-    MegaChatLoggerSDK *chatLogger;
+    MegaLoggerTest *logger;
 
     bool mNotTransferRunning;
 
@@ -301,8 +293,9 @@ public:
 class TestChatRoomListener : public megachat::MegaChatRoomListener
 {
 public:
-    TestChatRoomListener(megachat::MegaChatApi **apis, megachat::MegaChatHandle chatid);
+    TestChatRoomListener(MegaChatApiTest *t, megachat::MegaChatApi **apis, megachat::MegaChatHandle chatid);
 
+    MegaChatApiTest *t;
     megachat::MegaChatApi **megaChatApi;
     megachat::MegaChatHandle chatid;
 
