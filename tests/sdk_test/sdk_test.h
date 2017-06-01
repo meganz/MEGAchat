@@ -185,7 +185,7 @@ private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
     megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                              megachat::MegaChatPeerList *peers);
+                                              megachat::MegaChatPeerList *peers, bool create = true);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
@@ -217,7 +217,7 @@ private:
 
     int purgeLocalTree(const std::string& path);
     void purgeCloudTree(unsigned int accountIndex, mega::MegaNode* node);
-    void clearAndLeaveChats(unsigned int accountIndex);
+    void clearAndLeaveChats(unsigned int accountIndex, megachat::MegaChatHandle skipChatId =  megachat::MEGACHAT_INVALID_HANDLE);
     void removePendingContactRequest(unsigned int accountIndex);
 
     Account mAccounts[NUM_ACCOUNTS];

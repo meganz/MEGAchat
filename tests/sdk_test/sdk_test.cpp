@@ -297,7 +297,17 @@ void MegaChatApiTest::TearDown()
         if (megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
                 megaChatApi[i]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION )
         {
-            clearAndLeaveChats(i);
+            int a2 = (i == 0) ? 1 : 0;  // FIXME: find solution for more than 2 accounts
+            MegaChatHandle chatToSkip = MEGACHAT_INVALID_HANDLE;
+            MegaChatHandle uh = megaChatApi[i]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+            if (uh != MEGACHAT_INVALID_HANDLE)
+            {
+                MegaChatPeerList *peers = MegaChatPeerList::createInstance();
+                peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
+                chatToSkip = getGroupChatRoom(i, a2, peers, false);
+            }
+
+            clearAndLeaveChats(i, chatToSkip);
 
             bool *flagRequestLogout = &requestFlagsChat[i][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
             megaChatApi[i]->logout();
@@ -799,17 +809,13 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    if (!peer)
+    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh == MEGACHAT_INVALID_HANDLE)
     {
         makeContact(a1, a2);
-        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
-
-    delete peer;
-    peer = NULL;
 
     // 1. A sends a message to B while B has the chat opened.
     // --> check the confirmed in A, the received message in B, the delivered in A
@@ -866,15 +872,17 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     char *sessionSecondary = login(a2);
 
     // Prepare peers, privileges...
-    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    if (!peer)
+    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh == MEGACHAT_INVALID_HANDLE)
     {
         makeContact(a1, a2);
-        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+        MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+        uh = user->getHandle();
+        delete user;
     }
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-    peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
 
     MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
     delete peers;
@@ -895,11 +903,11 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    megaChatApi[a1]->removeFromChat(chatid, peer->getHandle());
+    megaChatApi[a1]->removeFromChat(chatid, uh);
     ASSERT_CHAT_TEST(waitForResponse(flagRemoveFromChat), "Failed to remove peer from chatroom " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to remove peer from chatroom" + std::to_string(lastErrorChat[a1]));
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Failed to receive management message " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(*uhAction == peer->getHandle(), "User handle from message doesn't match");
+    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RM, "Privilege is incorrect");
 
     MegaChatRoom *chatroom = megaChatApi[a1]->getChatRoom(chatid);
@@ -930,7 +938,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    megaChatApi[a1]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
     ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to invite a new peer. Error: " + std::to_string(lastErrorChat[a1]));
     ASSERT_CHAT_TEST(waitForResponse(chatItemJoined0), "Chat list item update for main account not received after " + std::to_string(maxTimeout) + " seconds");
@@ -938,7 +946,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(chatJoined0), "Chatroom update for main account not received after " + std::to_string(maxTimeout) + " seconds");
 //    ASSERT_CHAT_TEST(waitForResponse(chatJoined1), ""); --> account 1 haven't opened chat, won't receive callback
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Management message not received after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(*uhAction == peer->getHandle(), "User handle from message doesn't match");
+    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_UNKNOWN, "Privilege is incorrect");    // the message doesn't report the new priv
 
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
@@ -951,7 +959,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
 
     // invite again --> error
     flagInviteToChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flagInviteToChatRoom = false;
-    megaChatApi[a1]->inviteToChat(chatid, peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
     ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(lastErrorChat[a1] == MegaChatError::ERROR_EXIST, "Invitation should have failed, but it succeed");
 
@@ -986,13 +994,13 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    megaChatApi[a1]->updateChatPermissions(chatid, peer->getHandle(), MegaChatRoom::PRIV_MODERATOR);
+    megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_MODERATOR);
     ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + std::to_string(lastErrorChat[a1]));;
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for reciving peer update");
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for reciving peer update");
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for reciving management message");
-    ASSERT_CHAT_TEST(*uhAction == peer->getHandle(), "User handle from message doesn't match");
+    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_MODERATOR, "Privilege is incorrect");
 
     // --> Change peer privileges to Read-only
@@ -1002,13 +1010,13 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    megaChatApi[a1]->updateChatPermissions(chatid, peer->getHandle(), MegaChatRoom::PRIV_RO);
+    megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
     ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + std::to_string(lastErrorChat[a1]));;
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for reciving peer update");
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for reciving peer update");
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for reciving management message");
-    ASSERT_CHAT_TEST(*uhAction == peer->getHandle(), "User handle from message doesn't match");
+    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO, "Privilege is incorrect");
 
     // --> Try to send a message without the right privilege
@@ -1058,7 +1066,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     // --> Remove peer from groupchat
     bool *flagRemoveFromChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromChatRoom = false;
     bool *chatClosed = &chatItemClosed[a2]; *chatClosed = false;
-    megaChatApi[a1]->removeFromChat(chatid, peer->getHandle());
+    megaChatApi[a1]->removeFromChat(chatid, uh);
     ASSERT_CHAT_TEST(waitForResponse(flagRemoveFromChatRoom), "Timeout expired for ");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "");
     ASSERT_CHAT_TEST(waitForResponse(chatClosed), "Timeout expired for ");
@@ -1221,15 +1229,17 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     char *sessionSecondary = login(a2);
 
     // Prepare peers, privileges...
-    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    if (!peer)
+    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh == MEGACHAT_INVALID_HANDLE)
     {
         makeContact(a1, a2);
-        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+        MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+        uh = user->getHandle();
+        delete user;
     }
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-    peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
 
     MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
     delete peers;
@@ -1377,15 +1387,11 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     char *secondarySession = login(a2);
 
     // 0. Ensure both accounts are contacts and there's a 1on1 chatroom
-    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    if (!peer)
+    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh == MEGACHAT_INVALID_HANDLE)
     {
         makeContact(a1, a2);
-        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
-
-    delete peer;
-    peer = NULL;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
@@ -1513,15 +1519,11 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     char *sessionPrimary = login(a1);
     char *sessionSecondary = login(a2);
 
-    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    if (!peer)
+    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh == MEGACHAT_INVALID_HANDLE)
     {
         makeContact(a1, a2);
-        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
-
-    delete peer;
-    peer = NULL;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
@@ -1586,15 +1588,11 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    if (!peer)
+    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh == MEGACHAT_INVALID_HANDLE)
     {
         makeContact(a1, a2);
-        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
-
-    delete peer;
-    peer = NULL;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
@@ -1666,15 +1664,17 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     char *session1 = login(a2);
 
     // Prepare peers, privileges...
-    MegaUser *peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    if (!peer)
+    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh == MEGACHAT_INVALID_HANDLE)
     {
         makeContact(a1, a2);
-        peer = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+        MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+        uh = user->getHandle();
+        delete user;
     }
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-    peers->addPeer(peer->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
 
     MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
     delete peers;
@@ -1768,13 +1768,13 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
 }
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                                 MegaChatPeerList *peers)
+                                                 MegaChatPeerList *peers, bool create)
 {
     MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
 
     bool chatroomExist = false;
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
-    for (int i = 0; i < chats->size(); ++i)
+    for (int i = 0; i < chats->size() && !chatroomExist; ++i)
     {
         const MegaChatRoom *chat = chats->get(i);
         if (!chat->isGroup() || !chat->isActive())
@@ -1788,6 +1788,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
             {
                 chatroomExist = true;
                 chatid = chat->getChatId();
+                break;
             }
         }
     }
@@ -1795,7 +1796,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
     delete chats;
     chats = NULL;
 
-    if (!chatroomExist)
+    if (!chatroomExist && create)
     {
         bool *flagCreateChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flagCreateChatRoom = false;
         bool *chatItemPrimaryReceived = &chatItemUpdated[a1]; *chatItemPrimaryReceived = false;
@@ -1832,8 +1833,6 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
 
         delete chatItemSecondaryCreated;    chatItemSecondaryCreated = NULL;
     }
-
-    ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "");
 
     return chatid;
 }
@@ -2242,7 +2241,7 @@ void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
     delete children;
 }
 
-void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex)
+void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex, MegaChatHandle skipChatId)
 {
     MegaChatRoomList *chatRooms = megaChatApi[accountIndex]->getChatRooms();
 
@@ -2258,7 +2257,7 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex)
             TEST_LOG_ERROR(!lastErrorChat[i], "MegaChatApi truncate history request error");
         }
 
-        if (chatroom->isGroup() && chatroom->isActive())
+        if (chatroom->isGroup() && chatroom->isActive() && chatroom->getChatId() != skipChatId)
         {
             leaveChat(accountIndex, chatroom->getChatId());
         }
