@@ -98,6 +98,11 @@ void MegaChatApi::setLogWithColors(bool useColors)
     MegaChatApiImpl::setLogWithColors(useColors);
 }
 
+void MegaChatApi::setLogToConsole(bool enable)
+{
+    MegaChatApiImpl::setLogToConsole(enable);
+}
+
 int MegaChatApi::init(const char *sid)
 {
     return pImpl->init(sid);
@@ -191,6 +196,11 @@ void MegaChatApi::getUserEmail(MegaChatHandle userhandle, MegaChatRequestListene
 char *MegaChatApi::getContactEmail(MegaChatHandle userhandle)
 {
     return pImpl->getContactEmail(userhandle);
+}
+
+MegaChatHandle MegaChatApi::getUserHandleByEmail(const char *email)
+{
+    return pImpl->getUserHandleByEmail(email);
 }
 
 MegaChatHandle MegaChatApi::getMyUserHandle()

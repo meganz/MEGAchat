@@ -375,6 +375,7 @@ public:
     void setMegaChatLogger(MegaChatLogger *logger);
     void setLogLevel(int logLevel);
     void setLogWithColors(bool useColors);
+    void setLogToConsole(bool enable);
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
 
 private:
@@ -715,6 +716,7 @@ public:
     static void setLogLevel(int logLevel);
     static void setLoggerClass(MegaChatLogger *megaLogger);
     static void setLogWithColors(bool useColors);
+    static void setLogToConsole(bool enable);
 
     int init(const char *sid);
     int getInitState();
@@ -795,6 +797,7 @@ public:
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     char *getContactEmail(MegaChatHandle userhandle);
+    MegaChatHandle getUserHandleByEmail(const char *email);
     MegaChatHandle getMyUserHandle();
     char *getMyFirstname();
     char *getMyLastname();

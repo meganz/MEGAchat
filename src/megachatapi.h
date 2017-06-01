@@ -939,8 +939,6 @@ public:
      * @brief This function will be called with all logs with level <= your selected
      * level of logging (by default it is MegaChatApi::LOG_LEVEL_INFO)
      *
-     * @param time Readable string representing the current time.
-     *
      * The SDK retains the ownership of this string, it won't be valid after this funtion returns.
      *
      * @param loglevel Log level of this message
@@ -1201,6 +1199,15 @@ public:
      * @param useColors True to enable them, false to disable.
      */
     static void setLogWithColors(bool useColors);
+
+    /**
+     * @brief Enable the logging in the console
+     *
+     * By default, logging to console is enabled.
+     *
+     * @param enable True to enable it, false to disable.
+     */
+    static void setLogToConsole(bool enable);
 
     /**
      * @brief Initializes karere
@@ -1484,6 +1491,19 @@ public:
      * @return The email address of the contact, or NULL if not found.
      */
     char *getContactEmail(MegaChatHandle userhandle);
+
+    /**
+     * @brief Returns the userhandle of the contact
+     *
+     * This function is useful to get the handle of users you are contact with and users
+     * you were contact with in the past and later on the contact relationship was broken.
+     * Note that for any other user without contact relationship, this function will return
+     * MEGACHAT_INVALID_HANDLE.
+     *
+     * @param email Email address of the user whose handle is requested.
+     * @return The userhandle of the contact, or MEGACHAT_INVALID_HANDLE if not found.
+     */
+    MegaChatHandle getUserHandleByEmail(const char *email);
 
     /**
      * @brief Returns the handle of the logged in user.

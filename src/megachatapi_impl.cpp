@@ -893,6 +893,14 @@ void MegaChatApiImpl::setLogWithColors(bool useColors)
     }
 }
 
+void MegaChatApiImpl::setLogToConsole(bool enable)
+{
+    if (loggerHandler)
+    {
+        loggerHandler->setLogToConsole(enable);
+    }
+}
+
 void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
 {
     if (!megaLogger)   // removing logger
@@ -1442,6 +1450,26 @@ char *MegaChatApiImpl::getContactEmail(MegaChatHandle userhandle)
     sdkMutex.unlock();
 
     return ret;
+}
+
+MegaChatHandle MegaChatApiImpl::getUserHandleByEmail(const char *email)
+{
+    MegaChatHandle uh = MEGACHAT_INVALID_HANDLE;
+
+    if (email)
+    {
+        sdkMutex.lock();
+
+        Contact *contact = mClient->contactList->contactFromEmail(email);
+        if (contact)
+        {
+            uh = contact->userId();
+        }
+
+        sdkMutex.unlock();
+    }
+
+    return uh;
 }
 
 MegaChatHandle MegaChatApiImpl::getMyUserHandle()
@@ -4257,6 +4285,11 @@ void LoggerHandler::setLogLevel(int logLevel)
 void LoggerHandler::setLogWithColors(bool useColors)
 {
     gLogger.logToConsoleUseColors(useColors);
+}
+
+void LoggerHandler::setLogToConsole(bool enable)
+{
+    gLogger.logToConsole(enable);
 }
 
 void LoggerHandler::log(krLogLevel level, const char *msg, size_t len, unsigned flags)
