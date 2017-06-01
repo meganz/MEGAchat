@@ -2289,6 +2289,18 @@ const std::string* ContactList::getUserEmail(uint64_t userid) const
     return &(it->second->email());
 }
 
+Contact* ContactList::contactFromEmail(const std::string &email) const
+{
+    for (auto it = begin(); it != end(); it++)
+    {
+        if (it->second->email() == email)
+        {
+            return it->second;
+        }
+    }
+    return nullptr;
+}
+
 Contact* ContactList::contactFromUserId(uint64_t userid) const
 {
     auto it = find(userid);

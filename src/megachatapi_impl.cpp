@@ -1452,6 +1452,26 @@ char *MegaChatApiImpl::getContactEmail(MegaChatHandle userhandle)
     return ret;
 }
 
+MegaChatHandle MegaChatApiImpl::getUserHandleByEmail(const char *email)
+{
+    MegaChatHandle uh = MEGACHAT_INVALID_HANDLE;
+
+    if (email)
+    {
+        sdkMutex.lock();
+
+        Contact *contact = mClient->contactList->contactFromEmail(email);
+        if (contact)
+        {
+            uh = contact->userId();
+        }
+
+        sdkMutex.unlock();
+    }
+
+    return uh;
+}
+
 MegaChatHandle MegaChatApiImpl::getMyUserHandle()
 {
     return mClient->myHandle();

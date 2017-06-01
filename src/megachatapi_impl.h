@@ -797,6 +797,7 @@ public:
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     char *getContactEmail(MegaChatHandle userhandle);
+    MegaChatHandle getUserHandleByEmail(const char *email);
     MegaChatHandle getMyUserHandle();
     char *getMyFirstname();
     char *getMyLastname();

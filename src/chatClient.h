@@ -494,6 +494,7 @@ public:
      */
     Contact* contactFromJid(const std::string& jid) const;
     Contact* contactFromUserId(uint64_t userid) const;
+    Contact* contactFromEmail(const std::string& email) const;
 
     /** @cond PRIVATE */
     ContactList(Client& aClient);

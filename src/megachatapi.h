@@ -1493,6 +1493,19 @@ public:
     char *getContactEmail(MegaChatHandle userhandle);
 
     /**
+     * @brief Returns the userhandle of the contact
+     *
+     * This function is useful to get the handle of users you are contact with and users
+     * you were contact with in the past and later on the contact relationship was broken.
+     * Note that for any other user without contact relationship, this function will return
+     * MEGACHAT_INVALID_HANDLE.
+     *
+     * @param email Email address of the user whose handle is requested.
+     * @return The userhandle of the contact, or MEGACHAT_INVALID_HANDLE if not found.
+     */
+    MegaChatHandle getUserHandleByEmail(const char *email);
+
+    /**
      * @brief Returns the handle of the logged in user.
      *
      * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),

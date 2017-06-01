@@ -198,6 +198,11 @@ char *MegaChatApi::getContactEmail(MegaChatHandle userhandle)
     return pImpl->getContactEmail(userhandle);
 }
 
+MegaChatHandle MegaChatApi::getUserHandleByEmail(const char *email)
+{
+    return pImpl->getUserHandleByEmail(email);
+}
+
 MegaChatHandle MegaChatApi::getMyUserHandle()
 {
     return pImpl->getMyUserHandle();
