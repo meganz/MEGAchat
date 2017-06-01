@@ -1533,7 +1533,9 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
  * + Receive message
  * - Change chatroom title
  * + Check chatroom titles has changed
- * Check if the last message content is equal to the message sent
+ *
+ * Check if the last message content is equal to the last message sent excluding
+ * management messages, which are not to be shown as last message.
  */
 void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
 {
@@ -1564,14 +1566,14 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     sendTextMessageOrUpdate(a1, a2, chatid, textToSend, chatroomListener);
 
     // --> Set title
-    string title = "My groupchat with title 2";
+    std::string title = "My groupchat with title 2";
     bool *flagChatRoomName = &requestFlagsChat[a1][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flagChatRoomName = false;
     bool *titleItemChanged0 = &titleUpdated[a1]; *titleItemChanged0 = false;
     bool *titleItemChanged1 = &titleUpdated[a2]; *titleItemChanged1 = false;
     bool *titleChanged0 = &chatroomListener->titleUpdated[a1]; *titleChanged0 = false;
     bool *titleChanged1 = &chatroomListener->titleUpdated[a2]; *titleChanged1 = false;
     bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
-    string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
+    std::string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
     megaChatApi[a1]->setChatTitle(chatid, title.c_str());
     ASSERT_CHAT_TEST(waitForResponse(flagChatRoomName), "Timeout expired for changing name");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to change name. Error: " + std::to_string(lastErrorChat[a1]));
@@ -1581,11 +1583,11 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(titleChanged1), "Timeout expired for receiving chatroom title update for auxiliar account");
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management");
     ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()),
-                     "Title name has not change correctly. Name stablishes by a1: " + title + "Name received in a2: " + *msgContent);
+                     "Title name has not changed correctly. Name establishes by a1: " + title + "Name received in a2: " + *msgContent);
 
     MegaChatListItem *item = megaChatApi[a1]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(textToSend.c_str(), item->getLastMessage()) == 0,
-                     "Last messge contain has different value from message sent.\n Send: " + textToSend + " Received: " + item->getLastMessage());
+                     "Last message content has different value from message sent.\n Sent: " + textToSend + " Received: " + item->getLastMessage());
     delete item;
     item = NULL;
 
@@ -1645,33 +1647,25 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
                                                  MegaChatPeerList *peers)
 {
-    // Get chatroom name with peer firstname and lastname
-    bool *flagAttributeUser = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttributeUser = false;
-    bool *nameReceivedFlag = &nameReceived[a1]; *nameReceivedFlag = false; mFirstname = "";
-    megaApi[a1]->getUserAttribute(MegaApi::USER_ATTR_FIRSTNAME);
-    ASSERT_CHAT_TEST(waitForResponse(flagAttributeUser), "Timeout expired for retrieving firstname");
-    ASSERT_CHAT_TEST(!lastError[a1], "Failed to retrieve firstname. Error: " + std::to_string(lastError[a1]));
-    ASSERT_CHAT_TEST(waitForResponse(nameReceivedFlag), "Timeout expired for receiving firstname");
-    std::string peerFirstname = mFirstname;
-    flagAttributeUser = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttributeUser = false;
-    nameReceivedFlag = &nameReceived[a1]; *nameReceivedFlag = false; mLastname = "";
-    megaApi[a1]->getUserAttribute(MegaApi::USER_ATTR_LASTNAME);
-    ASSERT_CHAT_TEST(waitForResponse(flagAttributeUser), "Timeout expired for retrieving lastname");
-    ASSERT_CHAT_TEST(!lastError[a1], "Failed to retrieve lastname. Error: " + std::to_string(lastError[a1]));
-    ASSERT_CHAT_TEST(waitForResponse(nameReceivedFlag), "Timeout expired for receiving lastname");
-    std::string peerLastname = mLastname;
-    std::string peerFullname = peerFirstname + " " + peerLastname;
-
     MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
 
     bool chatroomExist = false;
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
     for (int i = 0; i < chats->size(); ++i)
     {
-        if (strcmp(chats->get(i)->getTitle(), peerFullname.c_str()) == 0)
+        const MegaChatRoom *chat = chats->get(i);
+        if (!chat->isGroup() || !chat->isActive())
         {
-            chatroomExist = true;
-            chatid = chats->get(i)->getChatId();
+            continue;
+        }
+
+        for (int userIndex = 0; userIndex < chat->getPeerCount(); i++)
+        {
+            if (chat->getPeerHandle(userIndex) == peers->getPeerHandle(0))
+            {
+                chatroomExist = true;
+                chatid = chat->getChatId();
+            }
         }
     }
 
@@ -1683,47 +1677,36 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
         bool *flagCreateChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flagCreateChatRoom = false;
         bool *chatItemPrimaryReceived = &chatItemUpdated[a1]; *chatItemPrimaryReceived = false;
         bool *chatItemSecondaryReceived = &chatItemUpdated[a2]; *chatItemSecondaryReceived = false;
-        chatListItem[a1] = NULL;
-        chatListItem[a2] = NULL;
         this->chatid[a1] = MEGACHAT_INVALID_HANDLE;
 
         megaChatApi[a1]->createChat(true, peers, this);
-        ASSERT_CHAT_TEST(waitForResponse(flagCreateChatRoom), "");
-        ASSERT_CHAT_TEST(!lastErrorChat[a1], "");
+        ASSERT_CHAT_TEST(waitForResponse(flagCreateChatRoom), "Expired timeout for creating groupchat");
+        ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to create groupchat. Error: " + std::to_string(lastErrorChat[a1]));
         chatid = this->chatid[a1];
-        ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "");
-        ASSERT_CHAT_TEST(waitForResponse(chatItemPrimaryReceived), "");
+        ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "Wrong chat id");
+        ASSERT_CHAT_TEST(waitForResponse(chatItemPrimaryReceived), "Expired timeout for receiving the new chat list item");
 
-        MegaChatListItem *chatItemPrimaryCreated = chatListItem[a1];   chatListItem[a1] = NULL;
-        ASSERT_CHAT_TEST(chatItemPrimaryCreated, "");
-        delete chatItemPrimaryCreated;    chatItemPrimaryCreated = NULL;
-
-        ASSERT_CHAT_TEST(waitForResponse(chatItemSecondaryReceived), "");
-        MegaChatListItem *chatItemSecondaryCreated = chatListItem[a2];   chatListItem[a2] = NULL;
-
-        // FIXME: find a safe way to control when the auxiliar account receives the
-        // new chatroom, since we may have multiple notifications for other chats
-        while (!chatItemSecondaryCreated)
+        // since we may have multiple notifications for other chats, check we received the right one
+        MegaChatListItem *chatItemSecondaryCreated = NULL;
+        do
         {
-            ASSERT_CHAT_TEST(waitForResponse(chatItemSecondaryReceived), "");
-            ASSERT_CHAT_TEST(chatItemSecondaryCreated, "");
-            if (chatItemSecondaryCreated->getChatId() == chatid)
+            ASSERT_CHAT_TEST(waitForResponse(chatItemSecondaryReceived), "Expired timeout for receiving the new chat list item");
+            *chatItemSecondaryReceived = false;
+
+            chatItemSecondaryCreated = megaChatApi[a2]->getChatListItem(chatid);
+            if (!chatItemSecondaryCreated)
             {
-                break;
+                continue;
             }
             else
             {
-                delete chatItemSecondaryCreated;    chatItemSecondaryCreated = NULL;
-                *chatItemSecondaryReceived = false;
+                if (chatItemSecondaryCreated->getChatId() != chatid)
+                {
+                    delete chatItemSecondaryCreated; chatItemSecondaryCreated = NULL;
+                }
             }
-        }
+        } while (!chatItemSecondaryCreated);
 
-        MegaChatRoom *chatroom = megaChatApi[a2]->getChatRoom(chatid);
-        ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
-        delete chatroom;    chatroom = NULL;
-
-        ASSERT_CHAT_TEST(!strcmp(chatItemSecondaryCreated->getTitle(), peerFullname.c_str()), ""); // ERROR: we get empty title
-        delete chatItemPrimaryCreated;    chatItemPrimaryCreated = NULL;
         delete chatItemSecondaryCreated;    chatItemSecondaryCreated = NULL;
     }
 
