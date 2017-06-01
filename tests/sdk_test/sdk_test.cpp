@@ -305,6 +305,8 @@ void MegaChatApiTest::TearDown()
                 MegaChatPeerList *peers = MegaChatPeerList::createInstance();
                 peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
                 chatToSkip = getGroupChatRoom(i, a2, peers, false);
+                delete peers;
+                peers = NULL;
             }
 
             clearAndLeaveChats(i, chatToSkip);
