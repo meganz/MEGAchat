@@ -1493,10 +1493,10 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
 
     MegaUser* user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     ASSERT_CHAT_TEST(user, "Failed to get contact with email" + mAccounts[a2].getEmail());
-    MegaChatHandle handle = user->getHandle();
+    MegaChatHandle uh1 = user->getHandle();
     delete user;
     user = NULL;
-    megaChatApi[a1]->attachContacts(chatid, 1, &handle);
+    megaChatApi[a1]->attachContacts(chatid, 1, &uh1);
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server");
     MegaChatHandle msgId0 = chatroomListener->msgId[a1];
     ASSERT_CHAT_TEST(msgId0 != MEGACHAT_INVALID_HANDLE, "Wrong message id at origin");
@@ -1505,11 +1505,11 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     MegaChatHandle msgId1 = chatroomListener->msgId[a2];
     ASSERT_CHAT_TEST(msgId0 == msgId1, "Wrong message id at destination");
     MegaChatMessage *msgReceived = megaChatApi[a2]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
-    ASSERT_CHAT_TEST(msgReceived, "Failed to get messagbe by id");
+    ASSERT_CHAT_TEST(msgReceived, "Failed to get message by id");
 
-    ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT, "Wrong type of message: " + std::to_string(msgReceived->getType()));
-    ASSERT_CHAT_TEST(msgReceived->getUsersCount() > 0, "Wrong number of users in message");
-    ASSERT_CHAT_TEST(strcmp(msgReceived->getUserEmail(0), mAccounts[a2].getEmail().c_str()) == 0, "Wrong email address in message");
+    ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT, "Wrong type of message. Type: " + std::to_string(msgReceived->getType()));
+    ASSERT_CHAT_TEST(msgReceived->getUsersCount() == 1, "Wrong number of users in message. Count: " + std::to_string(msgReceived->getUsersCount()));
+    ASSERT_CHAT_TEST(strcmp(msgReceived->getUserEmail(0), mAccounts[a2].getEmail().c_str()) == 0, "Wrong email address in message. Address: " + std::string(msgReceived->getUserEmail(0)));
 
     delete msgReceived;
     msgReceived = NULL;
