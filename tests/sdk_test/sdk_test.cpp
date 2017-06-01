@@ -477,7 +477,21 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, int timeout) const
 }
 
 
-
+/**
+ * @brief TEST_ResumeSession
+ *
+ * This test does the following:
+ *
+ * - Create a new session
+ * - Resume with previous sesion
+ * - Resume an existing session without karere cache
+ * - Re-create Karere cache without login out from SDK
+ * - Close session
+ * - Login with chat enabled, transition to disabled and back to enabled
+ * - Login with chat disabled, transition to enabled
+ * - Disconnect from chat server and reconnect
+ *
+ */
 bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
 {
     // ___ Create a new session ___
@@ -642,6 +656,15 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     delete [] session; session = NULL;
 }
 
+/**
+ * @brief TEST_SetOnlineStatus
+ *
+ * This test does the following:
+ *
+ * - Login
+ * - Set status busy
+ *
+ */
 void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
 {
     char *sesion = login(accountIndex);
@@ -655,6 +678,17 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     sesion = NULL;
 }
 
+/**
+ * @brief TEST_GetChatRoomsAndMessages
+ *
+ * This test does the following:
+ *
+ * - Print chatrooms information
+ * - Load history from one chatroom
+ * - Close chatroom
+ * - Load history from cache
+ *
+ */
 void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
 {
     char *sesion = login(accountIndex);
@@ -745,6 +779,21 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
     sesion = NULL;
 }
 
+/**
+ * @brief TEST_EditAndDeleteMessages
+ *
+ * Requirements:
+ * - Both accounts should be conctacts
+ * - The 1on1 chatroom between them should exist
+ * (if not accomplished, the test automatically solves the above)
+ *
+ * This test does the following:
+ *
+ * - Send a message
+ * + Receive the message
+ * - Update the messages
+ *
+ */
 void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2)
 {
     char *primarySession = login(a1);
@@ -792,6 +841,25 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
     secondarySession = NULL;
 }
 
+/**
+ * @brief TEST_GroupChatManagement
+ *
+ * Requirements:
+ * - Both accounts should be conctacts
+ * (if not accomplished, the test automatically solves the above)
+ *
+ * This test does the following:
+ * - Create a group chat room
+ * - Remove memeber
+ * - Invite a new member
+ * - Invite same account (error)
+ * - Change chatroom title
+ * - Change privileges to admin
+ * - Changes privileges to read only
+ * + Send message (error)
+ * - Send message
+ *
+ */
 void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
 {
     char *sessionPrimary = login(a1);
@@ -1005,6 +1073,24 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     sessionSecondary = NULL;
 }
 
+/**
+ * @brief TEST_OfflineMode
+ *
+ * Requirements:
+ * - Both accounts should be conctacts
+ * - The 1on1 chatroom between them should exist
+ * (if not accomplished, the test automatically solves the above)
+ *
+ * This test does the following:
+ *
+ * - Send message without internet connection
+ * - Logout
+ * - Init offline sesion
+ * - Check messages unsend
+ * - Connect to internet
+ * - Check message has been received by the server
+ *
+ */
 void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
 {
     char *session = login(accountIndex);
@@ -1113,6 +1199,22 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
     delete [] session;
 }
 
+/**
+ * @brief TEST_ClearHistory
+ *
+ * Requirements:
+ * - Both accounts should be conctacts
+ * - The 1on1 chatroom between them should exist
+ * (if not accomplished, the test automatically solves the above)
+ *
+ * This test does the following:
+ *
+ * - Send five mesages to chatroom
+ * Check history has five messages
+ * - Clear history
+ * Check history has zero messages
+ *
+ */
 void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
 {
     char *sessionPrimary = login(a1);
@@ -1195,6 +1297,14 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     sessionSecondary = NULL;
 }
 
+/**
+ * @brief TEST_SwitchAccounts
+ *
+ * This test does the following:
+ * - Login with accoun1 email and pasword
+ * - Logout
+ * - With the same megaApi and megaChatApi, login with account2
+ */
 void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
 {
     char *session = login(a1);
@@ -1458,6 +1568,19 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     sessionSecondary = NULL;
 }
 
+/**
+ * @brief TEST_SendContact
+ *
+ * Requirements:
+ *      - Both accounts should be conctacts
+ *      - The 1on1 chatroom between them should exist
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ * - Send a message with an attach contact to chatroom
+ * + Receive message
+ * Check if message type is TYPE_CONTACT_ATTACHMENT and contact email received is equal to account2 email
+ */
 void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
 {
     char *primarySession = login(a1);
