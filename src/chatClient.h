@@ -9,6 +9,7 @@
 #include <retryHandler.h>
 #include <serverListProviderForwards.h>
 #include "userAttrCache.h"
+#include <db.h>
 #include "chatd.h"
 #include "presenced.h"
 #include "IGui.h"
@@ -493,6 +494,7 @@ public:
      */
     Contact* contactFromJid(const std::string& jid) const;
     Contact* contactFromUserId(uint64_t userid) const;
+    Contact* contactFromEmail(const std::string& email) const;
 
     /** @cond PRIVATE */
     ContactList(Client& aClient);
@@ -604,7 +606,7 @@ public:
         kInitErrSidInvalid
     };
 
-    sqlite3* db = nullptr;
+    SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
     rtcModule::IRtcModule* rtc = nullptr;
@@ -818,7 +820,6 @@ protected:
     promise::Promise<void> sdkLoginExistingSession(const char* sid);
     bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
     void commit(const std::string& scsn);
-    void commit();
 
     /** @brief Does the actual connect, once the SDK is online.
      * connect() waits for the mCanConnect promise to be resolved and then calls

@@ -111,7 +111,7 @@ UserAttrCache::~UserAttrCache()
 
 void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 {
-    sqliteQuery(mClient.db,
+    mClient.db.query(
         "insert or replace into userattrs(userid, type, data) values(?,?,?)",
         key.user.val, key.attrType, data);
     UACACHE_LOG_DEBUG("dbWrite attr %s", key.toString().c_str());
@@ -119,7 +119,7 @@ void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 
 void UserAttrCache::dbWriteNull(UserAttrPair key)
 {
-    sqliteQuery(mClient.db,
+    mClient.db.query(
         "insert or replace into userattrs(userid, type, data) values(?,?,NULL)",
         key.user, key.attrType);
     UACACHE_LOG_DEBUG("dbWriteNull attr %s as NULL", key.toString().c_str());
@@ -205,7 +205,7 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
 }
 void UserAttrCache::dbInvalidateItem(UserAttrPair key)
 {
-    sqliteQuery(mClient.db, "delete from userattrs where userid=? and type=?",
+    mClient.db.query("delete from userattrs where userid=? and type=?",
                 key.user, key.attrType);
 }
 
@@ -472,7 +472,7 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
 
 void UserAttrCache::invalidate()
 {
-    sqliteQuery(mClient.db, "delete from userattrs");
+    mClient.db.query("delete from userattrs");
     for (auto& item: *this)
     {
         item.second->pending = kCacheFetchUpdatePending;

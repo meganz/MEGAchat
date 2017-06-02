@@ -184,7 +184,6 @@ void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t
     if (len == (size_t)-1)
         len = strlen(msg);
 
-    LockGuard lock(mMutex);
     if (mConsoleLogger && ((flags & krLogNoConsole) == 0))
         mConsoleLogger->logString(level, msg, flags);
     if ((mFileLogger) && ((flags & krLogNoFile) == 0))

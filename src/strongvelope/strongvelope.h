@@ -47,7 +47,7 @@ namespace karere
 {
     class UserAttrCache;
 }
-struct sqlite3;
+class SqliteDb;
 
 namespace strongvelope
 {
@@ -245,7 +245,7 @@ protected:
     Key<768> myPrivRsaKey;
     karere::UserAttrCache& mUserAttrCache;
     uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
-    sqlite3* mDb;
+    SqliteDb& mDb;
     std::shared_ptr<SendKey> mCurrentKey;
     // When we generate a new key, it may not get sent successfully if the connection
     // gets broken. So we need to send it again upon re-login, until it gets confirmed.
@@ -268,7 +268,7 @@ public:
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& PrivCu25519,
         const StaticBuffer& PrivEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
-        sqlite3* db, karere::Id aChatId);
+        SqliteDb& db, karere::Id aChatId);
 protected:
     void loadKeysFromDb();
     promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);

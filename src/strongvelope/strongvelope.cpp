@@ -450,7 +450,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519,
     const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,
-    karere::UserAttrCache& userAttrCache, sqlite3* db, Id aChatId)
+    karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId)
 : mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
  mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId)
@@ -956,7 +956,7 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
         entry.key = key;
         try
         {
-            sqliteQuery(mDb, "insert or ignore into sendkeys(chatid, userid, keyid, key, ts) values(?,?,?,?,?)",
+            mDb.query("insert or ignore into sendkeys(chatid, userid, keyid, key, ts) values(?,?,?,?,?)",
                 chatid, ukid.user, ukid.key, *key, (int)time(NULL));
         }
         catch(std::exception& e)
@@ -965,7 +965,7 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
             throw;
         }
     }
-    if (entry.pms && !entry.pms->done())
+    if (entry.pms)
     {
         entry.pms->resolve(entry.key);
         entry.pms.reset();

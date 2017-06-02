@@ -980,8 +980,6 @@ public:
      * @brief This function will be called with all logs with level <= your selected
      * level of logging (by default it is MegaChatApi::LOG_LEVEL_INFO)
      *
-     * @param time Readable string representing the current time.
-     *
      * The SDK retains the ownership of this string, it won't be valid after this funtion returns.
      *
      * @param loglevel Log level of this message
@@ -1137,6 +1135,13 @@ public:
 
     virtual ~MegaChatApi();
 
+    /**
+     * @brief Clean up resources used by application.
+     * This function only has to be called one time just before application closes by external causes.
+     * If application finish correctly, it will not be necessary to call it
+     */
+    static void cleanupServices();
+
 
     /**
      * @brief Set a MegaChatLogger implementation to receive SDK logs
@@ -1182,6 +1187,15 @@ public:
      * @param useColors True to enable them, false to disable.
      */
     static void setLogWithColors(bool useColors);
+
+    /**
+     * @brief Enable the logging in the console
+     *
+     * By default, logging to console is enabled.
+     *
+     * @param enable True to enable it, false to disable.
+     */
+    static void setLogToConsole(bool enable);
 
     /**
      * @brief Initializes karere
@@ -1465,6 +1479,19 @@ public:
      * @return The email address of the contact, or NULL if not found.
      */
     char *getContactEmail(MegaChatHandle userhandle);
+
+    /**
+     * @brief Returns the userhandle of the contact
+     *
+     * This function is useful to get the handle of users you are contact with and users
+     * you were contact with in the past and later on the contact relationship was broken.
+     * Note that for any other user without contact relationship, this function will return
+     * MEGACHAT_INVALID_HANDLE.
+     *
+     * @param email Email address of the user whose handle is requested.
+     * @return The userhandle of the contact, or MEGACHAT_INVALID_HANDLE if not found.
+     */
+    MegaChatHandle getUserHandleByEmail(const char *email);
 
     /**
      * @brief Returns the handle of the logged in user.
@@ -1775,7 +1802,9 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to truncate their chat, i.e. to clear
      * the entire chat history up to a certain message. All earlier messages are wiped,
-     * but his specific message gets overridden with a management message.
+     * but this specific message will be overwritten by a management message. You can
+     * expect a call to \c MegaChatRoomListener::onMessageUpdate where the message
+     * will have no content and it will be of type \c MegaChatMessage::TYPE_TRUNCATE.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1785,7 +1814,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
+     * - MegaChatError::ERROR_ARGS - If the chatid or messageid are invalid
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param messageid MegaChatHandle that identifies the message to truncate from
@@ -1796,9 +1825,10 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to clear the entire history of a chat
      *
-     * The latest message gets overridden with a management message. You can expect a call to
-     * \c MegaChatRoomListener::onMessageUpdate where the message will have no content and it
-     * will be of type \c MegaChatMessage::TYPE_TRUNCATE
+     * If the history is not already empty, the latest message will be overwritten by
+     * a management message. You can expect a call to \c MegaChatRoomListener::onMessageUpdate
+     * where the message will have no content and it will be of type
+     * \c MegaChatMessage::TYPE_TRUNCATE.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1807,7 +1837,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request

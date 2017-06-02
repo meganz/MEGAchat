@@ -384,6 +384,7 @@ public:
     void setMegaChatLogger(MegaChatLogger *logger);
     void setLogLevel(int logLevel);
     void setLogWithColors(bool useColors);
+    void setLogToConsole(bool enable);
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
 
 private:
@@ -627,6 +628,25 @@ public:
     void* pop();
 };
 
+/**
+ * @brief Any app using this library requires to init some services at startup.
+ * They will be started along with the construction of the first MegaChatApi object created by the app.
+ * When the app terminates, the resources required by the aforementioned services will be automatically
+ * released. In case the app is terminated abruptly and you have a chance to explicitly release them,
+ * call ServiceManager::cleanup.
+ */
+class ServiceManager
+{
+public:
+    static void init();
+    static void cleanup();
+    ~ServiceManager();
+
+private:
+    ServiceManager();
+    static std::shared_ptr<ServiceManager> mInstance;
+};
+
 
 class MegaChatApiImpl :
         public karere::IApp,
@@ -690,6 +710,7 @@ public:
     static void setLogLevel(int logLevel);
     static void setLoggerClass(MegaChatLogger *megaLogger);
     static void setLogWithColors(bool useColors);
+    static void setLogToConsole(bool enable);
 
     int init(const char *sid);
     int getInitState();
@@ -770,6 +791,7 @@ public:
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     char *getContactEmail(MegaChatHandle userhandle);
+    MegaChatHandle getUserHandleByEmail(const char *email);
     MegaChatHandle getMyUserHandle();
     char *getMyFirstname();
     char *getMyLastname();
