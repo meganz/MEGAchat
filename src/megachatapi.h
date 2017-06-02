@@ -425,6 +425,16 @@ public:
     virtual bool isEditable() const;
 
     /**
+     * @brief Returns whether the message can be deleted
+     *
+     * Currently, messages can be deleted only during a timeframe (1 hour). Later on, the
+     * deletion will be rejected.
+     *
+     * @return True if the message can be deleted. Otherwise, false.
+     */
+    virtual bool isDeletable() const;
+
+    /**
      * @brief Returns whether the message is a management message
      *
      * Management messages are intented to record in the history any change related
@@ -929,8 +939,6 @@ public:
      * @brief This function will be called with all logs with level <= your selected
      * level of logging (by default it is MegaChatApi::LOG_LEVEL_INFO)
      *
-     * @param time Readable string representing the current time.
-     *
      * The SDK retains the ownership of this string, it won't be valid after this funtion returns.
      *
      * @param loglevel Log level of this message
@@ -1007,6 +1015,58 @@ public:
     virtual const char* toString() const = 0;
 };
 
+/**
+ * @brief List of MegaChatHandle objects
+ *
+ */
+class MegaChatHandleList
+{
+public:
+    /**
+     * @brief Creates a new instance of MegaChatHandleList
+     * @return A pointer the new object
+     */
+    static MegaChatHandleList *createInstance();
+
+    virtual ~MegaChatHandleList();
+
+
+    /**
+     * @brief Creates a copy of this MegaChatHandleList object
+     *
+     * The resulting object is fully independent of the source MegaChatHandleList,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You are the owner of the returned object
+     *
+     * @return Copy of the MegaChatHandleList object
+     */
+    virtual MegaChatHandleList *copy() const;
+
+    /**
+     * @brief Returns the MegaChatHandle at the position i in the MegaChatHandleList
+     *
+     *
+     * If the index is >= the size of the list, this function returns MEGACHAT_INVALID_HANDLE.
+     *
+     * @param i Position of the MegaChatHandle that we want to get for the list
+     * @return MegaChatHandle at the position i in the list
+     */
+    virtual MegaChatHandle get(unsigned int i) const;
+
+    /**
+     * @brief Returns the number of MegaChatHandles in the list
+     * @return Number of MegaChatHandles in the list
+     */
+    virtual unsigned int size() const;
+
+    /**
+     * @brief Add new MegaChatHandle to list
+     * @param MegaChatHandle to be added
+     */
+    virtual void addMegaChatHandle(MegaChatHandle megaChatHandle);
+};
 
 /**
  * @brief Allows to manage the chat-related features of a MEGA account
@@ -1087,6 +1147,13 @@ public:
 
     virtual ~MegaChatApi();
 
+    /**
+     * @brief Clean up resources used by application.
+     * This function only has to be called one time just before application closes by external causes.
+     * If application finish correctly, it will not be necessary to call it
+     */
+    static void cleanupServices();
+
 
     /**
      * @brief Set a MegaChatLogger implementation to receive SDK logs
@@ -1132,6 +1199,15 @@ public:
      * @param useColors True to enable them, false to disable.
      */
     static void setLogWithColors(bool useColors);
+
+    /**
+     * @brief Enable the logging in the console
+     *
+     * By default, logging to console is enabled.
+     *
+     * @param enable True to enable it, false to disable.
+     */
+    static void setLogToConsole(bool enable);
 
     /**
      * @brief Initializes karere
@@ -1415,6 +1491,19 @@ public:
      * @return The email address of the contact, or NULL if not found.
      */
     char *getContactEmail(MegaChatHandle userhandle);
+
+    /**
+     * @brief Returns the userhandle of the contact
+     *
+     * This function is useful to get the handle of users you are contact with and users
+     * you were contact with in the past and later on the contact relationship was broken.
+     * Note that for any other user without contact relationship, this function will return
+     * MEGACHAT_INVALID_HANDLE.
+     *
+     * @param email Email address of the user whose handle is requested.
+     * @return The userhandle of the contact, or MEGACHAT_INVALID_HANDLE if not found.
+     */
+    MegaChatHandle getUserHandleByEmail(const char *email);
 
     /**
      * @brief Returns the handle of the logged in user.
@@ -1725,7 +1814,9 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to truncate their chat, i.e. to clear
      * the entire chat history up to a certain message. All earlier messages are wiped,
-     * but his specific message gets overridden with a management message.
+     * but this specific message will be overwritten by a management message. You can
+     * expect a call to \c MegaChatRoomListener::onMessageUpdate where the message
+     * will have no content and it will be of type \c MegaChatMessage::TYPE_TRUNCATE.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1735,7 +1826,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
+     * - MegaChatError::ERROR_ARGS - If the chatid or messageid are invalid
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param messageid MegaChatHandle that identifies the message to truncate from
@@ -1746,9 +1837,10 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to clear the entire history of a chat
      *
-     * The latest message gets overridden with a management message. You can expect a call to
-     * \c MegaChatRoomListener::onMessageUpdate where the message will have no content and it
-     * will be of type \c MegaChatMessage::TYPE_TRUNCATE
+     * If the history is not already empty, the latest message will be overwritten by
+     * a management message. You can expect a call to \c MegaChatRoomListener::onMessageUpdate
+     * where the message will have no content and it will be of type
+     * \c MegaChatMessage::TYPE_TRUNCATE.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1757,7 +1849,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to truncate the chat history
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -1925,6 +2017,29 @@ public:
     MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* handleContacts);
 
     /**
+     * @brief Sends a contact or a group of contacts to the specified chatroom
+     *
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId()
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param handles MegaChatHandleList with contacts to be attached
+     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+     */
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, MegaChatHandleList* handles);
+
+    /**
      * @brief Sends a node or a group of nodes to the specified chatroom
      *
      * In contrast to other functions to send messages, such as
@@ -2001,6 +2116,12 @@ public:
      *
      * If the edit is rejected because the original message is too old, this function return NULL.
      *
+     * When an already delivered message (MegaChatMessage::STATUS_DELIVERED) is edited, the status 
+     * of the message will change from STATUS_SENDING directly to STATUS_DELIVERED again, without
+     * the transition through STATUS_SERVER_RECEIVED. In other words, the protocol doesn't allow
+     * to know when an edit has been delived to the target user, but only when the edit has been
+     * received by the server, so for convenience the status of the original message is kept.
+     * 
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -2245,9 +2366,11 @@ public:
      * pending to be retrieved from the server, it returns an empty string.
      *
      * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
-     * returns the filename of the attached node.
+     * returns the filenames of the attached nodes. The filenames of nodes are separated
+     * by ASCII character '0x01'
      * If the message is of type MegaChatMessage::TYPE_CONTACT, this function
-     * returns the username.
+     * returns the usernames. The usernames are separated
+     * by ASCII character '0x01'
      * 
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatListItem object is deleted. If you want to save the MegaChatMessage,

@@ -78,6 +78,11 @@ MegaChatApi::~MegaChatApi()
     delete pImpl;
 }
 
+void MegaChatApi::cleanupServices()
+{
+    ServiceManager::cleanup();
+}
+
 void MegaChatApi::setLoggerObject(MegaChatLogger *megaLogger)
 {
     MegaChatApiImpl::setLoggerClass(megaLogger);
@@ -91,6 +96,11 @@ void MegaChatApi::setLogLevel(int logLevel)
 void MegaChatApi::setLogWithColors(bool useColors)
 {
     MegaChatApiImpl::setLogWithColors(useColors);
+}
+
+void MegaChatApi::setLogToConsole(bool enable)
+{
+    MegaChatApiImpl::setLogToConsole(enable);
 }
 
 int MegaChatApi::init(const char *sid)
@@ -186,6 +196,11 @@ void MegaChatApi::getUserEmail(MegaChatHandle userhandle, MegaChatRequestListene
 char *MegaChatApi::getContactEmail(MegaChatHandle userhandle)
 {
     return pImpl->getContactEmail(userhandle);
+}
+
+MegaChatHandle MegaChatApi::getUserHandleByEmail(const char *email)
+{
+    return pImpl->getUserHandleByEmail(email);
 }
 
 MegaChatHandle MegaChatApi::getMyUserHandle()
@@ -331,6 +346,11 @@ MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg
 MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle *contacts)
 {
     return pImpl->attachContacts(chatid, contactsNumber, contacts);
+}
+
+MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, MegaChatHandleList *handles)
+{
+   return pImpl->attachContacts(chatid, handles);
 }
 
 void MegaChatApi::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
@@ -950,6 +970,11 @@ bool MegaChatMessage::isEditable() const
     return false;
 }
 
+bool MegaChatMessage::isDeletable() const
+{
+    return false;
+}
+
 bool MegaChatMessage::isManagementMessage() const
 {
     return false;
@@ -1064,4 +1089,34 @@ bool MegaChatPresenceConfig::isPending() const
 bool MegaChatPresenceConfig::isSignalActivityRequired() const
 {
     return false;
+}
+
+MegaChatHandleList *MegaChatHandleList::createInstance()
+{
+    return new MegaChatHandleListPrivate();
+}
+
+MegaChatHandleList::~MegaChatHandleList()
+{
+
+}
+
+MegaChatHandleList *MegaChatHandleList::copy() const
+{
+    return NULL;
+}
+
+MegaChatHandle MegaChatHandleList::get(unsigned int i) const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+unsigned int MegaChatHandleList::size() const
+{
+    return 0;
+}
+
+void MegaChatHandleList::addMegaChatHandle(MegaChatHandle megaChatHandle)
+{
+
 }

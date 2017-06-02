@@ -115,8 +115,7 @@ void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
         return;
     }
     Id chatid = mProtoHandler.chatid;
-    STRONGVELOPE_LOG_DEBUG("%s: Decrypting msg %s", chatid.toString().c_str(),
-        outMsg.id().toString().c_str());
+    STRONGVELOPE_LOG_DEBUG("Decrypting msg %s", outMsg.id().toString().c_str());
     Key<32> derivedNonce;
     // deriveNonceSecret() needs at least 32 bytes output buffer
     deriveNonceSecret(nonce, derivedNonce);
@@ -127,6 +126,7 @@ void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
     std::string cleartext = aesCTRDecrypt(std::string(payload.buf(), payload.dataSize()),
         key, derivedNonce);
     parsePayload(StaticBuffer(cleartext, false), outMsg);
+    outMsg.setEncrypted(0);
 }
 
 /**
@@ -450,7 +450,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519,
     const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,
-    karere::UserAttrCache& userAttrCache, sqlite3* db, Id aChatId)
+    karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId)
 : mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
  mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId)
@@ -723,6 +723,7 @@ Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>&
     Message* msg, const SendKey& key)
 {
     parsedMsg->symmetricDecrypt(key, *msg);
+    msg->setEncrypted(0);
     return msg;
 }
 
@@ -755,24 +756,21 @@ ProtocolHandler::decryptChatTitle(const Buffer& data)
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, Message* msg)
 {
-    msg->type = parsedMsg->type;
     msg->userid = parsedMsg->sender;
     msg->clear();
 
     switch(parsedMsg->type)
     {
         case Message::kMsgAlterParticipants:
+        case Message::kMsgPrivChange:
         {
             msg->createMgmtInfo(*parsedMsg);
+            msg->setEncrypted(0);
             return msg;
         }
         case Message::kMsgTruncate:
         {
-            return msg;
-        }
-        case Message::kMsgPrivChange:
-        {
-            msg->createMgmtInfo(*parsedMsg);
+            msg->setEncrypted(0);
             return msg;
         }
         case Message::kMsgChatTitle:
@@ -793,65 +791,75 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
 //is decrypted.
 Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 {
-    if (message->empty())
-        return Promise<Message*>(message);
-
-    auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
-    bool isLegacy = parsedMsg->protocolVersion <= 1;
-    if (message->userid == API_USER)
-        return handleManagementMessage(parsedMsg, message);
-
-    uint64_t keyid;
-    if (isLegacy)
+    try
     {
-        keyid = parsedMsg->keyId;
-    }
-    else
-    {
-        keyid = message->keyid;
-    }
-
-    // Get sender key.
-    struct Context
-    {
-        std::shared_ptr<SendKey> sendKey;
-        EcKey edKey;
-    };
-    auto ctx = std::make_shared<Context>();
-
-    auto symPms = getKey(UserKeyId(message->userid, keyid), isLegacy)
-    .then([ctx](const std::shared_ptr<SendKey>& key)
-    {
-        ctx->sendKey = key;
-    });
-
-    auto edPms = mUserAttrCache.getAttr(parsedMsg->sender,
-            ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY)
-    .then([ctx](Buffer* key)
-    {
-        ctx->edKey.assign(key->buf(), key->dataSize());
-    });
-
-    auto wptr = weakHandle();
-    return promise::when(symPms, edPms)
-    .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid]() ->promise::Promise<Message*>
-    {
-        wptr.throwIfDeleted();
-        if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
+        if (message->empty())
         {
-            return promise::Error("Signature invalid for message "+
-                message->id().toString(), EINVAL, SVCRYPTO_ERRTYPE);
+            message->setEncrypted(0);
+            return Promise<Message*>(message);
         }
+        auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
+        bool isLegacy = parsedMsg->protocolVersion <= 1;
+        message->type = parsedMsg->type;
+        if (message->userid == API_USER)
+            return handleManagementMessage(parsedMsg, message);
 
+        uint64_t keyid;
         if (isLegacy)
         {
-            return legacyMsgDecrypt(parsedMsg, message, *ctx->sendKey);
+            keyid = parsedMsg->keyId;
+        }
+        else
+        {
+            keyid = message->keyid;
         }
 
-        // Decrypt message payload.
-        parsedMsg->symmetricDecrypt(*ctx->sendKey, *message);
-        return message;
-    });
+        // Get sender key.
+        struct Context
+        {
+            std::shared_ptr<SendKey> sendKey;
+            EcKey edKey;
+        };
+        auto ctx = std::make_shared<Context>();
+
+        auto symPms = getKey(UserKeyId(message->userid, keyid), isLegacy)
+                .then([ctx](const std::shared_ptr<SendKey>& key)
+        {
+            ctx->sendKey = key;
+        });
+
+        auto edPms = mUserAttrCache.getAttr(parsedMsg->sender,
+            ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY)
+        .then([ctx](Buffer* key)
+        {
+            ctx->edKey.assign(key->buf(), key->dataSize());
+        });
+
+        auto wptr = weakHandle();
+        return promise::when(symPms, edPms)
+        .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid]() ->promise::Promise<Message*>
+        {
+            wptr.throwIfDeleted();
+            if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
+            {
+                return promise::Error("Signature invalid for message "+
+                    message->id().toString(), EINVAL, SVCRYPTO_ERRTYPE);
+            }
+
+            if (isLegacy)
+            {
+                return legacyMsgDecrypt(parsedMsg, message, *ctx->sendKey);
+            }
+
+            // Decrypt message payload.
+            parsedMsg->symmetricDecrypt(*ctx->sendKey, *message);
+            return message;
+        });
+    }
+    catch(std::runtime_error& e)
+    {
+        return promise::Error(e.what());
+    }
 }
 
 Promise<void>
@@ -948,7 +956,7 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
         entry.key = key;
         try
         {
-            sqliteQuery(mDb, "insert or ignore into sendkeys(chatid, userid, keyid, key, ts) values(?,?,?,?,?)",
+            mDb.query("insert or ignore into sendkeys(chatid, userid, keyid, key, ts) values(?,?,?,?,?)",
                 chatid, ukid.user, ukid.key, *key, (int)time(NULL));
         }
         catch(std::exception& e)
@@ -1139,6 +1147,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg)
     {
         wptr.throwIfDeleted();
         symmetricDecrypt(*key, *msg);
+        msg->setEncrypted(0);
         return msg;
     });
 }
