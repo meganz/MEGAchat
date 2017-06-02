@@ -838,6 +838,9 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
     delete msgUpdated; msgUpdated = NULL;
     delete msgSent; msgSent = NULL;
 
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
     delete chatroomListener;
 
     // 2. A sends a message to B while B doesn't have the chat opened.
@@ -1174,6 +1177,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
             *msgUnsentLoaded = false;
         } while (*flagHistoryLoaded);
         ASSERT_CHAT_TEST(msgUnsentFound, "Failed to load unsent message");
+        megaChatApi[accountIndex]->closeChatRoom(chatid, chatroomListener);
 
         buffer.str("");
         buffer << endl << endl << "Connect from the Internet now" << endl << endl;
@@ -1196,6 +1200,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
             }
             *msgSentLoaded = false;
         } while (*flagHistoryLoaded);
+        megaChatApi[accountIndex]->closeChatRoom(chatid, chatroomListener);
 
         ASSERT_CHAT_TEST(msgSentFound, "Failed to load sent message");
         delete msgSent; msgSent = NULL;
@@ -1482,6 +1487,9 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail1), "Failed to get thumbnail after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastError[a2], "Failed to get thumbnail" + std::to_string(lastError[a2]));
 
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
     delete msgReceived;
     msgReceived = NULL;
 
@@ -1557,6 +1565,10 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     item = megaChatApi[a1]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), item->getLastMessage()) == 0,
                      "Last messge contain has different value from message sent.\n Send: " + formatDate + " Received: " + item->getLastMessage());
+
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
     delete item;
     item = NULL;
 
@@ -1633,6 +1645,9 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT, "Wrong type of message. Type: " + std::to_string(msgReceived->getType()));
     ASSERT_CHAT_TEST(msgReceived->getUsersCount() == 1, "Wrong number of users in message. Count: " + std::to_string(msgReceived->getUsersCount()));
     ASSERT_CHAT_TEST(strcmp(msgReceived->getUserEmail(0), mAccounts[a2].getEmail().c_str()) == 0, "Wrong email address in message. Address: " + std::string(msgReceived->getUserEmail(0)));
+
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
     delete msgReceived;
     msgReceived = NULL;
@@ -1713,6 +1728,10 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     MegaChatListItem *item = megaChatApi[a1]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(textToSend.c_str(), item->getLastMessage()) == 0,
                      "Last message content has different value from message sent.\n Sent: " + textToSend + " Received: " + item->getLastMessage());
+
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
     delete item;
     item = NULL;
 
