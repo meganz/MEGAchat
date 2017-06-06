@@ -58,16 +58,16 @@ LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 MegaMutex MegaChatApiImpl::sdkMutex(true);
 MegaMutex MegaChatApiImpl::refsMutex(true);
 
+std::shared_ptr<ServiceManager> ServiceManager::mInstance;
+
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 : localVideoReceiver(nullptr)
 {
     refsMutex.lock();
     megaChatApiRefs.push_back(this);
-    if (megaChatApiRefs.size() == 1)
-    {
-        // karere initialization (do NOT use globaInit() since it forces to log to file)
-        services_init(MegaChatApiImpl::megaApiPostMessage, 0);
-    }
+
+    ServiceManager::init();
+
     refsMutex.unlock();
 
     init(chatApi, megaApi);
@@ -143,10 +143,6 @@ void MegaChatApiImpl::loop()
             }
             sendPendingEvents();    // process any pending events in the queue
             refsMutex.unlock();
-            if (!megaChatApiRefs.size())    // if no remaining instances...
-            {
-                globalCleanup();
-            }
             sdkMutex.unlock();
             break;
         }
@@ -585,6 +581,13 @@ void MegaChatApiImpl::sendPendingRequests()
             handle messageid = request->getUserHandle();
             if (messageid == MEGACHAT_INVALID_HANDLE)   // clear the full history, from current message
             {
+                if (chatroom->chat().empty())
+                {
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                    break;
+                }
+
                 messageid = chatroom->chat().at(chatroom->chat().highnum()).id().val;
             }
 
@@ -887,6 +890,14 @@ void MegaChatApiImpl::setLogWithColors(bool useColors)
     if (loggerHandler)
     {
         loggerHandler->setLogWithColors(useColors);
+    }
+}
+
+void MegaChatApiImpl::setLogToConsole(bool enable)
+{
+    if (loggerHandler)
+    {
+        loggerHandler->setLogToConsole(enable);
     }
 }
 
@@ -1439,6 +1450,26 @@ char *MegaChatApiImpl::getContactEmail(MegaChatHandle userhandle)
     sdkMutex.unlock();
 
     return ret;
+}
+
+MegaChatHandle MegaChatApiImpl::getUserHandleByEmail(const char *email)
+{
+    MegaChatHandle uh = MEGACHAT_INVALID_HANDLE;
+
+    if (email)
+    {
+        sdkMutex.lock();
+
+        Contact *contact = mClient->contactList->contactFromEmail(email);
+        if (contact)
+        {
+            uh = contact->userId();
+        }
+
+        sdkMutex.unlock();
+    }
+
+    return uh;
 }
 
 MegaChatHandle MegaChatApiImpl::getMyUserHandle()
@@ -4256,6 +4287,11 @@ void LoggerHandler::setLogWithColors(bool useColors)
     gLogger.logToConsoleUseColors(useColors);
 }
 
+void LoggerHandler::setLogToConsole(bool enable)
+{
+    gLogger.logToConsole(enable);
+}
+
 void LoggerHandler::log(krLogLevel level, const char *msg, size_t len, unsigned flags)
 {
     mutex.lock();
@@ -4680,7 +4716,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         std::string key = DataTranslation::vector_to_b(kElements);
 
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, fingerprint, INVALID_HANDLE,
+                             megaHandle, &key, &attrstring, &fa, fingerprint, INVALID_HANDLE,
                              NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
@@ -4802,4 +4838,27 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
     }
 
     return messageContents;
+}
+
+void ServiceManager::init()
+{
+    if (!mInstance.get())
+    {
+        mInstance = std::shared_ptr<ServiceManager>(new ServiceManager());
+    }
+}
+
+void ServiceManager::cleanup()
+{
+    mInstance.reset();
+}
+
+ServiceManager::ServiceManager()
+{
+    globalInit(MegaChatApiImpl::megaApiPostMessage);
+}
+
+ServiceManager::~ServiceManager()
+{
+    globalCleanup();
 }
