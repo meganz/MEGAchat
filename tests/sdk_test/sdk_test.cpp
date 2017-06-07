@@ -319,7 +319,7 @@ void MegaChatApiTest::TearDown()
             bool *flagRequestLogout = &requestFlagsChat[i][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
             megaChatApi[i]->logout();
             TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaChatApi logout");
-            TEST_LOG_ERROR(!lastErrorChat[i], "MegaChatApi logout request error");
+            TEST_LOG_ERROR(!lastErrorChat[i], "Failed to logout from Chat. Error: " + std::to_string(lastErrorChat[i]));
             MegaApi::setLoggerObject(logger);   // need to restore customized logger
         }
 
@@ -345,7 +345,7 @@ void MegaChatApiTest::TearDown()
             bool *flagRequestLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
             megaApi[i]->logout();
             TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaApi logout");
-            TEST_LOG_ERROR(!lastError[i], "MegaApi logout request error");
+            TEST_LOG_ERROR(!lastError[i], "Failed to logout from SDK. Error: " + std::to_string(lastError[i]));
         }
 
         megaApi[i]->removeRequestListener(this);
@@ -467,9 +467,9 @@ const char* MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
     return buffer.str().c_str();
 }
 
-void MegaChatApiTest::postLog(const char *msg)
+void MegaChatApiTest::postLog(const std::string &msg)
 {
-    logger->postLog(msg);
+    logger->postLog(msg.c_str());
 }
 
 bool MegaChatApiTest::waitForResponse(bool *responseReceived, int timeout) const
@@ -727,7 +727,7 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
     MegaChatRoomList *chats = megaChatApi[accountIndex]->getChatRooms();
     std::stringstream buffer;
     buffer << chats->size() << " chat/s received: " << endl;
-    postLog(buffer.str().c_str());
+    postLog(buffer.str());
 
     // Open chats and print history
     for (int i = 0; i < chats->size(); i++)
@@ -1160,7 +1160,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
 
         std::stringstream buffer;
         buffer << endl << endl << "Disconnect from the Internet now" << endl << endl;
-        postLog(buffer.str().c_str());
+        postLog(buffer.str());
 
 //        system("pause");
 
@@ -1202,7 +1202,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
 
         buffer.str("");
         buffer << endl << endl << "Connect from the Internet now" << endl << endl;
-        postLog(buffer.str().c_str());
+        postLog(buffer.str());
 
 //        system("pause");
 
@@ -1983,7 +1983,7 @@ void MegaChatApiTest::checkEmail(unsigned int indexAccount)
 
     std::stringstream buffer;
     buffer << "My email is: " << myEmail << endl;
-    postLog(buffer.str().c_str());
+    postLog(buffer.str());
 
     delete [] myEmail;
     myEmail = NULL;
@@ -2073,7 +2073,7 @@ void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid
     bool *chatClosed = &chatItemClosed[accountIndex]; *chatClosed = false;
     megaChatApi[accountIndex]->leaveChat(chatid);
     TEST_LOG_ERROR(waitForResponse(flagRemoveFromchatRoom), "Expired timeout for MegaChatApi remove from chatroom");
-    TEST_LOG_ERROR(!lastErrorChat[accountIndex], "MegaChatApi remove from chatroom request error");
+    TEST_LOG_ERROR(!lastErrorChat[accountIndex], "Failed to leave chatroom. Error: " + std::to_string(lastErrorChat[accountIndex]));
     TEST_LOG_ERROR(waitForResponse(chatClosed), "Chatroom closed error");
     MegaChatRoom *chatroom = megaChatApi[accountIndex]->getChatRoom(chatid);
     TEST_LOG_ERROR(!chatroom->isActive(), "Chatroom active error");
@@ -2284,7 +2284,7 @@ void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
 
         megaApi[accountIndex]->remove(childrenNode);
         TEST_LOG_ERROR(waitForResponse(flagRemove), "Expired timeout for remove node");
-        TEST_LOG_ERROR(!lastError[accountIndex], "MegaApi remove node request error");
+        TEST_LOG_ERROR(!lastError[accountIndex], "Failed to remove node. Error: " + std::to_string(lastError[accountIndex]));
     }
 
     delete children;
@@ -2303,7 +2303,7 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex, MegaChatHand
             bool *flagTruncateHistory = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_TRUNCATE_HISTORY]; *flagTruncateHistory = false;
             megaChatApi[accountIndex]->clearChatHistory(chatroom->getChatId());
             TEST_LOG_ERROR(waitForResponse(flagTruncateHistory), "Expired timeout for truncate history");
-            TEST_LOG_ERROR(!lastErrorChat[i], "MegaChatApi truncate history request error");
+            TEST_LOG_ERROR(!lastErrorChat[accountIndex], "Failed to truncate history. Error: " + std::to_string(lastErrorChat[accountIndex]));
         }
 
         if (chatroom->isGroup() && chatroom->isActive() && chatroom->getChatId() != skipChatId)
@@ -2326,7 +2326,7 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
         bool *flagRemoveContactRequest = &requestFlags[accountIndex][MegaRequest::TYPE_INVITE_CONTACT]; *flagRemoveContactRequest = false;
         megaApi[accountIndex]->inviteContact(contactRequest->getTargetEmail(), "Removing you", MegaContactRequest::INVITE_ACTION_DELETE);
         TEST_LOG_ERROR(waitForResponse(flagRemoveContactRequest), "Expired timeout for remove pending contact request");
-        TEST_LOG_ERROR(!lastError[accountIndex], "MegaApi remove pending contact request error");
+        TEST_LOG_ERROR(!lastError[accountIndex], "Failed to remove peer. Error: " + std::to_string(lastError[accountIndex]));
     }
 
     delete contactRequests;
@@ -2418,7 +2418,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         buffer << "[api: " << apiIndex << "] Chat list item added or updated - ";
         chatListItem[apiIndex] = item->copy();
         buffer << printChatListItemInfo(item);
-        postLog(buffer.str().c_str());
+        postLog(buffer.str());
 
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_CLOSED))
         {
@@ -2507,7 +2507,7 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
     {
         std::stringstream buffer;
         buffer << "[api: " << apiIndex << "] Initialization completed!" << endl;
-        t->postLog(buffer.str().c_str());
+        t->postLog(buffer.str());
         return;
     }
     if (chat)
@@ -2526,7 +2526,7 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
     std::stringstream buffer;
     buffer << "[api: " << apiIndex << "] Chat updated - ";
     buffer << MegaChatApiTest::printChatRoomInfo(chat);
-    t->postLog(buffer.str().c_str());
+    t->postLog(buffer.str());
 
     chatUpdated[apiIndex] = chat->getChatId();
 }
@@ -2540,7 +2540,7 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
         std::stringstream buffer;
         buffer << endl << "[api: " << apiIndex << "] Message loaded - ";
         buffer << MegaChatApiTest::printMessageInfo(msg);
-        t->postLog(buffer.str().c_str());
+        t->postLog(buffer.str());
 
         if (msg->getStatus() == MegaChatMessage::STATUS_SENDING_MANUAL)
         {
@@ -2568,7 +2568,7 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
         historyLoaded[apiIndex] = true;
         std::stringstream buffer;
         buffer << "[api: " << apiIndex << "] Loading of messages completed" << endl;
-        t->postLog(buffer.str().c_str());
+        t->postLog(buffer.str());
     }
 }
 
@@ -2579,7 +2579,7 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
     std::stringstream buffer;
     buffer << "[api: " << apiIndex << "] Message received - ";
     buffer << MegaChatApiTest::printMessageInfo(msg);
-    t->postLog(buffer.str().c_str());
+    t->postLog(buffer.str());
 
     if (msg->getType() == MegaChatMessage::TYPE_ALTER_PARTICIPANTS ||
             msg->getType() == MegaChatMessage::TYPE_PRIV_CHANGE)
@@ -2618,7 +2618,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
     std::stringstream buffer;
     buffer << "[api: " << apiIndex << "] Message updated - ";
     buffer << MegaChatApiTest::printMessageInfo(msg);
-    t->postLog(buffer.str().c_str());
+    t->postLog(buffer.str());
 
     msgId[apiIndex] = msg->getMsgId();
 
