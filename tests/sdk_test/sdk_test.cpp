@@ -120,13 +120,16 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     megaChatApi[accountIndex]->init(session);
     ASSERT_CHAT_TEST(waitForResponse(flagInit), "Initialization failed");
+    int initStateValue = initState[accountIndex];
     if (!session)
     {
-        ASSERT_CHAT_TEST(initState[accountIndex] == MegaChatApi::INIT_WAITING_NEW_SESSION, "Init state invalid");
+        ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_WAITING_NEW_SESSION,
+                         "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_WAITING_NEW_SESSION) + "   Received: " + std::to_string(initStateValue));
     }
     else
     {
-        ASSERT_CHAT_TEST(initState[accountIndex] == MegaChatApi::INIT_OFFLINE_SESSION, "Init state invalid");
+        ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_OFFLINE_SESSION,
+                         "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_OFFLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
     }
 
     // 2. login
@@ -139,17 +142,19 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     bool *flagRequestFectchNodes = &requestFlags[accountIndex][MegaRequest::TYPE_FETCH_NODES]; *flagRequestFectchNodes = false;
     megaApi[accountIndex]->fetchNodes();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestFectchNodes), "");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestFectchNodes), "Expired timeout for fetch nodes");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error fetch nodes. Error: " + std::to_string(lastError[accountIndex]));
     // after fetchnodes, karere should be ready for offline, at least
-    ASSERT_CHAT_TEST(waitForResponse(flagInit), "");
-    ASSERT_CHAT_TEST(initState[accountIndex] == MegaChatApi::INIT_ONLINE_SESSION, "");
+    ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for change init state");
+    initStateValue = initState[accountIndex];
+    ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
+                     "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
 
     // 4. Connect to chat servers
     bool *flagRequestConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
     megaChatApi[accountIndex]->connect();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired sdk timeout for connect request");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error connect to sdk. Error: " + std::to_string(lastError[accountIndex]));
 
     return megaApi[accountIndex]->dumpSession();
 }
@@ -158,13 +163,13 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 {
     bool *flagRequestLogout = &requestFlags[accountIndex][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
     closeSession ? megaApi[accountIndex]->logout() : megaApi[accountIndex]->localLogout();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for logout from sdk");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error sdk logout. Error: " + std::to_string(lastError[accountIndex]));
 
     flagRequestLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
     closeSession ? megaChatApi[accountIndex]->logout() : megaChatApi[accountIndex]->localLogout();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for chat logout");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + std::to_string(lastErrorChat[accountIndex]));
     MegaApi::setLoggerObject(logger);   // need to restore customized logger
 }
 
@@ -525,7 +530,7 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     // ___ Resume an existing session ___
     logout(accountIndex, false); // keeps session alive
     char *tmpSession = login(accountIndex, session);
-    ASSERT_CHAT_TEST(!strcmp(session, tmpSession), "");
+    ASSERT_CHAT_TEST(!strcmp(session, tmpSession), "Bad session key");
     delete [] tmpSession;   tmpSession = NULL;
 
     checkEmail(accountIndex);
@@ -534,16 +539,17 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     // logout from SDK keeping cache
     bool *flagSdkLogout = &requestFlags[accountIndex][MegaRequest::TYPE_LOGOUT]; *flagSdkLogout = false;
     megaApi[accountIndex]->localLogout();
-    ASSERT_CHAT_TEST(waitForResponse(flagSdkLogout), "");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagSdkLogout), "Expired timeout for local sdk logout");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error local sdk logout. Error: " + std::to_string(lastError[accountIndex]));
     // logout from Karere removing cache
     bool *flagChatLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagChatLogout = false;
     megaChatApi[accountIndex]->logout();
-    ASSERT_CHAT_TEST(waitForResponse(flagChatLogout), "");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagChatLogout), "Expired timeout for chat logout");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + std::to_string(lastErrorChat[accountIndex]));
     MegaApi::setLoggerObject(logger);   // need to restore customized logger
     // try to initialize chat engine with cache --> should fail
-    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE, "");
+    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
+                     "Wrong chat initialization state. Expected " + std::to_string(MegaChatApi::INIT_NO_CACHE) + "   Received: " + std::to_string(megaChatApi[accountIndex]->init(session)));
     megaApi[accountIndex]->invalidateCache();
 
 
@@ -552,18 +558,21 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     // login in SDK
     bool *flagLogin = &requestFlags[accountIndex][MegaRequest::TYPE_LOGIN]; *flagLogin = false;
     session ? megaApi[accountIndex]->fastLogin(session) : megaApi[accountIndex]->login(mAccounts[accountIndex].getEmail().c_str(), mAccounts[accountIndex].getPassword().c_str());
-    ASSERT_CHAT_TEST(waitForResponse(flagLogin), "");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagLogin), "Expired timeout for sdk fast login");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error sdk fast login. Error: " + std::to_string(lastError[accountIndex]));
     // fetchnodes in SDK
     bool *flagFetchNodes = &requestFlags[accountIndex][MegaRequest::TYPE_FETCH_NODES]; *flagFetchNodes = false;
     megaApi[accountIndex]->fetchNodes();
-    ASSERT_CHAT_TEST(waitForResponse(flagFetchNodes), "");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "");
-    ASSERT_CHAT_TEST(waitForResponse(flagInit), "");
-    ASSERT_CHAT_TEST(initState[accountIndex] == MegaChatApi::INIT_ONLINE_SESSION, "");
+    ASSERT_CHAT_TEST(waitForResponse(flagFetchNodes), "Expired timeout for fetch nodes");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error fetch nodes. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for change init state");
+    int initStateValue = initState[accountIndex];
+    ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
+                     "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
+
     // check there's a list of chats already available
     MegaChatListItemList *list = megaChatApi[accountIndex]->getChatListItems();
-    ASSERT_CHAT_TEST(list->size(), "");
+    ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
     delete list; list = NULL;
 
     // ___ Close session ___
@@ -572,12 +581,12 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
 
     // ___ Login with chat enabled, transition to disabled and back to enabled
     session = login(accountIndex);
-    ASSERT_CHAT_TEST(session, "");
+    ASSERT_CHAT_TEST(session, "Empty session key");
     // fully disable chat: logout + remove logger + delete MegaChatApi instance
     flagChatLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagChatLogout = false;
     megaChatApi[accountIndex]->logout();
-    ASSERT_CHAT_TEST(waitForResponse(flagChatLogout), "");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagChatLogout), "Expired timeout for megachat logout");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error megachat logout. Error: " + std::to_string(lastErrorChat[accountIndex]));
     MegaApi::setLoggerObject(logger);   // need to restore customized logger
     delete megaChatApi[accountIndex];
     // create a new MegaChatApi instance
@@ -587,21 +596,26 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     megaChatApi[accountIndex]->addChatListener(this);
     MegaChatApi::setLoggerObject(logger);
     // back to enabled: init + fetchnodes + connect
-    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE, "");
+    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
+                     "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_NO_CACHE) + "   Received: " + std::to_string(megaChatApi[accountIndex]->init(session)));
+
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     flagFetchNodes = &requestFlags[accountIndex][MegaRequest::TYPE_FETCH_NODES]; *flagFetchNodes = false;
     megaApi[accountIndex]->fetchNodes();
-    ASSERT_CHAT_TEST(waitForResponse(flagFetchNodes), "");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "");
-    ASSERT_CHAT_TEST(waitForResponse(flagInit), "");
-    ASSERT_CHAT_TEST(initState[accountIndex] == MegaChatApi::INIT_ONLINE_SESSION, "");
+    ASSERT_CHAT_TEST(waitForResponse(flagFetchNodes), "Expired timeout for fetch nodes");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error fetch nodes. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for change init state");
+    initStateValue = initState[accountIndex];
+    ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
+                     "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
+
     bool *flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
     megaChatApi[accountIndex]->connect();
-    ASSERT_CHAT_TEST(waitForResponse(flagConnect), "");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + std::to_string(lastErrorChat[accountIndex]));
     // check there's a list of chats already available
     list = megaChatApi[accountIndex]->getChatListItems();
-    ASSERT_CHAT_TEST(list->size(), "");
+    ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
     delete list; list = NULL;
     // close session and remove cache
     logout(accountIndex, true);
@@ -619,49 +633,54 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     // login in SDK
     flagLogin = &requestFlags[accountIndex][MegaRequest::TYPE_LOGIN]; *flagLogin = false;
     megaApi[accountIndex]->login(mAccounts[accountIndex].getEmail().c_str(), mAccounts[accountIndex].getPassword().c_str());
-    ASSERT_CHAT_TEST(waitForResponse(flagLogin), "");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagLogin), "Expired timeout for fast login");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error fast login. Error: " + std::to_string(lastError[accountIndex]));
     session = megaApi[accountIndex]->dumpSession();
     // fetchnodes in SDK
     flagFetchNodes = &requestFlags[accountIndex][MegaRequest::TYPE_FETCH_NODES]; *flagFetchNodes = false;
     megaApi[accountIndex]->fetchNodes();
-    ASSERT_CHAT_TEST(waitForResponse(flagFetchNodes), "");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagFetchNodes), "Expired timeout for fetch nodes");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error fetch nodes. Error: " + std::to_string(lastError[accountIndex]));
 
     // init in Karere
-    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE, "");
+    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
+                     "Bad Megachat state expected: " + std::to_string(MegaChatApi::INIT_NO_CACHE) + "   Received: " + std::to_string(megaChatApi[accountIndex]->init(session)));
+
     // full-fetchndoes in SDK to regenerate cache in Karere
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     flagFetchNodes = &requestFlags[accountIndex][MegaRequest::TYPE_FETCH_NODES]; *flagFetchNodes = false;
     megaApi[accountIndex]->fetchNodes();
-    ASSERT_CHAT_TEST(waitForResponse(flagFetchNodes), "");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "");
-    ASSERT_CHAT_TEST(waitForResponse(flagInit), "");
-    ASSERT_CHAT_TEST(initState[accountIndex] == MegaChatApi::INIT_ONLINE_SESSION, "");
+    ASSERT_CHAT_TEST(waitForResponse(flagFetchNodes), "Expired timeout for fetch nodes");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error fetch nodes. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for change init state");
+    initStateValue = initState[accountIndex];
+    ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
+                     "Bad Megachat state expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
+
     // connect in Karere
     flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
     megaChatApi[accountIndex]->connect();
-    ASSERT_CHAT_TEST(waitForResponse(flagConnect), "");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + std::to_string(lastErrorChat[accountIndex]));
     // check there's a list of chats already available
     list = megaChatApi[accountIndex]->getChatListItems();
-    ASSERT_CHAT_TEST(list->size(), "");
+    ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
     delete list;
     list = NULL;
 
     // ___ Disconnect from chat server and reconnect ___
     bool *flagDisconnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_DISCONNECT]; *flagDisconnect = false;
     megaChatApi[accountIndex]->disconnect();
-    ASSERT_CHAT_TEST(waitForResponse(flagDisconnect), "");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagDisconnect), "Expired timeout for disconnect");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error disconect. Error: " + std::to_string(lastErrorChat[accountIndex]));
     // reconnect
     flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
     megaChatApi[accountIndex]->connect();
-    ASSERT_CHAT_TEST(waitForResponse(flagConnect), "");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + std::to_string(lastErrorChat[accountIndex]));
     // check there's a list of chats already available
     list = megaChatApi[accountIndex]->getChatListItems();
-    ASSERT_CHAT_TEST(list->size(), "");
+    ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
     delete list;
     list = NULL;
 
@@ -1073,7 +1092,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatClosed = &chatItemClosed[a2]; *chatClosed = false;
     megaChatApi[a1]->removeFromChat(chatid, uh);
     ASSERT_CHAT_TEST(waitForResponse(flagRemoveFromChatRoom), "Timeout expired for ");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error remove peer from group chat. Error: " + std::to_string(lastErrorChat[a1]));
     ASSERT_CHAT_TEST(waitForResponse(chatClosed), "Timeout expired for ");
     chatroom = megaChatApi[a2]->getChatRoom(chatid);
     ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
@@ -1158,7 +1177,9 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
         bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
         megaChatApi[accountIndex]->init(session);
         ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for initialization");
-        ASSERT_CHAT_TEST(initState[accountIndex] == MegaChatApi::INIT_OFFLINE_SESSION, "Wrong initialization state: " + std::to_string(initState[accountIndex]));
+        int initStateValue = initState[accountIndex];
+        ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_OFFLINE_SESSION,
+                         "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_OFFLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
 
         // check the unsent message is properly loaded
         flagHistoryLoaded = &chatroomListener->historyLoaded[accountIndex]; *flagHistoryLoaded = false;
@@ -1438,9 +1459,9 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->revokeAttachment(chatid, revokeAttachmentNode, this);
     ASSERT_CHAT_TEST(waitForResponse(flagRequest), "Failed to revoke access to node after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to revoke access: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server");
     MegaChatHandle msgId0 = chatroomListener->msgId[a1];
     ASSERT_CHAT_TEST(msgId0 != MEGACHAT_INVALID_HANDLE, "Wrong message id");
-    ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server");
 
     ASSERT_CHAT_TEST(waitForResponse(flagReceived), "Timeout expired for receiving message by target user");
     MegaChatHandle msgId1 = chatroomListener->msgId[a2];
@@ -1478,14 +1499,14 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     std::string thumbnailPath = LOCAL_PATH + "/thumbnail0.jpg";
     megaApi[a1]->getThumbnail(nodeSent, thumbnailPath.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail0), "Failed to get own thumbnail after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastError[a1], "Failed to get thumbnail" + std::to_string(lastError[a1]));
+    ASSERT_CHAT_TEST(!lastError[a1], "Failed to get thumbnail. Error: " + std::to_string(lastError[a1]));
 
     // B gets the thumbnail of the attached image
     bool *flagRequestThumbnail1 = &requestFlags[a2][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail1 = false;
     thumbnailPath = LOCAL_PATH + "/thumbnail1.jpg";
     megaApi[a2]->getThumbnail(nodeReceived, thumbnailPath.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagRequestThumbnail1), "Failed to get thumbnail after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastError[a2], "Failed to get thumbnail" + std::to_string(lastError[a2]));
+    ASSERT_CHAT_TEST(!lastError[a2], "Failed to get thumbnail. Error: " + std::to_string(lastError[a2]));
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
@@ -1769,9 +1790,9 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
     megaApi[a1]->inviteContact(mAccounts[a2].getEmail().c_str(),
                                                 contactRequestMessage.c_str(), MegaContactRequest::INVITE_ACTION_ADD);
 
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestInviteContact), "");
-    ASSERT_CHAT_TEST(!lastError[a1], "");
-    ASSERT_CHAT_TEST(waitForResponse(flagContactRequestUpdatedSecondary), "");
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestInviteContact), "Expired timeout for invite contact request");
+    ASSERT_CHAT_TEST(!lastError[a1], "Error invite contact. Error: " + std::to_string(lastError[a1]));
+    ASSERT_CHAT_TEST(waitForResponse(flagContactRequestUpdatedSecondary), "Expired timeout for receive contact request");
 
     getContactRequest(a2, false);
 
@@ -1780,9 +1801,9 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
     bool *flagContactRequestUpdatedPrimary = &mContactRequestUpdated[a1];
     *flagContactRequestUpdatedPrimary = false;
     megaApi[a2]->replyContactRequest(mContactRequest[a2], MegaContactRequest::REPLY_ACTION_ACCEPT);
-    ASSERT_CHAT_TEST(waitForResponse(flagReplyContactRequest), "");
-    ASSERT_CHAT_TEST(!lastError[a2], "");
-    ASSERT_CHAT_TEST(waitForResponse(flagContactRequestUpdatedPrimary), "");
+    ASSERT_CHAT_TEST(waitForResponse(flagReplyContactRequest), "Expired timeout for reply contact request");
+    ASSERT_CHAT_TEST(!lastError[a2], "Error reply contact request. Error: " + std::to_string(lastError[a2]));
+    ASSERT_CHAT_TEST(waitForResponse(flagContactRequestUpdatedPrimary), "Expired timeout for receive contact request reply");
 
     delete mContactRequest[a2];
     mContactRequest[a2] = NULL;
@@ -1862,7 +1883,7 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
 {
     MegaUser *peerPrimary = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     MegaUser *peerSecondary = megaApi[a2]->getContact(mAccounts[a1].getEmail().c_str());
-    ASSERT_CHAT_TEST(peerPrimary && peerSecondary, "");
+    ASSERT_CHAT_TEST(peerPrimary && peerSecondary, "Fail to get Peers");
 
     MegaChatRoom *chatroom0 = megaChatApi[a1]->getChatRoomByUser(peerPrimary->getHandle());
     if (!chatroom0) // chat 1on1 doesn't exist yet --> create it
@@ -1874,16 +1895,16 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
         bool *chatCreated = &chatItemUpdated[a1]; *chatCreated = false;
         bool *chatReceived = &chatItemUpdated[a2]; *chatReceived = false;
         megaChatApi[a1]->createChat(false, peers, this);
-        ASSERT_CHAT_TEST(waitForResponse(flag), "");
-        ASSERT_CHAT_TEST(!lastErrorChat[a1], "");
-        ASSERT_CHAT_TEST(waitForResponse(chatCreated), "");
-        ASSERT_CHAT_TEST(waitForResponse(chatReceived), "");
+        ASSERT_CHAT_TEST(waitForResponse(flag), "Expired timeout for create new chatroom request");
+        ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error create new chatroom request. Error: " + std::to_string(lastErrorChat[a1]));
+        ASSERT_CHAT_TEST(waitForResponse(chatCreated), "Expired timeout for  create new chatroom");
+        ASSERT_CHAT_TEST(waitForResponse(chatReceived), "Expired timeout for create new chatroom");
 
         chatroom0 = megaChatApi[a1]->getChatRoomByUser(peerPrimary->getHandle());
     }
 
     MegaChatHandle chatid0 = chatroom0->getChatId();
-    ASSERT_CHAT_TEST(chatid0 != MEGACHAT_INVALID_HANDLE, "");
+    ASSERT_CHAT_TEST(chatid0 != MEGACHAT_INVALID_HANDLE, "Invalid chatid");
     delete chatroom0;
     chatroom0 = NULL;
 
@@ -1891,7 +1912,9 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
     MegaChatHandle chatid1 = chatroom1->getChatId();
     delete chatroom1;
     chatroom1 = NULL;
-    ASSERT_CHAT_TEST(chatid0 == chatid1, "");
+    ASSERT_CHAT_TEST(chatid0 == chatid1,
+                     "Chat identificator is different for account0 and account1. chatid0: " + std::to_string(chatid0) +
+                     " chatid1: " + std::to_string(chatid1));
 
     delete peerPrimary;
     peerPrimary = NULL;
@@ -1955,7 +1978,7 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
 void MegaChatApiTest::checkEmail(unsigned int indexAccount)
 {
     char *myEmail = megaChatApi[indexAccount]->getMyEmail();
-    ASSERT_CHAT_TEST(myEmail, "");
+    ASSERT_CHAT_TEST(myEmail, "Incorrect email");
     ASSERT_CHAT_TEST(string(myEmail) == mAccounts[indexAccount].getEmail(), "");
 
     std::stringstream buffer;
@@ -2049,7 +2072,7 @@ void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid
     bool *flagRemoveFromchatRoom = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromchatRoom = false;
     bool *chatClosed = &chatItemClosed[accountIndex]; *chatClosed = false;
     megaChatApi[accountIndex]->leaveChat(chatid);
-    TEST_LOG_ERROR(waitForResponse(flagRemoveFromchatRoom), "Time out MegaChatApi remove from chatroom");
+    TEST_LOG_ERROR(waitForResponse(flagRemoveFromchatRoom), "Expired timeout for MegaChatApi remove from chatroom");
     TEST_LOG_ERROR(!lastErrorChat[accountIndex], "MegaChatApi remove from chatroom request error");
     TEST_LOG_ERROR(waitForResponse(chatClosed), "Chatroom closed error");
     MegaChatRoom *chatroom = megaChatApi[accountIndex]->getChatRoom(chatid);
@@ -2110,8 +2133,9 @@ MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileN
     addTransfer();
     std::string filePath = sourcePath + "/" + fileName;
     megaApi[accountIndex]->startUpload(filePath.c_str(), megaApi[accountIndex]->getNodeByPath(targetPath.c_str()), this);
-    ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning()), "");
-    ASSERT_CHAT_TEST(!lastErrorTransfer[accountIndex], "");
+    ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning()), "Expired timeout for upload file");
+    ASSERT_CHAT_TEST(!lastErrorTransfer[accountIndex],
+                     "Error upload file. Error: " + std::to_string(lastErrorTransfer[accountIndex]) + ". Source: " + filePath + "  target: " + targetPath);
 
     std::string pathComplete = targetPath + fileName;
     MegaNode *node = megaApi[accountIndex]->getNodeByPath(pathComplete.c_str());
@@ -2140,7 +2164,7 @@ bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
 
     addTransfer();
     megaApi[accountIndex]->startDownload(nodeToDownload, DOWNLOAD_PATH.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning()), "");
+    ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning()), "Expired timeout for download file");
     return lastErrorTransfer[accountIndex] == API_OK;
 }
 
@@ -2151,7 +2175,7 @@ bool MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string 
     megaApi[accountIndex]->authorizeNode(node);
     MegaNode *parentNode = megaApi[accountIndex]->getNodeByPath("/");
     megaApi[accountIndex]->copyNode(node, parentNode, targetName.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(flagCopied), "");
+    ASSERT_CHAT_TEST(waitForResponse(flagCopied), "Expired timeout for copy node");
     return lastError[accountIndex] == API_OK;
 }
 
@@ -2162,7 +2186,9 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
     if (outgoing)
     {
         crl = megaApi[accountIndex]->getOutgoingContactRequests();
-        ASSERT_CHAT_TEST(expectedSize == crl->size(), "");
+        ASSERT_CHAT_TEST(expectedSize == crl->size(),
+                         "Expected: " + std::to_string(expectedSize) + " and received: " + std::to_string(crl->size()));
+
         if (expectedSize)
         {
             mContactRequest[accountIndex] = crl->get(0)->copy();
@@ -2171,7 +2197,9 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
     else
     {
         crl = megaApi[accountIndex]->getIncomingContactRequests();
-        ASSERT_CHAT_TEST(expectedSize == crl->size(), "");
+        ASSERT_CHAT_TEST(expectedSize == crl->size(),
+                         "Expected: " + std::to_string(expectedSize) + " and received: " + std::to_string(crl->size()));
+
         if (expectedSize)
         {
             mContactRequest[accountIndex] = crl->get(0)->copy();
@@ -2255,7 +2283,7 @@ void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
         *flagRemove = false;
 
         megaApi[accountIndex]->remove(childrenNode);
-        TEST_LOG_ERROR(waitForResponse(flagRemove), "Time out MegaApi remove node");
+        TEST_LOG_ERROR(waitForResponse(flagRemove), "Expired timeout for remove node");
         TEST_LOG_ERROR(!lastError[accountIndex], "MegaApi remove node request error");
     }
 
@@ -2274,7 +2302,7 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex, MegaChatHand
         {
             bool *flagTruncateHistory = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_TRUNCATE_HISTORY]; *flagTruncateHistory = false;
             megaChatApi[accountIndex]->clearChatHistory(chatroom->getChatId());
-            TEST_LOG_ERROR(waitForResponse(flagTruncateHistory), "Time out MegaChatApi truncate history");
+            TEST_LOG_ERROR(waitForResponse(flagTruncateHistory), "Expired timeout for truncate history");
             TEST_LOG_ERROR(!lastErrorChat[i], "MegaChatApi truncate history request error");
         }
 
@@ -2297,7 +2325,7 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
         MegaContactRequest *contactRequest = contactRequests->get(i);
         bool *flagRemoveContactRequest = &requestFlags[accountIndex][MegaRequest::TYPE_INVITE_CONTACT]; *flagRemoveContactRequest = false;
         megaApi[accountIndex]->inviteContact(contactRequest->getTargetEmail(), "Removing you", MegaContactRequest::INVITE_ACTION_DELETE);
-        TEST_LOG_ERROR(waitForResponse(flagRemoveContactRequest), "Time out MegaApi remove pending contact request");
+        TEST_LOG_ERROR(waitForResponse(flagRemoveContactRequest), "Expired timeout for remove pending contact request");
         TEST_LOG_ERROR(!lastError[accountIndex], "MegaApi remove pending contact request error");
     }
 
