@@ -2147,8 +2147,7 @@ MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileN
     ASSERT_CHAT_TEST(!lastErrorTransfer[accountIndex],
                      "Error upload file. Error: " + std::to_string(lastErrorTransfer[accountIndex]) + ". Source: " + filePath + "  target: " + targetPath);
 
-    std::string pathComplete = targetPath + fileName;
-    MegaNode *node = megaApi[accountIndex]->getNodeByPath(pathComplete.c_str());
+    MegaNode *node = megaApi[accountIndex]->getNodeByHandle(mNodeUploadHandle);
     ASSERT_CHAT_TEST(node != NULL, "");
 
     return node;
@@ -2183,9 +2182,12 @@ bool MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string 
     bool *flagCopied = &requestFlags[accountIndex][MegaRequest::TYPE_COPY];
     *flagCopied = false;
     megaApi[accountIndex]->authorizeNode(node);
-    MegaNode *parentNode = megaApi[accountIndex]->getNodeByPath("/");
+    MegaNode *parentNode = megaApi[accountIndex]->getRootNode();
     megaApi[accountIndex]->copyNode(node, parentNode, targetName.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagCopied), "Expired timeout for copy node");
+    delete parentNode;
+    parentNode = NULL;
+
     return lastError[accountIndex] == API_OK;
 }
 
@@ -2465,6 +2467,8 @@ void MegaChatApiTest::onTransferFinish(MegaApi *api, MegaTransfer *transfer, Meg
     unsigned int apiIndex = getMegaApiIndex(api);
 
     mNotTransferRunning = true;
+
+    mNodeUploadHandle = transfer->getNodeHandle();
 
     lastErrorTransfer[apiIndex] = error->getErrorCode();
 }

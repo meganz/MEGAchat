@@ -253,6 +253,7 @@ private:
     std::string mChatEmail;
 
     mega::MegaHandle mNodeCopiedHandle;
+    mega::MegaHandle mNodeUploadHandle;
 
     mega::MegaNodeList *mAttachmentNodeList;
     megachat::MegaChatHandle mAttachmentRevokeNode;
