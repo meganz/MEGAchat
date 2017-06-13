@@ -298,7 +298,9 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyHandle = getMyHandleFromSdk();
     db.query("insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
 
-    mMyEmail = getMyEmailFromSdk();
+    const char* pEmail = getMyEmailFromSdk();
+    assert(pEmail);
+    mMyEmail = pEmail;
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
     mUserAttrCache.reset(new UserAttrCache(*this));
