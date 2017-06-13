@@ -523,6 +523,7 @@
 					"-DKARERE_DISABLE_WEBRTC",
 					"-DSVC_DISABLE_STROPHE",
 					"-D_DARWIN_C_SOURCE",
+					"-DNDEBUG",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
