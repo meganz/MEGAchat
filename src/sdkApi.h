@@ -125,8 +125,7 @@ public:
     MyMegaApi(::mega::MegaApi& aSdk)
     :sdk(aSdk), mLogger(new MyMegaLogger)
     {
-        sdk.setLoggerObject(mLogger.get());
-        sdk.setLogLevel(::mega::MegaApi::LOG_LEVEL_MAX);
+        sdk.addLoggerObject(mLogger.get());
     }
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     ApiPromise call(MSig method, Args... args)
@@ -145,7 +144,7 @@ public:
 
     ~MyMegaApi()
     {
-        sdk.setLoggerObject(nullptr);
+        sdk.removeLoggerObject(mLogger.get());
         mLogger.reset();
         KR_LOG_DEBUG("Deleted SDK logger");
     }

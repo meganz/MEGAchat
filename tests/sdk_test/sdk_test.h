@@ -161,7 +161,7 @@ public:
     static const char* printChatRoomInfo(const megachat::MegaChatRoom *);
     static const char* printMessageInfo(const megachat::MegaChatMessage *);
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
-    void postLog(const char *msg);
+    void postLog(const std::string &msg);
 
     bool waitForResponse(bool *responseReceived, int timeout = maxTimeout) const;
 

@@ -4387,6 +4387,32 @@ void LoggerHandler::setMegaChatLogger(MegaChatLogger *logger)
 void LoggerHandler::setLogLevel(int logLevel)
 {
     this->maxLogLevel = logLevel;
+    switch (logLevel)
+    {
+        case MegaChatApi::LOG_LEVEL_ERROR:
+            MegaApi::setLogLevel(MegaApi::LOG_LEVEL_ERROR);
+            break;
+
+        case MegaChatApi::LOG_LEVEL_WARNING:
+            MegaApi::setLogLevel(MegaApi::LOG_LEVEL_WARNING);
+            break;
+
+        case MegaChatApi::LOG_LEVEL_INFO:
+            MegaApi::setLogLevel(MegaApi::LOG_LEVEL_INFO);
+            break;
+
+        case MegaChatApi::LOG_LEVEL_VERBOSE:
+        case MegaChatApi::LOG_LEVEL_DEBUG:
+            MegaApi::setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
+            break;
+
+        case MegaChatApi::LOG_LEVEL_MAX:
+            MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
+            break;
+
+        default:
+            break;
+    }
 }
 
 void LoggerHandler::setLogWithColors(bool useColors)
