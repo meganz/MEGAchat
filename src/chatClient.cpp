@@ -438,12 +438,15 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
+    auto wptr = weakHandle();
     if (e->getErrorCode() == mega::MegaError::API_ESID ||
             (request->getType() == mega::MegaRequest::TYPE_LOGOUT &&
              request->getParamType() == mega::MegaError::API_ESID))
     {
-        marshallCall([this]() // update state in the karere thread
+        marshallCall([wptr, this]() // update state in the karere thread
         {
+            if (wptr.deleted())
+                return;
             setInitState(kInitErrSidInvalid);
         });
         return;
@@ -460,19 +463,22 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
     std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
-    marshallCall([this, state, scsn, contactList, chatList]()
+    marshallCall([wptr, this, state, scsn, contactList, chatList]()
     {
+        if (wptr.deleted())
+            return;
         if (state == kInitHasOfflineSession)
         {
-            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-            assert(sid);
-            // we loaded our state from db
-            // verify the SDK sid is the same as ours
-            if (mSid != sid.get())
-            {
-                setInitState(kInitErrSidMismatch);
-                return;
-            }
+            // disable this safety checkup, since dumpSession() differs from first-time login value
+//            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+//            assert(sid);
+//            // we loaded our state from db
+//            // verify the SDK sid is the same as ours
+//            if (mSid != sid.get())
+//            {
+//                setInitState(kInitErrSidMismatch);
+//                return;
+//            }
             checkSyncWithSdkDb(scsn, *contactList, *chatList);
             setInitState(kInitHasOnlineSession);
             mCanConnectPromise.resolve();
