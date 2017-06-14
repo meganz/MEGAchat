@@ -170,7 +170,11 @@ void Client::createDbSchema()
 
 void Client::heartbeat()
 {
-    db.timedCommit();
+    if (db.isOpen())
+    {
+        db.timedCommit();
+    }
+
     if (!mConnected)
     {
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
