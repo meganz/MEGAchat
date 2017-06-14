@@ -94,10 +94,6 @@ std::string Account::getPassword() const
 
 MegaChatApiTest::MegaChatApiTest()
 {
-    for (int i = 0; i < NUM_ACCOUNTS; ++i)
-    {
-        mNotTransferRunning[NUM_ACCOUNTS] = true;
-    }
 }
 
 MegaChatApiTest::~MegaChatApiTest()
@@ -293,6 +289,8 @@ void MegaChatApiTest::SetUp()
         mLastname = "";
         mEmail = "";
         nameReceived[i] = false;
+
+        mNotTransferRunning[i] = true;
 
         mChatFirstname = "";
         mChatLastname = "";
