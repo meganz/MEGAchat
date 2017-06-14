@@ -93,7 +93,6 @@ std::string Account::getPassword() const
 }
 
 MegaChatApiTest::MegaChatApiTest()
-    : mNotTransferRunning(true)
 {
 }
 
@@ -290,6 +289,8 @@ void MegaChatApiTest::SetUp()
         mLastname = "";
         mEmail = "";
         nameReceived[i] = false;
+
+        mNotTransferRunning[i] = true;
 
         mChatFirstname = "";
         mChatLastname = "";
@@ -2140,28 +2141,30 @@ void MegaChatApiTest::createFile(const string &fileName, const string &sourcePat
 
 MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileName, const std::string& sourcePath, const std::string& targetPath)
 {
-    addTransfer();
+    addTransfer(accountIndex);
     std::string filePath = sourcePath + "/" + fileName;
+    mNodeUploadHandle[accountIndex] = INVALID_HANDLE;
     megaApi[accountIndex]->startUpload(filePath.c_str(), megaApi[accountIndex]->getNodeByPath(targetPath.c_str()), this);
-    ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning()), "Expired timeout for upload file");
+    ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning(accountIndex)), "Expired timeout for upload file");
     ASSERT_CHAT_TEST(!lastErrorTransfer[accountIndex],
                      "Error upload file. Error: " + std::to_string(lastErrorTransfer[accountIndex]) + ". Source: " + filePath + "  target: " + targetPath);
 
-    std::string pathComplete = targetPath + fileName;
-    MegaNode *node = megaApi[accountIndex]->getNodeByPath(pathComplete.c_str());
-    ASSERT_CHAT_TEST(node != NULL, "");
+    ASSERT_CHAT_TEST(mNodeUploadHandle[accountIndex] != INVALID_HANDLE, "Upload node handle is invalid");
+
+    MegaNode *node = megaApi[accountIndex]->getNodeByHandle(mNodeUploadHandle[accountIndex]);
+    ASSERT_CHAT_TEST(node != NULL, "It is not possible recover upload node");
 
     return node;
 }
 
-void MegaChatApiTest::addTransfer()
+void MegaChatApiTest::addTransfer(int accountIndex)
 {
-    mNotTransferRunning = false;
+    mNotTransferRunning[accountIndex] = false;
 }
 
-bool &MegaChatApiTest::isNotTransferRunning()
+bool &MegaChatApiTest::isNotTransferRunning(int accountIndex)
 {
-    return mNotTransferRunning;
+    return mNotTransferRunning[accountIndex];
 }
 
 bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
@@ -2172,9 +2175,9 @@ bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
         mkdir(DOWNLOAD_PATH.c_str(), 0700);
     }
 
-    addTransfer();
+    addTransfer(accountIndex);
     megaApi[accountIndex]->startDownload(nodeToDownload, DOWNLOAD_PATH.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning()), "Expired timeout for download file");
+    ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning(accountIndex)), "Expired timeout for download file");
     return lastErrorTransfer[accountIndex] == API_OK;
 }
 
@@ -2182,10 +2185,14 @@ bool MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string 
 {
     bool *flagCopied = &requestFlags[accountIndex][MegaRequest::TYPE_COPY];
     *flagCopied = false;
+    mNodeCopiedHandle[accountIndex] = INVALID_HANDLE;
     megaApi[accountIndex]->authorizeNode(node);
-    MegaNode *parentNode = megaApi[accountIndex]->getNodeByPath("/");
+    MegaNode *parentNode = megaApi[accountIndex]->getRootNode();
     megaApi[accountIndex]->copyNode(node, parentNode, targetName.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagCopied), "Expired timeout for copy node");
+    delete parentNode;
+    parentNode = NULL;
+
     return lastError[accountIndex] == API_OK;
 }
 
@@ -2365,7 +2372,7 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                 break;
 
             case MegaRequest::TYPE_COPY:
-                mNodeCopiedHandle = request->getNodeHandle();
+                mNodeCopiedHandle[apiIndex] = request->getNodeHandle();
                 break;
         }
     }
@@ -2464,7 +2471,9 @@ void MegaChatApiTest::onTransferFinish(MegaApi *api, MegaTransfer *transfer, Meg
 {
     unsigned int apiIndex = getMegaApiIndex(api);
 
-    mNotTransferRunning = true;
+    mNotTransferRunning[apiIndex] = true;
+
+    mNodeUploadHandle[apiIndex] = transfer->getNodeHandle();
 
     lastErrorTransfer[apiIndex] = error->getErrorCode();
 }

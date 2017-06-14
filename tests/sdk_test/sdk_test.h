@@ -206,8 +206,8 @@ private:
 
     void createFile(const std::string &fileName, const std::string &sourcePath, const std::string &contain);
     mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &sourcePath, const std::string &targetPath);
-    void addTransfer();
-    bool &isNotTransferRunning();
+    void addTransfer(int accountIndex);
+    bool &isNotTransferRunning(int accountIndex);
 
 
     bool downloadNode(int accountIndex, mega::MegaNode *nodeToDownload);
@@ -252,17 +252,15 @@ private:
     std::string mChatLastname;
     std::string mChatEmail;
 
-    mega::MegaHandle mNodeCopiedHandle;
-
-    mega::MegaNodeList *mAttachmentNodeList;
-    megachat::MegaChatHandle mAttachmentRevokeNode;
+    mega::MegaHandle mNodeCopiedHandle[NUM_ACCOUNTS];
+    mega::MegaHandle mNodeUploadHandle[NUM_ACCOUNTS];
 
     MegaLoggerTest *logger;
 
-    bool mNotTransferRunning;
+    bool mNotTransferRunning[NUM_ACCOUNTS];
 
     mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
-    bool mContactRequestUpdated[2];
+    bool mContactRequestUpdated[NUM_ACCOUNTS];
 
     static const std::string DEFAULT_PATH;
     static const std::string PATH_IMAGE;
