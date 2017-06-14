@@ -460,15 +460,16 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     {
         if (state == kInitHasOfflineSession)
         {
-            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-            assert(sid);
-            // we loaded our state from db
-            // verify the SDK sid is the same as ours
-            if (mSid != sid.get())
-            {
-                setInitState(kInitErrSidMismatch);
-                return;
-            }
+            // disable this safety checkup, since dumpSession() differs from first-time login value
+//            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+//            assert(sid);
+//            // we loaded our state from db
+//            // verify the SDK sid is the same as ours
+//            if (mSid != sid.get())
+//            {
+//                setInitState(kInitErrSidMismatch);
+//                return;
+//            }
             checkSyncWithSdkDb(scsn, *contactList, *chatList);
             setInitState(kInitHasOnlineSession);
             mCanConnectPromise.resolve();
