@@ -7,6 +7,15 @@
 #include <event2/dns_compat.h>
 #include <chatClient.h>
 
+#ifdef __ANDROID__
+    #include <sys/system_properties.h>
+#elif defined(__APPLE__)
+    #include <TargetConditionals.h>
+    #ifdef TARGET_OS_IPHONE
+        #include <resolv.h>
+    #endif
+#endif
+
 using namespace std;
 using namespace promise;
 using namespace karere;
@@ -161,12 +170,49 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     if (errtype == WS_ERRTYPE_DNS)
     {
         PRESENCED_LOG_WARNING("->DNS error: forcing libevent to re-read /etc/resolv.conf");
+        evdns_base_clear_host_addresses(services_dns_eventbase);
         //if we didn't have our network interface up at app startup, and resolv.conf is
         //genereated dynamically, dns may never work unless we re-read the resolv.conf file
 #ifdef _WIN32
         evdns_config_windows_nameservers();
-#elif !(TARGET_OS_IPHONE)
-        evdns_base_clear_host_addresses(services_dns_eventbase);
+#elif defined (__ANDROID__)
+/* Android does not often have a local resolver, and no resolv.conf. Use getProp */
+        char server[PROP_VALUE_MAX];
+        if (__system_property_get("net.dns1", server) > 0) {
+            evdns_base_nameserver_ip_add(services_dns_eventbase, server);
+        }
+#elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+        struct __res_state res;
+        res_ninit(&res);
+        union res_sockaddr_union addrs[MAXNS];
+        int count = res_getservers(&res, addrs, MAXNS);
+        if (count > 0) {
+            if (addrs->sin.sin_family == AF_INET) {
+                if (!addrs->sin.sin_port) {
+                    addrs->sin.sin_port = 53;
+                }
+                evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin), sizeof(struct sockaddr_in), 0);
+                /*
+                const char* str = inet_ntoa(addrs->sin.sin_addr);
+                printf("added ipv4 DNS server '%s'\n", str);
+                */
+            } else if (addrs->sin6.sin6_family == AF_INET6) {
+                if (!addrs->sin6.sin6_port) {
+                    addrs->sin6.sin6_port = 53;
+                }
+                evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin6), sizeof(struct sockaddr_in6), 0);
+                /*
+                char buf[256];
+                const char* str = inet_ntop(AF_INET6, &addrs->sin6.sin6_addr, buf, 255);
+                buf[255] = 0;
+                printf("added ipv6 DNS server '%s'\n", str);
+                */
+            } else {
+                fprintf(stderr, "Unknown address family for DNS server.");
+            }
+        }
+        res_nclose(&res);
+#else
         evdns_base_resolv_conf_parse(services_dns_eventbase,
             DNS_OPTIONS_ALL & (~DNS_OPTION_SEARCH), "/etc/resolv.conf");
 #endif
@@ -341,6 +387,14 @@ void Client::disconnect() //should be graceful disconnect
     mTerminating = true;
     if (mWebSocket)
         ws_close(mWebSocket);
+}
+
+void Client::retryPendingConnections()
+{
+    mConnState = kDisconnected;
+    mHeartbeatEnabled = false;
+    PRESENCED_LOG_WARNING("Retry pending connections...");
+    reconnect();
 }
 
 void Client::reset() //immediate disconnect
