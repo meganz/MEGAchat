@@ -187,6 +187,12 @@ Client::~Client()
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
 
+void Client::retryPendingConnections()
+{
+    chatd->retryPendingConnections();
+    mPresencedClient.retryPendingConnections();
+}
+
 #define TOKENPASTE2(a,b) a##b
 #define TOKENPASTE(a,b) TOKENPASTE2(a,b)
 

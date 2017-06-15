@@ -714,6 +714,8 @@ public:
     /** @brief Disconnects the client from chatd and presenced */
     promise::Promise<void> disconnect();
 
+    void retryPendingConnections();
+
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits
      * karere. This can be used when building a standalone chat app where there

@@ -235,6 +235,14 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
+        case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
+        {
+            mClient->retryPendingConnections();
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
         case MegaChatRequest::TYPE_LOGOUT:
         {
             if (mClient)
@@ -1282,6 +1290,13 @@ void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISCONNECT, listener);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::retryPendingConnections(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS, listener);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -2632,12 +2647,11 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_GET_LASTNAME: return "GET_LASTNAME";
         case TYPE_GET_EMAIL: return "GET_EMAIL";
         case TYPE_DISCONNECT: return "DISCONNECT";
-
+        case TYPE_RETRY_PENDING_CONNECTIONS: return "RETRY_PENDING_CONNECTIONS";
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
         case TYPE_ATTACH_NODE_MESSAGE: return "ATTACH_NODE_MESSAGE";
         case TYPE_REVOKE_NODE_MESSAGE: return "REVOKE_NODE_MESSAGE";
-
     }
     return "UNKNOWN";
 }

@@ -596,6 +596,7 @@ public:
         TYPE_GET_FIRSTNAME, TYPE_GET_LASTNAME,
         TYPE_DISCONNECT, TYPE_GET_EMAIL,
         TYPE_ATTACH_NODE_MESSAGE, TYPE_REVOKE_NODE_MESSAGE,
+        TYPE_RETRY_PENDING_CONNECTIONS,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1269,6 +1270,15 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void disconnect(MegaChatRequestListener *listener = NULL);
+    
+    /**
+     * @brief Refresh DNS servers and retry pending connections
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void retryPendingConnections(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Logout of chat servers invalidating the session
