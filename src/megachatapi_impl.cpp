@@ -237,9 +237,18 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
         {
-            mClient->retryPendingConnections();
+            MegaChatErrorPrivate *megaChatError = NULL;
+            if (mClient)
+            {
+                mClient->retryPendingConnections();
+                megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            }
+            else
+            {
+                megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+            }
 
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
