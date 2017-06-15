@@ -35,6 +35,15 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#ifdef __ANDROID__
+    #include <sys/system_properties.h>
+#elif defined(__APPLE__)
+    #include <TargetConditionals.h>
+    #ifdef TARGET_OS_IPHONE
+        #include <resolv.h>
+    #endif
+#endif
+
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
 
@@ -188,7 +197,8 @@ Client::~Client()
 }
 
 void Client::retryPendingConnections()
-{
+{    
+#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
     evdns_base_clear_nameservers_and_suspend(services_dns_eventbase);
     struct __res_state res;
     res_ninit(&res);
@@ -211,9 +221,13 @@ void Client::retryPendingConnections()
     }
     res_nclose(&res);
     evdns_base_resume(services_dns_eventbase);
-    
+#endif
+
     mPresencedClient.retryPendingConnections();
-    chatd->retryPendingConnections();
+    if (chatd)
+    {
+        chatd->retryPendingConnections();
+    }
 }
 
 #define TOKENPASTE2(a,b) a##b

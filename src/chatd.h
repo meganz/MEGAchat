@@ -15,15 +15,6 @@
 #include "chatdMsg.h"
 #include "url.h"
 
-#ifdef __ANDROID__
-    #include <sys/system_properties.h>
-#elif defined(__APPLE__)
-    #include <TargetConditionals.h>
-    #ifdef TARGET_OS_IPHONE
-        #include <resolv.h>
-    #endif
-#endif
-
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)

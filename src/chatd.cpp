@@ -10,6 +10,15 @@
 #include <algorithm>
 #include <random>
 
+#ifdef __ANDROID__
+    #include <sys/system_properties.h>
+#elif defined(__APPLE__)
+    #include <TargetConditionals.h>
+    #ifdef TARGET_OS_IPHONE
+        #include <resolv.h>
+    #endif
+#endif
+
 using namespace std;
 using namespace promise;
 using namespace karere;
