@@ -516,6 +516,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     MegaChatApi::setLogLevel((int)level);
 }
 
++ (void)setLogToConsole:(BOOL)enable {
+    MegaChatApi::setLogToConsole(enable);
+}
+
 + (void)setLogObject:(id<MEGAChatLoggerDelegate>)delegate {
     DelegateMEGAChatLoggerListener *newLogger = new DelegateMEGAChatLoggerListener(delegate);
     delete externalLogger;

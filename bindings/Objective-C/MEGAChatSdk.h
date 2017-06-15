@@ -180,6 +180,7 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 #pragma mark - Debug log messages
 
 + (void)setLogLevel:(MEGAChatLogLevel)level;
++ (void)setLogToConsole:(BOOL)enable;
 + (void)setLogObject:(id<MEGAChatLoggerDelegate>)delegate;
 + (void)setLogWithColors:(BOOL)userColors;
 
