@@ -14,6 +14,10 @@ public:
     {
         bool mDeleted = false;
         std::atomic<uint32_t> mRefCount;
+        SharedData()
+        {
+            mRefCount = 0;
+        }
     };
     class Handle
     {
@@ -56,7 +60,10 @@ public:
     {
         T* mPtr;
         std::atomic<int> mRefCount;
-        WeakRefSharedData(T* aPtr): mPtr(aPtr){}
+        WeakRefSharedData(T* aPtr): mPtr(aPtr)
+        {
+            mRefCount = 0;
+        }
     };
 
     class WeakRefHandle
