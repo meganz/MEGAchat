@@ -176,7 +176,6 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 #ifdef _WIN32
         evdns_config_windows_nameservers();
 #elif defined (__ANDROID__)
-/* Android does not often have a local resolver, and no resolv.conf. Use getProp */
         char server[PROP_VALUE_MAX];
         if (__system_property_get("net.dns1", server) > 0) {
             evdns_base_nameserver_ip_add(services_dns_eventbase, server);
@@ -192,21 +191,11 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
                     addrs->sin.sin_port = 53;
                 }
                 evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin), sizeof(struct sockaddr_in), 0);
-                /*
-                const char* str = inet_ntoa(addrs->sin.sin_addr);
-                printf("added ipv4 DNS server '%s'\n", str);
-                */
             } else if (addrs->sin6.sin6_family == AF_INET6) {
                 if (!addrs->sin6.sin6_port) {
                     addrs->sin6.sin6_port = 53;
                 }
                 evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin6), sizeof(struct sockaddr_in6), 0);
-                /*
-                char buf[256];
-                const char* str = inet_ntop(AF_INET6, &addrs->sin6.sin6_addr, buf, 255);
-                buf[255] = 0;
-                printf("added ipv6 DNS server '%s'\n", str);
-                */
             } else {
                 fprintf(stderr, "Unknown address family for DNS server.");
             }
@@ -390,7 +379,7 @@ void Client::disconnect() //should be graceful disconnect
 }
 
 void Client::retryPendingConnections()
-{
+{    
     mConnState = kDisconnected;
     mHeartbeatEnabled = false;
     PRESENCED_LOG_WARNING("Retry pending connections...");
