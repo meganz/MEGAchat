@@ -423,10 +423,13 @@ promise::Promise<void> Connection::disconnect(int timeoutMs) //should be gracefu
 
 void Connection::retryPendingConnection()
 {
-    mState = kStateDisconnected;
-    disableInactivityTimer();
-    CHATD_LOG_WARNING("Retrying pending connenction...");
-    reconnect();
+    if (mUrl.isValid())
+    {
+        mState = kStateDisconnected;
+        disableInactivityTimer();
+        CHATD_LOG_WARNING("Retrying pending connenction...");
+        reconnect();
+    }
 }
 
 promise::Promise<void> Client::disconnect()

@@ -379,11 +379,14 @@ void Client::disconnect() //should be graceful disconnect
 }
 
 void Client::retryPendingConnections()
-{    
-    mConnState = kDisconnected;
-    mHeartbeatEnabled = false;
-    PRESENCED_LOG_WARNING("Retry pending connections...");
-    reconnect();
+{
+    if (mUrl.isValid())
+    {
+        mConnState = kDisconnected;
+        mHeartbeatEnabled = false;
+        PRESENCED_LOG_WARNING("Retry pending connections...");
+        reconnect();
+    }
 }
 
 void Client::reset() //immediate disconnect

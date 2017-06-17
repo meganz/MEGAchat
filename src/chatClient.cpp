@@ -196,8 +196,8 @@ Client::~Client()
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
 
-void Client::retryPendingConnections()
-{    
+void Client::retryPendingConnectionsCallback(int fd, short events, void *arg)
+{
 #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
     evdns_base_clear_nameservers_and_suspend(services_dns_eventbase);
     struct __res_state res;
@@ -222,12 +222,22 @@ void Client::retryPendingConnections()
     res_nclose(&res);
     evdns_base_resume(services_dns_eventbase);
 #endif
-
-    mPresencedClient.retryPendingConnections();
-    if (chatd)
+    
+    Client *self = static_cast<Client*>(arg);
+    marshallCall([self]()
     {
-        chatd->retryPendingConnections();
-    }
+        self->mPresencedClient.retryPendingConnections();
+        if (self->chatd)
+        {
+            self->chatd->retryPendingConnections();
+        }
+    });
+}
+    
+void Client::retryPendingConnections()
+{
+    struct event *event = evtimer_new(services_get_event_loop(), retryPendingConnectionsCallback, this);
+    event_active(event, 0, 0);
 }
 
 #define TOKENPASTE2(a,b) a##b

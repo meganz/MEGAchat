@@ -714,6 +714,7 @@ public:
     /** @brief Disconnects the client from chatd and presenced */
     promise::Promise<void> disconnect();
 
+    static void retryPendingConnectionsCallback(int fd, short events, void *arg);
     void retryPendingConnections();
 
     /**
