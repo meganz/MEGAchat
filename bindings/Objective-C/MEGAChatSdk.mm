@@ -150,6 +150,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatStatus)self.megaChatApi->getUserOnlineStatus(userHandle);
 }
 
+- (void)setBackgroundStatus:(BOOL)status delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setBackgroundStatus(status, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setBackgroundStatus:(BOOL)status {
+    self.megaChatApi->setBackgroundStatus(status);
+}
+
 #pragma mark - Add and remove delegates
 
 - (void)addChatRoomDelegate:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
