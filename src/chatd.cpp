@@ -171,6 +171,29 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
     return *chat;
 }
+void Client::sendKeepalive()
+{
+    for (auto& conn: mConnections)
+    {
+        conn.second->sendKeepalive(mKeepaliveType);
+    }
+}
+
+void Client::notifyUserIdle()
+{
+    if (mKeepaliveType == OP_KEEPALIVEAWAY)
+        return;
+    mKeepaliveType = OP_KEEPALIVEAWAY;
+    sendKeepalive();
+}
+
+void Client::notifyUserActive()
+{
+    if (mKeepaliveType == OP_KEEPALIVE)
+        return;
+    mKeepaliveType = OP_KEEPALIVE;
+    sendKeepalive();
+}
 
 void Chat::connect(const std::string& url)
 {
@@ -288,7 +311,10 @@ void Connection::disableInactivityTimer()
         mInactivityTimer = 0;
     }
 }
-
+void Connection::sendKeepalive(uint8_t opcode)
+{
+    sendBuf(Command(opcode));
+}
 Promise<void> Connection::reconnect(const std::string& url)
 {
     try
@@ -759,7 +785,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_KEEPALIVE:
             {
                 //CHATD_LOG_DEBUG("Server heartbeat received");
-                sendBuf(Command(OP_KEEPALIVE));
+                sendKeepalive(mClient.mKeepaliveType);
                 break;
             }
             case OP_BROADCAST:

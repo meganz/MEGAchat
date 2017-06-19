@@ -728,6 +728,14 @@ public:
 
     /** @brief Notifies the client that internet connection is again available */
     void notifyNetworkOnline();
+    /** @brief Call this when the app goes into background, so that it notifies
+     * the servers to enable PUSH notifications
+     */
+    void notifyUserIdle();
+    /** @brief Call this when the app goes into foreground, so that push notifications
+     * are disabled
+     */
+    void notifyUserActive();
 
     void startKeepalivePings();
 

@@ -129,7 +129,8 @@ enum Opcode
     OP_JOINRANGEHIST = 19,  /// <chatid> <oldest_known_msgid> <newest_known_msgid>
     OP_MSGUPDX = 20,
     OP_MSGID = 21,
-    OP_LAST = OP_MSGID
+    OP_KEEPALIVEAWAY = 30,
+    OP_LAST = OP_KEEPALIVEAWAY
 };
 
 // privilege levels

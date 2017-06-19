@@ -316,6 +316,7 @@ protected:
     void join(karere::Id chatid);
     void hist(karere::Id chatid, long count);
     void execCommand(const StaticBuffer& buf);
+    void sendKeepalive(uint8_t opcode);
     friend class Client;
     friend class Chat;
 public:
@@ -1002,6 +1003,7 @@ public:
     static ws_base_s sWebsocketContext;
     unsigned inactivityCheckIntervalSec = 20;
     uint32_t options = 0;
+    uint8_t mKeepaliveType = OP_KEEPALIVE;
     karere::Id userId() const { return mUserId; }
     Client(karere::Id userId);
     ~Client(){}
@@ -1021,7 +1023,10 @@ public:
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     promise::Promise<void> disconnect();
+    void sendKeepalive();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
+    void notifyUserIdle();
+    void notifyUserActive();
     friend class Connection;
     friend class Chat;
 };

@@ -861,10 +861,16 @@ void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
 void Client::notifyNetworkOffline()
 {
 }
-
-
 void Client::notifyNetworkOnline()
 {
+}
+void Client::notifyUserIdle()
+{
+    chatd->notifyUserIdle();
+}
+void Client::notifyUserActive()
+{
+    chatd->notifyUserActive();
 }
 
 promise::Promise<void> Client::terminate(bool deleteDb)
