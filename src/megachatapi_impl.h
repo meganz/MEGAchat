@@ -792,6 +792,7 @@ public:
     bool isSignalActivityRequired();
 
     int getUserOnlineStatus(MegaChatHandle userhandle);
+    void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
 
     void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);

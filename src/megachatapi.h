@@ -596,6 +596,7 @@ public:
         TYPE_GET_FIRSTNAME, TYPE_GET_LASTNAME,
         TYPE_DISCONNECT, TYPE_GET_EMAIL,
         TYPE_ATTACH_NODE_MESSAGE, TYPE_REVOKE_NODE_MESSAGE,
+        TYPE_SET_BACKGROUND_STATUS,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1299,7 +1300,7 @@ public:
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHAT_STATUS
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaRequest::getNumber - Returns the new status of the user in chat.
+     * - MegaChatRequest::getNumber - Returns the new status of the user in chat.
      *
      * @param status Online status in the chat.
      *
@@ -1415,6 +1416,21 @@ public:
      * @return Online status of the user
      */
     int getUserOnlineStatus(MegaChatHandle userhandle);
+
+    /**
+     * @brief Set the status of the app
+     *
+     * Apps in mobile devices can be in different status. Typically, foreground and
+     * background. The app should define its status in order to receive notifications
+     * from server when the app is in background.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_BACKGROUND_STATUS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getfLAG - Returns the background status
+     *
+     * @param status True if the the app is in background, false if in foreground.
+     */
+    void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Returns the current firstname of the user
