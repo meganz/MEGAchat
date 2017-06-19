@@ -178,6 +178,11 @@ int MegaChatApi::getUserOnlineStatus(MegaChatHandle userhandle)
     return pImpl->getUserOnlineStatus(userhandle);
 }
 
+void MegaChatApi::setBackgroudStatus(bool background, MegaChatRequestListener *listener)
+{
+    pImpl->setBackgroudStatus(background, listener);
+}
+
 void MegaChatApi::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
 {
     pImpl->getUserFirstname(userhandle, listener);
