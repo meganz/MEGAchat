@@ -311,10 +311,12 @@ void Connection::disableInactivityTimer()
         mInactivityTimer = 0;
     }
 }
-void Connection::sendKeepalive(uint8_t opcode)
+bool Connection::sendKeepalive(uint8_t opcode)
 {
-    sendBuf(Command(opcode));
+    CHATD_LOG_DEBUG("shard %d: send %s", mShardNo, Command::opcodeToStr(opcode));
+    return sendBuf(Command(opcode));
 }
+
 Promise<void> Connection::reconnect(const std::string& url)
 {
     try
@@ -2556,13 +2558,34 @@ void Client::leave(Id chatid)
     mChatForChatId.erase(chatid);
 }
 
-const char* Command::opcodeNames[] =
+#define RET_ENUM_NAME(name) case OP_##name: return #name;
+const char* Command::opcodeToStr(uint8_t opcode)
 {
- "KEEPALIVE","JOIN", "OLDMSG", "NEWMSG", "MSGUPD", "SEEN",
- "RECEIVED","RETENTION","HIST", "RANGE","NEWMSGID","REJECT",
- "BROADCAST", "HISTDONE", "(invalid)", "(invalid)", "(invalid)",
- "NEWKEY", "KEYID", "JOINRANGEHIST", "MSGUPDX", "MSGID"
-};
+    switch (opcode)
+    {
+        RET_ENUM_NAME(KEEPALIVE);
+        RET_ENUM_NAME(JOIN);
+        RET_ENUM_NAME(OLDMSG);
+        RET_ENUM_NAME(NEWMSG);
+        RET_ENUM_NAME(MSGUPD);
+        RET_ENUM_NAME(SEEN);
+        RET_ENUM_NAME(RECEIVED);
+        RET_ENUM_NAME(RETENTION);
+        RET_ENUM_NAME(HIST);
+        RET_ENUM_NAME(RANGE);
+        RET_ENUM_NAME(NEWMSGID);
+        RET_ENUM_NAME(REJECT);
+        RET_ENUM_NAME(BROADCAST);
+        RET_ENUM_NAME(HISTDONE);
+        RET_ENUM_NAME(NEWKEY);
+        RET_ENUM_NAME(KEYID);
+        RET_ENUM_NAME(JOINRANGEHIST);
+        RET_ENUM_NAME(MSGUPDX);
+        RET_ENUM_NAME(MSGID);
+        RET_ENUM_NAME(KEEPALIVEAWAY);
+        default: return "(invalid opcode)";
+    }
+}
 const char* Message::statusNames[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"

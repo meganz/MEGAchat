@@ -316,7 +316,7 @@ protected:
     void join(karere::Id chatid);
     void hist(karere::Id chatid, long count);
     void execCommand(const StaticBuffer& buf);
-    void sendKeepalive(uint8_t opcode);
+    bool sendKeepalive(uint8_t opcode);
     friend class Client;
     friend class Chat;
 public:
