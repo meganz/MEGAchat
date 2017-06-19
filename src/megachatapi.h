@@ -596,7 +596,7 @@ public:
         TYPE_GET_FIRSTNAME, TYPE_GET_LASTNAME,
         TYPE_DISCONNECT, TYPE_GET_EMAIL,
         TYPE_ATTACH_NODE_MESSAGE, TYPE_REVOKE_NODE_MESSAGE,
-        TYPE_SET_BACKGROUD_STATUS,
+        TYPE_SET_BACKGROUND_STATUS,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1430,7 +1430,7 @@ public:
      *
      * @param status True if the the app is in background, false if in foreground.
      */
-    void setBackgroudStatus(bool background, MegaChatRequestListener *listener = NULL);
+    void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Returns the current firstname of the user

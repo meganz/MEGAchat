@@ -851,7 +851,7 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-        case MegaChatRequest::TYPE_SET_BACKGROUD_STATUS:
+        case MegaChatRequest::TYPE_SET_BACKGROUND_STATUS:
         {
             bool background = request->getFlag();
             if (background)
@@ -1426,9 +1426,9 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
     return status;
 }
 
-void MegaChatApiImpl::setBackgroudStatus(bool background, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setBackgroundStatus(bool background, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_BACKGROUD_STATUS, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_BACKGROUND_STATUS, listener);
     request->setFlag(background);
     requestQueue.push(request);
     waiter->notify();
@@ -2659,7 +2659,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
         case TYPE_ATTACH_NODE_MESSAGE: return "ATTACH_NODE_MESSAGE";
         case TYPE_REVOKE_NODE_MESSAGE: return "REVOKE_NODE_MESSAGE";
-        case TYPE_SET_BACKGROUD_STATUS: return "SET_BACKGROUD_STATUS";
+        case TYPE_SET_BACKGROUND_STATUS: return "SET_BACKGROUND_STATUS";
 
     }
     return "UNKNOWN";
