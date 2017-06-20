@@ -216,6 +216,7 @@ public:
     connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
         const Config& Config);
     void disconnect();
+    void retryPendingConnections();
     void reset();
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients

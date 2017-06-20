@@ -72,6 +72,7 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 
 - (void)disconnectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)disconnect;
+- (void)retryPendingConnections;
 
 #pragma mark - Logout
 

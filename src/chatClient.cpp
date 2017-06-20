@@ -35,6 +35,15 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#ifdef __ANDROID__
+    #include <sys/system_properties.h>
+#elif defined(__APPLE__)
+    #include <TargetConditionals.h>
+    #ifdef TARGET_OS_IPHONE
+        #include <resolv.h>
+    #endif
+#endif
+
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
 
@@ -185,6 +194,50 @@ Client::~Client()
     if (mHeartbeatTimer)
         karere::cancelInterval(mHeartbeatTimer);
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
+}
+
+void Client::retryPendingConnectionsCallback(int fd, short events, void *arg)
+{
+#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    evdns_base_clear_nameservers_and_suspend(services_dns_eventbase);
+    struct __res_state res;
+    res_ninit(&res);
+    union res_sockaddr_union addrs[MAXNS];
+    int count = res_getservers(&res, addrs, MAXNS);
+    if (count > 0) {
+        if (addrs->sin.sin_family == AF_INET) {
+            if (!addrs->sin.sin_port) {
+                addrs->sin.sin_port = 53;
+            }
+            evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin), sizeof(struct sockaddr_in), 0);
+        } else if (addrs->sin6.sin6_family == AF_INET6) {
+            if (!addrs->sin6.sin6_port) {
+                addrs->sin6.sin6_port = 53;
+            }
+            evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin6), sizeof(struct sockaddr_in6), 0);
+        } else {
+            fprintf(stderr, "Unknown address family for DNS server.");
+        }
+    }
+    res_nclose(&res);
+    evdns_base_resume(services_dns_eventbase);
+#endif
+    
+    Client *self = static_cast<Client*>(arg);
+    marshallCall([self]()
+    {
+        self->mPresencedClient.retryPendingConnections();
+        if (self->chatd)
+        {
+            self->chatd->retryPendingConnections();
+        }
+    });
+}
+    
+void Client::retryPendingConnections()
+{
+    struct event *event = evtimer_new(services_get_event_loop(), retryPendingConnectionsCallback, this);
+    event_active(event, 0, 0);
 }
 
 #define TOKENPASTE2(a,b) a##b

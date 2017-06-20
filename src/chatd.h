@@ -14,6 +14,7 @@
 #include <base/trackDelete.h>
 #include "chatdMsg.h"
 #include "url.h"
+
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
@@ -320,6 +321,7 @@ protected:
     friend class Client;
     friend class Chat;
 public:
+    void retryPendingConnection();
     ~Connection()
     {
         disableInactivityTimer();
@@ -1024,6 +1026,7 @@ public:
     void leave(karere::Id chatid);
     promise::Promise<void> disconnect();
     void sendKeepalive();
+    void retryPendingConnections();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();
     void notifyUserActive();
