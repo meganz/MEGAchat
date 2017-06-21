@@ -1102,6 +1102,15 @@ void Chat::loadManualSending()
         CALL_LISTENER(onManualSendRequired, item.msg, item.rowid, item.reason);
     }
 }
+
+Message* Chat::getManualSending(uint64_t rowid, ManualSendReason& reason)
+{
+    ManualSendItem item;
+    CALL_DB(loadManualSendItem, rowid, item);
+    reason = item.reason;
+    return item.msg;
+}
+
 Message* Chat::getMsgByXid(Id msgxid)
 {
     for (auto& item: mSending)

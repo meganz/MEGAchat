@@ -827,6 +827,7 @@ public:
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+    MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
     MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
     MegaChatMessage *attachContacts(MegaChatHandle chatid, MegaChatHandleList* handles);

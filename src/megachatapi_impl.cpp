@@ -1826,6 +1826,41 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     return megaMsg;
 }
 
+MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid)
+{
+
+    MegaChatMessagePrivate *megaMsg = NULL;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        chatd::ManualSendReason reason;
+        chatd::Message *msg = chat.getManualSending(rowid, reason);
+        if (msg)
+        {
+            megaMsg = new MegaChatMessagePrivate(*msg, chatd::Message::kSendingManual, MEGACHAT_INVALID_INDEX);
+            delete msg;
+
+            megaMsg->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
+            megaMsg->setRowId(rowid);
+            megaMsg->setCode(reason);
+        }
+        else
+        {
+            API_LOG_ERROR("Message not found (rowid: %d)", rowid);
+        }
+    }
+    else
+    {
+        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+    }
+
+    sdkMutex.unlock();
+    return megaMsg;
+}
+
 MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg)
 {
     if (!msg)

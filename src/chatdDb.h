@@ -256,6 +256,23 @@ public:
         mDb.query("delete from manual_sending where rowid = ?", rowid);
         return sqlite3_changes(mDb) != 0;
     }
+    virtual void loadManualSendItem(uint64_t rowid, chatd::Chat::ManualSendItem& item)
+    {
+        SqliteStmt stmt(mDb, "select msgid, type, ts, updated, msg, opcode, "
+            "reason from manual_sending where chatid=? and rowid=?");
+        stmt << mMessages.chatId() << rowid;
+        stmt.stepMustHaveData("load manual sending item");
+
+        Buffer buf;
+        stmt.blobCol(5, buf);
+        auto msg = new chatd::Message(stmt.uint64Col(0), mMessages.client().userId(),
+                                      stmt.int64Col(2), stmt.intCol(3), std::move(buf), true,
+                                      CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(1));
+        item.msg = msg;
+        item.rowid = rowid;
+        item.opcode = stmt.intCol(5);
+        item.reason = (chatd::ManualSendReason)stmt.intCol(6);
+    }
     virtual void truncateHistory(const chatd::Message& msg)
     {
         auto idx = getIdxOfMsgid(msg.id());
