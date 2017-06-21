@@ -1663,7 +1663,9 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     MegaChatHandle uh1 = user->getHandle();
     delete user;
     user = NULL;
-    megaChatApi[a1]->attachContacts(chatid, 1, &uh1);
+    MegaChatHandleList* contactList = MegaChatHandleList::createInstance();
+    contactList->addMegaChatHandle(uh1);
+    megaChatApi[a1]->attachContacts(chatid, contactList);
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server");
     MegaChatHandle msgId0 = chatroomListener->msgId[a1];
     ASSERT_CHAT_TEST(msgId0 != MEGACHAT_INVALID_HANDLE, "Wrong message id at origin");
@@ -1680,6 +1682,9 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
+    delete contactList;
+    contactList = NULL;
 
     delete msgReceived;
     msgReceived = NULL;
