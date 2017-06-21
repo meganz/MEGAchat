@@ -2542,7 +2542,7 @@ bool TestChatRoomListener::hasValidMessages(unsigned int apiIndex)
     return !msgId[apiIndex].empty();
 }
 
-bool TestChatRoomListener::hasArrivedMessage(unsigned int apiIndex, MegaHandle messageHandle)
+bool TestChatRoomListener::hasArrivedMessage(unsigned int apiIndex, MegaChatHandle messageHandle)
 {
     for (int i = 0; i < msgId[apiIndex].size(); ++i)
     {

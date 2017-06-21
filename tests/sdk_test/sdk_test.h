@@ -303,7 +303,7 @@ public:
     TestChatRoomListener(MegaChatApiTest *t, megachat::MegaChatApi **apis, megachat::MegaChatHandle chatid);
     void clearMessages(unsigned int apiIndex);
     bool hasValidMessages(unsigned int apiIndex);
-    bool hasArrivedMessage(unsigned int apiIndex, mega::MegaHandle messageHandle);
+    bool hasArrivedMessage(unsigned int apiIndex, megachat::MegaChatHandle messageHandle);
 
     MegaChatApiTest *t;
     megachat::MegaChatApi **megaChatApi;
