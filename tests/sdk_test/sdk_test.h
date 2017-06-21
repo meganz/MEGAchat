@@ -209,7 +209,6 @@ private:
     void addTransfer(int accountIndex);
     bool &isNotTransferRunning(int accountIndex);
 
-
     bool downloadNode(int accountIndex, mega::MegaNode *nodeToDownload);
     bool importNode(int accountIndex, mega::MegaNode* node, const std::string& destinationName);
 
@@ -302,6 +301,9 @@ class TestChatRoomListener : public megachat::MegaChatRoomListener
 {
 public:
     TestChatRoomListener(MegaChatApiTest *t, megachat::MegaChatApi **apis, megachat::MegaChatHandle chatid);
+    void clearMessages(unsigned int apiIndex);
+    bool hasValidMessages(unsigned int apiIndex);
+    bool hasArrivedMessage(unsigned int apiIndex, megachat::MegaChatHandle messageHandle);
 
     MegaChatApiTest *t;
     megachat::MegaChatApi **megaChatApi;
@@ -318,9 +320,10 @@ public:
     bool msgAttachmentReceived[NUM_ACCOUNTS];
     bool msgContactReceived[NUM_ACCOUNTS];
     bool msgRevokeAttachmentReceived[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mConfirmedMessageHandle[NUM_ACCOUNTS];
 
     megachat::MegaChatMessage *message;
-    megachat::MegaChatHandle msgId[NUM_ACCOUNTS];
+    std::vector <megachat::MegaChatHandle>msgId[NUM_ACCOUNTS];
     int msgCount[NUM_ACCOUNTS];
     megachat::MegaChatHandle uhAction[NUM_ACCOUNTS];
     int priv[NUM_ACCOUNTS];
