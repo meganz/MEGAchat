@@ -1511,7 +1511,7 @@ int Chat::unreadMsgCount() const
     for (Idx i=first; i<=last; i++)
     {
         auto& msg = at(i);
-        if (msg.userid != mClient.userId())
+        if (msg.userid != mClient.userId() && !(msg.updated && !msg.size()))
             count++;
     }
     return count;
