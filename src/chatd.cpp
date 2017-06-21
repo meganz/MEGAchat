@@ -1825,6 +1825,13 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.userid = msg->userid;
             // msg.ts is zero - chatd doesn't send the original timestamp
             CALL_LISTENER(onMessageEdited, histmsg, idx);
+
+            if (msg->userid != client().userId() && // is not our own message
+                    msg->updated && !msg->size())   // is deleted
+            {
+                CALL_LISTENER(onUnreadChanged);
+            }
+
             //last text msg stuff
             if ((mLastTextMsg.idx() == idx) && (msg->type != Message::kMsgTruncate))
             {
