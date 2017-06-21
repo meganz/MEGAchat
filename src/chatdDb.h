@@ -264,7 +264,7 @@ public:
         stmt.stepMustHaveData("load manual sending item");
 
         Buffer buf;
-        stmt.blobCol(5, buf);
+        stmt.blobCol(4, buf);
         auto msg = new chatd::Message(stmt.uint64Col(0), mMessages.client().userId(),
                                       stmt.int64Col(2), stmt.intCol(3), std::move(buf), true,
                                       CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(1));
