@@ -235,6 +235,23 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
+        case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
+        {
+            MegaChatErrorPrivate *megaChatError = NULL;
+            if (mClient)
+            {
+                mClient->retryPendingConnections();
+                megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            }
+            else
+            {
+                megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+            }
+
+
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
         case MegaChatRequest::TYPE_LOGOUT:
         {
             if (mClient)
@@ -815,6 +832,21 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_SET_BACKGROUND_STATUS:
+        {
+            bool background = request->getFlag();
+            if (background)
+            {
+                mClient->notifyUserIdle();
+            }
+            else
+            {
+                mClient->notifyUserActive();
+            }
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -1250,6 +1282,13 @@ void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
+void MegaChatApiImpl::retryPendingConnections(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS, listener);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::logout(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOGOUT, listener);
@@ -1373,6 +1412,14 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
     sdkMutex.unlock();
 
     return status;
+}
+
+void MegaChatApiImpl::setBackgroundStatus(bool background, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_BACKGROUND_STATUS, listener);
+    request->setFlag(background);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 void MegaChatApiImpl::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
@@ -2648,12 +2695,12 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_GET_LASTNAME: return "GET_LASTNAME";
         case TYPE_GET_EMAIL: return "GET_EMAIL";
         case TYPE_DISCONNECT: return "DISCONNECT";
-
+        case TYPE_SET_BACKGROUND_STATUS: return "SET_BACKGROUND_STATUS";
+        case TYPE_RETRY_PENDING_CONNECTIONS: return "RETRY_PENDING_CONNECTIONS";
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
         case TYPE_ATTACH_NODE_MESSAGE: return "ATTACH_NODE_MESSAGE";
         case TYPE_REVOKE_NODE_MESSAGE: return "REVOKE_NODE_MESSAGE";
-
     }
     return "UNKNOWN";
 }

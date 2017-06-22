@@ -81,6 +81,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->disconnect();
 }
 
+- (void)retryPendingConnections {
+    self.megaChatApi->retryPendingConnections();
+}
+
 - (void)dealloc {
     delete _megaChatApi;
     pthread_mutex_destroy(&listenerMutex);
@@ -148,6 +152,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (MEGAChatStatus)userOnlineStatus:(uint64_t)userHandle {
     return (MEGAChatStatus)self.megaChatApi->getUserOnlineStatus(userHandle);
+}
+
+- (void)setBackgroundStatus:(BOOL)status delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setBackgroundStatus(status, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setBackgroundStatus:(BOOL)status {
+    self.megaChatApi->setBackgroundStatus(status);
 }
 
 #pragma mark - Add and remove delegates
