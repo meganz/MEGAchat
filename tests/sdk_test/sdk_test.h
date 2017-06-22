@@ -65,12 +65,14 @@ private:
     do { \
         try \
         { \
+            LOG_debug << "Launching test: " << title; \
             t.SetUp(); \
             std::cout << "[" << " RUN    " << "] " << title << endl; \
             test; \
             std::cout << "[" << "     OK " << "] " << title << endl; \
             t.TearDown(); \
             t.mOKTests ++; \
+            LOG_debug << "Finished test: " << title; \
         } \
         catch(ChatTestException e) \
         { \
@@ -82,6 +84,7 @@ private:
             std::cout << "[" << " FAILED " << "] " << title << endl; \
             t.TearDown(); \
             t.mFailedTests ++; \
+            LOG_debug << "Failed test: " << title; \
         } \
     } \
     while(false) \

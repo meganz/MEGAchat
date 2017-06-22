@@ -1912,9 +1912,9 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle *handleContacts)
+MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
 {
-    if (chatid == MEGACHAT_INVALID_HANDLE || contactsNumber < 1 || handleContacts == NULL)
+    if (chatid == MEGACHAT_INVALID_HANDLE || handles == NULL || handles->size() == 0)
     {
         return NULL;
     }
@@ -1927,9 +1927,9 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
     {
         bool error = false;
         rapidjson::Document jSonDocument(rapidjson::kArrayType);
-        for (unsigned int i = 0; i < contactsNumber; ++i)
+        for (unsigned int i = 0; i < handles->size(); ++i)
         {
-            auto contactIterator = mClient->contactList->find(handleContacts[i]);
+            auto contactIterator = mClient->contactList->find(handles->get(i));
             if (contactIterator != mClient->contactList->end())
             {
                 karere::Contact* contact = contactIterator->second;
@@ -1957,7 +1957,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
             else
             {
                 error = true;
-                API_LOG_ERROR("Failed to find the contact: %d", handleContacts[i]);
+                API_LOG_ERROR("Failed to find the contact: %d", handles->get(i));
                 break;
             }
         }
@@ -1979,27 +1979,6 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, unsigned
 
     sdkMutex.unlock();
     return megaMsg;
-}
-
-MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
-{
-    if (handles == NULL || handles->size() == 0)
-    {
-        return NULL;
-    }
-
-    MegaChatHandle *handleContacts = new MegaChatHandle[handles->size()];
-
-    for (unsigned int i = 0; i < handles->size(); ++i)
-    {
-        handleContacts[i] = handles->get(i);
-    }
-
-    MegaChatMessage *message = attachContacts(chatid, handles->size(), handleContacts);
-
-    delete[] handleContacts;
-
-    return message;
 }
 
 void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)

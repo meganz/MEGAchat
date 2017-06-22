@@ -358,11 +358,6 @@ MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg
     return pImpl->sendMessage(chatid, msg);
 }
 
-MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle *contacts)
-{
-    return pImpl->attachContacts(chatid, contactsNumber, contacts);
-}
-
 MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
 {
    return pImpl->attachContacts(chatid, handles);

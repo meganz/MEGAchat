@@ -30,6 +30,8 @@ void handlerSignalINT(int)
 
 int main(int argc, char **argv)
 {
+    remove("test.log");
+
 //    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     MegaChatApiTest t;
     t.init();
@@ -1294,7 +1296,7 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     // Send 5 messages to have some history
     for (int i = 0; i < 5; i++)
     {
-        string msg0 = "HOLA " + mAccounts[a1].getEmail() + " - Testing clearhistory. This messages is the number " + std::to_string(i);
+        string msg0 = "HOLA " + mAccounts[a2].getEmail() + " - Testing clearhistory. This messages is the number " + std::to_string(i);
 
         MegaChatMessage *message = sendTextMessageOrUpdate(a1, a2, chatid, msg0, chatroomListener);
 
@@ -1672,7 +1674,11 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     MegaChatHandle uh1 = user->getHandle();
     delete user;
     user = NULL;
-    MegaChatMessage *messageSent = megaChatApi[a1]->attachContacts(chatid, 1, &uh1);
+
+    MegaHandleList* contactList = MegaHandleList::createInstance();
+    contactList->addMegaHandle(uh1);
+    MegaChatMessage *messageSent = megaChatApi[a1]->attachContacts(chatid, contactList);
+
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server");
     MegaChatHandle msgId0 = chatroomListener->mConfirmedMessageHandle[a1];
     ASSERT_CHAT_TEST(msgId0 != MEGACHAT_INVALID_HANDLE, "Wrong message id at origin");
@@ -1688,6 +1694,10 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
+
+    delete contactList;
+    contactList = NULL;
 
     delete messageSent;
     messageSent = NULL;
@@ -1853,9 +1863,18 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
         {
             if (chat->getPeerHandle(userIndex) == peers->getPeerHandle(0))
             {
-                chatroomExist = true;
-                chatid = chat->getChatId();
-                break;
+                bool a2LoggedIn = (megaChatApi[a2] &&
+                                   (megaChatApi[a2]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
+                                    megaChatApi[a2]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION));
+
+                MegaChatRoom *chatToCheck = a2LoggedIn ? megaChatApi[a2]->getChatRoom(chat->getChatId()) : NULL;
+                if (!a2LoggedIn || (chatToCheck))
+                {
+                    delete chatToCheck;
+                    chatroomExist = true;
+                    chatid = chat->getChatId();
+                    break;
+                }
             }
         }
     }
