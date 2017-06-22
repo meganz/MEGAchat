@@ -123,6 +123,11 @@ void MegaChatApi::disconnect(MegaChatRequestListener *listener)
     pImpl->disconnect(listener);
 }
 
+void MegaChatApi::retryPendingConnections(MegaChatRequestListener *listener)
+{
+    pImpl->retryPendingConnections(listener);
+}
+
 void MegaChatApi::logout(MegaChatRequestListener *listener)
 {
     pImpl->logout(listener);
@@ -343,6 +348,11 @@ MegaChatMessage *MegaChatApi::getMessage(MegaChatHandle chatid, MegaChatHandle m
     return pImpl->getMessage(chatid, msgid);
 }
 
+MegaChatMessage *MegaChatApi::getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid)
+{
+    return pImpl->getManualSendingMessage(chatid, rowid);
+}
+
 MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg)
 {
     return pImpl->sendMessage(chatid, msg);
@@ -353,7 +363,7 @@ MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, unsigned int
     return pImpl->attachContacts(chatid, contactsNumber, contacts);
 }
 
-MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, MegaChatHandleList *handles)
+MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
 {
    return pImpl->attachContacts(chatid, handles);
 }
@@ -368,6 +378,11 @@ void MegaChatApi::revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHan
 {
     pImpl->revokeAttachment(chatid, nodeHandle, listener);
     return;
+}
+
+bool MegaChatApi::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const
+{
+    return pImpl->isRevoked(chatid, nodeHandle);
 }
 
 MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
@@ -1094,34 +1109,4 @@ bool MegaChatPresenceConfig::isPending() const
 bool MegaChatPresenceConfig::isSignalActivityRequired() const
 {
     return false;
-}
-
-MegaChatHandleList *MegaChatHandleList::createInstance()
-{
-    return new MegaChatHandleListPrivate();
-}
-
-MegaChatHandleList::~MegaChatHandleList()
-{
-
-}
-
-MegaChatHandleList *MegaChatHandleList::copy() const
-{
-    return NULL;
-}
-
-MegaChatHandle MegaChatHandleList::get(unsigned int i) const
-{
-    return MEGACHAT_INVALID_HANDLE;
-}
-
-unsigned int MegaChatHandleList::size() const
-{
-    return 0;
-}
-
-void MegaChatHandleList::addMegaChatHandle(MegaChatHandle megaChatHandle)
-{
-
 }

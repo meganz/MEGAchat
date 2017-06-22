@@ -23,7 +23,9 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeDisconnect,
     MEGAChatRequestTypeGetEmail,
     MEGAChatRequestTypeNodeMessage,
-    MEGAChatRequestTypeRevokeNodeMessage
+    MEGAChatRequestTypeRevokeNodeMessage,
+    MEGAChatRequestTypeSetBackgroundStatus,
+    MEGAChatRequestTypeRetryPendingConnections
 };
 
 @class MEGAChatMessage;

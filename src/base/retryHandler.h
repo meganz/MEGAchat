@@ -153,8 +153,11 @@ public:
         if (delay)
         {
             mState = kStateRetryWait;
-            mTimer = setTimeout([this]()
+            auto wptr = weakHandle();
+            mTimer = setTimeout([wptr, this]()
             {
+                if (wptr.deleted())
+                    return;
                 mTimer = 0;
                 nextTry();
             }, delay);
@@ -312,8 +315,11 @@ protected:
     //set an attempt timeout timer
         if (mAttemptTimeout)
         {
-            mTimer = setTimeout([this, attempt]()
+            auto wptr = weakHandle();
+            mTimer = setTimeout([wptr, this, attempt]()
             {
+                if (wptr.deleted())
+                    return;
                 assert(attempt == mCurrentAttemptId); //if we are in a next attempt, cancelTimer() should have been called and this callback should never fire
                 mTimer = 0;
                 static const promise::Error timeoutError("timeout", promise::kErrTimeout, promise::kErrorTypeGeneric);
@@ -372,8 +378,11 @@ protected:
         RETRY_LOG("Will retry in %u ms", waitTime);
         mState = kStateRetryWait;
         //schedule next attempt
-        mTimer = setTimeout([this]()
+        auto wptr = weakHandle();
+        mTimer = setTimeout([wptr, this]()
         {
+            if (wptr.deleted())
+                return;
             mTimer = 0;
             nextTry();
         }, waitTime);
@@ -432,7 +441,7 @@ static inline rh::RetryController<Func, CancelFunc>* createRetryController(
         maxSingleWaitTime, maxRetries, backoffStart);
     return retryController;
 }
-
+/*
 template <class T>
 inline void _timeoutAttachThenHandler(promise::Promise<T>& in, promise::Promise<T>& out)
 {
@@ -476,6 +485,7 @@ auto performWithTimeout(CB&& cb, unsigned timeout, CCB&& cancelCb=nullptr)
     });
     return pms;
 }
+*/
 }
 #endif // RETRYHANDLER_H
 
