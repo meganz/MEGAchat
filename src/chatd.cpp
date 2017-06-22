@@ -522,6 +522,8 @@ promise::Promise<void> Connection::rejoinExistingChats()
             mLoginPromise.reject(std::string("rejoinExistingChats: Exception: ")+e.what());
         }
     }
+    if (mClient.mKeepaliveType == OP_KEEPALIVEAWAY)
+        sendKeepalive(mClient.mKeepaliveType);
     return mLoginPromise;
 }
 
