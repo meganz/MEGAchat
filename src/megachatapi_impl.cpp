@@ -1832,7 +1832,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
 
 MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
 {
-    if (handles == NULL || handles->size() == 0)
+    if (chatid == MEGACHAT_INVALID_HANDLE || handles == NULL || handles->size() == 0)
     {
         return NULL;
     }
