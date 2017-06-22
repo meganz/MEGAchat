@@ -1861,8 +1861,12 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
         {
             if (chat->getPeerHandle(userIndex) == peers->getPeerHandle(0))
             {
-                MegaChatRoom *chatToCheck = megaChatApi[a2]->getChatRoom(chat->getChatId());
-                if (chatToCheck)
+                bool a2LoggedIn = (megaChatApi[a2] &&
+                                   (megaChatApi[a2]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
+                                    megaChatApi[a2]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION));
+
+                MegaChatRoom *chatToCheck = a2LoggedIn ? megaChatApi[a2]->getChatRoom(chat->getChatId()) : NULL;
+                if (!a2LoggedIn || (chatToCheck))
                 {
                     delete chatToCheck;
                     chatroomExist = true;
