@@ -1861,9 +1861,14 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
         {
             if (chat->getPeerHandle(userIndex) == peers->getPeerHandle(0))
             {
-                chatroomExist = true;
-                chatid = chat->getChatId();
-                break;
+                MegaChatRoom *chatToCheck = megaChatApi[a2]->getChatRoom(chat->getChatId());
+                if (chatToCheck)
+                {
+                    delete chatToCheck;
+                    chatroomExist = true;
+                    chatid = chat->getChatId();
+                    break;
+                }
             }
         }
     }
