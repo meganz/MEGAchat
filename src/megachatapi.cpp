@@ -123,6 +123,11 @@ void MegaChatApi::disconnect(MegaChatRequestListener *listener)
     pImpl->disconnect(listener);
 }
 
+void MegaChatApi::retryPendingConnections(MegaChatRequestListener *listener)
+{
+    pImpl->retryPendingConnections(listener);
+}
+
 void MegaChatApi::logout(MegaChatRequestListener *listener)
 {
     pImpl->logout(listener);
@@ -176,6 +181,11 @@ MegaChatPresenceConfig *MegaChatApi::getPresenceConfig()
 int MegaChatApi::getUserOnlineStatus(MegaChatHandle userhandle)
 {
     return pImpl->getUserOnlineStatus(userhandle);
+}
+
+void MegaChatApi::setBackgroundStatus(bool background, MegaChatRequestListener *listener)
+{
+    pImpl->setBackgroundStatus(background, listener);
 }
 
 void MegaChatApi::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)

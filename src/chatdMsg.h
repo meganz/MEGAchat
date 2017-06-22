@@ -129,7 +129,8 @@ enum Opcode
     OP_JOINRANGEHIST = 19,  /// <chatid> <oldest_known_msgid> <newest_known_msgid>
     OP_MSGUPDX = 20,
     OP_MSGID = 21,
-    OP_LAST = OP_MSGID
+    OP_KEEPALIVEAWAY = 30,
+    OP_LAST = OP_KEEPALIVEAWAY
 };
 
 // privilege levels
@@ -346,11 +347,8 @@ public:
         return ((op == OP_NEWMSG) || (op == OP_MSGUPD) || (op == OP_MSGUPDX));
     }
     uint8_t opcode() const { return read<uint8_t>(0); }
+    static const char* opcodeToStr(uint8_t opcode);
     const char* opcodeName() const { return opcodeToStr(opcode()); }
-    static const char* opcodeToStr(uint8_t code)
-    {
-        return (code > OP_LAST) ? "(invalid opcode)" : opcodeNames[code];
-    }
     virtual ~Command(){}
 };
 class KeyCommand: public Command

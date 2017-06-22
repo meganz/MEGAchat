@@ -778,6 +778,7 @@ public:
     // General chat methods
     void connect(MegaChatRequestListener *listener = NULL);
     void disconnect(MegaChatRequestListener *listener = NULL);
+    void retryPendingConnections(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);
 
@@ -792,6 +793,7 @@ public:
     bool isSignalActivityRequired();
 
     int getUserOnlineStatus(MegaChatHandle userhandle);
+    void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
 
     void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
