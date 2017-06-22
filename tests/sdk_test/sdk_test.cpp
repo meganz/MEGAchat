@@ -30,6 +30,8 @@ void handlerSignalINT(int)
 
 int main(int argc, char **argv)
 {
+    remove("test.log");
+
 //    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     MegaChatApiTest t;
     t.init();
@@ -1294,7 +1296,7 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     // Send 5 messages to have some history
     for (int i = 0; i < 5; i++)
     {
-        string msg0 = "HOLA " + mAccounts[a1].getEmail() + " - Testing clearhistory. This messages is the number " + std::to_string(i);
+        string msg0 = "HOLA " + mAccounts[a2].getEmail() + " - Testing clearhistory. This messages is the number " + std::to_string(i);
 
         MegaChatMessage *message = sendTextMessageOrUpdate(a1, a2, chatid, msg0, chatroomListener);
 
