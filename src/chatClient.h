@@ -760,6 +760,10 @@ public:
     */
     promise::Promise<void> setPresence(const Presence pres);
 
+    /**
+     * @brief Returns our own presence, as received by the presenced client
+     */
+    Presence ownPresence() const { return mOwnPresence; }
     /** @brief Creates a group chatroom with the specified peers, privileges
      * and title.
      * @param peers A vector of userhandle and privilege pairs for each of
