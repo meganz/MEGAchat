@@ -238,7 +238,6 @@ bool Client::setPresence(Presence pres)
     if (pres == mConfig.mPresence)
         return true;
     mConfig.mPresence = pres;
-    checkEnableAutoaway();
     auto ret = sendPrefs();
     signalActivity(true);
     PRESENCED_LOG_DEBUG("setPresence-> %s", pres.toString());
@@ -251,30 +250,28 @@ bool Client::setPersist(bool enable)
         return true;
     mConfig.mPersist = enable;
     signalActivity(true);
-    checkEnableAutoaway();
     return sendPrefs();
 }
 
 bool Client::setAutoaway(bool enable, time_t timeout)
 {
     if (enable)
+    {
         mConfig.mPersist = false;
+    }
     mConfig.mAutoawayTimeout = timeout;
     mConfig.mAutoawayActive = enable;
     signalActivity(true);
     return sendPrefs();
 }
 
-bool Client::checkEnableAutoaway()
+bool Client::autoAwayInEffect()
 {
     bool needTimer = !mConfig.mPersist
                 && mConfig.mPresence != Presence::kOffline
                 && mConfig.mPresence != Presence::kAway
                 && mConfig.mAutoawayTimeout
                 && mConfig.mAutoawayActive;
-    if (!needTimer)
-        mTsLastUserActivity = 0;
-
     return needTimer;
 }
 
@@ -342,13 +339,12 @@ Client::reconnect(const std::string& url)
 
 void Client::heartbeat()
 {
-    if (mConfig.mAutoawayActive && mTsLastUserActivity)
+    if (autoAwayInEffect())
     {
         auto now = time(NULL);
         if (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
         {
             sendUserActive(false);
-            mTsLastUserActivity = 0;
         }
     }
 
@@ -488,13 +484,10 @@ void Client::login()
     sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion+mCapabilities);
 
     if (mPrefsAckWait)
+    {
         sendPrefs();
-
-    if (mTsLastUserActivity)
-        sendUserActive(time(NULL) - mTsLastUserActivity > mConfig.mAutoawayTimeout, true);
-    else
-        sendUserActive(true, true);
-
+    }
+    sendUserActive(time(NULL) - mTsLastUserActivity < mConfig.mAutoawayTimeout, true);
     pushPeers();
 }
 
@@ -529,6 +522,7 @@ void Config::fromCode(uint16_t code)
     mAutoawayTimeout = code >> 4;
     if (mAutoawayTimeout > 600)
         mAutoawayTimeout = (600+(mAutoawayTimeout-600)*60);
+    mAutoawayTimeout = 5;
 }
 
 uint16_t Config::toCode() const

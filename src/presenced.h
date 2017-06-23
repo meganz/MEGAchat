@@ -170,7 +170,7 @@ protected:
     karere::Id mMyHandle;
     Config mConfig;
     bool mLastSentUserActive = false;
-    time_t mTsLastUserActivity = time_t(NULL);
+    time_t mTsLastUserActivity = 0;
     bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
     void initWebsocketCtx();
@@ -223,7 +223,7 @@ public:
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
     void heartbeat();
     void signalActivity(bool force = false);
-    bool checkEnableAutoaway();
+    bool autoAwayInEffect();
     void addPeer(karere::Id peer);
     void removePeer(karere::Id peer, bool force=false);
     ~Client();
