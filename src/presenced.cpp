@@ -522,7 +522,6 @@ void Config::fromCode(uint16_t code)
     mAutoawayTimeout = code >> 4;
     if (mAutoawayTimeout > 600)
         mAutoawayTimeout = (600+(mAutoawayTimeout-600)*60);
-    mAutoawayTimeout = 5;
 }
 
 uint16_t Config::toCode() const
