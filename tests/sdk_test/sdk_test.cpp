@@ -742,6 +742,8 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
         ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
     }
 
+//    megaChatApi[accountIndex]->signalPresenceActivity();
+
     // now wait for timeout to expire
     flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
 //    flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
