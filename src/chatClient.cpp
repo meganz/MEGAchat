@@ -928,11 +928,17 @@ void Client::notifyNetworkOnline()
 }
 void Client::notifyUserIdle()
 {
-    chatd->notifyUserIdle();
+    if (chatd)
+    {
+        chatd->notifyUserIdle();
+    }
 }
 void Client::notifyUserActive()
 {
-    chatd->notifyUserActive();
+    if (chatd)
+    {
+        chatd->notifyUserActive();
+    }
 }
 
 promise::Promise<void> Client::terminate(bool deleteDb)
