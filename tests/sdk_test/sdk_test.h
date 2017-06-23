@@ -260,6 +260,9 @@ private:
     MegaLoggerTest *logger;
 
     bool mNotTransferRunning[NUM_ACCOUNTS];
+    bool mPresenceConfigUpdated[NUM_ACCOUNTS];
+    bool mOnlineStatusUpdated[NUM_ACCOUNTS];
+    int mOnlineStatus[NUM_ACCOUNTS];
 
     mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
@@ -291,7 +294,8 @@ public:
     // implementation for MegaChatListener
     virtual void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState);
     virtual void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
-    virtual void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, int status);
+    virtual void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
+    virtual void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
 
     virtual void onTransferStart(mega::MegaApi *api, mega::MegaTransfer *transfer);
     virtual void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error);

@@ -293,6 +293,7 @@ void MegaChatApiTest::SetUp()
         nameReceived[i] = false;
 
         mNotTransferRunning[i] = true;
+        mPresenceConfigUpdated[i] = true;
 
         mChatFirstname = "";
         mChatLastname = "";
@@ -703,12 +704,56 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
  */
 void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
 {
+    bool *flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
+
     char *sesion = login(accountIndex);
 
+    ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
+
+    flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
+    bool *flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
     bool *flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
     megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_BUSY);
     ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set online status after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
+
+    // set online status
+    flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
+    flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
+    flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
+    megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_ONLINE);
+    ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set online status after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
+
+    // enable auto-away with 5 seconds timeout
+    flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
+    megaChatApi[accountIndex]->setPresenceAutoaway(true, 5);
+    ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
+
+    // disable persist
+    if (megaChatApi[accountIndex]->getPresenceConfig()->isPersist())
+    {
+        flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
+        megaChatApi[accountIndex]->setPresencePersist(false);
+        ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
+    }
+
+    // now wait for timeout to expire
+    flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
+//    flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
+    sleep(7);
+//    ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
+
+    // and check the status is away
+    ASSERT_CHAT_TEST(mOnlineStatus[accountIndex] == MegaChatApi::STATUS_AWAY,
+                     "Online status didn't changed to away automatically after timeout");
+    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->getOnlineStatus() == MegaChatApi::STATUS_AWAY,
+                     "Online status didn't changed to away automatically after timeout");
 
     delete sesion;
     sesion = NULL;
@@ -2489,9 +2534,20 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
     }
 }
 
-void MegaChatApiTest::onChatOnlineStatusUpdate(MegaChatApi *api, int status)
+void MegaChatApiTest::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress)
 {
+    unsigned int apiIndex = getMegaChatApiIndex(api);
+    if (userhandle == megaChatApi[apiIndex]->getMyUserHandle())
+    {
+        mOnlineStatusUpdated[apiIndex] = true;
+        mOnlineStatus[apiIndex] = status;
+    }
+}
 
+void MegaChatApiTest::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPresenceConfig *config)
+{
+    unsigned int apiIndex = getMegaChatApiIndex(api);
+    mPresenceConfigUpdated[apiIndex] = true;
 }
 
 void MegaChatApiTest::onTransferStart(MegaApi *api, MegaTransfer *transfer)
