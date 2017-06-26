@@ -161,8 +161,6 @@ protected:
     Listener* mListener;
     karere::Url mUrl;
     bool mHeartbeatEnabled = false;
-    uint8_t mHeartBeats = 0;
-    bool mPacketReceived = true; //used for connection activity detection
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
@@ -171,6 +169,9 @@ protected:
     Config mConfig;
     bool mLastSentUserActive = false;
     time_t mTsLastUserActivity = 0;
+    time_t mTsLastPingSent = 0;
+    time_t mTsLastRecv = 0;
+    time_t mTsLastSend = 0;
     bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
     void initWebsocketCtx();
@@ -196,14 +197,12 @@ protected:
     void pushPeers();
     void configChanged();
     std::string prefsString() const;
+    bool sendKeepalive(time_t now=0);
 public:
     Client(Listener& listener, uint8_t caps);
     const Config& config() const { return mConfig; }
     bool isConfigAcknowledged() { return mPrefsAckWait; }
-    bool isOnline() const
-    {
-        return (mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
-    }
+    bool isOnline() const { return (mConnState >= kConnected); }
     bool setPresence(karere::Presence pres);
     bool setPersist(bool enable);
 

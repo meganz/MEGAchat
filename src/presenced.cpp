@@ -317,7 +317,8 @@ Client::reconnect(const std::string& url)
             {
                 Client& self = *static_cast<Client*>(arg);
                 ASSERT_NOT_ANOTHER_WS("message");
-                self.mPacketReceived = true;
+                self.mTsLastRecv = time(NULL);
+                self.mTsLastPingSent = 0;
                 self.handleMessage(StaticBuffer(msg, len));
             }, this);
 
@@ -336,12 +337,17 @@ Client::reconnect(const std::string& url)
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
+bool Client::sendKeepalive(time_t now)
+{
+    mTsLastPingSent = now ? now : time(NULL);
+    return sendCommand(Command(OP_KEEPALIVE));
+}
 
 void Client::heartbeat()
 {
+    auto now = time(NULL);
     if (autoAwayInEffect())
     {
-        auto now = time(NULL);
         if (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
         {
             sendUserActive(false);
@@ -350,19 +356,41 @@ void Client::heartbeat()
 
     if (!mHeartbeatEnabled)
         return;
-    mHeartBeats++;
-    if (!mPacketReceived) //one heartbeat interval for server pong
+
+    bool needReconnect = false;
+    if (now - mTsLastSend > 25)
+    {
+        if (!sendKeepalive())
+        {
+            needReconnect = true;
+            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
+        }
+    }
+    else if (mTsLastPingSent)
+    {
+        if (now - mTsLastPingSent > 15)
+        {
+            PRESENCED_LOG_WARNING("Timed out waiting for KEEPALIVE response, reconnecting...");
+            needReconnect = true;
+        }
+    }
+    else if (now - mTsLastRecv >= 25)
+    {
+        if (!sendKeepalive())
+        {
+            needReconnect = true;
+            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
+        }
+        else
+        {
+            mTsLastPingSent = now;
+        }
+    }
+    if (needReconnect)
     {
         mConnState = kDisconnected;
         mHeartbeatEnabled = false;
-        PRESENCED_LOG_WARNING("Connection inactive for too long, reconnecting...");
         reconnect();
-    }
-    else if (mHeartBeats % 3 == 0)
-    {
-        mHeartBeats = 0;
-        mPacketReceived = false;
-        sendCommand(Command(OP_KEEPALIVE));
     }
 }
 
@@ -404,6 +432,7 @@ bool Client::sendBuf(Buffer&& buf)
     auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
     buf.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
     bool result = (!rc && isOnline());
+    mTsLastSend = time(NULL);
     return result;
 }
 bool Client::sendCommand(Command&& cmd)
