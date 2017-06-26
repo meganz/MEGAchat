@@ -890,14 +890,14 @@ void Contact::updatePresence(Presence pres)
 
 void Client::onPresenceChange(Id userid, Presence pres)
 {
-    auto it = contactList->find(userid);
-    if (it != contactList->end())
+    if (userid == mMyHandle)
     {
-        if (it->second->userId() == mMyHandle)
-        {
-            mOwnPresence = pres;
-        }
-        else
+        mOwnPresence = pres;
+    }
+    else
+    {
+        auto it = contactList->find(userid);
+        if (it != contactList->end())
         {
             it->second->updatePresence(pres);
         }

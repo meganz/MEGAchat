@@ -1375,7 +1375,7 @@ int MegaChatApiImpl::getOnlineStatus()
 {
     sdkMutex.lock();
 
-    int status = mClient ? mClient->presenced().config().presence().status() : MegaChatApi::STATUS_INVALID;
+    int status = mClient ? mClient->ownPresence().status() : MegaChatApi::STATUS_INVALID;
 
     sdkMutex.unlock();
 
