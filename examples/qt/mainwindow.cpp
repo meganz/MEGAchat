@@ -449,6 +449,17 @@ void MainWindow::onInitStateChange(int newState)
             Q_EMIT esidLogout();
         });
     }
+
+
+    if (newState == karere::Client::kInitHasOfflineSession ||
+            newState == karere::Client::kInitHasOnlineSession)
+    {
+        setWindowTitle(mClient->myEmail().c_str());
+    }
+    else
+    {
+        setWindowTitle("");
+    }
 }
 
 QString prettyInterval(int64_t secs)
