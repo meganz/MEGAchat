@@ -1,4 +1,5 @@
 #include "chatd.h"
+#include "chatClient.h"
 #include "chatdICrypto.h"
 #include <base/cservices.h>
 #include <gcmpp.h>
@@ -93,8 +94,8 @@ namespace chatd
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
-Client::Client(Id userId)
-:mUserId(userId)
+Client::Client(karere::Client *client, Id userId)
+:mUserId(userId), mKarereClient(client)
 {
     if (!sWebsockCtxInitialized)
     {
@@ -396,9 +397,16 @@ Promise<void> Connection::reconnect(const std::string& url)
             {
                 auto& chat = mClient.chats(chatid);
                 if (!chat.isDisabled())
-                    chat.setOnlineState(kChatStateConnecting);
+                    chat.setOnlineState(kChatStateConnecting);                
             }
-            checkLibwsCall((ws_connect(mWebSocket, mUrl.host.c_str(), mUrl.port, (mUrl.path).c_str(), services_http_use_ipv6)), "connect");
+            
+            this->mClient.mKarereClient->api.call(&::mega::MegaApi::queryDNS, (char *)mUrl.host.c_str())
+            .then([this](ReqResult result)
+            {
+                const char *ip = result->getText();
+                checkLibwsCall((ws_connect(mWebSocket, ip, mUrl.port, (mUrl.path).c_str(), AF_UNSPEC)), "connect");
+            });
+            
             return mConnectPromise
             .then([this]() -> promise::Promise<void>
             {

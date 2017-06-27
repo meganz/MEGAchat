@@ -19,6 +19,7 @@
 enum: uint32_t { kPromiseErrtype_presenced = 0x339a92e5 }; //should resemble 'megapres'
 namespace karere
 {
+class Client;    
 class Presence
 {
 public:
@@ -160,6 +161,7 @@ protected:
     ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Url mUrl;
+    karere::Client *mKarereClient;
     bool mHeartbeatEnabled = false;
     uint8_t mHeartBeats = 0;
     bool mPacketReceived = true; //used for connection activity detection
@@ -197,7 +199,7 @@ protected:
     void configChanged();
     std::string prefsString() const;
 public:
-    Client(Listener& listener, uint8_t caps);
+    Client(karere::Client *client, Listener& listener, uint8_t caps);
     const Config& config() const { return mConfig; }
     bool isConfigAcknowledged() { return mPrefsAckWait; }
     bool isOnline() const
