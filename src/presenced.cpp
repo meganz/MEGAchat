@@ -85,8 +85,10 @@ void Client::initWebsocketCtx()
 
 //Stale event from a previous connect attempt?
 #define ASSERT_NOT_ANOTHER_WS(event)    \
-    if (ws != self.mWebSocket) {       \
-        PRESENCED_LOG_WARNING("Websocket '" event "' callback: ws param is not equal to self->mWebSocket, ignoring"); \
+    if (ws != self.mWebSocket && self.mWebSocket) {   \
+        PRESENCED_LOG_WARNING("Websocket '" event     \
+        "' callback: ws param %p is not equal to self.mWebSocket %p, ignoring", \
+        ws, self.mWebSocket);                         \
     }
 
 promise::Promise<void>
@@ -172,6 +174,10 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 #endif
     }
     mHeartbeatEnabled = false;
+    if (mWebSocket)
+    {
+        ws_destroy(&mWebSocket);
+    }
     if (mConnState == kDisconnected)
         return;
 
@@ -344,7 +350,7 @@ void Client::disconnect() //should be graceful disconnect
         ws_close(mWebSocket);
         mWebSocket = nullptr;
     }
-    mConnState = kDisconnected;
+    setConnState(kDisconnected);
 }
 
 void Client::reset() //immediate disconnect

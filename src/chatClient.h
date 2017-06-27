@@ -399,6 +399,8 @@ public:
 /** @brief Represents a karere contact. Also handles presence change events. */
 class Contact: public karere::DeleteTrackable
 {
+    friend class ContactList;
+    friend class PeerChatRoom;
 /** @cond PRIVATE */
 protected:
     ContactList& mClist;
@@ -418,8 +420,6 @@ protected:
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
     void updatePresence(Presence pres);
-    friend class PeerChatRoom;
-    friend class Client;
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
@@ -483,8 +483,11 @@ public:
  */
 class ContactList: public std::map<uint64_t, Contact*>
 {
+    friend class Client;
 protected:
     void removeUser(iterator it);
+    void onPresenceChanged(Id userid, Presence pres);
+    void setAllOffline();
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
@@ -768,7 +771,7 @@ public:
 protected:
     std::string mMyName;
     bool mContactsLoaded = false;
-    promise::Promise<void> mCanConnectPromise;
+    promise::Promise<void> mSessionReadyPromise;
     Presence mOwnPresence;
     /** @brief Our own email address */
     std::string mEmail;
@@ -844,10 +847,7 @@ protected:
     // presenced listener interface
     virtual void onConnStateChange(presenced::Client::ConnState state);
     virtual void onPresenceChange(Id userid, Presence pres);
-    virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending)
-    {
-        app.onPresenceConfigChanged(state, pending);
-    }
+    virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     //==
     friend class ChatRoom;
     friend class ChatRoomList;
