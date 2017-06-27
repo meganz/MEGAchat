@@ -1285,6 +1285,17 @@ void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
+int MegaChatApiImpl::getConnectionState()
+{
+    int ret = 0;
+
+    sdkMutex.lock();
+    ret = mClient->connState();
+    sdkMutex.unlock();
+
+    return ret;
+}
+
 void MegaChatApiImpl::retryPendingConnections(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS, listener);
