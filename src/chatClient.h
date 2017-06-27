@@ -533,6 +533,8 @@ class Client: public rtcModule::IGlobalEventHandler,
               public presenced::Listener,
               public karere::DeleteTrackable
 {
+public:
+    enum ConnState { kDisconnected = 0, kConnecting, kDisconnecting, kConnected };
 /** @cond PRIVATE */
 protected:
     std::string mAppDir;
@@ -541,7 +543,9 @@ protected:
     std::string mSid;
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     std::string mMyEmail;
-    bool mConnected = false; //TODO: maybe integrate this in the mInitState
+    ConnState mConnState = kDisconnected;
+    promise::Promise<void> mConnectPromise;
+    promise::Promise<void> mDisconnectPromise;
 public:
     enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
     enum InitState: uint8_t
@@ -625,7 +629,8 @@ public:
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     presenced::Client& presenced() { return mPresencedClient; }
     bool contactsLoaded() const { return mContactsLoaded; }
-    bool connected() const { return mConnected; }
+    ConnState connState() const { return mConnState; }
+    bool connected() const { return mConnState == kConnected; }
     /** @endcond PRIVATE */
 
     /** @brief The contact list of the client */
@@ -703,6 +708,9 @@ public:
     bool hasInitError() const { return mInitState >= kInitErrFirst; }
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
+    const char* connStateStr() const { return connStateToStr(mConnState); }
+    static const char* connStateToStr(ConnState state);
+
 
     /** @brief Does the actual connection to chatd and presenced. Assumes the
      * Mega SDK is already logged in. This must be called after
@@ -844,7 +852,7 @@ protected:
      * this method
      */
     promise::Promise<void> doConnect(Presence pres);
-
+    void setConnState(ConnState newState);
 #ifndef KARERE_DISABLE_WEBRTC
     // rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(

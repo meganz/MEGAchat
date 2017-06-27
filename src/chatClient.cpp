@@ -184,7 +184,7 @@ void Client::heartbeat()
         db.timedCommit();
     }
 
-    if (!mConnected)
+    if (mConnState != kConnected)
     {
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
         return;
@@ -659,7 +659,12 @@ promise::Promise<void> Client::connect(Presence pres)
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
 // the connect immediately
-    assert(!mConnected);
+    if (mConnState == kConnecting)
+        return mConnectPromise;
+    else if (mConnState == kConnected)
+        return promise::_Void();
+
+    assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();
     switch (sessDone)
     {
@@ -669,17 +674,27 @@ promise::Promise<void> Client::connect(Presence pres)
         return mSessionReadyPromise.error();
     default:
         assert(sessDone == promise::kNotResolved);
-        return mSessionReadyPromise
+        mConnectPromise = mSessionReadyPromise
             .then([this, pres]() mutable
             {
                 return doConnect(pres);
+            })
+            .then([this]()
+            {
+                setConnState(kConnected);
+            })
+            .fail([this](const promise::Error& err)
+            {
+                setConnState(kDisconnected);
             });
+        return mConnectPromise;
     }
 }
 
 promise::Promise<void> Client::doConnect(Presence pres)
 {
     assert(mSessionReadyPromise.succeeded());
+    setConnState(kConnecting);
     mOwnPresence = pres;
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     assert(mUserAttrCache);
@@ -695,11 +710,15 @@ promise::Promise<void> Client::doConnect(Presence pres)
     });
 
     connectToChatd();
-    auto pms = connectToPresenced(mOwnPresence);
-    if (!pms.failed())
+    auto pms = connectToPresenced(mOwnPresence)
+    .then([this]()
     {
-        mConnected = true; //we may not be actually connected to presenced, mConnected signifies that we are in online mode
-    }
+        setConnState(kConnected);
+    })
+    .fail([this](const promise::Error& err)
+    {
+        setConnState(kDisconnected);
+    });
     assert(!mHeartbeatTimer);
     mHeartbeatTimer = karere::setInterval([this]()
     {
@@ -710,8 +729,11 @@ promise::Promise<void> Client::doConnect(Presence pres)
 
 promise::Promise<void> Client::disconnect()
 {
-    if (!mConnected)
+    if (mConnState == kDisconnected)
         return promise::_Void();
+    else if (mConnState == kDisconnecting)
+        return mDisconnectPromise;
+    setConnState(kDisconnecting);
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
     mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
@@ -721,12 +743,23 @@ promise::Promise<void> Client::disconnect()
         karere::cancelInterval(mHeartbeatTimer);
         mHeartbeatTimer = 0;
     }
-    auto pms = chatd->disconnect();
+    mDisconnectPromise = chatd->disconnect()
+    .then([this]()
+    {
+        setConnState(kDisconnected);
+    })
+    .fail([this](const promise::Error& err)
+    {
+        setConnState(kDisconnected);
+    });
     mPresencedClient.disconnect();
-    mConnected = false;
-    return pms;
+    return mDisconnectPromise;
 }
-
+void Client::setConnState(ConnState newState)
+{
+    mConnState = newState;
+    KR_LOG_DEBUG("Client connection state changed to %s", connStateToStr(newState));
+}
 karere::Id Client::getMyHandleFromSdk()
 {
     SdkString uh = api.sdk.getMyUserHandle();
@@ -1540,7 +1573,7 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
             continue;
         chatids.insert(room->chatid());
 
-        if (!isInactive && client.connected())
+        if (!isInactive && client.connState() == Client::kConnected)
         {
             KR_LOG_DEBUG("...connecting new room to chatd...");
             room->connect();
@@ -2619,7 +2652,17 @@ const char* Client::initStateToStr(unsigned char state)
         return "(unknown)";
     }
 }
-
+const char* Client::connStateToStr(ConnState state)
+{
+    switch(state)
+    {
+        RETURN_ENUM_NAME(kDisconnected);
+        RETURN_ENUM_NAME(kConnecting);
+        RETURN_ENUM_NAME(kDisconnecting);
+        RETURN_ENUM_NAME(kConnected);
+        default: return "(invalid)";
+    }
+}
 #ifndef KARERE_DISABLE_WEBRTC
 rtcModule::IEventHandler* Client::onIncomingCallRequest(
         const std::shared_ptr<rtcModule::ICallAnswer> &ans)
