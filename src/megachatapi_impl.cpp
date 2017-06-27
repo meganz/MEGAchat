@@ -758,32 +758,35 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            std::vector<ApiPromise> promises = chatroom->requesGrantAccessToNodes(nodeList);
+            promise::Promise<void> promise = chatroom->requesGrantAccessToNodes(nodeList);
 
-            promise::when(promises)
+            promise::when(promise)
             .then([this, request, buffer]()
             {
-                ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-
                 std::string stringToSend(buffer);
-                delete [] buffer;
-                stringToSend.insert(stringToSend.begin(), Message::kMsgAttachment);
-                stringToSend.insert(stringToSend.begin(), 0x0);
-
-                Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgAttachment, NULL);
-                MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-                request->setMegaChatMessage(megaMsg);
-
+                sendAttachNodesMessage(stringToSend, request);
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
 
+                delete [] buffer;
                 fireOnChatRequestFinish(request, megaChatError);
             })
             .fail([this, request, buffer](const promise::Error& err)
             {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                API_LOG_ERROR("Failed to grant access to some node");
-                delete [] buffer;
+                MegaChatErrorPrivate *megaChatError = NULL;
+                if (err.code() == MegaChatError::ERROR_EXIST)
+                {
+                    std::string stringToSend(buffer);
+                    sendAttachNodesMessage(stringToSend, request);
+                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    API_LOG_WARNING("This node has been granted access previously");
+                }
+                else
+                {
+                    megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                    API_LOG_ERROR("Failed to grant access to some node");
+                }
 
+                delete [] buffer;
                 fireOnChatRequestFinish(request, megaChatError);
             });
             break;
@@ -805,10 +808,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            std::vector<ApiPromise> promises = chatroom->requestRevokeAccessToNode(node);
+            promise::Promise<void> promise = chatroom->requestRevokeAccessToNode(node);
             delete node;
 
-            promise::when(promises)
+            promise::when(promise)
             .then([this, request]()
             {
                 ChatRoom *chatroom = findChatRoom(request->getChatHandle());
@@ -2430,6 +2433,18 @@ int MegaChatApiImpl::convertInitState(int state)
     default:
         return state;
     }
+}
+
+void MegaChatApiImpl::sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate *request)
+{
+    ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+
+    buffer.insert(buffer.begin(), Message::kMsgAttachment);
+    buffer.insert(buffer.begin(), 0x0);
+
+    Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), Message::kMsgAttachment, NULL);
+    MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+    request->setMegaChatMessage(megaMsg);
 }
 
 IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &chat)
