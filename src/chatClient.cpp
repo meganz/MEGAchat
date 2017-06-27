@@ -179,7 +179,11 @@ void Client::createDbSchema()
 
 void Client::heartbeat()
 {
-    db.timedCommit();
+    if (db.isOpen())
+    {
+        db.timedCommit();
+    }
+
     if (!mConnected)
     {
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
@@ -487,12 +491,15 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
+    auto wptr = weakHandle();
     if (e->getErrorCode() == mega::MegaError::API_ESID ||
             (request->getType() == mega::MegaRequest::TYPE_LOGOUT &&
              request->getParamType() == mega::MegaError::API_ESID))
     {
-        marshallCall([this]() // update state in the karere thread
+        marshallCall([wptr, this]() // update state in the karere thread
         {
+            if (wptr.deleted())
+                return;
             setInitState(kInitErrSidInvalid);
         });
         return;
@@ -509,8 +516,10 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
     std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
-    marshallCall([this, state, scsn, contactList, chatList]()
+    marshallCall([wptr, this, state, scsn, contactList, chatList]()
     {
+        if (wptr.deleted())
+            return;
         if (state == kInitHasOfflineSession)
         {
             // disable this safety checkup, since dumpSession() differs from first-time login value
@@ -881,14 +890,14 @@ void Contact::updatePresence(Presence pres)
 
 void Client::onPresenceChange(Id userid, Presence pres)
 {
-    auto it = contactList->find(userid);
-    if (it != contactList->end())
+    if (userid == mMyHandle)
     {
-        if (it->second->userId() == mMyHandle)
-        {
-            mOwnPresence = pres;
-        }
-        else
+        mOwnPresence = pres;
+    }
+    else
+    {
+        auto it = contactList->find(userid);
+        if (it != contactList->end())
         {
             it->second->updatePresence(pres);
         }
@@ -919,11 +928,17 @@ void Client::notifyNetworkOnline()
 }
 void Client::notifyUserIdle()
 {
-    chatd->notifyUserIdle();
+    if (chatd)
+    {
+        chatd->notifyUserIdle();
+    }
 }
 void Client::notifyUserActive()
 {
-    chatd->notifyUserActive();
+    if (chatd)
+    {
+        chatd->notifyUserActive();
+    }
 }
 
 promise::Promise<void> Client::terminate(bool deleteDb)
@@ -1137,8 +1152,11 @@ std::vector<ApiPromise> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeLis
 
     for (int i = 0; i < nodes->size(); ++i)
     {
-        ApiPromise promise = requestGrantAccess(nodes->get(i), peer());
-        promises.push_back(promise);
+        if (!parent.client.api.sdk.hasAccessToAttachment(mChatid, nodes->get(i)->getHandle(), peer()))
+        {
+            ApiPromise promise = requestGrantAccess(nodes->get(i), peer());
+            promises.push_back(promise);
+        }
     }
 
     return promises;
@@ -1148,8 +1166,15 @@ std::vector<ApiPromise> PeerChatRoom::requestRevokeAccessToNode(mega::MegaNode *
 {
     std::vector<ApiPromise> promises;
 
-    ApiPromise promise = requestRevokeAccess(node, peer());
-    promises.push_back(promise);
+    mega::MegaHandleList *megaHandleList = parent.client.api.sdk.getAttachmentAccess(mChatid, node->getHandle());
+
+    for (unsigned int j = 0; j < megaHandleList->size(); ++j)
+    {
+        ApiPromise promise = requestRevokeAccess(node, peer());
+        promises.push_back(promise);
+    }
+
+    delete megaHandleList;
 
     return promises;
 }
@@ -1160,10 +1185,13 @@ std::vector<ApiPromise> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeLi
 
     for (int i = 0; i < nodes->size(); ++i)
     {
-        for (auto iterator = mPeers.begin(); iterator != mPeers.end(); ++iterator)
+        for (auto it = mPeers.begin(); it != mPeers.end(); ++it)
         {
-            ApiPromise promise = requestGrantAccess(nodes->get(i), iterator->second->mHandle);
-            promises.push_back(promise);
+            if (!parent.client.api.sdk.hasAccessToAttachment(mChatid, nodes->get(i)->getHandle(), it->second->mHandle))
+            {
+                ApiPromise promise = requestGrantAccess(nodes->get(i), it->second->mHandle);
+                promises.push_back(promise);
+            }
         }
     }
 
@@ -1174,11 +1202,15 @@ std::vector<ApiPromise> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode 
 {
     std::vector<ApiPromise> promises;
 
-    for (auto iterator = mPeers.begin(); iterator != mPeers.end(); ++iterator)
+    mega::MegaHandleList *megaHandleList = parent.client.api.sdk.getAttachmentAccess(mChatid, node->getHandle());
+
+    for (unsigned int j = 0; j < megaHandleList->size(); ++j)
     {
-        ApiPromise promise = requestRevokeAccess(node, iterator->second->mHandle);
+        ApiPromise promise = requestRevokeAccess(node, megaHandleList->get(j));
         promises.push_back(promise);
     }
+
+    delete megaHandleList;
 
     return promises;
 }

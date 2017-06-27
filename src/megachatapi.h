@@ -284,7 +284,8 @@ public:
     enum
     {
         CHANGE_TYPE_STATUS          = 0x01,
-        CHANGE_TYPE_CONTENT         = 0x02
+        CHANGE_TYPE_CONTENT         = 0x02,
+        CHANGE_TYPE_ACCESS          = 0x04  /// When the access to attached nodes has changed
     };
 
     enum
@@ -557,7 +558,47 @@ public:
      */
     virtual MegaChatHandle getRowId() const;
 
+
+    /**
+     * @brief Returns a bit field with the changes of the message
+     *
+     * This value is only useful for messages notified by MegaChatRoomListener::onMessageUpdate
+     * that can notify about message modifications.
+     *
+     * @return The returned value is an OR combination of these flags:
+     *
+     * - MegaChatMessage::CHANGE_TYPE_STATUS   = 0x01
+     * Check if the status of the message changed
+     *
+     * - MegaChatMessage::CHANGE_TYPE_CONTENT  = 0x02
+     * Check if the content of the message changed
+     *
+     * - MegaChatMessage::CHANGE_TYPE_ACCESS   = 0x04
+     * Check if the access to attached nodes has changed
+     */
     virtual int getChanges() const;
+
+    /**
+     * @brief Returns true if this message has an specific change
+     *
+     * This value is only useful for nodes notified by MegaChatRoomListener::onMessageUpdate
+     * that can notify about the message modifications.
+     *
+     * In other cases, the return value of this function will be always false.
+     *
+     * @param changeType The type of change to check. It can be one of the following values:
+     *
+     * - MegaChatMessage::CHANGE_TYPE_STATUS   = 0x01
+     * Check if the status of the message changed
+     *
+     * - MegaChatMessage::CHANGE_TYPE_CONTENT  = 0x02
+     * Check if the content of the message changed
+     *
+     * - MegaChatMessage::CHANGE_TYPE_ACCESS   = 0x04
+     * Check if the access to attached nodes has changed
+     *
+     * @return true if this message has an specific change
+     */
     virtual bool hasChanged(int changeType) const;
 };
 
@@ -1014,59 +1055,6 @@ public:
      * @return Readable description of the error
      */
     virtual const char* toString() const = 0;
-};
-
-/**
- * @brief List of MegaChatHandle objects
- *
- */
-class MegaChatHandleList
-{
-public:
-    /**
-     * @brief Creates a new instance of MegaChatHandleList
-     * @return A pointer the new object
-     */
-    static MegaChatHandleList *createInstance();
-
-    virtual ~MegaChatHandleList();
-
-
-    /**
-     * @brief Creates a copy of this MegaChatHandleList object
-     *
-     * The resulting object is fully independent of the source MegaChatHandleList,
-     * it contains a copy of all internal attributes, so it will be valid after
-     * the original object is deleted.
-     *
-     * You are the owner of the returned object
-     *
-     * @return Copy of the MegaChatHandleList object
-     */
-    virtual MegaChatHandleList *copy() const;
-
-    /**
-     * @brief Returns the MegaChatHandle at the position i in the MegaChatHandleList
-     *
-     *
-     * If the index is >= the size of the list, this function returns MEGACHAT_INVALID_HANDLE.
-     *
-     * @param i Position of the MegaChatHandle that we want to get for the list
-     * @return MegaChatHandle at the position i in the list
-     */
-    virtual MegaChatHandle get(unsigned int i) const;
-
-    /**
-     * @brief Returns the number of MegaChatHandles in the list
-     * @return Number of MegaChatHandles in the list
-     */
-    virtual unsigned int size() const;
-
-    /**
-     * @brief Add new MegaChatHandle to list
-     * @param MegaChatHandle to be added
-     */
-    virtual void addMegaChatHandle(MegaChatHandle megaChatHandle);
 };
 
 /**
@@ -1992,6 +1980,22 @@ public:
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
     /**
+     * @brief Returns the MegaChatMessage specified from manual sending queue.
+     *
+     * The identifier of messages in manual sending status is notified when the
+     * message is moved into that queue or while loading history. In both cases,
+     * the callback MegaChatRoomListener::onMessageLoaded will be received with a
+     * message object including the row id.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param rowId Manual sending queue id of the message
+     * @return The MegaChatMessage object, or NULL if not found.
+     */
+    MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
+
+    /**
      * @brief Sends a new message to the specified chatroom
      *
      * The MegaChatMessage object returned by this function includes a message transaction id,
@@ -2035,34 +2039,10 @@ public:
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param contactsNumber Number of contacts to attach
-     * @param handleContacts Array of contacts
+     * @param handles mega::MegaHandleList with contacts to be attached
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
-    MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* handleContacts);
-
-    /**
-     * @brief Sends a contact or a group of contacts to the specified chatroom
-     *
-     * The MegaChatMessage object returned by this function includes a message transaction id,
-     * That id is not the definitive id, which will be assigned by the server. You can obtain the
-     * temporal id with MegaChatMessage::getTempId()
-     *
-     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
-     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
-     * At this point, the app should refresh the message identified by the temporal id and move it to
-     * the final position in the history, based on the reported index in the callback.
-     *
-     * If the message is rejected by the server, the message will keep its temporal id and will have its
-     * a message id set to MEGACHAT_INVALID_HANDLE.
-     *
-     * You take the ownership of the returned value.
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param handles MegaChatHandleList with contacts to be attached
-     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
-     */
-    MegaChatMessage *attachContacts(MegaChatHandle chatid, MegaChatHandleList* handles);
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* handles);
 
     /**
      * @brief Sends a node or a group of nodes to the specified chatroom
@@ -2128,6 +2108,27 @@ public:
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener = NULL);
+
+
+    /** Returns whether the logged in user has been granted access to the node
+     *
+     * Access to attached nodes received in chatrooms is granted when the message
+     * is sent, but it can be revoked afterwards.
+     *
+     * This convenience method allows to check if you still have access to a node
+     * or it was revoked. Usually, apps will show the attachment differently when
+     * access has been revoked.
+     *
+     * @note The returned value will be valid only for nodes attached to messages
+     * already loaded in an opened chatroom. The list of revoked nodes is updated
+     * accordingly while the chatroom is open, based on new messages received.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param nodeHandle MegaChatHandle that identifies the node to check its access
+     *
+     * @return True if the user has access to the node in this chat.
+     */
+    bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const;
 
     /**
      * @brief Edits an existing message

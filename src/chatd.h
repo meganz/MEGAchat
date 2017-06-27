@@ -471,6 +471,8 @@ public:
         ManualSendReason reason;
         ManualSendItem(Message* aMsg, uint64_t aRowid, uint8_t aOpcode, ManualSendReason aReason)
             :msg(aMsg), rowid(aRowid), opcode(aOpcode), reason(aReason){}
+        ManualSendItem()
+            :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason){}
     };
 
 protected:
@@ -949,6 +951,7 @@ public:
      * generation.
      */
     static uint64_t generateRefId(const ICrypto* aCrypto);
+    Message *getManualSending(uint64_t rowid, chatd::ManualSendReason& reason);
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);
@@ -1073,6 +1076,7 @@ public:
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
     virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
+    virtual void loadManualSendItem(uint64_t rowid, Chat::ManualSendItem& item) = 0;
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void setLastSeen(karere::Id msgid) = 0;
     virtual void setLastReceived(karere::Id msgid) = 0;

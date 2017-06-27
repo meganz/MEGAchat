@@ -172,6 +172,7 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray;
 - (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle;
+- (BOOL)isRevokedNode:(uint64_t)nodeHandle inChat:(uint64_t)chatId;
 - (MEGAChatMessage *)editMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId message:(NSString *)message;
 - (MEGAChatMessage *)deleteMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
 - (BOOL)setMessageSeenForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
@@ -183,6 +184,7 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 #pragma mark - Debug log messages
 
 + (void)setLogLevel:(MEGAChatLogLevel)level;
++ (void)setLogToConsole:(BOOL)enable;
 + (void)setLogObject:(id<MEGAChatLoggerDelegate>)delegate;
 + (void)setLogWithColors:(BOOL)userColors;
 

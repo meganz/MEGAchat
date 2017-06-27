@@ -576,6 +576,8 @@ promise::Promise<void> Connection::rejoinExistingChats()
             mLoginPromise.reject(std::string("rejoinExistingChats: Exception: ")+e.what());
         }
     }
+    if (mClient.mKeepaliveType == OP_KEEPALIVEAWAY)
+        sendKeepalive(mClient.mKeepaliveType);
     return mLoginPromise;
 }
 
@@ -1184,6 +1186,15 @@ void Chat::loadManualSending()
         CALL_LISTENER(onManualSendRequired, item.msg, item.rowid, item.reason);
     }
 }
+
+Message* Chat::getManualSending(uint64_t rowid, ManualSendReason& reason)
+{
+    ManualSendItem item;
+    CALL_DB(loadManualSendItem, rowid, item);
+    reason = item.reason;
+    return item.msg;
+}
+
 Message* Chat::getMsgByXid(Id msgxid)
 {
     for (auto& item: mSending)
@@ -1593,7 +1604,7 @@ int Chat::unreadMsgCount() const
     for (Idx i=first; i<=last; i++)
     {
         auto& msg = at(i);
-        if (msg.userid != mClient.userId())
+        if (msg.userid != mClient.userId() && !(msg.updated && !msg.size()))
             count++;
     }
     return count;
@@ -1907,6 +1918,13 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.userid = msg->userid;
             // msg.ts is zero - chatd doesn't send the original timestamp
             CALL_LISTENER(onMessageEdited, histmsg, idx);
+
+            if (msg->userid != client().userId() && // is not our own message
+                    msg->updated && !msg->size())   // is deleted
+            {
+                CALL_LISTENER(onUnreadChanged);
+            }
+
             //last text msg stuff
             if ((mLastTextMsg.idx() == idx) && (msg->type != Message::kMsgTruncate))
             {

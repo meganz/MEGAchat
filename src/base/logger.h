@@ -25,7 +25,7 @@
 typedef unsigned short krLogLevel;
 enum
 {
-//0 is reserved to ovverwrite completely disabled logging. Used only by logger itself
+//0 is reserved to overwrite completely disabled logging. Used only by logger itself
     krLogLevelError = 1,
     krLogLevelWarn,
     krLogLevelInfo,

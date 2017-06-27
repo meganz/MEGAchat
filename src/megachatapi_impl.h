@@ -355,6 +355,11 @@ public:
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastMessageTsUpdated(uint32_t ts);
 
+    bool isRevoked(MegaChatHandle h);
+    // update access to attachments
+    void handleHistoryMessage(MegaChatMessage *message);
+    // update access to attachments, returns messages requiring updates (you take ownership)
+    std::set<MegaChatHandle> *handleNewMessage(MegaChatMessage *msg);
 
 protected:
 
@@ -364,6 +369,10 @@ private:
 
     chatd::Chat *mChat;
     karere::ChatRoom *mRoom;
+
+    // nodes with granted/revoked access from loaded messsages
+    std::map<MegaChatHandle, bool> attachmentsAccess;  // handle, access
+    std::map<MegaChatHandle, std::set<MegaChatHandle>> attachmentsIds;    // nodehandle, msgids
 };
 
 class LoggerHandler : public karere::Logger::ILoggerBackend
@@ -404,22 +413,6 @@ public:
     int getErrorType() const;
     const char *getErrorString() const;
     const char *toString() const;
-};
-
-class MegaChatHandleListPrivate : public MegaChatHandleList
-{
-public:
-    MegaChatHandleListPrivate();
-    MegaChatHandleListPrivate(const MegaChatHandleListPrivate *nodeList);
-    virtual ~MegaChatHandleListPrivate();
-
-    virtual MegaChatHandleList *copy() const;
-    virtual MegaChatHandle get(unsigned int i) const;
-    virtual unsigned int size() const;
-    virtual void addMegaChatHandle(MegaChatHandle megaChatHandle);
-
-private:
-    std::vector<MegaChatHandle> mList;
 };
 
 class MegaChatPeerListPrivate : public MegaChatPeerList
@@ -583,6 +576,7 @@ public:
     void setRowId(int id);
     void setContentChanged();
     void setCode(int code);
+    void setAccess();
 
 private:
     int changed;
@@ -829,11 +823,12 @@ public:
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+    MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
-    MegaChatMessage *attachContacts(MegaChatHandle chatid, unsigned int contactsNumber, MegaChatHandle* contacts);
-    MegaChatMessage *attachContacts(MegaChatHandle chatid, MegaChatHandleList* handles);
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* handles);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
+    bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const;
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
