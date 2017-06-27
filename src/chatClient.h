@@ -179,8 +179,8 @@ public:
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
 
-    virtual std::vector<ApiPromise> requesGrantAccessToNodes(mega::MegaNodeList *nodes) = 0;
-    virtual std::vector<ApiPromise> requestRevokeAccessToNode(mega::MegaNode *node) = 0;
+    virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes) = 0;
+    virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node) = 0;
 };
 /** @brief Represents a 1on1 chatd chatroom */
 class PeerChatRoom: public ChatRoom
@@ -229,8 +229,8 @@ public:
     virtual void onUnreadChanged();
 /** @endcond */
 
-    virtual std::vector<ApiPromise> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
-    virtual std::vector<ApiPromise> requestRevokeAccessToNode(mega::MegaNode *node);
+    virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
+    virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
 };
 
 /** @brief Represents a chatd chatroom that is a groupchat */
@@ -373,8 +373,8 @@ public:
      */
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
 
-    virtual std::vector<ApiPromise> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
-    virtual std::vector<ApiPromise> requestRevokeAccessToNode(mega::MegaNode *node);
+    virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
+    virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
