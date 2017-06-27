@@ -1,6 +1,6 @@
 #ifndef TRACKDELETE_H
 #define TRACKDELETE_H
-
+#include <atomic>
 namespace karere
 {
 /** @brief Used to keep track of deletion of a lambda-captured object
@@ -13,7 +13,8 @@ public:
     struct SharedData
     {
         bool mDeleted = false;
-        uint32_t mRefCount = 0;
+        std::atomic<uint32_t> mRefCount;
+        SharedData(): mRefCount(0) {}
     };
     class Handle
     {
@@ -55,8 +56,8 @@ public:
     struct WeakRefSharedData
     {
         T* mPtr;
-        int mRefCount = 0;
-        WeakRefSharedData(T* aPtr): mPtr(aPtr){}
+        std::atomic<int> mRefCount;
+        WeakRefSharedData(T* aPtr): mPtr(aPtr), mRefCount(0) {}
     };
 
     class WeakRefHandle

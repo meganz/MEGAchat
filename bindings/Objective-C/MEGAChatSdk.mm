@@ -11,6 +11,7 @@
 #import "MEGAChatListItemList+init.h"
 #import "MEGAChatPresenceConfig+init.h"
 #import "MEGANodeList+init.h"
+#import "MEGAHandleList+init.h"
 #import "DelegateMEGAChatRequestListener.h"
 #import "DelegateMEGAChatLoggerListener.h"
 #import "DelegateMEGAChatRoomListener.h"
@@ -81,6 +82,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->disconnect();
 }
 
+- (void)retryPendingConnections {
+    self.megaChatApi->retryPendingConnections();
+}
+
 - (void)dealloc {
     delete _megaChatApi;
     pthread_mutex_destroy(&listenerMutex);
@@ -148,6 +153,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (MEGAChatStatus)userOnlineStatus:(uint64_t)userHandle {
     return (MEGAChatStatus)self.megaChatApi->getUserOnlineStatus(userHandle);
+}
+
+- (void)setBackgroundStatus:(BOOL)status delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setBackgroundStatus(status, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setBackgroundStatus:(BOOL)status {
+    self.megaChatApi->setBackgroundStatus(status);
 }
 
 #pragma mark - Add and remove delegates
@@ -449,11 +462,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatMessage *)attachContactsToChat:(uint64_t)chatId contacts:(NSArray *)contacts {
-    uint64_t handleContacts [contacts.count];
+    MEGAHandleList *handleList = [[MEGAHandleList alloc] init];
+    
     for (NSInteger i = 0; i < contacts.count; i++) {
-        handleContacts[i] = [[contacts objectAtIndex:i] handle];
+        [handleList addMegaHandle:[[contacts objectAtIndex:i] handle]];
     }
-    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->attachContacts(chatId, (unsigned int) contacts.count, handleContacts) cMemoryOwn:YES] : nil;
+    
+    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->attachContacts(chatId, handleList ? [handleList getCPtr] : NULL) cMemoryOwn:YES] : nil;
 }
 
 - (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray delegate:(id<MEGAChatRequestDelegate>)delegate {
@@ -486,6 +501,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->revokeAttachment(chatId, nodeHandle);
 }
 
+- (BOOL)isRevokedNode:(uint64_t)nodeHandle inChat:(uint64_t)chatId {
+    return self.megaChatApi->isRevoked(chatId, nodeHandle);
+}
+
 - (MEGAChatMessage *)editMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId message:(NSString *)message {
     return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->editMessage(chatId, messageId, message ? [message UTF8String] : NULL) cMemoryOwn:YES] : nil;
 }
@@ -514,6 +533,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 + (void)setLogLevel:(MEGAChatLogLevel)level {
     MegaChatApi::setLogLevel((int)level);
+}
+
++ (void)setLogToConsole:(BOOL)enable {
+    MegaChatApi::setLogToConsole(enable);
 }
 
 + (void)setLogObject:(id<MEGAChatLoggerDelegate>)delegate {

@@ -717,6 +717,9 @@ public:
     /** @brief Disconnects the client from chatd and presenced */
     promise::Promise<void> disconnect();
 
+    static void retryPendingConnectionsCallback(int fd, short events, void *arg);
+    void retryPendingConnections();
+
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits
      * karere. This can be used when building a standalone chat app where there
@@ -731,6 +734,14 @@ public:
 
     /** @brief Notifies the client that internet connection is again available */
     void notifyNetworkOnline();
+    /** @brief Call this when the app goes into background, so that it notifies
+     * the servers to enable PUSH notifications
+     */
+    void notifyUserIdle();
+    /** @brief Call this when the app goes into foreground, so that push notifications
+     * are disabled
+     */
+    void notifyUserActive();
 
     void startKeepalivePings();
 
@@ -752,6 +763,10 @@ public:
     */
     promise::Promise<void> setPresence(const Presence pres);
 
+    /**
+     * @brief Returns our own presence, as received by the presenced client
+     */
+    Presence ownPresence() const { return mOwnPresence; }
     /** @brief Creates a group chatroom with the specified peers, privileges
      * and title.
      * @param peers A vector of userhandle and privilege pairs for each of

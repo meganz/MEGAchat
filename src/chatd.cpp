@@ -10,6 +10,15 @@
 #include <algorithm>
 #include <random>
 
+#ifdef __ANDROID__
+    #include <sys/system_properties.h>
+#elif defined(__APPLE__)
+    #include <TargetConditionals.h>
+    #ifdef TARGET_OS_IPHONE
+        #include <resolv.h>
+    #endif
+#endif
+
 using namespace std;
 using namespace promise;
 using namespace karere;
@@ -171,6 +180,29 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
     return *chat;
 }
+void Client::sendKeepalive()
+{
+    for (auto& conn: mConnections)
+    {
+        conn.second->sendKeepalive(mKeepaliveType);
+    }
+}
+
+void Client::notifyUserIdle()
+{
+    if (mKeepaliveType == OP_KEEPALIVEAWAY)
+        return;
+    mKeepaliveType = OP_KEEPALIVEAWAY;
+    sendKeepalive();
+}
+
+void Client::notifyUserActive()
+{
+    if (mKeepaliveType == OP_KEEPALIVE)
+        return;
+    mKeepaliveType = OP_KEEPALIVE;
+    sendKeepalive();
+}
 
 void Chat::connect(const std::string& url)
 {
@@ -242,12 +274,38 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     if (errtype == WS_ERRTYPE_DNS)
     {
         CHATD_LOG_WARNING("->DNS error: forcing libevent to re-read /etc/resolv.conf");
+        evdns_base_clear_host_addresses(services_dns_eventbase);
         //if we didn't have our network interface up at app startup, and resolv.conf is
         //genereated dynamically, dns may never work unless we re-read the resolv.conf file
 #ifdef _WIN32
         evdns_config_windows_nameservers();
-#elif !(TARGET_OS_IPHONE)
-        evdns_base_clear_host_addresses(services_dns_eventbase);
+#elif defined (__ANDROID__)
+        char server[PROP_VALUE_MAX];
+        if (__system_property_get("net.dns1", server) > 0) {
+            evdns_base_nameserver_ip_add(services_dns_eventbase, server);
+        }
+#elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+        struct __res_state res;
+        res_ninit(&res);
+        union res_sockaddr_union addrs[MAXNS];
+        int count = res_getservers(&res, addrs, MAXNS);
+        if (count > 0) {
+            if (addrs->sin.sin_family == AF_INET) {
+                if (!addrs->sin.sin_port) {
+                    addrs->sin.sin_port = 53;
+                }
+                evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin), sizeof(struct sockaddr_in), 0);
+            } else if (addrs->sin6.sin6_family == AF_INET6) {
+                if (!addrs->sin6.sin6_port) {
+                    addrs->sin6.sin6_port = 53;
+                }
+                evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin6), sizeof(struct sockaddr_in6), 0);
+            } else {
+                fprintf(stderr, "Unknown address family for DNS server.");
+            }
+        }
+        res_nclose(&res);
+#else
         evdns_base_resolv_conf_parse(services_dns_eventbase,
             DNS_OPTIONS_ALL & (~DNS_OPTION_SEARCH), "/etc/resolv.conf");
 #endif
@@ -292,6 +350,11 @@ void Connection::disableInactivityTimer()
         cancelInterval(mInactivityTimer);
         mInactivityTimer = 0;
     }
+}
+bool Connection::sendKeepalive(uint8_t opcode)
+{
+    CHATD_LOG_DEBUG("shard %d: send %s", mShardNo, Command::opcodeToStr(opcode));
+    return sendBuf(Command(opcode));
 }
 
 Promise<void> Connection::reconnect(const std::string& url)
@@ -391,6 +454,17 @@ promise::Promise<void> Connection::disconnect(int timeoutMs) //should be gracefu
     return mDisconnectPromise;
 }
 
+void Connection::retryPendingConnection()
+{
+    if (mUrl.isValid())
+    {
+        mState = kStateDisconnected;
+        disableInactivityTimer();
+        CHATD_LOG_WARNING("Retrying pending connenction...");
+        reconnect();
+    }
+}
+
 promise::Promise<void> Client::disconnect()
 {
     std::vector<Promise<void>> promises;
@@ -399,6 +473,14 @@ promise::Promise<void> Client::disconnect()
         promises.push_back(conn.second->disconnect());
     }
     return promise::when(promises);
+}
+
+void Client::retryPendingConnections()
+{
+    for (auto& conn: mConnections)
+    {
+        conn.second->retryPendingConnection();
+    }
 }
 
 void Connection::reset() //immediate disconnect
@@ -499,6 +581,8 @@ promise::Promise<void> Connection::rejoinExistingChats()
             mLoginPromise.reject(std::string("rejoinExistingChats: Exception: ")+e.what());
         }
     }
+    if (mClient.mKeepaliveType == OP_KEEPALIVEAWAY)
+        sendKeepalive(mClient.mKeepaliveType);
     return mLoginPromise;
 }
 
@@ -764,7 +848,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_KEEPALIVE:
             {
                 //CHATD_LOG_DEBUG("Server heartbeat received");
-                sendBuf(Command(OP_KEEPALIVE));
+                sendKeepalive(mClient.mKeepaliveType);
                 break;
             }
             case OP_BROADCAST:
@@ -1107,6 +1191,15 @@ void Chat::loadManualSending()
         CALL_LISTENER(onManualSendRequired, item.msg, item.rowid, item.reason);
     }
 }
+
+Message* Chat::getManualSending(uint64_t rowid, ManualSendReason& reason)
+{
+    ManualSendItem item;
+    CALL_DB(loadManualSendItem, rowid, item);
+    reason = item.reason;
+    return item.msg;
+}
+
 Message* Chat::getMsgByXid(Id msgxid)
 {
     for (auto& item: mSending)
@@ -1516,7 +1609,7 @@ int Chat::unreadMsgCount() const
     for (Idx i=first; i<=last; i++)
     {
         auto& msg = at(i);
-        if (msg.userid != mClient.userId())
+        if (msg.userid != mClient.userId() && !(msg.updated && !msg.size()))
             count++;
     }
     return count;
@@ -1830,6 +1923,13 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.userid = msg->userid;
             // msg.ts is zero - chatd doesn't send the original timestamp
             CALL_LISTENER(onMessageEdited, histmsg, idx);
+
+            if (msg->userid != client().userId() && // is not our own message
+                    msg->updated && !msg->size())   // is deleted
+            {
+                CALL_LISTENER(onUnreadChanged);
+            }
+
             //last text msg stuff
             if ((mLastTextMsg.idx() == idx) && (msg->type != Message::kMsgTruncate))
             {
@@ -2535,13 +2635,34 @@ void Client::leave(Id chatid)
     mChatForChatId.erase(chatid);
 }
 
-const char* Command::opcodeNames[] =
+#define RET_ENUM_NAME(name) case OP_##name: return #name;
+const char* Command::opcodeToStr(uint8_t opcode)
 {
- "KEEPALIVE","JOIN", "OLDMSG", "NEWMSG", "MSGUPD", "SEEN",
- "RECEIVED","RETENTION","HIST", "RANGE","NEWMSGID","REJECT",
- "BROADCAST", "HISTDONE", "(invalid)", "(invalid)", "(invalid)",
- "NEWKEY", "KEYID", "JOINRANGEHIST", "MSGUPDX", "MSGID"
-};
+    switch (opcode)
+    {
+        RET_ENUM_NAME(KEEPALIVE);
+        RET_ENUM_NAME(JOIN);
+        RET_ENUM_NAME(OLDMSG);
+        RET_ENUM_NAME(NEWMSG);
+        RET_ENUM_NAME(MSGUPD);
+        RET_ENUM_NAME(SEEN);
+        RET_ENUM_NAME(RECEIVED);
+        RET_ENUM_NAME(RETENTION);
+        RET_ENUM_NAME(HIST);
+        RET_ENUM_NAME(RANGE);
+        RET_ENUM_NAME(NEWMSGID);
+        RET_ENUM_NAME(REJECT);
+        RET_ENUM_NAME(BROADCAST);
+        RET_ENUM_NAME(HISTDONE);
+        RET_ENUM_NAME(NEWKEY);
+        RET_ENUM_NAME(KEYID);
+        RET_ENUM_NAME(JOINRANGEHIST);
+        RET_ENUM_NAME(MSGUPDX);
+        RET_ENUM_NAME(MSGID);
+        RET_ENUM_NAME(KEEPALIVEAWAY);
+        default: return "(invalid opcode)";
+    }
+}
 const char* Message::statusNames[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"

@@ -65,12 +65,14 @@ private:
     do { \
         try \
         { \
+            LOG_debug << "Launching test: " << title; \
             t.SetUp(); \
             std::cout << "[" << " RUN    " << "] " << title << endl; \
             test; \
             std::cout << "[" << "     OK " << "] " << title << endl; \
             t.TearDown(); \
             t.mOKTests ++; \
+            LOG_debug << "Finished test: " << title; \
         } \
         catch(ChatTestException e) \
         { \
@@ -82,6 +84,7 @@ private:
             std::cout << "[" << " FAILED " << "] " << title << endl; \
             t.TearDown(); \
             t.mFailedTests ++; \
+            LOG_debug << "Failed test: " << title; \
         } \
     } \
     while(false) \
@@ -206,9 +209,8 @@ private:
 
     void createFile(const std::string &fileName, const std::string &sourcePath, const std::string &contain);
     mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &sourcePath, const std::string &targetPath);
-    void addTransfer();
-    bool &isNotTransferRunning();
-
+    void addTransfer(int accountIndex);
+    bool &isNotTransferRunning(int accountIndex);
 
     bool downloadNode(int accountIndex, mega::MegaNode *nodeToDownload);
     bool importNode(int accountIndex, mega::MegaNode* node, const std::string& destinationName);
@@ -252,17 +254,18 @@ private:
     std::string mChatLastname;
     std::string mChatEmail;
 
-    mega::MegaHandle mNodeCopiedHandle;
-
-    mega::MegaNodeList *mAttachmentNodeList;
-    megachat::MegaChatHandle mAttachmentRevokeNode;
+    mega::MegaHandle mNodeCopiedHandle[NUM_ACCOUNTS];
+    mega::MegaHandle mNodeUploadHandle[NUM_ACCOUNTS];
 
     MegaLoggerTest *logger;
 
-    bool mNotTransferRunning;
+    bool mNotTransferRunning[NUM_ACCOUNTS];
+    bool mPresenceConfigUpdated[NUM_ACCOUNTS];
+    bool mOnlineStatusUpdated[NUM_ACCOUNTS];
+    int mOnlineStatus[NUM_ACCOUNTS];
 
     mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
-    bool mContactRequestUpdated[2];
+    bool mContactRequestUpdated[NUM_ACCOUNTS];
 
     static const std::string DEFAULT_PATH;
     static const std::string PATH_IMAGE;
@@ -291,7 +294,8 @@ public:
     // implementation for MegaChatListener
     virtual void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState);
     virtual void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
-    virtual void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, int status);
+    virtual void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
+    virtual void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
 
     virtual void onTransferStart(mega::MegaApi *api, mega::MegaTransfer *transfer);
     virtual void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error);
@@ -304,6 +308,9 @@ class TestChatRoomListener : public megachat::MegaChatRoomListener
 {
 public:
     TestChatRoomListener(MegaChatApiTest *t, megachat::MegaChatApi **apis, megachat::MegaChatHandle chatid);
+    void clearMessages(unsigned int apiIndex);
+    bool hasValidMessages(unsigned int apiIndex);
+    bool hasArrivedMessage(unsigned int apiIndex, megachat::MegaChatHandle messageHandle);
 
     MegaChatApiTest *t;
     megachat::MegaChatApi **megaChatApi;
@@ -320,9 +327,10 @@ public:
     bool msgAttachmentReceived[NUM_ACCOUNTS];
     bool msgContactReceived[NUM_ACCOUNTS];
     bool msgRevokeAttachmentReceived[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mConfirmedMessageHandle[NUM_ACCOUNTS];
 
     megachat::MegaChatMessage *message;
-    megachat::MegaChatHandle msgId[NUM_ACCOUNTS];
+    std::vector <megachat::MegaChatHandle>msgId[NUM_ACCOUNTS];
     int msgCount[NUM_ACCOUNTS];
     megachat::MegaChatHandle uhAction[NUM_ACCOUNTS];
     int priv[NUM_ACCOUNTS];
