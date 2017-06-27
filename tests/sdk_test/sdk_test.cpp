@@ -677,15 +677,24 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     // ___ Disconnect from chat server and reconnect ___
     for (int i = 0; i < 5; i++)
     {
+        int conState = megaChatApi[accountIndex]->getConnectionState();
+        ASSERT_CHAT_TEST(conState == MegaChatApi::CONNECTED, "Wrong connection state: " + std::to_string(conState));
+
         bool *flagDisconnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_DISCONNECT]; *flagDisconnect = false;
         megaChatApi[accountIndex]->disconnect();
         ASSERT_CHAT_TEST(waitForResponse(flagDisconnect), "Expired timeout for disconnect");
-        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error disconect. Error: " + std::to_string(lastErrorChat[accountIndex]));
+        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error disconnect. Error: " + std::to_string(lastErrorChat[accountIndex]));
+        conState = megaChatApi[accountIndex]->getConnectionState();
+        ASSERT_CHAT_TEST(conState == MegaChatApi::DISCONNECTED, "Wrong connection state: " + std::to_string(conState));
+
         // reconnect
         flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
         megaChatApi[accountIndex]->connect();
         ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
         ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + std::to_string(lastErrorChat[accountIndex]));
+        conState = megaChatApi[accountIndex]->getConnectionState();
+        ASSERT_CHAT_TEST(conState == MegaChatApi::CONNECTED, "Wrong connection state: " + std::to_string(conState));
+
         // check there's a list of chats already available
         list = megaChatApi[accountIndex]->getChatListItems();
         ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
