@@ -138,6 +138,14 @@ void Client::websockConnectCb(ws_t ws, void* arg)
     });
 }
 
+void Client::websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg)
+{
+    Client& self = *static_cast<Client*>(arg);
+    ASSERT_NOT_ANOTHER_WS("message");
+    self.mPacketReceived = true;
+    self.handleMessage(StaticBuffer(msg, len));
+}
+
 void Client::notifyLoggedIn()
 {
     assert(mConnState < kLoggedIn);
@@ -321,14 +329,7 @@ Client::reconnect(const std::string& url)
             checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
             ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
             ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
-            ws_set_onmsg_cb(mWebSocket,
-            [](ws_t ws, char *msg, uint64_t len, int binary, void *arg)
-            {
-                Client& self = *static_cast<Client*>(arg);
-                ASSERT_NOT_ANOTHER_WS("message");
-                self.mPacketReceived = true;
-                self.handleMessage(StaticBuffer(msg, len));
-            }, this);
+            ws_set_onmsg_cb(mWebSocket, &websockMsgCb, this);
 
             if (mUrl.isSecure)
             {
@@ -363,7 +364,7 @@ void Client::heartbeat()
     mHeartBeats++;
     if (!mPacketReceived) //one heartbeat interval for server pong
     {
-        mConnState = kDisconnected;
+        setConnState(kDisconnected);
         mHeartbeatEnabled = false;
         PRESENCED_LOG_WARNING("Connection inactive for too long, reconnecting...");
         reconnect();
@@ -395,7 +396,7 @@ void Client::retryPendingConnections()
 {
     if (mUrl.isValid())
     {
-        mConnState = kDisconnected;
+        setConnState(kDisconnected);
         mHeartbeatEnabled = false;
         PRESENCED_LOG_WARNING("Retry pending connections...");
         reconnect();
