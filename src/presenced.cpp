@@ -6,6 +6,7 @@
 #include <event2/dns.h>
 #include <event2/dns_compat.h>
 #include <chatClient.h>
+#include <arpa/inet.h>
 
 #ifdef __ANDROID__
     #include <sys/system_properties.h>
@@ -167,45 +168,7 @@ void Client::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preas
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
     PRESENCED_LOG_WARNING("Socket close, reason: %s", reason.c_str());
-    if (errtype == WS_ERRTYPE_DNS)
-    {
-        PRESENCED_LOG_WARNING("->DNS error: forcing libevent to re-read /etc/resolv.conf");
-        evdns_base_clear_host_addresses(services_dns_eventbase);
-        //if we didn't have our network interface up at app startup, and resolv.conf is
-        //genereated dynamically, dns may never work unless we re-read the resolv.conf file
-#ifdef _WIN32
-        evdns_config_windows_nameservers();
-#elif defined (__ANDROID__)
-        char server[PROP_VALUE_MAX];
-        if (__system_property_get("net.dns1", server) > 0) {
-            evdns_base_nameserver_ip_add(services_dns_eventbase, server);
-        }
-#elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-        struct __res_state res;
-        res_ninit(&res);
-        union res_sockaddr_union addrs[MAXNS];
-        int count = res_getservers(&res, addrs, MAXNS);
-        if (count > 0) {
-            if (addrs->sin.sin_family == AF_INET) {
-                if (!addrs->sin.sin_port) {
-                    addrs->sin.sin_port = 53;
-                }
-                evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin), sizeof(struct sockaddr_in), 0);
-            } else if (addrs->sin6.sin6_family == AF_INET6) {
-                if (!addrs->sin6.sin6_port) {
-                    addrs->sin6.sin6_port = 53;
-                }
-                evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin6), sizeof(struct sockaddr_in6), 0);
-            } else {
-                fprintf(stderr, "Unknown address family for DNS server.");
-            }
-        }
-        res_nclose(&res);
-#else
-        evdns_base_resolv_conf_parse(services_dns_eventbase,
-            DNS_OPTIONS_ALL & (~DNS_OPTION_SEARCH), "/etc/resolv.conf");
-#endif
-    }
+    
     mHeartbeatEnabled = false;
     if (mTerminating)
         return;
@@ -332,8 +295,35 @@ Client::reconnect(const std::string& url)
             mKarereClient->api.call(&::mega::MegaApi::queryDNS, (char *)mUrl.host.c_str())
             .then([this](ReqResult result)
             {
-                const char *ip = result->getText();
-                checkLibwsCall((ws_connect(mWebSocket, ip, mUrl.port, (mUrl.path).c_str(), AF_UNSPEC)), "connect");
+                string ip = result->getText();
+                PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
+                
+                if (ip[0] == '[')
+                {
+                    struct sockaddr_in6 ipv6addr;
+                    ip = ip.substr(1, ip.size() - 2);
+                    ipv6addr.sin6_family = AF_INET6;
+                    ipv6addr.sin6_port = htons(mUrl.port);
+                    inet_pton(AF_INET6, ip.c_str(), &ipv6addr.sin6_addr);
+                    checkLibwsCall((ws_connect_addr(mWebSocket, mUrl.host.c_str(),
+                                                    (struct sockaddr *)&ipv6addr, sizeof(ipv6addr),
+                                                    mUrl.port, (mUrl.path).c_str())), "connect");
+                }
+                else
+                {
+                    struct sockaddr_in ipv4addr;
+                    ipv4addr.sin_family = AF_INET;
+                    ipv4addr.sin_port = htons(mUrl.port);
+                    inet_pton(AF_INET, ip.c_str(), &ipv4addr.sin_addr);
+                    checkLibwsCall((ws_connect_addr(mWebSocket, mUrl.host.c_str(),
+                                                    (struct sockaddr *)&ipv4addr, sizeof(ipv4addr),
+                                                    mUrl.port, (mUrl.path).c_str())), "connect");
+                }
+            })
+            .fail([this](const promise::Error& err)
+            {
+                mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
+                mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
             });
             
             return mConnectPromise
