@@ -393,11 +393,12 @@ Promise<void> Connection::reconnect(const std::string& url)
             })
             .fail([this](const promise::Error& err)
             {
-                mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
+                if (err.type() == ERRTYPE_MEGASDK)
+                {
+                    mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
+                    mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
+                }
             });
-
-            
             
             return mConnectPromise
             .then([this]() -> promise::Promise<void>
