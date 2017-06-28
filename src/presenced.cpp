@@ -300,7 +300,7 @@ Client::reconnect(const std::string& url)
                 
                 if (ip[0] == '[')
                 {
-                    struct sockaddr_in6 ipv6addr;
+                    struct sockaddr_in6 ipv6addr = { 0 };
                     ip = ip.substr(1, ip.size() - 2);
                     ipv6addr.sin6_family = AF_INET6;
                     ipv6addr.sin6_port = htons(mUrl.port);
@@ -311,7 +311,7 @@ Client::reconnect(const std::string& url)
                 }
                 else
                 {
-                    struct sockaddr_in ipv4addr;
+                    struct sockaddr_in ipv4addr = { 0 };
                     ipv4addr.sin_family = AF_INET;
                     ipv4addr.sin_port = htons(mUrl.port);
                     inet_pton(AF_INET, ip.c_str(), &ipv4addr.sin_addr);
