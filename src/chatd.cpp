@@ -363,7 +363,7 @@ Promise<void> Connection::reconnect(const std::string& url)
                     chat.setOnlineState(kChatStateConnecting);                
             }
             
-            this->mClient.mKarereClient->api.call(&::mega::MegaApi::queryDNS, (char *)mUrl.host.c_str())
+            this->mClient.mKarereClient->api.call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
             .then([this](ReqResult result)
             {
                 string ip = result->getText();
