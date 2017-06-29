@@ -358,9 +358,9 @@ void Client::heartbeat()
         return;
 
     bool needReconnect = false;
-    if (now - mTsLastSend > 25)
+    if (now - mTsLastSend > kKeepaliveSendInterval)
     {
-        if (!sendKeepalive())
+        if (!sendKeepalive(now))
         {
             needReconnect = true;
             PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
@@ -368,22 +368,18 @@ void Client::heartbeat()
     }
     else if (mTsLastPingSent)
     {
-        if (now - mTsLastPingSent > 15)
+        if (now - mTsLastPingSent > kKeepaliveReplyTimeout)
         {
             PRESENCED_LOG_WARNING("Timed out waiting for KEEPALIVE response, reconnecting...");
             needReconnect = true;
         }
     }
-    else if (now - mTsLastRecv >= 25)
+    else if (now - mTsLastRecv >= kKeepaliveSendInterval)
     {
         if (!sendKeepalive())
         {
             needReconnect = true;
             PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
-        }
-        else
-        {
-            mTsLastPingSent = now;
         }
     }
     if (needReconnect)
@@ -516,7 +512,7 @@ void Client::login()
     {
         sendPrefs();
     }
-    sendUserActive(time(NULL) - mTsLastUserActivity < mConfig.mAutoawayTimeout, true);
+    sendUserActive((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout, true);
     pushPeers();
 }
 
