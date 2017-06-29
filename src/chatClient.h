@@ -715,7 +715,7 @@ public:
     promise::Promise<void> disconnect();
 
     static void retryPendingConnectionsCallback(int fd, short events, void *arg);
-    void retryPendingConnections();
+    promise::Promise<void> retryPendingConnections();
 
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits

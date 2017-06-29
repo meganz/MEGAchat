@@ -325,7 +325,7 @@ protected:
     friend class Client;
     friend class Chat;
 public:
-    void retryPendingConnection();
+    promise::Promise<void> retryPendingConnection();
     ~Connection()
     {
         disableInactivityTimer();
@@ -1034,7 +1034,7 @@ public:
     void leave(karere::Id chatid);
     promise::Promise<void> disconnect();
     void sendKeepalive();
-    void retryPendingConnections();
+    promise::Promise<void> retryPendingConnections();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();
     void notifyUserActive();

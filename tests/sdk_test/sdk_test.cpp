@@ -36,20 +36,20 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    EXECUTE_TEST(t.TEST_SetOnlineStatus(0), "TEST Online status");
-    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), "TEST Load chatrooms & messages");
-    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
-    EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
-    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), "TEST Edit & delete messages");
-    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
-    EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
-    EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
-    EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
-    EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
-    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
+//    EXECUTE_TEST(t.TEST_SetOnlineStatus(0), "TEST Online status");
+//    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), "TEST Load chatrooms & messages");
+//    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
+//    EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
+//    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), "TEST Edit & delete messages");
+//    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
+//    EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
+//    EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
+//    EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
+//    EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
+//    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
 
     // The test below is a manual test. It requires to stop the intenet conection
-    //EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
+    EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
 
     t.terminate();
 
@@ -1284,6 +1284,11 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
 
 //        system("pause");
 
+        bool *flagRetry = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS]; *flagRetry = false;
+        megaChatApi[accountIndex]->retryPendingConnections();
+        ASSERT_CHAT_TEST(waitForResponse(flagRetry), "Timeout expired for retry pending connections");
+        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retry pending connections");
+
         flagHistoryLoaded = &chatroomListener->historyLoaded[accountIndex]; *flagHistoryLoaded = false;
         bool *msgSentLoaded = &chatroomListener->msgLoaded[accountIndex]; *msgSentLoaded = false;
         chatroomListener->clearMessages(accountIndex);
@@ -2410,7 +2415,7 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex, MegaChatHand
     {
         const MegaChatRoom *chatroom = chatRooms->get(i);
 
-        if (chatroom->isActive())
+        if (chatroom->isActive() && chatroom->getOwnPrivilege() == MegaChatRoom::PRIV_MODERATOR)
         {
             bool *flagTruncateHistory = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_TRUNCATE_HISTORY]; *flagTruncateHistory = false;
             megaChatApi[accountIndex]->clearChatHistory(chatroom->getChatId());

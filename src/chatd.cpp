@@ -450,15 +450,16 @@ promise::Promise<void> Connection::disconnect(int timeoutMs) //should be gracefu
     return mDisconnectPromise;
 }
 
-void Connection::retryPendingConnection()
+promise::Promise<void> Connection::retryPendingConnection()
 {
     if (mUrl.isValid())
     {
         mState = kStateDisconnected;
         disableInactivityTimer();
         CHATD_LOG_WARNING("Retrying pending connenction...");
-        reconnect();
+        return reconnect();
     }
+    return promise::Error("No valid URL provided to retry pending connections");
 }
 
 promise::Promise<void> Client::disconnect()
@@ -471,12 +472,14 @@ promise::Promise<void> Client::disconnect()
     return promise::when(promises);
 }
 
-void Client::retryPendingConnections()
+promise::Promise<void> Client::retryPendingConnections()
 {
+    std::vector<Promise<void>> promises;
     for (auto& conn: mConnections)
     {
-        conn.second->retryPendingConnection();
+        promises.push_back(conn.second->retryPendingConnection());
     }
+    return promise::when(promises);
 }
 
 void Connection::reset() //immediate disconnect

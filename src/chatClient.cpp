@@ -200,13 +200,16 @@ Client::~Client()
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
     
-void Client::retryPendingConnections()
+promise::Promise<void> Client::retryPendingConnections()
 {
-    mPresencedClient.retryPendingConnections();
+    std::vector<Promise<void>> promises;
+
+    promises.push_back(mPresencedClient.retryPendingConnection());
     if (chatd)
     {
-        chatd->retryPendingConnections();
+        promises.push_back(chatd->retryPendingConnections());
     }
+    return promise::when(promises);
 }
 
 #define TOKENPASTE2(a,b) a##b

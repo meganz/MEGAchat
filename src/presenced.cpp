@@ -378,15 +378,16 @@ void Client::disconnect() //should be graceful disconnect
         ws_close(mWebSocket);
 }
 
-void Client::retryPendingConnections()
+promise::Promise<void> Client::retryPendingConnection()
 {
     if (mUrl.isValid())
     {
         mConnState = kDisconnected;
         mHeartbeatEnabled = false;
         PRESENCED_LOG_WARNING("Retry pending connections...");
-        reconnect();
+        return reconnect();
     }
+    return promise::Error("No valid URL provided to retry pending connections");
 }
 
 void Client::reset() //immediate disconnect
