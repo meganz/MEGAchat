@@ -243,7 +243,7 @@ void Chat::login()
 void Connection::websockConnectCb(ws_t ws, void* arg)
 {
     Connection* self = static_cast<Connection*>(arg);
-    auto wptr = self.getDelTracker();
+    auto wptr = self->getDelTracker();
     ASSERT_NOT_ANOTHER_WS("connect");
     CHATD_LOG_DEBUG("Chatd connected to shard %d", self->mShardNo);
     ::marshallCall([self, wptr]()
