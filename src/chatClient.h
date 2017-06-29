@@ -714,7 +714,10 @@ public:
     /** @brief Disconnects the client from chatd and presenced */
     promise::Promise<void> disconnect();
 
-    static void retryPendingConnectionsCallback(int fd, short events, void *arg);
+    /**
+     * @brief Retry pending connections to chatd and presenced
+     * @return A promise to track the result of the action.
+     */
     promise::Promise<void> retryPendingConnections();
 
     /**
