@@ -202,7 +202,6 @@ bool Client::setPresence(Presence pres)
     if (pres == mConfig.mPresence)
         return true;
     mConfig.mPresence = pres;
-    checkEnableAutoaway();
     auto ret = sendPrefs();
     signalActivity(true);
     PRESENCED_LOG_DEBUG("setPresence-> %s", pres.toString());
@@ -215,30 +214,28 @@ bool Client::setPersist(bool enable)
         return true;
     mConfig.mPersist = enable;
     signalActivity(true);
-    checkEnableAutoaway();
     return sendPrefs();
 }
 
 bool Client::setAutoaway(bool enable, time_t timeout)
 {
     if (enable)
+    {
         mConfig.mPersist = false;
+    }
     mConfig.mAutoawayTimeout = timeout;
     mConfig.mAutoawayActive = enable;
     signalActivity(true);
     return sendPrefs();
 }
 
-bool Client::checkEnableAutoaway()
+bool Client::autoAwayInEffect()
 {
     bool needTimer = !mConfig.mPersist
                 && mConfig.mPresence != Presence::kOffline
                 && mConfig.mPresence != Presence::kAway
                 && mConfig.mAutoawayTimeout
                 && mConfig.mAutoawayActive;
-    if (!needTimer)
-        mTsLastUserActivity = 0;
-
     return needTimer;
 }
 
@@ -284,7 +281,8 @@ Client::reconnect(const std::string& url)
             {
                 Client& self = *static_cast<Client*>(arg);
                 ASSERT_NOT_ANOTHER_WS("message");
-                self.mPacketReceived = true;
+                self.mTsLastRecv = time(NULL);
+                self.mTsLastPingSent = 0;
                 self.handleMessage(StaticBuffer(msg, len));
             }, this);
 
@@ -340,34 +338,56 @@ Client::reconnect(const std::string& url)
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
+bool Client::sendKeepalive(time_t now)
+{
+    mTsLastPingSent = now ? now : time(NULL);
+    return sendCommand(Command(OP_KEEPALIVE));
+}
 
 void Client::heartbeat()
 {
-    if (mConfig.mAutoawayActive && mTsLastUserActivity)
+    auto now = time(NULL);
+    if (autoAwayInEffect())
     {
-        auto now = time(NULL);
         if (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
         {
             sendUserActive(false);
-            mTsLastUserActivity = 0;
         }
     }
 
     if (!mHeartbeatEnabled)
         return;
-    mHeartBeats++;
-    if (!mPacketReceived) //one heartbeat interval for server pong
+
+    bool needReconnect = false;
+    if (now - mTsLastSend > kKeepaliveSendInterval)
+    {
+        if (!sendKeepalive(now))
+        {
+            needReconnect = true;
+            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
+        }
+    }
+    else if (mTsLastPingSent)
+    {
+        if (now - mTsLastPingSent > kKeepaliveReplyTimeout)
+        {
+            PRESENCED_LOG_WARNING("Timed out waiting for KEEPALIVE response, reconnecting...");
+            needReconnect = true;
+        }
+    }
+    else if (now - mTsLastRecv >= kKeepaliveSendInterval)
+    {
+        if (!sendKeepalive())
+        {
+            needReconnect = true;
+            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
+        }
+    }
+    if (needReconnect)
     {
         mConnState = kDisconnected;
         mHeartbeatEnabled = false;
-        PRESENCED_LOG_WARNING("Connection inactive for too long, reconnecting...");
         reconnect();
-    }
-    else if (mHeartBeats % 3 == 0)
-    {
-        mHeartBeats = 0;
-        mPacketReceived = false;
-        sendCommand(Command(OP_KEEPALIVE));
     }
 }
 
@@ -410,6 +430,7 @@ bool Client::sendBuf(Buffer&& buf)
     auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
     buf.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
     bool result = (!rc && isOnline());
+    mTsLastSend = time(NULL);
     return result;
 }
 bool Client::sendCommand(Command&& cmd)
@@ -490,13 +511,10 @@ void Client::login()
     sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion+mCapabilities);
 
     if (mPrefsAckWait)
+    {
         sendPrefs();
-
-    if (mTsLastUserActivity)
-        sendUserActive(time(NULL) - mTsLastUserActivity > mConfig.mAutoawayTimeout, true);
-    else
-        sendUserActive(true, true);
-
+    }
+    sendUserActive((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout, true);
     pushPeers();
 }
 

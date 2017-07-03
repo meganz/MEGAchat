@@ -1373,7 +1373,7 @@ bool MegaChatApiImpl::isSignalActivityRequired()
 {
     sdkMutex.lock();
 
-    bool enabled = mClient ? mClient->presenced().checkEnableAutoaway() : false;
+    bool enabled = mClient ? mClient->presenced().autoAwayInEffect() : false;
 
     sdkMutex.unlock();
 
