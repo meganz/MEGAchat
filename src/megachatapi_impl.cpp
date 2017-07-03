@@ -237,19 +237,25 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
         {
-            MegaChatErrorPrivate *megaChatError = NULL;
             if (mClient)
             {
-                mClient->retryPendingConnections();
-                megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                mClient->retryPendingConnections()
+                .then([this, request]()
+                {
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                })
+                .fail([this, request](const promise::Error& e)
+                {
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
             }
             else
             {
-                megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                fireOnChatRequestFinish(request, megaChatError);
             }
-
-
-            fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         case MegaChatRequest::TYPE_LOGOUT:
@@ -3417,6 +3423,12 @@ const char* MegaChatErrorPrivate::getGenericErrorString(int errorCode)
         return "No error";
     case ERROR_ARGS:
         return "Invalid argument";
+    case ERROR_ACCESS:
+        return "Access denied";
+    case ERROR_NOENT:
+        return "Resouce does not exist";
+    case ERROR_EXIST:
+        return "Resource already exists";
     case ERROR_UNKNOWN:
     default:
         return "Unknown error";
