@@ -65,11 +65,13 @@ private:
     do { \
         try \
         { \
-            LOG_debug << "Launching test: " << title; \
+            LOG_debug << "Initializing test environment: " << title; \
             t.SetUp(); \
+            LOG_debug << "Launching test: " << title; \
             std::cout << "[" << " RUN    " << "] " << title << endl; \
             test; \
             std::cout << "[" << "     OK " << "] " << title << endl; \
+            LOG_debug << "Cleaning test environment: " << title; \
             t.TearDown(); \
             t.mOKTests ++; \
             LOG_debug << "Finished test: " << title; \
@@ -82,6 +84,7 @@ private:
                 std::cout << e.msg() << std::endl; \
             } \
             std::cout << "[" << " FAILED " << "] " << title << endl; \
+            LOG_debug << "Cleaning test environment after failure: " << title; \
             t.TearDown(); \
             t.mFailedTests ++; \
             LOG_debug << "Failed test: " << title; \

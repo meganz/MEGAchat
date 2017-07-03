@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
 
     // The test below is a manual test. It requires to stop the intenet conection
-    //EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
+//    EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
 
     t.terminate();
 
@@ -293,7 +293,7 @@ void MegaChatApiTest::SetUp()
         nameReceived[i] = false;
 
         mNotTransferRunning[i] = true;
-        mPresenceConfigUpdated[i] = true;
+        mPresenceConfigUpdated[i] = false;
 
         mChatFirstname = "";
         mChatLastname = "";
@@ -710,9 +710,16 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
 
     ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
 
-    flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
+    // Reset status to online before starting the test
     bool *flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
     bool *flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
+    megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_ONLINE);
+    ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set online status after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + std::to_string(lastErrorChat[accountIndex]));
+
+    flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
+    flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
+    flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
     megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_BUSY);
     ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set online status after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + std::to_string(lastErrorChat[accountIndex]));
@@ -1283,6 +1290,11 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
         postLog(buffer.str());
 
 //        system("pause");
+
+        bool *flagRetry = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS]; *flagRetry = false;
+        megaChatApi[accountIndex]->retryPendingConnections();
+        ASSERT_CHAT_TEST(waitForResponse(flagRetry), "Timeout expired for retry pending connections");
+        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retry pending connections");
 
         flagHistoryLoaded = &chatroomListener->historyLoaded[accountIndex]; *flagHistoryLoaded = false;
         bool *msgSentLoaded = &chatroomListener->msgLoaded[accountIndex]; *msgSentLoaded = false;
@@ -2410,7 +2422,7 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex, MegaChatHand
     {
         const MegaChatRoom *chatroom = chatRooms->get(i);
 
-        if (chatroom->isActive())
+        if (chatroom->isActive() && chatroom->getOwnPrivilege() == MegaChatRoom::PRIV_MODERATOR)
         {
             bool *flagTruncateHistory = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_TRUNCATE_HISTORY]; *flagTruncateHistory = false;
             megaChatApi[accountIndex]->clearChatHistory(chatroom->getChatId());

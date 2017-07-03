@@ -19,6 +19,7 @@
 enum: uint32_t { kPromiseErrtype_presenced = 0x339a92e5 }; //should resemble 'megapres'
 namespace karere
 {
+class Client;    
 class Presence
 {
 public:
@@ -161,6 +162,7 @@ protected:
     ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Url mUrl;
+    karere::Client *mKarereClient;
     bool mHeartbeatEnabled = false;
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
@@ -200,7 +202,7 @@ protected:
     std::string prefsString() const;
     bool sendKeepalive(time_t now=0);
 public:
-    Client(Listener& listener, uint8_t caps);
+    Client(karere::Client *client, Listener& listener, uint8_t caps);
     const Config& config() const { return mConfig; }
     bool isConfigAcknowledged() { return mPrefsAckWait; }
     bool isOnline() const { return (mConnState >= kConnected); }
@@ -216,7 +218,7 @@ public:
     connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
         const Config& Config);
     void disconnect();
-    void retryPendingConnections();
+    promise::Promise<void> retryPendingConnection();
     void reset();
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients

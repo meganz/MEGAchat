@@ -700,6 +700,8 @@ private:
 
     static int convertInitState(int state);
 
+    void sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate* request);
+
 public:
     static void megaApiPostMessage(void* msg);
     void postMessage(void *msg);
