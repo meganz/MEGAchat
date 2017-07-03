@@ -21,12 +21,6 @@
 		A82750EF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750DF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm */; };
 		A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750E11E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm */; };
 		A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750E31E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm */; };
-		A82750FB1E97A7F9007CD9E2 /* libevent_core.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750F41E97A7F9007CD9E2 /* libevent_core.a */; };
-		A82750FC1E97A7F9007CD9E2 /* libevent_extra.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750F51E97A7F9007CD9E2 /* libevent_extra.a */; };
-		A82750FD1E97A7F9007CD9E2 /* libevent_openssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750F61E97A7F9007CD9E2 /* libevent_openssl.a */; };
-		A82750FE1E97A7F9007CD9E2 /* libevent_pthreads.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750F71E97A7F9007CD9E2 /* libevent_pthreads.a */; };
-		A82750FF1E97A7F9007CD9E2 /* libevent.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750F81E97A7F9007CD9E2 /* libevent.a */; };
-		A82751011E97A7F9007CD9E2 /* libws.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A82750FA1E97A7F9007CD9E2 /* libws.a */; };
 		A838B2071E9685A200875D96 /* cservices-dns.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2021E9685A200875D96 /* cservices-dns.cpp */; };
 		A838B2081E9685A200875D96 /* cservices-http.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2031E9685A200875D96 /* cservices-http.cpp */; };
 		A838B2091E9685A200875D96 /* cservices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2041E9685A200875D96 /* cservices.cpp */; };
@@ -43,7 +37,6 @@
 		A838B21F1E9685DF00875D96 /* userAttrCache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2161E9685DF00875D96 /* userAttrCache.cpp */; };
 		A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2201E9685F000875D96 /* strongvelope.cpp */; };
 		A838B2251E96879F00875D96 /* karereDbSchema.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2241E96879F00875D96 /* karereDbSchema.cpp */; };
-		A838B2281E96884A00875D96 /* libMEGASDK.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A838B2271E96884A00875D96 /* libMEGASDK.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -101,12 +94,6 @@
 		A82750EB1E9788D8007CD9E2 /* MEGAChatRoom+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatRoom+init.h"; path = "Private/MEGAChatRoom+init.h"; sourceTree = "<group>"; };
 		A82750EC1E9788D8007CD9E2 /* MEGAChatRoomList+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatRoomList+init.h"; path = "Private/MEGAChatRoomList+init.h"; sourceTree = "<group>"; };
 		A82750ED1E9788D8007CD9E2 /* MEGAChatSdk+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatSdk+init.h"; path = "Private/MEGAChatSdk+init.h"; sourceTree = "<group>"; };
-		A82750F41E97A7F9007CD9E2 /* libevent_core.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libevent_core.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libevent_core.a; sourceTree = "<group>"; };
-		A82750F51E97A7F9007CD9E2 /* libevent_extra.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libevent_extra.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libevent_extra.a; sourceTree = "<group>"; };
-		A82750F61E97A7F9007CD9E2 /* libevent_openssl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libevent_openssl.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libevent_openssl.a; sourceTree = "<group>"; };
-		A82750F71E97A7F9007CD9E2 /* libevent_pthreads.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libevent_pthreads.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libevent_pthreads.a; sourceTree = "<group>"; };
-		A82750F81E97A7F9007CD9E2 /* libevent.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libevent.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libevent.a; sourceTree = "<group>"; };
-		A82750FA1E97A7F9007CD9E2 /* libws.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libws.a; path = ../../../SDK/bindings/ios/3rdparty/lib/libws.a; sourceTree = "<group>"; };
 		A838B1F81E96855400875D96 /* libKarere.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKarere.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A838B2021E9685A200875D96 /* cservices-dns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cservices-dns.cpp"; path = "../../src/base/cservices-dns.cpp"; sourceTree = "<group>"; };
 		A838B2031E9685A200875D96 /* cservices-http.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cservices-http.cpp"; path = "../../src/base/cservices-http.cpp"; sourceTree = "<group>"; };
@@ -124,7 +111,6 @@
 		A838B2161E9685DF00875D96 /* userAttrCache.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = userAttrCache.cpp; path = ../../src/userAttrCache.cpp; sourceTree = "<group>"; };
 		A838B2201E9685F000875D96 /* strongvelope.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = strongvelope.cpp; path = ../../src/strongvelope/strongvelope.cpp; sourceTree = "<group>"; };
 		A838B2241E96879F00875D96 /* karereDbSchema.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = karereDbSchema.cpp; path = ../../src/karereDbSchema.cpp; sourceTree = "<group>"; };
-		A838B2271E96884A00875D96 /* libMEGASDK.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libMEGASDK.a; path = "../../../../../../../../Library/Developer/Xcode/DerivedData/iMEGA-bkcumhpxojccqgcecezcgurbavov/Build/Products/Debug-iphonesimulator/libMEGASDK.a"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,13 +118,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A82750FB1E97A7F9007CD9E2 /* libevent_core.a in Frameworks */,
-				A82750FC1E97A7F9007CD9E2 /* libevent_extra.a in Frameworks */,
-				A82750FD1E97A7F9007CD9E2 /* libevent_openssl.a in Frameworks */,
-				A82750FE1E97A7F9007CD9E2 /* libevent_pthreads.a in Frameworks */,
-				A82750FF1E97A7F9007CD9E2 /* libevent.a in Frameworks */,
-				A82751011E97A7F9007CD9E2 /* libws.a in Frameworks */,
-				A838B2281E96884A00875D96 /* libMEGASDK.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -262,13 +241,6 @@
 		A838B2261E96884A00875D96 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				A82750F41E97A7F9007CD9E2 /* libevent_core.a */,
-				A82750F51E97A7F9007CD9E2 /* libevent_extra.a */,
-				A82750F61E97A7F9007CD9E2 /* libevent_openssl.a */,
-				A82750F71E97A7F9007CD9E2 /* libevent_pthreads.a */,
-				A82750F81E97A7F9007CD9E2 /* libevent.a */,
-				A82750FA1E97A7F9007CD9E2 /* libws.a */,
-				A838B2271E96884A00875D96 /* libMEGASDK.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
