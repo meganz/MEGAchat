@@ -10,6 +10,8 @@
 #include "cservices-thread.h"
 #include "cservices.h"
 
+#define SVC_DISABLE_DNS // DNS features of libevent aren't reliable on mobile devices
+
 extern "C"
 {
 MEGAIO_EXPORT struct event_base* services_eventloop = NULL;

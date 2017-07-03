@@ -67,7 +67,7 @@ Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint
   chats(new ChatRoomList(*this)),
   mMyName("\0", 1),
   mOwnPresence(Presence::kInvalid),
-  mPresencedClient(*this, caps)
+  mPresencedClient(this, *this, caps)
 {
 }
 
@@ -199,49 +199,17 @@ Client::~Client()
         karere::cancelInterval(mHeartbeatTimer);
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
+    
+promise::Promise<void> Client::retryPendingConnections()
+{
+    std::vector<Promise<void>> promises;
 
-void Client::retryPendingConnectionsCallback(int fd, short events, void *arg)
-{
-#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-    evdns_base_clear_nameservers_and_suspend(services_dns_eventbase);
-    struct __res_state res;
-    res_ninit(&res);
-    union res_sockaddr_union addrs[MAXNS];
-    int count = res_getservers(&res, addrs, MAXNS);
-    if (count > 0) {
-        if (addrs->sin.sin_family == AF_INET) {
-            if (!addrs->sin.sin_port) {
-                addrs->sin.sin_port = 53;
-            }
-            evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin), sizeof(struct sockaddr_in), 0);
-        } else if (addrs->sin6.sin6_family == AF_INET6) {
-            if (!addrs->sin6.sin6_port) {
-                addrs->sin6.sin6_port = 53;
-            }
-            evdns_base_nameserver_sockaddr_add(services_dns_eventbase, (struct sockaddr*)(&addrs->sin6), sizeof(struct sockaddr_in6), 0);
-        } else {
-            fprintf(stderr, "Unknown address family for DNS server.");
-        }
-    }
-    res_nclose(&res);
-    evdns_base_resume(services_dns_eventbase);
-#endif
-    
-    Client *self = static_cast<Client*>(arg);
-    marshallCall([self]()
+    promises.push_back(mPresencedClient.retryPendingConnection());
+    if (chatd)
     {
-        self->mPresencedClient.retryPendingConnections();
-        if (self->chatd)
-        {
-            self->chatd->retryPendingConnections();
-        }
-    });
-}
-    
-void Client::retryPendingConnections()
-{
-    struct event *event = evtimer_new(services_get_event_loop(), retryPendingConnectionsCallback, this);
-    event_active(event, 0, 0);
+        promises.push_back(chatd->retryPendingConnections());
+    }
+    return promise::when(promises);
 }
 
 #define TOKENPASTE2(a,b) a##b
@@ -364,7 +332,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     .then([this, scsn, contactList, chatList]()
     {
         loadContactListFromApi(*contactList);
-        chatd.reset(new chatd::Client(mMyHandle));
+        chatd.reset(new chatd::Client(this, mMyHandle));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
@@ -443,7 +411,7 @@ void Client::initWithDbSession(const char* sid)
         loadOwnKeysFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
-        chatd.reset(new chatd::Client(mMyHandle));
+        chatd.reset(new chatd::Client(this, mMyHandle));
         chats->loadFromDb();
     }
     catch(std::runtime_error& e)

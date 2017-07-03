@@ -15,6 +15,10 @@
 #include "chatdMsg.h"
 #include "url.h"
 
+namespace karere {
+    class Client;
+}
+
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
@@ -321,7 +325,7 @@ protected:
     friend class Client;
     friend class Chat;
 public:
-    void retryPendingConnection();
+    promise::Promise<void> retryPendingConnection();
     ~Connection()
     {
         disableInactivityTimer();
@@ -1008,9 +1012,10 @@ public:
     static ws_base_s sWebsocketContext;
     unsigned inactivityCheckIntervalSec = 20;
     uint32_t options = 0;
+    karere::Client *mKarereClient;
     uint8_t mKeepaliveType = OP_KEEPALIVE;
     karere::Id userId() const { return mUserId; }
-    Client(karere::Id userId);
+    Client(karere::Client *client, karere::Id userId);
     ~Client(){}
     Chat& chats(karere::Id chatid) const
     {
@@ -1029,7 +1034,7 @@ public:
     void leave(karere::Id chatid);
     promise::Promise<void> disconnect();
     void sendKeepalive();
-    void retryPendingConnections();
+    promise::Promise<void> retryPendingConnections();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();
     void notifyUserActive();
