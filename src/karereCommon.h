@@ -215,9 +215,13 @@ class Client;
  */
 class RemoteLogger: public karere::Logger::ILoggerBackend
 {
+private:
+    std::string aid;
+    karere::Client &mKarereClient;
 public:
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
-    RemoteLogger(): ILoggerBackend(krLogLevelError){}
+    RemoteLogger(karere::Client &client): ILoggerBackend(krLogLevelError), mKarereClient(client){}
+    void setAnonymousId(std::string &aid) { this->aid = aid; }
 };
 
 }

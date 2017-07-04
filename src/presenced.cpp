@@ -47,7 +47,7 @@ ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
     Client::Client(karere::Client *client, Listener& listener, uint8_t caps)
-: mListener(&listener), mCapabilities(caps), mKarereClient(client)
+: mListener(&listener), mKarereClient(client), mCapabilities(caps)
 {
     if (!sWebsockCtxInitialized)
         initWebsocketCtx();

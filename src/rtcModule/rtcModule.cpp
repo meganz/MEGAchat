@@ -676,7 +676,7 @@ void Call::destroy(TermCode termcode, const std::string& text, bool noSessTermSe
     stats->toJson(*json);
     retry("stats", [json](int no)
     {
-        return http::postString("https://stats.karere.mega.nz/stats", json, "application/json");
+        return mKarereClient.api.call(&::mega::MegaApi::sendChatStats, json->c_str());
     })
     .then([](const std::shared_ptr<std::string>& response)
     {
