@@ -173,7 +173,7 @@ template <class S>
 class GelbProvider: public ListProvider<S>, public DeleteTrackable
 {
 protected:
-    std::string mGelbHost;
+    karere::Client *mKarereClient;
     std::string mService;
     int64_t mMaxReuseOldServersAge;
     int64_t mLastUpdateTs = 0;
@@ -186,7 +186,7 @@ protected:
 public:
     typedef S Server;
     promise::Promise<void> fetchServers(unsigned timeout=0);
-    GelbProvider(const char* gelbHost, const char* service, int reqCount=2, unsigned reqTimeout=4000,
+    GelbProvider(karere::Client *karereClient, const char* service, int reqCount=2, unsigned reqTimeout=4000,
         int64_t maxReuseOldServersAge=0);
     void abort()
     {
@@ -208,9 +208,9 @@ protected:
     int mGelbReqRetryCount;
     unsigned mGelbReqTimeout;
 public:
-    FallbackServerProvider(const char* gelbHost, const char* service, const char* staticServers,
+    FallbackServerProvider(karere::Client *karereClient, const char* service, const char* staticServers,
         int64_t gelbMaxReuseAge=0, int gelbRetryCount=2, unsigned gelbReqTimeout=4000)
-        :mGelbProvider(new GelbProvider<S>(gelbHost, service, gelbRetryCount, gelbReqTimeout, gelbMaxReuseAge)),
+        :mGelbProvider(new GelbProvider<S>(karereClient, service, gelbRetryCount, gelbReqTimeout, gelbMaxReuseAge)),
         mStaticProvider(new StaticProvider<S>(staticServers))
     {}
     promise::Promise<std::shared_ptr<S> > getServer(unsigned timeout=0)
@@ -244,9 +244,9 @@ public:
 };
 
 template <class S>
-GelbProvider<S>::GelbProvider(const char* gelbHost, const char* service,
+GelbProvider<S>::GelbProvider(karere::Client *karereClient, const char* service,
     int reqCount, unsigned reqTimeout, int64_t maxReuseOldServersAge)
-    :mGelbHost(gelbHost), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
+    :mKarereClient(karereClient), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
 {
     auto wptr = getDelTracker();
     mRetryController.reset(::karere::createRetryController("gelb",
@@ -269,24 +269,31 @@ promise::Promise<void> GelbProvider<S>::exec(int no)
     assert(!mClient); //don't destroy it as it may be still working, the promise handlers will destroy it when it resolves/fails the promise
     mClient = std::make_shared<http::Client>();
     auto client = mClient; //keep the client alive in case we destroy the provider
-    return mClient->pget<std::string>(mGelbHost+"/?service="+mService)
-    .then([this, client](std::shared_ptr<http::Response<std::string> > response)
+
+    return mKarereClient->api.call(&::mega::MegaApi::queryGeLB, mService.c_str(), 3600)
+    .then([this, client](ReqResult result)
         -> promise::Promise<void>
     {
-        if (response->httpCode() != 200)
+        if (result->getNumber() != 200)
         {
             return promise::Error("Non-200 http response from GeLB server: "
-                                  +*response->data(), 0x3e9a9e1b, 1);
+                                  +std::to_string(result->getNumber()), 0x3e9a9e1b, 1);
         }
-        mClient.reset();
-        parseServersJson(*(response->data()));
+        if (!result->getTotalBytes() || !result->getText())
+        {
+            return promise::Error("Empty response from GeLB server", 0x3e9a9e1b, 1);
+        }
+
+        this->mClient.reset();
+        std::string json((byte*)result->getText(), result->getTotalBytes());
+        parseServersJson(json);
         this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
         this->mLastUpdateTs = services_get_time_ms();
         return promise::_Void();
     })
-    .fail([this, client](const promise::Error& err)
+    .fail([this](const promise::Error& err)
     {
-        mClient.reset();
+        this->mClient.reset();
         return err;
     });
 }

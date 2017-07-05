@@ -68,7 +68,7 @@ protected:
     artc::InputAudioDevice mAudioInput;
     artc::InputVideoDevice mVideoInput;
 public:
-    RtcModule(xmpp_conn_t* conn, IGlobalEventHandler* handler,
+    RtcModule(karere::Client *karereClient, xmpp_conn_t* conn, IGlobalEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers);
 //TODO: we need this virtual because it's called also from the base Jingle class
 //However, the class impl knows about the Call class (derived from JingleCall)

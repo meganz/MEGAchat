@@ -21,9 +21,9 @@ using namespace placeholders;
 namespace rtcModule
 {
 
-RtcModule::RtcModule(xmpp_conn_t* conn, IGlobalEventHandler* handler,
+RtcModule::RtcModule(karere::Client *karereClient, xmpp_conn_t* conn, IGlobalEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers)
-:Jingle(conn, handler, crypto, iceServers)
+:Jingle(karereClient, conn, handler, crypto, iceServers)
 {
     mOwnAnonId = crypto->scrambleJid(mConn.fullJid());
     initInputDevices();

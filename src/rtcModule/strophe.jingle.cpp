@@ -29,11 +29,11 @@ using namespace karere;
 AvFlags peerMediaToObj(const char* strPeerMedia);
 //==
 
-Jingle::Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler,
+Jingle::Jingle(karere::Client *karereClient, xmpp_conn_t* conn, IGlobalEventHandler* globalHandler,
                ICryptoFunctions* crypto, const char* iceServers)
 :mConn(conn), mGlobalHandler(globalHandler), mCrypto(crypto),
   mTurnServerProvider(
-    new TurnServerProvider("https://" KARERE_GELB_HOST, "turn", iceServers, 3600)),
+    new TurnServerProvider(karereClient, "turn", iceServers, 3600)),
   mIceServers(new webrtc::PeerConnectionInterface::IceServers)
 {
     pcConstraints.SetMandatoryReceiveAudio(true);

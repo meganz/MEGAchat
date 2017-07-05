@@ -139,7 +139,7 @@ public:
 /** @param iceServers the static fallback server list in json form:
  *  {"host":"turn:host:port?protocol=tcp/udp", "user":<username>,"pass": <password>}
  */
-    Jingle(xmpp_conn_t* conn, IGlobalEventHandler* globalHandler, ICryptoFunctions* crypto,
+    Jingle(karere::Client *karereClient, xmpp_conn_t* conn, IGlobalEventHandler* globalHandler, ICryptoFunctions* crypto,
            const char* iceServers="");
     strophe::Connection& conn() { return mConn; }
     virtual std::shared_ptr<Call>& addCall(CallState aState,
