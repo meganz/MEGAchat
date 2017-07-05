@@ -212,6 +212,11 @@ class Client;
  *
  *  Usage:
  * \c gLogger.addUserLogger("karere-remote", new RemoteLogger);
+ *
+ * @note This logger requires a karere::Client instance, since it uses
+ * the SDK to send the logs to the remote server. Remember to call
+ * \c gLogger.removeUserLogger("karere-remote") before than the Client
+ * destruction.
  */
 class RemoteLogger: public karere::Logger::ILoggerBackend
 {
