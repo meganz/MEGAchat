@@ -86,6 +86,8 @@ static inline string to_string(const T& t)
 
 /** @endcond PRIVATE */
 
+class MyMegaApi;
+
 namespace karere
 {
 class Client;
@@ -222,10 +224,10 @@ class RemoteLogger: public karere::Logger::ILoggerBackend
 {
 private:
     std::string mAid;
-    MyMegaApi *mApi;
+    MyMegaApi& mApi;
 public:
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
-    RemoteLogger(MyMegaApi *api): ILoggerBackend(krLogLevelError), mApi(api){}
+    RemoteLogger(MyMegaApi& api): ILoggerBackend(krLogLevelError), mApi(api){}
     void setAnonymousId(std::string &aid) { this->mAid = aid; }
 };
 
