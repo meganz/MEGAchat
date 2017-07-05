@@ -46,9 +46,7 @@ void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned f
     *json = replaceOccurrences(*json, "\n", "\\n");
     *json = replaceOccurrences(*json, "\t", "\\t");
     std::string *aid = &mAid;
-    marshallCall([this, aid, json, level]()
-    {
-       mApi.call(&::mega::MegaApi::sendChatLogs, json->c_str(), aid->c_str())
+    mApi.call(&::mega::MegaApi::sendChatLogs, json->c_str(), aid->c_str())
         .fail([](const promise::Error& err)
         {
             if (err.type() == ERRTYPE_MEGASDK)
@@ -58,6 +56,5 @@ void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned f
             }
             return err;
         });
-    });
 }
 }
