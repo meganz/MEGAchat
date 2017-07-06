@@ -100,7 +100,7 @@ Client::Client(MyMegaApi *api, Id userId)
 {
     if (!sWebsockCtxInitialized)
     {
-        ws_global_init(&sWebsocketContext, services_get_event_loop(), services_dns_eventbase,
+        ws_global_init(&sWebsocketContext, services_get_event_loop(), NULL,
         [](struct bufferevent* bev, void* userp)
         {
             marshallCall([bev, userp]()
