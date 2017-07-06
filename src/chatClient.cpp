@@ -1042,18 +1042,12 @@ void ChatRoom::onLastMessageTsUpdated(uint32_t ts)
 
 ApiPromise ChatRoom::requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
 {
-    MyListener *listener = new MyListener();
-    parent.client.api.sdk.grantAccessInChat(mChatid, node, userHandle, listener);
-
-    return listener->mPromise;
+    return parent.client.api.call(&::mega::MegaApi::grantAccessInChat, chatid(), node, userHandle);
 }
 
 ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
 {
-    MyListener *listener = new MyListener();
-    parent.client.api.sdk.removeAccessInChat(mChatid, node, userHandle, listener);
-
-    return listener->mPromise;
+    return parent.client.api.call(&::mega::MegaApi::removeAccessInChat, chatid(), node, userHandle);
 }
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
@@ -1114,7 +1108,7 @@ promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
     return promise::_Void();
 }
 
-std::vector<ApiPromise> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
+promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
     std::vector<ApiPromise> promises;
 
@@ -1127,10 +1121,10 @@ std::vector<ApiPromise> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeLis
         }
     }
 
-    return promises;
+    return promise::when(promises);
 }
 
-std::vector<ApiPromise> PeerChatRoom::requestRevokeAccessToNode(mega::MegaNode *node)
+promise::Promise<void> PeerChatRoom::requestRevokeAccessToNode(mega::MegaNode *node)
 {
     std::vector<ApiPromise> promises;
 
@@ -1144,10 +1138,10 @@ std::vector<ApiPromise> PeerChatRoom::requestRevokeAccessToNode(mega::MegaNode *
 
     delete megaHandleList;
 
-    return promises;
+    return promise::when(promises);
 }
 
-std::vector<ApiPromise> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
+promise::Promise<void> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
     std::vector<ApiPromise> promises;
 
@@ -1163,10 +1157,10 @@ std::vector<ApiPromise> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeLi
         }
     }
 
-    return promises;
+    return promise::when(promises);
 }
 
-std::vector<ApiPromise> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *node)
+promise::Promise<void> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *node)
 {
     std::vector<ApiPromise> promises;
 
@@ -1180,7 +1174,7 @@ std::vector<ApiPromise> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode 
 
     delete megaHandleList;
 
-    return promises;
+    return promise::when(promises);
 }
 
 promise::Promise<void> GroupChatRoom::mediaCall(AvFlags av)

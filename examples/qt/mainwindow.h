@@ -76,6 +76,7 @@ protected:
         menu.setStyleSheet("background-color: lightgray");
         menu.exec(event->globalPos());
     }
+    bool eventFilter(QObject *obj, QEvent *event);
 protected slots:
     void onAddContact();
     void onSettingsBtn(bool);
