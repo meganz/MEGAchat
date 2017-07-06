@@ -169,7 +169,7 @@ public:
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
     void postLog(const std::string &msg);
 
-    bool waitForResponse(bool *responseReceived, int timeout = maxTimeout) const;
+    bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
 
     bool TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);

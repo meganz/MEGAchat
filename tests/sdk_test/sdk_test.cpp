@@ -478,10 +478,11 @@ void MegaChatApiTest::postLog(const std::string &msg)
     logger->postLog(msg.c_str());
 }
 
-bool MegaChatApiTest::waitForResponse(bool *responseReceived, int timeout) const
+bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeout) const
 {
     timeout *= 1000000; // convert to micro-seconds
     unsigned int tWaited = 0;    // microseconds
+    bool connRetried = false;
     while(!(*responseReceived))
     {
         usleep(pollingT);
@@ -492,6 +493,22 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, int timeout) const
             if (tWaited >= timeout)
             {
                 return false;   // timeout is expired
+            }
+            else if (!connRetried && tWaited > (pollingT * 10))
+            {
+                for (int i = 0; i < NUM_ACCOUNTS; i++)
+                {
+                    if (megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION)
+                    {
+                        megaChatApi[i]->retryPendingConnections();
+                    }
+
+                    if (megaApi[i]->isLoggedIn())
+                    {
+                        megaApi[i]->retryPendingConnections();
+                    }
+                }
+                connRetried = true;
             }
         }
     }
