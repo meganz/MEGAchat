@@ -19,6 +19,8 @@ namespace karere {
     class Client;
 }
 
+class MyMegaApi;
+
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
@@ -1012,10 +1014,10 @@ public:
     static ws_base_s sWebsocketContext;
     unsigned inactivityCheckIntervalSec = 20;
     uint32_t options = 0;
-    karere::Client *mKarereClient;
+    MyMegaApi *mApi;
     uint8_t mKeepaliveType = OP_KEEPALIVE;
     karere::Id userId() const { return mUserId; }
-    Client(karere::Client *client, karere::Id userId);
+    Client(MyMegaApi *api, karere::Id userId);
     ~Client(){}
     Chat& chats(karere::Id chatid) const
     {
