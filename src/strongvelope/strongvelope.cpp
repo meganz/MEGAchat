@@ -521,6 +521,12 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid)
     .then([wptr, this, userid](const StaticBuffer* pubKey) -> promise::Promise<std::shared_ptr<SendKey>>
     {
         wptr.throwIfDeleted();
+        // We may have had 2 almost parallel requests, and the second may
+        // have put the key into the cache already
+        auto it = mSymmKeyCache.find(userid);
+        if (it != mSymmKeyCache.end())
+            return it->second;
+
         if (pubKey->empty())
             return promise::Error("Empty Cu25519 chat key for user "+userid.toString());
         Key<crypto_scalarmult_BYTES> sharedSecret;
