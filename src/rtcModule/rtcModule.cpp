@@ -21,9 +21,9 @@ using namespace placeholders;
 namespace rtcModule
 {
 
-RtcModule::RtcModule(karere::Client *karereClient, xmpp_conn_t* conn, IGlobalEventHandler* handler,
+RtcModule::RtcModule(MyMegaApi *api, xmpp_conn_t* conn, IGlobalEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers)
-:Jingle(karereClient, conn, handler, crypto, iceServers)
+:Jingle(api, conn, handler, crypto, iceServers)
 {
     mOwnAnonId = crypto->scrambleJid(mConn.fullJid());
     initInputDevices();
@@ -676,7 +676,7 @@ void Call::destroy(TermCode termcode, const std::string& text, bool noSessTermSe
     stats->toJson(*json);
     retry("stats", [json](int no)
     {
-        return mKarereClient.api.call(&::mega::MegaApi::sendChatStats, json->c_str());
+        return mApi->call(&::mega::MegaApi::sendChatStats, json->c_str());
     })
     .then([](const std::shared_ptr<std::string>& response)
     {

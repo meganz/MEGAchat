@@ -173,7 +173,7 @@ template <class S>
 class GelbProvider: public ListProvider<S>, public DeleteTrackable
 {
 protected:
-    karere::Client *mKarereClient;
+    MyMegaApi *mApi;
     std::string mService;
     int64_t mMaxReuseOldServersAge;
     int64_t mLastUpdateTs = 0;
@@ -186,7 +186,7 @@ protected:
 public:
     typedef S Server;
     promise::Promise<void> fetchServers(unsigned timeout=0);
-    GelbProvider(karere::Client *karereClient, const char* service, int reqCount=2, unsigned reqTimeout=4000,
+    GelbProvider(MyMegaApi *api, const char* service, int reqCount=2, unsigned reqTimeout=4000,
         int64_t maxReuseOldServersAge=0);
     void abort()
     {
@@ -208,9 +208,9 @@ protected:
     int mGelbReqRetryCount;
     unsigned mGelbReqTimeout;
 public:
-    FallbackServerProvider(karere::Client *karereClient, const char* service, const char* staticServers,
+    FallbackServerProvider(MyMegaApi *api, const char* service, const char* staticServers,
         int64_t gelbMaxReuseAge=0, int gelbRetryCount=2, unsigned gelbReqTimeout=4000)
-        :mGelbProvider(new GelbProvider<S>(karereClient, service, gelbRetryCount, gelbReqTimeout, gelbMaxReuseAge)),
+        :mGelbProvider(new GelbProvider<S>(api, service, gelbRetryCount, gelbReqTimeout, gelbMaxReuseAge)),
         mStaticProvider(new StaticProvider<S>(staticServers))
     {}
     promise::Promise<std::shared_ptr<S> > getServer(unsigned timeout=0)
@@ -244,9 +244,9 @@ public:
 };
 
 template <class S>
-GelbProvider<S>::GelbProvider(karere::Client *karereClient, const char* service,
+GelbProvider<S>::GelbProvider(MyMegaApi *api, const char* service,
     int reqCount, unsigned reqTimeout, int64_t maxReuseOldServersAge)
-    :mKarereClient(karereClient), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
+    :mApi(api), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
 {
     auto wptr = getDelTracker();
     mRetryController.reset(::karere::createRetryController("gelb",
@@ -270,7 +270,7 @@ promise::Promise<void> GelbProvider<S>::exec(int no)
     mClient = std::make_shared<http::Client>();
     auto client = mClient; //keep the client alive in case we destroy the provider
 
-    return mKarereClient->api.call(&::mega::MegaApi::queryGeLB, mService.c_str(), 3600)
+    return mApi->call(&::mega::MegaApi::queryGeLB, mService.c_str(), 3600)
     .then([this, client](ReqResult result)
         -> promise::Promise<void>
     {
