@@ -171,7 +171,7 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     flagRequestLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
     closeSession ? megaChatApi[accountIndex]->logout() : megaChatApi[accountIndex]->localLogout();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for chat logout");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     MegaApi::addLoggerObject(logger);   // need to restore customized logger
 
 }
@@ -276,6 +276,7 @@ void MegaChatApiTest::SetUp()
         initState[i] = -1;
         lastError[i] = -1;
         lastErrorChat[i] = -1;
+        lastErrorMsgChat[i].clear();
         lastErrorTransfer[i] = -1;
 
         chatid[i] = MEGACHAT_INVALID_HANDLE;  // chatroom id from request
@@ -325,7 +326,7 @@ void MegaChatApiTest::TearDown()
             bool *flagRequestLogout = &requestFlagsChat[i][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
             megaChatApi[i]->logout();
             TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaChatApi logout");
-            TEST_LOG_ERROR(!lastErrorChat[i], "Failed to logout from Chat. Error: " + std::to_string(lastErrorChat[i]));
+            TEST_LOG_ERROR(!lastErrorChat[i], "Failed to logout from Chat. Error: " + lastErrorMsgChat[i] + " (" + std::to_string(lastErrorChat[i]) + ")");
             MegaApi::addLoggerObject(logger);   // need to restore customized logger
         }
 
@@ -568,7 +569,7 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     bool *flagChatLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagChatLogout = false;
     megaChatApi[accountIndex]->logout();
     ASSERT_CHAT_TEST(waitForResponse(flagChatLogout), "Expired timeout for chat logout");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     MegaApi::addLoggerObject(logger);   // need to restore customized logger
     // try to initialize chat engine with cache --> should fail
     ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
@@ -609,7 +610,7 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     flagChatLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagChatLogout = false;
     megaChatApi[accountIndex]->logout();
     ASSERT_CHAT_TEST(waitForResponse(flagChatLogout), "Expired timeout for megachat logout");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error megachat logout. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error megachat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     MegaApi::addLoggerObject(logger);   // need to restore customized logger
     delete megaChatApi[accountIndex];
     // create a new MegaChatApi instance
@@ -636,7 +637,7 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     bool *flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
     megaChatApi[accountIndex]->connect();
     ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     // check there's a list of chats already available
     list = megaChatApi[accountIndex]->getChatListItems();
     ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
@@ -684,7 +685,7 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
     megaChatApi[accountIndex]->connect();
     ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     // check there's a list of chats already available
     list = megaChatApi[accountIndex]->getChatListItems();
     ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
@@ -695,12 +696,12 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     bool *flagDisconnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_DISCONNECT]; *flagDisconnect = false;
     megaChatApi[accountIndex]->disconnect();
     ASSERT_CHAT_TEST(waitForResponse(flagDisconnect), "Expired timeout for disconnect");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error disconect. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error disconect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     // reconnect
     flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
     megaChatApi[accountIndex]->connect();
     ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     // check there's a list of chats already available
     list = megaChatApi[accountIndex]->getChatListItems();
     ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
@@ -732,14 +733,14 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     bool *flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
     megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_ONLINE);
     ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set online status after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
 
     flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
     flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
     flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
     megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_BUSY);
     ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set online status after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
 
@@ -749,7 +750,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
     megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_ONLINE);
     ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set online status after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
 
@@ -843,13 +844,13 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
                 bool *flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_FIRSTNAME]; *flagNameReceived = false; mChatFirstname = "";
                 megaChatApi[accountIndex]->getUserFirstname(uh);
                 ASSERT_CHAT_TEST(waitForResponse(flagNameReceived), "Failed to retrieve firstname after " + std::to_string(maxTimeout) + " seconds");
-                ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retrieve firstname. Error: " + std::to_string(lastErrorChat[accountIndex]));
+                ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retrieve firstname. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
                 buffer << "Peer firstname (" << uh << "): " << mChatFirstname << " (len: " << mChatFirstname.length() << ")" << endl;
 
                 flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_LASTNAME]; *flagNameReceived = false; mChatLastname = "";
                 megaChatApi[0]->getUserLastname(uh);
                 ASSERT_CHAT_TEST(waitForResponse(flagNameReceived), "Failed to retrieve lastname after " + std::to_string(maxTimeout) + " seconds");
-                ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retrieve lastname. Error: " + std::to_string(lastErrorChat[accountIndex]));
+                ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retrieve lastname. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
                 buffer << "Peer lastname (" << uh << "): " << mChatLastname << " (len: " << mChatLastname.length() << ")" << endl;
 
                 char *email = megaChatApi[accountIndex]->getContactEmail(uh);
@@ -863,7 +864,7 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
                     flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_EMAIL]; *flagNameReceived = false; mChatEmail = "";
                     megaChatApi[accountIndex]->getUserEmail(uh);
                     ASSERT_CHAT_TEST(waitForResponse(flagNameReceived), "Failed to retrieve email after " + std::to_string(maxTimeout) + " seconds");
-                    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retrieve email. Error: " + std::to_string(lastErrorChat[accountIndex]));
+                    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retrieve email. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
                     buffer << "Peer email (" << uh << "): " << mChatEmail << " (len: " << mChatEmail.length() << ")" << endl;
                 }
             }
@@ -1058,7 +1059,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
     ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to invite a new peer. Error: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to invite a new peer. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(chatItemJoined0), "Chat list item update for main account not received after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(waitForResponse(chatItemJoined1), "Chat list item update for auxiliar account not received after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(waitForResponse(chatJoined0), "Chatroom update for main account not received after " + std::to_string(maxTimeout) + " seconds");
@@ -1092,7 +1093,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
     megaChatApi[a1]->setChatTitle(chatid, title.c_str());
     ASSERT_CHAT_TEST(waitForResponse(flagChatRoomName), "Timeout expired for set chat title");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to set chat title. Error: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to set chat title. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(titleItemChanged0), "Timeout expired for receiving chat list item update");
     ASSERT_CHAT_TEST(waitForResponse(titleItemChanged1), "Timeout expired for receiving chat list item update");
     ASSERT_CHAT_TEST(waitForResponse(titleChanged0), "Timeout expired for receiving chatroom update");
@@ -1114,7 +1115,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_MODERATOR);
     ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + std::to_string(lastErrorChat[a1]));;
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");;
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for reciving peer update");
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for reciving peer update");
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for reciving management message");
@@ -1130,7 +1131,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
     ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + std::to_string(lastErrorChat[a1]));;
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");;
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for reciving peer update");
     ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for reciving peer update");
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for reciving management message");
@@ -1191,7 +1192,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatClosed = &chatItemClosed[a2]; *chatClosed = false;
     megaChatApi[a1]->removeFromChat(chatid, uh);
     ASSERT_CHAT_TEST(waitForResponse(flagRemoveFromChatRoom), "Timeout expired for ");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error remove peer from group chat. Error: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error remove peer from group chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(chatClosed), "Timeout expired for ");
     chatroom = megaChatApi[a2]->getChatRoom(chatid);
     ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
@@ -1257,7 +1258,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
         bool *flagHistoryLoaded = &chatroomListener->historyLoaded[accountIndex]; *flagHistoryLoaded = false;
         megaChatApi[accountIndex]->loadMessages(chatid, 16);
         ASSERT_CHAT_TEST(waitForResponse(flagHistoryLoaded), "Expired timeout for loading history");
-        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to load history. Error: " + std::to_string(lastErrorChat[accountIndex]));
+        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to load history. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
 
         std::stringstream buffer;
         buffer << endl << endl << "Disconnect from the Internet now" << endl << endl;
@@ -1861,7 +1862,7 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     std::string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
     megaChatApi[a1]->setChatTitle(chatid, title.c_str());
     ASSERT_CHAT_TEST(waitForResponse(flagChatRoomName), "Timeout expired for changing name");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to change name. Error: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to change name. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(titleItemChanged0), "Timeout expired for receiving chat list title update for main account");
     ASSERT_CHAT_TEST(waitForResponse(titleItemChanged1), "Timeout expired for receiving chat list title update for auxiliar account");
     ASSERT_CHAT_TEST(waitForResponse(titleChanged0), "Timeout expired for receiving chatroom title update for main account");
@@ -1983,7 +1984,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
 
         megaChatApi[a1]->createChat(true, peers, this);
         ASSERT_CHAT_TEST(waitForResponse(flagCreateChatRoom), "Expired timeout for creating groupchat");
-        ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to create groupchat. Error: " + std::to_string(lastErrorChat[a1]));
+        ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to create groupchat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
         chatid = this->chatid[a1];
         ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "Wrong chat id");
         ASSERT_CHAT_TEST(waitForResponse(chatItemPrimaryReceived), "Expired timeout for receiving the new chat list item");
@@ -2032,7 +2033,7 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
         bool *chatReceived = &chatItemUpdated[a2]; *chatReceived = false;
         megaChatApi[a1]->createChat(false, peers, this);
         ASSERT_CHAT_TEST(waitForResponse(flag), "Expired timeout for create new chatroom request");
-        ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error create new chatroom request. Error: " + std::to_string(lastErrorChat[a1]));
+        ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error create new chatroom request. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
         ASSERT_CHAT_TEST(waitForResponse(chatCreated), "Expired timeout for  create new chatroom");
         ASSERT_CHAT_TEST(waitForResponse(chatReceived), "Expired timeout for create new chatroom");
 
@@ -2149,7 +2150,7 @@ MegaNode *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, MegaChat
 
     megaChatApi[a1]->attachNodes(chatid, megaNodeList, this);
     ASSERT_CHAT_TEST(waitForResponse(flagRequest), "Expired timeout for attaching node");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to attach node. Error: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to attach node. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     delete megaNodeList;
     megaNodeList = NULL;
 
@@ -2182,7 +2183,7 @@ void MegaChatApiTest::clearHistory(unsigned int a1, unsigned int a2, MegaChatHan
     bool *chatItemUpdated1 = &chatItemUpdated[a2]; *chatItemUpdated1 = false;
     megaChatApi[a1]->clearChatHistory(chatid);
     ASSERT_CHAT_TEST(waitForResponse(flagTruncateHistory), "Expired timeout for truncating history");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to truncate history. Error: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to truncate history. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(flagTruncatedPrimary), "Expired timeout for truncating history for primary account");
     ASSERT_CHAT_TEST(waitForResponse(flagTruncatedSecondary), "Expired timeout for truncating history for secondary account");
     ASSERT_CHAT_TEST(waitForResponse(chatItemUpdated0), "Expired timeout for receiving chat list item update for primary account");
@@ -2208,7 +2209,7 @@ void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid
     bool *chatClosed = &chatItemClosed[accountIndex]; *chatClosed = false;
     megaChatApi[accountIndex]->leaveChat(chatid);
     TEST_LOG_ERROR(waitForResponse(flagRemoveFromchatRoom), "Expired timeout for MegaChatApi remove from chatroom");
-    TEST_LOG_ERROR(!lastErrorChat[accountIndex], "Failed to leave chatroom. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    TEST_LOG_ERROR(!lastErrorChat[accountIndex], "Failed to leave chatroom. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     TEST_LOG_ERROR(waitForResponse(chatClosed), "Chatroom closed error");
     MegaChatRoom *chatroom = megaChatApi[accountIndex]->getChatRoom(chatid);
     TEST_LOG_ERROR(!chatroom->isActive(), "Chatroom active error");
@@ -2444,7 +2445,7 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex, MegaChatHand
             bool *flagTruncateHistory = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_TRUNCATE_HISTORY]; *flagTruncateHistory = false;
             megaChatApi[accountIndex]->clearChatHistory(chatroom->getChatId());
             TEST_LOG_ERROR(waitForResponse(flagTruncateHistory), "Expired timeout for truncate history");
-            TEST_LOG_ERROR(!lastErrorChat[accountIndex], "Failed to truncate history. Error: " + std::to_string(lastErrorChat[accountIndex]));
+            TEST_LOG_ERROR(!lastErrorChat[accountIndex], "Failed to truncate history. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
         }
 
         if (chatroom->isGroup() && chatroom->isActive() && chatroom->getChatId() != skipChatId)
@@ -2516,6 +2517,7 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
     unsigned int apiIndex = getMegaChatApiIndex(api);
 
     lastErrorChat[apiIndex] = e->getErrorCode();
+    lastErrorMsgChat[apiIndex] = e->getErrorString();
     if (!lastErrorChat[apiIndex])
     {
         switch(request->getType())

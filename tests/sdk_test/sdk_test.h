@@ -237,6 +237,7 @@ private:
     int initState[NUM_ACCOUNTS];
     int lastError[NUM_ACCOUNTS];
     int lastErrorChat[NUM_ACCOUNTS];
+    std::string lastErrorMsgChat[NUM_ACCOUNTS];
     int lastErrorTransfer[NUM_ACCOUNTS];
 
     megachat::MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
