@@ -511,6 +511,11 @@ void ProtocolHandler::msgEncryptWithKey(Message& src, chatd::MsgCommand& dest,
 promise::Promise<std::shared_ptr<SendKey>>
 ProtocolHandler::computeSymmetricKey(karere::Id userid)
 {
+    auto it = mSymmKeyCache.find(userid);
+    if (it != mSymmKeyCache.end())
+    {
+        return it->second;
+    }
     auto wptr = weakHandle();
     return mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
     .then([wptr, this, userid](const StaticBuffer* pubKey) -> promise::Promise<std::shared_ptr<SendKey>>
@@ -524,6 +529,7 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid)
         (void)ignore;
         auto result = std::make_shared<SendKey>();
         deriveSharedKey(sharedSecret, *result);
+        mSymmKeyCache.emplace(userid, result);
         return result;
     });
 }
