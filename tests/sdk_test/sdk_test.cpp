@@ -1409,9 +1409,10 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
 
     // --> Load some message to feed history
     int count = loadHistory(a1, chatid, chatroomListener);
-    ASSERT_CHAT_TEST(count == 5, "Wrong count of messages: " + std::to_string(count));
+    // we sent 5 messages, but if the chat already existed, there was a "Clear history" message already
+    ASSERT_CHAT_TEST(count == 5 || count == 6, "Wrong count of messages: " + std::to_string(count));
     count = loadHistory(a2, chatid, chatroomListener);
-    ASSERT_CHAT_TEST(count == 5, "Wrong count of messages: " + std::to_string(count));
+    ASSERT_CHAT_TEST(count == 5 || count == 6, "Wrong count of messages: " + std::to_string(count));
 
     // Clear history
     clearHistory(a1, a2, chatid, chatroomListener);
