@@ -86,6 +86,8 @@ static inline string to_string(const T& t)
 
 /** @endcond PRIVATE */
 
+class MyMegaApi;
+
 namespace karere
 {
 class Client;
@@ -212,12 +214,21 @@ class Client;
  *
  *  Usage:
  * \c gLogger.addUserLogger("karere-remote", new RemoteLogger);
+ *
+ * @note This logger requires a karere::Client instance, since it uses
+ * the SDK to send the logs to the remote server. Remember to call
+ * \c gLogger.removeUserLogger("karere-remote") before than the Client
+ * destruction.
  */
 class RemoteLogger: public karere::Logger::ILoggerBackend
 {
+private:
+    std::string mAid;
+    MyMegaApi& mApi;
 public:
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
-    RemoteLogger(): ILoggerBackend(krLogLevelError){}
+    RemoteLogger(MyMegaApi& api): ILoggerBackend(krLogLevelError), mApi(api){}
+    void setAnonymousId(std::string &aid) { this->mAid = aid; }
 };
 
 }

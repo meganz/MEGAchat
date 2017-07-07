@@ -95,8 +95,8 @@ namespace chatd
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
-Client::Client(karere::Client *client, Id userId)
-:mUserId(userId), mKarereClient(client)
+Client::Client(MyMegaApi *api, Id userId)
+:mUserId(userId), mApi(api)
 {
     if (!sWebsockCtxInitialized)
     {
@@ -366,7 +366,7 @@ Promise<void> Connection::reconnect(const std::string& url)
                     chat.setOnlineState(kChatStateConnecting);                
             }
             
-            this->mClient.mKarereClient->api.call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
+            this->mClient.mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
             .then([this](ReqResult result)
             {
                 string ip = result->getText();

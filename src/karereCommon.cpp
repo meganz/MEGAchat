@@ -2,12 +2,12 @@
 #include <services-http.hpp>
 #include "stringUtils.h"
 #include "rtcModule/IRtcModule.h"
+#include "sdkApi.h"
 
 namespace karere
 {
 const char* gDbSchemaVersionSuffix = "2";
 
-class Client;
 void globalInit(void(*postFunc)(void*), uint32_t options, const char* logPath, size_t logSize)
 {
     if (logPath)
@@ -45,16 +45,16 @@ void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned f
     json->append(replaceOccurrences(std::string(start, len-(start-msg+1)), "\"", "\\\"")).append("\"}");
     *json = replaceOccurrences(*json, "\n", "\\n");
     *json = replaceOccurrences(*json, "\t", "\\t");
-    marshallCall([json, level]()
-    {
-        http::postString("https://stats.karere.mega.nz/msglog?aid=kn-asdasdsdf&t=e",
-            json, "application/json")
+    std::string *aid = &mAid;
+    mApi.call(&::mega::MegaApi::sendChatLogs, json->c_str(), aid->c_str())
         .fail([](const promise::Error& err)
         {
-            KR_LOG_WARNING("Error %d logging error message to remote server:\n%s",
-                err.code(), err.what());
+            if (err.type() == ERRTYPE_MEGASDK)
+            {
+                KR_LOG_WARNING("Error %d logging error message to remote server:\n%s",
+                    err.code(), err.what());
+            }
             return err;
         });
-    });
 }
 }
