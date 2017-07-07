@@ -1952,7 +1952,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
             continue;
         }
 
-        for (int userIndex = 0; userIndex < chat->getPeerCount(); i++)
+        for (int userIndex = 0; userIndex < chat->getPeerCount(); userIndex++)
         {
             if (chat->getPeerHandle(userIndex) == peers->getPeerHandle(0))
             {
