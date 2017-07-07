@@ -1122,6 +1122,14 @@ public:
         INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
     };
 
+    enum
+    {
+        DISCONNECTED    = 0,    /// No connection established
+        CONNECTING      = 1,    /// A call to connect() is in progress
+        DISCONNECTING   = 2,    /// A call to disconnect() is in progress
+        CONNECTED       = 3     /// A call to connect() succeed
+    };
+
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -1258,6 +1266,18 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void disconnect(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returnes the current state of the connection
+     *
+     * It can be one of the following values:
+     *  - MegaChatApi::DISCONNECTED = 0
+     *  - MegaChatApi::CONNECTING   = 1
+     *  - MegaChatApi::CONNECTED    = 2
+     *
+     * @return The state of connection
+     */
+    int getConnectionState();
     
     /**
      * @brief Refresh DNS servers and retry pending connections
