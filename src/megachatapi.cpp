@@ -123,6 +123,11 @@ void MegaChatApi::disconnect(MegaChatRequestListener *listener)
     pImpl->disconnect(listener);
 }
 
+int MegaChatApi::getConnectionState()
+{
+    return pImpl->getConnectionState();
+}
+
 void MegaChatApi::retryPendingConnections(MegaChatRequestListener *listener)
 {
     pImpl->retryPendingConnections(listener);

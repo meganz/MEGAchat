@@ -95,8 +95,10 @@ void Client::initWebsocketCtx()
 
 //Stale event from a previous connect attempt?
 #define ASSERT_NOT_ANOTHER_WS(event)    \
-    if (ws != self.mWebSocket) {       \
-        PRESENCED_LOG_WARNING("Websocket '" event "' callback: ws param is not equal to self->mWebSocket, ignoring"); \
+    if (ws != self.mWebSocket && self.mWebSocket) {   \
+        PRESENCED_LOG_WARNING("Websocket '" event     \
+        "' callback: ws param %p is not equal to self.mWebSocket %p, ignoring", \
+        ws, self.mWebSocket);                         \
     }
 
 promise::Promise<void>
@@ -138,6 +140,15 @@ void Client::websockConnectCb(ws_t ws, void* arg)
     });
 }
 
+void Client::websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg)
+{
+    Client& self = *static_cast<Client*>(arg);
+    ASSERT_NOT_ANOTHER_WS("message");
+    self.mTsLastRecv = time(NULL);
+    self.mTsLastPingSent = 0;
+    self.handleMessage(StaticBuffer(msg, len));
+}
+
 void Client::notifyLoggedIn()
 {
     assert(mConnState < kLoggedIn);
@@ -171,7 +182,11 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     PRESENCED_LOG_WARNING("Socket close, reason: %s", reason.c_str());
     
     mHeartbeatEnabled = false;
-    if (mTerminating)
+    if (mWebSocket)
+    {
+        ws_destroy(&mWebSocket);
+    }
+    if (mConnState == kDisconnected)
         return;
 
     if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
@@ -276,15 +291,7 @@ Client::reconnect(const std::string& url)
             checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
             ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
             ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
-            ws_set_onmsg_cb(mWebSocket,
-            [](ws_t ws, char *msg, uint64_t len, int binary, void *arg)
-            {
-                Client& self = *static_cast<Client*>(arg);
-                ASSERT_NOT_ANOTHER_WS("message");
-                self.mTsLastRecv = time(NULL);
-                self.mTsLastPingSent = 0;
-                self.handleMessage(StaticBuffer(msg, len));
-            }, this);
+            ws_set_onmsg_cb(mWebSocket, &websockMsgCb, this);
 
             if (mUrl.isSecure)
             {
@@ -385,7 +392,7 @@ void Client::heartbeat()
     }
     if (needReconnect)
     {
-        mConnState = kDisconnected;
+        setConnState(kDisconnected);
         mHeartbeatEnabled = false;
         reconnect();
     }
@@ -395,15 +402,15 @@ void Client::disconnect() //should be graceful disconnect
 {
     mHeartbeatEnabled = false;
     mTerminating = true;
-    if (mWebSocket)
-        ws_close(mWebSocket);
+    reset();
+    setConnState(kDisconnected);
 }
 
 promise::Promise<void> Client::retryPendingConnection()
 {
     if (mUrl.isValid())
     {
-        mConnState = kDisconnected;
+        setConnState(kDisconnected);
         mHeartbeatEnabled = false;
         PRESENCED_LOG_WARNING("Retry pending connections...");
         return reconnect();
