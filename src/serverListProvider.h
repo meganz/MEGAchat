@@ -285,7 +285,7 @@ promise::Promise<void> GelbProvider<S>::exec(int no)
         }
 
         this->mClient.reset();
-        std::string json((byte*)result->getText(), result->getTotalBytes());
+        std::string json((const char*)result->getText(), result->getTotalBytes());
         parseServersJson(json);
         this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
         this->mLastUpdateTs = services_get_time_ms();
