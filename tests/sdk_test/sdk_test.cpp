@@ -21,13 +21,6 @@ const std::string MegaChatApiTest::LOCAL_PATH = "./tmp"; // no ending slash
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
 const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
 
-
-void handlerSignalINT(int)
-{
-    printf("SIGINT Received\n");
-    fflush(stdout);
-}
-
 int main(int argc, char **argv)
 {
     remove("test.log");
@@ -180,7 +173,6 @@ void MegaChatApiTest::init()
 {
     std::cout << "[========] Global test environment initialization" << endl;
 
-    signal(SIGINT, handlerSignalINT);
     mOKTests = mFailedTests = 0;
 
     logger = new MegaLoggerTest("test.log");
