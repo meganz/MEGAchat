@@ -9,7 +9,8 @@
 #include "base/promise.h"
 #include "base/gcmpp.h"
 #include <logger.h>
-#include "karereCommon.h"
+#include <string.h>
+#include "karereCommon.h" //for KR_LOG_DEBUG
 
 typedef std::shared_ptr<::mega::MegaRequest> ReqResult;
 typedef promise::Promise<ReqResult> ApiPromise;

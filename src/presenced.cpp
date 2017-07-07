@@ -46,8 +46,8 @@ namespace presenced
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
-    Client::Client(karere::Client *client, Listener& listener, uint8_t caps)
-: mListener(&listener), mCapabilities(caps), mKarereClient(client)
+    Client::Client(MyMegaApi *api, Listener& listener, uint8_t caps)
+: mListener(&listener), mApi(api), mCapabilities(caps)
 {
     if (!sWebsockCtxInitialized)
         initWebsocketCtx();
@@ -291,7 +291,7 @@ Client::reconnect(const std::string& url)
                 ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
             }
             
-            mKarereClient->api.call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
+            mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
             .then([this](ReqResult result)
             {
                 string ip = result->getText();
