@@ -511,11 +511,22 @@ void ProtocolHandler::msgEncryptWithKey(Message& src, chatd::MsgCommand& dest,
 promise::Promise<std::shared_ptr<SendKey>>
 ProtocolHandler::computeSymmetricKey(karere::Id userid)
 {
+    auto it = mSymmKeyCache.find(userid);
+    if (it != mSymmKeyCache.end())
+    {
+        return it->second;
+    }
     auto wptr = weakHandle();
     return mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
     .then([wptr, this, userid](const StaticBuffer* pubKey) -> promise::Promise<std::shared_ptr<SendKey>>
     {
         wptr.throwIfDeleted();
+        // We may have had 2 almost parallel requests, and the second may
+        // have put the key into the cache already
+        auto it = mSymmKeyCache.find(userid);
+        if (it != mSymmKeyCache.end())
+            return it->second;
+
         if (pubKey->empty())
             return promise::Error("Empty Cu25519 chat key for user "+userid.toString());
         Key<crypto_scalarmult_BYTES> sharedSecret;
@@ -524,6 +535,7 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid)
         (void)ignore;
         auto result = std::make_shared<SendKey>();
         deriveSharedKey(sharedSecret, *result);
+        mSymmKeyCache.emplace(userid, result);
         return result;
     });
 }

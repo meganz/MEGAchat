@@ -131,8 +131,16 @@ MainWindow::MainWindow(Client* aClient): mClient(aClient)
 //    setWindowFlags(Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowMaximizeButtonHint
 //                   |Qt::WindowMinimizeButtonHint|Qt::WindowCloseButtonHint);
     ui.contactList->setSortingEnabled(true);
+    qApp->installEventFilter(this);
 }
-
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+  if (event->type() == QEvent::MouseMove)
+  {
+      mClient->presenced().signalActivity();
+  }
+  return false;
+}
 void MainWindow::onOnlineStatusBtn(bool)
 {
     auto list = new QMenu(this);

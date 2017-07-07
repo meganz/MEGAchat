@@ -32,7 +32,7 @@
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "Tests for Karere SDK functionality";
 
-static const unsigned int maxTimeout = 300;
+static const unsigned int maxTimeout = 600;
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 2;
 
@@ -169,7 +169,7 @@ public:
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
     void postLog(const std::string &msg);
 
-    bool waitForResponse(bool *responseReceived, int timeout = maxTimeout) const;
+    bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
 
     bool TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
@@ -237,6 +237,7 @@ private:
     int initState[NUM_ACCOUNTS];
     int lastError[NUM_ACCOUNTS];
     int lastErrorChat[NUM_ACCOUNTS];
+    std::string lastErrorMsgChat[NUM_ACCOUNTS];
     int lastErrorTransfer[NUM_ACCOUNTS];
 
     megachat::MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
