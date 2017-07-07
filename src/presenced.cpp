@@ -402,14 +402,7 @@ void Client::disconnect() //should be graceful disconnect
 {
     mHeartbeatEnabled = false;
     mTerminating = true;
-    if (mWebSocket)
-    {
-        ws_set_onmsg_cb(mWebSocket, nullptr, this);
-        ws_set_onconnect_cb(mWebSocket, nullptr, this);
-        ws_set_onclose_cb(mWebSocket, nullptr, this);
-        ws_close(mWebSocket);
-        mWebSocket = nullptr;
-    }
+    reset();
     setConnState(kDisconnected);
 }
 
