@@ -9,7 +9,8 @@
 #include "base/promise.h"
 #include "base/gcmpp.h"
 #include <logger.h>
-#include "karereCommon.h"
+#include <string.h>
+#include "karereCommon.h" //for KR_LOG_DEBUG
 
 typedef std::shared_ptr<::mega::MegaRequest> ReqResult;
 typedef promise::Promise<ReqResult> ApiPromise;
@@ -98,7 +99,22 @@ class MyMegaLogger: public ::mega::MegaLogger
             krLogLevelError, krLogLevelError, krLogLevelWarn,
             krLogLevelInfo, krLogLevelDebug, krLogLevelDebugVerbose
         };
-        KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s", message);
+        std::string sourceFile;
+        if (source)
+        {
+            std::string tmp = std::string(source);
+            size_t start = tmp.rfind('/');
+            if (start == std::string::npos)
+            {
+                start = tmp.rfind('\\');
+            }
+
+            if (start != std::string::npos)
+            {
+                sourceFile = "(" + tmp.substr(start+1) + ")";
+            }
+        }
+        KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s %s", message, sourceFile.c_str());
     }
 };
 
@@ -110,8 +126,7 @@ public:
     MyMegaApi(::mega::MegaApi& aSdk)
     :sdk(aSdk), mLogger(new MyMegaLogger)
     {
-        sdk.setLoggerObject(mLogger.get());
-        sdk.setLogLevel(::mega::MegaApi::LOG_LEVEL_MAX);
+        sdk.addLoggerObject(mLogger.get());
     }
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     ApiPromise call(MSig method, Args... args)
@@ -130,7 +145,7 @@ public:
 
     ~MyMegaApi()
     {
-        sdk.setLoggerObject(nullptr);
+        sdk.removeLoggerObject(mLogger.get());
         mLogger.reset();
         KR_LOG_DEBUG("Deleted SDK logger");
     }

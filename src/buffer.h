@@ -6,6 +6,9 @@
 #include <string.h>
 #include <vector>
 
+#ifndef __arm__
+    #define BUFFER_ALLOW_UNALIGNED_MEMORY_ACCESS 1
+#endif
 class BufferRangeError: public std::runtime_error
 {
     using std::runtime_error::runtime_error;
@@ -62,21 +65,30 @@ public:
                 std::to_string(offset+len-mDataSize)+" bytes past buffer end");
         return mBuf+offset;
     }
-    template <class T, bool check=true>
-    T& read(size_t offset) const
+    template <class T>
+    T read(size_t offset) const
     {
-        if (check)
-            return *((T*)(readPtr(offset, sizeof(T))));
-        else
-            return *((T*)(mBuf+offset));
+        return alignSafeRead<T>(readPtr(offset, sizeof(T)));
+    }
+    template <typename T>
+    static T alignSafeRead(const void* ptr)
+    {
+#ifndef BUFFER_ALLOW_UNALIGNED_MEMORY_ACCESS
+        T val;
+        memcpy(&val, ptr, sizeof(T));
+        return val;
+#else
+        return *((T*)ptr);
+#endif
     }
     template <class T, bool check=true>
     void read(size_t offset, std::vector<T>& output, int count)
     {
-        size_t endOffset = offset+count*sizeof(T);
-        if (check && (endOffset >= dataSize()))
-            throw std::runtime_error("read(vector): Requested to read beyond data end");
-        output.insert(output.end(), *(T*)(mBuf+offset));
+        T* end = (T*)(mBuf+offset+count*sizeof(T));
+        for (T* pitem = (T*)(mBuf+offset); pitem < end; pitem++)
+        {
+            output.push_back(alignSafeRead<T>(pitem));
+        }
     }
     template <class T, bool check=true>
     void read(size_t offset, std::vector<T>& output)

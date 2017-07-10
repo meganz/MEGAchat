@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 2.8)
 project(karere)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Release Debug)
+
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+    message(STATUS "Strophe build type not set, defaulting to Debug")
+endif()
+
 include (utils.cmake)
 
 set(optKarereBuildShared 0 CACHE BOOL "Build libkarere as a shared library")
@@ -69,7 +76,7 @@ get_property(SERVICES_INCLUDE_DIRS GLOBAL PROPERTY SERVICES_INCLUDE_DIRS)
 add_subdirectory(${LIBWS_DIR} libws)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
     COMMAND ${CMAKE_COMMAND} -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dbSchema.sql
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dbSchema.sql ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 

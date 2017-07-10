@@ -21,28 +21,121 @@ enum { kMaxBackRefs = 32 };
 enum Opcode
 {
     OP_KEEPALIVE = 0,
+
+    /**
+      * @brief It must be the very first command to send, so the user actually join the chatroom.
+      *
+      * Send: <chatid> <userid> <user_priv>
+      * @note user_priv is usually Priv::PRIV_NOCHANGE, so chatd replies with the actual privilege.
+      *
+      * Receive: <chatid> <userid> <priv>
+      * @note a JOIN is received per user, with its corresponding privilege
+      *
+      */
     OP_JOIN = 1,
+
+    /**
+      * @brief Received as result of HIST command. It reports an old message.
+      *
+      * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
+      */
     OP_OLDMSG = 2,
+
+    /**
+      * @brief Received as result of HIST command. It reports a new message.
+      *
+      * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
+      */
     OP_NEWMSG = 3,
+
+    /**
+      * @brief Received as result of HIST command. It reports the edition of an existing message.
+      *
+      * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
+      */
     OP_MSGUPD = 4,
+
+    /**
+      * @brief Received as result of HIST comand. It reports the last seen message id
+      *
+      * Receive: <chatid> <msgid>
+      *
+      */
     OP_SEEN = 5,
+
+    /**
+      * @brief It notifies about reception of a message
+      *
+      * Send: <chatid> <msgid>
+      *
+      * Receive: <chatid> <msgid>
+      *
+      */
     OP_RECEIVED = 6,
+
     OP_RETENTION = 7,
+
+    /**
+      * @brief Usually sent immediately after JOIN, it retrieves history from the chatroom.
+      *
+      * Send: <chatid> <count>
+      * @note count is usually a negative number to fetch old history, possitive for new history.
+      *
+      * This command results in receiving:
+      *  - the last SEEN message
+      *  - the last RECEIVED message
+      *  - the NEWKEY to encrypt/decrypt history
+      *  - zero or more OLDMSG
+      *  - a notification when HISTDONE
+      *
+      */
     OP_HIST = 8,
+
     OP_RANGE = 9,
     OP_NEWMSGID = 10,
+
+    /**
+      * @brief Received when the server rejects a command
+      *
+      * Received: <chatid> <generic_id> <op_code> <reason>
+      *
+      * Server can reject:
+      *  - JOIN: the user doesn't participate in the chatroom
+      *  - NEWMSG | MSGUPD | MSGUPDX: participants have changed or the message is too old
+      */
     OP_REJECT = 11,
+
     OP_BROADCAST = 12,
+
+    /**
+      * @brief Received as result of HIST command, it notifies the end of history fetch.
+      *
+      * Receive: <chatid>
+      *
+      * @note There may be more history in server, but the HIST <count> is already satisfied.
+      *
+      */
     OP_HISTDONE = 13,
+
+    /**
+      * @brief Received when there's a new key for the chatroom.
+      *
+      * Send: <chatid> <keyid> <keylen> <key>
+      * @note keyid is currently not used for any purpose.
+      *
+      */
     OP_NEWKEY = 17,
+
     OP_KEYID = 18,
-    OP_JOINRANGEHIST = 19,
+    OP_JOINRANGEHIST = 19,  /// <chatid> <oldest_known_msgid> <newest_known_msgid>
     OP_MSGUPDX = 20,
     OP_MSGID = 21,
     OP_CLIENTID = 24,
     OP_RTMSG_BROADCAST = 25,
     OP_RTMSG_USER = 26,
-    OP_RTMSG_ENDPOINT = 27
+    OP_RTMSG_ENDPOINT = 27,
+    OP_KEEPALIVEAWAY = 30,
+    OP_LAST = OP_KEEPALIVEAWAY
 };
 
 // privilege levels
@@ -59,17 +152,21 @@ enum Priv: signed char
 class Message: public Buffer
 {
 public:
-    enum: unsigned char
+    enum: uint8_t
     {
-        kMsgInvalid = 0,
-        kMsgNormal = 1,
-        kMsgManagementLowest = 2,
-        kMsgAlterParticipants = 2,
-        kMsgTruncate = 3,
-        kMsgPrivChange = 4,
-        kMsgChatTitle = 5,
-        kMsgManagementHighest = 5,
-        kMsgUserFirst = 16
+        kMsgInvalid           = 0x00,
+        kMsgNormal            = 0x01,
+        kMsgManagementLowest  = 0x02,
+        kMsgAlterParticipants = 0x02,
+        kMsgTruncate          = 0x03,
+        kMsgPrivChange        = 0x04,
+        kMsgChatTitle         = 0x05,
+        kMsgManagementHighest = 0x05,
+        kMsgUserFirst         = 0x10,
+        kMsgAttachment        = 0x10,
+        kMsgRevokeAttachment  = 0x11,
+        kMsgContact           = 0x12
+
     };
     enum Status
     {
@@ -82,6 +179,7 @@ public:
         kNotSeen, //< User hasn't read this message yet
         kSeen //< User has read this message
     };
+    enum { kFlagForceNonText = 0x01 };
     /** @brief Info recorder in a management message.
      * When a message is a management message, _and_ it needs to carry additional
      * info besides the standard fields (such as sender), the additional data
@@ -117,7 +215,8 @@ private:
     karere::Id mId;
     bool mIdIsXid = false;
 protected:
-    bool mIsEncrypted = false;
+    uint8_t mIsEncrypted = 0; //0 = not encrypted, 1 = encrypted, 2 = encrypted, there was a decrypt error
+    uint8_t mFlags = 0;
 public:
     karere::Id userid;
     uint32_t ts;
@@ -127,10 +226,11 @@ public:
     BackRefId backRefId;
     std::vector<BackRefId> backRefs;
     mutable void* userp;
-    mutable uint16_t userFlags = 0;
+    mutable uint8_t userFlags = 0;
     karere::Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
-    bool isEncrypted() const { return mIsEncrypted; }
+    uint8_t isEncrypted() const { return mIsEncrypted; }
+    void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,
@@ -139,7 +239,7 @@ public:
           ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
-            KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgNormal, void* aUserp=nullptr)
+            KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
             updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
 
@@ -149,10 +249,10 @@ public:
      * but otherwise does not guarentee that the data inside the message
      * is actually a ManagementInfo structure
      */
-    ManagementInfo& mgmtInfo() { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
+    ManagementInfo mgmtInfo() { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
 
     /** @brief A \c const version of mgmtInfo() */
-    const ManagementInfo& mgmtInfo() const { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
+    const ManagementInfo mgmtInfo() const { throwIfNotManagementMsg(); return read<ManagementInfo>(0); }
 
     /** @brief Allocated a ManagementInfo structure in the message's buffer,
      * and writes the contents of the provided structure. The message contents
@@ -184,6 +284,26 @@ public:
 
     /** @brief Returns whether this message is a management message. */
     bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
+    bool isText() const
+    {
+        return !empty() && ((mFlags & kFlagForceNonText) == 0) &&
+            (type == kMsgNormal || type == kMsgAttachment
+          || type == kMsgContact);
+    }
+
+    /** @brief Convert attachment etc. special messages to text */
+    std::string toText() const
+    {
+        if (empty())
+            return std::string();
+
+        if (type == kMsgNormal)
+            return std::string(buf(), dataSize());
+
+        //special messages have a 2-byte binary prefix
+        assert(dataSize() > 2);
+        return std::string(buf()+2, dataSize()-2);
+    }
 
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
@@ -203,8 +323,13 @@ protected:
 public:
     enum { kBroadcastUserTyping = 1 };
     Command(): Buffer(){}
-    Command(uint8_t opcode, uint8_t reserve=64): Command(opcode, reserve, 0){}
-    Command(Command&& other): Buffer(std::forward<Buffer>(other)) {assert(!other.buf() && !other.bufSize() && !other.dataSize());}
+    Command(Command&& other)
+    : Buffer(std::forward<Buffer>(other))
+    { assert(!other.buf() && !other.bufSize() && !other.dataSize()); }
+
+    explicit Command(uint8_t opcode, size_t reserve=64)
+    : Buffer(reserve) { write(0, opcode); }
+
     template<class T>
     Command&& operator+(const T& val)
     {
@@ -228,21 +353,26 @@ public:
         return ((op == OP_NEWMSG) || (op == OP_MSGUPD) || (op == OP_MSGUPDX));
     }
     uint8_t opcode() const { return read<uint8_t>(0); }
+    static const char* opcodeToStr(uint8_t opcode);
     const char* opcodeName() const { return opcodeToStr(opcode()); }
+<<<<<<< HEAD
     static const char* opcodeToStr(uint8_t code);
     virtual std::string toString() const;
+=======
+>>>>>>> develop
     virtual ~Command(){}
 };
 
 class KeyCommand: public Command
 {
 public:
-    explicit KeyCommand(karere::Id chatid=karere::Id::null(), uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
-        uint8_t reserve=128)
+    explicit KeyCommand(karere::Id chatid, uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
+        size_t reserve=128)
     : Command(OP_NEWKEY, reserve)
     {
         append(chatid.val).append<uint32_t>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
+    KeyCommand(): Command(){} //for db loading
     KeyId keyId() const { return read<uint32_t>(9); }
     void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
     void setKeyId(uint32_t keyid) { write(9, keyid); }
@@ -272,7 +402,7 @@ public:
         write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
         write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
-    MsgCommand(): Command() {} //for loading the buffer
+    MsgCommand(size_t reserve): Command(reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
     void setId(karere::Id aMsgid) { write(17, aMsgid.val); }
     KeyId keyId() const { return read<KeyId>(31); }

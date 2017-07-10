@@ -35,7 +35,7 @@ RtcHandler::RtcHandler(chatd::Chat& chat, IGlobalEventHandler* globalHandler,
                ICryptoFunctions* crypto, const char* iceServers)
 :mChat(chat), mGlobalHandler(globalHandler), mCrypto(crypto),
   mTurnServerProvider(
-    new TurnServerProvider("https://" KARERE_GELB_HOST, "turn", iceServers, 3600)),
+    new TurnServerProvider(api, "turn", iceServers, 3600)),
   mIceServers(new webrtc::PeerConnectionInterface::IceServers)
 {
     pcConstraints.SetMandatoryReceiveAudio(true);

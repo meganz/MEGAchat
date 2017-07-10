@@ -68,6 +68,9 @@ if (APPLE)
     if (APPLE_IOS)
         list(APPEND _LIBMEGA_LIBRARIES "-framework MobileCoreServices")
     endif()
+elseif (NOT WIN32)
+#linux
+    list(APPEND _LIBMEGA_LIBRARIES pthread)
 endif()
 
 set(LIBMEGA_INCLUDE_DIRS 

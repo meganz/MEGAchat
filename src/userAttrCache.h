@@ -26,13 +26,17 @@ enum {
 
     /** RSA Public key of user */
     USER_ATTR_RSA_PUBKEY = USER_ATTR_VIRTUAL_FIRST,
+
+    /** The email of the user, as returned bh getUserEmail() */
+    USER_ATTR_EMAIL,
+
     /** The most significant bit in the attribute type is 1, then the attribute is
      * not directly backed by the db, but rather synthesized by other attributes
      */
     USER_ATTR_FLAG_COMPOSITE = 128,
     /** Returns firstname and secondname in one string. Tolerates either name
      * missing. If both are present, they are separated with a space.
-     * Fetchs both names using the cache, and does it in parallel. Does not
+     * Fetches both names using the cache, and does it in parallel. Does not
      * cache the full name itself, but relies on each name being cached separately
      */
     USER_ATTR_FULLNAME = USER_ATTR_FLAG_COMPOSITE | 1
@@ -51,7 +55,7 @@ struct UserAttrDesc
         :type(aType), getData(aGetData), changeMask(aChangeMask){}
 };
 
-extern UserAttrDesc gUserAttrDescs[9];
+extern UserAttrDesc gUserAttrDescs[10];
 
 struct UserAttrPair
 {
@@ -67,7 +71,8 @@ struct UserAttrPair
     UserAttrPair(uint64_t aUser, uint8_t aType): user(aUser), attrType(aType)
     {
         if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
-         && (attrType != USER_ATTR_RSA_PUBKEY) && (attrType != USER_ATTR_FULLNAME))
+         && (attrType != USER_ATTR_RSA_PUBKEY) && (attrType != USER_ATTR_FULLNAME)
+         && (attrType != USER_ATTR_EMAIL))
             throw std::runtime_error("UserAttrPair: Invalid user attribute id specified");
     }
     std::string toString()
@@ -115,7 +120,7 @@ struct UserAttrCacheItem
  * User attribute cache, prividing notifications when an attribute is changed
  */
 class UserAttrCache: public std::map<UserAttrPair, std::shared_ptr<UserAttrCacheItem>>,
-                     public mega::MegaGlobalListener
+                     public mega::MegaGlobalListener, public karere::DeleteTrackable
 {
 protected:
     Client& mClient;
@@ -128,9 +133,14 @@ protected:
     void fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
+    void fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
 //==
     void onUserAttrChange(mega::MegaUser& user);
     void onLogin();
+    /** @brief Invalidates the whole cache, and re-fetches all registered queries.
+     * Used when we discover that karere state is out of sync with SDK state
+     */
+    void invalidate();
     void onLogOut();
     friend struct UserAttrCacheItem;
     friend class Client;
