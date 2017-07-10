@@ -184,7 +184,7 @@ void Client::heartbeat()
         db.timedCommit();
     }
 
-    if (!mConnected)
+    if (mConnState != kConnected)
     {
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
         return;
@@ -256,14 +256,14 @@ promise::Promise<void> Client::sdkLoginNewSession()
     {
         marshallCall([this, err]()
         {
-            mCanConnectPromise.reject(err);
+            mSessionReadyPromise.reject(err);
         });
     })
     .then([this]()
     {
         mLoginDlg.free();
     });
-    return mCanConnectPromise;
+    return mSessionReadyPromise;
 }
 
 promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
@@ -274,7 +274,7 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
     {
         api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
     });
-    return mCanConnectPromise;
+    return mSessionReadyPromise;
 }
 
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
@@ -479,8 +479,12 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     api.sdk.pauseActionPackets();
     auto state = mInitState;
     char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn = pscsn ? pscsn : "";
-    delete pscsn;
+    std::string scsn;
+    if (pscsn)
+    {
+        scsn = pscsn;
+        delete[] pscsn;
+    }
     std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
     std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
@@ -502,7 +506,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
 //            }
             checkSyncWithSdkDb(scsn, *contactList, *chatList);
             setInitState(kInitHasOnlineSession);
-            mCanConnectPromise.resolve();
+            mSessionReadyPromise.resolve();
         }
         else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
         {
@@ -511,13 +515,13 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             initWithNewSession(sid.get(), scsn, contactList, chatList)
             .fail([this](const promise::Error& err)
             {
-                mCanConnectPromise.reject(err);
+                mSessionReadyPromise.reject(err);
                 return err;
             })
             .then([this]()
             {
                 setInitState(kInitHasOnlineSession);
-                mCanConnectPromise.resolve();
+                mSessionReadyPromise.resolve();
             });
         }
         api.sdk.resumeActionPackets();
@@ -620,16 +624,45 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
 
 promise::Promise<void> Client::connect(Presence pres)
 {
-    return mCanConnectPromise
-    .then([this, pres]() mutable
+// only the first connect() needs to wait for the mSessionReadyPromise.
+// Any subsequent connect()-s (preceded by disconnect()) can initiate
+// the connect immediately
+    if (mConnState == kConnecting)
+        return mConnectPromise;
+    else if (mConnState == kConnected)
+        return promise::_Void();
+
+    assert(mConnState == kDisconnected);
+    auto sessDone = mSessionReadyPromise.done();
+    switch (sessDone)
     {
+    case promise::kSucceeded:
         return doConnect(pres);
-    });
+    case promise::kFailed:
+        return mSessionReadyPromise.error();
+    default:
+        assert(sessDone == promise::kNotResolved);
+        mConnectPromise = mSessionReadyPromise
+            .then([this, pres]() mutable
+            {
+                return doConnect(pres);
+            })
+            .then([this]()
+            {
+                setConnState(kConnected);
+            })
+            .fail([this](const promise::Error& err)
+            {
+                setConnState(kDisconnected);
+            });
+        return mConnectPromise;
+    }
 }
 
 promise::Promise<void> Client::doConnect(Presence pres)
 {
-    assert(mCanConnectPromise.succeeded());
+    assert(mSessionReadyPromise.succeeded());
+    setConnState(kConnecting);
     mOwnPresence = pres;
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     assert(mUserAttrCache);
@@ -645,37 +678,56 @@ promise::Promise<void> Client::doConnect(Presence pres)
     });
 
     connectToChatd();
-    auto pms = connectToPresenced(mOwnPresence);
-    if (!pms.failed())
+    auto pms = connectToPresenced(mOwnPresence)
+    .then([this]()
     {
-        mConnected = true; //we may not be actually connected to presenced, mConnected signifies that we are in online mode
-    }
+        setConnState(kConnected);
+    })
+    .fail([this](const promise::Error& err)
+    {
+        setConnState(kDisconnected);
+    });
     assert(!mHeartbeatTimer);
     mHeartbeatTimer = karere::setInterval([this]()
     {
         heartbeat();
     }, 10000);
-
     return pms;
 }
 
 promise::Promise<void> Client::disconnect()
 {
-    if (!mConnected)
+    if (mConnState == kDisconnected)
         return promise::_Void();
-    assert(mHeartbeatTimer);
+    else if (mConnState == kDisconnecting)
+        return mDisconnectPromise;
+    setConnState(kDisconnecting);
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
     mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
     mUserAttrCache->onLogOut();
-    karere::cancelInterval(mHeartbeatTimer);
-    mHeartbeatTimer = 0;
-    auto pms = chatd->disconnect();
+    if (mHeartbeatTimer)
+    {
+        karere::cancelInterval(mHeartbeatTimer);
+        mHeartbeatTimer = 0;
+    }
+    mDisconnectPromise = chatd->disconnect()
+    .then([this]()
+    {
+        setConnState(kDisconnected);
+    })
+    .fail([this](const promise::Error& err)
+    {
+        setConnState(kDisconnected);
+    });
     mPresencedClient.disconnect();
-    mConnected = false;
-    return pms;
+    return mDisconnectPromise;
 }
-
+void Client::setConnState(ConnState newState)
+{
+    mConnState = newState;
+    KR_LOG_DEBUG("Client connection state changed to %s", connStateToStr(newState));
+}
 karere::Id Client::getMyHandleFromSdk()
 {
     SdkString uh = api.sdk.getMyUserHandle();
@@ -855,7 +907,7 @@ void Contact::updatePresence(Presence pres)
     mPresence = pres;
     updateAllOnlineDisplays(pres);
 }
-
+// presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
     if (userid == mMyHandle)
@@ -864,11 +916,7 @@ void Client::onPresenceChange(Id userid, Presence pres)
     }
     else
     {
-        auto it = contactList->find(userid);
-        if (it != contactList->end())
-        {
-            it->second->updatePresence(pres);
-        }
+        contactList->onPresenceChanged(userid, pres);
     }
     for (auto& item: *chats)
     {
@@ -877,9 +925,18 @@ void Client::onPresenceChange(Id userid, Presence pres)
             continue;
         static_cast<GroupChatRoom&>(chat).updatePeerPresence(userid, pres);
     }
-
     app.onPresenceChanged(userid, pres, false);
 }
+void Client::onPresenceConfigChanged(const presenced::Config& state, bool pending)
+{
+    app.onPresenceConfigChanged(state, pending);
+}
+void Client::onConnStateChange(presenced::Client::ConnState state)
+{
+    if (state == presenced::Client::kDisconnected)
+        contactList->setAllOffline();
+}
+
 void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
 {
     auto it = mPeers.find(userid);
@@ -1478,7 +1535,7 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
             continue;
         chatids.insert(room->chatid());
 
-        if (!isInactive && client.connected())
+        if (!isInactive && client.connState() == Client::kConnected)
         {
             KR_LOG_DEBUG("...connecting new room to chatd...");
             room->connect();
@@ -2314,6 +2371,22 @@ void ContactList::removeUser(iterator it)
     erase(it);
     client.db.query("delete from contacts where userid=?", handle);
 }
+void ContactList::onPresenceChanged(Id userid, Presence pres)
+{
+    auto it = find(userid);
+    if (it == end())
+        return;
+    {
+        it->second->updatePresence(pres);
+    }
+}
+void ContactList::setAllOffline()
+{
+    for (auto& it: *this)
+    {
+        it.second->updatePresence(Presence::kOffline);
+    }
+}
 
 promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
 {
@@ -2520,10 +2593,6 @@ Contact* ContactList::contactFromJid(const std::string& jid) const
         return it->second;
 }
 
-void Client::onConnStateChange(presenced::Client::ConnState state)
-{
-}
-
 #define RETURN_ENUM_NAME(name) case name: return #name
 
 const char* Client::initStateToStr(unsigned char state)
@@ -2545,7 +2614,17 @@ const char* Client::initStateToStr(unsigned char state)
         return "(unknown)";
     }
 }
-
+const char* Client::connStateToStr(ConnState state)
+{
+    switch(state)
+    {
+        RETURN_ENUM_NAME(kDisconnected);
+        RETURN_ENUM_NAME(kConnecting);
+        RETURN_ENUM_NAME(kDisconnecting);
+        RETURN_ENUM_NAME(kConnected);
+        default: return "(invalid)";
+    }
+}
 #ifndef KARERE_DISABLE_WEBRTC
 rtcModule::IEventHandler* Client::onIncomingCallRequest(
         const std::shared_ptr<rtcModule::ICallAnswer> &ans)
