@@ -301,6 +301,17 @@ Client::reconnect(const std::string& url)
             mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
             .then([this](ReqResult result)
             {
+                if (!mWebSocket)
+                {
+                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
+                    return;
+                }
+                if (mConnState != kConnecting)
+                {
+                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    return;
+                }
+
                 string ip = result->getText();
                 PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
                 
