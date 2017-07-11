@@ -364,6 +364,10 @@ bool Client::sendKeepalive(time_t now)
 
 void Client::heartbeat()
 {
+    // if a heartbeat is received but we are already offline...
+    if (!mHeartbeatEnabled)
+        return;
+
     auto now = time(NULL);
     if (autoAwayInEffect())
     {
@@ -372,9 +376,6 @@ void Client::heartbeat()
             sendUserActive(false);
         }
     }
-
-    if (!mHeartbeatEnabled)
-        return;
 
     bool needReconnect = false;
     if (now - mTsLastSend > kKeepaliveSendInterval)
@@ -395,7 +396,7 @@ void Client::heartbeat()
     }
     else if (now - mTsLastRecv >= kKeepaliveSendInterval)
     {
-        if (!sendKeepalive())
+        if (!sendKeepalive(now))
         {
             needReconnect = true;
             PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
