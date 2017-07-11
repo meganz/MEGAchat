@@ -297,10 +297,16 @@ Client::reconnect(const std::string& url)
             {
                 ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
             }
-            
+
+            auto wptr = weakHandle();
             mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([this](ReqResult result)
+            .then([wptr, this](ReqResult result)
             {
+                if (wptr.deleted())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
+                    return;
+                }
                 if (!mWebSocket)
                 {
                     PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");

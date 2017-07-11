@@ -371,10 +371,16 @@ Promise<void> Connection::reconnect(const std::string& url)
                 if (!chat.isDisabled())
                     chat.setOnlineState(kChatStateConnecting);                
             }
-            
+
+            auto wptr = weakHandle();
             this->mClient.mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([this](ReqResult result)
+            .then([wptr, this](ReqResult result)
             {
+                if (wptr.deleted())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+                    return;
+                }
                 if (!mWebSocket)
                 {
                     PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
