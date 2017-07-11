@@ -152,7 +152,6 @@ void Client::websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *ar
 void Client::notifyLoggedIn()
 {
     assert(mConnState < kLoggedIn);
-    assert(mConnState == kConnected);
     assert(mConnectPromise.succeeded());
     assert(!mLoginPromise.done());
     setConnState(kLoggedIn);
@@ -386,20 +385,20 @@ void Client::heartbeat()
             PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
         }
     }
-    else if (now - mTsLastRecv >= kKeepaliveSendInterval)
-    {
-        if (!sendKeepalive(now))
-        {
-            needReconnect = true;
-            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
-        }
-    }
     else if (mTsLastPingSent)
     {
         if (now - mTsLastPingSent > kKeepaliveReplyTimeout)
         {
             PRESENCED_LOG_WARNING("Timed out waiting for KEEPALIVE response, reconnecting...");
             needReconnect = true;
+        }
+    }
+    else if (now - mTsLastRecv >= kKeepaliveSendInterval)
+    {
+        if (!sendKeepalive())
+        {
+            needReconnect = true;
+            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
         }
     }
     if (needReconnect)
