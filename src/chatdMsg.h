@@ -19,64 +19,85 @@ enum { kMaxBackRefs = 32 };
 // command opcodes
 enum Opcode
 {
+    /**
+      * @brief
+      * C->S: Must respond to a received KEEPALIVE within 30 seconds (if local user is away, send KEEPALIVEAWAY).
+      *
+      * S->C: Initiates keepalives to the client every minute.
+      */
     OP_KEEPALIVE = 0,
 
     /**
-      * @brief It must be the very first command to send, so the user actually join the chatroom.
-      *
+      * @brief
+      * C->S: Subscribe to events for this chat. Client has no existing message buffer.
       * Send: <chatid> <userid> <user_priv>
-      * @note user_priv is usually Priv::PRIV_NOCHANGE, so chatd replies with the actual privilege.
       *
+      * S->C: Indicates users in this chat and their privilege level as well as privilege
       * Receive: <chatid> <userid> <priv>
-      * @note a JOIN is received per user, with its corresponding privilege
-      *
       */
     OP_JOIN = 1,
 
     /**
-      * @brief Received as result of HIST command. It reports an old message.
-      *
+      * @brief
+      * S->C: Received as result of HIST command. It reports an old message.
       * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
       */
     OP_OLDMSG = 2,
 
     /**
-      * @brief Received as result of HIST command. It reports a new message.
+      * @brief
+      * C->S: Add new message to this chat. msgid is a temporary random 64-bit
+      *    integer ("msgxid"). No two such msgxids must be generated in the same chat
+      *    in the same server-time second, or only the first NEWMSG will be written.
       *
+      * S->C: A different connection has added a message to the chat.
       * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
       */
     OP_NEWMSG = 3,
 
     /**
-      * @brief Received as result of HIST command. It reports the edition of an existing message.
+      * @brief
+      * C->S: Update existing message. Can only be updated within one hour of the physical
+      *    arrival time. updatedelta must be larger than the previous updatedelta, or
+      *    the MSGUPD will fail. The keyid must not change.
       *
+      * S->C: A message was updated (always sent as MSGUPD).
       * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
       */
     OP_MSGUPD = 4,
 
     /**
-      * @brief Received as result of HIST comand. It reports the last seen message id
+      * @brief
+      * C->S: Indicate the last seen message so that the new message count can be
+      *   managed across devices.
+      * Send: <chatid> <msgid>
       *
+      * S->C: The last seen message has been updated from another device.
       * Receive: <chatid> <msgid>
-      *
       */
     OP_SEEN = 5,
 
     /**
-      * @brief It notifies about reception of a message
-      *
+      * @brief
+      * C->S: Indicate the last successfully written msgid so that the "delivered"
+      *   indication can be managed in 1-on-1 chats.
       * Send: <chatid> <msgid>
       *
+      * S->C: The last delivered msgid was updated for this 1-on-1 chat.
       * Receive: <chatid> <msgid>
-      *
       */
     OP_RECEIVED = 6,
 
+    /**
+      * @brief Currently not implemented.
+      * <chatid><timestamp>
+      */
     OP_RETENTION = 7,
 
     /**
-      * @brief Usually sent immediately after JOIN, it retrieves history from the chatroom.
-      *
+      * @brief
+      * C->S: Requests the next -count older messages, which will be sent as a sequence
+      *    of OLDMSGs, followed by a HISTDONE. Note that count is always negative. Possitve for new history??
       * Send: <chatid> <count>
       * @note count is usually a negative number to fetch old history, possitive for new history.
       *
@@ -86,17 +107,23 @@ enum Opcode
       *  - the NEWKEY to encrypt/decrypt history
       *  - zero or more OLDMSG
       *  - a notification when HISTDONE
-      *
       */
     OP_HIST = 8,
 
     OP_RANGE = 9,
+
+    /**
+      * @brief
+      * S->C: The NEWMSG with msgxid was successfully written and now has the permanent
+      *    msgid.
+      * Receive: <msgxid> <msgid>
+      */
     OP_NEWMSGID = 10,
 
     /**
-      * @brief Received when the server rejects a command
-      *
-      * Received: <chatid> <generic_id> <op_code> <reason>
+      * @brief
+      * S->C: The previously sent command with op_code has failed for a reason
+      * Receive: <chatid> <generic_id> <op_code> <reason>
       *
       * Server can reject:
       *  - JOIN: the user doesn't participate in the chatroom
@@ -107,28 +134,59 @@ enum Opcode
     OP_BROADCAST = 12,
 
     /**
-      * @brief Received as result of HIST command, it notifies the end of history fetch.
-      *
+      * @brief
+      * S->C: Receive as result of HIST command, it notifies the end of history fetch.
       * Receive: <chatid>
       *
       * @note There may be more history in server, but the HIST <count> is already satisfied.
-      *
       */
     OP_HISTDONE = 13,
 
     /**
-      * @brief Received when there's a new key for the chatroom.
+      * @brief
+      * C->S: Add new key to repository. Payload format is (userid.8 keylen.2 key)*
+      * Send: <chatid> <keyxid> <payload>
       *
-      * Send: <chatid> <keyid> <keylen> <key>
-      * @note keyid is currently not used for any purpose.
+      * S->C: Key notification. Payload format is (userid.8 keyid.4 keylen.2 key)*
+      * Receive: <chatid> <keyxid> <payload>
       *
+      * Keep keyxid as constant as possible (e.g. 0xffffffff).
+      * Note that ( chatid, userid, keyid ) is unique. Neither ( chatid, keyid ) nor
+      * ( userid, keyid ) are unique!
       */
     OP_NEWKEY = 17,
 
     OP_KEYID = 18,
-    OP_JOINRANGEHIST = 19,  /// <chatid> <oldest_known_msgid> <newest_known_msgid>
+
+    /**
+      * @brief
+      * C->S: Subscribe to events for this chat, indicating the existing message range
+      *    (msgid0 is the oldest, msgid1 the newest). Responds with all messages newer
+      *    than msgid1 (if any), followed by a HISTDONE.
+      * Send: <chatid> <msgid0> <msgid1>
+      */
+    OP_JOINRANGEHIST = 19,
+
+    /**
+      * @brief
+      * C->S: Update existing message. Can only be updated within one hour of the physical
+      *    arrival time. updatedelta must be larger than the previous updatedelta, or
+      *    the MSGUPD will fail. The keyid must not change.
+      */
     OP_MSGUPDX = 20,
+
+    /**
+      * @brief
+      * S->C: The NEWMSG with msgxid had been written previously, informs of the permanent
+      *     msgid.
+      * Receive: <msgxid> <msgid>
+      */
     OP_MSGID = 21,
+
+    /**
+      * @brief
+      * C->S: Must respond to a received KEEPALIVE within 30 seconds. If local user is away, send KEEPALIVEAWAY
+      */
     OP_KEEPALIVEAWAY = 30,
     OP_LAST = OP_KEEPALIVEAWAY
 };
