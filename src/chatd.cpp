@@ -1080,8 +1080,15 @@ void Chat::onFetchHistDone()
     bool fetchingOld = (mServerFetchState & kHistOldFlag);
     if (fetchingOld)
     {
-        mServerFetchState = (mDecryptOldHaltedAt != CHATD_IDX_INVALID)
-            ? kHistDecryptingOld : kHistNotFetching;
+        if (mDecryptOldHaltedAt != CHATD_IDX_INVALID)
+        {
+            mServerFetchState = kHistDecryptingOld;
+        }
+        else
+        {
+            mServerFetchState = kHistNotFetching;
+            mNextHistFetchIdx = lownum()-1;
+        }
         if (mLastServerHistFetchCount <= 0)
         {
             //server returned zero messages
