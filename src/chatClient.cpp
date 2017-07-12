@@ -483,8 +483,12 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         api.sdk.pauseActionPackets();
         auto state = mInitState;
         char* pscsn = api.sdk.getSequenceNumber();
-        std::string scsn = pscsn ? pscsn : "";
-        delete pscsn;
+        std::string scsn;
+        if (pscsn)
+        {
+            scsn = pscsn;
+            delete[] pscsn;
+        }
         std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
         std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
@@ -506,7 +510,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
 //              }
                 checkSyncWithSdkDb(scsn, *contactList, *chatList);
                 setInitState(kInitHasOnlineSession);
-                mCanConnectPromise.resolve();
+                mSessionReadyPromise.resolve();
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
@@ -515,13 +519,13 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 initWithNewSession(sid.get(), scsn, contactList, chatList)
                 .fail([this](const promise::Error& err)
                 {
-                    mCanConnectPromise.reject(err);
+                    mSessionReadyPromise.reject(err);
                     return err;
                 })
                 .then([this]()
                 {
                     setInitState(kInitHasOnlineSession);
-                    mCanConnectPromise.resolve();
+                    mSessionReadyPromise.resolve();
                 });
             }
             api.sdk.resumeActionPackets();
