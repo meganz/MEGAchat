@@ -297,10 +297,27 @@ Client::reconnect(const std::string& url)
             {
                 ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
             }
-            
+
+            auto wptr = weakHandle();
             mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([this](ReqResult result)
+            .then([wptr, this](ReqResult result)
             {
+                if (wptr.deleted())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
+                    return;
+                }
+                if (!mWebSocket)
+                {
+                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
+                    return;
+                }
+                if (mConnState != kConnecting)
+                {
+                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    return;
+                }
+
                 string ip = result->getText();
                 PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
                 
@@ -353,6 +370,10 @@ bool Client::sendKeepalive(time_t now)
 
 void Client::heartbeat()
 {
+    // if a heartbeat is received but we are already offline...
+    if (!mHeartbeatEnabled)
+        return;
+
     auto now = time(NULL);
     if (autoAwayInEffect())
     {
@@ -361,9 +382,6 @@ void Client::heartbeat()
             sendUserActive(false);
         }
     }
-
-    if (!mHeartbeatEnabled)
-        return;
 
     bool needReconnect = false;
     if (now - mTsLastSend > kKeepaliveSendInterval)
@@ -384,7 +402,7 @@ void Client::heartbeat()
     }
     else if (now - mTsLastRecv >= kKeepaliveSendInterval)
     {
-        if (!sendKeepalive())
+        if (!sendKeepalive(now))
         {
             needReconnect = true;
             PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");

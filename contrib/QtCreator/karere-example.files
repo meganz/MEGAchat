@@ -64,10 +64,6 @@
 ../../src/base/asyncTools.h
 ../../src/base/cservices.cpp
 ../../src/base/cservices.h
-../../src/base/cservices-dns.cpp
-../../src/base/cservices-dns.h
-../../src/base/cservices-http.cpp
-../../src/base/cservices-http.h
 ../../src/base/cservices-strophe.cpp
 ../../src/base/cservices-strophe.h
 ../../src/base/cservices-thread.h
@@ -83,9 +79,6 @@
 ../../src/base/promise-test.cpp
 ../../src/base/retryHandler.h
 ../../src/base/services.h
-../../src/base/services-dns.cpp
-../../src/base/services-dns.hpp
-../../src/base/services-http.hpp
 ../../src/base/timers.hpp
 ../../src/rtcModule/ICryptoFunctions.h
 ../../src/rtcModule/IDeviceListImpl.h

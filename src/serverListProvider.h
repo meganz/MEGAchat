@@ -4,13 +4,10 @@
 #include <vector>
 #include <promise.h>
 #include <rapidjson/document.h>
-#include <base/services-http.hpp>
 #include "retryHandler.h"
 
 namespace karere
 {
-namespace http { class Client; }
-
 #define SRVJSON_CHECK_GET_PROP(varname, name, type)                                             \
     auto it_##varname = json.FindMember(#name);                                                 \
     if (it_##varname == json.MemberEnd())                                                                          \
@@ -177,25 +174,17 @@ protected:
     std::string mService;
     int64_t mMaxReuseOldServersAge;
     int64_t mLastUpdateTs = 0;
-    std::shared_ptr<http::Client> mClient;
-    std::unique_ptr<rh::IRetryController> mRetryController;
+    bool started;
     promise::Promise<void> mOutputPromise;
     void parseServersJson(const std::string& json);
-    promise::Promise<void> exec(int no);
-    void giveup();
+    promise::Promise<void> exec(unsigned timeoutms, int maxretries);
+    
 public:
     typedef S Server;
-    promise::Promise<void> fetchServers(unsigned timeout=0);
-    GelbProvider(MyMegaApi *api, const char* service, int reqCount=2, unsigned reqTimeout=4000,
-        int64_t maxReuseOldServersAge=0);
-    void abort()
-    {
-        if (!mClient)
-            return;
-        mRetryController->abort();
-        assert(!mClient);
-    }
+    promise::Promise<void> fetchServers(unsigned timeoutms = 4000, int maxretries = 1);
+    GelbProvider(MyMegaApi *api, const char* service, int64_t maxReuseOldServersAge = 0);
 };
+    
 /** Another public API server provider that sits on top of one GeLB and one static providers.
  *  It tries first to get servers via GeLB and if it doesn't sucees, falls back to the static provider
  */
@@ -244,34 +233,20 @@ public:
 };
 
 template <class S>
-GelbProvider<S>::GelbProvider(MyMegaApi *api, const char* service,
-    int reqCount, unsigned reqTimeout, int64_t maxReuseOldServersAge)
-    :mApi(api), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
+GelbProvider<S>::GelbProvider(MyMegaApi *api, const char* service, int64_t maxReuseOldServersAge)
+    : mApi(api), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge),
+    started(false)
 {
-    auto wptr = getDelTracker();
-    mRetryController.reset(::karere::createRetryController("gelb",
-        [this, wptr](int no)
-        {
-            wptr.throwIfDeleted();
-            return exec(no);
-        },
-        [this, wptr]()
-        {
-            wptr.throwIfDeleted();
-            giveup();
-        },
-        reqTimeout, reqCount, 1, 1
-    ));
 }
+    
 template <class S>
-promise::Promise<void> GelbProvider<S>::exec(int no)
+promise::Promise<void> GelbProvider<S>::exec(unsigned timeoutms, int maxretries)
 {
-    assert(!mClient); //don't destroy it as it may be still working, the promise handlers will destroy it when it resolves/fails the promise
-    mClient = std::make_shared<http::Client>();
-    auto client = mClient; //keep the client alive in case we destroy the provider
-
-    return mApi->call(&::mega::MegaApi::queryGeLB, mService.c_str(), 3600)
-    .then([this, client](ReqResult result)
+    assert(!started);
+    started = true;
+    
+    return mApi->call(&::mega::MegaApi::queryGeLB, mService.c_str(), timeoutms, maxretries)
+    .then([this](ReqResult result)
         -> promise::Promise<void>
     {
         if (result->getNumber() != 200)
@@ -284,7 +259,7 @@ promise::Promise<void> GelbProvider<S>::exec(int no)
             return promise::Error("Empty response from GeLB server", 0x3e9a9e1b, 1);
         }
 
-        this->mClient.reset();
+        this->started = false;
         std::string json((const char*)result->getText(), result->getTotalBytes());
         parseServersJson(json);
         this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
@@ -293,40 +268,20 @@ promise::Promise<void> GelbProvider<S>::exec(int no)
     })
     .fail([this](const promise::Error& err)
     {
-        this->mClient.reset();
+        started = false;
         return err;
     });
 }
-template <class S>
-void GelbProvider<S>::giveup()
-{
-    if (!mClient)
-        return;
-    // If this was the last attempt, the output promise will fail and reset() to nullptr
-    mClient->abort();
-    assert(!mClient);
-}
 
 template <class S>
-promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeout)
+promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeoutms, int maxretries)
 {
-    if (mClient)
+    if (started)
     {
         return mOutputPromise;
     }
 
-    mRetryController->reset();
-    promise::Promise<void> pms;
-    if (timeout) //if user set a timeout, execute only once (quick mode)
-    {
-        pms = exec(0);
-        setTimeout([this]() { giveup(); }, timeout);
-    }
-    else //execute with retries
-    {
-        pms = static_cast<promise::Promise<void>& > (mRetryController->start());
-    }
-
+    promise::Promise<void> pms = exec(timeoutms, maxretries);
     mOutputPromise = pms
     .fail([this](const promise::Error& err) -> promise::Promise<void>
     {
