@@ -1,5 +1,4 @@
 #include "karereCommon.h"
-#include <services-http.hpp>
 #include "stringUtils.h"
 #include "rtcModule/IRtcModule.h"
 #include "sdkApi.h"

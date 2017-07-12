@@ -100,7 +100,7 @@ Client::Client(MyMegaApi *api, Id userId)
 {
     if (!sWebsockCtxInitialized)
     {
-        ws_global_init(&sWebsocketContext, services_get_event_loop(), services_dns_eventbase,
+        ws_global_init(&sWebsocketContext, services_get_event_loop(), NULL,
         [](struct bufferevent* bev, void* userp)
         {
             marshallCall([bev, userp]()
@@ -209,7 +209,7 @@ void Client::notifyUserActive()
 void Chat::connect(const std::string& url)
 {
     // attempt a connection ONLY if this is a new shard.
-    if (mConnection.state() == Connection::kStateNew)
+    if (mConnection.state() == Connection::kStateNew || mConnection.state() == Connection::kStateDisconnected)
     {
         mConnection.reconnect(url)
         .fail([this](const promise::Error& err)
@@ -272,12 +272,26 @@ void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *p
     });
 }
 
+void Connection::websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg)
+{
+    Connection* self = static_cast<Connection*>(arg);
+    ASSERT_NOT_ANOTHER_WS("message");
+    self->mInactivityBeats = 0;
+    self->execCommand(StaticBuffer(msg, len));
+}
+
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
     CHATD_LOG_WARNING("Socket close on connection to shard %d. Reason: %s",
         mShardNo, reason.c_str());
     
     disableInactivityTimer();
+    auto oldState = mState;
+    mState = kStateDisconnected;
+    if (mWebSocket)
+    {
+        ws_destroy(&mWebSocket);
+    }
     for (auto& chatid: mChatIds)
     {
         auto& chat = mClient.chats(chatid);
@@ -291,7 +305,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         return;
     }
 
-    if (mState < kStateLoggedIn) //tell retry controller that the connect attempt failed
+    if (oldState < kStateLoggedIn) //tell retry controller that the connect attempt failed
     {
         assert(!mLoginPromise.done());
         mConnectPromise.reject(reason, errcode, errtype);
@@ -300,7 +314,6 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     else
     {
         CHATD_LOG_DEBUG("Socket close and state is not kLoggedIn (but %d), start retry controller", mState);
-        mState = kStateDisconnected;
         reconnect(); //start retry controller
     }
 }
@@ -346,14 +359,7 @@ Promise<void> Connection::reconnect(const std::string& url)
             checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
             ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
             ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
-            ws_set_onmsg_cb(mWebSocket,
-            [](ws_t ws, char *msg, uint64_t len, int binary, void *arg)
-            {
-                Connection* self = static_cast<Connection*>(arg);
-                ASSERT_NOT_ANOTHER_WS("message");
-                self->mInactivityBeats = 0;
-                self->execCommand(StaticBuffer(msg, len));
-            }, this);
+            ws_set_onmsg_cb(mWebSocket, &websockMsgCb, this);
 
             if (mUrl.isSecure)
             {
@@ -365,10 +371,26 @@ Promise<void> Connection::reconnect(const std::string& url)
                 if (!chat.isDisabled())
                     chat.setOnlineState(kChatStateConnecting);                
             }
-            
+
+            auto wptr = weakHandle();
             this->mClient.mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([this](ReqResult result)
+            .then([wptr, this](ReqResult result)
             {
+                if (wptr.deleted())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+                    return;
+                }
+                if (!mWebSocket)
+                {
+                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
+                    return;
+                }
+                if (mState != kStateConnecting)
+                {
+                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    return;
+                }
                 string ip = result->getText();
                 CHATD_LOG_DEBUG("Connecting to chatd using the IP: %s", ip.c_str());
 
@@ -1080,8 +1102,15 @@ void Chat::onFetchHistDone()
     bool fetchingOld = (mServerFetchState & kHistOldFlag);
     if (fetchingOld)
     {
-        mServerFetchState = (mDecryptOldHaltedAt != CHATD_IDX_INVALID)
-            ? kHistDecryptingOld : kHistNotFetching;
+        if (mDecryptOldHaltedAt != CHATD_IDX_INVALID)
+        {
+            mServerFetchState = kHistDecryptingOld;
+        }
+        else
+        {
+            mServerFetchState = kHistNotFetching;
+            mNextHistFetchIdx = lownum()-1;
+        }
         if (mLastServerHistFetchCount <= 0)
         {
             //server returned zero messages

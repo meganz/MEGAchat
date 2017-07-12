@@ -35,7 +35,6 @@ SVC_THREAD_FUNCDECL(libeventThreadFunc)
     event_base_loop(services_eventloop, 0);//EVLOOP_NO_EXIT_ON_EMPTY
     SVC_LOG_INFO("Libevent loop terminated");
     return (t_svc_thread_funcret)0;
-
 }
 
 MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
@@ -55,15 +54,11 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
     tv.tv_sec = 123456;//0x7FFFFFFF;
     tv.tv_usec = 0;
     evtimer_add(keepalive, &tv);
-#ifndef SVC_DISABLE_DNS
-    services_dns_init(options);
-#endif
+
 #ifndef SVC_DISABLE_STROPHE
     services_strophe_init(options);
 #endif
-#ifndef SVC_DISABLE_HTTP
-    services_http_init(options);
-#endif
+
     hasLibeventThread = svc_thread_start(
                 NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
     return 0;
@@ -71,9 +66,6 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
 
 MEGAIO_EXPORT int services_shutdown()
 {
-#ifndef SVC_DISABLE_HTTP
-    services_http_shutdown();
-#endif
     event_base_loopexit(services_eventloop, NULL);
     SVC_LOG_INFO("Terminating libevent thread...");
     svc_thread_join(libeventThread);

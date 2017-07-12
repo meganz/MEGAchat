@@ -259,6 +259,7 @@ protected:
         KeyEntry(const std::shared_ptr<SendKey>& aKey): key(aKey){}
     };
     std::map<UserKeyId, KeyEntry> mKeys;
+    std::map<karere::Id, std::shared_ptr<SendKey>> mSymmKeyCache;
     karere::SetOfIds* mParticipants = nullptr;
     bool mParticipantsChanged = true;
     bool mIsDestroying = false;
