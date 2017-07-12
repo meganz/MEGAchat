@@ -1631,8 +1631,12 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
         return;
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
     char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn = pscsn ? pscsn : "";
-    delete pscsn;
+    std::string scsn;
+    if (pscsn)
+    {
+        scsn = pscsn;
+        delete[] pscsn;
+    }
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
