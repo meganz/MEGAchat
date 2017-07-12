@@ -1640,8 +1640,12 @@ int Chat::unreadMsgCount() const
     for (Idx i=first; i<=last; i++)
     {
         auto& msg = at(i);
-        if (msg.userid != mClient.userId() && !(msg.updated && !msg.size()))
+        if (msg.userid != mClient.userId()               // skip own messages
+                && !(msg.updated && !msg.size())         // skip deleted messages
+                && (msg.type != Message::kMsgRevokeAttachment))  // skip revoke messages
+        {
             count++;
+        }
     }
     return count;
 }
@@ -2526,6 +2530,7 @@ void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
     //either (msg.isSending() && idx-is-invalid) or (!msg.isSending() && index-is-valid)
     assert(!((idx == CHATD_IDX_INVALID) ^ msg.isSending()));
     assert(!msg.empty());
+    assert(msg.type != Message::kMsgRevokeAttachment);
     mLastTextMsg.assign(msg, idx);
     notifyLastTextMsg();
 }
