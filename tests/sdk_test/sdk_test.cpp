@@ -1913,7 +1913,9 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     std::cerr << "My name: " << initFullName << std::endl;
 
     bool *flagMyName = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
-    megaApi[a1]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, "AXV");
+    std::string lastName = megaChatApi[a1]->getMyLastname();
+    std::string newLastName = lastName + "Test";
+    megaApi[a1]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, newLastName.c_str());
     ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
     ASSERT_CHAT_TEST(!lastError[a1], "FAIL REQUEST");
 
@@ -1921,6 +1923,9 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
 
     std::string finishFullName = megaChatApi[a1]->getMyFullname();
     std::cerr << "My name: " << finishFullName << std::endl;
+
+    // Set initial lastName for next execution
+    megaApi[a1]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
 
     ASSERT_CHAT_TEST(initFullName != finishFullName, "The full name have to be different");
 
