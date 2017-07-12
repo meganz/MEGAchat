@@ -41,6 +41,8 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
 
+    EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST My test");
+
     // The test below is a manual test. It requires to stop the intenet conection
 //    EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
 
@@ -1901,6 +1903,34 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     session0 = NULL;
     delete [] session1;
     session1 = NULL;
+}
+
+void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
+{
+    char *sessionPrimary = login(a1);
+
+    std::string initFullName = megaChatApi[a1]->getMyFullname();
+    std::cerr << "My name: " << initFullName << std::endl;
+
+    bool *flagMyName = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
+    std::string lastName = megaChatApi[a1]->getMyLastname();
+    std::string newLastName = lastName + "Test";
+    megaApi[a1]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, newLastName.c_str());
+    ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
+    ASSERT_CHAT_TEST(!lastError[a1], "FAIL REQUEST");
+
+    sleep(3);
+
+    std::string finishFullName = megaChatApi[a1]->getMyFullname();
+    std::cerr << "My name: " << finishFullName << std::endl;
+
+    // Set initial lastName for next execution
+    megaApi[a1]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
+
+    ASSERT_CHAT_TEST(initFullName != finishFullName, "The full name have to be different");
+
+    delete [] sessionPrimary;
+    sessionPrimary = NULL;
 }
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
