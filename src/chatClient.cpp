@@ -534,16 +534,25 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     else if (reqType == mega::MegaRequest::TYPE_SET_ATTR_USER)
     {
         int attrType = request->getParamType();
-        if (attrType == mega::MegaApi::USER_ATTR_FIRSTNAME
-         || attrType == mega::MegaApi::USER_ATTR_LASTNAME)
+        int changeType;
+        if (attrType == mega::MegaApi::USER_ATTR_FIRSTNAME)
         {
-            marshallCall([wptr, this, attrType]()
-            {
-                if (wptr.deleted())
-                    return;
-                mUserAttrCache->onUserAttrChange(mMyHandle, attrType);
-            });
+            changeType = mega::MegaUser::CHANGE_TYPE_FIRSTNAME;
         }
+        else if (attrType == mega::MegaApi::USER_ATTR_LASTNAME)
+        {
+            changeType = mega::MegaUser::CHANGE_TYPE_LASTNAME;
+        }
+        else
+        {
+            return;
+        }
+        marshallCall([wptr, this, changeType]()
+        {
+            if (wptr.deleted())
+                return;
+            mUserAttrCache->onUserAttrChange(mMyHandle, changeType);
+        });
     }
 }
 
