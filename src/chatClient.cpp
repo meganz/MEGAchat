@@ -473,55 +473,74 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         return;
     }
 
-    if (!request || (request->getType() != mega::MegaRequest::TYPE_FETCH_NODES))
-        return;
-
-    api.sdk.pauseActionPackets();
-    auto state = mInitState;
-    char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn = pscsn ? pscsn : "";
-    delete pscsn;
-    std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
-    std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
-
-    marshallCall([wptr, this, state, scsn, contactList, chatList]()
+    if (!request)
     {
-        if (wptr.deleted())
-            return;
-        if (state == kInitHasOfflineSession)
+        return;
+    }
+    auto reqType = request->getType();
+    if (reqType == mega::MegaRequest::TYPE_FETCH_NODES)
+    {
+        api.sdk.pauseActionPackets();
+        auto state = mInitState;
+        char* pscsn = api.sdk.getSequenceNumber();
+        std::string scsn = pscsn ? pscsn : "";
+        delete pscsn;
+        std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
+        std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
+
+        marshallCall([wptr, this, state, scsn, contactList, chatList]()
         {
-            // disable this safety checkup, since dumpSession() differs from first-time login value
-//            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-//            assert(sid);
-//            // we loaded our state from db
-//            // verify the SDK sid is the same as ours
-//            if (mSid != sid.get())
-//            {
-//                setInitState(kInitErrSidMismatch);
-//                return;
-//            }
-            checkSyncWithSdkDb(scsn, *contactList, *chatList);
-            setInitState(kInitHasOnlineSession);
-            mCanConnectPromise.resolve();
-        }
-        else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
-        {
-            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-            assert(sid);
-            initWithNewSession(sid.get(), scsn, contactList, chatList)
-            .fail([this](const promise::Error& err)
+            if (wptr.deleted())
+                return;
+            if (state == kInitHasOfflineSession)
             {
-                mCanConnectPromise.reject(err);
-                return err;
-            })
-            .then([this]()
-            {
+// disable this safety checkup, since dumpSession() differs from first-time login value
+//              std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+//              assert(sid);
+//              // we loaded our state from db
+//              // verify the SDK sid is the same as ours
+//              if (mSid != sid.get())
+//              {
+//                  setInitState(kInitErrSidMismatch);
+//                  return;
+//              }
+                checkSyncWithSdkDb(scsn, *contactList, *chatList);
                 setInitState(kInitHasOnlineSession);
                 mCanConnectPromise.resolve();
+            }
+            else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
+            {
+                std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+                assert(sid);
+                initWithNewSession(sid.get(), scsn, contactList, chatList)
+                .fail([this](const promise::Error& err)
+                {
+                    mCanConnectPromise.reject(err);
+                    return err;
+                })
+                .then([this]()
+                {
+                    setInitState(kInitHasOnlineSession);
+                    mCanConnectPromise.resolve();
+                });
+            }
+            api.sdk.resumeActionPackets();
+        });
+    }
+    else if (reqType == mega::MegaRequest::TYPE_SET_ATTR_USER)
+    {
+        int attrType = request->getParamType();
+        if (attrType == mega::MegaApi::USER_ATTR_FIRSTNAME
+         || attrType == mega::MegaApi::USER_ATTR_LASTNAME)
+        {
+            marshallCall([wptr, this, attrType]()
+            {
+                if (wptr.deleted())
+                    return;
+                mUserAttrCache->onUserAttrChange(mMyHandle, attrType);
             });
         }
-        api.sdk.resumeActionPackets();
-    });
+    }
 }
 
 //TODO: We should actually wipe the whole app dir, but the log file may
