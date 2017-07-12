@@ -183,6 +183,7 @@ public:
     void TEST_Attachment(unsigned int a1, unsigned int a2);
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
+    void TEST_ChangeMyOwnName(unsigned int a1);
 
     unsigned mOKTests;
     unsigned mFailedTests;
