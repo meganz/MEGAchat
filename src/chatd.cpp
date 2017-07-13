@@ -1826,26 +1826,29 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
 
     // last text message stuff
-    if (mLastTextMsg.idx() == CHATD_IDX_INVALID)
+    if (msg->isText())
     {
-        if (mLastTextMsg.xid() != msgxid) //it's another message
+        if (mLastTextMsg.idx() == CHATD_IDX_INVALID)
+        {
+            if (mLastTextMsg.xid() != msgxid) //it's another message
+            {
+                onLastTextMsgUpdated(*msg, idx);
+            }
+            else
+            { //it's the same message - set its index, and don't notify again
+                mLastTextMsg.confirm(idx, msgid);
+                if (!mLastTextMsg.mIsNotified)
+                    notifyLastTextMsg();
+            }
+        }
+        else if (idx > mLastTextMsg.idx())
         {
             onLastTextMsgUpdated(*msg, idx);
         }
-        else
-        { //it's the same message - set its index, and don't notify again
-            mLastTextMsg.confirm(idx, msgid);
-            if (!mLastTextMsg.mIsNotified)
-                notifyLastTextMsg();
+        else if (idx == mLastTextMsg.idx() && !mLastTextMsg.mIsNotified)
+        {
+            notifyLastTextMsg();
         }
-    }
-    else if (idx > mLastTextMsg.idx())
-    {
-        onLastTextMsgUpdated(*msg, idx);
-    }
-    else if (idx == mLastTextMsg.idx() && !mLastTextMsg.mIsNotified)
-    {
-        notifyLastTextMsg();
     }
     return idx;
 }
