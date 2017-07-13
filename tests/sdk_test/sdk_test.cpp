@@ -1909,11 +1909,16 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     char *sessionPrimary = login(a1);
     std::string appendToLastName = "Test";
 
-    std::string initLastName = megaChatApi[a1]->getMyLastname();
+    char *nameFromApi = megaChatApi[a1]->getMyLastname();
+    std::string initLastName = nameFromApi;
+    delete [] nameFromApi;
+    nameFromApi = NULL;
     std::string newLastName = initLastName + appendToLastName;
     changeLastName(a1, newLastName);
 
-    std::string finishLastName = megaChatApi[a1]->getMyLastname();
+    nameFromApi = megaChatApi[a1]->getMyLastname();
+    std::string finishLastName = nameFromApi;
+    delete [] nameFromApi;
 
     // Set initial lastName for next execution
     changeLastName(a1, initLastName);
