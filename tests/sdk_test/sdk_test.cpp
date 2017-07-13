@@ -149,8 +149,8 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     // 4. Connect to chat servers
     bool *flagRequestConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
     megaChatApi[accountIndex]->connect();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired sdk timeout for connect request");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error connect to sdk. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect to chat. Error: " + std::to_string(lastErrorChat[accountIndex]));
 
     return megaApi[accountIndex]->dumpSession();
 }
