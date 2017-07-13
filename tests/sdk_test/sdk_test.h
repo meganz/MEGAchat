@@ -225,6 +225,7 @@ private:
     void purgeCloudTree(unsigned int accountIndex, mega::MegaNode* node);
     void clearAndLeaveChats(unsigned int accountIndex, megachat::MegaChatHandle skipChatId =  megachat::MEGACHAT_INVALID_HANDLE);
     void removePendingContactRequest(unsigned int accountIndex);
+    void changeLastName(unsigned int accountIndex, std::string lastName);
 
     Account mAccounts[NUM_ACCOUNTS];
 

@@ -40,7 +40,6 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
     EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
-
     EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST My test");
 
     // The test below is a manual test. It requires to stop the intenet conection
@@ -1908,26 +1907,18 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
 void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
 {
     char *sessionPrimary = login(a1);
+    std::string appendToLastName = "Test";
 
-    std::string initFullName = megaChatApi[a1]->getMyFullname();
-    std::cerr << "My name: " << initFullName << std::endl;
+    std::string initLastName = megaChatApi[a1]->getMyLastname();
+    std::string newLastName = initLastName + appendToLastName;
+    changeLastName(a1, newLastName);
 
-    bool *flagMyName = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
-    std::string lastName = megaChatApi[a1]->getMyLastname();
-    std::string newLastName = lastName + "Test";
-    megaApi[a1]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, newLastName.c_str());
-    ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
-    ASSERT_CHAT_TEST(!lastError[a1], "FAIL REQUEST");
-
-    sleep(3);
-
-    std::string finishFullName = megaChatApi[a1]->getMyFullname();
-    std::cerr << "My name: " << finishFullName << std::endl;
+    std::string finishLastName = megaChatApi[a1]->getMyLastname();
 
     // Set initial lastName for next execution
-    megaApi[a1]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
+    changeLastName(a1, initLastName);
 
-    ASSERT_CHAT_TEST(initFullName != finishFullName, "The full name have to be different");
+    ASSERT_CHAT_TEST((initLastName + appendToLastName) == finishLastName, "The full name have to be different");
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
@@ -2516,6 +2507,14 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
 
     delete contactRequests;
     contactRequests = NULL;
+}
+
+void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string lastName)
+{
+    bool *flagMyName = &requestFlags[accountIndex][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
+    megaApi[accountIndex]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
+    ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "FAIL REQUEST");
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)

@@ -473,10 +473,6 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         return;
     }
 
-    if (!request)
-    {
-        return;
-    }
     auto reqType = request->getType();
     if (reqType == mega::MegaRequest::TYPE_FETCH_NODES)
     {
