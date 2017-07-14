@@ -1910,23 +1910,38 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     std::string appendToLastName = "Test";
 
     char *nameFromApi = megaChatApi[a1]->getMyLastname();
-    std::string initLastName = nameFromApi;
+    std::string myAccountLastName = nameFromApi;
     delete [] nameFromApi;
     nameFromApi = NULL;
-    std::string newLastName = initLastName + appendToLastName;
+
+    std::string newLastName = myAccountLastName + appendToLastName;
     changeLastName(a1, newLastName);
 
     nameFromApi = megaChatApi[a1]->getMyLastname();
     std::string finishLastName = nameFromApi;
     delete [] nameFromApi;
+    nameFromApi = NULL;
 
-    // Set initial lastName for next execution
-    changeLastName(a1, initLastName);
+    logout(a1, false);
 
-    ASSERT_CHAT_TEST((initLastName + appendToLastName) == finishLastName, "The full name have to be different");
+    char *newSession = login(a1, sessionPrimary);
+
+    nameFromApi = megaChatApi[a1]->getMyLastname();
+    std::string finishLastNameAfterLogout = nameFromApi;
+    delete [] nameFromApi;
+    nameFromApi = NULL;
+
+    //Name comes back to old value.
+    changeLastName(a1, myAccountLastName);
+
+    ASSERT_CHAT_TEST(newLastName == finishLastName, "The full name have to be different");
+    ASSERT_CHAT_TEST(finishLastNameAfterLogout == finishLastName, "Name at data base is not updated");
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
+
+    delete [] newSession;
+    newSession = NULL;
 }
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
@@ -2519,7 +2534,7 @@ void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string last
     bool *flagMyName = &requestFlags[accountIndex][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
     megaApi[accountIndex]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
     ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "FAIL REQUEST");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Fail sdk request. Error: " + std::to_string(lastError[accountIndex]));
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
