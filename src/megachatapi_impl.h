@@ -486,6 +486,7 @@ public:
     virtual int getUnreadCount() const;
     virtual MegaChatHandle getUserTyping() const;
 
+    void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
     void setMembersUpdated();
