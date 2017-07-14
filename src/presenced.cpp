@@ -57,8 +57,10 @@ Client::Client(MyMegaApi *api, Listener& listener, uint8_t caps)
 
 //Stale event from a previous connect attempt?
 #define ASSERT_NOT_ANOTHER_WS(event)    \
-    if (ws != self.mWebSocket) {       \
-        PRESENCED_LOG_WARNING("Websocket '" event "' callback: ws param is not equal to self->mWebSocket, ignoring"); \
+    if (ws != self.mWebSocket && self.mWebSocket) {   \
+        PRESENCED_LOG_WARNING("Websocket '" event     \
+        "' callback: ws param %p is not equal to self.mWebSocket %p, ignoring", \
+        ws, self.mWebSocket);                         \
     }
 
 promise::Promise<void>
@@ -88,7 +90,6 @@ void Client::pushPeers()
 void Client::wsConnectCb()
 {
     CHATD_LOG_DEBUG("Presenced connected");
-
     setConnState(kConnected);
     mConnectPromise.resolve();
 }
@@ -112,7 +113,12 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     PRESENCED_LOG_WARNING("Socket close, reason: %s", reason.c_str());
     
     mHeartbeatEnabled = false;
-    if (mTerminating)
+    //if (mWebSocket)
+    //{
+    //    ws_destroy(&mWebSocket);
+    //}
+    
+    if (mConnState == kDisconnected)
         return;
 
     if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
@@ -214,10 +220,27 @@ Client::reconnect(const std::string& url)
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
             PRESENCED_LOG_DEBUG("Attempting connect...");
-            
+
+            auto wptr = weakHandle();
             mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([this](ReqResult result)
+            .then([wptr, this](ReqResult result)
             {
+                if (wptr.deleted())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
+                    return;
+                }
+                //if (!mWebSocket)
+                //{
+                //    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
+                //    return;
+                //}
+                if (mConnState != kConnecting)
+                {
+                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    return;
+                }
+
                 string ip = result->getText();
                 PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
                 karere::Client *karereClient = (karere::Client *)mListener;
@@ -254,6 +277,10 @@ bool Client::sendKeepalive(time_t now)
 
 void Client::heartbeat()
 {
+    // if a heartbeat is received but we are already offline...
+    if (!mHeartbeatEnabled)
+        return;
+
     auto now = time(NULL);
     if (autoAwayInEffect())
     {
@@ -262,9 +289,6 @@ void Client::heartbeat()
             sendUserActive(false);
         }
     }
-
-    if (!mHeartbeatEnabled)
-        return;
 
     bool needReconnect = false;
     if (now - mTsLastSend > kKeepaliveSendInterval)
@@ -285,7 +309,7 @@ void Client::heartbeat()
     }
     else if (now - mTsLastRecv >= kKeepaliveSendInterval)
     {
-        if (!sendKeepalive())
+        if (!sendKeepalive(now))
         {
             needReconnect = true;
             PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
@@ -293,7 +317,7 @@ void Client::heartbeat()
     }
     if (needReconnect)
     {
-        mConnState = kDisconnected;
+        setConnState(kDisconnected);
         mHeartbeatEnabled = false;
         reconnect();
     }
@@ -303,15 +327,15 @@ void Client::disconnect() //should be graceful disconnect
 {
     mHeartbeatEnabled = false;
     mTerminating = true;
-    //if (mWebSocket)
-    //    ws_close(mWebSocket);
+    reset();
+    setConnState(kDisconnected);
 }
 
 promise::Promise<void> Client::retryPendingConnection()
 {
     if (mUrl.isValid())
     {
-        mConnState = kDisconnected;
+        setConnState(kDisconnected);
         mHeartbeatEnabled = false;
         PRESENCED_LOG_WARNING("Retry pending connections...");
         return reconnect();

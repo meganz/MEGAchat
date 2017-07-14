@@ -80,7 +80,7 @@ struct ErrorShared
     int mCode;
     int mType;
     mutable bool mHandled = false;
-    ErrorShared(const std::string& aMsg, int aCode=0, int aType=0)
+    ErrorShared(const std::string& aMsg, int aCode=-1, int aType=0)
         :mMsg(aMsg),mCode(aCode),mType(aType){}
     ~ErrorShared()
     {
@@ -110,10 +110,10 @@ protected:
     Error(): Base(nullptr){}
 public:
     typedef std::shared_ptr<ErrorShared> Base;
-    Error(const std::string& msg, int code=0, int type=kErrorTypeGeneric)
+    Error(const std::string& msg, int code=-1, int type=kErrorTypeGeneric)
         :Base(std::make_shared<ErrorShared>(msg, code, type))
     {}
-    Error(const char* msg, int code=0, int type=kErrorTypeGeneric)
+    Error(const char* msg, int code=-1, int type=kErrorTypeGeneric)
         :Base(std::make_shared<ErrorShared>(msg?msg:"", code, type))
     {}
     using Base::operator=;

@@ -1314,6 +1314,17 @@ void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
+int MegaChatApiImpl::getConnectionState()
+{
+    int ret = 0;
+
+    sdkMutex.lock();
+    ret = mClient->connState();
+    sdkMutex.unlock();
+
+    return ret;
+}
+
 void MegaChatApiImpl::retryPendingConnections(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS, listener);
@@ -3349,7 +3360,14 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
         mRoom->onUserJoin(userid, privilege);
 
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-        chatroom->setMembersUpdated();
+        if (userid.val == chatApi->getMyUserHandle())
+        {
+            chatroom->setOwnPriv(privilege);
+        }
+        else
+        {
+            chatroom->setMembersUpdated();
+        }
         chatApi->fireOnChatRoomUpdate(chatroom);
     }
 }
@@ -3793,6 +3811,12 @@ MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
     return uh;
 }
 
+void MegaChatRoomPrivate::setOwnPriv(int ownPriv)
+{
+    this->priv = ownPriv;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_OWN_PRIV;
+}
+
 void MegaChatRoomPrivate::setTitle(const string& title)
 {
     this->title = title;
@@ -4132,10 +4156,17 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 }
 
-void MegaChatGroupListItemHandler::onUserJoin(uint64_t, Priv)
+void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    item->setMembersUpdated();
+    if (userid == chatApi.getMyUserHandle())
+    {
+        item->setOwnPriv(priv);
+    }
+    else
+    {
+        item->setMembersUpdated();
+    }
 
     chatApi.fireOnChatListItemUpdate(item);
 }

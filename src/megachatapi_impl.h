@@ -488,6 +488,7 @@ public:
     virtual int getUnreadCount() const;
     virtual MegaChatHandle getUserTyping() const;
 
+    void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
     void setMembersUpdated();
@@ -776,6 +777,7 @@ public:
     // General chat methods
     void connect(MegaChatRequestListener *listener = NULL);
     void disconnect(MegaChatRequestListener *listener = NULL);
+    int getConnectionState();
     void retryPendingConnections(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);
