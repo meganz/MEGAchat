@@ -12,6 +12,7 @@
 		9419773A1F163EB100A76EE3 /* libwebsocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977381F163EB100A76EE3 /* libwebsocketsIO.cpp */; };
 		947565EA1F164E5E00FE8664 /* libeventWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947565E61F164E5E00FE8664 /* libeventWaiter.cpp */; };
 		947565ED1F164F1A00FE8664 /* libwebsocketsWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947565EC1F164F1A00FE8664 /* libwebsocketsWaiter.cpp */; };
+		947566431F197BF800FE8664 /* libuvWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947566421F197BF800FE8664 /* libuvWaiter.cpp */; };
 		A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */; };
 		A82750D31E9788A3007CD9E2 /* MEGAChatListItem.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BD1E9788A3007CD9E2 /* MEGAChatListItem.mm */; };
 		A82750D41E9788A3007CD9E2 /* MEGAChatListItemList.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BF1E9788A3007CD9E2 /* MEGAChatListItemList.mm */; };
@@ -134,6 +135,8 @@
 		9475663F1F18D60300FE8664 /* websocketsIO.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = websocketsIO.h; path = ../../src/net/websocketsIO.h; sourceTree = "<group>"; };
 		947566401F18D61100FE8664 /* libeventWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libeventWaiter.h; path = ../../src/waiter/libeventWaiter.h; sourceTree = "<group>"; };
 		947566411F18D61100FE8664 /* libwebsocketsWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libwebsocketsWaiter.h; path = ../../src/waiter/libwebsocketsWaiter.h; sourceTree = "<group>"; };
+		947566421F197BF800FE8664 /* libuvWaiter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = libuvWaiter.cpp; path = ../../src/waiter/libuvWaiter.cpp; sourceTree = "<group>"; };
+		947566441F197C0A00FE8664 /* libuvWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libuvWaiter.h; path = ../../src/waiter/libuvWaiter.h; sourceTree = "<group>"; };
 		A82750B91E9788A3007CD9E2 /* MEGAChatDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatDelegate.h; sourceTree = "<group>"; };
 		A82750BA1E9788A3007CD9E2 /* MEGAChatError.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatError.h; sourceTree = "<group>"; };
 		A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatError.mm; sourceTree = "<group>"; };
@@ -216,6 +219,7 @@
 		941977311F163CEB00A76EE3 /* waiter */ = {
 			isa = PBXGroup;
 			children = (
+				947566421F197BF800FE8664 /* libuvWaiter.cpp */,
 				947565EC1F164F1A00FE8664 /* libwebsocketsWaiter.cpp */,
 				947565E61F164E5E00FE8664 /* libeventWaiter.cpp */,
 			);
@@ -327,6 +331,7 @@
 		947566381F18D58F00FE8664 /* waiter */ = {
 			isa = PBXGroup;
 			children = (
+				947566441F197C0A00FE8664 /* libuvWaiter.h */,
 				947566401F18D61100FE8664 /* libeventWaiter.h */,
 				947566411F18D61100FE8664 /* libwebsocketsWaiter.h */,
 			);
@@ -566,6 +571,7 @@
 				A838B2191E9685DF00875D96 /* chatd.cpp in Sources */,
 				A838B21C1E9685DF00875D96 /* megachatapi.cpp in Sources */,
 				A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */,
+				947566431F197BF800FE8664 /* libuvWaiter.cpp in Sources */,
 				A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */,
 				A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */,
 				9419773A1F163EB100A76EE3 /* libwebsocketsIO.cpp in Sources */,

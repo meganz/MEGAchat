@@ -1,5 +1,11 @@
 #include "libwebsocketsIO.h"
+
+#ifdef LWS_USE_LIBUV
+#include "waiter/libuvWaiter.h"
+#else
 #include "waiter/libwebsocketsWaiter.h"
+#endif
+
 #include <assert.h>
 
 using namespace std;
@@ -27,6 +33,10 @@ LibwebsocketsIO::LibwebsocketsIO()
     info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
     
+#ifdef LWS_USE_LIBUV
+    info.options |= LWS_SERVER_OPTION_LIBUV;
+#endif
+    
     lws_set_log_level(LLL_ERR | LLL_EXT | LLL_INFO | LLL_USER | LLL_WARN | LLL_COUNT
                       | LLL_DEBUG | LLL_CLIENT | LLL_HEADER | LLL_NOTICE
                       | LLL_PARSER | LLL_LATENCY, NULL);
@@ -44,14 +54,21 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 {    
     if (!initialized)
     {
+#ifdef LWS_USE_LIBUV
+        ::mega::LibuvWaiter *libuvWaiter = dynamic_cast<::mega::LibuvWaiter *>(waiter);
+        if (!libuvWaiter)
+        {
+            exit(0);
+        }
+        lws_uv_initloop(wscontext, libuvWaiter->eventloop, 0);
+#else
         ::mega::LibwebsocketsWaiter *websocketsWaiter = dynamic_cast<::mega::LibwebsocketsWaiter *>(waiter);
         if (!websocketsWaiter)
         {
-            // Currently, this websockets layer is not compatible with other waiter objects
             exit(0);
         }
-    
         websocketsWaiter->wscontext = wscontext;
+#endif
         initialized = true;
     }
 }

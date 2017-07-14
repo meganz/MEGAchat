@@ -59,10 +59,15 @@ using namespace chatd;
 #ifdef USE_LIBWEBSOCKETS
 
 #include "net/libwebsocketsIO.h"
-#include "waiter/libwebsocketsWaiter.h"
-
 typedef LibwebsocketsIO MegaWebsocketsIO;
+
+#ifdef LWS_USE_LIBUV
+#include "waiter/libuvWaiter.h"
+typedef LibuvWaiter MegaChatWaiter;
+#else
+#include "waiter/libwebsocketsWaiter.h"
 typedef LibwebsocketsWaiter MegaChatWaiter;
+#endif
 
 #else
 
