@@ -74,30 +74,17 @@ typedef LibeventWaiter MegaChatWaiter;
 
 #endif
 
-vector<MegaChatApiImpl *> MegaChatApiImpl::megaChatApiRefs;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
-MegaMutex MegaChatApiImpl::sdkMutex(true);
-MegaMutex MegaChatApiImpl::refsMutex(true);
 
 std::shared_ptr<ServiceManager> ServiceManager::mInstance;
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
-: localVideoReceiver(nullptr)
+: localVideoReceiver(nullptr), sdkMutex(true)
 {
-    refsMutex.lock();
-    megaChatApiRefs.push_back(this);
-
     ServiceManager::init();
-
-    refsMutex.unlock();
-
+    
     init(chatApi, megaApi);
 }
-
-//MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir)
-//{
-//    init(chatApi, (MegaApi*) new MyMegaApi(appKey, appDir));
-//}
 
 MegaChatApiImpl::~MegaChatApiImpl()
 {
@@ -154,18 +141,9 @@ void MegaChatApiImpl::loop()
 
         if (threadExit)
         {
-            // remove the MegaChatApiImpl that is being deleted
-            refsMutex.lock();
-            for (vector<MegaChatApiImpl*>::iterator it = megaChatApiRefs.begin(); it != megaChatApiRefs.end(); it++)
-            {
-                if (*it == this)
-                {
-                    megaChatApiRefs.erase(it);
-                    break;
-                }
-            }
-            sendPendingEvents();    // process any pending events in the queue
-            refsMutex.unlock();
+            //TODO: Check why there could be pending events here if the cleanup was correct
+            sendPendingEvents();
+
             sdkMutex.unlock();
             break;
         }
@@ -174,28 +152,11 @@ void MegaChatApiImpl::loop()
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
 {
-    // Add the message to the queue of events
-    refsMutex.lock();
+    assert(ctx);
     
+    //FIXME: Timers can use reach this point with an invalid megaChatApi (despite they shouldn't)
     MegaChatApiImpl *megaChatApi = (MegaChatApiImpl *)ctx;
-    if (megaChatApi)
-    {
-        megaChatApi->postMessage(msg);
-    }
-    else
-    {
-        // legacy behavior
-        if (megaChatApiRefs.size())
-        {
-            megaChatApiRefs[0]->postMessage(msg);
-        }
-        else    // no more instances running, only one left --> directly process messages
-        {
-            megaProcessMessage(msg);
-        }
-    }
-    
-    refsMutex.unlock();
+    megaChatApi->postMessage(msg);
 }
 
 void MegaChatApiImpl::postMessage(void *msg)
@@ -2055,7 +2016,7 @@ void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle han
     return ;
 }
 
-bool MegaChatApiImpl::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const
+bool MegaChatApiImpl::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle)
 {
     bool ret = false;
 

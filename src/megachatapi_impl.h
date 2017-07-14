@@ -658,13 +658,9 @@ class MegaChatApiImpl :
 public:
 
     MegaChatApiImpl(MegaChatApi *chatApi, mega::MegaApi *megaApi);
-//    MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir);
     virtual ~MegaChatApiImpl();
 
-    static std::vector<MegaChatApiImpl *> megaChatApiRefs;
-    static mega::MegaMutex refsMutex;
-    static mega::MegaMutex sdkMutex;
-
+    mega::MegaMutex sdkMutex;
 private:
     MegaChatApi *chatApi;
     mega::MegaApi *megaApi;
@@ -834,7 +830,7 @@ public:
     MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* handles);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
-    bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const;
+    bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
