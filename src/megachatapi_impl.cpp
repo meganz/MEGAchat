@@ -172,18 +172,29 @@ void MegaChatApiImpl::loop()
     }
 }
 
-void MegaChatApiImpl::megaApiPostMessage(void* msg)
+void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
 {
     // Add the message to the queue of events
     refsMutex.lock();
-    if (megaChatApiRefs.size())
+    
+    MegaChatApiImpl *megaChatApi = (MegaChatApiImpl *)ctx;
+    if (megaChatApi)
     {
-        megaChatApiRefs[0]->postMessage(msg);
+        megaChatApi->postMessage(msg);
     }
-    else    // no more instances running, only one left --> directly process messages
+    else
     {
-        megaProcessMessage(msg);
+        // legacy behavior
+        if (megaChatApiRefs.size())
+        {
+            megaChatApiRefs[0]->postMessage(msg);
+        }
+        else    // no more instances running, only one left --> directly process messages
+        {
+            megaProcessMessage(msg);
+        }
     }
+    
     refsMutex.unlock();
 }
 
@@ -299,7 +310,7 @@ void MegaChatApiImpl::sendPendingRequests()
                         delete mClient;
                         mClient = NULL;
                         terminating = false;
-                     });
+                     }, this);
                 })
                 .fail([request, this](const promise::Error& e)
                 {
@@ -313,7 +324,7 @@ void MegaChatApiImpl::sendPendingRequests()
                         delete mClient;
                         mClient = NULL;
                         terminating = false;
-                     });
+                     }, this);
                 });
             }
             else
@@ -953,7 +964,7 @@ int MegaChatApiImpl::init(const char *sid)
     sdkMutex.lock();
     if (!mClient)
     {
-        mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), karere::kClientIsMobile);
+        mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), karere::kClientIsMobile, this);
         terminating = false;
     }
 

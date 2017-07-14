@@ -50,7 +50,7 @@ extern MEGAIO_IMPEXP struct event_base* services_eventloop;
  * @param options Misc flags. The LS byte is reserved for logging bits
  * (SVC_OPTIONS_LOGFLAGS mask).
  */
-MEGAIO_IMPEXP int services_init(void(*postFunc)(void*), unsigned options);
+MEGAIO_IMPEXP int services_init(void(*postFunc)(void*, void*), unsigned options);
 
 MEGAIO_IMPEXP struct event_base* services_get_event_loop();
 

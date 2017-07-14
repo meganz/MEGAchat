@@ -615,6 +615,7 @@ public:
     };
 
     WebsocketsIO *websocketIO;
+    void *appCtx;
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
@@ -664,7 +665,7 @@ public:
      * delete the karere.db file and re-create it from scratch.
      */
     Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& app, const std::string& appDir,
-           uint8_t caps);
+           uint8_t caps, void *ctx = NULL);
 
     virtual ~Client();
 

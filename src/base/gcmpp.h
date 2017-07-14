@@ -17,7 +17,7 @@ namespace karere
  * and all code is in the same compilation unit, so it can be inlined
  */
 template <class F, bool nocatch=false>
-static inline void marshallCall(F&& func)
+static inline void marshallCall(F&& func, void *appCtx)
 {
     struct Msg: public megaMessage
     {
@@ -62,7 +62,7 @@ static inline void marshallCall(F&& func)
             }
         }
     });
-    megaPostMessageToGui(static_cast<void*>(msg));
+    megaPostMessageToGui(static_cast<void*>(msg), appCtx);
 }
 
 }

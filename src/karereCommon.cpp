@@ -7,7 +7,7 @@ namespace karere
 {
 const char* gDbSchemaVersionSuffix = "2";
 
-void globalInit(void(*postFunc)(void*), uint32_t options, const char* logPath, size_t logSize)
+void globalInit(void(*postFunc)(void*, void*), uint32_t options, const char* logPath, size_t logSize)
 {
     if (logPath)
     {

@@ -657,7 +657,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
                              
                 CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
                 requestHistoryFromServer(-count);
-            });
+            }, mClient.karereClient->appCtx);
         }
         return kHistSourceServer;
     }
@@ -1211,7 +1211,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
             return;
         
         msgSubmit(message);
-    });
+    }, mClient.karereClient->appCtx);
     
     return message;
 }
@@ -1384,7 +1384,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
                      
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
         onMsgTimestamp(newage);
-    });
+    }, mClient.karereClient->appCtx);
     
     return upd;
 }
@@ -1562,7 +1562,7 @@ bool Chat::setMessageSeen(Idx idx)
             }
         }
         CALL_LISTENER(onUnreadChanged);
-    });
+    }, mClient.karereClient->appCtx);
     
     return true;
 }
@@ -2605,7 +2605,7 @@ void Chat::findAndNotifyLastTextMsg()
         if (mLastTextMsg.state() == LastTextMsgState::kFetching)
             return;
         notifyLastTextMsg();
-    });
+    }, mClient.karereClient->appCtx);
 }
 
 void Chat::sendTypingNotification()

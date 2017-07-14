@@ -706,7 +706,7 @@ private:
     void sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate* request);
 
 public:
-    static void megaApiPostMessage(void* msg);
+    static void megaApiPostMessage(void* msg, void* ctx);
     void postMessage(void *msg);
 
     void sendPendingRequests();

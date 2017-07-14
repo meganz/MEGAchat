@@ -80,7 +80,7 @@ inline megaHandle setTimer(CB&& callback, unsigned time)
     pMsg->timerEvent = event_new(services_get_event_loop(), -1, persist,
       [](evutil_socket_t fd, short what, void* evarg)
       {
-            megaPostMessageToGui(evarg);
+            megaPostMessageToGui(evarg, NULL);
       }, pMsg);
 
     struct timeval tv;
@@ -113,7 +113,7 @@ static inline bool cancelTimeout(megaHandle handle)
     marshallCall([timer]()
     {
         timer->destroy(timer); //also deletes the timerEvent
-    });
+    }, NULL);
     return true;
 }
 /** @brief Cancels a previously set timer with setInterval.

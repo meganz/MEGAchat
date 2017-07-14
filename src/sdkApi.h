@@ -37,7 +37,10 @@ public:
 
 class MyListener: public mega::MegaRequestListener
 {
+    void *appCtx;
+    
 public:
+    MyListener(void *ctx) : appCtx(ctx) { }
     ApiPromise mPromise;
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
     {
@@ -59,13 +62,17 @@ public:
                 mPromise.resolve(req);
             }
             delete this;
-        });
+        }, appCtx);
     }
 };
 
 class MyListenerNoResult: public ::mega::MegaRequestListener
 {
+    void *appCtx;
+
 public:
+    MyListenerNoResult(void *ctx) : appCtx(ctx) { }
+
     promise::Promise<void> mPromise;
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
     {
@@ -86,7 +93,7 @@ public:
                 mPromise.resolve();
             }
             delete this;
-        });
+        }, appCtx);
     }
 };
 
@@ -122,23 +129,25 @@ class MyMegaApi
 {
 public:
     ::mega::MegaApi& sdk;
-    std::unique_ptr<MyMegaLogger> mLogger;    
-    MyMegaApi(::mega::MegaApi& aSdk)
-    :sdk(aSdk), mLogger(new MyMegaLogger)
+    std::unique_ptr<MyMegaLogger> mLogger;
+    void *appCtx;
+    
+    MyMegaApi(::mega::MegaApi& aSdk, void *ctx)
+    :sdk(aSdk), mLogger(new MyMegaLogger), appCtx(ctx)
     {
         sdk.addLoggerObject(mLogger.get());
     }
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     ApiPromise call(MSig method, Args... args)
     {
-        auto listener = new MyListener;
+        auto listener = new MyListener(appCtx);
         (sdk.*method)(args..., listener);
         return listener->mPromise;
     }
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     promise::Promise<void> callIgnoreResult(MSig method, Args... args)
     {
-        auto listener = new MyListenerNoResult;
+        auto listener = new MyListenerNoResult(appCtx);
         (sdk.*method)(args..., listener);
         return listener->mPromise;
     }

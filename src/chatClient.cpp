@@ -51,7 +51,7 @@ namespace karere
 {
 
 template <class T, class F>
-void callAfterInit(T* self, F&& func);
+void callAfterInit(T* self, F&& func, void* ctx);
 
 std::string encodeFirstName(const std::string& first);
 
@@ -60,14 +60,15 @@ std::string encodeFirstName(const std::string& first);
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
  */
-    Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps)
+    Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
  :mAppDir(appDir),
-  api(sdk), app(aApp), websocketIO(websocketsIO),
+  api(sdk, ctx), app(aApp), websocketIO(websocketsIO),
   contactList(new ContactList(*this)),
   chats(new ChatRoomList(*this)),
   mMyName("\0", 1),
   mOwnPresence(Presence::kInvalid),
-  mPresencedClient(&api, *this, caps)
+  mPresencedClient(&api, *this, caps),
+  appCtx(ctx)
 {
 }
 
@@ -246,7 +247,7 @@ promise::Promise<void> Client::sdkLoginNewSession()
             mLoginDlg->setState(IApp::ILoginDialog::kBadCredentials);
             return 0;
         });
-    })
+    }, this)
     .then([this](int)
     {
         mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
@@ -257,7 +258,7 @@ promise::Promise<void> Client::sdkLoginNewSession()
         marshallCall([this, err]()
         {
             mSessionReadyPromise.reject(err);
-        });
+        }, appCtx);
     })
     .then([this]()
     {
@@ -375,7 +376,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
         marshallCall([this, scsn]()
         {
             commit(scsn);
-        });
+        }, appCtx);
     }
 }
 
@@ -469,7 +470,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             if (wptr.deleted())
                 return;
             setInitState(kInitErrSidInvalid);
-        });
+        }, appCtx);
         return;
     }
 
@@ -525,7 +526,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 });
             }
             api.sdk.resumeActionPackets();
-        });
+        }, appCtx);
     }
     else if (reqType == mega::MegaRequest::TYPE_SET_ATTR_USER)
     {
@@ -548,7 +549,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             if (wptr.deleted())
                 return;
             mUserAttrCache->onUserAttrChange(mMyHandle, changeType);
-        });
+        }, appCtx);
     }
 }
 
@@ -1067,7 +1068,7 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
                 contactList->onUserAddRemove(user);
             }
         };
-    });
+    }, appCtx);
 }
 
 promise::Promise<karere::Id>
@@ -1118,7 +1119,7 @@ void ChatRoom::onLastMessageTsUpdated(uint32_t ts)
         auto display = roomGui();
         if (display)
             display->onLastTsUpdated(ts);
-    });
+    }, parent.client.appCtx);
 }
 
 ApiPromise ChatRoom::requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
@@ -1148,7 +1149,7 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
 }
 
 template <class T, typename F>
-void callAfterInit(T* self, F&& func)
+void callAfterInit(T* self, F&& func, void *ctx)
 {
     if (self->isInitializing())
     {
@@ -1157,7 +1158,7 @@ void callAfterInit(T* self, F&& func)
         {
             if (!wptr.deleted())
                 func();
-        });
+        }, ctx);
     }
     else
     {
@@ -1495,7 +1496,7 @@ void GroupChatRoom::deleteSelf()
         db.query("delete from chat_peers where chatid=?", mChatid);
         db.query("delete from chats where chatid=?", mChatid);
         delete this;
-    });
+    }, parent.client.appCtx);
 }
 
 promise::Promise<void> ChatRoom::updateUrl()
@@ -1668,7 +1669,7 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     marshallCall([this, copy, scsn]()
     {
         chats->onChatsUpdate(*copy);
-    });
+    }, appCtx);
 }
 
 void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
@@ -2064,7 +2065,7 @@ void ChatRoom::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
             auto display = roomGui();
             if (display)
                 display->onLastMessageUpdated(msg);
-        });
+        }, parent.client.appCtx);
     }
     else
     {
@@ -2109,7 +2110,7 @@ void ChatRoom::notifyTitleChanged()
 
         if (mAppChatHandler)
             mAppChatHandler->onTitleChanged(mTitleString);
-    });
+    }, parent.client.appCtx);
 }
 
 void GroupChatRoom::onUnreadChanged()
@@ -2479,7 +2480,7 @@ void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactReques
             if (req.getStatus() == mega::MegaContactRequest::STATUS_UNRESOLVED)
                 app.onIncomingContactRequest(req);
         }
-    });
+    }, appCtx);
 }
 
 Contact::Contact(ContactList& clist, const uint64_t& userid,
@@ -2534,7 +2535,7 @@ void Contact::notifyTitleChanged()
         //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
             mChatRoom->updateTitle(mTitleString.substr(1));
-    });
+    }, mClist.client.appCtx);
 }
 
 Contact::~Contact()
