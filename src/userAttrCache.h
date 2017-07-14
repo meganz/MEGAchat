@@ -136,6 +136,7 @@ protected:
     void fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
 //==
+    void onUserAttrChange(uint64_t userid, int changed);
     void onUserAttrChange(mega::MegaUser& user);
     void onLogin();
     /** @brief Invalidates the whole cache, and re-fetches all registered queries.

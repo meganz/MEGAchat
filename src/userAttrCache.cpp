@@ -160,10 +160,12 @@ const char* attrName(uint8_t type)
     default: return "(invalid)";
     }
 }
-
 void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
 {
-    int changed = user.getChanges();
+    onUserAttrChange(user.getHandle(), user.getChanges());
+}
+void UserAttrCache::onUserAttrChange(uint64_t userid, int changed)
+{
 //  printf("user %s changed %u\n", Id(user.getHandle()).toString().c_str(), changed);
     for (size_t i = 0; i < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); i++)
     {
@@ -171,7 +173,7 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
         if ((changed & desc.changeMask) == 0)
             continue; //the change is not of this attrib type
         int type = desc.type;
-        UserAttrPair key(user.getHandle(), type);
+        UserAttrPair key(userid, type);
         auto it = find(key);
         if (it == end()) //we don't have such attribute
         {
