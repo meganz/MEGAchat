@@ -1640,8 +1640,12 @@ int Chat::unreadMsgCount() const
     for (Idx i=first; i<=last; i++)
     {
         auto& msg = at(i);
-        if (msg.userid != mClient.userId() && !(msg.updated && !msg.size()))
+        if (msg.userid != mClient.userId()               // skip own messages
+                && !(msg.updated && !msg.size())         // skip deleted messages
+                && (msg.type != Message::kMsgRevokeAttachment))  // skip revoke messages
+        {
             count++;
+        }
     }
     return count;
 }
@@ -1822,26 +1826,29 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
 
     // last text message stuff
-    if (mLastTextMsg.idx() == CHATD_IDX_INVALID)
+    if (msg->isText())
     {
-        if (mLastTextMsg.xid() != msgxid) //it's another message
+        if (mLastTextMsg.idx() == CHATD_IDX_INVALID)
+        {
+            if (mLastTextMsg.xid() != msgxid) //it's another message
+            {
+                onLastTextMsgUpdated(*msg, idx);
+            }
+            else
+            { //it's the same message - set its index, and don't notify again
+                mLastTextMsg.confirm(idx, msgid);
+                if (!mLastTextMsg.mIsNotified)
+                    notifyLastTextMsg();
+            }
+        }
+        else if (idx > mLastTextMsg.idx())
         {
             onLastTextMsgUpdated(*msg, idx);
         }
-        else
-        { //it's the same message - set its index, and don't notify again
-            mLastTextMsg.confirm(idx, msgid);
-            if (!mLastTextMsg.mIsNotified)
-                notifyLastTextMsg();
+        else if (idx == mLastTextMsg.idx() && !mLastTextMsg.mIsNotified)
+        {
+            notifyLastTextMsg();
         }
-    }
-    else if (idx > mLastTextMsg.idx())
-    {
-        onLastTextMsgUpdated(*msg, idx);
-    }
-    else if (idx == mLastTextMsg.idx() && !mLastTextMsg.mIsNotified)
-    {
-        notifyLastTextMsg();
     }
     return idx;
 }
@@ -2526,6 +2533,7 @@ void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
     //either (msg.isSending() && idx-is-invalid) or (!msg.isSending() && index-is-valid)
     assert(!((idx == CHATD_IDX_INVALID) ^ msg.isSending()));
     assert(!msg.empty());
+    assert(msg.type != Message::kMsgRevokeAttachment);
     mLastTextMsg.assign(msg, idx);
     notifyLastTextMsg();
 }
