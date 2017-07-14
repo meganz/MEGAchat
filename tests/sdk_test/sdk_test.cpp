@@ -1934,8 +1934,8 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     //Name comes back to old value.
     changeLastName(a1, myAccountLastName);
 
-    ASSERT_CHAT_TEST(newLastName == finishLastName, "The full name have to be different");
-    ASSERT_CHAT_TEST(finishLastNameAfterLogout == finishLastName, "Name at data base is not updated");
+    ASSERT_CHAT_TEST(newLastName == finishLastName, "Failed to change fullname (checked from memory)");
+    ASSERT_CHAT_TEST(finishLastNameAfterLogout == finishLastName, "Failed to change fullname (checked from DB)");
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
@@ -2534,7 +2534,7 @@ void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string last
     bool *flagMyName = &requestFlags[accountIndex][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
     megaApi[accountIndex]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
     ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "Fail sdk request. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK request to change lastname. Error: " + std::to_string(lastError[accountIndex]));
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
