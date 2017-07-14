@@ -1,7 +1,6 @@
 #ifndef __PRESENCED_H__
 #define __PRESENCED_H__
 
-#include <libws.h>
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
@@ -10,6 +9,7 @@
 #include <karereId.h>
 #include "url.h"
 #include <base/trackDelete.h>
+#include "websocketsIO.h"
 
 #define PRESENCED_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
@@ -145,7 +145,7 @@ struct IdRefMap: public std::map<karere::Id, int>
 
 class Listener;
 
-class Client: public karere::DeleteTrackable
+class Client: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
     enum ConnState
@@ -157,10 +157,8 @@ public:
         kLoggedIn
     };
     enum: uint16_t { kProtoVersion = 0x0001 };
+
 protected:
-    static ws_base_s sWebsocketContext;
-    static bool sWebsockCtxInitialized;
-    ws_t mWebSocket = nullptr;
     ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Url mUrl;
@@ -181,9 +179,11 @@ protected:
     IdRefMap mCurrentPeers;
     void initWebsocketCtx();
     void setConnState(ConnState newState);
-    static void websockConnectCb(ws_t ws, void* arg);
-    static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
-        size_t reason_len, void *arg);
+
+    virtual void wsConnectCb();
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
+    virtual void wsHandleMsgCb(char *data, uint64_t len);
+    
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
     void enableInactivityTimer();
@@ -203,6 +203,7 @@ protected:
     void configChanged();
     std::string prefsString() const;
     bool sendKeepalive(time_t now=0);
+    
 public:
     Client(MyMegaApi *api, Listener& listener, uint8_t caps);
     const Config& config() const { return mConfig; }
@@ -271,8 +272,3 @@ static inline const char* connStateToStr(Client::ConnState state)
 }
 
 #endif
-
-
-
-
-

@@ -42,11 +42,13 @@
 #include <karereCommon.h>
 #include <logger.h>
 
+#include "net/websocketsIO.h"
+
 #include <stdint.h>
 
 namespace megachat
 {
-
+    
 class MegaChatRequestPrivate : public MegaChatRequest
 {
 
@@ -665,11 +667,11 @@ public:
 private:
     MegaChatApi *chatApi;
     mega::MegaApi *megaApi;
-
+    WebsocketsIO *websocketsIO;
     karere::Client *mClient;
     bool terminating;
 
-    mega::MegaWaiter *waiter;
+    mega::Waiter *waiter;
     mega::MegaThread thread;
     int threadExit;
     static void *threadEntryPoint(void *param);

@@ -91,44 +91,9 @@ namespace chatd
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
-
-ws_base_s Client::sWebsocketContext;
-bool Client::sWebsockCtxInitialized = false;
-
-Client::Client(MyMegaApi *api, Id userId)
-:mUserId(userId), mApi(api)
+Client::Client(karere::Client *client, Id userId)
+:mUserId(userId), karereClient(client), mApi(&client->api)
 {
-    if (!sWebsockCtxInitialized)
-    {
-        ws_global_init(&sWebsocketContext, services_get_event_loop(), NULL,
-        [](struct bufferevent* bev, void* userp)
-        {
-            marshallCall([bev, userp]()
-            {
-                //CHATD_LOG_DEBUG("Read event");
-                ws_read_callback(bev, userp);
-            });
-        },
-        [](struct bufferevent* bev, short events, void* userp)
-        {
-            marshallCall([bev, events, userp]()
-            {
-                //CHATD_LOG_DEBUG("Buffer event 0x%x", events);
-                ws_event_callback(bev, events, userp);
-            });
-        },
-        [](int fd, short events, void* userp)
-        {
-            marshallCall([events, userp]()
-            {
-                //CHATD_LOG_DEBUG("Timer %p event", userp);
-                ws_handle_marshall_timer_cb(0, events, userp);
-            });
-        });
-//        ws_set_log_cb(ws_default_log_cb);
-//        ws_set_log_level(LIBWS_TRACE);
-        sWebsockCtxInitialized = true;
-    }
 }
 
 #define checkLibwsCall(call, opname) \
@@ -239,39 +204,24 @@ void Chat::login()
     else
         join();
 }
-
-void Connection::websockConnectCb(ws_t ws, void* arg)
+    
+void Connection::wsConnectCb()
 {
-    Connection* self = static_cast<Connection*>(arg);
-    auto wptr = self->getDelTracker();
-    ASSERT_NOT_ANOTHER_WS("connect");
-    CHATD_LOG_DEBUG("Chatd connected to shard %d", self->mShardNo);
-    ::marshallCall([self, wptr]()
-    {
-        if (wptr.deleted())
-            return;
-        self->mState = kStateConnected;
-        assert(!self->mConnectPromise.done());
-        self->mConnectPromise.resolve();
-    });
+    CHATD_LOG_DEBUG("Chatd connected to shard %d", mShardNo);
+    mState = kStateConnected;
+    assert(!mConnectPromise.done());
+    mConnectPromise.resolve();
 }
 
-void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preason,
-                                size_t reason_len, void *arg)
+void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    auto self = static_cast<Connection*>(arg);
-    ASSERT_NOT_ANOTHER_WS("close/error");
-    std::string reason;
+    string reason;
     if (preason)
         reason.assign(preason, reason_len);
-
-    //we don't want to initiate websocket reconnect from within a websocket callback
-    marshallCall([self, reason, errcode, errtype]()
-    {
-        self->onSocketClose(errcode, errtype, reason);
-    });
+    
+    onSocketClose(errcode, errtype, reason);
 }
-
+    
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
     CHATD_LOG_WARNING("Socket close on connection to shard %d. Reason: %s",
@@ -343,22 +293,7 @@ Promise<void> Connection::reconnect(const std::string& url)
             mLoginPromise = Promise<void>();
             mDisconnectPromise = Promise<void>();
             CHATD_LOG_DEBUG("Chatd connecting to shard %d...", mShardNo);
-            checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
-            ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
-            ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
-            ws_set_onmsg_cb(mWebSocket,
-            [](ws_t ws, char *msg, uint64_t len, int binary, void *arg)
-            {
-                Connection* self = static_cast<Connection*>(arg);
-                ASSERT_NOT_ANOTHER_WS("message");
-                self->mInactivityBeats = 0;
-                self->execCommand(StaticBuffer(msg, len));
-            }, this);
-
-            if (mUrl.isSecure)
-            {
-                ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
-            }
+            
             for (auto& chatid: mChatIds)
             {
                 auto& chat = mClient.chats(chatid);
@@ -370,36 +305,19 @@ Promise<void> Connection::reconnect(const std::string& url)
             .then([this](ReqResult result)
             {
                 string ip = result->getText();
-                CHATD_LOG_DEBUG("Connecting to chatd using the IP: %s", ip.c_str());
-
-                if (ip[0] == '[')
-                {
-                    struct sockaddr_in6 ipv6addr = { 0 };
-                    ip = ip.substr(1, ip.size() - 2);
-                    ipv6addr.sin6_family = AF_INET6;
-                    ipv6addr.sin6_port = htons(mUrl.port);
-                    inet_pton(AF_INET6, ip.c_str(), &ipv6addr.sin6_addr);
-                    checkLibwsCall((ws_connect_addr(mWebSocket, mUrl.host.c_str(),
-                                                    (struct sockaddr *)&ipv6addr, sizeof(ipv6addr),
-                                                    mUrl.port, (mUrl.path).c_str())), "connect");
-                }
-                else
-                {
-                    struct sockaddr_in ipv4addr = { 0 };
-                    ipv4addr.sin_family = AF_INET;
-                    ipv4addr.sin_port = htons(mUrl.port);
-                    inet_pton(AF_INET, ip.c_str(), &ipv4addr.sin_addr);
-                    checkLibwsCall((ws_connect_addr(mWebSocket, mUrl.host.c_str(),
-                                                    (struct sockaddr *)&ipv4addr, sizeof(ipv4addr),
-                                                    mUrl.port, (mUrl.path).c_str())), "connect");
-                }
+                CHATD_LOG_DEBUG("Connecting to chatd using the IP: %s", ip.c_str());                
+                wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
+                          mUrl.host.c_str(),
+                          mUrl.port,
+                          mUrl.path.c_str(),
+                          mUrl.isSecure);
             })
             .fail([this](const promise::Error& err)
             {
                 if (err.type() == ERRTYPE_MEGASDK)
                 {
-                    mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                    mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
+                    mConnectPromise.reject(err.msg(), err.code(), 0);
+                    mLoginPromise.reject(err.msg(), err.code(), 0);
                 }
             });
             
@@ -436,7 +354,7 @@ void Connection::enableInactivityTimer()
 promise::Promise<void> Connection::disconnect(int timeoutMs) //should be graceful disconnect
 {
     mTerminating = true;
-    if (!mWebSocket)
+    /*if (!mWebSocket)
     {
         onSocketClose(0, 0, "terminating");
         return promise::Void();
@@ -449,7 +367,7 @@ promise::Promise<void> Connection::disconnect(int timeoutMs) //should be gracefu
         if (!mDisconnectPromise.done())
             mDisconnectPromise.resolve();
     }, timeoutMs);
-    ws_close(mWebSocket);
+    ws_close(mWebSocket);*/
     return mDisconnectPromise;
 }
 
@@ -487,24 +405,28 @@ promise::Promise<void> Client::retryPendingConnections()
 
 void Connection::reset() //immediate disconnect
 {
-    if (!mWebSocket)
+    /*if (!mWebSocket)
         return;
 
     ws_close_immediately(mWebSocket);
     ws_destroy(&mWebSocket);
-    assert(!mWebSocket);
+    assert(!mWebSocket);*/
 }
 
 bool Connection::sendBuf(Buffer&& buf)
 {
-    if (!isOnline())
-        return false;
+    //if (!isOnline())
+    //    return false;
 //WARNING: ws_send_msg_ex() is destructive to the buffer - it applies the websocket mask directly
 //Copy the data to preserve the original
-    auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
-    buf.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
-    bool result = (!rc && isOnline());
-    return result;
+    
+    wsSendMessage(buf.buf(), buf.dataSize());
+    return true;
+
+    //auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
+    //buf.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
+    //bool result = (!rc && isOnline());
+    //return result;
 }
 bool Chat::sendCommand(Command&& cmd)
 {
@@ -706,8 +628,15 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             if (!mConnection.isOnline())
                 return kHistSourceServerOffline;
 
-            CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
-            requestHistoryFromServer(-count);
+            auto wptr = weakHandle();
+            marshallCall([wptr, this, count]()
+            {
+                if (wptr.deleted())
+                    return;
+                             
+                CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
+                requestHistoryFromServer(-count);
+            });
         }
         return kHistSourceServer;
     }
@@ -825,6 +754,12 @@ Idx Chat::getHistoryFromDb(unsigned count)
 #define READ_8(varname, offset)\
     assert(offset==pos-base); uint8_t varname(buf.read<uint8_t>(pos)); pos+=1
 
+void Connection::wsHandleMsgCb(char *data, uint64_t len)
+{
+    mInactivityBeats = 0;
+    execCommand(StaticBuffer(data, len));
+}
+    
 // inbound command processing
 // multiple commands can appear as one WebSocket frame, but commands never cross frame boundaries
 // CHECK: is this assumption correct on all browsers and under all circumstances?
@@ -1240,7 +1175,16 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
     message->backRefId = generateRefId(mCrypto);
-    msgSubmit(message);
+    
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, message]()
+    {
+        if (wptr.deleted())
+            return;
+        
+        msgSubmit(message);
+    });
+    
     return message;
 }
 void Chat::msgSubmit(Message* msg)
@@ -1402,8 +1346,18 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     } //end msg.isSending()
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
         msg.isSending(), msg.keyid, msg.type, userp);
-    postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
-    onMsgTimestamp(msg.ts+age);
+    
+    auto wptr = weakHandle();
+    uint32_t newage = msg.ts + age;
+    marshallCall([wptr, this, newage, upd]()
+    {
+        if (wptr.deleted())
+            return;
+                     
+        postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
+        onMsgTimestamp(newage);
+    });
+    
     return upd;
 }
 
@@ -1545,32 +1499,43 @@ bool Chat::setMessageSeen(Idx idx)
         CHATID_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
         return false;
     }
-    CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msg.id()));
-    sendCommand(Command(OP_SEEN) + mChatId + msg.id());
-
-    Idx notifyStart;
-    if (mLastSeenIdx == CHATD_IDX_INVALID)
+    
+    
+    auto wptr = weakHandle();
+    karere::Id id = msg.id();
+    marshallCall([wptr, this, id, idx]()
     {
-        notifyStart = lownum()-1;
-    }
-    else
-    {
-        Idx lowest = lownum()-1;
-        notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
-    }
-    mLastSeenIdx = idx;
-    Idx highest = highnum();
-    Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
-
-    for (Idx i=notifyStart+1; i<=notifyEnd; i++)
-    {
-        auto& m = at(i);
-        if (m.userid != mClient.mUserId)
+        if (wptr.deleted())
+            return;
+        
+        CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
+        sendCommand(Command(OP_SEEN) + mChatId + id);
+        
+        Idx notifyStart;
+        if (mLastSeenIdx == CHATD_IDX_INVALID)
         {
-            CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+            notifyStart = lownum()-1;
         }
-    }
-    CALL_LISTENER(onUnreadChanged);
+        else
+        {
+            Idx lowest = lownum()-1;
+            notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
+        }
+        mLastSeenIdx = idx;
+        Idx highest = highnum();
+        Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
+        
+        for (Idx i=notifyStart+1; i<=notifyEnd; i++)
+        {
+            auto& m = at(i);
+            if (m.userid != mClient.mUserId)
+            {
+                CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+            }
+        }
+        CALL_LISTENER(onUnreadChanged);
+    });
+    
     return true;
 }
 
@@ -2605,7 +2570,6 @@ void Chat::findAndNotifyLastTextMsg()
             return;
         notifyLastTextMsg();
     });
-
 }
 
 void Chat::sendTypingNotification()

@@ -53,6 +53,27 @@ using namespace mega;
 using namespace karere;
 using namespace chatd;
 
+
+#define USE_LIBWEBSOCKETS 1
+
+#ifdef USE_LIBWEBSOCKETS
+
+#include "net/libwebsocketsIO.h"
+#include "waiter/libwebsocketsWaiter.h"
+
+typedef LibwebsocketsIO MegaWebsocketsIO;
+typedef LibwebsocketsWaiter MegaChatWaiter;
+
+#else
+
+#include "net/libwsIO.h"
+#include "waiter/libeventWaiter.h"
+
+typedef LibwsIO MegaWebsocketsIO;
+typedef LibeventWaiter MegaChatWaiter;
+
+#endif
+
 vector<MegaChatApiImpl *> MegaChatApiImpl::megaChatApiRefs;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 MegaMutex MegaChatApiImpl::sdkMutex(true);
@@ -91,10 +112,11 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->chatApi = chatApi;
     this->megaApi = megaApi;
 
-    this->waiter = new MegaWaiter();
     this->mClient = NULL;
     this->terminating = false;
-
+    this->waiter = new MegaChatWaiter();
+    this->websocketsIO = new MegaWebsocketsIO();
+    
     //Start blocking thread
     threadExit = 0;
     thread.start(threadEntryPoint, this);
@@ -122,7 +144,8 @@ void MegaChatApiImpl::loop()
         sdkMutex.unlock();
 
         waiter->init(NEVER);
-        waiter->wait();         // waken up directly by Waiter::notify()
+        waiter->wakeupby(websocketsIO, ::mega::Waiter::NEEDEXEC);
+        waiter->wait();
 
         sdkMutex.lock();
 
@@ -930,7 +953,7 @@ int MegaChatApiImpl::init(const char *sid)
     sdkMutex.lock();
     if (!mClient)
     {
-        mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), karere::kClientIsMobile);
+        mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), karere::kClientIsMobile);
         terminating = false;
     }
 

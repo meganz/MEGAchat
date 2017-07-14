@@ -1,7 +1,6 @@
 #ifndef __CHATD_H__
 #define __CHATD_H__
 
-#include <libws.h>
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
@@ -14,6 +13,7 @@
 #include <base/trackDelete.h>
 #include "chatdMsg.h"
 #include "url.h"
+#include "websocketsIO.h"
 
 namespace karere {
     class Client;
@@ -283,7 +283,7 @@ public:
 class Client;
 
 // need DeleteTrackable for graceful disconnect timeout
-class Connection: public karere::DeleteTrackable
+class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
     enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected, kStateLoggedIn };
@@ -291,7 +291,6 @@ protected:
     Client& mClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
-    ws_t mWebSocket = nullptr;
     State mState = kStateNew;
     karere::Url mUrl;
     megaHandle mInactivityTimer = 0;
@@ -306,9 +305,12 @@ protected:
     {
         return mState >= kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
     }
-    static void websockConnectCb(ws_t ws, void* arg);
-    static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
-        size_t reason_len, void *arg);
+    
+    virtual void wsConnectCb();
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
+    virtual void wsHandleMsgCb(char *data, uint64_t len);
+
+    
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
     promise::Promise<void> disconnect(int timeoutMs=2000);
@@ -999,7 +1001,7 @@ protected:
 /// maps chatids to the Message object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
     karere::Id mUserId;
-    static bool sWebsockCtxInitialized;
+
     Connection& chatidConn(karere::Id chatid)
     {
         auto it = mConnectionForChatId.find(chatid);
@@ -1011,13 +1013,13 @@ protected:
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
-    static ws_base_s sWebsocketContext;
     unsigned inactivityCheckIntervalSec = 20;
     uint32_t options = 0;
     MyMegaApi *mApi;
+    karere::Client *karereClient;
     uint8_t mKeepaliveType = OP_KEEPALIVE;
     karere::Id userId() const { return mUserId; }
-    Client(MyMegaApi *api, karere::Id userId);
+    Client(karere::Client *client, karere::Id userId);
     ~Client(){}
     Chat& chats(karere::Id chatid) const
     {
