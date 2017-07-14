@@ -450,10 +450,10 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519,
     const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,
-    karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId)
+    karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId, void *ctx)
 : mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
- mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId)
+ mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId), chatd::ICrypto(ctx)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();

@@ -349,7 +349,7 @@ Promise<void> Connection::reconnect(const std::string& url)
                 enableInactivityTimer();
                 return rejoinExistingChats();
             });
-        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
 }
@@ -369,7 +369,7 @@ void Connection::enableInactivityTimer()
                 mShardNo);
             reconnect();
         }
-    }, 10000);
+    }, 10000, mClient.karereClient->appCtx);
 }
 
 promise::Promise<void> Connection::disconnect(int timeoutMs) //should be graceful disconnect

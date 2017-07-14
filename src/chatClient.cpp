@@ -67,7 +67,7 @@ std::string encodeFirstName(const std::string& first);
   chats(new ChatRoomList(*this)),
   mMyName("\0", 1),
   mOwnPresence(Presence::kInvalid),
-  mPresencedClient(&api, *this, caps),
+  mPresencedClient(&api, this, *this, caps),
   appCtx(ctx)
 {
 }
@@ -716,7 +716,7 @@ promise::Promise<void> Client::doConnect(Presence pres)
     mHeartbeatTimer = karere::setInterval([this]()
     {
         heartbeat();
-    }, 10000);
+    }, 10000, appCtx);
     return pms;
 }
 
@@ -1136,7 +1136,7 @@ strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
         StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid);
+        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid, appCtx);
 }
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)

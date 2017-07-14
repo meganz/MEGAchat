@@ -43,8 +43,8 @@ using namespace karere;
 namespace presenced
 {
 
-Client::Client(MyMegaApi *api, Listener& listener, uint8_t caps)
-: mListener(&listener), mApi(api), mCapabilities(caps)
+    Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
+: mListener(&listener), mApi(api), mCapabilities(caps), karereClient(client)
 {
 }
 
@@ -243,7 +243,6 @@ Client::reconnect(const std::string& url)
 
                 string ip = result->getText();
                 PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
-                karere::Client *karereClient = (karere::Client *)mListener;
                 wsConnect(karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,
@@ -265,7 +264,7 @@ Client::reconnect(const std::string& url)
                 mHeartbeatEnabled = true;
                 return login();
             });
-        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }

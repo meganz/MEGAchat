@@ -49,11 +49,12 @@ struct TimerMsg: public megaMessage
 };
 
 template <int persist, class CB>
-inline megaHandle setTimer(CB&& callback, unsigned time)
+inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
 {
     struct Msg: public TimerMsg
     {
         CB cb;
+        void *appCtx;
         Msg(CB&& aCb, megaMessageFunc cFunc)
         :TimerMsg(cFunc, [](TimerMsg* m)
           {
@@ -77,10 +78,11 @@ inline megaHandle setTimer(CB&& callback, unsigned time)
               msg->cb();
           };
     Msg* pMsg = new Msg(std::forward<CB>(callback), cfunc);
+    pMsg->appCtx = ctx;
     pMsg->timerEvent = event_new(services_get_event_loop(), -1, persist,
       [](evutil_socket_t fd, short what, void* evarg)
       {
-            megaPostMessageToGui(evarg, NULL);
+            megaPostMessageToGui(evarg, ((Msg* )evarg)->appCtx);
       }, pMsg);
 
     struct timeval tv;
@@ -134,9 +136,9 @@ static inline bool cancelInterval(megaHandle handle)
  * @returns a handle that can be used to cancel the timeout
  */
 template<class CB>
-static inline megaHandle setTimeout(CB&& cb, unsigned timeMs)
+static inline megaHandle setTimeout(CB&& cb, unsigned timeMs, void *ctx)
 {
-    return setTimer<0>(std::forward<CB>(cb), timeMs);
+    return setTimer<0>(std::forward<CB>(cb), timeMs, ctx);
 }
 /**
  @brief Sets a repeating timer, similar to javascript's setInterval
@@ -147,9 +149,9 @@ static inline megaHandle setTimeout(CB&& cb, unsigned timeMs)
  @returns a handle that can be used to cancel the timer
 */
 template <class CB>
-static inline megaHandle setInterval(CB&& callback, unsigned timeMs)
+static inline megaHandle setInterval(CB&& callback, unsigned timeMs, void *ctx)
 {
-    return setTimer<EV_PERSIST>(std::forward<CB>(callback), timeMs);
+    return setTimer<EV_PERSIST>(std::forward<CB>(callback), timeMs, ctx);
 }
 
 }

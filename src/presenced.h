@@ -161,6 +161,7 @@ public:
 protected:
     ConnState mConnState = kConnNew;
     Listener* mListener;
+    karere::Client *karereClient;
     karere::Url mUrl;
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
@@ -205,7 +206,7 @@ protected:
     bool sendKeepalive(time_t now=0);
     
 public:
-    Client(MyMegaApi *api, Listener& listener, uint8_t caps);
+    Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);
     const Config& config() const { return mConfig; }
     bool isConfigAcknowledged() { return mPrefsAckWait; }
     bool isOnline() const { return (mConnState >= kConnected); }
