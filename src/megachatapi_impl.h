@@ -22,6 +22,7 @@
 #ifndef MEGACHATAPI_IMPL_H
 #define MEGACHATAPI_IMPL_H
 
+#define USE_LIBWEBSOCKETS 1
 
 #include "megachatapi.h"
 
@@ -45,6 +46,29 @@
 #include "net/websocketsIO.h"
 
 #include <stdint.h>
+
+#ifdef USE_LIBWEBSOCKETS
+
+#include "net/libwebsocketsIO.h"
+typedef LibwebsocketsIO MegaWebsocketsIO;
+
+#ifdef LWS_USE_LIBUV
+#include "waiter/libuvWaiter.h"
+typedef ::mega::LibuvWaiter MegaChatWaiter;
+#else
+#include "waiter/libwebsocketsWaiter.h"
+typedef ::mega::LibwebsocketsWaiter MegaChatWaiter;
+#endif
+
+#else
+
+#include "net/libwsIO.h"
+#include "waiter/libeventWaiter.h"
+
+typedef LibwsIO MegaWebsocketsIO;
+typedef LibeventWaiter MegaChatWaiter;
+
+#endif
 
 namespace megachat
 {
@@ -661,6 +685,7 @@ public:
     virtual ~MegaChatApiImpl();
 
     mega::MegaMutex sdkMutex;
+    mega::Waiter *waiter;
 private:
     MegaChatApi *chatApi;
     mega::MegaApi *megaApi;
@@ -668,7 +693,6 @@ private:
     karere::Client *mClient;
     bool terminating;
 
-    mega::Waiter *waiter;
     mega::MegaThread thread;
     int threadExit;
     static void *threadEntryPoint(void *param);

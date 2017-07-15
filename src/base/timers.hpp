@@ -23,7 +23,6 @@
  */
 #include "cservices.h"
 #include "gcmpp.h"
-#include <event2/event.h>
 #include <memory>
 #include <assert.h>
 
@@ -32,7 +31,7 @@ namespace karere
 struct TimerMsg: public megaMessage
 {
     typedef void(*DestroyFunc)(TimerMsg*);
-    event* timerEvent = nullptr;
+    timerevent* timerEvent = nullptr;
     bool canceled = false;
     DestroyFunc destroy;
     megaHandle handle;
@@ -44,10 +43,21 @@ struct TimerMsg: public megaMessage
     {
         services_hstore_remove_handle(MEGA_HTYPE_TIMER, handle);
         if (timerEvent)
-            event_free(timerEvent);
+        {
+            #ifndef USE_LIBWEBSOCKETS
+                event_free(timerEvent);
+            #else
+                uv_close((uv_handle_t *)timerEvent, NULL);
+                delete timerEvent;
+            #endif
+        }
     }
 };
 
+#ifdef USE_LIBWEBSOCKETS
+    void init_uv_timer(void *ctx, uv_timer_t *timer);
+#endif
+    
 template <int persist, class CB>
 inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
 {
@@ -61,6 +71,8 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
             delete static_cast<Msg*>(m);
           }), cb(aCb)
         {}
+        unsigned time;
+        int loop;
     };
     megaMessageFunc cfunc = persist
         ? (megaMessageFunc) [](void* arg)
@@ -79,6 +91,10 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
           };
     Msg* pMsg = new Msg(std::forward<CB>(callback), cfunc);
     pMsg->appCtx = ctx;
+    pMsg->time = time;
+    pMsg->loop = persist;
+    
+#ifndef USE_LIBWEBSOCKETS
     pMsg->timerEvent = event_new(services_get_event_loop(), -1, persist,
       [](evutil_socket_t fd, short what, void* evarg)
       {
@@ -89,6 +105,20 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
     tv.tv_sec = time / 1000;
     tv.tv_usec = (time % 1000)*1000;
     evtimer_add(pMsg->timerEvent, &tv);
+#else
+    marshallCall([pMsg, ctx]()
+    {
+        pMsg->timerEvent = new uv_timer_t();
+        pMsg->timerEvent->data = pMsg;
+        init_uv_timer(ctx, pMsg->timerEvent);
+        uv_timer_start(pMsg->timerEvent,
+                       [](uv_timer_t* handle)
+                       {
+                           megaPostMessageToGui(handle->data, ((Msg*)handle->data)->appCtx);
+                       }, pMsg->time, pMsg->loop ? pMsg->time : 0);
+    }, ctx);
+#endif
+    
     return pMsg->handle;
 }
 /** Cancels a previously set timeout with setTimeout()
@@ -96,7 +126,7 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
  * already triggered, then the handle is invalidated. This situation is safe and
  * considered normal
  */
-static inline bool cancelTimeout(megaHandle handle)
+static inline bool cancelTimeout(megaHandle handle, void *ctx)
 {
     assert(handle);
     TimerMsg* timer = static_cast<TimerMsg*>(
@@ -111,19 +141,26 @@ static inline bool cancelTimeout(megaHandle handle)
     assert(timer->timerEvent);
     assert(timer->destroy);
     timer->canceled = true; //disable timer callback being called by possibly queued messages, and message freeing in one-shot timer handler
+    
+#ifndef USE_LIBWEBSOCKETS
     event_del(timer->timerEvent); //only removed from message loop, doesn't delete the event struct
+#endif
+    
     marshallCall([timer]()
     {
+#ifdef USE_LIBWEBSOCKETS
+        uv_timer_stop(timer->timerEvent);
+#endif
         timer->destroy(timer); //also deletes the timerEvent
-    }, NULL);
+    }, ctx);
     return true;
 }
 /** @brief Cancels a previously set timer with setInterval.
  * @return \c false if the handle is not valid.
  */
-static inline bool cancelInterval(megaHandle handle)
+static inline bool cancelInterval(megaHandle handle, void *ctx)
 {
-    return cancelTimeout(handle);
+    return cancelTimeout(handle, ctx);
 }
 /**
  *
@@ -151,7 +188,7 @@ static inline megaHandle setTimeout(CB&& cb, unsigned timeMs, void *ctx)
 template <class CB>
 static inline megaHandle setInterval(CB&& callback, unsigned timeMs, void *ctx)
 {
-    return setTimer<EV_PERSIST>(std::forward<CB>(callback), timeMs, ctx);
+    return setTimer<0x10>(std::forward<CB>(callback), timeMs, ctx);
 }
 
 }

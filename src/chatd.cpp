@@ -264,7 +264,7 @@ void Connection::disableInactivityTimer()
 {
     if (mInactivityTimer)
     {
-        cancelInterval(mInactivityTimer);
+        cancelInterval(mInactivityTimer, mClient.karereClient->appCtx);
         mInactivityTimer = 0;
     }
 }

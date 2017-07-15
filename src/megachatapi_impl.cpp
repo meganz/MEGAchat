@@ -53,32 +53,6 @@ using namespace mega;
 using namespace karere;
 using namespace chatd;
 
-
-#define USE_LIBWEBSOCKETS 1
-
-#ifdef USE_LIBWEBSOCKETS
-
-#include "net/libwebsocketsIO.h"
-typedef LibwebsocketsIO MegaWebsocketsIO;
-
-#ifdef LWS_USE_LIBUV
-#include "waiter/libuvWaiter.h"
-typedef LibuvWaiter MegaChatWaiter;
-#else
-#include "waiter/libwebsocketsWaiter.h"
-typedef LibwebsocketsWaiter MegaChatWaiter;
-#endif
-
-#else
-
-#include "net/libwsIO.h"
-#include "waiter/libeventWaiter.h"
-
-typedef LibwsIO MegaWebsocketsIO;
-typedef LibeventWaiter MegaChatWaiter;
-
-#endif
-
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
 std::shared_ptr<ServiceManager> ServiceManager::mInstance;

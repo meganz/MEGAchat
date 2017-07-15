@@ -3,27 +3,28 @@
 #include <memory>
 #include <thread>
 #include <unordered_map>
-#include <event2/event.h>
-#include <event2/thread.h>
-#include <event2/util.h>
+
+
 #include <assert.h>
 #include "cservices-thread.h"
 #include "cservices.h"
 
-#define SVC_DISABLE_DNS // DNS features of libevent aren't reliable on mobile devices
-
 extern "C"
 {
-MEGAIO_EXPORT struct event_base* services_eventloop = NULL;
+MEGAIO_EXPORT eventloop* services_eventloop = NULL;
 MEGA_GCM_DLLEXPORT GcmPostFunc megaPostMessageToGui = NULL;
 t_svc_thread_handle libeventThread; //can't default-initialzie with pthreads - there is no reserved invalid value
 t_svc_thread_id libeventThreadId;
 
 bool hasLibeventThread = false;
 
-static void keepalive_timer_cb(evutil_socket_t fd, short what, void *arg){}
-
-MEGAIO_EXPORT event_base* services_get_event_loop()
+#ifndef USE_LIBWEBSOCKETS
+    static void keepalive_timer_cb(evutil_socket_t fd, short what, void *arg){}
+#else
+    static void keepalive_timer_cb(uv_timer_t* handle) {}
+#endif
+    
+MEGAIO_EXPORT eventloop* services_get_event_loop()
 {
     return services_eventloop;
 }
@@ -32,7 +33,13 @@ SVC_THREAD_FUNCDECL(libeventThreadFunc)
 {
     /* enter the event loop */
     SVC_LOG_INFO("Libevent thread started, entering eventloop");
+    
+#ifndef USE_LIBWEBSOCKETS
     event_base_loop(services_eventloop, 0);//EVLOOP_NO_EXIT_ON_EMPTY
+#else
+    uv_run(services_eventloop, UV_RUN_DEFAULT);
+#endif
+    
     SVC_LOG_INFO("Libevent loop terminated");
     return (t_svc_thread_funcret)0;
 }
@@ -40,6 +47,9 @@ SVC_THREAD_FUNCDECL(libeventThreadFunc)
 MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
 {
     megaPostMessageToGui = postFunc;
+    
+#ifndef USE_LIBWEBSOCKETS
+
 #ifdef _WIN32
     WSADATA wsadata;
     WSAStartup(MAKEWORD(2,2), &wsadata);
@@ -49,24 +59,38 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
 #endif
     services_eventloop = event_base_new();
     evthread_make_base_notifiable(services_eventloop);
+    
     struct event* keepalive = evtimer_new(services_eventloop, keepalive_timer_cb, NULL);
     struct timeval tv;
     tv.tv_sec = 123456;//0x7FFFFFFF;
     tv.tv_usec = 0;
     evtimer_add(keepalive, &tv);
-
-#ifndef SVC_DISABLE_STROPHE
-    services_strophe_init(options);
+#else
+    return 0;
+    
+    services_eventloop = new uv_loop_t();
+    uv_loop_init(services_eventloop);
+    
+    uv_timer_t* timerhandle = new uv_timer_t();
+    uv_timer_init(services_eventloop, timerhandle);
+    uv_timer_start(timerhandle, keepalive_timer_cb, 1234567890ULL, 1);
 #endif
-
-    hasLibeventThread = svc_thread_start(
-                NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
+    
+    hasLibeventThread = svc_thread_start(NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
+    
     return 0;
 }
 
 MEGAIO_EXPORT int services_shutdown()
 {
+#ifndef USE_LIBWEBSOCKETS
     event_base_loopexit(services_eventloop, NULL);
+#else
+    return 0;
+    
+    uv_stop(services_eventloop);
+#endif
+    
     SVC_LOG_INFO("Terminating libevent thread...");
     svc_thread_join(libeventThread);
     hasLibeventThread = false;
@@ -143,10 +167,10 @@ MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle 
     return 1;
 }
 
-int64_t services_get_time_ms()
+/*int64_t services_get_time_ms()
 {
     struct timeval tv;
     evutil_gettimeofday(&tv, nullptr);
     return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
-}
+}*/
 }

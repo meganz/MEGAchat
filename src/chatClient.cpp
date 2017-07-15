@@ -197,7 +197,7 @@ void Client::heartbeat()
 Client::~Client()
 {
     if (mHeartbeatTimer)
-        karere::cancelInterval(mHeartbeatTimer);
+        karere::cancelInterval(mHeartbeatTimer, appCtx);
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
     
@@ -733,7 +733,7 @@ promise::Promise<void> Client::disconnect()
     mUserAttrCache->onLogOut();
     if (mHeartbeatTimer)
     {
-        karere::cancelInterval(mHeartbeatTimer);
+        karere::cancelInterval(mHeartbeatTimer, appCtx);
         mHeartbeatTimer = 0;
     }
     mDisconnectPromise = chatd->disconnect()

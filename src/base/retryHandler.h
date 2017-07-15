@@ -264,7 +264,7 @@ protected:
     {
         if (!mTimer)
             return;
-        cancelTimeout(mTimer);
+        cancelTimeout(mTimer, appCtx);
         mTimer = 0;
     }
 
