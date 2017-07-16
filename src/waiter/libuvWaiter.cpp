@@ -40,22 +40,27 @@ int clock_gettime(int, struct timespec* t)
 namespace mega {
 dstime Waiter::ds;
 
-    
-static void keepalive_timer_cb(uv_timer_t* handle) { }
-    
+static void break_libuv_loop(uv_async_t* handle)
+{
+    uv_stop(handle->loop);
+}
+
 LibuvWaiter::LibuvWaiter()
 {
     eventloop = new uv_loop_t();
     uv_loop_init(eventloop);
     
-    uv_timer_t* timerhandle = new uv_timer_t();
-    uv_timer_init(eventloop, timerhandle);
-    uv_timer_start(timerhandle, keepalive_timer_cb, 1234567890ULL, 1234567890ULL);
+    asynchandle = new uv_async_t();
+    uv_async_init(eventloop, asynchandle, break_libuv_loop);
 }
 
 LibuvWaiter::~LibuvWaiter()
 {
-
+    uv_close((uv_handle_t*)asynchandle, NULL);
+    uv_run(eventloop, UV_RUN_DEFAULT);
+    uv_loop_close(eventloop);
+    delete asynchandle;
+    delete eventloop;
 }
 
 void LibuvWaiter::init(dstime ds)
@@ -79,6 +84,7 @@ int LibuvWaiter::wait()
 
 void LibuvWaiter::notify()
 {
-    uv_stop(eventloop);
+    uv_async_send(asynchandle);
 }
+    
 } // namespace

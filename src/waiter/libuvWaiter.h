@@ -38,6 +38,7 @@ struct LibuvWaiter : public Waiter
     void notify();
     
     uv_loop_t* eventloop;
+    uv_async_t *asynchandle;
 };
 } // namespace
 
