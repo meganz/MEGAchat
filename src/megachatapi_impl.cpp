@@ -279,6 +279,8 @@ void MegaChatApiImpl::sendPendingRequests()
             mClient->presenced().signalActivity();
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
+
+            break;
         }
         case MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY:
         {
@@ -289,6 +291,8 @@ void MegaChatApiImpl::sendPendingRequests()
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
+
+            break;
         }
         case MegaChatRequest::TYPE_SET_PRESENCE_PERSIST:
         {
@@ -298,6 +302,8 @@ void MegaChatApiImpl::sendPendingRequests()
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
+
+            break;
         }
         case MegaChatRequest::TYPE_LOGOUT:
         {
