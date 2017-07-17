@@ -6,6 +6,7 @@
 #include "waiter/libwebsocketsWaiter.h"
 #endif
 
+#include <mega/http.h>
 #include <assert.h>
 
 using namespace std;
@@ -157,6 +158,73 @@ void LibwebsocketsClient::ResetOutputBuffer()
     sendbuffer.clear();
 }
 
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+#define X509_STORE_CTX_get0_cert(ctx) (ctx->cert)
+#define X509_STORE_CTX_get0_untrusted(ctx) (ctx->untrusted)
+#define EVP_PKEY_get0_DSA(_pkey_) ((_pkey_)->pkey.dsa)
+#define EVP_PKEY_get0_RSA(_pkey_) ((_pkey_)->pkey.rsa)
+#endif
+
+const BIGNUM *RSA_get0_n(const RSA *rsa)
+{
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+    return rsa->n;
+#else
+    const BIGNUM *result;
+    RSA_get0_key(rsa, &result, NULL, NULL);
+    return result;
+#endif
+}
+
+const BIGNUM *RSA_get0_e(const RSA *rsa)
+{
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+    return rsa->e;
+#else
+    const BIGNUM *result;
+    RSA_get0_key(rsa, NULL, &result, NULL);
+    return result;
+#endif
+}
+
+const BIGNUM *RSA_get0_d(const RSA *rsa)
+{
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+    return rsa->d;
+#else
+    const BIGNUM *result;
+    RSA_get0_key(rsa, NULL, NULL, &result);
+    return result;
+#endif
+}
+
+static bool check_public_key(X509_STORE_CTX* ctx)
+{
+    unsigned char buf[sizeof(APISSLMODULUS1) - 1];
+    EVP_PKEY* evp;
+    if ((evp = X509_PUBKEY_get(X509_get_X509_PUBKEY(X509_STORE_CTX_get0_cert(ctx)))))
+    {
+        if (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof APISSLMODULUS1 - 1
+            && BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof APISSLEXPONENT - 1)
+        {
+            BN_bn2bin(RSA_get0_n(EVP_PKEY_get0_RSA(evp)), buf);
+            
+            if (!memcmp(buf, CHATSSLMODULUS, sizeof CHATSSLMODULUS - 1))
+            {
+                BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
+                if (!memcmp(buf, APISSLEXPONENT, sizeof APISSLEXPONENT - 1))
+                {
+                    EVP_PKEY_free(evp);
+                    return true;
+                }
+            }
+        }
+        EVP_PKEY_free(evp);
+    }
+
+    return false;
+}
+
 int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons reason,
                                     void *user, void *data, size_t len)
 {
@@ -164,7 +232,10 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
     {
         case LWS_CALLBACK_OPENSSL_PERFORM_SERVER_CERT_VERIFICATION:
         {
-            X509_STORE_CTX_set_error((X509_STORE_CTX*)user, X509_V_OK);
+            if (check_public_key((X509_STORE_CTX*)user))
+            {
+                X509_STORE_CTX_set_error((X509_STORE_CTX*)user, X509_V_OK);
+            }
             break;
         }
         case LWS_CALLBACK_CLIENT_ESTABLISHED:
