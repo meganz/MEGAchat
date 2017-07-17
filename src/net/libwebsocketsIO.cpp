@@ -22,7 +22,7 @@ static struct lws_protocols protocols[] =
     { NULL, NULL, 0, 0 } /* terminator */
 };
 
-LibwebsocketsIO::LibwebsocketsIO()
+LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex) : WebsocketsIO(mutex)
 {
     struct lws_context_creation_info info;
     memset( &info, 0, sizeof(info) );
@@ -38,8 +38,8 @@ LibwebsocketsIO::LibwebsocketsIO()
     info.options |= LWS_SERVER_OPTION_LIBUV;
 #endif
     
-    lws_set_log_level(LLL_ERR | LLL_EXT | LLL_INFO | LLL_USER | LLL_WARN | LLL_COUNT
-                      | LLL_DEBUG | LLL_CLIENT | LLL_HEADER | LLL_NOTICE
+    lws_set_log_level(LLL_ERR | LLL_INFO | LLL_USER | LLL_WARN | LLL_COUNT
+                      | LLL_CLIENT | LLL_HEADER | LLL_NOTICE
                       | LLL_PARSER | LLL_LATENCY, NULL);
     
     wscontext = lws_create_context(&info);
@@ -77,7 +77,7 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 
 WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)
 {
-    LibwebsocketsClient *libwebsocketsClient = new LibwebsocketsClient(client);
+    LibwebsocketsClient *libwebsocketsClient = new LibwebsocketsClient(mutex, client);
     
     struct lws_client_connect_info i;
     memset(&i, 0, sizeof(i));
@@ -96,7 +96,7 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
     return libwebsocketsClient;
 }
 
-LibwebsocketsClient::LibwebsocketsClient(WebsocketsClient *client) : WebsocketsClientImpl(client)
+LibwebsocketsClient::LibwebsocketsClient(::mega::Mutex *mutex, WebsocketsClient *client) : WebsocketsClientImpl(mutex, client)
 {
     wsi = NULL;
 }

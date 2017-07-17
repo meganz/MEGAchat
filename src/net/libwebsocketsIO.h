@@ -12,7 +12,7 @@ class LibwebsocketsIO : public WebsocketsIO
 {
 public:
     struct lws_context *wscontext;
-    LibwebsocketsIO();
+    LibwebsocketsIO(::mega::Mutex *mutex);
     virtual ~LibwebsocketsIO();
     
     virtual void addevents(::mega::Waiter*, int);
@@ -27,7 +27,7 @@ protected:
 class LibwebsocketsClient : public WebsocketsClientImpl
 {
 public:
-    LibwebsocketsClient(WebsocketsClient *client);
+    LibwebsocketsClient(::mega::Mutex *mutex, WebsocketsClient *client);
     
 protected:
     std::string recbuffer;

@@ -9,7 +9,7 @@
 class LibwsIO : public WebsocketsIO
 {
 public:
-    LibwsIO();
+    LibwsIO(::mega::Mutex *mutex);
     virtual ~LibwsIO();
     
     virtual void addevents(::mega::Waiter*, int);
@@ -31,7 +31,7 @@ public:
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason, size_t reason_len, void *arg);
     static void websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg);
     
-    LibwsClient(WebsocketsClient *client);
+    LibwsClient(::mega::Mutex *mutex, WebsocketsClient *client);
     
     virtual void wsSendMessage(char *msg, uint64_t len);
 };

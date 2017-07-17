@@ -1,8 +1,8 @@
 #include "websocketsIO.h"
 
-WebsocketsIO::WebsocketsIO()
+WebsocketsIO::WebsocketsIO(::mega::Mutex *mutex)
 {
-    
+    this->mutex = mutex;
 }
 
 WebsocketsIO::~WebsocketsIO()
@@ -10,24 +10,31 @@ WebsocketsIO::~WebsocketsIO()
     
 }
 
-WebsocketsClientImpl::WebsocketsClientImpl(WebsocketsClient *client)
+WebsocketsClientImpl::WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClient *client)
 {
+    this->mutex = mutex;
     this->client = client;
 }
 
 void WebsocketsClientImpl::wsConnectCb()
 {
+    mutex->lock();
     client->wsConnectCb();
+    mutex->unlock();
 }
 
 void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
+    mutex->lock();
     client->wsCloseCb(errcode, errtype, preason, reason_len);
+    mutex->unlock();
 }
 
 void WebsocketsClientImpl::wsHandleMsgCb(char *data, uint64_t len)
 {
+    mutex->lock();
     client->wsHandleMsgCb(data, len);
+    mutex->unlock();
 }
 
 WebsocketsClient::WebsocketsClient()

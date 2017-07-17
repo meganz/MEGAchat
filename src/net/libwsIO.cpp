@@ -6,7 +6,7 @@
 
 using namespace std;
 
-LibwsIO::LibwsIO()
+LibwsIO::LibwsIO(::mega::Mutex *mutex) : WebsocketsIO(mutex)
 {
     initialized = false;
 }
@@ -51,7 +51,7 @@ void LibwsIO::addevents(::mega::Waiter* waiter, int)
 
 WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)
 {
-    LibwsClient *libwsClient = new LibwsClient(client);
+    LibwsClient *libwsClient = new LibwsClient(mutex, client);
     
     ws_init(&libwsClient->mWebSocket, &wscontext);
     ws_set_onconnect_cb(libwsClient->mWebSocket, &LibwsClient::websockConnectCb, libwsClient);
@@ -89,7 +89,7 @@ WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int p
     return libwsClient;
 }
 
-LibwsClient::LibwsClient(WebsocketsClient *client) : WebsocketsClientImpl(client)
+LibwsClient::LibwsClient(::mega::Mutex *mutex, WebsocketsClient *client) : WebsocketsClientImpl(mutex, client)
 {
     
 }

@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <mega/waiter.h>
+#include <mega/thread.h>
 
 class WebsocketsClient;
 class WebsocketsClientImpl;
@@ -11,10 +12,12 @@ class WebsocketsClientImpl;
 class WebsocketsIO : public mega::EventTrigger
 {
 public:
-    WebsocketsIO();
+    WebsocketsIO(::mega::Mutex *mutex);
     virtual ~WebsocketsIO();
     
 protected:
+    ::mega::Mutex *mutex;
+    
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
@@ -47,9 +50,10 @@ class WebsocketsClientImpl
 {
 protected:
     WebsocketsClient *client;
+    ::mega::Mutex *mutex;
     
 public:
-    WebsocketsClientImpl(WebsocketsClient *client);
+    WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClient *client);
     void wsConnectCb();
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     void wsHandleMsgCb(char *data, uint64_t len);
