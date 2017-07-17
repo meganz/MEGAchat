@@ -66,7 +66,7 @@ typedef ::mega::LibwebsocketsWaiter MegaChatWaiter;
 #include "waiter/libeventWaiter.h"
 
 typedef LibwsIO MegaWebsocketsIO;
-typedef LibeventWaiter MegaChatWaiter;
+typedef ::mega::LibeventWaiter MegaChatWaiter;
 
 #endif
 
