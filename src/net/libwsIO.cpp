@@ -33,24 +33,15 @@ void LibwsIO::addevents(::mega::Waiter* waiter, int)
         ws_global_init(&wscontext, libeventWaiter->eventloop, NULL,
         [](struct bufferevent* bev, void* userp)
         {
-            karere::marshallCall([bev, userp]()
-            {
-                ws_read_callback(bev, userp);
-            }, ((LibwsClient *)userp)->appCtx);
+            ws_read_callback(bev, userp);
         },
         [](struct bufferevent* bev, short events, void* userp)
         {
-            karere::marshallCall([bev, events, userp]()
-            {
-                ws_event_callback(bev, events, userp);
-            }, ((LibwsClient *)userp)->appCtx);
+            ws_event_callback(bev, events, userp);
         },
         [](int fd, short events, void* userp)
         {
-            karere::marshallCall([events, userp]()
-            {
-                ws_handle_marshall_timer_cb(0, events, userp);
-            }, ((LibwsClient *)userp)->appCtx);
+            ws_handle_marshall_timer_cb(0, events, userp);
         });
         //ws_set_log_level(LIBWS_TRACE);
         initialized = true;
