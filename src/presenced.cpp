@@ -202,11 +202,6 @@ Client::reconnect(const std::string& url)
                     PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
                     return;
                 }
-                if (!wsIsConnected())
-                {
-                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
-                    return;
-                }
                 if (mConnState != kConnecting)
                 {
                     PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");

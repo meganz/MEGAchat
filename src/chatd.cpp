@@ -298,11 +298,6 @@ Promise<void> Connection::reconnect(const std::string& url)
                     CHATD_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
                     return;
                 }
-                if (!wsIsConnected())
-                {
-                    CHATD_LOG_DEBUG("Disconnect called while resolving DNS.");
-                    return;
-                }
                 if (mState != kStateConnecting)
                 {
                     CHATD_LOG_DEBUG("Connection state changed while resolving DNS.");

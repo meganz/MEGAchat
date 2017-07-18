@@ -41,6 +41,7 @@ void WebsocketsClientImpl::wsHandleMsgCb(char *data, uint64_t len)
 WebsocketsClient::WebsocketsClient()
 {
     ctx = NULL;
+    thread_id = 0;
 }
 
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)
@@ -52,18 +53,34 @@ bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, cons
 
 bool WebsocketsClient::wsSendMessage(char *msg, uint64_t len)
 {
+    assert (ctx);
+    if (!ctx)
+    {
+        return false;
+    }
+
     assert (thread_id == pthread_self());
     return ctx->wsSendMessage(msg, len);
 }
 
 void WebsocketsClient::wsDisconnect(bool immediate)
 {
+    if (!ctx)
+    {
+        return;
+    }
+    
     assert (thread_id == pthread_self());
     ctx->wsDisconnect(immediate);
 }
 
 bool WebsocketsClient::wsIsConnected()
 {
+    if (!ctx)
+    {
+        return false;
+    }
+    
     assert (thread_id == pthread_self());
     return ctx->wsIsConnected();
 }
