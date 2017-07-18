@@ -80,8 +80,6 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
     tv.tv_usec = 0;
     evtimer_add(keepalive, &tv);
 #else
-    return 0;
-    
     services_eventloop = new uv_loop_t();
     uv_loop_init(services_eventloop);
     
@@ -99,9 +97,7 @@ MEGAIO_EXPORT int services_shutdown()
 {
 #ifndef USE_LIBWEBSOCKETS
     event_base_loopexit(services_eventloop, NULL);
-#else
-    return 0;
-    
+#else    
     uv_stop(services_eventloop);
 #endif
     
