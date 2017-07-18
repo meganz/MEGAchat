@@ -7,15 +7,6 @@
 #include <chatClient.h>
 #include <arpa/inet.h>
 
-#ifdef __ANDROID__
-    #include <sys/system_properties.h>
-#elif defined(__APPLE__)
-    #include <TargetConditionals.h>
-    #ifdef TARGET_OS_IPHONE
-        #include <resolv.h>
-    #endif
-#endif
-
 using namespace std;
 using namespace promise;
 using namespace karere;
@@ -47,21 +38,6 @@ namespace presenced
 : mListener(&listener), mApi(api), mCapabilities(caps), karereClient(client)
 {
 }
-
-#define checkLibwsCall(call, opname) \
-    do {                             \
-        int _cls_ret = (call);       \
-        if (_cls_ret) throw std::runtime_error("Websocket error " +std::to_string(_cls_ret) + \
-        " on operation " #opname);   \
-    } while(0)
-
-//Stale event from a previous connect attempt?
-#define ASSERT_NOT_ANOTHER_WS(event)    \
-    if (ws != self.mWebSocket && self.mWebSocket) {   \
-        PRESENCED_LOG_WARNING("Websocket '" event     \
-        "' callback: ws param %p is not equal to self.mWebSocket %p, ignoring", \
-        ws, self.mWebSocket);                         \
-    }
 
 promise::Promise<void>
 Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
@@ -113,10 +89,6 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     PRESENCED_LOG_WARNING("Socket close, reason: %s", reason.c_str());
     
     mHeartbeatEnabled = false;
-    //if (mWebSocket)
-    //{
-    //    ws_destroy(&mWebSocket);
-    //}
     
     if (mConnState == kDisconnected)
         return;
@@ -230,11 +202,11 @@ Client::reconnect(const std::string& url)
                     PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
                     return;
                 }
-                //if (!mWebSocket)
-                //{
-                //    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
-                //    return;
-                //}
+                if (!wsIsConnected())
+                {
+                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
+                    return;
+                }
                 if (mConnState != kConnecting)
                 {
                     PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
@@ -243,11 +215,15 @@ Client::reconnect(const std::string& url)
 
                 string ip = result->getText();
                 PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
-                wsConnect(karereClient->websocketIO, ip.c_str(),
+                bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,
                           mUrl.path.c_str(),
                           mUrl.isSecure);
+                if (!rt)
+                {
+                    throw std::runtime_error("Websocket error on wsConnect (presenced)");
+                }
             })
             .fail([this](const promise::Error& err)
             {
@@ -268,6 +244,7 @@ Client::reconnect(const std::string& url)
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
+    
 bool Client::sendKeepalive(time_t now)
 {
     mTsLastPingSent = now ? now : time(NULL);
@@ -344,28 +321,18 @@ promise::Promise<void> Client::retryPendingConnection()
 
 void Client::reset() //immediate disconnect
 {
-    //if (!mWebSocket)
-    //    return;
-
-    //ws_close_immediately(mWebSocket);
-    //ws_destroy(&mWebSocket);
-    //assert(!mWebSocket);
+    wsDisconnect(true);
 }
 
 bool Client::sendBuf(Buffer&& buf)
 {
-    wsSendMessage(buf.buf(), buf.dataSize());
-    return true;
-    
-//    if (!isOnline())
+    if (!isOnline())
         return false;
-//WARNING: ws_send_msg_ex() is destructive to the buffer - it applies the websocket mask directly
-//Copy the data to preserve the original
-/*    auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
-    buf.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
-    bool result = (!rc && isOnline());
+    
+    bool rc = wsSendMessage(buf.buf(), buf.dataSize());
+    buf.free();  //just in case, as it's content is xor-ed with the websock datamask so it's unusable
     mTsLastSend = time(NULL);
-    return result;*/
+    return rc && isOnline();
 }
     
 bool Client::sendCommand(Command&& cmd)

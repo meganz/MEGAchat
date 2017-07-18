@@ -12,18 +12,10 @@
 #include <random>
 #include <arpa/inet.h>
 
-#ifdef __ANDROID__
-    #include <sys/system_properties.h>
-#elif defined(__APPLE__)
-    #include <TargetConditionals.h>
-    #ifdef TARGET_OS_IPHONE
-        #include <resolv.h>
-    #endif
-#endif
-
 using namespace std;
 using namespace promise;
 using namespace karere;
+
 #define CHATD_LOG_LISTENER_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
@@ -102,12 +94,6 @@ Client::Client(karere::Client *client, Id userId)
         if (_cls_ret) throw std::runtime_error("Websocket error " +std::to_string(_cls_ret) + \
         " on operation " #opname);   \
     } while(0)
-
-//Stale event from a previous connect attempt?
-#define ASSERT_NOT_ANOTHER_WS(event)    \
-    if (ws != self->mWebSocket) {       \
-        CHATD_LOG_WARNING("Websocket '" event "' callback: ws param is not equal to self->mWebSocket, ignoring"); \
-    }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs)
@@ -230,10 +216,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     disableInactivityTimer();
     auto oldState = mState;
     mState = kStateDisconnected;
-    //if (mWebSocket)
-    //{
-    //    ws_destroy(&mWebSocket);
-    //}
+
     for (auto& chatid: mChatIds)
     {
         auto& chat = mClient.chats(chatid);
@@ -312,26 +295,30 @@ Promise<void> Connection::reconnect(const std::string& url)
             {
                 if (wptr.deleted())
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+                    CHATD_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
                     return;
                 }
-                //if (!mWebSocket)
-                //{
-                //    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
-                //    return;
-                //}
+                if (!wsIsConnected())
+                {
+                    CHATD_LOG_DEBUG("Disconnect called while resolving DNS.");
+                    return;
+                }
                 if (mState != kStateConnecting)
                 {
-                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    CHATD_LOG_DEBUG("Connection state changed while resolving DNS.");
                     return;
                 }
                 string ip = result->getText();
                 CHATD_LOG_DEBUG("Connecting to chatd using the IP: %s", ip.c_str());                
-                wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
+                bool rt = wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,
                           mUrl.path.c_str(),
                           mUrl.isSecure);
+                if (!rt)
+                {
+                    throw std::runtime_error("Websocket error on wsConnect (chatd)");
+                }
             })
             .fail([this](const promise::Error& err)
             {
@@ -375,11 +362,12 @@ void Connection::enableInactivityTimer()
 promise::Promise<void> Connection::disconnect(int timeoutMs) //should be graceful disconnect
 {
     mTerminating = true;
-    /*if (!mWebSocket)
+    if (!wsIsConnected())
     {
         onSocketClose(0, 0, "terminating");
         return promise::Void();
     }
+    
     auto wptr = getDelTracker();
     setTimeout([this, wptr]()
     {
@@ -387,8 +375,9 @@ promise::Promise<void> Connection::disconnect(int timeoutMs) //should be gracefu
             return;
         if (!mDisconnectPromise.done())
             mDisconnectPromise.resolve();
-    }, timeoutMs);
-    ws_close(mWebSocket);*/
+    }, timeoutMs, mClient.karereClient->appCtx);
+    
+    wsDisconnect(false);
     return mDisconnectPromise;
 }
 
@@ -426,28 +415,17 @@ promise::Promise<void> Client::retryPendingConnections()
 
 void Connection::reset() //immediate disconnect
 {
-    /*if (!mWebSocket)
-        return;
-
-    ws_close_immediately(mWebSocket);
-    ws_destroy(&mWebSocket);
-    assert(!mWebSocket);*/
+    wsDisconnect(true);
 }
 
 bool Connection::sendBuf(Buffer&& buf)
 {
-    //if (!isOnline())
-    //    return false;
-//WARNING: ws_send_msg_ex() is destructive to the buffer - it applies the websocket mask directly
-//Copy the data to preserve the original
+    if (!isOnline())
+        return false;
     
-    wsSendMessage(buf.buf(), buf.dataSize());
-    return true;
-
-    //auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
-    //buf.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
-    //bool result = (!rc && isOnline());
-    //return result;
+    bool rc = wsSendMessage(buf.buf(), buf.dataSize());
+    buf.free();
+    return rc && isOnline();
 }
 bool Chat::sendCommand(Command&& cmd)
 {

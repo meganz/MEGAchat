@@ -1,8 +1,9 @@
 #include "websocketsIO.h"
 
-WebsocketsIO::WebsocketsIO(::mega::Mutex *mutex)
+WebsocketsIO::WebsocketsIO(::mega::Mutex *mutex, void *ctx)
 {
     this->mutex = mutex;
+    this->appCtx = ctx;
 }
 
 WebsocketsIO::~WebsocketsIO()
@@ -44,11 +45,26 @@ WebsocketsClient::WebsocketsClient()
 
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)
 {
+    thread_id = pthread_self();
     ctx = websocketIO->wsConnect(ip, host, port, path, ssl, this);
     return ctx != NULL;
 }
 
-void WebsocketsClient::wsSendMessage(char *msg, uint64_t len)
+bool WebsocketsClient::wsSendMessage(char *msg, uint64_t len)
 {
-    ctx->wsSendMessage(msg, len);
+    assert (thread_id == pthread_self());
+    return ctx->wsSendMessage(msg, len);
 }
+
+void WebsocketsClient::wsDisconnect(bool immediate)
+{
+    assert (thread_id == pthread_self());
+    ctx->wsDisconnect(immediate);
+}
+
+bool WebsocketsClient::wsIsConnected()
+{
+    assert (thread_id == pthread_self());
+    return ctx->wsIsConnected();
+}
+

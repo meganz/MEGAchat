@@ -22,7 +22,7 @@ static struct lws_protocols protocols[] =
     { NULL, NULL, 0, 0 } /* terminator */
 };
 
-LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex) : WebsocketsIO(mutex)
+LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, void *ctx) : WebsocketsIO(mutex, ctx)
 {
     struct lws_context_creation_info info;
     memset( &info, 0, sizeof(info) );
@@ -48,7 +48,7 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex) : WebsocketsIO(mutex)
 
 LibwebsocketsIO::~LibwebsocketsIO()
 {
-    
+    lws_context_destroy(wscontext);
 }
 
 void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
@@ -92,16 +92,27 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
     i.ietf_version_or_minus_one = -1;
     i.userdata = libwebsocketsClient;
     
-    lws_client_connect_via_info(&i);
+    libwebsocketsClient->wsi = lws_client_connect_via_info(&i);
+    if (!libwebsocketsClient->wsi)
+    {
+        delete libwebsocketsClient;
+        return NULL;
+    }
     return libwebsocketsClient;
 }
 
 LibwebsocketsClient::LibwebsocketsClient(::mega::Mutex *mutex, WebsocketsClient *client) : WebsocketsClientImpl(mutex, client)
 {
     wsi = NULL;
+    disconnecting = false;
 }
 
-void LibwebsocketsClient::AppendMessageFragment(char *data, size_t len, size_t remaining)
+LibwebsocketsClient::~LibwebsocketsClient()
+{
+    wsDisconnect(true);
+}
+
+void LibwebsocketsClient::appendMessageFragment(char *data, size_t len, size_t remaining)
 {
     if (!recbuffer.size() && remaining)
     {
@@ -110,29 +121,34 @@ void LibwebsocketsClient::AppendMessageFragment(char *data, size_t len, size_t r
     recbuffer.append(data, len);
 }
 
-bool LibwebsocketsClient::HasFragments()
+bool LibwebsocketsClient::hasFragments()
 {
     return recbuffer.size();
 }
 
-const char *LibwebsocketsClient::GetMessage()
+const char *LibwebsocketsClient::getMessage()
 {
     return recbuffer.data();
 }
 
-size_t LibwebsocketsClient::GetMessageLength()
+size_t LibwebsocketsClient::getMessageLength()
 {
     return recbuffer.size();
 }
 
-void LibwebsocketsClient::ResetMessage()
+void LibwebsocketsClient::resetMessage()
 {
     recbuffer.clear();
 }
 
-void LibwebsocketsClient::wsSendMessage(char *msg, uint64_t len)
+bool LibwebsocketsClient::wsSendMessage(char *msg, uint64_t len)
 {
     assert(wsi);
+    
+    if (!wsi)
+    {
+        return false;
+    }
     
     if (!sendbuffer.size())
     {
@@ -140,7 +156,37 @@ void LibwebsocketsClient::wsSendMessage(char *msg, uint64_t len)
         sendbuffer.resize(LWS_PRE);
     }
     sendbuffer.append(msg, len);
-    lws_callback_on_writable(wsi);
+    return lws_callback_on_writable(wsi) > 0;
+}
+
+void LibwebsocketsClient::wsDisconnect(bool immediate)
+{
+    if (!wsi)
+    {
+        return;
+    }
+
+    if (immediate)
+    {
+        struct lws *dwsi = wsi;
+        wsi = NULL;
+        lws_set_wsi_user(dwsi, NULL);
+        if (!disconnecting)
+        {
+            lws_callback_on_writable(dwsi);
+        }
+        disconnecting = false;
+    }
+    else
+    {
+        disconnecting = true;
+        lws_callback_on_writable(wsi);
+    }
+}
+
+bool LibwebsocketsClient::wsIsConnected()
+{
+    return wsi != NULL;
 }
 
 const char *LibwebsocketsClient::getOutputBuffer()
@@ -153,7 +199,7 @@ size_t LibwebsocketsClient::getOutputBufferLength()
     return sendbuffer.size() ? sendbuffer.size() - LWS_PRE : 0;
 }
 
-void LibwebsocketsClient::ResetOutputBuffer()
+void LibwebsocketsClient::resetOutputBuffer()
 {
     sendbuffer.clear();
 }
@@ -246,7 +292,6 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 return -1;
             }
             
-            client->wsi = wsi;
             client->wsConnectCb();
             break;
         }
@@ -259,6 +304,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 return -1;
             }
             
+            client->disconnecting = false;
             client->wsCloseCb(0, 0, "", 0);
             break;
         }
@@ -274,19 +320,19 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             const size_t remaining = lws_remaining_packet_payload(wsi);
             if (!remaining && lws_is_final_fragment(wsi))
             {
-                if (client->HasFragments())
+                if (client->hasFragments())
                 {
-                    client->AppendMessageFragment((char *)data, len, 0);
-                    data = (void *)client->GetMessage();
-                    len = client->GetMessageLength();
+                    client->appendMessageFragment((char *)data, len, 0);
+                    data = (void *)client->getMessage();
+                    len = client->getMessageLength();
                 }
                 
                 client->wsHandleMsgCb((char *)data, len);
-                client->ResetMessage();
+                client->resetMessage();
             }
             else
             {
-                client->AppendMessageFragment((char *)data, len, remaining);
+                client->appendMessageFragment((char *)data, len, remaining);
             }
             break;
         }
@@ -298,12 +344,17 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 return -1;
             }
             
+            if (client->disconnecting)
+            {
+                return -1;
+            }
+            
             data = (void *)client->getOutputBuffer();
             len = client->getOutputBufferLength();
             if (len && data)
             {
                 lws_write(wsi, (unsigned char *)data, len, LWS_WRITE_BINARY);
-                client->ResetOutputBuffer();
+                client->resetOutputBuffer();
             }
             break;
         }

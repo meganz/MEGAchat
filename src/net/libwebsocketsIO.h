@@ -12,7 +12,7 @@ class LibwebsocketsIO : public WebsocketsIO
 {
 public:
     struct lws_context *wscontext;
-    LibwebsocketsIO(::mega::Mutex *mutex);
+    LibwebsocketsIO(::mega::Mutex *mutex, void *ctx);
     virtual ~LibwebsocketsIO();
     
     virtual void addevents(::mega::Waiter*, int);
@@ -28,24 +28,28 @@ class LibwebsocketsClient : public WebsocketsClientImpl
 {
 public:
     LibwebsocketsClient(::mega::Mutex *mutex, WebsocketsClient *client);
+    virtual ~LibwebsocketsClient();
     
 protected:
     std::string recbuffer;
     std::string sendbuffer;
-    struct lws *wsi;
+    bool disconnecting;
 
-    void AppendMessageFragment(char *data, size_t len, size_t remaining);
-    bool HasFragments();
-    const char *GetMessage();
-    size_t GetMessageLength();
-    void ResetMessage();
+    void appendMessageFragment(char *data, size_t len, size_t remaining);
+    bool hasFragments();
+    const char *getMessage();
+    size_t getMessageLength();
+    void resetMessage();
     const char *getOutputBuffer();
     size_t getOutputBufferLength();
-    void ResetOutputBuffer();
+    void resetOutputBuffer();
     
-    virtual void wsSendMessage(char *msg, uint64_t len);
+    virtual bool wsSendMessage(char *msg, uint64_t len);
+    virtual void wsDisconnect(bool immediate);
+    virtual bool wsIsConnected();
     
 public:
+    struct lws *wsi;
     static int wsCallback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *data, size_t len);
 };
 
