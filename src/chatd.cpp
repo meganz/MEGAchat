@@ -2338,18 +2338,9 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         if (!msg.empty() && (*msg.buf() == 0)) //'special' message - attachment etc
         {
             if (msg.dataSize() < 2)
-            {
                 CHATID_LOG_ERROR("Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
-            }
             else
-            {
                 msg.type = msg.buf()[1];
-                if (msg.type == Message::kMsgTruncate)
-                {
-                    handleTruncate(msg, idx);
-                    return;
-                }
-            }
         }
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
@@ -2357,6 +2348,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
            ((mLastReceivedIdx == CHATD_IDX_INVALID) || (idx > mLastReceivedIdx)))
         {
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
+        }
+        if (msg.type == Message::kMsgTruncate)
+        {
+            handleTruncate(msg, idx);
+            return;
         }
     }
 
