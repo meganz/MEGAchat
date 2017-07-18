@@ -17,25 +17,37 @@ WebsocketsClientImpl::WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClien
     this->client = client;
 }
 
+class ScopedLock
+{
+    ::mega::Mutex *m;
+    
+public:
+    ScopedLock(::mega::Mutex *mutex) : m(mutex)
+    {
+        m->lock();
+    }
+    ~ScopedLock()
+    {
+        m->unlock();
+    }
+};
+
 void WebsocketsClientImpl::wsConnectCb()
 {
-    mutex->lock();
+    ScopedLock(this->mutex);
     client->wsConnectCb();
-    mutex->unlock();
 }
 
 void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    mutex->lock();
+    ScopedLock(this->mutex);
     client->wsCloseCb(errcode, errtype, preason, reason_len);
-    mutex->unlock();
 }
 
 void WebsocketsClientImpl::wsHandleMsgCb(char *data, uint64_t len)
 {
-    mutex->lock();
+    ScopedLock(this->mutex);
     client->wsHandleMsgCb(data, len);
-    mutex->unlock();
 }
 
 WebsocketsClient::WebsocketsClient()
