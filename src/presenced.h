@@ -152,6 +152,7 @@ public:
     {
         kConnNew = 0,
         kDisconnected,
+        kResolving,
         kConnecting,
         kConnected,
         kLoggedIn
@@ -263,6 +264,7 @@ static inline const char* connStateToStr(Client::ConnState state)
     switch (state)
     {
     case Client::kDisconnected: return "Disconnected";
+    case Client::kResolving: return "Resolving";
     case Client::kConnecting: return "Connecting";
     case Client::kConnected: return "Connected";
     case Client::kLoggedIn: return "Logged-in";

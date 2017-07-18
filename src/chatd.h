@@ -286,7 +286,7 @@ class Client;
 class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum State { kStateNew, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
 protected:
     Client& mClient;
     int mShardNo;

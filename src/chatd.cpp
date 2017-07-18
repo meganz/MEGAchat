@@ -273,14 +273,14 @@ Promise<void> Connection::reconnect(const std::string& url)
                 throw std::runtime_error("No valid URL provided and current URL is not valid");
         }
 
-        mState = kStateConnecting;
+        mState = kStateResolving;
         return retry("chatd", [this](int no)
         {
             reset();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
             mDisconnectPromise = Promise<void>();
-            CHATD_LOG_DEBUG("Chatd connecting to shard %d...", mShardNo);
+            CHATD_LOG_DEBUG("Resolving hostname...", mShardNo);
 
             for (auto& chatid: mChatIds)
             {
@@ -298,13 +298,15 @@ Promise<void> Connection::reconnect(const std::string& url)
                     CHATD_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
                     return;
                 }
-                if (mState != kStateConnecting)
+                if (mState != kStateResolving)
                 {
                     CHATD_LOG_DEBUG("Connection state changed while resolving DNS.");
                     return;
                 }
+                
+                mState = kStateConnecting;
                 string ip = result->getText();
-                CHATD_LOG_DEBUG("Connecting to chatd using the IP: %s", ip.c_str());                
+                CHATD_LOG_DEBUG("Connecting to chatd (shard %d) using the IP: %s", mShardNo, ip.c_str());
                 bool rt = wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,

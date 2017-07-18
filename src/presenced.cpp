@@ -185,13 +185,13 @@ Client::reconnect(const std::string& url)
                 return promise::Error("No valid URL provided and current URL is not valid");
         }
 
-        setConnState(kConnecting);
+        setConnState(kResolving);
         return retry("presenced", [this](int no)
         {
             reset();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
-            PRESENCED_LOG_DEBUG("Attempting connect...");
+            PRESENCED_LOG_DEBUG("Resolving hostmane...");
 
             auto wptr = weakHandle();
             mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
@@ -202,12 +202,13 @@ Client::reconnect(const std::string& url)
                     PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
                     return;
                 }
-                if (mConnState != kConnecting)
+                if (mConnState != kResolving)
                 {
                     PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
                     return;
                 }
 
+                setConnState(kConnecting);
                 string ip = result->getText();
                 PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
                 bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
