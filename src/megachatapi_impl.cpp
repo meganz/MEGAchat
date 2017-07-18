@@ -55,13 +55,13 @@ using namespace chatd;
 
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
-std::shared_ptr<ServiceManager> ServiceManager::mInstance;
-
+extern "C" {
+MEGA_GCM_DLLEXPORT GcmPostFunc megaPostMessageToGui = MegaChatApiImpl::megaApiPostMessage;
+}
+    
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 : localVideoReceiver(nullptr), sdkMutex(true)
 {
-    ServiceManager::init();
-    
     init(chatApi, megaApi);
 }
 
@@ -5063,25 +5063,3 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
     return messageContents;
 }
 
-void ServiceManager::init()
-{
-    if (!mInstance.get())
-    {
-        mInstance = std::shared_ptr<ServiceManager>(new ServiceManager());
-    }
-}
-
-void ServiceManager::cleanup()
-{
-    mInstance.reset();
-}
-
-ServiceManager::ServiceManager()
-{
-    globalInit(MegaChatApiImpl::megaApiPostMessage);
-}
-
-ServiceManager::~ServiceManager()
-{
-    globalCleanup();
-}

@@ -7,23 +7,6 @@ namespace karere
 {
 const char* gDbSchemaVersionSuffix = "2";
 
-void globalInit(void(*postFunc)(void*, void*), uint32_t options, const char* logPath, size_t logSize)
-{
-    if (logPath)
-    {
-        gLogger.logToFile(logPath, logSize);
-    }
-    services_init(postFunc, options);
-}
-
-void globalCleanup()
-{
-#ifndef KARERE_DISABLE_WEBRTC
-    rtcModule::globalCleanup();
-#endif
-    services_shutdown();
-}
-
 void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned flags)
 {
 //WARNING:
