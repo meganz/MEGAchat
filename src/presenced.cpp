@@ -225,8 +225,8 @@ Client::reconnect(const std::string& url)
             {
                 if (err.type() == ERRTYPE_MEGASDK)
                 {
-                    mConnectPromise.reject(err.msg(), err.code(), 0);
-                    mLoginPromise.reject(err.msg(), err.code(), 0);
+                    mConnectPromise.reject(err.msg(), err.code(), err.type());
+                    mLoginPromise.reject(err.msg(), err.code(), err.type());
                 }
             });
             
