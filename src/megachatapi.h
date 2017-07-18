@@ -1122,6 +1122,14 @@ public:
         INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
     };
 
+    enum
+    {
+        DISCONNECTED    = 0,    /// No connection established
+        CONNECTING      = 1,    /// A call to connect() is in progress
+        DISCONNECTING   = 2,    /// A call to disconnect() is in progress
+        CONNECTED       = 3     /// A call to connect() succeed
+    };
+
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -1258,6 +1266,18 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void disconnect(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returnes the current state of the connection
+     *
+     * It can be one of the following values:
+     *  - MegaChatApi::DISCONNECTED = 0
+     *  - MegaChatApi::CONNECTING   = 1
+     *  - MegaChatApi::CONNECTED    = 2
+     *
+     * @return The state of connection
+     */
+    int getConnectionState();
     
     /**
      * @brief Refresh DNS servers and retry pending connections
@@ -2474,7 +2494,8 @@ public:
         CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
         CHANGE_TYPE_TITLE           = 0x08,
         CHANGE_TYPE_USER_TYPING     = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
-        CHANGE_TYPE_CLOSED          = 0X20, /// The chatroom has been left by own user
+        CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
+        CHANGE_TYPE_OWN_PRIV        = 0x40  /// Our privilege level has changed
     };
 
     enum {

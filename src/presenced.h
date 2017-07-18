@@ -16,6 +16,8 @@
 #define PRESENCED_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 
+class MyMegaApi;
+
 enum: uint32_t { kPromiseErrtype_presenced = 0x339a92e5 }; //should resemble 'megapres'
 namespace karere
 {
@@ -162,7 +164,7 @@ protected:
     ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Url mUrl;
-    karere::Client *mKarereClient;
+    MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
@@ -182,6 +184,7 @@ protected:
     static void websockConnectCb(ws_t ws, void* arg);
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
         size_t reason_len, void *arg);
+    static void websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg);
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
     void enableInactivityTimer();
@@ -202,7 +205,7 @@ protected:
     std::string prefsString() const;
     bool sendKeepalive(time_t now=0);
 public:
-    Client(karere::Client *client, Listener& listener, uint8_t caps);
+    Client(MyMegaApi *api, Listener& listener, uint8_t caps);
     const Config& config() const { return mConfig; }
     bool isConfigAcknowledged() { return mPrefsAckWait; }
     bool isOnline() const { return (mConnState >= kConnected); }

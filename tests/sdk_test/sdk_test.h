@@ -32,7 +32,7 @@
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "Tests for Karere SDK functionality";
 
-static const unsigned int maxTimeout = 300;
+static const unsigned int maxTimeout = 600;
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 2;
 
@@ -169,7 +169,7 @@ public:
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
     void postLog(const std::string &msg);
 
-    bool waitForResponse(bool *responseReceived, int timeout = maxTimeout) const;
+    bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
 
     bool TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
@@ -183,6 +183,7 @@ public:
     void TEST_Attachment(unsigned int a1, unsigned int a2);
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
+    void TEST_ChangeMyOwnName(unsigned int a1);
 
     unsigned mOKTests;
     unsigned mFailedTests;
@@ -224,6 +225,7 @@ private:
     void purgeCloudTree(unsigned int accountIndex, mega::MegaNode* node);
     void clearAndLeaveChats(unsigned int accountIndex, megachat::MegaChatHandle skipChatId =  megachat::MEGACHAT_INVALID_HANDLE);
     void removePendingContactRequest(unsigned int accountIndex);
+    void changeLastName(unsigned int accountIndex, std::string lastName);
 
     Account mAccounts[NUM_ACCOUNTS];
 
@@ -237,6 +239,7 @@ private:
     int initState[NUM_ACCOUNTS];
     int lastError[NUM_ACCOUNTS];
     int lastErrorChat[NUM_ACCOUNTS];
+    std::string lastErrorMsgChat[NUM_ACCOUNTS];
     int lastErrorTransfer[NUM_ACCOUNTS];
 
     megachat::MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request

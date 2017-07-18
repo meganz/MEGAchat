@@ -67,7 +67,7 @@ Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint
   chats(new ChatRoomList(*this)),
   mMyName("\0", 1),
   mOwnPresence(Presence::kInvalid),
-  mPresencedClient(this, *this, caps)
+  mPresencedClient(&api, *this, caps)
 {
 }
 
@@ -184,7 +184,7 @@ void Client::heartbeat()
         db.timedCommit();
     }
 
-    if (!mConnected)
+    if (mConnState != kConnected)
     {
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
         return;
@@ -256,14 +256,14 @@ promise::Promise<void> Client::sdkLoginNewSession()
     {
         marshallCall([this, err]()
         {
-            mCanConnectPromise.reject(err);
+            mSessionReadyPromise.reject(err);
         });
     })
     .then([this]()
     {
         mLoginDlg.free();
     });
-    return mCanConnectPromise;
+    return mSessionReadyPromise;
 }
 
 promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
@@ -274,7 +274,7 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
     {
         api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
     });
-    return mCanConnectPromise;
+    return mSessionReadyPromise;
 }
 
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
@@ -332,7 +332,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     .then([this, scsn, contactList, chatList]()
     {
         loadContactListFromApi(*contactList);
-        chatd.reset(new chatd::Client(this, mMyHandle));
+        chatd.reset(new chatd::Client(&api, mMyHandle));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
@@ -411,7 +411,7 @@ void Client::initWithDbSession(const char* sid)
         loadOwnKeysFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
-        chatd.reset(new chatd::Client(this, mMyHandle));
+        chatd.reset(new chatd::Client(&api, mMyHandle));
         chats->loadFromDb();
     }
     catch(std::runtime_error& e)
@@ -473,55 +473,83 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         return;
     }
 
-    if (!request || (request->getType() != mega::MegaRequest::TYPE_FETCH_NODES))
-        return;
-
-    api.sdk.pauseActionPackets();
-    auto state = mInitState;
-    char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn = pscsn ? pscsn : "";
-    delete pscsn;
-    std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
-    std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
-
-    marshallCall([wptr, this, state, scsn, contactList, chatList]()
+    auto reqType = request->getType();
+    if (reqType == mega::MegaRequest::TYPE_FETCH_NODES)
     {
-        if (wptr.deleted())
-            return;
-        if (state == kInitHasOfflineSession)
+        api.sdk.pauseActionPackets();
+        auto state = mInitState;
+        char* pscsn = api.sdk.getSequenceNumber();
+        std::string scsn;
+        if (pscsn)
         {
-            // disable this safety checkup, since dumpSession() differs from first-time login value
-//            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-//            assert(sid);
-//            // we loaded our state from db
-//            // verify the SDK sid is the same as ours
-//            if (mSid != sid.get())
-//            {
-//                setInitState(kInitErrSidMismatch);
-//                return;
-//            }
-            checkSyncWithSdkDb(scsn, *contactList, *chatList);
-            setInitState(kInitHasOnlineSession);
-            mCanConnectPromise.resolve();
+            scsn = pscsn;
+            delete[] pscsn;
         }
-        else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
+        std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
+        std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
+
+        marshallCall([wptr, this, state, scsn, contactList, chatList]()
         {
-            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-            assert(sid);
-            initWithNewSession(sid.get(), scsn, contactList, chatList)
-            .fail([this](const promise::Error& err)
+            if (wptr.deleted())
+                return;
+            if (state == kInitHasOfflineSession)
             {
-                mCanConnectPromise.reject(err);
-                return err;
-            })
-            .then([this]()
-            {
+// disable this safety checkup, since dumpSession() differs from first-time login value
+//              std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+//              assert(sid);
+//              // we loaded our state from db
+//              // verify the SDK sid is the same as ours
+//              if (mSid != sid.get())
+//              {
+//                  setInitState(kInitErrSidMismatch);
+//                  return;
+//              }
+                checkSyncWithSdkDb(scsn, *contactList, *chatList);
                 setInitState(kInitHasOnlineSession);
-                mCanConnectPromise.resolve();
-            });
+                mSessionReadyPromise.resolve();
+            }
+            else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
+            {
+                std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+                assert(sid);
+                initWithNewSession(sid.get(), scsn, contactList, chatList)
+                .fail([this](const promise::Error& err)
+                {
+                    mSessionReadyPromise.reject(err);
+                    return err;
+                })
+                .then([this]()
+                {
+                    setInitState(kInitHasOnlineSession);
+                    mSessionReadyPromise.resolve();
+                });
+            }
+            api.sdk.resumeActionPackets();
+        });
+    }
+    else if (reqType == mega::MegaRequest::TYPE_SET_ATTR_USER)
+    {
+        int attrType = request->getParamType();
+        int changeType;
+        if (attrType == mega::MegaApi::USER_ATTR_FIRSTNAME)
+        {
+            changeType = mega::MegaUser::CHANGE_TYPE_FIRSTNAME;
         }
-        api.sdk.resumeActionPackets();
-    });
+        else if (attrType == mega::MegaApi::USER_ATTR_LASTNAME)
+        {
+            changeType = mega::MegaUser::CHANGE_TYPE_LASTNAME;
+        }
+        else
+        {
+            return;
+        }
+        marshallCall([wptr, this, changeType]()
+        {
+            if (wptr.deleted())
+                return;
+            mUserAttrCache->onUserAttrChange(mMyHandle, changeType);
+        });
+    }
 }
 
 //TODO: We should actually wipe the whole app dir, but the log file may
@@ -620,16 +648,45 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
 
 promise::Promise<void> Client::connect(Presence pres)
 {
-    return mCanConnectPromise
-    .then([this, pres]() mutable
+// only the first connect() needs to wait for the mSessionReadyPromise.
+// Any subsequent connect()-s (preceded by disconnect()) can initiate
+// the connect immediately
+    if (mConnState == kConnecting)
+        return mConnectPromise;
+    else if (mConnState == kConnected)
+        return promise::_Void();
+
+    assert(mConnState == kDisconnected);
+    auto sessDone = mSessionReadyPromise.done();
+    switch (sessDone)
     {
+    case promise::kSucceeded:
         return doConnect(pres);
-    });
+    case promise::kFailed:
+        return mSessionReadyPromise.error();
+    default:
+        assert(sessDone == promise::kNotResolved);
+        mConnectPromise = mSessionReadyPromise
+            .then([this, pres]() mutable
+            {
+                return doConnect(pres);
+            })
+            .then([this]()
+            {
+                setConnState(kConnected);
+            })
+            .fail([this](const promise::Error& err)
+            {
+                setConnState(kDisconnected);
+            });
+        return mConnectPromise;
+    }
 }
 
 promise::Promise<void> Client::doConnect(Presence pres)
 {
-    assert(mCanConnectPromise.succeeded());
+    assert(mSessionReadyPromise.succeeded());
+    setConnState(kConnecting);
     mOwnPresence = pres;
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     assert(mUserAttrCache);
@@ -645,37 +702,56 @@ promise::Promise<void> Client::doConnect(Presence pres)
     });
 
     connectToChatd();
-    auto pms = connectToPresenced(mOwnPresence);
-    if (!pms.failed())
+    auto pms = connectToPresenced(mOwnPresence)
+    .then([this]()
     {
-        mConnected = true; //we may not be actually connected to presenced, mConnected signifies that we are in online mode
-    }
+        setConnState(kConnected);
+    })
+    .fail([this](const promise::Error& err)
+    {
+        setConnState(kDisconnected);
+    });
     assert(!mHeartbeatTimer);
     mHeartbeatTimer = karere::setInterval([this]()
     {
         heartbeat();
     }, 10000);
-
     return pms;
 }
 
 promise::Promise<void> Client::disconnect()
 {
-    if (!mConnected)
+    if (mConnState == kDisconnected)
         return promise::_Void();
-    assert(mHeartbeatTimer);
+    else if (mConnState == kDisconnecting)
+        return mDisconnectPromise;
+    setConnState(kDisconnecting);
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
     mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
     mUserAttrCache->onLogOut();
-    karere::cancelInterval(mHeartbeatTimer);
-    mHeartbeatTimer = 0;
-    auto pms = chatd->disconnect();
+    if (mHeartbeatTimer)
+    {
+        karere::cancelInterval(mHeartbeatTimer);
+        mHeartbeatTimer = 0;
+    }
+    mDisconnectPromise = chatd->disconnect()
+    .then([this]()
+    {
+        setConnState(kDisconnected);
+    })
+    .fail([this](const promise::Error& err)
+    {
+        setConnState(kDisconnected);
+    });
     mPresencedClient.disconnect();
-    mConnected = false;
-    return pms;
+    return mDisconnectPromise;
 }
-
+void Client::setConnState(ConnState newState)
+{
+    mConnState = newState;
+    KR_LOG_DEBUG("Client connection state changed to %s", connStateToStr(newState));
+}
 karere::Id Client::getMyHandleFromSdk()
 {
     SdkString uh = api.sdk.getMyUserHandle();
@@ -855,7 +931,7 @@ void Contact::updatePresence(Presence pres)
     mPresence = pres;
     updateAllOnlineDisplays(pres);
 }
-
+// presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
     if (userid == mMyHandle)
@@ -864,11 +940,7 @@ void Client::onPresenceChange(Id userid, Presence pres)
     }
     else
     {
-        auto it = contactList->find(userid);
-        if (it != contactList->end())
-        {
-            it->second->updatePresence(pres);
-        }
+        contactList->onPresenceChanged(userid, pres);
     }
     for (auto& item: *chats)
     {
@@ -877,9 +949,18 @@ void Client::onPresenceChange(Id userid, Presence pres)
             continue;
         static_cast<GroupChatRoom&>(chat).updatePeerPresence(userid, pres);
     }
-
     app.onPresenceChanged(userid, pres, false);
 }
+void Client::onPresenceConfigChanged(const presenced::Config& state, bool pending)
+{
+    app.onPresenceConfigChanged(state, pending);
+}
+void Client::onConnStateChange(presenced::Client::ConnState state)
+{
+    if (state == presenced::Client::kDisconnected)
+        contactList->setAllOffline();
+}
+
 void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
 {
     auto it = mPeers.find(userid);
@@ -1478,7 +1559,7 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
             continue;
         chatids.insert(room->chatid());
 
-        if (!isInactive && client.connected())
+        if (!isInactive && client.connState() == Client::kConnected)
         {
             KR_LOG_DEBUG("...connecting new room to chatd...");
             room->connect();
@@ -1574,8 +1655,12 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
         return;
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
     char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn = pscsn ? pscsn : "";
-    delete pscsn;
+    std::string scsn;
+    if (pscsn)
+    {
+        scsn = pscsn;
+        delete[] pscsn;
+    }
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
@@ -2314,6 +2399,22 @@ void ContactList::removeUser(iterator it)
     erase(it);
     client.db.query("delete from contacts where userid=?", handle);
 }
+void ContactList::onPresenceChanged(Id userid, Presence pres)
+{
+    auto it = find(userid);
+    if (it == end())
+        return;
+    {
+        it->second->updatePresence(pres);
+    }
+}
+void ContactList::setAllOffline()
+{
+    for (auto& it: *this)
+    {
+        it.second->updatePresence(Presence::kOffline);
+    }
+}
 
 promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
 {
@@ -2520,10 +2621,6 @@ Contact* ContactList::contactFromJid(const std::string& jid) const
         return it->second;
 }
 
-void Client::onConnStateChange(presenced::Client::ConnState state)
-{
-}
-
 #define RETURN_ENUM_NAME(name) case name: return #name
 
 const char* Client::initStateToStr(unsigned char state)
@@ -2545,7 +2642,17 @@ const char* Client::initStateToStr(unsigned char state)
         return "(unknown)";
     }
 }
-
+const char* Client::connStateToStr(ConnState state)
+{
+    switch(state)
+    {
+        RETURN_ENUM_NAME(kDisconnected);
+        RETURN_ENUM_NAME(kConnecting);
+        RETURN_ENUM_NAME(kDisconnecting);
+        RETURN_ENUM_NAME(kConnected);
+        default: return "(invalid)";
+    }
+}
 #ifndef KARERE_DISABLE_WEBRTC
 rtcModule::IEventHandler* Client::onIncomingCallRequest(
         const std::shared_ptr<rtcModule::ICallAnswer> &ans)
