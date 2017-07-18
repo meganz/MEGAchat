@@ -2109,7 +2109,6 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodes Array of nodes that the user want to attach
      * @param listener MegaChatRequestListener to track this request
-     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
      void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
 
@@ -2141,8 +2140,6 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodeHandle MegaChatHandle that identifies the node to revoke access to
      * @param listener MegaChatRequestListener to track this request
-     *
-     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener = NULL);
 
