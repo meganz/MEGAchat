@@ -56,6 +56,8 @@ struct TimerMsg: public megaMessage
 
 #ifdef USE_LIBWEBSOCKETS
     void init_uv_timer(void *ctx, uv_timer_t *timer);
+#else
+    struct event_base *get_ev_loop(void *ctx);
 #endif
     
 template <int persist, class CB>
@@ -95,7 +97,7 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
     pMsg->loop = persist;
     
 #ifndef USE_LIBWEBSOCKETS
-    pMsg->timerEvent = event_new(services_get_event_loop(), -1, persist,
+    pMsg->timerEvent = event_new(get_ev_loop(ctx), -1, persist,
       [](evutil_socket_t fd, short what, void* evarg)
       {
             megaPostMessageToGui(evarg, ((Msg* )evarg)->appCtx);
