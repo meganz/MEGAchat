@@ -806,9 +806,9 @@ public:
     int getOnlineStatus();
     bool isOnlineStatusPending();
 
-    void setPresenceAutoaway(bool enable, int64_t timeout);
-    void setPresencePersist(bool enable);
-    void signalPresenceActivity();
+    void setPresenceAutoaway(bool enable, int64_t timeout, MegaChatRequestListener *listener = NULL);
+    void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
+    void signalPresenceActivity(MegaChatRequestListener *listener = NULL);
     MegaChatPresenceConfig *getPresenceConfig();
     bool isSignalActivityRequired();
 
@@ -859,7 +859,7 @@ public:
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
     void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowid);
-    void sendTypingNotification(MegaChatHandle chatid);
+    void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     // Audio/Video devices
     mega::MegaStringList *getChatAudioInDevices();

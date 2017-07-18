@@ -232,6 +232,53 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             break;
         }
+        case MegaChatRequest::TYPE_SEND_TYPING_NOTIF:
+        {
+            MegaChatHandle chatid = request->getChatHandle();
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (chatroom)
+            {
+                chatroom->sendTypingNotification();
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            }
+            else
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+            }
+            break;
+        }
+        case MegaChatRequest::TYPE_SIGNAL_ACTIVITY:
+        {
+            mClient->presenced().signalActivity();
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+
+            break;
+        }
+        case MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY:
+        {
+            int64_t timeout = request->getNumber();
+            bool enable = request->getFlag();
+
+            mClient->presenced().setAutoaway(enable, timeout);
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+
+            break;
+        }
+        case MegaChatRequest::TYPE_SET_PRESENCE_PERSIST:
+        {
+            bool enable = request->getFlag();
+
+            mClient->presenced().setPersist(enable);
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+
+            break;
+        }
         case MegaChatRequest::TYPE_LOGOUT:
         {
             if (mClient)
@@ -1307,34 +1354,28 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
     waiter->notify();
 }
 
-void MegaChatApiImpl::setPresenceAutoaway(bool enable, int64_t timeout)
+void MegaChatApiImpl::setPresenceAutoaway(bool enable, int64_t timeout, MegaChatRequestListener *listener)
 {
-    sdkMutex.lock();
-
-    mClient->presenced().setAutoaway(enable, timeout);
-
-    sdkMutex.unlock();
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY, listener);
+    request->setFlag(enable);
+    request->setNumber(timeout);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
-void MegaChatApiImpl::setPresencePersist(bool enable)
+void MegaChatApiImpl::setPresencePersist(bool enable, MegaChatRequestListener *listener)
 {
-    sdkMutex.lock();
-
-    mClient->presenced().setPersist(enable);
-
-    sdkMutex.unlock();
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_PRESENCE_PERSIST, listener);
+    request->setFlag(enable);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
-void MegaChatApiImpl::signalPresenceActivity()
+void MegaChatApiImpl::signalPresenceActivity(MegaChatRequestListener *listener)
 {
-    sdkMutex.lock();
-
-    if (mClient)
-    {
-        mClient->presenced().signalActivity();
-    }
-
-    sdkMutex.unlock();
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SIGNAL_ACTIVITY, listener);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 MegaChatPresenceConfig *MegaChatApiImpl::getPresenceConfig()
@@ -2126,17 +2167,12 @@ void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle 
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid)
+void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    sdkMutex.lock();
-
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
-    {
-        chatroom->sendTypingNotification();
-    }
-
-    sdkMutex.unlock();
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
+    request->setChatHandle(chatid);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
@@ -2686,6 +2722,10 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
         case TYPE_ATTACH_NODE_MESSAGE: return "ATTACH_NODE_MESSAGE";
         case TYPE_REVOKE_NODE_MESSAGE: return "REVOKE_NODE_MESSAGE";
+        case TYPE_SEND_TYPING_NOTIF: return "SEND_TYPING_NOTIF";
+        case TYPE_SIGNAL_ACTIVITY: return "SIGNAL_ACTIVITY";
+        case TYPE_SET_PRESENCE_PERSIST: return "SET_PRESENCE_PERSIST";
+        case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
     }
     return "UNKNOWN";
 }
