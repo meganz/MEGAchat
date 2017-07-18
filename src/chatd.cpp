@@ -2349,11 +2349,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
-        if (msg.type == Message::kMsgTruncate)
-        {
-            handleTruncate(msg, idx);
-            return;
-        }
     }
 
     auto status = getMsgStatus(msg, idx);
@@ -2370,6 +2365,12 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             CALL_LISTENER(onRecvHistoryMessage, idx, msg, status, isLocal);
         }
+    }
+    if (msg.type == Message::kMsgTruncate)
+    {
+        handleTruncate(msg, idx);
+        onMsgTimestamp(msg.ts);
+        return;
     }
 
     if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
