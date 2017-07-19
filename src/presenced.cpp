@@ -2,8 +2,6 @@
 #include <base/cservices.h>
 #include <gcmpp.h>
 #include <retryHandler.h>
-#include <event2/dns.h>
-#include <event2/dns_compat.h>
 #include <chatClient.h>
 #include <arpa/inet.h>
 

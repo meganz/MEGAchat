@@ -4,9 +4,6 @@
 #include <base/cservices.h>
 #include <gcmpp.h>
 #include <retryHandler.h>
-#include <libws_log.h>
-#include <event2/dns.h>
-#include <event2/dns_compat.h>
 #include "base64.h"
 #include <algorithm>
 #include <random>
