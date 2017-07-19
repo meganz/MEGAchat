@@ -184,7 +184,7 @@ protected:
 
     virtual void wsConnectCb();
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
-    virtual void wsHandleMsgCb(char *data, uint64_t len);
+    virtual void wsHandleMsgCb(char *data, size_t len);
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());

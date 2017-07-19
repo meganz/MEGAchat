@@ -36,7 +36,7 @@ public:
     LibwsClient(::mega::Mutex *mutex, WebsocketsClient *client, void *ctx);
     ~LibwsClient();
     
-    virtual bool wsSendMessage(char *msg, uint64_t len);
+    virtual bool wsSendMessage(char *msg, size_t len);
     virtual void wsDisconnect(bool immediate);
     virtual bool wsIsConnected();
 };

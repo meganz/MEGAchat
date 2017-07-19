@@ -478,7 +478,7 @@ Client::~Client()
 #define READ_8(varname, offset)\
     assert(offset==pos-base); uint8_t varname(buf.read<uint8_t>(pos)); pos+=1
 
-void Client::wsHandleMsgCb(char *data, uint64_t len)
+void Client::wsHandleMsgCb(char *data, size_t len)
 {
     mTsLastRecv = time(NULL);
     mTsLastPingSent = 0;

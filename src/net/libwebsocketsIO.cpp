@@ -40,7 +40,7 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, void *ctx) : WebsocketsIO
     
     lws_set_log_level(LLL_ERR | LLL_INFO | LLL_USER | LLL_WARN | LLL_COUNT
                       | LLL_CLIENT | LLL_HEADER | LLL_NOTICE
-                      | LLL_PARSER | LLL_LATENCY, NULL);
+                      | LLL_LATENCY, NULL);
     
     wscontext = lws_create_context(&info);
     initialized = false;
@@ -62,6 +62,7 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
             exit(0);
         }
         lws_uv_initloop(wscontext, libuvWaiter->eventloop, 0);
+        WEBSOCKETS_LOG_DEBUG("Libwebsockets is using libuv");
 #else
         ::mega::LibwebsocketsWaiter *websocketsWaiter = dynamic_cast<::mega::LibwebsocketsWaiter *>(waiter);
         if (!websocketsWaiter)
@@ -69,6 +70,7 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
             exit(0);
         }
         websocketsWaiter->wscontext = wscontext;
+        WEBSOCKETS_LOG_DEBUG("Libwebsockets is using its own event loop");
 #endif
         initialized = true;
     }
@@ -141,7 +143,7 @@ void LibwebsocketsClient::resetMessage()
     recbuffer.clear();
 }
 
-bool LibwebsocketsClient::wsSendMessage(char *msg, uint64_t len)
+bool LibwebsocketsClient::wsSendMessage(char *msg, size_t len)
 {
     assert(wsi);
     
@@ -171,9 +173,16 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
         struct lws *dwsi = wsi;
         wsi = NULL;
         lws_set_wsi_user(dwsi, NULL);
+        WEBSOCKETS_LOG_DEBUG("Pointer detached from libwebsockets");
+        
         if (!disconnecting)
         {
             lws_callback_on_writable(dwsi);
+            WEBSOCKETS_LOG_DEBUG("Requesting a forced disconnection to libwebsockets");
+        }
+        else
+        {
+            WEBSOCKETS_LOG_DEBUG("Already disconnecting from libwebsockets");
         }
         disconnecting = false;
     }
@@ -181,6 +190,7 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
     {
         disconnecting = true;
         lws_callback_on_writable(wsi);
+        WEBSOCKETS_LOG_DEBUG("Requesting a graceful disconnection to libwebsockets");
     }
 }
 
@@ -301,9 +311,11 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;
             if (!client)
             {
+                WEBSOCKETS_LOG_DEBUG("Forced disconnect completed");
                 return -1;
             }
             
+            WEBSOCKETS_LOG_DEBUG("Graceful disconnect completed");
             client->disconnecting = false;
             client->wsCloseCb(0, 0, "", 0);
             break;
@@ -322,6 +334,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             {
                 if (client->hasFragments())
                 {
+                    WEBSOCKETS_LOG_DEBUG("Fragmented data completed");
                     client->appendMessageFragment((char *)data, len, 0);
                     data = (void *)client->getMessage();
                     len = client->getMessageLength();
@@ -332,6 +345,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             }
             else
             {
+                WEBSOCKETS_LOG_DEBUG("Managing fragmented data");
                 client->appendMessageFragment((char *)data, len, remaining);
             }
             break;
@@ -341,11 +355,13 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;
             if (!client)
             {
+                WEBSOCKETS_LOG_DEBUG("Completing forced disconnect");
                 return -1;
             }
             
             if (client->disconnecting)
             {
+                WEBSOCKETS_LOG_DEBUG("Completing graceful disconnect");
                 return -1;
             }
             

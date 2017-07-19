@@ -750,7 +750,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
 #define READ_8(varname, offset)\
     assert(offset==pos-base); uint8_t varname(buf.read<uint8_t>(pos)); pos+=1
 
-void Connection::wsHandleMsgCb(char *data, uint64_t len)
+void Connection::wsHandleMsgCb(char *data, size_t len)
 {
     mInactivityBeats = 0;
     execCommand(StaticBuffer(data, len));

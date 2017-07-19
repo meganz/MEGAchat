@@ -4,6 +4,12 @@
 #include <iostream>
 #include <mega/waiter.h>
 #include <mega/thread.h>
+#include "base/logger.h"
+
+#define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
+#define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
+#define WEBSOCKETS_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
+#define WEBSOCKETS_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 
 class WebsocketsClient;
 class WebsocketsClientImpl;
@@ -40,13 +46,13 @@ public:
     WebsocketsClient();
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
                    const char *host, int port, const char *path, bool ssl);
-    bool wsSendMessage(char *msg, uint64_t len);
+    bool wsSendMessage(char *msg, size_t len);
     void wsDisconnect(bool immediate);
     bool wsIsConnected();
     
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
-    virtual void wsHandleMsgCb(char *data, uint64_t len) = 0;
+    virtual void wsHandleMsgCb(char *data, size_t len) = 0;
 };
 
 
@@ -60,9 +66,9 @@ public:
     WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClient *client);
     void wsConnectCb();
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
-    void wsHandleMsgCb(char *data, uint64_t len);
+    void wsHandleMsgCb(char *data, size_t len);
     
-    virtual bool wsSendMessage(char *msg, uint64_t len) = 0;
+    virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;
     virtual bool wsIsConnected() = 0;
 };
