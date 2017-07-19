@@ -19,7 +19,7 @@
  * program.
  */
 
-#include "libuvWaiter.h"
+#include "waiter/libuvWaiter.h"
 
 #ifdef __APPLE__
 #define CLOCK_MONOTONIC 0

@@ -19,7 +19,7 @@
  * program.
  */
 
-#include "libwebsocketsWaiter.h"
+#include "waiter/libwebsocketsWaiter.h"
 #include <libwebsockets.h>
 
 #ifdef __APPLE__

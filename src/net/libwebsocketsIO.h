@@ -5,7 +5,7 @@
 #include <openssl/ssl.h>
 #include <iostream>
 
-#include "websocketsIO.h"
+#include "net/websocketsIO.h"
 
 // Websockets network layer implementatiuon based on libwebsocket
 class LibwebsocketsIO : public WebsocketsIO

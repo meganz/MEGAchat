@@ -2,7 +2,7 @@
 #define libwsIO_h
 
 #include <libws.h>
-#include "websocketsIO.h"
+#include "net/websocketsIO.h"
 #include "trackDelete.h"
 #include <mega/waiter.h>
 

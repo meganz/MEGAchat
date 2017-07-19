@@ -13,7 +13,7 @@
 #include "chatd.h"
 #include "presenced.h"
 #include "IGui.h"
-#include "websocketsIO.h"
+#include "net/websocketsIO.h"
 #include <base/trackDelete.h>
 
 namespace strophe { class Connection; }

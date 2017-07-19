@@ -13,7 +13,7 @@
 #include <base/trackDelete.h>
 #include "chatdMsg.h"
 #include "url.h"
-#include "websocketsIO.h"
+#include "net/websocketsIO.h"
 
 namespace karere {
     class Client;

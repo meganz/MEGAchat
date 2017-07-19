@@ -19,7 +19,7 @@
  * program.
  */
 
-#include "libeventWaiter.h"
+#include "waiter/libeventWaiter.h"
 
 #ifdef __APPLE__
 #define CLOCK_MONOTONIC 0
