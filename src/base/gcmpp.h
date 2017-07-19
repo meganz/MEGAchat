@@ -4,6 +4,7 @@
 /* C++11 bindings to the GUI call marashaller mechanism */
 
 #include "gcm.h"
+#include "logger.h"
 #include <memory>
 #include <assert.h>
 
@@ -58,7 +59,7 @@ static inline void marshallCall(F&& func, void *appCtx)
             }
             catch(std::exception& e)
             {
-                fprintf(stderr, "ERROR: Exception in a marshalled call: %s\n", e.what());
+                KARERE_LOG_ERROR(krLogChannel_services, "ERROR: Exception in a marshalled call: %s", e.what());
             }
         }
     });
