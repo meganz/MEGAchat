@@ -1731,6 +1731,15 @@ public:
     MegaChatListItemList *getInactiveChatListItems();
 
     /**
+     * @brief Return the chatrooms that have unread messages
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the chatrooms with unread messages
+     */
+    MegaChatListItemList *getUnreadChatListItems();
+
+    /**
      * @brief Get the chat id for the 1on1 chat with the specified user
      *
      * If the 1on1 chat with the user specified doesn't exist, this function will

@@ -1715,6 +1715,27 @@ MegaChatListItemList *MegaChatApiImpl::getInactiveChatListItems()
     return items;
 }
 
+MegaChatListItemList *MegaChatApiImpl::getUnreadChatListItems()
+{
+    MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
+
+    sdkMutex.lock();
+
+    ChatRoomList::iterator it;
+    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+        ChatRoom *room = it->second;
+        if (room->isActive() && room->chat().unreadMsgCount())
+        {
+            items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+        }
+    }
+
+    sdkMutex.unlock();
+
+    return items;
+}
+
 MegaChatHandle MegaChatApiImpl::getChatHandleByUser(MegaChatHandle userhandle)
 {
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;

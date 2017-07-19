@@ -283,6 +283,11 @@ MegaChatListItemList *MegaChatApi::getInactiveChatListItems()
     return pImpl->getInactiveChatListItems();
 }
 
+MegaChatListItemList *MegaChatApi::getUnreadChatListItems()
+{
+    return pImpl->getUnreadChatListItems();
+}
+
 MegaChatHandle MegaChatApi::getChatHandleByUser(MegaChatHandle userhandle)
 {
     return pImpl->getChatHandleByUser(userhandle);
