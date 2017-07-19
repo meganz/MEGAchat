@@ -16,7 +16,11 @@ namespace karere
  * it. Further, it allows for code optimization as all types are known at compile time
  * and all code is in the same compilation unit, so it can be inlined
  */
-template <class F, bool nocatch=false>
+#ifndef NDEBUG
+    template <class F, bool nocatch=true>
+#elif
+    template <class F, bool nocatch=false>
+#endif
 static inline void marshallCall(F&& func)
 {
     struct Msg: public megaMessage
