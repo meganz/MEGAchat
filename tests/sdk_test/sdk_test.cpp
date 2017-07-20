@@ -1121,9 +1121,9 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_MODERATOR);
     ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");;
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for reciving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for reciving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for reciving management message");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
     ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_MODERATOR, "Privilege is incorrect");
 
@@ -1137,9 +1137,9 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
     ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");;
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for reciving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for reciving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for reciving management message");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
     ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO, "Privilege is incorrect");
 
@@ -2644,7 +2644,8 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         {
             chatItemClosed[apiIndex] = true;
         }
-        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_PARTICIPANTS))
+        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_PARTICIPANTS) ||
+                item->hasChanged(MegaChatListItem::CHANGE_TYPE_OWN_PRIV))
         {
             peersUpdated[apiIndex] = true;
         }
