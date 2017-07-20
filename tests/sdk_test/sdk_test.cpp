@@ -2644,7 +2644,8 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         {
             chatItemClosed[apiIndex] = true;
         }
-        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_PARTICIPANTS))
+        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_PARTICIPANTS) ||
+                item->hasChanged(MegaChatListItem::CHANGE_TYPE_OWN_PRIV))
         {
             peersUpdated[apiIndex] = true;
         }
