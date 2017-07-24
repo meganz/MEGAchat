@@ -4826,6 +4826,15 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
         // s -> size
         jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
 
+        // fp -> fingerprint
+        const char *fingerprint = megaNode->getFingerprint();
+        if (fingerprint)
+        {
+            rapidjson::Value fpValue(rapidjson::kStringType);
+            fpValue.SetString(fingerprint, strlen(fingerprint), jSonAttachmentNodes.GetAllocator());
+            jsonNode.AddMember(rapidjson::Value("fp"), fpValue, jSonAttachmentNodes.GetAllocator());
+        }
+
         // fa -> image thumbail
         if (megaNode->hasThumbnail() || megaNode->hasPreview())
         {
@@ -4932,6 +4941,17 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
         int64_t size = iteratorSize->value.GetInt64();
 
+        rapidjson::Value::ConstMemberIterator iteratorFp = file.FindMember("fp");
+        std::string fp;
+        if (iteratorFp == file.MemberEnd() || !iteratorFp->value.IsString())
+        {
+            API_LOG_WARNING("Missing fingerprint in attachment JSON. Old message?");
+        }
+        else
+        {
+            fp = iteratorFp->value.GetString();
+        }
+
         rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
         if (iteratorType == file.MemberEnd() || !iteratorType->value.IsInt())
         {
@@ -4944,7 +4964,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         rapidjson::Value::ConstMemberIterator iteratorTimeStamp = file.FindMember("ts");
         if (iteratorTimeStamp == file.MemberEnd() || !iteratorTimeStamp->value.IsInt64())
         {
-            API_LOG_ERROR("Invalid type in attachment JSON");
+            API_LOG_ERROR("Invalid timestamp in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
@@ -4955,12 +4975,11 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         if (iteratorFa != file.MemberEnd() && iteratorFa->value.IsString())
         {
             fa = iteratorFa->value.GetString();
-
         }
 
         MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
         std::string attrstring;
-        char *fingerprint = NULL;
+        const char* fingerprint = !fp.empty() ? fp.c_str() : NULL;
 
         std::string key = DataTranslation::vector_to_b(kElements);
 
