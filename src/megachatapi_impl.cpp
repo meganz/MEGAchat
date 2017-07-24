@@ -804,7 +804,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList(), megaApi);
+            const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList());
             if (!buffer)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -4766,7 +4766,7 @@ std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
     return dataToReturn;
 }
 
-const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, MegaApi* megaApi)
+const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
 {
     if (!nodes)
     {
@@ -4829,7 +4829,7 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, MegaApi* mega
         // fa -> image thumbail
         if (megaNode->hasThumbnail() || megaNode->hasPreview())
         {
-            const char *fa = megaApi->getFileAttribute(megaNode->getHandle());
+            const char *fa = megaNode->getFileAttrString();
             if (!fa)
             {
                 API_LOG_ERROR("Failed to get the fileattribute string of node %d", megaNode->getHandle());

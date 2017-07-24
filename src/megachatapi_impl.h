@@ -927,7 +927,7 @@ class JSonUtils
 {
 public:
     // you take the ownership of the returned value. NULL if error
-    static const char* generateAttachNodeJSon(mega::MegaNodeList* nodes, mega::MegaApi* megaApi);
+    static const char* generateAttachNodeJSon(mega::MegaNodeList* nodes);
     // you take the ownership of returned value. NULL if error
     static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
     // you take the ownership of returned value. NULL if error
