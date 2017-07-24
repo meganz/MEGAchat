@@ -254,8 +254,14 @@ promise::Promise<void> Client::sdkLoginNewSession()
     })
     .fail([this](const promise::Error& err)
     {
-        marshallCall([this, err]()
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, err]()
         {
+            if (wptr.deleted())
+            {
+                return;
+            }
+
             mSessionReadyPromise.reject(err);
         });
     })
@@ -372,8 +378,14 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
             return;
         }
         std::string scsn = pscsn;
-        marshallCall([this, scsn]()
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, scsn]()
         {
+            if (wptr.deleted())
+            {
+                return;
+            }
+
             commit(scsn);
         });
     }
@@ -1048,8 +1060,14 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
     if (!aUsers)
         return;
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
-    marshallCall([this, users]()
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, users]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
         assert(mUserAttrCache);
         auto count = users->size();
         for (int i=0; i<count; i++)
@@ -1489,8 +1507,14 @@ void GroupChatRoom::deleteSelf()
 {
     //have to post a delete on the event loop, as there may be pending
     //events related to the chatroom/strongvelope instance
-    marshallCall([this]()
+    auto wptr = weakHandle();
+    marshallCall([wptr, this]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
         auto db = parent.client.db;
         db.query("delete from chat_peers where chatid=?", mChatid);
         db.query("delete from chats where chatid=?", mChatid);
@@ -1665,8 +1689,14 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     dumpChatrooms(*copy);
 #endif
     assert(mContactsLoaded);
-    marshallCall([this, copy, scsn]()
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, copy, scsn]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
         chats->onChatsUpdate(*copy);
     });
 }
@@ -1801,17 +1831,19 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         if (mTitleString == title)
         {
             KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
-            return;
-        }
-        mTitleString = title;
-        if (!mTitleString.empty())
-        {
-            mHasTitle = true;
-            parent.client.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
         }
         else
         {
-            clearTitle();
+            mTitleString = title;
+            if (!mTitleString.empty())
+            {
+                mHasTitle = true;
+                parent.client.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
+            }
+            else
+            {
+                clearTitle();
+            }
         }
         notifyTitleChanged();
     })
@@ -2468,8 +2500,14 @@ void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactReques
         return;
 
     std::shared_ptr<mega::MegaContactRequestList> copy(reqs->copy());
-    marshallCall([this, copy]()
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, copy]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
         auto count = copy->size();
         for (int i=0; i<count; i++)
         {

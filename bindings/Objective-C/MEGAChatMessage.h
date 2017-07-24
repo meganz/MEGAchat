@@ -26,7 +26,9 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageType) {
 
 typedef NS_ENUM(NSInteger, MEGAChatMessageChangeType) {
     MEGAChatMessageChangeTypeStatus = 0x01,
-    MEGAChatMessageChangeTypeContent = 0x02
+    MEGAChatMessageChangeTypeContent = 0x02,
+    MEGAChatMessageChangeTypeAccess = 0x04
+    
 };
 
 
