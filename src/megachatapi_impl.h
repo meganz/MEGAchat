@@ -726,6 +726,8 @@ public:
     chatd::Message *findMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     chatd::Message *findMessageNotConfirmed(MegaChatHandle chatid, MegaChatHandle msgxid);
 
+    static void setCatchException(bool enable);
+
     // ============= Listeners ================
 
     // Registration

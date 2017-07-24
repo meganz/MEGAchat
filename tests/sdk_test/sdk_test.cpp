@@ -181,6 +181,7 @@ void MegaChatApiTest::init()
     MegaApi::setLogToConsole(false);    // already disabled by default
     MegaChatApi::setLoggerObject(logger);
     MegaChatApi::setLogToConsole(false);
+    MegaChatApi::setCatchException(false);
 
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
