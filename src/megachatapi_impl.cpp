@@ -1095,6 +1095,11 @@ chatd::Message *MegaChatApiImpl::findMessageNotConfirmed(MegaChatHandle chatid, 
     return msg;
 }
 
+void MegaChatApiImpl::setCatchException(bool enable)
+{
+    karere::gCatchException = enable;
+}
+
 void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
 {
     API_LOG_INFO("Request (%s) starting", request->getRequestString());
