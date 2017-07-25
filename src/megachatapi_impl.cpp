@@ -791,7 +791,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             handle chatid = request->getChatHandle();
             MegaNodeList *nodeList = request->getMegaNodeList();
-            handle h = request->getChatHandle();
+            handle h = request->getUserHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE ||
                     ((!nodeList || !nodeList->size()) && (h == MEGACHAT_INVALID_HANDLE)))
             {
