@@ -791,7 +791,9 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             handle chatid = request->getChatHandle();
             MegaNodeList *nodeList = request->getMegaNodeList();
-            if (chatid == MEGACHAT_INVALID_HANDLE || !nodeList || !nodeList->size())
+            handle h = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE ||
+                    ((!nodeList || !nodeList->size()) && (h == MEGACHAT_INVALID_HANDLE)))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -804,7 +806,27 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList());
+            // if only one node, prepare a list with a single element and update request
+            MegaNodeList *nodeListAux = NULL;
+            if (h != MEGACHAT_INVALID_HANDLE)
+            {
+                MegaNode *megaNode = megaApi->getNodeByHandle(h);
+                if (!megaNode)
+                {
+                    errorCode = MegaChatError::ERROR_NOENT;
+                    break;
+                }
+
+                nodeListAux = MegaNodeList::createInstance();
+                nodeListAux->addNode(megaNode);
+                request->setMegaNodeList(nodeListAux);
+                nodeList = request->getMegaNodeList();
+
+                delete megaNode;
+                delete nodeListAux;
+            }
+
+            const char *buffer = JSonUtils::generateAttachNodeJSon(nodeList);
             if (!buffer)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -828,10 +850,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = NULL;
                 if (err.code() == MegaChatError::ERROR_EXIST)
                 {
+                    API_LOG_WARNING("Already granted access to this node previously");
                     std::string stringToSend(buffer);
                     sendAttachNodesMessage(stringToSend, request);
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    API_LOG_WARNING("This node has been granted access previously");
                 }
                 else
                 {
@@ -2056,6 +2078,15 @@ void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, Me
     waiter->notify();
 }
 
+void MegaChatApiImpl::attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(nodehandle);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
@@ -2063,8 +2094,6 @@ void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle han
     request->setUserHandle(handle);
     requestQueue.push(request);
     waiter->notify();
-
-    return ;
 }
 
 bool MegaChatApiImpl::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const
@@ -4881,6 +4910,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 {
     if (!json || strcmp(json, "") == 0)
     {
+        API_LOG_ERROR("Invalid attachment JSON");
         return NULL;
     }
 
