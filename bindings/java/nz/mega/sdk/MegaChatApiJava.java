@@ -364,6 +364,26 @@ public class MegaChatApiJava {
      * \c signalPresenceActivity regularly in order to keep the current online status.
      * Otherwise, after \c timeout seconds, the online status will be changed to away.
      *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag() - Returns true if autoaway is enabled.
+     * - MegaChatRequest::getNumber - Returns the specified timeout.
+     *
+     * @param enable True to enable the autoaway feature
+     * @param timeout Seconds to wait before turning away (if no activity has been signalled)
+     * @param listener MegaChatRequestListenerInterface to track this request
+     */
+    public void setPresenceAutoaway(boolean enable, int timeout, MegaChatRequestListenerInterface listener){
+        megaChatApi.setPresenceAutoaway(enable, timeout, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Enable/disable the autoaway option, with one specific timeout
+     *
+     * When autoaway is enabled and persist is false, the app should call to
+     * \c signalPresenceActivity regularly in order to keep the current online status.
+     * Otherwise, after \c timeout seconds, the online status will be changed to away.
+     *
      * @param enable True to enable the autoaway feature
      * @param timeout Seconds to wait before turning away (if no activity has been signalled)
      */
@@ -377,10 +397,47 @@ public class MegaChatApiJava {
      * When this option is enable, the online status shown to other users will be the
      * one specified by the user, even when you are disconnected.
      *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_PRESENCE_PERSIST
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag() - Returns true if presence status is persistent.
+     *
+     * @param enable True to enable the persist feature
+     * @param listener MegaChatRequestListenerInterface to track this request
+     */
+    public void setPresencePersist(boolean enable, MegaChatRequestListenerInterface listener){
+        megaChatApi.setPresencePersist(enable, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Enable/disable the persist option
+     *
+     * When this option is enable, the online status shown to other users will be the
+     * one specified by the user, even when you are disconnected.
+     *
      * @param enable True to enable the persist feature
      */
     public void setPresencePersist(boolean enable){
         megaChatApi.setPresencePersist(enable);
+    }
+
+    /**
+     * Signal there is some user activity
+     *
+     * When the presence configuration is set to autoaway (and persist is false), this
+     * function should be called regularly to not turn into away status automatically.
+     *
+     * A good approach is to call this function with every mouse move or keypress on desktop
+     * platforms; or at any finger tap or gesture and any keypress on mobile platforms.
+     *
+     * Failing to call this function, you risk a user going "Away" while typing a lengthy message,
+     * which would be awkward.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SIGNAL_ACTIVITY.
+     *
+     * @param listener MegaChatRequestListenerInterface to track this request
+     */
+    public void signalPresenceActivity(MegaChatRequestListenerInterface listener){
+        megaChatApi.signalPresenceActivity(createDelegateRequestListener(listener));
     }
 
     /**
@@ -1130,10 +1187,32 @@ public class MegaChatApiJava {
      * \c MegaChatRoomListener::onChatRoomUpdate with the change type
      * \c MegaChatRoom::CHANGE_TYPE_USER_TYPING. \see MegaChatRoom::getUserTyping.
      *
+     * The associated request type with this request is MegaChatRequest::TYPE_SEND_TYPING_NOTIF
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListenerInterface to track this request
+     */
+    public void sendTypingNotification(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.sendTypingNotification(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Send a notification to the chatroom that the user is typing
+     *
+     * Other peers in the chatroom will receive a notification via
+     * \c MegaChatRoomListener::onChatRoomUpdate with the change type
+     * \c MegaChatRoom::CHANGE_TYPE_USER_TYPING. \see MegaChatRoom::getUserTyping.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      */
     public void sendTypingNotification(long chatid){
         megaChatApi.sendTypingNotification(chatid);
+    }
+
+    public static void setCatchException(boolean enable) {
+        MegaChatApi.setCatchException(enable);
     }
 
     /**
