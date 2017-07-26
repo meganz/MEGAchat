@@ -215,7 +215,6 @@ void Chat::connect(const std::string& url)
         .fail([this](const promise::Error& err)
         {
             CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
-            return err;
         });
     }
     else if (mConnection.isOnline())
@@ -2042,7 +2041,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
             ID_CSTR(cipherMsg->id()), err.what());
 
-        return err;
     });
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)
