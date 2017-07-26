@@ -6,6 +6,7 @@
 namespace karere
 {
 const char* gDbSchemaVersionSuffix = "2";
+bool gCatchException = true;
 
 void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned flags)
 {

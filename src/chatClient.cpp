@@ -1832,17 +1832,19 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         if (mTitleString == title)
         {
             KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
-            return;
-        }
-        mTitleString = title;
-        if (!mTitleString.empty())
-        {
-            mHasTitle = true;
-            parent.client.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
         }
         else
         {
-            clearTitle();
+            mTitleString = title;
+            if (!mTitleString.empty())
+            {
+                mHasTitle = true;
+                parent.client.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
+            }
+            else
+            {
+                clearTitle();
+            }
         }
         notifyTitleChanged();
     })

@@ -3,6 +3,7 @@
 
 /* C++11 bindings to the GUI call marashaller mechanism */
 
+#include "karereCommon.h"
 #include "gcm.h"
 #include "logger.h"
 #include <memory>
@@ -17,7 +18,7 @@ namespace karere
  * it. Further, it allows for code optimization as all types are known at compile time
  * and all code is in the same compilation unit, so it can be inlined
  */
-template <class F, bool nocatch=false>
+template <class F>
 static inline void marshallCall(F&& func, void *appCtx)
 {
     struct Msg: public megaMessage
@@ -47,7 +48,7 @@ static inline void marshallCall(F&& func, void *appCtx)
     {
         AutoDel pMsg(static_cast<Msg*>(ptr));
         assert(pMsg->magic == 0x3e9a3591);
-        if (nocatch)
+        if (!gCatchException)
         {
             pMsg->mFunc();
         }
@@ -59,7 +60,7 @@ static inline void marshallCall(F&& func, void *appCtx)
             }
             catch(std::exception& e)
             {
-                KARERE_LOG_ERROR(krLogChannel_services, "ERROR: Exception in a marshalled call: %s", e.what());
+                KR_LOG_ERROR("ERROR: Exception in a marshalled call: %s\n", e.what());
             }
         }
     });

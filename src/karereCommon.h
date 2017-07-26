@@ -138,6 +138,10 @@ extern const char* gDbSchemaHash;
 // Defined in karereCommon.cpp
 extern const char* gDbSchemaVersionSuffix;
 
+// If false, do not catch exceptions inside marshall calls, forcing the app to crash
+// This option should be used only in development/debugging
+extern bool gCatchException;
+
 static inline int64_t timestampMs() { return services_get_time_ms(); }
 
 //logging stuff

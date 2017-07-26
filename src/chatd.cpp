@@ -626,7 +626,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             {
                 if (wptr.deleted())
                     return;
-                             
+                
                 CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
                 requestHistoryFromServer(-count);
             }, mClient.karereClient->appCtx);
@@ -1175,7 +1175,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
     message->backRefId = generateRefId(mCrypto);
-    
+
     auto wptr = weakHandle();
     marshallCall([wptr, this, message]()
     {
@@ -1184,7 +1184,6 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
         
         msgSubmit(message);
     }, mClient.karereClient->appCtx);
-    
     return message;
 }
 void Chat::msgSubmit(Message* msg)
@@ -1346,14 +1345,14 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     } //end msg.isSending()
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
         msg.isSending(), msg.keyid, msg.type, userp);
-    
+
     auto wptr = weakHandle();
     uint32_t newage = msg.ts + age;
     marshallCall([wptr, this, newage, upd]()
     {
         if (wptr.deleted())
             return;
-                     
+        
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
         onMsgTimestamp(newage);
     }, mClient.karereClient->appCtx);
@@ -1499,15 +1498,14 @@ bool Chat::setMessageSeen(Idx idx)
         CHATID_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
         return false;
     }
-    
-    
+
     auto wptr = weakHandle();
     karere::Id id = msg.id();
     marshallCall([wptr, this, id, idx]()
     {
         if (wptr.deleted())
             return;
-        
+
         CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
         sendCommand(Command(OP_SEEN) + mChatId + id);
         
@@ -1524,7 +1522,7 @@ bool Chat::setMessageSeen(Idx idx)
         mLastSeenIdx = idx;
         Idx highest = highnum();
         Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
-        
+
         for (Idx i=notifyStart+1; i<=notifyEnd; i++)
         {
             auto& m = at(i);
@@ -2302,6 +2300,12 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             CALL_LISTENER(onRecvHistoryMessage, idx, msg, status, isLocal);
         }
+    }
+    if (msg.type == Message::kMsgTruncate)
+    {
+        handleTruncate(msg, idx);
+        onMsgTimestamp(msg.ts);
+        return;
     }
 
     if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
