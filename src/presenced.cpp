@@ -350,6 +350,8 @@ Client::reconnect(const std::string& url)
                     mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
                     mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
                 }
+
+                return err;
             });
             
             return mConnectPromise

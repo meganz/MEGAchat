@@ -215,6 +215,7 @@ void Chat::connect(const std::string& url)
         .fail([this](const promise::Error& err)
         {
             CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+            return err;
         });
     }
     else if (mConnection.isOnline())
@@ -423,6 +424,8 @@ Promise<void> Connection::reconnect(const std::string& url)
                     mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
                     mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
                 }
+
+                return err;
             });
             
             return mConnectPromise
@@ -2038,6 +2041,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
     {
         CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
             ID_CSTR(cipherMsg->id()), err.what());
+
+        return err;
     });
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)

@@ -690,6 +690,7 @@ promise::Promise<void> Client::connect(Presence pres)
             .fail([this](const promise::Error& err)
             {
                 setConnState(kDisconnected);
+                return err;
             });
         return mConnectPromise;
     }
@@ -722,6 +723,7 @@ promise::Promise<void> Client::doConnect(Presence pres)
     .fail([this](const promise::Error& err)
     {
         setConnState(kDisconnected);
+        return err;
     });
     assert(!mHeartbeatTimer);
     mHeartbeatTimer = karere::setInterval([this]()
@@ -755,6 +757,7 @@ promise::Promise<void> Client::disconnect()
     .fail([this](const promise::Error& err)
     {
         setConnState(kDisconnected);
+        return err;
     });
     mPresencedClient.disconnect();
     return mDisconnectPromise;
@@ -1852,6 +1855,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         wptr.throwIfDeleted();
         KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", karere::Id(chatid()).toString().c_str(), err.what());
         makeTitleFromMemberNames();
+        return err;
     });
 }
 
