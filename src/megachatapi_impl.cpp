@@ -4831,13 +4831,13 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
         // s -> size
         jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
 
-        // fp -> fingerprint
+        // hash -> fingerprint
         const char *fingerprint = megaNode->getFingerprint();
         if (fingerprint)
         {
             rapidjson::Value fpValue(rapidjson::kStringType);
             fpValue.SetString(fingerprint, strlen(fingerprint), jSonAttachmentNodes.GetAllocator());
-            jsonNode.AddMember(rapidjson::Value("fp"), fpValue, jSonAttachmentNodes.GetAllocator());
+            jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
         }
 
         // fa -> image thumbail
@@ -4946,7 +4946,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
         int64_t size = iteratorSize->value.GetInt64();
 
-        rapidjson::Value::ConstMemberIterator iteratorFp = file.FindMember("fp");
+        rapidjson::Value::ConstMemberIterator iteratorFp = file.FindMember("hash");
         std::string fp;
         if (iteratorFp == file.MemberEnd() || !iteratorFp->value.IsString())
         {
