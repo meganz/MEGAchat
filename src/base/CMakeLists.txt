@@ -8,9 +8,6 @@ set(optAsanMode "" CACHE STRING "Build with AddressSanitizer, in the specified m
 
 set(SRCS
   cservices.cpp
-  cservices-dns.cpp
-  services-dns.cpp
-  cservices-http.cpp
   logger.cpp
 )
 

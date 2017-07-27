@@ -1,5 +1,4 @@
 #include "karereCommon.h"
-#include <services-http.hpp>
 #include "stringUtils.h"
 #include "rtcModule/IRtcModule.h"
 #include "sdkApi.h"
@@ -7,6 +6,7 @@
 namespace karere
 {
 const char* gDbSchemaVersionSuffix = "2";
+bool gCatchException = true;
 
 void globalInit(void(*postFunc)(void*), uint32_t options, const char* logPath, size_t logSize)
 {

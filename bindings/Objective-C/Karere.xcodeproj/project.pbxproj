@@ -21,11 +21,8 @@
 		A82750EF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750DF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm */; };
 		A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750E11E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm */; };
 		A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750E31E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm */; };
-		A838B2071E9685A200875D96 /* cservices-dns.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2021E9685A200875D96 /* cservices-dns.cpp */; };
-		A838B2081E9685A200875D96 /* cservices-http.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2031E9685A200875D96 /* cservices-http.cpp */; };
 		A838B2091E9685A200875D96 /* cservices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2041E9685A200875D96 /* cservices.cpp */; };
 		A838B20A1E9685A200875D96 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2051E9685A200875D96 /* logger.cpp */; };
-		A838B20B1E9685A200875D96 /* services-dns.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2061E9685A200875D96 /* services-dns.cpp */; };
 		A838B2171E9685DF00875D96 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B20E1E9685DF00875D96 /* base64.cpp */; };
 		A838B2181E9685DF00875D96 /* chatClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B20F1E9685DF00875D96 /* chatClient.cpp */; };
 		A838B2191E9685DF00875D96 /* chatd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2101E9685DF00875D96 /* chatd.cpp */; };
@@ -95,11 +92,8 @@
 		A82750EC1E9788D8007CD9E2 /* MEGAChatRoomList+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatRoomList+init.h"; path = "Private/MEGAChatRoomList+init.h"; sourceTree = "<group>"; };
 		A82750ED1E9788D8007CD9E2 /* MEGAChatSdk+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatSdk+init.h"; path = "Private/MEGAChatSdk+init.h"; sourceTree = "<group>"; };
 		A838B1F81E96855400875D96 /* libKarere.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKarere.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		A838B2021E9685A200875D96 /* cservices-dns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cservices-dns.cpp"; path = "../../src/base/cservices-dns.cpp"; sourceTree = "<group>"; };
-		A838B2031E9685A200875D96 /* cservices-http.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cservices-http.cpp"; path = "../../src/base/cservices-http.cpp"; sourceTree = "<group>"; };
 		A838B2041E9685A200875D96 /* cservices.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cservices.cpp; path = ../../src/base/cservices.cpp; sourceTree = "<group>"; };
 		A838B2051E9685A200875D96 /* logger.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = logger.cpp; path = ../../src/base/logger.cpp; sourceTree = "<group>"; };
-		A838B2061E9685A200875D96 /* services-dns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "services-dns.cpp"; path = "../../src/base/services-dns.cpp"; sourceTree = "<group>"; };
 		A838B20E1E9685DF00875D96 /* base64.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = base64.cpp; path = ../../src/base64.cpp; sourceTree = "<group>"; };
 		A838B20F1E9685DF00875D96 /* chatClient.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = chatClient.cpp; path = ../../src/chatClient.cpp; sourceTree = "<group>"; };
 		A838B2101E9685DF00875D96 /* chatd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = chatd.cpp; path = ../../src/chatd.cpp; sourceTree = "<group>"; };
@@ -202,11 +196,8 @@
 		A838B20C1E9685A600875D96 /* base */ = {
 			isa = PBXGroup;
 			children = (
-				A838B2021E9685A200875D96 /* cservices-dns.cpp */,
-				A838B2031E9685A200875D96 /* cservices-http.cpp */,
 				A838B2041E9685A200875D96 /* cservices.cpp */,
 				A838B2051E9685A200875D96 /* logger.cpp */,
-				A838B2061E9685A200875D96 /* services-dns.cpp */,
 			);
 			name = base;
 			sourceTree = "<group>";
@@ -320,7 +311,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A838B21E1E9685DF00875D96 /* url.cpp in Sources */,
-				A838B2071E9685A200875D96 /* cservices-dns.cpp in Sources */,
 				A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */,
 				A82750EE1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm in Sources */,
 				A838B2091E9685A200875D96 /* cservices.cpp in Sources */,
@@ -337,7 +327,6 @@
 				A82750D61E9788A3007CD9E2 /* MEGAChatPeerList.mm in Sources */,
 				A838B21D1E9685DF00875D96 /* presenced.cpp in Sources */,
 				A82750EF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm in Sources */,
-				A838B2081E9685A200875D96 /* cservices-http.cpp in Sources */,
 				A838B2181E9685DF00875D96 /* chatClient.cpp in Sources */,
 				A838B20A1E9685A200875D96 /* logger.cpp in Sources */,
 				A82750D31E9788A3007CD9E2 /* MEGAChatListItem.mm in Sources */,
@@ -346,7 +335,6 @@
 				A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */,
 				A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */,
 				A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */,
-				A838B20B1E9685A200875D96 /* services-dns.cpp in Sources */,
 				A838B21B1E9685DF00875D96 /* megachatapi_impl.cpp in Sources */,
 				A838B21A1E9685DF00875D96 /* karereCommon.cpp in Sources */,
 			);

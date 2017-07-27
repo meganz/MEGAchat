@@ -153,9 +153,9 @@ void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
     pImpl->setOnlineStatus(status, listener);
 }
 
-void MegaChatApi::setPresenceAutoaway(bool enable, int64_t timeout)
+void MegaChatApi::setPresenceAutoaway(bool enable, int64_t timeout, MegaChatRequestListener *listener)
 {
-    pImpl->setPresenceAutoaway(enable, timeout);
+    pImpl->setPresenceAutoaway(enable, timeout, listener);
 }
 
 bool MegaChatApi::isSignalActivityRequired()
@@ -163,14 +163,14 @@ bool MegaChatApi::isSignalActivityRequired()
     return pImpl->isSignalActivityRequired();
 }
 
-void MegaChatApi::setPresencePersist(bool enable)
+void MegaChatApi::setPresencePersist(bool enable, MegaChatRequestListener *listener)
 {
-    pImpl->setPresencePersist(enable);
+    pImpl->setPresencePersist(enable, listener);
 }
 
-void MegaChatApi::signalPresenceActivity()
+void MegaChatApi::signalPresenceActivity(MegaChatRequestListener *listener)
 {
-    pImpl->signalPresenceActivity();
+    pImpl->signalPresenceActivity(listener);
 }
 
 int MegaChatApi::getOnlineStatus()
@@ -415,9 +415,9 @@ void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowI
     pImpl->removeUnsentMessage(chatid, rowId);
 }
 
-void MegaChatApi::sendTypingNotification(MegaChatHandle chatid)
+void MegaChatApi::sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    pImpl->sendTypingNotification(chatid);
+    pImpl->sendTypingNotification(chatid, listener);
 }
 
 MegaStringList *MegaChatApi::getChatAudioInDevices()
@@ -483,6 +483,11 @@ void MegaChatApi::addChatRemoteVideoListener(MegaChatVideoListener *listener)
 void MegaChatApi::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
 {
     pImpl->removeChatRemoteVideoListener(listener);
+}
+
+void MegaChatApi::setCatchException(bool enable)
+{
+    MegaChatApiImpl::setCatchException(enable);
 }
 
 void MegaChatApi::addChatListener(MegaChatListener *listener)

@@ -165,6 +165,9 @@ using namespace megachat;
         case MEGAChatMessageChangeTypeContent:
             result = @"Content";
             break;
+        case MEGAChatMessageChangeTypeAccess:
+            result = @"Access";
+            break;
             
         default:
             result = @"Default";

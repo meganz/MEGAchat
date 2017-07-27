@@ -40,6 +40,7 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
     EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
+    EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
 
     // The test below is a manual test. It requires to stop the intenet conection
 //    EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
@@ -148,8 +149,8 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     // 4. Connect to chat servers
     bool *flagRequestConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
     megaChatApi[accountIndex]->connect();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired sdk timeout for connect request");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error connect to sdk. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect to chat. Error: " + std::to_string(lastErrorChat[accountIndex]));
 
     return megaApi[accountIndex]->dumpSession();
 }
@@ -180,6 +181,7 @@ void MegaChatApiTest::init()
     MegaApi::setLogToConsole(false);    // already disabled by default
     MegaChatApi::setLoggerObject(logger);
     MegaChatApi::setLogToConsole(false);
+    MegaChatApi::setCatchException(false);
 
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
@@ -491,12 +493,12 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
             {
                 for (int i = 0; i < NUM_ACCOUNTS; i++)
                 {
-                    if (megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION)
+                    if (megaChatApi[i] && megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION)
                     {
                         megaChatApi[i]->retryPendingConnections();
                     }
 
-                    if (megaApi[i]->isLoggedIn())
+                    if (megaApi[i] && megaApi[i]->isLoggedIn())
                     {
                         megaApi[i]->retryPendingConnections();
                     }
@@ -1120,9 +1122,9 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_MODERATOR);
     ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");;
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for reciving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for reciving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for reciving management message");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
     ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_MODERATOR, "Privilege is incorrect");
 
@@ -1136,9 +1138,9 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
     ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");;
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for reciving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for reciving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for reciving management message");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
     ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO, "Privilege is incorrect");
 
@@ -1903,6 +1905,58 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     session1 = NULL;
 }
 
+void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
+{
+    char *sessionPrimary = login(a1);
+    std::string appendToLastName = "Test";
+
+    std::string myAccountLastName;
+    char *nameFromApi = megaChatApi[a1]->getMyLastname();
+    if (nameFromApi)
+    {
+        myAccountLastName = nameFromApi;
+        delete [] nameFromApi;
+        nameFromApi = NULL;
+    }
+
+    std::string newLastName = myAccountLastName + appendToLastName;
+    changeLastName(a1, newLastName);
+
+    nameFromApi = megaChatApi[a1]->getMyLastname();
+    std::string finishLastName;
+    if (nameFromApi)
+    {
+        finishLastName = nameFromApi;
+        delete [] nameFromApi;
+        nameFromApi = NULL;
+    }
+
+    logout(a1, false);
+
+    char *newSession = login(a1, sessionPrimary);
+
+    nameFromApi = megaChatApi[a1]->getMyLastname();
+    std::string finishLastNameAfterLogout;
+    if (nameFromApi)
+    {
+        finishLastNameAfterLogout = nameFromApi;
+        delete [] nameFromApi;
+        nameFromApi = NULL;
+    }
+
+    //Name comes back to old value.
+    changeLastName(a1, myAccountLastName);
+
+    ASSERT_CHAT_TEST(newLastName == finishLastName, "Failed to change fullname (checked from memory)");
+    ASSERT_CHAT_TEST(finishLastNameAfterLogout == finishLastName, "Failed to change fullname (checked from DB)");
+
+    delete [] sessionPrimary;
+    sessionPrimary = NULL;
+
+    delete [] newSession;
+    newSession = NULL;
+}
+
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
     chatroomListener->msgCount[accountIndex] = 0;
@@ -2488,6 +2542,14 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
     contactRequests = NULL;
 }
 
+void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string lastName)
+{
+    bool *flagMyName = &requestFlags[accountIndex][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
+    megaApi[accountIndex]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
+    ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK request to change lastname. Error: " + std::to_string(lastError[accountIndex]));
+}
+
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
 {
     unsigned int apiIndex = getMegaApiIndex(api);
@@ -2583,7 +2645,8 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         {
             chatItemClosed[apiIndex] = true;
         }
-        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_PARTICIPANTS))
+        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_PARTICIPANTS) ||
+                item->hasChanged(MegaChatListItem::CHANGE_TYPE_OWN_PRIV))
         {
             peersUpdated[apiIndex] = true;
         }

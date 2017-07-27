@@ -100,7 +100,7 @@ Client::Client(MyMegaApi *api, Id userId)
 {
     if (!sWebsockCtxInitialized)
     {
-        ws_global_init(&sWebsocketContext, services_get_event_loop(), services_dns_eventbase,
+        ws_global_init(&sWebsocketContext, services_get_event_loop(), NULL,
         [](struct bufferevent* bev, void* userp)
         {
             marshallCall([bev, userp]()
@@ -272,6 +272,14 @@ void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *p
     });
 }
 
+void Connection::websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg)
+{
+    Connection* self = static_cast<Connection*>(arg);
+    ASSERT_NOT_ANOTHER_WS("message");
+    self->mInactivityBeats = 0;
+    self->execCommand(StaticBuffer(msg, len));
+}
+
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
     CHATD_LOG_WARNING("Socket close on connection to shard %d. Reason: %s",
@@ -351,14 +359,7 @@ Promise<void> Connection::reconnect(const std::string& url)
             checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
             ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
             ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
-            ws_set_onmsg_cb(mWebSocket,
-            [](ws_t ws, char *msg, uint64_t len, int binary, void *arg)
-            {
-                Connection* self = static_cast<Connection*>(arg);
-                ASSERT_NOT_ANOTHER_WS("message");
-                self->mInactivityBeats = 0;
-                self->execCommand(StaticBuffer(msg, len));
-            }, this);
+            ws_set_onmsg_cb(mWebSocket, &websockMsgCb, this);
 
             if (mUrl.isSecure)
             {
@@ -370,10 +371,26 @@ Promise<void> Connection::reconnect(const std::string& url)
                 if (!chat.isDisabled())
                     chat.setOnlineState(kChatStateConnecting);                
             }
-            
+
+            auto wptr = weakHandle();
             this->mClient.mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([this](ReqResult result)
+            .then([wptr, this](ReqResult result)
             {
+                if (wptr.deleted())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+                    return;
+                }
+                if (!mWebSocket)
+                {
+                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
+                    return;
+                }
+                if (mState != kStateConnecting)
+                {
+                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    return;
+                }
                 string ip = result->getText();
                 CHATD_LOG_DEBUG("Connecting to chatd using the IP: %s", ip.c_str());
 
@@ -711,8 +728,15 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             if (!mConnection.isOnline())
                 return kHistSourceServerOffline;
 
-            CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
-            requestHistoryFromServer(-count);
+            auto wptr = weakHandle();
+            marshallCall([wptr, this, count]()
+            {
+                if (wptr.deleted())
+                    return;
+
+                CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
+                requestHistoryFromServer(-count);
+            });
         }
         return kHistSourceServer;
     }
@@ -1085,8 +1109,15 @@ void Chat::onFetchHistDone()
     bool fetchingOld = (mServerFetchState & kHistOldFlag);
     if (fetchingOld)
     {
-        mServerFetchState = (mDecryptOldHaltedAt != CHATD_IDX_INVALID)
-            ? kHistDecryptingOld : kHistNotFetching;
+        if (mDecryptOldHaltedAt != CHATD_IDX_INVALID)
+        {
+            mServerFetchState = kHistDecryptingOld;
+        }
+        else
+        {
+            mServerFetchState = kHistNotFetching;
+            mNextHistFetchIdx = lownum()-1;
+        }
         if (mLastServerHistFetchCount <= 0)
         {
             //server returned zero messages
@@ -1245,7 +1276,14 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
     message->backRefId = generateRefId(mCrypto);
-    msgSubmit(message);
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, message]()
+    {
+        if (wptr.deleted())
+            return;
+
+        msgSubmit(message);
+    });
     return message;
 }
 void Chat::msgSubmit(Message* msg)
@@ -1407,8 +1445,18 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     } //end msg.isSending()
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
         msg.isSending(), msg.keyid, msg.type, userp);
-    postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
-    onMsgTimestamp(msg.ts+age);
+
+    auto wptr = weakHandle();
+    uint32_t newage = msg.ts + age;
+    marshallCall([wptr, this, newage, upd]()
+    {
+        if (wptr.deleted())
+            return;
+
+        postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
+        onMsgTimestamp(newage);
+    });
+
     return upd;
 }
 
@@ -1550,32 +1598,42 @@ bool Chat::setMessageSeen(Idx idx)
         CHATID_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
         return false;
     }
-    CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msg.id()));
-    sendCommand(Command(OP_SEEN) + mChatId + msg.id());
 
-    Idx notifyStart;
-    if (mLastSeenIdx == CHATD_IDX_INVALID)
+    auto wptr = weakHandle();
+    karere::Id id = msg.id();
+    marshallCall([wptr, this, id, idx]()
     {
-        notifyStart = lownum()-1;
-    }
-    else
-    {
-        Idx lowest = lownum()-1;
-        notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
-    }
-    mLastSeenIdx = idx;
-    Idx highest = highnum();
-    Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
+        if (wptr.deleted())
+            return;
 
-    for (Idx i=notifyStart+1; i<=notifyEnd; i++)
-    {
-        auto& m = at(i);
-        if (m.userid != mClient.mUserId)
+        CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
+        sendCommand(Command(OP_SEEN) + mChatId + id);
+
+        Idx notifyStart;
+        if (mLastSeenIdx == CHATD_IDX_INVALID)
         {
-            CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+            notifyStart = lownum()-1;
         }
-    }
-    CALL_LISTENER(onUnreadChanged);
+        else
+        {
+            Idx lowest = lownum()-1;
+            notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
+        }
+        mLastSeenIdx = idx;
+        Idx highest = highnum();
+        Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
+
+        for (Idx i=notifyStart+1; i<=notifyEnd; i++)
+        {
+            auto& m = at(i);
+            if (m.userid != mClient.mUserId)
+            {
+                CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+            }
+        }
+        CALL_LISTENER(onUnreadChanged);
+    });
+
     return true;
 }
 
@@ -1616,8 +1674,12 @@ int Chat::unreadMsgCount() const
     for (Idx i=first; i<=last; i++)
     {
         auto& msg = at(i);
-        if (msg.userid != mClient.userId() && !(msg.updated && !msg.size()))
+        if (msg.userid != mClient.userId()               // skip own messages
+                && !(msg.updated && !msg.size())         // skip deleted messages
+                && (msg.type != Message::kMsgRevokeAttachment))  // skip revoke messages
+        {
             count++;
+        }
     }
     return count;
 }
@@ -1798,26 +1860,29 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
 
     // last text message stuff
-    if (mLastTextMsg.idx() == CHATD_IDX_INVALID)
+    if (msg->isText())
     {
-        if (mLastTextMsg.xid() != msgxid) //it's another message
+        if (mLastTextMsg.idx() == CHATD_IDX_INVALID)
+        {
+            if (mLastTextMsg.xid() != msgxid) //it's another message
+            {
+                onLastTextMsgUpdated(*msg, idx);
+            }
+            else
+            { //it's the same message - set its index, and don't notify again
+                mLastTextMsg.confirm(idx, msgid);
+                if (!mLastTextMsg.mIsNotified)
+                    notifyLastTextMsg();
+            }
+        }
+        else if (idx > mLastTextMsg.idx())
         {
             onLastTextMsgUpdated(*msg, idx);
         }
-        else
-        { //it's the same message - set its index, and don't notify again
-            mLastTextMsg.confirm(idx, msgid);
-            if (!mLastTextMsg.mIsNotified)
-                notifyLastTextMsg();
+        else if (idx == mLastTextMsg.idx() && !mLastTextMsg.mIsNotified)
+        {
+            notifyLastTextMsg();
         }
-    }
-    else if (idx > mLastTextMsg.idx())
-    {
-        onLastTextMsgUpdated(*msg, idx);
-    }
-    else if (idx == mLastTextMsg.idx() && !mLastTextMsg.mIsNotified)
-    {
-        notifyLastTextMsg();
     }
     return idx;
 }
@@ -2336,6 +2401,12 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             CALL_LISTENER(onRecvHistoryMessage, idx, msg, status, isLocal);
         }
     }
+    if (msg.type == Message::kMsgTruncate)
+    {
+        handleTruncate(msg, idx);
+        onMsgTimestamp(msg.ts);
+        return;
+    }
 
     if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
         CALL_LISTENER(onUnreadChanged);
@@ -2502,6 +2573,7 @@ void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
     //either (msg.isSending() && idx-is-invalid) or (!msg.isSending() && index-is-valid)
     assert(!((idx == CHATD_IDX_INVALID) ^ msg.isSending()));
     assert(!msg.empty());
+    assert(msg.type != Message::kMsgRevokeAttachment);
     mLastTextMsg.assign(msg, idx);
     notifyLastTextMsg();
 }

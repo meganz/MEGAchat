@@ -97,12 +97,4 @@ MEGAIO_IMPEXP int64_t services_get_time_ms();
     #include "cservices-strophe.h"
 #endif
 
-#ifndef SVC_DISABLE_DNS
-    #include "cservices-dns.h"
-#endif
-
-#ifndef SVC_DISABLE_HTTP
-    #include "cservices-http.h"
-#endif
-
 #endif

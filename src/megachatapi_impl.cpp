@@ -258,6 +258,53 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             break;
         }
+        case MegaChatRequest::TYPE_SEND_TYPING_NOTIF:
+        {
+            MegaChatHandle chatid = request->getChatHandle();
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (chatroom)
+            {
+                chatroom->sendTypingNotification();
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            }
+            else
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+            }
+            break;
+        }
+        case MegaChatRequest::TYPE_SIGNAL_ACTIVITY:
+        {
+            mClient->presenced().signalActivity();
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+
+            break;
+        }
+        case MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY:
+        {
+            int64_t timeout = request->getNumber();
+            bool enable = request->getFlag();
+
+            mClient->presenced().setAutoaway(enable, timeout);
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+
+            break;
+        }
+        case MegaChatRequest::TYPE_SET_PRESENCE_PERSIST:
+        {
+            bool enable = request->getFlag();
+
+            mClient->presenced().setPersist(enable);
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+
+            break;
+        }
         case MegaChatRequest::TYPE_LOGOUT:
         {
             if (mClient)
@@ -757,7 +804,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList(), megaApi);
+            const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList());
             if (!buffer)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -1048,6 +1095,11 @@ chatd::Message *MegaChatApiImpl::findMessageNotConfirmed(MegaChatHandle chatid, 
     return msg;
 }
 
+void MegaChatApiImpl::setCatchException(bool enable)
+{
+    karere::gCatchException = enable;
+}
+
 void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
 {
     API_LOG_INFO("Request (%s) starting", request->getRequestString());
@@ -1333,34 +1385,28 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
     waiter->notify();
 }
 
-void MegaChatApiImpl::setPresenceAutoaway(bool enable, int64_t timeout)
+void MegaChatApiImpl::setPresenceAutoaway(bool enable, int64_t timeout, MegaChatRequestListener *listener)
 {
-    sdkMutex.lock();
-
-    mClient->presenced().setAutoaway(enable, timeout);
-
-    sdkMutex.unlock();
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY, listener);
+    request->setFlag(enable);
+    request->setNumber(timeout);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
-void MegaChatApiImpl::setPresencePersist(bool enable)
+void MegaChatApiImpl::setPresencePersist(bool enable, MegaChatRequestListener *listener)
 {
-    sdkMutex.lock();
-
-    mClient->presenced().setPersist(enable);
-
-    sdkMutex.unlock();
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_PRESENCE_PERSIST, listener);
+    request->setFlag(enable);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
-void MegaChatApiImpl::signalPresenceActivity()
+void MegaChatApiImpl::signalPresenceActivity(MegaChatRequestListener *listener)
 {
-    sdkMutex.lock();
-
-    if (mClient)
-    {
-        mClient->presenced().signalActivity();
-    }
-
-    sdkMutex.unlock();
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SIGNAL_ACTIVITY, listener);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 MegaChatPresenceConfig *MegaChatApiImpl::getPresenceConfig()
@@ -2152,17 +2198,12 @@ void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle 
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid)
+void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    sdkMutex.lock();
-
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
-    {
-        chatroom->sendTypingNotification();
-    }
-
-    sdkMutex.unlock();
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
+    request->setChatHandle(chatid);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
@@ -2712,6 +2753,10 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
         case TYPE_ATTACH_NODE_MESSAGE: return "ATTACH_NODE_MESSAGE";
         case TYPE_REVOKE_NODE_MESSAGE: return "REVOKE_NODE_MESSAGE";
+        case TYPE_SEND_TYPING_NOTIF: return "SEND_TYPING_NOTIF";
+        case TYPE_SIGNAL_ACTIVITY: return "SIGNAL_ACTIVITY";
+        case TYPE_SET_PRESENCE_PERSIST: return "SET_PRESENCE_PERSIST";
+        case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
     }
     return "UNKNOWN";
 }
@@ -3337,7 +3382,14 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
         mRoom->onUserJoin(userid, privilege);
 
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-        chatroom->setMembersUpdated();
+        if (userid.val == chatApi->getMyUserHandle())
+        {
+            chatroom->setOwnPriv(privilege);
+        }
+        else
+        {
+            chatroom->setMembersUpdated();
+        }
         chatApi->fireOnChatRoomUpdate(chatroom);
     }
 }
@@ -3781,6 +3833,12 @@ MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
     return uh;
 }
 
+void MegaChatRoomPrivate::setOwnPriv(int ownPriv)
+{
+    this->priv = ownPriv;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_OWN_PRIV;
+}
+
 void MegaChatRoomPrivate::setTitle(const string& title)
 {
     this->title = title;
@@ -4120,10 +4178,17 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 }
 
-void MegaChatGroupListItemHandler::onUserJoin(uint64_t, Priv)
+void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    item->setMembersUpdated();
+    if (userid == chatApi.getMyUserHandle())
+    {
+        item->setOwnPriv(priv);
+    }
+    else
+    {
+        item->setMembersUpdated();
+    }
 
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -4706,7 +4771,7 @@ std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
     return dataToReturn;
 }
 
-const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, MegaApi* megaApi)
+const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
 {
     if (!nodes)
     {
@@ -4766,10 +4831,19 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, MegaApi* mega
         // s -> size
         jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
 
+        // hash -> fingerprint
+        const char *fingerprint = megaNode->getFingerprint();
+        if (fingerprint)
+        {
+            rapidjson::Value fpValue(rapidjson::kStringType);
+            fpValue.SetString(fingerprint, strlen(fingerprint), jSonAttachmentNodes.GetAllocator());
+            jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
+        }
+
         // fa -> image thumbail
         if (megaNode->hasThumbnail() || megaNode->hasPreview())
         {
-            const char *fa = megaApi->getFileAttribute(megaNode->getHandle());
+            const char *fa = megaNode->getFileAttrString();
             if (!fa)
             {
                 API_LOG_ERROR("Failed to get the fileattribute string of node %d", megaNode->getHandle());
@@ -4872,6 +4946,17 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
         int64_t size = iteratorSize->value.GetInt64();
 
+        rapidjson::Value::ConstMemberIterator iteratorFp = file.FindMember("hash");
+        std::string fp;
+        if (iteratorFp == file.MemberEnd() || !iteratorFp->value.IsString())
+        {
+            API_LOG_WARNING("Missing fingerprint in attachment JSON. Old message?");
+        }
+        else
+        {
+            fp = iteratorFp->value.GetString();
+        }
+
         rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
         if (iteratorType == file.MemberEnd() || !iteratorType->value.IsInt())
         {
@@ -4884,7 +4969,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         rapidjson::Value::ConstMemberIterator iteratorTimeStamp = file.FindMember("ts");
         if (iteratorTimeStamp == file.MemberEnd() || !iteratorTimeStamp->value.IsInt64())
         {
-            API_LOG_ERROR("Invalid type in attachment JSON");
+            API_LOG_ERROR("Invalid timestamp in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
@@ -4895,12 +4980,11 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         if (iteratorFa != file.MemberEnd() && iteratorFa->value.IsString())
         {
             fa = iteratorFa->value.GetString();
-
         }
 
         MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
         std::string attrstring;
-        char *fingerprint = NULL;
+        const char* fingerprint = !fp.empty() ? fp.c_str() : NULL;
 
         std::string key = DataTranslation::vector_to_b(kElements);
 

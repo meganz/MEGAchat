@@ -339,9 +339,11 @@ public:
     bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
     bool isText() const
     {
-        return !empty() && ((mFlags & kFlagForceNonText) == 0) &&
-            (type == kMsgNormal || type == kMsgAttachment
-          || type == kMsgContact);
+        return (!empty()                                // skip deleted messages
+                && ((mFlags & kFlagForceNonText) == 0)  // only want text messages
+                && (type == kMsgNormal                  // include normal messages
+                    || type == kMsgAttachment           // include node-attachment messages
+                    || type == kMsgContact));           // include contact-attachment messages
     }
 
     /** @brief Convert attachment etc. special messages to text */

@@ -254,8 +254,14 @@ promise::Promise<void> Client::sdkLoginNewSession()
     })
     .fail([this](const promise::Error& err)
     {
-        marshallCall([this, err]()
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, err]()
         {
+            if (wptr.deleted())
+            {
+                return;
+            }
+
             mSessionReadyPromise.reject(err);
         });
     })
@@ -372,8 +378,14 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
             return;
         }
         std::string scsn = pscsn;
-        marshallCall([this, scsn]()
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, scsn]()
         {
+            if (wptr.deleted())
+            {
+                return;
+            }
+
             commit(scsn);
         });
     }
@@ -473,59 +485,83 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         return;
     }
 
-    if (!request || (request->getType() != mega::MegaRequest::TYPE_FETCH_NODES))
-        return;
-
-    api.sdk.pauseActionPackets();
-    auto state = mInitState;
-    char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn;
-    if (pscsn)
+    auto reqType = request->getType();
+    if (reqType == mega::MegaRequest::TYPE_FETCH_NODES)
     {
-        scsn = pscsn;
-        delete[] pscsn;
-    }
-    std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
-    std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
-
-    marshallCall([wptr, this, state, scsn, contactList, chatList]()
-    {
-        if (wptr.deleted())
-            return;
-        if (state == kInitHasOfflineSession)
+        api.sdk.pauseActionPackets();
+        auto state = mInitState;
+        char* pscsn = api.sdk.getSequenceNumber();
+        std::string scsn;
+        if (pscsn)
         {
-            // disable this safety checkup, since dumpSession() differs from first-time login value
-//            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-//            assert(sid);
-//            // we loaded our state from db
-//            // verify the SDK sid is the same as ours
-//            if (mSid != sid.get())
-//            {
-//                setInitState(kInitErrSidMismatch);
-//                return;
-//            }
-            checkSyncWithSdkDb(scsn, *contactList, *chatList);
-            setInitState(kInitHasOnlineSession);
-            mSessionReadyPromise.resolve();
+            scsn = pscsn;
+            delete[] pscsn;
         }
-        else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
+        std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
+        std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
+
+        marshallCall([wptr, this, state, scsn, contactList, chatList]()
         {
-            std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-            assert(sid);
-            initWithNewSession(sid.get(), scsn, contactList, chatList)
-            .fail([this](const promise::Error& err)
+            if (wptr.deleted())
+                return;
+            if (state == kInitHasOfflineSession)
             {
-                mSessionReadyPromise.reject(err);
-                return err;
-            })
-            .then([this]()
-            {
+// disable this safety checkup, since dumpSession() differs from first-time login value
+//              std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+//              assert(sid);
+//              // we loaded our state from db
+//              // verify the SDK sid is the same as ours
+//              if (mSid != sid.get())
+//              {
+//                  setInitState(kInitErrSidMismatch);
+//                  return;
+//              }
+                checkSyncWithSdkDb(scsn, *contactList, *chatList);
                 setInitState(kInitHasOnlineSession);
                 mSessionReadyPromise.resolve();
-            });
+            }
+            else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
+            {
+                std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+                assert(sid);
+                initWithNewSession(sid.get(), scsn, contactList, chatList)
+                .fail([this](const promise::Error& err)
+                {
+                    mSessionReadyPromise.reject(err);
+                    return err;
+                })
+                .then([this]()
+                {
+                    setInitState(kInitHasOnlineSession);
+                    mSessionReadyPromise.resolve();
+                });
+            }
+            api.sdk.resumeActionPackets();
+        });
+    }
+    else if (reqType == mega::MegaRequest::TYPE_SET_ATTR_USER)
+    {
+        int attrType = request->getParamType();
+        int changeType;
+        if (attrType == mega::MegaApi::USER_ATTR_FIRSTNAME)
+        {
+            changeType = mega::MegaUser::CHANGE_TYPE_FIRSTNAME;
         }
-        api.sdk.resumeActionPackets();
-    });
+        else if (attrType == mega::MegaApi::USER_ATTR_LASTNAME)
+        {
+            changeType = mega::MegaUser::CHANGE_TYPE_LASTNAME;
+        }
+        else
+        {
+            return;
+        }
+        marshallCall([wptr, this, changeType]()
+        {
+            if (wptr.deleted())
+                return;
+            mUserAttrCache->onUserAttrChange(mMyHandle, changeType);
+        });
+    }
 }
 
 //TODO: We should actually wipe the whole app dir, but the log file may
@@ -1024,8 +1060,14 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
     if (!aUsers)
         return;
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
-    marshallCall([this, users]()
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, users]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
         assert(mUserAttrCache);
         auto count = users->size();
         for (int i=0; i<count; i++)
@@ -1465,8 +1507,14 @@ void GroupChatRoom::deleteSelf()
 {
     //have to post a delete on the event loop, as there may be pending
     //events related to the chatroom/strongvelope instance
-    marshallCall([this]()
+    auto wptr = weakHandle();
+    marshallCall([wptr, this]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
         auto db = parent.client.db;
         db.query("delete from chat_peers where chatid=?", mChatid);
         db.query("delete from chats where chatid=?", mChatid);
@@ -1631,14 +1679,24 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
         return;
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
     char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn = pscsn ? pscsn : "";
-    delete pscsn;
+    std::string scsn;
+    if (pscsn)
+    {
+        scsn = pscsn;
+        delete[] pscsn;
+    }
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
     assert(mContactsLoaded);
-    marshallCall([this, copy, scsn]()
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, copy, scsn]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
         chats->onChatsUpdate(*copy);
     });
 }
@@ -1773,17 +1831,19 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         if (mTitleString == title)
         {
             KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
-            return;
-        }
-        mTitleString = title;
-        if (!mTitleString.empty())
-        {
-            mHasTitle = true;
-            parent.client.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
         }
         else
         {
-            clearTitle();
+            mTitleString = title;
+            if (!mTitleString.empty())
+            {
+                mHasTitle = true;
+                parent.client.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
+            }
+            else
+            {
+                clearTitle();
+            }
         }
         notifyTitleChanged();
     })
@@ -2440,8 +2500,14 @@ void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactReques
         return;
 
     std::shared_ptr<mega::MegaContactRequestList> copy(reqs->copy());
-    marshallCall([this, copy]()
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, copy]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
         auto count = copy->size();
         for (int i=0; i<count; i++)
         {

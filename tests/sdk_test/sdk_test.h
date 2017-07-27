@@ -183,6 +183,7 @@ public:
     void TEST_Attachment(unsigned int a1, unsigned int a2);
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
+    void TEST_ChangeMyOwnName(unsigned int a1);
 
     unsigned mOKTests;
     unsigned mFailedTests;
@@ -224,6 +225,7 @@ private:
     void purgeCloudTree(unsigned int accountIndex, mega::MegaNode* node);
     void clearAndLeaveChats(unsigned int accountIndex, megachat::MegaChatHandle skipChatId =  megachat::MEGACHAT_INVALID_HANDLE);
     void removePendingContactRequest(unsigned int accountIndex);
+    void changeLastName(unsigned int accountIndex, std::string lastName);
 
     Account mAccounts[NUM_ACCOUNTS];
 

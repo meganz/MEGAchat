@@ -638,6 +638,8 @@ public:
         TYPE_DISCONNECT, TYPE_GET_EMAIL,
         TYPE_ATTACH_NODE_MESSAGE, TYPE_REVOKE_NODE_MESSAGE,
         TYPE_SET_BACKGROUND_STATUS, TYPE_RETRY_PENDING_CONNECTIONS,
+        TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
+        TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1345,10 +1347,16 @@ public:
      * \c signalPresenceActivity regularly in order to keep the current online status.
      * Otherwise, after \c timeout seconds, the online status will be changed to away.
      *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag() - Returns true if autoaway is enabled.
+     * - MegaChatRequest::getNumber - Returns the specified timeout.
+     *
      * @param enable True to enable the autoaway feature
      * @param timeout Seconds to wait before turning away (if no activity has been signalled)
+     * @param listener MegaChatRequestListener to track this request
      */
-    void setPresenceAutoaway(bool enable, int64_t timeout);
+    void setPresenceAutoaway(bool enable, int64_t timeout, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Enable/disable the persist option
@@ -1356,9 +1364,14 @@ public:
      * When this option is enable, the online status shown to other users will be the
      * one specified by the user, even when you are disconnected.
      *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_PRESENCE_PERSIST
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag() - Returns true if presence status is persistent.
+     *
      * @param enable True to enable the persist feature
+     * @param listener MegaChatRequestListener to track this request
      */
-    void setPresencePersist(bool enable);
+    void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Signal there is some user activity
@@ -1371,8 +1384,12 @@ public:
      *
      * Failing to call this function, you risk a user going "Away" while typing a lengthy message,
      * which would be awkward.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SIGNAL_ACTIVITY.
+     *
+     * @param listener MegaChatRequestListener to track this request
      */
-    void signalPresenceActivity();
+    void signalPresenceActivity(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Get your online status.
@@ -2092,7 +2109,6 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodes Array of nodes that the user want to attach
      * @param listener MegaChatRequestListener to track this request
-     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
      void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
 
@@ -2124,8 +2140,6 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodeHandle MegaChatHandle that identifies the node to revoke access to
      * @param listener MegaChatRequestListener to track this request
-     *
-     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener = NULL);
 
@@ -2237,9 +2251,14 @@ public:
      * \c MegaChatRoomListener::onChatRoomUpdate with the change type
      * \c MegaChatRoom::CHANGE_TYPE_USER_TYPING. \see MegaChatRoom::getUserTyping.
      *
+     * The associated request type with this request is MegaChatRequest::TYPE_SEND_TYPING_NOTIF
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
      * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
      */
-    void sendTypingNotification(MegaChatHandle chatid);
+    void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     // Audio/Video device management
     mega::MegaStringList *getChatAudioInDevices();
@@ -2318,6 +2337,8 @@ public:
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
+
+    static void setCatchException(bool enable);
 
 private:
     MegaChatApiImpl *pImpl;
@@ -2494,7 +2515,8 @@ public:
         CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
         CHANGE_TYPE_TITLE           = 0x08,
         CHANGE_TYPE_USER_TYPING     = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
-        CHANGE_TYPE_CLOSED          = 0X20, /// The chatroom has been left by own user
+        CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
+        CHANGE_TYPE_OWN_PRIV        = 0x40  /// Our privilege level has changed
     };
 
     enum {
