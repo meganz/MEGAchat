@@ -188,4 +188,8 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 + (void)setLogObject:(id<MEGAChatLoggerDelegate>)delegate;
 + (void)setLogWithColors:(BOOL)userColors;
 
+#pragma mark - Exceptions
+
++ (void)setCatchException:(BOOL)enable;
+
 @end
