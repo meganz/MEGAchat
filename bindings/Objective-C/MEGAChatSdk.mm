@@ -609,4 +609,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     delete delegate;
 }
 
++ (void)setCatchException:(BOOL)enable {
+    MegaChatApi::setCatchException(enable);
+}
+
 @end

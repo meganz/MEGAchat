@@ -804,7 +804,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList(), megaApi);
+            const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList());
             if (!buffer)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -1093,6 +1093,11 @@ chatd::Message *MegaChatApiImpl::findMessageNotConfirmed(MegaChatHandle chatid, 
     sdkMutex.unlock();
 
     return msg;
+}
+
+void MegaChatApiImpl::setCatchException(bool enable)
+{
+    karere::gCatchException = enable;
 }
 
 void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
@@ -4766,7 +4771,7 @@ std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
     return dataToReturn;
 }
 
-const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, MegaApi* megaApi)
+const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
 {
     if (!nodes)
     {
@@ -4826,10 +4831,19 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, MegaApi* mega
         // s -> size
         jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
 
+        // hash -> fingerprint
+        const char *fingerprint = megaNode->getFingerprint();
+        if (fingerprint)
+        {
+            rapidjson::Value fpValue(rapidjson::kStringType);
+            fpValue.SetString(fingerprint, strlen(fingerprint), jSonAttachmentNodes.GetAllocator());
+            jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
+        }
+
         // fa -> image thumbail
         if (megaNode->hasThumbnail() || megaNode->hasPreview())
         {
-            const char *fa = megaApi->getFileAttribute(megaNode->getHandle());
+            const char *fa = megaNode->getFileAttrString();
             if (!fa)
             {
                 API_LOG_ERROR("Failed to get the fileattribute string of node %d", megaNode->getHandle());
@@ -4932,6 +4946,17 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
         int64_t size = iteratorSize->value.GetInt64();
 
+        rapidjson::Value::ConstMemberIterator iteratorFp = file.FindMember("hash");
+        std::string fp;
+        if (iteratorFp == file.MemberEnd() || !iteratorFp->value.IsString())
+        {
+            API_LOG_WARNING("Missing fingerprint in attachment JSON. Old message?");
+        }
+        else
+        {
+            fp = iteratorFp->value.GetString();
+        }
+
         rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
         if (iteratorType == file.MemberEnd() || !iteratorType->value.IsInt())
         {
@@ -4944,7 +4969,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         rapidjson::Value::ConstMemberIterator iteratorTimeStamp = file.FindMember("ts");
         if (iteratorTimeStamp == file.MemberEnd() || !iteratorTimeStamp->value.IsInt64())
         {
-            API_LOG_ERROR("Invalid type in attachment JSON");
+            API_LOG_ERROR("Invalid timestamp in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
@@ -4955,12 +4980,11 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         if (iteratorFa != file.MemberEnd() && iteratorFa->value.IsString())
         {
             fa = iteratorFa->value.GetString();
-
         }
 
         MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
         std::string attrstring;
-        char *fingerprint = NULL;
+        const char* fingerprint = !fp.empty() ? fp.c_str() : NULL;
 
         std::string key = DataTranslation::vector_to_b(kElements);
 
