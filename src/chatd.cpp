@@ -2376,7 +2376,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             else
                 msg.type = msg.buf()[1];
         }
-
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
         if ((msg.userid != mClient.mUserId) &&
@@ -2384,6 +2383,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
+    }
+    if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
+    {
+        CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
     }
 
     auto status = getMsgStatus(msg, idx);
@@ -2440,13 +2443,6 @@ void Chat::onMsgTimestamp(uint32_t ts)
 
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
 {
-    if (!msg.backRefId)
-        return;
-    if (!mRefidToIdxMap.emplace(msg.backRefId, idx).second)
-    {
-        CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
-        return;
-    }
     for (auto refid: msg.backRefs)
     {
         auto it = mRefidToIdxMap.find(refid);
