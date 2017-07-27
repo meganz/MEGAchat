@@ -81,10 +81,17 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
 {
     LibwebsocketsClient *libwebsocketsClient = new LibwebsocketsClient(mutex, client);
     
+    std::string cip = ip;
+    if (cip[0] == '[')
+    {
+        // remove brackets in IPv6 addresses
+        cip = cip.substr(1, cip.size() - 2);
+    }
+    
     struct lws_client_connect_info i;
     memset(&i, 0, sizeof(i));
     i.context = wscontext;
-    i.address = ip;
+    i.address = cip.c_str();
     i.port = port;
     i.ssl_connection = ssl ? 2 : 0;
     string urlpath = "/";
