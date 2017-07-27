@@ -418,11 +418,9 @@ Promise<void> Connection::reconnect(const std::string& url)
             })
             .fail([this](const promise::Error& err)
             {
-                if (err.type() == ERRTYPE_MEGASDK)
-                {
-                    mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                    mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                }
+                int errType =  (err.type() == ERRTYPE_MEGASDK) ? WS_ERRTYPE_DNS : err.type();
+                mConnectPromise.reject(err.msg(), err.code(), errType);
+                mLoginPromise.reject(err.msg(), err.code(), errType);
 
                 return err;
             });
