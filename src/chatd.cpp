@@ -2036,7 +2036,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
     {
         CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
             ID_CSTR(cipherMsg->id()), err.what());
-
     });
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)

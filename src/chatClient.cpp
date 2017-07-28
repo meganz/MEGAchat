@@ -1338,7 +1338,7 @@ void GroupChatRoom::connect()
         decryptTitle()
         .fail([](const promise::Error& err)
         {
-            KR_LOG_DEBUG("Can't decrypt chatroom title. Use a a default name");
+            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
         });
     });
 }
@@ -1615,7 +1615,7 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
             static_cast<GroupChatRoom*>(room)->decryptTitle()
             .fail([](const promise::Error& err)
             {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. Use a a default name");
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
             });
         }
     }
@@ -2230,7 +2230,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
             decryptTitle()
             .fail([](const promise::Error& err)
             {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. Use a a default name");
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi");
             });
         }
     }
