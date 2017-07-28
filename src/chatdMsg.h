@@ -21,7 +21,8 @@ enum Opcode
 {
     /**
       * @brief
-      * C->S: Must respond to a received KEEPALIVE within 30 seconds (if local user is away, send KEEPALIVEAWAY).
+      * C->S: Must respond to a received KEEPALIVE within 30 seconds (if local user is away,
+      * send KEEPALIVEAWAY).
       *
       * S->C: Initiates keepalives to the client every minute.
       */
@@ -97,19 +98,32 @@ enum Opcode
     /**
       * @brief
       * C->S: Requests the next -count older messages, which will be sent as a sequence
-      *    of OLDMSGs, followed by a HISTDONE. Note that count is always negative. Possitve for new history??
+      *    of OLDMSGs, followed by a HISTDONE. Note that count is always negative.
       * Send: <chatid> <count>
-      * @note count is usually a negative number to fetch old history, possitive for new history.
+      *
+      * This command is sent at the following situations:
+      *  1. After a JOIN command to load last messages, when no local history.
+      *  2. When the app requests to load more old messages and there's no more history
+      *     in the local cache (both RAM and DB).
+      *  3. When the last text message is requested and not found yet.
       *
       * This command results in receiving:
-      *  - the last SEEN message
-      *  - the last RECEIVED message
-      *  - the NEWKEY to encrypt/decrypt history
-      *  - zero or more OLDMSG
-      *  - a notification when HISTDONE
+      *  1. The last SEEN message, if any.
+      *  2. The last RECEIVED message, if any.
+      *  3. The NEWKEY to encrypt/decrypt history, if any.
+      *  4. As many OLDMSGs as messages in history, up to `count`.
+      *  5. A notification when HISTDONE.
       */
     OP_HIST = 8,
 
+    /**
+      * @brief <chatid> <msgid0> <msgid1>
+      *
+      * C->S: Request existing message range (<msgid0> is the oldest, <msgid1> the newest).
+      * Responds with all messages newer than <msgid1> (if any), followed by a HISTDONE.
+      *
+      * @obsolete This command is obsolete, replaced by JOINHISTRANGE.
+      */
     OP_RANGE = 9,
 
     /**
@@ -122,15 +136,27 @@ enum Opcode
 
     /**
       * @brief
-      * S->C: The previously sent command with op_code has failed for a reason
+      * S->C: The previously sent command with op_code has failed for a command-specific reason
       * Receive: <chatid> <generic_id> <op_code> <reason>
       *
       * Server can reject:
       *  - JOIN: the user doesn't participate in the chatroom
-      *  - NEWMSG | MSGUPD | MSGUPDX: participants have changed or the message is too old
+      *  - NEWMSG: no write-access or participants have changed
+      *  - MSGUPD | MSGUPDX: participants have changed or the message is too old
       */
     OP_REJECT = 11,
 
+    /**
+      * @brief BROADCAST <chatid> <userid> <broadcasttype>
+      *
+      * It's a command that it is sent by user in a chat and it's received by rest of users.
+      *
+      * C->S: Used to inform all users in `chatid` that about certain type of event.
+      * S->C: Informs the client that `userid` in `chatid` about certain type of event.
+      *
+      * Valid broadcast types:
+      *     1 --> means user-is-typing
+      */
     OP_BROADCAST = 12,
 
     /**
@@ -150,12 +176,17 @@ enum Opcode
       * S->C: Key notification. Payload format is (userid.8 keyid.4 keylen.2 key)*
       * Receive: <chatid> <keyxid> <payload>
       *
-      * Keep keyxid as constant as possible (e.g. 0xffffffff).
+      * Keep <keyxid> as constant as possible (e.g. 0xffffffff).
       * Note that ( chatid, userid, keyid ) is unique. Neither ( chatid, keyid ) nor
       * ( userid, keyid ) are unique!
       */
     OP_NEWKEY = 17,
 
+    /**
+      * @brief
+      * S->C: Signal the final <keyid> for a newly allocated key.
+      * Receive: <chatid> <keyxid> <keyid>
+      */
     OP_KEYID = 18,
 
     /**
@@ -172,6 +203,8 @@ enum Opcode
       * C->S: Update existing message. Can only be updated within one hour of the physical
       *    arrival time. updatedelta must be larger than the previous updatedelta, or
       *    the MSGUPD will fail. The keyid must not change.
+      *
+      * Send: <chatid> <userid> <msgxid> <timestamp> <updatedelta> <key(x)id> <payload>
       */
     OP_MSGUPDX = 20,
 
@@ -185,7 +218,8 @@ enum Opcode
 
     /**
       * @brief
-      * C->S: Must respond to a received KEEPALIVE within 30 seconds. If local user is away, send KEEPALIVEAWAY
+      * C->S: Must respond to a received KEEPALIVE within 30 seconds. If local user is away,
+      * send KEEPALIVEAWAY
       */
     OP_KEEPALIVEAWAY = 30,
     OP_LAST = OP_KEEPALIVEAWAY
