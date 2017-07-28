@@ -1703,7 +1703,7 @@ void Chat::flushOutputQueue(bool fromStart)
     while (mNextUnsent != mSending.end())
     {
         ManualSendReason reason =
-             (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients < mUsers))
+             (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients != mUsers))
             ? kManualSendUsersChanged : kManualSendInvalidReason;
 
         if ((reason == kManualSendInvalidReason) && (time(NULL) - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE))
