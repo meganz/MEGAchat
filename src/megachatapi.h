@@ -2347,6 +2347,8 @@ public:
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
 
+    static void setCatchException(bool enable);
+
 private:
     MegaChatApiImpl *pImpl;
 };

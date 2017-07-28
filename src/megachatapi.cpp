@@ -490,6 +490,11 @@ void MegaChatApi::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
     pImpl->removeChatRemoteVideoListener(listener);
 }
 
+void MegaChatApi::setCatchException(bool enable)
+{
+    MegaChatApiImpl::setCatchException(enable);
+}
+
 void MegaChatApi::addChatListener(MegaChatListener *listener)
 {
     pImpl->addChatListener(listener);
