@@ -571,7 +571,7 @@ protected:
         mForwardList.clear();
     }
     // msgid can be 0 in case of rejections
-    Idx msgConfirm(karere::Id msgxid, karere::Id msgid);
+    Idx msgConfirm(karere::Id msgxid, karere::Id msgid, uint8_t opcode);
     bool msgAlreadySent(karere::Id msgxid, karere::Id msgid);
     Message* msgRemoveFromSending(karere::Id msgxid, karere::Id msgid);
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
@@ -1009,7 +1009,7 @@ protected:
         return *it->second;
     }
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
-    void msgConfirm(karere::Id msgxid, karere::Id msgid);
+    bool msgConfirm(karere::Id msgxid, karere::Id msgid, uint8_t opcode);
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
     static ws_base_s sWebsocketContext;
