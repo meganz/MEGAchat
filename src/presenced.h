@@ -16,9 +16,12 @@
 #define PRESENCED_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 
+class MyMegaApi;
+
 enum: uint32_t { kPromiseErrtype_presenced = 0x339a92e5 }; //should resemble 'megapres'
 namespace karere
 {
+class Client;    
 class Presence
 {
 public:
@@ -41,7 +44,7 @@ public:
     Code raw() const { return mPres; }
     bool isValid() const { return mPres != kInvalid; }
     inline static const char* toString(Code pres);
-    const char* toString() { return toString(mPres); }
+    const char* toString() const { return toString(mPres); }
 protected:
     Code mPres;
 };
@@ -63,6 +66,7 @@ inline const char* Presence::toString(Code pres)
 
 namespace presenced
 {
+enum { kKeepaliveSendInterval = 25, kKeepaliveReplyTimeout = 15 };
 enum: karere::Presence::Code
 {
     kPresFlagsMask = 0xf0,
@@ -72,11 +76,34 @@ enum: uint8_t
 {
     OP_KEEPALIVE = 0,
     OP_HELLO = 1,
-    OP_STATUSOVERRIDE = 2, //notifies own presence, sets 'manual' presence
-    OP_SETSTATUS = 3,
+    OP_USERACTIVE = 3,
     OP_ADDPEERS = 4,
     OP_DELPEERS = 5,
-    OP_PEERSTATUS = 6 //notifies about presence of user
+    OP_PEERSTATUS = 6, //notifies about presence of user
+    OP_PREFS = 7
+};
+
+class Config
+{
+protected:
+    karere::Presence mPresence = karere::Presence::kInvalid;
+    bool mPersist = false;
+    bool mAutoawayActive = false;
+    time_t mAutoawayTimeout = 0;
+public:
+    Config(karere::Presence pres=karere::Presence::kInvalid,
+          bool persist=false, bool aaEnabled=true, time_t aaTimeout=600)
+        :mPresence(pres), mPersist(persist), mAutoawayActive(aaEnabled),
+          mAutoawayTimeout(aaTimeout){}
+    explicit Config(uint16_t code) { fromCode(code); }
+    karere::Presence presence() const { return mPresence; }
+    bool persist() const { return mPersist; }
+    bool autoawayActive() const { return mAutoawayActive; }
+    time_t autoawayTimeout() const { return mAutoawayTimeout; }
+    void fromCode(uint16_t code);
+    uint16_t toCode() const;
+    std::string toString() const;
+    friend class Client;
 };
 
 class Command: public Buffer
@@ -121,68 +148,87 @@ class Listener;
 class Client: public karere::DeleteTrackable
 {
 public:
-    enum State
+    enum ConnState
     {
-        kStateNew = 0,
-        kStateDisconnected,
-        kStateConnecting,
-        kStateConnected
+        kConnNew = 0,
+        kDisconnected,
+        kConnecting,
+        kConnected,
+        kLoggedIn
     };
     enum: uint16_t { kProtoVersion = 0x0001 };
 protected:
     static ws_base_s sWebsocketContext;
     static bool sWebsockCtxInitialized;
     ws_t mWebSocket = nullptr;
-    State mState = kStateNew;
+    ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Url mUrl;
+    MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
-    uint8_t mHeartBeats = 0;
-    bool mPacketReceived = true; //used for connection activity detection
     bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
+    promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
     karere::Id mMyHandle;
-    karere::Presence mDynamicPresence = karere::Presence::kInvalid;
-    karere::Presence mForcedPresence = karere::Presence::kInvalid;
+    Config mConfig;
+    bool mLastSentUserActive = false;
+    time_t mTsLastUserActivity = 0;
+    time_t mTsLastPingSent = 0;
+    time_t mTsLastRecv = 0;
+    time_t mTsLastSend = 0;
+    bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
     void initWebsocketCtx();
-    void setConnState(State newState);
+    void setConnState(ConnState newState);
     static void websockConnectCb(ws_t ws, void* arg);
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
         size_t reason_len, void *arg);
+    static void websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg);
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
     void enableInactivityTimer();
     void disableInactivityTimer();
+    void notifyLoggedIn();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
     void login();
     bool sendBuf(Buffer&& buf);
     void logSend(const Command& cmd);
-    uint8_t presenceToDynFlags(karere::Presence pres);
-    void setOnlineState(State state);
+    bool sendUserActive(bool active, bool force=false);
+    bool sendPrefs();
+    void setOnlineConfig(Config Config);
     void pingWithPresence();
     void pushPeers();
+    void configChanged();
+    std::string prefsString() const;
+    bool sendKeepalive(time_t now=0);
 public:
-    Client(Listener& listener, uint8_t caps);
-    State state() { return mState; }
-    bool isOnline() const
-    {
-        return (mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
-    }
-    bool setPresence(karere::Presence pres, bool force);
+    Client(MyMegaApi *api, Listener& listener, uint8_t caps);
+    const Config& config() const { return mConfig; }
+    bool isConfigAcknowledged() { return mPrefsAckWait; }
+    bool isOnline() const { return (mConnState >= kConnected); }
+    bool setPresence(karere::Presence pres);
+    bool setPersist(bool enable);
+
+    /** @brief Enables or disables autoaway
+     * @param timeout The timeout in seconds after which the presence will be
+     *  set to away
+     */
+    bool setAutoaway(bool enable, time_t timeout);
     promise::Promise<void>
     connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
-        karere::Presence forcedPres,
-        karere::Presence dynPres=karere::Presence::kOnline);
+        const Config& Config);
     void disconnect();
+    promise::Promise<void> retryPendingConnection();
     void reset();
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
     void heartbeat();
+    void signalActivity(bool force = false);
+    bool autoAwayInEffect();
     void addPeer(karere::Id peer);
     void removePeer(karere::Id peer, bool force=false);
     ~Client();
@@ -191,9 +237,9 @@ public:
 class Listener
 {
 public:
-    virtual void onConnStateChange(Client::State state) = 0;
-    virtual void onPresence(karere::Id userid, karere::Presence pres) = 0;
-    virtual void onOwnPresence(karere::Presence pres) = 0;
+    virtual void onConnStateChange(Client::ConnState state) = 0;
+    virtual void onPresenceChange(karere::Id userid, karere::Presence pres) = 0;
+    virtual void onPresenceConfigChanged(const Config& Config, bool pending) = 0;
     virtual void onDestroy(){}
 };
 
@@ -202,22 +248,24 @@ inline const char* Command::opcodeToStr(uint8_t opcode)
     switch (opcode)
     {
         case OP_PEERSTATUS: return "PEERSTATUS";
-        case OP_SETSTATUS: return "SETSTATUS";
+        case OP_USERACTIVE: return "USERACTIVE";
         case OP_KEEPALIVE: return "KEEPALIVE";
-        case OP_STATUSOVERRIDE: return "STATUSOVERRIDE";
+        case OP_PREFS: return "PREFS";
         case OP_HELLO: return "HELLO";
         case OP_ADDPEERS: return "ADDPEERS";
         case OP_DELPEERS: return "DELPEERS";
         default: return "(invalid)";
     }
 }
-static inline const char* connStateToStr(Client::State state)
+static inline const char* connStateToStr(Client::ConnState state)
 {
     switch (state)
     {
-    case Client::kStateDisconnected: return "Disconnected";
-    case Client::kStateConnecting: return "Connecting";
-    case Client::kStateConnected: return "Connected";
+    case Client::kDisconnected: return "Disconnected";
+    case Client::kConnecting: return "Connecting";
+    case Client::kConnected: return "Connected";
+    case Client::kLoggedIn: return "Logged-in";
+    case Client::kConnNew: return "New";
     default: return "(invalid)";
     }
 }

@@ -3,6 +3,7 @@
 
 /* C++11 bindings to the GUI call marashaller mechanism */
 
+#include "karereCommon.h"
 #include "gcm.h"
 #include <memory>
 #include <assert.h>
@@ -46,7 +47,21 @@ static inline void marshallCall(F&& func)
     {
         AutoDel pMsg(static_cast<Msg*>(ptr));
         assert(pMsg->magic == 0x3e9a3591);
-        pMsg->mFunc();
+        if (!gCatchException)
+        {
+            pMsg->mFunc();
+        }
+        else
+        {
+            try
+            {
+                pMsg->mFunc();
+            }
+            catch(std::exception& e)
+            {
+                KR_LOG_ERROR("ERROR: Exception in a marshalled call: %s\n", e.what());
+            }
+        }
     });
     megaPostMessageToGui(static_cast<void*>(msg));
 }

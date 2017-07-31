@@ -25,7 +25,7 @@
 typedef unsigned short krLogLevel;
 enum
 {
-//0 is reserved to ovverwrite completely disabled logging. Used only by logger itself
+//0 is reserved to overwrite completely disabled logging. Used only by logger itself
     krLogLevelError = 1,
     krLogLevelWarn,
     krLogLevelInfo,
@@ -89,18 +89,20 @@ protected:
     /** This is the low-level log function that does the actual logging
      *  of an assembled single string */
     void logString(krLogLevel level, const char* msg, unsigned flags, size_t len=(size_t)-1);
-    std::map<std::string, std::shared_ptr<ILoggerBackend> > mUserLoggers;
+    std::map<std::string, ILoggerBackend*> mUserLoggers;
 public:
-    std::mutex mMutex;
+    std::recursive_mutex mMutex;
+    typedef std::lock_guard<std::recursive_mutex> LockGuard;
     volatile unsigned flags() const { return mFlags;}
     void setFlags(unsigned flags)
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::lock_guard<std::recursive_mutex> lock(mMutex);
         mFlags = flags;
     }
     KarereLogChannel logChannels[krLogChannelCount];
     void setTimestampFmt(const char* fmt) {mTimeFmt = fmt;}
     void logToConsole(bool enable=true);
+    void logToConsoleUseColors(bool useColors);
     void logToFile(const char* fileName, size_t rotateSize);
     void setAutoFlush(bool enable=true);
     Logger(unsigned flags = 0, const char* timeFmt="%m-%d %H:%M:%S");
@@ -108,8 +110,20 @@ public:
     void log(const char* prefix, krLogLevel level, unsigned flags,
                 const char* fmtString, ...);
     std::shared_ptr<LogBuffer> loadLog();
-    void addUserLogger(const char* tag, ILoggerBackend* logger);
-    bool removeUserLogger(const char* tag);
+
+    /** @brief Registers a user logger with the specified tag.
+     * If a logger with that tag does not already exist, the function returns
+     * \c nullptr. If one already exists, the new one replaces it, and the old one
+     * is returned.
+     */
+    ILoggerBackend *addUserLogger(const char* tag, ILoggerBackend* logger);
+
+    /** @brief Unregisters the user logger with the specified tag, and returns the
+     * instance. The user is responsible for freeing it.
+     * \note If a user logger is never unregistered, it will be deleted by the
+     * Logger upon its destruction
+     */
+    ILoggerBackend* removeUserLogger(const char* tag);
     ~Logger();
     struct LogBuffer
     {

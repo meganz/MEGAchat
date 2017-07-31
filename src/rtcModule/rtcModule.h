@@ -19,7 +19,7 @@ namespace stats { class IRtcStats; }
  *  - requested by peer but not yet initiated (mAutoAcceptCalls map)
  *  - in progress (mSessions map)
  */
-class Call: public JingleCall
+class Call
 {
 protected:
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
@@ -68,7 +68,7 @@ protected:
     artc::InputAudioDevice mAudioInput;
     artc::InputVideoDevice mVideoInput;
 public:
-    RtcModule(xmpp_conn_t* conn, IGlobalEventHandler* handler,
+    RtcModule(MyMegaApi *api, xmpp_conn_t* conn, IGlobalEventHandler* handler,
                ICryptoFunctions* crypto, const char* iceServers);
 //TODO: we need this virtual because it's called also from the base Jingle class
 //However, the class impl knows about the Call class (derived from JingleCall)

@@ -46,6 +46,7 @@ class LoginDialog: public QDialog, public karere::IApp::ILoginDialog
     Ui::LoginDialog ui;
     promise::Promise<std::pair<std::string, std::string>> mPromise;
     static QString sLoginStageStrings[kLast+1];
+    ~LoginDialog(){}
 public:
     LoginDialog(QWidget* parent): QDialog(parent)
     {
@@ -63,7 +64,7 @@ public:
         if (pass)
             ui.mPasswordInput->setText(pass);
     }
-    ~LoginDialog(){}
+    void destroy() { close(); deleteLater(); }
 
     void enableControls(bool enable)
     {
@@ -101,7 +102,7 @@ public slots:
     {
         if (mPromise.done())
             return;
-        mPromise.reject("Login dialog canceled by user");
+        mPromise.reject("Login dialog canceled by user", 0, 0);
     }
     void onType(const QString&)
     {
@@ -110,6 +111,11 @@ public slots:
         enable = enable & email.contains(QChar('@')) && email.contains(QChar('.'));
         if (enable != ui.mOkBtn->isEnabled())
             ui.mOkBtn->setEnabled(enable);
+    }
+    virtual void closeEvent(QCloseEvent *event)
+    {
+        if (!mPromise.done())
+            mPromise.reject("Login dialog closed by user", 0, 0);
     }
 };
 QString LoginDialog::sLoginStageStrings[] = {
@@ -125,8 +131,16 @@ MainWindow::MainWindow(Client* aClient): mClient(aClient)
 //    setWindowFlags(Qt::CustomizeWindowHint|Qt::WindowTitleHint|Qt::WindowMaximizeButtonHint
 //                   |Qt::WindowMinimizeButtonHint|Qt::WindowCloseButtonHint);
     ui.contactList->setSortingEnabled(true);
+    qApp->installEventFilter(this);
 }
-
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+  if (event->type() == QEvent::MouseMove)
+  {
+      mClient->presenced().signalActivity();
+  }
+  return false;
+}
 void MainWindow::onOnlineStatusBtn(bool)
 {
     auto list = new QMenu(this);
@@ -166,13 +180,20 @@ void MainWindow::onOnlineStatusBtn(bool)
         "}");
     list->exec();
 }
-void MainWindow::onOwnPresence(Presence pres, bool inProgress)
+void MainWindow::onPresenceChanged(Id userid, Presence pres, bool inProgress)
 {
-    ui.mOnlineStatusBtn->setText(inProgress
-        ?kOnlineSymbol_InProgress
-        :kOnlineSymbol_Set);
-    ui.mOnlineStatusBtn->setStyleSheet(
-        kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.status()]));
+    if (userid == client().myHandle())
+    {
+        ui.mOnlineStatusBtn->setText(inProgress
+            ?kOnlineSymbol_InProgress
+            :kOnlineSymbol_Set);
+        ui.mOnlineStatusBtn->setStyleSheet(
+            kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.status()]));
+    }
+    else
+    {
+        // TODO: update the presence for contacts
+    }
 }
 
 void MainWindow::setOnlineStatus()
@@ -188,12 +209,11 @@ void MainWindow::setOnlineStatus()
     }
     if (pres == Presence::kOnline)
     {
-        client().setPresence(Presence::kClear, Client::kSetPresOverride);
-        client().setPresence(Presence::kOnline, Client::kSetPresDynamic);
+        client().setPresence(Presence::kOnline);
     }
     else
     {
-        client().setPresence(pres, Client::kSetPresOverride);
+        client().setPresence(pres);
     }
 }
 
@@ -426,7 +446,28 @@ void MainWindow::onInitStateChange(int newState)
 {
     if (!isVisible() && (newState == karere::Client::kInitHasOfflineSession
                       || newState == karere::Client::kInitHasOnlineSession))
+    {
         show();
+    }
+    else if (newState == karere::Client::kInitErrSidInvalid)
+    {
+        hide();
+        marshallCall([this]()
+        {
+            Q_EMIT esidLogout();
+        });
+    }
+
+
+    if (newState == karere::Client::kInitHasOfflineSession ||
+            newState == karere::Client::kInitHasOnlineSession)
+    {
+        setWindowTitle(mClient->myEmail().c_str());
+    }
+    else
+    {
+        setWindowTitle("");
+    }
 }
 
 QString prettyInterval(int64_t secs)

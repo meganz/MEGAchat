@@ -8,9 +8,6 @@ set(optAsanMode "" CACHE STRING "Build with AddressSanitizer, in the specified m
 
 set(SRCS
   cservices.cpp
-  cservices-dns.cpp
-  services-dns.cpp
-  cservices-http.cpp
   logger.cpp
 )
 
@@ -51,6 +48,9 @@ if (WIN32)
 #    set(SYSLIBS zlib)
 else()
     set(SYSLIBS z)
+    if (NOT APPLE)
+        list(APPEND SYSLIBS pthread)
+    endif()
 endif()
 
 if (CLANG_STDLIB)

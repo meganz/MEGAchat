@@ -3,11 +3,146 @@
 
 #include <sqlite3.h>
 
+struct SqliteString
+{
+    char* mStr;
+    SqliteString() = default;
+    SqliteString(char* str): mStr(str){}
+    ~SqliteString()
+    {
+        if (mStr)
+            sqlite3_free(mStr);
+    }
+};
+class SqliteStmt;
+
+class SqliteDb
+{
+protected:
+    friend class SqliteStmt;
+    sqlite3* mDb = nullptr;
+    bool mCommitEach = true;
+    bool mHasOpenTransaction = false;
+    uint16_t mCommitInterval = 20;
+    time_t mLastCommitTs = 0;
+    inline int step(SqliteStmt& stmt);
+    void beginTransaction()
+    {
+        assert(!mHasOpenTransaction);
+        simpleQuery("BEGIN TRANSACTION");
+        mHasOpenTransaction = true;
+    }
+    bool commitTransaction()
+    {
+        if (!mHasOpenTransaction)
+            return false;
+        simpleQuery("COMMIT TRANSACTION");
+        mHasOpenTransaction = false;
+        mLastCommitTs = time(NULL);
+        return true;
+    }
+public:
+    SqliteDb(sqlite3* db=nullptr, uint16_t commitInterval=20)
+    : mDb(db), mCommitInterval(commitInterval)
+    {}
+    bool open(const char* fname, bool commitEach=true)
+    {
+        assert(!mDb);
+        int ret = sqlite3_open(fname, &mDb);
+        if (!mDb)
+            return false;
+        if (ret != SQLITE_OK)
+        {
+            sqlite3_close(mDb);
+            mDb = nullptr;
+            return false;
+        }
+        mCommitEach = commitEach;
+        if (!mCommitEach)
+        {
+            beginTransaction();
+            mLastCommitTs = time(NULL);
+        }
+        return true;
+    }
+    void close()
+    {
+        if (!mDb)
+            return;
+        if (!mCommitEach)
+            commit();
+        sqlite3_close(mDb);
+        mDb = nullptr;
+    }
+    bool isOpen() const { return mDb != nullptr; }
+    void setCommitMode(bool commitEach)
+    {
+        if (commitEach == mCommitEach)
+            return;
+        mCommitEach = commitEach;
+        if (commitEach)
+        {
+            commitTransaction();
+        }
+    }
+    void setCommitInterval(uint16_t sec) { mCommitInterval = sec; }
+    bool hasOpenTransaction() const { return !mHasOpenTransaction; }
+    operator sqlite3*() { return mDb; }
+    operator const sqlite3*() const { return mDb; }
+    template <class... Args>
+    inline bool query(const char* sql, Args&&... args);
+    void simpleQuery(const char* sql)
+    {
+        SqliteString err;
+        auto ret = sqlite3_exec(mDb, sql, nullptr, nullptr, &err.mStr);
+        if (ret == SQLITE_OK)
+            return;
+        std::string msg("Error executing '");
+        msg.append(sql);
+        if (err.mStr)
+            msg.append("': ").append(err.mStr);
+        else
+            msg+='\'';
+
+        throw std::runtime_error(msg);
+    }
+    void commit()
+    {
+        if (mCommitEach)
+            return;
+        commitTransaction();
+        beginTransaction();
+    }
+    bool rollback()
+    {
+        if (mCommitEach)
+            return false;
+        // the rollback may fail - in case of some critical errors, sqlite automatically
+        // does a rollback. In such cases, we should ignore the error returned by
+        // rollback, it's harmless
+        sqlite3_exec(mDb, "ROLLBACK", nullptr, nullptr, nullptr);
+        beginTransaction();
+        return true;
+    }
+    bool timedCommit()
+    {
+        if (mCommitEach)
+            return false;
+
+        auto now = time(NULL);
+        if (now - mLastCommitTs < mCommitInterval)
+            return false;
+
+        commit();
+        return true;
+    }
+};
+
 class SqliteStmt
 {
 protected:
     sqlite3_stmt* mStmt;
-    sqlite3* mDb;
+    SqliteDb& mDb;
     int mLastBindCol = 0;
     void check(int code, const char* opname)
     {
@@ -33,9 +168,8 @@ protected:
         return msg;
     }
 public:
-    SqliteStmt(sqlite3* db, const char* sql) :mDb(db)
+    SqliteStmt(SqliteDb& db, const char* sql):mDb(db)
     {
-        assert(db);
         if (sqlite3_prepare_v2(db, sql, -1, &mStmt, nullptr) != SQLITE_OK)
         {
             const char* errMsg = sqlite3_errmsg(mDb);
@@ -46,7 +180,8 @@ public:
         }
         assert(mStmt);
     }
-    SqliteStmt(sqlite3 *db, const std::string& sql):SqliteStmt(db, sql.c_str()){}
+    SqliteStmt(SqliteDb& db, const std::string& sql)
+        :SqliteStmt(db, sql.c_str()){}
     ~SqliteStmt()
     {
         if (mStmt)
@@ -74,7 +209,7 @@ public:
     SqliteStmt& operator<<(T&& val) { return bind(val);}
     bool step()
     {
-        int ret = sqlite3_step(mStmt);
+        int ret = mDb.step(*this);
         if (ret == SQLITE_DONE)
             return false;
         else if (ret == SQLITE_ROW)
@@ -104,14 +239,15 @@ public:
     {
         return sqlite3_column_blob(mStmt, num) != nullptr;
     }
-    bool blobCol(int num, Buffer& buf)
+    void blobCol(int num, Buffer& buf)
     {
         const void* data = sqlite3_column_blob(mStmt, num);
-        if (!data)
-            return false;
         int size = sqlite3_column_bytes(mStmt, num);
-        buf.append(data, size);
-        return true;
+        if (!data || !size)
+        {
+            buf.clear();
+        }
+        buf.assign(data, size);
     }
     void blobCol(int num, StaticBuffer& buf)
     {
@@ -147,11 +283,40 @@ public:
 };
 
 template <class... Args>
-bool sqliteQuery(sqlite3* db, const char* sql, Args&&... args)
+inline bool SqliteDb::query(const char* sql, Args&&... args)
 {
-    SqliteStmt stmt(db, sql);
+    SqliteStmt stmt(*this, sql);
     stmt.bindV(args...);
     return stmt.step();
 }
+
+inline int SqliteDb::step(SqliteStmt& stmt)
+{
+    auto ret = sqlite3_step(stmt);
+    if (ret == SQLITE_DONE)
+    {
+        timedCommit();
+    }
+    return ret;
+}
+
+class SqliteTransaction
+{
+protected:
+    SqliteDb* mDb;
+public:
+    SqliteTransaction(SqliteDb& db): mDb(&db) { mDb->commit(); }
+    void commit()
+    {
+        assert(mDb);
+        mDb->commit();
+        mDb = nullptr;
+    }
+    ~SqliteTransaction()
+    {
+        if (mDb)
+            mDb->rollback();
+    }
+};
 
 #endif

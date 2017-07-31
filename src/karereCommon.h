@@ -86,6 +86,8 @@ static inline string to_string(const T& t)
 
 /** @endcond PRIVATE */
 
+class MyMegaApi;
+
 namespace karere
 {
 class Client;
@@ -145,7 +147,19 @@ enum: uint8_t
     kClientIsMobile = 0x40
 };
 
-extern const char* gKarereDbSchema;
+// These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql
+extern const char* gDbSchema;
+extern const char* gDbSchemaHash;
+
+// If the schema hasn't changed but its usage by the karere lib has,
+// the lib can force a new version via this suffix
+// Defined in karereCommon.cpp
+extern const char* gDbSchemaVersionSuffix;
+
+// If false, do not catch exceptions inside marshall calls, forcing the app to crash
+// This option should be used only in development/debugging
+extern bool gCatchException;
+
 static inline int64_t timestampMs() { return services_get_time_ms(); }
 
 //logging stuff
@@ -204,12 +218,21 @@ class Client;
  *
  *  Usage:
  * \c gLogger.addUserLogger("karere-remote", new RemoteLogger);
+ *
+ * @note This logger requires a karere::Client instance, since it uses
+ * the SDK to send the logs to the remote server. Remember to call
+ * \c gLogger.removeUserLogger("karere-remote") before than the Client
+ * destruction.
  */
 class RemoteLogger: public karere::Logger::ILoggerBackend
 {
+private:
+    std::string mAid;
+    MyMegaApi& mApi;
 public:
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
-    RemoteLogger(): ILoggerBackend(krLogLevelError){}
+    RemoteLogger(MyMegaApi& api): ILoggerBackend(krLogLevelError), mApi(api){}
+    void setAnonymousId(std::string &aid) { this->mAid = aid; }
 };
 
 }

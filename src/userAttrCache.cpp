@@ -44,53 +44,58 @@ Buffer* getDataNotImpl(const ::mega::MegaRequest& req)
      throw std::runtime_error("Not implemented");
 }
 
-UserAttrDesc gUserAttrDescs[9] =
-{ //getData func | changeMask
-  //0 - avatar
+UserAttrDesc gUserAttrDescs[10] =
+{ //attrib code, getData func, changeMask
+  //avatar
     {
       ::mega::MegaApi::USER_ATTR_AVATAR,
       [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getFile()); },
       ::mega::MegaUser::CHANGE_TYPE_AVATAR
     },
-  //1 - first name
+  //first name
     {
       ::mega::MegaApi::USER_ATTR_FIRSTNAME,
       [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
       ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME
     },
-  //2 - last name
+  //last name
     {
       ::mega::MegaApi::USER_ATTR_LASTNAME,
       [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
       ::mega::MegaUser::CHANGE_TYPE_LASTNAME
     },
-  //3 - authring
+  //authring
     {
       ::mega::MegaApi::USER_ATTR_AUTHRING,
       &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_AUTHRING
     },
-  //4 - last interaction
+  //last interaction
     {
       ::mega::MegaApi::USER_ATTR_LAST_INTERACTION,
       &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_LSTINT
     },
-  //5 - ed25519 signing key
+  //ed25519 signing key
     {
       ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY,
       [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
       ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255
     },
-  //6 - cu25519 encryption key
+  //cu25519 encryption key
     {
       ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY,
       [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
       ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255
     },
-  //7 - keyring - not used by userAttrCache
+  //keyring - not used by userAttrCache
     {
       ::mega::MegaApi::USER_ATTR_KEYRING,
       &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_KEYRING
     },
+  //email
+  {
+      USER_ATTR_EMAIL,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_EMAIL
+  },
   //FULLNAME - virtual attrib with no DB backing
     {
       USER_ATTR_FULLNAME,
@@ -106,7 +111,7 @@ UserAttrCache::~UserAttrCache()
 
 void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 {
-    sqliteQuery(mClient.db,
+    mClient.db.query(
         "insert or replace into userattrs(userid, type, data) values(?,?,?)",
         key.user.val, key.attrType, data);
     UACACHE_LOG_DEBUG("dbWrite attr %s", key.toString().c_str());
@@ -114,7 +119,7 @@ void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 
 void UserAttrCache::dbWriteNull(UserAttrPair key)
 {
-    sqliteQuery(mClient.db,
+    mClient.db.query(
         "insert or replace into userattrs(userid, type, data) values(?,?,NULL)",
         key.user, key.attrType);
     UACACHE_LOG_DEBUG("dbWriteNull attr %s as NULL", key.toString().c_str());
@@ -149,15 +154,18 @@ const char* attrName(uint8_t type)
     case ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY: return "PUB_ED25519";
     case ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY: return "PUB_CU25519";
     case ::mega::MegaApi::USER_ATTR_KEYRING: return "KEYRING";
+    case USER_ATTR_EMAIL: return "EMAIL";
     case USER_ATTR_RSA_PUBKEY: return "PUB_RSA";
     case USER_ATTR_FULLNAME: return "FULLNAME";
     default: return "(invalid)";
     }
 }
-
 void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
 {
-    int changed = user.getChanges();
+    onUserAttrChange(user.getHandle(), user.getChanges());
+}
+void UserAttrCache::onUserAttrChange(uint64_t userid, int changed)
+{
 //  printf("user %s changed %u\n", Id(user.getHandle()).toString().c_str(), changed);
     for (size_t i = 0; i < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); i++)
     {
@@ -165,7 +173,7 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
         if ((changed & desc.changeMask) == 0)
             continue; //the change is not of this attrib type
         int type = desc.type;
-        UserAttrPair key(user.getHandle(), type);
+        UserAttrPair key(userid, type);
         auto it = find(key);
         if (it == end()) //we don't have such attribute
         {
@@ -199,7 +207,7 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
 }
 void UserAttrCache::dbInvalidateItem(UserAttrPair key)
 {
-    sqliteQuery(mClient.db, "delete from userattrs where userid=? and type=?",
+    mClient.db.query("delete from userattrs where userid=? and type=?",
                 key.user, key.attrType);
 }
 
@@ -324,6 +332,9 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
         case USER_ATTR_RSA_PUBKEY:
             fetchRsaPubkey(key, item);
             break;
+        case USER_ATTR_EMAIL:
+            fetchEmail(key, item);
+            break;
         default:
             fetchStandardAttr(key, item);
             break;
@@ -331,15 +342,38 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
 }
 void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
+    auto wptr = weakHandle();
     mClient.api.call(&::mega::MegaApi::getUserAttribute,
         key.user.toString().c_str(), (int)key.attrType)
-    .then([this, key, item](ReqResult result)
+    .then([wptr, this, key, item](ReqResult result)
     {
+        wptr.throwIfDeleted();
         item->data.reset(gUserAttrDescs[key.attrType].getData(*result));
         item->resolve(key);
     })
-    .fail([this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const promise::Error& err)
     {
+        wptr.throwIfDeleted();
+        item->error(key, err.code());
+        return err;
+    });
+}
+
+void UserAttrCache::fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
+{
+    auto wptr = weakHandle();
+    mClient.api.call(&::mega::MegaApi::getUserEmail,
+        key.user.val)
+    .then([wptr, this, key, item](ReqResult result)
+    {
+        wptr.throwIfDeleted();
+        auto email = result->getEmail();
+        item->data.reset(new Buffer(email, strlen(email)));
+        item->resolve(key);
+    })
+    .fail([wptr, this, key, item](const promise::Error& err)
+    {
+        wptr.throwIfDeleted();
         item->error(key, err.code());
         return err;
     });
@@ -353,7 +387,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         std::string lastname;
     };
     auto ctx = std::make_shared<Context>();
-
+    auto wptr = weakHandle();
     auto pms1 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_FIRSTNAME)
     .then([ctx](Buffer* data)
     {
@@ -377,8 +411,9 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
     });
 
     promise::when(pms1, pms2)
-    .then([ctx, this, key, item]()
+    .then([wptr, this, ctx, key, item]()
     {
+        wptr.throwIfDeleted();
         item->data.reset(new Buffer(ctx->firstname.size()+ctx->lastname.size()+1));
         auto& data = *item->data;
         auto& fn = ctx->firstname;
@@ -400,8 +435,9 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         }
         item->resolveNoDb(key);
     })
-    .fail([item](const Error& err)
+    .fail([wptr, item](const Error& err)
     {
+        wptr.throwIfDeleted();
         item->errorNoDb(err.code());
         return err;
     });
@@ -409,14 +445,17 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
 
 void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
+    auto wptr = weakHandle();
     mClient.api.call(&::mega::MegaApi::getUserData, key.user.toString().c_str())
-    .fail([this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const promise::Error& err)
     {
+        wptr.throwIfDeleted();
         item->error(key, err.code());
         return err;
     })
-    .then([this, key, item](ReqResult result) -> promise::Promise<void>
+    .then([wptr, this, key, item](ReqResult result) -> promise::Promise<void>
     {
+        wptr.throwIfDeleted();
         auto rsakey = result->getPassword();
         size_t keylen;
         if (!rsakey || ((keylen = strlen(rsakey)) < 1))
@@ -431,6 +470,15 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
         item->resolve(key);
         return promise::_Void();
     });
+}
+
+void UserAttrCache::invalidate()
+{
+    mClient.db.query("delete from userattrs");
+    for (auto& item: *this)
+    {
+        item.second->pending = kCacheFetchUpdatePending;
+    }
 }
 
 void UserAttrCache::onLogin()

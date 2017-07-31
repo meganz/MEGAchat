@@ -77,53 +77,50 @@ class Promise;
 struct ErrorShared
 {
     std::string mMsg;
-    uint32_t mCode;
-    uint32_t mType;
+    int mCode;
+    int mType;
     mutable bool mHandled = false;
-    ErrorShared(const std::string& aMsg, uint32_t aCode=0, uint32_t aType=0)
+    ErrorShared(const std::string& aMsg, int aCode=-1, int aType=0)
         :mMsg(aMsg),mCode(aCode),mType(aType){}
     ~ErrorShared()
     {
         if (!mHandled)
             PROMISE_ON_UNHANDLED_ERROR(mMsg, mType, mCode);
     }
-    static void defaultOnUnhandledError(const std::string& msg,
-        uint32_t type, uint32_t code)
+    static void defaultOnUnhandledError(const std::string& msg, int type, int code)
     {
         fprintf(stderr, "WARNING: Unhandled promise fail. Error: '%s', type: %d, code: %d\n", msg.c_str(), type, code);
     }
 };
 
-enum: uint32_t
+enum
 {
     kErrorTypeGeneric = 1
 };
-enum: uint32_t
+enum
 {
     kErrException = 1,
     kErrAbort = 2,
     kErrTimeout = 3
 };
 
-class Error: public std::exception, protected std::shared_ptr<ErrorShared>
+class Error: protected std::shared_ptr<ErrorShared>
 {
 protected:
-    typedef std::shared_ptr<ErrorShared> Base;
     Error(): Base(nullptr){}
-    Error& operator=(const std::exception& other) = delete;
-    Error(const std::exception& other) = delete;
 public:
-    Error(const std::string& msg, uint32_t code=0, uint32_t type=kErrorTypeGeneric)
+    typedef std::shared_ptr<ErrorShared> Base;
+    Error(const std::string& msg, int code=-1, int type=kErrorTypeGeneric)
         :Base(std::make_shared<ErrorShared>(msg, code, type))
     {}
-    Error(const char* msg, uint32_t code=0, uint32_t type=kErrorTypeGeneric)
+    Error(const char* msg, int code=-1, int type=kErrorTypeGeneric)
         :Base(std::make_shared<ErrorShared>(msg?msg:"", code, type))
     {}
     using Base::operator=;
     const std::string& msg() const {return get()->mMsg;}
-    virtual const char* what() const noexcept {return get()->mMsg.c_str();}
-    uint32_t type() const {return get()->mType;}
-    uint32_t code() const {return get()->mCode;}
+    const char* what() const {return get()->mMsg.c_str();}
+    int type() const {return get()->mType;}
+    int code() const {return get()->mCode;}
     void setHandled() const { get()->mHandled = true; }
     bool handled() const { return get()->mHandled; }
     std::string toString() const
@@ -478,14 +475,14 @@ protected:
             {
                 promise = CallCbHandleVoids::template call<Out, RealOut, In>(cb, result);
             }
-            catch(Error& e)
-            {
-                next.reject(e);
-                return;
-            }
             catch(std::exception& e)
             {
                 next.reject(Error(e.what(), kErrException));
+                return;
+            }
+            catch(Error& e)
+            {
+                next.reject(e);
                 return;
             }
             catch(const char* e)
@@ -833,6 +830,9 @@ inline Promise<void> when(Args... inputs)
 template <class P>
 inline Promise<void> when(std::vector<Promise<P>>& promises)
 {
+    if (promises.empty())
+        return Void();
+
     WhenState state;
     size_t countMinus1 = promises.size()-1;
     for (size_t i=0; i < countMinus1; i++)

@@ -6,6 +6,9 @@
 #include <string.h>
 #include <vector>
 
+#ifndef __arm__
+    #define BUFFER_ALLOW_UNALIGNED_MEMORY_ACCESS 1
+#endif
 class BufferRangeError: public std::runtime_error
 {
     using std::runtime_error::runtime_error;
@@ -62,28 +65,37 @@ public:
                 std::to_string(offset+len-mDataSize)+" bytes past buffer end");
         return mBuf+offset;
     }
-    template <class T, bool check=true>
-    T& read(size_t offset) const
+    template <class T>
+    T read(size_t offset) const
     {
-        if (check)
-            return *((T*)(readPtr(offset, sizeof(T))));
-        else
-            return *((T*)(mBuf+offset));
+        return alignSafeRead<T>(readPtr(offset, sizeof(T)));
     }
-    template <class T, bool check=true>
+    template <typename T>
+    static T alignSafeRead(const void* ptr)
+    {
+#ifndef BUFFER_ALLOW_UNALIGNED_MEMORY_ACCESS
+        T val;
+        memcpy(&val, ptr, sizeof(T));
+        return val;
+#else
+        return *((T*)ptr);
+#endif
+    }
+    template <class T>
     void read(size_t offset, std::vector<T>& output, int count)
     {
-        size_t endOffset = offset+count*sizeof(T);
-        if (check && (endOffset >= dataSize()))
-            throw std::runtime_error("read(vector): Requested to read beyond data end");
-        output.insert(output.end(), *(T*)(mBuf+offset));
+        T* end = (T*)(mBuf+offset+count*sizeof(T));
+        for (T* pitem = (T*)(mBuf+offset); pitem < end; pitem++)
+        {
+            output.push_back(alignSafeRead<T>(pitem));
+        }
     }
-    template <class T, bool check=true>
+    template <class T>
     void read(size_t offset, std::vector<T>& output)
     {
         assert((mDataSize-offset) % sizeof(T) == 0);
         size_t count = (mDataSize-offset)/sizeof(T);
-        read<T,check>(offset, output, count);
+        read(offset, output, count);
     }
 
     bool dataEquals(const void* data, size_t datalen) const
@@ -154,10 +166,11 @@ public:
     char* buf() { return mBuf;}
     const char* buf() const { return mBuf;}
     size_t bufSize() const { return mBufSize;}
-    Buffer(size_t size=kMinBufSize, size_t dataSize=0)
+    Buffer(size_t size=kMinBufSize)
     {
         if (size)
         {
+            mDataSize = 0;
             mBuf = (char*)malloc(size);
             if (!mBuf)
             {
@@ -165,30 +178,20 @@ public:
                 throw std::runtime_error("Out of memory allocating block of size "+ std::to_string(size));
             }
             mBufSize = size;
-            setDataSize(dataSize);
         }
         else
         {
             zero();
         }
     }
-    Buffer(const char* data, size_t datalen, size_t reserve=0)
+    Buffer(const char* data, size_t datalen)
     {
-        size_t allocSize = datalen+reserve;
-        if (allocSize > 0)
+        if (data && datalen)
         {
-            mBuf = (char*)malloc(allocSize);
-            mBufSize = allocSize;
-            if (datalen)
-            {
-                assert(data);
-                memcpy(mBuf, data, datalen);
-                mDataSize = datalen;
-            }
-            else
-            {
-                mDataSize = 0;
-            }
+            mBuf = (char*)malloc(datalen);
+            mBufSize = datalen;
+            memcpy(mBuf, data, datalen);
+            mDataSize = datalen;
         }
         else
         {
@@ -197,7 +200,7 @@ public:
     }
     Buffer(Buffer&& other)
         :StaticBuffer(other.mBuf, other.mDataSize), mBufSize(other.mBufSize) { other.zero(); }
-    Buffer(const StaticBuffer& other): Buffer(other.buf(), other.dataSize()){}
+
     template <bool withNull>
     Buffer(const std::string& src)
     {
@@ -288,10 +291,10 @@ public:
     {
         assign(other.buf(), other.dataSize());
     }
-    template <bool check=true>
-    inline Buffer& write(size_t offset, const void* data, size_t datalen)
+    Buffer& write(size_t offset, const void* data, size_t datalen)
     {
-        assert(data);
+        if (!data)
+            return *this;
         auto reqdSize = offset+datalen;
         if (reqdSize <= mDataSize)
         {
@@ -316,21 +319,16 @@ public:
         }
         return *this;
     }
-    template <bool check>
-    Buffer& write(size_t offset, const StaticBuffer& from)
-    { return write<check>(offset, from.buf(), from.dataSize()); }
-    template <bool check>
-    Buffer& write(size_t offset, const std::string& str)
-    { return write<check>(offset, str.c_str(), str.size()); }
-
+    Buffer& write(size_t offset, const StaticBuffer& from) { return write(offset, from.buf(), from.dataSize()); }
+    Buffer& write(size_t offset, const std::string& str) { return write(offset, str.c_str(), str.size()); }
     Buffer& append(const void* data, size_t datalen) { return write(dataSize(), data, datalen);}
     Buffer& append(const std::string& str) { return write(dataSize(), str.c_str(), str.size()); }
     Buffer& append(const StaticBuffer& from) { return append(from.buf(), from.dataSize());}
     template <class T, typename=typename std::enable_if<std::is_pod<T>::value && !std::is_pointer<T>::value>::type>
     Buffer& append(const T& val) { return write(mDataSize, val);}
     Buffer& append(const char* str) { return append((void*)str, strlen(str)); }
-    template <class T, bool check=true, typename=typename std::enable_if<std::is_pod<T>::value && !std::is_pointer<T>::value>::type>
-    Buffer& write(size_t offset, const T& val) { return write<check>(offset, &val, sizeof(val)); }
+    template <class T, typename=typename std::enable_if<std::is_pod<T>::value && !std::is_pointer<T>::value>::type>
+    Buffer& write(size_t offset, const T& val) { return write(offset, &val, sizeof(val)); }
     template <typename T>
     T& mapRef(size_t offset) { return *reinterpret_cast<T*>(writePtr(offset, sizeof(T))); }
     void fill(size_t offset, uint8_t value, size_t count)
@@ -357,13 +355,4 @@ public:
             ::free(mBuf);
     }
 };
-
-template<>
-inline Buffer& Buffer::write<false>(size_t offset, const void *data, size_t datalen)
-{
-    assert(data);
-    ::memcpy(mBuf+offset, data, datalen);
-    return *this;
-}
-
 #endif

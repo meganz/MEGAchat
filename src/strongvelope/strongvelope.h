@@ -22,8 +22,8 @@
 #include <base/trackDelete.h>
 
 #define STRONGVELOPE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
-#define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
-#define STRONGVELOPE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_strongvelope, fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
+#define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
+#define STRONGVELOPE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
 
 #define SVCRYPTO_ERRTYPE 0x3e9a5419 //should resemble megasvlp
 
@@ -47,7 +47,7 @@ namespace karere
 {
     class UserAttrCache;
 }
-struct sqlite3;
+class SqliteDb;
 
 namespace strongvelope
 {
@@ -245,8 +245,11 @@ protected:
     Key<768> myPrivRsaKey;
     karere::UserAttrCache& mUserAttrCache;
     uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
-    sqlite3* mDb;
+    SqliteDb& mDb;
     std::shared_ptr<SendKey> mCurrentKey;
+    // When we generate a new key, it may not get sent successfully if the connection
+    // gets broken. So we need to send it again upon re-login, until it gets confirmed.
+    std::shared_ptr<chatd::KeyCommand> mUnconfirmedKeyCmd;
     bool mForceRsa = false;
     struct KeyEntry
     {
@@ -256,6 +259,7 @@ protected:
         KeyEntry(const std::shared_ptr<SendKey>& aKey): key(aKey){}
     };
     std::map<UserKeyId, KeyEntry> mKeys;
+    std::map<karere::Id, std::shared_ptr<SendKey>> mSymmKeyCache;
     karere::SetOfIds* mParticipants = nullptr;
     bool mParticipantsChanged = true;
     bool mIsDestroying = false;
@@ -265,7 +269,7 @@ public:
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& PrivCu25519,
         const StaticBuffer& PrivEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
-        sqlite3* db, karere::Id aChatId);
+        SqliteDb& db, karere::Id aChatId);
 protected:
     void loadKeysFromDb();
     promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);
@@ -337,6 +341,7 @@ public:
         virtual void randomBytes(void* buf, size_t bufsize) const;
         virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
         virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
+        virtual const chatd::KeyCommand* unconfirmedKeyCmd() const { return mUnconfirmedKeyCmd.get(); }
 
         //====
         promise::Promise<std::shared_ptr<SendKey>>
