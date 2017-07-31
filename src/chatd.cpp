@@ -1804,7 +1804,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 // msgid can be 0 in case of rejections
 Idx Chat::msgConfirm(Id msgxid, Id msgid, uint8_t opcode)
 {
-    assert(opcode == OP_NEWMSGID || opcode == OP_MSGID);
+    assert(opcode == OP_NEWMSGID || opcode == OP_MSGID || opcode == OP_REJECT);
     Message* msg = msgRemoveFromSending(msgxid, msgid);
     if (!msg)
         return CHATD_IDX_INVALID;
