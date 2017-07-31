@@ -4965,6 +4965,10 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         std::string nameString = iteratorName->value.GetString();
 
         rapidjson::Value::ConstMemberIterator iteratorKey = file.FindMember("k");
+        if (!iteratorKey->value.IsArray())
+        {
+            iteratorKey = file.FindMember("key");
+        }
         if (iteratorKey == file.MemberEnd() || !iteratorKey->value.IsArray()
                 || iteratorKey->value.Capacity() != 8)
         {
