@@ -2399,7 +2399,7 @@ void Contact::onVisibilityChanged(int newVisibility)
     auto& client = mClist.client;
     if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
     {
-        client.presenced().removePeer(mUserid, true);
+        client.presenced().removePeer(mUserid);
         if (mChatRoom)
             mChatRoom->notifyExcludedFromChat();
     }
