@@ -813,6 +813,7 @@ public:
     int getUnreadChats();
     MegaChatListItemList *getActiveChatListItems();
     MegaChatListItemList *getInactiveChatListItems();
+    MegaChatListItemList *getUnreadChatListItems();
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
