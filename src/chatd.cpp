@@ -1786,11 +1786,9 @@ bool Chat::msgAlreadySent(Id msgxid, Id msgid)
 {
     auto msg = msgRemoveFromSending(msgxid, msgid);
     if (!msg)
-        return false;
-
-    CHATID_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
-    CALL_LISTENER(onMessageRejected, *msg, 0);
+        return false; // message does not belong to our chat
     delete msg;
+    CHATID_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
     return true;
 }
 
