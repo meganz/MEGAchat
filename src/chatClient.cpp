@@ -2418,6 +2418,10 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
     for (int i=0; i<size; i++)
     {
         auto& user = *users.get(i);
+        if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_INACTIVE)
+        {
+            continue;
+        }
         apiUsers.insert(user.getHandle());
         addUserFromApi(user);
     }
