@@ -2444,7 +2444,10 @@ void ContactList::onUserAddRemove(mega::MegaUser& user)
     if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_INACTIVE)
     {
         auto it = this->find(user.getHandle());
-        removeUser(it);
+        if (it != this->end())
+        {
+            removeUser(it);
+        }
     }
     else
     {
