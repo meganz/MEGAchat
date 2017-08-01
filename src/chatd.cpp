@@ -966,11 +966,6 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
-                if (!msgid)
-                {
-                    CHATD_LOG_ERROR("MSGID with zero message id received, ignoring");
-                    break;
-                }
                 mClient.onMsgAlreadySent(msgxid, msgid);
                 break;
             }
@@ -978,7 +973,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
-                mClient.msgConfirm(msgxid, msgid);
+                mClient.msgConfirm(msgxid, msgid, opcode);
                 break;
             }
 /*            case OP_RANGE:
@@ -1005,7 +1000,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 auto& chat = mClient.chats(chatid);
                 if (op == OP_NEWMSG) // the message was rejected
                 {
-                    chat.msgConfirm(id, Id::null());
+                    chat.msgConfirm(id, Id::null(), OP_REJECT);
                 }
                 else if ((op == OP_MSGUPD) || (op == OP_MSGUPDX))
                 {
@@ -1759,37 +1754,39 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + dbInfo.newestDbId);
 }
 
-void Client::msgConfirm(Id msgxid, Id msgid)
+void Client::onMsgAlreadySent(Id msgxid, Id msgid)
+{
+    for (auto& chat: mChatForChatId)
+    {
+        if (chat.second->msgIndexFromId(msgid) != CHATD_IDX_INVALID)
+        {
+            // the message was confirmed and is in history, ignore
+            auto msg = chat.second->msgRemoveFromSending(msgxid, msgid);
+            if (msg)
+            {
+                delete msg;
+                CHATD_LOG_DEBUG("%s: MSGID for a confirmed message: deleted from send queue", ID_CSTR(chat.first));
+            }
+            else
+            {
+                CHATD_LOG_DEBUG("%s: Ignoring MSGID for a confirmed message", ID_CSTR(chat.first));
+            }
+            return;
+        }
+    }
+    msgConfirm(msgxid, msgid, OP_MSGID);
+}
+
+bool Client::msgConfirm(Id msgxid, Id msgid, uint8_t opcode)
 {
     // CHECK: is it more efficient to keep a separate mapping of msgxid to messages?
     for (auto& chat: mChatForChatId)
     {
-        if (chat.second->msgConfirm(msgxid, msgid) != CHATD_IDX_INVALID)
-            return;
-    }
-    CHATD_LOG_DEBUG("msgConfirm: No chat knows about message transaction id %s", ID_CSTR(msgxid));
-}
-
-//called when MSGID is received
-bool Client::onMsgAlreadySent(Id msgxid, Id msgid)
-{
-    for (auto& chat: mChatForChatId)
-    {
-        if (chat.second->msgAlreadySent(msgxid, msgid))
+        if (chat.second->msgConfirm(msgxid, msgid, opcode) != CHATD_IDX_INVALID)
             return true;
     }
+    CHATD_LOG_DEBUG("msgConfirm: No chat knows about message transaction id %s", ID_CSTR(msgxid));
     return false;
-}
-bool Chat::msgAlreadySent(Id msgxid, Id msgid)
-{
-    auto msg = msgRemoveFromSending(msgxid, msgid);
-    if (!msg)
-        return false;
-
-    CHATID_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
-    CALL_LISTENER(onMessageRejected, *msg, 0);
-    delete msg;
-    return true;
 }
 
 Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
@@ -1832,13 +1829,14 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 }
 
 // msgid can be 0 in case of rejections
-Idx Chat::msgConfirm(Id msgxid, Id msgid)
+Idx Chat::msgConfirm(Id msgxid, Id msgid, uint8_t opcode)
 {
+    assert(opcode == OP_NEWMSGID || opcode == OP_MSGID || opcode == OP_REJECT);
     Message* msg = msgRemoveFromSending(msgxid, msgid);
     if (!msg)
         return CHATD_IDX_INVALID;
 
-    CHATID_LOG_DEBUG("recv NEWMSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
+    CHATID_LOG_DEBUG("recv %s: '%s' -> '%s'", Command::opcodeToStr(opcode), ID_CSTR(msgxid), ID_CSTR(msgid));
     //put into history
     msg->setId(msgid, false);
     push_forward(msg);
