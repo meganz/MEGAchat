@@ -345,9 +345,11 @@ Client::reconnect(const std::string& url)
             })
             .fail([this](const promise::Error& err)
             {
-                int errType =  (err.type() == ERRTYPE_MEGASDK) ? WS_ERRTYPE_DNS : err.type();
-                mConnectPromise.reject(err.msg(), err.code(), errType);
-                mLoginPromise.reject(err.msg(), err.code(), errType);
+                if (err.type() == ERRTYPE_MEGASDK)
+                {
+                    mConnectPromise.reject(err.msg(), err.code(), err.type());
+                    mLoginPromise.reject(err.msg(), err.code(), err.type());
+                }
             });
             
             return mConnectPromise
