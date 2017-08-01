@@ -1763,6 +1763,12 @@ void Client::onMsgAlreadySent(Id msgxid, Id msgid)
         if (chat.second->msgIndexFromId(msgid) != CHATD_IDX_INVALID)
         {
             // the message was confirmed and is in history, ignore
+            auto msg = msgRemoveFromSending(msgxid, msgid);
+            if (msg)
+            {
+                delete msg;
+                CHATD_LOG_DEBUG("%s: MSGID for a confirmed message: deleted from send queue", ID_CSTR(chat.first));
+            }
             CHATD_LOG_DEBUG("%s: Ignoring MSGID for a confirmed message", ID_CSTR(chat.first));
             return;
         }
