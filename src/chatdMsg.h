@@ -193,7 +193,7 @@ enum Opcode
       * @brief
       * C->S: Subscribe to events for this chat, indicating the existing message range
       *    (msgid0 is the oldest, msgid1 the newest). Responds with all messages newer
-      *    than msgid1 (if any), followed by a HISTDONE.
+      *    than msgid1 (if any) as NEWMSG, followed by a HISTDONE.
       * Send: <chatid> <msgid0> <msgid1>
       */
     OP_JOINRANGEHIST = 19,
