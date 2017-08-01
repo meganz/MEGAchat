@@ -87,7 +87,8 @@ enum: uint8_t
       * After establishing a connection, the client identifies itself with an OPCODE_HELLO,
       * followed by a byte indicating the client's capabilities: CLIENT_PUSH or CLIENT_WEBRTC.
       * After this command, client sends OP_PREFS, OP_USERACTIVE and OP_ADDPEERS (with all peers)
-      * <CLIENT_PUSH | CLIENT_WEBRTC>
+      * <protocolVersion><clientCapabilities>
+      * clientCapabilities -> CLIENT_PUSH | CLIENT_WEBRTC
       */
     OP_HELLO = 1,
 
@@ -97,16 +98,16 @@ enum: uint8_t
       * This command is sent when the local user's activity status changes (including right
       * after connecting to presenced).
       * The only supported flag is in bit 0: CLIENT_USERACTIVE. All other bits must always be 0.
-      * <1: active | 0: inactive>
+      * <activeState> 1: active | 0: inactive
       */
     OP_USERACTIVE = 3,
 
     /**
       * @brief
       * C->S
-      * Client musts send all of the peers it wants to see its status. This command is sent after
+      * Client must send all of the peers it wants to see its status. This command is sent after
       * OP_HELLO and every time user wants to know a new peer's status
-      * <number of peers><peer handle1>...<peer handleN>
+      * <numberOfPeers><peerHandle1>...<peerHandleN>
       */
     OP_ADDPEERS = 4,
 
@@ -114,7 +115,7 @@ enum: uint8_t
       * @brief
       * C->S
       * This command is sent when the client doesn't want to know a peer's status
-      * <1><peer handle>
+      * <1><peerHandle>
       */
     OP_DELPEERS = 5,
 
@@ -123,7 +124,7 @@ enum: uint8_t
       * S->C
       * Server sends own user's status (necessary for synchronization between different clients)
       * and peers status requested by user
-      * <status><peer handle>
+      * <status><peerHandle>
       */
     OP_PEERSTATUS = 6,
 
@@ -134,14 +135,18 @@ enum: uint8_t
       * <preferences>
       *
       * S->C
-      * Client receive preferences from server. If they are differents, the client set the value
-      * that it has received from server
+      * The client receives the current prefs and needs
+      * to update its settings UI accordingly unless the user has made a recent change
       * <preferences>
       *
       * bits 0-1: user status config (offline, away, online, do-not-disturb)
       * bit 2: override active (presenced uses the configured status if this is set)
       * bit 3: timeout active (ignored by presenced, relevant for clients)
       * bits 4-15 timeout (pseudo floating point, calculated as:
+      *     autoawaytimeout = refs >> 4;
+      *     if (autoawaytimeout > 600) {
+      *         autoawaytimeout = (autoawaytimeout - 600) * 60 + 600;
+      *     }
       */
     OP_PREFS = 7
 };
