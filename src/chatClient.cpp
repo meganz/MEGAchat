@@ -196,7 +196,10 @@ void Client::heartbeat()
 Client::~Client()
 {
     if (mHeartbeatTimer)
+    {
         karere::cancelInterval(mHeartbeatTimer);
+        mHeartbeatTimer = 0;
+    }
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
     
@@ -724,8 +727,19 @@ promise::Promise<void> Client::doConnect(Presence pres)
         setConnState(kDisconnected);
     });
     assert(!mHeartbeatTimer);
-    mHeartbeatTimer = karere::setInterval([this]()
+    auto wptr = weakHandle();
+    mHeartbeatTimer = karere::setInterval([this, wptr]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        if (!mHeartbeatTimer)
+        {
+            return;
+        }
+
         heartbeat();
     }, 10000);
     return pms;
