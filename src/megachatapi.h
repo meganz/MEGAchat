@@ -2943,6 +2943,15 @@ public:
      * status of \c msg will be MegaChatMessage::STATUS_SENDING_MANUAL and the app reason of rejection
      * is recorded in MegaChatMessage::getCode().
      *
+     * Another edge case is when a new message was confirmed but the app didn't receive the confirmation
+     * from the server. In that case, you will end up with a message in MegaChatMessage::STATUS_SENDING
+     * due to the sending retry, another one in MegaChatMessage::STATUS_SERVER_RECEIVED or
+     * MegaChatMessage::STATUS_DELIVERED due to the message already confirmed/delivered. Finally, you
+     * will receive this callback updating the status to MegaChatMessage::STATUS_SERVER_REJECTED with
+     * MegaChatMessage::getCode() equal to 0 and the corresponding MegaChatMessage::getTempId().
+     * The app should discard the message in sending status, in pro of the confirmed message to avoid
+     * duplicated message in the history.
+     *
      * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
      * object will be valid until this function returns. If you want to save the MegaChatMessage object,
      * use MegaChatMessage::copy for the message.
