@@ -1,8 +1,6 @@
 #ifndef CSERVICES_H_INCLUDED
 #define CSERVICES_H_INCLUDED
 
-#define USE_LIBWEBSOCKETS 1
-
 #ifndef USE_LIBWEBSOCKETS
 #include <event2/event.h>
 #include <event2/thread.h>
