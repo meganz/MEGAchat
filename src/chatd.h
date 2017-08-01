@@ -1008,7 +1008,7 @@ protected:
             throw std::runtime_error("chatidConn: Unknown chatid "+chatid.toString());
         return *it->second;
     }
-    bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
+    void onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     bool msgConfirm(karere::Id msgxid, karere::Id msgid, uint8_t opcode);
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };

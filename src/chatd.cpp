@@ -965,6 +965,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 break;
             }
             case OP_MSGID:
+            {
+                READ_ID(msgxid, 0);
+                READ_ID(msgid, 8);
+                mClient.onMsgAlreadySent(msgxid, msgid);
+                break;
+            }
             case OP_NEWMSGID:
             {
                 READ_ID(msgxid, 0);
@@ -1748,6 +1754,20 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
     CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + dbInfo.newestDbId);
+}
+
+void Client::onMsgAlreadySent(Id msgxid, Id msgid)
+{
+    for (auto& chat: mChatForChatId)
+    {
+        if (chat.second->msgIndexFromId(msgid) != CHATD_IDX_INVALID)
+        {
+            // the message was confirmed and is in history, ignore
+            CHATD_LOG_DEBUG("%s: Ignoring MSGID for a confirmed message", ID_CSTR(chat.first));
+            return;
+        }
+    }
+    msgConfirm(msgxid, msgid, OP_MSGID);
 }
 
 bool Client::msgConfirm(Id msgxid, Id msgid, uint8_t opcode)
