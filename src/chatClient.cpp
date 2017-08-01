@@ -2365,6 +2365,10 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
     if (item)
     {
         int newVisibility = user.getVisibility();
+        if (item->visibility() == newVisibility)
+        {
+            return false;
+        }
         client.db.query("update contacts set visibility = ? where userid = ?",
             newVisibility, userid);
         item->onVisibilityChanged(newVisibility);
