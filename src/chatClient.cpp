@@ -2379,7 +2379,6 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
     if (item)
     {
         int newVisibility = user.getVisibility();
-
         if (item->visibility() == newVisibility)
         {
             return false;
@@ -2411,9 +2410,10 @@ void Contact::onVisibilityChanged(int newVisibility)
     }
 
     auto& client = mClist.client;
-    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
+    bool userDeleted = (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE);
+    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN || userDeleted)
     {
-        client.presenced().removePeer(mUserid, true);
+        client.presenced().removePeer(mUserid, userDeleted);
         if (mChatRoom)
             mChatRoom->notifyExcludedFromChat();
     }
@@ -2432,6 +2432,10 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
     for (int i=0; i<size; i++)
     {
         auto& user = *users.get(i);
+        if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_INACTIVE)
+        {
+            continue;
+        }
         apiUsers.insert(user.getHandle());
         addUserFromApi(user);
     }
@@ -2451,7 +2455,18 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
 
 void ContactList::onUserAddRemove(mega::MegaUser& user)
 {
-    addUserFromApi(user);
+    if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_INACTIVE)
+    {
+        auto it = this->find(user.getHandle());
+        if (it != this->end())
+        {
+            removeUser(it);
+        }
+    }
+    else
+    {
+        addUserFromApi(user);
+    }
 }
 
 void ContactList::removeUser(iterator it)
