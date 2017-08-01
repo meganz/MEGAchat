@@ -277,7 +277,7 @@ public:
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
         TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
-        TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared
+        TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
     };
 
@@ -285,7 +285,7 @@ public:
     {
         CHANGE_TYPE_STATUS          = 0x01,
         CHANGE_TYPE_CONTENT         = 0x02,
-        CHANGE_TYPE_ACCESS          = 0x04  /// When the access to attached nodes has changed
+        CHANGE_TYPE_ACCESS          = 0x04  /// When the access to attached nodes has changed (obsolete)
     };
 
     enum
@@ -1731,6 +1731,15 @@ public:
     MegaChatListItemList *getInactiveChatListItems();
 
     /**
+     * @brief Return the chatrooms that have unread messages
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the chatrooms with unread messages
+     */
+    MegaChatListItemList *getUnreadChatListItems();
+
+    /**
      * @brief Get the chat id for the 1on1 chat with the specified user
      *
      * If the 1on1 chat with the user specified doesn't exist, this function will
@@ -2106,6 +2115,8 @@ public:
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodes Array of nodes that the user want to attach
      * @param listener MegaChatRequestListener to track this request
@@ -2137,12 +2148,68 @@ public:
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodeHandle MegaChatHandle that identifies the node to revoke access to
      * @param listener MegaChatRequestListener to track this request
      */
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener = NULL);
 
+    /**
+     * @brief Sends a node to the specified chatroom
+     *
+     * The attachment message includes information about the node, so the receiver can download
+     * or import the node.
+     *
+     * In contrast to other functions to send messages, such as
+     * MegaChatApi::sendMessage or MegaChatApi::attachContacts, this function
+     * is asynchronous and does not return a MegaChatMessage directly. Instead, the
+     * MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the handle of the node
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param nodehandle Handle of the node that the user wants to attach
+     * @param listener MegaChatRequestListener to track this request
+     */
+     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Revoke the access to a node granted by an attachment message
+     *
+     * The attachment message will be deleted as any other message. Therefore,
+     *
+     * The revoke is actually a deletion of the former message. Hence, the behavior is the
+     * same than a regular deletion.
+     * @see MegaChatApi::editMessage or MegaChatApi::deleteMessage for more information.
+     *
+     * If the revoke is rejected because the attachment message is too old, or if the message is
+     * not an attachment message, this function returns NULL.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     *
+     * @return MegaChatMessage that will be modified. NULL if the message cannot be edited (too old)
+     */
+     MegaChatMessage *revokeAttachmentMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
     /** Returns whether the logged in user has been granted access to the node
      *
@@ -2156,6 +2223,8 @@ public:
      * @note The returned value will be valid only for nodes attached to messages
      * already loaded in an opened chatroom. The list of revoked nodes is updated
      * accordingly while the chatroom is open, based on new messages received.
+     *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodeHandle MegaChatHandle that identifies the node to check its access
@@ -2195,6 +2264,9 @@ public:
 
     /**
      * @brief Deletes an existing message
+     *
+     * @note Message's deletions are equivalent to message's edits, but with empty content.
+     * @see \c MegaChatapi::editMessage for more information.
      *
      * You take the ownership of the returned value.
      *

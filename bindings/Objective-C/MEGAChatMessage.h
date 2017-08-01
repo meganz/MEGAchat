@@ -20,14 +20,14 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageType) {
     MEGAChatMessageTypePrivilegeChange   = 4,
     MEGAChatMessageTypeChatTitle         = 5,
     MEGAChatMessageTypeAttachment        = 16,
-    MEGAChatMessageTypeRevokeAttachment  = 17,
+    MEGAChatMessageTypeRevokeAttachment  = 17, /// Obsolete
     MEGAChatMessageTypeContact           = 18
 };
 
 typedef NS_ENUM(NSInteger, MEGAChatMessageChangeType) {
-    MEGAChatMessageChangeTypeStatus = 0x01,
+    MEGAChatMessageChangeTypeStatus  = 0x01,
     MEGAChatMessageChangeTypeContent = 0x02,
-    MEGAChatMessageChangeTypeAccess = 0x04
+    MEGAChatMessageChangeTypeAccess  = 0x04  /// When the access to attached nodes has changed (obsolete)
     
 };
 

@@ -418,11 +418,9 @@ Promise<void> Connection::reconnect(const std::string& url)
             })
             .fail([this](const promise::Error& err)
             {
-                if (err.type() == ERRTYPE_MEGASDK)
-                {
-                    mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                    mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                }
+                int errType =  (err.type() == ERRTYPE_MEGASDK) ? WS_ERRTYPE_DNS : err.type();
+                mConnectPromise.reject(err.msg(), err.code(), errType);
+                mLoginPromise.reject(err.msg(), err.code(), errType);
             });
             
             return mConnectPromise
@@ -1703,7 +1701,7 @@ void Chat::flushOutputQueue(bool fromStart)
     while (mNextUnsent != mSending.end())
     {
         ManualSendReason reason =
-             (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients < mUsers))
+             (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients != mUsers))
             ? kManualSendUsersChanged : kManualSendInvalidReason;
 
         if ((reason == kManualSendInvalidReason) && (time(NULL) - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE))
@@ -2385,6 +2383,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
     }
+    if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
+    {
+        CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
+    }
 
     auto status = getMsgStatus(msg, idx);
     if (isNew)
@@ -2440,13 +2442,6 @@ void Chat::onMsgTimestamp(uint32_t ts)
 
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
 {
-    if (!msg.backRefId)
-        return;
-    if (!mRefidToIdxMap.emplace(msg.backRefId, idx).second)
-    {
-        CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
-        return;
-    }
     for (auto refid: msg.backRefs)
     {
         auto it = mRefidToIdxMap.find(refid);
