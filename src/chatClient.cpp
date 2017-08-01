@@ -197,7 +197,10 @@ void Client::heartbeat()
 Client::~Client()
 {
     if (mHeartbeatTimer)
+    {
         karere::cancelInterval(mHeartbeatTimer, appCtx);
+        mHeartbeatTimer = 0;
+    }
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
     
@@ -691,6 +694,7 @@ promise::Promise<void> Client::connect(Presence pres)
             .fail([this](const promise::Error& err)
             {
                 setConnState(kDisconnected);
+                return err;
             });
         return mConnectPromise;
     }
@@ -723,10 +727,22 @@ promise::Promise<void> Client::doConnect(Presence pres)
     .fail([this](const promise::Error& err)
     {
         setConnState(kDisconnected);
+        return err;
     });
     assert(!mHeartbeatTimer);
-    mHeartbeatTimer = karere::setInterval([this]()
+    auto wptr = weakHandle();
+    mHeartbeatTimer = karere::setInterval([this, wptr]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        if (!mHeartbeatTimer)
+        {
+            return;
+        }
+
         heartbeat();
     }, 10000, appCtx);
     return pms;
@@ -756,6 +772,7 @@ promise::Promise<void> Client::disconnect()
     .fail([this](const promise::Error& err)
     {
         setConnState(kDisconnected);
+        return err;
     });
     mPresencedClient.disconnect();
     return mDisconnectPromise;
@@ -1333,7 +1350,11 @@ void GroupChatRoom::connect()
     {
         wptr.throwIfDeleted();
         mChat->connect(mUrl);
-        decryptTitle();
+        decryptTitle()
+        .fail([](const promise::Error& err)
+        {
+            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
+        });
     });
 }
 
@@ -1606,7 +1627,11 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
         room = new GroupChatRoom(*this, apiRoom); //also writes it to cache
         if (client.connected())
         {
-            static_cast<GroupChatRoom*>(room)->decryptTitle();
+            static_cast<GroupChatRoom*>(room)->decryptTitle()
+            .fail([](const promise::Error& err)
+            {
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
+            });
         }
     }
     else
@@ -1853,6 +1878,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         wptr.throwIfDeleted();
         KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", karere::Id(chatid()).toString().c_str(), err.what());
         makeTitleFromMemberNames();
+        return err;
     });
 }
 
@@ -2216,7 +2242,11 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         mEncryptedTitle = title;
         if (parent.client.connected())
         {
-            decryptTitle();
+            decryptTitle()
+            .fail([](const promise::Error& err)
+            {
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi");
+            });
         }
     }
     else
