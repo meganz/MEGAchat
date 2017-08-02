@@ -3355,10 +3355,11 @@ void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx 
     }
 }
 
-void MegaChatRoomHandler::onMessageRejected(const Message &msg, uint8_t /*reason*/)
+void MegaChatRoomHandler::onMessageRejected(const Message &msg, uint8_t reason)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kServerRejected, MEGACHAT_INVALID_INDEX);
     message->setStatus(MegaChatMessage::STATUS_SERVER_REJECTED);
+    message->setCode(reason);
     chatApi->fireOnMessageUpdate(message);
 }
 
