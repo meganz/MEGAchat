@@ -24,11 +24,17 @@ class ScopedLock
 public:
     ScopedLock(::mega::Mutex *mutex) : m(mutex)
     {
-        m->lock();
+        if (m)
+        {    
+            m->lock();
+        }
     }
     ~ScopedLock()
     {
-        m->unlock();
+        if (m)
+        {
+            m->unlock();
+        }
     }
 };
 

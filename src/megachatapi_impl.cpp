@@ -55,10 +55,6 @@ using namespace chatd;
 
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
-extern "C" {
-MEGA_GCM_DLLEXPORT GcmPostFunc megaPostMessageToGui = MegaChatApiImpl::megaApiPostMessage;
-}
-    
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 : localVideoReceiver(nullptr), sdkMutex(true)
 {
@@ -75,6 +71,11 @@ MegaChatApiImpl::~MegaChatApiImpl()
 
 void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
 {
+    if (!megaPostMessageToGui)
+    {
+        megaPostMessageToGui = MegaChatApiImpl::megaApiPostMessage;
+    }
+
     this->chatApi = chatApi;
     this->megaApi = megaApi;
 
@@ -130,12 +131,20 @@ void MegaChatApiImpl::loop()
 }
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
-{
-    assert(ctx);
-    
-    //FIXME: Timers can use reach this point with an invalid megaChatApi (despite they shouldn't)
+{    
     MegaChatApiImpl *megaChatApi = (MegaChatApiImpl *)ctx;
-    megaChatApi->postMessage(msg);
+    if (megaChatApi)
+    {
+        megaChatApi->postMessage(msg);
+    }
+    else
+    {
+        // For compatibility with the QT example app,
+        // there are some marshallCall() without context
+        // that don't need to be marshalled using the
+        // intermediate layer
+        megaProcessMessage(msg);
+    }
 }
 
 void MegaChatApiImpl::postMessage(void *msg)
@@ -918,7 +927,7 @@ void MegaChatApiImpl::sendPendingRequests()
 void MegaChatApiImpl::sendPendingEvents()
 {
     void *msg;
-    while((msg = eventQueue.pop()))
+    while ((msg = eventQueue.pop()))
     {
         megaProcessMessage(msg);
     }

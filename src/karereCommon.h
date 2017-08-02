@@ -93,6 +93,24 @@ namespace karere
 class Client;
 typedef std::map<std::string, std::string> StringMap;
 
+/** @brief Globally initializes the karere library and starts the services
+ * subsystem. Must be called before any karere code is used.
+ * @param logPath The full path to the log file.
+ * @param logSize The rotate size of the log file, in kilobytes. Once the log
+ * file reaches this size, its first half is truncated. So the log size at
+ * any moment is at least logSize / 2, and at most logSize
+ * @param postFunc The function that posts a void* to the application's message loop.
+ * See the documentation in gcm.h for details about this function
+ * @param options Various flags that modify the behaviour of the karere
+ * services subsystem. Normally this is 0
+ */
+void globalInit(void(*postFunc)(void*, void*), uint32_t options=0, const char* logPath=nullptr, size_t logSize=0);
+
+/** @brief Stops the karere services susbsystem and frees global resources
+ * used by Karere
+ */
+void globalCleanup();
+
 /** @cond PRIVATE */
 
 struct AvFlags

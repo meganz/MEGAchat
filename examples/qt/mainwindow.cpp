@@ -455,7 +455,7 @@ void MainWindow::onInitStateChange(int newState)
         marshallCall([this]()
         {
             Q_EMIT esidLogout();
-        });
+        }, NULL);
     }
 
 
