@@ -497,6 +497,7 @@ protected:
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     karere::Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
+    Idx mLastReceivedFromServerIdx = CHATD_IDX_INVALID;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     Priv mOwnPrivilege = PRIV_INVALID;

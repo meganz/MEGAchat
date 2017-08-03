@@ -773,6 +773,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
+    mLastReceivedFromServerIdx = mLastSeenIdx;
     mLastReceivedIdx = mDbInterface->getIdxOfMsgid(mLastReceivedId);
 
     if ((mHaveAllHistory = mDbInterface->haveAllHistory()))
@@ -2377,9 +2378,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
-        if ((msg.userid != mClient.mUserId) &&
-           ((mLastReceivedIdx == CHATD_IDX_INVALID) || (idx > mLastReceivedIdx)))
+        if ((msg.userid != mClient.mUserId)
+                && ((mLastReceivedFromServerIdx == CHATD_IDX_INVALID) || (idx > mLastReceivedFromServerIdx)))
         {
+            mLastReceivedFromServerIdx = idx;
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
     }
