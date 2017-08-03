@@ -138,10 +138,7 @@ void Client::websockConnectCb(ws_t ws, void* arg)
             return;
         }
         self.setConnState(kConnected);
-        if (!self.mConnectPromise.done())
-        {
-            self.mConnectPromise.resolve();
-        }
+        self.mConnectPromise.resolve();
     });
 }
 
@@ -196,12 +193,16 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 
     if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
-        assert(!mLoginPromise.done());
+        assert(!mConnectPromise.succeeded());
+        assert(!mLoginPromise.succeeded());
         if (!mConnectPromise.done())
         {
             mConnectPromise.reject(reason, errcode, errtype);
         }
-        mLoginPromise.reject(reason, errcode, errtype);
+        if (!mLoginPromise.done())
+        {
+            mLoginPromise.reject(reason, errcode, errtype);
+        }
     }
     else
     {
@@ -292,7 +293,9 @@ Client::reconnect(const std::string& url)
 
         auto wptr = weakHandle();
         if (mRetryCtrl)
+        {
             mRetryCtrl->abort();
+        }
         mRetryCtrl.reset(createRetryController("presenced", [wptr, this](int no) -> Promise<void>
         {
             if (wptr.deleted())
@@ -357,7 +360,7 @@ Client::reconnect(const std::string& url)
             })
             .fail([wptr, this](const promise::Error& err)
             {
-                PRESENCED_LOG_ERROR("DNS resolve error: %s", err.what());
+                PRESENCED_LOG_ERROR("Connect error: %s", err.what());
                 if (wptr.deleted())
                     return;
                 auto errtype = (err.type() == ERRTYPE_MEGASDK) ? WS_ERRTYPE_DNS : err.type();
@@ -372,6 +375,10 @@ Client::reconnect(const std::string& url)
             {
                 mHeartbeatEnabled = true;
                 return login();
+            })
+            .fail([this](const promise::Error& err)
+            {
+                PRESENCED_LOG_ERROR("Error connecting or logging in: %s", err.what());
             });
         }, nullptr, KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
         return static_cast<Promise<void>&>(mRetryCtrl->start());
