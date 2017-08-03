@@ -172,6 +172,9 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray;
 - (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle;
+- (void)attachNodeToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)attachNodeToChat:(uint64_t)chatId node:(uint64_t)nodeHandle;
+- (MEGAChatMessage *)revokeAttachmentMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
 - (BOOL)isRevokedNode:(uint64_t)nodeHandle inChat:(uint64_t)chatId;
 - (MEGAChatMessage *)editMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId message:(NSString *)message;
 - (MEGAChatMessage *)deleteMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
@@ -187,5 +190,9 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 + (void)setLogToConsole:(BOOL)enable;
 + (void)setLogObject:(id<MEGAChatLoggerDelegate>)delegate;
 + (void)setLogWithColors:(BOOL)userColors;
+
+#pragma mark - Exceptions
+
++ (void)setCatchException:(BOOL)enable;
 
 @end

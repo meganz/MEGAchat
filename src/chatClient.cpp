@@ -196,7 +196,10 @@ void Client::heartbeat()
 Client::~Client()
 {
     if (mHeartbeatTimer)
+    {
         karere::cancelInterval(mHeartbeatTimer);
+        mHeartbeatTimer = 0;
+    }
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
     
@@ -690,6 +693,7 @@ promise::Promise<void> Client::connect(Presence pres)
             .fail([this](const promise::Error& err)
             {
                 setConnState(kDisconnected);
+                return err;
             });
         return mConnectPromise;
     }
@@ -722,10 +726,22 @@ promise::Promise<void> Client::doConnect(Presence pres)
     .fail([this](const promise::Error& err)
     {
         setConnState(kDisconnected);
+        return err;
     });
     assert(!mHeartbeatTimer);
-    mHeartbeatTimer = karere::setInterval([this]()
+    auto wptr = weakHandle();
+    mHeartbeatTimer = karere::setInterval([this, wptr]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        if (!mHeartbeatTimer)
+        {
+            return;
+        }
+
         heartbeat();
     }, 10000);
     return pms;
@@ -755,6 +771,7 @@ promise::Promise<void> Client::disconnect()
     .fail([this](const promise::Error& err)
     {
         setConnState(kDisconnected);
+        return err;
     });
     mPresencedClient.disconnect();
     return mDisconnectPromise;
@@ -1332,7 +1349,11 @@ void GroupChatRoom::connect()
     {
         wptr.throwIfDeleted();
         mChat->connect(mUrl);
-        decryptTitle();
+        decryptTitle()
+        .fail([](const promise::Error& err)
+        {
+            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
+        });
     });
 }
 
@@ -1605,7 +1626,11 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
         room = new GroupChatRoom(*this, apiRoom); //also writes it to cache
         if (client.connected())
         {
-            static_cast<GroupChatRoom*>(room)->decryptTitle();
+            static_cast<GroupChatRoom*>(room)->decryptTitle()
+            .fail([](const promise::Error& err)
+            {
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
+            });
         }
     }
     else
@@ -1831,17 +1856,19 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         if (mTitleString == title)
         {
             KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
-            return;
-        }
-        mTitleString = title;
-        if (!mTitleString.empty())
-        {
-            mHasTitle = true;
-            parent.client.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
         }
         else
         {
-            clearTitle();
+            mTitleString = title;
+            if (!mTitleString.empty())
+            {
+                mHasTitle = true;
+                parent.client.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
+            }
+            else
+            {
+                clearTitle();
+            }
         }
         notifyTitleChanged();
     })
@@ -1850,6 +1877,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         wptr.throwIfDeleted();
         KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", karere::Id(chatid()).toString().c_str(), err.what());
         makeTitleFromMemberNames();
+        return err;
     });
 }
 
@@ -2213,7 +2241,11 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         mEncryptedTitle = title;
         if (parent.client.connected())
         {
-            decryptTitle();
+            decryptTitle()
+            .fail([](const promise::Error& err)
+            {
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi");
+            });
         }
     }
     else
@@ -2347,7 +2379,6 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
     if (item)
     {
         int newVisibility = user.getVisibility();
-
         if (item->visibility() == newVisibility)
         {
             return false;
@@ -2379,9 +2410,10 @@ void Contact::onVisibilityChanged(int newVisibility)
     }
 
     auto& client = mClist.client;
-    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
+    bool userDeleted = (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE);
+    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN || userDeleted)
     {
-        client.presenced().removePeer(mUserid, true);
+        client.presenced().removePeer(mUserid, userDeleted);
         if (mChatRoom)
             mChatRoom->notifyExcludedFromChat();
     }
@@ -2400,6 +2432,10 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
     for (int i=0; i<size; i++)
     {
         auto& user = *users.get(i);
+        if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_INACTIVE)
+        {
+            continue;
+        }
         apiUsers.insert(user.getHandle());
         addUserFromApi(user);
     }
@@ -2419,7 +2455,18 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
 
 void ContactList::onUserAddRemove(mega::MegaUser& user)
 {
-    addUserFromApi(user);
+    if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_INACTIVE)
+    {
+        auto it = this->find(user.getHandle());
+        if (it != this->end())
+        {
+            removeUser(it);
+        }
+    }
+    else
+    {
+        addUserFromApi(user);
+    }
 }
 
 void ContactList::removeUser(iterator it)

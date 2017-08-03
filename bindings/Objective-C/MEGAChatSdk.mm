@@ -501,6 +501,18 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->revokeAttachment(chatId, nodeHandle);
 }
 
+- (void)attachNodeToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->attachNode(chatId, nodeHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)attachNodeToChat:(uint64_t)chatId node:(uint64_t)nodeHandle {
+    self.megaChatApi->attachNode(chatId, nodeHandle);
+}
+
+- (MEGAChatMessage *)revokeAttachmentMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
+    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->revokeAttachmentMessage(chatId, messageId) cMemoryOwn:YES] : nil;
+}
+
 - (BOOL)isRevokedNode:(uint64_t)nodeHandle inChat:(uint64_t)chatId {
     return self.megaChatApi->isRevoked(chatId, nodeHandle);
 }
@@ -607,6 +619,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     _activeChatListeners.erase(delegate);
     pthread_mutex_unlock(&listenerMutex);
     delete delegate;
+}
+
++ (void)setCatchException:(BOOL)enable {
+    MegaChatApi::setCatchException(enable);
 }
 
 @end

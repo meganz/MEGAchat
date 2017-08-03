@@ -791,7 +791,9 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             handle chatid = request->getChatHandle();
             MegaNodeList *nodeList = request->getMegaNodeList();
-            if (chatid == MEGACHAT_INVALID_HANDLE || !nodeList || !nodeList->size())
+            handle h = request->getUserHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE ||
+                    ((!nodeList || !nodeList->size()) && (h == MEGACHAT_INVALID_HANDLE)))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -804,7 +806,27 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList(), megaApi);
+            // if only one node, prepare a list with a single element and update request
+            MegaNodeList *nodeListAux = NULL;
+            if (h != MEGACHAT_INVALID_HANDLE)
+            {
+                MegaNode *megaNode = megaApi->getNodeByHandle(h);
+                if (!megaNode)
+                {
+                    errorCode = MegaChatError::ERROR_NOENT;
+                    break;
+                }
+
+                nodeListAux = MegaNodeList::createInstance();
+                nodeListAux->addNode(megaNode);
+                request->setMegaNodeList(nodeListAux);
+                nodeList = request->getMegaNodeList();
+
+                delete megaNode;
+                delete nodeListAux;
+            }
+
+            const char *buffer = JSonUtils::generateAttachNodeJSon(nodeList);
             if (!buffer)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -828,10 +850,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = NULL;
                 if (err.code() == MegaChatError::ERROR_EXIST)
                 {
+                    API_LOG_WARNING("Already granted access to this node previously");
                     std::string stringToSend(buffer);
                     sendAttachNodesMessage(stringToSend, request);
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    API_LOG_WARNING("This node has been granted access previously");
                 }
                 else
                 {
@@ -1093,6 +1115,11 @@ chatd::Message *MegaChatApiImpl::findMessageNotConfirmed(MegaChatHandle chatid, 
     sdkMutex.unlock();
 
     return msg;
+}
+
+void MegaChatApiImpl::setCatchException(bool enable)
+{
+    karere::gCatchException = enable;
 }
 
 void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
@@ -1715,6 +1742,27 @@ MegaChatListItemList *MegaChatApiImpl::getInactiveChatListItems()
     return items;
 }
 
+MegaChatListItemList *MegaChatApiImpl::getUnreadChatListItems()
+{
+    MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
+
+    sdkMutex.lock();
+
+    ChatRoomList::iterator it;
+    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+        ChatRoom *room = it->second;
+        if (room->isActive() && room->chat().unreadMsgCount())
+        {
+            items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+        }
+    }
+
+    sdkMutex.unlock();
+
+    return items;
+}
+
 MegaChatHandle MegaChatApiImpl::getChatHandleByUser(MegaChatHandle userhandle)
 {
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
@@ -2051,6 +2099,15 @@ void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, Me
     waiter->notify();
 }
 
+void MegaChatApiImpl::attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(nodehandle);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
@@ -2058,8 +2115,6 @@ void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle han
     request->setUserHandle(handle);
     requestQueue.push(request);
     waiter->notify();
-
-    return ;
 }
 
 bool MegaChatApiImpl::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const
@@ -3326,10 +3381,11 @@ void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx 
     }
 }
 
-void MegaChatRoomHandler::onMessageRejected(const Message &msg, uint8_t /*reason*/)
+void MegaChatRoomHandler::onMessageRejected(const Message &msg, uint8_t reason)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kServerRejected, MEGACHAT_INVALID_INDEX);
     message->setStatus(MegaChatMessage::STATUS_SERVER_REJECTED);
+    message->setCode(reason);
     chatApi->fireOnMessageUpdate(message);
 }
 
@@ -4403,7 +4459,7 @@ bool MegaChatMessagePrivate::isEditable() const
 
 bool MegaChatMessagePrivate::isDeletable() const
 {
-    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT)
+    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT || type == TYPE_NODE_ATTACHMENT)
             && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
 }
 
@@ -4766,7 +4822,7 @@ std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
     return dataToReturn;
 }
 
-const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, MegaApi* megaApi)
+const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
 {
     if (!nodes)
     {
@@ -4826,10 +4882,19 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, MegaApi* mega
         // s -> size
         jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
 
+        // hash -> fingerprint
+        const char *fingerprint = megaNode->getFingerprint();
+        if (fingerprint)
+        {
+            rapidjson::Value fpValue(rapidjson::kStringType);
+            fpValue.SetString(fingerprint, strlen(fingerprint), jSonAttachmentNodes.GetAllocator());
+            jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
+        }
+
         // fa -> image thumbail
         if (megaNode->hasThumbnail() || megaNode->hasPreview())
         {
-            const char *fa = megaApi->getFileAttribute(megaNode->getHandle());
+            const char *fa = megaNode->getFileAttrString();
             if (!fa)
             {
                 API_LOG_ERROR("Failed to get the fileattribute string of node %d", megaNode->getHandle());
@@ -4867,6 +4932,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 {
     if (!json || strcmp(json, "") == 0)
     {
+        API_LOG_ERROR("Invalid attachment JSON");
         return NULL;
     }
 
@@ -4900,6 +4966,10 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         std::string nameString = iteratorName->value.GetString();
 
         rapidjson::Value::ConstMemberIterator iteratorKey = file.FindMember("k");
+        if (!iteratorKey->value.IsArray())
+        {
+            iteratorKey = file.FindMember("key");
+        }
         if (iteratorKey == file.MemberEnd() || !iteratorKey->value.IsArray()
                 || iteratorKey->value.Capacity() != 8)
         {
@@ -4932,6 +5002,17 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
         int64_t size = iteratorSize->value.GetInt64();
 
+        rapidjson::Value::ConstMemberIterator iteratorFp = file.FindMember("hash");
+        std::string fp;
+        if (iteratorFp == file.MemberEnd() || !iteratorFp->value.IsString())
+        {
+            API_LOG_WARNING("Missing fingerprint in attachment JSON. Old message?");
+        }
+        else
+        {
+            fp = iteratorFp->value.GetString();
+        }
+
         rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
         if (iteratorType == file.MemberEnd() || !iteratorType->value.IsInt())
         {
@@ -4944,7 +5025,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         rapidjson::Value::ConstMemberIterator iteratorTimeStamp = file.FindMember("ts");
         if (iteratorTimeStamp == file.MemberEnd() || !iteratorTimeStamp->value.IsInt64())
         {
-            API_LOG_ERROR("Invalid type in attachment JSON");
+            API_LOG_ERROR("Invalid timestamp in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
@@ -4955,12 +5036,11 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         if (iteratorFa != file.MemberEnd() && iteratorFa->value.IsString())
         {
             fa = iteratorFa->value.GetString();
-
         }
 
         MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
         std::string attrstring;
-        char *fingerprint = NULL;
+        const char* fingerprint = !fp.empty() ? fp.c_str() : NULL;
 
         std::string key = DataTranslation::vector_to_b(kElements);
 

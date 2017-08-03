@@ -418,11 +418,9 @@ Promise<void> Connection::reconnect(const std::string& url)
             })
             .fail([this](const promise::Error& err)
             {
-                if (err.type() == ERRTYPE_MEGASDK)
-                {
-                    mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                    mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                }
+                int errType =  (err.type() == ERRTYPE_MEGASDK) ? WS_ERRTYPE_DNS : err.type();
+                mConnectPromise.reject(err.msg(), err.code(), errType);
+                mLoginPromise.reject(err.msg(), err.code(), errType);
             });
             
             return mConnectPromise
@@ -728,8 +726,15 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             if (!mConnection.isOnline())
                 return kHistSourceServerOffline;
 
-            CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
-            requestHistoryFromServer(-count);
+            auto wptr = weakHandle();
+            marshallCall([wptr, this, count]()
+            {
+                if (wptr.deleted())
+                    return;
+
+                CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
+                requestHistoryFromServer(-count);
+            });
         }
         return kHistSourceServer;
     }
@@ -1269,7 +1274,14 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
     message->backRefId = generateRefId(mCrypto);
-    msgSubmit(message);
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, message]()
+    {
+        if (wptr.deleted())
+            return;
+
+        msgSubmit(message);
+    });
     return message;
 }
 void Chat::msgSubmit(Message* msg)
@@ -1431,8 +1443,18 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     } //end msg.isSending()
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
         msg.isSending(), msg.keyid, msg.type, userp);
-    postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
-    onMsgTimestamp(msg.ts+age);
+
+    auto wptr = weakHandle();
+    uint32_t newage = msg.ts + age;
+    marshallCall([wptr, this, newage, upd]()
+    {
+        if (wptr.deleted())
+            return;
+
+        postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
+        onMsgTimestamp(newage);
+    });
+
     return upd;
 }
 
@@ -1574,32 +1596,42 @@ bool Chat::setMessageSeen(Idx idx)
         CHATID_LOG_DEBUG("Asked to mark own message %s as seen, ignoring", ID_CSTR(msg.id()));
         return false;
     }
-    CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msg.id()));
-    sendCommand(Command(OP_SEEN) + mChatId + msg.id());
 
-    Idx notifyStart;
-    if (mLastSeenIdx == CHATD_IDX_INVALID)
+    auto wptr = weakHandle();
+    karere::Id id = msg.id();
+    marshallCall([wptr, this, id, idx]()
     {
-        notifyStart = lownum()-1;
-    }
-    else
-    {
-        Idx lowest = lownum()-1;
-        notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
-    }
-    mLastSeenIdx = idx;
-    Idx highest = highnum();
-    Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
+        if (wptr.deleted())
+            return;
 
-    for (Idx i=notifyStart+1; i<=notifyEnd; i++)
-    {
-        auto& m = at(i);
-        if (m.userid != mClient.mUserId)
+        CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
+        sendCommand(Command(OP_SEEN) + mChatId + id);
+
+        Idx notifyStart;
+        if (mLastSeenIdx == CHATD_IDX_INVALID)
         {
-            CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+            notifyStart = lownum()-1;
         }
-    }
-    CALL_LISTENER(onUnreadChanged);
+        else
+        {
+            Idx lowest = lownum()-1;
+            notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
+        }
+        mLastSeenIdx = idx;
+        Idx highest = highnum();
+        Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
+
+        for (Idx i=notifyStart+1; i<=notifyEnd; i++)
+        {
+            auto& m = at(i);
+            if (m.userid != mClient.mUserId)
+            {
+                CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+            }
+        }
+        CALL_LISTENER(onUnreadChanged);
+    });
+
     return true;
 }
 
@@ -1669,7 +1701,7 @@ void Chat::flushOutputQueue(bool fromStart)
     while (mNextUnsent != mSending.end())
     {
         ManualSendReason reason =
-             (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients < mUsers))
+             (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients != mUsers))
             ? kManualSendUsersChanged : kManualSendInvalidReason;
 
         if ((reason == kManualSendInvalidReason) && (time(NULL) - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE))
@@ -2351,6 +2383,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
     }
+    if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
+    {
+        CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
+    }
 
     auto status = getMsgStatus(msg, idx);
     if (isNew)
@@ -2366,6 +2402,12 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             CALL_LISTENER(onRecvHistoryMessage, idx, msg, status, isLocal);
         }
+    }
+    if (msg.type == Message::kMsgTruncate)
+    {
+        handleTruncate(msg, idx);
+        onMsgTimestamp(msg.ts);
+        return;
     }
 
     if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
@@ -2400,13 +2442,6 @@ void Chat::onMsgTimestamp(uint32_t ts)
 
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
 {
-    if (!msg.backRefId)
-        return;
-    if (!mRefidToIdxMap.emplace(msg.backRefId, idx).second)
-    {
-        CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
-        return;
-    }
     for (auto refid: msg.backRefs)
     {
         auto it = mRefidToIdxMap.find(refid);
