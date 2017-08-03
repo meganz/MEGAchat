@@ -10,6 +10,7 @@
 #include <karereId.h>
 #include "url.h"
 #include <base/trackDelete.h>
+#include <base/retryHandler.h>
 
 #define PRESENCED_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
@@ -166,7 +167,7 @@ protected:
     karere::Url mUrl;
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
-    bool mTerminating = false;
+    std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
@@ -193,7 +194,7 @@ protected:
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
-    void login();
+    promise::Promise<void> login();
     bool sendBuf(Buffer&& buf);
     void logSend(const Command& cmd);
     bool sendUserActive(bool active, bool force=false);
@@ -204,6 +205,7 @@ protected:
     void configChanged();
     std::string prefsString() const;
     bool sendKeepalive(time_t now=0);
+    void abortReconnects();
 public:
     Client(MyMegaApi *api, Listener& listener, uint8_t caps);
     const Config& config() const { return mConfig; }

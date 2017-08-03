@@ -130,13 +130,18 @@ void Client::websockConnectCb(ws_t ws, void* arg)
     Client& self = *static_cast<Client*>(arg);
     auto wptr = self.getDelTracker();
     ASSERT_NOT_ANOTHER_WS("connect");
-    CHATD_LOG_DEBUG("Presenced connected");
+    PRESENCED_LOG_DEBUG("Presenced connected");
     marshallCall([&self, wptr]()
     {
-        if (wptr.deleted())
+        if (wptr.deleted() || self.mConnState != kConnecting)
+        {
             return;
+        }
         self.setConnState(kConnected);
-        self.mConnectPromise.resolve();
+        if (!self.mConnectPromise.done())
+        {
+            self.mConnectPromise.resolve();
+        }
     });
 }
 
@@ -192,7 +197,11 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
         assert(!mLoginPromise.done());
-        mConnectPromise.reject(reason, errcode, errtype);
+        if (!mConnectPromise.done())
+        {
+            mConnectPromise.reject(reason, errcode, errtype);
+        }
+        mLoginPromise.reject(reason, errcode, errtype);
     }
     else
     {
@@ -281,10 +290,16 @@ Client::reconnect(const std::string& url)
                 return promise::Error("No valid URL provided and current URL is not valid");
         }
 
-        setConnState(kConnecting);
-        return retry("presenced", [this](int no)
+        auto wptr = weakHandle();
+        if (mRetryCtrl)
+            mRetryCtrl->abort();
+        mRetryCtrl.reset(createRetryController("presenced", [wptr, this](int no) -> Promise<void>
         {
+            if (wptr.deleted())
+                return promise::Error("destroyed");
+
             reset();
+            setConnState(kConnecting);
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
             PRESENCED_LOG_DEBUG("Attempting connect...");
@@ -298,24 +313,20 @@ Client::reconnect(const std::string& url)
                 ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
             }
 
-            auto wptr = weakHandle();
             mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([wptr, this](ReqResult result)
+            .then([wptr, this](ReqResult result) -> promise::Promise<void>
             {
                 if (wptr.deleted())
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
-                    return;
+                    return promise::Error("DNS resolution completed, but presenced client was deleted");
                 }
                 if (!mWebSocket)
                 {
-                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
-                    return;
+                    return promise::Error("Disconnect called while resolving DNS");
                 }
                 if (mConnState != kConnecting)
                 {
-                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
-                    return;
+                    return promise::Error("Unexpected connection state "+std::string(connStateToStr(mConnState))+" while resolving DNS");
                 }
 
                 string ip = result->getText();
@@ -342,23 +353,28 @@ Client::reconnect(const std::string& url)
                                                     (struct sockaddr *)&ipv4addr, sizeof(ipv4addr),
                                                     mUrl.port, (mUrl.path).c_str())), "connect");
                 }
+                return promise::_Void();
             })
-            .fail([this](const promise::Error& err)
+            .fail([wptr, this](const promise::Error& err)
             {
-                if (err.type() == ERRTYPE_MEGASDK)
-                {
-                    mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                    mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                }
+                PRESENCED_LOG_ERROR("DNS resolve error: %s", err.what());
+                if (wptr.deleted())
+                    return;
+                auto errtype = (err.type() == ERRTYPE_MEGASDK) ? WS_ERRTYPE_DNS : err.type();
+                if (!mConnectPromise.done())
+                    mConnectPromise.reject(err.msg(), err.code(), errtype);
+                if (!mLoginPromise.done())
+                    mLoginPromise.reject(err.msg(), err.code(), errtype);
             });
             
             return mConnectPromise
-            .then([this]()
+            .then([this]() -> Promise<void>
             {
                 mHeartbeatEnabled = true;
                 return login();
             });
-        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, nullptr, KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+        return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
@@ -415,11 +431,17 @@ void Client::heartbeat()
         reconnect();
     }
 }
+void Client::abortReconnects()
+{
+    if (!mRetryCtrl)
+        return;
 
+    mRetryCtrl->abort();
+    mRetryCtrl.reset();
+}
 void Client::disconnect() //should be graceful disconnect
 {
     mHeartbeatEnabled = false;
-    mTerminating = true;
     reset();
     setConnState(kDisconnected);
 }
@@ -430,6 +452,7 @@ promise::Promise<void> Client::retryPendingConnection()
     {
         setConnState(kDisconnected);
         mHeartbeatEnabled = false;
+        abortReconnects();
         PRESENCED_LOG_WARNING("Retry pending connections...");
         return reconnect();
     }
@@ -444,6 +467,7 @@ void Client::reset() //immediate disconnect
     ws_close_immediately(mWebSocket);
     ws_destroy(&mWebSocket);
     assert(!mWebSocket);
+    setConnState(kDisconnected);
 }
 
 bool Client::sendBuf(Buffer&& buf)
@@ -531,7 +555,7 @@ void Command::toString(char* buf, size_t bufsize) const
     buf[bufsize-1] = 0; //terminate, just in case
 }
 
-void Client::login()
+Promise<void> Client::login()
 {
     sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion+mCapabilities);
 
@@ -541,6 +565,7 @@ void Client::login()
     }
     sendUserActive((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout, true);
     pushPeers();
+    return mLoginPromise;
 }
 
 bool Client::sendUserActive(bool active, bool force)
@@ -589,14 +614,13 @@ uint16_t Config::toCode() const
 
 Client::~Client()
 {
+    abortReconnects();
     reset();
     CALL_LISTENER(onDestroy); //we don't delete because it may have its own idea of its lifetime (i.e. it could be a GUI class)
 }
 
 #define READ_ID(varname, offset)\
     assert(offset==pos-base); Id varname(buf.read<uint64_t>(pos)); pos+=sizeof(uint64_t)
-#define READ_CHATID(offset)\
-    assert(offset==pos-base); chatid = buf.read<uint64_t>(pos); pos+=sizeof(uint64_t)
 
 #define READ_32(varname, offset)\
     assert(offset==pos-base); uint32_t varname(buf.read<uint32_t>(pos)); pos+=4
@@ -688,7 +712,7 @@ void Client::setConnState(ConnState newState)
     if (newState == mConnState)
         return;
     mConnState = newState;
-#ifndef LOG_LISTENER_CALLS
+#ifdef PRESENCED_LOG_LISTENER_CALLS
     PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mConnState));
 #endif
     //dont use CALL_LISTENER because we need more intelligent logging
