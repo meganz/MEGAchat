@@ -2013,9 +2013,10 @@ public:
     /**
      * @brief Returns the MegaChatMessage specified from the chat room.
      *
-     * Only the messages that are already loaded and notified
-     * by MegaChatRoomListener::onMessageLoaded can be requested. For any
-     * other message, this function will return NULL.
+     * Messages that are already loaded and notified
+     * by MegaChatRoomListener::onMessageLoaded or they are pending
+     * confirmation by server can be requested. For any other message,
+     * this function will return NULL.
      *
      * You take the ownership of the returned value.
      *
@@ -2518,6 +2519,12 @@ public:
      * @return The last message received.
      */
     virtual const char *getLastMessage() const;
+
+    /**
+     * @brief Returns message id of last message
+     * @return MegaChatHandle representing the id of last message
+     */
+    virtual MegaChatHandle getLastMessageId() const;
 
     /**
      * @brief Returns the type of last message

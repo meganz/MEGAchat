@@ -236,6 +236,7 @@ private:
     bool group;
     bool active;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
+    MegaChatHandle mLastMessageId;
 
 public:
     virtual int getChanges() const;
@@ -246,6 +247,7 @@ public:
     virtual int getOwnPrivilege() const;
     virtual int getUnreadCount() const;
     virtual const char *getLastMessage() const;
+    virtual MegaChatHandle getLastMessageId() const;
     virtual int getLastMessageType() const;
     virtual MegaChatHandle getLastMessageSender() const;
     virtual int64_t getLastTimestamp() const;
@@ -268,7 +270,7 @@ public:
      * recives the usernames. The usernames are separated
      * by ASCII character '0x01'
      */
-    void setLastMessage(int type, const std::string &msg, const uint64_t uh);
+    void setLastMessage(MegaChatHandle messageId, int type, const std::string &msg, const uint64_t uh);
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem

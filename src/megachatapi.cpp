@@ -898,6 +898,11 @@ const char *MegaChatListItem::getLastMessage() const
     return NULL;
 }
 
+MegaChatHandle MegaChatListItem::getLastMessageId() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 int MegaChatListItem::getLastMessageType() const
 {
     return MegaChatMessage::TYPE_INVALID;

@@ -1689,35 +1689,54 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     loadHistory(a1, chatid, chatroomListener);
     loadHistory(a2, chatid, chatroomListener);
 
+    chatroomListener->clearMessages(a1);
+    chatroomListener->clearMessages(a2);
     std::string formatDate = dateToString();
 
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, formatDate, chatroomListener);
+    MegaChatHandle msgId = chatroomListener->msgId[a1][0];
+    MegaChatListItem *itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
+    MegaChatListItem *itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
+    ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
+                     "Content of last-message doesn't match.\n Sent: " + formatDate + " Received: " + itemAccount1->getLastMessage());
+    ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
+    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
+    MegaChatMessage *messageConfirm = megaChatApi[a1]->getMessage(chatid, msgId);
+    ASSERT_CHAT_TEST(strcmp(messageConfirm->getContent(), itemAccount1->getLastMessage()) == 0,
+                     "Content of message with last-message id and last-message contet is different");
 
-    MegaChatListItem *item = megaChatApi[a1]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), item->getLastMessage()) == 0,
-                     "Content of last-message doesn't match.\n Sent: " + formatDate + " Received: " + item->getLastMessage());
-    delete item;
-    item = NULL;
+    delete itemAccount1;
+    itemAccount1 = NULL;
+    delete itemAccount2;
+    itemAccount2 = NULL;
 
     delete msgSent;
     msgSent = NULL;
+    delete messageConfirm;
+    messageConfirm = NULL;
 
     clearHistory(a1, a2, chatid, chatroomListener);
+    chatroomListener->clearMessages(a1);
+    chatroomListener->clearMessages(a2);
 
     formatDate = dateToString();
     createFile(formatDate, LOCAL_PATH, formatDate);
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
     MegaNode* nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
-
-    item = megaChatApi[a1]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), item->getLastMessage()) == 0,
-                     "Last messge contain has different value from message sent.\n Send: " + formatDate + " Received: " + item->getLastMessage());
+    msgId = chatroomListener->msgId[a1][0];
+    itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
+    itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
+    ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
+                     "Last messge contain has different value from message sent.\n Send: " + formatDate + " Received: " + itemAccount1->getLastMessage());
+    ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
+    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
+    delete itemAccount1;
+    itemAccount1 = NULL;
+    delete itemAccount2;
+    itemAccount2 = NULL;
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
-
-    delete item;
-    item = NULL;
 
     delete nodeReceived;
     nodeReceived = NULL;
@@ -1863,8 +1882,21 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     loadHistory(a1, chatid, chatroomListener);
     loadHistory(a2, chatid, chatroomListener);
 
+    chatroomListener->clearMessages(a1);
+    chatroomListener->clearMessages(a2);
+
     std::string textToSend = "Last Message";
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, textToSend, chatroomListener);
+    MegaChatHandle msgId = chatroomListener->msgId[a1][0];
+    MegaChatListItem *itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
+    MegaChatListItem *itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
+    ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
+    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
+    delete itemAccount1;
+    itemAccount1 = NULL;
+    delete itemAccount2;
+    itemAccount2 = NULL;
+
 
     // --> Set title
     std::string title = "My groupchat with title 2";
@@ -1886,15 +1918,21 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()),
                      "Title name has not changed correctly. Name establishes by a1: " + title + "Name received in a2: " + *msgContent);
 
-    MegaChatListItem *item = megaChatApi[a1]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(strcmp(textToSend.c_str(), item->getLastMessage()) == 0,
-                     "Last message content has different value from message sent.\n Sent: " + textToSend + " Received: " + item->getLastMessage());
+    itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
+    itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
+    ASSERT_CHAT_TEST(strcmp(textToSend.c_str(), itemAccount1->getLastMessage()) == 0,
+                     "Last message content has different value from message sent.\n Sent: " + textToSend + " Received: " + itemAccount1->getLastMessage());
+
+    ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
+    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
-    delete item;
-    item = NULL;
+    delete itemAccount1;
+    itemAccount1 = NULL;
+    delete itemAccount2;
+    itemAccount2 = NULL;
 
     delete msgSent;
     msgSent = NULL;
