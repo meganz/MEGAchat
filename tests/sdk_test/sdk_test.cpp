@@ -1959,6 +1959,19 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
+    unsigned int tWaited = 0;    // microseconds
+    while (tWaited < maxTimeout)
+    {
+        MegaChatRoom *chatRoom = megaChatApi[accountIndex]->getChatRoom(chatid);
+        bool isOnline = chatRoom->isOnline();
+        delete chatRoom;
+        if (isOnline)
+        {
+            break;
+        }
+        usleep(pollingT);
+    }
+
     chatroomListener->msgCount[accountIndex] = 0;
     while (1)
     {

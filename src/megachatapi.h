@@ -2799,6 +2799,12 @@ public:
      */
     virtual bool isActive() const;
 
+    /**
+     * @brief Returns true if the chatroom is connected and ready to receive new messages
+     * @return True if the chat is connected and ready to receive new messages
+     */
+    virtual bool isOnline() const;
+
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 };
