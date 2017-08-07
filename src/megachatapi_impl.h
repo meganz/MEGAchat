@@ -236,7 +236,7 @@ private:
     bool group;
     bool active;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
-    MegaChatHandle mLastMessageId;
+    MegaChatHandle mLastMsgId;
 
 public:
     virtual int getChanges() const;
