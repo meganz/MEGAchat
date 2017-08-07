@@ -196,13 +196,14 @@ private:
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
+    // send msg, wait for confirmation, reception by other side, delivery status. Returns ownership of confirmed msg
     megachat::MegaChatMessage *sendTextMessageOrUpdate(unsigned int senderAccountIndex, unsigned int receiverAccountIndex,
                                                megachat::MegaChatHandle chatid, const std::string& textToSend,
                                                TestChatRoomListener *chatroomListener, megachat::MegaChatHandle messageId = megachat::MEGACHAT_INVALID_HANDLE);
 
     void checkEmail(unsigned int indexAccount);
     std::string dateToString();
-    mega::MegaNode *attachNode(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid,
+    megachat::MegaChatMessage *attachNode(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid,
                                     mega::MegaNode *nodeToSend, TestChatRoomListener* chatroomListener);
 
     void clearHistory(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
@@ -334,6 +335,7 @@ public:
     bool msgContactReceived[NUM_ACCOUNTS];
     bool msgRevokeAttachmentReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mConfirmedMessageHandle[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mEditedMessageHandle[NUM_ACCOUNTS];
 
     megachat::MegaChatMessage *message;
     std::vector <megachat::MegaChatHandle>msgId[NUM_ACCOUNTS];

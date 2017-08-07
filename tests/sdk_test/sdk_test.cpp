@@ -1563,7 +1563,8 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
 
     // A sends the file as attachment to the chatroom
-    MegaNode *nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
+    MegaChatMessage *msgSent = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
+    MegaNode *nodeReceived = msgSent->getMegaNodeList()->get(0)->copy();
 
     // B downloads the node
     ASSERT_CHAT_TEST(downloadNode(a2, nodeReceived), "Cannot download node attached to message");
@@ -1615,7 +1616,8 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
         path = getenv(PATH_IMAGE.c_str());
     }
     nodeSent = uploadFile(a1, FILE_IMAGE_NAME, path, REMOTE_PATH);
-    nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
+    msgSent = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
+    nodeReceived = msgSent->getMegaNodeList()->get(0)->copy();
 
     // A gets the thumbnail of the uploaded image
     bool *flagRequestThumbnail0 = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_FILE]; *flagRequestThumbnail0 = false;
@@ -1694,7 +1696,8 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     std::string formatDate = dateToString();
 
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, formatDate, chatroomListener);
-    MegaChatHandle msgId = chatroomListener->msgId[a1][0];
+    MegaChatHandle msgId = chatroomListener->msgId[a1][0];  // we assume we haven't received any other message than the one just sent
+    ASSERT_CHAT_TEST(msgId == msgSent->getMsgId(), "Message id is different from the sent message");
     MegaChatListItem *itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     MegaChatListItem *itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
@@ -1703,7 +1706,7 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
     MegaChatMessage *messageConfirm = megaChatApi[a1]->getMessage(chatid, msgId);
     ASSERT_CHAT_TEST(strcmp(messageConfirm->getContent(), itemAccount1->getLastMessage()) == 0,
-                     "Content of message with last-message id and last-message contet is different");
+                     "Content of last-message reported id is different than last-message reported content");
 
     delete itemAccount1;
     itemAccount1 = NULL;
@@ -1722,8 +1725,10 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     formatDate = dateToString();
     createFile(formatDate, LOCAL_PATH, formatDate);
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
-    MegaNode* nodeReceived = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
+    msgSent = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
+    MegaNode *nodeReceived = msgSent->getMegaNodeList()->get(0)->copy();
     msgId = chatroomListener->msgId[a1][0];
+    ASSERT_CHAT_TEST(msgId == msgSent->getMsgId(), "Message id is different from the sent message");
     itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
@@ -1743,6 +1748,9 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
 
     delete nodeSent;
     nodeSent = NULL;
+
+    delete msgSent;
+    msgSent = NULL;
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
@@ -1888,6 +1896,7 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     std::string textToSend = "Last Message";
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, textToSend, chatroomListener);
     MegaChatHandle msgId = chatroomListener->msgId[a1][0];
+    ASSERT_CHAT_TEST(msgId == msgSent->getMsgId(), "Message id is different from the sent message");
     MegaChatListItem *itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     MegaChatListItem *itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
@@ -2177,12 +2186,14 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
     chatroomListener->clearMessages(receiverAccountIndex);
 
     MegaChatMessage *messageSendEdit = NULL;
+    MegaChatHandle *msgidSendEdit = NULL;
     if (messageId == MEGACHAT_INVALID_HANDLE)
     {
         flagConfirmed = &chatroomListener->msgConfirmed[senderAccountIndex]; *flagConfirmed = false;
         flagReceived = &chatroomListener->msgReceived[receiverAccountIndex]; *flagReceived = false;
 
         messageSendEdit = megaChatApi[senderAccountIndex]->sendMessage(chatid, textToSend.c_str());
+        msgidSendEdit = &chatroomListener->mConfirmedMessageHandle[senderAccountIndex];
     }
     else  // Update Message
     {
@@ -2190,12 +2201,18 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
         flagReceived = &chatroomListener->msgEdited[receiverAccountIndex]; *flagReceived = false;
 
         messageSendEdit = megaChatApi[senderAccountIndex]->editMessage(chatid, messageId, textToSend.c_str());
+        msgidSendEdit = &chatroomListener->mEditedMessageHandle[senderAccountIndex];
     }
 
     ASSERT_CHAT_TEST(messageSendEdit, "Failed to edit message");
+    delete messageSendEdit;
+    messageSendEdit = NULL;
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server");    // for confirmation, sendMessage() is synchronous
-    MegaChatHandle msgPrimaryId = chatroomListener->mConfirmedMessageHandle[senderAccountIndex];
+    MegaChatHandle msgPrimaryId = *msgidSendEdit;
     ASSERT_CHAT_TEST(msgPrimaryId != MEGACHAT_INVALID_HANDLE, "Wrong message id for sent message");
+    MegaChatMessage *messageSent = megaChatApi[senderAccountIndex]->getMessage(chatid, msgPrimaryId);   // message should be already confirmed, so in RAM
+    ASSERT_CHAT_TEST(messageSent, "Failed to find the confirmed message by msgid");
+    ASSERT_CHAT_TEST(messageSent->getMsgId() == msgPrimaryId, "Failed to retrieve the message id");
 
     ASSERT_CHAT_TEST(waitForResponse(flagReceived), "Timeout expired for receiving message by target user");    // for reception
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(receiverAccountIndex, msgPrimaryId), "Message id of sent message and received message don't match");
@@ -2203,7 +2220,12 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
     MegaChatMessage *messageReceived = megaChatApi[receiverAccountIndex]->getMessage(chatid, msgSecondaryId);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(messageReceived, "Failed to retrieve the message at the receiver account");
     ASSERT_CHAT_TEST(!strcmp(textToSend.c_str(), messageReceived->getContent()), "Content of message received doesn't match the content of sent message");
-    ASSERT_CHAT_TEST(waitForResponse(flagDelivered), "Timeout expired for receiving delivery notification");    // for delivery
+
+    // only 1on1 rooms have acknowledgement of receipt
+    if (!megaChatApi[senderAccountIndex]->getChatRoom(chatid)->isGroup())
+    {
+        ASSERT_CHAT_TEST(waitForResponse(flagDelivered), "Timeout expired for receiving delivery notification");    // for delivery
+    }
 
     // Update Message
     if (messageId != MEGACHAT_INVALID_HANDLE)
@@ -2214,7 +2236,7 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
     delete messageReceived;
     messageReceived = NULL;
 
-    return messageSendEdit;
+    return messageSent;
 }
 
 void MegaChatApiTest::checkEmail(unsigned int indexAccount)
@@ -2243,7 +2265,7 @@ string MegaChatApiTest::dateToString()
     return formatDate;
 }
 
-MegaNode *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, MegaChatHandle chatid,
+MegaChatMessage *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, MegaChatHandle chatid,
                                         MegaNode* nodeToSend, TestChatRoomListener* chatroomListener)
 {
     MegaNodeList *megaNodeList = MegaNodeList::createInstance();
@@ -2262,6 +2284,7 @@ MegaNode *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, MegaChat
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server");
     MegaChatHandle msgId0 = chatroomListener->mConfirmedMessageHandle[a1];
     ASSERT_CHAT_TEST(msgId0 != MEGACHAT_INVALID_HANDLE, "Wrong message id for message sent");
+    MegaChatMessage *msgSent = megaChatApi[a1]->getMessage(chatid, msgId0);   // message should be already confirmed, so in RAM
 
     ASSERT_CHAT_TEST(waitForResponse(flagReceived), "Timeout expired for receiving message by target user");    // for reception
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a2, msgId0), "Wrong message id at destination");
@@ -2270,13 +2293,13 @@ MegaNode *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, MegaChat
     ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT, "Wrong type of message. Type: " + std::to_string(msgReceived->getType()));
     megaNodeList = msgReceived->getMegaNodeList();
     ASSERT_CHAT_TEST(megaNodeList, "Failed to get list of nodes attached");
-    MegaNode *nodeReceived = megaNodeList->get(0)->copy();
-    ASSERT_CHAT_TEST(nodeReceived->getHandle() == nodeToSend->getHandle(), "Handle of node from received message doesn't match the nodehandle attached");
+    ASSERT_CHAT_TEST(megaNodeList->size() == 1, "Wrong size of list of nodes attached");
+    ASSERT_CHAT_TEST(megaNodeList->get(0)->getHandle() == nodeToSend->getHandle(), "Handle of node from received message doesn't match the nodehandle attached");
 
     delete msgReceived;
     msgReceived = NULL;
 
-    return nodeReceived;
+    return msgSent;
 }
 
 void MegaChatApiTest::clearHistory(unsigned int a1, unsigned int a2, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
@@ -2765,6 +2788,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApiTest *t, MegaChatApi **api
         this->msgContactReceived[i] = false;
         this->msgRevokeAttachmentReceived[i] = false;
         this->mConfirmedMessageHandle[i] = MEGACHAT_INVALID_HANDLE;
+        this->mEditedMessageHandle[i] = MEGACHAT_INVALID_HANDLE;
     }
 }
 
@@ -2772,7 +2796,7 @@ void TestChatRoomListener::clearMessages(unsigned int apiIndex)
 {
     msgId[apiIndex].clear();
     mConfirmedMessageHandle[apiIndex] = MEGACHAT_INVALID_HANDLE;
-
+    mEditedMessageHandle[apiIndex] = MEGACHAT_INVALID_HANDLE;
 }
 
 bool TestChatRoomListener::hasValidMessages(unsigned int apiIndex)
@@ -2840,6 +2864,9 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
         t->postLog(buffer.str());
         delete [] info; info = NULL;
 
+        msgCount[apiIndex]++;
+        msgId[apiIndex].push_back(msg->getMsgId());
+
         if (msg->getStatus() == MegaChatMessage::STATUS_SENDING_MANUAL)
         {
             if (msg->getCode() == MegaChatMessage::REASON_NO_WRITE_ACCESS)
@@ -2857,8 +2884,6 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
             msgContactReceived[apiIndex] = true;
         }
 
-        msgCount[apiIndex]++;
-        msgId[apiIndex].push_back(msg->getMsgId());
         msgLoaded[apiIndex] = true;
     }
     else
@@ -2893,6 +2918,8 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
         titleUpdated[apiIndex] = true;
     }
 
+    msgId[apiIndex].push_back(msg->getMsgId());
+
     if (msg->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
         msgAttachmentReceived[apiIndex] = true;
@@ -2907,7 +2934,6 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
         msgRevokeAttachmentReceived[apiIndex] = true;
     }
 
-    msgId[apiIndex].push_back(msg->getMsgId());
     msgReceived[apiIndex] = true;
 }
 
@@ -2926,8 +2952,8 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 
     if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
     {
-        msgConfirmed[apiIndex] = true;
         mConfirmedMessageHandle[apiIndex] = msg->getMsgId();
+        msgConfirmed[apiIndex] = true;
     }
     else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
     {
@@ -2936,6 +2962,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 
     if (msg->isEdited())
     {
+        mEditedMessageHandle[apiIndex] = msg->getMsgId();
         msgEdited[apiIndex] = true;
     }
 
