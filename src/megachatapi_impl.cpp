@@ -4290,7 +4290,7 @@ void MegaChatListItemHandler::onLastTsUpdated(uint32_t ts)
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onOnlineChatState(const ChatState state)
+void MegaChatListItemHandler::onChatOnlineState(const ChatState state)
 {
     // apps are not interested on this event
 }

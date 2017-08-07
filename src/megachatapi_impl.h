@@ -285,7 +285,7 @@ public:
     virtual void onRejoinedChat();
     virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastTsUpdated(uint32_t ts);
-    virtual void onOnlineChatState(const chatd::ChatState state);
+    virtual void onChatOnlineState(const chatd::ChatState state);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
