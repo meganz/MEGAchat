@@ -1606,6 +1606,9 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     delete nodeReceived;
     nodeReceived = NULL;
 
+    delete msgSent;
+    msgSent = NULL;
+
     delete nodeSent;
     nodeSent = NULL;
 
@@ -1641,6 +1644,9 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 
     delete nodeReceived;
     nodeReceived = NULL;
+
+    delete msgSent;
+    msgSent = NULL;
 
     delete nodeSent;
     nodeSent = NULL;
