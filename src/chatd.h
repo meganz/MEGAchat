@@ -385,10 +385,17 @@ struct LastTextMsg
      * like filename for attachment messages.
      */
     const std::string& contents() const { return mContents; }
+
+    Idx idx() const { return mIdx; }
+    karere::Id id() const { assert(mIdx != CHATD_IDX_INVALID); return mId; }
+    karere::Id xid() const { assert(mIdx == CHATD_IDX_INVALID); return mId; }
+
 protected:
     uint8_t mType = Message::kMsgInvalid;
     karere::Id mSender;
     std::string mContents;
+    Idx mIdx = CHATD_IDX_INVALID;
+    karere::Id mId;
 };
 
 /** @brief Internal class that maintains the last-text-message state */
@@ -399,9 +406,6 @@ struct LastTextMsgState: public LastTextMsg
 
     bool mIsNotified = false;
     uint8_t state() const { return mState; }
-    Idx idx() const { return mIdx; }
-    karere::Id id() const { assert(mIdx != CHATD_IDX_INVALID); return mId; }
-    karere::Id xid() const { assert(mIdx == CHATD_IDX_INVALID); return mId; }
     bool isValid() const { return mState == kHave; }
     bool isFetching() const { return mState == kFetching; }
     void setState(uint8_t state) { mState = state; }
@@ -430,8 +434,6 @@ struct LastTextMsgState: public LastTextMsg
 protected:
     friend class Chat;
     uint8_t mState = kNone;
-    Idx mIdx = CHATD_IDX_INVALID;
-    karere::Id mId;
 };
 
 struct ChatDbInfo;

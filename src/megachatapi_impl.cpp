@@ -1924,16 +1924,28 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     {
         Chat &chat = chatroom->chat();
         Idx index = chat.msgIndexFromId(msgid);
-        if (index != CHATD_IDX_INVALID)
+        if (index != CHATD_IDX_INVALID)     // only confirmed messages have index
         {
             Message *msg = chat.findOrNull(index);
-            if (msg)    // probably redundant
+            if (msg)
             {
                 megaMsg = new MegaChatMessagePrivate(*msg, chat.getMsgStatus(*msg, index), index);
             }
             else
             {
                 API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+            }
+        }
+        else    // message still not confirmed, search in sending-queue
+        {
+            Message *msg = chat.getMsgByXid(msgid);
+            if (msg)
+            {
+                megaMsg = new MegaChatMessagePrivate(*msg, Message::Status::kSending, MEGACHAT_INVALID_INDEX);
+            }
+            else
+            {
+                API_LOG_ERROR("Failed to find message by temporal id (id: %d)", msgid);
             }
         }
     }
@@ -4080,12 +4092,21 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
         this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
         this->lastMsgSender = msg->sender();
         this->lastMsgType = msg->type();
+        if (msg->idx() == CHATD_IDX_INVALID)
+        {
+            this->mLastMsgId = (MegaChatHandle) msg->xid();
+        }
+        else
+        {
+            this->mLastMsgId = (MegaChatHandle) msg->id();
+        }
     }
     else
     {
         this->lastMsg = "";
         this->lastMsgSender = MEGACHAT_INVALID_HANDLE;
         this->lastMsgType = lastMsgStatus;
+        this->mLastMsgId = MEGACHAT_INVALID_HANDLE;
     }
 
     this->lastTs = chatroom.chat().lastMessageTs();
@@ -4105,6 +4126,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->group = item->isGroup();
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
+    this->mLastMsgId = item->getLastMessageId();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -4149,6 +4171,11 @@ int MegaChatListItemPrivate::getUnreadCount() const
 const char *MegaChatListItemPrivate::getLastMessage() const
 {
     return lastMsg.c_str();
+}
+
+MegaChatHandle MegaChatListItemPrivate::getLastMessageId() const
+{
+    return mLastMsgId;
 }
 
 int MegaChatListItemPrivate::getLastMessageType() const
@@ -4215,11 +4242,12 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
 }
 
-void MegaChatListItemPrivate::setLastMessage(int type, const string &msg, const uint64_t uh)
+void MegaChatListItemPrivate::setLastMessage(MegaChatHandle messageId, int type, const string &msg, const uint64_t uh)
 {
     this->lastMsg = msg;
     this->lastMsgType = type;
     this->lastMsgSender = uh;
+    this->mLastMsgId = messageId;
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
 }
 
@@ -4272,7 +4300,17 @@ void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 
     std::string lastMessageContent = JSonUtils::getLastMessageContent(msg.contents(), msg.type());
 
-    item->setLastMessage(msg.type(), lastMessageContent, msg.sender());
+    MegaChatHandle messageId = MEGACHAT_INVALID_HANDLE;
+    if (msg.idx() == CHATD_IDX_INVALID)
+    {
+        messageId = (MegaChatHandle) msg.xid();
+    }
+    else
+    {
+        messageId = (MegaChatHandle) msg.id();
+    }
+
+    item->setLastMessage(messageId, msg.type(), lastMessageContent, msg.sender());
     chatApi.fireOnChatListItemUpdate(item);
 }
 
