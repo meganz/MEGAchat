@@ -300,6 +300,8 @@ protected:
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mDisconnectPromise;
     promise::Promise<void> mLoginPromise;
+    time_t mLastTimeDataSent = 0;
+    static const time_t KEEPALIVE_TIME;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
     State state() { return mState; }
     bool isOnline() const

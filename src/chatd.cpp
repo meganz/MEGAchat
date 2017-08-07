@@ -95,6 +95,8 @@ namespace chatd
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
+const time_t Connection::KEEPALIVE_TIME = 20;
+
 Client::Client(MyMegaApi *api, Id userId)
 :mUserId(userId), mApi(api)
 {
@@ -519,6 +521,9 @@ bool Connection::sendBuf(Buffer&& buf)
 {
     if (!isOnline())
         return false;
+
+    mLastTimeDataSent = time(NULL);
+
 //WARNING: ws_send_msg_ex() is destructive to the buffer - it applies the websocket mask directly
 //Copy the data to preserve the original
     auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
@@ -877,7 +882,10 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_KEEPALIVE:
             {
                 //CHATD_LOG_DEBUG("Server heartbeat received");
-                sendKeepalive(mClient.mKeepaliveType);
+                if ((time(NULL) - mLastTimeDataSent) < KEEPALIVE_TIME)
+                {
+                    sendKeepalive(mClient.mKeepaliveType);
+                }
                 break;
             }
             case OP_BROADCAST:
