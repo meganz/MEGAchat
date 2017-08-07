@@ -334,7 +334,7 @@ public:
      *
      * The temporal identifier has different usages depending on the status of the message:
      *  - MegaChatMessage::STATUS_SENDING: valid until it's confirmed by the server.
-     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's remove from manual-send queue.
+     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's removed from manual-send queue.
      *
      * @note If status is STATUS_SENDING_MANUAL, this value can be used to identify the
      * message moved into the manual-send queue. The message itself will be identified by its
@@ -2013,14 +2013,15 @@ public:
     /**
      * @brief Returns the MegaChatMessage specified from the chat room.
      *
-     * Only the messages that are already loaded and notified
-     * by MegaChatRoomListener::onMessageLoaded can be requested. For any
-     * other message, this function will return NULL.
+     * This function allows to retrieve only those messages that are already loaded
+     * and notified by MegaChatRoomListener::onMessageLoaded and/or messages that are
+     * in sending-status (not yet confirmed). For any other message, this function
+     * will return NULL.
      *
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param msgid MegaChatHandle that identifies the message
+     * @param msgid MegaChatHandle that identifies the message (msg id or a temporal id)
      * @return The MegaChatMessage object, or NULL if not found.
      */
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
@@ -2518,6 +2519,16 @@ public:
      * @return The last message received.
      */
     virtual const char *getLastMessage() const;
+
+    /**
+     * @brief Returns message id of the last message in this chatroom.
+     *
+     * If the message is still not confirmed by server, the id could be a temporal
+     * id. @see \c MegaChatApi::sendMessage for more information about the msg id.
+     *
+     * @return MegaChatHandle representing the id of last message.
+     */
+    virtual MegaChatHandle getLastMessageId() const;
 
     /**
      * @brief Returns the type of last message
