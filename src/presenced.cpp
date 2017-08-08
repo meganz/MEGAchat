@@ -193,7 +193,6 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 
     if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
-        assert(!mConnectPromise.succeeded());
         assert(!mLoginPromise.succeeded());
         if (!mConnectPromise.done())
         {
@@ -371,13 +370,17 @@ Client::reconnect(const std::string& url)
             });
             
             return mConnectPromise
-            .then([this]() -> Promise<void>
+            .then([wptr, this]() -> Promise<void>
             {
+                if (wptr.deleted())
+                    return;
                 mHeartbeatEnabled = true;
                 return login();
             })
-            .fail([this](const promise::Error& err)
+            .fail([wptr, this](const promise::Error& err)
             {
+                if (wptr.deleted())
+                    return;
                 PRESENCED_LOG_ERROR("Error connecting or logging in: %s", err.what());
             });
         }, nullptr, KARERE_LOGIN_TIMEOUT, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
