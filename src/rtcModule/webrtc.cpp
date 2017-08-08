@@ -1,3 +1,14 @@
+#define FIRE_EVENT(type, evName, ...)                \
+    do {                                             \
+        RTCM_ LOG_DEBUG("%s event ", type, #evName); \
+        try                                          \
+        {                                            \
+            mHandler.##evName(##__VA_ARGS__);        \
+        } catch (std::exception& e) {                \
+            RTCM_LOG_ERROR("%s event handler for'" #evName "' threw exception:\n %s", type, e.what()); \
+        }                                            \
+    } while(0)
+
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   ICryptoFunctions& crypto, const std::string& iceServers)
 : mClient(client), mCrypto(crypto), mHandler(handler), mIceServers(iceServers),
@@ -40,298 +51,245 @@ void RtcModule::setIceServers(ServerList<TurnServerInfo>& servers)
     mIceServers = servers;
 }
 
-void RtcModule::handleMessage(chatd::Connection& conn, RtMessage& msg)
+void RtcModule::handleMessage(chatd::Connection& conn, StaticBuffer& msg)
 {
     // (opcode.1 chatid.8 userid.8 clientid.4 len.2) (type.1 data.(len-1))
     //              ^                                          ^
     //          header.hdrlen                             payload.len
     try
     {
-        var strLen = msg.length;
-        if (len < 24 || strLen < len) {
-            RTCM_LOG_ERROR("Short rtMessage packet, ignoring");
-            return;
-        }
-        var type = msg.charCodeAt(23);
-        var op = msg.charCodeAt(0);
-        var chatid = msg.substr(1, 8);
-        var chat = this.chatd.chatIdMessages[chatid];
+        RtMessage packet =
+        {
+            .shard = conn,
+            .opcode = msg.read<uint8_t>(0),
+            .type = msg.read<uint8_t>(kRtmsgHdrLen),
+            .chatid = msg.read<uint64_t>(1),
+            .userid = msg.read<uint64_t>(9),
+            .clientid = msg.read<uint32_t>(17),
+            .payload = Buffer(msg.readPtr(kRtmsgHdrLen+1,
+                msg.read<uint16_t>(kRtmsgHdrLen-2), msg.dataSize()-kRtMsgHdrLen-1))
+        };
+        auto chat = mChatd.chatFromId(chatid);
         if (!chat) {
-            this.logger.error(
-                "Received " + constStateToText(RTCMD, type) + " for unknown chatid " + chatid + ". Ignoring"
-            );
+            RTCM_LOG_ERROR(
+                "Received %s for unknown chatid %s. Ignoring", msg.opcodeName(),
+                msg.chatid().toString().c_str());
             return;
         }
-        // get userid and clientid
-        var userid = msg.substr(9, 8);
-        var clientid = msg.substr(17, 4);
-        // leave only the payload, we don't need the headers anymore
-        var packet = {
-            type: type,
-            chatid: chatid,
-            fromUser: userid,
-            fromClient: clientid,
-            shard: shard,
-            data: msg.substr(24, len - 24) // actual length of msg string may be more than len,
-        };                               // if there are other commands appended
-
-
         // this is the only command that is not handled by an existing call
-        if (type === RTCMD.CALL_REQUEST) {
-            assert(op === Chatd.Opcode.RTMSG_BROADCAST);
-            this.msgCallRequest(packet);
+        if (msg.type() == RTCMD_CALL_REQUEST) {
+            assert(msg.opcode() == OP_BROADCAST);
+            msgCallRequest(packet);
             return;
         }
-        var call = this.calls[chatid];
-        if (!call) {
-            this.logger.warn("Received " + constStateToText(RTCMD, type) +
-                " for a chat that doesn't currently have a call, ignoring");
+        auto it = mCalls.find(chatid);
+        if (it == mCalls.end())
+        {
+            RTCM_LOG_ERROR("Received %s for a chat that doesn't currently have a call, ignoring",
+                msg.typeToString());
             return;
         }
-        call.handleMsg(packet);
+        it->second.handleMsg(packet);
     }
-    catch (e) {
-        this.logger.error("rtMsgHandler: exception:", e);
+    catch (std::exception& e) {
+        RTCM_LOG_ERROR("rtMsgHandler: exception:", e.what());
     }
-};
+}
 
-RtcModule.prototype.onUserJoinLeave = function(chatid, userid, priv) {
-};
+void RtcModule::onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv)
+{
+}
 
-RtcModule.prototype.msgCallRequest = function(packet) {
-    var self = this;
-    if (packet.fromUser === self.chatd.userId) {
-        self.logger.log("Ignoring call request from another client of our user");
+void RtcModule::msgCallRequest(RtMessage& packet)
+{
+    if (packet.userid == mChatd.userId) {
+        RTMSG_LOG_DEBUG("Ignoring call request from another client of our user");
         return;
     }
-    packet.callid = packet.data;
+    packet.callid = packet.payload.read<uint64_t>(0);
     assert(packet.callid);
-    var chatid = packet.chatid;
-    var keys = Object.keys(self.calls);
-    if (keys.length) {
-        assert(keys.length === 1);
-        var existingChatid = keys[0];
-        var existingCall = self.calls[existingChatid];
-        if (existingChatid === chatid && existingCall.state < CallState.kTerminating) {
-            assert(self.handler.onAnotherCall);
-            var answer = self.handler.onAnotherCall(existingCall, packet);
+    if (!mCalls.empty()) {
+        assert(mCalls.size() == 1);
+        auto existingChatid = mCalls.begin()->first;
+        auto& existingCall = mCalls.begin()->second;
+        if (existingChatid == packet.chatid && existingCall.state() < Call::kStateTerminating)
+        {
+            bool answer = mHandler.onAnotherCall(existingCall, packet);
             if (answer) {
                 existingCall.hangup();
-                delete self.calls[existingCall.chatid];
+                mCalls.erase(existingChatid);
             }  else {
-                self.cmdEndpoint(RTCMD.CALL_REQ_DECLINE, packet, packet.callid + String.fromCharCode(Term.kBusy));
+                cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, packet.callid, TermCode::kBusy);
                 return;
             }
         }
     }
-    var call = new Call(self, packet, self.handler.isGroupChat(chatid), true);
-    self.calls[chatid] = call;
-    call.handler = self.handler.onCallIncoming(call);
-    assert(call.handler);
-    assert(call.state === CallState.kRingIn);
-    self.cmdEndpoint(RTCMD.CALL_RINGING, packet, packet.callid);
-    setTimeout(function() {
-        if (call.state !== CallState.kRingIn) {
+    auto ret = mCalls.emplace(*this, packet, mHandler.isGroupChat(packet.chatid), true);
+    assert(ret.second);
+    Call& call = *ret.first;
+    call.mHandler = mHandler.onCallIncoming(call);
+    assert(call.mHandler);
+    assert(call.state() == Call::kStateRingIn);
+    cmdEndpoint(RTCMD_CALL_RINGING, packet, packet.callid);
+    auto wcall = call.weakHandle();
+    setTimeout([wcall]
+    {
+        if (!wcall.isValid())
+            return;
+        if (wcall->state() !== Call::kStateRingIn) {
             return;
         }
-        call._destroy(Term.kAnswerTimeout, false);
-    }, RtcModule.kCallAnswerTimeout+4000); // local timeout a bit longer that the caller
-};
-
-RtcModule.prototype.cmdEndpoint = function(type, info, payload) {
-    var len = payload ? payload.length + 1 : 1;
+        wcall->destroy(TermCode::kAnswerTimeout, false);
+    }, kCallAnswerTimeout+4000); // local timeout a bit longer that the caller
+}
+template <class... Args>
+void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)
+{
+    RtMessageComposer msg(info.opcode, type);
     assert(info.chatid);
     assert(info.fromUser);
     assert(info.fromClient);
+    msg.setChatid(info.chatid());
+    msg.setUserid(info.userid());
+    msg.setClientid(info.clientid());
+    msg.appendPayload(args...);
 
-    var data = info.chatid + info.fromUser + info.fromClient + Chatd.pack16le(len) + String.fromCharCode(type);
-    if (payload) {
-        data += payload;
+    if (!info.shard.sendCommand(msg)) {
+        throw std::exception("cmdEndpoint: Send error trying to send command " + std::string(msg.typeToString()));
     }
-    if (!info.shard.cmd(Chatd.Opcode.RTMSG_ENDPOINT, data)) {
-        throw new Error("cmdEndpoint: Send error trying to send command " + constStateToText(RTCMD, type));
-    }
-};
+}
 
-RtcModule.prototype._removeCall = function(call) {
-    var chatid = call.chatid;
-    var existing = this.calls[chatid];
-    assert(existing);
-    if (existing.id !== call.id || call !== existing) {
-        this.logger.debug("removeCall: Call has been replaced, not removing");
+void RtcModule::removeCall(Call& call)
+{
+    auto it = mCalls.find(call.chatid);
+    if (it == mCalls.end()) {
+        throw std::runtime_error("Call with chatid "+call.chatid.toString()+" not found");
+    }
+    if (&call != &it->second || it->second.id != call.id) {
+        RTCM_LOG_DEBUG("removeCall: Call has been replaced, not removing");
         return;
     }
-    delete this.calls[chatid];
-    if (Object.keys(this.calls).length === 0 && this.gLocalStream) {
-        RTC.stopMediaStream(this.gLocalStream);
-        delete this.gLocalStream;
-        delete this.localMediaPromise;
+    mCalls.erase(call.chatid);
+    if (mCalls.empty() && mLocalStream) {
+        mLocalStream.reset();
+        mLocalMediaPromise.reject("No calls");
     }
-};
-
-RtcModule.prototype._getLocalStream = function(av) {
-    var self = this;
-    assert(Object.keys(self.calls).length > 0);
-    if (self.gLocalStream) {
-        if (self.gLocalAv !== av) {
-            self.gLocalAv = Av.applyToStream(self.gLocalStream, av);
+}
+std::shared_pre<artc::LocalStreamHandle>
+RtcModule::getLocalStream(AvFlags av, std::string& errors)
+{
+    const auto& devices = mDeviceManager.inputDevices();
+    if (devices.video.empty() || mVideoInDeviceName.empty())
+    {
+        mVideoInput.reset();
+    }
+    else if (!mVideoInput || mVideoInput.mediaOptions().device.name != mVideoInDeviceName)
+    try
+    {
+        auto device = getDevice(mVideoInDeviceName, devices.video);
+        if (!device)
+        {
+            device = &devices.video[0];
+            errors.append("Configured video input device '").append(mVideoInDeviceName)
+                  .append("' not present, using default device\n");
         }
-        return Promise.resolve(RTC.cloneMediaStream(self.gLocalStream, {audio: true, video: true}));
+        auto opts = std::make_shared<artc::MediaGetOptions>(*device, mediaConstraints);
+
+        mVideoInput = deviceManager.getUserVideo(opts);
+    }
+    catch(exception& e)
+    {
+        mVideoInput.reset();
+        errors.append("Error getting video device: ")
+              .append(e.what()?e.what():"Unknown error")+='\n';
     }
 
-    // self.gLocalStream is null
-    if (self.localMediaPromise) {
-        if (self.localMediaPromise === true) {
-            return Promise.reject("getLocalStream called re-entrantly from within a getLocalStream callback." +
-                "You should call getLocalStream() asynchronously to resolve this");
+    if (devices.audio.empty() || mAudioInDeviceName.empty())
+    {
+        mAudioInput.reset();
+    }
+    else if (!mAudioInput || mAudioInput.mediaOptions().device.name != mAudioInDeviceName)
+    try
+    {
+        auto device = getDevice(mAudioInDeviceName, devices.audio);
+        if (!device)
+        {
+            errors.append("Configured audio input device '").append(mAudioInDeviceName)
+                  .append("' not present, using default device\n");
+            device = &devices.audio[0];
         }
-        return self.localMediaPromise
-            .then(function(stream) {
-                if (Object.keys(self.calls).length === 0) {
-                    return Promise.reject(null);
-                } else {
-                    return Promise.resolve(self.gLocalStream);
-                }
-            });
+        mAudioInput = deviceManager.getUserAudio(
+                std::make_shared<artc::MediaGetOptions>(*device, mediaConstraints));
     }
-    // Mark that we have an ongoing GUM request, but we don't have the
-    // actual promise yet. This is because some callbacks may be called
-    // synchronously and they may initiate a second getLocalStream(),
-    // before we have the promise ready to assign to self.localMediaPromise
-    self.localMediaPromise = true;
-    var resolved = false; // track whether the promise was resolved for the timeout reject
-    var notified = false;
-    setTimeout(function() {
-        if (!resolved) {
-            self._fire('onLocalMediaRequest');
-            notified = true;
-        }
-    }, 1000);
-
-    var pms = MegaPromise.asMegaPromiseProxy(
-        RTC.getUserMedia({audio: true, video: true})
-        .catch(function(error) {
-            self.logger.warn("getUserMedia: Failed to get audio+video, trying audio-only...");
-            return RTC.getUserMedia({audio: true, video: false});
-        })
-        .catch(function(error) {
-            self.logger.warn("getUserMedia: Failed to get audio only, trying video-only...");
-            return RTC.getUserMedia({audio: false, video: true});
-        })
-        .catch(function(error) {
-            var msg;
-            try {
-                delete self.localMediaPromise;
-                msg = RtcModule.gumErrorToString(error);
-                self.logger.warn("getUserMedia failed:", msg);
-            } catch(err) {
-                msg = "Exception in final catch handler of getUserMedia: "+err;
-            }
-            return Promise.resolve(msg);
-        }));
-    assert(self.localMediaPromise, "getUserMedia executed synchronously");
-    self.localMediaPromise = MegaPromise.asMegaPromiseProxy(pms
-        .then(function(stream) {
-            resolved = true;
-            if (typeof stream === 'string') {
-                self.gLocalStream = null;
-                self.gLocalAv = 0;
-                if (notified) {
-                    self._fire('onLocalMediaFail', stream);
-                }
-            } else {
-                self.gLocalStream = stream;
-                self.gLocalAv = Av.applyToStream(self.gLocalStream, av);
-                if (notified) {
-                    self._fire('onLocalMediaObtained', stream);
-                }
-            }
-            delete self.localMediaPromise;
-            resolved = true;
-            if (Object.keys(self.calls).length !== 0) {// all calls were destroyed meanwhile
-                return Promise.resolve(stream);
-            }
-        }));
-    setTimeout(function() {
-        if (pms.state() === 'pending') {
-            pms.resolve("timeout");
-        }
-    }, RtcModule.kMediaGetTimeout);
-
-    return self.localMediaPromise;
-};
-
-RtcModule.prototype._startOrJoinCall = function(chatid, av, handler, isJoin) {
-    var self = this;
-    var isGroup = this.handler.isGroupChat(chatid);
-    var shard = self.chatd.chatIdShard[chatid];
-    if (!shard) {
-        throw new Error("startOrJoinCall: Unknown chatid " + base64urlencode(chatid));
+    catch(exception& e)
+    {
+        mAudioInput.reset();
+        errors.append("Error getting audio device: ")
+              .append(e.what()?e.what():"Unknown error")+='\n';
     }
-    var existing = self.calls[chatid];
-    if (existing) {
-        self.logger.warn("There is already a call in this chatroom, destroying it");
-        existing.hangup();
-        delete self.calls[chatid];
-    }
-    var call = new Call(
-        this, {
-            chatid: chatid,
-            callid: this.crypto.random(8),
-            shard: shard
-        }, isGroup, isJoin, handler);
+    std::shared_ptr<artc::LocalStreamHandle> localStream =
+        std::make_shared<artc::LocalStreamHandle>(
+            mAudioInput?mAudioInput.getTrack():nullptr,
+            mVideoInput?mVideoInput.getTrack():nullptr);
+    localStream.setAvState(av);
+    return localStream;
+}
 
-    self.calls[chatid] = call;
-    call._startOrJoin(av, isJoin);
+std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvState av,
+    CallEventHandler& handler, bool isJoin)
+{
+    bool isGroup = mHandler.isGroupChat(chatid);
+    auto& shard = mChatd.chats(chatid).connection();
+    auto callIt = mCalls.find(chatid);
+    if (callIt != mCalls.end())
+    {
+        RTCM_LOG_WARNING("There is already a call in this chatroom, destroying it");
+        callIt->second->hangup();
+        mCalls.erase(chatid);
+    }
+    CallerInfo info = {
+        .chatid = chatid,
+        .callid = mCrypto.random<uint64_t>(),
+        .shard = shard
+    };
+    auto call = std::make_shared<Call>(*this, info, isGroup, isJoin, handler);
+
+    mCalls[chatid] = call;
+    call->startOrJoin(av, isJoin);
     return call;
-};
+}
 
-RtcModule.prototype.joinCall = function(chatid, av, handler) {
-    return this._startOrJoinCall(chatid, av, handler, true);
-};
-RtcModule.prototype.startCall = function(chatid, av, handler) {
-    return this._startOrJoinCall(chatid, av, handler, false);
-};
-RtcModule.prototype.onUserOffline = function(chatid, userid, clientid) {
-    var call = this.calls[chatid];
-    if (call) {
-        call._onUserOffline(userid, clientid);
+std::shared_ptr<Call> RtcModule::joinCall(karere::Id chatid, AvState av, CallHandler& handler)
+{
+    return startOrJoinCall(chatid, av, handler, true);
+}
+std::shared_ptr<Call> RtcModule::startCall(karere::Id chatid, AvState av, CallHandler handler)
+{
+    return startOrJoinCall(chatid, av, handler, false);
+}
+
+RtcModule::onUserOffline(Id chatid, Id userid, uint32_t clientid)
+{
+    auto it = mCalls.find(chatid);
+    if (it != mCalls.end())
+    {
+        it->second->onUserOffline(userid, clientid);
     }
-};
-RtcModule.prototype.shutdown = function() {
-    this.logger.warn("Shutting down....");
-    var calls = this.calls;
-    for (var chatid in calls) {
-        var call = calls[chatid];
-        if (call.state === CallState.kRingIn) {
-            assert(Object.keys(call.sessions).length === 0);
+}
+
+void RtcModule::onShutdown()
+{
+    RTCM_LOG_DEBUG("Shutting down....");
+    for (auto& item: mCalls) {
+        auto& call = item.second;
+        if (call->state() == Call::kStateRingIn)
+        {
+            assert(call->sessions.empty());
         }
-        call._destroy(Term.kAppTerminating, call.state !== CallState.kRingIn);
+        call->destroy(TermCode::kAppTerminating, call->state() != Call::kStateRingIn);
     }
-    this.logger.warn("Shutdown complete");
-};
-
-RtcModule.prototype._fire = function(evName) {
-    var self = this;
-    var func = self.handler[evName];
-    var logger = self.logger;
-    if (logger.isEnabled()) {
-        var msg = "fire " + evName;
-        if (!func) {
-            msg += " ...unhandled";
-        }
-        logger.log(msg);
-    }
-    if (!func) {
-        return;
-    }
-    try {
-        func.call(self.handler, arguments[1], arguments[2], arguments[3]);
-    } catch (e) {
-        logger.error("Event handler '" + evName + "' threw exception:\n" + e, "\n", e.stack);
-    }
-};
-
+    RTCM_LOG_DEBUG("Shutdown complete");
+}
 
 RtcModule.gumErrorToString = function(error) {
     if (typeof error === 'string') {

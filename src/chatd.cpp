@@ -1067,16 +1067,16 @@ void Connection::execCommand(const StaticBuffer& buf)
                 break;
             }
             case OP_RTMSG_ENDPOINT:
+            case OP_RTMSG_USER:
+            case OP_RTMSG_BROADCAST:
             {
+                size_t cmdstart = pos-1; //pos points after opcode
                 //chatid.8 userid.8 clientid.4 len.2 data.len
-                auto cmdoffset = pos-1; //includes the opcode
-                READ_CHATID(0);
-                pos+=12; //skip userid and clientid
+                pos += 20;
                 READ_16(payloadLen, 20);
                 pos+=payloadLen; //skip the payload
-
-                auto& chat = mClient.chats(chatid);
-                chat.handleRtMessage(buf.buf()+cmdoffset, payloadLen+23); //includes the opcode
+                RtMessage rtmsg(*this, cmdstart, payloadLen); //includes the opcode
+                mRtHandler->handleMessage(rtmsg);
                 break;
             }
             case OP_CLIENTID:
@@ -2726,89 +2726,7 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
         CALL_LISTENER(onUserTyping, from);
 }
 
-void Chat::handleRtMessage(const char* data, size_t size)
-{
-    auto msg = std::make_shared<RtMessageWithEndpoint>(data, size);
-    if (msg->type() & RtMessage::kQueryBit)
-    {
-/*
- * We don't need query-response at the moment.
- * If we do, enable this code
- *
-        auto queryId = cmd.read<RtMessage::QueryId>(15);
-        auto it = mRtQueries.find(queryId);
-        if (it == mRtQueries.end())
-        {
-            CHATID_LOG_DEBUG("Received response to a cancelled query realtime message, ignoring");
-            return;
-        }
-        msg = std::make_unique<RtMessage>(userid, cmd.buf()+14, cmd.dataSize()-14);
-        try
-        {
-            mRtQueryExecutingResponseId = queryId;
-            it->second(clientid, *msg);
-        }
-        catch(std::exception& e)
-        {
-            CHATID_LOG_ERROR("Exception thrown from a realtime query message response handler: %s", e.what());
-        }
-        mRtQueryExecutingResponseId = 0;
-        if (!mRtQueries.empty()) //during cleanup, all handlers may have been deleted
-            mRtQueries.erase(it);
-*/
-    }
-    auto type = msg->type();
-    auto userid = msg->userid();
-    auto clientid = msg->clientid();
-    mRtHandlers_Type.callHandlers(type, msg);
-    mRtHandlers_Sender.callHandlers(RtMessageWithUser::Key(type, userid), msg);
-    mRtHandlers_Endpoint.callHandlers(RtMessageWithEndpoint::Key(type, userid, clientid), msg);
-}
 
-template <class M>
-void Chat::RtHandlers<M>::callHandlers(typename M::key_type aKey, const std::shared_ptr<RtMessageWithEndpoint>& msg)
-{
-    auto range = this->equal_range(aKey);
-    for (auto it = range.first; it != range.second;)
-    {
-        bool keep = true;
-        mExecutingHandler = it;
-        try
-        {
-            (*it->second)(msg, keep);
-        }
-        catch(std::exception& e)
-        {
-            CHATD_LOG_ERROR("%s: Exception thrown from realtime message handler: %s", mParent.chatId().toString().c_str(), e.what());
-        }
-        mExecutingHandler = this->end();
-        if (keep)
-        {
-            it++;
-        }
-        else
-        {
-            auto erased = it;
-            it++;
-            this->erase(erased);
-        }
-    }
-}
-
-template <class M>
-void Chat::RtHandlers<M>::remove(typename M::iterator it)
-{
-    if (it == mExecutingHandler)
-    {
-        CHATD_LOG_WARNING("%s: Addempt to delete executing handler, ignoring", mParent.chatId().toString().c_str());
-        return;
-    }
-    erase(it);
-}
-
-bool Chat::rtSendMessage(RtMessage &&msg)
-{
-    return sendCommand(msg);
 
 bool Chat::manualResendWhenUserJoins() const
 {

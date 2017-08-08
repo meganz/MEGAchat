@@ -429,13 +429,14 @@ public:
     virtual std::string toString() const;
 };
 
-class RtMessage: public Command
+class RtMessageComposer: public Command
 {
-public:
-    typedef uint8_t Type;
 protected:
-    uint8_t mHdrLen;
-    /** Crates an RtMessage as a base for derived classes (with userid/clientid)
+    using Command::read; // hide all read/write methods, as they will include the
+    using Command::write; // whole command, not the payload
+public:
+    enum { kHdrLen = 23 };
+    /** Creates an RtMessage as a base for derived classes (with userid/clientid)
      * @param opcode The chatd command opcode. Can be OP_RTMSG_BROADCAST,
      * OP_RTMSG_USER, OP_RTMSG_CLIENT
      * @param type The payload-specific type. This is the first byte of the payload
@@ -445,141 +446,49 @@ protected:
      * length field from the total buffer length. Does not include the payload type byte,
      * which is part of the payload data.
      */
-    RtMessage(uint8_t opcode, Type type, uint16_t reserve=32)
-    : Command(opcode, hdrlen+1+reserve, hdrlen)
+    RtMessageComposer(uint8_t opcode, Type type, uint16_t reserve=32)
+    : Command(opcode, kHdrLen+1+reserve)
     {
         //(opcode.1 chatid.8 userid.8 clientid.4 len.2) (type.1 data.(len-1))
         //              ^                                          ^
-        //          header.hdrlen                             payload.len
-        assert(mHdrLen >= 11); //the minimum one is for RTMSG_BROADCAST and is 11
-        Buffer::write<uint8_t, false>(0, opcode);
-        Buffer::write<uint8_t, false>(11, type);
-        //chatid and payload length are unknown at this point, we only reserve the space for them
+        //          header.23                             payload.len
+        setDataSize(kHdrLen+1);
+        append<uint8_t>(kHdrLen, type);
+        updateLenField();
     }
-    RtMessage(const char* data, size_t dataSize, uint8_t hdrlen)
-        : Command(data, dataSize), mHdrLen(hdrlen){} //sanity check is done in the RtMessageWithEndpoint, as it is the only one that can be instantiated from raw data
     void updateLenField()
     {
-        Buffer::write<uint16_t, false>(mHdrLen-2, dataSize()-mHdrLen);
+        assert(dataSize()-kHdrLen >= 1);
+        Buffer::write<uint16_t>(kHdrLen-2, dataSize()-kHdrLen);
     }
-    void updateChatidField(karere::Id chatid)
-    {
-        Buffer::write<uint64_t, false>(1, chatid.val);
-    }
-    using Command::read; //hide all read methods, as they will read the whole command, not the payload
-    using Command::write;
+    void setChatid(karere::Id chatid) { Buffer::write<uint64_t>(1, chatid.val); }
+    void setUserid(karere::Id userid) { Buffer::write<uint64_t>(9, userid.val); }
+    void setClientid(uint32_t clientid) { Buffer::write<uint32_t>(17, clientid); }
 public:
-    RtMessage(Type type, uint16_t reserve): RtMessage(OP_RTMSG_BROADCAST, type, reserve, 11){}
-    Type type() const { return read<uint8_t, false>(mHdrLen); }
-    uint8_t hdrLen() const { return mHdrLen; }
-    void finalizeFields(karere::Id chatid)
-    {
-        updateLenField(); updateChatidField(chatid);
-    }
     template <class T, bool check=true, typename=typename std::enable_if<std::is_pod<T>::value>::type>
     const T& payloadRead(size_t offset) const
     {
-        return Buffer::read<T, check>(mHdrLen+1+offset);
+        return Buffer::read<T>(kHdrLen+1+offset);
     }
     template<class T, bool check=true, typename=typename std::enable_if<std::is_pod<T>::value>::type>
     void payloadWrite(size_t offset, T val)
     {
-        write<T,check>(offset+mHdrLen+1, val);
+        write<T>(offset+kHdrLen+1, val);
     }
     const char* payloadReadPtr(size_t offset, size_t len)
     {
         return Buffer::readPtr(mHdrLen+1+offset, len);
     }
-    const char* payloadPtr() const { return buf()+mHdrLen+1; }
-    template <bool check=true>
+    const char* payloadPtr() const { return buf()+kHdrLen+1; }
     const char* payloadPtr(uint16_t offset) const
     {
-        auto dataOfs = mHdrLen+1+offset;
-        if (check && (dataOfs >= dataSize()))
+        auto dataOfs = kHdrLen+1+offset;
+        if (dataOfs >= dataSize())
             throw std::runtime_error("RtMessage::payloadPtr: offset "+std::to_string(offset)+" points past end of data (dataSize="+std::to_string(dataSize())+")");
         return buf()+offset;
     }
-    size_t payloadSize() const { return dataSize()-mHdrLen-1; }
+    size_t payloadSize() const { return dataSize()-kHdrLen-1; }
     bool hasPayload() const { return payloadSize() > 0; }
-};
-
-class RtMessageWithUser: public RtMessage
-{
-public:
-    struct Key
-    {
-        Type type;
-        karere::Id userid;
-        bool operator<(Key other) const
-        {
-            if (type != other.type)
-                return type < other.type;
-            else
-                return userid < other.userid;
-        }
-        Key(Type aType, karere::Id aId)
-        : type(aType), userid(aId){}
-    };
-protected:
-    RtMessageWithUser(uint8_t opcode, Type type, karere::Id userid,
-        uint16_t reserve, uint8_t hdrlen)
-        :RtMessage(opcode, type, reserve, hdrlen)
-    {
-        //(opcode.1 chatid.8 userid.8 len.2) (type.1 data.len)
-        assert(mHdrLen >= 19);
-        Buffer::write<uint64_t>(9, userid.val);
-    }
-    RtMessageWithUser(const char* data, size_t dataSize, uint8_t hdrlen)
-        :RtMessage(data, dataSize, hdrlen){}
-public:
-    karere::Id userid() const { return read<uint64_t, false>(9); }
-    RtMessageWithUser(Type type, karere::Id userid, uint16_t reserve)
-        :RtMessageWithUser(OP_RTMSG_USER, type, userid, reserve, 19){}
-};
-
-class RtMessageWithEndpoint: public RtMessageWithUser
-{
-public:
-    struct Key: public RtMessageWithUser::Key
-    {
-        ClientId clientid;
-        bool operator<(Key other) const
-        {
-            if (type != other.type)
-                return type < other.type;
-            if (userid != other.userid)
-                return userid < other.userid;
-            return clientid < other.clientid;
-        }
-        Key(Type aType, karere::Id aId, ClientId aClientId)
-            :RtMessageWithUser::Key(aType, aId), clientid(aClientId){}
-    };
-    ClientId clientid() const { return read<uint32_t, false>(17); }
-    QueryId queryId() const
-    {
-        if ((type() & kQueryBit) == 0)
-            throw std::runtime_error("Message is not a query");
-        return read<QueryId>(1);
-    }
-    RtMessageWithEndpoint(Type aType, karere::Id aUserid, ClientId aClientid, uint16_t reserve)
-        :RtMessageWithUser(OP_RTMSG_ENDPOINT, aType, aUserid, reserve, 23)
-    {
-        //(opcode.1 chatid.8 userid.8 clientid.4 len.2) (type.1 payload.len)
-        Buffer::write<uint32_t>(17, aClientid);
-    }
-
-    //parses received message buffers
-    RtMessageWithEndpoint(const char* data, size_t dataSize)
-        :RtMessageWithUser(data, dataSize, 23)
-    {
-        if (dataSize < 24) //header.23 + type.1
-            throw std::runtime_error("RtMessageWithEndpoint: Data is smaller than header size");
-#ifndef NDEBUG
-        assert(opcode() == OP_RTMSG_ENDPOINT); //guaranteed by code (the receive function's switch() statement)
-        auto payloadLen = read<uint16_t>(21);
-        assert(payloadLen == dataSize-23); //this should be guaranteed by the code - the buffer size is calculated from the payload length field
-#endif
-    }
 };
 
 //for exception message purposes

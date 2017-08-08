@@ -676,6 +676,7 @@ public:
     karere::Id chatId() const { return mChatId; }
     /** @brief The chatd client */
     Client& client() const { return mClient; }
+    Connection& connection() const { return mConnection; }
     /** @brief The lowest index of a message in the RAM history buffer */
     Idx lownum() const { return mForwardStart - (Idx)mBackwardList.size(); }
     /** @brief The highest index of a message in the RAM history buffer */
@@ -1037,69 +1038,8 @@ protected:
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */
     void loadManualSending();
-
-    //Rt message stuff
-    typedef std::multimap<RtMessage::Type, std::unique_ptr<IRtMsgHandlerCb>> rthTypeMap;
-    typedef std::multimap<RtMessageWithUser::Key, std::unique_ptr<IRtMsgHandlerCb>> rthTypeSenderMap;
-    typedef std::multimap<RtMessageWithEndpoint::Key, std::unique_ptr<IRtMsgHandlerCb>> rthTypeSenderClientMap;
-
-    template <class M>
-    struct RtHandlers: public M
-    {
-        Chat& mParent;
-        typename M::iterator mExecutingHandler = M::end();
-        RtHandlers(Chat& aParent): mParent(aParent){}
-        void callHandlers(typename M::key_type aKey, const std::shared_ptr<RtMessageWithEndpoint>& msg);
-        void remove(typename M::iterator handler);
-    };
-    RtHandlers<rthTypeMap> mRtHandlers_Type;
-    RtHandlers<rthTypeSenderMap> mRtHandlers_Sender;
-    RtHandlers<rthTypeSenderClientMap> mRtHandlers_Endpoint;
-
-    template <class M, class K>
-    void rtCallHandlers(M& map, K key, const RtMessage& msg);
-    void handleRtMessage(const char* data, size_t size);
-
-    template <class CB, class M>
-    IRtMsgHandlerCb* rtMkHandler(CB&& cb, M& aMap)
-    { return new RtMsgHandlerCb<CB,M>(std::forward<CB>(cb), aMap); }
 public:
 //realtime messaging
-    bool rtSendMessage(RtMessage&& msg);
-    bool rtSendMessage(RtMessageWithUser&& msg);
-    bool rtSendMessage(RtMessageWithEndpoint&& msg);
-    template <class CB>
-    RtMsgHandler rtAddHandler(RtMessage::Type type, CB cb)
-    {
-        auto it = mRtHandlers_Type.emplace(type,
-            rtMkHandler(std::forward<CB>(cb), mRtHandlers_Type));
-        it->setIterator(it);
-        return it->weakHandle();
-    }
-
-    template <class CB>
-    RtMsgHandler rtAddHandler(RtMessage::Type type, karere::Id from, CB cb)
-    {
-        auto it = mRtHandlers_Sender.emplace(std::piecewise_construct,
-            std::forward_as_tuple(type, from),
-            rtMkHandler(std::forward<CB>(cb), mRtHandlers_Sender));
-        it->setIterator(it);
-        return it->weakHandle();
-    }
-
-    template <class CB>
-    RtMsgHandler rtAddHandler(RtMessage::Type type, karere::Id from, ClientId fromClient, CB cb)
-    {
-        auto it = mRtHandlers_Endpoint.emplace(std::piecewise_construct,
-            std::forward_as_tuple(type, from, fromClient),
-            rtMkHandler(std::forward<CB>(cb), mRtHandlers_Endpoint));
-        it->setIterator(it);
-        return it->weakHandle();
-    }
-
-/* We don't need query-response. If we do later, enble this
-   promise::Promise<RtMessage*> rtSendQuery(DeviceId deviceId, const RtMessage& msg, uint32_t timeoutMs);
-*/
 
 //===
 };
@@ -1134,6 +1074,11 @@ public:
     karere::Id userId() const { return mUserId; }
     Client(MyMegaApi *api, karere::Id userId);
     ~Client(){}
+    Chat* chatFromId(karere::Id chatid) const
+    {
+        auto it = mChatForChatId.find(chatid);
+        return (it == mChatForChatId.end()) ? nullptr : it->second;
+    }
     Chat& chats(karere::Id chatid) const
     {
         auto it = mChatForChatId.find(chatid);

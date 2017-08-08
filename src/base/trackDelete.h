@@ -91,6 +91,7 @@ public:
         }
         ~WeakRefHandle() { unref(); }
         bool isValid() const { return (mData && (mData->mPtr != nullptr)); }
+        bool deleted() const { return isValid(); }
         void reset()
         {
             unref();
@@ -132,7 +133,7 @@ public:
         assert(mWeakRefHandle.isValid());
         mWeakRefHandle.mData->mPtr = nullptr;
     }
-    WeakRefHandle getWeakHandle() const { return mWeakRefHandle; }
+    WeakRefHandle weakHandle() const { return mWeakRefHandle; }
 };
 }
 
