@@ -373,7 +373,7 @@ Client::reconnect(const std::string& url)
             .then([wptr, this]() -> Promise<void>
             {
                 if (wptr.deleted())
-                    return;
+                    return promise::_Void();
                 mHeartbeatEnabled = true;
                 return login();
             })
