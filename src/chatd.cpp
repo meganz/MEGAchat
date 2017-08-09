@@ -730,7 +730,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
         }
         else
         {
-            if (!mConnection.isLoggedIn());
+            if (!mConnection.isLoggedIn())
                 return kHistSourceServerOffline;
 
             auto wptr = weakHandle();
