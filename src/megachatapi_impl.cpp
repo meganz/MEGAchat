@@ -1386,7 +1386,7 @@ int MegaChatApiImpl::getConnectionState()
 
 int MegaChatApiImpl::getChatConnectionState(MegaChatHandle chatid)
 {
-    int ret = 0;
+    int ret = MegaChatApi::CHAT_CONNECTION_OFFLINE;
 
     sdkMutex.lock();
     ChatRoom *room = findChatRoom(chatid);
