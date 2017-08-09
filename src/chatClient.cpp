@@ -1177,7 +1177,7 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
 {
     mChat = &parent.client.chatd->createChat(
         mChatid, mShardNo, mUrl, this, initialUsers,
-        parent.client.newStrongvelope(chatid()), mCreationTs);
+        parent.client.newStrongvelope(chatid()), mCreationTs, mIsGroup);
     if (mOwnPriv == chatd::PRIV_NOTPRESENT)
         mChat->disable(true);
 }

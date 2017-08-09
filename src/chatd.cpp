@@ -145,7 +145,7 @@ Client::Client(MyMegaApi *api, Id userId)
     }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
-    Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs)
+    Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup)
 {
     auto chatit = mChatForChatId.find(chatid);
     if (chatit != mChatForChatId.end())
@@ -176,7 +176,7 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     mConnectionForChatId[chatid] = conn;
 
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
-    Chat* chat = new Chat(*conn, chatid, listener, users, chatCreationTs, crypto);
+    Chat* chat = new Chat(*conn, chatid, listener, users, chatCreationTs, crypto, isGroup);
     // add chatid to the connection's chatids
     conn->mChatIds.insert(chatid);
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
@@ -755,10 +755,10 @@ void Chat::requestHistoryFromServer(int32_t count)
 
 Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     const karere::SetOfIds& initialUsers, uint32_t chatCreationTs,
-    ICrypto* crypto)
+    ICrypto* crypto, bool isGroup)
     : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
       mListener(listener), mUsers(initialUsers), mCrypto(crypto),
-      mLastMsgTs(chatCreationTs)
+      mLastMsgTs(chatCreationTs), mIsGroup(isGroup)
 {
     assert(mChatId);
     assert(mListener);
@@ -1029,7 +1029,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 CHATD_LOG_DEBUG("%s: recv HISTDONE - history retrieval finished", ID_CSTR(chatid));
                 mClient.chats(chatid).onHistDone();
-                if (mClient.chats(chatid).getLastIdReceivedFromServer() != karere::Id())
+                if (mClient.chats(chatid).getLastIdReceivedFromServer() != karere::Id()
+                        && ! mClient.chats(chatid).isGroup())
                 {
                     sendBuf(Command(OP_RECEIVED) + chatid + mClient.chats(chatid).getLastIdReceivedFromServer());
                 }
@@ -1250,6 +1251,11 @@ Idx Chat::getLastIdxReceivedFromServer() const
 Id Chat::getLastIdReceivedFromServer() const
 {
     return mLastIdReceivedFromServer;
+}
+
+bool Chat::isGroup() const
+{
+    return mIsGroup;
 }
 
 Message* Chat::getMsgByXid(Id msgxid)
@@ -2394,7 +2400,8 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
         if ((msg.userid != mClient.mUserId)
-                && ((mLastIdxReceivedFromServer == CHATD_IDX_INVALID) || (idx > mLastIdxReceivedFromServer)))
+                && ((mLastIdxReceivedFromServer == CHATD_IDX_INVALID) || (idx > mLastIdxReceivedFromServer))
+                && ! mClient.chats(mChatId).isGroup())
         {
             mLastIdxReceivedFromServer = idx;
             mLastIdReceivedFromServer = msgid;

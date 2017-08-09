@@ -560,11 +560,12 @@ protected:
      */
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
     uint32_t mLastMsgTs;
+    bool mIsGroup;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
-         const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto);
+         const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
     Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
@@ -966,6 +967,7 @@ public:
 
     Idx getLastIdxReceivedFromServer() const;
     karere::Id getLastIdReceivedFromServer() const;
+    bool isGroup() const;
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);
@@ -1039,7 +1041,7 @@ public:
      * with the newly created Chat object.
      */
     Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
-        Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs);
+        Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     promise::Promise<void> disconnect();
