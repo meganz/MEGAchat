@@ -483,7 +483,11 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         {
             if (wptr.deleted())
                 return;
-            setInitState(kInitErrSidInvalid);
+
+            if (initState() != kInitErrSidInvalid)
+            {
+                setInitState(kInitErrSidInvalid);
+            }
         });
         return;
     }
