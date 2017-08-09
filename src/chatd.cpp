@@ -525,7 +525,7 @@ void Connection::reset() //immediate disconnect
 
 bool Connection::sendBuf(Buffer&& buf)
 {
-    if (!isLoggedIn())
+    if (!isLoggedIn() && !isConnected())
         return false;
 //WARNING: ws_send_msg_ex() is destructive to the buffer - it applies the websocket mask directly
 //Copy the data to preserve the original
