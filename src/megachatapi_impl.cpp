@@ -3670,7 +3670,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->title = chat->getTitle();
     this->unreadCount = chat->getUnreadCount();
     this->active = chat->isActive();
-    this->online = chat->isOnline();
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
 }
@@ -3684,7 +3683,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->title = chat.titleString();
     this->unreadCount = chat.chat().unreadMsgCount();
     this->active = chat.isActive();
-    this->online = chat.chatdOnlineState() == kChatStateOnline;
     this->uh = MEGACHAT_INVALID_HANDLE;
 
     if (group)
@@ -3901,11 +3899,6 @@ const char *MegaChatRoomPrivate::getTitle() const
 bool MegaChatRoomPrivate::isActive() const
 {
     return active;
-}
-
-bool MegaChatRoomPrivate::isOnline() const
-{
-    return online;
 }
 
 int MegaChatRoomPrivate::getChanges() const

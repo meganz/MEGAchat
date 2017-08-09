@@ -776,11 +776,6 @@ bool MegaChatRoom::isActive() const
     return false;
 }
 
-bool MegaChatRoom::isOnline() const
-{
-    return false;
-}
-
 MegaChatPeerList * MegaChatPeerList::createInstance()
 {
     return new MegaChatPeerListPrivate();
