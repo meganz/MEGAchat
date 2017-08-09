@@ -191,8 +191,15 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 
     if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
-        assert(!mLoginPromise.done());
-        mConnectPromise.reject(reason, errcode, errtype);
+        assert(!mLoginPromise.succeeded());
+        if (!mConnectPromise.done())
+        {
+            mConnectPromise.reject(reason, errcode, errtype);
+        }
+        if (!mConnectPromise.done())
+        {
+            mLoginPromise.reject(reason, errcode, errtype);
+        }
     }
     else
     {
