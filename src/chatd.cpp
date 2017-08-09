@@ -775,7 +775,6 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
-    mLastReceivedFromServerIdx = mLastSeenIdx;
     mLastReceivedIdx = mDbInterface->getIdxOfMsgid(mLastReceivedId);
 
     if ((mHaveAllHistory = mDbInterface->haveAllHistory()))
@@ -1030,6 +1029,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 CHATD_LOG_DEBUG("%s: recv HISTDONE - history retrieval finished", ID_CSTR(chatid));
                 mClient.chats(chatid).onHistDone();
+                if (mClient.chats(chatid).getLastIdReceivedFromServer() != karere::Id())
+                {
+                    sendBuf(Command(OP_RECEIVED) + chatid + mClient.chats(chatid).getLastIdReceivedFromServer());
+                }
                 break;
             }
             case OP_KEYID:
@@ -1237,6 +1240,16 @@ Message* Chat::getManualSending(uint64_t rowid, ManualSendReason& reason)
     CALL_DB(loadManualSendItem, rowid, item);
     reason = item.reason;
     return item.msg;
+}
+
+Idx Chat::getLastIdxReceivedFromServer() const
+{
+    return mLastIdxReceivedFromServer;
+}
+
+Id Chat::getLastIdReceivedFromServer() const
+{
+    return mLastIdReceivedFromServer;
 }
 
 Message* Chat::getMsgByXid(Id msgxid)
@@ -2381,10 +2394,14 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
         if ((msg.userid != mClient.mUserId)
-                && ((mLastReceivedFromServerIdx == CHATD_IDX_INVALID) || (idx > mLastReceivedFromServerIdx)))
+                && ((mLastIdxReceivedFromServer == CHATD_IDX_INVALID) || (idx > mLastIdxReceivedFromServer)))
         {
-            mLastReceivedFromServerIdx = idx;
-            sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
+            mLastIdxReceivedFromServer = idx;
+            mLastIdReceivedFromServer = msgid;
+            if (!isFetchingFromServer())
+            {
+                sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
+            }
         }
     }
     if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)

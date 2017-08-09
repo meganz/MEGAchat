@@ -499,7 +499,8 @@ protected:
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     karere::Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
-    Idx mLastReceivedFromServerIdx = CHATD_IDX_INVALID;
+    Idx mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+    karere::Id mLastIdReceivedFromServer;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     Priv mOwnPrivilege = PRIV_INVALID;
@@ -962,6 +963,9 @@ public:
      */
     static uint64_t generateRefId(const ICrypto* aCrypto);
     Message *getManualSending(uint64_t rowid, chatd::ManualSendReason& reason);
+
+    Idx getLastIdxReceivedFromServer() const;
+    karere::Id getLastIdReceivedFromServer() const;
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);
