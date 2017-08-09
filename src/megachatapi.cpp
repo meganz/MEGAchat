@@ -128,6 +128,11 @@ int MegaChatApi::getConnectionState()
     return pImpl->getConnectionState();
 }
 
+int MegaChatApi::getChatConnectionState(MegaChatHandle chatid)
+{
+    return pImpl->getChatConnectionState(chatid);
+}
+
 void MegaChatApi::retryPendingConnections(MegaChatRequestListener *listener)
 {
     pImpl->retryPendingConnections(listener);
@@ -859,6 +864,11 @@ void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle
 }
 
 void MegaChatListener::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPresenceConfig *config)
+{
+
+}
+
+void MegaChatListener::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int newState)
 {
 
 }

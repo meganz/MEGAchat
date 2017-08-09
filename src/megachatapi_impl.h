@@ -773,6 +773,7 @@ public:
     void fireOnChatInitStateUpdate(int newState);
     void fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, int status, bool inProgress);
     void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
+    void fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState);
 
     // ============= API requests ================
 
@@ -780,6 +781,8 @@ public:
     void connect(MegaChatRequestListener *listener = NULL);
     void disconnect(MegaChatRequestListener *listener = NULL);
     int getConnectionState();
+    int getChatConnectionState(MegaChatHandle chatid);
+    static int convertChatConnectionState(chatd::ChatState state);
     void retryPendingConnections(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);

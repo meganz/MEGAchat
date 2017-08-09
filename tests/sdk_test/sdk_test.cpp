@@ -148,6 +148,7 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
 
     // 4. Connect to chat servers
     bool *flagRequestConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
+    mChatConnectionOnline[accountIndex] = false;
     megaChatApi[accountIndex]->connect();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect to chat. Error: " + std::to_string(lastErrorChat[accountIndex]));
@@ -268,6 +269,7 @@ void MegaChatApiTest::SetUp()
 
         initStateChanged[i] = false;
         initState[i] = -1;
+        mChatConnectionOnline[i] = false;
         lastError[i] = -1;
         lastErrorChat[i] = -1;
         lastErrorMsgChat[i].clear();
@@ -1959,17 +1961,13 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
-    unsigned int tWaited = 0;    // microseconds
-    while (tWaited < maxTimeout)
+    // first of all, ensure the chatd connection is ready
+    bool *flagChatdOnline = &mChatConnectionOnline[accountIndex]; *flagChatdOnline = false;
+    while (megaChatApi[accountIndex]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
     {
-        MegaChatRoom *chatRoom = megaChatApi[accountIndex]->getChatRoom(chatid);
-        bool isOnline = chatRoom->isOnline();
-        delete chatRoom;
-        if (isOnline)
-        {
-            break;
-        }
-        usleep(pollingT);
+        postLog("Attempt to load history when still offline. Waiting for connection...");
+        ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline), "Timeout expired for connecting to chatd");
+        *flagChatdOnline = false;
     }
 
     chatroomListener->msgCount[accountIndex] = 0;
@@ -2686,6 +2684,12 @@ void MegaChatApiTest::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPrese
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
     mPresenceConfigUpdated[apiIndex] = true;
+}
+
+void MegaChatApiTest::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int state)
+{
+    unsigned int apiIndex = getMegaChatApiIndex(api);
+    mChatConnectionOnline[apiIndex] = (state == MegaChatApi::CHAT_CONNECTION_ONLINE);
 }
 
 void MegaChatApiTest::onTransferStart(MegaApi *api, MegaTransfer *transfer)
