@@ -459,7 +459,7 @@ Client::InitState Client::init(const char* sid)
     if (sid)
     {
         initWithDbSession(sid);
-        if (mInitState == kInitErrNoCache ||
+        if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
                 mInitState == kInitErrCorruptCache)
         {
             wipeDb(sid);
