@@ -1351,6 +1351,14 @@ void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *con
     delete config;
 }
 
+void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatConnectionStateUpdate(chatApi, chatid, newState);
+    }
+}
+
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
@@ -1371,6 +1379,21 @@ int MegaChatApiImpl::getConnectionState()
 
     sdkMutex.lock();
     ret = mClient->connState();
+    sdkMutex.unlock();
+
+    return ret;
+}
+
+int MegaChatApiImpl::getChatConnectionState(MegaChatHandle chatid)
+{
+    int ret = MegaChatApi::CHAT_CONNECTION_OFFLINE;
+
+    sdkMutex.lock();
+    ChatRoom *room = findChatRoom(chatid);
+    if (room)
+    {
+        ret = MegaChatApiImpl::convertChatConnectionState(room->chatdOnlineState());
+    }
     sdkMutex.unlock();
 
     return ret;
@@ -2553,6 +2576,20 @@ int MegaChatApiImpl::convertInitState(int state)
     default:
         return state;
     }
+}
+
+int MegaChatApiImpl::convertChatConnectionState(ChatState state)
+{
+    int newState;
+    if (state == kChatStateOnline)
+    {
+        newState = MegaChatApi::CHAT_CONNECTION_ONLINE;
+    }
+    else    // includes kChatStateOffline, kChatStateConnecting and kChatStateJoining
+    {
+        newState = MegaChatApi::CHAT_CONNECTION_OFFLINE;
+    }
+    return newState;
 }
 
 void MegaChatApiImpl::sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate *request)
@@ -4321,9 +4358,10 @@ void MegaChatListItemHandler::onLastTsUpdated(uint32_t ts)
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onOnlineChatState(const ChatState state)
+void MegaChatListItemHandler::onChatOnlineState(const ChatState state)
 {
-    // apps are not interested on this event
+    int newState = MegaChatApiImpl::convertChatConnectionState(state);
+    chatApi.fireOnChatConnectionStateUpdate(this->mRoom.chatid(), newState);
 }
 
 MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)

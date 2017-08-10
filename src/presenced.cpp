@@ -355,6 +355,8 @@ Client::reconnect(const std::string& url)
             return mConnectPromise
             .then([this]()
             {
+                mTsLastPingSent = 0;
+                mTsLastRecv = time(NULL);
                 mHeartbeatEnabled = true;
                 return login();
             });
