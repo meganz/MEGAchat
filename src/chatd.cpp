@@ -2727,7 +2727,6 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
 }
 
 
-
 bool Chat::manualResendWhenUserJoins() const
 {
     return mClient.manualResendWhenUserJoins();
@@ -2771,6 +2770,7 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_CODENAME(JOINRANGEHIST);
         RET_CODENAME(MSGUPDX);
         RET_CODENAME(MSGID);
+        RET_CODENAME(KEEPALIVEAWAY);
         RET_CODENAME(CLIENTID);
         RET_CODENAME(RTMSG_BROADCAST);
         RET_CODENAME(RTMSG_USER);

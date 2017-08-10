@@ -357,6 +357,8 @@ public:
     static const char* opcodeToStr(uint8_t opcode);
     const char* opcodeName() const { return opcodeToStr(opcode()); }
     virtual std::string toString() const;
+    static const char* opcodeToStr(uint8_t code);
+    virtual std::string toString() const;
     virtual ~Command(){}
 };
 

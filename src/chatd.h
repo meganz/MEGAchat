@@ -532,7 +532,6 @@ public:
         ManualSendItem()
             :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason){}
     };
-
 protected:
     Connection& mConnection;
     Client& mClient;
