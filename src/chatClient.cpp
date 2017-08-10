@@ -452,7 +452,10 @@ void Client::setInitState(InitState newState)
 Client::InitState Client::init(const char* sid)
 {
     if (mInitState > kInitCreated)
+    {
+        KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
         return kInitErrAlready;
+    }
 
     api.sdk.addGlobalListener(this);
 
