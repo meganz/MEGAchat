@@ -1296,7 +1296,11 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT.
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
-     * called without a previous call to \c MegaChatApi::init.
+     * called without a previous call to \c MegaChatApi::init or when MEGAchat is already
+     * logged out.
+     *
+     * @note MEGAchat automatically logs out when it detects the MegaApi instance has an
+     * invalid session id. No need to call it explicitely, except to disable the chat.
      *
      * @param listener MegaChatRequestListener to track this request
      */
