@@ -1,15 +1,29 @@
+#define CONCAT(a, b) a ## b
 #define FIRE_EVENT(type, evName, ...)                \
-    do {                                             \
-        RTCM_ LOG_DEBUG("%s event ", type, #evName); \
-        try                                          \
-        {                                            \
-            mHandler.##evName(##__VA_ARGS__);        \
-        } catch (std::exception& e) {                \
-            RTCM_LOG_ERROR("%s event handler for'" #evName "' threw exception:\n %s", type, e.what()); \
-        }                                            \
-    } while(0)
+do {                                                 \
+    std::string msg = logName() +" event " #evName;  \
+    if (strcmp(#evName, "onDestroy") == 0) {         \
+        msg += " (" + termCodeFirstArgToString(##__VA_ARGS__) + ')'; \
+    }                                                \
+    CONCAT(type, _LOG_DEBUG)("%s", msg.c_str());     \
+    try                                              \
+    {                                                \
+        mHandler->##evName(##__VA_ARGS__);           \
+    } catch (std::exception& e) {                    \
+        RTCM_LOG_ERROR("%s event handler for'" #evName "' threw exception:\n %s", type, e.what()); \
+    }                                                \
+} while(0)
 
-RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
+struct CallerInfo
+{
+    Id chatid;
+    Id callid;
+    chatd::Connection& shard;
+    Id callerUser;
+    uint32_t callerClient;
+};
+
+RtcModule::RtcModule(karere::Client& client, GlobalHandler* handler,
   ICryptoFunctions& crypto, const std::string& iceServers)
 : mClient(client), mCrypto(crypto), mHandler(handler), mIceServers(iceServers),
   mOwnAnonId(client.myHandle()),
@@ -114,7 +128,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         auto& existingCall = mCalls.begin()->second;
         if (existingChatid == packet.chatid && existingCall.state() < Call::kStateTerminating)
         {
-            bool answer = mHandler.onAnotherCall(existingCall, packet);
+            bool answer = mHandler->onAnotherCall(existingCall, packet);
             if (answer) {
                 existingCall.hangup();
                 mCalls.erase(existingChatid);
@@ -124,10 +138,17 @@ void RtcModule::msgCallRequest(RtMessage& packet)
             }
         }
     }
-    auto ret = mCalls.emplace(*this, packet, mHandler.isGroupChat(packet.chatid), true);
+//    Call::Call(RtcModule& rtcModule, Id chatid, chatd::Connection& shard,
+//        uint64_t callid, bool isGroup,
+//        bool isJoiner, CallHandler* handler, Id callerUser, uint32_t callerClient)
+
+    auto ret = mCalls.emplace(packet.chatid, std::make_shared<Call>(*this,
+        packet.chatid, packet.shard, packet.callid,
+        mHandler->isGroupChat(packet.chatid),
+        true, nullptr, packet.userid, packet.clientid));
     assert(ret.second);
     Call& call = *ret.first;
-    call.mHandler = mHandler.onCallIncoming(call);
+    call.mHandler = mHandler->onCallIncoming(call);
     assert(call.mHandler);
     assert(call.state() == Call::kStateRingIn);
     cmdEndpoint(RTCMD_CALL_RINGING, packet, packet.callid);
@@ -145,14 +166,11 @@ void RtcModule::msgCallRequest(RtMessage& packet)
 template <class... Args>
 void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)
 {
-    RtMessageComposer msg(info.opcode, type);
     assert(info.chatid);
     assert(info.fromUser);
     assert(info.fromClient);
-    msg.setChatid(info.chatid());
-    msg.setUserid(info.userid());
-    msg.setClientid(info.clientid());
-    msg.appendPayload(args...);
+    RtMessageComposer msg(info.opcode, type, info.chatid(), info.userid(), info.clientid());
+    msg.payloadAppend(args...);
 
     if (!info.shard.sendCommand(msg)) {
         throw std::exception("cmdEndpoint: Send error trying to send command " + std::string(msg.typeToString()));
@@ -165,17 +183,13 @@ void RtcModule::removeCall(Call& call)
     if (it == mCalls.end()) {
         throw std::runtime_error("Call with chatid "+call.chatid.toString()+" not found");
     }
-    if (&call != &it->second || it->second.id != call.id) {
+    if (&call != it->second.get() || it->second->id != call.id) {
         RTCM_LOG_DEBUG("removeCall: Call has been replaced, not removing");
         return;
     }
     mCalls.erase(call.chatid);
-    if (mCalls.empty() && mLocalStream) {
-        mLocalStream.reset();
-        mLocalMediaPromise.reject("No calls");
-    }
 }
-std::shared_pre<artc::LocalStreamHandle>
+std::shared_ptr<artc::LocalStreamHandle>
 RtcModule::getLocalStream(AvFlags av, std::string& errors)
 {
     const auto& devices = mDeviceManager.inputDevices();
@@ -227,6 +241,9 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors)
         errors.append("Error getting audio device: ")
               .append(e.what()?e.what():"Unknown error")+='\n';
     }
+    if (!mAudioInput && !mVideoInput)
+        return nullptr;
+
     std::shared_ptr<artc::LocalStreamHandle> localStream =
         std::make_shared<artc::LocalStreamHandle>(
             mAudioInput?mAudioInput.getTrack():nullptr,
@@ -236,9 +253,10 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors)
 }
 
 std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvState av,
-    CallEventHandler& handler, bool isJoin)
+    CallEventHandler* handler, bool isJoin)
 {
-    bool isGroup = mHandler.isGroupChat(chatid);
+    assert(handler);
+    bool isGroup = mHandler->isGroupChat(chatid);
     auto& shard = mChatd.chats(chatid).connection();
     auto callIt = mCalls.find(chatid);
     if (callIt != mCalls.end())
@@ -247,23 +265,23 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvState av,
         callIt->second->hangup();
         mCalls.erase(chatid);
     }
-    CallerInfo info = {
-        .chatid = chatid,
-        .callid = mCrypto.random<uint64_t>(),
-        .shard = shard
-    };
-    auto call = std::make_shared<Call>(*this, info, isGroup, isJoin, handler);
+/*    Call::Call(RtcModule& rtcModule, Id chatid, chatd::Connection& shard,
+        uint64_t callid, bool isGroup,
+        bool isJoiner, CallHandler* handler, Id callerUser, uint32_t callerClient)
+*/
+    auto call = std::make_shared<Call>(*this, chatid, shard,
+        mCrypto.random<uint64_t>(), isGroup, isJoin, handler);
 
     mCalls[chatid] = call;
-    call->startOrJoin(av, isJoin);
+    call->startOrJoin(av);
     return call;
 }
 
-std::shared_ptr<Call> RtcModule::joinCall(karere::Id chatid, AvState av, CallHandler& handler)
+std::shared_ptr<Call> RtcModule::joinCall(karere::Id chatid, AvState av, CallHandler* handler)
 {
     return startOrJoinCall(chatid, av, handler, true);
 }
-std::shared_ptr<Call> RtcModule::startCall(karere::Id chatid, AvState av, CallHandler handler)
+std::shared_ptr<Call> RtcModule::startCall(karere::Id chatid, AvState av, CallHandler* handler)
 {
     return startOrJoinCall(chatid, av, handler, false);
 }
@@ -291,220 +309,216 @@ void RtcModule::onShutdown()
     RTCM_LOG_DEBUG("Shutdown complete");
 }
 
-RtcModule.gumErrorToString = function(error) {
-    if (typeof error === 'string') {
-        return error;
-    } else if (error.name) {
-        return error.name;
-    } else if (error.code) {
-        return error.code;
-    } else {
-        return error;
+Call::Call(RtcModule& rtcModule, Id chatid, chatd::Connection& shard,
+    uint64_t callid, bool isGroup,
+    bool isJoiner, CallHandler* handler, Id callerUser, uint32_t callerClient)
+: mManager(rtcModule), mChatid(chatid), mId(callid), mHandler(handler),
+  mShard(shard), mIsGroup(isGroup), mIsJoiner(isJoiner), // the joiner is actually the answerer in case of new call
+{
+//    this.sessions = {};
+//    this.sessRetries = {};
+    if (isJoiner)
+    {
+        mState = kStateRingIn;
+        mCallerUser = callerUser;
+        mCallerClient = callerClient;
+        assert(mCallerUser);
+        assert(mCallerClient);
     }
-};
-
-function Call(rtcModule, info, isGroup, isJoiner, handler) {
-    this.manager = rtcModule;
-    this.chatid = info.chatid;
-    this.id = info.callid;
-    this.handler = handler;
-    this.shardNo = info.shard.shard;
-    this.shard = info.shard;
-    this.isGroup = isGroup;
-    this.isJoiner = isJoiner; // the joiner is actually the answerer in case of new call
-    this.sessions = {};
-    this.sessRetries = {};
-    this.state = isJoiner ? CallState.kRingIn : CallState.kInitial;
-    //  var level = this.manager.logger.options.minLogLevel();
-    this.logger = MegaLogger.getLogger("call[" + base64urlencode(this.id) + "]",
-            rtcModule._loggerOpts, rtcModule.logger);
-    if (isJoiner) {
-        this._callerInfo = info; // needed for answering
+    else
+    {
+        mState = kStateInitial;
+        assert(!callerUser);
+        assert(!callerClient);
     }
 }
 
-Call.prototype.handleMsg = function(packet) {
-    var type = packet.type;
-    switch (type)
+void Call::handleMsg(RtMessage& packet)
+{
+    switch (packet.type())
     {
-        case RTCMD.CALL_TERMINATE:
-            this.msgCallTerminate(packet);
+        case RTCMD_CALL_TERMINATE:
+            msgCallTerminate(packet);
             return;
-        case RTCMD.SESSION:
-            this.msgSession(packet);
+        case RTCMD_SESSION:
+            msgSession(packet);
             return;
-        case RTCMD.JOIN:
-            this.msgJoin(packet);
+        case RTCMD_JOIN:
+            msgJoin(packet);
             return;
-        case RTCMD.CALL_RINGING:
-            this.msgRinging(packet);
+        case RTCMD_CALL_RINGING:
+            msgRinging(packet);
             return;
-        case RTCMD.CALL_REQ_DECLINE:
-            this.msgCallReqDecline(packet);
+        case RTCMD_CALL_REQ_DECLINE:
+            msgCallReqDecline(packet);
             return;
-        case RTCMD.CALL_REQ_CANCEL:
-            this.msgCallReqCancel(packet);
+        case RTCMD_CALL_REQ_CANCEL:
+            msgCallReqCancel(packet);
             return;
     }
-    var data = packet.data;
-    assert(data.length >= 8); // must start with sid.8
-    var sid = data.substr(0, 8);
-    var sess = this.sessions[sid];
-    if (!sess) {
-        this.logger.warn("Received " + constStateToText(RTCMD, type) +
-            " for an existing call but non-existing session",
-            base64urlencode(sid), "(" + Chatd.dumpToHex(sid) + ")");
-        //        this.logger.warn("sessions:", Chatd.dumpToHex(Object.keys(this.sessions)[0]));
+    auto& data = packet.payload;
+    assert(data.dataLength() >= 8); // must start with sid.8
+    auto sid = data.read<uint64_t>(0);
+    auto sessIt = mSessions.find(sid);
+    if (sessIt == mSessions.end())
+    {
+        CALL_LOG_WARN("Received " + msg.typeStr() +
+            " for an existing call but non-existing session %s",
+            base64urlencode(&sid, sizeof(sid)));
         return;
     }
     sess.handleMsg(packet);
-};
+}
 
-Call.prototype._setState = function(newState) {
-    var oldState = this.state;
-
-    if (oldState === newState) {
-        return false;
+void Call::setState(State newState)
+{
+    State oldState = mState;
+    if (oldState == newState) {
+        return;
     }
 
     assertStateChange(
         oldState,
         newState,
-        CallStateAllowedStateTransitions,
-        CallState
+        CallStateAllowedStateTransitions
     );
 
-    this.state = newState;
+    mState = newState;
 
-    if (d) { /* performance, save some loops/closures creation CPU/memory */
-        this.logger.log(
-            "State changed: ",
-            constStateToText(CallState, oldState),
-            ' -> ',
-            constStateToText(CallState, newState)
-        );
-    }
-    this._fire('onStateChange', this.state);
-};
+    CALL_LOG_DEBUG("State changed: %s -> %s", stateToStr(oldState), stateToStr(newState));
+    FIRE_EVENT(CALL, onStateChange, mState);
+}
 
-Call.prototype._getLocalStream = function(av) {
-    var self = this;
-    self._setState(CallState.kWaitLocalStream);
+void Call::getLocalStream(AvState av)
+{
+    setState(Call::kStateWaitLocalStream);
     // getLocalStream currently never fails - if there is error, stream is a string with the error message
-    return self.manager._getLocalStream(av)
-        .catch(function(err) {
-            assert(false, "RtcModule._getLocalStream promise failed, and it should not. Error:"+err);
-            return err;
-        })
-        .then(function(stream) {
-            if (self.state > CallState.kInProgress) {
-                return Promise.reject("Call killed");
-            }
-            self._setState(CallState.kHasLocalStream);
-        });
-};
+    std::string errors;
+    mLocalStream = mManager.getLocalStream(av, errors);
+    if (!errors.empty())
+    {
+        CALL_LOG_WARNING("There were some error getting local stream: %s", errors.c_str());
+    }
+    setState(Call::kStateHasLocalStream);
+}
 
-Call.prototype.msgCallTerminate = function(packet) {
-    if (packet.data.length < 1) {
-        this.logger.error("Ignoring CALL_TERMINATE without reason code");
+void Call::msgCallTerminate(RtMessage& packet)
+{
+    if (packet.payload.dataSize() < 1) {
+        CALL_LOG_ERROR("Ignoring CALL_TERMINATE without reason code");
         return;
     }
-    var code = packet.data.charCodeAt(0);
-    var sessions = this.sessions;
-    var isCallParticipant = false;
-    for (var sid in sessions) {
-        var sess = sessions[sid];
-        if (sess.peer === packet.fromUser && sess.peerClient === packet.fromClient) {
+    auto code = packet.payload.read<uint8_t>(0);
+    bool isCallParticipant = false;
+    for (auto& item: mSessions)
+    {
+        auto& sess = item->second;
+        if (sess.peer == packet.fromUser() && sess.peerClient == packet.fromClient())
+        {
             isCallParticipant = true;
             break;
         }
     }
     if (!isCallParticipant) {
-        this.logger.warn("Received CALL_TERMINATE from a client that is not in the call, ignoring");
+        CALL_LOG_WARNING("Received CALL_TERMINATE from a client that is not in the call, ignoring");
         return;
     }
-    this._destroy(code | Term.kPeer, false);
-};
-Call.prototype.msgCallReqDecline = function(packet) {
+    destroy(code | TermCode::kPeer, false);
+}
+void Call::msgCallReqDecline(RtMessage& packet)
+{
     // callid.8 termcode.1
-    assert(packet.data.length >= 9);
-    var code = packet.data.charCodeAt(8);
-    if (code === Term.kCallRejected) {
-        this._handleReject(packet);
-    } else if (code === Term.kBusy) {
-        this._handleBusy(packet);
+    assert(packet.payload.dataSize() >= 9);
+    auto code = packet.readPayload<uint8_t>(8);
+    if (code == TermCode::kCallRejected) {
+        handleReject(packet);
+    } else if (code == TermCode::kBusy) {
+        handleBusy(packet);
     } else {
-        this.logger.warn("Ingoring CALL_REQ_DECLINE with unexpected termnation code", constStateToText(code));
+        CALL_LOG_WARNING("Ingoring CALL_REQ_DECLINE with unexpected termnation code", termCodeToStr(code));
     }
-};
-Call.prototype.msgCallReqCancel = function(packet) {
-    if (this.state >= CallState.kInProgress) {
-        this.logger.warn("Ignoring unexpected CALL_REQ_CANCEL while in state", constStateToText(this.state));
+}
+void Call::msgCallReqCancel(RtMessage& packet)
+{
+    if (mState >= Call::kStateInProgress)
+    {
+        CALL_LOG_WARNING("Ignoring unexpected CALL_REQ_CANCEL while in state %s", stateToStr(mState));
         return;
     }
+    assert(mFromUser);
+    assert(mFromClient);
     // CALL_REQ_CANCEL callid.8 reason.1
-    var cinfo = this._callerInfo;
-    assert(cinfo);
-    if (cinfo.fromUser !== packet.fromUser || cinfo.fromClient !== packet.fromClient) {
-        this.logger.warn("Ignoring CALL_REQ_CANCEL from a client that did not send the call request");
+    if (mFromUser != packet.fromUser() || mFromClient !== packet.fromClient())
+    {
+        CALL_LOG_WARNING("Ignoring CALL_REQ_CANCEL from a client that did not send the call request");
         return;
     }
-    assert(packet.data.length >= 9);
-    var callid = packet.data.substr(0, 8);
-    if (callid !== this.id) {
-        this.logger.warn("Ignoring CALL_REQ_CANCEL for an unknown request id");
+    assert(packet.payloadLen() >= 9);
+    auto callid = packet.payloadRead<uint64_t>(0);
+    if (callid != mId) {
+        CALL_LOG_WARNING("Ignoring CALL_REQ_CANCEL for an unknown request id");
         return;
     }
-    var term = packet.data.substr(8, 1);
-    this._destroy(term | Term.kPeer, false);
-};
+    auto term = packet.readPayload<uint8_t>(8);
+    destroy(term | TermCode::kPeer, false);
+}
 
-Call.prototype._handleReject = function(packet) {
-    if (this.state !== CallState.kReqSent && this.state !== CallState.kInProgress) {
-        this.log.warn("ingoring unexpected CALL_REJECT while in state", constStateToText(this.state));
+void Call::handleReject(RtMessage& packet)
+{
+    if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
+    {
+        CALL_LOG_WARNING("Ingoring unexpected CALL_REJECT while in state %s", stateToStr(mState));
         return;
     }
-    if (this.isGroup || Object.keys(this.sessions).length > 0) {
+    if (mIsGroup || !mSessions.empty())
+    {
         return;
     }
-    this._destroy(Term.kCallRejected | Term.kPeer, false);
-};
+    destroy(TermCode::kCallRejected | TermCode::kPeer, false);
+}
 
-Call.prototype.msgRinging = function(packet) {
-    var self = this;
-    if (self.state !== CallState.kReqSent && self.state !== CallState.kInProgress) {
-        self.logger.warn("Ignoring unexpected RINGING");
+void Call::msgRinging(RtMessage& packet)
+{
+    if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
+    {
+        CALL_LOG_WARNING("Ignoring unexpected RINGING");
         return;
     }
-    var fromUser = packet.fromUser;
-    if (!self.ringOutUsers) {
-        self.ringOutUsers = {};
-        self.ringOutUsers[fromUser] = true;
-        self._clearCallOutTimer();
-        self._callOutTimer = setTimeout(function() {
-            if (self.state !== CallState.kReqSent) {
+    if (!mRingOutUsers)
+    {
+        mRingOutUsers.reset(new std::set<Id>());
+        mRingOutUsers->insert(fromUser);
+        clearCallOutTimer();
+        auto wptr = weakHandle();
+        mCallOutTimer = setTimeout([wptr, this] {
+            if (wptr.deleted() || mState != Call::kStateReqSent)
+            {
                 return;
             }
-            self.hangup(Term.kAnswerTimeout); // TODO: differentiate whether peer has sent us RINGING or not
-        }, RtcModule.kCallAnswerTimeout);
-    } else {
-        if (self.ringOutUsers[fromUser]) {
-            return;
-        }
-        self.ringOutUsers[fromUser] = true;
+            hangup(TermCode::kAnswerTimeout); // TODO: differentiate whether peer has sent us RINGING or not
+        }, RtcModule::kCallAnswerTimeout);
     }
-    this._fire("onRingOut", fromUser);
-};
-Call.prototype._clearCallOutTimer = function() {
-    if (!this._callOutTimer) {
+    else
+    {
+        self.ringOutUsers->insert(fromUser);
+    }
+    FIRE_EVENT(CALL, onRingOut, fromUser);
+}
+
+void Call::clearCallOutTimer()
+{
+    if (!mCallOutTimer) {
         return;
     }
-    clearTimeout(this._callOutTimer);
-    delete this._callOutTimer;
-};
-Call.prototype._handleBusy = function(packet) {
-    if (this.state !== CallState.kReqSent && this.state !== CallState.kInProgress) {
-        this.log.warn("Ignoring unexpected BUSY when in state", constStateToText(this.state));
+    clearTimeout(mCallOutTimer);
+    mCallOutTimer = 0;
+}
+
+void Call::handleBusy(RtMessage& packet)
+{
+    if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
+    {
+        CALL_LOG_WARNING("Ignoring unexpected BUSY when in state %s", stateToStr(mState));
         return;
     }
     if (!this.isGroup && Object.keys(this.sessions).length < 1) {
@@ -512,410 +526,439 @@ Call.prototype._handleBusy = function(packet) {
     } else {
         this.logger.warn("Ignoring incoming BUSY for a group call or one with already existing session(s)");
     }
-};
+}
 
-Call.prototype.msgSession = function(packet) {
-    var self = this;
-    if (self.state !== CallState.kJoining && self.state !== CallState.kInProgress) {
-        this.logger.warn("Ignoring unexpected SESSION");
+void Call::msgSession(RtMessage& packet)
+{
+    if (mState != Call::kStateJoining && mState != Call::kStateInProgress)
+    {
+        CALL_LOG_WARNING("Ignoring unexpected SESSION");
         return;
     }
-    self._setState(CallState.kInProgress);
-    var sid = packet.data.substr(8, 8);
-    var sess = self.sessions[sid] = new Session(self, packet);
-    self._notifyNewSession(sess);
-    sess.sendOffer();
-};
-
-Call.prototype._notifyNewSession = function(sess) {
-    try {
-        sess.handler = this.handler.onNewSession(sess);
-    } catch (e) {
-        sess.handler = null;
-        throw e;
+    setState(Call::kStateInProgress);
+    auto sid = packet.readPayload<uint64_t>(8);
+    if (mSessions.find(sid) != mSessions.end())
+    {
+        CALL_LOG_ERROR("Received SESSION with sid of an existing session (%s), ignoring", base64urlencode(&sid, sizeof(sid)));
+        return;
     }
-    if (!this._callStartSignalled) {
-        this._callStartSignalled = true;
-        this._fire('onCallStarting');
-    }
-};
+    auto sess = std::make_shared<Session>(*this, packet);
+    mSessions[sid] = sess;
+    notifyNewSession(*sess);
+    sess->sendOffer();
+}
 
-Call.prototype.msgJoin = function(packet) {
-    if (this.state === CallState.kRingIn && packet.fromUser === this.manager.chatd.userId) {
-        this._destroy(Term.kAnsElsewhere, false);
-    } else if (this.state === CallState.kInProgress || this.state === CallState.kReqSent) {
-        packet.callid = packet.data.substr(0, 8);
+void Call::notifyNewSession(Session& sess)
+{
+    sess.mHandler = mHandler->onNewSession(sess);
+    if (!mCallStartSignalled) {
+        mCallStartSignalled = true;
+        FIRE_EVENT(CALL, onCallStarting);
+    }
+}
+
+void Call::msgJoin(RtMessage& packet)
+{
+    if (mState == CallkStateRingIn && packet.fromUser() == mManager.chatd.userId)
+    {
+        destroy(TermCode::kAnsElsewhere, false);
+    }
+    else if (mState == Call::kStateInProgress || mState == Call::kStateReqSent)
+    {
+        packet.callid = packet.payloadRead<uint64_t>(0);
         assert(packet.callid);
-        if (this.state === CallState.kReqSent) {
-            this._setState(CallState.kInProgress);
+        if (mState == Call::kStateReqSent)
+        {
+            setState(Call::kStateInProgress);
         }
         // create session to this peer
-        var sess = new Session(this, packet);
-        this.sessions[sess.sid] = sess;
-        this._notifyNewSession(sess);
-        sess._createRtcConn();
-        sess._sendCmdSession(packet);
-    } else {
-        this.logger.warn("Ingoring unexpected JOIN");
+        auto sess = std::make_shared<Session>(*this, packet);
+        mSessions[sess->sid] = sess;
+        notifyNewSession(*sess);
+        sess->createRtcConn();
+        sess->sendCmdSession(packet);
+    }
+    else
+    {
+        CALL_LOG_WANRING("Ingoring unexpected JOIN");
         return;
     }
-};
-Call.prototype._gracefullyTerminateAllSessions = function(code, cb) {
-    var self = this;
-    var promises = [];
-    for (var sid in self.sessions) {
-        var sess = self.sessions[sid];
-        promises.push(sess.terminateAndDestroy(code));
+}
+promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
+{
+    std::vector<Promise<void>> promises;
+    for (auto& item: mSessions)
+    {
+        promises.push(item->second->terminateAndDestroy(code));
     }
-    Promise.all(promises)
-    .catch(function() {
+    return Promise::when(promises)
+    .fail([](promise::Error& err)
+    {
         assert(false); // terminateAndDestroy() should never fail
-    })
-    .then(function() {
-        cb();
     });
-};
-Call.prototype._waitAllSessionsTerminated = function(code, cb) {
-    var self = this;
-    var sessions = self.sessions;
+}
+
+Promise<void> Call::waitAllSessionsTerminated(TermCode code)
+{
     // if the peer initiated the call termination, we must wait for
     // all sessions to go away and remove the call
-    for (var sid in sessions) {
-        var sess = sessions[sid];
-        sess._setState(SessState.kTerminating);
+    for (auto& item: mSessions) {
+        item->second->setState(Session::kStateTerminating);
     }
-
-    createTimeoutPromise(function() {
-            return Object.keys(sessions).length <= 0;
-        }, 200, 1400)
-    .then(function() {
-        cb();
-    })
-    .fail(function() {
-        if (Object.keys(sessions).length > 0) {
-            self.logger.error("Timed out waiting for all sessions to terminate, force closing them");
-            for (var sid in sessions) {
-                var sess = sessions[sid];
-                sess._destroy(code);
+    auto wptr = weakHandle();
+    struct Ctx
+    {
+        int count = 0;
+        megaHandle timer;
+        Promise<void> pms;
+    };
+    auto ctx = std::make_shared<Ctx>();
+    ctx->timer = setInterval([wptr, this, ctx, code]() {
+        if (wptr.deleted())
+            return;
+        if (++ctx->count > 7)
+        {
+            cancelTimer(ctx->timer);
+            CALL_LOG_ERROR("Timed out waiting for all sessions to terminate, force closing them");
+            for (auto& item: mSessions) {
+                item->second->destroy(code);
             }
-        }
-        cb();
-    });
-};
-
-Call.prototype._destroy = function(code, weTerminate, msg) {
-    assert(typeof code !== 'undefined');
-    var self = this;
-    if (self.state === CallState.kDestroyed) {
-        return Promise.resolve(null);
-    } else if (self.state === CallState.Terminating) {
-        assert(self._destroyPromise);
-        return self._destroyPromise;
-    }
-    if (msg) {
-        self.logger.log("Destroying call due to:", msg);
-    }
-
-    self._setState(CallState.kTerminating);
-    self._clearCallOutTimer();
-
-    var pms = new Promise(function(resolve, reject) {
-        if (weTerminate) {
-            if (!self.isGroup) {
-                self.cmdBroadcast(RTCMD.CALL_TERMINATE, String.fromCharCode(code));
-            }
-            // if we initiate the call termination, we must initiate the
-            // session termination handshake
-            self._gracefullyTerminateAllSessions(code, resolve);
-        } else {
-            self._waitAllSessionsTerminated(code, resolve);
-        }
-    });
-    self._destroyPromise = pms.then(function() {
-        assert(Object.keys(self.sessions).length === 0);
-        self._stopIncallPingTimer();
-        self._setState(CallState.kDestroyed);
-        self._fire('onDestroy', code & 0x7f, !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
-        self.manager._removeCall(self);
-    });
-    return self._destroyPromise;
-};
-
-Call.prototype.cmdBroadcast = function(type, payload) {
-    var self = this;
-    var len = payload ? (payload.length + 1) : 1;
-    var data = self.chatid + '\0\0\0\0\0\0\0\0\0\0\0\0' + Chatd.pack16le(len) + String.fromCharCode(type);
-
-    if (payload) {
-        data += payload;
-    }
-    if (!self.shard.cmd(Chatd.Opcode.RTMSG_BROADCAST, data)) {
-        setTimeout(function() { self._destroy(Term.kErrNetSignalling, true); }, 0);
-        return false;
-    }
-    return true;
-};
-
-Call.prototype._broadcastCallReq = function() {
-    var self = this;
-    if (self.state >= CallState.kTerminating) {
-        console.warn("_broadcastCallReq: Call terminating/destroyed");
-        return;
-    }
-    assert(self.state === CallState.kHasLocalStream);
-    if (!self.cmdBroadcast(RTCMD.CALL_REQUEST, self.id)) {
-        return false;
-    }
-
-    self._setState(CallState.kReqSent);
-    self._startIncallPingTimer();
-    self._callOutTimer = setTimeout(function() {
-        if (self.state !== CallState.kReqSent) {
+            ctx->pms.resolve();
             return;
         }
-        self._destroy(Term.kRingOutTimeout, true);
-    }, RtcModule.kRingOutTimeout);
-    return true;
-};
-Call.prototype._startIncallPingTimer = function() {
-    var self = this;
-    self._inCallPingTimer = setInterval(function() {
-        if (!self.shard.cmd(Chatd.Opcode.INCALL, self.chatid + self.manager.chatd.userId + self.shard.clientId)) {
-            self._destroy(Term.kErrNetSignalling, true);
-        }
-    }, RtcModule.kIncallPingInterval);
-};
+        if (!mSessions.empty())
+        return;
+        cancelTimer(ctx->timer);
+        ctx->pms.resolve();
+    });
+    return ctx->pms;
+}
 
-Call.prototype._stopIncallPingTimer = function() {
-    var self = this;
-    if (self._inCallPingTimer) {
-        clearInterval(self._inCallPingTimer);
-        delete self._inCallPingTimer;
+Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
+{
+    if (mState == Call::kStateDestroyed)
+    {
+        return promise::_Void();
     }
-    self.shard.cmd(Chatd.Opcode.ENDCALL, self.chatid + self.manager.chatd.userId + self.shard.clientId);
-};
+    else if (mState == Call::kStateTerminating)
+    {
+        assert(!mDestroyPromise.done());
+        return mDestroyPromise;
+    }
+    if (!msg.empty())
+    {
+        CALL_LOG_DEBUG("Destroying call due to: %s", msg.c_str());
+    }
 
-Call.prototype._removeSession = function(sess, reason) {
-    var self = this;
-    delete self.sessions[sess.sid];
-    if (self.state === CallState.kTerminating) {
+    setState(Call::kStateTerminating);
+    clearCallOutTimer();
+
+    Promise<void> pms(promise::_Empty);
+    if (weTerminate) {
+        if (!mIsGroup) //TODO: Maybe do it also for group calls
+        {
+            cmdBroadcast(RTCMD_CALL_TERMINATE, code);
+        }
+        // if we initiate the call termination, we must initiate the
+        // session termination handshake
+        pms = gracefullyTerminateAllSessions(code);
+    } else {
+        pms = waitAllSessionsTerminated(code);
+    }
+    auto wptr = weakHandle();
+    mDestroyPromise = pms.then([wptr, this]()
+    {
+        if (wptr.deleted())
+            return;
+        assert(mSessions.empty());
+        stopIncallPingTimer();
+        setState(Call::kStateDestroyed);
+        FIRE_EVENT(Call, onDestroy, code & 0x7f, !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
+        mManager.removeCall(*this);
+    });
+    return mDestroyPromise;
+}
+template <class... Args>
+bool Call::cmdBroadcast(uint8_t type, Args... args)
+{
+    RtMessageComposer msg(RTMSG_BROADCAST, type, chatid, 0, 0);
+    msg.payloadAppend(args...);
+    if (mShard.sendCommand(msg))
+    {
+        return true;
+    }
+    auto wptr = weakHandle();
+    marshallCall([wptr, this]()
+    {
+        destroy(TermCode::kErrNetSignalling, true);
+    });
+    return false;
+}
+
+void Call::broadcastCallReq()
+{
+    if (mState >= Call::kStateTerminating)
+    {
+        CALL_LOG_WARNING("broadcastCallReq: Call terminating/destroyed");
         return;
     }
+    assert(mState == Call::kStateHasLocalStream);
+    if (!cmdBroadcast(RTCMD_CALL_REQUEST, mId))
+    {
+        return false;
+    }
+
+    setState(Call::kStateReqSent);
+    startIncallPingTimer();
+    auto wptr = weakHandle();
+    mCallOutTimer = setTimeout([wptr, this]()
+    {
+        if (wptr.deleted() || mState != Call::kStateReqSent)
+            return;
+
+        destroy(TermCode::kRingOutTimeout, true);
+    }, RtcModule::kRingOutTimeout);
+    return true;
+}
+
+void Call::startIncallPingTimer()
+{
+    assert(!mInCallPingTimer);
+    auto wptr = weakHandle();
+    mInCallPingTimer = setInterval([this, wptr]()
+    {
+        if (!mShard.sendCommand(Command(OP_INCALL) + chatid + mManager.chatd.userId + self.shard.clientId))
+        {
+            destroy(TermCode::kErrNetSignalling, true);
+        }
+    }, RtcModule.kIncallPingInterval);
+}
+
+void Call::stopIncallPingTimer()
+{
+    if (mInCallPingTimer)
+    {
+        clearInterval(mInCallPingTimer);
+        mInCallPingTimer = 0;
+    }
+    mShard.sendCommand(OP_ENDCALL, mChatid + mManager.chatd.userId + mShard.clientId);
+}
+
+void Call::removeSession(Session& sess, TermCode reason)
+{
+    mSessions.erase(sess.sid);
+    if (mState == Call::kStateTerminating)
+        return;
+
     // if no more sessions left, destroy call even if group
-    if (Object.keys(self.sessions).length === 0) {
-        self._destroy(reason, false);
+    if (mSessions.empty())
+    {
+        destroy(reason, false);
         return;
     }
     // upon session failure, we swap the offerer and answerer and retry
-    if (self.isGroup && isTermError(reason) && !sess.isJoiner) {
-        var endpointId = sess.peer + sess.peerClient;
-        if (!self.sessRetries[endpointId]) {
-            self.sessRetries[endpointId]++;
-            setTimeout(function() {
-                self._join(sess.peer);
-            }, 500);
+    if (mState != Call::kStateTerminating && mIsGroup && isTermError(reason)
+         && !sess.isJoiner)
+    {
+        EndpointId endpointId(sess.peer, sess.peerClient);
+        if (mSessRetries.find(endpointId) == mSessRetries.end())
+        {
+            mSessRetries[endpointId] = 1;
+        } else
+        {
+            mSessRetries[endpointId]++;
         }
-    }
-};
-Call.prototype._fire = function(evName) {
-    var self = this;
-    var func = self.handler[evName];
-    var logger = self.logger;
-    if (logger.isEnabled()) {
-        var msg = "fire event " + evName;
-        if (evName === "onDestroy") {
-            msg += " (" + constStateToText(Term, arguments[1]) + ')';
-        }
-        if (!func) {
-            msg += " ...unhandled";
-        }
-        logger.log(msg);
-    }
-    if (!func) {
-        return;
-    }
-    try {
-        func.call(self.handler, arguments[1], arguments[2], arguments[3]);
-    } catch (e) {
-        logger.error("Event handler '" + evName + "' threw exception:\n" + e, "\n", e.stack);
-    }
-};
-Call.prototype._startOrJoin = function(av, isJoin) {
-    var self = this;
-    self._getLocalStream(av)
-    .catch(function(err) {
-        self._destroy(Term.kErrLocalMedia, true, err);
-        return err;
-    })
-    .then(function() {
-        if (isJoin) {
-            self._join();
-        } else {
-            self._broadcastCallReq();
-        }
-    });
-};
+        auto wptr = weakHandle();
+        auto peer = sess.peer;
+        setTimeout([this, wptr, peer]() {
 
-Call.prototype._cmd = function(cmd, userid, clientid, data) {
-    var opcode;
-    if (!userid) {
-        userid = '\0\0\0\0\0\0\0\0';
-        clientid = '\0\0\0\0';
-        opcode = Chatd.Opcode.RTMSG_BROADCAST;
-    } else if (!clientid) {
-        clientid = '\0\0\0\0';
-        opcode = Chatd.Opcode.RTMSG_USER;
+            if (wptr.deleted())
+                return;
+            join(peer);
+        }, 500);
+    }
+}
+void Call::startOrJoin(AvFlags av)
+{
+    std::string errors;
+    mLocalStream = getLocalStream(av, errors);
+    if (!errors.empty())
+    {
+        CALL_LOG_ERROR("Error(s) getting local stream: %s", errors.c_str());
+    }
+    if (mIsJoiner) {
+        join();
     } else {
-        opcode = Chatd.Opcode.RTMSG_ENDPOINT;
+        broadcastCallReq();
     }
-    var payload = this.chatid + userid + clientid;
-    payload += Chatd.pack16le(data ? (1 + data.length) : 1);
-    payload += String.fromCharCode(cmd);
-    if (data) {
-        payload += data;
-    }
-    return this.shard.cmd(opcode, payload);
-};
+}
+template <class... Args>
+bool Call::cmd(uint8_t type, Id userid, uint32_t clientid, Args... args)
+{
+    assert(userid);
+    uint8_t opcode = clientid ? OP_RTMSG_ENDPOINT : OP_RTMSG_USER;
+    RtMessageComposer msg(opcode, type, mChatId, userid, clientid);
+    msg.payloadAppend(args...);
+    return mShard.sendCommand(msg);
+}
 
-Call.prototype._join = function(userid) {
-    var self = this;
-    assert(self.state === CallState.kHasLocalStream);
+bool Call::join(Id userid)
+{
+    assert(mState == Call::kStateHasLocalStream);
     // JOIN:
     // chatid.8 userid.8 clientid.4 dataLen.2 type.1 callid.8 anonId.8
     // if userid is not specified, join all clients in the chat, otherwise
     // join a specific user (used when a session gets broken)
-    var opcode;
-    if (!userid) {
-        userid = "\0\0\0\0\0\0\0\0";
-        opcode = Chatd.Opcode.RTMSG_BROADCAST;
-    } else {
-        opcode = Chatd.Opcode.RTMSG_USER;
-    }
-    var data = self.chatid + userid + '\0\0\0\0' + Chatd.pack16le(17) +
-        String.fromCharCode(RTCMD.JOIN) + self.id + self.manager.ownAnonId;
-    self._setState(CallState.kJoining);
-    if (!self.shard.cmd(opcode, data)) {
-        setTimeout(function() { self._destroy(Term.kErrNetSignalling, true); }, 0);
+    setState(Call::kStateJoining);
+    bool sent = userid
+            ? cmd(RTCMD_JOIN, userid, 0, mId, mManager.ownAnonId)
+            : cmdBroadcast(RTCMD_JOIN, mId, mManager.ownAnonId);
+    if (!sent)
+    {
+        marshallCall([this]()
+        {
+            destroy(TermCode::kErrNetSignalling, true);
+        });
         return false;
     }
-    self._startIncallPingTimer();
+    startIncallPingTimer();
     // we have session setup timeout timer, but in case we don't even reach a session creation,
     // we need another timer as well
-    setTimeout(function() {
-        if (self.state <= CallState.kJoining) {
-            self._destroy(Term.kErrProtoTimeout, true);
+    setTimeout([wptr, this]()
+    {
+        if (mState <= Call::kStateJoining)
+        {
+            destroy(TermCode::kErrProtoTimeout, true);
         }
-    }, RtcModule.kSessSetupTimeout);
+    }, RtcModule::kSessSetupTimeout);
     return true;
-};
+}
 
-Call.prototype.answer = function(av) {
-    var self = this;
-    if (self.state !== CallState.kRingIn) {
-        self.logger.warn("answer: Not in kRingIn state, nothing to answer");
+bool Call::answer(AvFlags av)
+{
+    if (mState != Call::kStateRingIn)
+    {
+        CALL_LOG_WARNING("answer: Not in kRingIn state, nothing to answer");
         return false;
     }
-    return self._startOrJoin(av, true);
-};
+    assert(mIsJoiner);
+    return startOrJoin(av);
+}
 
-Call.prototype.hangup = function(reason) {
-    var term;
-    switch (this.state)
+void Call::hangup(TermCode reason)
+{
+    TermCode term;
+    switch (mState)
     {
-    case CallState.kReqSent:
-        if (typeof reason === 'undefined') {
-            reason = Term.kCallReqCancel;
-        } else {
-            assert(reason === Term.kCallReqCancel || reason === Term.kAnswerTimeout,
-                   "Invalid reason for hangup of outgoing call request");
+    case kStateReqSent:
+        if (reason == TermCode::kInvalid)
+        {
+            reason = TermCode::kCallReqCancel;
         }
-        this._cmd(RTCMD.CALL_REQ_CANCEL, 0, 0, this.id+String.fromCharCode(reason));
-        this._destroy(reason, false);
-        return;
-    case CallState.kRingIn:
-        if (typeof reason === 'undefined') {
-            term = Term.kCallRejected;
-        } else if (reason === Term.kBusy) {
-            term = Term.kBusy;
-        } else {
-            assert(false, "Hangup reason can only be undefined or kBusy when hanging up call in state kRingIn");
+        else
+        {
+            assert(reason == TermCode::kCallReqCancel || reason == TermCode::kAnswerTimeout);
         }
-        var cinfo = this._callerInfo;
-        assert(cinfo);
-        assert(Object.keys(this.sessions).length === 0);
-        this._cmd(RTCMD.CALL_REQ_DECLINE, cinfo.fromUser, cinfo.fromClient, cinfo.callid + String.fromCharCode(term));
-        this._destroy(term, false);
+        cmd(RTCMD_CALL_REQ_CANCEL, 0, 0, mId, reason);
+        destroy(reason, false);
         return;
-    case CallState.kJoining:
-    case CallState.kInProgress:
-    case CallState.kWaitLocalStream:
+    case kStateRingIn:
+        if (reason == TermCode::kInvalid)
+        {
+            term = TermCode::kCallRejected;
+        }
+        else if (reason == TermCode::kBusy)
+        {
+            term = TermCode::kBusy;
+        }
+        else
+        {
+            assert(false && "Hangup reason can only be undefined or kBusy when hanging up call in state kRingIn");
+        }
+        assert(mSessions.empty());
+        cmd(RTCMD_CALL_REQ_DECLINE, mCallerUser, mCallerClient, mId, term);
+        destroy(term, false);
+        return;
+    case kStateJoining:
+    case kStateInProgress:
+    case kStateWaitLocalStream:
         // TODO: Check if the sender is the call host and only then destroy the call
-        term = Term.kUserHangup;
+        term = TermCode::kUserHangup;
         break;
-    case CallState.kTerminating:
-    case CallState.kDestroyed:
-        this.logger.debug("hangup: Call already terminating/terminated");
+    case kStateTerminating:
+    case kStateDestroyed:
+        CALL_LOG_DEBUG("hangup: Call already terminating/terminated");
         return;
     default:
-        term = Term.kUserHangup;
-        this.logger.warn("Don't know what term code to send in state", constStateToText(Term, this.state));
+        term = TermCode::kUserHangup;
+        CALL_LOG_WARNING("Don't know what term code to send in state %s", stateString(mState));
         break;
     }
     // in any state, we just have to send CALL_TERMINATE and that's all
-    this._destroy(term, true);
-};
+    destroy(term, true);
+}
 
-Call.prototype.hangupAllCalls = function() {
-    var calls = this.calls;
-    for (var id in calls) {
-        calls[id].hangup();
+void Call::hangupAllCalls()
+{
+    for (auto& item: mCalls)
+    {
+        item->second->hangup();
     }
-};
+}
 
-Call.prototype._onUserOffline = function(userid, clientid) {
-    if (this.state === CallState.kRingIn) {
-        this._destroy(Term.kCallReqCancel, false);
+void Call::onUserOffline(Id userid, uint32_t clientid)
+{
+    if (mState == kStateRingIn)
+    {
+        destroy(TermCode::kCallReqCancel, false);
         return;
     }
-    for (var sid in this.sessions) {
-        var sess = this.sessions[sid];
-        if (sess.peer === userid && sess.peerClient === clientid) {
-            setTimeout(function() {
-                sess.terminateAndDestroy(Term.kErrUserOffline | Term.kPeer);
-            }, 0);
-            return true;
+    for (auto& item: mSessions)
+    {
+        auto sess = item->second;
+        if (sess.peer == userid && sess.peerClient == clientid)
+        {
+            marshallCall([sess]()
+            {
+                sess.terminateAndDestroy(TermCode::kErrUserOffline | TermCode::kPeer);
+            });
+            return;
         }
     }
-    return false;
-};
+}
 
-Call.prototype._notifySessionConnected = function(sess) {
-    if (this._hasConnectedSession) {
+void Call::notifySessionConnected(Session& sess)
+{
+    if (mHasConnectedSession) {
         return;
     }
-    this._hasConnectedSession = true;
-    this._fire('onCallStarted');
-};
+    mHasConnectedSession = true;
+    FIRE_EVENT(CALL, onCallStarted);
+}
 
-Call.prototype.muteUnmute = function(av) {
-    var s = this.manager.gLocalStream;
-    var oldAv = Av.fromStream(s);
-    if (!s) {
-        av = 0;
-    } else {
-        Av.applyToStream(s, av);
-        av = Av.fromStream(s);
+void Call::muteUnmute(AvFlags av)
+{
+    if (!mLocalStream)
+    {
+        return;
     }
-    if (oldAv !== av) {
-        for (var sid in this.sessions) {
-            this.sessions[sid]._sendAv(av);
-        }
+    var oldAv = mLocalStream.effectiveAv();
+    mLocalStream->setAvState(av);
+    av = mLocalStream.effectiveAv();
+    if (oldAv == av)
+    {
+        return;
     }
-    this.manager.gLocalAv = av;
-};
-Call.prototype.localAv = function() {
-    return this.manager.gLocalAv;
-};
+    for (auto& item: mSessions)
+    {
+        item.second->sendAv(av);
+    }
+}
+
+AvFlags Call::localAv()
+{
+    return mLocalStream ? mLocalStream.effectiveAv() : AvFlags(0);
+}
 
 /** Protocol flow:
     C(aller): broadcast RTCMD.CALL_REQUEST callid.8 avflags.1
@@ -966,112 +1009,112 @@ The first is purely informative, to make the callee aware what type of
 call the caller is requesting - audio or video.
 This is not available when joining an existing call.
 */
-function Session(call, packet) {
-    // Packet can be RTCMD.JOIN or RTCMD.SESSION
-    var self = this;
-    self.call = call;
-    var data = packet.data;
-    self.chatd = call.manager.chatd;
-    self.peer = packet.fromUser;
-    self.peerClient = packet.fromClient;
-    self.crypto = call.manager.crypto;
-    self.ownHashKey = self.crypto.random(32);
-    assert(self.ownHashKey.length === 32);
-    if (packet.type === RTCMD.JOIN) { // peer will send offer
+Session::Session(Call& call, RtMessage& packet)
+:mCall(call), mPeer(packet.userid), mPeerClient(packet.clientid)
+{
+    // Packet can be RTCMD_JOIN or RTCMD_SESSION
+    call.manager.crypto.random(&mOwnHashKey);
+    if (packet.type == RTCMD_JOIN)
+    {
+        // peer will send offer
         // JOIN callid.8 anonId.8
-        self.isJoiner = false;
-        self.sid = self.crypto.random(8);
-        self.state = SessState.kWaitSdpOffer;
-        self.peerAnonId = data.substr(8, 8);
-    } else {
-        // SESSION callid.8 sid.8 anonId.8 encHashKey.32
-        assert(packet.type === RTCMD.SESSION);
-        self.isJoiner = true;
-        self.sid = data.substr(8, 8);
-        self.state = SessState.kWaitSdpAnswer;
-        assert(data.length >= 56);
-        self.peerAnonId = data.substr(16, 8);
-        self.peerHashKey = self.crypto.decryptNonceFrom(this.peer, data.substr(24, 32));
+        mIsJoiner = false;
+        mSid = call.manager.crypto.random<uint64_t>();
+        mState = kStateWaitSdpOffer;
+        mPeerAnonId = packet.payloadRead<uint64_t>(8);
     }
-    self.logger = MegaLogger.getLogger("sess[" + base64urlencode(this.sid) + "]",
-        call.manager._loggerOpts, call.logger);
-    self.setupTimer = setTimeout(function() {
-        if (self._state < SessState.kInProgress) {
-            self.terminateAndDestroy(Term.kErrProtoTimeout);
+    else
+    {
+        // SESSION callid.8 sid.8 anonId.8 encHashKey.32
+        assert(packet.type == RTCMD_SESSION);
+        mIsJoiner = true;
+        mSid = packet.payloadRead<uint64_t>(8);
+        mState = kStateWaitSdpAnswer;
+        assert(packet.payloadSize() >= 56);
+        mPeerAnonId = packet.payloadRead<uint64_t>(16);
+        uint8_t encKey[32];
+        packet.payloadRead(24, 32, encKey);
+        call.manager.crypto.decryptNonceFrom(mPeer, encKey, mPeerHashKey);
+    }
+    mName = "sess[" + base64urlencode(mSid) + "]";
+    auto wptr = weakHandle();
+    mSetupTimer = setTimeout([wptr, this] {
+        if (wptr.deleted())
+            return;
+        if (mState < kStateInProgress) {
+            terminateAndDestroy(TermCode::kErrProtoTimeout);
         }
-    }, RtcModule.kSessSetupTimeout);
+    }, RtcModule::kSessSetupTimeout);
 }
 
-Session.prototype._sendCmdSession = function(joinPacket) {
+bool Session::sendCmdSession(RtMessage& joinPacket)
+{
+    HashKey encKey;
+    mCall.manager.crypto.encryptKeyTo(mPeer, mOwnHashKey, encKey);
     // SESSION callid.8 sid.8 anonId.8 encHashKey.32
-    this.call.manager.cmdEndpoint(RTCMD.SESSION, joinPacket,
-        joinPacket.callid +
-        this.sid +
-        this.call.manager.ownAnonId +
-        this.crypto.encryptNonceTo(this.peer, this.ownHashKey) +
-        this.call.id
+   return mCall.manager.cmdEndpoint(RTCMD_SESSION, joinPacket,
+        joinPacket.callid,
+        mSid,
+        mCall.manager.ownAnonId,
+        encKey,
+        mCall.id()
     );
-};
+}
 
-Session.prototype._setState = function(newState) {
-    var oldState = this.state;
-
-    if (oldState === newState) {
+void Session::setState(State newState)
+{
+    auto oldState = mState;
+    if (oldState == newState) {
         return false;
     }
 
     assertStateChange(
         oldState,
         newState,
-        SessStateAllowedStateTransitions,
-        SessState
+        AllowedSessStateTransitions
     );
 
-    this.state = newState;
+    mState = newState;
 
-    if (d) { /* performance, save some loops/closures creation CPU/memory */
-        this.logger.log(
-            "State changed: ",
-            constStateToText(SessState, oldState),
-            ' -> ',
-            constStateToText(SessState, newState)
-        );
-    }
-    this._fire("onStateChange", this.state);
-};
+    SESS_LOG_DEBUG("State changed: %s -> %s", stateToStr(oldState), stateToStr(mState));
+    FIRE_EVENT(SESSION, onStateChange, mState);
+}
 
-Session.prototype.pcConstraints = function() {
-    return this.call.manager.pcConstraints;
-};
+webrtc::FakeConstraints& Session::pcConstraints()
+{
+    return mCall.manager.pcConstraints;
+}
 
-Session.prototype.handleMsg = function(packet) {
-    switch (packet.type) {
-        case RTCMD.SDP_OFFER:
-            this.msgSdpOfferSendAnswer(packet);
+void Session::handleMsg(RtMessage& packet)
+{
+    switch (packet.type)
+    {
+        case RTCMD_SDP_OFFER:
+            msgSdpOfferSendAnswer(packet);
             return;
-        case RTCMD.SDP_ANSWER:
-            this.msgSdpAnswer(packet);
+        case RTCMD_SDP_ANSWER:
+            msgSdpAnswer(packet);
             return;
-        case RTCMD.ICE_CANDIDATE:
-            this.msgIceCandidate(packet);
+        case RTCMD_ICE_CANDIDATE:
+            msgIceCandidate(packet);
             return;
-        case RTCMD.SESS_TERMINATE:
-            this.msgSessTerminate(packet);
+        case RTCMD_SESS_TERMINATE:
+            msgSessTerminate(packet);
             return;
-        case RTCMD.SESS_TERMINATE_ACK:
-            this.msgSessTerminateAck(packet);
+        case RTCMD_SESS_TERMINATE_ACK:
+            msgSessTerminateAck(packet);
             return;
-        case RTCMD.MUTE:
-            this.msgMute(packet);
+        case RTCMD_MUTE:
+            msgMute(packet);
             return;
         default:
-            this.logger.warn("Don't know how to handle", constStateToText(RTCMD, packet.type));
+            SESS_LOG_WARNING("Don't know how to handle", packet.typeStr());
             return;
     }
-};
+}
 
-Session.prototype._createRtcConn = function() {
-    var self = this;
+void Session::createRtcConn()
+{
     var conn = self.rtcConn = new RTCPeerConnection({
         iceServers: RTC.fixupIceServers(self.call.manager.iceServers)
     });

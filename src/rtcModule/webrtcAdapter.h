@@ -473,10 +473,12 @@ public:
     { return karere::AvFlags(mAudio && mAudio->track()->enabled(), mVideo && mVideo->track()->enabled()); }
     void setAvState(karere::AvFlags av)
     {
-        if (mAudio && mAudio->track()->enabled() != av.audio)
-            mAudio->track()->set_enabled(av.audio);
-        if (mVideo && mVideo->track()->enabled() != av.video)
-            mVideo->track()->set_enabled(av.video);
+        bool audio = av.audio();
+        bool video = av.video();
+        if (mAudio && mAudio->track()->enabled() != audio)
+            mAudio->track()->set_enabled(audio);
+        if (mVideo && mVideo->track()->enabled() != video)
+            mVideo->track()->set_enabled(video);
     }
     LocalStreamHandle(const std::shared_ptr<LocalAudioTrackHandle>& aAudio,
         const std::shared_ptr<LocalVideoTrackHandle>& aVideo, const char* name="localStream")
