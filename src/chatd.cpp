@@ -749,8 +749,8 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 
 void Chat::requestHistoryFromServer(int32_t count)
 {
-    // the connection must be established (for a JOIN + HIST), but not yet logged in
-    assert(mConnection.state() >= Connection::kStateConnected);
+    // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
+    assert(mConnection.isConnected() || mConnection.isLoggedIn());
     mLastServerHistFetchCount = mLastHistDecryptCount = 0;
     mServerFetchState = (count > 0)
         ? kHistFetchingNewFromServer
