@@ -475,14 +475,29 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
+    if (e->getErrorCode() == mega::MegaError::API_ESID)
+    {
+        auto wptr = weakHandle();
+        marshallCall([wptr, this]() // update state in the karere thread
+        {
+            if (wptr.deleted())
+                return;
+
+            if (initState() < kInitTerminating)
+            {
+                setInitState(kInitErrSidInvalid);
+            }
+        });
+        return;
+    }
+
     auto reqType = request->getType();
     switch (reqType)
     {
     case mega::MegaRequest::TYPE_LOGOUT:
     {
-        if (request->getFlag() ||   // SDK has been logged out normally
-                e->getErrorCode() == mega::MegaError::API_ESID ||
-                request->getParamType() == mega::MegaError::API_ESID)
+        if (request->getFlag() ||   // SDK has been logged out normally closing session
+                request->getParamType() == mega::MegaError::API_ESID)   // SDK received ESID during login
         {
             auto wptr = weakHandle();
             marshallCall([wptr, this]() // update state in the karere thread
