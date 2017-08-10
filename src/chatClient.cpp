@@ -475,26 +475,32 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
-    auto wptr = weakHandle();
-    if (e->getErrorCode() == mega::MegaError::API_ESID ||
-            (request->getType() == mega::MegaRequest::TYPE_LOGOUT &&
-             request->getParamType() == mega::MegaError::API_ESID))
+    auto reqType = request->getType();
+    switch (reqType)
     {
-        marshallCall([wptr, this]() // update state in the karere thread
+    case mega::MegaRequest::TYPE_LOGOUT:
+    {
+        if (request->getFlag() ||   // SDK has been logged out normally
+                e->getErrorCode() == mega::MegaError::API_ESID ||
+                request->getParamType() == mega::MegaError::API_ESID)
         {
-            if (wptr.deleted())
-                return;
-
-            if (initState() != kInitErrSidInvalid)
+            auto wptr = weakHandle();
+            marshallCall([wptr, this]() // update state in the karere thread
             {
-                setInitState(kInitErrSidInvalid);
-            }
-        });
-        return;
+                if (wptr.deleted())
+                    return;
+
+                if (initState() < kInitTerminating)
+                {
+                    setInitState(kInitErrSidInvalid);
+                }
+            });
+            return;
+        }
+        break;
     }
 
-    auto reqType = request->getType();
-    if (reqType == mega::MegaRequest::TYPE_FETCH_NODES)
+    case mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
         auto state = mInitState;
@@ -508,10 +514,12 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
         std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
+        auto wptr = weakHandle();
         marshallCall([wptr, this, state, scsn, contactList, chatList]()
         {
             if (wptr.deleted())
                 return;
+
             if (state == kInitHasOfflineSession)
             {
 // disable this safety checkup, since dumpSession() differs from first-time login value
@@ -546,8 +554,10 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             }
             api.sdk.resumeActionPackets();
         });
+        break;
     }
-    else if (reqType == mega::MegaRequest::TYPE_SET_ATTR_USER)
+
+    case mega::MegaRequest::TYPE_SET_ATTR_USER:
     {
         int attrType = request->getParamType();
         int changeType;
@@ -563,12 +573,22 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         {
             return;
         }
+
+        auto wptr = weakHandle();
         marshallCall([wptr, this, changeType]()
         {
             if (wptr.deleted())
                 return;
+
             mUserAttrCache->onUserAttrChange(mMyHandle, changeType);
         });
+        break;
+    }
+
+    default:    // no action to be taken for other type of requests
+    {
+        break;
+    }
     }
 }
 
