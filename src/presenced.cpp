@@ -347,14 +347,16 @@ Client::reconnect(const std::string& url)
             {
                 if (err.type() == ERRTYPE_MEGASDK)
                 {
-                    mConnectPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
-                    mLoginPromise.reject(err.msg(), err.code(), WS_ERRTYPE_DNS);
+                    mConnectPromise.reject(err.msg(), err.code(), err.type());
+                    mLoginPromise.reject(err.msg(), err.code(), err.type());
                 }
             });
             
             return mConnectPromise
             .then([this]()
             {
+                mTsLastPingSent = 0;
+                mTsLastRecv = time(NULL);
                 mHeartbeatEnabled = true;
                 return login();
             });

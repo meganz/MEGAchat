@@ -143,6 +143,7 @@ promise::Promise<void> MegaCryptoFuncs::preloadCryptoForJid(const std::string& b
     .fail([this, userid](const promise::Error& err)
     {
         KR_LOG_ERROR("Error fetching RSA pubkey for user %s: %s", base64urlencode(&userid, sizeof(userid)).c_str(), err.what());
+        return err;
     });
 }
 

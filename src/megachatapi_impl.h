@@ -236,6 +236,7 @@ private:
     bool group;
     bool active;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
+    MegaChatHandle mLastMsgId;
 
 public:
     virtual int getChanges() const;
@@ -246,6 +247,7 @@ public:
     virtual int getOwnPrivilege() const;
     virtual int getUnreadCount() const;
     virtual const char *getLastMessage() const;
+    virtual MegaChatHandle getLastMessageId() const;
     virtual int getLastMessageType() const;
     virtual MegaChatHandle getLastMessageSender() const;
     virtual int64_t getLastTimestamp() const;
@@ -268,7 +270,7 @@ public:
      * recives the usernames. The usernames are separated
      * by ASCII character '0x01'
      */
-    void setLastMessage(int type, const std::string &msg, const uint64_t uh);
+    void setLastMessage(MegaChatHandle messageId, int type, const std::string &msg, const uint64_t uh);
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
@@ -285,7 +287,7 @@ public:
     virtual void onRejoinedChat();
     virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastTsUpdated(uint32_t ts);
-    virtual void onOnlineChatState(const chatd::ChatState state);
+    virtual void onChatOnlineState(const chatd::ChatState state);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
@@ -591,7 +593,7 @@ private:
     MegaChatHandle hAction;// certain messages need additional handle: such us priv changes, revoke attachment
     int index;              // position within the history buffer
     int64_t ts;
-    char *msg;
+    const char *msg;
     bool edited;
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
@@ -771,6 +773,7 @@ public:
     void fireOnChatInitStateUpdate(int newState);
     void fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, int status, bool inProgress);
     void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
+    void fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState);
 
     // ============= API requests ================
 
@@ -778,6 +781,8 @@ public:
     void connect(MegaChatRequestListener *listener = NULL);
     void disconnect(MegaChatRequestListener *listener = NULL);
     int getConnectionState();
+    int getChatConnectionState(MegaChatHandle chatid);
+    static int convertChatConnectionState(chatd::ChatState state);
     void retryPendingConnections(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);
@@ -813,6 +818,7 @@ public:
     int getUnreadChats();
     MegaChatListItemList *getActiveChatListItems();
     MegaChatListItemList *getInactiveChatListItems();
+    MegaChatListItemList *getUnreadChatListItems();
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
@@ -833,6 +839,7 @@ public:
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
     MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* handles);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
+    void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const;
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
