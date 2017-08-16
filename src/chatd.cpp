@@ -1030,9 +1030,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATD_LOG_DEBUG("%s: recv HISTDONE - history retrieval finished", ID_CSTR(chatid));
                 mClient.chats(chatid).onHistDone();
                 if (mClient.chats(chatid).getLastIdReceivedFromServer() != karere::Id()
-                        && ! mClient.chats(chatid).isGroup())
+                        && ! mClient.chats(chatid).isGroup()
+                        && (mClient.chats(chatid).getLastIdxConfirmedToServerAtHistDone() == CHATD_IDX_INVALID
+                            || mClient.chats(chatid).getLastIdxConfirmedToServerAtHistDone()
+                            < mClient.chats(chatid).getLastIdxReceivedFromServer()))
                 {
                     sendBuf(Command(OP_RECEIVED) + chatid + mClient.chats(chatid).getLastIdReceivedFromServer());
+                    mClient.chats(chatid).setLastIdxConfirmedToServerAtHistDone(mClient.chats(chatid).getLastIdxReceivedFromServer());
                 }
                 break;
             }
@@ -1251,6 +1255,16 @@ Idx Chat::getLastIdxReceivedFromServer() const
 Id Chat::getLastIdReceivedFromServer() const
 {
     return mLastIdReceivedFromServer;
+}
+
+Idx Chat::getLastIdxConfirmedToServerAtHistDone() const
+{
+    return mLastIdxConfirmedToServerAtHistDone;
+}
+
+void Chat::setLastIdxConfirmedToServerAtHistDone(Idx idx)
+{
+    mLastIdxConfirmedToServerAtHistDone = idx;
 }
 
 bool Chat::isGroup() const
