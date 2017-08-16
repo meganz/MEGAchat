@@ -471,7 +471,7 @@ public:
     karere::AvFlags av() { return karere::AvFlags(mAudio.get(), mVideo.get()); }
     karere::AvFlags effectiveAv()
     { return karere::AvFlags(mAudio && mAudio->track()->enabled(), mVideo && mVideo->track()->enabled()); }
-    void setAvState(karere::AvFlags av)
+    void setAv(karere::AvFlags av)
     {
         bool audio = av.audio();
         bool video = av.video();

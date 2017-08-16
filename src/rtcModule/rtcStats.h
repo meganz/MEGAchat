@@ -11,6 +11,17 @@ namespace rtcModule
 class JingleSession;
 namespace stats
 {
+struct StatSessInfo
+{
+    karere::Id sid;
+    std::string mTermReason;
+    std::string errInfo;
+    karere::Id caid;
+    karere::Id aaid;
+    bool isCaller;
+    StatSessInfo(karere::Id aSid, TermCode code, std::string aErrInfo);
+};
+
 class ConnInfo: public IConnInfo
 {
 public:

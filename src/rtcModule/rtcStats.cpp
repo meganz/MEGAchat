@@ -1,9 +1,8 @@
 #include "rtcStats.h"
-#include "strophe.jingle.session.h"
+#include "webrtc.h"
 #include <timers.hpp>
 #include <string.h> //for memset
 #include <karereCommon.h> //for timestampMs()
-#include <rtcModule.h>
 #define RPTYPE(name) webrtc::StatsReport::kStatsReportType##name
 #define VALNAME(name) webrtc::StatsReport::kStatsValueName##name
 
@@ -15,6 +14,16 @@ using namespace karere;
 
 namespace stats
 {
+
+StatSessInfo(karere::Id aSid, TermCode termCode, std::string aErrInfo)
+:sid(aSid), errInfo(aErrInfo)
+{
+    if (termCode & TermCode::kPeer)
+        mTermReason = "peer-"+termCodeToStr(termCode & ~TermCode::kPeer);
+    else
+        termCodeToStr(termCode);
+}
+
 BasicStats::BasicStats(const Call& call, const std::string& aTermRsn)
 :mIsCaller(call.isCaller()), mTermRsn(aTermRsn), mCallId(call.id()){}
 

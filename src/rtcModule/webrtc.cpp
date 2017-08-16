@@ -1,3 +1,10 @@
+#include "webrtc.h"
+#define SUB_LOG_DEBUG(fmtString,...) RTCM_LOG_DEBUG("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
+#define SUB_LOG_INFO(fmtString,...) RTCM_LOG_INFO("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
+#define SUB_LOG_WARNING(fmtString,...) RTCM_LOG_WARNING("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
+#define SUB_LOG_ERROR(fmtString,...) RTCM_LOG_DEBUG("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
+#define SUB_LOG_EVENT(fmtString,...) RTCM_LOG_EVENT("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
+
 #define CONCAT(a, b) a ## b
 #define FIRE_EVENT(type, evName, ...)                \
 do {                                                 \
@@ -13,7 +20,7 @@ do {                                                 \
         RTCM_LOG_ERROR("%s event handler for'" #evName "' threw exception:\n %s", type, e.what()); \
     }                                                \
 } while(0)
-
+#define RTCM_LOG_DEBUG(
 struct CallerInfo
 {
     Id chatid;
@@ -362,7 +369,7 @@ void Call::handleMsg(RtMessage& packet)
     auto sessIt = mSessions.find(sid);
     if (sessIt == mSessions.end())
     {
-        CALL_LOG_WARN("Received " + msg.typeStr() +
+        SUB_LOG_WARN("Received " + msg.typeStr() +
             " for an existing call but non-existing session %s",
             base64urlencode(&sid, sizeof(sid)));
         return;
@@ -385,7 +392,7 @@ void Call::setState(State newState)
 
     mState = newState;
 
-    CALL_LOG_DEBUG("State changed: %s -> %s", stateToStr(oldState), stateToStr(newState));
+    SUB_LOG_DEBUG("State changed: %s -> %s", stateToStr(oldState), stateToStr(newState));
     FIRE_EVENT(CALL, onStateChange, mState);
 }
 
@@ -397,7 +404,7 @@ void Call::getLocalStream(AvState av)
     mLocalStream = mManager.getLocalStream(av, errors);
     if (!errors.empty())
     {
-        CALL_LOG_WARNING("There were some error getting local stream: %s", errors.c_str());
+        SUB_LOG_WARNING("There were some error getting local stream: %s", errors.c_str());
     }
     setState(Call::kStateHasLocalStream);
 }
@@ -405,7 +412,7 @@ void Call::getLocalStream(AvState av)
 void Call::msgCallTerminate(RtMessage& packet)
 {
     if (packet.payload.dataSize() < 1) {
-        CALL_LOG_ERROR("Ignoring CALL_TERMINATE without reason code");
+        SUB_LOG_ERROR("Ignoring CALL_TERMINATE without reason code");
         return;
     }
     auto code = packet.payload.read<uint8_t>(0);
@@ -420,7 +427,7 @@ void Call::msgCallTerminate(RtMessage& packet)
         }
     }
     if (!isCallParticipant) {
-        CALL_LOG_WARNING("Received CALL_TERMINATE from a client that is not in the call, ignoring");
+        SUB_LOG_WARNING("Received CALL_TERMINATE from a client that is not in the call, ignoring");
         return;
     }
     destroy(code | TermCode::kPeer, false);
@@ -430,19 +437,25 @@ void Call::msgCallReqDecline(RtMessage& packet)
     // callid.8 termcode.1
     assert(packet.payload.dataSize() >= 9);
     auto code = packet.readPayload<uint8_t>(8);
-    if (code == TermCode::kCallRejected) {
+    if (code == TermCode::kCallRejected)
+    {
         handleReject(packet);
-    } else if (code == TermCode::kBusy) {
+    }
+    else if (code == TermCode::kBusy)
+    {
         handleBusy(packet);
-    } else {
-        CALL_LOG_WARNING("Ingoring CALL_REQ_DECLINE with unexpected termnation code", termCodeToStr(code));
+    }
+    else
+    {
+        SUB_LOG_WARNING("Ingoring CALL_REQ_DECLINE with unexpected termnation code", termCodeToStr(code));
     }
 }
+
 void Call::msgCallReqCancel(RtMessage& packet)
 {
     if (mState >= Call::kStateInProgress)
     {
-        CALL_LOG_WARNING("Ignoring unexpected CALL_REQ_CANCEL while in state %s", stateToStr(mState));
+        SUB_LOG_WARNING("Ignoring unexpected CALL_REQ_CANCEL while in state %s", stateToStr(mState));
         return;
     }
     assert(mFromUser);
@@ -450,13 +463,13 @@ void Call::msgCallReqCancel(RtMessage& packet)
     // CALL_REQ_CANCEL callid.8 reason.1
     if (mFromUser != packet.fromUser() || mFromClient !== packet.fromClient())
     {
-        CALL_LOG_WARNING("Ignoring CALL_REQ_CANCEL from a client that did not send the call request");
+        SUB_LOG_WARNING("Ignoring CALL_REQ_CANCEL from a client that did not send the call request");
         return;
     }
     assert(packet.payloadLen() >= 9);
     auto callid = packet.payloadRead<uint64_t>(0);
     if (callid != mId) {
-        CALL_LOG_WARNING("Ignoring CALL_REQ_CANCEL for an unknown request id");
+        SUB_LOG_WARNING("Ignoring CALL_REQ_CANCEL for an unknown request id");
         return;
     }
     auto term = packet.readPayload<uint8_t>(8);
@@ -467,7 +480,7 @@ void Call::handleReject(RtMessage& packet)
 {
     if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
     {
-        CALL_LOG_WARNING("Ingoring unexpected CALL_REJECT while in state %s", stateToStr(mState));
+        SUB_LOG_WARNING("Ingoring unexpected CALL_REJECT while in state %s", stateToStr(mState));
         return;
     }
     if (mIsGroup || !mSessions.empty())
@@ -481,7 +494,7 @@ void Call::msgRinging(RtMessage& packet)
 {
     if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
     {
-        CALL_LOG_WARNING("Ignoring unexpected RINGING");
+        SUB_LOG_WARNING("Ignoring unexpected RINGING");
         return;
     }
     if (!mRingOutUsers)
@@ -518,7 +531,7 @@ void Call::handleBusy(RtMessage& packet)
 {
     if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
     {
-        CALL_LOG_WARNING("Ignoring unexpected BUSY when in state %s", stateToStr(mState));
+        SUB_LOG_WARNING("Ignoring unexpected BUSY when in state %s", stateToStr(mState));
         return;
     }
     if (!this.isGroup && Object.keys(this.sessions).length < 1) {
@@ -532,14 +545,14 @@ void Call::msgSession(RtMessage& packet)
 {
     if (mState != Call::kStateJoining && mState != Call::kStateInProgress)
     {
-        CALL_LOG_WARNING("Ignoring unexpected SESSION");
+        SUB_LOG_WARNING("Ignoring unexpected SESSION");
         return;
     }
     setState(Call::kStateInProgress);
     auto sid = packet.readPayload<uint64_t>(8);
     if (mSessions.find(sid) != mSessions.end())
     {
-        CALL_LOG_ERROR("Received SESSION with sid of an existing session (%s), ignoring", base64urlencode(&sid, sizeof(sid)));
+        SUB_LOG_ERROR("Received SESSION with sid of an existing session (%s), ignoring", base64urlencode(&sid, sizeof(sid)));
         return;
     }
     auto sess = std::make_shared<Session>(*this, packet);
@@ -580,7 +593,7 @@ void Call::msgJoin(RtMessage& packet)
     }
     else
     {
-        CALL_LOG_WANRING("Ingoring unexpected JOIN");
+        SUB_LOG_WANRING("Ingoring unexpected JOIN");
         return;
     }
 }
@@ -619,7 +632,7 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code)
         if (++ctx->count > 7)
         {
             cancelTimer(ctx->timer);
-            CALL_LOG_ERROR("Timed out waiting for all sessions to terminate, force closing them");
+            SUB_LOG_ERROR("Timed out waiting for all sessions to terminate, force closing them");
             for (auto& item: mSessions) {
                 item->second->destroy(code);
             }
@@ -647,7 +660,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     }
     if (!msg.empty())
     {
-        CALL_LOG_DEBUG("Destroying call due to: %s", msg.c_str());
+        SUB_LOG_DEBUG("Destroying call due to: %s", msg.c_str());
     }
 
     setState(Call::kStateTerminating);
@@ -699,7 +712,7 @@ void Call::broadcastCallReq()
 {
     if (mState >= Call::kStateTerminating)
     {
-        CALL_LOG_WARNING("broadcastCallReq: Call terminating/destroyed");
+        SUB_LOG_WARNING("broadcastCallReq: Call terminating/destroyed");
         return;
     }
     assert(mState == Call::kStateHasLocalStream);
@@ -758,7 +771,7 @@ void Call::removeSession(Session& sess, TermCode reason)
     }
     // upon session failure, we swap the offerer and answerer and retry
     if (mState != Call::kStateTerminating && mIsGroup && isTermError(reason)
-         && !sess.isJoiner)
+         && !sess.mIsJoiner)
     {
         EndpointId endpointId(sess.peer, sess.peerClient);
         if (mSessRetries.find(endpointId) == mSessRetries.end())
@@ -784,7 +797,7 @@ void Call::startOrJoin(AvFlags av)
     mLocalStream = getLocalStream(av, errors);
     if (!errors.empty())
     {
-        CALL_LOG_ERROR("Error(s) getting local stream: %s", errors.c_str());
+        SUB_LOG_ERROR("Error(s) getting local stream: %s", errors.c_str());
     }
     if (mIsJoiner) {
         join();
@@ -838,7 +851,7 @@ bool Call::answer(AvFlags av)
 {
     if (mState != Call::kStateRingIn)
     {
-        CALL_LOG_WARNING("answer: Not in kRingIn state, nothing to answer");
+        SUB_LOG_WARNING("answer: Not in kRingIn state, nothing to answer");
         return false;
     }
     assert(mIsJoiner);
@@ -887,11 +900,11 @@ void Call::hangup(TermCode reason)
         break;
     case kStateTerminating:
     case kStateDestroyed:
-        CALL_LOG_DEBUG("hangup: Call already terminating/terminated");
+        SUB_LOG_DEBUG("hangup: Call already terminating/terminated");
         return;
     default:
         term = TermCode::kUserHangup;
-        CALL_LOG_WARNING("Don't know what term code to send in state %s", stateString(mState));
+        SUB_LOG_WARNING("Don't know what term code to send in state %s", stateString(mState));
         break;
     }
     // in any state, we just have to send CALL_TERMINATE and that's all
@@ -1013,7 +1026,7 @@ Session::Session(Call& call, RtMessage& packet)
 :mCall(call), mPeer(packet.userid), mPeerClient(packet.clientid)
 {
     // Packet can be RTCMD_JOIN or RTCMD_SESSION
-    call.manager.crypto.random(&mOwnHashKey);
+    call.manager.crypto.random(&mOwnSdpKey);
     if (packet.type == RTCMD_JOIN)
     {
         // peer will send offer
@@ -1076,7 +1089,7 @@ void Session::setState(State newState)
 
     mState = newState;
 
-    SESS_LOG_DEBUG("State changed: %s -> %s", stateToStr(oldState), stateToStr(mState));
+    SUB_LOG_DEBUG("State changed: %s -> %s", stateToStr(oldState), stateToStr(mState));
     FIRE_EVENT(SESSION, onStateChange, mState);
 }
 
@@ -1108,689 +1121,618 @@ void Session::handleMsg(RtMessage& packet)
             msgMute(packet);
             return;
         default:
-            SESS_LOG_WARNING("Don't know how to handle", packet.typeStr());
+            SUB_LOG_WARNING("Don't know how to handle", packet.typeStr());
             return;
     }
 }
 
 void Session::createRtcConn()
 {
-    var conn = self.rtcConn = new RTCPeerConnection({
-        iceServers: RTC.fixupIceServers(self.call.manager.iceServers)
-    });
-    if (self.call.manager.gLocalStream) {
-        conn.addStream(self.call.manager.gLocalStream);
+    mRtcConn = artc::myPeerConnection<Call::Session>(
+        mCall.manager.iceServers, *this, pcConstraints());
+    if (mCall.mLocalStream)
+    {
+        if (!mRtcConn->AddStream(*mCall.mLocalStream))
+            throw std::runtime_error("mRtcConn->AddStream() returned false");
     }
-    conn.onicecandidate = function(event) {
-        // mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
-        var cand = event.candidate;
-        if (!cand) {
-            return;
-        }
-        var idx = cand.sdpMLineIndex;
-        var mid = cand.sdpMid;
-        var data = String.fromCharCode(idx);
-        if (mid) {
-            data += String.fromCharCode(mid.length);
-            data += mid;
-        } else {
-            data += '\0';
-        }
-        data += Chatd.pack16le(cand.candidate.length);
-        data += cand.candidate;
-        self.cmd(RTCMD.ICE_CANDIDATE, data);
-    };
-    conn.onaddstream = function(event) {
-        self.remoteStream = event.stream;
-        self._setState(SessState.kInProgress);
-        self._remoteStream = self.remoteStream;
-        self._fire("onRemoteStreamAdded", self.remoteStream);
-        var player = self.mediaWaitPlayer = document.createElement('video');
-        RTC.attachMediaStream(player, self.remoteStream);
-        // self.waitForRemoteMedia();
-    };
-    conn.onremovestream = function(event) {
-        self.self.remoteStream = null;
-        // TODO: Do we need to generate event from this?
-    };
-    conn.onsignalingstatechange = function(event) {
-        var state = conn.signalingState;
-        self.logger.log('Signaling state change to', state);
-    };
-    conn.oniceconnectionstatechange = function (event) {
-        var state = conn.iceConnectionState;
-        self.logger.debug('ICE connstate changed to', state);
-        if (self.state >= SessState.kTerminating) { // use double equals because state might be some internal enum that
-            return;                                 // converts to string?
-        }
-        if (state === 'disconnected') { // double equal is on purpose, state may not be exactly a string
-            self.terminateAndDestroy(Term.kErrIceDisconn);
-        } else if (state === 'failed') {
-            self.terminateAndDestroy(Term.kErrIceFail);
-        } else if (state === 'connected') {
-            self._tsIceConn = Date.now();
-            self.call._notifySessionConnected(self);
-        }
-    };
-    // RTC.Stats will be set to 'false' if stats are not available for this browser
-    if ((typeof RTC.Stats === 'undefined') && (typeof statsGlobalInit === 'function')) {
-        statsGlobalInit(conn);
-    }
-    if (RTC.Stats) {
-        self.statRecorder = new RTC.Stats.Recorder(conn, 1, 5, self);
-        self.statRecorder.start();
-    }
-};
-
-// stats interface
-Session.prototype.onCommonInfo = function(info) {
+    mStatRecorder.reset(new Stats::Recorder(mRtcConn, 1, 5, *this));
+    mStatRecorder->start();
 }
-Session.prototype.onSample = function(sample) {
-}
-//====
-Session.prototype._sendAv = function(av) {
-    this.cmd(RTCMD.MUTE, String.fromCharCode(av));
-};
-/*
-Session.prototype.waitForRemoteMedia = function() {
-    if (this.state !== SessState.kInProgress) {
+//PeerConnection events
+void Session::onAddStream(artc::tspMediaStream stream)
+{
+    mRemoteStream = stream;
+    setState(kStateInProgress);
+    if (mRemotePlayer)
+    {
+        SUB_LOG_ERROR("onRemoteStreamAdded: Session already has a remote player, ignoring event");
         return;
     }
-    var self = this;
-    // Under Firefox < 4x, currentTime seems to stay at 0 forever,
-    // despite that there is playback
-    if ((self.mediaWaitPlayer.currentTime > 0) || (RTC.browser === "firefox")) {
-//      self.mediaWaitPlayer = undefined;
-        self.logger.log('Actual media received');
-        // Use this to debug remote media players:
-        if (false) {
-            $('.messages.content-area:visible').append(self.mediaWaitPlayer);
-        }
-        self.mediaWaitPlayer.play();
-    } else {
-        setTimeout(function () { self.waitForRemoteMedia(); }, 200);
+
+    IVideoRenderer* renderer = NULL;
+    FIRE_EVENT(SESSION, onRemoteStreamAdded, renderer);
+    assert(renderer);
+    mRemotePlayer.reset(new artc::StreamPlayer(renderer));
+    mRemotePlayer->attachToStream(stream);
+    mRemotePlayer->start();
+}
+void Session::onRemoveStream(artc::tspMediaStream stream)
+{
+    if (stream != mRemoteStream) //we can't throw here because we are in a callback
+    {
+        KR_LOG_ERROR("onRemoveStream: Stream is not the remote stream that we have");
+        return;
     }
-};
-*/
-Session.prototype.sendOffer = function() {
-    var self = this;
-    assert(self.isJoiner); // the joiner sends the SDP offer
-    assert(self.peerAnonId);
-    self._createRtcConn();
-    self.rtcConn.createOffer(self.pcConstraints())
-    .then(function (sdp) {
+    if(mRemotePlayer)
+    {
+        mRemotePlayer->stop();
+        mRemotePlayer.reset();
+    }
+    mRemoteStream.reset();
+    FIRE_EVENT(SESSION, onRemoteStreamRemoved);
+}
+
+void Session::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
+{
+    // mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
+    if (!cand)
+        return;
+    Buffer data(10+cand->candidate.size());
+    data.append<uint8_t>(cand->sdpMLineIndex);
+    auto& mid = cand->sdpMid;
+    if (!mid.empty())
+    {
+        data.append<uint8_t>(mid.size());
+        data.append(mid);
+    }
+    else
+    {
+        data.append<uint8_t>(0);
+    }
+    data.append<uint16_t>(cand->candidate.size())
+        .append(cand->candidate);
+    cmd(RTCMD_ICE_CANDIDATE, data);
+}
+
+void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
+{
+    SUB_LOG_DEBUG("ICE connstate changed to %s", iceStateToStr(state));
+    if (mState >= Session::kStateTerminating)
+        return;
+/*  kIceNew, kIceGathering, kIceWaiting, kIceChecking, kIceConnected,
+    kIceCompleted, kIceFailed, kIceClosed
+ */
+
+    if (mState == PeerConnectionInterface::kIceClosed)
+    {
+        terminateAndDestroy(TermCode::kErrIceDisconn);
+    }
+    else if (mState == PeerConnectionInterface::kIceFailed)
+    {
+        self.terminateAndDestroy(TermCode::kErrIceFail);
+    }
+    else if (state == PeerConnectionInterface::kIceConnected)
+    {
+        mTsIceConn = time(NULL);
+        mCall.notifySessionConnected(*this);
+    }
+}
+
+void Session::onIceComplete()
+{
+    SUB_LOG_DEBUG("onIceComplete");
+}
+void Session::onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
+{
+    SUB_LOG_DEBUG("onSignalingStateChange: %d", newState);
+}
+//end of event handlers
+
+// stats interface
+//====
+Session::sendAv(AvFlags av)
+{
+    cmd(RTCMD_MUTE, av.value());
+}
+Promise<void> Session::sendOffer()
+{
+    assert(mIsJoiner); // the joiner sends the SDP offer
+    assert(mPeerAnonId);
+    createRtcConn();
+    auto wptr = weakHandle();
+    mRtcConn.createOffer(pcConstraints())
+    .then([wptr, this](webrtc::SessionDescriptionInterface* sdp)
+    {
+        if (wptr.deleted())
+            return;
     /*  if (self.state !== SessState.kWaitSdpAnswer) {
             return;
         }
     */
-
-        self.ownSdpOffer = sdp.sdp;
-        return self.rtcConn.setLocalDescription(sdp);
+        KR_THROW_IF_FALSE(sdp->ToString(&mOwnSdp));
+        return mRtcConn.setLocalDescription(sdp);
     })
-    .then(function() {
+    .then([wptr, this]()
+    {
+        if (wptr.deleted())
+            return;
+        Key<32> encKey;
+        mCall.manager.crypto.encryptNonceTo(mPeer, mOwnSdpKey, encKey);
+        Key<32> hash;
+        mCall.manager.crypto.mac(mOwnSdp, mPeerSdpKey, hash);
+
         // SDP_OFFER sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
-        self.cmd(RTCMD.SDP_OFFER,
-            self.call.manager.ownAnonId +
-            self.crypto.encryptNonceTo(self.peer, self.ownHashKey) +
-            self.crypto.mac(self.ownSdpOffer, self.peerHashKey) +
-            String.fromCharCode(Av.fromStream(self.call.manager.gLocalStream)) +
-            Chatd.pack16le(self.ownSdpOffer.length) +
-            self.ownSdpOffer
+        cmd(RTCMD_SDP_OFFER,
+            mCall.manager.ownAnonId,
+            encKey,
+            hash,
+            mCall.mLocalStream.effectiveAv(),
+            static_cast<uint16_t>(mOwnSdp.size()),
+            mOwnSdp
         );
-        assert(self.state === SessState.kWaitSdpAnswer);
+        assert(mState == Session::kStateWaitSdpAnswer);
     })
-    .catch(function(err) {
-        if (err.stack) {
-            err = err.stack;
-        } else if (err.err) {
-            err = err.err;
-        }
-        self.terminateAndDestroy(Term.kErrSdp, "Error creating SDP offer: " + err);
+    .fail([wptr, this](const promise::Error& err)
+    {
+        if (!wptr.deleted())
+            return;
+        terminateAndDestroy(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
     });
-};
+}
 
-Session.prototype.msgSdpOfferSendAnswer = function(packet) {
+void Session::msgSdpOfferSendAnswer(RtMessage& packet)
+{
     // SDP_OFFER sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
-    var self = this;
-    if (self.state !== SessState.kWaitSdpOffer) {
-        self.logger.warn("Ingoring unexpected SDP offer");
+    if (mState != Session::kStateWaitSdpOffer)
+    {
+        SUB_LOG_WARNING("Ingoring unexpected SDP offer while in state %s", stateStr());
         return;
     }
-    assert(!self.isJoiner);
+    assert(!mIsJoiner);
     // The peer is likely to send ICE candidates immediately after the offer,
     // but we can't process them until setRemoteDescription is ready, so
     // we have to store them in a queue
-    self._setState(SessState.kWaitLocalSdpAnswer);
-    var data = packet.data;
-    self.peerAnonId = data.substr(8, 8);
-    self.peerHashKey = self.crypto.decryptNonceFrom(self.peer, data.substr(16, 32));
-    self.peerAv = data.charCodeAt(80);
-    var sdpLen = Chatd.unpack16le(data.substr(81, 2));
-    assert(data.length >= 83 + sdpLen);
-    self.peerSdpOffer = data.substr(83, sdpLen);
-    if (!self.verifySdpFingerprints(self.peerSdpOffer, data.substr(48, 32))) {
-        self.logger.warn("Fingerprint verification error, immediately terminating session");
-        self.terminateAndDestroy(Term.kErrFprVerifFailed, "Fingerprint verification failed, possible forge attempt");
+    setState(Session::kStateWaitLocalSdpAnswer);
+    mPeerAnonId = packet.payloadRead<uint64_t>(8);
+    SdpKey encKey;
+    packet.payloadRead(16, 32, encKey);
+    mCall.manager.crypto.decryptKeyFrom(mPeer, encKey, mPeerSdpKey);
+    mPeerAv = packet.payloadRead<uint8_t>(80);
+    uint16_t sdpLen = data.payloadRead<uint16_t>(81);
+    assert(packet.payloadSize() >= 83 + sdpLen);
+    packet.payloadRead(83, sdpLen, mPeerSdpOffer);
+    if (!verifySdpFingerprints(mPeerSdpOffer, packet.payloadReadPtr<SdpKey>(48)))
+    {
+        SUB_LOG_ERROR("Fingerprint verification error, immediately terminating session");
+        terminateAndDestroy(TermCode::kErrFprVerifFailed, "Fingerprint verification failed, possible forge attempt");
         return;
     }
-    var sdp = new RTCSessionDescription({type: 'offer', sdp: self.peerSdpOffer});
-    self._mungeSdp(sdp);
-    self.rtcConn.setRemoteDescription(sdp)
-    .catch(function(err) {
-        return Promise.reject({err: err, remote: true});
+    mungeSdp(mPeerSdpOffer);
+    unique_ptr<webrtc::JsepSessionDescription> jsepSdp(new webrtc::JsepSessionDescription("offer"));
+    webrtc::SdpParseError error;
+    if (!jsepSdp->Initialize(mPeerSdpOffer, &error))
+    {
+        terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP offer: line="+error.line+"\nError: "+error.description);
+        return;
+    }
+    auto wptr = weakHandle();
+    mRtcConn.setRemoteDescription(sdp)
+    .fail([this](const promise::Error& err)
+    {
+        return Promise::Error(err.msg(), 1, ERRTYPE_RTC); //we signal 'remote' (i.e. protocol) error with errCode == 1
     })
-    .then(function() {
-        if (self.state > SessState.kInProgress) {
-            return Promise.reject({err: "Session killed"});
-        }
-        return self.rtcConn.createAnswer(self.pcConstraints());
+    .then([this, wptr]() -> Promise<webrtc::SessionDescriptionInterface*>
+    {
+        if (wptr.deleted() || (mState > Session::kStateInProgress))
+            return promise::Error("Session killed");
+        return mRtcConn.createAnswer(pcConstraints());
     })
-    .then(function(sdp) {
-        if (self.state > SessState.kInProgress) {
-            return Promise.reject({err: "Session killed"});
-        }
-        self.ownSdpAnswer = sdp.sdp;
-        return self.rtcConn.setLocalDescription(sdp);
-    })
-    .then(function() {
-        // SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
-        self.ownFprHash = self.crypto.mac(self.ownSdpAnswer, self.peerHashKey);
-        var success = self.cmd(
-            RTCMD.SDP_ANSWER,
-            self.ownFprHash +
-            String.fromCharCode(Av.fromStream(self.call.manager.gLocalStream)) +
-            Chatd.pack16le(self.ownSdpAnswer.length) +
-            self.ownSdpAnswer
-        );
-        if (success) {
-            self.logger.log("Successfully generated and sent SDP answer");
-        }
-    })
-    .catch(function(err) {
-        // self.cmd() doesn't throw, so we are here because of other error
-        var msg;
-        if (err.remote) {
-            msg = "Error accepting remote SDP offer: " + err.err;
-        } else {
-            if (err.stack) {
-                err = err.stack;
-            } else if (err.err) {
-                err = err.err;
-            }
-            msg = "Error creating SDP answer: " + err;
-        }
-        self.terminateAndDestroy(Term.kErrSdp, msg);
-    });
-};
+    .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
+    {
+        if (wptr.deleted() || (mState > Session::kStateInProgress))
+            return promise::Error("Session killed");
 
-Session.prototype.msgSdpAnswer = function(packet) {
-    var self = this;
-    if (self.state !== SessState.kWaitSdpAnswer) {
-        self.logger.warn("Ingoring unexpected SDP_ANSWER");
+        sdp->toString(mOwnSdp);
+        return mRtcConn.setLocalDescription(sdp);
+    })
+    .then([wptr, this]()
+    {
+        SdpKey ownFprHash;
+        // SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
+        mCall.manager.crypto.mac(mOwnSdp, mPeerSdpKey, ownFprHash);
+        cmd(
+            RTCMD_SDP_ANSWER,
+            ownFprHash,
+            mCall.mLocalStream.effectiveAv().value(),
+            static_cast<uint16_t>(mOwnSdp.size()),
+            mOwnSdp
+        );
+    })
+    .fail([wptr, this](const promise::Error& err)
+    {
+        if (wptr.deleted())
+            return;
+        // cmd() doesn't throw, so we are here because of other error
+        std::string msg;
+        if (err.type() == ERRTYPE_RTC && err.code() == 1) {
+            msg = "Error accepting remote SDP offer: " + err.msg();
+        } else {
+            msg = "Error creating SDP answer: " + err.msg();
+        }
+        terminateAndDestroy(TermCode::kErrSdp, msg);
+    });
+}
+
+void Session::msgSdpAnswer(RtMessage& packet)
+{
+    if (mState != Session::kStateWaitSdpAnswer)
+    {
+        SUB_LOG_WARNING("Ingoring unexpected SDP_ANSWER");
         return;
     }
     // SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
-    var data = packet.data;
-    this.peerAv = data.substr(40, 1).charCodeAt(0);
-    var sdpLen = Chatd.unpack16le(data.substr(41, 2));
-    assert(data.length >= sdpLen + 43);
-    self.peerSdpAnswer = data.substr(43, sdpLen);
-
-    if (!self.verifySdpFingerprints(self.peerSdpAnswer, data.substr(8, 32))) {
-        self.terminateAndDestroy(Term.kErrFprVerifFailed, "Fingerprint verification failed, possible forgery");
+    mPeerAv.set(packet.payloadRead<uint8_t>(40));
+    auto sdpLen = packet.payloadRead<uint16_t>(41);
+    assert(packet.payloadSize() >= sdpLen + 43);
+    packet.payloadRead(43, sdpLen, mPeerSdp);
+    SdpKey encKey;
+    packet.payloadRead(8, encKey);
+    if (!verifySdpFingerprints(mPeerSdp, encKey))
+    {
+        terminateAndDestroy(TermCode::kErrFprVerifFailed, "Fingerprint verification failed, possible forgery");
+        return;
+    }
+    mungeSdp(mPeerSdp);
+    unique_ptr<webrtc::JsepSessionDescription> sdp(new webrtc::JsepSessionDescription("answer"));
+    webrtc::SdpParseError error;
+    if (!jsepSdp->Initialize(mPeerSdp, &error))
+    {
+        terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP answer: line="+error.line+"\nError: "+error.description);
         return;
     }
 
-    var sdp = new RTCSessionDescription({type: 'answer', sdp: self.peerSdpAnswer});
-    self._mungeSdp(sdp);
-    self.rtcConn.setRemoteDescription(sdp)
-    .then(function() {
-        if (self.state > SessState.kInProgress) {
-            return Promise.reject("Session killed");
-        }
-        self._setState(SessState.kInProgress);
+    mRtcConn.setRemoteDescription(sdp)
+    .then([this, wptr](webrtc::SessionDescriptionInterface*)
+    {
+        if (mState > Session::kStateInProgress)
+            return promise::Error("Session killed");
+        setState(Session::kStateInProgress);
     })
-    .catch(function(err) {
-        var msg = "Error setting SDP answer: " + err;
-        self.terminateAndDestroy(Term.kErrSdp, msg);
+    .fail([wptr, this](const promise::Error& err)
+    {
+        std::string msg = "Error setting SDP answer: " + err.msg();
+        terminateAndDestroy(TermCode::kErrSdp, msg);
     });
-};
+}
 
-Session.prototype.cmd = function(op, data) {
-    var self = this;
-    var payload = String.fromCharCode(op) + self.sid;
-    if (data) {
-        payload += data;
-    }
-    if (!self.call.shard.cmd(Chatd.Opcode.RTMSG_ENDPOINT,
-        self.call.chatid + self.peer + self.peerClient +
-        Chatd.pack16le(payload.length) + payload)) {
-        if (self.state < SessState.kTerminating) {
-            this._destroy(Term.kErrNetSignalling);
+template<class... Args>
+bool Session::cmd(uint8_t type, Args... args)
+{
+    RtMessageComposer msg(OP_RTMSG_ENDPOINT, type, mCall.chatid, mPeer, mPeerClient);
+    msg.payloadAppend(mSid, args...);
+    if (!mCall.shard.sendCommand(msg))
+    {
+        if (mState < SessState.kTerminating)
+        {
+            destroy(TermCode::kErrNetSignalling);
         }
         return false;
     }
     return true;
-};
+}
 
-Session.prototype.terminateAndDestroy = function(code, msg) {
-    var self = this;
-    if (self.state === SessState.kTerminating) {
-        if (!self.terminatePromise) { //we are waiting for session terminate by peer
-            self.logger.warn("terminateAndDestroy: Already waiting for termination");
-            return new Promise(function(){}); //this promise never resolves, the actual termination is done by waitAllSessionsTerminated
-        } else {
-            return self.terminatePromise;
+Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg)
+{
+    if (mState == Session::kStateTerminating)
+    {
+        if (!mTerminatePromise)
+        {
+            // state was set to Terminating, but promise was not created - this is done
+            // only by waitAllSessionsTerminated(), which will eventually time out and destroy us
+            SUB_LOG_WARNING("terminateAndDestroy: Already waiting for termination");
+            return Promise<void>(); //this promise never resolves
         }
-    } else if (self.state === SessState.kTerminated) {
-        return Promise.resolve();
+        else
+        {
+            return *mTerminatePromise;
+        }
+    }
+    else if (mState == Session::kStateTerminated)
+    {
+        return promise::_Void();
     }
 
-    if (msg) {
-        self.logger.warn("Terminating due to:", msg);
+    if (!msg.empty())
+    {
+        SUB_LOG_ERROR("Terminating due to: %s", msg.c_str());
     }
-    self._setState(SessState.kTerminating);
-    self.terminatePromise = new Promise(function(resolve, reject) {
-        setTimeout(function() { //execute function async so that we have the promise object before that
-            // destroy() sets state to kDestroyed
-            if (!self.cmd(RTCMD.SESS_TERMINATE, String.fromCharCode(code))) {
-                self._destroy(code, msg);
-                resolve(null);
-            } else {
-                var done = function(packet) {
-                    if (self.state !== SessState.kTerminating) {
-                        return;
-                    }
-                    self._destroy(code, msg);
-                    resolve(packet);
-                };
-                self.terminateAckCallback = done;
-                setTimeout(function() {
-                    done(null);
-                }, 1000);
-            }
-        });
-    }, 0);
-    return self.terminatePromise;
-};
-
-Session.prototype.msgSessTerminateAck = function(packet) {
-    if (this.state !== SessState.kTerminating) {
-        this.logger.warn("Ignoring unexpected TERMINATE_ACK");
+    assert(!mTerminatePromise);
+    setState(kStateTerminating);
+    mTerminatePromise.reset(new Promise<void>());
+    if (!cmd(RTCMD_SESS_TERMINATE, code))
+    {
+        destroy(code, msg);
+        if (!mTerminatePromise->done())
+        {
+            mTerminatePromise.resolve();
+        }
+        return;
     }
-    assert(this.terminateAckCallback);
-    var cb = this.terminateAckCallback;
-    delete this.terminateAckCallback;
-    cb(packet);
-};
+    auto wptr = weakHandle();
+    setTimeout([wptr, this, code]()
+    {
+        if (wptr.deleted() || mState != Session::kStateTerminating)
+            return;
+        destroy(code, msg);
+        if (mTerminatePromise && !mTerminatePromise->done())
+        {
+            mTerminatePromise.resolve();
+        }
+    }, 1000);
+    return *mTerminatePromise;
+}
 
-Session.prototype.msgSessTerminate = function(packet) {
+void Session::msgSessTerminateAck(RtMessage& packet)
+{
+    if (mState != kStateTerminating)
+    {
+        SUB_LOG_WARNING("Ignoring unexpected TERMINATE_ACK");
+        return;
+    }
+    assert(mTerminatePromise);
+    if (!mTerminatePromise->done())
+        mTerminatePromise->resolve();
+}
+
+void Session::msgSessTerminate(RtMessage& packet)
+{
     // sid.8 termcode.1
-    var self = this;
-    assert(packet.data.length >= 1);
-    self.cmd(RTCMD.SESS_TERMINATE_ACK);
+    assert(packet.payloadSize() >= 1);
+    cmd(RTCMD_SESS_TERMINATE_ACK);
 
-    if (self.state === SessState.kTerminating && this.terminateAckCallback) {
+    if (mState == kStateTerminating && mTerminatePromise) {
         // handle terminate as if it were an ack - in both cases the peer is terminating
-        self.msgSessTerminateAck(packet);
+        msgSessTerminateAck(packet);
     }
-    self._setState(SessState.kTerminating);
-    self._destroy(packet.data.charCodeAt(8) | Term.kPeer);
-};
+    setState(kStateTerminating);
+    destroy(packet.payloadRead<uint8_t>(8) | TermCode::kPeer);
+}
 
 /** Terminates a session without the signalling terminate handshake.
   * This should normally not be called directly, but via terminate(),
   * unless there is a network error
   */
-Session.prototype._destroy = function(code, msg) {
-    assert(typeof code !== 'undefined');
-    if (this.state >= SessState.kDestroyed) {
-        this.logger.error("Session.destroy(): Already destroyed");
+void Session::destroy(TermCode code, std::string& msg)
+{
+    assert(code != TermCode::kInvalid);
+    if (mState >= kStateDestroyed)
+    {
+        SUB_LOG_ERROR("Session::destroy(): Already destroyed");
         return;
     }
-    if (msg) {
-        this.logger.log("Destroying session due to:", msg);
+    if (!msg.empty()) {
+        SUB_LOG_DEBUG("Destroying session due to:", msg.c_str());
     }
 
-    this.submitStats(code, msg);
+    submitStats(code, msg);
 
-    if (this.rtcConn) {
-        if (this.rtcConn.signallingState !== 'closed') {
-            this.rtcConn.close();
+    if (mRtcConn)
+    {
+        if (mRtcConn->signaling_state() != PeerConnectionInterface::kClosed)
+        {
+            mRtcConn->close();
         }
-        this.rtcConn = null;
+        mRtcConn.reset();
     }
-    this._setState(SessState.kDestroyed);
-    this._fire("onDestroy", code & 0x7f, !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
-    this.call._removeSession(this, code);
-};
-Session.prototype.submitStats = function(termCode, errInfo) {
-    var stats;
-    if (this.statRecorder) {
-        stats = this.statRecorder.getStats(base64urlencode(this.sid));
-        delete this.statRecorder;
-    } else { //no stats, but will still provide callId and duration
-        stats = {
-            cid: base64urlencode(this.sid),
-            bws: RTC.getBrowserVersion()
-        };
+    setState(kStateDestroyed);
+    FIRE_EVENT(SESS, onDestroy, code & (~TermCode::kPeer), !!(code & TermCode::kPeer), msg);
+    mCall.removeSession(*this, code);
+}
 
-        if (this._tsIceConn) {
-            stats.ts = Math.round(this._tsIceConn/1000);
-            stats.dur = Math.ceil((Date.now()-this._tsIceConn)/1000);
-        } else {
-            stats.ts = Date.now();
-            stats.dur = 0;
-        }
+void Session::submitStats(TermCode termCode, const std::string& errInfo)
+{
+    StatSessInfo info(mSid, termCode, errInfo);
+    if (mIsJoiner)
+    { // isJoiner means answerer
+        info.isCaller = false;
+        info.caid = mPeerAnonId;
+        info.aaid = mCall.manager.ownAnonId;
     }
-    if (this.isJoiner) { // isJoiner means answerer
-        stats.isCaller = 0;
-        stats.caid = base64urlencode(this.peerAnonId);
-        stats.aaid = base64urlencode(this.call.manager.ownAnonId);
-    } else {
-        stats.isCaller = 1;
-        stats.caid = base64urlencode(this.call.manager.ownAnonId);
-        stats.aaid = base64urlencode(this.peerAnonId);
+    else
+    {
+        info.isCaller = true;
+        info.caid = mCall.manager.ownAnonId;
+        info.aaid = mPeerAnonId;
     }
-
-    if (termCode & Term.kPeer) {
-        stats.termRsn = 'peer-'+constStateToText(Term, termCode & ~Term.kPeer);
-    } else {
-        stats.termRsn = constStateToText(Term, termCode);
-    }
-    if (errInfo) {
-        stats.errInfo = errInfo;
-    }
-    var url = this.call.manager.statsUrl;
-    if (url) {
-        jQuery.ajax(url, {
-                        type: 'POST',
-                        data: JSON.stringify(stats)
-                    });
-    }
+    std::string stats = mStatRecorder->getStats(info);
+    mCall.manager.client.api->sendChatStats(stats.c_str());
 }
 
 // we actually verify the whole SDP, not just the fingerprints
-Session.prototype.verifySdpFingerprints = function(sdp, peerHash) {
-    var hash = this.crypto.mac(sdp, this.ownHashKey);
-    var len = hash.length;
-    var match = true; // constant time compare
-    for (var i = 0; i < len; i++) {
-        match &= hash[i] === peerHash[i];
+bool Session::verifySdpFingerprints(const std::string& sdp, const SdpKey& peerHash)
+{
+    SdpKey hash;
+    mCall.manager.crypto.mac(sdp, mOwnSdpKey, hash);
+    bool match = true; // constant time compare
+    for (var i = 0; i < sizeof(SdpKey); i++) {
+        match &= (hash[i] == peerHash[i]);
     }
     return match;
-};
+}
 
-Session.prototype.msgIceCandidate = function(packet) {
+void Session::msgIceCandidate(RtMessage& packet)
+{
     // sid.8 mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
-    var self = this;
-    var data = packet.data;
-    var mLineIdx = data.charCodeAt(8);
-    var midLen = data.charCodeAt(9);
-    if (midLen > data.length - 11) {
+    auto mLineIdx = packet.payloadRead<uint8_t>(8);
+    auto midLen = packet.payloadRead<uint8_t>(9);
+    if (midLen > packet.payloadSize() - 11)
         throw new Error("Invalid ice candidate packet: midLen spans beyond data length");
-    }
-    var mid = midLen ? data.substr(10, midLen) : undefined;
-    var candLen = Chatd.unpack16le(data.substr(10 + midLen, 2));
-    assert(data.length >= 12 + midLen + candLen);
-    var cand = new RTCIceCandidate({
-        sdpMLineIndex: mLineIdx,
-        sdpMid: mid,
-        candidate: data.substr(midLen + 12, candLen)
-    });
-    return self.rtcConn.addIceCandidate(cand)
-        .catch(function(err) {
-            self.terminateAndDestroy(Term.kErrProtocol, err);
-            return err;
-        });
-};
 
-Session.prototype.msgMute = function(packet) {
-    var av = packet.data.charCodeAt(8);
-    this.peerAv = av;
-    this._fire('onRemoteMute', av);
-};
+    std::string mid;
+    if (midLen)
+        packet.payloadRead(10, midLen, mid);
+    auto candLen = packet.payloadRead<uint16_t>(10 + midLen);
+    assert(packet.payloadSize() >= 12 + midLen + candLen);
+    std::string strCand;
+    packet.payloadRead(midLen + 12, candLen, strCand);
 
-Session.prototype._fire = function(evName) {
-    var func = this.handler[evName];
-    var logger = this.logger;
-    if (logger.isEnabled()) {
-        var msg = "fire sess event " + evName;
-        if (evName === 'onDestroy') {
-            msg += '(' + constStateToText(Term, arguments[1]) + ')';
-        }
-        if (!func) {
-            msg += " ...unhandled";
-        }
-        logger.log(msg);
-    }
-    if (!func) {
-        return;
-    }
-    try {
-        // Don't mess with slicing the arguments array - this will be slower than
-        // manually indexing arguments 1, 2 and 3. Currently we don't have an event with
-        // more than 3 arguments. If such appears, we need to update this method
-        func.call(this.handler, arguments[1], arguments[2], arguments[3]);
-    } catch (e) {
-        logger.error("Event handler '" + evName + "' threw exception:\n" + e, "\n", e.stack);
-    }
-};
-Session.prototype._mungeSdp = function(sdp) {
-    try {
-        var maxbr = localStorage.webrtcMaxBr;
-        if (maxbr) {
-            maxbr = parseInt(maxbr);
-            assert(!isNaN(maxbr));
-            this.logger.warn("mungeSdp: Limiting peer's send video send bitrate to", maxbr, "kbps");
-            RTC.sdpSetVideoBw(sdp, maxbr);
-        }
-    } catch(e) {
-        this.logger.error("mungeSdp: Exception:", e.stack);
-        throw e;
+    unique_ptr<webrtc::JsepIceCandidate> cand(new webrtc::JsepIceCandidate(mid, mLineIdx));
+    webrtc::SdpParseError err;
+    if (!cand->Initialize(strCand, &err))
+        throw runtime_error("Error parsing ICE candidate:\nline: '"+err.line+"'\nError:" +err.description);
+
+    //KR_LOG_COLOR(34, "cand: mid=%s, %s\n", mid.c_str(), line.c_str());
+
+    if (!mPeerConn->AddIceCandidate(cand.release()))
+    {
+        terminateAndDestroy(TermCode::kErrProtocol);
     }
 }
 
-var Av = { Audio: 1, Video: 2 };
-Av.fromStream = function(stream) {
-    if (!stream) {
-        return 0;
-    }
-    var av = 0;
-    var at = stream.getAudioTracks();
-    var i;
-    for (i = 0; i < at.length; i++) {
-        if (at[i].enabled) {
-            av |= Av.Audio;
-        }
-    }
-    var vt = stream.getVideoTracks();
-    for (i = 0; i < vt.length; i++) {
-        if (vt[i].enabled) {
-            av |= Av.Video;
-        }
-    }
-    return av;
-};
-Av.fromMediaOptions = function(opts) {
-    var result = opts.audio ? Av.Audio : 0;
-    if (opts.video) {
-        result |= Av.Video;
-    }
-    return result;
-};
-Av.applyToStream = function(stream, av) {
-    if (!stream) {
-        return;
-    }
-    var result = 0;
-    var at = stream.getAudioTracks();
-    var i;
-    for (i = 0; i < at.length; i++) {
-        if (av & Av.Audio) {
-            at[i].enabled = true;
-            result |= Av.Audio;
-        } else {
-            at[i].enabled = false;
-        }
-    }
-    var vt = stream.getVideoTracks();
-    for (i = 0; i < vt.length; i++) {
-        if (av & Av.Video) {
-            vt[i].enabled = true;
-            result |= Av.Video;
-        } else {
-            vt[i].enabled = false;
-        }
-    }
-    return result;
-};
-var RTCMD = Object.freeze({
-    CALL_REQUEST: 0, // initiate new call, receivers start ringing
-    CALL_RINGING: 1, // notifies caller that there is a receiver and it is ringing
-    CALL_REQ_DECLINE: 2, // decline incoming call request, with specified Term code
-    // (can be only kBusy and kCallRejected)
-    CALL_REQ_CANCEL: 3,  // caller cancels the call requests, specifies the request id
-    CALL_TERMINATE: 4, // hangup existing call, cancel call request. Works on an existing call
-    JOIN: 5, // join an existing/just initiated call. There is no call yet, so the command identifies a call request
-    SESSION: 6, // join was accepter and the receiver created a session to joiner
-    SDP_OFFER: 7, // joiner sends an SDP offer
-    SDP_ANSWER: 8, // joinee answers with SDP answer
-    ICE_CANDIDATE: 9, // both parties exchange ICE candidates
-    SESS_TERMINATE: 10, // initiate termination of a session
-    SESS_TERMINATE_ACK: 11, // acknowledge the receipt of SESS_TERMINATE, so the sender can safely stop the stream and
-    // it will not be detected as an error by the receiver
-    MUTE: 12
-});
-
-var Term = Object.freeze({
-    kUserHangup: 0,         // < Normal user hangup
-    kCallReqCancel: 1,      // < Call request was canceled before call was answered
-    kCallRejected: 2,       // < Outgoing call has been rejected by the peer OR incoming call has been rejected by
-    // <another client of our user
-    kAnsElsewhere: 3,       // < Call was answered on another device of ours
-    kAnswerTimeout: 5,      // < Call was not answered in a timely manner
-    kRingOutTimeout: 6,     // < We have sent a call request but no RINGING received within this timeout - no other
-    // < users are online
-    kAppTerminating: 7,     // < The application is terminating
-    kCallGone: 8,
-    kBusy: 9,               // < Peer is in another call
-    kNormalHangupLast: 20,  // < Last enum specifying a normal call termination
-    kErrorFirst: 21,        // < First enum specifying call termination due to error
-    kErrApiTimeout: 22,     // < Mega API timed out on some request (usually for RSA keys)
-    kErrFprVerifFailed: 23, // < Peer DTLS-SRTP fingerprint verification failed, posible MiTM attack
-    kErrProtoTimeout: 24,   // < Protocol timeout - one if the peers did not send something that was expected,
-    // < in a timely manner
-    kErrProtocol: 25,       // < General protocol error
-    kErrInternal: 26,       // < Internal error in the client
-    kErrLocalMedia: 27,     // < Error getting media from mic/camera
-    kErrNoMedia: 28,        // < There is no media to be exchanged - both sides don't have audio/video to send
-    kErrNetSignalling: 29,  // < chatd shard was disconnected
-    kErrIceDisconn: 30,     // < ice-disconnect condition on webrtc connection
-    kErrIceFail: 31,        // <ice-fail condition on webrtc connection
-    kErrSdp: 32,            // < error generating or setting SDP description
-    kErrUserOffline: 33,    // < we received a notification that that user went offline
-    kErrorLast: 33,         // < Last enum indicating call termination due to error
-    kLast: 33,              // < Last call terminate enum value
-    kPeer: 128              // < If this flag is set, the condition specified by the code happened at the peer,
-    // < not at our side
-});
-
-function isTermError(code) {
-    return (code & 0x7f) >= Term.kErrorFirst;
+void Session::msgMute(RtMessage& packet)
+{
+    mPeerAv.set(packet.payloadRead<uint8_t>(8));
+    FIRE_EVENT(SESS, onRemoteMute, mPeerAv);
 }
 
-var CallState = Object.freeze({
-    kInitial: 0, // < Call object was initialised
-    kWaitLocalStream: 1,
-    kHasLocalStream: 2,
-    kReqSent: 3, // < Call request sent
-    kRingIn: 4, // < Call request received, ringing
-    kJoining: 5, // < Joining a call
-    kInProgress: 6,
-    kTerminating: 7, // < Call is waiting for sessions to terminate
-    kDestroyed: 8 // < Call object is not valid anymore
-});
+void Session::mungeSdp(std::string& sdp)
+{
+    try
+    {
+        auto& maxbr = mCall.manager.maxbr;
+        if (maxbr)
+        {
+            SUB_LOG_WARNING("mungeSdp: Limiting peer's send video send bitrate to %d kbps", maxbr);
+            sdpSetVideoBw(sdp, maxbr);
+        }
+    }
+    catch(std::exception& e)
+    {
+        SUB_LOG_ERROR("mungeSdp: Exception: %s", e.what());
+        throw;
+    }
+}
+const char* Call::stateToStr(uint8_t state)
+{
+    switch(state)
+    {
+        RET_ENUM_NAME(kStateInitial);
+        RET_ENUM_NAME(kStateHasLocalStream);
+        RET_ENUM_NAME(kStateReqSent);
+        RET_ENUM_NAME(kStateRingIn);
+        RET_ENUM_NAME(kStateJoining);
+        RET_ENUM_NAME(kStateInProgress);
+        RET_ENUM_NAME(kStateTerminating);
+        RET_ENUM_NAME(kStateDestroyed);
+        default: return "(invalid call state)";
+    }
+}
 
-var CallStateAllowedStateTransitions = {};
-CallStateAllowedStateTransitions[CallState.kInitial] = [
-    CallState.kWaitLocalStream,
-    CallState.kReqSent
-];
-CallStateAllowedStateTransitions[CallState.kWaitLocalStream] = [
-    CallState.kHasLocalStream,
-    CallState.kTerminating
-];
-CallStateAllowedStateTransitions[CallState.kHasLocalStream] = [
-    CallState.kJoining,
-    CallState.kReqSent,
-    CallState.kTerminating
-];
-CallStateAllowedStateTransitions[CallState.kReqSent] = [
-    CallState.kInProgress,
-    CallState.kTerminating
-];
+const char* Session::stateToStr(uint8_t state)
+{
+    switch(state)
+    {
+        RET_ENUM_NAME(kStateWaitSdpOffer);
+        RET_ENUM_NAME(kStateWaitSdpAnswer);
+        RET_ENUM_NAME(kStateWaitLocalSdpAnswer);
+        RET_ENUM_NAME(kStateInProgress);
+        RET_ENUM_NAME(kStateTerminating);
+        RET_ENUM_NAME(kStateDestroyed);
+        default: return "(invalid session state)";
+    }
+}
 
-CallStateAllowedStateTransitions[CallState.kRingIn] = [
-    CallState.kWaitLocalStream,
-    CallState.kInProgress,
-    CallState.kTerminating
-];
+void assertStateChange(uint8_t oldState, uin8_t newState, const StateDesc& desc)
+{
+    if (oldState >= transMap.size())
+        throw std::runtime_error(std::string("assertStateChange: Invalid old state ")+desc.toStrFunc(oldState));
+    auto allowed = transMap[oldState];
+    if (newState >= allowed.size())
+        throw std::runtime_error(std::string("assertStateChange: Invalid new state ")+desc.toStrFunc(newState));
+    for (auto a: allowed)
+    {
+        if (newState == a)
+            return;
+    }
+    throw std::runtime_error(std::string("assertStateChange: Invalid state transition ")+desc.toStrFunc(oldState)+" -> "+desc.toStrFunc(newState));
+}
 
-CallStateAllowedStateTransitions[CallState.kJoining] = [
-    CallState.kInProgress,
-    CallState.kTerminating
-];
+StateDesc Call::sStateDesc = {
+    .transMap = {
+        { kStateReqSent, kStateTerminating },                //for kStateInitial
+        { kStateJoining, kStateReqSent, kStateTerminating }, //for kStateHasLocalStream
+        { kStateInProgress, kStateTerminating },             //for kStateReqSent
+        { kStateInProgress, kStateTerminating },             //for kStateRingIn
+        { kStateInProgress, kStateTerminating },             //for kStateJoining
+        { kStateTerminating },                               //for kStateInProgress,
+        { kStateDestroyed },                                 //for kStateTerminating,
+        {}                                                   //for kStateDestroyed
+    },
+    .toStrFunc = Call::stateToStr
+};
 
-CallStateAllowedStateTransitions[CallState.kInProgress] = [
-    CallState.kTerminating
-];
+StateDesc Session::sStateDesc = {
+    .transMap = {
+        { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kSWaitSdpOffer
+        { kStateInProgress, kStateTerminating },         //for kStateWaitLocalSdpAnswer
+        { kStateInPgoress, kTerminating },               //for kStateWaitSdpAnswer
+        { kStateTerminating },                           //for kStateInProgress
+        { kStateDestroyed },                             //for kStateTerminating
+        {}                                               //for kStateDestroyed
+    },
+    .toStrFunc = Session::stateToStr
+};
 
-CallStateAllowedStateTransitions[CallState.kTerminating] = [
-    CallState.kDestroyed
-];
+#define RET_ENUM_NAME(name) case name: return #name
 
-CallStateAllowedStateTransitions[CallState.kDestroyed] = [];
-
-var SessState = Object.freeze({
-    kWaitSdpOffer: 1, // < Session just created, waiting for SDP offer from initiator
-    kWaitSdpAnswer: 2, // < SDP offer has been sent by initiator, waniting for SDP answer
-    kWaitLocalSdpAnswer: 3, // < Remote SDP offer has been set, and we are generating SDP answer
-    //    kWaitRemoteMedia: 4, // < We have completed the SDP handshake and waiting for actual media frames from the
-    // remote
-    kInProgress: 5,
-    kTerminating: 6, // < Session is in terminate handshake
-    kDestroyed: 7 // < Session object is not valid anymore
-});
-
-
-var SessStateAllowedStateTransitions = {};
-SessStateAllowedStateTransitions[SessState.kWaitSdpOffer] = [
-    SessState.kWaitLocalSdpAnswer,
-    SessState.kTerminating
-];
-SessStateAllowedStateTransitions[SessState.kWaitLocalSdpAnswer] = [
-    SessState.kInProgress,
-    SessState.kTerminating
-];
-SessStateAllowedStateTransitions[SessState.kWaitSdpAnswer] = [
-    SessState.kInProgress,
-    SessState.kTerminating
-];
-SessStateAllowedStateTransitions[SessState.kInProgress] = [
-    SessState.kTerminating
-];
-SessStateAllowedStateTransitions[SessState.kTerminating] = [
-    SessState.kDestroyed
-];
-SessStateAllowedStateTransitions[SessState.kDestroyed] = [];
-
-scope.RtcModule = RtcModule;
-scope.Call = Call;
-scope.Session = Session;
-scope.Av = Av;
-scope.Term = Term;
-scope.RTCMD = RTCMD;
-scope.SessState = SessState;
-scope.CallState = CallState;
-}(window));
+const char* RtMessage::typeToString(uint8_t type)
+{
+    switch(type)
+    {
+        RET_ENUM_NAME(RTCMD_CALL_REQUEST);
+        RET_ENUM_NAME(RTCMD_CALL_RINGING);
+        RET_ENUM_NAME(RTCMD_CALL_REQ_DECLINE);
+        RET_ENUM_NAME(RTCMD_CALL_REQ_CANCEL);
+        RET_ENUM_NAME(RTCMD_CALL_TERMINATE); // hangup existing call, cancel call request. Works on an existing call
+        RET_ENUM_NAME(RTCMD_JOIN); // join an existing/just initiated call. There is no call yet, so the command identifies a call request
+        RET_ENUM_NAME(RTCMD_SESSION); // join was accepter and the receiver created a session to joiner
+        RET_ENUM_NAME(RTCMD_SDP_OFFER); // joiner sends an SDP offer
+        RET_ENUM_NAME(RTCMD_SDP_ANSWER); // joinee answers with SDP answer
+        RET_ENUM_NAME(RTCMD_ICE_CANDIDATE); // both parties exchange ICE candidates
+        RET_ENUM_NAME(RTCMD_SESS_TERMINATE); // initiate termination of a session
+        RET_ENUM_NAME(RTCMD_SESS_TERMINATE_ACK); // acknowledge the receipt of SESS_TERMINATE, so the sender can safely stop the stream and
+        // it will not be detected as an error by the receiver
+        RET_ENUM_NAME(RTCMD_MUTE);
+        default: return "(invalid RTCMD)";
+    }
+}
+const char* termCodeToStr(uint8_t code)
+{
+    switch(code)
+    {
+        RET_ENUM_NAME(kUserHangup);
+        RET_ENUM_NAME(kCallReqCancel);
+        RET_ENUM_NAME(kCallRejected);
+        RET_ENUM_NAME(kAnsElsewhere);
+        RET_ENUM_NAME(kAnswerTimeout);
+        RET_ENUM_NAME(kRingOutTimeout);
+        RET_ENUM_NAME(kAppTerminating);
+        RET_ENUM_NAME(kCallGone);
+        RET_ENUM_NAME(kBusy);
+        RET_ENUM_NAME(kNormalHangupLast);
+        RET_ENUM_NAME(kErrApiTimeout);
+        RET_ENUM_NAME(kErrFprVerifFailed);
+        RET_ENUM_NAME(kErrProtoTimeout);
+        RET_ENUM_NAME(kErrProtocol);
+        RET_ENUM_NAME(kErrInternal);
+        RET_ENUM_NAME(kErrLocalMedia);
+        RET_ENUM_NAME(kErrNoMedia);
+        RET_ENUM_NAME(kErrNetSignalling);
+        RET_ENUM_NAME(kErrIceDisconn);
+        RET_ENUM_NAME(kErrIceFail);
+        RET_ENUM_NAME(kErrSdp);
+        RET_ENUM_NAME(kErrUserOffline);
+        RET_ENUM_NAME(kInvalid);
+        default: return "(invalid term code)";
+    }
+}
