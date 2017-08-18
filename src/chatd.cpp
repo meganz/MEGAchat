@@ -531,7 +531,7 @@ bool Connection::sendBuf(Buffer&& buf)
 //Copy the data to preserve the original
     auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
     buf.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
-    return rc;
+    return (rc == 0);
 }
 bool Chat::sendCommand(Command&& cmd)
 {
