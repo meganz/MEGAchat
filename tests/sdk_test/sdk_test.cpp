@@ -1704,8 +1704,9 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     std::string formatDate = dateToString();
 
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, formatDate, chatroomListener);
-    MegaChatHandle msgId = chatroomListener->msgId[a1][0];  // we assume we haven't received any other message than the one just sent
-    ASSERT_CHAT_TEST(msgId == msgSent->getMsgId(), "Message id is different from the sent message");
+    MegaChatHandle msgId = msgSent->getMsgId();
+    bool hasArrived = chatroomListener->hasArrivedMessage(a1, msgId);
+    ASSERT_CHAT_TEST(hasArrived, "Id of sent message has not been received yet");
     MegaChatListItem *itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     MegaChatListItem *itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
@@ -1735,8 +1736,9 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
     msgSent = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
     MegaNode *nodeReceived = msgSent->getMegaNodeList()->get(0)->copy();
-    msgId = chatroomListener->msgId[a1][0];
-    ASSERT_CHAT_TEST(msgId == msgSent->getMsgId(), "Message id is different from the sent message");
+    msgId = msgSent->getMsgId();
+    hasArrived = chatroomListener->hasArrivedMessage(a1, msgId);
+    ASSERT_CHAT_TEST(hasArrived, "Id of sent message has not been received yet");
     itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
@@ -1903,8 +1905,9 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
 
     std::string textToSend = "Last Message";
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, textToSend, chatroomListener);
-    MegaChatHandle msgId = chatroomListener->msgId[a1][0];
-    ASSERT_CHAT_TEST(msgId == msgSent->getMsgId(), "Message id is different from the sent message");
+    MegaChatHandle msgId = msgSent->getMsgId();
+    bool hasArrived = chatroomListener->hasArrivedMessage(a1, msgId);
+    ASSERT_CHAT_TEST(hasArrived, "Id of sent message has not been received yet");
     MegaChatListItem *itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     MegaChatListItem *itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
