@@ -1065,6 +1065,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatItemJoined1 = &chatItemUpdated[a2]; *chatItemJoined1 = false;
     bool *chatJoined0 = &chatroomListener->chatUpdated[a1]; *chatJoined0 = false;
     bool *chatJoined1 = &chatroomListener->chatUpdated[a2]; *chatJoined1 = false;
+    bool *flagChatdOnline = &mChatConnectionOnline[a2]; *flagChatdOnline = false;   // need to reconnect after rejoin
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
@@ -1092,6 +1093,14 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
     ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(lastErrorChat[a1] == MegaChatError::ERROR_EXIST, "Invitation should have failed, but it succeed");
+
+    // wait for chatd connection establishment in auxiliar account
+    while (megaChatApi[a2]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+    {
+        postLog("Waiting for connection to chatd before proceeding with test...");
+        ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline), "Timeout expired for connecting to chatd");
+        *flagChatdOnline = false;
+    }
 
     // --> Set title
     string title = "My groupchat with title";
