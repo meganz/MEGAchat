@@ -634,6 +634,7 @@ void Client::handleMessage(const StaticBuffer& buf)
             {
                 READ_8(pres, 0);
                 READ_ID(userid, 1);
+                // READ_8(webrtc_capability, 7);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
                 CALL_LISTENER(onPresenceChange, userid, pres);
