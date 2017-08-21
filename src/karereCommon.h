@@ -134,7 +134,7 @@ public:
     std::string toString() const
     {
         std::string result;
-        if (mGlags & kAudio)
+        if (mFlags & kAudio)
             result+='a';
         if (mFlags & kVideo)
             result+='v';

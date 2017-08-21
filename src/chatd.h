@@ -1,7 +1,7 @@
 #ifndef __CHATD_H__
 #define __CHATD_H__
 
-#include <libws.h>
+//#include <libws.h>
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
@@ -15,6 +15,9 @@
 #include "chatdMsg.h"
 #include "url.h"
 #include <base/trackDelete.h>
+struct ws_s;
+struct ws_base_s;
+typedef struct ws_s *ws_t;
 
 namespace karere {
     class Client;
@@ -281,6 +284,16 @@ public:
      */
     virtual void onLastMessageTsUpdated(uint32_t ts) {}
 };
+class Connection;
+
+class IRtcHandler
+{
+public:
+    virtual void handleMessage(Connection& shard, const StaticBuffer& msg) {}
+    virtual void onShutdown() {}
+    virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid) {}
+    virtual void onDisconnect(chatd::Connection& conn) {}
+};
 
 class Client;
 
@@ -304,11 +317,6 @@ protected:
     promise::Promise<void> mDisconnectPromise;
     promise::Promise<void> mLoginPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
-    State state() { return mState; }
-    bool isOnline() const
-    {
-        return mState >= kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
-    }
     static void websockConnectCb(ws_t ws, void* arg);
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
         size_t reason_len, void *arg);
@@ -322,7 +330,6 @@ protected:
     void reset();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
-    bool sendCommand(Command&& cmd); //needed only for OP_HELLO
     promise::Promise<void> rejoinExistingChats();
     void resendPending();
     void join(karere::Id chatid);
@@ -332,6 +339,14 @@ protected:
     friend class Client;
     friend class Chat;
 public:
+    State state() const { return mState; }
+    bool isOnline() const
+    {
+        return mState >= kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
+    }
+    const std::set<karere::Id>& chatIds() const { return mChatIds; }
+    uint32_t clientId() const { return mClientId; }
+    bool sendCommand(Command&& cmd); //needed to be bublic for webrtc, and used internally only for OP_HELLO
     promise::Promise<void> retryPendingConnection();
     ~Connection()
     {
@@ -360,53 +375,6 @@ enum ServerHistFetchState
     kHistDecryptingFlag = 16,
     kHistDecryptingOld = kHistDecryptingFlag | kHistOldFlag,
     kHistDecryptingNew = kHistDecryptingFlag | 0
-};
-
-class IRtMsgHandlerCb: public karere::WeakReferenceable<IRtMsgHandlerCb*>
-{
-    IRtMsgHandlerCb(): karere::WeakReferenceable<IRtMsgHandlerCb*>(this){}
-public:
-    virtual void operator()(const std::shared_ptr<RtMessage>& msg, bool& keep) = 0;
-    virtual ~IRtMsgHandlerCb(){}
-    virtual void remove() = 0;
-};
-
-class RtMsgHandler: protected IRtMsgHandlerCb::WeakRefHandle
-{
-protected:
-    typedef IRtMsgHandlerCb::WeakRefHandle Base;
-public:
-    void remove()
-    {
-        if (!isValid())
-            return;
-        get()->remove();
-        assert(!isValid());
-    }
-    using Base::Base;
-    using Base::operator=;
-};
-
-template <class CB, class M>
-class RtMsgHandlerCb: public IRtMsgHandlerCb
-{
-protected:
-    CB mCallback;
-    M& mParent;
-    typename M::iterator mIterator;
-    RtMsgHandlerCb(CB&& aCb, M& aMap)
-    : mCallback(std::forward<CB>(aCb)), mParent(aMap){}
-    void setIterator(typename M::iterator aIt) { mIterator = aIt; }
-    virtual void operator()(const std::shared_ptr<RtMessage>& msg, bool& keep)
-    { mCallback(msg, keep); }
-    friend class Chat;
-    template <class X>
-    friend class RtHandlers;
-public:
-    virtual void remove() //called by user to unregister and delete handler
-    {
-        mParent.remove(mIterator); //deletes this, as the map holds smart pointers
-    }
 };
 
 /** @brief This is a class used to hold all properties of the last text
@@ -532,6 +500,7 @@ public:
         ManualSendItem()
             :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason){}
     };
+
 protected:
     Connection& mConnection;
     Client& mClient;
@@ -1070,10 +1039,11 @@ public:
     uint32_t options = 0;
     MyMegaApi *mApi;
     uint8_t mKeepaliveType = OP_KEEPALIVE;
+    IRtcHandler* mRtHandler = new IRtcHandler; //dummy handler
     karere::Id userId() const { return mUserId; }
     Client(MyMegaApi *api, karere::Id userId);
     ~Client(){}
-    Chat* chatFromId(karere::Id chatid) const
+    std::shared_ptr<Chat> chatFromId(karere::Id chatid) const
     {
         auto it = mChatForChatId.find(chatid);
         return (it == mChatForChatId.end()) ? nullptr : it->second;
@@ -1099,6 +1069,8 @@ public:
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();
     void notifyUserActive();
+    /** Changes the Rtc handler, returning the old one */
+    IRtcHandler* setRtcHandler(IRtcHandler* handler);
     friend class Connection;
     friend class Chat;
 };

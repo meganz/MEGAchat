@@ -97,7 +97,17 @@ public:
         size_t count = (mDataSize-offset)/sizeof(T);
         read(offset, output, count);
     }
-
+    template <class T>
+    void read(size_t offset, T& output)
+    {
+        assert(offset+sizeof(T) <= mDataSize);
+        memcpy(&output, mBuf+offset, sizeof(T));
+    }
+    void read(size_t offset, size_t len, std::string& output)
+    {
+        assert(offset+len <= mDataSize);
+        output.assign(mBuf + offset, len);
+    }
     bool dataEquals(const void* data, size_t datalen) const
     {
         if (datalen != mDataSize)
@@ -166,18 +176,19 @@ public:
     char* buf() { return mBuf;}
     const char* buf() const { return mBuf;}
     size_t bufSize() const { return mBufSize;}
-    Buffer(size_t size=kMinBufSize)
+    Buffer(size_t size=kMinBufSize, size_t dataSize=0)
     {
+        assert(dataSize <= size);
         if (size)
         {
-            mDataSize = 0;
             mBuf = (char*)malloc(size);
             if (!mBuf)
             {
-                mBufSize = 0;
+                zero();
                 throw std::runtime_error("Out of memory allocating block of size "+ std::to_string(size));
             }
             mBufSize = size;
+            mDataSize = dataSize;
         }
         else
         {
@@ -325,7 +336,7 @@ public:
     Buffer& append(const std::string& str) { return write(dataSize(), str.c_str(), str.size()); }
     Buffer& append(const StaticBuffer& from) { return append(from.buf(), from.dataSize());}
     template <class T, typename=typename std::enable_if<std::is_pod<T>::value && !std::is_pointer<T>::value>::type>
-    Buffer& append(const T& val) { return write(mDataSize, val);}
+    Buffer& append(T val) { return write(mDataSize, val);}
     Buffer& append(const char* str) { return append((void*)str, strlen(str)); }
     template <class T, typename=typename std::enable_if<std::is_pod<T>::value && !std::is_pointer<T>::value>::type>
     Buffer& write(size_t offset, const T& val) { return write(offset, &val, sizeof(val)); }

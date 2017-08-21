@@ -4,11 +4,12 @@
 #include "IRtcStats.h"
 #include "ITypesImpl.h"
 #include <timers.hpp>
-#include <strophe.jingle.session.h>
 
 namespace rtcModule
 {
-class JingleSession;
+class Session;
+class Call;
+
 namespace stats
 {
 struct StatSessInfo
@@ -19,7 +20,7 @@ struct StatSessInfo
     karere::Id caid;
     karere::Id aaid;
     bool isCaller;
-    StatSessInfo(karere::Id aSid, TermCode code, std::string aErrInfo);
+    StatSessInfo(karere::Id aSid, uint8_t code, std::string aErrInfo);
 };
 
 class ConnInfo: public IConnInfo
@@ -97,7 +98,7 @@ protected:
         void calculate(long periodMs, long newTotalBytes);
     };
 
-    JingleSession& mSession;
+    Session& mSession;
     Options mOptions;
     webrtc::PeerConnectionInterface::StatsOutputLevel mStatsLevel =
             webrtc::PeerConnectionInterface::kStatsOutputLevelStandard;
@@ -114,7 +115,7 @@ protected:
     void resetBwCalculators();
 public:
     std::unique_ptr<RtcStats> mStats;
-    Recorder(JingleSession& sess, const Options& options);
+    Recorder(Session& sess, int scanInterval, int maxSampleInterval);
     ~Recorder();
     bool isRelay() const
     {
@@ -127,6 +128,7 @@ public:
     virtual void OnComplete(const webrtc::StatsReports& data);
     void onStats(const std::shared_ptr<artc::MyStatsReports>& data);
     std::function<void(void*, int)> onSample;
+    std::string getStats(const StatSessInfo& info);
 };
 }
 }

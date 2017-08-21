@@ -4,13 +4,9 @@ include (../utils.cmake)
 
 set(optRtcModuleBuildShared 0 CACHE BOOL "Whether to build rtcModule as a shared lib")
 set (SRCS
-    strophe.jingle.session.cpp
-    strophe.jingle.cpp
-    strophe.jingle.sdp.cpp
+    webrtc.cpp
     webrtcAdapter.cpp
     rtcStats.cpp
-    rtcModule.cpp
-#   lib.cpp
 )
 
 add_subdirectory(../base base)

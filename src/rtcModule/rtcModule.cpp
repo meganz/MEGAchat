@@ -787,14 +787,14 @@ ICall::ICall(RtcModule& aRtc, bool isCaller, CallState aState, IEventHandler* aH
   mOwnJid(aOwnJid), mPeerJid(aPeerJid), mIsFileTransfer(aIsFt),
   vidEncParams(aRtc.vidEncParams)
 {}
-
-int Call::isRelayed() const
+/*
+bool Call::isRelayed() const
 {
     if (!mSess || !mSess->mStatsRecorder)
         return RTCM_EUNKNOWN;
     return mSess->mStatsRecorder->isRelay();
 }
-
+*/
 void Call::onPeerMute(AvFlags affected)
 {
     RTCM_EVENT(this, onPeerMute, affected);

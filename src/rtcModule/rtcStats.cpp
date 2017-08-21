@@ -27,15 +27,16 @@ StatSessInfo(karere::Id aSid, TermCode termCode, std::string aErrInfo)
 BasicStats::BasicStats(const Call& call, const std::string& aTermRsn)
 :mIsCaller(call.isCaller()), mTermRsn(aTermRsn), mCallId(call.id()){}
 
-Recorder::Recorder(JingleSession& sess, const Options &options)
-    :mSession(sess), mOptions(options), mCurrSample(new Sample), mStats(new RtcStats)
+Recorder::Recorder(Session& sess, int scanInterval, int maxSampleInterval)
+    :mSession(sess), mScanPeriod(scanPeriod), mMaxSamplePeriod(maxSamplePeriod),
+    mCurrSample(new Sample), mStats(new RtcStats)
 {
     memset(mCurrSample.get(), 0, sizeof(Sample));
     AddRef();
-    if (mOptions.scanPeriod < 0)
-        mOptions.scanPeriod = 1000;
-    if (mOptions.maxSamplePeriod < 0)
-        mOptions.maxSamplePeriod = 5000;
+    if (mScanPeriod < 0)
+        mScanPeriod = 1000;
+    if (mMaxSamplePeriod < 0)
+        mMaxSamplePeriod = 5000;
     resetBwCalculators();
 }
 
@@ -204,7 +205,7 @@ void Recorder::onStats(const std::shared_ptr<artc::MyStatsReports>& data)
         shouldAddSample =
             (mCurrSample->vstats.r.width != last.vstats.r.width)
          || (mCurrSample->vstats.s.width != last.vstats.s.width)
-         || ((d_ts >= mOptions.maxSamplePeriod)
+         || ((d_ts >= mMaxSamplePeriod)
          || (d_dly > 100) || (d_auRtt > 100)
          || (d_apl > 0) || (d_vrtt > 150) || (d_auJtr > 40));
 
@@ -232,12 +233,12 @@ void Recorder::start()
     mStats->mCallId = mSession.mCall.id();
     mStats->mOwnAnonId = mSession.mJingle.ownAnonId();
     mStats->mPeerAnonId = mSession.mCall.peerAnonId();
-    mStats->mSper = mOptions.scanPeriod;
+    mStats->mSper = mScanPeriod;
     mStats->mStartTs = karere::timestampMs();
     mTimer = setInterval([this]()
     {
         mSession.mPeerConn->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
-    }, mOptions.scanPeriod);
+    }, mScanPeriod);
 }
 
 void Recorder::terminate(const std::string& termRsn)

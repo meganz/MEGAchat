@@ -35,7 +35,6 @@ class RtcModule;
 
 #else
 
-#include "mstrophepp.h" //only needed for IPlugin
 #include "karereCommon.h" //for AvFlags
 #ifdef _WIN32
     #ifdef RTCM_BUILDING
@@ -96,23 +95,6 @@ class RtcModule;
 /** Length of Jingle session id strings */
 enum { RTCM_SESSIONID_LEN = 16 };
 
-struct VidEncParams
-{
-    /** @brief Minimum bitrate for video encoding, in kbits/s */
-    uint16_t minBitrate = 0;
-    /** @brief Maximum bitrate for video encoding, in kbits/s */
-    uint16_t maxBitrate = 0;
-    /** @brief Maximum spatial quantization for video encoding.
-      * This specifies the maximum size of image area to be encoded with one
-      * color - the bigger this value is, the more coarse and blocky the image
-      * is. Value of 1 should disable quantization.
-      */
-    uint16_t maxQuant = 0;
-
-    /** @brief The target buffer latency of the video stream, in milliseconds */
-    uint16_t bufLatency = 0;
-
-};
 
 /** @brief A class representing a media call. The protected members are internal
  stuff, and are here only for performance reasons, to not have virtual methods

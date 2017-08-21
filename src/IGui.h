@@ -1,6 +1,6 @@
 #ifndef IAPP_H
 #define IAPP_H
-#include <rtcModule/IRtcModule.h>
+#include <webrtc.h>
 #include <chatd.h>
 #include <presenced.h>
 #include <autoHandle.h>
@@ -60,7 +60,7 @@ public:
      * \c  IEventHandler, the class is empty.
      */
 
-    class ICallHandler: public rtcModule::IEventHandler
+    class ICallHandler //: public rtcModule::IEventHandler
     {
     public:
         virtual ~ICallHandler() {}
@@ -354,7 +354,7 @@ public:
      * @param req The mega SDK contact request object
      */
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) = 0;
-#ifndef KARERE_DISABLE_WEBRTC
+#if 0 //ndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Called by karere when there is an incoming call.
      *

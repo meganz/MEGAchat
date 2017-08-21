@@ -5,6 +5,7 @@
 #include <promise.h>
 #include <rapidjson/document.h>
 #include "retryHandler.h"
+#include "sdkApi.h"
 
 namespace karere
 {

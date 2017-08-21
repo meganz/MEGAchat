@@ -527,7 +527,7 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalEventHandler,
+class Client: //public rtcModule::IGlobalEventHandler,
               public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
               public presenced::Listener,
@@ -616,7 +616,7 @@ public:
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
-    rtcModule::IRtcModule* rtc = nullptr;
+//    rtcModule::IRtcModule* rtc = nullptr;
     unsigned mReconnectConnStateHandler = 0;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
@@ -856,7 +856,7 @@ protected:
      */
     promise::Promise<void> doConnect(Presence pres);
     void setConnState(ConnState newState);
-#ifndef KARERE_DISABLE_WEBRTC
+#if 0 //ndef KARERE_DISABLE_WEBRTC
     // rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
             const std::shared_ptr<rtcModule::ICallAnswer> &call);

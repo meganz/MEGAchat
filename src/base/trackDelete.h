@@ -90,8 +90,8 @@ public:
             return *this;
         }
         ~WeakRefHandle() { unref(); }
-        bool isValid() const { return (mData && (mData->mPtr != nullptr)); }
         bool deleted() const { return isValid(); }
+        bool isValid() const { return (mData && (mData->mPtr != nullptr)); }
         void reset()
         {
             unref();

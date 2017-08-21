@@ -133,6 +133,8 @@ enum Opcode
     OP_RTMSG_BROADCAST = 25,
     OP_RTMSG_USER = 26,
     OP_RTMSG_ENDPOINT = 27,
+    OP_INCALL = 28,
+    OP_ENDCALL = 29,
     OP_KEEPALIVEAWAY = 30,
     OP_LAST = OP_KEEPALIVEAWAY
 };
@@ -318,8 +320,8 @@ class Command: public Buffer
 private:
     Command(const Command&) = delete;
 protected:
-    Command(uint8_t opcode, uint8_t reserve, uint8_t dataSize)
-    : Buffer(reserve, dataSize) { write(0, opcode); }
+    Command(uint8_t opcode, uint8_t reserve, uint8_t payloadSize=0)
+    : Buffer(reserve, payloadSize+1) { write(0, opcode); }
     Command(const char* data, size_t size): Buffer(data, size){}
 public:
     enum { kBroadcastUserTyping = 1 };
@@ -356,8 +358,6 @@ public:
     uint8_t opcode() const { return read<uint8_t>(0); }
     static const char* opcodeToStr(uint8_t opcode);
     const char* opcodeName() const { return opcodeToStr(opcode()); }
-    virtual std::string toString() const;
-    static const char* opcodeToStr(uint8_t code);
     virtual std::string toString() const;
     virtual ~Command(){}
 };
@@ -429,68 +429,6 @@ public:
         write<uint32_t>(35, dataSize()-39);
     }
     virtual std::string toString() const;
-};
-
-class RtMessageComposer: public Command
-{
-protected:
-    using Command::read; // hide all read/write methods, as they will include the
-    using Command::write; // whole command, not the payload
-public:
-    enum { kHdrLen = 23 };
-    /** Creates an RtMessage as a base for derived classes (with userid/clientid)
-     * @param opcode The chatd command opcode. Can be OP_RTMSG_BROADCAST,
-     * OP_RTMSG_USER, OP_RTMSG_CLIENT
-     * @param type The payload-specific type. This is the first byte of the payload
-     * @param reserve How much bytes to reserve in the buffer for the payload data.
-     * This does not include the payload type byte.
-     * @param hdrlen The length of the header. This is used to calculate the data
-     * length field from the total buffer length. Does not include the payload type byte,
-     * which is part of the payload data.
-     */
-    RtMessageComposer(uint8_t opcode, Type type, uint16_t reserve=32)
-    : Command(opcode, kHdrLen+1+reserve)
-    {
-        //(opcode.1 chatid.8 userid.8 clientid.4 len.2) (type.1 data.(len-1))
-        //              ^                                          ^
-        //          header.23                             payload.len
-        setDataSize(kHdrLen+1);
-        append<uint8_t>(kHdrLen, type);
-        updateLenField();
-    }
-    void updateLenField()
-    {
-        assert(dataSize()-kHdrLen >= 1);
-        Buffer::write<uint16_t>(kHdrLen-2, dataSize()-kHdrLen);
-    }
-    void setChatid(karere::Id chatid) { Buffer::write<uint64_t>(1, chatid.val); }
-    void setUserid(karere::Id userid) { Buffer::write<uint64_t>(9, userid.val); }
-    void setClientid(uint32_t clientid) { Buffer::write<uint32_t>(17, clientid); }
-public:
-    template <class T, bool check=true, typename=typename std::enable_if<std::is_pod<T>::value>::type>
-    const T& payloadRead(size_t offset) const
-    {
-        return Buffer::read<T>(kHdrLen+1+offset);
-    }
-    template<class T, bool check=true, typename=typename std::enable_if<std::is_pod<T>::value>::type>
-    void payloadWrite(size_t offset, T val)
-    {
-        write<T>(offset+kHdrLen+1, val);
-    }
-    const char* payloadReadPtr(size_t offset, size_t len)
-    {
-        return Buffer::readPtr(mHdrLen+1+offset, len);
-    }
-    const char* payloadPtr() const { return buf()+kHdrLen+1; }
-    const char* payloadPtr(uint16_t offset) const
-    {
-        auto dataOfs = kHdrLen+1+offset;
-        if (dataOfs >= dataSize())
-            throw std::runtime_error("RtMessage::payloadPtr: offset "+std::to_string(offset)+" points past end of data (dataSize="+std::to_string(dataSize())+")");
-        return buf()+offset;
-    }
-    size_t payloadSize() const { return dataSize()-kHdrLen-1; }
-    bool hasPayload() const { return payloadSize() > 0; }
 };
 
 //for exception message purposes

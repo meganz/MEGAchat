@@ -45,7 +45,7 @@ typedef rtc::scoped_refptr<webrtc::SessionDescriptionInterface> tspSdp;
 typedef std::unique_ptr<webrtc::SessionDescriptionInterface> supSdp;
 
 /** The error type code that will be set when promises returned by this lib are rejected */
-enum {kRejectType = 0x17c};
+enum: uint32_t { ERRTYPE_RTC = 0x3e9a57c0 }; //promise error type
 /** The specific error codes of rejected promises */
 enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
 
@@ -82,7 +82,7 @@ public:
     virtual void OnFailure(const std::string& error)
     {
         RTCM_DO_CALLBACK(
-           mPromise.reject(promise::Error(error, kCreateSdpFailed, kRejectType));
+           mPromise.reject(promise::Error(error, kCreateSdpFailed, ERRTYPE_RTC));
            Release();
         , this, error);
     }
@@ -155,7 +155,7 @@ public:
     virtual void OnFailure(const std::string& error)
     {
         RTCM_DO_CALLBACK(
-             mPromise.reject(promise::Error(error, kSetSdpDescriptionFailed, kRejectType));
+             mPromise.reject(promise::Error(error, kSetSdpDescriptionFailed, ERRTYPE_RTC));
              Release();
         , this, error);
     }

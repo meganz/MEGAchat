@@ -771,8 +771,6 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     ICrypto* crypto)
     : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
       mListener(listener), mUsers(initialUsers), mCrypto(crypto),
-      mRtHandlers_Type(*this), mRtHandlers_Sender(*this),
-      mRtHandlers_Endpoint(*this),
       mLastMsgTs(chatCreationTs)
 {
     assert(mChatId);
@@ -1075,8 +1073,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += 20;
                 READ_16(payloadLen, 20);
                 pos+=payloadLen; //skip the payload
-                RtMessage rtmsg(*this, cmdstart, payloadLen); //includes the opcode
-                mRtHandler->handleMessage(rtmsg);
+                mClient.mRtcHandler->handleMessage(*this, StaticBuffer(buf.buf()+cmdstart, 22+payloadLen));
                 break;
             }
             case OP_CLIENTID:
@@ -2743,6 +2740,13 @@ void Client::leave(Id chatid)
     conn->second->mChatIds.erase(chatid);
     mConnectionForChatId.erase(conn);
     mChatForChatId.erase(chatid);
+}
+IRtcHandler* Client::setRtcHandler(IRtcHandler *handler)
+{
+    assert(handler);
+    auto old = mRtcHandler;
+    mRtcHandler = handler;
+    return old;
 }
 
 #define RET_CODENAME(name) case OP_##name: return #name

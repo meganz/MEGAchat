@@ -6,7 +6,7 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Release Debug)
 
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
-    message(STATUS "Strophe build type not set, defaulting to Debug")
+    message(STATUS "Build type not set, defaulting to Debug")
 endif()
 
 include (utils.cmake)
@@ -39,7 +39,7 @@ set (SRCS
 )
 
 if (NOT optKarereDisableWebrtc)
-    list(APPEND SRCS dummyCrypto.cpp megaCryptoFunctions.cpp strophe.disco.cpp)
+    list(APPEND SRCS dummyCrypto.cpp megaCryptoFunctions.cpp)
 endif()
 
 if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
@@ -68,7 +68,7 @@ if (NOT optKarereDisableWebrtc)
     add_subdirectory(rtcModule)
 else()
     add_subdirectory(base)
-    list(APPEND KARERE_DEFINES -DKARERE_DISABLE_WEBRTC=1 -DSVC_DISABLE_STROPHE)
+    list(APPEND KARERE_DEFINES -DKARERE_DISABLE_WEBRTC=1)
 endif()
 
 get_property(SERVICES_INCLUDE_DIRS GLOBAL PROPERTY SERVICES_INCLUDE_DIRS)
