@@ -164,9 +164,12 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     ASSERT_CHAT_TEST(!lastError[accountIndex], "Error sdk logout. Error: " + std::to_string(lastError[accountIndex]));
 
     flagRequestLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
-    closeSession ? megaChatApi[accountIndex]->logout() : megaChatApi[accountIndex]->localLogout();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for chat logout");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+    if (!closeSession)  // for closed session, karere automatically logs out itself
+    {
+        megaChatApi[accountIndex]->localLogout();
+        ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for chat logout");
+        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+    }
     MegaApi::addLoggerObject(logger);   // need to restore customized logger
 
 }

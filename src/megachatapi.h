@@ -1117,8 +1117,8 @@ public:
 
     enum
     {
-        INIT_ERROR                  = -1,   /// Initialization failed --> force a logout
-        INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login
+        INIT_ERROR                  = -1,   /// Initialization failed --> disable chat
+        INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login+fetchnodes
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
         INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
         INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
@@ -1217,9 +1217,15 @@ public:
     /**
      * @brief Initializes karere
      *
-     * If a session id is provided, karere will try to resume the session from cache.
-     * If no session is provided, karere will listen to login event in order to register a new
-     * session.
+     * If no session is provided, karere will listen to the fetchnodes event in order to register
+     * a new session and create its cache. It will return MegaChatApi::INIT_WAITING_NEW_SESSION.
+     *
+     * If a session id is provided, karere will try to resume the session from its cache and will
+     * return MegaChatApi::INIT_OFFLINE_SESSION.
+     *
+     * If a session id is provided but the correspoding cache is not available, it will return
+     * MegaChatApi::INIT_NO_CACHE and the app should go through a new fetchnodes in order to
+     * re-create a new cache from scratch.
      *
      * The initialization status is notified via `MegaChatListener::onChatInitStateUpdate`. See
      * the documentation of the callback for possible values.
@@ -1227,6 +1233,7 @@ public:
      * This function should be called before MegaApi::login and MegaApi::fetchnodes.
      *
      * @param sid Session id that wants to be resumed, or NULL if a new session will be created.
+     * @return The initialization state
      */
     int init(const char *sid);
 
@@ -1314,7 +1321,11 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT.
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
-     * called without a previous call to \c MegaChatApi::init.
+     * called without a previous call to \c MegaChatApi::init or when MEGAchat is already
+     * logged out.
+     *
+     * @note MEGAchat automatically logs out when it detects the MegaApi instance has an
+     * invalid session id. No need to call it explicitely, except to disable the chat.
      *
      * @param listener MegaChatRequestListener to track this request
      */
