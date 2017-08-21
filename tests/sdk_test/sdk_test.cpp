@@ -1742,7 +1742,7 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
-                     "Last messge contain has different value from message sent.\n Send: " + formatDate + " Received: " + itemAccount1->getLastMessage());
+                     "Last message content differs from content of message sent.\n Sent: " + formatDate + " Received: " + itemAccount1->getLastMessage());
     ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
     ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
     delete itemAccount1;
