@@ -260,6 +260,7 @@ private:
     bool group;
     bool active;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
+    MegaChatHandle mLastMsgId;
 
 public:
     virtual int getChanges() const;
@@ -270,6 +271,7 @@ public:
     virtual int getOwnPrivilege() const;
     virtual int getUnreadCount() const;
     virtual const char *getLastMessage() const;
+    virtual MegaChatHandle getLastMessageId() const;
     virtual int getLastMessageType() const;
     virtual MegaChatHandle getLastMessageSender() const;
     virtual int64_t getLastTimestamp() const;
@@ -292,7 +294,7 @@ public:
      * recives the usernames. The usernames are separated
      * by ASCII character '0x01'
      */
-    void setLastMessage(int type, const std::string &msg, const uint64_t uh);
+    void setLastMessage(MegaChatHandle messageId, int type, const std::string &msg, const uint64_t uh);
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
@@ -309,7 +311,7 @@ public:
     virtual void onRejoinedChat();
     virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastTsUpdated(uint32_t ts);
-    virtual void onOnlineChatState(const chatd::ChatState state);
+    virtual void onChatOnlineState(const chatd::ChatState state);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
@@ -771,6 +773,7 @@ public:
     void fireOnChatInitStateUpdate(int newState);
     void fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, int status, bool inProgress);
     void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
+    void fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState);
 
     // ============= API requests ================
 
@@ -778,6 +781,8 @@ public:
     void connect(MegaChatRequestListener *listener = NULL);
     void disconnect(MegaChatRequestListener *listener = NULL);
     int getConnectionState();
+    int getChatConnectionState(MegaChatHandle chatid);
+    static int convertChatConnectionState(chatd::ChatState state);
     void retryPendingConnections(MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);

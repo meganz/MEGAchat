@@ -1334,6 +1334,14 @@ void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *con
     delete config;
 }
 
+void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatConnectionStateUpdate(chatApi, chatid, newState);
+    }
+}
+
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
@@ -1354,6 +1362,21 @@ int MegaChatApiImpl::getConnectionState()
 
     sdkMutex.lock();
     ret = mClient->connState();
+    sdkMutex.unlock();
+
+    return ret;
+}
+
+int MegaChatApiImpl::getChatConnectionState(MegaChatHandle chatid)
+{
+    int ret = MegaChatApi::CHAT_CONNECTION_OFFLINE;
+
+    sdkMutex.lock();
+    ChatRoom *room = findChatRoom(chatid);
+    if (room)
+    {
+        ret = MegaChatApiImpl::convertChatConnectionState(room->chatdOnlineState());
+    }
     sdkMutex.unlock();
 
     return ret;
@@ -1907,16 +1930,28 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     {
         Chat &chat = chatroom->chat();
         Idx index = chat.msgIndexFromId(msgid);
-        if (index != CHATD_IDX_INVALID)
+        if (index != CHATD_IDX_INVALID)     // only confirmed messages have index
         {
             Message *msg = chat.findOrNull(index);
-            if (msg)    // probably redundant
+            if (msg)
             {
                 megaMsg = new MegaChatMessagePrivate(*msg, chat.getMsgStatus(*msg, index), index);
             }
             else
             {
                 API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+            }
+        }
+        else    // message still not confirmed, search in sending-queue
+        {
+            Message *msg = chat.getMsgByXid(msgid);
+            if (msg)
+            {
+                megaMsg = new MegaChatMessagePrivate(*msg, Message::Status::kSending, MEGACHAT_INVALID_INDEX);
+            }
+            else
+            {
+                API_LOG_ERROR("Failed to find message by temporal id (id: %d)", msgid);
             }
         }
     }
@@ -2524,6 +2559,20 @@ int MegaChatApiImpl::convertInitState(int state)
     default:
         return state;
     }
+}
+
+int MegaChatApiImpl::convertChatConnectionState(ChatState state)
+{
+    int newState;
+    if (state == kChatStateOnline)
+    {
+        newState = MegaChatApi::CHAT_CONNECTION_ONLINE;
+    }
+    else    // includes kChatStateOffline, kChatStateConnecting and kChatStateJoining
+    {
+        newState = MegaChatApi::CHAT_CONNECTION_OFFLINE;
+    }
+    return newState;
 }
 
 void MegaChatApiImpl::sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate *request)
@@ -4063,12 +4112,21 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
         this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
         this->lastMsgSender = msg->sender();
         this->lastMsgType = msg->type();
+        if (msg->idx() == CHATD_IDX_INVALID)
+        {
+            this->mLastMsgId = (MegaChatHandle) msg->xid();
+        }
+        else
+        {
+            this->mLastMsgId = (MegaChatHandle) msg->id();
+        }
     }
     else
     {
         this->lastMsg = "";
         this->lastMsgSender = MEGACHAT_INVALID_HANDLE;
         this->lastMsgType = lastMsgStatus;
+        this->mLastMsgId = MEGACHAT_INVALID_HANDLE;
     }
 
     this->lastTs = chatroom.chat().lastMessageTs();
@@ -4088,6 +4146,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->group = item->isGroup();
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
+    this->mLastMsgId = item->getLastMessageId();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -4132,6 +4191,11 @@ int MegaChatListItemPrivate::getUnreadCount() const
 const char *MegaChatListItemPrivate::getLastMessage() const
 {
     return lastMsg.c_str();
+}
+
+MegaChatHandle MegaChatListItemPrivate::getLastMessageId() const
+{
+    return mLastMsgId;
 }
 
 int MegaChatListItemPrivate::getLastMessageType() const
@@ -4198,11 +4262,12 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
 }
 
-void MegaChatListItemPrivate::setLastMessage(int type, const string &msg, const uint64_t uh)
+void MegaChatListItemPrivate::setLastMessage(MegaChatHandle messageId, int type, const string &msg, const uint64_t uh)
 {
     this->lastMsg = msg;
     this->lastMsgType = type;
     this->lastMsgSender = uh;
+    this->mLastMsgId = messageId;
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
 }
 
@@ -4255,7 +4320,17 @@ void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 
     std::string lastMessageContent = JSonUtils::getLastMessageContent(msg.contents(), msg.type());
 
-    item->setLastMessage(msg.type(), lastMessageContent, msg.sender());
+    MegaChatHandle messageId = MEGACHAT_INVALID_HANDLE;
+    if (msg.idx() == CHATD_IDX_INVALID)
+    {
+        messageId = (MegaChatHandle) msg.xid();
+    }
+    else
+    {
+        messageId = (MegaChatHandle) msg.id();
+    }
+
+    item->setLastMessage(messageId, msg.type(), lastMessageContent, msg.sender());
     chatApi.fireOnChatListItemUpdate(item);
 }
 
@@ -4266,9 +4341,10 @@ void MegaChatListItemHandler::onLastTsUpdated(uint32_t ts)
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onOnlineChatState(const ChatState state)
+void MegaChatListItemHandler::onChatOnlineState(const ChatState state)
 {
-    // apps are not interested on this event
+    int newState = MegaChatApiImpl::convertChatConnectionState(state);
+    chatApi.fireOnChatConnectionStateUpdate(this->mRoom.chatid(), newState);
 }
 
 MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)

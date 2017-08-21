@@ -334,7 +334,7 @@ public:
      *
      * The temporal identifier has different usages depending on the status of the message:
      *  - MegaChatMessage::STATUS_SENDING: valid until it's confirmed by the server.
-     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's remove from manual-send queue.
+     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's removed from manual-send queue.
      *
      * @note If status is STATUS_SENDING_MANUAL, this value can be used to identify the
      * message moved into the manual-send queue. The message itself will be identified by its
@@ -1132,6 +1132,12 @@ public:
         CONNECTED       = 3     /// A call to connect() succeed
     };
 
+    enum
+    {
+        CHAT_CONNECTION_OFFLINE = 0,    /// Connection with chatd is not ready
+        CHAT_CONNECTION_ONLINE  = 1     /// Connection with chatd is ready and logged in
+    };
+
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -1262,7 +1268,7 @@ public:
     void disconnect(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Returnes the current state of the connection
+     * @brief Returns the current state of the connection
      *
      * It can be one of the following values:
      *  - MegaChatApi::DISCONNECTED = 0
@@ -1272,6 +1278,18 @@ public:
      * @return The state of connection
      */
     int getConnectionState();
+
+    /**
+     * @brief Returns the current state of the connection to chatd
+     *
+     * The possible values are:
+     *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
+     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 1
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return The state of connection
+     */
+    int getChatConnectionState(MegaChatHandle chatid);
     
     /**
      * @brief Refresh DNS servers and retry pending connections
@@ -2005,14 +2023,15 @@ public:
     /**
      * @brief Returns the MegaChatMessage specified from the chat room.
      *
-     * Only the messages that are already loaded and notified
-     * by MegaChatRoomListener::onMessageLoaded can be requested. For any
-     * other message, this function will return NULL.
+     * This function allows to retrieve only those messages that are already loaded
+     * and notified by MegaChatRoomListener::onMessageLoaded and/or messages that are
+     * in sending-status (not yet confirmed). For any other message, this function
+     * will return NULL.
      *
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param msgid MegaChatHandle that identifies the message
+     * @param msgid MegaChatHandle that identifies the message (msg id or a temporal id)
      * @return The MegaChatMessage object, or NULL if not found.
      */
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
@@ -2512,6 +2531,16 @@ public:
     virtual const char *getLastMessage() const;
 
     /**
+     * @brief Returns message id of the last message in this chatroom.
+     *
+     * If the message is still not confirmed by server, the id could be a temporal
+     * id. @see \c MegaChatApi::sendMessage for more information about the msg id.
+     *
+     * @return MegaChatHandle representing the id of last message.
+     */
+    virtual MegaChatHandle getLastMessageId() const;
+
+    /**
      * @brief Returns the type of last message
      *
      * The possible values are as follows:
@@ -2864,6 +2893,19 @@ public:
      * @param config New presence configuration
      */
     virtual void onChatPresenceConfigUpdate(MegaChatApi* api, MegaChatPresenceConfig *config);
+
+    /**
+     * @brief This function is called when the connection state to a chatroom has changed
+     *
+     * The possible values are:
+     *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
+     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 1
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param newState New state of the connection
+     */
+    virtual void onChatConnectionStateUpdate(MegaChatApi* api, MegaChatHandle chatid, int newState);
 };
 
 /**

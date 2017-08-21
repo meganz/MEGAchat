@@ -316,8 +316,11 @@ Promise<void> Connection::reconnect(const std::string& url)
             })
             .fail([this](const promise::Error& err)
             {
-                mConnectPromise.reject(err.msg(), err.code(), err.type());
-                mLoginPromise.reject(err.msg(), err.code(), err.type());
+                if (err.type() == ERRTYPE_MEGASDK)
+                {
+                    mConnectPromise.reject(err.msg(), err.code(), err.type());
+                    mLoginPromise.reject(err.msg(), err.code(), err.type());
+                }
             });
             
             return mConnectPromise

@@ -123,6 +123,11 @@ int MegaChatApi::getConnectionState()
     return pImpl->getConnectionState();
 }
 
+int MegaChatApi::getChatConnectionState(MegaChatHandle chatid)
+{
+    return pImpl->getChatConnectionState(chatid);
+}
+
 void MegaChatApi::retryPendingConnections(MegaChatRequestListener *listener)
 {
     pImpl->retryPendingConnections(listener);
@@ -853,6 +858,11 @@ void MegaChatListener::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPres
 
 }
 
+void MegaChatListener::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int newState)
+{
+
+}
+
 MegaChatListItem *MegaChatListItem::copy() const
 {
     return NULL;
@@ -891,6 +901,11 @@ int MegaChatListItem::getUnreadCount() const
 const char *MegaChatListItem::getLastMessage() const
 {
     return NULL;
+}
+
+MegaChatHandle MegaChatListItem::getLastMessageId() const
+{
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 int MegaChatListItem::getLastMessageType() const
