@@ -222,7 +222,7 @@ void Chat::connect(const std::string& url)
             CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
         });
     }
-    else if (mConnection.isOnline())
+    else if (mConnection.isConnected())
     {
         login();
     }
@@ -312,9 +312,15 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 
     if (oldState < kStateLoggedIn) //tell retry controller that the connect attempt failed
     {
-        assert(!mLoginPromise.done());
-        mConnectPromise.reject(reason, errcode, errtype);
-        mLoginPromise.reject(reason, errcode, errtype);
+        assert(!mLoginPromise.succeeded());
+        if (!mConnectPromise.done())
+        {
+            mConnectPromise.reject(reason, errcode, errtype);
+        }
+        if (!mConnectPromise.done())
+        {
+            mLoginPromise.reject(reason, errcode, errtype);
+        }
     }
     else
     {
@@ -433,7 +439,7 @@ Promise<void> Connection::reconnect(const std::string& url)
             return mConnectPromise
             .then([this]() -> promise::Promise<void>
             {
-                assert(mState >= kStateConnected);
+                assert(isConnected());
                 enableInactivityTimer();
                 return rejoinExistingChats();
             });
@@ -524,14 +530,13 @@ void Connection::reset() //immediate disconnect
 
 bool Connection::sendBuf(Buffer&& buf)
 {
-    if (!isOnline())
+    if (!isLoggedIn() && !isConnected())
         return false;
 //WARNING: ws_send_msg_ex() is destructive to the buffer - it applies the websocket mask directly
 //Copy the data to preserve the original
     auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
     buf.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
-    bool result = (!rc && isOnline());
-    return result;
+    return (rc == 0);
 }
 bool Chat::sendCommand(Command&& cmd)
 {
@@ -620,7 +625,7 @@ void Chat::join()
 {
 //We don't have any local history, otherwise joinRangeHist() would be called instead of this
 //Reset handshake state, as we may be reconnecting
-    assert(mConnection.isOnline());
+    assert(mConnection.isConnected());
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
     mServerFetchState = kHistNotFetching;
@@ -730,7 +735,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
         }
         else
         {
-            if (!mConnection.isOnline())
+            if (!mConnection.isLoggedIn())
                 return kHistSourceServerOffline;
 
             auto wptr = weakHandle();
@@ -749,7 +754,8 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 
 void Chat::requestHistoryFromServer(int32_t count)
 {
-    assert(mConnection.isOnline());
+    // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
+    assert(mConnection.isConnected() || mConnection.isLoggedIn());
     mLastServerHistFetchCount = mLastHistDecryptCount = 0;
     mServerFetchState = (count > 0)
         ? kHistFetchingNewFromServer
@@ -1732,7 +1738,7 @@ void Chat::flushOutputQueue(bool fromStart)
 //the crypto module would get out of sync with the I/O sequence, which means
 //that it must have been reset/freshly initialized, and we have to skip
 //the KEYID responses for the keys we flush from the output queue
-    if(mEncryptionHalted || !mConnection.isOnline())
+    if(mEncryptionHalted || !mConnection.isLoggedIn())
         return;
 
     if (fromStart)
@@ -1791,7 +1797,7 @@ void Chat::removeManualSend(uint64_t rowid)
 // after a reconnect, we tell the chatd the oldest and newest buffered message
 void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 {
-    assert(mConnection.isOnline());
+    assert(mConnection.isConnected());
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
