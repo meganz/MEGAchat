@@ -2366,10 +2366,17 @@ public:
     void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Returns whether a flag is active to send the confirmation when message is
-     * received. In case flag is inactive, messages may never reach the status delivered,
-     * since the target user will not send the required acknowledge to the server upon reception.
-     * @return True if flag is active. False if flag is inactive
+     * @brief Returns whether reception of messages is acknowledged
+     *
+     * In case this function returns true, an acknowledgement will be sent for each
+     * received message, so the sender will eventually know the message is received.
+     *
+     * In case this function returns false, the acknowledgement is not sent and, in
+     * consequence, messages at the sender-side will not reach the status MegaChatMessage::STATUS_DELIVERED.
+     *
+     * @note This feature is only available for 1on1 chatrooms.
+     *
+     * @return True if received messages are acknowledged. False if they are not.
      */
     bool isMessageReceptionConfirmationActive() const;
 
