@@ -1033,16 +1033,17 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 CHATD_LOG_DEBUG("%s: recv HISTDONE - history retrieval finished", ID_CSTR(chatid));
-                mClient.chats(chatid).onHistDone();
-                if (mClient.isMessageConfirmationActive()
-                        && mClient.chats(chatid).getLastIdReceivedFromServer() != karere::Id()
-                        && !mClient.chats(chatid).isGroup()
-                        && (mClient.chats(chatid).getLastIdxConfirmedToServerAtHistDone() == CHATD_IDX_INVALID
-                            || mClient.chats(chatid).getLastIdxConfirmedToServerAtHistDone()
-                            < mClient.chats(chatid).getLastIdxReceivedFromServer()))
+                Chat &chat = mClient.chats(chatid);
+                chat.onHistDone();
+
+                // check if need to send acknowledge of reception of last message
+                if (mClient.isMessageConfirmationActive() && !chat.isGroup() &&
+                        chat.lastIdReceivedFromServer() != karere::Id() &&   // ack not sent yet
+                        ((chat.lastIdxConfirmedToServerAtHistDone() == CHATD_IDX_INVALID) || // no local history
+                         (chat.lastIdxConfirmedToServerAtHistDone() < chat.lastIdxReceivedFromServer()))) // newer msg received
                 {
-                    sendBuf(Command(OP_RECEIVED) + chatid + mClient.chats(chatid).getLastIdReceivedFromServer());
-                    mClient.chats(chatid).setLastIdxConfirmedToServerAtHistDone(mClient.chats(chatid).getLastIdxReceivedFromServer());
+                    sendBuf(Command(OP_RECEIVED) + chatid + chat.lastIdReceivedFromServer());
+                    chat.setLastIdxConfirmedToServerAtHistDone(chat.lastIdxReceivedFromServer());
                 }
                 break;
             }
@@ -1253,17 +1254,17 @@ Message* Chat::getManualSending(uint64_t rowid, ManualSendReason& reason)
     return item.msg;
 }
 
-Idx Chat::getLastIdxReceivedFromServer() const
+Idx Chat::lastIdxReceivedFromServer() const
 {
     return mLastIdxReceivedFromServer;
 }
 
-Id Chat::getLastIdReceivedFromServer() const
+Id Chat::lastIdReceivedFromServer() const
 {
     return mLastIdReceivedFromServer;
 }
 
-Idx Chat::getLastIdxConfirmedToServerAtHistDone() const
+Idx Chat::lastIdxConfirmedToServerAtHistDone() const
 {
     return mLastIdxConfirmedToServerAtHistDone;
 }
@@ -2419,13 +2420,16 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
-        if ((msg.userid != mClient.mUserId)
-                && ((mLastIdxReceivedFromServer == CHATD_IDX_INVALID) || (idx > mLastIdxReceivedFromServer))
-                && ! mClient.chats(mChatId).isGroup())
+
+
+        if (mClient.isMessageConfirmationActive() && !isGroup() &&
+                (msg.userid != mClient.mUserId) && // message is not ours
+                ((mLastIdxReceivedFromServer == CHATD_IDX_INVALID) ||   // no local history
+                 (idx > mLastIdxReceivedFromServer)))   // newer message than last received
         {
             mLastIdxReceivedFromServer = idx;
             mLastIdReceivedFromServer = msgid;
-            if (mClient.isMessageConfirmationActive() && !isFetchingFromServer())
+            if (!isFetchingFromServer())
             {
                 sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
             }

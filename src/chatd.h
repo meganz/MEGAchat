@@ -966,9 +966,9 @@ public:
     static uint64_t generateRefId(const ICrypto* aCrypto);
     Message *getManualSending(uint64_t rowid, chatd::ManualSendReason& reason);
 
-    Idx getLastIdxReceivedFromServer() const;
-    karere::Id getLastIdReceivedFromServer() const;
-    Idx getLastIdxConfirmedToServerAtHistDone() const;
+    Idx lastIdxReceivedFromServer() const;
+    karere::Id lastIdReceivedFromServer() const;
+    Idx lastIdxConfirmedToServerAtHistDone() const;
     void setLastIdxConfirmedToServerAtHistDone(Idx idx);
     bool isGroup() const;
 protected:
