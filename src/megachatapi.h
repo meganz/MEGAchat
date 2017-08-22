@@ -2333,6 +2333,13 @@ public:
      */
     void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
+    /**
+     * @brief Returns whether a flag is active to send the confirmation when message is
+     * received
+     * @return True if flag is active. False if flag is inactive
+     */
+    bool isMessageReceptionConfirmationActive() const;
+
     // Audio/Video device management
     mega::MegaStringList *getChatAudioInDevices();
     mega::MegaStringList *getChatVideoInDevices();

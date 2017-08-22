@@ -1013,6 +1013,7 @@ protected:
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
     karere::Id mUserId;
     static bool sWebsockCtxInitialized;
+    bool mMessageConfirmation = false;
     Connection& chatidConn(karere::Id chatid)
     {
         auto it = mConnectionForChatId.find(chatid);
@@ -1053,6 +1054,7 @@ public:
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();
     void notifyUserActive();
+    bool isMessageConfirmationActive() const;
     friend class Connection;
     friend class Chat;
 };

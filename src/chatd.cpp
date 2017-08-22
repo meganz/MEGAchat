@@ -206,6 +206,11 @@ void Client::notifyUserActive()
     sendKeepalive();
 }
 
+bool Client::isMessageConfirmationActive() const
+{
+    return mMessageConfirmation;
+}
+
 void Chat::connect(const std::string& url)
 {
     // attempt a connection ONLY if this is a new shard.
@@ -1029,8 +1034,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 CHATD_LOG_DEBUG("%s: recv HISTDONE - history retrieval finished", ID_CSTR(chatid));
                 mClient.chats(chatid).onHistDone();
-                if (mClient.chats(chatid).getLastIdReceivedFromServer() != karere::Id()
-                        && ! mClient.chats(chatid).isGroup()
+                if (mClient.isMessageConfirmationActive()
+                        && mClient.chats(chatid).getLastIdReceivedFromServer() != karere::Id()
+                        && !mClient.chats(chatid).isGroup()
                         && (mClient.chats(chatid).getLastIdxConfirmedToServerAtHistDone() == CHATD_IDX_INVALID
                             || mClient.chats(chatid).getLastIdxConfirmedToServerAtHistDone()
                             < mClient.chats(chatid).getLastIdxReceivedFromServer()))
@@ -2419,7 +2425,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             mLastIdxReceivedFromServer = idx;
             mLastIdReceivedFromServer = msgid;
-            if (!isFetchingFromServer())
+            if (mClient.isMessageConfirmationActive() && !isFetchingFromServer())
             {
                 sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
             }
