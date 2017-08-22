@@ -2123,6 +2123,13 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
                 CALL_DB(setLastReceived, 0);
             }
         }
+
+        if (idx == highnum())
+        {
+            mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+            mLastIdReceivedFromServer = karere::Id::null();
+            mLastIdxConfirmedToServerAtHistDone = CHATD_IDX_INVALID;
+        }
     }
 
     ChatDbInfo info;
