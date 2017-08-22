@@ -2367,7 +2367,8 @@ public:
 
     /**
      * @brief Returns whether a flag is active to send the confirmation when message is
-     * received
+     * received. In case flag is inactive, messages may never reach the status delivered,
+     * since the target user will not send the required acknowledge to the server upon reception.
      * @return True if flag is active. False if flag is inactive
      */
     bool isMessageReceptionConfirmationActive() const;

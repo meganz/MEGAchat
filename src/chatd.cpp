@@ -1041,16 +1041,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATD_LOG_DEBUG("%s: recv HISTDONE - history retrieval finished", ID_CSTR(chatid));
                 Chat &chat = mClient.chats(chatid);
                 chat.onHistDone();
-
-                // check if need to send acknowledge of reception of last message
-                if (mClient.isMessageConfirmationActive() && !chat.isGroup() &&
-                        chat.lastIdReceivedFromServer() != karere::Id() &&   // ack not sent yet
-                        ((chat.lastIdxConfirmedToServerAtHistDone() == CHATD_IDX_INVALID) || // no local history
-                         (chat.lastIdxConfirmedToServerAtHistDone() < chat.lastIdxReceivedFromServer()))) // newer msg received
-                {
-                    sendBuf(Command(OP_RECEIVED) + chatid + chat.lastIdReceivedFromServer());
-                    chat.setLastIdxConfirmedToServerAtHistDone(chat.lastIdxReceivedFromServer());
-                }
                 break;
             }
             case OP_KEYID:
@@ -1268,16 +1258,6 @@ Idx Chat::lastIdxReceivedFromServer() const
 Id Chat::lastIdReceivedFromServer() const
 {
     return mLastIdReceivedFromServer;
-}
-
-Idx Chat::lastIdxConfirmedToServerAtHistDone() const
-{
-    return mLastIdxConfirmedToServerAtHistDone;
-}
-
-void Chat::setLastIdxConfirmedToServerAtHistDone(Idx idx)
-{
-    mLastIdxConfirmedToServerAtHistDone = idx;
 }
 
 bool Chat::isGroup() const
@@ -2134,7 +2114,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         {
             mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
             mLastIdReceivedFromServer = karere::Id::null();
-            mLastIdxConfirmedToServerAtHistDone = CHATD_IDX_INVALID;
         }
     }
 
@@ -2437,7 +2416,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         if (mClient.isMessageConfirmationActive() && !isGroup() &&
                 (msg.userid != mClient.mUserId) && // message is not ours
-                mConnection.isLoggedIn() &&   // skip NEWMSGs received in response to JOINRANGEHIST
                 ((mLastIdxReceivedFromServer == CHATD_IDX_INVALID) ||   // no local history
                  (idx > mLastIdxReceivedFromServer)))   // newer message than last received
         {

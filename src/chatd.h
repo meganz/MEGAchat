@@ -505,7 +505,6 @@ protected:
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
     Idx mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
     karere::Id mLastIdReceivedFromServer;
-    Idx mLastIdxConfirmedToServerAtHistDone = CHATD_IDX_INVALID;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     Priv mOwnPrivilege = PRIV_INVALID;
@@ -973,7 +972,6 @@ public:
     Idx lastIdxReceivedFromServer() const;
     karere::Id lastIdReceivedFromServer() const;
     Idx lastIdxConfirmedToServerAtHistDone() const;
-    void setLastIdxConfirmedToServerAtHistDone(Idx idx);
     bool isGroup() const;
 protected:
     void msgSubmit(Message* msg);
