@@ -2437,15 +2437,14 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         if (mClient.isMessageConfirmationActive() && !isGroup() &&
                 (msg.userid != mClient.mUserId) && // message is not ours
+                mConnection.isLoggedIn() &&   // skip NEWMSGs received in response to JOINRANGEHIST
                 ((mLastIdxReceivedFromServer == CHATD_IDX_INVALID) ||   // no local history
                  (idx > mLastIdxReceivedFromServer)))   // newer message than last received
         {
             mLastIdxReceivedFromServer = idx;
             mLastIdReceivedFromServer = msgid;
-            if (!isFetchingFromServer())
-            {
-                sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
-            }
+
+            sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
     }
     if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
