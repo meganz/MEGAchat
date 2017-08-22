@@ -2130,7 +2130,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
             }
         }
 
-        if (idx == highnum())
+        if (mLastIdxReceivedFromServer <= idx)
         {
             mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
             mLastIdReceivedFromServer = karere::Id::null();
