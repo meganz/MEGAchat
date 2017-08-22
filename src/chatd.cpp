@@ -206,9 +206,9 @@ void Client::notifyUserActive()
     sendKeepalive();
 }
 
-bool Client::isMessageConfirmationActive() const
+bool Client::isMessageReceivedConfirmationActive() const
 {
-    return mMessageConfirmation;
+    return mMessageReceivedConfirmation;
 }
 
 void Chat::connect(const std::string& url)
@@ -2414,7 +2414,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         CALL_DB(addMsgToHistory, msg, idx);
 
 
-        if (mClient.isMessageConfirmationActive() && !isGroup() &&
+        if (mClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mClient.mUserId) && // message is not ours
                 ((mLastIdxReceivedFromServer == CHATD_IDX_INVALID) ||   // no local history
                  (idx > mLastIdxReceivedFromServer)))   // newer message than last received

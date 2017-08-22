@@ -2299,7 +2299,7 @@ void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequ
 
 bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
 {
-    return mClient->chatd->isMessageConfirmationActive();
+    return mClient->chatd->isMessageReceivedConfirmationActive();
 }
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
