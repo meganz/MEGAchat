@@ -844,6 +844,7 @@ public:
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
     void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowid);
     void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    bool isMessageReceptionConfirmationActive() const;
 
     // Audio/Video devices
     mega::MegaStringList *getChatAudioInDevices();
