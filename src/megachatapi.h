@@ -262,7 +262,7 @@ public:
         STATUS_SENDING_MANUAL       = 1,    /// Message is too old to auto-retry sending, or group composition has changed, or user has read-only privilege, or user doesn't belong to chatroom. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
         STATUS_SERVER_RECEIVED      = 2,    /// Message confirmed by server, but not yet delivered to recepient(s)
         STATUS_SERVER_REJECTED      = 3,    /// Message is rejected by server for some reason (the message was confirmed but we didn't receive the confirmation because went offline or closed the app before)
-        STATUS_DELIVERED            = 4,    /// Peer confirmed message receipt. Used only for 1on1 chats
+        STATUS_DELIVERED            = 4,    /// Peer confirmed message receipt. Available only for 1on1 chats, but currently not in use.
         // for incoming messages
         STATUS_NOT_SEEN             = 5,    /// User hasn't read this message yet
         STATUS_SEEN                 = 6     /// User has read this message
@@ -2251,6 +2251,9 @@ public:
      * the transition through STATUS_SERVER_RECEIVED. In other words, the protocol doesn't allow
      * to know when an edit has been delived to the target user, but only when the edit has been
      * received by the server, so for convenience the status of the original message is kept.
+     * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
+     * reach the status delivered, since the target user will not send the required acknowledge to the
+     * server upon reception.
      * 
      * You take the ownership of the returned value.
      *
@@ -2969,6 +2972,9 @@ public:
      * MegaChatMessage::getCode() equal to 0 and the corresponding MegaChatMessage::getTempId().
      * The app should discard the message in sending status, in pro of the confirmed message to avoid
      * duplicated message in the history.
+     * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
+     * reach the status delivered, since the target user will not send the required acknowledge to the
+     * server upon reception.
      *
      * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
      * object will be valid until this function returns. If you want to save the MegaChatMessage object,
