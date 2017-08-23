@@ -971,7 +971,6 @@ public:
 
     Idx lastIdxReceivedFromServer() const;
     karere::Id lastIdReceivedFromServer() const;
-    Idx lastIdxConfirmedToServerAtHistDone() const;
     bool isGroup() const;
 protected:
     void msgSubmit(Message* msg);
