@@ -106,21 +106,15 @@ Client::Client(MyMegaApi *api, Id userId)
             marshallCall([bev, userp]()
             {
                 //CHATD_LOG_DEBUG("Read event");
-                if (bev != NULL && userp != NULL)
-                {
-                    ws_read_callback(bev, userp);
-                }
+                ws_read_callback(bev, userp);
             });
         },
         [](struct bufferevent* bev, short events, void* userp)
         {
             marshallCall([bev, events, userp]()
             {
-                if (bev != NULL && userp != NULL)
-                {
-                    //CHATD_LOG_DEBUG("Buffer event 0x%x", events);
-                    ws_event_callback(bev, events, userp);
-                }
+                //CHATD_LOG_DEBUG("Buffer event 0x%x", events);
+                ws_event_callback(bev, events, userp);
             });
         },
         [](int fd, short events, void* userp)

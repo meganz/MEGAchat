@@ -62,10 +62,7 @@ void Client::initWebsocketCtx()
             marshallCall([bev, userp]()
             {
                 //CHATD_LOG_DEBUG("Read event");
-                if (bev != NULL && userp != NULL)
-                {
-                    ws_read_callback(bev, userp);
-                }
+                ws_read_callback(bev, userp);
             });
         },
         [](struct bufferevent* bev, short events, void* userp)
@@ -73,10 +70,7 @@ void Client::initWebsocketCtx()
             marshallCall([bev, events, userp]()
             {
                 //CHATD_LOG_DEBUG("Buffer event 0x%x", events);
-                if (bev != NULL && userp != NULL)
-                {
-                    ws_event_callback(bev, events, userp);
-                }
+                ws_event_callback(bev, events, userp);
             });
         },
         [](int fd, short events, void* userp)
