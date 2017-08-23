@@ -569,7 +569,7 @@ protected:
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
-         const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
+    const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
     Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
