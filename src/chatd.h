@@ -1046,7 +1046,7 @@ public:
      * with the newly created Chat object.
      */
     Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
-        Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
+    Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     promise::Promise<void> disconnect();
