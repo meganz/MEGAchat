@@ -2114,6 +2114,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         {
             mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
             mLastIdReceivedFromServer = karere::Id::null();
+            // TODO: the update of those variables should be persisted
         }
     }
 
@@ -2421,6 +2422,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             mLastIdxReceivedFromServer = idx;
             mLastIdReceivedFromServer = msgid;
+            // TODO: the update of those variables should be persisted
 
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
