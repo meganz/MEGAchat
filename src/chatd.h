@@ -302,9 +302,13 @@ protected:
     promise::Promise<void> mLoginPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
     State state() { return mState; }
-    bool isOnline() const
+    bool isConnected() const
     {
-        return mState >= kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
+        return mState == kStateConnected;
+    }
+    bool isLoggedIn() const
+    {
+        return mState == kStateLoggedIn;
     }
     static void websockConnectCb(ws_t ws, void* arg);
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,

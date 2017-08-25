@@ -994,8 +994,6 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
 
 int MegaChatApiImpl::init(const char *sid)
 {
-    int ret;
-
     sdkMutex.lock();
     if (!mClient)
     {
@@ -1003,10 +1001,18 @@ int MegaChatApiImpl::init(const char *sid)
         terminating = false;
     }
 
-    ret = MegaChatApiImpl::convertInitState(mClient->init(sid));
+    int state = mClient->init(sid);
+    if (state != karere::Client::kInitErrNoCache &&
+            state != karere::Client::kInitWaitingNewSession &&
+            state != karere::Client::kInitHasOfflineSession)
+    {
+        // there's been an error during initialization
+        localLogout();
+    }
+
     sdkMutex.unlock();
 
-    return ret;
+    return MegaChatApiImpl::convertInitState(state);
 }
 
 int MegaChatApiImpl::getInitState()
