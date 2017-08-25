@@ -1195,7 +1195,6 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a2, msgId), "Wrong message id at destination");
     MegaChatMessage *messageReceived = megaChatApi[a2]->getMessage(chatid, msgId);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent()), "Content of message doesn't match");
-    ASSERT_CHAT_TEST(waitForResponse(msgDelivered), "Timeout expired for receiving delivery notification");    // for delivery
 
     delete messageSent;
     messageSent = NULL;
@@ -1845,6 +1844,13 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(msgReceived->getUsersCount() == 1, "Wrong number of users in message. Count: " + std::to_string(msgReceived->getUsersCount()));
     ASSERT_CHAT_TEST(strcmp(msgReceived->getUserEmail(0), mAccounts[a2].getEmail().c_str()) == 0, "Wrong email address in message. Address: " + std::string(msgReceived->getUserEmail(0)));
 
+    // Check if reception confirmation is active and, in this case, only 1on1 rooms have acknowledgement of receipt
+    if (megaChatApi[a1]->isMessageReceptionConfirmationActive()
+            && !megaChatApi[a1]->getChatRoom(chatid)->isGroup())
+    {
+        ASSERT_CHAT_TEST(waitForResponse(flagDelivered), "Timeout expired for receiving delivery notification");    // for delivery
+    }
+
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
@@ -2253,8 +2259,9 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
     ASSERT_CHAT_TEST(messageReceived, "Failed to retrieve the message at the receiver account");
     ASSERT_CHAT_TEST(!strcmp(textToSend.c_str(), messageReceived->getContent()), "Content of message received doesn't match the content of sent message");
 
-    // only 1on1 rooms have acknowledgement of receipt
-    if (!megaChatApi[senderAccountIndex]->getChatRoom(chatid)->isGroup())
+    // Check if reception confirmation is active and, in this case, only 1on1 rooms have acknowledgement of receipt
+    if (megaChatApi[senderAccountIndex]->isMessageReceptionConfirmationActive()
+            && !megaChatApi[senderAccountIndex]->getChatRoom(chatid)->isGroup())
     {
         ASSERT_CHAT_TEST(waitForResponse(flagDelivered), "Timeout expired for receiving delivery notification");    // for delivery
     }

@@ -145,7 +145,7 @@ Client::Client(MyMegaApi *api, Id userId)
     }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
-    Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs)
+    Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup)
 {
     auto chatit = mChatForChatId.find(chatid);
     if (chatit != mChatForChatId.end())
@@ -176,7 +176,7 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     mConnectionForChatId[chatid] = conn;
 
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
-    Chat* chat = new Chat(*conn, chatid, listener, users, chatCreationTs, crypto);
+    Chat* chat = new Chat(*conn, chatid, listener, users, chatCreationTs, crypto, isGroup);
     // add chatid to the connection's chatids
     conn->mChatIds.insert(chatid);
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
@@ -204,6 +204,11 @@ void Client::notifyUserActive()
         return;
     mKeepaliveType = OP_KEEPALIVE;
     sendKeepalive();
+}
+
+bool Client::isMessageReceivedConfirmationActive() const
+{
+    return mMessageReceivedConfirmation;
 }
 
 void Chat::connect(const std::string& url)
@@ -765,10 +770,10 @@ void Chat::requestHistoryFromServer(int32_t count)
 
 Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     const karere::SetOfIds& initialUsers, uint32_t chatCreationTs,
-    ICrypto* crypto)
+    ICrypto* crypto, bool isGroup)
     : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
       mListener(listener), mUsers(initialUsers), mCrypto(crypto),
-      mLastMsgTs(chatCreationTs)
+      mLastMsgTs(chatCreationTs), mIsGroup(isGroup)
 {
     assert(mChatId);
     assert(mListener);
@@ -1038,7 +1043,8 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 CHATD_LOG_DEBUG("%s: recv HISTDONE - history retrieval finished", ID_CSTR(chatid));
-                mClient.chats(chatid).onHistDone();
+                Chat &chat = mClient.chats(chatid);
+                chat.onHistDone();
                 break;
             }
             case OP_KEYID:
@@ -1246,6 +1252,21 @@ Message* Chat::getManualSending(uint64_t rowid, ManualSendReason& reason)
     CALL_DB(loadManualSendItem, rowid, item);
     reason = item.reason;
     return item.msg;
+}
+
+Idx Chat::lastIdxReceivedFromServer() const
+{
+    return mLastIdxReceivedFromServer;
+}
+
+Id Chat::lastIdReceivedFromServer() const
+{
+    return mLastIdReceivedFromServer;
+}
+
+bool Chat::isGroup() const
+{
+    return mIsGroup;
 }
 
 Message* Chat::getMsgByXid(Id msgxid)
@@ -2092,6 +2113,13 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
                 CALL_DB(setLastReceived, 0);
             }
         }
+
+        if (mClient.isMessageReceivedConfirmationActive() && mLastIdxReceivedFromServer <= idx)
+        {
+            mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+            mLastIdReceivedFromServer = karere::Id::null();
+            // TODO: the update of those variables should be persisted
+        }
     }
 
     ChatDbInfo info;
@@ -2389,9 +2417,17 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
-        if ((msg.userid != mClient.mUserId) &&
-           ((mLastReceivedIdx == CHATD_IDX_INVALID) || (idx > mLastReceivedIdx)))
+
+
+        if (mClient.isMessageReceivedConfirmationActive() && !isGroup() &&
+                (msg.userid != mClient.mUserId) && // message is not ours
+                ((mLastIdxReceivedFromServer == CHATD_IDX_INVALID) ||   // no local history
+                 (idx > mLastIdxReceivedFromServer)))   // newer message than last received
         {
+            mLastIdxReceivedFromServer = idx;
+            mLastIdReceivedFromServer = msgid;
+            // TODO: the update of those variables should be persisted
+
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
     }

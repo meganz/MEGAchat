@@ -2297,6 +2297,11 @@ void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequ
     waiter->notify();
 }
 
+bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
+{
+    return mClient->chatd->isMessageReceivedConfirmationActive();
+}
+
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
     return NULL;
