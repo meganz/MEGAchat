@@ -250,6 +250,7 @@ public:
         std::string mEmail;
         Presence mPresence;
         void subscribeForNameChanges();
+        promise::Promise<void> mNameResolved;
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
@@ -267,6 +268,9 @@ public:
 
         /** @brief The presence of the peer */
         Presence presence() const { return mPresence; }
+
+        promise::Promise<void> nameResolved() const;
+
         friend class GroupChatRoom;
     };
     /**
@@ -285,7 +289,7 @@ public:
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
-    void addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
+    promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(uint64_t userid);
     void updatePeerPresence(uint64_t peer, Presence pres);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
