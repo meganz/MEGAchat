@@ -235,6 +235,8 @@ struct UserKeyId
 
 class TlvWriter;
 
+void deriveSharedKey(const StaticBuffer& sharedSecret, SendKey& output);
+
 class ProtocolHandler: public chatd::ICrypto, public karere::DeleteTrackable
 {
 protected:
@@ -274,39 +276,36 @@ protected:
     void loadKeysFromDb();
     promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);
     void addDecryptedKey(UserKeyId ukid, const std::shared_ptr<SendKey>& key);
-        /**
-         * Updates our own sender key. Done when a message is sent and users
-         * have changed since the last message was sent, or when the first
-         * message is sent.
-         */
+    /**
+     * Updates our own sender key. Done when a message is sent and users
+     * have changed since the last message was sent, or when the first
+     * message is sent.
+     */
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
     updateSenderKey();
 
-        /**
-         * @brief Signs a message using EdDSA with the Ed25519 key pair.
-         * @param message Message to sign.
-         * @param keyToInclude The symmetric key with which the message was signed,
-         *     to be include into the signature
-         * @param signature [out] Message signature.
-         */
-    void signMessage(const StaticBuffer& msg,
-         uint8_t protoVersion, uint8_t msgType, const SendKey& msgKey,
-        StaticBuffer& signature);
-        /**
-          * Derives a symmetric key for encrypting a message to a contact.  It is
-          * derived using a Curve25519 key agreement.
-          *
-          * Note: The Curve25519 key cache must already contain the public key of
-          *       the recipient.
-          *
-          */
+    /**
+     * @brief Signs a message using EdDSA with the Ed25519 key pair.
+     * @param message Message to sign.
+     * @param keyToInclude The symmetric key with which the message was signed,
+     *     to be include into the signature
+     * @param signature [out] Message signature.
+     */
+    void signMessage(const StaticBuffer& msg, uint8_t protoVersion, uint8_t msgType,
+        const SendKey& msgKey, StaticBuffer& signature);
+    /**
+     * Derives a symmetric key for encrypting a message to a contact.  It is
+     * derived using a Curve25519 key agreement.
+     *
+     * Note: The Curve25519 key cache must already contain the public key of
+     *       the recipient.
+     */
     promise::Promise<std::shared_ptr<SendKey> > computeSymmetricKey(karere::Id userid);
 
     promise::Promise<std::shared_ptr<Buffer>>
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-    encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, uint64_t extraUser=0);
-
+        encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, uint64_t extraUser=0);
     void msgEncryptWithKey(chatd::Message &src, chatd::MsgCommand& dest,
         const StaticBuffer& key);
     promise::Promise<chatd::Message*> handleManagementMessage(
@@ -327,27 +326,26 @@ protected:
         legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedMsg);
 public:
 //chatd::ICrypto interface
-        promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
-            msgEncrypt(chatd::Message *message, chatd::MsgCommand* msgCmd);
-        virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);
-        virtual void onKeyReceived(uint32_t keyid, karere::Id sender,
-            karere::Id receiver, const char* data, uint16_t dataLen);
-        virtual void onKeyConfirmed(uint32_t keyxid, uint32_t keyid);
-        virtual void setUsers(karere::SetOfIds* users);
-        virtual void onUserJoin(karere::Id userid);
-        virtual void onUserLeave(karere::Id userid);
-        virtual void resetSendKey();
-        virtual bool handleLegacyKeys(chatd::Message& msg);
-        virtual void randomBytes(void* buf, size_t bufsize) const;
-        virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
-        virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
-        virtual const chatd::KeyCommand* unconfirmedKeyCmd() const { return mUnconfirmedKeyCmd.get(); }
-
-        //====
-        promise::Promise<std::shared_ptr<SendKey>>
-            decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
-
-    };
+    promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
+    msgEncrypt(chatd::Message *message, chatd::MsgCommand* msgCmd);
+    virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);
+    virtual void onKeyReceived(uint32_t keyid, karere::Id sender,
+        karere::Id receiver, const char* data, uint16_t dataLen);
+    virtual void onKeyConfirmed(uint32_t keyxid, uint32_t keyid);
+    virtual void setUsers(karere::SetOfIds* users);
+    virtual void onUserJoin(karere::Id userid);
+    virtual void onUserLeave(karere::Id userid);
+    virtual void resetSendKey();
+    virtual bool handleLegacyKeys(chatd::Message& msg);
+    virtual void randomBytes(void* buf, size_t bufsize) const;
+    virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
+    virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
+    virtual const chatd::KeyCommand* unconfirmedKeyCmd() const { return mUnconfirmedKeyCmd.get(); }
+    //====
+    promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
+        decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
+    void deriveSharedKey(const StaticBuffer& sharedSecret, SendKey& output);
+};
 }
 namespace chatd
 {

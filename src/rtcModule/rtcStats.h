@@ -4,6 +4,7 @@
 #include "IRtcStats.h"
 #include "ITypesImpl.h"
 #include <timers.hpp>
+#include <karereId.h>
 
 namespace rtcModule
 {
@@ -20,7 +21,7 @@ struct StatSessInfo
     karere::Id caid;
     karere::Id aaid;
     bool isCaller;
-    StatSessInfo(karere::Id aSid, uint8_t code, std::string aErrInfo);
+    StatSessInfo(karere::Id aSid, uint8_t code, const std::string& aErrInfo);
 };
 
 class ConnInfo: public IConnInfo
@@ -46,36 +47,36 @@ public:
     int mSper; //sample period
     int64_t mStartTs;
     int64_t mDur;
-    std::string mCallId;
-    std::string mOwnAnonId;
-    std::string mPeerAnonId;
+    karere::Id mCallId;
+    karere::Id mOwnAnonId;
+    karere::Id mPeerAnonId;
     std::vector<Sample*> mSamples;
     ConnInfo mConnInfo;
     //IRtcStats implementation
     virtual const std::string& termRsn() const { return mTermRsn; }
     virtual bool isCaller() const { return mIsCaller; }
-    virtual const std::string& callId() const { return mCallId; }
+    virtual karere::Id callId() const { return mCallId; }
     virtual size_t sampleCnt() const { return mSamples.size(); }
     virtual const std::vector<Sample*>* samples() const { return &mSamples; }
     virtual const IConnInfo* connInfo() const { return &mConnInfo; }
     virtual void toJson(std::string& out) const;
 };
 
-class BasicStats: public IRtcStats
+class EmptyStats: public IRtcStats
 {
 public:
     bool mIsCaller;
     std::string mTermRsn;
-    std::string mCallId;
+    karere::Id mCallId;
     std::string mEmpty;
-    BasicStats(const Call& call, const std::string& aTermRsn);
+    EmptyStats(const Session& sess, const std::string& aTermRsn);
     virtual const std::string& ctype() const { return mEmpty; }
     virtual const std::string& proto() const { return mEmpty; }
     virtual const std::string& rlySvr() const { return mEmpty; }
     virtual const std::string& termRsn() const { return mTermRsn; }
     virtual const std::string& vcodec() const { return mEmpty; }
     virtual bool isCaller() const { return mIsCaller; }
-    virtual const std::string& callId() const { return mCallId; }
+    virtual karere::Id callId() const { return mCallId; }
     virtual size_t sampleCnt() const { return 0; }
     virtual const std::vector<Sample*>* samples() const { return nullptr; }
     virtual const IConnInfo* connInfo() const { return nullptr; }
@@ -99,7 +100,8 @@ protected:
     };
 
     Session& mSession;
-    Options mOptions;
+    int mScanPeriod;
+    int mMaxSamplePeriod;
     webrtc::PeerConnectionInterface::StatsOutputLevel mStatsLevel =
             webrtc::PeerConnectionInterface::kStatsOutputLevelStandard;
     std::unique_ptr<Sample> mCurrSample;
@@ -115,7 +117,7 @@ protected:
     void resetBwCalculators();
 public:
     std::unique_ptr<RtcStats> mStats;
-    Recorder(Session& sess, int scanInterval, int maxSampleInterval);
+    Recorder(Session& sess, int scanPeriod, int maxSamplePeriod);
     ~Recorder();
     bool isRelay() const
     {

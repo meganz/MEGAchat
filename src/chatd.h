@@ -1039,7 +1039,7 @@ public:
     uint32_t options = 0;
     MyMegaApi *mApi;
     uint8_t mKeepaliveType = OP_KEEPALIVE;
-    IRtcHandler* mRtHandler = new IRtcHandler; //dummy handler
+    IRtcHandler* mRtcHandler = nullptr;
     karere::Id userId() const { return mUserId; }
     Client(MyMegaApi *api, karere::Id userId);
     ~Client(){}

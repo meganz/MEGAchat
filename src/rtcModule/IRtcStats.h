@@ -2,6 +2,7 @@
 #define IRTCSTATS_H
 
 #include "ITypes.h"
+#include <karereId.h>
 
 namespace rtcModule
 {
@@ -77,7 +78,7 @@ class IRtcStats
 public:
     virtual const std::string& termRsn() const = 0;
     virtual bool isCaller() const = 0;
-    virtual const std::string& callId() const = 0;
+    virtual karere::Id callId() const = 0;
     virtual size_t sampleCnt() const = 0;
     virtual const std::vector<Sample*>* samples() const = 0;
     virtual const IConnInfo* connInfo() const = 0;

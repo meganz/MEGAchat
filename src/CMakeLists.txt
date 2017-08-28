@@ -15,6 +15,8 @@ set(optKarereBuildShared 0 CACHE BOOL "Build libkarere as a shared library")
 set(optKarereDisableWebrtc 1 CACHE BOOL "Disable webrtc")
 
 find_package(Cryptopp REQUIRED)
+#force Mega headers to enable cryptopp stuff
+add_definitions(-DUSE_CRYPTOPP)
 find_package(Mega REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Sqlite3 REQUIRED)
@@ -39,7 +41,7 @@ set (SRCS
 )
 
 if (NOT optKarereDisableWebrtc)
-    list(APPEND SRCS dummyCrypto.cpp megaCryptoFunctions.cpp)
+    list(APPEND SRCS rtcCrypto.cpp)
 endif()
 
 if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
@@ -101,7 +103,7 @@ set(KARERE_DEP_LIBS
 )
 
 if (NOT optKarereDisableWebrtc)
-    list(APPEND KARERE_INCLUDE_DIRS ${RTCMODULE_INCLUDE_DIRS})
+    list(APPEND KARERE_INCLUDE_DIRS ${RTCMODULE_INCLUDE_DIRS} ${WEBRTC_INCLUDES})
     list(APPEND KARERE_DEP_LIBS rtcmodule)
 else()
     list(APPEND KARERE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/rtcModule)

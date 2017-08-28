@@ -3,10 +3,11 @@
 #include <stddef.h> //size_t
 #include <string>
 #include <promise.h>
+#include <karereId.h>
 
 namespace rtcModule
 {
-
+struct SdpKey;
 /** @brief Interface for implementing the SRTP fingerprint verification
  *
  * The fingerprint verification resembles the ZRTP verification, but uses
@@ -21,36 +22,35 @@ namespace rtcModule
  * They must match.
  */
 
-class ICryptoFunctions
+class IRtcCrypto
 {
 public:
     /** @brief Generates a HMAC of the fingerprint hash+a fixed string, keyed with
      * the peer's fprMacKey
      */
-    virtual std::string generateMac(const std::string& data, const std::string& key) = 0;
+    virtual void mac(const std::string& data, const SdpKey& key, SdpKey& output) = 0;
+
     /** @brief
      * Decrypt a message encrypted with our own public key, using our private key
     */
-    virtual std::string decryptMessage(const std::string& msg) = 0;
+    virtual void decryptKeyFrom(karere::Id peer, const SdpKey& data, SdpKey& output) = 0;
     /**
      * @brief
-     * Encrypt a message with the peer's public key. The key of that JID myst have
-     * been pre-loaded using preloadCryptoForJid()
+     * Encrypt an SdpKey with the peer's public key. The key of that peer must have
+     * been pre-loaded.
      **/
-    virtual std::string encryptMessageForJid(const std::string& msg, const std::string& jid) = 0;
+    virtual void encryptKeyTo(karere::Id peer, const SdpKey& data, SdpKey& output);
     /** @brief
-     * Fetches the specified JID's public key for use with encryptMessageForJid()
+     * Fetches the specified peer's public CU25519 key
     */
-    virtual promise::Promise<void> preloadCryptoForJid(const std::string& jid) = 0;
+    virtual promise::Promise<void> waitForPeerKeys(karere::Id peer);
     /** @brief
      * Used to anonymize the user in submitting call statistics
     */
-    virtual std::string scrambleJid(const std::string& jid) = 0;
+    virtual karere::Id anonymizeId(karere::Id userid) = 0;
     /** @brief Generic random string function */
-    virtual std::string generateRandomString(size_t size) = 0;
-    /** @brief Uses generateRandomString() to generate the 32-byte fprMacKey */
-    virtual std::string generateFprMacKey() = 0;
-    virtual ~ICryptoFunctions(){}
+    virtual void random(char* buf, size_t len);
+    virtual ~IRtcCrypto(){}
 };
 }
 

@@ -527,7 +527,7 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: //public rtcModule::IGlobalEventHandler,
+class Client: public rtcModule::IGlobalHandler,
               public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
               public presenced::Listener,
@@ -616,7 +616,6 @@ public:
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
-//    rtcModule::IRtcModule* rtc = nullptr;
     unsigned mReconnectConnStateHandler = 0;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
@@ -789,6 +788,12 @@ public:
      */
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
+#ifndef KARERE_DISABLE_WEBRTC
+    std::unique_ptr<rtcModule::IRtcModule> rtc;
+    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call);
+    virtual bool onAnotherCall(rtcModule::ICall& existingCall, karere::Id userid);
+    virtual bool isGroupChat(karere::Id chatid);
+#endif
 
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);

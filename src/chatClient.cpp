@@ -14,11 +14,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rtcModule/IRtcModule.h"
+#include "rtcModule/webrtc.h"
+#include "rtcCrypto.h"
 #include "dummyCrypto.h" //for makeRandomString
 #include "base/services.h"
 #include "sdkApi.h"
-#include "megaCryptoFunctions.h"
 #include <serverListProvider.h>
 #include <memory>
 #include <chatd.h>
@@ -2692,10 +2692,20 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 #ifndef KARERE_DISABLE_WEBRTC
-rtcModule::IEventHandler* Client::onIncomingCallRequest(
-        const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call)
 {
-    return app.onIncomingCall(ans);
+    return app.onIncomingCall(call);
+}
+bool Client::onAnotherCall(rtcModule::ICall& existingCall, karere::Id userid)
+{
+    return true;
+}
+bool Client::isGroupChat(karere::Id chatid)
+{
+    auto it = chats->find(chatid);
+    if (it == chats->end())
+        throw std::runtime_error("Unknown chat "+chatid.toString());
+    return it->second->isGroup();
 }
 #endif
 

@@ -1,7 +1,10 @@
 #include "webrtc.h"
-#include "webrtcProvate.h"
+#include "webrtcPrivate.h"
 #include <chatClient.h>
 #include <timers.hpp>
+#include "rtcCrypto.h"
+#include "streamPlayer.h"
+#include "rtcStats.h"
 
 #define SUB_LOG_DEBUG(fmtString,...) RTCM_LOG_DEBUG("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_INFO(fmtString,...) RTCM_LOG_INFO("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
@@ -31,6 +34,8 @@ using namespace std;
 using namespace promise;
 using namespace chatd;
 
+bool gInitialized = false;
+
 template <class... Args>
 const char* termCodeFirstArgToString(TermCode code, Args...)
 {
@@ -38,6 +43,7 @@ const char* termCodeFirstArgToString(TermCode code, Args...)
 }
 template <class... Args>
 const char* termCodeFirstArgToString(Args...) { return nullptr; }
+const char* iceStateToStr(webrtc::PeerConnectionInterface::IceConnectionState);
 
 struct CallerInfo
 {
@@ -57,11 +63,17 @@ RtMessage::RtMessage(chatd::Connection &aShard, const StaticBuffer& msg)
     auto packetLen = msg.read<uint16_t>(RtMessage::kHdrLen-2);
     payload.assign(msg.readPtr(RtMessage::kPayloadOfs, packetLen), packetLen);
 }
+void sdpSetVideoBw(std::string& sdp, int maxbr);
 
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler* handler,
-  ICryptoFunctions& crypto, const ServerList<TurnServerInfo>& iceServers)
-: mClient(client), mOwnAnonId(client.myHandle()), mCrypto(crypto), mHandler(handler)
+  IRtcCrypto& crypto, const ServerList<TurnServerInfo>& iceServers)
+: IRtcModule(client, handler, crypto, crypto.anonymizeId(client.myHandle()))
 {
+    if (!gInitialized)
+    {
+        artc::init(nullptr);
+        gInitialized = true;
+    }
     mPcConstraints.SetMandatoryReceiveAudio(true);
     mPcConstraints.SetMandatoryReceiveVideo(true);
     mPcConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
@@ -71,6 +83,19 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler* handler,
     initInputDevices();
     mClient.chatd->setRtcHandler(this);
 }
+template <class T>
+T RtcModule::random() const
+{
+    T result;
+    mCrypto.random((char*)&result, sizeof(result));
+    return result;
+}
+template <class T>
+void RtcModule::random(T& result) const
+{
+    return mCrypto.random((char*)&result, sizeof(T));
+}
+
 void RtcModule::initInputDevices()
 {
     auto& devices = mDeviceManager.inputDevices();
@@ -201,10 +226,6 @@ void RtcModule::msgCallRequest(RtMessage& packet)
             }
         }
     }
-//    Call::Call(RtcModule& rtcModule, Id chatid, chatd::Connection& shard,
-//        uint64_t callid, bool isGroup,
-//        bool isJoiner, CallHandler* handler, Id callerUser, uint32_t callerClient)
-
     auto ret = mCalls.emplace(packet.chatid, std::make_shared<Call>(*this,
         packet.chatid, packet.shard, packet.callid,
         mHandler->isGroupChat(packet.chatid),
@@ -218,12 +239,9 @@ void RtcModule::msgCallRequest(RtMessage& packet)
     auto wcall = call->weakHandle();
     setTimeout([wcall]() mutable
     {
-        if (!wcall.isValid())
+        if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
             return;
-        if (wcall->state() != Call::kStateRingIn) {
-            return;
-        }
-        wcall->destroy(TermCode::kAnswerTimeout, false);
+        static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
     }, kCallAnswerTimeout+4000); // local timeout a bit longer that the caller
 }
 template <class... Args>
@@ -315,6 +333,17 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors)
     localStream->setAv(av);
     return localStream;
 }
+void RtcModule::getAudioInDevices(std::vector<std::string>& devices) const
+{
+    for (auto& dev:mDeviceManager.inputDevices().audio)
+        devices.push_back(dev.name);
+}
+
+void RtcModule::getVideoInDevices(std::vector<std::string>& devices) const
+{
+    for(auto& dev:mDeviceManager.inputDevices().video)
+        devices.push_back(dev.name);
+}
 
 std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
     ICallHandler* handler, bool isJoin)
@@ -333,21 +362,25 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         uint64_t callid, bool isGroup,
         bool isJoiner, CallHandler* handler, Id callerUser, uint32_t callerClient)
 */
-    auto call = std::make_shared<Call>(*this, chatid, shard,
-        mCrypto.random<uint64_t>(), isGroup, isJoin, handler);
+    auto call = std::make_shared<Call>(*this, chatid, shard, random<uint64_t>(),
+        isGroup, isJoin, handler, 0, 0);
 
     mCalls[chatid] = call;
     call->startOrJoin(av);
     return call;
 }
-
-std::shared_ptr<Call> RtcModule::joinCall(karere::Id chatid, AvFlags av, ICallHandler* handler)
+bool RtcModule::isCaptureActive() const
 {
-    return startOrJoinCall(chatid, av, handler, true);
+    return (mAudioInput || mVideoInput);
 }
-std::shared_ptr<Call> RtcModule::startCall(karere::Id chatid, AvFlags av, ICallHandler* handler)
+
+std::shared_ptr<ICall> RtcModule::joinCall(karere::Id chatid, AvFlags av, ICallHandler* handler)
 {
-    return startOrJoinCall(chatid, av, handler, false);
+    return static_pointer_cast<ICall>(startOrJoinCall(chatid, av, handler, true));
+}
+std::shared_ptr<ICall> RtcModule::startCall(karere::Id chatid, AvFlags av, ICallHandler* handler)
+{
+    return static_pointer_cast<ICall>(startOrJoinCall(chatid, av, handler, false));
 }
 
 void RtcModule::onUserOffline(Id chatid, Id userid, uint32_t clientid)
@@ -376,8 +409,8 @@ void RtcModule::onShutdown()
 Call::Call(RtcModule& rtcModule, Id chatid, chatd::Connection& shard,
     karere::Id callid, bool isGroup,
     bool isJoiner, ICallHandler* handler, Id callerUser, uint32_t callerClient)
-: WeakReferenceable<Call>(this), mManager(rtcModule), mChatid(chatid), mId(callid), mHandler(handler),
-  mShard(shard), mIsGroup(isGroup), mIsJoiner(isJoiner) // the joiner is actually the answerer in case of new call
+: ICall(rtcModule, chatid, shard, callid, isGroup, isJoiner, handler,
+    callerUser, callerClient) // the joiner is actually the answerer in case of new call
 {
 //    this.sessions = {};
 //    this.sessRetries = {};
@@ -921,7 +954,6 @@ bool Call::answer(AvFlags av)
 
 void Call::hangup(TermCode reason)
 {
-    TermCode term;
     switch (mState)
     {
     case kStateReqSent:
@@ -939,37 +971,38 @@ void Call::hangup(TermCode reason)
     case kStateRingIn:
         if (reason == TermCode::kInvalid)
         {
-            term = TermCode::kCallRejected;
+            reason = TermCode::kCallRejected;
         }
         else if (reason == TermCode::kBusy)
         {
-            term = TermCode::kBusy;
+            reason = TermCode::kBusy;
         }
         else
         {
+            reason = TermCode::kInvalid; //silence warning about uninitialized
             assert(false && "Hangup reason can only be undefined or kBusy when hanging up call in state kRingIn");
         }
         assert(mSessions.empty());
-        cmd(RTCMD_CALL_REQ_DECLINE, mCallerUser, mCallerClient, mId, term);
-        destroy(term, false);
+        cmd(RTCMD_CALL_REQ_DECLINE, mCallerUser, mCallerClient, mId, reason);
+        destroy(reason, false);
         return;
     case kStateJoining:
     case kStateInProgress:
     case kStateHasLocalStream:
         // TODO: Check if the sender is the call host and only then destroy the call
-        term = TermCode::kUserHangup;
+        reason = TermCode::kUserHangup;
         break;
     case kStateTerminating:
     case kStateDestroyed:
         SUB_LOG_DEBUG("hangup: Call already terminating/terminated");
         return;
     default:
-        term = TermCode::kUserHangup;
+        reason = TermCode::kUserHangup;
         SUB_LOG_WARNING("Don't know what term code to send in state %s", stateStr());
         break;
     }
     // in any state, we just have to send CALL_TERMINATE and that's all
-    destroy(term, true);
+    destroy(reason, true);
 }
 
 void Call::onUserOffline(Id userid, uint32_t clientid)
@@ -1073,16 +1106,16 @@ call the caller is requesting - audio or video.
 This is not available when joining an existing call.
 */
 Session::Session(Call& call, RtMessage& packet)
-:mCall(call), mPeer(packet.userid), mPeerClient(packet.clientid)
+:ISession(call, packet.userid, packet.clientid)
 {
     // Packet can be RTCMD_JOIN or RTCMD_SESSION
-    call.mManager.mCrypto.random(&mOwnSdpKey);
+    call.mManager.random(mOwnSdpKey);
     if (packet.type == RTCMD_JOIN)
     {
         // peer will send offer
         // JOIN callid.8 anonId.8
         mIsJoiner = false;
-        mSid = call.mManager.mCrypto.random<uint64_t>();
+        mSid = call.mManager.random<uint64_t>();
         mState = kStateWaitSdpOffer;
         mPeerAnonId = packet.payload.read<uint64_t>(8);
     }
@@ -1097,7 +1130,7 @@ Session::Session(Call& call, RtMessage& packet)
         mPeerAnonId = packet.payload.read<uint64_t>(16);
         SdpKey encKey;
         packet.payload.read(24, encKey);
-        call.mManager.mCrypto.decryptNonceFrom(mPeer, encKey, mPeerHashKey);
+        call.mManager.mCrypto.decryptKeyFrom(mPeer, encKey, mPeerSdpKey);
     }
     mName = "sess[" + mSid.toString() + "]";
     auto wptr = weakHandle();
@@ -1113,7 +1146,7 @@ Session::Session(Call& call, RtMessage& packet)
 void Session::sendCmdSession(RtMessage& joinPacket)
 {
     SdpKey encKey;
-    mCall.mManager.mCrypto.encryptKeyTo(mPeer, mOwnHashKey, encKey);
+    mCall.mManager.mCrypto.encryptKeyTo(mPeer, mOwnSdpKey, encKey);
     // SESSION callid.8 sid.8 anonId.8 encHashKey.32
    mCall.mManager.cmdEndpoint(RTCMD_SESSION, joinPacket,
         joinPacket.callid,
@@ -1283,7 +1316,7 @@ Promise<void> Session::sendOffer()
     assert(mPeerAnonId);
     createRtcConn();
     auto wptr = weakHandle();
-    mRtcConn.createOffer(pcConstraints())
+    return mRtcConn.createOffer(pcConstraints())
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
     {
         if (wptr.deleted())
@@ -1300,7 +1333,7 @@ Promise<void> Session::sendOffer()
         if (wptr.deleted())
             return;
         SdpKey encKey;
-        mCall.mManager.mCrypto.encryptNonceTo(mPeer, mOwnSdpKey, encKey);
+        mCall.mManager.mCrypto.encryptKeyTo(mPeer, mOwnSdpKey, encKey);
         SdpKey hash;
         mCall.mManager.mCrypto.mac(mOwnSdp, mPeerSdpKey, hash);
 
@@ -1442,6 +1475,7 @@ void Session::msgSdpAnswer(RtMessage& packet)
         if (mState > Session::kStateInProgress)
             return promise::Error("Session killed");
         setState(Session::kStateInProgress);
+        return promise::_Void();
     })
     .fail([wptr, this](const promise::Error& err)
     {
@@ -1664,7 +1698,7 @@ void Session::mungeSdp(std::string& sdp)
 
 #define RET_ENUM_NAME(name) case name: return #name
 
-const char* Call::stateToStr(uint8_t state)
+const char* ICall::stateToStr(uint8_t state)
 {
     switch(state)
     {
@@ -1680,7 +1714,7 @@ const char* Call::stateToStr(uint8_t state)
     }
 }
 
-const char* Session::stateToStr(uint8_t state)
+const char* ISession::stateToStr(uint8_t state)
 {
     switch(state)
     {
@@ -1803,5 +1837,14 @@ const char* iceStateToStr(webrtc::PeerConnectionInterface::IceConnectionState st
         default: return "(invalid ICE connection state)";
     }
 }
+void sdpSetVideoBw(std::string& sdp, int maxbr)
+{
 }
-
+void globalCleanup()
+{
+    if (!gInitialized)
+        return;
+    artc::cleanup();
+    gInitialized = false;
+}
+}

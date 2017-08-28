@@ -1168,6 +1168,10 @@ void ProtocolHandler::onUserJoin(Id userid)
 {
     mParticipantsChanged = true;
     resetSendKey(); //just in case
+    //preload keys
+    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
+    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
+    mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
 }
 
 void ProtocolHandler::onUserLeave(Id userid)

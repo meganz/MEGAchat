@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <random>
 #include <arpa/inet.h>
+#include <libws.h>
 
 #ifdef __ANDROID__
     #include <sys/system_properties.h>
@@ -1073,7 +1074,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += 20;
                 READ_16(payloadLen, 20);
                 pos+=payloadLen; //skip the payload
-                mClient.mRtcHandler->handleMessage(*this, StaticBuffer(buf.buf()+cmdstart, 22+payloadLen));
+                if (mClient.mRtcHandler)
+                {
+                    mClient.mRtcHandler->handleMessage(*this, StaticBuffer(buf.buf()+cmdstart, 22+payloadLen));
+                }
                 break;
             }
             case OP_CLIENTID:
@@ -2743,7 +2747,6 @@ void Client::leave(Id chatid)
 }
 IRtcHandler* Client::setRtcHandler(IRtcHandler *handler)
 {
-    assert(handler);
     auto old = mRtcHandler;
     mRtcHandler = handler;
     return old;

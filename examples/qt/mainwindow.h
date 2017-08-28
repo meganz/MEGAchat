@@ -7,7 +7,7 @@
 #include <QDrag>
 #include <QMimeData>
 //#include <mstrophepp.h>
-#include <IRtcModule.h>
+#include <webrtc.h>
 //#include <../strophe.disco.h>
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>

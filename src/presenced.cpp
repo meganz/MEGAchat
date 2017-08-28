@@ -7,6 +7,7 @@
 #include <event2/dns_compat.h>
 #include <chatClient.h>
 #include <arpa/inet.h>
+#include <libws.h>
 
 #ifdef __ANDROID__
     #include <sys/system_properties.h>

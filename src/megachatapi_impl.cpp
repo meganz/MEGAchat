@@ -2420,10 +2420,10 @@ void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
     // it is notified to the app by the existing MegaApi
 }
 
-rtcModule::IEventHandler *MegaChatApiImpl::onIncomingCall(const shared_ptr<rtcModule::ICallAnswer> &ans)
+rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
 {
     // TODO: create the call object implementing IEventHandler and return it
-    return new MegaChatCallPrivate(ans);
+    return new MegaChatCallPrivate(call);
 }
 
 void MegaChatApiImpl::notifyInvited(const ChatRoom &room)
@@ -2908,40 +2908,34 @@ void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
     mMegaNodeList = nodelist ? nodelist->copy() : NULL;
 }
 
-MegaChatCallPrivate::MegaChatCallPrivate(const shared_ptr<rtcModule::ICallAnswer> &ans)
+MegaChatCallPrivate::MegaChatCallPrivate(rtcModule::ICall& call)
+:mCall(&call), peer(call.caller())
 {
-    mAns = ans;
-#ifndef KARERE_DISABLE_WEBRTC
-    this->peer = mAns->call()->peerJid().c_str();
-#else
-    this->peer = nullptr;
-#endif
     status = 0;
     tag = 0;
     videoReceiver = NULL;
 }
 
-MegaChatCallPrivate::MegaChatCallPrivate(const char *peer)
+MegaChatCallPrivate::MegaChatCallPrivate(Id peer)
+:mCall(nullptr)
 {
-    this->peer = MegaApi::strdup(peer);
+    this->peer = peer;
     status = 0;
     tag = 0;
     videoReceiver = NULL;
-    mAns = NULL;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
 {
-    this->peer = MegaApi::strdup(call.getPeer());
+    this->peer = call.getPeer();
     this->status = call.getStatus();
     this->tag = call.getTag();
     this->videoReceiver = NULL;
-    mAns = NULL;
+    mCall = NULL;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
 {
-    delete [] peer;
 //    delete mAns;  it's a shared pointer, no need to delete
     // videoReceiver is deleted on onVideoDetach, because it's called after the call is finished
 }
@@ -2963,16 +2957,7 @@ int MegaChatCallPrivate::getTag() const
 
 MegaChatHandle MegaChatCallPrivate::getContactHandle() const
 {
-    if(!peer)
-    {
-        return MEGACHAT_INVALID_HANDLE;
-    }
-
-    MegaChatHandle userHandle = MEGACHAT_INVALID_HANDLE;
-    string tmp = peer;
-    tmp.resize(13);
-    Base32::atob(tmp.data(), (byte *)&userHandle, sizeof(userHandle));
-    return userHandle;
+    return peer ? peer.val : MEGACHAT_INVALID_HANDLE;
 }
 
 //shared_ptr<rtcModule::ICallAnswer> MegaChatCallPrivate::getAnswerObject()
@@ -2980,7 +2965,7 @@ MegaChatHandle MegaChatCallPrivate::getContactHandle() const
 //    return mAns;
 //}
 
-const char *MegaChatCallPrivate::getPeer() const
+karere::Id MegaChatCallPrivate::getPeer() const
 {
     return peer;
 }

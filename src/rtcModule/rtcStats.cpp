@@ -1,5 +1,5 @@
 #include "rtcStats.h"
-#include "webrtc.h"
+#include "webrtcPrivate.h"
 #include <timers.hpp>
 #include <string.h> //for memset
 #include <karereCommon.h> //for timestampMs()
@@ -15,19 +15,19 @@ using namespace karere;
 namespace stats
 {
 
-StatSessInfo(karere::Id aSid, TermCode termCode, std::string aErrInfo)
+StatSessInfo::StatSessInfo(karere::Id aSid, uint8_t termCode, const std::string& aErrInfo)
 :sid(aSid), errInfo(aErrInfo)
 {
     if (termCode & TermCode::kPeer)
-        mTermReason = "peer-"+termCodeToStr(termCode & ~TermCode::kPeer);
+        mTermReason = std::string("peer-")+termCodeToStr(static_cast<TermCode>(termCode & ~TermCode::kPeer));
     else
-        termCodeToStr(termCode);
+        mTermReason = termCodeToStr(static_cast<TermCode>(termCode));
 }
 
-BasicStats::BasicStats(const Call& call, const std::string& aTermRsn)
-:mIsCaller(call.isCaller()), mTermRsn(aTermRsn), mCallId(call.id()){}
+EmptyStats::EmptyStats(const Session& sess, const std::string& aTermRsn)
+:mIsCaller(sess.isCaller()), mTermRsn(aTermRsn), mCallId(sess.call().id()){}
 
-Recorder::Recorder(Session& sess, int scanInterval, int maxSampleInterval)
+Recorder::Recorder(Session& sess, int scanPeriod, int maxSamplePeriod)
     :mSession(sess), mScanPeriod(scanPeriod), mMaxSamplePeriod(maxSamplePeriod),
     mCurrSample(new Sample), mStats(new RtcStats)
 {
@@ -230,14 +230,14 @@ void Recorder::start()
 {
     assert(mSession.mPeerConn);
     mStats->mIsCaller = mSession.isCaller();
-    mStats->mCallId = mSession.mCall.id();
-    mStats->mOwnAnonId = mSession.mJingle.ownAnonId();
-    mStats->mPeerAnonId = mSession.mCall.peerAnonId();
+    mStats->mCallId = mSession.call().id();
+    mStats->mOwnAnonId = mSession.call().manager().ownAnonId();
+    mStats->mPeerAnonId = mSession.peerAnonId();
     mStats->mSper = mScanPeriod;
     mStats->mStartTs = karere::timestampMs();
     mTimer = setInterval([this]()
     {
-        mSession.mPeerConn->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
+        mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
     }, mScanPeriod);
 }
 
@@ -295,9 +295,9 @@ void RtcStats::toJson(std::string& json) const
 {
     json.reserve(10240);
     json ="{";
-    JSON_ADD_STR(cid, mCallId);
-    JSON_ADD_STR(caid, mIsCaller?mOwnAnonId:mPeerAnonId);
-    JSON_ADD_STR(aaid, mIsCaller?mPeerAnonId:mOwnAnonId);
+    JSON_ADD_STR(cid, mCallId.toString());
+    JSON_ADD_STR(caid, mIsCaller?mOwnAnonId.toString():mPeerAnonId.toString());
+    JSON_ADD_STR(aaid, mIsCaller?mPeerAnonId.toString():mOwnAnonId.toString());
     JSON_ADD_INT(isCaller, mIsCaller);
     JSON_ADD_INT(ts, mStartTs);
     JSON_ADD_INT(sper, mSper);
@@ -364,11 +364,11 @@ void RtcStats::toJson(std::string& json) const
     json[json.size()-1]='}'; //all
 }
 
-void BasicStats::toJson(std::string& json) const
+void EmptyStats::toJson(std::string& json) const
 {
     json.reserve(512);
     json ="{";
-    JSON_ADD_STR(cid, mCallId);
+    JSON_ADD_STR(cid, mCallId.toString());
     JSON_ADD_INT(isCaller, mIsCaller);
     JSON_ADD_STR(termRsn, mTermRsn);
     JSON_ADD_STR(bws, "n"); //TODO: Add platform info
