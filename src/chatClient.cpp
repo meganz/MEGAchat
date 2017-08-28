@@ -1336,11 +1336,6 @@ promise::Promise<void> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *
     return promise::when(promises);
 }
 
-bool GroupChatRoom::isTitleDecrypting() const
-{
-    return mTitleIsDecrypting;
-}
-
 promise::Promise<void> GroupChatRoom::mediaCall(AvFlags av)
 {
     return promise::Error("Group chat calls are not implemented yet");
@@ -1355,7 +1350,7 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
-mHasTitle(!title.empty()), mRoomGui(nullptr), mTitleIsDecrypting(false)
+mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
@@ -1397,11 +1392,18 @@ void GroupChatRoom::connect()
     {
         wptr.throwIfDeleted();
         mChat->connect(mUrl);
-        decryptTitle()
-        .fail([](const promise::Error& err)
+        if (mHasTitle)
         {
-            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
-        });
+            decryptTitle()
+            .fail([](const promise::Error& err)
+            {
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
+            });
+        }
+        else
+        {
+            makeTitleFromMemberNames();
+        }
     });
 }
 
@@ -1674,11 +1676,18 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
         room = new GroupChatRoom(*this, apiRoom); //also writes it to cache
         if (client.connected())
         {
-            static_cast<GroupChatRoom*>(room)->decryptTitle()
-            .fail([](const promise::Error& err)
+            if (static_cast<GroupChatRoom*>(room)->hasTitle())
             {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
-            });
+                static_cast<GroupChatRoom*>(room)->decryptTitle()
+                .fail([](const promise::Error& err)
+                {
+                    KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
+                });
+            }
+            else
+            {
+                static_cast<GroupChatRoom*>(room)->makeTitleFromMemberNames();
+            }
         }
     }
     else
@@ -1830,8 +1839,7 @@ ChatRoomList::~ChatRoomList()
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
-  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()),
-  mHasTitle(false), mRoomGui(nullptr), mTitleIsDecrypting(true)
+  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()), mRoomGui(nullptr)
 {
     auto peers = aChat.getPeerList();
     if (peers)
@@ -1863,6 +1871,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     if (title && title[0])
     {
         mEncryptedTitle = title;
+        mHasTitle = true;
     }
     else
     {
@@ -1876,11 +1885,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
 promise::Promise<void> GroupChatRoom::decryptTitle()
 {
-    mTitleIsDecrypting = true;
-
     if (mEncryptedTitle.empty())
     {
-        mTitleIsDecrypting = false;
         makeTitleFromMemberNames();
         return promise::_Void();
     }
@@ -1894,7 +1900,6 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     }
     catch(std::exception& e)
     {
-        mTitleIsDecrypting = false;
         makeTitleFromMemberNames();
         std::string err("Error base64-decoding chat title: ");
         err.append(e.what()).append(". Falling back to member names");
@@ -1926,7 +1931,6 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
             }
         }
 
-        mTitleIsDecrypting = false;
         notifyTitleChanged();
     })
     .fail([wptr, this](const promise::Error& err)
@@ -1934,7 +1938,6 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         wptr.throwIfDeleted();
         KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", karere::Id(chatid()).toString().c_str(), err.what());
         makeTitleFromMemberNames();
-        mTitleIsDecrypting = false;
         return err;
     });
 }
@@ -2297,6 +2300,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     if (title)
     {
         mEncryptedTitle = title;
+        mHasTitle = true;
         if (parent.client.connected())
         {
             decryptTitle()
@@ -2378,7 +2382,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         // in multiple title updates. Detect this, and don't update the title.
         // The constructor will call makeTitleFromMemberNames() once it adds
         // all peers.
-        if (!self->mRoom.isInitializing() && !self->mRoom.hasTitle() && !self->mRoom.isTitleDecrypting())
+        if (!self->mRoom.isInitializing() && !self->mRoom.hasTitle())
         {
             self->mRoom.makeTitleFromMemberNames();
         }
@@ -2391,7 +2395,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         if (buf && !buf->empty())
         {
             self->mEmail.assign(buf->buf(), buf->dataSize());
-            if (!self->mRoom.isInitializing() && !self->mRoom.hasTitle() && !self->mRoom.isTitleDecrypting() && self->mName.size() <= 1)
+            if (!self->mRoom.isInitializing() && !self->mRoom.hasTitle() && self->mName.size() <= 1)
             {
                 self->mRoom.makeTitleFromMemberNames();
             }
