@@ -1371,12 +1371,6 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
         }
     });
 
-    if (mTitleString.empty())
-    {
-        makeTitleFromMemberNames();
-        assert(!mTitleString.empty());
-    }
-
     notifyTitleChanged();
     initWithChatd();
     mRoomGui = addAppItem();
@@ -2332,16 +2326,19 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
         }
     }
 
-    auto wptr = weakHandle();
-    promise::when(promises)
-    .then([wptr, this]()
+    if (promises.size() > 0)
     {
-        wptr.throwIfDeleted();
-        if (!mHasTitle)
+        auto wptr = weakHandle();
+        promise::when(promises)
+        .then([wptr, this]()
         {
-            makeTitleFromMemberNames();
-        }
-    });
+            wptr.throwIfDeleted();
+            if (!mHasTitle)
+            {
+                makeTitleFromMemberNames();
+            }
+        });
+    }
 
     return changed;
 }
