@@ -122,8 +122,8 @@ const char* termCodeToStr(TermCode code);
 class ISessionHandler
 {
 public:
-    virtual void onStateChange(uint8_t newState) = 0;
-    virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
+    virtual void onSessStateChange(uint8_t newState) = 0;
+    virtual void onSessDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
     virtual void onRemoteStreamAdded(IVideoRenderer*& rendererOut) = 0;
     virtual void onRemoteStreamRemoved() = 0;
     virtual void onPeerMute(karere::AvFlags av) = 0;
@@ -132,9 +132,22 @@ public:
 class ICallHandler
 {
 public:
+    /** @brief An \c ICall event handler is likely to need a reference to the underlying
+     * ICall object, but in the case of an outgoing call or join, the handler has
+     * to be created by the app before the call is created, as \c startCall and \c joinCall
+     * accept the handler as parameter and return the \c ICall object.
+     * In other words, in the above case, the ICallHandler will not have the ICall
+     * object available at its construction. This callback provides it as soon as
+     * possible, before startCall/joinCall return, and before any call event occurs
+     * on that call. If the app were to assign the ICall reference upon return from
+     * startCall/joinCall, events on that call may be generated before that, imposing the need
+     * to obtain the ICall object earlier, via this callback.
+     */
+    virtual void setCall(ICall* call)  = 0;
     virtual void onStateChange(uint8_t newState) {}
-    virtual void onDestroy(TermCode reason, bool byPeer, std::string& msg) = 0;
+    virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
     virtual ISessionHandler* onNewSession(ISession& sess) { return nullptr; }
+    virtual void onLocalStreamObtained(IVideoRenderer*& rendererOut) = 0;
     virtual void onLocalMediaError(const std::string errors) {}
     virtual void onRingOut(karere::Id peer) {}
     virtual void onCallStarting() {}
@@ -143,8 +156,26 @@ public:
 class IGlobalHandler
 {
 public:
+    /** @brief An incoming call has just been received
+     * @param call The incoming call
+     * @return The call handler that will receive events about this call
+     */
     virtual ICallHandler* onCallIncoming(ICall& call) = 0;
+
+    /**
+     * @brief A call has been received while there is an existing call
+     * in the same chatroom. This allows convenient resolution of the situation
+     * where two users start calling each other simultaneously.
+     * @param existingCall The existing call object
+     * @param userid The caller's userid
+     * @return  If this callback returns \c true, the existing call
+     * will be hung up and the incoming call will be answered.
+     * If it returns \c false, the incoming call will be rejected.
+     */
     virtual bool onAnotherCall(ICall& existingCall, karere::Id userid) = 0;
+
+    /** @brief Return whether the chat  with the specified chatid is a group or
+     * 1on chat */
     virtual bool isGroupChat(karere::Id chatid) = 0;
 };
 

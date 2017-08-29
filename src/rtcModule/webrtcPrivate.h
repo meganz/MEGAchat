@@ -115,10 +115,6 @@ protected:
     void handleReject(RtMessage& packet);
     void handleBusy(RtMessage& packet);
     void getLocalStream(karere::AvFlags av, std::string& errors);
-    bool startLocalStream(bool allowEmpty);
-    void createLocalPlayer();
-    void freeLocalStream();
-    void removeRemotePlayer();
     void muteUnmute(karere::AvFlags what, bool state);
     void onUserOffline(karere::Id userid, uint32_t clientid);
     /** Called by the remote media player when the first frame is about to be rendered,
@@ -202,8 +198,7 @@ protected:
     void cmdEndpoint(uint8_t type, const RtMessage& info, Args... args);
     void removeCall(Call& call);
     std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors);
-    std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av,
-        ICallHandler* handler, bool isJoin);
+    std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler* handler, bool isJoin);
     template <class T> T random() const;
     template <class T> void random(T& result) const;
     webrtc::FakeConstraints mediaConstraints;

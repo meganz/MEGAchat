@@ -389,7 +389,7 @@ public:
     chatd::Chat& chat() const { return *mChat; }
 protected:
 #ifndef KARERE_DISABLE_WEBRTC
-    void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr);
+    void createCallGui(rtcModule::ICall& call);
     virtual void closeEvent(QCloseEvent* event);
     void deleteCallGui()
     {
@@ -676,7 +676,7 @@ public:
         text += QString::fromStdString(title);
         ui.mTitleLabel->setText(text);
     }
-    virtual karere::IApp::ICallHandler* callHandler() { return mCallGui; }
+    virtual rtcModule::ICallHandler* callHandler() { return mCallGui; }
     //===
     void show() { QDialog::show(); raise(); }
     void hide() { QDialog::hide(); }

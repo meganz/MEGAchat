@@ -3081,7 +3081,7 @@ MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApi, MegaChatHandl
     this->mChat = NULL;
 }
 
-IApp::ICallHandler *MegaChatRoomHandler::callHandler()
+rtcModule::ICallHandler *MegaChatRoomHandler::callHandler()
 {
     // TODO: create a MegaChatCallPrivate() with the peer information and return it
     return NULL;

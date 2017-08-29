@@ -10,43 +10,49 @@
 class ChatWindow;
 class MainWindow;
 
-class CallAnswerGui: public QObject
+class CallAnswerGui: public QObject, public rtcModule::ICallHandler
 {
     Q_OBJECT
 public:
     MainWindow& mParent;
     QAbstractButton* answerBtn;
     QAbstractButton* rejectBtn;
-    rtcModule::ICall mCall;
+    rtcModule::ICall* mCall;
     karere::Contact* mContact;
     std::unique_ptr<QMessageBox> msg;
     CallAnswerGui(MainWindow& parent, rtcModule::ICall& call);
     //ICallHandler
-    virtual void onDestroy(rtcModule::TermCode termcode, const std::string& text)
+    virtual void onDestroy(rtcModule::TermCode termcode, bool byPeer, const std::string& text)
     {
         KR_LOG_DEBUG("Call destroyed: %s, %s\n", rtcModule::termCodeToStr(termcode), text.c_str());
         delete this;
     }
+    virtual void setCall(rtcModule::ICall* call) { mCall = call; }
+    virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& rendererOut) { rendererOut = nullptr; }
 public slots:
     void onBtnClick(QAbstractButton* btn)
     {
         msg->close();
         if (btn == answerBtn)
         {
-            mCall.answer(karere::AvFlags(true, true));
+            //TODO: Switch call handler
+            // delete this;
+            mCall->answer(karere::AvFlags(true, true));
+
         }
         else //decline button
         {
-            mCall.hangup();
+            mCall->hangup();
         }
     }
 };
-class CallGui: public QWidget, public karere::IApp::ICallHandler
+class CallGui: public QWidget, public rtcModule::ICallHandler, public rtcModule::ISessionHandler
 {
 Q_OBJECT
 protected:
     ChatWindow& mChatWindow;
-    rtcModule::ICall& mCall;
+    rtcModule::ICall* mCall;
+    rtcModule::ISession* mSess = nullptr;
     void setAvatarOnRemote();
     void setAvatarOnLocal();
     static void drawAvatar(QImage& image, QChar letter, uint64_t userid);
@@ -59,25 +65,37 @@ public slots:
     void onMuteMic(bool);
 public:
     Ui::CallGui ui;
-    CallGui(ChatWindow& parent, const std::shared_ptr<rtcModule::ICall>& call=nullptr);
-    void hangup(const std::string& msg="") { mCall->hangup(msg); }
-    virtual void onOutgoingCallCreated(const std::shared_ptr<rtcModule::ICall> &aCall)
-    {mCall = aCall;}
+    CallGui(ChatWindow& parent, rtcModule::ICall call);
+    void hangup() { mCall->hangup(); }
     virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer)
     {
         renderer = ui.localRenderer;
     }
-    virtual void onRemoteSdpRecv(rtcModule::IVideoRenderer*& rendererRet)
+    virtual void onRemoteStreamAdded(rtcModule::IVideoRenderer*& rendererRet)
     {
         rendererRet = ui.remoteRenderer;
     }
-    virtual void onDestroy(rtcModule::TermCode code, const std::string& text);
-    virtual void onLocalMediaFail(const std::string& err, bool* cont)
+    virtual void onRemoteStreamRemoved() {}
+    virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
+    virtual void onStateChange(uint8_t newState) {}
+    virtual rtcModule::ISessionHandler* onNewSession(rtcModule::ISession& sess)
+    {
+        mSess = &sess;
+        return this;
+    }
+    virtual void onLocalMediaError(const std::string err)
     {
         KR_LOG_ERROR("=============LocalMediaFail: %s", err.c_str());
     }
+    virtual void onRingOut(karere::Id peer) {}
+    virtual void onCallStarting() {}
+    virtual void onCallStarted() {}
     virtual void onPeerMute(karere::AvFlags what);
     virtual void onPeerUnmute(karere::AvFlags what);
+    //ISession
+    virtual void onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
+    virtual void onSessStateChange(uint8_t newState) {}
+
 };
 
 #endif // MAINWINDOW_H

@@ -500,6 +500,7 @@ public:
     }
     webrtc::AudioTrackInterface* audio() { return mAudio?*mAudio:(webrtc::AudioTrackInterface*)nullptr; }
     webrtc::VideoTrackInterface* video() { return mVideo?*mVideo:(webrtc::VideoTrackInterface*)nullptr; }
+    tspMediaStream& stream() { return mStream; }
     operator webrtc::MediaStreamInterface*() { return mStream; }
     operator const webrtc::MediaStreamInterface*() const { return mStream; }
 };

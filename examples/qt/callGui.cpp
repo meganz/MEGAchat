@@ -153,7 +153,7 @@ void CallGui::onChatBtn(bool)
     else
         txtChat.show();
 }
-CallAnswerGui::CallAnswerGui(MainWindow& parent, const std::shared_ptr<rtcModule::ICallAnswer>& ans)
+CallAnswerGui::CallAnswerGui(MainWindow& parent, rtcModule::ICall& ans)
 :QObject(&parent), mParent(parent), mAns(ans),
   mContact(parent.client().contactList->contactFromJid(ans->call()->peerJid()))
 {

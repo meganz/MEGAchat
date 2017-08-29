@@ -151,9 +151,14 @@ public:
     //void setAnswerObject(rtcModule::ICallAnswer *answerObject);
 
     // IApp::ICallHandler implementation (empty)
+    virtual void setCall(rtcModule::ICall* call) {}
     virtual void onStateChange(uint8_t newState) {}
-    virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, std::string& msg) {}
+    virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg) {}
     virtual rtcModule::ISessionHandler* onNewSession(rtcModule::ISession& sess) { return nullptr; }
+    virtual void onLocalStreamObtained(rtcModule::IVideoRenderer *&rendererOut)
+    { //TODO: Return an actual renderer
+        rendererOut = nullptr;
+    }
     virtual void onLocalMediaError(const std::string errors) {}
     virtual void onRingOut(karere::Id peer) {}
     virtual void onCallStarting() {}
@@ -323,7 +328,7 @@ public:
     MegaChatRoomHandler(MegaChatApiImpl*, MegaChatHandle chatid);
 
     // karere::IApp::IChatHandler implementation
-    virtual karere::IApp::ICallHandler* callHandler();
+    virtual rtcModule::ICallHandler* callHandler();
     virtual void onMemberNameChanged(uint64_t userid, const std::string &newName);
     //virtual void* userp();
 

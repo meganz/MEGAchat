@@ -50,11 +50,11 @@ ChatWindow::~ChatWindow()
     }
 }
 #ifndef KARERE_DISABLE_WEBRTC
-void ChatWindow::createCallGui(const std::shared_ptr<rtcModule::ICall>& call)
+void ChatWindow::createCallGui()
 {
     assert(!mCallGui);
     auto layout = qobject_cast<QBoxLayout*>(ui.mCentralWidget->layout());
-    mCallGui = new CallGui(*this, call);
+    mCallGui = new CallGui(*this);
     layout->insertWidget(1, mCallGui, 1);
     ui.mTitlebar->hide();
     ui.mTextChatWidget->hide();
@@ -77,7 +77,7 @@ void ChatWindow::onCallBtn(bool video)
     if (mCallGui)
         return;
     createCallGui();
-    mRoom.mediaCall(karere::AvFlags(true, video))
+    std::shared_ptr<rtcModule::ICall> mCallGuimRoom.mediaCall(karere::AvFlags(true, video))
     .fail([this](const promise::Error& err)
     {
         QMessageBox::critical(this, "Call", QString::fromStdString(err.msg()));

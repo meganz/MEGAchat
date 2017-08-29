@@ -366,6 +366,7 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         isGroup, isJoin, handler, 0, 0);
 
     mCalls[chatid] = call;
+    handler->setCall(call.get());
     call->startOrJoin(av);
     return call;
 }
@@ -412,8 +413,6 @@ Call::Call(RtcModule& rtcModule, Id chatid, chatd::Connection& shard,
 : ICall(rtcModule, chatid, shard, callid, isGroup, isJoiner, handler,
     callerUser, callerClient) // the joiner is actually the answerer in case of new call
 {
-//    this.sessions = {};
-//    this.sessRetries = {};
     if (isJoiner)
     {
         mState = kStateRingIn;
@@ -488,6 +487,13 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
         SUB_LOG_WARNING("There were some error getting local stream: %s", errors.c_str());
     }
     setState(Call::kStateHasLocalStream);
+    IVideoRenderer* renderer = NULL;
+    FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
+    if (!renderer)
+        return;
+    mLocalPlayer.reset(new artc::StreamPlayer(renderer));
+    mLocalPlayer->attachVideo(mLocalStream->video());
+    mLocalPlayer->start();
 }
 
 void Call::msgCallTerminate(RtMessage& packet)
@@ -1166,7 +1172,7 @@ void Session::setState(uint8_t newState)
     sStateDesc.assertStateChange(oldState, newState);
     mState = newState;
     SUB_LOG_DEBUG("State changed: %s -> %s", stateToStr(oldState), stateToStr(mState));
-    FIRE_EVENT(SESSION, onStateChange, mState);
+    FIRE_EVENT(SESSION, onSessStateChange, mState);
 }
 
 webrtc::FakeConstraints* Session::pcConstraints()
@@ -1604,7 +1610,7 @@ void Session::destroy(TermCode code, const std::string& msg)
         mRtcConn.release();
     }
     setState(kStateDestroyed);
-    FIRE_EVENT(SESS, onDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
+    FIRE_EVENT(SESS, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
         !!(code & TermCode::kPeer), msg);
     mCall.removeSession(*this, code);
 }
