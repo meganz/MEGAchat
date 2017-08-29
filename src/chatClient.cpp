@@ -1523,10 +1523,11 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
         {
             it->second->mPriv = priv;
         }
+
+        nameMemberResolved.resolve();
     }
     else
     {
-        auto wptr = weakHandle();
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
 
         nameMemberResolved = mPeers[userid]->nameResolved();
@@ -1876,6 +1877,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
             promises.push_back(mPeers[handle]->nameResolved());
         }
 
+        // If there is not any promise at vector promise, promise::when is resolved directly
         promise::when(promises)
         .then([wptr, this]()
         {
@@ -1886,6 +1888,11 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
             }
         });
     }
+    else
+    {
+        makeTitleFromMemberNames();
+    }
+
 //save to db
     auto db = parent.client.db;
     db.query("delete from chat_peers where chatid=?", mChatid);
