@@ -283,6 +283,7 @@ public:
     bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
+    promise::Promise<void> mNameMemberResolved;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
     bool syncMembers(const UserPrivMap& users);
     static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
@@ -300,6 +301,7 @@ public:
     void initWithChatd();
     void setRemoved();
     virtual void connect();
+    promise::Promise<void> nameMemberResolved() const;
 
     friend class ChatRoomList;
     friend class Member;

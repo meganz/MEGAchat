@@ -1361,7 +1361,7 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
     }
 
     auto wptr = weakHandle();
-    promise::when(promises)
+    mNameMemberResolved = promise::when(promises)
     .then([wptr, this]()
     {
         wptr.throwIfDeleted();
@@ -1407,6 +1407,11 @@ void GroupChatRoom::connect()
             });
         }
     });
+}
+
+promise::Promise<void> GroupChatRoom::nameMemberResolved() const
+{
+    return mNameMemberResolved;
 }
 
 IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
@@ -1870,7 +1875,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         }
 
         // If there is not any promise at vector promise, promise::when is resolved directly
-        promise::when(promises)
+        mNameMemberResolved = promise::when(promises)
         .then([wptr, this]()
         {
             wptr.throwIfDeleted();
@@ -2369,8 +2374,13 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     }
     else
     {
-        clearTitle();
-        KR_LOG_DEBUG("Empty title received for group chat %s", Id(mChatid).toString().c_str());
+        // With this contidion some unecesary title changed notification is avoided.
+        // We are notifing all permission changes and only group compositon change must be notified
+        if (changed)
+        {
+            clearTitle();
+            KR_LOG_DEBUG("Empty title received for group chat %s", Id(mChatid).toString().c_str());
+        }
     }
 
     if (!changed)
@@ -2438,6 +2448,10 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         {
             self->mNameResolved.resolve();
         }
+        else if (self->mRoom.nameMemberResolved().done())
+        {
+            self->mRoom.makeTitleFromMemberNames();
+        }
     });
     mEmailAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(
         user, USER_ATTR_EMAIL, this,
@@ -2447,9 +2461,16 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         if (buf && !buf->empty())
         {
             self->mEmail.assign(buf->buf(), buf->dataSize());
-            if (self->mName.size() <= 1 && !self->mNameResolved.done())
+            if (self->mName.size() <= 1)
             {
-                self->mNameResolved.resolve();
+                if (!self->mNameResolved.done())
+                {
+                    self->mNameResolved.resolve();
+                }
+                else if (self->mRoom.nameMemberResolved().done())
+                {
+                    self->mRoom.makeTitleFromMemberNames();
+                }
             }
         }
     });
