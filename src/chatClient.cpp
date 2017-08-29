@@ -2447,12 +2447,9 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         if (buf && !buf->empty())
         {
             self->mEmail.assign(buf->buf(), buf->dataSize());
-            if (self->mName.size() <= 1)
+            if (self->mName.size() <= 1 && !self->mNameResolved.done())
             {
-                if (!self->mNameResolved.done())
-                {
-                    self->mNameResolved.resolve();
-                }
+                self->mNameResolved.resolve();
             }
         }
     });
