@@ -1406,10 +1406,6 @@ void GroupChatRoom::connect()
                 KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
             });
         }
-        else
-        {
-            makeTitleFromMemberNames();
-        }
     });
 }
 
@@ -1524,7 +1520,7 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
             it->second->mPriv = priv;
         }
 
-        nameMemberResolved.resolve();
+        nameMemberResolved = promise::_Void();
     }
     else
     {
@@ -1698,10 +1694,6 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
                 {
                     KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
                 });
-            }
-            else
-            {
-                static_cast<GroupChatRoom*>(room)->makeTitleFromMemberNames();
             }
         }
     }
@@ -1919,7 +1911,6 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 {
     if (mEncryptedTitle.empty())
     {
-        makeTitleFromMemberNames();
         return promise::_Void();
     }
 
