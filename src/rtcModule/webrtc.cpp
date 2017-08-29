@@ -44,6 +44,8 @@ const char* termCodeFirstArgToString(TermCode code, Args...)
 template <class... Args>
 const char* termCodeFirstArgToString(Args...) { return nullptr; }
 const char* iceStateToStr(webrtc::PeerConnectionInterface::IceConnectionState);
+void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
+    bool optional);
 
 struct CallerInfo
 {
@@ -65,7 +67,7 @@ RtMessage::RtMessage(chatd::Connection &aShard, const StaticBuffer& msg)
 }
 void sdpSetVideoBw(std::string& sdp, int maxbr);
 
-RtcModule::RtcModule(karere::Client& client, IGlobalHandler* handler,
+RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   IRtcCrypto& crypto, const ServerList<TurnServerInfo>& iceServers)
 : IRtcModule(client, handler, crypto, crypto.anonymizeId(client.myHandle()))
 {
@@ -83,6 +85,12 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler* handler,
     initInputDevices();
     mClient.chatd->setRtcHandler(this);
 }
+
+IRtcModule* IRtcModule::create(karere::Client &client, IGlobalHandler &handler, IRtcCrypto &crypto, const karere::ServerList<TurnServerInfo> &iceServers)
+{
+    return new RtcModule(client, handler, crypto, iceServers);
+}
+
 template <class T>
 T RtcModule::random() const
 {
@@ -109,6 +117,43 @@ void RtcModule::initInputDevices()
     for (const auto& dev: devices.video)
         RTCM_LOG_INFO("\tVideo: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
 }
+const cricket::Device* RtcModule::getDevice(const string& name, const artc::DeviceList& devices)
+{
+    for (size_t i=0; i<devices.size(); i++)
+    {
+        auto device = &devices[i];
+        if (device->name == name)
+            return device;
+    }
+    return nullptr;
+}
+
+bool RtcModule::selectDevice(const std::string& devname,
+            const artc::DeviceList& devices, string& selected)
+{
+    if (devices.empty())
+    {
+        selected.clear();
+        return devname.empty();
+    }
+    if (devname.empty())
+    {
+        selected = devices[0].name;
+        return true;
+    }
+
+    if (!getDevice(devname, devices))
+    {
+        selected = devices[0].name;
+        return false;
+    }
+    else
+    {
+        selected = devname;
+        return true;
+    }
+}
+
 bool RtcModule::selectAudioInDevice(const string &devname)
 {
     return selectDevice(devname, mDeviceManager.inputDevices().audio, mAudioInDeviceName);
@@ -213,7 +258,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         auto& existingCall = mCalls.begin()->second;
         if (existingChatid == packet.chatid && existingCall->state() < Call::kStateTerminating)
         {
-            bool answer = mHandler->onAnotherCall(*existingCall, packet.userid);
+            bool answer = mHandler.onAnotherCall(*existingCall, packet.userid);
             if (answer)
             {
                 existingCall->hangup();
@@ -228,11 +273,11 @@ void RtcModule::msgCallRequest(RtMessage& packet)
     }
     auto ret = mCalls.emplace(packet.chatid, std::make_shared<Call>(*this,
         packet.chatid, packet.shard, packet.callid,
-        mHandler->isGroupChat(packet.chatid),
+        mHandler.isGroupChat(packet.chatid),
         true, nullptr, packet.userid, packet.clientid));
     assert(ret.second);
     auto& call = ret.first->second;
-    call->mHandler = mHandler->onCallIncoming(*call);
+    call->mHandler = mHandler.onCallIncoming(*call);
     assert(call.mHandler);
     assert(call.state() == Call::kStateRingIn);
     cmdEndpoint(RTCMD_CALL_RINGING, packet, packet.callid);
@@ -289,7 +334,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors)
             errors.append("Configured video input device '").append(mVideoInDeviceName)
                   .append("' not present, using default device\n");
         }
-        auto opts = std::make_shared<artc::MediaGetOptions>(*device, mediaConstraints);
+        auto opts = std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints);
 
         mVideoInput = mDeviceManager.getUserVideo(opts);
     }
@@ -315,7 +360,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors)
             device = &devices.audio[0];
         }
         mAudioInput = mDeviceManager.getUserAudio(
-                std::make_shared<artc::MediaGetOptions>(*device, mediaConstraints));
+                std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints));
     }
     catch(exception& e)
     {
@@ -346,10 +391,9 @@ void RtcModule::getVideoInDevices(std::vector<std::string>& devices) const
 }
 
 std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
-    ICallHandler* handler, bool isJoin)
+    ICallHandler& handler, bool isJoin)
 {
-    assert(handler);
-    bool isGroup = mHandler->isGroupChat(chatid);
+    bool isGroup = mHandler.isGroupChat(chatid);
     auto& shard = mClient.chatd->chats(chatid).connection();
     auto callIt = mCalls.find(chatid);
     if (callIt != mCalls.end())
@@ -363,10 +407,10 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         bool isJoiner, CallHandler* handler, Id callerUser, uint32_t callerClient)
 */
     auto call = std::make_shared<Call>(*this, chatid, shard, random<uint64_t>(),
-        isGroup, isJoin, handler, 0, 0);
+        isGroup, isJoin, &handler, 0, 0);
 
     mCalls[chatid] = call;
-    handler->setCall(call.get());
+    handler.setCall(call.get());
     call->startOrJoin(av);
     return call;
 }
@@ -375,13 +419,13 @@ bool RtcModule::isCaptureActive() const
     return (mAudioInput || mVideoInput);
 }
 
-std::shared_ptr<ICall> RtcModule::joinCall(karere::Id chatid, AvFlags av, ICallHandler* handler)
+ICall& RtcModule::joinCall(karere::Id chatid, AvFlags av, ICallHandler& handler)
 {
-    return static_pointer_cast<ICall>(startOrJoinCall(chatid, av, handler, true));
+    return *startOrJoinCall(chatid, av, handler, true);
 }
-std::shared_ptr<ICall> RtcModule::startCall(karere::Id chatid, AvFlags av, ICallHandler* handler)
+ICall& RtcModule::startCall(karere::Id chatid, AvFlags av, ICallHandler& handler)
 {
-    return static_pointer_cast<ICall>(startOrJoinCall(chatid, av, handler, false));
+    return *startOrJoinCall(chatid, av, handler, false);
 }
 
 void RtcModule::onUserOffline(Id chatid, Id userid, uint32_t clientid)
@@ -396,17 +440,56 @@ void RtcModule::onUserOffline(Id chatid, Id userid, uint32_t clientid)
 void RtcModule::onShutdown()
 {
     RTCM_LOG_DEBUG("Shutting down....");
-    for (auto& item: mCalls) {
+    hangupAll(TermCode::kAppTerminating);
+    RTCM_LOG_DEBUG("Shutdown complete");
+}
+
+void RtcModule::hangupAll(TermCode code)
+{
+    for (auto& item: mCalls)
+    {
         auto& call = item.second;
         if (call->state() == Call::kStateRingIn)
         {
             assert(call->sessions.empty());
         }
-        call->destroy(TermCode::kAppTerminating, call->state() != Call::kStateRingIn);
+        call->destroy(code, call->state() != Call::kStateRingIn);
     }
-    RTCM_LOG_DEBUG("Shutdown complete");
 }
-
+void RtcModule::setMediaConstraint(const string& name, const string &value, bool optional)
+{
+    rtcModule::setConstraint(mMediaConstraints, name, value, optional);
+}
+void RtcModule::setPcConstraint(const string& name, const string &value, bool optional)
+{
+    rtcModule::setConstraint(mPcConstraints, name, value, optional);
+}
+void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
+    bool optional)
+{
+    if (optional)
+    {
+        //TODO: why webrtc has no SetOptional?
+        auto& optional = (webrtc::MediaConstraintsInterface::Constraints&)(constr.GetOptional());
+        auto it = optional.begin();
+        for (; it != optional.end(); it++)
+        {
+            if (it->key == name)
+            {
+                it->value = value;
+                break;
+            }
+        }
+        if (it == optional.end())
+        {
+            constr.AddOptional(name, value);
+        }
+    }
+    else
+    {
+        constr.SetMandatory(name, value);
+    }
+}
 Call::Call(RtcModule& rtcModule, Id chatid, chatd::Connection& shard,
     karere::Id callid, bool isGroup,
     bool isJoiner, ICallHandler* handler, Id callerUser, uint32_t callerClient)
@@ -655,11 +738,12 @@ void Call::msgSession(RtMessage& packet)
 
 void Call::notifyNewSession(Session& sess)
 {
+    if (!mCallStartingSignalled)
+    {
+        mCallStartingSignalled = true;
+        FIRE_EVENT(CALL, onCallStarting);
+    }
     sess.mHandler = mHandler->onNewSession(sess);
-    if (mCallStartingSignalled)
-        return;
-    mCallStartingSignalled = true;
-    FIRE_EVENT(CALL, onCallStarting);
 }
 
 void Call::msgJoin(RtMessage& packet)
@@ -802,6 +886,8 @@ bool Call::cmdBroadcast(uint8_t type, Args... args)
     auto wptr = weakHandle();
     marshallCall([wptr, this]()
     {
+        if (wptr.deleted())
+            return;
         destroy(TermCode::kErrNetSignalling, true);
     });
     return false;
@@ -841,9 +927,20 @@ void Call::startIncallPingTimer()
     {
         if (!mShard.sendCommand(Command(OP_INCALL) + mChatid + mManager.mClient.myHandle() + mShard.clientId()))
         {
-            destroy(TermCode::kErrNetSignalling, true);
+            asyncDestroy(TermCode::kErrNetSignalling, true);
         }
     }, RtcModule::kIncallPingInterval);
+}
+
+void Call::asyncDestroy(TermCode code, bool weTerminate)
+{
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, code, weTerminate]()
+    {
+        if (wptr.deleted())
+            return;
+        destroy(code, weTerminate);
+    });
 }
 
 void Call::stopIncallPingTimer()
@@ -896,9 +993,12 @@ bool Call::startOrJoin(AvFlags av)
 {
     std::string errors;
     getLocalStream(av, errors);
-    if (mIsJoiner) {
+    if (mIsJoiner)
+    {
         return join();
-    } else {
+    }
+    else
+    {
         return broadcastCallReq();
     }
 }
@@ -925,10 +1025,7 @@ bool Call::join(Id userid)
             : cmdBroadcast(RTCMD_JOIN, mId, mManager.mOwnAnonId);
     if (!sent)
     {
-        marshallCall([this]()
-        {
-            destroy(TermCode::kErrNetSignalling, true);
-        });
+        asyncDestroy(TermCode::kErrNetSignalling, true);
         return false;
     }
     startIncallPingTimer();
@@ -1031,6 +1128,13 @@ void Call::onUserOffline(Id userid, uint32_t clientid)
         }
     }
 }
+bool Call::changeLocalRenderer(IVideoRenderer* renderer)
+{
+    if (!mLocalPlayer)
+        return false;
+    mLocalPlayer->changeRenderer(renderer);
+    return true;
+}
 
 void Call::notifySessionConnected(Session& sess)
 {
@@ -1057,11 +1161,10 @@ AvFlags Call::muteUnmute(AvFlags av)
     return av;
 }
 
-AvFlags Call::localAv() const
+AvFlags Call::sentAv() const
 {
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);
 }
-
 /** Protocol flow:
     C(aller): broadcast RTCMD.CALL_REQUEST callid.8 avflags.1
        => state: CallState.kReqSent
@@ -1180,7 +1283,7 @@ webrtc::FakeConstraints* Session::pcConstraints()
     return &mCall.mManager.mPcConstraints;
 }
 
-void Session::handleMsg(RtMessage& packet)
+void Session::handleMessage(RtMessage& packet)
 {
     switch (packet.type)
     {
@@ -1235,6 +1338,10 @@ void Session::onAddStream(artc::tspMediaStream stream)
     FIRE_EVENT(SESSION, onRemoteStreamAdded, renderer);
     assert(renderer);
     mRemotePlayer.reset(new artc::StreamPlayer(renderer));
+    mRemotePlayer->setOnMediaStart([this]()
+    {
+        FIRE_EVENT(SESS, onVideoRecv);
+    });
     mRemotePlayer->attachToStream(stream);
     mRemotePlayer->start();
 }
@@ -1308,6 +1415,9 @@ void Session::onSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
 {
     SUB_LOG_DEBUG("onSignalingStateChange: %d", newState);
 }
+void Session::onDataChannel(webrtc::DataChannelInterface*)
+{}
+
 //end of event handlers
 
 // stats interface
@@ -1499,11 +1609,21 @@ bool Session::cmd(uint8_t type, Args... args)
     {
         if (mState < kStateTerminating)
         {
-            destroy(TermCode::kErrNetSignalling);
+            asyncDestroy(TermCode::kErrNetSignalling);
         }
         return false;
     }
     return true;
+}
+void Session::asyncDestroy(TermCode code)
+{
+    auto wptr = weakHandle();
+    marshallCall([this, wptr, code]()
+    {
+        if (wptr.deleted())
+            return;
+        destroy(code);
+    });
 }
 
 Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg)
@@ -1680,8 +1800,9 @@ void Session::msgIceCandidate(RtMessage& packet)
 
 void Session::msgMute(RtMessage& packet)
 {
+    auto oldAv = mPeerAv;
     mPeerAv.set(packet.payload.read<uint8_t>(8));
-    FIRE_EVENT(SESS, onPeerMute, mPeerAv);
+    FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
 }
 
 void Session::mungeSdp(std::string& sdp)

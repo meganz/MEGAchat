@@ -36,6 +36,7 @@ protected:
     megaHandle mSetupTimer = 0;
     time_t mTsIceConn = 0;
     std::unique_ptr<promise::Promise<void>> mTerminatePromise;
+    bool mVideoReceived = false;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
     void createRtcConn();
@@ -49,17 +50,19 @@ protected:
     void msgIceCandidate(RtMessage& packet);
     void msgMute(RtMessage& packet);
     void mungeSdp(std::string& sdp);
+    void onVideoRecv();
     void submitStats(TermCode termCode, const std::string& errInfo);
     bool verifySdpFingerprints(const std::string& sdp, const SdpKey& peerHash);
     template<class... Args>
     bool cmd(uint8_t type, Args... args);
     void destroy(TermCode code, const std::string& msg="");
+    void asyncDestroy(TermCode code);
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
-    void handleMsg(RtMessage& packet);
 public:
     Session(Call& call, RtMessage& packet);
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }
+    virtual bool videoReceived() const { return mVideoReceived; }
     //PeerConnection events
     void onAddStream(artc::tspMediaStream stream);
     void onRemoveStream(artc::tspMediaStream stream);
@@ -128,6 +131,7 @@ protected:
     void onRemoteStreamAdded(artc::tspMediaStream stream);
     void onRemoteStreamRemoved(artc::tspMediaStream);
     promise::Promise<void> destroy(TermCode termcode, bool weTerminate, const std::string& msg="");
+    void asyncDestroy(TermCode code, bool weTerminate);
     promise::Promise<void> gracefullyTerminateAllSessions(TermCode code);
     promise::Promise<void> waitAllSessionsTerminated(TermCode code, const std::string& msg="");
     bool startOrJoin(karere::AvFlags av);
@@ -147,12 +151,10 @@ public:
         karere::Id callid, bool isGroup, bool isJoiner, ICallHandler* handler,
         karere::Id callerUser, uint32_t callerClient);
     virtual karere::AvFlags sentAv() const;
-    virtual karere::AvFlags receivedAv() const;
     virtual void hangup(TermCode reason=TermCode::kInvalid);
     virtual bool answer(karere::AvFlags av);
-    virtual void changeLocalRenderer(IVideoRenderer* renderer);
+    virtual bool changeLocalRenderer(IVideoRenderer* renderer);
     virtual karere::AvFlags muteUnmute(karere::AvFlags av);
-    virtual karere::AvFlags localAv() const;
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
@@ -167,12 +169,13 @@ public:
         kSessSetupTimeout = 20000
     };
     int maxbr = 0;
-    RtcModule(karere::Client& client, IGlobalHandler* handler, IRtcCrypto& crypto,
+    RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto& crypto,
         const karere::ServerList<karere::TurnServerInfo>& servers);
     int setIceServers(const karere::ServerList<karere::TurnServerInfo>& servers);
     void onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv);
-    virtual std::shared_ptr<ICall> joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler* handler);
-    virtual std::shared_ptr<ICall> startCall(karere::Id chatid, karere::AvFlags av, ICallHandler* handler);
+    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
+    virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
+    virtual void hangupAll(TermCode reason);
 // IRtcHandler - interface to chatd
     void onDisconnect(chatd::Connection& conn);
     void handleMessage(chatd::Connection& conn, const StaticBuffer& msg);
@@ -184,6 +187,8 @@ public:
     virtual bool selectVideoInDevice(const std::string& devname);
     virtual bool selectAudioInDevice(const std::string& devname);
     virtual bool isCaptureActive() const;
+    virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
+    virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
 //==
     ~RtcModule();
 protected:
@@ -192,16 +197,16 @@ protected:
     artc::InputAudioDevice mAudioInput;
     artc::InputVideoDevice mVideoInput;
     webrtc::FakeConstraints mPcConstraints;
+    webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
     void msgCallRequest(RtMessage& packet);
     template <class... Args>
     void cmdEndpoint(uint8_t type, const RtMessage& info, Args... args);
     void removeCall(Call& call);
     std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors);
-    std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler* handler, bool isJoin);
+    std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, bool isJoin);
     template <class T> T random() const;
     template <class T> void random(T& result) const;
-    webrtc::FakeConstraints mediaConstraints;
     //=== Implementation methods
     void initInputDevices();
     const cricket::Device* getDevice(const std::string& name, const artc::DeviceList& devices);

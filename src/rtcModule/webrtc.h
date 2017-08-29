@@ -117,7 +117,7 @@ bool isTermError(TermCode code)
 {
     return (code & 0x7f) >= TermCode::kErrorFirst;
 }
-const char* termCodeToStr(TermCode code);
+const char* termCodeToStr(uint8_t code);
 
 class ISessionHandler
 {
@@ -126,7 +126,8 @@ public:
     virtual void onSessDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
     virtual void onRemoteStreamAdded(IVideoRenderer*& rendererOut) = 0;
     virtual void onRemoteStreamRemoved() = 0;
-    virtual void onPeerMute(karere::AvFlags av) = 0;
+    virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv) = 0;
+    virtual void onVideoRecv() {}
 };
 
 class ICallHandler
@@ -147,7 +148,7 @@ public:
     virtual void onStateChange(uint8_t newState) {}
     virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
     virtual ISessionHandler* onNewSession(ISession& sess) { return nullptr; }
-    virtual void onLocalStreamObtained(IVideoRenderer*& rendererOut) = 0;
+    virtual void onLocalStreamObtained(IVideoRenderer*& rendererOut) {}
     virtual void onLocalMediaError(const std::string errors) {}
     virtual void onRingOut(karere::Id peer) {}
     virtual void onCallStarting() {}
@@ -206,7 +207,8 @@ public:
     bool isCaller() const { return !mIsJoiner; }
     Call& call() const { return mCall; }
     karere::Id peerAnonId() const { return mPeerAnonId; }
-    virtual bool isRelayed() const;
+    virtual bool isRelayed() const { return false; } //TODO: Implement
+    karere::AvFlags receivedAv() const { return mPeerAv; }
 };
 
 class ICall: public karere::WeakReferenceable<ICall>
@@ -253,13 +255,11 @@ public:
     karere::Id caller() const { return mCallerUser; }
     uint32_t callerClient() const { return mCallerClient; }
     void changeHandler(ICallHandler* handler) { mHandler = handler; }
-    virtual karere::AvFlags sentAv() const;
-    virtual karere::AvFlags receivedAv() const;
-    virtual void hangup(TermCode reason=TermCode::kInvalid);
-    virtual bool answer(karere::AvFlags av);
-    virtual void changeLocalRenderer(IVideoRenderer* renderer);
-    virtual karere::AvFlags muteUnmute(karere::AvFlags av);
-    virtual karere::AvFlags localAv() const;
+    virtual karere::AvFlags sentAv() const = 0;
+    virtual void hangup(TermCode reason=TermCode::kInvalid) = 0;
+    virtual bool answer(karere::AvFlags av) = 0;
+    virtual bool changeLocalRenderer(IVideoRenderer* renderer) = 0;
+    virtual karere::AvFlags muteUnmute(karere::AvFlags av) = 0;
 };
 struct SdpKey
 {
@@ -289,16 +289,16 @@ class IRtcModule: public karere::DeleteTrackable
 {
 protected:
     karere::Client& mClient;
-    IGlobalHandler* mHandler;
+    IGlobalHandler& mHandler;
     IRtcCrypto& mCrypto;
     karere::Id mOwnAnonId;
     std::string mVideoInDeviceName;
     std::string mAudioInDeviceName;
-    IRtcModule(karere::Client& client, IGlobalHandler* handler, IRtcCrypto& crypto,
+    IRtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto& crypto,
         karere::Id ownAnonId)
         :mClient(client), mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId) {}
 public:
-    virtual IRtcModule* create(karere::Client& client, IGlobalHandler* handler,
+    static IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
         IRtcCrypto& crypto, const karere::ServerList<karere::TurnServerInfo>& iceServers);
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
@@ -338,10 +338,12 @@ public:
      * @param myJid - used when in a XMPP conference chatroom to specify our room-specific jid
      */
     virtual bool isCaptureActive() const = 0;
+    virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
+    virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
 
-    virtual std::shared_ptr<ICall> joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler* handler);
-    virtual std::shared_ptr<ICall> startCall(karere::Id chatid, karere::AvFlags av, ICallHandler* handler);
-    virtual void hangupAll() {}
+    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
+    virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
+    virtual void hangupAll(TermCode reason) = 0;
 };
 }
 

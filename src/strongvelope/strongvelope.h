@@ -344,7 +344,6 @@ public:
     //====
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
-    void deriveSharedKey(const StaticBuffer& sharedSecret, SendKey& output);
 };
 }
 namespace chatd

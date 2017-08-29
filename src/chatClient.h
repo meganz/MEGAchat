@@ -153,16 +153,16 @@ public:
      */
     bool isInitializing() const { return mIsInitializing; }
 
-    /** @brief Initiates a webrtc call in the chatroom
-     *  @param av Whether to initially send video and/or audio
-     */
-    virtual promise::Promise<void> mediaCall(AvFlags av) = 0;
-
     /**
      * @brief Updates the chatd url of the chatroom, by asking the API
      */
     promise::Promise<void> updateUrl();
-
+#ifndef KARERE_DISABLE_WEBRTC
+    /** @brief Initiates a webrtc call in the chatroom
+     *  @param av Whether to initially send video and/or audio
+     */
+    virtual rtcModule::ICall& mediaCall(AvFlags av, rtcModule::ICallHandler& handler);
+#endif
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
@@ -220,8 +220,6 @@ public:
 
     /** @brief The screen name of the peer */
     virtual const std::string& titleString() const;
-
-    promise::Promise<void> mediaCall(AvFlags av);
 /** @cond PRIVATE */
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
@@ -306,7 +304,6 @@ public:
                   const std::string& title);
     ~GroupChatRoom();
 public:
-    virtual promise::Promise<void> mediaCall(AvFlags av);
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
     void onUserLeave(Id userid);

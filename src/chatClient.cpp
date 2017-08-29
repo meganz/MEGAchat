@@ -1014,7 +1014,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
-        rtc->hangupAll();
+        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
 #endif
 
     return disconnect()
@@ -1200,11 +1200,9 @@ void PeerChatRoom::connect()
     });
 }
 
-promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
+rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handler)
 {
-    assert(mAppChatHandler);
-//    parent.client.rtc->startMediaCall(mAppChatHandler->callHandler(), jid, av);
-    return promise::_Void();
+    return parent.client.rtc->startCall(chatid(), av, handler);
 }
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
@@ -1274,11 +1272,6 @@ promise::Promise<void> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *
     delete megaHandleList;
 
     return promise::when(promises);
-}
-
-promise::Promise<void> GroupChatRoom::mediaCall(AvFlags av)
-{
-    return promise::Error("Group chat calls are not implemented yet");
 }
 
 IApp::IGroupChatListItem* GroupChatRoom::addAppItem()

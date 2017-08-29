@@ -6,43 +6,41 @@
 #include <ui_callGui.h>
 #include <webrtc.h>
 #include <chatClient.h>
-
+#include <trackDelete.h>
 class ChatWindow;
 class MainWindow;
 
-class CallAnswerGui: public QObject, public rtcModule::ICallHandler
+class CallAnswerGui: public QObject, public rtcModule::ICallHandler, public karere::DeleteTrackable
 {
     Q_OBJECT
 public:
     MainWindow& mParent;
     QAbstractButton* answerBtn;
     QAbstractButton* rejectBtn;
-    rtcModule::ICall* mCall;
+    rtcModule::ICall& mCall;
     karere::Contact* mContact;
     std::unique_ptr<QMessageBox> msg;
     CallAnswerGui(MainWindow& parent, rtcModule::ICall& call);
-    //ICallHandler
+    //ICallHandler minimal implementation
     virtual void onDestroy(rtcModule::TermCode termcode, bool byPeer, const std::string& text)
     {
         KR_LOG_DEBUG("Call destroyed: %s, %s\n", rtcModule::termCodeToStr(termcode), text.c_str());
         delete this;
     }
-    virtual void setCall(rtcModule::ICall* call) { mCall = call; }
-    virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& rendererOut) { rendererOut = nullptr; }
+    virtual void setCall(rtcModule::ICall* call) { assert(false); /*called only for outgoing calls*/ }
+    virtual void onCallStarting();
 public slots:
     void onBtnClick(QAbstractButton* btn)
     {
         msg->close();
         if (btn == answerBtn)
         {
-            //TODO: Switch call handler
-            // delete this;
-            mCall->answer(karere::AvFlags(true, true));
-
+            mCall.answer(karere::AvFlags(true, true));
+            //Call handler will be switched upon receipt of onCallStarting
         }
         else //decline button
         {
-            mCall->hangup();
+            mCall.hangup();
         }
     }
 };
@@ -65,8 +63,9 @@ public slots:
     void onMuteMic(bool);
 public:
     Ui::CallGui ui;
-    CallGui(ChatWindow& parent, rtcModule::ICall call);
+    CallGui(ChatWindow& parent, rtcModule::ICall* call);
     void hangup() { mCall->hangup(); }
+    virtual void setCall(rtcModule::ICall* call) { mCall = call; }
     virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer)
     {
         renderer = ui.localRenderer;
@@ -90,8 +89,7 @@ public:
     virtual void onRingOut(karere::Id peer) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}
-    virtual void onPeerMute(karere::AvFlags what);
-    virtual void onPeerUnmute(karere::AvFlags what);
+    virtual void onPeerMute(karere::AvFlags state, karere::AvFlags oldState);
     //ISession
     virtual void onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
     virtual void onSessStateChange(uint8_t newState) {}

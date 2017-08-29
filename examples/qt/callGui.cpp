@@ -8,7 +8,7 @@ using namespace std;
 using namespace mega;
 using namespace karere;
 
-CallGui::CallGui(ChatWindow &parent, const std::shared_ptr<rtcModule::ICall>& call)
+CallGui::CallGui(ChatWindow &parent, rtcModule::ICall* call)
 : QWidget(&parent), mChatWindow(parent), mCall(call)
 {
     ui.setupUi(this);
@@ -23,12 +23,11 @@ CallGui::CallGui(ChatWindow &parent, const std::shared_ptr<rtcModule::ICall>& ca
     if (mCall)
     {
         auto av = mCall->sentAv();
-        ui.mMuteMicChk->setChecked(!av.audio);
-        ui.mMuteCamChk->setChecked(!av.video);
-        mCall->changeEventHandler(this);
+        ui.mMuteMicChk->setChecked(!av.audio());
+        ui.mMuteCamChk->setChecked(!av.video());
+        mCall->changeHandler(this);
         mCall->changeLocalRenderer(ui.localRenderer);
-        if (!mCall->hasReceivedMedia())
-            ui.remoteRenderer->enableStaticImage();
+        ui.remoteRenderer->enableStaticImage();
     }
     else
     {
@@ -88,37 +87,36 @@ void CallGui::onHupBtn(bool)
 }
 void CallGui::onMuteMic(bool checked)
 {
-    AvFlags av(true, false);
-    mCall->muteUnmute(av, !checked);
+    AvFlags av(!checked, mCall->sentAv().video());
+    mCall->muteUnmute(av);
 }
 void CallGui::onMuteCam(bool checked)
 {
-    AvFlags av(false, true);
-    mCall->muteUnmute(av, !checked);
+    AvFlags av(mCall->sentAv().audio(), !checked);
+    mCall->muteUnmute(av);
     if (checked)
         ui.localRenderer->enableStaticImage();
     else
         ui.localRenderer->disableStaticImage();
 }
 
-void CallGui::onCallEnded(rtcModule::TermCode code, const std::string& text,
-    const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj)
+void CallGui::onDestroy(rtcModule::TermCode code, bool byPeer, const std::string& text)
 {
-    mCall.reset();
+    mCall = nullptr;
     mChatWindow.deleteCallGui();
 }
 
-void CallGui::onPeerMute(AvFlags what)
+void CallGui::onPeerMute(AvFlags state, AvFlags oldState)
 {
-    if (what.video)
+    bool hasVideo = state.video();
+    if (hasVideo == oldState.video())
+        return;
+    if (hasVideo)
+        ui.remoteRenderer->disableStaticImage();
+    else
         ui.remoteRenderer->enableStaticImage();
 }
-void CallGui::onPeerUnmute(AvFlags what)
-{
-    if (what.video)
-        ui.remoteRenderer->disableStaticImage();
-}
-
+/*
 void CallGui::onMediaRecv(rtcModule::stats::Options& statOptions)
 {
     ui.remoteRenderer->disableStaticImage();
@@ -131,7 +129,7 @@ void CallGui::onMediaRecv(rtcModule::stats::Options& statOptions)
         printf("vsend bps: %ld (target: %ld)\n", stats.vstats.s.bps, stats.vstats.s.targetEncBitrate);
     };
 }
-
+*/
 void CallGui::setAvatarOnRemote()
 {
     auto image = new QImage(QSize(262, 262), QImage::Format_ARGB32);
@@ -153,9 +151,13 @@ void CallGui::onChatBtn(bool)
     else
         txtChat.show();
 }
-CallAnswerGui::CallAnswerGui(MainWindow& parent, rtcModule::ICall& ans)
-:QObject(&parent), mParent(parent), mAns(ans),
-  mContact(parent.client().contactList->contactFromJid(ans->call()->peerJid()))
+void CallGui::onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg)
+{
+}
+
+CallAnswerGui::CallAnswerGui(MainWindow& parent, rtcModule::ICall& call)
+:QObject(&parent), mParent(parent), mCall(call),
+  mContact(parent.client().contactList->contactFromUserId(call.caller()))
 {
     if (!mContact)
         throw std::runtime_error("Incoming call from unknown contact");
@@ -172,12 +174,7 @@ CallAnswerGui::CallAnswerGui(MainWindow& parent, rtcModule::ICall& ans)
     msg->raise();
 }
 
-void CallAnswerGui::onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer)
-{
-    renderer = new rtcModule::NullRenderer;
-}
-
-void CallAnswerGui::onSession()
+void CallAnswerGui::onCallStarting()
 {
     auto it = mParent.client().contactList->find(mContact->userId());
     if (it == mParent.client().contactList->end())
@@ -188,16 +185,20 @@ void CallAnswerGui::onSession()
     if (chatWin)
     {
         //handover event handling and local video renderer to chat window
-        chatWin->createCallGui(mAns->call());
+        chatWin->createCallGui(&mCall);
+        delete this;
     }
     else
     {
         auto contactGui = static_cast<CListContactItem*>(mContact->appItem()->userp);
+        auto wptr = weakHandle();
         contactGui->showChatWindow()
-        .then([this](ChatWindow* window)
+        .then([wptr, this](ChatWindow* window)
         {
-            window->createCallGui(mAns->call());
+            if (wptr.deleted())
+                return;
+            window->createCallGui(&mCall);
+            delete this;
         });
     }
-    delete this;
 }

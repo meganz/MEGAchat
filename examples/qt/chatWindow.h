@@ -389,7 +389,7 @@ public:
     chatd::Chat& chat() const { return *mChat; }
 protected:
 #ifndef KARERE_DISABLE_WEBRTC
-    void createCallGui(rtcModule::ICall& call);
+    void createCallGui(rtcModule::ICall* call);
     virtual void closeEvent(QCloseEvent* event);
     void deleteCallGui()
     {

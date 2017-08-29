@@ -251,6 +251,14 @@ void Recorder::terminate(const std::string& termRsn)
     mStats->toJson(json);
     printf("============== %s\n", json.c_str());
 }
+
+std::string Recorder::getStats(const StatSessInfo& info)
+{
+    std::string json;
+    mStats->toJson(json);
+    return json;
+}
+
 Recorder::~Recorder()
 {
     if (mTimer)
