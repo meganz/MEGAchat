@@ -30,7 +30,8 @@ add_definitions(-DRTCM_BUILDING ${WEBRTC_DEFS})
 
 #-Wno-unused-local-typedefs suppresses a lot of warning form webrtc headers from COMPILE_ASSERT: see https://code.google.com/p/chromium/issues/detail?id=227506
 if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
-    add_definitions(-fvisibility=hidden -Wall -Wno-unused-local-typedef)
+#-fvisibility=hidden
+    add_definitions(-Wall -Wno-unused-local-typedef)
     if (optAsanMode AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug"))
         add_definitions(-fsanitize=${optAsanMode} -fno-omit-frame-pointer) #enable ASAN
         if (optRtcModuleBuildShared)

@@ -19,10 +19,10 @@ ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
 #ifndef KARERE_DISABLE_WEBRTC
     connect(ui.mVideoCallBtn, SIGNAL(clicked(bool)), this, SLOT(onVideoCallBtn(bool)));
     connect(ui.mAudioCallBtn, SIGNAL(clicked(bool)), this, SLOT(onAudioCallBtn(bool)));
-#endif
+#else
     ui.mAudioCallBtn->hide();
     ui.mVideoCallBtn->hide();
-
+#endif
     ui.mChatdStatusDisplay->hide();
     if (!mRoom.isGroup())
         ui.mMembersBtn->hide();

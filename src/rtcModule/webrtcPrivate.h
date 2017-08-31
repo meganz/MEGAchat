@@ -76,28 +76,13 @@ public:
     //====
     friend class Call;
 };
-struct EndpointId
-{
-    karere::Id userid;
-    uint32_t clientid;
-    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid){}
-    bool operator<(EndpointId other) const
-    {
-         if (userid.val < other.userid.val)
-             return true;
-         else if (userid.val > other.userid.val)
-             return false;
-         else
-             return (clientid < other.clientid);
-    }
-};
 
 class Call: public ICall
 {
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
-    std::map<EndpointId, int> mSessRetries;
+    std::map<chatd::EndpointId, int> mSessRetries;
     std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
     std::string mName;
     megaHandle mCallOutTimer = 0;
@@ -169,8 +154,10 @@ public:
         kSessSetupTimeout = 20000
     };
     int maxbr = 0;
-    RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto& crypto,
-        const karere::ServerList<karere::TurnServerInfo>& servers);
+    RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
+        const char* iceServers);
+    virtual promise::Promise<void> init(unsigned gelbTimeout);
+    promise::Promise<void> updateIceServers(unsigned timeoutMs);
     int setIceServers(const karere::ServerList<karere::TurnServerInfo>& servers);
     void onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv);
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
@@ -192,13 +179,15 @@ public:
 //==
     ~RtcModule();
 protected:
-    std::shared_ptr<webrtc::PeerConnectionInterface::IceServers> mIceServers;
+    karere::FallbackServerProvider<karere::TurnServerInfo> mTurnServerProvider;
+    webrtc::PeerConnectionInterface::IceServers mIceServers;
     artc::DeviceManager mDeviceManager;
     artc::InputAudioDevice mAudioInput;
     artc::InputVideoDevice mVideoInput;
     webrtc::FakeConstraints mPcConstraints;
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
+    IRtcCrypto& crypto() const { return *mCrypto; }
     void msgCallRequest(RtMessage& packet);
     template <class... Args>
     void cmdEndpoint(uint8_t type, const RtMessage& info, Args... args);

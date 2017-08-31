@@ -97,11 +97,11 @@ protected:
     std::unique_ptr<B> mBase;
 public:
     ServerProvider(B* base): mBase(base){}
-    promise::Promise<std::shared_ptr<typename B::Server> > getServer(unsigned timeout=0)
+    promise::Promise<std::shared_ptr<typename B::Server> > getServer(unsigned timeout=0, int maxretries=2)
     {
         if (mBase->needsUpdate())
         {
-            return mBase->fetchServers(timeout)
+            return mBase->fetchServers(timeout, maxretries)
             .then([this]() -> promise::Promise<std::shared_ptr<typename B::Server> >
             {
                 if (mBase->needsUpdate())
@@ -122,11 +122,11 @@ public:
             return nullptr;
         return mBase->at(nextIdx-1);
     }
-    promise::Promise<ServerList<typename B::Server>*> getServers(unsigned timeout=0)
+    promise::Promise<ServerList<typename B::Server>*> getServers(unsigned timeout=0, int maxretries=2)
     {
         if (mBase->needsUpdate())
         {
-            return mBase->fetchServers(timeout)
+            return mBase->fetchServers(timeout, maxretries)
             .then([this]() -> promise::Promise<ServerList<typename B::Server>*>
             {
                 if (mBase->needsUpdate())
@@ -163,7 +163,11 @@ public:
         }
         parseServerList(doc, *this);
     }
-    promise::Promise<void> fetchServers(unsigned timeout=0) { this->mNextAssignIdx = 0; return promise::_Void();}
+    promise::Promise<void> fetchServers(unsigned timeoutMs=0, unsigned maxRetries=0)
+    {
+        this->mNextAssignIdx = 0;
+        return promise::_Void();
+    }
 };
 
 /** An implementation of a server data provider that gets the servers from the GeLB server */
@@ -171,19 +175,18 @@ template <class S>
 class GelbProvider: public ListProvider<S>, public DeleteTrackable
 {
 protected:
-    MyMegaApi *mApi;
+    MyMegaApi& mApi;
     std::string mService;
     int64_t mMaxReuseOldServersAge;
     int64_t mLastUpdateTs = 0;
-    bool started;
+    bool mBusy = false;
     promise::Promise<void> mOutputPromise;
     void parseServersJson(const std::string& json);
-    promise::Promise<void> exec(unsigned timeoutms, int maxretries);
-    
+    promise::Promise<void> exec(unsigned timeoutMs, unsigned maxRetries);
 public:
     typedef S Server;
-    promise::Promise<void> fetchServers(unsigned timeoutms = 4000, int maxretries = 1);
-    GelbProvider(MyMegaApi *api, const char* service, int64_t maxReuseOldServersAge = 0);
+    promise::Promise<void> fetchServers(unsigned timeoutMs = 10000, unsigned maxRetries = 0);
+    GelbProvider(MyMegaApi& api, const char* service, int64_t maxReuseOldServersAge = 0);
 };
     
 /** Another public API server provider that sits on top of one GeLB and one static providers.
@@ -195,20 +198,19 @@ class FallbackServerProvider
 protected:
     ServerProvider<GelbProvider<S> > mGelbProvider;
     ServerProvider<StaticProvider<S> > mStaticProvider;
-    int mGelbReqRetryCount;
-    unsigned mGelbReqTimeout;
+    std::string mService;
 public:
-    FallbackServerProvider(MyMegaApi *api, const char* service, const char* staticServers,
-        int64_t gelbMaxReuseAge=0, int gelbRetryCount=2, unsigned gelbReqTimeout=4000)
-        :mGelbProvider(new GelbProvider<S>(api, service, gelbRetryCount, gelbReqTimeout, gelbMaxReuseAge)),
-        mStaticProvider(new StaticProvider<S>(staticServers))
+    FallbackServerProvider(MyMegaApi& api, const char* service, const char* staticServers,
+        int64_t gelbMaxReuseAge=0)
+    :mGelbProvider(new GelbProvider<S>(api, service, gelbMaxReuseAge)),
+        mStaticProvider(new StaticProvider<S>(staticServers)), mService(service)
     {}
-    promise::Promise<std::shared_ptr<S> > getServer(unsigned timeout=0)
+    promise::Promise<std::shared_ptr<S> > getServer(unsigned timeout=0, unsigned maxRetries=0)
     {
-        return mGelbProvider.getServer(timeout)
+        return mGelbProvider.getServer(timeout, maxRetries)
         .fail([this](const promise::Error& err)
         {
-            KR_LOG_ERROR("Gelb request failed with error '%s', falling back to static server list", err.what());
+            KR_LOG_ERROR("Gelb request failed with error '%s', falling back to static server list", mService.c_str(), err.what());
             return mStaticProvider.getServer();
         });
     }
@@ -217,12 +219,12 @@ public:
         auto server = mGelbProvider.lastServer();
         return server ? server : mStaticProvider.lastServer();
     }
-    promise::Promise<ServerList<S>*> getServers(unsigned timeout = 0)
+    promise::Promise<ServerList<S>*> getServers(unsigned timeout = 0, int retryCount=2)
     {
-        return mGelbProvider.getServers(timeout)
+        return mGelbProvider.getServers(timeout, retryCount)
         .fail([this](const promise::Error& err)
         {
-            KR_LOG_ERROR("Gelb request failed with error '%s', falling back to static server list", err.what());
+            KR_LOG_ERROR("Gelb request for '%s' failed with error '%s', falling back to static server list", mService.c_str(), err.what());
             return mStaticProvider.getServers();
         });
     }
@@ -234,19 +236,18 @@ public:
 };
 
 template <class S>
-GelbProvider<S>::GelbProvider(MyMegaApi *api, const char* service, int64_t maxReuseOldServersAge)
-    : mApi(api), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge),
-    started(false)
+GelbProvider<S>::GelbProvider(MyMegaApi& api, const char* service, int64_t maxReuseOldServersAge)
+    : mApi(api), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
 {
 }
     
 template <class S>
-promise::Promise<void> GelbProvider<S>::exec(unsigned timeoutms, int maxretries)
+promise::Promise<void> GelbProvider<S>::exec(unsigned timeoutMs, unsigned maxRetries)
 {
-    assert(!started);
-    started = true;
+    assert(!mBusy);
+    mBusy = true;
     
-    return mApi->call(&::mega::MegaApi::queryGeLB, mService.c_str(), timeoutms, maxretries)
+    return mApi.call(&::mega::MegaApi::queryGeLB, mService.c_str(), timeoutMs, maxRetries)
     .then([this](ReqResult result)
         -> promise::Promise<void>
     {
@@ -260,7 +261,7 @@ promise::Promise<void> GelbProvider<S>::exec(unsigned timeoutms, int maxretries)
             return promise::Error("Empty response from GeLB server", 0x3e9a9e1b, 1);
         }
 
-        this->started = false;
+        mBusy = false;
         std::string json((const char*)result->getText(), result->getTotalBytes());
         parseServersJson(json);
         this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
@@ -269,20 +270,20 @@ promise::Promise<void> GelbProvider<S>::exec(unsigned timeoutms, int maxretries)
     })
     .fail([this](const promise::Error& err)
     {
-        started = false;
+        mBusy = false;
         return err;
     });
 }
 
 template <class S>
-promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeoutms, int maxretries)
+promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeoutMs, unsigned maxRetries)
 {
-    if (started)
+    if (mBusy)
     {
         return mOutputPromise;
     }
 
-    promise::Promise<void> pms = exec(timeoutms, maxretries);
+    promise::Promise<void> pms = exec(timeoutMs, maxRetries);
     mOutputPromise = pms
     .fail([this](const promise::Error& err) -> promise::Promise<void>
     {
