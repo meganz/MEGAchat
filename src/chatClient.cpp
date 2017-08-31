@@ -1687,9 +1687,10 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
         room = new GroupChatRoom(*this, apiRoom); //also writes it to cache
         if (client.connected())
         {
-            if (static_cast<GroupChatRoom*>(room)->hasTitle())
+            GroupChatRoom *groupchat = static_cast<GroupChatRoom*>(room);
+            if (groupchat->hasTitle())
             {
-                static_cast<GroupChatRoom*>(room)->decryptTitle()
+                groupchat->decryptTitle()
                 .fail([](const promise::Error& err)
                 {
                     KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
@@ -1860,7 +1861,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     {
         std::vector<promise::Promise<void> > promises;
         auto size = peers->size();
-        auto wptr = weakHandle();
         for (int i=0; i<size; i++)
         {
             auto handle = peers->getPeerHandle(i);
@@ -1869,6 +1869,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
             promises.push_back(mPeers[handle]->nameResolved());
         }
 
+        auto wptr = weakHandle();
         // If there is not any promise at vector promise, promise::when is resolved directly
         mNameMemberResolved = promise::when(promises)
         .then([wptr, this]()
@@ -1876,7 +1877,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
             wptr.throwIfDeleted();
             if (!mHasTitle)
             {
-                makeTitleFromMemberNames();
+                clearTitle();
             }
         });
     }
@@ -1884,11 +1885,11 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     {
         if (!mHasTitle)
         {
-            makeTitleFromMemberNames();
+            clearTitle();
         }
     }
 
-//save to db
+    //save to db
     auto db = parent.client.db;
     db.query("delete from chat_peers where chatid=?", mChatid);
     db.query(
@@ -2038,9 +2039,7 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
         wptr.throwIfDeleted();
         if (title.empty())
         {
-            mHasTitle = false;
-            parent.client.db.query("update chats set title=NULL where chatid=?", mChatid);
-            makeTitleFromMemberNames();
+            clearTitle();
         }
     });
 }
@@ -2355,9 +2354,9 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);
     UserPrivMap membs;
     changed |= syncMembers(apiMembersToMap(chat, membs));
-//TODO: if we were excluded, we may be unable to decrypt the title
+
     auto title = chat.getTitle();
-    if (title)
+    if (title && title[0])
     {
         mEncryptedTitle = title;
         mHasTitle = true;
@@ -2366,15 +2365,15 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
             decryptTitle()
             .fail([](const promise::Error& err)
             {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi");
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
             });
         }
     }
     else
     {
-        // With this condition, some unnecessary notifications about title-changes are avoided.
-        // We are still notifying title-changes for all privilege changes, when only group
-        // composition changes must be notified
+        // By checking if 'changed', we avoid some unnecessary notifications about title-updates
+        // TODO: we still notify title-updates for all privilege changes, when only group
+        // composition changes represent a title-update and should be notified
         if (changed)
         {
             clearTitle();
