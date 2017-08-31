@@ -1511,7 +1511,6 @@ const std::string& PeerChatRoom::titleString() const
 promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv, bool saveToDb)
 {
     assert(userid != parent.client.myHandle());
-    promise::Promise<void> nameMemberResolved;
 
     auto it = mPeers.find(userid);
     if (it != mPeers.end())
@@ -1524,14 +1523,10 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
         {
             it->second->mPriv = priv;
         }
-
-        nameMemberResolved = promise::_Void();
     }
     else
     {
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
-
-        nameMemberResolved = mPeers[userid]->nameResolved();
 
         if ((mOwnPriv != chatd::PRIV_NOTPRESENT) &&
            (parent.client.initState() >= Client::kInitHasOnlineSession))
@@ -1543,7 +1538,7 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
             mChatid, userid, priv);
     }
 
-    return nameMemberResolved;
+    return mPeers[userid]->nameResolved();
 }
 
 bool GroupChatRoom::removeMember(uint64_t userid)
@@ -1887,7 +1882,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     }
     else
     {
-        makeTitleFromMemberNames();
+        if (!mHasTitle)
+        {
+            makeTitleFromMemberNames();
+        }
     }
 
 //save to db
@@ -2374,8 +2372,9 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     }
     else
     {
-        // With this contidion some unecesary title changed notification is avoided.
-        // We are notifing all permission changes and only group compositon change must be notified
+        // With this condition, some unnecessary notifications about title-changes are avoided.
+        // We are still notifying title-changes for all privilege changes, when only group
+        // composition changes must be notified
         if (changed)
         {
             clearTitle();
