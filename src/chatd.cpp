@@ -1065,6 +1065,25 @@ void Connection::execCommand(const StaticBuffer& buf)
                 mClient.chats(chatid).onNewKeys(StaticBuffer(keys, totalLen));
                 break;
             }
+            case OP_INCALL:
+            {
+                // opcode.1 chatid.8 userid.8 clientid.4
+                READ_CHATID(0);
+                READ_ID(userid, 8);
+                READ_32(clientid, 16);
+                mClient.chats(chatid).onInCall(userid, clientid);
+                break;
+            }
+            case OP_ENDCALL:
+            {
+                // opcode.1 chatid.8 userid.8 clientid.4
+                READ_CHATID(0);
+                READ_ID(userid, 8);
+                READ_32(clientid, 16);
+                mClient.chats(chatid).onEndCall(userid, clientid);
+                mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
+                break;
+            }
             case OP_RTMSG_ENDPOINT:
             case OP_RTMSG_USER:
             case OP_RTMSG_BROADCAST:
@@ -1304,6 +1323,16 @@ uint64_t Chat::generateRefId(const ICrypto* aCrypto)
     uint64_t rand;
     aCrypto->randomBytes(&rand, sizeof(rand));
     return (ts & 0x0000000000ffffff) | (rand << 40);
+}
+void Chat::onInCall(karere::Id userid, uint32_t clientid)
+{
+    mCallParticipants.emplace(userid, clientid);
+}
+
+void Chat::onEndCall(karere::Id userid, uint32_t clientid)
+{
+    EndpointId key(userid, clientid);
+    mCallParticipants.erase(key);
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)

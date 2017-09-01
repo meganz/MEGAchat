@@ -68,8 +68,9 @@ RtMessage::RtMessage(chatd::Connection &aShard, const StaticBuffer& msg)
 void sdpSetVideoBw(std::string& sdp, int maxbr);
 
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
-  IRtcCrypto& crypto, const ServerList<TurnServerInfo>& iceServers)
-: IRtcModule(client, handler, crypto, crypto.anonymizeId(client.myHandle()))
+  IRtcCrypto* crypto, const char* iceServers)
+: IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
+  mTurnServerProvider(client.api, "turn", iceServers, 3600)
 {
     if (!gInitialized)
     {
@@ -81,27 +82,53 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
     mPcConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
 
   //preload ice servers to make calls faster
-    setIceServers(iceServers);
     initInputDevices();
-    mClient.chatd->setRtcHandler(this);
 }
 
-IRtcModule* IRtcModule::create(karere::Client &client, IGlobalHandler &handler, IRtcCrypto &crypto, const karere::ServerList<TurnServerInfo> &iceServers)
+promise::Promise<void> RtcModule::init(unsigned gelbTimeout)
+{
+    auto wptr = weakHandle();
+    return updateIceServers(gelbTimeout)
+    .fail([](const promise::Error& err)
+    {
+        RTCM_LOG_ERROR("updateIceServers failed, and it shouldn't. Error: %s", err.what());
+        assert(false);
+    })
+    .then([this, wptr]()
+    {
+        if (wptr.deleted())
+            return;
+        mClient.chatd->setRtcHandler(this);
+    });
+}
+
+IRtcModule* create(karere::Client &client, IGlobalHandler &handler, IRtcCrypto* crypto, const char* iceServers)
 {
     return new RtcModule(client, handler, crypto, iceServers);
+}
+promise::Promise<void> RtcModule::updateIceServers(unsigned timeout)
+{
+    auto wptr = weakHandle();
+    return mTurnServerProvider.getServers(timeout)
+    .then([wptr, this](ServerList<TurnServerInfo>* servers)
+    {
+        if (wptr.deleted())
+            return;
+        setIceServers(*servers);
+    });
 }
 
 template <class T>
 T RtcModule::random() const
 {
     T result;
-    mCrypto.random((char*)&result, sizeof(result));
+    crypto().random((char*)&result, sizeof(result));
     return result;
 }
 template <class T>
 void RtcModule::random(T& result) const
 {
-    return mCrypto.random((char*)&result, sizeof(T));
+    return crypto().random((char*)&result, sizeof(T));
 }
 
 void RtcModule::initInputDevices()
@@ -199,8 +226,8 @@ int RtcModule::setIceServers(const ServerList<TurnServerInfo>& servers)
         KR_LOG_DEBUG("Adding ICE server: '%s'", rtcServer.uri.c_str());
         rtcServers.push_back(rtcServer);
     }
-    mIceServers->swap(rtcServers);
-    return (int)(mIceServers->size());
+    mIceServers.swap(rtcServers);
+    return (int)(mIceServers.size());
 }
 
 void RtcModule::handleMessage(chatd::Connection& conn, const StaticBuffer& msg)
@@ -1239,7 +1266,7 @@ Session::Session(Call& call, RtMessage& packet)
         mPeerAnonId = packet.payload.read<uint64_t>(16);
         SdpKey encKey;
         packet.payload.read(24, encKey);
-        call.mManager.mCrypto.decryptKeyFrom(mPeer, encKey, mPeerSdpKey);
+        call.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerSdpKey);
     }
     mName = "sess[" + mSid.toString() + "]";
     auto wptr = weakHandle();
@@ -1255,7 +1282,7 @@ Session::Session(Call& call, RtMessage& packet)
 void Session::sendCmdSession(RtMessage& joinPacket)
 {
     SdpKey encKey;
-    mCall.mManager.mCrypto.encryptKeyTo(mPeer, mOwnSdpKey, encKey);
+    mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnSdpKey, encKey);
     // SESSION callid.8 sid.8 anonId.8 encHashKey.32
    mCall.mManager.cmdEndpoint(RTCMD_SESSION, joinPacket,
         joinPacket.callid,
@@ -1313,7 +1340,7 @@ void Session::handleMessage(RtMessage& packet)
 
 void Session::createRtcConn()
 {
-    mRtcConn = artc::myPeerConnection<Session>(*mCall.mManager.mIceServers,
+    mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers,
         *this, pcConstraints());
     if (mCall.mLocalStream)
     {
@@ -1449,9 +1476,9 @@ Promise<void> Session::sendOffer()
         if (wptr.deleted())
             return;
         SdpKey encKey;
-        mCall.mManager.mCrypto.encryptKeyTo(mPeer, mOwnSdpKey, encKey);
+        mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnSdpKey, encKey);
         SdpKey hash;
-        mCall.mManager.mCrypto.mac(mOwnSdp, mPeerSdpKey, hash);
+        mCall.mManager.crypto().mac(mOwnSdp, mPeerSdpKey, hash);
 
         // SDP_OFFER sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
         cmd(RTCMD_SDP_OFFER,
@@ -1488,7 +1515,7 @@ void Session::msgSdpOfferSendAnswer(RtMessage& packet)
     mPeerAnonId = packet.payload.read<uint64_t>(8);
     SdpKey encKey;
     packet.payload.read(16, encKey);
-    mCall.mManager.mCrypto.decryptKeyFrom(mPeer, encKey, mPeerSdpKey);
+    mCall.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerSdpKey);
     mPeerAv = packet.payload.read<uint8_t>(80);
     uint16_t sdpLen = packet.payload.read<uint16_t>(81);
     assert(packet.payload.dataSize() >= 83 + sdpLen);
@@ -1533,7 +1560,7 @@ void Session::msgSdpOfferSendAnswer(RtMessage& packet)
     {
         SdpKey ownFprHash;
         // SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
-        mCall.mManager.mCrypto.mac(mOwnSdp, mPeerSdpKey, ownFprHash);
+        mCall.mManager.crypto().mac(mOwnSdp, mPeerSdpKey, ownFprHash);
         cmd(
             RTCMD_SDP_ANSWER,
             ownFprHash,
@@ -1758,7 +1785,7 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
 bool Session::verifySdpFingerprints(const std::string& sdp, const SdpKey& peerHash)
 {
     SdpKey hash;
-    mCall.mManager.mCrypto.mac(sdp, mOwnSdpKey, hash);
+    mCall.mManager.crypto().mac(sdp, mOwnSdpKey, hash);
     bool match = true; // constant time compare
     for (int i = 0; i < sizeof(SdpKey); i++)
     {
@@ -1872,7 +1899,7 @@ void StateDesc::assertStateChange(uint8_t oldState, uint8_t newState) const
 
 const StateDesc Call::sStateDesc = {
     .transMap = {
-        { kStateReqSent, kStateTerminating },                //for kStateInitial
+        { kStateReqSent, kStateHasLocalStream, kStateTerminating }, //for kStateInitial
         { kStateJoining, kStateReqSent, kStateTerminating }, //for kStateHasLocalStream
         { kStateInProgress, kStateTerminating },             //for kStateReqSent
         { kStateInProgress, kStateTerminating },             //for kStateRingIn

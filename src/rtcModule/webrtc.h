@@ -40,6 +40,8 @@ class RtcModule;
 #include <karereId.h>
 #include <trackDelete.h>
 #include <serverListProviderForwards.h>
+#include <IRtcCrypto.h>
+
 namespace chatd
 {
     class Connection;
@@ -113,7 +115,7 @@ enum TermCode: uint8_t
     kInvalid = 0x7f
 };
 
-bool isTermError(TermCode code)
+static inline bool isTermError(TermCode code)
 {
     return (code & 0x7f) >= TermCode::kErrorFirst;
 }
@@ -290,18 +292,17 @@ class IRtcModule: public karere::DeleteTrackable
 protected:
     karere::Client& mClient;
     IGlobalHandler& mHandler;
-    IRtcCrypto& mCrypto;
+    std::unique_ptr<IRtcCrypto> mCrypto;
     karere::Id mOwnAnonId;
     std::string mVideoInDeviceName;
     std::string mAudioInDeviceName;
-    IRtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto& crypto,
+    IRtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         karere::Id ownAnonId)
         :mClient(client), mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId) {}
 public:
-    static IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
-        IRtcCrypto& crypto, const karere::ServerList<karere::TurnServerInfo>& iceServers);
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
+    virtual promise::Promise<void> init(unsigned gelbTimeout) = 0;
     karere::Id ownAnonId() const { return mOwnAnonId; }
 
     /** @brief Returns a list of all detected audio input devices on the system */
@@ -345,6 +346,9 @@ public:
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
     virtual void hangupAll(TermCode reason) = 0;
 };
+IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
+    IRtcCrypto* crypto, const char* iceServers);
+
 }
 
 #endif

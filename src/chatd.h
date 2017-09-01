@@ -294,6 +294,22 @@ public:
     virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid) {}
     virtual void onDisconnect(chatd::Connection& conn) {}
 };
+/** @brief userid + clientid map key class */
+struct EndpointId
+{
+    karere::Id userid;
+    uint32_t clientid;
+    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid){}
+    bool operator<(EndpointId other) const
+    {
+         if (userid.val < other.userid.val)
+             return true;
+         else if (userid.val > other.userid.val)
+             return false;
+         else
+             return (clientid < other.clientid);
+    }
+};
 
 class Client;
 
@@ -578,6 +594,7 @@ protected:
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
+    std::set<EndpointId> mCallParticipants;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
          const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
@@ -632,6 +649,8 @@ protected:
     void notifyLastTextMsg();
     void onMsgTimestamp(uint32_t ts); //support for newest-message-timestamp
     bool manualResendWhenUserJoins() const;
+    void onInCall(karere::Id userid, uint32_t clientid);
+    void onEndCall(karere::Id userid, uint32_t clientid);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE

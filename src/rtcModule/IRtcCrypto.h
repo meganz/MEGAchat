@@ -39,17 +39,17 @@ public:
      * Encrypt an SdpKey with the peer's public key. The key of that peer must have
      * been pre-loaded.
      **/
-    virtual void encryptKeyTo(karere::Id peer, const SdpKey& data, SdpKey& output);
+    virtual void encryptKeyTo(karere::Id peer, const SdpKey& data, SdpKey& output) = 0;
     /** @brief
      * Fetches the specified peer's public CU25519 key
     */
-    virtual promise::Promise<void> waitForPeerKeys(karere::Id peer);
+    virtual promise::Promise<void> waitForPeerKeys(karere::Id peer) = 0;
     /** @brief
      * Used to anonymize the user in submitting call statistics
     */
     virtual karere::Id anonymizeId(karere::Id userid) = 0;
     /** @brief Generic random string function */
-    virtual void random(char* buf, size_t len);
+    virtual void random(char* buf, size_t len) = 0;
     virtual ~IRtcCrypto(){}
 };
 }
