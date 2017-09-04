@@ -452,14 +452,18 @@ void Client::setInitState(InitState newState)
 Client::InitState Client::init(const char* sid)
 {
     if (mInitState > kInitCreated)
+    {
+        KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
         return kInitErrAlready;
+    }
 
     api.sdk.addGlobalListener(this);
 
     if (sid)
     {
         initWithDbSession(sid);
-        if (mInitState == kInitErrNoCache)
+        if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
+                mInitState == kInitErrCorruptCache)
         {
             wipeDb(sid);
         }
@@ -474,22 +478,47 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
-    auto wptr = weakHandle();
-    if (e->getErrorCode() == mega::MegaError::API_ESID ||
-            (request->getType() == mega::MegaRequest::TYPE_LOGOUT &&
-             request->getParamType() == mega::MegaError::API_ESID))
+    if (e->getErrorCode() == mega::MegaError::API_ESID)
     {
+        auto wptr = weakHandle();
         marshallCall([wptr, this]() // update state in the karere thread
         {
             if (wptr.deleted())
                 return;
-            setInitState(kInitErrSidInvalid);
+
+            if (initState() < kInitTerminating)
+            {
+                setInitState(kInitErrSidInvalid);
+            }
         });
         return;
     }
 
     auto reqType = request->getType();
-    if (reqType == mega::MegaRequest::TYPE_FETCH_NODES)
+    switch (reqType)
+    {
+    case mega::MegaRequest::TYPE_LOGOUT:
+    {
+        if (request->getFlag() ||   // SDK has been logged out normally closing session
+                request->getParamType() == mega::MegaError::API_ESID)   // SDK received ESID during login
+        {
+            auto wptr = weakHandle();
+            marshallCall([wptr, this]() // update state in the karere thread
+            {
+                if (wptr.deleted())
+                    return;
+
+                if (initState() < kInitTerminating)
+                {
+                    setInitState(kInitErrSidInvalid);
+                }
+            });
+            return;
+        }
+        break;
+    }
+
+    case mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
         auto state = mInitState;
@@ -503,10 +532,12 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
         std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
+        auto wptr = weakHandle();
         marshallCall([wptr, this, state, scsn, contactList, chatList]()
         {
             if (wptr.deleted())
                 return;
+
             if (state == kInitHasOfflineSession)
             {
 // disable this safety checkup, since dumpSession() differs from first-time login value
@@ -541,8 +572,10 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             }
             api.sdk.resumeActionPackets();
         });
+        break;
     }
-    else if (reqType == mega::MegaRequest::TYPE_SET_ATTR_USER)
+
+    case mega::MegaRequest::TYPE_SET_ATTR_USER:
     {
         int attrType = request->getParamType();
         int changeType;
@@ -558,12 +591,22 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         {
             return;
         }
+
+        auto wptr = weakHandle();
         marshallCall([wptr, this, changeType]()
         {
             if (wptr.deleted())
                 return;
+
             mUserAttrCache->onUserAttrChange(mMyHandle, changeType);
         });
+        break;
+    }
+
+    default:    // no action to be taken for other type of requests
+    {
+        break;
+    }
     }
 }
 
@@ -1177,7 +1220,7 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
 {
     mChat = &parent.client.chatd->createChat(
         mChatid, mShardNo, mUrl, this, initialUsers,
-        parent.client.newStrongvelope(chatid()), mCreationTs);
+        parent.client.newStrongvelope(chatid()), mCreationTs, mIsGroup);
     if (mOwnPriv == chatd::PRIV_NOTPRESENT)
         mChat->disable(true);
 }

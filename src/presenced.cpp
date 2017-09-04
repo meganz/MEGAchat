@@ -191,8 +191,15 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 
     if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
-        assert(!mLoginPromise.done());
-        mConnectPromise.reject(reason, errcode, errtype);
+        assert(!mLoginPromise.succeeded());
+        if (!mConnectPromise.done())
+        {
+            mConnectPromise.reject(reason, errcode, errtype);
+        }
+        if (!mConnectPromise.done())
+        {
+            mLoginPromise.reject(reason, errcode, errtype);
+        }
     }
     else
     {
@@ -634,6 +641,7 @@ void Client::handleMessage(const StaticBuffer& buf)
             {
                 READ_8(pres, 0);
                 READ_ID(userid, 1);
+                // READ_8(webrtc_capability, 7);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
                 CALL_LISTENER(onPresenceChange, userid, pres);
