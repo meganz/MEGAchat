@@ -61,14 +61,16 @@ std::string encodeFirstName(const std::string& first);
  * depend on the database
  */
     Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
- :mAppDir(appDir),
-  api(sdk, ctx), app(aApp), websocketIO(websocketsIO),
-  contactList(new ContactList(*this)),
-  chats(new ChatRoomList(*this)),
-  mMyName("\0", 1),
-  mOwnPresence(Presence::kInvalid),
-  mPresencedClient(&api, this, *this, caps),
-  appCtx(ctx)
+        : mAppDir(appDir),
+          websocketIO(websocketsIO),
+          appCtx(ctx),
+          api(sdk, ctx),
+          app(aApp),
+          contactList(new ContactList(*this)),
+          chats(new ChatRoomList(*this)),
+          mMyName("\0", 1),
+          mOwnPresence(Presence::kInvalid),
+          mPresencedClient(&api, this, *this, caps)
 {
 }
 

@@ -29,7 +29,7 @@ namespace presenced
 {
 
     Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
-: mListener(&listener), mApi(api), mCapabilities(caps), karereClient(client)
+: mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps)
 {
 }
 

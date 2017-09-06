@@ -56,7 +56,7 @@ using namespace chatd;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
-: localVideoReceiver(nullptr), sdkMutex(true)
+: sdkMutex(true), localVideoReceiver(nullptr)
 {
     init(chatApi, megaApi);
 }

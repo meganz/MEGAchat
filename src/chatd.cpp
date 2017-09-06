@@ -77,7 +77,7 @@ namespace chatd
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
 Client::Client(karere::Client *client, Id userId)
-:mUserId(userId), karereClient(client), mApi(&client->api)
+:mUserId(userId), mApi(&client->api), karereClient(client)
 {
 }
 
