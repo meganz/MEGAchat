@@ -6,7 +6,7 @@
 #include "trackDelete.h"
 #include <mega/waiter.h>
 
-// Websockets network layer implementatiuon based on libws
+// Websockets network layer implementation based on libws
 class LibwsIO : public WebsocketsIO
 {
 public:

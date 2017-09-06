@@ -1,7 +1,7 @@
 #include "net/libwsIO.h"
 #include <arpa/inet.h>
 #include <libws_log.h>
-#include <gcmpp.h>
+#include "base/gcmpp.h"
 
 #include "waiter/libeventWaiter.h"
 

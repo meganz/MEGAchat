@@ -46,7 +46,7 @@ public:
     WebsocketsClient();
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
                    const char *host, int port, const char *path, bool ssl);
-    bool wsSendMessage(char *msg, size_t len);
+    bool wsSendMessage(char *msg, size_t len);  // returns true on success, false if error
     void wsDisconnect(bool immediate);
     bool wsIsConnected();
     

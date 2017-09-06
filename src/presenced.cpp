@@ -1,9 +1,5 @@
 #include "presenced.h"
-#include <base/cservices.h>
-#include <gcmpp.h>
-#include <retryHandler.h>
-#include <chatClient.h>
-#include <arpa/inet.h>
+#include "chatClient.h"
 
 using namespace std;
 using namespace promise;

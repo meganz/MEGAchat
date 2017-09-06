@@ -1,13 +1,9 @@
 #include "chatd.h"
 #include "chatClient.h"
 #include "chatdICrypto.h"
-#include <base/cservices.h>
-#include <gcmpp.h>
-#include <retryHandler.h>
 #include "base64.h"
 #include <algorithm>
 #include <random>
-#include <arpa/inet.h>
 
 using namespace std;
 using namespace promise;
@@ -84,13 +80,6 @@ Client::Client(karere::Client *client, Id userId)
 :mUserId(userId), karereClient(client), mApi(&client->api)
 {
 }
-
-#define checkLibwsCall(call, opname) \
-    do {                             \
-        int _cls_ret = (call);       \
-        if (_cls_ret) throw std::runtime_error("Websocket error " +std::to_string(_cls_ret) + \
-        " on operation " #opname);   \
-    } while(0)
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs)
