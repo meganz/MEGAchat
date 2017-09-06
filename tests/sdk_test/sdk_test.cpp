@@ -164,9 +164,12 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     ASSERT_CHAT_TEST(!lastError[accountIndex], "Error sdk logout. Error: " + std::to_string(lastError[accountIndex]));
 
     flagRequestLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
-    closeSession ? megaChatApi[accountIndex]->logout() : megaChatApi[accountIndex]->localLogout();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for chat logout");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+    if (!closeSession)  // for closed session, karere automatically logs out itself
+    {
+        megaChatApi[accountIndex]->localLogout();
+        ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for chat logout");
+        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+    }
     MegaApi::addLoggerObject(logger);   // need to restore customized logger
 
 }
@@ -1062,6 +1065,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatItemJoined1 = &chatItemUpdated[a2]; *chatItemJoined1 = false;
     bool *chatJoined0 = &chatroomListener->chatUpdated[a1]; *chatJoined0 = false;
     bool *chatJoined1 = &chatroomListener->chatUpdated[a2]; *chatJoined1 = false;
+    bool *flagChatdOnline = &mChatConnectionOnline[a2]; *flagChatdOnline = false;   // need to reconnect after rejoin
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
@@ -1089,6 +1093,14 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
     ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(lastErrorChat[a1] == MegaChatError::ERROR_EXIST, "Invitation should have failed, but it succeed");
+
+    // wait for chatd connection establishment in auxiliar account
+    while (megaChatApi[a2]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+    {
+        postLog("Waiting for connection to chatd before proceeding with test...");
+        ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline), "Timeout expired for connecting to chatd");
+        *flagChatdOnline = false;
+    }
 
     // --> Set title
     string title = "My groupchat with title";
@@ -1183,7 +1195,6 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a2, msgId), "Wrong message id at destination");
     MegaChatMessage *messageReceived = megaChatApi[a2]->getMessage(chatid, msgId);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent()), "Content of message doesn't match");
-    ASSERT_CHAT_TEST(waitForResponse(msgDelivered), "Timeout expired for receiving delivery notification");    // for delivery
 
     delete messageSent;
     messageSent = NULL;
@@ -1704,8 +1715,9 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     std::string formatDate = dateToString();
 
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, formatDate, chatroomListener);
-    MegaChatHandle msgId = chatroomListener->msgId[a1][0];  // we assume we haven't received any other message than the one just sent
-    ASSERT_CHAT_TEST(msgId == msgSent->getMsgId(), "Message id is different from the sent message");
+    MegaChatHandle msgId = msgSent->getMsgId();
+    bool hasArrived = chatroomListener->hasArrivedMessage(a1, msgId);
+    ASSERT_CHAT_TEST(hasArrived, "Id of sent message has not been received yet");
     MegaChatListItem *itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     MegaChatListItem *itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
@@ -1735,12 +1747,13 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
     msgSent = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
     MegaNode *nodeReceived = msgSent->getMegaNodeList()->get(0)->copy();
-    msgId = chatroomListener->msgId[a1][0];
-    ASSERT_CHAT_TEST(msgId == msgSent->getMsgId(), "Message id is different from the sent message");
+    msgId = msgSent->getMsgId();
+    hasArrived = chatroomListener->hasArrivedMessage(a1, msgId);
+    ASSERT_CHAT_TEST(hasArrived, "Id of sent message has not been received yet");
     itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
-                     "Last messge contain has different value from message sent.\n Send: " + formatDate + " Received: " + itemAccount1->getLastMessage());
+                     "Last message content differs from content of message sent.\n Sent: " + formatDate + " Received: " + itemAccount1->getLastMessage());
     ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
     ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
     delete itemAccount1;
@@ -1831,6 +1844,13 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(msgReceived->getUsersCount() == 1, "Wrong number of users in message. Count: " + std::to_string(msgReceived->getUsersCount()));
     ASSERT_CHAT_TEST(strcmp(msgReceived->getUserEmail(0), mAccounts[a2].getEmail().c_str()) == 0, "Wrong email address in message. Address: " + std::string(msgReceived->getUserEmail(0)));
 
+    // Check if reception confirmation is active and, in this case, only 1on1 rooms have acknowledgement of receipt
+    if (megaChatApi[a1]->isMessageReceptionConfirmationActive()
+            && !megaChatApi[a1]->getChatRoom(chatid)->isGroup())
+    {
+        ASSERT_CHAT_TEST(waitForResponse(flagDelivered), "Timeout expired for receiving delivery notification");    // for delivery
+    }
+
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
@@ -1903,8 +1923,9 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
 
     std::string textToSend = "Last Message";
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, textToSend, chatroomListener);
-    MegaChatHandle msgId = chatroomListener->msgId[a1][0];
-    ASSERT_CHAT_TEST(msgId == msgSent->getMsgId(), "Message id is different from the sent message");
+    MegaChatHandle msgId = msgSent->getMsgId();
+    bool hasArrived = chatroomListener->hasArrivedMessage(a1, msgId);
+    ASSERT_CHAT_TEST(hasArrived, "Id of sent message has not been received yet");
     MegaChatListItem *itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     MegaChatListItem *itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
@@ -2238,8 +2259,9 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
     ASSERT_CHAT_TEST(messageReceived, "Failed to retrieve the message at the receiver account");
     ASSERT_CHAT_TEST(!strcmp(textToSend.c_str(), messageReceived->getContent()), "Content of message received doesn't match the content of sent message");
 
-    // only 1on1 rooms have acknowledgement of receipt
-    if (!megaChatApi[senderAccountIndex]->getChatRoom(chatid)->isGroup())
+    // Check if reception confirmation is active and, in this case, only 1on1 rooms have acknowledgement of receipt
+    if (megaChatApi[senderAccountIndex]->isMessageReceptionConfirmationActive()
+            && !megaChatApi[senderAccountIndex]->getChatRoom(chatid)->isGroup())
     {
         ASSERT_CHAT_TEST(waitForResponse(flagDelivered), "Timeout expired for receiving delivery notification");    // for delivery
     }
