@@ -13,7 +13,6 @@ namespace chatd
 
 typedef uint32_t KeyId;
 typedef uint64_t BackRefId;
-typedef uint32_t ClientId;
 
 enum { kMaxBackRefs = 32 };
 
@@ -358,6 +357,7 @@ public:
     uint8_t opcode() const { return read<uint8_t>(0); }
     static const char* opcodeToStr(uint8_t opcode);
     const char* opcodeName() const { return opcodeToStr(opcode()); }
+    static std::string toString(const StaticBuffer& data);
     virtual std::string toString() const;
     virtual ~Command(){}
 };
@@ -403,6 +403,7 @@ public:
     }
     MsgCommand(size_t reserve): Command(reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
+    karere::Id userId() const { return read<uint64_t>(9); }
     void setId(karere::Id aMsgid) { write(17, aMsgid.val); }
     KeyId keyId() const { return read<KeyId>(31); }
     void setKeyId(KeyId aKeyid) { write(31, aKeyid); }
@@ -428,7 +429,12 @@ public:
     {
         write<uint32_t>(35, dataSize()-39);
     }
-    virtual std::string toString() const;
+    static std::string toString(uint8_t opcode, karere::Id msgid, karere::Id userid, uint16_t updated,
+            uint32_t keyid);
+    virtual std::string toString() const
+    {
+        return toString(opcode(), msgid(), userId(), updated(), keyId());
+    }
 };
 
 //for exception message purposes

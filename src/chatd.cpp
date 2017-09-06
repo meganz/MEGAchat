@@ -95,6 +95,7 @@ namespace chatd
 
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
+bool gLogKeepalives = false;
 
 Client::Client(MyMegaApi *api, Id userId)
 :mUserId(userId), mApi(api)
@@ -241,12 +242,18 @@ void Chat::login()
         join();
 }
 
+Connection::Connection(Client& client, int shardNo)
+: mClient(client), mShardNo(shardNo),
+  mIdentity((static_cast<uint64_t>(rand()) << 32) | time(NULL))
+{}
+
 void Connection::websockConnectCb(ws_t ws, void* arg)
 {
     Connection* self = static_cast<Connection*>(arg);
     auto wptr = self->getDelTracker();
     ASSERT_NOT_ANOTHER_WS("connect");
-    CHATD_LOG_DEBUG("Chatd connected to shard %d", self->mShardNo);
+    CHATD_LOG_DEBUG("Chatd connected to shard %d (%s:%u)", self->mShardNo,
+        self->mUrl.host.c_str(), self->mUrl.port);
     ::marshallCall([self, wptr]()
     {
         if (wptr.deleted())
@@ -430,6 +437,7 @@ Promise<void> Connection::reconnect(const std::string& url)
             {
                 assert(mState >= kStateConnected);
                 enableInactivityTimer();
+                sendCommand(Command(OP_CLIENTID)+mIdentity);
                 return rejoinExistingChats();
             });
         }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
@@ -533,11 +541,11 @@ bool Connection::sendCommand(Command&& cmd)
 {
     if (krLoggerWouldLog(krLogChannel_chatd, krLogLevelDebug))
     {
-        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "conn-global: send %s\n", cmd.toString().c_str());
+        krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "shard %d: send %s\n", mShardNo, cmd.toString().c_str());
     }
     bool result = sendBuf(std::move(cmd));
     if (!result)
-        CHATD_LOG_DEBUG("conn-global:    Can't send, we are offline");
+        CHATD_LOG_DEBUG("shard %d:    Can't send, we are offline", mShardNo);
     return result;
 }
 
@@ -568,33 +576,61 @@ void Chat::logSend(const Command& cmd) const
             ID_CSTR(mChatId), cmd.toString().c_str());
 }
 
-string Command::toString() const
+#ifndef KARERE_DISABLE_WEBRTC
+namespace rtcModule { std::string rtmsgCommandToString(const StaticBuffer&); }
+#endif
+
+string Command::toString(const StaticBuffer& data)
 {
-    switch(opcode())
+    auto opcode = data.read<uint8_t>(0);
+    switch(opcode)
     {
         case OP_CLIENTID:
-            char buf[10];
-            snprintf(buf, 10, "0x%04x", read<uint32_t>(3));
-            return string("CLIENTID: id= ")+buf;
+            char tmpbuf[64];
+            snprintf(tmpbuf, 63, "0x%" PRIx64, data.read<uint64_t>(1));
+            return string("CLIENTID: ")+tmpbuf;
+        case OP_INCALL:
+            return "INCALL";
+        case OP_ENDCALL:
+            return "ENDCALL";
+#ifndef KARERE_DIABLE_WEBRTC
+        case OP_RTMSG_ENDPOINT:
+        case OP_RTMSG_USER:
+        case OP_RTMSG_BROADCAST:
+            return ::rtcModule::rtmsgCommandToString(data);
+#endif
         default:
-            return opcodeName();
+            return opcodeToStr(opcode);
     }
 }
-
-string MsgCommand::toString() const
+string Command::toString() const
 {
-    switch (opcode())
+    return toString(*this);
+}
+string MsgCommand::toString(uint8_t opcode, Id msgid, Id userid, uint16_t updated,
+    uint32_t keyid)
+{
+    string result;
+    switch (opcode)
     {
       case OP_NEWMSG:
-        return string("NEWMSG: msgxid= ")+msgid().toString();
+        result = "NEWMSG msgxid: ";
+        result.append(msgid.toString());
+        break;
       case OP_MSGUPD:
-        return string("MSGUPD: msgid= ")+msgid().toString();
+        result = "MSGUPD msgid: ";
+        result.append(msgid.toString());
+        break;
       case OP_MSGUPDX:
-        return string("MSGUPDX: msgxid= ")+msgid().toString()+", tsdelta: "+
-            to_string(updated());
+        result = "MSGUPDX msgxid: ";
+        result.append(msgid.toString()).append(", tsdelta: ")
+              .append(to_string(updated));
       default:
-        return opcodeName();
+        return "(invalid message command)";
     }
+    result.append(" from user ").append(userid.toString())
+          .append(" with keyid ").append(to_string(keyid));
+    return result;
 }
 
 string KeyCommand::toString() const
@@ -602,7 +638,6 @@ string KeyCommand::toString() const
     assert(opcode() == OP_NEWKEY);
     return string("NEWKEY: keyid = ")+to_string(keyId());
 }
-
 // rejoin all open chats after reconnection (this is mandatory)
 promise::Promise<void> Connection::rejoinExistingChats()
 {
@@ -892,7 +927,8 @@ void Connection::execCommand(const StaticBuffer& buf)
         {
             case OP_KEEPALIVE:
             {
-                //CHATD_LOG_DEBUG("Server heartbeat received");
+                if (gLogKeepalives)
+                    CHATD_LOG_DEBUG("recv KEEPALIVE");
                 sendKeepalive(mClient.mKeepaliveType);
                 break;
             }
@@ -933,9 +969,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(msglen, 34);
                 const char* msgdata = buf.readPtr(pos, msglen);
                 pos += msglen;
-                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %x",
-                    ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
-                    ID_CSTR(userid), keyid);
+                CHATD_LOG_DEBUG("%s: recv %s", ID_CSTR(chatid),
+                    MsgCommand::toString(opcode, msgid, userid, updated, keyid).c_str());
 
                 std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated, msgdata, msglen, false, keyid));
                 msg->setEncrypted(1);
@@ -1071,6 +1106,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
+                CHATD_LOG_DEBUG("%s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 mClient.chats(chatid).onInCall(userid, clientid);
                 break;
             }
@@ -1080,6 +1116,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
+                CHATD_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 mClient.chats(chatid).onEndCall(userid, clientid);
                 mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
                 break;
@@ -1088,19 +1125,24 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_RTMSG_USER:
             case OP_RTMSG_BROADCAST:
             {
-                size_t cmdstart = pos-1; //pos points after opcode
-                //chatid.8 userid.8 clientid.4 len.2 data.len
-                pos += 20;
+                READ_CHATID(0);
+                size_t cmdstart = pos-9; //pos points after opcode
+                //opcode.1 chatid.8 userid.8 clientid.4 len.2 data.len
+                pos += 12;
                 READ_16(payloadLen, 20);
                 pos+=payloadLen; //skip the payload
+                auto& chat = mClient.chats(chatid);
+                StaticBuffer cmd(buf.buf()+cmdstart, 23+payloadLen);
+                CHATD_LOG_DEBUG("%s: recv %s", ID_CSTR(chatid), ::rtcModule::rtmsgCommandToString(cmd).c_str());
                 if (mClient.mRtcHandler)
                 {
-                    mClient.mRtcHandler->handleMessage(*this, StaticBuffer(buf.buf()+cmdstart, 22+payloadLen));
+                    mClient.mRtcHandler->handleMessage(chat, cmd);
                 }
                 break;
             }
             case OP_CLIENTID:
             {
+                // clientid.4 reserved.4
                 READ_32(clientid, 0);
                 mClientId = clientid;
                 CHATD_LOG_DEBUG("recv CLIENTID - 0x%04x", clientid);
@@ -2753,7 +2795,10 @@ void Chat::sendTypingNotification()
 void Chat::handleBroadcast(karere::Id from, uint8_t type)
 {
     if (type == Command::kBroadcastUserTyping)
+    {
+        CHATID_LOG_DEBUG("recv BROADCAST kBroadcastUserTyping");
         CALL_LISTENER(onUserTyping, from);
+    }
 }
 
 

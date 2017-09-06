@@ -289,7 +289,7 @@ class Connection;
 class IRtcHandler
 {
 public:
-    virtual void handleMessage(Connection& shard, const StaticBuffer& msg) {}
+    virtual void handleMessage(Chat& chat, const StaticBuffer& msg) {}
     virtual void onShutdown() {}
     virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid) {}
     virtual void onDisconnect(chatd::Connection& conn) {}
@@ -321,7 +321,6 @@ public:
 protected:
     Client& mClient;
     int mShardNo;
-    ClientId mClientId = 0;
     std::set<karere::Id> mChatIds;
     ws_t mWebSocket = nullptr;
     State mState = kStateNew;
@@ -332,7 +331,9 @@ protected:
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mDisconnectPromise;
     promise::Promise<void> mLoginPromise;
-    Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
+    uint64_t mIdentity; // seed for CLIENTID
+    uint32_t mClientId = 0;
+    Connection(Client& client, int shardNo);
     static void websockConnectCb(ws_t ws, void* arg);
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
         size_t reason_len, void *arg);
@@ -350,6 +351,7 @@ protected:
     void resendPending();
     void join(karere::Id chatid);
     void hist(karere::Id chatid, long count);
+    bool sendCommand(Command&& cmd); // used internally only for OP_HELLO
     void execCommand(const StaticBuffer& buf);
     bool sendKeepalive(uint8_t opcode);
     friend class Client;
@@ -362,7 +364,6 @@ public:
     }
     const std::set<karere::Id>& chatIds() const { return mChatIds; }
     uint32_t clientId() const { return mClientId; }
-    bool sendCommand(Command&& cmd); //needed to be bublic for webrtc, and used internally only for OP_HELLO
     promise::Promise<void> retryPendingConnection();
     ~Connection()
     {
@@ -624,12 +625,6 @@ protected:
     void onLastReceived(karere::Id msgid);
     void onLastSeen(karere::Id msgid);
     void handleLastReceivedSeen(karere::Id msgid);
-    // As sending data over libws is destructive to the buffer, we have two versions
-    // of sendCommand - the one with the rvalue reference is picked by the compiler
-    // whenever the command object is a temporary, avoiding copying the buffer,
-    // and the const reference one is picked when the Command object has to be preserved
-    bool sendCommand(Command&& cmd);
-    bool sendCommand(const Command& cmd);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
     SendingItem* postMsgToSending(uint8_t opcode, Message* msg);
@@ -998,6 +993,17 @@ public:
      */
     static uint64_t generateRefId(const ICrypto* aCrypto);
     Message *getManualSending(uint64_t rowid, chatd::ManualSendReason& reason);
+    /** @brief Sends a command in the chatroom. This method needs to be public
+     * only because webrtc needs to use it.
+     @note Sending data over libws is destructive to the buffer - the websocket
+     * protocol requires it to be xor-ed, and that is done in-place. So, we have
+     * two versions of \c sendCommand() - the one with the rvalue reference is
+     * picked by the compiler whenever the command object is a temporary, avoiding
+     * copying the buffer, and the const reference one is picked when the Command
+     * object is read-only and has to be preserved
+     */
+    bool sendCommand(Command&& cmd);
+    bool sendCommand(const Command& cmd);
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);

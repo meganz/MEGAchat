@@ -45,6 +45,7 @@ class RtcModule;
 namespace chatd
 {
     class Connection;
+    class Chat;
     class Client;
 }
 
@@ -120,6 +121,8 @@ static inline bool isTermError(TermCode code)
     return (code & 0x7f) >= TermCode::kErrorFirst;
 }
 const char* termCodeToStr(uint8_t code);
+const char* rtcmdTypeToStr(uint8_t type);
+std::string rtmsgCommandToString(const StaticBuffer& data);
 
 class ISessionHandler
 {
@@ -198,8 +201,8 @@ public:
     enum: uint8_t
     {
         kStateWaitSdpOffer, // < Session just created, waiting for SDP offer from initiator
-        kStateWaitSdpAnswer, // < SDP offer has been sent by initiator, waniting for SDP answer
         kStateWaitLocalSdpAnswer, // < Remote SDP offer has been set, and we are generating SDP answer
+        kStateWaitSdpAnswer, // < SDP offer has been sent by initiator, waniting for SDP answer
         kStateInProgress,
         kStateTerminating, // < Session is in terminate handshake
         kStateDestroyed // < Session object is not valid anymore
@@ -231,8 +234,7 @@ public:
     const char* stateStr() const { return stateToStr(mState); }
 protected:
     RtcModule& mManager;
-    karere::Id mChatid;
-    chatd::Connection& mShard;
+    chatd::Chat& mChat;
     karere::Id mId;
     uint8_t mState;
     bool mIsGroup;
@@ -240,19 +242,18 @@ protected:
     ICallHandler* mHandler;
     karere::Id mCallerUser;
     uint32_t mCallerClient;
-    ICall(RtcModule& rtcModule, karere::Id chatid, chatd::Connection& shard,
+    ICall(RtcModule& rtcModule, chatd::Chat& chat,
         karere::Id callid, bool isGroup, bool isJoiner, ICallHandler* handler,
         karere::Id callerUser, uint32_t callerClient)
-    : WeakReferenceable<ICall>(this), mManager(rtcModule), mChatid(chatid),
-      mShard(shard), mId(callid), mIsGroup(isGroup), mIsJoiner(isJoiner),
+    : WeakReferenceable<ICall>(this), mManager(rtcModule),
+      mChat(chat), mId(callid), mIsGroup(isGroup), mIsJoiner(isJoiner),
       mHandler(handler), mCallerUser(callerUser), mCallerClient(callerClient)
     {}
 public:
-    chatd::Connection& shard() const { return mShard; }
+    chatd::Chat& chat() const { return mChat; }
     RtcModule& manager() const { return mManager; }
     uint8_t state() const { return mState; }
     karere::Id id() const { return mId; }
-    karere::Id chatid() const { return mChatid; }
     bool isCaller() const { return !mIsJoiner; }
     karere::Id caller() const { return mCallerUser; }
     uint32_t callerClient() const { return mCallerClient; }
