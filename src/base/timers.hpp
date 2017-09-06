@@ -57,7 +57,7 @@ struct TimerMsg: public megaMessage
 #ifdef USE_LIBWEBSOCKETS
     void init_uv_timer(void *ctx, uv_timer_t *timer);
 #else
-    struct event_base *get_ev_loop(void *ctx);
+    eventloop *get_ev_loop(void *ctx);
 #endif
     
 template <int persist, class CB>
