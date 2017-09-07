@@ -122,6 +122,7 @@ void MegaChatApiImpl::loop()
         if (threadExit)
         {
             //TODO: Check why there could be pending events here if the cleanup was correct
+            assert(eventQueue.isEmpty());
             sendPendingEvents();
 
             sdkMutex.unlock();
@@ -2765,6 +2766,17 @@ void* EventQueue::pop()
     events.pop_front();
     mutex.unlock();
     return event;
+}
+
+bool EventQueue::isEmpty()
+{
+    bool ret;
+
+    mutex.lock();
+    ret = events.empty();
+    mutex.unlock();
+
+    return ret;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener *listener)
