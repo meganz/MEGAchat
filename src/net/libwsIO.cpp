@@ -53,7 +53,10 @@ void LibwsIO::addevents(::mega::Waiter* waiter, int)
 
 WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)
 {
-    addevents(NULL, 0);
+    if (!initialized)   // check required for compatibility with Qt app, which is not initialized by default
+    {
+        addevents(NULL, 0);
+    }
 
     int result;
     LibwsClient *libwsClient = new LibwsClient(mutex, client, appCtx);
