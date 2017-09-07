@@ -175,9 +175,9 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
         }
         else
         {
+            disconnecting = false;
             WEBSOCKETS_LOG_DEBUG("Already disconnecting from libwebsockets");
         }
-        disconnecting = false;
     }
     else
     {

@@ -63,7 +63,8 @@ WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int p
     
     result = ws_init(&libwsClient->mWebSocket, &wscontext);
     if (result)
-    {
+    {        
+        WEBSOCKETS_LOG_DEBUG("Failed to initialize libws at wsConnect()");
         delete libwsClient;
         return NULL;
     }
@@ -102,6 +103,7 @@ WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int p
     
     if (result)
     {
+        WEBSOCKETS_LOG_DEBUG("Failed to connect with libws");
         delete libwsClient;
         return NULL;
     }
