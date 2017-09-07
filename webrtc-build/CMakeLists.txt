@@ -20,12 +20,7 @@ set(webrtcBuild "${webrtcRoot}/out/${WEBRTC_BUILD_TYPE}/obj")
 
 set(optWebrtcShared 0 CACHE BOOL "Build webrtc as shared lib")
 
-file(GLOB_RECURSE WEBRTC_LIBS "${webrtcBuild}/../*${CMAKE_STATIC_LIBRARY_SUFFIX}")
-if (NOT APPLE)
-    list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../obj/webrtc/modules/libvideo_capture${CMAKE_STATIC_LIBRARY_SUFFIX}") # The external capture interface
-else()
-    list(REMOVE_ITEM WEBRTC_LIBS "${webrtcBuild}/../libvideo_capture${CMAKE_STATIC_LIBRARY_SUFFIX}") # The external capture interface
-endif()
+set(WEBRTC_LIBS "${webrtcBuild}/webrtc/libwebrtc${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
 set(WEBRTC_DEFS -DV8_DEPRECATION_WARNINGS -DUSE_LIBJPEG_TURBO=1 -DCHROMIUM_BUILD
  -DENABLE_WEBRTC=1 -DENABLE_CONFIGURATION_POLICY -DENABLE_AUTOFILL_DIALOG=1

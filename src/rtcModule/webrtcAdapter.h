@@ -1,12 +1,15 @@
 #pragma once
-#include <webrtc/base/common.h>
-#include <webrtc/base/scoped_ref_ptr.h>
+//#include <p2p/base/common.h>
+#include <rtc_base/scoped_ref_ptr.h>
 #include <webrtc/api/peerconnectioninterface.h>
 #include <webrtc/api/jsep.h>
-#include <webrtc/api/peerconnectionfactory.h>
+#include <webrtc/media/base/device.h>
+#include <webrtc/media/base/videosourceinterface.h>
+#include <webrtc/pc/peerconnectionfactory.h>
 #include <webrtc/api/mediastream.h>
-#include <webrtc/api/audiotrack.h>
-#include <webrtc/api/videotrack.h>
+#include <webrtc/api/mediastreaminterface.h>
+#include <webrtc/pc/audiotrack.h>
+#include <webrtc/pc/videotrack.h>
 #include <webrtc/api/test/fakeconstraints.h>
 #include <webrtc/api/jsepsessiondescription.h>
 #include "base/gcmpp.h"
@@ -249,12 +252,12 @@ protected:
       {
           RTCM_DO_CALLBACK(mHandler.onError(), this);
       }
-      virtual void OnAddStream(webrtc::MediaStreamInterface* stream)
+      virtual void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
       {
           tspMediaStream spStream(stream);
           RTCM_DO_CALLBACK(mHandler.onAddStream(spStream), this, spStream);
       }
-      virtual void OnRemoveStream(webrtc::MediaStreamInterface* stream)
+      virtual void OnRemoveStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
       {
           tspMediaStream spStream(stream);
           RTCM_DO_CALLBACK(mHandler.onRemoveStream(spStream), this, spStream);
@@ -280,7 +283,7 @@ protected:
       {
           RTCM_DO_CALLBACK(mHandler.onRenegotiationNeeded(), this);
       }
-      virtual void OnDataChannel(webrtc::DataChannelInterface* data_channel)
+      virtual void OnDataChannel(scoped_refptr<webrtc::DataChannelInterface> data_channel)
       {
           rtc::scoped_refptr<webrtc::DataChannelInterface> chan(data_channel);
           RTCM_DO_CALLBACK(mHandler.onDataChannel(chan), this, chan);
@@ -392,7 +395,7 @@ private:
 protected:
     typedef InputDeviceShared<T,S> This;
     typedef T Track;
-    std::shared_ptr<cricket::DeviceManagerInterface> mManager;
+    DeviceManager& mManager;
     void refSource() { mRefCount++; }
     void unrefSource()
     {
@@ -405,8 +408,7 @@ protected:
     Track* createTrack();
     friend class TrackHandle<This>;
 public:
-    InputDeviceShared(const std::shared_ptr<cricket::DeviceManagerInterface>& manager,
-            const std::shared_ptr<MediaGetOptions>& options)
+    InputDeviceShared(DeviceManager& manager, const std::shared_ptr<MediaGetOptions>& options)
     : mOptions(options), mManager(manager) { assert(mManager && mOptions); }
     ~InputDeviceShared()
     {
@@ -429,8 +431,7 @@ protected:
 public:
     const MediaGetOptions& mediaOptions() const { return *Base::get()->mOptions; }
     InputDevice(): Base(nullptr){}
-    InputDevice(const std::shared_ptr<cricket::DeviceManagerInterface>& manager,
-        const std::shared_ptr<MediaGetOptions>& options)
+    InputDevice(DeviceManager& manager, const std::shared_ptr<MediaGetOptions>& options)
         : Base(std::make_shared<InputDeviceShared<T,S>>(manager, options)){}
 
     std::shared_ptr<Handle> getTrack()
@@ -442,7 +443,7 @@ public:
     }
 };
 typedef InputDevice<webrtc::AudioTrackInterface, webrtc::AudioSourceInterface> InputAudioDevice;
-typedef InputDevice<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface> InputVideoDevice;
+typedef InputDevice<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInterface> InputVideoDevice;
 
 template<class T>
 inline TrackHandle<T>::TrackHandle(const T& device, typename T::Shared::Track* track)
@@ -505,7 +506,7 @@ public:
     operator const webrtc::MediaStreamInterface*() const { return mStream; }
 };
 
-class DeviceManager: public std::shared_ptr<cricket::DeviceManagerInterface>
+class DeviceManager
 {
 public:
     struct InputDevices
@@ -514,21 +515,12 @@ public:
         DeviceList video;
     };
 protected:
-    typedef std::shared_ptr<cricket::DeviceManagerInterface> Base;
     InputDevices mInputDevices;
 public:
     DeviceManager()
-        :Base(cricket::DeviceManagerFactory::Create())
     {
-        if (!get()->Init())
-        {
-            reset();
-            throw std::runtime_error("Can't create device manager");
-        }
         enumInputDevices();
     }
-    DeviceManager(const DeviceManager& other)
-    :Base(other){}
     const InputDevices& inputDevices() const {return mInputDevices;}
     void enumInputDevices();
     InputAudioDevice getUserAudio(const std::shared_ptr<MediaGetOptions>& options)

@@ -1,6 +1,8 @@
 #ifndef STREAMPLAYER_H
 #define STREAMPLAYER_H
 #include <webrtc/api/mediastreaminterface.h>
+#include <webrtc/api/video/i420_buffer.h>
+#include <libyuv/convert.h>
 #include <IVideoRenderer.h>
 #include "base/gcm.h"
 #include "webrtcAdapter.h"
@@ -10,7 +12,7 @@ namespace artc
 {
 typedef rtcModule::IVideoRenderer IVideoRenderer;
 
-class StreamPlayer: public webrtc::VideoRendererInterface
+class StreamPlayer: public rtc::VideoSinkInterface<webrtc::VideoFrame>
 {
 protected:
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
@@ -65,7 +67,10 @@ public:
             return;
         mMediaStartSignalled = false;
         if (mVideo.get())
-            mVideo->AddRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
+        {
+            rtc::VideoSinkWants opts;
+            mVideo->AddOrUpdateSink(static_cast<rtc::VideoSinkInterface<webrtc::VideoFrame>*>(this), opts);
+        }
         if (mAudio.get())
         {}//TODO: start audio playback
         mPlaying = true;
@@ -76,7 +81,7 @@ public:
         if(!mPlaying)
             return;
         if (mVideo.get())
-            mVideo->RemoveRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
+            mVideo->RemoveSink(static_cast<rtc::VideoSinkInterface<webrtc::VideoFrame>*>(this));
         if (mAudio.get())
         {}//TODO: Stop audio playback
         mPlaying = false;
@@ -108,7 +113,10 @@ public:
         mVideo = video;
         mRenderer->onVideoAttach();
         if (mPlaying)
-            mVideo->AddRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
+        {
+            rtc::VideoSinkWants opts;
+            mVideo->AddOrUpdateSink(static_cast<rtc::VideoSinkInterface<webrtc::VideoFrame>*>(this), opts);
+        }
     }
     bool isVideoAttached() const { return mVideo.get() != nullptr; }
     bool isAudioAttached() const { return mAudio.get() != nullptr; }
@@ -117,7 +125,7 @@ public:
         if (!mVideo.get())
             return;
         if (mPlaying)
-            mVideo->RemoveRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
+            mVideo->RemoveSink(static_cast<rtc::VideoSinkInterface<webrtc::VideoFrame>*>(this));
         mRenderer->onVideoDetach();
         mRenderer->clearViewport();
         mVideo = NULL;
@@ -153,16 +161,9 @@ public:
         });
         mRenderer = nullptr;
     }
-//VideoRendererInterface implementation
-    virtual void SetSize(int width, int height)
+//rtc::VideoSinkInterface<webrtc::VideoFrame> implementation
+    virtual void OnFrame(const webrtc::VideoFrame& frame)
     {
-        //IRenderer must check size every time getImageBuffer() is called
-    }
-
-    void RenderFrame(const cricket::VideoFrame* frame)
-    {
-        if (!mRenderer)
-            return; //maybe about to be destroyed
         if (!mMediaStartSignalled)
         {
             mMediaStartSignalled = true;
@@ -176,14 +177,24 @@ public:
                 });
             }
         }
-        unsigned short width = frame->GetWidth();
-        unsigned short height = frame->GetHeight();
-        int bufSize = width*height*4;
+        if (!mRenderer)
+            return; //no renderer
+
         void* userData = NULL;
+        rtc::scoped_refptr<webrtc::I420BufferInterface> buffer(
+            frame.video_frame_buffer()->ToI420());
+        if (frame.rotation() != webrtc::kVideoRotation_0)
+        {
+            buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+        }
+        unsigned short width = buffer->width();
+        unsigned short height = buffer->height();
         unsigned char* frameBuf = mRenderer->getImageBuffer(width, height, &userData);
-        if (!frameBuf)
-            return; //used by null renderer
-        frame->ConvertToRgbBuffer(cricket::FOURCC_ARGB, frameBuf, bufSize, width*4);
+        assert(frameBuf);
+        libyuv::I420ToARGB(buffer->DataY(), buffer->StrideY(),
+                           buffer->DataU(), buffer->StrideU(),
+                           buffer->DataV(), buffer->StrideV(),
+                           frameBuf, width * 4, width, height);
         mRenderer->frameComplete(userData);
     }
 };
