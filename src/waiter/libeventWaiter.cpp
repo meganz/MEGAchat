@@ -17,7 +17,7 @@ LibeventWaiter::LibeventWaiter()
     eventloop = event_base_new();
     evthread_make_base_notifiable(eventloop);
     
-    struct event* keepalive = evtimer_new(eventloop, keepalive_cb, NULL);
+    keepalive = evtimer_new(eventloop, keepalive_cb, NULL);
     struct timeval tv;
     tv.tv_sec = 123456;//0x7FFFFFFF;
     tv.tv_usec = 0;
@@ -26,7 +26,15 @@ LibeventWaiter::LibeventWaiter()
 
 LibeventWaiter::~LibeventWaiter()
 {
-
+    if (keepalive)
+    {
+        evtimer_del(keepalive);
+        event_free(keepalive);
+    }
+    if (eventloop)
+    {
+        event_base_free(eventloop);
+    }
 }
 
 void LibeventWaiter::init(dstime ds)
