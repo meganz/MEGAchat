@@ -1199,10 +1199,12 @@ void PeerChatRoom::connect()
     });
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handler)
 {
     return parent.client.rtc->startCall(chatid(), av, handler);
 }
+#endif
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {

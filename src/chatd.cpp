@@ -593,7 +593,7 @@ string Command::toString(const StaticBuffer& data)
             return "INCALL";
         case OP_ENDCALL:
             return "ENDCALL";
-#ifndef KARERE_DIABLE_WEBRTC
+#ifndef KARERE_DISABLE_WEBRTC
         case OP_RTMSG_ENDPOINT:
         case OP_RTMSG_USER:
         case OP_RTMSG_BROADCAST:
@@ -1127,10 +1127,12 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 size_t cmdstart = pos-9; //pos points after opcode
+                (void)cmdstart; //disable unused var warning if webrtc is disabled
                 //opcode.1 chatid.8 userid.8 clientid.4 len.2 data.len
                 pos += 12;
                 READ_16(payloadLen, 20);
                 pos+=payloadLen; //skip the payload
+#ifndef KARERE_DISABLE_WEBRTC
                 auto& chat = mClient.chats(chatid);
                 StaticBuffer cmd(buf.buf()+cmdstart, 23+payloadLen);
                 CHATD_LOG_DEBUG("%s: recv %s", ID_CSTR(chatid), ::rtcModule::rtmsgCommandToString(cmd).c_str());
@@ -1138,6 +1140,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                 {
                     mClient.mRtcHandler->handleMessage(chat, cmd);
                 }
+#else
+                CHATD_LOG_DEBUG("%s: recv %s", ID_CSTR(chatid), Command::opcodeToStr(opcode));
+#endif
                 break;
             }
             case OP_CLIENTID:

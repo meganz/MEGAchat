@@ -2909,7 +2909,10 @@ void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(rtcModule::ICall& call)
-:mCall(&call), peer(call.caller())
+:mCall(&call)
+#ifndef KARERE_DISABLE_WEBRTC
+ , peer(call.caller())
+#endif
 {
     status = 0;
     tag = 0;

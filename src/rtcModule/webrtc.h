@@ -27,11 +27,11 @@ class IVideoRenderer;
 class IGlobalHandler {};
 class ICallHandler {};
 class ISessionHandler {};
-class IRtcCrypto {};
 class ISession {};
 class ICall {};
 class IRtcModule;
 class RtcModule;
+typedef uint8_t TermCode;
 }
 
 #else
