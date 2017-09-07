@@ -48,15 +48,10 @@
 #ifdef USE_LIBWEBSOCKETS
 
 #include "net/libwebsocketsIO.h"
-typedef LibwebsocketsIO MegaWebsocketsIO;
-
-#ifdef LWS_USE_LIBUV
 #include "waiter/libuvWaiter.h"
+
+typedef LibwebsocketsIO MegaWebsocketsIO;
 typedef ::mega::LibuvWaiter MegaChatWaiter;
-#else
-#include "waiter/libwebsocketsWaiter.h"
-typedef ::mega::LibwebsocketsWaiter MegaChatWaiter;
-#endif
 
 #else
 

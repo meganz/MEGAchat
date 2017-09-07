@@ -1,10 +1,5 @@
 #include "net/libwebsocketsIO.h"
-
-#ifdef LWS_USE_LIBUV
 #include "waiter/libuvWaiter.h"
-#else
-#include "waiter/libwebsocketsWaiter.h"
-#endif
 
 #include <mega/http.h>
 #include <assert.h>
@@ -55,7 +50,6 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 {    
     if (!initialized)
     {
-#ifdef LWS_USE_LIBUV
         ::mega::LibuvWaiter *libuvWaiter = dynamic_cast<::mega::LibuvWaiter *>(waiter);
         if (!libuvWaiter)
         {
@@ -63,15 +57,7 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
         }
         lws_uv_initloop(wscontext, libuvWaiter->eventloop, 0);
         WEBSOCKETS_LOG_DEBUG("Libwebsockets is using libuv");
-#else
-        ::mega::LibwebsocketsWaiter *websocketsWaiter = dynamic_cast<::mega::LibwebsocketsWaiter *>(waiter);
-        if (!websocketsWaiter)
-        {
-            exit(0);
-        }
-        websocketsWaiter->wscontext = wscontext;
-        WEBSOCKETS_LOG_DEBUG("Libwebsockets is using its own event loop");
-#endif
+
         initialized = true;
     }
 }
