@@ -258,7 +258,7 @@ Promise<void> Connection::reconnect(const std::string& url)
 {
     try
     {
-        if (mState >= kStateConnecting) //would be good to just log and return, but we have to return a promise
+        if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
             throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
         if (!url.empty())
         {
