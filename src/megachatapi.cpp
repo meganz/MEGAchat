@@ -450,9 +450,9 @@ void MegaChatApi::answerChatCall(MegaChatCall *call, bool accept, MegaChatReques
     pImpl->answerChatCall(call, accept, listener);
 }
 
-void MegaChatApi::hangAllChatCalls()
+void MegaChatApi::hangAllChatCalls(MegaChatRequestListener *listener)
 {
-    pImpl->hangAllChatCalls();
+    pImpl->hangAllChatCalls(listener);
 }
 
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)

@@ -2269,7 +2269,7 @@ public:
     // Call management
     void startChatCall(mega::MegaUser *peer, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
     void answerChatCall(MegaChatCall *call, bool accept, MegaChatRequestListener *listener = NULL);
-    void hangAllChatCalls();
+    void hangAllChatCalls(MegaChatRequestListener *listener = NULL);
 
     // Listeners
     /**
