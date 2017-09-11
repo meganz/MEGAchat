@@ -1361,7 +1361,7 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
     }
 
     auto wptr = weakHandle();
-    mNameMemberResolved = promise::when(promises)
+    mMemberNamesResolved = promise::when(promises)
     .then([wptr, this]()
     {
         wptr.throwIfDeleted();
@@ -1409,9 +1409,9 @@ void GroupChatRoom::connect()
     });
 }
 
-promise::Promise<void> GroupChatRoom::nameMemberResolved() const
+promise::Promise<void> GroupChatRoom::memberNamesResolved() const
 {
-    return mNameMemberResolved;
+    return mMemberNamesResolved;
 }
 
 IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
@@ -1871,7 +1871,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
         auto wptr = weakHandle();
         // If there is not any promise at vector promise, promise::when is resolved directly
-        mNameMemberResolved = promise::when(promises)
+        mMemberNamesResolved = promise::when(promises)
         .then([wptr, this]()
         {
             wptr.throwIfDeleted();
@@ -2446,11 +2446,12 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         {
             self->mNameResolved.resolve();
         }
-        else if (self->mRoom.nameMemberResolved().done())
+        else if (self->mRoom.memberNamesResolved().done())
         {
             self->mRoom.makeTitleFromMemberNames();
         }
     });
+
     mEmailAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(
         user, USER_ATTR_EMAIL, this,
         [](Buffer* buf, void* userp)
@@ -2459,16 +2460,9 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         if (buf && !buf->empty())
         {
             self->mEmail.assign(buf->buf(), buf->dataSize());
-            if (self->mName.size() <= 1)
+            if (self->mName.size() <= 1 && self->mRoom.memberNamesResolved().done())
             {
-                if (!self->mNameResolved.done())
-                {
-                    self->mNameResolved.resolve();
-                }
-                else if (self->mRoom.nameMemberResolved().done())
-                {
-                    self->mRoom.makeTitleFromMemberNames();
-                }
+                self->mRoom.makeTitleFromMemberNames();
             }
         }
     });
