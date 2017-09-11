@@ -3480,9 +3480,14 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason re
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onOnlineStateChange(ChatState)
+void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
 {
     // apps not interested about this event
+    if (mRoom)
+    {
+        int newState = MegaChatApiImpl::convertChatConnectionState(state);
+        chatApi->fireOnChatConnectionStateUpdate(mRoom->chatid(), newState);
+    }
 }
 
 void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
