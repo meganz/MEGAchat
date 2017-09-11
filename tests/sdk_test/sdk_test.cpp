@@ -148,7 +148,7 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
 
     // 4. Connect to chat servers
     bool *flagRequestConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
-    mChatConnectionOnline[accountIndex] = false;
+    mChatConnectionUpdated[accountIndex] = false;
     megaChatApi[accountIndex]->connect();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect to chat. Error: " + std::to_string(lastErrorChat[accountIndex]));
@@ -272,7 +272,7 @@ void MegaChatApiTest::SetUp()
 
         initStateChanged[i] = false;
         initState[i] = -1;
-        mChatConnectionOnline[i] = false;
+        mChatConnectionUpdated[i] = false;
         lastError[i] = -1;
         lastErrorChat[i] = -1;
         lastErrorMsgChat[i].clear();
@@ -1065,7 +1065,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatItemJoined1 = &chatItemUpdated[a2]; *chatItemJoined1 = false;
     bool *chatJoined0 = &chatroomListener->chatUpdated[a1]; *chatJoined0 = false;
     bool *chatJoined1 = &chatroomListener->chatUpdated[a2]; *chatJoined1 = false;
-    bool *flagChatdOnline = &mChatConnectionOnline[a2]; *flagChatdOnline = false;   // need to reconnect after rejoin
+    bool *flagChatdConState = &mChatConnectionUpdated[a2]; *flagChatdConState = false;   // need to reconnect after rejoin
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
@@ -1098,8 +1098,8 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     while (megaChatApi[a2]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
     {
         postLog("Waiting for connection to chatd before proceeding with test...");
-        ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline), "Timeout expired for connecting to chatd");
-        *flagChatdOnline = false;
+        ASSERT_CHAT_TEST(waitForResponse(flagChatdConState), "Timeout expired for connecting to chatd");
+        *flagChatdConState = false;
     }
 
     // --> Set title
@@ -2036,12 +2036,12 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
     // first of all, ensure the chatd connection is ready
-    bool *flagChatdOnline = &mChatConnectionOnline[accountIndex]; *flagChatdOnline = false;
+    bool *flagChatdConState = &mChatConnectionUpdated[accountIndex]; *flagChatdConState = false;
     while (megaChatApi[accountIndex]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
     {
         postLog("Attempt to load history when still offline. Waiting for connection...");
-        ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline), "Timeout expired for connecting to chatd");
-        *flagChatdOnline = false;
+        ASSERT_CHAT_TEST(waitForResponse(flagChatdConState), "Timeout expired for connecting to chatd");
+        *flagChatdConState = false;
     }
 
     chatroomListener->msgCount[accountIndex] = 0;
@@ -2778,7 +2778,7 @@ void MegaChatApiTest::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPrese
 void MegaChatApiTest::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int state)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    mChatConnectionOnline[apiIndex] = (state == MegaChatApi::CHAT_CONNECTION_ONLINE);
+    mChatConnectionUpdated[apiIndex] = true;
 }
 
 void MegaChatApiTest::onTransferStart(MegaApi *api, MegaTransfer *transfer)
