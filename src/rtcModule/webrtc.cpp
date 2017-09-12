@@ -1241,6 +1241,7 @@ Session::Session(Call& call, RtMessage& packet)
 {
     // Packet can be RTCMD_JOIN or RTCMD_SESSION
     call.mManager.random(mOwnSdpKey);
+    printf("============== own sdp key: %s\n", StaticBuffer(mOwnSdpKey.data, sizeof(mOwnSdpKey.data)).toString().c_str());
     if (packet.type == RTCMD_JOIN)
     {
         // peer will send offer
@@ -1498,7 +1499,7 @@ void Session::msgSdpOfferSendAnswer(RtMessage& packet)
     // SDP_OFFER sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
     if (mState != Session::kStateWaitSdpOffer)
     {
-        SUB_LOG_WARNING("Ingoring unexpected SDP offer while in state %s", stateStr());
+        SUB_LOG_WARNING("Ignoring unexpected SDP offer while in state %s", stateStr());
         return;
     }
     assert(!mIsJoiner);
@@ -1683,7 +1684,6 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
     return pms
     .then([wptr, this, code, msg]()
     {
-        SUB_LOG_ERROR("terminate promise resolved, destroying session");
         destroy(code, msg);
     });
 }
@@ -1780,7 +1780,6 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
 // we actually verify the whole SDP, not just the fingerprints
 bool Session::verifySdpFingerprints(const std::string& sdp, const SdpKey& peerHash)
 {
-    return true;
     SdpKey hash;
     mCall.mManager.crypto().mac(sdp, mOwnSdpKey, hash);
     bool match = true; // constant time compare
