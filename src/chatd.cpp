@@ -1112,12 +1112,7 @@ void Chat::onHistDone()
     }
     if(mOnlineState == kChatStateJoining)
     {
-        CHATD_LOG_DEBUG("Hist done received, kChatStateJoining --> kChatStateOnline");
         onJoinComplete();
-    }
-    else
-    {
-        CHATD_LOG_DEBUG("Hist done received, but not during kChatStateJoining. No transition to kChatStateOnline");
     }
 }
 
