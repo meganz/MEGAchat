@@ -3482,7 +3482,6 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason re
 
 void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
 {
-    // apps not interested about this event
     if (mRoom)
     {
         int newState = MegaChatApiImpl::convertChatConnectionState(state);
