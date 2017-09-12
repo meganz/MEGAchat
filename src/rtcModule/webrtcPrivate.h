@@ -35,7 +35,7 @@ protected:
     std::unique_ptr<stats::Recorder> mStatRecorder;
     megaHandle mSetupTimer = 0;
     time_t mTsIceConn = 0;
-    std::unique_ptr<promise::Promise<void>> mTerminatePromise;
+    promise::Promise<void> mTerminatePromise;
     bool mVideoReceived = false;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
@@ -56,11 +56,12 @@ protected:
     template<class... Args>
     bool cmd(uint8_t type, Args... args);
     void destroy(TermCode code, const std::string& msg="");
-    void asyncDestroy(TermCode code);
+    void asyncDestroy(TermCode code, const std::string& msg="");
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
 public:
     Session(Call& call, RtMessage& packet);
+    ~Session();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }
     virtual bool videoReceived() const { return mVideoReceived; }
     //PeerConnection events
@@ -75,6 +76,7 @@ public:
     void onError() {}
     //====
     friend class Call;
+    friend class stats::Recorder; //needs access to mRtcConn
 };
 
 class Call: public ICall
@@ -135,6 +137,7 @@ public:
     Call(RtcModule& rtcModule, chatd::Chat& chat,
         karere::Id callid, bool isGroup, bool isJoiner, ICallHandler* handler,
         karere::Id callerUser, uint32_t callerClient);
+    ~Call();
     virtual karere::AvFlags sentAv() const;
     virtual void hangup(TermCode reason=TermCode::kInvalid);
     virtual bool answer(karere::AvFlags av);

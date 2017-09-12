@@ -15,13 +15,15 @@
 #include "base/gcmpp.h"
 #include "karereCommon.h" //only for std::string on android
 #include "base/promise.h"
+#include "webrtcAsyncWaiter.h"
 
 namespace artc
 {
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 
-extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
- gWebrtcContext;
+extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
+extern AsyncWaiter* gAsyncWaiter;
+
 struct Identity
 {
     std::string derCert;
@@ -66,7 +68,7 @@ enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
     })
 #else
 #define RTCM_DO_CALLBACK(code,...)                              \
-    assert(rtc::Thread::Current() == gAsyncWaiter.guiThread()); \
+    assert(rtc::Thread::Current() == gAsyncWaiter->guiThread()); \
     code
 #endif
 
@@ -209,6 +211,7 @@ struct MyStatsReport: public webrtc::StatsReport::Values
             return false;
         auto& val = *it->second;
         auto type = val.type();
+        printf("==============type = %d\n", type);
         if (type == Value::kInt)
             ret = val.int_val();
         else if (type == Value::kInt64)
@@ -409,7 +412,7 @@ protected:
     friend class TrackHandle<This>;
 public:
     InputDeviceShared(DeviceManager& manager, const std::shared_ptr<MediaGetOptions>& options)
-    : mOptions(options), mManager(manager) { assert(mManager && mOptions); }
+    : mOptions(options), mManager(manager) { assert(mOptions); }
     ~InputDeviceShared()
     {
         if (mRefCount)

@@ -9,7 +9,7 @@
 #define SUB_LOG_DEBUG(fmtString,...) RTCM_LOG_DEBUG("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_INFO(fmtString,...) RTCM_LOG_INFO("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_WARNING(fmtString,...) RTCM_LOG_WARNING("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
-#define SUB_LOG_ERROR(fmtString,...) RTCM_LOG_DEBUG("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
+#define SUB_LOG_ERROR(fmtString,...) RTCM_LOG_ERROR("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_EVENT(fmtString,...) RTCM_LOG_EVENT("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 
 #define CONCAT(a, b) a ## b
@@ -300,8 +300,8 @@ void RtcModule::msgCallRequest(RtMessage& packet)
     assert(ret.second);
     auto& call = ret.first->second;
     call->mHandler = mHandler.onCallIncoming(*call);
-    assert(call.mHandler);
-    assert(call.state() == Call::kStateRingIn);
+    assert(call->mHandler);
+    assert(call->state() == Call::kStateRingIn);
     cmdEndpoint(RTCMD_CALL_RINGING, packet, packet.callid);
     auto wcall = call->weakHandle();
     setTimeout([wcall]() mutable
@@ -315,8 +315,8 @@ template <class... Args>
 void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)
 {
     assert(info.chatid);
-    assert(info.fromUser);
-    assert(info.fromClient);
+    assert(info.userid);
+    assert(info.clientid);
     RtMessageComposer msg(OP_RTMSG_ENDPOINT, type, info.chatid, info.userid, info.clientid);
     msg.payloadAppend(args...);
     if (!info.chat.sendCommand(std::move(msg)))
@@ -469,7 +469,7 @@ void RtcModule::hangupAll(TermCode code)
         auto& call = item.second;
         if (call->state() == Call::kStateRingIn)
         {
-            assert(call->sessions.empty());
+            assert(call->mSessions.empty());
         }
         call->destroy(code, call->state() != Call::kStateRingIn);
     }
@@ -553,7 +553,7 @@ void Call::handleMessage(RtMessage& packet)
             return;
     }
     auto& data = packet.payload;
-    assert(data.dataLength() >= 8); // must start with sid.8
+    assert(data.dataSize() >= 8); // must start with sid.8
     auto sid = data.read<uint64_t>(0);
     auto sessIt = mSessions.find(sid);
     if (sessIt == mSessions.end())
@@ -792,6 +792,7 @@ void Call::msgJoin(RtMessage& packet)
 }
 promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
 {
+    SUB_LOG_ERROR("gracefully term all sessions");
     std::vector<promise::Promise<void>> promises;
     for (auto& item: mSessions)
     {
@@ -878,18 +879,20 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         pms = waitAllSessionsTerminated(code);
     }
     auto wptr = weakHandle();
-    mDestroyPromise = pms.then([wptr, this, code, msg]()
+    auto retPms = pms.then([wptr, this, code, msg]()
     {
         if (wptr.deleted())
             return;
         assert(mSessions.empty());
         stopIncallPingTimer();
+        mLocalPlayer.reset();
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & 0x7f),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
         mManager.removeCall(*this);
     });
-    return mDestroyPromise;
+    mDestroyPromise = retPms;
+    return retPms;
 }
 template <class... Args>
 bool Call::cmdBroadcast(uint8_t type, Args... args)
@@ -974,7 +977,7 @@ void Call::stopIncallPingTimer()
 void Call::removeSession(Session& sess, TermCode reason)
 {
     mSessions.erase(sess.mSid);
-    if (mState == Call::kStateTerminating)
+    if (mState == Call::kStateTerminating) // we already handle call termination
         return;
 
     // if no more sessions left, destroy call even if group
@@ -1125,7 +1128,10 @@ void Call::hangup(TermCode reason)
     // in any state, we just have to send CALL_TERMINATE and that's all
     destroy(reason, true);
 }
-
+Call::~Call()
+{
+    SUB_LOG_DEBUG("Destroyed");
+}
 void Call::onUserOffline(Id userid, uint32_t clientid)
 {
     if (mState == kStateRingIn && userid == mCallerUser && clientid == mCallerClient)
@@ -1253,7 +1259,7 @@ Session::Session(Call& call, RtMessage& packet)
         mIsJoiner = true;
         mSid = packet.payload.read<uint64_t>(8);
         mState = kStateWaitSdpAnswer;
-        assert(packet.payloadSize() >= 56);
+        assert(packet.payload.dataSize() >= 56);
         mPeerAnonId = packet.payload.read<uint64_t>(16);
         SdpKey encKey;
         packet.payload.read(24, encKey);
@@ -1520,15 +1526,15 @@ void Session::msgSdpOfferSendAnswer(RtMessage& packet)
         return;
     }
     mungeSdp(mPeerSdp);
-    unique_ptr<webrtc::JsepSessionDescription> jsepSdp(new webrtc::JsepSessionDescription("offer"));
     webrtc::SdpParseError error;
-    if (!jsepSdp->Initialize(mPeerSdp, &error))
+    webrtc::SessionDescriptionInterface* sdp = webrtc::CreateSessionDescription("offer", mPeerSdp, &error);
+    if (!sdp)
     {
         terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP offer: line="+error.line+"\nError: "+error.description);
         return;
     }
     auto wptr = weakHandle();
-    mRtcConn.setRemoteDescription(jsepSdp.get())
+    mRtcConn.setRemoteDescription(sdp)
     .fail([this](const promise::Error& err)
     {
         return promise::Error(err.msg(), 1, kErrSetSdp); //we signal 'remote' (i.e. protocol) error with errCode == 1
@@ -1595,9 +1601,9 @@ void Session::msgSdpAnswer(RtMessage& packet)
         return;
     }
     mungeSdp(mPeerSdp);
-    unique_ptr<webrtc::JsepSessionDescription> sdp(new webrtc::JsepSessionDescription("answer"));
     webrtc::SdpParseError error;
-    if (!sdp->Initialize(mPeerSdp, &error))
+    unique_ptr<webrtc::SessionDescriptionInterface> sdp(webrtc::CreateSessionDescription("answer", mPeerSdp, &error));
+    if (!sdp)
     {
         terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP answer: line="+error.line+"\nError: "+error.description);
         return;
@@ -1633,66 +1639,56 @@ bool Session::cmd(uint8_t type, Args... args)
     }
     return true;
 }
-void Session::asyncDestroy(TermCode code)
+void Session::asyncDestroy(TermCode code, const std::string& msg)
 {
     auto wptr = weakHandle();
-    marshallCall([this, wptr, code]()
+    marshallCall([this, wptr, code, msg]()
     {
         if (wptr.deleted())
             return;
-        destroy(code);
+        destroy(code, msg);
     });
 }
 
 Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg)
 {
     if (mState == Session::kStateTerminating)
-    {
-        if (!mTerminatePromise)
-        {
-            // state was set to Terminating, but promise was not created - this is done
-            // only by waitAllSessionsTerminated(), which will eventually time out and destroy us
-            SUB_LOG_WARNING("terminateAndDestroy: Already waiting for termination");
-            return Promise<void>(); //this promise never resolves
-        }
-        else
-        {
-            return *mTerminatePromise;
-        }
-    }
-    else if (mState == kStateDestroyed)
-    {
+        return mTerminatePromise;
+
+    if (mState == kStateDestroyed)
         return promise::_Void();
-    }
 
     if (!msg.empty())
     {
         SUB_LOG_ERROR("Terminating due to: %s", msg.c_str());
     }
-    assert(!mTerminatePromise);
+    assert(!mTerminatePromise.done());
     setState(kStateTerminating);
-    mTerminatePromise.reset(new Promise<void>());
     if (!cmd(RTCMD_SESS_TERMINATE, code))
     {
-        destroy(code, msg);
-        if (!mTerminatePromise->done())
+        if (!mTerminatePromise.done())
         {
-            mTerminatePromise->resolve();
+            mTerminatePromise.resolve();
         }
-        return *mTerminatePromise;
     }
     auto wptr = weakHandle();
-    setTimeout([wptr, this, code, msg]()
+    setTimeout([wptr, this]()
     {
         if (wptr.deleted() || mState != Session::kStateTerminating)
             return;
-        destroy(code, msg);
-        if (mTerminatePromise && !mTerminatePromise->done())
+        if (!mTerminatePromise.done())
         {
-            mTerminatePromise->resolve();
+            SUB_LOG_WARNING("Terminate ack didn't arrive withing timeout, destroying session anyway");
+            mTerminatePromise.resolve();
         }
     }, 1000);
-    return *mTerminatePromise;
+    auto pms = mTerminatePromise;
+    return pms
+    .then([wptr, this, code, msg]()
+    {
+        SUB_LOG_ERROR("terminate promise resolved, destroying session");
+        destroy(code, msg);
+    });
 }
 
 void Session::msgSessTerminateAck(RtMessage& packet)
@@ -1702,18 +1698,29 @@ void Session::msgSessTerminateAck(RtMessage& packet)
         SUB_LOG_WARNING("Ignoring unexpected TERMINATE_ACK");
         return;
     }
-    assert(mTerminatePromise);
-    if (!mTerminatePromise->done())
-        mTerminatePromise->resolve();
+    if (!mTerminatePromise.done())
+    {
+        // resolve() will destroy the session and mTermiatePromise promise itself.
+        // although promises are refcounted, mTerminatePromise will point to an
+        // invalid shared instance upon return from the destroying handler, i.e.
+        // 'this' will be an invalid pointer upon return from the promise handler
+        // that destroys the session, resulting in a crash inside the promise lib.
+        // Therefore, we need to do the resolve on a copy of the promise object
+        // (pointing to the same shared promise instance), that outlives the
+        // destruction of mTerminatePromise
+        auto pms = mTerminatePromise;
+        pms.resolve();
+    }
 }
 
 void Session::msgSessTerminate(RtMessage& packet)
 {
     // sid.8 termcode.1
-    assert(packet.payloadSize() >= 1);
+    assert(packet.payload.dataSize() >= 1);
     cmd(RTCMD_SESS_TERMINATE_ACK);
 
-    if (mState == kStateTerminating && mTerminatePromise) {
+    if (mState == kStateTerminating)
+    {
         // handle terminate as if it were an ack - in both cases the peer is terminating
         msgSessTerminateAck(packet);
     }
@@ -1747,6 +1754,7 @@ void Session::destroy(TermCode code, const std::string& msg)
         }
         mRtcConn.release();
     }
+    mRemotePlayer.reset();
     setState(kStateDestroyed);
     FIRE_EVENT(SESS, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
         !!(code & TermCode::kPeer), msg);
@@ -1788,6 +1796,7 @@ bool Session::verifySdpFingerprints(const std::string& sdp, const SdpKey& peerHa
 
 void Session::msgIceCandidate(RtMessage& packet)
 {
+    assert(!mPeerSdp.empty());
     // sid.8 mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
     auto mLineIdx = packet.payload.read<uint8_t>(8);
     auto midLen = packet.payload.read<uint8_t>(9);
@@ -1804,14 +1813,18 @@ void Session::msgIceCandidate(RtMessage& packet)
     std::string strCand;
     packet.payload.read(midLen + 12, candLen, strCand);
 
-    unique_ptr<webrtc::JsepIceCandidate> cand(new webrtc::JsepIceCandidate(mid, mLineIdx));
     webrtc::SdpParseError err;
-    if (!cand->Initialize(strCand, &err))
+    std::unique_ptr<webrtc::IceCandidateInterface> cand(webrtc::CreateIceCandidate(mid, mLineIdx, strCand, &err));
+    if (!cand)
         throw runtime_error("Error parsing ICE candidate:\nline: '"+err.line+"'\nError:" +err.description);
-
-    //KR_LOG_COLOR(34, "cand: mid=%s, %s\n", mid.c_str(), line.c_str());
-
-    if (!mRtcConn->AddIceCandidate(cand.release()))
+/*
+    if (!cand)
+    {
+        SUB_LOG_ERROR("NULL ice candidate");
+        return;
+    }
+*/
+    if (!mRtcConn->AddIceCandidate(cand.get()))
     {
         terminateAndDestroy(TermCode::kErrProtocol);
     }
@@ -1840,6 +1853,10 @@ void Session::mungeSdp(std::string& sdp)
         SUB_LOG_ERROR("mungeSdp: Exception: %s", e.what());
         throw;
     }
+}
+Session::~Session()
+{
+    SUB_LOG_DEBUG("Destroyed");
 }
 
 #define RET_ENUM_NAME(name) case name: return #name

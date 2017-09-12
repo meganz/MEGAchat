@@ -154,11 +154,6 @@ public:
         stop();
         detachAudio();
         detachVideo();
-        auto renderer = mRenderer;
-        karere::marshallCall([renderer]()
-        {
-            renderer->released();
-        });
         mRenderer = nullptr;
     }
 //rtc::VideoSinkInterface<webrtc::VideoFrame> implementation
@@ -189,12 +184,13 @@ public:
         }
         unsigned short width = buffer->width();
         unsigned short height = buffer->height();
-        unsigned char* frameBuf = mRenderer->getImageBuffer(width, height, &userData);
-        assert(frameBuf);
+        void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
+        if (!frameBuf) //image is frozen or app is minimized/covered
+            return;
         libyuv::I420ToARGB(buffer->DataY(), buffer->StrideY(),
                            buffer->DataU(), buffer->StrideU(),
                            buffer->DataV(), buffer->StrideV(),
-                           frameBuf, width * 4, width, height);
+                           (uint8_t*)frameBuf, width * 4, width, height);
         mRenderer->frameComplete(userData);
     }
 };

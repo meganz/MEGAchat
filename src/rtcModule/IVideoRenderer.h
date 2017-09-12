@@ -18,7 +18,7 @@ class IVideoRenderer
 {
 public:
     /**
-     * @brief getImageBuffer Called by the rtc module to get a buffer where to write
+     * @brief getImageBuffer Called by _a worker thread_ to get a buffer where to write
      * frame image data. The size of the buffer must be width*height*4. The image is
      * written in ARGB format, with 4 bytes per pixel.
      * @param width The width of the frame
@@ -27,54 +27,43 @@ public:
      * passed to \c frameComplete()
      * @return A pointer to the frame buffer where the frame will be written
      */
-    virtual unsigned char* getImageBuffer(unsigned short width,
-                                          unsigned short height, void** userData) = 0;
+    virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData) = 0;
+
     /**
-     * @brief frameComplete Called after a call to \c getImageBuffer() when the buffer
-     * is populated with a frame image. It is safe to free the buffer in this call or
-     * after it.
+     * @brief frameComplete Called _by a worker thread_ after a call to \c getImageBuffer()
+     * when the buffer is populated with a frame image. It is safe to free the buffer
+     * in this call or after it.
      * @param userData The user pointer provided to \c getImageBuffer()
      */
     virtual void frameComplete(void* userData) = 0;
+
     /**
      * @brief onVideoAttach Called when a video stream is attached to the player component
      * Frames can be expected after that point
      */
     virtual void onVideoAttach() {}
+
     /**
      * @brief onVideoDetach Called when the video stream is detached from the player
      * component.
      */
     virtual void onVideoDetach() {}
+
     /**
      * @brief clearViewport
      * Optionally implement this to clear the video viewport, i.e. set it to black when
      * there is no video stream or playback is stopped
      */
     virtual void clearViewport() {}
-    /** Called when the renderer is not needed and not referenced anymore, so that it
-     * can be safely destroyed, even from within this callback
-     * \attention Although the renderer is no longer referenced from the library,
-     * frame update messages may still be in the application's message queue (in case
-     * such is used for posting frames to the GUI). These messages may reference the
-     * renderer. To solve this, the released() callback call is posted on the
-     * application's message queue via \c mega::marshallCall(), assuming that the
-     * same message queue is used by the Call Marshaller (GCM) and the posting of frames
-     * to the GUI thread. This is usually the case, as a GUI application normally has only
-     * one, ordered, message queue.
-     * However, if this is not the case, it is the developer's responsibility
-     * to destroy the renderer safely.
-     */
-    virtual void released() {}
+
     virtual ~IVideoRenderer() {}
 };
 class NullRenderer: public IVideoRenderer
 {
 public:
-    virtual unsigned char* getImageBuffer(unsigned short width, unsigned short height, void **userData)
+    virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData)
     { return nullptr; }
-    virtual void frameComplete(void* userp){}
-    virtual void released() { delete this; } //we don't post frames to the GUI so no problem with deleting immediately
+    virtual void frameComplete(void* userp) {}
 };
 }
 #endif // IVIDEORENDERER_H

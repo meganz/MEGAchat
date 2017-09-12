@@ -228,7 +228,7 @@ void Recorder::onStats(const std::shared_ptr<artc::MyStatsReports>& data)
 
 void Recorder::start()
 {
-    assert(mSession.mPeerConn);
+    assert(mSession.mRtcConn);
     mStats->mIsCaller = mSession.isCaller();
     mStats->mCallId = mSession.call().id();
     mStats->mOwnAnonId = mSession.call().manager().ownAnonId();
@@ -237,7 +237,7 @@ void Recorder::start()
     mStats->mStartTs = karere::timestampMs();
     mTimer = setInterval([this]()
     {
-        mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
+        //mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
     }, mScanPeriod);
 }
 

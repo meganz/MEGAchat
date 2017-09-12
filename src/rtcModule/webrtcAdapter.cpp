@@ -22,7 +22,7 @@ bool init(const Identity* identity)
         return false;
 
     rtc::ThreadManager* threadMgr = rtc::ThreadManager::Instance(); //ensure the ThreadManager singleton is created
-    assert(!rtc::Thread::Current()); //NO_MAIN_THREAD_WRAPPING must be defined when building webrtc
+//    assert(!rtc::Thread::Current()); //NO_MAIN_THREAD_WRAPPING must be defined when building webrtc
 // Put our custom Thread object in the main thread, so our main thread can process
 // webrtc messages, in a non-blocking way, integrated with the application's message loop
     gAsyncWaiter = new AsyncWaiter;
