@@ -496,7 +496,7 @@ promise::Promise<void> Connection::retryPendingConnection()
     {
         mState = kStateDisconnected;
         disableInactivityTimer();
-        CHATD_LOG_WARNING("Retrying pending connection...");
+        CHATD_LOG_WARNING("Retrying pending connenction...");
         return reconnect();
     }
     return promise::Error("No valid URL provided to retry pending connections");

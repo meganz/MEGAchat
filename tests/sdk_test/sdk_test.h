@@ -78,7 +78,6 @@ private:
         } \
         catch(ChatTestException e) \
         { \
-            LOG_debug << "\n ----> FAILURE: " << e.what() << "\n"; \
             std::cout << e.what() << std::endl; \
             if (e.msg()) \
             { \
@@ -239,7 +238,7 @@ private:
     bool requestFlagsChat[NUM_ACCOUNTS][megachat::MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];
-    bool mChatConnectionUpdated[NUM_ACCOUNTS];
+    bool mChatConnectionOnline[NUM_ACCOUNTS];
     int lastError[NUM_ACCOUNTS];
     int lastErrorChat[NUM_ACCOUNTS];
     std::string lastErrorMsgChat[NUM_ACCOUNTS];
