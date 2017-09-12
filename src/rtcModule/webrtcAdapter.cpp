@@ -1,5 +1,8 @@
 #include "webrtcAdapter.h"
-#include <webrtc/base/ssladapter.h>
+#include <webrtc/rtc_base/ssladapter.h>
+#include <webrtc/modules/video_capture/video_capture_factory.h>
+#include <webrtc/modules/video_capture/video_capture.h>
+#include <webrtc/media/engine/webrtcvideocapturerfactory.h>
 #include "webrtcAsyncWaiter.h"
 
 namespace artc
@@ -19,7 +22,7 @@ bool init(const Identity* identity)
         return false;
 
     rtc::ThreadManager* threadMgr = rtc::ThreadManager::Instance(); //ensure the ThreadManager singleton is created
-    assert(!rtc::Thread::Current()); //NO_MAIN_THREAD_WRAPPING must be defined when building webrtc
+//    assert(!rtc::Thread::Current()); //NO_MAIN_THREAD_WRAPPING must be defined when building webrtc
 // Put our custom Thread object in the main thread, so our main thread can process
 // webrtc messages, in a non-blocking way, integrated with the application's message loop
     gAsyncWaiter = new AsyncWaiter;
@@ -85,20 +88,34 @@ rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
 
 void DeviceManager::enumInputDevices()
 {
-     if (!get()->GetVideoCaptureDevices(&(mInputDevices.video)))
-         throw std::runtime_error("Can't enumerate video devices");
-     get()->GetAudioInputDevices(&(mInputDevices.audio)); //normal to fail on iOS and other platforms that don't use device manager for audio devices
-//         throw std::runtime_error("Can't enumerate audio devices");
+    std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
+        webrtc::VideoCaptureFactory::CreateDeviceInfo());
+    if (!info)
+        throw std::runtime_error("Can't enumerate video devices");
+    int numDevices = info->NumberOfDevices();
+    auto& devices = mInputDevices.video;
+    for (int i = 0; i < numDevices; ++i)
+    {
+        const uint32_t kSize = 256;
+        char name[kSize] = {0};
+        char id[kSize] = {0};
+        if (info->GetDeviceName(i, name, kSize, id, kSize) != -1)
+        {
+            devices.push_back(cricket::Device(name, id));
+        }
+    }
+    // TODO: Implement audio device enumeration, when webrtc has it again
+    // Maybe VoEHardware in src/voice_engine/main/interface/voe_hardware.h
 }
 
 template<>
-void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface>::createSource()
+void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInterface>::createSource()
 {
     assert(!mSource.get());
 
+    cricket::WebRtcVideoDeviceCapturerFactory factory;
     std::unique_ptr<cricket::VideoCapturer> capturer(
-        mManager.get()->CreateVideoCapturer(mOptions->device));
-
+        factory.Create(cricket::Device(mOptions->device.name, 0)));
     if (!capturer)
         throw std::runtime_error("Could not create video capturer");
 
@@ -109,13 +126,13 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface
         throw std::runtime_error("Could not create a video source");
 }
 template<> webrtc::VideoTrackInterface*
-InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface>::createTrack()
+InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInterface>::createTrack()
 {
     assert(mSource.get());
     return gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()), mSource).release();
 }
 template<>
-void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface>::freeSource()
+void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInterface>::freeSource()
 {
     if (!mSource)
         return;

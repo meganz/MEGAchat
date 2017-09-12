@@ -116,20 +116,11 @@ void CallGui::onPeerMute(AvFlags state, AvFlags oldState)
     else
         ui.remoteRenderer->enableStaticImage();
 }
-/*
-void CallGui::onMediaRecv(rtcModule::stats::Options& statOptions)
+
+void CallGui::onVideoRecv()
 {
     ui.remoteRenderer->disableStaticImage();
-    statOptions.onSample = [](void* data, int type)
-    {
-        if (type != 1)
-            return;
-
-        auto& stats = *static_cast<rtcModule::stats::Sample*>(data);
-        printf("vsend bps: %ld (target: %ld)\n", stats.vstats.s.bps, stats.vstats.s.targetEncBitrate);
-    };
 }
-*/
 void CallGui::setAvatarOnRemote()
 {
     auto image = new QImage(QSize(262, 262), QImage::Format_ARGB32);

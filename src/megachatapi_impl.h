@@ -194,7 +194,7 @@ public:
     void setHeight(int height);
 
     // rtcModule::IVideoRenderer implementation
-    virtual unsigned char* getImageBuffer(unsigned short width, unsigned short height, void** userData);
+    virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData);
     virtual void frameComplete(void* userData);
     virtual void onVideoAttach();
     virtual void onVideoDetach();

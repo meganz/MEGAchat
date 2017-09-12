@@ -2971,7 +2971,10 @@ void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(rtcModule::ICall& call)
-:mCall(&call), peer(call.caller())
+:mCall(&call)
+#ifndef KARERE_DISABLE_WEBRTC
+ , peer(call.caller())
+#endif
 {
     status = 0;
     tag = 0;
@@ -3090,13 +3093,13 @@ MegaChatVideoReceiver::~MegaChatVideoReceiver()
 {
 }
 
-unsigned char *MegaChatVideoReceiver::getImageBuffer(unsigned short width, unsigned short height, void **userData)
+void* MegaChatVideoReceiver::getImageBuffer(unsigned short width, unsigned short height, void*& userData)
 {
     MegaChatVideoFrame *frame = new MegaChatVideoFrame;
     frame->width = width;
     frame->height = height;
     frame->buffer = new byte[width * height * 4];  // in format ARGB: 4 bytes per pixel
-    *userData = frame;
+    userData = frame;
     return frame->buffer;
 }
 

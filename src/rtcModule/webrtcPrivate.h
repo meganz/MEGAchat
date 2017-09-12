@@ -35,7 +35,7 @@ protected:
     std::unique_ptr<stats::Recorder> mStatRecorder;
     megaHandle mSetupTimer = 0;
     time_t mTsIceConn = 0;
-    std::unique_ptr<promise::Promise<void>> mTerminatePromise;
+    promise::Promise<void> mTerminatePromise;
     bool mVideoReceived = false;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
@@ -56,11 +56,12 @@ protected:
     template<class... Args>
     bool cmd(uint8_t type, Args... args);
     void destroy(TermCode code, const std::string& msg="");
-    void asyncDestroy(TermCode code);
+    void asyncDestroy(TermCode code, const std::string& msg="");
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
 public:
     Session(Call& call, RtMessage& packet);
+    ~Session();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }
     virtual bool videoReceived() const { return mVideoReceived; }
     //PeerConnection events
@@ -75,6 +76,7 @@ public:
     void onError() {}
     //====
     friend class Call;
+    friend class stats::Recorder; //needs access to mRtcConn
 };
 
 class Call: public ICall
@@ -131,10 +133,11 @@ protected:
     friend class RtcModule;
     friend class Session;
 public:
-    chatd::Connection& shard() const { return mShard; }
-    Call(RtcModule& rtcModule, karere::Id chatid, chatd::Connection& shard,
+    chatd::Chat& chat() const { return mChat; }
+    Call(RtcModule& rtcModule, chatd::Chat& chat,
         karere::Id callid, bool isGroup, bool isJoiner, ICallHandler* handler,
         karere::Id callerUser, uint32_t callerClient);
+    ~Call();
     virtual karere::AvFlags sentAv() const;
     virtual void hangup(TermCode reason=TermCode::kInvalid);
     virtual bool answer(karere::AvFlags av);
@@ -165,7 +168,7 @@ public:
     virtual void hangupAll(TermCode reason);
 // IRtcHandler - interface to chatd
     void onDisconnect(chatd::Connection& conn);
-    void handleMessage(chatd::Connection& conn, const StaticBuffer& msg);
+    void handleMessage(chatd::Chat& chat, const StaticBuffer& msg);
     void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid);
     void onShutdown();
 //Implementation of virtual methods of IRtcModule
@@ -210,7 +213,7 @@ struct RtMessage
 {
 public:
     enum { kHdrLen = 23, kPayloadOfs = kHdrLen+1 };
-    chatd::Connection& shard;
+    chatd::Chat& chat;
     uint8_t opcode;
     uint8_t type;
     karere::Id chatid;
@@ -218,9 +221,8 @@ public:
     karere::Id callid;
     uint32_t clientid;
     StaticBuffer payload;
-    static const char* typeToStr(uint8_t type);
-    const char* typeStr() const { return typeToStr(type); }
-    RtMessage(chatd::Connection& aShard, const StaticBuffer& msg);
+    const char* typeStr() const { return rtcmdTypeToStr(type); }
+    RtMessage(chatd::Chat& aChat, const StaticBuffer& msg);
 };
 
 class RtMessageComposer: public chatd::Command
@@ -247,7 +249,7 @@ public:
         //          header.23                             payload.len
         write<uint64_t>(1, chatid.val);
         write<uint64_t>(9, userid.val);
-        write<uint32_t>(17, chatid.val);
+        write<uint32_t>(17, clientid);
         write<uint8_t>(RtMessage::kHdrLen, type);
         updateLenField();
     }

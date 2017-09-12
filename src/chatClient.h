@@ -14,6 +14,7 @@
 #include "presenced.h"
 #include "IGui.h"
 #include <base/trackDelete.h>
+#include "rtcModule/webrtc.h"
 
 namespace strophe { class Connection; }
 

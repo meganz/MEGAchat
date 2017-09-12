@@ -25,9 +25,9 @@
 #else
     namespace rtcmodule
     {
-        class ICall{};
+        class ICallHandler{};
     }
-    class CallGui: public karere::IApp::ICallHandler {};
+    class CallGui: public rtcModule::ICallHandler {};
 #endif
 
 namespace Ui

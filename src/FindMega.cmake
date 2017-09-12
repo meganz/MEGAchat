@@ -44,7 +44,7 @@ find_package(Cryptopp REQUIRED)
 find_package(Sodium REQUIRED)
 find_package(Sqlite3 REQUIRED)
 
-list(APPEND _LIBMEGA_LIBRARIES ${CURL_LIBRARIES} ${CARES_LIBRARIES} ${LIBSODIUM_LIBRARIES}
+list(APPEND _LIBMEGA_LIBRARIES ${CURL_LIBRARIES} ${LIBCARES_LIBRARIES} ${LIBSODIUM_LIBRARIES}
     ${SQLITE_LIBRARIES}
 )
 #Under MSVC we can't build cryptopp as a dll
@@ -64,7 +64,7 @@ endif()
 
 if (APPLE)
 #needed for thumbnail generation, we don't use freeimage on these platforms
-    list(APPEND _LIBMEGA_LIBRARIES "-framework ImageIO")
+    list(APPEND _LIBMEGA_LIBRARIES "-framework ImageIO -framework Foundation -framework SystemConfiguration")
     if (APPLE_IOS)
         list(APPEND _LIBMEGA_LIBRARIES "-framework MobileCoreServices")
     endif()

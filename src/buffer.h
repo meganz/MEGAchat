@@ -22,14 +22,14 @@ protected:
     StaticBuffer() {} //used by Buffer to skip initialization
 public:
     static const size_t kNotFound = {(size_t)-1};
-    StaticBuffer(const char* data, size_t datasize)
+    StaticBuffer(const void* data, size_t datasize)
         :mBuf((char*)data), mDataSize(datasize) {}
 
     //optionally include the terminating NULL
     StaticBuffer(const std::string& str, bool termNull)
       : StaticBuffer(str.c_str(), termNull?(str.size()+1):str.size()){}
 
-    void assign(const char* data, size_t datasize)
+    void assign(const void* data, size_t datasize)
     {
         mBuf = (char*)data;
         mDataSize = datasize;

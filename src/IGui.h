@@ -1,8 +1,6 @@
 #ifndef IAPP_H
 #define IAPP_H
-#ifndef KARERE_DISABLE_WEBRTC
-    #include <webrtc.h>
-#endif
+#include <webrtc.h>
 #include <chatd.h>
 #include <presenced.h>
 #include <autoHandle.h>
@@ -64,7 +62,6 @@ public:
     public:
 
         virtual ~IChatHandler() {}
-
         /**
          * @brief Returns the ICallHandler instance associated with that chat, in
          * case there is an ongoing call. If there is no call,

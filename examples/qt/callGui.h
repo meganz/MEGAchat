@@ -93,7 +93,7 @@ public:
     //ISession
     virtual void onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
     virtual void onSessStateChange(uint8_t newState) {}
-
+    virtual void onVideoRecv();
 };
 
 #endif // MAINWINDOW_H
