@@ -196,13 +196,14 @@ private:
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
+    // send msg, wait for confirmation, reception by other side, delivery status. Returns ownership of confirmed msg
     megachat::MegaChatMessage *sendTextMessageOrUpdate(unsigned int senderAccountIndex, unsigned int receiverAccountIndex,
                                                megachat::MegaChatHandle chatid, const std::string& textToSend,
                                                TestChatRoomListener *chatroomListener, megachat::MegaChatHandle messageId = megachat::MEGACHAT_INVALID_HANDLE);
 
     void checkEmail(unsigned int indexAccount);
     std::string dateToString();
-    mega::MegaNode *attachNode(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid,
+    megachat::MegaChatMessage *attachNode(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid,
                                     mega::MegaNode *nodeToSend, TestChatRoomListener* chatroomListener);
 
     void clearHistory(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
@@ -237,6 +238,7 @@ private:
     bool requestFlagsChat[NUM_ACCOUNTS][megachat::MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];
+    bool mChatConnectionOnline[NUM_ACCOUNTS];
     int lastError[NUM_ACCOUNTS];
     int lastErrorChat[NUM_ACCOUNTS];
     std::string lastErrorMsgChat[NUM_ACCOUNTS];
@@ -302,6 +304,7 @@ public:
     virtual void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
     virtual void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
     virtual void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
+    virtual void onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int state);
 
     virtual void onTransferStart(mega::MegaApi *api, mega::MegaTransfer *transfer);
     virtual void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error);
@@ -334,6 +337,7 @@ public:
     bool msgContactReceived[NUM_ACCOUNTS];
     bool msgRevokeAttachmentReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mConfirmedMessageHandle[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mEditedMessageHandle[NUM_ACCOUNTS];
 
     megachat::MegaChatMessage *message;
     std::vector <megachat::MegaChatHandle>msgId[NUM_ACCOUNTS];

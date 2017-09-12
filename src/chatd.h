@@ -334,6 +334,15 @@ protected:
     uint64_t mIdentity; // seed for CLIENTID
     uint32_t mClientId = 0;
     Connection(Client& client, int shardNo);
+    State state() { return mState; }
+    bool isConnected() const
+    {
+        return mState == kStateConnected;
+    }
+    bool isLoggedIn() const
+    {
+        return mState == kStateLoggedIn;
+    }
     static void websockConnectCb(ws_t ws, void* arg);
     static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
         size_t reason_len, void *arg);
@@ -421,10 +430,17 @@ struct LastTextMsg
      * like filename for attachment messages.
      */
     const std::string& contents() const { return mContents; }
+
+    Idx idx() const { return mIdx; }
+    karere::Id id() const { assert(mIdx != CHATD_IDX_INVALID); return mId; }
+    karere::Id xid() const { assert(mIdx == CHATD_IDX_INVALID); return mId; }
+
 protected:
     uint8_t mType = Message::kMsgInvalid;
     karere::Id mSender;
     std::string mContents;
+    Idx mIdx = CHATD_IDX_INVALID;
+    karere::Id mId;
 };
 
 /** @brief Internal class that maintains the last-text-message state */
@@ -435,9 +451,6 @@ struct LastTextMsgState: public LastTextMsg
 
     bool mIsNotified = false;
     uint8_t state() const { return mState; }
-    Idx idx() const { return mIdx; }
-    karere::Id id() const { assert(mIdx != CHATD_IDX_INVALID); return mId; }
-    karere::Id xid() const { assert(mIdx == CHATD_IDX_INVALID); return mId; }
     bool isValid() const { return mState == kHave; }
     bool isFetching() const { return mState == kFetching; }
     void setState(uint8_t state) { mState = state; }
@@ -466,8 +479,6 @@ struct LastTextMsgState: public LastTextMsg
 protected:
     friend class Chat;
     uint8_t mState = kNone;
-    Idx mIdx = CHATD_IDX_INVALID;
-    karere::Id mId;
 };
 
 struct ChatDbInfo;
@@ -533,6 +544,8 @@ protected:
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     karere::Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
+    Idx mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+    karere::Id mLastIdReceivedFromServer;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     Priv mOwnPrivilege = PRIV_INVALID;
@@ -592,12 +605,13 @@ protected:
      */
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
     uint32_t mLastMsgTs;
+    bool mIsGroup;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
     std::set<EndpointId> mCallParticipants;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
-         const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto);
+    const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
     Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
@@ -1004,6 +1018,9 @@ public:
      */
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
+    Idx lastIdxReceivedFromServer() const;
+    karere::Id lastIdReceivedFromServer() const;
+    bool isGroup() const;
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);
@@ -1048,6 +1065,7 @@ protected:
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
     karere::Id mUserId;
     static bool sWebsockCtxInitialized;
+    bool mMessageReceivedConfirmation = false;
     Connection& chatidConn(karere::Id chatid)
     {
         auto it = mConnectionForChatId.find(chatid);
@@ -1085,7 +1103,7 @@ public:
      * with the newly created Chat object.
      */
     Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
-        Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs);
+    Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     promise::Promise<void> disconnect();
@@ -1096,6 +1114,7 @@ public:
     void notifyUserActive();
     /** Changes the Rtc handler, returning the old one */
     IRtcHandler* setRtcHandler(IRtcHandler* handler);
+    bool isMessageReceivedConfirmationActive() const;
     friend class Connection;
     friend class Chat;
 };

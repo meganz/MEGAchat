@@ -791,7 +791,9 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             handle chatid = request->getChatHandle();
             MegaNodeList *nodeList = request->getMegaNodeList();
-            if (chatid == MEGACHAT_INVALID_HANDLE || !nodeList || !nodeList->size())
+            handle h = request->getUserHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE ||
+                    ((!nodeList || !nodeList->size()) && (h == MEGACHAT_INVALID_HANDLE)))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -804,7 +806,27 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            const char *buffer = JSonUtils::generateAttachNodeJSon(request->getMegaNodeList());
+            // if only one node, prepare a list with a single element and update request
+            MegaNodeList *nodeListAux = NULL;
+            if (h != MEGACHAT_INVALID_HANDLE)
+            {
+                MegaNode *megaNode = megaApi->getNodeByHandle(h);
+                if (!megaNode)
+                {
+                    errorCode = MegaChatError::ERROR_NOENT;
+                    break;
+                }
+
+                nodeListAux = MegaNodeList::createInstance();
+                nodeListAux->addNode(megaNode);
+                request->setMegaNodeList(nodeListAux);
+                nodeList = request->getMegaNodeList();
+
+                delete megaNode;
+                delete nodeListAux;
+            }
+
+            const char *buffer = JSonUtils::generateAttachNodeJSon(nodeList);
             if (!buffer)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -828,10 +850,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = NULL;
                 if (err.code() == MegaChatError::ERROR_EXIST)
                 {
+                    API_LOG_WARNING("Already granted access to this node previously");
                     std::string stringToSend(buffer);
                     sendAttachNodesMessage(stringToSend, request);
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    API_LOG_WARNING("This node has been granted access previously");
                 }
                 else
                 {
@@ -972,8 +994,6 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
 
 int MegaChatApiImpl::init(const char *sid)
 {
-    int ret;
-
     sdkMutex.lock();
     if (!mClient)
     {
@@ -981,10 +1001,18 @@ int MegaChatApiImpl::init(const char *sid)
         terminating = false;
     }
 
-    ret = MegaChatApiImpl::convertInitState(mClient->init(sid));
+    int state = mClient->init(sid);
+    if (state != karere::Client::kInitErrNoCache &&
+            state != karere::Client::kInitWaitingNewSession &&
+            state != karere::Client::kInitHasOfflineSession)
+    {
+        // there's been an error during initialization
+        localLogout();
+    }
+
     sdkMutex.unlock();
 
-    return ret;
+    return MegaChatApiImpl::convertInitState(state);
 }
 
 int MegaChatApiImpl::getInitState()
@@ -1329,6 +1357,14 @@ void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *con
     delete config;
 }
 
+void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatConnectionStateUpdate(chatApi, chatid, newState);
+    }
+}
+
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
@@ -1349,6 +1385,21 @@ int MegaChatApiImpl::getConnectionState()
 
     sdkMutex.lock();
     ret = mClient->connState();
+    sdkMutex.unlock();
+
+    return ret;
+}
+
+int MegaChatApiImpl::getChatConnectionState(MegaChatHandle chatid)
+{
+    int ret = MegaChatApi::CHAT_CONNECTION_OFFLINE;
+
+    sdkMutex.lock();
+    ChatRoom *room = findChatRoom(chatid);
+    if (room)
+    {
+        ret = MegaChatApiImpl::convertChatConnectionState(room->chatdOnlineState());
+    }
     sdkMutex.unlock();
 
     return ret;
@@ -1720,6 +1771,27 @@ MegaChatListItemList *MegaChatApiImpl::getInactiveChatListItems()
     return items;
 }
 
+MegaChatListItemList *MegaChatApiImpl::getUnreadChatListItems()
+{
+    MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
+
+    sdkMutex.lock();
+
+    ChatRoomList::iterator it;
+    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+        ChatRoom *room = it->second;
+        if (room->isActive() && room->chat().unreadMsgCount())
+        {
+            items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+        }
+    }
+
+    sdkMutex.unlock();
+
+    return items;
+}
+
 MegaChatHandle MegaChatApiImpl::getChatHandleByUser(MegaChatHandle userhandle)
 {
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
@@ -1881,16 +1953,28 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     {
         Chat &chat = chatroom->chat();
         Idx index = chat.msgIndexFromId(msgid);
-        if (index != CHATD_IDX_INVALID)
+        if (index != CHATD_IDX_INVALID)     // only confirmed messages have index
         {
             Message *msg = chat.findOrNull(index);
-            if (msg)    // probably redundant
+            if (msg)
             {
                 megaMsg = new MegaChatMessagePrivate(*msg, chat.getMsgStatus(*msg, index), index);
             }
             else
             {
                 API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+            }
+        }
+        else    // message still not confirmed, search in sending-queue
+        {
+            Message *msg = chat.getMsgByXid(msgid);
+            if (msg)
+            {
+                megaMsg = new MegaChatMessagePrivate(*msg, Message::Status::kSending, MEGACHAT_INVALID_INDEX);
+            }
+            else
+            {
+                API_LOG_ERROR("Failed to find message by temporal id (id: %d)", msgid);
             }
         }
     }
@@ -2056,6 +2140,15 @@ void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, Me
     waiter->notify();
 }
 
+void MegaChatApiImpl::attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(nodehandle);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
@@ -2063,8 +2156,6 @@ void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle han
     request->setUserHandle(handle);
     requestQueue.push(request);
     waiter->notify();
-
-    return ;
 }
 
 bool MegaChatApiImpl::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const
@@ -2204,6 +2295,11 @@ void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequ
     request->setChatHandle(chatid);
     requestQueue.push(request);
     waiter->notify();
+}
+
+bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
+{
+    return mClient->chatd->isMessageReceivedConfirmationActive();
 }
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
@@ -2491,6 +2587,20 @@ int MegaChatApiImpl::convertInitState(int state)
     default:
         return state;
     }
+}
+
+int MegaChatApiImpl::convertChatConnectionState(ChatState state)
+{
+    int newState;
+    if (state == kChatStateOnline)
+    {
+        newState = MegaChatApi::CHAT_CONNECTION_ONLINE;
+    }
+    else    // includes kChatStateOffline, kChatStateConnecting and kChatStateJoining
+    {
+        newState = MegaChatApi::CHAT_CONNECTION_OFFLINE;
+    }
+    return newState;
 }
 
 void MegaChatApiImpl::sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate *request)
@@ -3319,10 +3429,11 @@ void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx 
     }
 }
 
-void MegaChatRoomHandler::onMessageRejected(const Message &msg, uint8_t /*reason*/)
+void MegaChatRoomHandler::onMessageRejected(const Message &msg, uint8_t reason)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kServerRejected, MEGACHAT_INVALID_INDEX);
     message->setStatus(MegaChatMessage::STATUS_SERVER_REJECTED);
+    message->setCode(reason);
     chatApi->fireOnMessageUpdate(message);
 }
 
@@ -4017,12 +4128,21 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
         this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
         this->lastMsgSender = msg->sender();
         this->lastMsgType = msg->type();
+        if (msg->idx() == CHATD_IDX_INVALID)
+        {
+            this->mLastMsgId = (MegaChatHandle) msg->xid();
+        }
+        else
+        {
+            this->mLastMsgId = (MegaChatHandle) msg->id();
+        }
     }
     else
     {
         this->lastMsg = "";
         this->lastMsgSender = MEGACHAT_INVALID_HANDLE;
         this->lastMsgType = lastMsgStatus;
+        this->mLastMsgId = MEGACHAT_INVALID_HANDLE;
     }
 
     this->lastTs = chatroom.chat().lastMessageTs();
@@ -4042,6 +4162,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->group = item->isGroup();
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
+    this->mLastMsgId = item->getLastMessageId();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -4086,6 +4207,11 @@ int MegaChatListItemPrivate::getUnreadCount() const
 const char *MegaChatListItemPrivate::getLastMessage() const
 {
     return lastMsg.c_str();
+}
+
+MegaChatHandle MegaChatListItemPrivate::getLastMessageId() const
+{
+    return mLastMsgId;
 }
 
 int MegaChatListItemPrivate::getLastMessageType() const
@@ -4152,11 +4278,12 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
 }
 
-void MegaChatListItemPrivate::setLastMessage(int type, const string &msg, const uint64_t uh)
+void MegaChatListItemPrivate::setLastMessage(MegaChatHandle messageId, int type, const string &msg, const uint64_t uh)
 {
     this->lastMsg = msg;
     this->lastMsgType = type;
     this->lastMsgSender = uh;
+    this->mLastMsgId = messageId;
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
 }
 
@@ -4209,7 +4336,17 @@ void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 
     std::string lastMessageContent = JSonUtils::getLastMessageContent(msg.contents(), msg.type());
 
-    item->setLastMessage(msg.type(), lastMessageContent, msg.sender());
+    MegaChatHandle messageId = MEGACHAT_INVALID_HANDLE;
+    if (msg.idx() == CHATD_IDX_INVALID)
+    {
+        messageId = (MegaChatHandle) msg.xid();
+    }
+    else
+    {
+        messageId = (MegaChatHandle) msg.id();
+    }
+
+    item->setLastMessage(messageId, msg.type(), lastMessageContent, msg.sender());
     chatApi.fireOnChatListItemUpdate(item);
 }
 
@@ -4220,9 +4357,10 @@ void MegaChatListItemHandler::onLastTsUpdated(uint32_t ts)
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onOnlineChatState(const ChatState state)
+void MegaChatListItemHandler::onChatOnlineState(const ChatState state)
 {
-    // apps are not interested on this event
+    int newState = MegaChatApiImpl::convertChatConnectionState(state);
+    chatApi.fireOnChatConnectionStateUpdate(this->mRoom.chatid(), newState);
 }
 
 MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)
@@ -4396,7 +4534,7 @@ bool MegaChatMessagePrivate::isEditable() const
 
 bool MegaChatMessagePrivate::isDeletable() const
 {
-    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT)
+    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT || type == TYPE_NODE_ATTACHMENT)
             && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
 }
 
@@ -4869,6 +5007,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 {
     if (!json || strcmp(json, "") == 0)
     {
+        API_LOG_ERROR("Invalid attachment JSON");
         return NULL;
     }
 
@@ -4902,6 +5041,10 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         std::string nameString = iteratorName->value.GetString();
 
         rapidjson::Value::ConstMemberIterator iteratorKey = file.FindMember("k");
+        if (!iteratorKey->value.IsArray())
+        {
+            iteratorKey = file.FindMember("key");
+        }
         if (iteratorKey == file.MemberEnd() || !iteratorKey->value.IsArray()
                 || iteratorKey->value.Capacity() != 8)
         {

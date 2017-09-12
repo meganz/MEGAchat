@@ -262,7 +262,7 @@ public:
         STATUS_SENDING_MANUAL       = 1,    /// Message is too old to auto-retry sending, or group composition has changed, or user has read-only privilege, or user doesn't belong to chatroom. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
         STATUS_SERVER_RECEIVED      = 2,    /// Message confirmed by server, but not yet delivered to recepient(s)
         STATUS_SERVER_REJECTED      = 3,    /// Message is rejected by server for some reason (the message was confirmed but we didn't receive the confirmation because went offline or closed the app before)
-        STATUS_DELIVERED            = 4,    /// Peer confirmed message receipt. Used only for 1on1 chats
+        STATUS_DELIVERED            = 4,    /// Peer confirmed message receipt. Available only for 1on1 chats, but currently not in use.
         // for incoming messages
         STATUS_NOT_SEEN             = 5,    /// User hasn't read this message yet
         STATUS_SEEN                 = 6     /// User has read this message
@@ -277,7 +277,7 @@ public:
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
         TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
-        TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared
+        TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
     };
 
@@ -285,7 +285,7 @@ public:
     {
         CHANGE_TYPE_STATUS          = 0x01,
         CHANGE_TYPE_CONTENT         = 0x02,
-        CHANGE_TYPE_ACCESS          = 0x04  /// When the access to attached nodes has changed
+        CHANGE_TYPE_ACCESS          = 0x04  /// When the access to attached nodes has changed (obsolete)
     };
 
     enum
@@ -334,7 +334,7 @@ public:
      *
      * The temporal identifier has different usages depending on the status of the message:
      *  - MegaChatMessage::STATUS_SENDING: valid until it's confirmed by the server.
-     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's remove from manual-send queue.
+     *  - MegaChatMessage::STATUS_SENDING_MANUAL: valid until it's removed from manual-send queue.
      *
      * @note If status is STATUS_SENDING_MANUAL, this value can be used to identify the
      * message moved into the manual-send queue. The message itself will be identified by its
@@ -1117,8 +1117,8 @@ public:
 
     enum
     {
-        INIT_ERROR                  = -1,   /// Initialization failed --> force a logout
-        INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login
+        INIT_ERROR                  = -1,   /// Initialization failed --> disable chat
+        INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login+fetchnodes
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
         INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
         INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
@@ -1130,6 +1130,12 @@ public:
         CONNECTING      = 1,    /// A call to connect() is in progress
         DISCONNECTING   = 2,    /// A call to disconnect() is in progress
         CONNECTED       = 3     /// A call to connect() succeed
+    };
+
+    enum
+    {
+        CHAT_CONNECTION_OFFLINE = 0,    /// Connection with chatd is not ready
+        CHAT_CONNECTION_ONLINE  = 1     /// Connection with chatd is ready and logged in
     };
 
 
@@ -1211,9 +1217,15 @@ public:
     /**
      * @brief Initializes karere
      *
-     * If a session id is provided, karere will try to resume the session from cache.
-     * If no session is provided, karere will listen to login event in order to register a new
-     * session.
+     * If no session is provided, karere will listen to the fetchnodes event in order to register
+     * a new session and create its cache. It will return MegaChatApi::INIT_WAITING_NEW_SESSION.
+     *
+     * If a session id is provided, karere will try to resume the session from its cache and will
+     * return MegaChatApi::INIT_OFFLINE_SESSION.
+     *
+     * If a session id is provided but the correspoding cache is not available, it will return
+     * MegaChatApi::INIT_NO_CACHE and the app should go through a new fetchnodes in order to
+     * re-create a new cache from scratch.
      *
      * The initialization status is notified via `MegaChatListener::onChatInitStateUpdate`. See
      * the documentation of the callback for possible values.
@@ -1221,6 +1233,7 @@ public:
      * This function should be called before MegaApi::login and MegaApi::fetchnodes.
      *
      * @param sid Session id that wants to be resumed, or NULL if a new session will be created.
+     * @return The initialization state
      */
     int init(const char *sid);
 
@@ -1270,7 +1283,7 @@ public:
     void disconnect(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Returnes the current state of the connection
+     * @brief Returns the current state of the connection
      *
      * It can be one of the following values:
      *  - MegaChatApi::DISCONNECTED = 0
@@ -1280,6 +1293,18 @@ public:
      * @return The state of connection
      */
     int getConnectionState();
+
+    /**
+     * @brief Returns the current state of the connection to chatd
+     *
+     * The possible values are:
+     *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
+     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 1
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return The state of connection
+     */
+    int getChatConnectionState(MegaChatHandle chatid);
     
     /**
      * @brief Refresh DNS servers and retry pending connections
@@ -1296,7 +1321,11 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT.
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
-     * called without a previous call to \c MegaChatApi::init.
+     * called without a previous call to \c MegaChatApi::init or when MEGAchat is already
+     * logged out.
+     *
+     * @note MEGAchat automatically logs out when it detects the MegaApi instance has an
+     * invalid session id. No need to call it explicitely, except to disable the chat.
      *
      * @param listener MegaChatRequestListener to track this request
      */
@@ -1731,6 +1760,15 @@ public:
     MegaChatListItemList *getInactiveChatListItems();
 
     /**
+     * @brief Return the chatrooms that have unread messages
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the chatrooms with unread messages
+     */
+    MegaChatListItemList *getUnreadChatListItems();
+
+    /**
      * @brief Get the chat id for the 1on1 chat with the specified user
      *
      * If the 1on1 chat with the user specified doesn't exist, this function will
@@ -2004,14 +2042,15 @@ public:
     /**
      * @brief Returns the MegaChatMessage specified from the chat room.
      *
-     * Only the messages that are already loaded and notified
-     * by MegaChatRoomListener::onMessageLoaded can be requested. For any
-     * other message, this function will return NULL.
+     * This function allows to retrieve only those messages that are already loaded
+     * and notified by MegaChatRoomListener::onMessageLoaded and/or messages that are
+     * in sending-status (not yet confirmed). For any other message, this function
+     * will return NULL.
      *
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param msgid MegaChatHandle that identifies the message
+     * @param msgid MegaChatHandle that identifies the message (msg id or a temporal id)
      * @return The MegaChatMessage object, or NULL if not found.
      */
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
@@ -2106,6 +2145,8 @@ public:
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodes Array of nodes that the user want to attach
      * @param listener MegaChatRequestListener to track this request
@@ -2137,12 +2178,68 @@ public:
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodeHandle MegaChatHandle that identifies the node to revoke access to
      * @param listener MegaChatRequestListener to track this request
      */
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener = NULL);
 
+    /**
+     * @brief Sends a node to the specified chatroom
+     *
+     * The attachment message includes information about the node, so the receiver can download
+     * or import the node.
+     *
+     * In contrast to other functions to send messages, such as
+     * MegaChatApi::sendMessage or MegaChatApi::attachContacts, this function
+     * is asynchronous and does not return a MegaChatMessage directly. Instead, the
+     * MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the handle of the node
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param nodehandle Handle of the node that the user wants to attach
+     * @param listener MegaChatRequestListener to track this request
+     */
+     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Revoke the access to a node granted by an attachment message
+     *
+     * The attachment message will be deleted as any other message. Therefore,
+     *
+     * The revoke is actually a deletion of the former message. Hence, the behavior is the
+     * same than a regular deletion.
+     * @see MegaChatApi::editMessage or MegaChatApi::deleteMessage for more information.
+     *
+     * If the revoke is rejected because the attachment message is too old, or if the message is
+     * not an attachment message, this function returns NULL.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     *
+     * @return MegaChatMessage that will be modified. NULL if the message cannot be edited (too old)
+     */
+     MegaChatMessage *revokeAttachmentMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
     /** Returns whether the logged in user has been granted access to the node
      *
@@ -2156,6 +2253,8 @@ public:
      * @note The returned value will be valid only for nodes attached to messages
      * already loaded in an opened chatroom. The list of revoked nodes is updated
      * accordingly while the chatroom is open, based on new messages received.
+     *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodeHandle MegaChatHandle that identifies the node to check its access
@@ -2181,6 +2280,9 @@ public:
      * the transition through STATUS_SERVER_RECEIVED. In other words, the protocol doesn't allow
      * to know when an edit has been delived to the target user, but only when the edit has been
      * received by the server, so for convenience the status of the original message is kept.
+     * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
+     * reach the status delivered, since the target user will not send the required acknowledge to the
+     * server upon reception.
      * 
      * You take the ownership of the returned value.
      *
@@ -2195,6 +2297,9 @@ public:
 
     /**
      * @brief Deletes an existing message
+     *
+     * @note Message's deletions are equivalent to message's edits, but with empty content.
+     * @see \c MegaChatapi::editMessage for more information.
      *
      * You take the ownership of the returned value.
      *
@@ -2259,6 +2364,21 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns whether reception of messages is acknowledged
+     *
+     * In case this function returns true, an acknowledgement will be sent for each
+     * received message, so the sender will eventually know the message is received.
+     *
+     * In case this function returns false, the acknowledgement is not sent and, in
+     * consequence, messages at the sender-side will not reach the status MegaChatMessage::STATUS_DELIVERED.
+     *
+     * @note This feature is only available for 1on1 chatrooms.
+     *
+     * @return True if received messages are acknowledged. False if they are not.
+     */
+    bool isMessageReceptionConfirmationActive() const;
 
     // Audio/Video device management
     mega::MegaStringList *getChatAudioInDevices();
@@ -2446,6 +2566,16 @@ public:
      * @return The last message received.
      */
     virtual const char *getLastMessage() const;
+
+    /**
+     * @brief Returns message id of the last message in this chatroom.
+     *
+     * If the message is still not confirmed by server, the id could be a temporal
+     * id. @see \c MegaChatApi::sendMessage for more information about the msg id.
+     *
+     * @return MegaChatHandle representing the id of last message.
+     */
+    virtual MegaChatHandle getLastMessageId() const;
 
     /**
      * @brief Returns the type of last message
@@ -2800,6 +2930,19 @@ public:
      * @param config New presence configuration
      */
     virtual void onChatPresenceConfigUpdate(MegaChatApi* api, MegaChatPresenceConfig *config);
+
+    /**
+     * @brief This function is called when the connection state to a chatroom has changed
+     *
+     * The possible values are:
+     *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
+     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 1
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param newState New state of the connection
+     */
+    virtual void onChatConnectionStateUpdate(MegaChatApi* api, MegaChatHandle chatid, int newState);
 };
 
 /**
@@ -2870,6 +3013,18 @@ public:
      * An important case is when the edition of a message is rejected. In those cases, the message
      * status of \c msg will be MegaChatMessage::STATUS_SENDING_MANUAL and the app reason of rejection
      * is recorded in MegaChatMessage::getCode().
+     *
+     * Another edge case is when a new message was confirmed but the app didn't receive the confirmation
+     * from the server. In that case, you will end up with a message in MegaChatMessage::STATUS_SENDING
+     * due to the sending retry, another one in MegaChatMessage::STATUS_SERVER_RECEIVED or
+     * MegaChatMessage::STATUS_DELIVERED due to the message already confirmed/delivered. Finally, you
+     * will receive this callback updating the status to MegaChatMessage::STATUS_SERVER_REJECTED with
+     * MegaChatMessage::getCode() equal to 0 and the corresponding MegaChatMessage::getTempId().
+     * The app should discard the message in sending status, in pro of the confirmed message to avoid
+     * duplicated message in the history.
+     * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
+     * reach the status delivered, since the target user will not send the required acknowledge to the
+     * server upon reception.
      *
      * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
      * object will be valid until this function returns. If you want to save the MegaChatMessage object,
