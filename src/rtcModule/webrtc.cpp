@@ -585,16 +585,13 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
     mLocalStream = mManager.getLocalStream(av, errors);
     if (!errors.empty())
     {
-        SUB_LOG_WARNING("There were some error getting local stream: %s", errors.c_str());
+        SUB_LOG_WARNING("There were some errors getting local stream: %s", errors.c_str());
     }
     setState(Call::kStateHasLocalStream);
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
-    if (!renderer)
-        return;
     mLocalPlayer.reset(new artc::StreamPlayer(renderer));
     mLocalPlayer->attachVideo(mLocalStream->video());
-    mLocalPlayer->start();
 }
 
 void Call::msgCallTerminate(RtMessage& packet)
@@ -1090,7 +1087,7 @@ void Call::hangup(TermCode reason)
         {
             assert(reason == TermCode::kCallReqCancel || reason == TermCode::kAnswerTimeout);
         }
-        cmd(RTCMD_CALL_REQ_CANCEL, 0, 0, mId, reason);
+        cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, reason);
         destroy(reason, false);
         return;
     case kStateRingIn:
@@ -1368,7 +1365,6 @@ void Session::onAddStream(artc::tspMediaStream stream)
         FIRE_EVENT(SESS, onVideoRecv);
     });
     mRemotePlayer->attachToStream(stream);
-    mRemotePlayer->start();
 }
 void Session::onRemoveStream(artc::tspMediaStream stream)
 {
@@ -1379,7 +1375,7 @@ void Session::onRemoveStream(artc::tspMediaStream stream)
     }
     if(mRemotePlayer)
     {
-        mRemotePlayer->stop();
+        mRemotePlayer->detachFromStream();
         mRemotePlayer.reset();
     }
     mRemoteStream.release();
@@ -1603,14 +1599,14 @@ void Session::msgSdpAnswer(RtMessage& packet)
     }
     mungeSdp(mPeerSdp);
     webrtc::SdpParseError error;
-    unique_ptr<webrtc::SessionDescriptionInterface> sdp(webrtc::CreateSessionDescription("answer", mPeerSdp, &error));
+    webrtc::SessionDescriptionInterface* sdp = webrtc::CreateSessionDescription("answer", mPeerSdp, &error);
     if (!sdp)
     {
         terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP answer: line="+error.line+"\nError: "+error.description);
         return;
     }
     auto wptr = weakHandle();
-    mRtcConn.setRemoteDescription(sdp.get())
+    mRtcConn.setRemoteDescription(sdp)
     .then([this, wptr]() -> Promise<void>
     {
         if (mState > Session::kStateInProgress)

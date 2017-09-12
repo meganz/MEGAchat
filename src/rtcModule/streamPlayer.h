@@ -18,7 +18,6 @@ protected:
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
     IVideoRenderer* mRenderer;
-    bool mPlaying = false;
     bool mMediaStartSignalled = false;
     std::function<void()> mOnMediaStart;
     std::mutex mMutex; //guards onMediaStart and other stuff that is accessed from webrtc threads
@@ -27,82 +26,41 @@ public:
     StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio=nullptr,
     webrtc::VideoTrackInterface* video=nullptr)
      :mAudio(audio), mVideo(video), mRenderer(renderer)
-    {
-        assert(mRenderer);
-    }
+    {}
     StreamPlayer(IVideoRenderer *renderer, tspMediaStream stream)
-        :mRenderer(renderer)
+     :mRenderer(renderer)
     {
-        connectToStream(stream);
+        attachToStream(stream);
     }
     ~StreamPlayer()
     {
         preDestroy();
     }
-
-    void connectToStream(tspMediaStream stream)
-    {
-        if (!stream)
-            return;
-
-        detachAudio();
-        detachVideo();
-        auto ats = stream->GetAudioTracks();
-        auto vts = stream->GetVideoTracks();
-        if (ats.size() > 0)
-            mAudio = ats[0];
-        if (vts.size() > 0)
-            mVideo = vts[0];
-    }
-
     template <class F>
     void setOnMediaStart(F&& callback)
     {
         std::unique_lock<std::mutex> locker(mMutex);
         mOnMediaStart = callback;
     }
-    void start()
-    {
-        if (mPlaying)
-            return;
-        mMediaStartSignalled = false;
-        if (mVideo.get())
-        {
-            rtc::VideoSinkWants opts;
-            mVideo->AddOrUpdateSink(static_cast<rtc::VideoSinkInterface<webrtc::VideoFrame>*>(this), opts);
-        }
-        if (mAudio.get())
-        {}//TODO: start audio playback
-        mPlaying = true;
-    }
 
-    void stop()
+    void detachFromStream()
     {
-        if(!mPlaying)
-            return;
-        if (mVideo.get())
-            mVideo->RemoveSink(static_cast<rtc::VideoSinkInterface<webrtc::VideoFrame>*>(this));
-        if (mAudio.get())
-        {}//TODO: Stop audio playback
-        mPlaying = false;
-        mRenderer->clearViewport();
+        detachAudio();
+        detachVideo();
     }
-
     void attachAudio(webrtc::AudioTrackInterface* audio)
     {
         assert(audio);
         detachAudio();
         mAudio = audio;
-        if (mPlaying)
-            {}//TODO: start audio playback
+        //TODO: start audio playback
     }
 
     void detachAudio()
     {
         if (!mAudio.get())
             return;
-        if (mPlaying)
-        {} //TODO: stop audio playback
+        //TODO: stop audio playback
         mAudio = NULL;
     }
 
@@ -111,12 +69,12 @@ public:
         assert(video);
         detachVideo();
         mVideo = video;
-        mRenderer->onVideoAttach();
-        if (mPlaying)
+        if (mRenderer)
         {
-            rtc::VideoSinkWants opts;
-            mVideo->AddOrUpdateSink(static_cast<rtc::VideoSinkInterface<webrtc::VideoFrame>*>(this), opts);
+            mRenderer->onVideoAttach();
         }
+        rtc::VideoSinkWants opts;
+        mVideo->AddOrUpdateSink(this, opts);
     }
     bool isVideoAttached() const { return mVideo.get() != nullptr; }
     bool isAudioAttached() const { return mAudio.get() != nullptr; }
@@ -124,38 +82,47 @@ public:
     {
         if (!mVideo.get())
             return;
-        if (mPlaying)
-            mVideo->RemoveSink(static_cast<rtc::VideoSinkInterface<webrtc::VideoFrame>*>(this));
-        mRenderer->onVideoDetach();
-        mRenderer->clearViewport();
+        mVideo->RemoveSink(this);
         mVideo = NULL;
+        if (mRenderer)
+        {
+            mRenderer->onVideoDetach();
+            mRenderer->clearViewport();
+        }
     }
     void attachToStream(artc::tspMediaStream& stream)
     {
         detachAudio();
         auto ats = stream->GetAudioTracks();
         if (!ats.empty())
+        {
             attachAudio(ats[0]);
+        }
         detachVideo();
         auto vts = stream->GetVideoTracks();
         if (!vts.empty())
+        {
             attachVideo(vts[0]);
+        }
     }
 
     void changeRenderer(IVideoRenderer* newRenderer)
     {
-        assert(newRenderer);
         mRenderer = newRenderer;
-        mRenderer->clearViewport();
+        if (mRenderer)
+        {
+            mRenderer->clearViewport();
+        }
     }
 
     void preDestroy()
     {
-        stop();
-        detachAudio();
-        detachVideo();
-        mRenderer->released();
-        mRenderer = nullptr;
+        detachFromStream();
+        if (mRenderer)
+        {
+            mRenderer->released();
+            mRenderer = nullptr;
+        }
     }
 //rtc::VideoSinkInterface<webrtc::VideoFrame> implementation
     virtual void OnFrame(const webrtc::VideoFrame& frame)
