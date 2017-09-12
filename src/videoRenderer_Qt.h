@@ -57,7 +57,7 @@ public:
         else
             return -1;
     }
-    virtual ~VideoRendererQt() { printf("==============RENDERER DESTROYED\n"); }
+    virtual ~VideoRendererQt() {}
 //IVideoRenderer interface
     virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData);
     virtual void frameComplete(void* userData);
