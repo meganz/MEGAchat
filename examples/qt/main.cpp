@@ -191,7 +191,6 @@ void AppDelegate::onAppTerminate()
     static bool called = false;
     if (called)
         return;
-    //assert(!called);
     called = true;
     gClient->terminate()
     .then([this]()
