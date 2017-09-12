@@ -56,6 +56,19 @@ public:
      */
     virtual void clearViewport() {}
 
+    /** Called _by a worker thread_ when the renderer is not needed and not referenced
+     * anymore, so that it can be destroyed, even from within this callback.
+     * \attention Although the renderer is no longer referenced from the library,
+     * frame update messages may still be in the application's message queue (in case
+     * such is used for posting frames to the GUI). These messages may reference the
+     * renderer. To solve this, the app may want to post the destroy call via
+     * application's message queue, assuming that the same message queue is used
+     * to post frames to the GUI thread. This is usually the case, as a GUI application normally has only
+     * one, ordered, message queue.
+     * However, if this is not the case, it is the developer's responsibility
+     * to destroy the renderer safely.
+     */
+    virtual void released() {}
     virtual ~IVideoRenderer() {}
 };
 class NullRenderer: public IVideoRenderer
@@ -64,6 +77,7 @@ public:
     virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData)
     { return nullptr; }
     virtual void frameComplete(void* userp) {}
+    virtual void released() { delete this; } //we don't post frames to the GUI so no problem with deleting immediately
 };
 }
 #endif // IVIDEORENDERER_H

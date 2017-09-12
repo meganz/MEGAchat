@@ -154,6 +154,7 @@ public:
         stop();
         detachAudio();
         detachVideo();
+        mRenderer->released();
         mRenderer = nullptr;
     }
 //rtc::VideoSinkInterface<webrtc::VideoFrame> implementation

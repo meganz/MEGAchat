@@ -241,8 +241,9 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
     {
         RtMessage packet(chat, msg);
         // this is the only command that is not handled by an existing call
-        if (packet.type == RTCMD_CALL_REQUEST) {
-            assert(packet.opcode == OP_BROADCAST);
+        if (packet.type == RTCMD_CALL_REQUEST)
+        {
+            assert(packet.opcode == OP_RTMSG_BROADCAST);
             msgCallRequest(packet);
             return;
         }
@@ -1911,7 +1912,8 @@ const StateDesc Call::sStateDesc = {
         { kStateReqSent, kStateHasLocalStream, kStateTerminating }, //for kStateInitial
         { kStateJoining, kStateReqSent, kStateTerminating }, //for kStateHasLocalStream
         { kStateInProgress, kStateTerminating },             //for kStateReqSent
-        { kStateInProgress, kStateTerminating },             //for kStateRingIn
+        { kStateHasLocalStream, kStateInProgress,            //for kStateRingIn
+          kStateTerminating },
         { kStateInProgress, kStateTerminating },             //for kStateJoining
         { kStateTerminating },                               //for kStateInProgress,
         { kStateDestroyed },                                 //for kStateTerminating,
