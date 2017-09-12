@@ -2446,7 +2446,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         {
             self->mNameResolved.resolve();
         }
-        else if (self->mRoom.memberNamesResolved().done())
+        else if (self->mRoom.memberNamesResolved().done() && !self->mRoom.mHasTitle)
         {
             self->mRoom.makeTitleFromMemberNames();
         }
@@ -2460,7 +2460,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         if (buf && !buf->empty())
         {
             self->mEmail.assign(buf->buf(), buf->dataSize());
-            if (self->mName.size() <= 1 && self->mRoom.memberNamesResolved().done())
+            if (self->mName.size() <= 1 && self->mRoom.memberNamesResolved().done() && !self->mRoom.mHasTitle)
             {
                 self->mRoom.makeTitleFromMemberNames();
             }
