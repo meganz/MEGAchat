@@ -71,8 +71,8 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
     uv_timer_start(timerhandle, keepalive_timer_cb, 1234567890ULL, 1);
 #endif
     
-    hasLibeventThread = svc_thread_start(NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
-    
+    hasLibeventThread = svc_thread_start(
+                NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
     return 0;
 }
 

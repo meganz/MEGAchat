@@ -1,6 +1,5 @@
 #include "karereCommon.h"
 #include "stringUtils.h"
-#include "rtcModule/IRtcModule.h"
 #include "sdkApi.h"
 #include "base/timers.hpp"
 #include "megachatapi_impl.h"
@@ -9,6 +8,10 @@
 #include "waiter/libuvWaiter.h"
 #else
 #include "waiter/libeventWaiter.h"
+#endif
+
+#ifndef KARERE_DISABLE_WEBRTC
+namespace rtcModule {void globalCleanup(); }
 #endif
 
 namespace karere

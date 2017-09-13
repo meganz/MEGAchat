@@ -68,7 +68,8 @@ void sigintHandler(int)
 {
     printf("SIGINT Received\n"); //don't use the logger, as it may cause a deadlock
     fflush(stdout);
-    marshallCall([]{appDelegate.onAppTerminate();}, NULL);
+
+    marshallCall([]{ appDelegate.onAppTerminate();}, NULL);
 }
 
 std::string gAppDir = karere::createAppDir();
@@ -194,7 +195,8 @@ void setVidencParams()
 void AppDelegate::onAppTerminate()
 {
     static bool called = false;
-    assert(!called);
+    if (called)
+        return;
     called = true;
     gClient->terminate()
     .then([this]()

@@ -7,7 +7,7 @@
 #include <QDrag>
 #include <QMimeData>
 //#include <mstrophepp.h>
-#include <IRtcModule.h>
+#include <webrtc.h>
 //#include <../strophe.disco.h>
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>
@@ -53,10 +53,10 @@ public:
     virtual karere::IApp::IChatListHandler* chatListHandler() { return this; }
     IChatHandler* createChatHandler(karere::ChatRoom& room);
     virtual void onInitStateChange(int newState);
-    virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call)
     {
 #ifndef KARERE_DISABLE_WEBRTC
-        return new CallAnswerGui(*this, ans);
+        return new CallAnswerGui(*this, call);
 #else
         return nullptr;
 #endif

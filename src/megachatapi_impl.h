@@ -31,9 +31,8 @@
 #include <megaapi.h>
 #include <megaapi_impl.h>
 
-#include <IRtcModule.h>
+#include <rtcModule/webrtc.h>
 #include <IVideoRenderer.h>
-#include <IJingleSession.h>
 #include <chatClient.h>
 #include <chatd.h>
 #include <sdkApi.h>
@@ -147,12 +146,11 @@ class MegaChatVideoReceiver;
 
 class MegaChatCallPrivate :
         public MegaChatCall,
-        public karere::IApp::ICallHandler,
-        public rtcModule::ICallAnswer
+        public rtcModule::ICallHandler
 {
 public:
-    MegaChatCallPrivate(const std::shared_ptr<rtcModule::ICallAnswer> &ans);
-    MegaChatCallPrivate(const char *peer);
+    MegaChatCallPrivate(rtcModule::ICall& call);
+    MegaChatCallPrivate(karere::Id peer);
     MegaChatCallPrivate(const MegaChatCallPrivate &call);
 
     virtual ~MegaChatCallPrivate();
@@ -165,13 +163,25 @@ public:
 
 //    shared_ptr<rtcModule::ICallAnswer> getAnswerObject();
 
-    const char* getPeer() const;
+    karere::Id getPeer() const;
     void setStatus(int status);
     void setTag(int tag);
     void setVideoReceiver(MegaChatVideoReceiver *videoReceiver);
     //void setAnswerObject(rtcModule::ICallAnswer *answerObject);
 
     // IApp::ICallHandler implementation (empty)
+    virtual void setCall(rtcModule::ICall* call) {}
+    virtual void onStateChange(uint8_t newState) {}
+    virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg) {}
+    virtual rtcModule::ISessionHandler* onNewSession(rtcModule::ISession& sess) { return nullptr; }
+    virtual void onLocalStreamObtained(rtcModule::IVideoRenderer *&rendererOut)
+    { //TODO: Return an actual renderer
+        rendererOut = nullptr;
+    }
+    virtual void onLocalMediaError(const std::string errors) {}
+    virtual void onRingOut(karere::Id peer) {}
+    virtual void onCallStarting() {}
+    virtual void onCallStarted() {}
 
     // rtcModule::IEventHandler implementation (inherit from ICallHandler)
 //    virtual void onLocalMediaFail(const std::string& errMsg, bool* cont);
@@ -192,14 +202,12 @@ public:
     virtual std::set<std::string>* files() const;
     virtual karere::AvFlags peerMedia() const;
     virtual bool answer(bool accept, karere::AvFlags ownMedia);
-
-
 protected:
+    rtcModule::ICall* mCall;
     int tag;
     int status;
-    const char *peer;
+    karere::Id peer;
     MegaChatVideoReceiver *videoReceiver;
-    std::shared_ptr<rtcModule::ICallAnswer> mAns;
 };
 
 class MegaChatVideoFrame
@@ -220,7 +228,7 @@ public:
     void setHeight(int height);
 
     // rtcModule::IVideoRenderer implementation
-    virtual unsigned char* getImageBuffer(unsigned short width, unsigned short height, void** userData);
+    virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData);
     virtual void frameComplete(void* userData);
     virtual void onVideoAttach();
     virtual void onVideoDetach();
@@ -341,7 +349,7 @@ public:
     MegaChatRoomHandler(MegaChatApiImpl*, MegaChatHandle chatid);
 
     // karere::IApp::IChatHandler implementation
-    virtual karere::IApp::ICallHandler* callHandler();
+    virtual rtcModule::ICallHandler* callHandler();
     virtual void onMemberNameChanged(uint64_t userid, const std::string &newName);
     //virtual void* userp();
 
@@ -869,7 +877,7 @@ public:
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
-    virtual rtcModule::IEventHandler* onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans);
+    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call);
     virtual void notifyInvited(const karere::ChatRoom& room);
     virtual void onInitStateChange(int newState);
 

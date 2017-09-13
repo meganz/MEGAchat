@@ -3,7 +3,7 @@
 #include <condition_variable>
 #include <mutex>
 #ifdef __APPLE__
-    #include <webrtc/base/scoped_autorelease_pool.h>
+//    #include <webrtc/base/scoped_autorelease_pool.h>
 #endif
 
 #ifdef RTCM_DEBUG_ASYNC_WAITER

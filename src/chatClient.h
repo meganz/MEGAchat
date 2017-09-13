@@ -15,6 +15,7 @@
 #include "IGui.h"
 #include "net/websocketsIO.h"
 #include <base/trackDelete.h>
+#include "rtcModule/webrtc.h"
 
 namespace strophe { class Connection; }
 
@@ -154,16 +155,16 @@ public:
      */
     bool isInitializing() const { return mIsInitializing; }
 
-    /** @brief Initiates a webrtc call in the chatroom
-     *  @param av Whether to initially send video and/or audio
-     */
-    virtual promise::Promise<void> mediaCall(AvFlags av) = 0;
-
     /**
      * @brief Updates the chatd url of the chatroom, by asking the API
      */
     promise::Promise<void> updateUrl();
-
+#ifndef KARERE_DISABLE_WEBRTC
+    /** @brief Initiates a webrtc call in the chatroom
+     *  @param av Whether to initially send video and/or audio
+     */
+    virtual rtcModule::ICall& mediaCall(AvFlags av, rtcModule::ICallHandler& handler);
+#endif
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
@@ -221,8 +222,6 @@ public:
 
     /** @brief The screen name of the peer */
     virtual const std::string& titleString() const;
-
-    promise::Promise<void> mediaCall(AvFlags av);
 /** @cond PRIVATE */
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
@@ -251,6 +250,7 @@ public:
         std::string mEmail;
         Presence mPresence;
         void subscribeForNameChanges();
+        promise::Promise<void> mNameResolved;
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
@@ -268,6 +268,9 @@ public:
 
         /** @brief The presence of the peer */
         Presence presence() const { return mPresence; }
+
+        promise::Promise<void> nameResolved() const;
+
         friend class GroupChatRoom;
     };
     /**
@@ -280,13 +283,14 @@ public:
     bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
+    promise::Promise<void> mMemberNamesResolved;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
     bool syncMembers(const UserPrivMap& users);
     static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
-    void addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
+    promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(uint64_t userid);
     void updatePeerPresence(uint64_t peer, Presence pres);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
@@ -297,6 +301,7 @@ public:
     void initWithChatd();
     void setRemoved();
     virtual void connect();
+    promise::Promise<void> memberNamesResolved() const;
 
     friend class ChatRoomList;
     friend class Member;
@@ -307,7 +312,6 @@ public:
                   const std::string& title);
     ~GroupChatRoom();
 public:
-    virtual promise::Promise<void> mediaCall(AvFlags av);
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
     void onUserLeave(Id userid);
@@ -528,7 +532,7 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalEventHandler,
+class Client: public rtcModule::IGlobalHandler,
               public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
               public presenced::Listener,
@@ -619,7 +623,6 @@ public:
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
-    rtcModule::IRtcModule* rtc = nullptr;
     unsigned mReconnectConnStateHandler = 0;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
@@ -792,6 +795,12 @@ public:
      */
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
+#ifndef KARERE_DISABLE_WEBRTC
+    std::unique_ptr<rtcModule::IRtcModule> rtc;
+    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call);
+    virtual bool onAnotherCall(rtcModule::ICall& existingCall, karere::Id userid);
+    virtual bool isGroupChat(karere::Id chatid);
+#endif
 
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
@@ -859,7 +868,7 @@ protected:
      */
     promise::Promise<void> doConnect(Presence pres);
     void setConnState(ConnState newState);
-#ifndef KARERE_DISABLE_WEBRTC
+#if 0 //ndef KARERE_DISABLE_WEBRTC
     // rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(
             const std::shared_ptr<rtcModule::ICallAnswer> &call);
