@@ -374,7 +374,3 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
     return 0;
 }
 
-LibwebsocketsClient::~LibwebsocketsClient()
-{
-
-}
