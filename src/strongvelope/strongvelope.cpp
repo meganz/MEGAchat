@@ -39,8 +39,7 @@ using namespace promise;
 using namespace CryptoPP;
 using namespace chatd;
 
-const std::string PAIRWISE_KEY = "strongvelope pairwise key";
-const std::string PAIRWISE_KEY_WITH_SEP = PAIRWISE_KEY+(char)0x01u;
+const std::string SVCRYPTO_PAIRWISE_KEY = "strongvelope pairwise key\x01";
 const std::string SVCRYPTO_SIG = "strongvelopesig";
 const karere::Id API_USER("gTxFhlOd_LQ");
 void deriveNonceSecret(const StaticBuffer& masterNonce, const StaticBuffer &result,
@@ -223,15 +222,14 @@ bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& s
  *     result of the group key agreement.
  * @param output Output buffer for result.
  */
-void deriveSharedKey(const StaticBuffer& sharedSecret, SendKey& output)
+void deriveSharedKey(const StaticBuffer& sharedSecret, SendKey& output, const std::string& padString)
 {
     assert(output.dataSize() == AES::BLOCKSIZE);
     // Equivalent to first block of HKDF, see RFC 5869.
     Key<32> sharedSecretKey;
     hmac_sha256_bytes(sharedSecret, StaticBuffer(nullptr, 0), sharedSecretKey); //step 1 - extract
-    std::string infoStr = PAIRWISE_KEY+(char)0x01u; //For efficiency the 0x01u can be appended to the constant definition itself
     Key<32> step2;
-    hmac_sha256_bytes(StaticBuffer(infoStr, false), sharedSecretKey, step2); //step 2 - expand
+    hmac_sha256_bytes(StaticBuffer(padString, false), sharedSecretKey, step2); //step 2 - expand
     memcpy(output.buf(), step2.buf(), AES::BLOCKSIZE);
 }
 
@@ -509,7 +507,7 @@ void ProtocolHandler::msgEncryptWithKey(Message& src, chatd::MsgCommand& dest,
 }
 
 promise::Promise<std::shared_ptr<SendKey>>
-ProtocolHandler::computeSymmetricKey(karere::Id userid)
+ProtocolHandler::computeSymmetricKey(karere::Id userid, const std::string& padString)
 {
     auto it = mSymmKeyCache.find(userid);
     if (it != mSymmKeyCache.end())
@@ -518,7 +516,7 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid)
     }
     auto wptr = weakHandle();
     return mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
-    .then([wptr, this, userid](const StaticBuffer* pubKey) -> promise::Promise<std::shared_ptr<SendKey>>
+    .then([wptr, this, userid, padString](const StaticBuffer* pubKey) -> promise::Promise<std::shared_ptr<SendKey>>
     {
         wptr.throwIfDeleted();
         // We may have had 2 almost parallel requests, and the second may
@@ -534,7 +532,7 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid)
         auto ignore = crypto_scalarmult(sharedSecret.ubuf(), myPrivCu25519.ubuf(), pubKey->ubuf());
         (void)ignore;
         auto result = std::make_shared<SendKey>();
-        deriveSharedKey(sharedSecret, *result);
+        deriveSharedKey(sharedSecret, *result, padString);
         mSymmKeyCache.emplace(userid, result);
         return result;
     });

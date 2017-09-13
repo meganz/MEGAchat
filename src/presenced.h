@@ -78,12 +78,97 @@ enum: karere::Presence::Code
 };
 enum: uint8_t
 {
+    /**
+      * @brief
+      * This command is used to know connection status. It is client responsibility to start
+      * KEEPALIVE interaction. Client sends a KEEPALIVE every 25 seconds and server answers immediately
+      */
     OP_KEEPALIVE = 0,
+
+    /**
+      * @brief
+      * C->S
+      * After establishing a connection, the client identifies itself with an OPCODE_HELLO,
+      * followed by a byte indicating the version of presenced protocol supported and the
+      * client's capabilities: an OR of push-enabled device (0x40) and/or WebRTC capabilities (0x80).
+      *
+      * <protocolVersion> + <clientCapabilities>
+      *
+      * After this command, client sends OP_USERACTIVE and OP_ADDPEERS (with all peers and contacts)
+      */
     OP_HELLO = 1,
+
+    /**
+      * @brief
+      * C->S
+      * This command is sent when the local user's activity status changes (including right
+      * after connecting to presenced).
+      * The only supported flag is in bit 0: CLIENT_USERACTIVE. All other bits must always be 0.
+      *
+      * <activeState> 1: active | 0: inactive
+      *
+      * @note This command is also known as OP_SETFLAGS.
+      */
     OP_USERACTIVE = 3,
+
+    /**
+      * @brief
+      * C->S
+      * Client must send all of the peers it wants to see its status when the connection is
+      * (re-)established. This command is sent after OP_HELLO and every time the user wants
+      * to subscribe to the status of a new peer or contact.
+      *
+      * <numberOfPeers> <peerHandle1>...<peerHandleN>
+      */
     OP_ADDPEERS = 4,
+
+    /**
+      * @brief
+      * C->S
+      * This command is sent when the client doesn't want to know the status of a peer or a contact
+      * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
+      * in any groupchat any longer.
+      *
+      * <1> <peerHandle>
+      */
     OP_DELPEERS = 5,
-    OP_PEERSTATUS = 6, //notifies about presence of user
+
+    /**
+      * @brief
+      * S->C
+      * Server sends own user's status (necessary for synchronization between different clients)
+      * and peers status requested by user
+      *
+      * <status> <peerHandle>
+      */
+    OP_PEERSTATUS = 6,
+
+    /**
+      * @brief
+      * C->S
+      * Client sends its preferences to server
+      *
+      * S->C
+      * Upon (re-)connection, the client receives the current prefs and needs to update
+      * its settings UI accordingly, unless the user has made a recent change, in which
+      * case it must send OPCODE_PREFS with the new user preferences.
+      *
+      * It is broadcast to all connections of a user if one of the clients makes a change.
+      *
+      * <preferences>
+      *
+      * Preferences are encoded as a 16-bit little-endian word:
+      *     bits 0-1: user status config (offline, away, online, do-not-disturb)
+      *     bit 2: override active (presenced uses the configured status if this is set)
+      *     bit 3: timeout active (ignored by presenced, relevant for clients)
+      *     bits 4-15 timeout (pseudo floating point, calculated as:
+      *
+      *         autoawaytimeout = prefs >> 4;
+      *         if (autoawaytimeout > 600)
+      *         {
+      *             autoawaytimeout = (autoawaytimeout - 600) * 60 + 600;
+      *         }
+      */
     OP_PREFS = 7
 };
 

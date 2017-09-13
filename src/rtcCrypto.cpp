@@ -44,7 +44,7 @@ void RtcCrypto::computeSymmetricKey(karere::Id peer, strongvelope::SendKey& outp
     strongvelope::Key<crypto_scalarmult_BYTES> sharedSecret;
     auto ignore = crypto_scalarmult(sharedSecret.ubuf(), (const unsigned char*)mClient.mMyPrivCu25519, pubKey->ubuf());
     (void)ignore;
-    strongvelope::deriveSharedKey(sharedSecret, output);
+    strongvelope::deriveSharedKey(sharedSecret, output, "webrtc pairwise key\x01");
 }
 
 void RtcCrypto::encryptKeyTo(karere::Id peer, const SdpKey& data, SdpKey& output)

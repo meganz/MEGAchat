@@ -234,8 +234,8 @@ struct UserKeyId
 };
 
 class TlvWriter;
-
-void deriveSharedKey(const StaticBuffer& sharedSecret, SendKey& output);
+extern const std::string SVCRYPTO_PAIRWISE_KEY;
+void deriveSharedKey(const StaticBuffer& sharedSecret, SendKey& output, const std::string& padString=SVCRYPTO_PAIRWISE_KEY);
 
 class ProtocolHandler: public chatd::ICrypto, public karere::DeleteTrackable
 {
@@ -300,7 +300,8 @@ protected:
      * Note: The Curve25519 key cache must already contain the public key of
      *       the recipient.
      */
-    promise::Promise<std::shared_ptr<SendKey> > computeSymmetricKey(karere::Id userid);
+    promise::Promise<std::shared_ptr<SendKey>>
+    computeSymmetricKey(karere::Id userid, const std::string& padString=SVCRYPTO_PAIRWISE_KEY);
 
     promise::Promise<std::shared_ptr<Buffer>>
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);

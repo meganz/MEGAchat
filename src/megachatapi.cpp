@@ -128,6 +128,11 @@ int MegaChatApi::getConnectionState()
     return pImpl->getConnectionState();
 }
 
+int MegaChatApi::getChatConnectionState(MegaChatHandle chatid)
+{
+    return pImpl->getChatConnectionState(chatid);
+}
+
 void MegaChatApi::retryPendingConnections(MegaChatRequestListener *listener)
 {
     pImpl->retryPendingConnections(listener);
@@ -283,6 +288,11 @@ MegaChatListItemList *MegaChatApi::getInactiveChatListItems()
     return pImpl->getInactiveChatListItems();
 }
 
+MegaChatListItemList *MegaChatApi::getUnreadChatListItems()
+{
+    return pImpl->getUnreadChatListItems();
+}
+
 MegaChatHandle MegaChatApi::getChatHandleByUser(MegaChatHandle userhandle)
 {
     return pImpl->getChatHandleByUser(userhandle);
@@ -371,13 +381,21 @@ MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, MegaHandleLi
 void MegaChatApi::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
 {
     pImpl->attachNodes(chatid, nodes, listener);
-    return;
 }
 
 void MegaChatApi::revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener)
 {
     pImpl->revokeAttachment(chatid, nodeHandle, listener);
-    return;
+}
+
+void MegaChatApi::attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener)
+{
+    pImpl->attachNode(chatid, nodehandle, listener);
+}
+
+MegaChatMessage *MegaChatApi::revokeAttachmentMessage(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    return pImpl->editMessage(chatid, msgid, NULL);
 }
 
 bool MegaChatApi::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const
@@ -418,6 +436,11 @@ void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowI
 void MegaChatApi::sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->sendTypingNotification(chatid, listener);
+}
+
+bool MegaChatApi::isMessageReceptionConfirmationActive() const
+{
+    return pImpl->isMessageReceptionConfirmationActive();
 }
 
 MegaStringList *MegaChatApi::getChatAudioInDevices()
@@ -845,6 +868,11 @@ void MegaChatListener::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPres
 
 }
 
+void MegaChatListener::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int newState)
+{
+
+}
+
 MegaChatListItem *MegaChatListItem::copy() const
 {
     return NULL;
@@ -883,6 +911,11 @@ int MegaChatListItem::getUnreadCount() const
 const char *MegaChatListItem::getLastMessage() const
 {
     return NULL;
+}
+
+MegaChatHandle MegaChatListItem::getLastMessageId() const
+{
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 int MegaChatListItem::getLastMessageType() const
