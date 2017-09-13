@@ -94,32 +94,6 @@ public:
 protected:
     PromiseType mPromise;
 };
-
-struct SdpText
-{
-    std::string sdp;
-    std::string type;
-    SdpText(webrtc::SessionDescriptionInterface* desc)
-    {
-        type = desc->type();
-        desc->ToString(&sdp);
-    }
-    SdpText(const std::string& aSdp, const std::string& aType)
-    :sdp(aSdp), type(aType)
-    {}
-    inline webrtc::JsepSessionDescription* createObject()
-    {
-        webrtc::JsepSessionDescription* jsepSdp =
-            new webrtc::JsepSessionDescription(type);
-        webrtc::SdpParseError error;
-        if (!jsepSdp->Initialize(sdp, &error))
-        {
-            delete jsepSdp;
-            throw std::runtime_error("Error parsing SDP: line "+error.line+"\nError: "+error.description);
-        }
-        return jsepSdp;
-    }
-};
 struct IceCandText
 {
     std::string candidate;
@@ -167,8 +141,6 @@ public:
 protected:
     PromiseType mPromise;
 };
-
-typedef std::shared_ptr<SdpText> sspSdpText;
 
 struct MyStatsReport: public webrtc::StatsReport::Values
 {
