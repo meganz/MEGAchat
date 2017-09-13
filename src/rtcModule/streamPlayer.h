@@ -20,7 +20,7 @@ protected:
     IVideoRenderer* mRenderer;
     bool mMediaStartSignalled = false;
     std::function<void()> mOnMediaStart;
-    std::mutex mMutex; //guards onMediaStart and other stuff that is accessed from webrtc threads
+    std::mutex mMutex; //guards onMediaStart and mRenderer (stuff that is accessed by public API and by webrtc threads)
 public:
     IVideoRenderer* videoRenderer() const {return mRenderer;}
     StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio=nullptr,
@@ -108,6 +108,7 @@ public:
 
     void changeRenderer(IVideoRenderer* newRenderer)
     {
+        std::unique_lock<std::mutex> locker(mMutex);
         mRenderer = newRenderer;
         if (mRenderer)
         {
@@ -118,6 +119,7 @@ public:
     void preDestroy()
     {
         detachFromStream();
+        std::unique_lock<std::mutex> locker(mMutex);
         if (mRenderer)
         {
             mRenderer->released();
@@ -127,10 +129,10 @@ public:
 //rtc::VideoSinkInterface<webrtc::VideoFrame> implementation
     virtual void OnFrame(const webrtc::VideoFrame& frame)
     {
+        std::unique_lock<std::mutex> locker(mMutex);
         if (!mMediaStartSignalled)
         {
             mMediaStartSignalled = true;
-            std::unique_lock<std::mutex> locker(mMutex);
             if (mOnMediaStart)
             {
                 auto callback = mOnMediaStart;
