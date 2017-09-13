@@ -35,8 +35,6 @@ using namespace promise;
 using namespace chatd;
 using namespace std;
 
-bool gInitialized = false;
-
 template <class... Args>
 const char* termCodeFirstArgToString(TermCode code, Args...)
 {
@@ -73,10 +71,9 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
   mTurnServerProvider(client.api, "turn", iceServers, 3600)
 {
-    if (!gInitialized)
+    if (!artc::isInitialized())
     {
         artc::init(nullptr);
-        gInitialized = true;
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
     mPcConstraints.SetMandatoryReceiveAudio(true);
@@ -2048,9 +2045,8 @@ void sdpSetVideoBw(std::string& sdp, int maxbr)
 }
 void globalCleanup()
 {
-    if (!gInitialized)
+    if (!artc::isInitialized())
         return;
     artc::cleanup();
-    gInitialized = false;
 }
 }

@@ -42,7 +42,7 @@ extern Identity gLocalIdentity;
 bool init(const Identity* identity);
 /** De-initializes and cleans up the library and webrtc stack */
 void cleanup();
-
+bool isInitialized();
 unsigned long generateId();
 
 typedef rtc::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;

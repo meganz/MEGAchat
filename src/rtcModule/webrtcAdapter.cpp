@@ -16,6 +16,7 @@ Identity gLocalIdentity;
 static bool gIsInitialized = false;
 AsyncWaiter* gAsyncWaiter = nullptr;
 
+bool isInitialized() { return gIsInitialized; }
 bool init(const Identity* identity)
 {
     if (gIsInitialized)
