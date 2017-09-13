@@ -56,7 +56,7 @@ using namespace chatd;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
-: localVideoReceiver(nullptr), sdkMutex(true)
+: sdkMutex(true), localVideoReceiver(nullptr)
 {
     init(chatApi, megaApi);
 }
@@ -122,6 +122,7 @@ void MegaChatApiImpl::loop()
         if (threadExit)
         {
             //TODO: Check why there could be pending events here if the cleanup was correct
+            assert(eventQueue.isEmpty());
             sendPendingEvents();
 
             sdkMutex.unlock();
@@ -977,8 +978,6 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
 
 int MegaChatApiImpl::init(const char *sid)
 {
-    int ret;
-
     sdkMutex.lock();
     if (!mClient)
     {
@@ -986,10 +985,18 @@ int MegaChatApiImpl::init(const char *sid)
         terminating = false;
     }
 
-    ret = MegaChatApiImpl::convertInitState(mClient->init(sid));
+    int state = mClient->init(sid);
+    if (state != karere::Client::kInitErrNoCache &&
+            state != karere::Client::kInitWaitingNewSession &&
+            state != karere::Client::kInitHasOfflineSession)
+    {
+        // there's been an error during initialization
+        localLogout();
+    }
+
     sdkMutex.unlock();
 
-    return ret;
+    return MegaChatApiImpl::convertInitState(state);
 }
 
 int MegaChatApiImpl::getInitState()
@@ -2274,6 +2281,11 @@ void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequ
     waiter->notify();
 }
 
+bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
+{
+    return mClient->chatd->isMessageReceivedConfirmationActive();
+}
+
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
     return NULL;
@@ -2754,6 +2766,17 @@ void* EventQueue::pop()
     events.pop_front();
     mutex.unlock();
     return event;
+}
+
+bool EventQueue::isEmpty()
+{
+    bool ret;
+
+    mutex.lock();
+    ret = events.empty();
+    mutex.unlock();
+
+    return ret;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener *listener)

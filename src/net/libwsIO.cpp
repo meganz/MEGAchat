@@ -1,7 +1,7 @@
 #include "net/libwsIO.h"
 #include <arpa/inet.h>
 #include <libws_log.h>
-#include <gcmpp.h>
+#include "base/gcmpp.h"
 
 #include "waiter/libeventWaiter.h"
 
@@ -53,7 +53,7 @@ void LibwsIO::addevents(::mega::Waiter* waiter, int)
 
 WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)
 {
-    if (!initialized)
+    if (!initialized)   // check required for compatibility with Qt app, which is not initialized by default
     {
         addevents(NULL, 0);
     }
@@ -63,7 +63,8 @@ WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int p
     
     result = ws_init(&libwsClient->mWebSocket, &wscontext);
     if (result)
-    {
+    {        
+        WEBSOCKETS_LOG_DEBUG("Failed to initialize libws at wsConnect()");
         delete libwsClient;
         return NULL;
     }
@@ -102,6 +103,7 @@ WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int p
     
     if (result)
     {
+        WEBSOCKETS_LOG_DEBUG("Failed to connect with libws");
         delete libwsClient;
         return NULL;
     }

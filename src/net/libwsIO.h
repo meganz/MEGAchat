@@ -6,7 +6,7 @@
 #include "trackDelete.h"
 #include <mega/waiter.h>
 
-// Websockets network layer implementatiuon based on libws
+// Websockets network layer implementation based on libws
 class LibwsIO : public WebsocketsIO
 {
 public:
@@ -34,7 +34,7 @@ public:
     static void websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg);
     
     LibwsClient(::mega::Mutex *mutex, WebsocketsClient *client, void *ctx);
-    ~LibwsClient();
+    virtual ~LibwsClient();
     
     virtual bool wsSendMessage(char *msg, size_t len);
     virtual void wsDisconnect(bool immediate);

@@ -433,6 +433,11 @@ void MegaChatApi::sendTypingNotification(MegaChatHandle chatid, MegaChatRequestL
     pImpl->sendTypingNotification(chatid, listener);
 }
 
+bool MegaChatApi::isMessageReceptionConfirmationActive() const
+{
+    return pImpl->isMessageReceptionConfirmationActive();
+}
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();

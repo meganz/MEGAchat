@@ -1,13 +1,9 @@
 #include "chatd.h"
 #include "chatClient.h"
 #include "chatdICrypto.h"
-#include <base/cservices.h>
-#include <gcmpp.h>
-#include <retryHandler.h>
 #include "base64.h"
 #include <algorithm>
 #include <random>
-#include <arpa/inet.h>
 
 using namespace std;
 using namespace promise;
@@ -81,19 +77,12 @@ namespace chatd
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
 Client::Client(karere::Client *client, Id userId)
-:mUserId(userId), karereClient(client), mApi(&client->api)
+:mUserId(userId), mApi(&client->api), karereClient(client)
 {
 }
 
-#define checkLibwsCall(call, opname) \
-    do {                             \
-        int _cls_ret = (call);       \
-        if (_cls_ret) throw std::runtime_error("Websocket error " +std::to_string(_cls_ret) + \
-        " on operation " #opname);   \
-    } while(0)
-
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
-    Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs)
+    Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup)
 {
     auto chatit = mChatForChatId.find(chatid);
     if (chatit != mChatForChatId.end())
@@ -124,7 +113,7 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     mConnectionForChatId[chatid] = conn;
 
     // always update the URL to give the API an opportunity to migrate chat shards between hosts
-    Chat* chat = new Chat(*conn, chatid, listener, users, chatCreationTs, crypto);
+    Chat* chat = new Chat(*conn, chatid, listener, users, chatCreationTs, crypto, isGroup);
     // add chatid to the connection's chatids
     conn->mChatIds.insert(chatid);
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
@@ -154,6 +143,11 @@ void Client::notifyUserActive()
     sendKeepalive();
 }
 
+bool Client::isMessageReceivedConfirmationActive() const
+{
+    return mMessageReceivedConfirmation;
+}
+
 void Chat::connect(const std::string& url)
 {
     // attempt a connection ONLY if this is a new shard.
@@ -165,7 +159,7 @@ void Chat::connect(const std::string& url)
             CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
         });
     }
-    else if (mConnection.isOnline())
+    else if (mConnection.isConnected())
     {
         login();
     }
@@ -229,9 +223,15 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 
     if (oldState < kStateLoggedIn) //tell retry controller that the connect attempt failed
     {
-        assert(!mLoginPromise.done());
-        mConnectPromise.reject(reason, errcode, errtype);
-        mLoginPromise.reject(reason, errcode, errtype);
+        assert(!mLoginPromise.succeeded());
+        if (!mConnectPromise.done())
+        {
+            mConnectPromise.reject(reason, errcode, errtype);
+        }
+        if (!mConnectPromise.done())
+        {
+            mLoginPromise.reject(reason, errcode, errtype);
+        }
     }
     else
     {
@@ -258,7 +258,7 @@ Promise<void> Connection::reconnect(const std::string& url)
 {
     try
     {
-        if (mState >= kStateConnecting) //would be good to just log and return, but we have to return a promise
+        if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
             throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
         if (!url.empty())
         {
@@ -326,7 +326,7 @@ Promise<void> Connection::reconnect(const std::string& url)
             return mConnectPromise
             .then([this]() -> promise::Promise<void>
             {
-                assert(mState >= kStateConnected);
+                assert(isConnected());
                 enableInactivityTimer();
                 return rejoinExistingChats();
             });
@@ -414,12 +414,12 @@ void Connection::reset() //immediate disconnect
 
 bool Connection::sendBuf(Buffer&& buf)
 {
-    if (!isOnline())
+    if (!isLoggedIn() && !isConnected())
         return false;
     
     bool rc = wsSendMessage(buf.buf(), buf.dataSize());
     buf.free();
-    return rc && isOnline();
+    return rc;
 }
 bool Chat::sendCommand(Command&& cmd)
 {
@@ -508,7 +508,7 @@ void Chat::join()
 {
 //We don't have any local history, otherwise joinRangeHist() would be called instead of this
 //Reset handshake state, as we may be reconnecting
-    assert(mConnection.isOnline());
+    assert(mConnection.isConnected());
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
     mServerFetchState = kHistNotFetching;
@@ -618,7 +618,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
         }
         else
         {
-            if (!mConnection.isOnline())
+            if (!mConnection.isLoggedIn())
                 return kHistSourceServerOffline;
 
             auto wptr = weakHandle();
@@ -637,7 +637,8 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 
 void Chat::requestHistoryFromServer(int32_t count)
 {
-    assert(mConnection.isOnline());
+    // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
+    assert(mConnection.isConnected() || mConnection.isLoggedIn());
     mLastServerHistFetchCount = mLastHistDecryptCount = 0;
     mServerFetchState = (count > 0)
         ? kHistFetchingNewFromServer
@@ -648,10 +649,10 @@ void Chat::requestHistoryFromServer(int32_t count)
 
 Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     const karere::SetOfIds& initialUsers, uint32_t chatCreationTs,
-    ICrypto* crypto)
+    ICrypto* crypto, bool isGroup)
     : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
       mListener(listener), mUsers(initialUsers), mCrypto(crypto),
-      mLastMsgTs(chatCreationTs)
+      mLastMsgTs(chatCreationTs), mIsGroup(isGroup)
 {
     assert(mChatId);
     assert(mListener);
@@ -927,7 +928,8 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 CHATD_LOG_DEBUG("%s: recv HISTDONE - history retrieval finished", ID_CSTR(chatid));
-                mClient.chats(chatid).onHistDone();
+                Chat &chat = mClient.chats(chatid);
+                chat.onHistDone();
                 break;
             }
             case OP_KEYID:
@@ -1135,6 +1137,21 @@ Message* Chat::getManualSending(uint64_t rowid, ManualSendReason& reason)
     CALL_DB(loadManualSendItem, rowid, item);
     reason = item.reason;
     return item.msg;
+}
+
+Idx Chat::lastIdxReceivedFromServer() const
+{
+    return mLastIdxReceivedFromServer;
+}
+
+Id Chat::lastIdReceivedFromServer() const
+{
+    return mLastIdReceivedFromServer;
+}
+
+bool Chat::isGroup() const
+{
+    return mIsGroup;
 }
 
 Message* Chat::getMsgByXid(Id msgxid)
@@ -1591,7 +1608,7 @@ void Chat::flushOutputQueue(bool fromStart)
 //the crypto module would get out of sync with the I/O sequence, which means
 //that it must have been reset/freshly initialized, and we have to skip
 //the KEYID responses for the keys we flush from the output queue
-    if(mEncryptionHalted || !mConnection.isOnline())
+    if(mEncryptionHalted || !mConnection.isLoggedIn())
         return;
 
     if (fromStart)
@@ -1650,7 +1667,7 @@ void Chat::removeManualSend(uint64_t rowid)
 // after a reconnect, we tell the chatd the oldest and newest buffered message
 void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 {
-    assert(mConnection.isOnline());
+    assert(mConnection.isConnected());
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
@@ -1982,6 +1999,13 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
                 CALL_DB(setLastReceived, 0);
             }
         }
+
+        if (mClient.isMessageReceivedConfirmationActive() && mLastIdxReceivedFromServer <= idx)
+        {
+            mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+            mLastIdReceivedFromServer = karere::Id::null();
+            // TODO: the update of those variables should be persisted
+        }
     }
 
     ChatDbInfo info;
@@ -2279,9 +2303,17 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
-        if ((msg.userid != mClient.mUserId) &&
-           ((mLastReceivedIdx == CHATD_IDX_INVALID) || (idx > mLastReceivedIdx)))
+
+
+        if (mClient.isMessageReceivedConfirmationActive() && !isGroup() &&
+                (msg.userid != mClient.mUserId) && // message is not ours
+                ((mLastIdxReceivedFromServer == CHATD_IDX_INVALID) ||   // no local history
+                 (idx > mLastIdxReceivedFromServer)))   // newer message than last received
         {
+            mLastIdxReceivedFromServer = idx;
+            mLastIdReceivedFromServer = msgid;
+            // TODO: the update of those variables should be persisted
+
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
     }

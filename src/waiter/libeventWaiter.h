@@ -19,6 +19,7 @@ struct LibeventWaiter : public Waiter
     void notify();
     
     struct event_base* eventloop;
+    struct event* keepalive;
 };
 } // namespace
 

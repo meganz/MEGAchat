@@ -75,7 +75,7 @@ void init_uv_timer(void *ctx, uv_timer_t *timer)
 
 #else
 
-struct event_base *get_ev_loop(void *ctx)
+eventloop *get_ev_loop(void *ctx)
 {
     if (ctx)
     {
