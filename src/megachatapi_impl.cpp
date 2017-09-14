@@ -3484,8 +3484,8 @@ void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
 {
     if (mRoom)
     {
-        int newState = MegaChatApiImpl::convertChatConnectionState(state);
-        chatApi->fireOnChatConnectionStateUpdate(mRoom->chatid(), newState);
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        mRoom->onOnlineStateChange(state);
     }
 }
 
