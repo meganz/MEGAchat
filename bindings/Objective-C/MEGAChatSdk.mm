@@ -233,6 +233,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     while (it != _activeChatListeners.end()) {
         DelegateMEGAChatListener *delegateListener = *it;
         if (delegateListener->getUserListener() == delegate) {
+            delegateListener->setValidListener(false);
             listenersToRemove.push_back(delegateListener);
             _activeChatListeners.erase(it++);
         }
