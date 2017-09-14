@@ -3,6 +3,7 @@
 #include <timers.hpp>
 #include <string.h> //for memset
 #include <karereCommon.h> //for timestampMs()
+#include <chatClient.h>
 #define RPTYPE(name) webrtc::StatsReport::kStatsReportType##name
 #define VALNAME(name) webrtc::StatsReport::kStatsValueName##name
 
@@ -80,7 +81,7 @@ void Recorder::OnComplete(const webrtc::StatsReports& data)
         {
             KR_LOG_ERROR("Stats: %s", e.what());
         }
-    });
+    }, mSession.mManager.mClient.appCtx);
 }
 
 void dumpStats(const artc::MyStatsReports& data)
@@ -238,12 +239,12 @@ void Recorder::start()
     mTimer = setInterval([this]()
     {
         //mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
-    }, mScanPeriod);
+    }, mScanPeriod, mSession.mManager.mClient.appCtx);
 }
 
 void Recorder::terminate(const std::string& termRsn)
 {
-    cancelInterval(mTimer);
+    cancelInterval(mTimer, mSession.mManager.mClient.appCtx);
     mTimer = 0;
     mStats->mDur = karere::timestampMs() - mStats->mStartTs;
     mStats->mTermRsn = termRsn;
@@ -262,7 +263,7 @@ std::string Recorder::getStats(const StatSessInfo& info)
 Recorder::~Recorder()
 {
     if (mTimer)
-        cancelInterval(mTimer);
+        cancelInterval(mTimer, mSession.mManager.mClient.appCtx);
 }
 
 const char* decToString(float v)

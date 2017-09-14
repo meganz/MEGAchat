@@ -39,7 +39,7 @@ struct Identity
 extern Identity gLocalIdentity;
 
 /** Globally initializes the library */
-bool init(const Identity* identity);
+bool init(const Identity* identity, void *appCtx);
 /** De-initializes and cleans up the library and webrtc stack */
 void cleanup();
 bool isInitialized();

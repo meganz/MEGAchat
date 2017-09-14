@@ -73,7 +73,7 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 {
     if (!artc::isInitialized())
     {
-        artc::init(nullptr);
+        artc::init(nullptr, client.appCtx);
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
     mPcConstraints.SetMandatoryReceiveAudio(true);
@@ -307,7 +307,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
             return;
         static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
-    }, kCallAnswerTimeout+4000); // local timeout a bit longer that the caller
+    }, kCallAnswerTimeout+4000, mClient.appCtx); // local timeout a bit longer that the caller
 }
 template <class... Args>
 void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)
@@ -587,7 +587,7 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
     setState(Call::kStateHasLocalStream);
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
-    mLocalPlayer.reset(new artc::StreamPlayer(renderer));
+    mLocalPlayer.reset(new artc::StreamPlayer(renderer, mManager.mClient.appCtx));
     mLocalPlayer->attachVideo(mLocalStream->video());
 }
 
@@ -694,7 +694,7 @@ void Call::msgRinging(RtMessage& packet)
                 return;
             }
             hangup(TermCode::kAnswerTimeout); // TODO: differentiate whether peer has sent us RINGING or not
-        }, RtcModule::kCallAnswerTimeout);
+        }, RtcModule::kCallAnswerTimeout, mManager.mClient.appCtx);
     }
     else
     {
@@ -708,7 +708,7 @@ void Call::clearCallOutTimer()
     if (!mCallOutTimer) {
         return;
     }
-    cancelTimeout(mCallOutTimer);
+    cancelTimeout(mCallOutTimer, mManager.mClient.appCtx);
     mCallOutTimer = 0;
 }
 
@@ -822,7 +822,7 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
             return;
         if (++ctx->count > 7)
         {
-            cancelInterval(ctx->timer);
+            cancelInterval(ctx->timer, mManager.mClient.appCtx);
             SUB_LOG_ERROR("Timed out waiting for all sessions to terminate, force closing them");
             for (auto& item: mSessions)
             {
@@ -833,9 +833,9 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
         }
         if (!mSessions.empty())
             return;
-        cancelInterval(ctx->timer);
+        cancelInterval(ctx->timer, mManager.mClient.appCtx);
         ctx->pms.resolve();
-    }, 200);
+    }, 200, mManager.mClient.appCtx);
     return ctx->pms;
 }
 
@@ -904,7 +904,7 @@ bool Call::cmdBroadcast(uint8_t type, Args... args)
         if (wptr.deleted())
             return;
         destroy(TermCode::kErrNetSignalling, true);
-    });
+    }, mManager.mClient.appCtx);
     return false;
 }
 
@@ -930,7 +930,7 @@ bool Call::broadcastCallReq()
             return;
 
         destroy(TermCode::kRingOutTimeout, true);
-    }, RtcModule::kRingOutTimeout);
+    }, RtcModule::kRingOutTimeout, mManager.mClient.appCtx);
     return true;
 }
 
@@ -944,7 +944,7 @@ void Call::startIncallPingTimer()
         {
             asyncDestroy(TermCode::kErrNetSignalling, true);
         }
-    }, RtcModule::kIncallPingInterval);
+    }, RtcModule::kIncallPingInterval, mManager.mClient.appCtx);
 }
 
 void Call::asyncDestroy(TermCode code, bool weTerminate)
@@ -955,14 +955,14 @@ void Call::asyncDestroy(TermCode code, bool weTerminate)
         if (wptr.deleted())
             return;
         destroy(code, weTerminate);
-    });
+    }, mManager.mClient.appCtx);
 }
 
 void Call::stopIncallPingTimer()
 {
     if (mInCallPingTimer)
     {
-        cancelInterval(mInCallPingTimer);
+        cancelInterval(mInCallPingTimer, mManager.mClient.appCtx);
         mInCallPingTimer = 0;
     }
     mChat.sendCommand(Command(OP_ENDCALL) + mChat.chatId() +
@@ -1002,7 +1002,7 @@ void Call::removeSession(Session& sess, TermCode reason)
             if (wptr.deleted())
                 return;
             join(peer);
-        }, 500);
+        }, 500, mManager.mClient.appCtx);
     }
 }
 bool Call::startOrJoin(AvFlags av)
@@ -1056,7 +1056,7 @@ bool Call::join(Id userid)
         {
             destroy(TermCode::kErrProtoTimeout, true);
         }
-    }, RtcModule::kSessSetupTimeout);
+    }, RtcModule::kSessSetupTimeout, mManager.mClient.appCtx);
     return true;
 }
 
@@ -1142,7 +1142,7 @@ void Call::onUserOffline(Id userid, uint32_t clientid)
             marshallCall([sess]()
             {
                 sess->terminateAndDestroy(static_cast<TermCode>(TermCode::kErrUserOffline | TermCode::kPeer));
-            });
+            }, mManager.mClient.appCtx);
             return;
         }
     }
@@ -1234,7 +1234,7 @@ call the caller is requesting - audio or video.
 This is not available when joining an existing call.
 */
 Session::Session(Call& call, RtMessage& packet)
-:ISession(call, packet.userid, packet.clientid)
+:ISession(call, packet.userid, packet.clientid), mManager(call.mManager)
 {
     // Packet can be RTCMD_JOIN or RTCMD_SESSION
     call.mManager.random(mOwnSdpKey);
@@ -1269,7 +1269,7 @@ Session::Session(Call& call, RtMessage& packet)
         if (mState < kStateInProgress) {
             terminateAndDestroy(TermCode::kErrProtoTimeout);
         }
-    }, RtcModule::kSessSetupTimeout);
+    }, RtcModule::kSessSetupTimeout, call.mManager.mClient.appCtx);
 }
 
 void Session::sendCmdSession(RtMessage& joinPacket)
@@ -1357,7 +1357,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onRemoteStreamAdded, renderer);
     assert(renderer);
-    mRemotePlayer.reset(new artc::StreamPlayer(renderer));
+    mRemotePlayer.reset(new artc::StreamPlayer(renderer, mManager.mClient.appCtx));
     mRemotePlayer->setOnMediaStart([this]()
     {
         FIRE_EVENT(SESS, onVideoRecv);
@@ -1642,7 +1642,7 @@ void Session::asyncDestroy(TermCode code, const std::string& msg)
         if (wptr.deleted())
             return;
         destroy(code, msg);
-    });
+    }, mManager.mClient.appCtx);
 }
 
 Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg)
@@ -1676,7 +1676,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
             SUB_LOG_WARNING("Terminate ack didn't arrive withing timeout, destroying session anyway");
             mTerminatePromise.resolve();
         }
-    }, 1000);
+    }, 1000, mManager.mClient.appCtx);
     auto pms = mTerminatePromise;
     return pms
     .then([wptr, this, code, msg]()

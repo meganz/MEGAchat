@@ -159,10 +159,14 @@ MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle 
     return 1;
 }
 
-/*int64_t services_get_time_ms()
+int64_t services_get_time_ms()
 {
     struct timeval tv;
+#ifndef USE_LIBWEBSOCKETS
     evutil_gettimeofday(&tv, nullptr);
+#else
+    gettimeofday(&tv, nullptr);
+#endif
     return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
-}*/
+}
 }

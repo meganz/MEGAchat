@@ -99,7 +99,6 @@ protected:
         void calculate(long periodMs, long newTotalBytes);
     };
 
-    Session& mSession;
     int mScanPeriod;
     int mMaxSamplePeriod;
     webrtc::PeerConnectionInterface::StatsOutputLevel mStatsLevel =
@@ -116,6 +115,7 @@ protected:
     void addSample();
     void resetBwCalculators();
 public:
+    Session& mSession;
     std::unique_ptr<RtcStats> mStats;
     Recorder(Session& sess, int scanPeriod, int maxSamplePeriod);
     ~Recorder();

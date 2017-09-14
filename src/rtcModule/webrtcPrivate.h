@@ -59,7 +59,9 @@ protected:
     void asyncDestroy(TermCode code, const std::string& msg="");
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
+
 public:
+    RtcModule& mManager;
     Session(Call& call, RtMessage& packet);
     ~Session();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }

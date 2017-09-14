@@ -15,6 +15,7 @@ typedef rtcModule::IVideoRenderer IVideoRenderer;
 class StreamPlayer: public rtc::VideoSinkInterface<webrtc::VideoFrame>
 {
 protected:
+    void *appCtx;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
     IVideoRenderer* mRenderer;
@@ -23,13 +24,16 @@ protected:
     std::mutex mMutex; //guards onMediaStart and mRenderer (stuff that is accessed by public API and by webrtc threads)
 public:
     IVideoRenderer* videoRenderer() const {return mRenderer;}
-    StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio=nullptr,
+    StreamPlayer(IVideoRenderer* renderer, void *ctx, webrtc::AudioTrackInterface* audio=nullptr,
     webrtc::VideoTrackInterface* video=nullptr)
      :mAudio(audio), mVideo(video), mRenderer(renderer)
-    {}
-    StreamPlayer(IVideoRenderer *renderer, tspMediaStream stream)
+    {
+        appCtx = ctx;
+    }
+    StreamPlayer(IVideoRenderer *renderer, tspMediaStream stream, void *ctx)
      :mRenderer(renderer)
     {
+        appCtx = ctx;
         attachToStream(stream);
     }
     ~StreamPlayer()
@@ -139,7 +143,7 @@ public:
                 karere::marshallCall([callback]()
                 {
                     callback();
-                });
+                }, appCtx);
             }
         }
         if (!mRenderer)

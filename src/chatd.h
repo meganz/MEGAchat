@@ -525,9 +525,10 @@ public:
             :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason){}
     };
 
+    Client& mClient;
+
 protected:
     Connection& mConnection;
-    Client& mClient;
     karere::Id mChatId;
     Idx mForwardStart;
     std::vector<std::unique_ptr<Message>> mForwardList;
