@@ -3734,7 +3734,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
         privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
-        string name = peerchat.contact().titleString();
+        string name = peerchat.titleString();
 
         this->peers.push_back(userpriv_pair(uh, priv));
 
@@ -3746,7 +3746,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         this->peerLastnames.push_back(buffer ? buffer : "");
         delete [] buffer;
 
-        this->peerEmails.push_back(peerchat.contact().email());
+        this->peerEmails.push_back(peerchat.email());
     }
 }
 

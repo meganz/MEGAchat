@@ -513,10 +513,8 @@ protected:
 public:
     CListPeerChatItem(QWidget* parent, karere::PeerChatRoom& room)
         : CListChatItem(parent), mRoom(room),
-          mContactItem(dynamic_cast<CListContactItem*>(room.contact().appItem()))
+          mContactItem(room.contact() ? dynamic_cast<CListContactItem*>(room.contact()->appItem()) : nullptr)
     {
-        if(mRoom.contact().visibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
-            showAsHidden();
         ui.mAvatar->setText("1");
         updateToolTip();
     }
@@ -525,8 +523,8 @@ public:
         QString text(tr("1on1 Chat room: "));
         text.append(QString::fromStdString(karere::Id(mRoom.chatid()).toString()));
         text.append(tr("\nEmail: "));
-        text.append(QString::fromStdString(mRoom.contact().email()));
-        text.append(tr("\nUser handle: ")).append(QString::fromStdString(karere::Id(mRoom.contact().userId()).toString()));
+        text.append(QString::fromStdString(mRoom.email()));
+        text.append(tr("\nUser handle: ")).append(QString::fromStdString(karere::Id(mRoom.peer()).toString()));
         text.append(tr("\nLast message:\n")).append(QString::fromStdString(mLastTextMsg));
         setToolTip(text);
     }

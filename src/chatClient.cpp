@@ -1423,37 +1423,29 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, uint32_t ts)
 :ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts), mPeer(peer),
-  mPeerPriv(peerPriv), mContact(*parent.client.contactList->contactFromUserId(peer)),
+  mPeerPriv(peerPriv),
   mRoomGui(nullptr)
 {
-    //mTitleString is set by Contact::attachChatRoom() via updateTitle()
-    mContact.attachChatRoom(*this); //defers title callbacks so they are not called during construction
+    initContact(peer);
     initWithChatd();
     mRoomGui = addAppItem();
     mIsInitializing = false;
 }
 
-PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat, Contact& contact)
+PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     :ChatRoom(parent, chat.getHandle(), false, chat.getShard(),
      (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime()),
-    mPeer(getSdkRoomPeer(chat)), mPeerPriv(chatd::PRIV_RDONLY),
-    mContact(contact),
+    mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)),
     mRoomGui(nullptr)
 {
-    assert(!chat.isGroup());
-    auto peers = chat.getPeerList();
-    assert(peers);
-    assert(peers->size() == 1);
-    mPeer = peers->getPeerHandle(0);
-    mPeerPriv = (chatd::Priv)peers->getPeerPrivilege(0);
-
     parent.client.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created) values (?,?,?,?,?,?)",
         mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime());
 //just in case
     parent.client.db.query("delete from chat_peers where chatid = ?", mChatid);
 
-    mContact.attachChatRoom(*this);
     KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  Id(mChatid).toString().c_str());
+
+    initContact(mPeer);
     initWithChatd();
     mRoomGui = addAppItem();
     mIsInitializing = false;
@@ -1467,11 +1459,55 @@ PeerChatRoom::~PeerChatRoom()
         chatd->leave(mChatid);
 }
 
+void PeerChatRoom::initContact(const uint64_t& peer)
+{
+    mContact = parent.client.contactList->contactFromUserId(peer);
+    mEmail = mContact ? mContact->email() : "Inactive account";
+    if (mContact)
+    {
+        mContact->attachChatRoom(*this);
+    }
+    else    // 1on1 with ex-contact or ex-user
+    {
+        mUsernameAttrCbId = parent.client.userAttrCache().getAttr(peer,
+            USER_ATTR_FULLNAME, this,
+            [](Buffer* data, void* userp)
+            {
+                //even if both first and last name are null, the data is at least
+                //one byte - the firstname-size-prefix, which will be zero
+                auto self = static_cast<PeerChatRoom*>(userp);
+                if (!data || data->empty() || (*data->buf() == 0))
+                {
+                    self->updateTitle(self->mEmail);
+                }
+                else
+                {
+                    self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
+                }
+            });
+
+        if (mTitleString.empty()) // user attrib fetch was not synchornous
+        {
+            updateTitle(encodeFirstName(mEmail));
+            assert(!mTitleString.empty());
+        }
+    }
+}
+
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
 {
-    auto& peers = *chat.getPeerList();
-    assert(peers.size() == 1);
-    return peers.getPeerHandle(0);
+    auto peers = chat.getPeerList();
+    assert(peers);
+    assert(peers->size() == 1);
+    return peers->getPeerHandle(0);
+}
+
+chatd::Priv PeerChatRoom::getSdkRoomPeerPriv(const mega::MegaTextChat &chat)
+{
+    auto peers = chat.getPeerList();
+    assert(peers);
+    assert(peers->size() == 1);
+    return (chatd::Priv) peers->getPeerPrivilege(0);
 }
 
 bool ChatRoom::syncOwnPriv(chatd::Priv priv)
@@ -1498,8 +1534,7 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
 
 bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
 {
-    bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);
-    changed |= syncOwnPriv((chatd::Priv)chat.getOwnPrivilege());
+    bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);   // returns true if own privilege has changed
     changed |= syncPeerPriv((chatd::Priv)chat.getPeerList()->getPeerPrivilege(0));
     return changed;
 }
@@ -1653,20 +1688,30 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
     for (int i = 0; i < size; i++)
     {
         auto& apiRoom = *rooms.get(i);
-        bool isInactive = apiRoom.getOwnPrivilege()  == -1;
         auto chatid = apiRoom.getHandle();
         auto it = find(chatid);
         if (it != end())
-            continue;
-        KR_LOG_DEBUG("Adding %sroom %s from API",
-            isInactive ? "(inactive) " : "",
-            Id(apiRoom.getHandle()).toString().c_str());
-        auto room = addRoom(apiRoom);
+            continue;   // chatroom already known
+
+        chatids.insert(chatid);
+
+        bool isInactive;
+        if (apiRoom.isGroup())
+            isInactive = (apiRoom.getOwnPrivilege()  == ::mega::MegaTextChatPeerList::PRIV_RM);
+        else    // 1on1
+            isInactive = (apiRoom.getOwnPrivilege()  != ::mega::MegaTextChatPeerList::PRIV_MODERATOR);
+
+        KR_LOG_DEBUG("Adding %sroom %s from API", isInactive ? "(inactive) " : "", Id(apiRoom.getHandle()).toString().c_str());
+
+        auto room = addRoom(apiRoom);   // returns false if 1on1 is inconsistent
+        // TODO: always return the room, even if 1on1 is inactive
         if (!room)
             continue;
-        chatids.insert(room->chatid());
 
-        if (!isInactive && client.connState() == Client::kConnected)
+        client.app.notifyInvited(*room);
+
+        // we connect only to active chatrooms and inactive 1on1 rooms. Inactive groupchats are hidden to user
+        if (client.connected() && ( !isInactive || (isInactive && !apiRoom.isGroup()) ) )
         {
             KR_LOG_DEBUG("...connecting new room to chatd...");
             room->connect();
@@ -1712,14 +1757,7 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
             KR_LOG_ERROR("addRoom: Trying to load a 1on1 room %s with more than one peer, ignoring room", Id(apiRoom.getHandle()).toString().c_str());
             return nullptr;
         }
-        auto peer = apiRoom.getPeerList()->getPeerHandle(0);
-        auto contact = client.contactList->contactFromUserId(peer);
-        if (!contact) //trying to create a 1on1 chatroom with a user that is not a contact. handle it gracfully
-        {
-            KR_LOG_ERROR("addRoom: Trying to load a 1on1 chat with a non-contact %s, ignoring chatroom", karere::Id(peer).toString().c_str());
-            return nullptr;
-        }
-        room = new PeerChatRoom(*this, apiRoom, *contact);
+        room = new PeerChatRoom(*this, apiRoom);
     }
 #ifndef NDEBUG
     auto ret =
@@ -1806,38 +1844,8 @@ void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
 
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
-        auto priv = apiRoom->getOwnPrivilege();
-        if (localRoom)
-        {
-            it->second->syncWithApi(*apiRoom);
-        }
-        else
-        {   //we don't have the room locally, add it to local cache
-            if (priv != chatd::PRIV_NOTPRESENT)
-            {
-                KR_LOG_DEBUG("Chatroom[%s]: Received new room",  Id(chatid).toString().c_str());
-                auto room = addRoom(*apiRoom);
-                if (!room)
-                    continue;
-                client.app.notifyInvited(*room);
-                if (client.connected())
-                {
-                    room->connect();
-                }
-            }
-            else
-            {
-                KR_LOG_DEBUG("Chatroom[%s]: Received new INACTIVE room",  Id(chatid).toString().c_str());
-                auto room = addRoom(*apiRoom);
-                if (!room)
-                    continue;
-                if (!room->isGroup())
-                {
-                    KR_LOG_ERROR("... inactive room is 1on1: only group chatrooms can be inactive");
-                    continue;
-                }
-            }
-        }
+        assert(localRoom);
+        localRoom->syncWithApi(*apiRoom);
     }
 }
 
@@ -2115,21 +2123,12 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 
 bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
 {
-    bool changed = false;
     if (chat.getShard() != mShardNo)
         throw std::runtime_error("syncWithApi: Shard number of chat can't change");
     if (chat.isGroup() != mIsGroup)
         throw std::runtime_error("syncWithApi: isGroup flag can't change");
-    auto db = parent.client.db;
-    chatd::Priv ownPriv = (chatd::Priv)chat.getOwnPrivilege();
-    if (ownPriv != mOwnPriv)
-    {
-        mOwnPriv = ownPriv;
-        changed = true;
-        db.query("update chats set own_priv=? where chatid=?", ownPriv, mChatid);
-        KR_LOG_DEBUG("Chatroom %s: own privilege updated from API", Id(mChatid).toString().c_str());
-    }
-    return changed;
+
+    return syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
 }
 
 //chatd::Listener::init
@@ -2252,8 +2251,9 @@ void PeerChatRoom::onUnreadChanged()
     auto count = mChat->unreadMsgCount();
     if (mRoomGui)
         mRoomGui->onUnreadCountChanged(count);
-    if (mContact.appItem())
-        mContact.appItem()->onUnreadCountChanged(count);
+
+    if (mContact && mContact->appItem())
+        mContact->appItem()->onUnreadCountChanged(count);
 }
 
 void PeerChatRoom::updateTitle(const std::string& title)
@@ -2568,7 +2568,7 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
     for (int i = 0; i < size; i++)
     {
         auto& user = *users.get(i);
-        if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_INACTIVE)
+        if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_UNKNOWN)   // user cancelled the account in MEGA
         {
             continue;
         }
