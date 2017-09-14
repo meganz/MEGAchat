@@ -1480,8 +1480,8 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
         return false;
 
     mOwnPriv = priv;
-    parent.client.db.query("update chats set own_priv = ? where chatid = ?",
-                priv, mChatid);
+    parent.client.db.query("update chats set own_priv = ? where chatid = ?", priv, mChatid);
+
     return true;
 }
 
@@ -1489,9 +1489,10 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
 {
     if (mPeerPriv == priv)
         return false;
+
     mPeerPriv = priv;
-    parent.client.db.query("update chats set peer_priv = ? where chatid = ?",
-                priv, mChatid);
+    parent.client.db.query("update chats set peer_priv = ? where chatid = ?", priv, mChatid);
+
     return true;
 }
 
@@ -1649,7 +1650,7 @@ void ChatRoomList::loadFromDb()
 void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, SetOfIds& chatids)
 {
     auto size = rooms.size();
-    for (int i=0; i<size; i++)
+    for (int i = 0; i < size; i++)
     {
         auto& apiRoom = *rooms.get(i);
         bool isInactive = apiRoom.getOwnPrivilege()  == -1;
@@ -1698,7 +1699,7 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
             }
         }
     }
-    else
+    else    // 1on1
     {
         auto peers = apiRoom.getPeerList();
         if (!peers)
@@ -1802,6 +1803,7 @@ void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
         auto chatid = apiRoom->getHandle();
         if (added.has(chatid)) //room was just added, no need to sync
             continue;
+
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
         auto priv = apiRoom->getOwnPrivilege();
@@ -2280,11 +2282,12 @@ void GroupChatRoom::onUnreadChanged()
         mRoomGui->onUnreadCountChanged(count);
 }
 
+// return true if new peer, peer removed or peer's privilege updated
 bool GroupChatRoom::syncMembers(const UserPrivMap& users)
 {
     bool changed = false;
     auto db = parent.client.db;
-    for (auto ourIt=mPeers.begin(); ourIt!=mPeers.end();)
+    for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
         auto userid = ourIt->first;
         auto it = users.find(userid);
@@ -2305,8 +2308,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
             if (ourIt->second->mPriv != it->second)
             {
                 changed = true;
-                db.query("update chat_peers set priv=? where chatid=? and userid=?",
-                    it->second, mChatid, userid);
+                db.query("update chat_peers set priv=? where chatid=? and userid=?", it->second, mChatid, userid);
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
                      Id(chatid()).toString().c_str(), Id(userid).toString().c_str(),
                      ourIt->second->mPriv, it->second);
@@ -2415,8 +2417,10 @@ UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, User
     if (members)
     {
         auto size = members->size();
-        for (int i=0; i<size; i++)
+        for (int i = 0; i < size; i++)
+        {
             membs.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
+        }
     }
     return membs;
 }
@@ -2521,7 +2525,7 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
         return true;
     }
     auto cmail = user.getEmail();
-    std::string email(cmail?cmail:"");
+    std::string email(cmail ? cmail : "");
     int visibility = user.getVisibility();
     auto ts = user.getTimestamp();
     client.db.query("insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
@@ -2561,7 +2565,7 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
 {
     std::set<uint64_t> apiUsers;
     auto size = users.size();
-    for (int i=0; i<size; i++)
+    for (int i = 0; i < size; i++)
     {
         auto& user = *users.get(i);
         if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_INACTIVE)
@@ -2571,7 +2575,9 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
         apiUsers.insert(user.getHandle());
         addUserFromApi(user);
     }
-    for (auto it = begin(); it!= end();)
+
+    // finally, remove known users that are not anymore in the list of users reported by the SDK
+    for (auto it = begin(); it != end();)
     {
         auto handle = it->first;
         if (apiUsers.find(handle) != apiUsers.end())
@@ -2579,6 +2585,7 @@ void ContactList::syncWithApi(mega::MegaUserList& users)
             it++;
             continue;
         }
+
         auto erased = it;
         it++;
         removeUser(erased);
