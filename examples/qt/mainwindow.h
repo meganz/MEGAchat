@@ -348,21 +348,20 @@ public:
     {
         GUI_LOG_DEBUG("onVisibilityChanged for contact %s: new visibility is %d",
                karere::Id(mContact.userId()).toString().c_str(), newVisibility);
-        auto chat = mContact.chatRoom()
-            ? static_cast<CListChatItem*>(mContact.chatRoom()->roomGui()->userp)
-            : nullptr;
 
         if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
         {
             showAsHidden();
-            if (chat)
-                chat->showAsHidden();
+            show();
+        }
+        else if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+        {
+            hide();
         }
         else
         {
             unshowAsHidden();
-            if (chat)
-                chat->unshowAsHidden();
+            show();
         }
         updateToolTip();
     }
