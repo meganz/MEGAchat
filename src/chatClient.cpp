@@ -1488,7 +1488,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
 
         if (mTitleString.empty()) // user attrib fetch was not synchornous
         {
-            updateTitle(encodeFirstName(mEmail));
+            updateTitle(mEmail);
             assert(!mTitleString.empty());
         }
     }

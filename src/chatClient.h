@@ -188,7 +188,6 @@ class PeerChatRoom: public ChatRoom
 protected:
     uint64_t mPeer;
     chatd::Priv mPeerPriv;
-    std::string mTitleString;
     std::string mEmail;
     Contact *mContact;
     // mRoomGui must be the last member, since when we initialize it,
