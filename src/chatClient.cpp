@@ -1119,6 +1119,7 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 {
     if (!aUsers)
         return;
+
     std::shared_ptr<mega::MegaUserList> users(aUsers->copy());
     auto wptr = weakHandle();
     marshallCall([wptr, this, users]()
@@ -1130,7 +1131,7 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 
         assert(mUserAttrCache);
         auto count = users->size();
-        for (int i=0; i<count; i++)
+        for (int i = 0; i < count; i++)
         {
             auto& user = *users->get(i);
             if (user.getChanges())
@@ -2546,12 +2547,16 @@ void Contact::onVisibilityChanged(int newVisibility)
     }
 
     auto& client = mClist.client;
-    bool userDeleted = (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE);
-    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN || userDeleted)
+    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
     {
-        client.presenced().removePeer(mUserid, userDeleted);
-        if (mChatRoom)
-            mChatRoom->notifyExcludedFromChat();
+        if (!mChatRoom)
+        {
+            client.presenced().removePeer(mUserid);
+        }
+    }
+    else if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+    {
+        client.presenced().removePeer(mUserid, true);
     }
     else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
     {
