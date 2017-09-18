@@ -389,7 +389,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors)
               .append(e.what()?e.what():"Unknown error")+='\n';
     }
     if (!mAudioInput && !mVideoInput)
-        return nullptr;
+        return std::make_shared<artc::LocalStreamHandle>(nullptr, nullptr);
 
     std::shared_ptr<artc::LocalStreamHandle> localStream =
         std::make_shared<artc::LocalStreamHandle>(
