@@ -9,10 +9,19 @@ DelegateMEGAChatRoomListener::DelegateMEGAChatRoomListener(MEGAChatSdk *megaChat
     this->megaChatSDK = megaChatSDK;
     this->listener = listener;
     this->singleListener = singleListener;
+    this->validListener = true;
 }
 
 id<MEGAChatRoomDelegate>DelegateMEGAChatRoomListener::getUserListener() {
     return listener;
+}
+
+bool DelegateMEGAChatRoomListener::isValidListener(){
+    return this->validListener;
+}
+
+void DelegateMEGAChatRoomListener::setValidListener(bool validListener) {
+    this->validListener = validListener;
 }
 
 void DelegateMEGAChatRoomListener::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat) {
@@ -20,8 +29,11 @@ void DelegateMEGAChatRoomListener::onChatRoomUpdate(megachat::MegaChatApi *api, 
         MegaChatRoom *tempChat = chat->copy();
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRoomDelegate> tempListener = this->listener;
+        bool tempValidListener = validListener;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onChatRoomUpdate:tempMegaChatSDK chat:[[MEGAChatRoom alloc]initWithMegaChatRoom:tempChat cMemoryOwn:YES]];
+            if (tempValidListener) {
+                [tempListener onChatRoomUpdate:tempMegaChatSDK chat:[[MEGAChatRoom alloc] initWithMegaChatRoom:tempChat cMemoryOwn:YES]];
+            }
         });
     }
 }
@@ -31,8 +43,11 @@ void DelegateMEGAChatRoomListener::onMessageLoaded(megachat::MegaChatApi *api, m
         MegaChatMessage *tempMessage = message ? message->copy() : NULL;
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRoomDelegate> tempListener = this->listener;
+        bool tempValidListener = validListener;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onMessageLoaded:tempMegaChatSDK message:tempMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES] : nil];
+            if (tempValidListener) {
+                [tempListener onMessageLoaded:tempMegaChatSDK message:tempMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES] : nil];
+            }
         });
     }
 }
@@ -42,8 +57,11 @@ void DelegateMEGAChatRoomListener::onMessageReceived(megachat::MegaChatApi *api,
         MegaChatMessage *tempMessage = message->copy();
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRoomDelegate> tempListener = this->listener;
+        bool tempValidListener = validListener;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onMessageReceived:tempMegaChatSDK message:[[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES]];
+            if (tempValidListener) {
+                [tempListener onMessageReceived:tempMegaChatSDK message:[[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES]];
+            }
         });
     }
 }
@@ -53,8 +71,11 @@ void DelegateMEGAChatRoomListener::onMessageUpdate(megachat::MegaChatApi *api, m
         MegaChatMessage *tempMessage = message->copy();
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRoomDelegate> tempListener = this->listener;
+        bool tempValidListener = validListener;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onMessageUpdate:tempMegaChatSDK message:[[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES]];
+            if (tempValidListener) {
+                [tempListener onMessageUpdate:tempMegaChatSDK message:[[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES]];
+            }
         });
     }
 }

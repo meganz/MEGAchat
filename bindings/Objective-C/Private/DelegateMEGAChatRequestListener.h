@@ -8,6 +8,8 @@ public:
     
     DelegateMEGAChatRequestListener(MEGAChatSdk *megaChatSDK, id<MEGAChatRequestDelegate>listener, bool singleListener = true);
     id<MEGAChatRequestDelegate>getUserListener();
+    bool isValidListener();
+    void setValidListener(bool validListener);
     
     void onRequestStart(megachat::MegaChatApi *api, megachat::MegaChatRequest *request);
     void onRequestFinish(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError *e);
@@ -18,4 +20,5 @@ private:
     MEGAChatSdk *megaChatSDK;
     id<MEGAChatRequestDelegate>listener;
     bool singleListener;
+    bool validListener;
 };

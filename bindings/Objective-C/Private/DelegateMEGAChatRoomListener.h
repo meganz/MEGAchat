@@ -8,6 +8,8 @@ public:
     
     DelegateMEGAChatRoomListener(MEGAChatSdk *megaChatSDK, id<MEGAChatRoomDelegate>listener, bool singleListener = true);
     id<MEGAChatRoomDelegate>getUserListener();
+    bool isValidListener();
+    void setValidListener(bool validListener);
     
     void onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
     void onMessageLoaded(megachat::MegaChatApi *api, megachat::MegaChatMessage *message);
@@ -18,4 +20,5 @@ private:
     MEGAChatSdk *megaChatSDK;
     id<MEGAChatRoomDelegate>listener;
     bool singleListener;
+    bool validListener;
 };

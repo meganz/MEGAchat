@@ -9,10 +9,19 @@ DelegateMEGAChatRequestListener::DelegateMEGAChatRequestListener(MEGAChatSdk *me
     this->megaChatSDK = megaChatSDK;
     this->listener = listener;
     this->singleListener = singleListener;
+    this->validListener = true;
 }
 
 id<MEGAChatRequestDelegate>DelegateMEGAChatRequestListener::getUserListener() {
     return listener;
+}
+
+bool DelegateMEGAChatRequestListener::isValidListener(){
+    return this->validListener;
+}
+
+void DelegateMEGAChatRequestListener::setValidListener(bool validListener) {
+    this->validListener = validListener;
 }
 
 void DelegateMEGAChatRequestListener::onRequestStart(MegaChatApi *api, MegaChatRequest *request) {
@@ -20,8 +29,11 @@ void DelegateMEGAChatRequestListener::onRequestStart(MegaChatApi *api, MegaChatR
         MegaChatRequest *tempRequest = request->copy();
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRequestDelegate> tempListener = this->listener;
+        bool tempValidListener = validListener;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onChatRequestStart:tempMegaChatSDK request:[[MEGAChatRequest alloc]initWithMegaChatRequest:tempRequest cMemoryOwn:YES]];
+            if (tempValidListener) {
+                [tempListener onChatRequestStart:tempMegaChatSDK request:[[MEGAChatRequest alloc] initWithMegaChatRequest:tempRequest cMemoryOwn:YES]];
+            }
         });
     }
 }
@@ -33,8 +45,11 @@ void DelegateMEGAChatRequestListener::onRequestFinish(MegaChatApi *api, MegaChat
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRequestDelegate> tempListener = this->listener;
         bool tempSingleListener = this->singleListener;
+        bool tempValidListener = validListener;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onChatRequestFinish:tempMegaChatSDK request:[[MEGAChatRequest alloc]initWithMegaChatRequest:tempRequest cMemoryOwn:YES] error:[[MEGAChatError alloc] initWithMegaChatError:tempError cMemoryOwn:YES]];
+            if (tempValidListener) {
+                [tempListener onChatRequestFinish:tempMegaChatSDK request:[[MEGAChatRequest alloc] initWithMegaChatRequest:tempRequest cMemoryOwn:YES] error:[[MEGAChatError alloc] initWithMegaChatError:tempError cMemoryOwn:YES]];
+            }
             if (tempSingleListener) {
                 [megaChatSDK freeRequestListener:this];
             }
@@ -47,8 +62,11 @@ void DelegateMEGAChatRequestListener::onRequestUpdate(MegaChatApi *api, MegaChat
         MegaChatRequest *tempRequest = request->copy();
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRequestDelegate> tempListener = this->listener;
+        bool tempValidListener = validListener;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onChatRequestUpdate:tempMegaChatSDK request:[[MEGAChatRequest alloc] initWithMegaChatRequest:tempRequest cMemoryOwn:YES]];
+            if (tempValidListener) {
+                [tempListener onChatRequestUpdate:tempMegaChatSDK request:[[MEGAChatRequest alloc] initWithMegaChatRequest:tempRequest cMemoryOwn:YES]];
+            }
         });
     }
 }
@@ -59,8 +77,11 @@ void DelegateMEGAChatRequestListener::onRequestTemporaryError(MegaChatApi *api, 
         MegaChatError *tempError = e->copy();
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRequestDelegate> tempListener = this->listener;
+        bool tempValidListener = validListener;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onChatRequestTemporaryError:tempMegaChatSDK request:[[MEGAChatRequest alloc] initWithMegaChatRequest:tempRequest cMemoryOwn:YES] error:[[MEGAChatError alloc] initWithMegaChatError:tempError cMemoryOwn:YES]];
+            if (tempValidListener) {
+                [tempListener onChatRequestTemporaryError:tempMegaChatSDK request:[[MEGAChatRequest alloc] initWithMegaChatRequest:tempRequest cMemoryOwn:YES] error:[[MEGAChatError alloc] initWithMegaChatError:tempError cMemoryOwn:YES]];
+            }
         });
     }
 }

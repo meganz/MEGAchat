@@ -177,6 +177,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     while (it != _activeChatRoomListeners.end()) {
         DelegateMEGAChatRoomListener *delegateListener = *it;
         if (delegateListener->getUserListener() == delegate) {
+            delegateListener->setValidListener(false);
             listenersToRemove.push_back(delegateListener);
             _activeChatRoomListeners.erase(it++);
         }
@@ -205,6 +206,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     while (it != _activeRequestListeners.end()) {
         DelegateMEGAChatRequestListener  *delegateListener = *it;
         if (delegateListener->getUserListener() == delegate) {
+            delegateListener->setValidListener(false);
             listenersToRemove.push_back(delegateListener);
             _activeRequestListeners.erase(it++);
         }
