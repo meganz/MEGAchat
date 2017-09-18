@@ -927,69 +927,120 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_START_CHAT_CALL:
         {
-            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-            karere::AvFlags avFlags(true, request->getFlag());
+            MegaChatHandle chatid = request->getChatHandle();
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            bool enableVideo = request->getFlag();
+            karere::AvFlags avFlags(true, enableVideo);
+
             MegaChatCallHandler *handler = new MegaChatCallHandler(this);
-            rtcModule::ICall &call = mClient->rtc->startCall(chatroom->chatid(), avFlags, *handler);
+            rtcModule::ICall &call = mClient->rtc->startCall(chatid, avFlags, *handler);
             handler->setCall(&call);
-            callHandlers[chatroom->chatid()] = handler;
+            callHandlers[chatid] = handler;
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
         {
-            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-            karere::AvFlags avFlags(true, true);
+            MegaChatHandle chatid = request->getChatHandle();
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            bool enableVideo = request->getFlag();
+            karere::AvFlags avFlags(true, enableVideo); // audio is always enabled by default
+
             MegaChatCallHandler *handler = new MegaChatCallHandler(this);
-            rtcModule::ICall &call = mClient->rtc->joinCall(chatroom->chatid(), avFlags, *handler);
+            rtcModule::ICall &call = mClient->rtc->joinCall(chatid, avFlags, *handler);
             handler->setCall(&call);
-            callHandlers[chatroom->chatid()] = handler;
+            callHandlers[chatid] = handler;
+
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         case MegaChatRequest::TYPE_HANG_CHAT_CALL:
         {
-            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-            mClient->rtc->hangupAll(rtcModule::TermCode::kUserHangup);
-            if (callHandlers.find(chatroom->chatid()) != callHandlers.end())
+            MegaChatHandle chatid = request->getChatHandle();
+            if (chatid != MEGACHAT_INVALID_HANDLE)
             {
-                MegaChatCallHandler *handler = callHandlers[chatroom->chatid()];
-                callHandlers.erase(chatroom->chatid());
+                if (callHandlers.find(chatid) == callHandlers.end())
+                {
+                    errorCode = MegaChatError::ERROR_NOENT;
+                    break;
+                }
+
+                mClient->rtc->hangupAll(rtcModule::TermCode::kUserHangup);
+                MegaChatCallHandler *handler = callHandlers[chatid];
+                callHandlers.erase(chatid);
                 delete handler;
                 handler = NULL;
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
             }
+            else    // hang all calls (no specific chatid)
+            {
+                for (auto it = callHandlers.begin(); it != callHandlers.end(); )
+                {
+                    MegaChatHandle chatidToRemove = it->first;
+                    it++;
+
+                    MegaChatCallHandler *handler = callHandlers[chatidToRemove];
+                    callHandlers.erase(chatidToRemove);
+                    delete handler;
+                    handler = NULL;
+                }
+            }
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         case MegaChatRequest::TYPE_MUTE_CHAT_CALL:
         {
-            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-            if (callHandlers.find(chatroom->chatid()) != callHandlers.end())
+            MegaChatHandle chatid = request->getChatHandle();
+            bool muteAudio = request->getFlag();
+
+            if (callHandlers.find(chatid) == callHandlers.end())
             {
-                MegaChatCallHandler *handler = callHandlers[chatroom->chatid()];
-                karere::AvFlags actualFlags = handler->getCall()->sentAv();
-                karere::AvFlags flags(request->getFlag(), actualFlags.video());
-                handler->getCall()->muteUnmute(flags);
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
             }
+
+            MegaChatCallHandler *handler = callHandlers[chatid];
+            karere::AvFlags currentFlags = handler->getCall()->sentAv();
+            karere::AvFlags newFlags(muteAudio, currentFlags.video());
+            handler->getCall()->muteUnmute(newFlags);
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         case MegaChatRequest::TYPE_DISABLE_VIDEO_CALL:
         {
-            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-            if (callHandlers.find(chatroom->chatid()) != callHandlers.end())
+            MegaChatHandle chatid = request->getChatHandle();
+            bool enableVideo = request->getFlag();
+
+            if (callHandlers.find(chatid) == callHandlers.end())
             {
-                MegaChatCallHandler *handler = callHandlers[chatroom->chatid()];
-                karere::AvFlags actualFlags = handler->getCall()->sentAv();
-                karere::AvFlags flags(actualFlags.audio(), request->getFlag());
-                handler->getCall()->muteUnmute(flags);
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
             }
+
+            MegaChatCallHandler *handler = callHandlers[chatid];
+            karere::AvFlags currentFlags = handler->getCall()->sentAv();
+            karere::AvFlags newFlags(currentFlags.audio(), enableVideo);
+            handler->getCall()->muteUnmute(newFlags);
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         default:
@@ -2430,19 +2481,9 @@ void MegaChatApiImpl::hangChatCall(MegaChatHandle chatid, MegaChatRequestListene
 
 void MegaChatApiImpl::hangAllChatCalls(MegaChatRequestListener *listener = NULL)
 {
-    MegaChatRoomList *chatRooms = getChatRooms();
-    if (chatRooms != NULL)
-    {
-        for (unsigned int i = 0; i < chatRooms->size(); ++i)
-        {
-            MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
-            request->setChatHandle(chatRooms->get(i)->getChatId());
-            requestQueue.push(request);
-            waiter->notify();
-        }
-
-        delete chatRooms;
-    }
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 void MegaChatApiImpl::muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener)
