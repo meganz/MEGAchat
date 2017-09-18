@@ -928,7 +928,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_START_CHAT_CALL:
         {
             ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-            karere::AvFlags avFlags(true, true);
+            karere::AvFlags avFlags(true, request->getFlag());
             MegaChatCallHandler *handler = new MegaChatCallHandler(this);
             rtcModule::ICall &call = mClient->rtc->startCall(chatroom->chatid(), avFlags, *handler);
             handler->setCall(&call);
@@ -937,7 +937,6 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
-
         case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
         {
             ChatRoom *chatroom = findChatRoom(request->getChatHandle());
@@ -950,7 +949,6 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
-
         case MegaChatRequest::TYPE_HANG_CHAT_CALL:
         {
             ChatRoom *chatroom = findChatRoom(request->getChatHandle());
@@ -966,7 +964,34 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             break;
         }
-
+        case MegaChatRequest::TYPE_MUTE_CHAT_CALL:
+        {
+            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+            if (callHandlers.find(chatroom->chatid()) != callHandlers.end())
+            {
+                MegaChatCallHandler *handler = callHandlers[chatroom->chatid()];
+                karere::AvFlags actualFlags = handler->getCall()->sentAv();
+                karere::AvFlags flags(request->getFlag(), actualFlags.video());
+                handler->getCall()->muteUnmute(flags);
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            }
+            break;
+        }
+        case MegaChatRequest::TYPE_DISABLE_VIDEO_CALL:
+        {
+            ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+            if (callHandlers.find(chatroom->chatid()) != callHandlers.end())
+            {
+                MegaChatCallHandler *handler = callHandlers[chatroom->chatid()];
+                karere::AvFlags actualFlags = handler->getCall()->sentAv();
+                karere::AvFlags flags(actualFlags.audio(), request->getFlag());
+                handler->getCall()->muteUnmute(flags);
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            }
+            break;
+        }
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -2346,36 +2371,59 @@ bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
-    return NULL;
+    sdkMutex.lock();
+    std::vector<std::string> devicesVector;
+    mClient->rtc->getAudioInDevices(devicesVector);
+    MegaStringList *devices = getChatInDevices(devicesVector);
+    sdkMutex.unlock();
+
+    return devices;
+
 }
 
 MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 {
-    return NULL;
+    sdkMutex.lock();
+    std::vector<std::string> devicesVector;
+    mClient->rtc->getVideoInDevices(devicesVector);
+    MegaStringList *devices = getChatInDevices(devicesVector);
+    sdkMutex.unlock();
+
+    return devices;
 }
 
 bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
 {
-    return true;
+    return mClient->rtc->selectAudioInDevice(device);
 }
 
 bool MegaChatApiImpl::setChatVideoInDevice(const char *device)
 {
-    return true;
+    return mClient->rtc->selectVideoInDevice(device);
 }
 
-void MegaChatApiImpl::startChatCall(MegaUser *peer, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_START_CHAT_CALL, listener);
-    //request->setChatHandle(chatid);
+    request->setChatHandle(chatid);
+    request->setFlag(enableVideo);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::answerChatCall(MegaChatCall *call, bool accept, MegaChatRequestListener *listener)
+void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ANSWER_CHAT_CALL, listener);
-    //request->setChatHandle(chatid);
+    request->setChatHandle(chatid);
+    request->setFlag(enableVideo);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
+    request->setChatHandle(chatid);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -2395,6 +2443,24 @@ void MegaChatApiImpl::hangAllChatCalls(MegaChatRequestListener *listener = NULL)
 
         delete chatRooms;
     }
+}
+
+void MegaChatApiImpl::muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_MUTE_CHAT_CALL, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(mute);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_VIDEO_CALL, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(videoCall);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
@@ -2675,6 +2741,27 @@ void MegaChatApiImpl::sendAttachNodesMessage(std::string buffer, MegaChatRequest
     Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), Message::kMsgAttachment, NULL);
     MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     request->setMegaChatMessage(megaMsg);
+}
+
+MegaStringList *MegaChatApiImpl::getChatInDevices(const std::vector<string> &devicesVector)
+{
+    int devicesNumber = devicesVector.size();
+    char **devicesArray = NULL;
+    if (devicesNumber > 0)
+    {
+        devicesArray = new char*[devicesNumber];
+        for (int i = 0; i < devicesNumber; ++i)
+        {
+            char *device = mega::MegaApi::strdup(devicesVector[i].c_str());
+            devicesArray[i] = device;
+        }
+    }
+
+    MegaStringList *devices = new MegaStringListPrivate(devicesArray, devicesNumber);
+    delete devicesArray;
+
+    return devices;
+
 }
 
 IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &chat)

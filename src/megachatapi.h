@@ -640,6 +640,7 @@ public:
         TYPE_SET_BACKGROUND_STATUS, TYPE_RETRY_PENDING_CONNECTIONS,
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
+        TYPE_DISABLE_VIDEO_CALL,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2387,9 +2388,12 @@ public:
     bool setChatVideoInDevice(const char *device);
 
     // Call management
-    void startChatCall(mega::MegaUser *peer, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
-    void answerChatCall(MegaChatCall *call, bool accept, MegaChatRequestListener *listener = NULL);
+    void startChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+    void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+    void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void hangAllChatCalls(MegaChatRequestListener *listener = NULL);
+    void muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener = NULL);
+    void disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener = NULL);
 
     // Listeners
     /**

@@ -463,19 +463,34 @@ bool MegaChatApi::setChatVideoInDevice(const char *device)
     return pImpl->setChatVideoInDevice(device);
 }
 
-void MegaChatApi::startChatCall(MegaUser *peer, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
 {
-    pImpl->startChatCall(peer, enableVideo, listener);
+    pImpl->startChatCall(chatid, enableVideo, listener);
 }
 
-void MegaChatApi::answerChatCall(MegaChatCall *call, bool accept, MegaChatRequestListener *listener)
+void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
 {
-    pImpl->answerChatCall(call, accept, listener);
+    pImpl->answerChatCall(chatid, enableVideo, listener);
+}
+
+void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->hangChatCall(chatid, listener);
 }
 
 void MegaChatApi::hangAllChatCalls(MegaChatRequestListener *listener)
 {
     pImpl->hangAllChatCalls(listener);
+}
+
+void MegaChatApi::muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener)
+{
+    pImpl->muteCall(chatid, mute, listener);
+}
+
+void MegaChatApi::disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener)
+{
+    pImpl->disableVideoCall(chatid, videoCall, listener);
 }
 
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
