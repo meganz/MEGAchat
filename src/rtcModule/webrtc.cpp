@@ -247,7 +247,7 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
         auto it = mCalls.find(packet.chatid);
         if (it == mCalls.end())
         {
-            RTCM_LOG_ERROR("Received %s for a chat that doesn't currently have a call, ignoring",
+            RTCM_LOG_WARNING("Received %s for a chat that doesn't currently have a call, ignoring",
                 packet.typeStr());
             return;
         }
@@ -1773,6 +1773,7 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.caid = mCall.mManager.mOwnAnonId;
         info.aaid = mPeerAnonId;
     }
+    return;
     std::string stats = mStatRecorder->getStats(info);
     mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
 }
