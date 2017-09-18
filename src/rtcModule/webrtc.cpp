@@ -588,7 +588,10 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
     mLocalPlayer.reset(new artc::StreamPlayer(renderer));
-    mLocalPlayer->attachVideo(mLocalStream->video());
+    if (mLocalStream && mLocalStream->video())
+    {
+        mLocalPlayer->attachVideo(mLocalStream->video());
+    }
 }
 
 void Call::msgCallTerminate(RtMessage& packet)
