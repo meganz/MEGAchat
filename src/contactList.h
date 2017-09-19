@@ -9,37 +9,6 @@ namespace karere
 {
 class Contact;
 
-class Presence
-{
-public:
-    enum _Status: unsigned char //sorted by 'chatty-ness'
-    {
-        kOffline = 0,
-        kBusy = 1,
-        kAway = 2,
-        kOnline = 3,
-        kChatty = 4,
-        kLast = kChatty,
-        kStatusMask = 0x0f,
-//flags
-        kInProgress = 0x10,
-        kFlagsMask = 0xf0
-    };
-    Presence(unsigned char pres=kOffline): mPres(pres){}
-    inline Presence(const char*str): mPres(fromString(str)){}
-    Presence(strophe::Stanza stanza): mPres(fromStanza(stanza)){}
-    operator unsigned char() const { return mPres; }
-    unsigned char val() const { return mPres; }
-    unsigned char status() const { return mPres & kStatusMask; }
-    unsigned char flags() const { return mPres & kFlagsMask; }
-    inline const char* toString();
-    static inline unsigned char fromString(const char*);
-    static inline unsigned char fromStanza(strophe::Stanza);
-protected:
-    unsigned char mPres;
-    static const char* sStrings[Presence::kLast+1];
-};
-
 class XmppResource: public std::string
 {
 protected:
