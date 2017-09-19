@@ -96,6 +96,8 @@ inline const char* Presence::toString()
         return "away";
     else if (tmpStatus == kBusy)
         return "dnd";
+    else if (tmpStatus == kInvalid)
+        return "invalid";
     else
         throw std::runtime_error("Presence::toString: Unknown presence "+std::to_string(mPres));
 }
@@ -112,6 +114,8 @@ inline unsigned char Presence::fromString(const char* text)
         return kAway;
     else if (!strcmp(text, "dnd"))
         return kBusy;
+    else if (!strcmp(text, "invalid"))
+        return kInvalid;
     else
         throw std::runtime_error("Presence: Unknown presence "+std::string(text));
 }

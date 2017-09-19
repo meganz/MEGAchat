@@ -1029,8 +1029,7 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
 }
 void Client::onConnStateChange(presenced::Client::ConnState state)
 {
-    if (state == presenced::Client::kDisconnected)
-        contactList->setAllOffline();
+
 }
 
 void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
