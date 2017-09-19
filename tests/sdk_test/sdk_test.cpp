@@ -881,13 +881,6 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
             }
         }
 
-        // TODO: remove the block below (currently cannot load history from inactive chats.
-        // Redmine ticket: #5721
-        if (!chatroom->isActive())
-        {
-            continue;
-        }
-
         // Load history
         buffer << "Loading messages for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
         loadHistory(accountIndex, chatid, chatroomListener);
@@ -1250,16 +1243,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
     std::stringstream buffer;
     buffer << chats->size() << " chat/s received: " << endl;
 
-    // Redmine ticket: #5721 (history from inactive chats is not retrievable)
-    const MegaChatRoom *chatroom = NULL;
-    for (int i = 0; i < chats->size(); i++)
-    {
-        if (chats->get(i)->isActive())
-        {
-            chatroom = chats->get(i);
-            break;
-        }
-    }
+    const MegaChatRoom *chatroom = chats->get(0);
 
     if (chatroom)
     {
@@ -1483,10 +1467,6 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
     for (int i = 0; i < items->size(); i++)
     {
         const MegaChatListItem *item = items->get(i);
-        if (!item->isActive())
-        {
-            continue;
-        }
         const char *info = MegaChatApiTest::printChatListItemInfo(item);
         postLog(info);
         delete [] info; info = NULL;
@@ -1502,8 +1482,6 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
 
         delete itemUpdated;
         itemUpdated = NULL;
-
-        continue;
     }
 
     delete items;
@@ -1514,7 +1492,7 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
     delete [] session;
     session = NULL;
 
-    // LOgin over same index account but with other user
+    // Login over same index account but with other user
     session = login(a1, NULL, mAccounts[a2].getEmail().c_str(), mAccounts[a2].getPassword().c_str());
 
     delete [] session;
