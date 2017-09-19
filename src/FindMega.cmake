@@ -70,7 +70,7 @@ if (APPLE)
     endif()
 elseif (NOT WIN32)
 #linux
-    list(APPEND _LIBMEGA_LIBRARIES pthread)
+    list(APPEND _LIBMEGA_LIBRARIES pthread rt)
 endif()
 
 set(LIBMEGA_INCLUDE_DIRS 
