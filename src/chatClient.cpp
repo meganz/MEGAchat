@@ -1222,8 +1222,6 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
     mChat = &parent.client.chatd->createChat(
         mChatid, mShardNo, mUrl, this, initialUsers,
         parent.client.newStrongvelope(chatid()), mCreationTs, mIsGroup);
-    if (mOwnPriv == chatd::PRIV_NOTPRESENT)
-        mChat->disable(true);
 }
 
 template <class T, typename F>
@@ -1468,7 +1466,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
     {
         mContact->attachChatRoom(*this);
     }
-    else    // 1on1 with ex-contact or ex-user
+    else    // 1on1 with ex-user
     {
         mUsernameAttrCbId = parent.client.userAttrCache().getAttr(peer,
             USER_ATTR_FULLNAME, this,
@@ -1696,30 +1694,26 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
 
         chatids.insert(chatid);
 
-        bool isInactive;
-        if (apiRoom.isGroup())
-            isInactive = (apiRoom.getOwnPrivilege()  == ::mega::MegaTextChatPeerList::PRIV_RM);
-        else    // 1on1
-            isInactive = (apiRoom.getOwnPrivilege()  != ::mega::MegaTextChatPeerList::PRIV_MODERATOR);
-
+        bool isInactive = (apiRoom.isGroup() && (apiRoom.getOwnPrivilege()  == ::mega::MegaTextChatPeerList::PRIV_RM) );
         KR_LOG_DEBUG("Adding %sroom %s from API", isInactive ? "(inactive) " : "", Id(apiRoom.getHandle()).toString().c_str());
 
         auto room = addRoom(apiRoom);   // returns false if 1on1 is inconsistent
-        // TODO: always return the room, even if 1on1 is inactive
         if (!room)
+        {
+            KR_LOG_DEBUG("Failed to add room %s from API", Id(apiRoom.getHandle()).toString().c_str());
             continue;
+        }
 
         client.app.notifyInvited(*room);
 
-        // we connect only to active chatrooms and inactive 1on1 rooms. Inactive groupchats are hidden to user
-        if (client.connected() && ( !isInactive || (isInactive && !apiRoom.isGroup()) ) )
+        if (client.connected())
         {
             KR_LOG_DEBUG("...connecting new room to chatd...");
             room->connect();
         }
         else
         {
-            KR_LOG_DEBUG("...client is not connected or room is inactive, not connecting new room");
+            KR_LOG_DEBUG("...client is not connected, not connecting new room");
         }
     }
 }
@@ -2395,7 +2389,6 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         if (mOwnPriv != chatd::PRIV_NOTPRESENT)
         {
             //we were reinvited
-            mChat->disable(false);
             notifyRejoinedChat();
             if (parent.client.connected())
                 connect();

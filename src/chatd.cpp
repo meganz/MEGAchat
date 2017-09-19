@@ -230,7 +230,6 @@ void Chat::connect(const std::string& url)
 
 void Chat::disconnect()
 {
-    disable(true);
     setOnlineState(kChatStateOffline);
 }
 
