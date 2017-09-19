@@ -253,6 +253,9 @@ bool Client::setAutoaway(bool enable, time_t timeout)
 
 bool Client::autoAwayInEffect()
 {
+    // don't want to change to away from default status
+    assert(mConfig.mPresence.isValid());
+
     bool needTimer = !mConfig.mPersist
                 && mConfig.mPresence != Presence::kOffline
                 && mConfig.mPresence != Presence::kAway
@@ -266,7 +269,7 @@ void Client::signalActivity(bool force)
     mTsLastUserActivity = time(NULL);
     if (mConfig.mPresence == Presence::kAway)
         sendUserActive(false);
-    else if (mConfig.mPresence != Presence::kOffline)
+    else if (mConfig.mPresence.isValid() && mConfig.mPresence != Presence::kOffline)
         sendUserActive(true, force);
 }
 

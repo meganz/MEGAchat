@@ -1093,7 +1093,7 @@ public:
         STATUS_AWAY       = 2,      /// User is not available
         STATUS_ONLINE     = 3,      /// User is available
         STATUS_BUSY       = 4,      /// User don't expect notifications nor call requests
-        STATUS_INVALID    = 0xFF    /// Invalid value
+        STATUS_INVALID    = 0xFF    /// Invalid value. Presence not received yet
     };
 
     enum

@@ -1512,7 +1512,7 @@ bool MegaChatApiImpl::isOnlineStatusPending()
 
 int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
 {
-    int status = MegaChatApi::STATUS_OFFLINE;
+    int status = MegaChatApi::STATUS_INVALID;
 
     sdkMutex.lock();
 
