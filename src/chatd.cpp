@@ -431,8 +431,14 @@ Promise<void> Connection::reconnect(const std::string& url)
                                                     mUrl.port, (mUrl.path).c_str())), "connect");
                 }
             })
-            .fail([this](const promise::Error& err)
+            .fail([wptr, this](const promise::Error& err)
             {
+                if (wptr.deleted())
+                {
+                    CHATD_LOG_DEBUG("DNS resolution failed, but chatd client was deleted. Error: %s", err.what());
+                    return;
+                }
+
                 if (err.type() == ERRTYPE_MEGASDK)
                 {
                     if (!mConnectPromise.done())
@@ -448,8 +454,11 @@ Promise<void> Connection::reconnect(const std::string& url)
             });
             
             return mConnectPromise
-            .then([this]() -> promise::Promise<void>
+            .then([wptr, this]() -> promise::Promise<void>
             {
+                if (wptr.deleted())
+                    return promise::_Void();
+
                 assert(isConnected());
                 enableInactivityTimer();
                 return rejoinExistingChats();
