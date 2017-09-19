@@ -393,17 +393,17 @@ Promise<void> Connection::reconnect(const std::string& url)
             {
                 if (wptr.deleted())
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+                    CHATD_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
                     return;
                 }
                 if (!mWebSocket)
                 {
-                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
+                    CHATD_LOG_DEBUG("Disconnect called while resolving DNS.");
                     return;
                 }
                 if (mState != kStateConnecting)
                 {
-                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    CHATD_LOG_DEBUG("Unexpected connection state %s while resolving DNS.", std::string(connStateToStr(mState)));
                     return;
                 }
                 string ip = result->getText();

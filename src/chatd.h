@@ -1060,6 +1060,19 @@ public:
     friend class Chat;
 };
 
+static inline const char* connStateToStr(Connection::State state)
+{
+    switch (state)
+    {
+    case Connection::State::kStateDisconnected: return "Disconnected";
+    case Connection::State::kStateConnecting: return "Connecting";
+    case Connection::State::kStateConnected: return "Connected";
+    case Connection::State::kStateLoggedIn: return "Logged-in";
+    case Connection::State::kStateNew: return "New";
+    default: return "(invalid)";
+    }
+}
+
 struct ChatDbInfo
 {
     karere::Id oldestDbId;
