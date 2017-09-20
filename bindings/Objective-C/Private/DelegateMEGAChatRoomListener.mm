@@ -16,10 +16,6 @@ id<MEGAChatRoomDelegate>DelegateMEGAChatRoomListener::getUserListener() {
     return listener;
 }
 
-bool DelegateMEGAChatRoomListener::isValidListener(){
-    return this->validListener;
-}
-
 void DelegateMEGAChatRoomListener::setValidListener(bool validListener) {
     this->validListener = validListener;
 }

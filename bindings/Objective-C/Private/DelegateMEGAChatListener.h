@@ -8,7 +8,6 @@ public:
     
     DelegateMEGAChatListener(MEGAChatSdk *megaChatSDK, id<MEGAChatDelegate>listener, bool singleListener = true);
     id<MEGAChatDelegate>getUserListener();
-    bool isValidListener();
     void setValidListener(bool validListener);
     
     void onChatListItemUpdate(megachat::MegaChatApi *api, megachat::MegaChatListItem *item);
