@@ -439,17 +439,15 @@ Promise<void> Connection::reconnect(const std::string& url)
                     return;
                 }
 
-                if (err.type() == ERRTYPE_MEGASDK)
+                auto errtype = (err.type() == ERRTYPE_MEGASDK) ? WS_ERRTYPE_DNS : err.type();
+                if (!mConnectPromise.done())
                 {
-                    if (!mConnectPromise.done())
-                    {
-                        mConnectPromise.reject(err.msg(), err.code(), err.type());
-                    }
+                    mConnectPromise.reject(err.msg(), err.code(), errtype);
+                }
 
-                    if (!mLoginPromise.done())
-                    {
-                        mLoginPromise.reject(err.msg(), err.code(), err.type());
-                    }
+                if (!mLoginPromise.done())
+                {
+                    mLoginPromise.reject(err.msg(), err.code(), errtype);
                 }
             });
             
