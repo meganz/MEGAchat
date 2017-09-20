@@ -393,17 +393,17 @@ Promise<void> Connection::reconnect(const std::string& url)
             {
                 if (wptr.deleted())
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+                    CHATD_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
                     return;
                 }
                 if (!mWebSocket)
                 {
-                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
+                    CHATD_LOG_DEBUG("Disconnect called while resolving DNS.");
                     return;
                 }
                 if (mState != kStateConnecting)
                 {
-                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    CHATD_LOG_DEBUG("Unexpected connection state %s while resolving DNS.", std::string(connStateToStr(mState)));
                     return;
                 }
                 string ip = result->getText();
@@ -431,18 +431,32 @@ Promise<void> Connection::reconnect(const std::string& url)
                                                     mUrl.port, (mUrl.path).c_str())), "connect");
                 }
             })
-            .fail([this](const promise::Error& err)
+            .fail([wptr, this](const promise::Error& err)
             {
-                if (err.type() == ERRTYPE_MEGASDK)
+                if (wptr.deleted())
                 {
-                    mConnectPromise.reject(err.msg(), err.code(), err.type());
-                    mLoginPromise.reject(err.msg(), err.code(), err.type());
+                    CHATD_LOG_DEBUG("DNS resolution failed, but chatd client was deleted. Error: %s", err.what());
+                    return;
+                }
+
+                auto errtype = (err.type() == ERRTYPE_MEGASDK) ? WS_ERRTYPE_DNS : err.type();
+                if (!mConnectPromise.done())
+                {
+                    mConnectPromise.reject(err.msg(), err.code(), errtype);
+                }
+
+                if (!mLoginPromise.done())
+                {
+                    mLoginPromise.reject(err.msg(), err.code(), errtype);
                 }
             });
             
             return mConnectPromise
-            .then([this]() -> promise::Promise<void>
+            .then([wptr, this]() -> promise::Promise<void>
             {
+                if (wptr.deleted())
+                    return promise::_Void();
+
                 assert(isConnected());
                 enableInactivityTimer();
                 return rejoinExistingChats();
