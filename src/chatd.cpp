@@ -1795,7 +1795,7 @@ void Chat::removeManualSend(uint64_t rowid)
 // after a reconnect, we tell the chatd the oldest and newest buffered message
 void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 {
-    assert(mConnection.isConnected());
+    assert(mConnection.isConnected() || mConnection.isLoggedIn());
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
