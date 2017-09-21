@@ -35,8 +35,6 @@ using namespace promise;
 using namespace chatd;
 using namespace std;
 
-bool gInitialized = false;
-
 template <class... Args>
 const char* termCodeFirstArgToString(TermCode code, Args...)
 {
@@ -73,10 +71,9 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
   mTurnServerProvider(client.api, "turn", iceServers, 3600)
 {
-    if (!gInitialized)
+    if (!artc::isInitialized())
     {
         artc::init(nullptr);
-        gInitialized = true;
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
     mPcConstraints.SetMandatoryReceiveAudio(true);
@@ -250,7 +247,7 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
         auto it = mCalls.find(packet.chatid);
         if (it == mCalls.end())
         {
-            RTCM_LOG_ERROR("Received %s for a chat that doesn't currently have a call, ignoring",
+            RTCM_LOG_WARNING("Received %s for a chat that doesn't currently have a call, ignoring",
                 packet.typeStr());
             return;
         }
@@ -392,7 +389,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors)
               .append(e.what()?e.what():"Unknown error")+='\n';
     }
     if (!mAudioInput && !mVideoInput)
-        return nullptr;
+        return std::make_shared<artc::LocalStreamHandle>(nullptr, nullptr);
 
     std::shared_ptr<artc::LocalStreamHandle> localStream =
         std::make_shared<artc::LocalStreamHandle>(
@@ -591,7 +588,10 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
     mLocalPlayer.reset(new artc::StreamPlayer(renderer));
-    mLocalPlayer->attachVideo(mLocalStream->video());
+    if (mLocalStream && mLocalStream->video())
+    {
+        mLocalPlayer->attachVideo(mLocalStream->video());
+    }
 }
 
 void Call::msgCallTerminate(RtMessage& packet)
@@ -1773,6 +1773,7 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.caid = mCall.mManager.mOwnAnonId;
         info.aaid = mPeerAnonId;
     }
+    return;
     std::string stats = mStatRecorder->getStats(info);
     mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
 }
@@ -2048,9 +2049,8 @@ void sdpSetVideoBw(std::string& sdp, int maxbr)
 }
 void globalCleanup()
 {
-    if (!gInitialized)
+    if (!artc::isInitialized())
         return;
     artc::cleanup();
-    gInitialized = false;
 }
 }

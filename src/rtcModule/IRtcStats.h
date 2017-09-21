@@ -3,6 +3,7 @@
 
 #include "ITypes.h"
 #include <karereId.h>
+#include <functional>
 
 namespace rtcModule
 {
