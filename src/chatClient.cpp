@@ -1791,7 +1791,6 @@ void ChatRoomList::removeRoom(GroupChatRoom& room)
 
 void GroupChatRoom::setRemoved()
 {
-    mChat->disconnect();
     mOwnPriv = chatd::PRIV_NOTPRESENT;
     parent.client.db.query("update chats set own_priv=-1 where chatid=?", mChatid);
     notifyExcludedFromChat();
@@ -1840,7 +1839,14 @@ void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
         auto it = find(chatid);
         auto localRoom = (it != end()) ? it->second : nullptr;
         assert(localRoom);
-        localRoom->syncWithApi(*apiRoom);
+        if (localRoom)
+        {
+            localRoom->syncWithApi(*apiRoom);
+        }
+        else
+        {
+            KR_LOG_ERROR("Chatroom %s notified by API is not found", Id(chatid).toString().c_str());
+        }
     }
 }
 
@@ -2388,7 +2394,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         if (mOwnPriv != chatd::PRIV_NOTPRESENT)
         {
-            //we were reinvited
+            KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
             notifyRejoinedChat();
             if (parent.client.connected())
                 connect();
