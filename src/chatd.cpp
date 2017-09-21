@@ -403,7 +403,7 @@ Promise<void> Connection::reconnect(const std::string& url)
                 }
                 if (mState != kStateConnecting)
                 {
-                    CHATD_LOG_DEBUG("Unexpected connection state %s while resolving DNS.", std::string(connStateToStr(mState)));
+                    CHATD_LOG_DEBUG("Unexpected connection state %s while resolving DNS.", std::string(connStateToStr(mState)).c_str());
                     return;
                 }
                 string ip = result->getText();
