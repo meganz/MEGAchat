@@ -222,7 +222,7 @@ void Chat::connect(const std::string& url)
             CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
         });
     }
-    else if (mConnection.isConnected())
+    else if (mConnection.isConnected() || mConnection.isLoggedIn())
     {
         login();
     }
@@ -643,7 +643,7 @@ void Chat::join()
 {
 //We don't have any local history, otherwise joinRangeHist() would be called instead of this
 //Reset handshake state, as we may be reconnecting
-    assert(mConnection.isConnected());
+    assert(mConnection.isConnected() || mConnection.isLoggedIn());
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
     mServerFetchState = kHistNotFetching;
