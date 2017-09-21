@@ -1249,14 +1249,7 @@ void PeerChatRoom::initWithChatd()
 
 void PeerChatRoom::connect()
 {
-    auto wptr = weakHandle();
-    updateUrl()
-    .then([wptr, this]()
-    {
-        if (wptr.deleted())
-            return;
-        mChat->connect(mUrl);
-    });
+    mChat->connect();
 }
 
 promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
@@ -1391,21 +1384,16 @@ void GroupChatRoom::connect()
 {
     if (chat().onlineState() != chatd::kChatStateOffline)
         return;
-    auto wptr = weakHandle();
-    updateUrl()
-    .then([wptr, this]()
+
+    mChat->connect();
+    if (mHasTitle)
     {
-        wptr.throwIfDeleted();
-        mChat->connect(mUrl);
-        if (mHasTitle)
+        decryptTitle()
+        .fail([](const promise::Error& err)
         {
-            decryptTitle()
-            .fail([](const promise::Error& err)
-            {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
-            });
-        }
-    });
+            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
+        });
+    }
 }
 
 promise::Promise<void> GroupChatRoom::memberNamesResolved() const
@@ -1600,24 +1588,6 @@ void GroupChatRoom::deleteSelf()
         db.query("delete from chat_peers where chatid=?", mChatid);
         db.query("delete from chats where chatid=?", mChatid);
         delete this;
-    });
-}
-
-promise::Promise<void> ChatRoom::updateUrl()
-{
-    auto wptr = getDelTracker();
-    return parent.client.api.call(&mega::MegaApi::getUrlChat, mChatid)
-    .then([wptr, this](ReqResult result)
-    {
-        wptr.throwIfDeleted();
-        const char* url = result->getLink();
-        if (!url || !url[0])
-            return;
-        std::string sUrl = url;
-        if (sUrl == mUrl)
-            return;
-        mUrl = sUrl;
-        KR_LOG_DEBUG("Updated chatroom %s url", Id(mChatid).toString().c_str());
     });
 }
 

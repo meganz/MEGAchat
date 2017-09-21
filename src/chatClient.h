@@ -158,11 +158,6 @@ public:
      */
     virtual promise::Promise<void> mediaCall(AvFlags av) = 0;
 
-    /**
-     * @brief Updates the chatd url of the chatroom, by asking the API
-     */
-    promise::Promise<void> updateUrl();
-
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);

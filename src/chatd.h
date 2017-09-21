@@ -315,7 +315,7 @@ protected:
         size_t reason_len, void *arg);
     static void websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg);
     void onSocketClose(int ercode, int errtype, const std::string& reason);
-    promise::Promise<void> reconnect(const std::string& url=std::string());
+    promise::Promise<void> reconnect();
     promise::Promise<void> disconnect(int timeoutMs=2000);
     void notifyLoggedIn();
     void enableInactivityTimer();
@@ -672,7 +672,7 @@ public:
       * connect(), after which it initiates or uses an existing connection to
       * chatd
       */
-    void connect(const std::string& url=std::string());
+    void connect();
 
     void disconnect();
     /** @brief The online state of the chatroom */
