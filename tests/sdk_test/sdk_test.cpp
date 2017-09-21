@@ -259,6 +259,7 @@ void MegaChatApiTest::SetUp()
         megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
         megaChatApi[i]->addChatRequestListener(this);
         megaChatApi[i]->addChatListener(this);
+        megaChatApi[i]->addChatCallListener(this);
 
         for (int j = 0; j < mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
         {
@@ -294,6 +295,9 @@ void MegaChatApiTest::SetUp()
 
         mNotTransferRunning[i] = true;
         mPresenceConfigUpdated[i] = false;
+
+        mCallReceived[i] = false;
+        mCallEmisorId[i] = MEGACHAT_INVALID_HANDLE;
 
         mChatFirstname = "";
         mChatLastname = "";
@@ -2033,6 +2037,55 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     newSession = NULL;
 }
 
+void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
+{
+    char *primarySession = login(a1);
+    char *secondarySession = login(a2);
+
+    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh == MEGACHAT_INVALID_HANDLE)
+    {
+        makeContact(a1, a2);
+    }
+
+    MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
+
+    // 1. A sends a message to B while B has the chat opened.
+    // --> check the confirmed in A, the received message in B, the delivered in A
+
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
+
+
+    loadHistory(a1, chatid, chatroomListener);
+
+    mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
+    mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
+
+    if (audioInDevices != NULL && audioInDevices->size() > 0)
+    {
+        megaChatApi[a1]->setChatAudioInDevice(audioInDevices->get(0));
+    }
+
+    if (videoInDevices != NULL && videoInDevices->size() > 0)
+    {
+        megaChatApi[a1]->setChatVideoInDevice(videoInDevices->get(0));
+    }
+
+    bool *callReceived = &mCallReceived[a1]; *callReceived = false;
+    mCallEmisorId[a1] = MEGACHAT_INVALID_HANDLE;
+    ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
+    ASSERT_CHAT_TEST(mCallEmisorId[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
+    megaChatApi[a1]->answerChatCall(mCallEmisorId[a1], false);
+
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+
+    delete [] primarySession;
+    primarySession = NULL;
+    delete [] secondarySession;
+    secondarySession = NULL;
+}
+
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
     // first of all, ensure the chatd connection is ready
@@ -2805,6 +2858,36 @@ void MegaChatApiTest::onTransferTemporaryError(MegaApi *api, MegaTransfer *trans
 
 bool MegaChatApiTest::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size)
 {
+}
+
+void MegaChatApiTest::onChatCallStart(MegaChatApi *api, MegaChatCall *call)
+{
+    LOG_debug << "On chat call start ";
+}
+
+void MegaChatApiTest::onChatCallIncoming(MegaChatApi *api, MegaChatCall *call)
+{
+    LOG_debug << "On chat call incoming ";
+
+    unsigned int apiIndex = getMegaChatApiIndex(api);
+
+    mCallReceived[apiIndex] = true;
+    mCallEmisorId[apiIndex] = call->getChatid();
+}
+
+void MegaChatApiTest::onChatCallStateChange(MegaChatApi *api, MegaChatCall *call)
+{
+    LOG_debug << "On chat call change state ";
+}
+
+void MegaChatApiTest::onChatCallTemporaryError(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
+{
+    LOG_debug << "On chat call temporay error ";
+}
+
+void MegaChatApiTest::onChatCallFinish(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
+{
+    LOG_debug << "On chat call finish ";
 }
 
 TestChatRoomListener::TestChatRoomListener(MegaChatApiTest *t, MegaChatApi **apis, MegaChatHandle chatid)

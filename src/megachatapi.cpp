@@ -63,9 +63,14 @@ int MegaChatCall::getTag() const
     return 0;
 }
 
-MegaChatHandle MegaChatCall::getContactHandle() const
+MegaChatHandle MegaChatCall::getChatid() const
 {
     return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatCall::answer(bool videoEnabled)
+{
+    return false;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
@@ -634,6 +639,11 @@ MegaNodeList *MegaChatRequest::getMegaNodeList()
     return NULL;
 }
 
+int MegaChatRequest::getOperationType()
+{
+    return -1;
+}
+
 MegaChatRoomList *MegaChatRoomList::copy() const
 {
     return NULL;
@@ -843,6 +853,11 @@ void MegaChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatCall *chat
 
 
 void MegaChatCallListener::onChatCallStart(MegaChatApi *api, MegaChatCall *call)
+{
+
+}
+
+void MegaChatCallListener::onChatCallIncoming(MegaChatApi *api, MegaChatCall *call)
 {
 
 }

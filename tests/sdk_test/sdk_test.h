@@ -143,7 +143,8 @@ class MegaChatApiTest :
         public mega::MegaTransferListener,
         public mega::MegaLogger,
         public megachat::MegaChatRequestListener,
-        public megachat::MegaChatListener
+        public megachat::MegaChatListener,
+        public megachat::MegaChatCallListener
 {
 public:
     MegaChatApiTest();
@@ -184,6 +185,7 @@ public:
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
     void TEST_ChangeMyOwnName(unsigned int a1);
+    void TEST_Calls(unsigned int a1, unsigned int a2);
 
     unsigned mOKTests;
     unsigned mFailedTests;
@@ -275,6 +277,9 @@ private:
     mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
 
+    bool mCallReceived[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallEmisorId[NUM_ACCOUNTS];
+
     static const std::string DEFAULT_PATH;
     static const std::string PATH_IMAGE;
     static const std::string FILE_IMAGE_NAME;
@@ -311,6 +316,12 @@ public:
     virtual void onTransferUpdate(mega::MegaApi *api, mega::MegaTransfer *transfer);
     virtual void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* error);
     virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
+
+    virtual void onChatCallStart(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
+    virtual void onChatCallIncoming(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
+    virtual void onChatCallStateChange(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
+    virtual void onChatCallTemporaryError(megachat::MegaChatApi* api, megachat::MegaChatCall *call, megachat::MegaChatError* error);
+    virtual void onChatCallFinish(megachat::MegaChatApi* api, megachat::MegaChatCall *call, megachat::MegaChatError* error);
 };
 
 class TestChatRoomListener : public megachat::MegaChatRoomListener

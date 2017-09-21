@@ -69,6 +69,7 @@ public:
     virtual const char *getText() const;
     virtual MegaChatMessage *getMegaChatMessage();
     virtual mega::MegaNodeList *getMegaNodeList();
+    virtual int getOperationType();
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -82,6 +83,7 @@ public:
     void setText(const char *text);
     void setMegaChatMessage(MegaChatMessage *message);
     void setMegaNodeList(mega::MegaNodeList *nodelist);
+    void setOperationType(int operationType);
 
 protected:
     int type;
@@ -98,6 +100,7 @@ protected:
     const char* text;
     MegaChatMessage* mMessage;
     mega::MegaNodeList* mMegaNodeList;
+    int operationType;
 };
 
 class MegaChatPresenceConfigPrivate : public MegaChatPresenceConfig
@@ -139,7 +142,8 @@ public:
 
     virtual int getStatus() const;
     virtual int getTag() const;
-    virtual MegaChatHandle getContactHandle() const;
+    virtual MegaChatHandle getChatid() const;
+    virtual bool answer(bool videoEnabled);
 
 //    shared_ptr<rtcModule::ICallAnswer> getAnswerObject();
 
@@ -394,7 +398,7 @@ class MegaChatCallHandler : public rtcModule::ICallHandler
 #ifndef KARERE_DISABLE_WEBRTC
 public:
     MegaChatCallHandler(MegaChatApiImpl *megaChatApi);
-    ~MegaChatCallHandler();
+    virtual ~MegaChatCallHandler();
     virtual void setCall(rtcModule::ICall* call);
     virtual void onStateChange(uint8_t newState);
     virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
@@ -738,7 +742,6 @@ private:
 
     int reqtag;
     std::map<int, MegaChatRequestPrivate *> requestMap;
-    std::map<int, MegaChatCallPrivate *> callMap;
     std::map<MegaChatHandle, MegaChatCallHandler*> callHandlers;
     MegaChatVideoReceiver *localVideoReceiver;
 
@@ -796,6 +799,7 @@ public:
 
     // MegaChatCallListener callbacks
     void fireOnChatCallStart(MegaChatCallPrivate *call);
+    void fireOnChatCallIncoming(MegaChatCallPrivate *call);
     void fireOnChatCallStateChange(MegaChatCallPrivate *call);
     void fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e);
     void fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatError *e);
