@@ -749,6 +749,7 @@ private:
 
     void sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate* request);
     mega::MegaStringList *getChatInDevices(const std::vector<std::string> &devicesVector);
+    void cleanCallHandlerMap();
 
 public:
     static void megaApiPostMessage(void* msg);

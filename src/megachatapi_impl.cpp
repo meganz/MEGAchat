@@ -323,6 +323,8 @@ void MegaChatApiImpl::sendPendingRequests()
                         delete mClient;
                         mClient = NULL;
                         terminating = false;
+
+                        cleanCallHandlerMap();
                      });
                 })
                 .fail([request, this](const promise::Error& e)
@@ -337,6 +339,8 @@ void MegaChatApiImpl::sendPendingRequests()
                         delete mClient;
                         mClient = NULL;
                         terminating = false;
+
+                        cleanCallHandlerMap();
                      });
                 });
             }
@@ -1319,7 +1323,7 @@ void MegaChatApiImpl::fireOnChatCallStart(MegaChatCallPrivate *call)
         (*it)->onChatCallStart(chatApi, call);
     }
 
-    fireOnChatCallStateChange(call);
+    delete call;
 }
 
 void MegaChatApiImpl::fireOnChatCallIncoming(MegaChatCallPrivate *call)
@@ -1331,7 +1335,7 @@ void MegaChatApiImpl::fireOnChatCallIncoming(MegaChatCallPrivate *call)
         (*it)->onChatCallIncoming(chatApi, call);
     }
 
-    fireOnChatCallStateChange(call);
+    delete call;
 }
 
 void MegaChatApiImpl::fireOnChatCallStateChange(MegaChatCallPrivate *call)
@@ -1342,6 +1346,8 @@ void MegaChatApiImpl::fireOnChatCallStateChange(MegaChatCallPrivate *call)
     {
         (*it)->onChatCallStateChange(chatApi, call);
     }
+
+    delete call;
 }
 
 void MegaChatApiImpl::fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e)
@@ -1352,6 +1358,9 @@ void MegaChatApiImpl::fireOnChatCallTemporaryError(MegaChatCallPrivate *call, Me
     {
         (*it)->onChatCallTemporaryError(chatApi, call, e);
     }
+
+    delete call;
+    delete e;
 }
 
 void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatError *e)
@@ -1364,9 +1373,6 @@ void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatEr
     {
         API_LOG_INFO("Chat call finished");
     }
-
-    call->setStatus(MegaChatCall::CALL_STATUS_DISCONNECTED);
-    fireOnChatCallStateChange(call);
 
     for (set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
@@ -1387,6 +1393,8 @@ void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int w
     {
         (*it)->onChatVideoData(chatApi, call, width, height, buffer);
     }
+
+    delete call;
 }
 
 void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer)
@@ -1397,6 +1405,8 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int wi
     {
         (*it)->onChatVideoData(chatApi, call, width, height, buffer);
     }
+
+    delete call;
 }
 
 void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoom *chat)
@@ -2822,6 +2832,19 @@ MegaStringList *MegaChatApiImpl::getChatInDevices(const std::vector<string> &dev
 
     return devices;
 
+}
+
+void MegaChatApiImpl::cleanCallHandlerMap()
+{
+    std::map<MegaChatHandle, MegaChatCallHandler*>::iterator callHandlersIterator;
+    for (callHandlersIterator = callHandlers.begin(); callHandlersIterator != callHandlers.end(); ++callHandlersIterator)
+    {
+        MegaChatCallHandler* callHandler = callHandlersIterator->second;
+        delete callHandler;
+        callHandlersIterator->second = NULL;
+    }
+
+    callHandlers.clear();
 }
 
 IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &chat)
@@ -4994,7 +5017,38 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
     assert(call != NULL);
 
     MegaChatCallPrivate *megaChatcall = new MegaChatCallPrivate(*call);
-    megaChatcall->setStatus(newState);
+    int state = 0;
+    switch(newState)
+    {
+        case rtcModule::ICall::kStateInitial:
+            state = MegaChatCall::CALL_STATUS_INITIAL;
+            break;
+        case rtcModule::ICall::kStateHasLocalStream:
+            state = MegaChatCall::CALL_STATUS_HAS_LOCAL_STREAM;
+            break;
+        case rtcModule::ICall::kStateReqSent:
+            state = MegaChatCall::CALL_STATUS_REQUEST_SENT;
+            break;
+        case rtcModule::ICall::kStateRingIn:
+            state = MegaChatCall::CALL_STATUS_RINGIN;
+            break;
+        case rtcModule::ICall::kStateJoining:
+            state = MegaChatCall::CALL_STATUS_JOINING;
+            break;
+        case rtcModule::ICall::kStateInProgress:
+            state = MegaChatCall::CALL_STATUS_IN_PROGRESS;
+            break;
+        case rtcModule::ICall::kStateTerminating:
+            state = MegaChatCall::CALL_STATUS_TERMINATING;
+            break;
+        case rtcModule::ICall::kStateDestroyed:
+            state = MegaChatCall::CALL_STATUS_DESTROYED;
+            break;
+        default:
+            state = newState;
+    }
+
+    megaChatcall->setStatus(state);
     megaChatApi->fireOnChatCallStateChange(megaChatcall);
 }
 

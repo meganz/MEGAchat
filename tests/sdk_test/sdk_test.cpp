@@ -2053,6 +2053,14 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     // 1. A sends a message to B while B has the chat opened.
     // --> check the confirmed in A, the received message in B, the delivered in A
 
+    bool *flagStatus = &mOnlineStatusUpdated[a1]; *flagStatus = false;
+    bool *flagPresence = &mPresenceConfigUpdated[a1]; *flagPresence = false;
+    bool *flag = &requestFlagsChat[a1][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
+    megaChatApi[a1]->setOnlineStatus(MegaChatApi::STATUS_ONLINE);
+    ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set online status after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to set online status. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
     ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
 
@@ -2072,11 +2080,19 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
         megaChatApi[a1]->setChatVideoInDevice(videoInDevices->get(0));
     }
 
+    // Emit call
+//    megaChatApi[a1]->startChatCall(chatid, false);
+//    sleep(50);
+//    megaChatApi[a1]->hangChatCall(chatid);
+
+    // Receive call
     bool *callReceived = &mCallReceived[a1]; *callReceived = false;
     mCallEmisorId[a1] = MEGACHAT_INVALID_HANDLE;
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mCallEmisorId[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
     megaChatApi[a1]->answerChatCall(mCallEmisorId[a1], false);
+
+    sleep(25);
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
