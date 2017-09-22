@@ -130,7 +130,7 @@ void Client::websockConnectCb(ws_t ws, void* arg)
     Client& self = *static_cast<Client*>(arg);
     auto wptr = self.getDelTracker();
     ASSERT_NOT_ANOTHER_WS("connect");
-    CHATD_LOG_DEBUG("Presenced connected");
+    PRESENCED_LOG_DEBUG("Presenced connected");
     marshallCall([&self, wptr]()
     {
         if (wptr.deleted())

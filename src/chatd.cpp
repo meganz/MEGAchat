@@ -216,6 +216,7 @@ void Chat::connect()
     // attempt a connection ONLY if this is a new shard.
     if (mConnection.state() == Connection::kStateNew)
     {
+        mConnection.mState = Connection::kStateFetchingUrl;
         auto wptr = getDelTracker();
         mClient.mApi->call(&mega::MegaApi::getUrlChat, mChatId)
         .then([wptr, this](ReqResult result)
@@ -386,7 +387,7 @@ Promise<void> Connection::reconnect()
             throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
 
         if (!mUrl.isValid())
-            throw std::runtime_error("No valid URL provided and current URL is not valid");
+            throw std::runtime_error("Current URL is not valid");
 
         mState = kStateConnecting;
         return retry("chatd", [this](int no)

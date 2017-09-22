@@ -286,7 +286,7 @@ class Client;
 class Connection: public karere::DeleteTrackable
 {
 public:
-    enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateConnecting, kStateConnected, kStateLoggedIn };
 protected:
     Client& mClient;
     int mShardNo;
@@ -1069,6 +1069,7 @@ static inline const char* connStateToStr(Connection::State state)
     case Connection::State::kStateConnected: return "Connected";
     case Connection::State::kStateLoggedIn: return "Logged-in";
     case Connection::State::kStateNew: return "New";
+    case Connection::State::kStateFetchingUrl: return "Fetching URL";
     default: return "(invalid)";
     }
 }
