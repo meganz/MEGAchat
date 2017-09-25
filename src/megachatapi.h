@@ -2411,7 +2411,7 @@ public:
 
     // Call management
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
-    void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+    void answerChatCall(MegaChatHandle chatid, bool answerOrHangup, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
     void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void hangAllChatCalls(MegaChatRequestListener *listener = NULL);
     void muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener = NULL);

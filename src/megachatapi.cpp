@@ -473,9 +473,9 @@ void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaCha
     pImpl->startChatCall(chatid, enableVideo, listener);
 }
 
-void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool answerOrHangup, bool enableVideo, MegaChatRequestListener *listener)
 {
-    pImpl->answerChatCall(chatid, enableVideo, listener);
+    pImpl->answerChatCall(chatid, answerOrHangup, enableVideo, listener);
 }
 
 void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)

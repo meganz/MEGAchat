@@ -958,6 +958,9 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
         {
             MegaChatHandle chatid = request->getChatHandle();
+            bool enableVideo = request->getFlag();
+            bool answerOrHangup = request->getOperationType();
+
             if (callHandlers.find(chatid) == callHandlers.end())
             {
                 errorCode = MegaChatError::ERROR_NOENT;
@@ -971,9 +974,16 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool enableVideo = request->getFlag();
-            karere::AvFlags avFlags(true, enableVideo); // audio is always enabled by default
-            handler->getCall()->answer(avFlags);
+            if (answerOrHangup)
+            {
+                karere::AvFlags avFlags(true, enableVideo); // audio is always enabled by default
+                handler->getCall()->answer(avFlags);
+            }
+            else
+            {
+                handler->getCall()->hangup(rtcModule::TermCode::kUserHangup);
+            }
+
             break;
         }
         case MegaChatRequest::TYPE_HANG_CHAT_CALL:
@@ -2481,11 +2491,12 @@ void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, Meg
     waiter->notify();
 }
 
-void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool answerOrHangup, bool enableVideo, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ANSWER_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
+    request->setOperationType(answerOrHangup);
     requestQueue.push(request);
     waiter->notify();
 }
