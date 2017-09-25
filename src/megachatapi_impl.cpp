@@ -947,7 +947,8 @@ void MegaChatApiImpl::sendPendingRequests()
             handler->setCall(&call);
             if (callHandlers.find(chatid) != callHandlers.end())
             {
-                //@todo Study better behavior, start a call on a chat with other call
+                errorCode = MegaChatError::ERROR_EXIST;
+                break;
             }
             callHandlers[chatid] = handler;
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2710,7 +2711,7 @@ MegaChatCallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
     MegaChatHandle chatid = call.chat().chatId();
     if (callHandlers.find(chatid) != callHandlers.end())
     {
-        //@todo Study better behavior, arrive an incoming call and there is another call at that chat
+        assert(false);
     }
 
     callHandlers[chatid] = chatCallHandler;
