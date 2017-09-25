@@ -321,7 +321,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         {
             mConnectPromise.reject(reason, errcode, errtype);
         }
-        if (!mConnectPromise.done())
+        if (!mLoginPromise.done())
         {
             mLoginPromise.reject(reason, errcode, errtype);
         }
