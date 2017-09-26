@@ -981,7 +981,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else
             {
-                handler->getCall()->hangup(rtcModule::TermCode::kUserHangup);
+                handler->getCall()->hangup(rtcModule::TermCode::kInvalid);
             }
 
             break;
@@ -5113,7 +5113,6 @@ void MegaChatCallHandler::onCallStarting()
     assert(call != NULL);
 
     MegaChatCallPrivate *megaChatcall = new MegaChatCallPrivate(*call);
-    megaChatcall->answer(true, call->sentAv());
     megaChatApi->fireOnChatCallStart(megaChatcall);
 }
 
