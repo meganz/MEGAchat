@@ -725,8 +725,11 @@ public:
      * i.e. it will be preserved even if the client disconnects. To disable
      * setting such a forced presence and assume whatever presence was last used,
      * and/or use only dynamic presence, set this param to \c Presence::kClear
+     * @param isInBackground In case the app requests to connect from a service in
+     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY. Hence, it will
+     * avoid to tell chatd that the client is active.
      */
-    promise::Promise<void> connect(Presence pres=Presence::kClear);
+    promise::Promise<void> connect(Presence pres=Presence::kClear, bool isInBackground = false);
 
     /** @brief Disconnects the client from chatd and presenced */
     promise::Promise<void> disconnect();

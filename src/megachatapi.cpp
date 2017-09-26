@@ -118,6 +118,11 @@ void MegaChatApi::connect(MegaChatRequestListener *listener)
     pImpl->connect(listener);
 }
 
+void MegaChatApi::connectInBackground(MegaChatRequestListener *listener)
+{
+    pImpl->connectInBackground(listener);
+}
+
 void MegaChatApi::disconnect(MegaChatRequestListener *listener)
 {
     pImpl->disconnect(listener);
