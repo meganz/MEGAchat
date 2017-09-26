@@ -14,11 +14,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rtcModule/IRtcModule.h"
+#include "rtcModule/webrtc.h"
+#include "rtcCrypto.h"
 #include "dummyCrypto.h" //for makeRandomString
 #include "base/services.h"
 #include "sdkApi.h"
-#include "megaCryptoFunctions.h"
 #include <serverListProvider.h>
 #include <memory>
 #include <chatd.h>
@@ -986,16 +986,15 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         mOwnPresence = pres;
         app.onPresenceChanged(mMyHandle, pres, true);
     }
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
-
-// Create and register the rtcmodule plugin
-// the MegaCryptoFuncs object needs api.userData (to initialize the private key etc)
-// To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
-//        rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*this), KARERE_DEFAULT_TURN_SERVERS);
-//        conn->registerPlugin("rtcmodule", rtc);
-
-//        KR_LOG_DEBUG("webrtc plugin initialized");
-//        return mXmppContactList.ready();
+    auto pmsPres = mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    auto pmsRtc = rtc->init(10000);
+    return promise::when(pmsPres, pmsRtc);
+#else
+    return pmsPres;
+#endif
 }
 
 void Contact::updatePresence(Presence pres)
@@ -1073,7 +1072,7 @@ promise::Promise<void> Client::terminate(bool deleteDb)
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
-        rtc->hangupAll();
+        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
 #endif
 
     return disconnect()
@@ -1259,12 +1258,12 @@ void PeerChatRoom::connect()
     });
 }
 
-promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
+#ifndef KARERE_DISABLE_WEBRTC
+rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handler)
 {
-    assert(mAppChatHandler);
-//    parent.client.rtc->startMediaCall(mAppChatHandler->callHandler(), jid, av);
-    return promise::_Void();
+    return parent.client.rtc->startCall(chatid(), av, handler);
 }
+#endif
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
@@ -1333,11 +1332,6 @@ promise::Promise<void> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *
     delete megaHandleList;
 
     return promise::when(promises);
-}
-
-promise::Promise<void> GroupChatRoom::mediaCall(AvFlags av)
-{
-    return promise::Error("Group chat calls are not implemented yet");
 }
 
 IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
@@ -2868,10 +2862,20 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 #ifndef KARERE_DISABLE_WEBRTC
-rtcModule::IEventHandler* Client::onIncomingCallRequest(
-        const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call)
 {
-    return app.onIncomingCall(ans);
+    return app.onIncomingCall(call);
+}
+bool Client::onAnotherCall(rtcModule::ICall& existingCall, karere::Id userid)
+{
+    return true;
+}
+bool Client::isGroupChat(karere::Id chatid)
+{
+    auto it = chats->find(chatid);
+    if (it == chats->end())
+        throw std::runtime_error("Unknown chat "+chatid.toString());
+    return it->second->isGroup();
 }
 #endif
 

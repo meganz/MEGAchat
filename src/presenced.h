@@ -1,7 +1,7 @@
 #ifndef __PRESENCED_H__
 #define __PRESENCED_H__
 
-#include <libws.h>
+//#include <libws.h>
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
@@ -15,6 +15,10 @@
 #define PRESENCED_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
+
+struct ws_s;
+struct ws_base_s;
+typedef struct ws_s *ws_t;
 
 class MyMegaApi;
 

@@ -26,12 +26,42 @@ class IGlobalEventHandler;
 //TODO: Implement
 class FileTransferHandler;
 
+struct AnonId
+{
+    uint64_t u64;
+    uint32_t u32;
+    AnonId(const AnonId& other): u64(other.u64), u32(other.u32){}
+    bool operator==(const AnonId& other) const = default;
+    bool operator<(const AnonId& other) const
+    {
+        if (u64 == other.u64)
+            return u32 < other.u32;
+        else
+            return u64 < other.u64;
+    }
+};
+
+struct SessionKey
+{
+    karere::Id sid;
+    AnonId caller;
+    AnonId answerer;
+    SessionKey(karere::Id aSid, const AnonId& clr, const AnonId& ans)
+        :sid(aSid), caller(clr), answerer(ans){}
+    bool operator<(const SessionKey& other) const
+    {
+        if (sid != other.sid)
+            return sid < other.sid;
+        if (caller != other.caller)
+            return caller < other.caller;
+        return answerer < other.answerer;
+    }
+};
 
 struct JingleCall: public ICall
 {
 protected:
     typedef std::function<bool(TermCode, const std::string&)> HangupFunc;
-    HangupFunc mHangupFunc;
     AvFlags mLocalAv;
     std::shared_ptr<JingleSession> mSess;
     std::string mOwnFprMacKey;
@@ -143,10 +173,10 @@ public:
            const char* iceServers="");
     strophe::Connection& conn() { return mConn; }
     virtual std::shared_ptr<Call>& addCall(CallState aState,
-        bool aIsCaller, IEventHandler* aHandler, const std::string& aSid,
-            JingleCall::HangupFunc&& hangupFunc,
-            const std::string& aPeerJid, AvFlags localAv, bool aIsFt=false,
-            const std::string& aOwnJid = "") = 0;
+        bool aIsCaller, IEventHandler* aHandler, karere::Id aSid,
+        karere::Id peer, chatd::ClientId peerClient, AvFlags localAv, AvFlags removeAv) = 0;
+    virtual std::shared_ptr<Call>& addIncomingCall(const RtMessageWithEndpoint& sdpOffer);
+
     void addAudioCaps();
     void addVideoCaps();
     void registerDiscoCaps();

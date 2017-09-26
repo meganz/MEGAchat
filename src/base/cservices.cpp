@@ -55,10 +55,6 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
     tv.tv_usec = 0;
     evtimer_add(keepalive, &tv);
 
-#ifndef SVC_DISABLE_STROPHE
-    services_strophe_init(options);
-#endif
-
     hasLibeventThread = svc_thread_start(
                 NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
     return 0;

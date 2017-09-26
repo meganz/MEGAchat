@@ -6,7 +6,7 @@
 #include <string>
 #include <videoRenderer_Qt.h>
 #include <gcm.h>
-#include "rtcModule/IRtcModule.h"
+#include "rtcModule/webrtc.h"
 #include <iostream>
 //#include <rapidjson/document.h>
 #include <sdkApi.h>

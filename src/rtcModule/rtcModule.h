@@ -19,7 +19,7 @@ namespace stats { class IRtcStats; }
  *  - requested by peer but not yet initiated (mAutoAcceptCalls map)
  *  - in progress (mSessions map)
  */
-class Call: public JingleCall
+class Call
 {
 protected:
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;

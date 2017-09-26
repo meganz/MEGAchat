@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8)
 project(services)
 include(../utils.cmake)
 
-set(optStrophePath "${CMAKE_CURRENT_SOURCE_DIR}/../../third-party/strophe-native" CACHE PATH "Path to our custom strophe (mstrophe) lib")
 set(optServicesBuildShared 0 CACHE BOOL "Build libservices as a shared lib, for use of the async services by several shared objects")
 set(optAsanMode "" CACHE STRING "Build with AddressSanitizer, in the specified mode (-fsanitize=<mode>, i.e. address,memory) Requires GCC>= 4.9 or Clang>=3.5")
 
@@ -20,14 +19,6 @@ set(SERVICES_INCLUDE_DIRS
    ${LIBEVENT_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS}
    ${CMAKE_CURRENT_SOURCE_DIR}
 )
-
-if (NOT optKarereDisableWebrtc)
-    add_subdirectory(${optStrophePath} strophe)
-    list(APPEND SRCS cservices-strophe.cpp)
-    list(APPEND SERVICES_INCLUDE_DIRS ${STROPHE_INCLUDE_DIRS})
-else()
-    add_definitions(-DSVC_DISABLE_STROPHE)
-endif()
 
 set_property(GLOBAL PROPERTY SERVICES_INCLUDE_DIRS ${SERVICES_INCLUDE_DIRS})
 include_directories(${SERVICES_INCLUDE_DIRS})
@@ -93,9 +84,5 @@ set(SERVICES_DEP_LIBS
   ${CURL_LIBRARIES}
   ${SYSLIBS}
 )
-
-if (NOT optKarereDisableWebrtc)
-    list(APPEND SERVICES_DEP_LIBS strophe)
-endif()
 
 target_link_libraries(services ${SERVICES_DEP_LIBS})

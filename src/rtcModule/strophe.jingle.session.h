@@ -55,9 +55,6 @@ protected:
     std::string mResponder;
     bool mIsInitiator;
     State mState = SESSTATE_NULL;
-    artc::tspMediaStream mRemoteStream;
-    sdpUtil::ParsedSdp mLocalSdp;
-    sdpUtil::ParsedSdp mRemoteSdp;
     std::unique_ptr<FileTransferHandler> mFtHandler;
     void reportError(const std::string& msg, const char* reason, const char* text, unsigned flags=0);
     void addFingerprintMac(strophe::Stanza jingle);

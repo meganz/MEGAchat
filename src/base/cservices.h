@@ -92,9 +92,4 @@ MEGAIO_IMPEXP int64_t services_get_time_ms();
 }
 #endif
 
-//select features to include
-#if !defined(SVC_DISABLE_STROPHE)
-    #include "cservices-strophe.h"
-#endif
-
 #endif

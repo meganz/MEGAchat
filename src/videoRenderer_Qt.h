@@ -57,8 +57,9 @@ public:
         else
             return -1;
     }
+    virtual ~VideoRendererQt() {}
 //IVideoRenderer interface
-    virtual unsigned char* getImageBuffer(unsigned short width, unsigned short height, void** userData);
+    virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData);
     virtual void frameComplete(void* userData);
     virtual void clearViewport();
     virtual void onStreamDetach() { disableStaticImage(); }

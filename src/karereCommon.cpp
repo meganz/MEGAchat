@@ -1,7 +1,9 @@
 #include "karereCommon.h"
 #include "stringUtils.h"
-#include "rtcModule/IRtcModule.h"
 #include "sdkApi.h"
+#ifndef KARERE_DISABLE_WEBRTC
+namespace rtcModule {void globalCleanup(); }
+#endif
 
 namespace karere
 {
