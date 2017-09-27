@@ -943,7 +943,7 @@ void MegaChatApiImpl::sendPendingRequests()
             karere::AvFlags avFlags(true, enableVideo);
 
             MegaChatCallHandler *handler = new MegaChatCallHandler(this);
-            rtcModule::ICall &call = mClient->rtc->startCall(chatid, avFlags, *handler);
+            rtcModule::ICall &call = chatroom->mediaCall(avFlags, *handler);
             handler->setCall(&call);
             if (callHandlers.find(chatid) != callHandlers.end())
             {

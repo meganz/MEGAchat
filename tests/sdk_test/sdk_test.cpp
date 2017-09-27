@@ -2090,7 +2090,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     mCallEmisorId[a1] = MEGACHAT_INVALID_HANDLE;
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mCallEmisorId[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
-    megaChatApi[a1]->answerChatCall(mCallEmisorId[a1], false);
+    megaChatApi[a1]->answerChatCall(mCallEmisorId[a1], true, false);
 
     sleep(25);
 
