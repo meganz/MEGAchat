@@ -40,21 +40,21 @@ public:
 
 void WebsocketsClientImpl::wsConnectCb()
 {
-    ScopedLock(this->mutex);
+    ScopedLock lock(this->mutex);
     WEBSOCKETS_LOG_DEBUG("Connection established");
     client->wsConnectCb();
 }
 
 void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    ScopedLock(this->mutex);
+    ScopedLock lock(this->mutex);
     WEBSOCKETS_LOG_DEBUG("Connection closed");
     client->wsCloseCb(errcode, errtype, preason, reason_len);
 }
 
 void WebsocketsClientImpl::wsHandleMsgCb(char *data, size_t len)
 {
-    ScopedLock(this->mutex);
+    ScopedLock lock(this->mutex);
     WEBSOCKETS_LOG_DEBUG("Received %d bytes", len);
     client->wsHandleMsgCb(data, len);
 }
