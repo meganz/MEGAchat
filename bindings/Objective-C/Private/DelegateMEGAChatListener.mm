@@ -23,12 +23,10 @@ void DelegateMEGAChatListener::setValidListener(bool validListener) {
 void DelegateMEGAChatListener::onChatListItemUpdate(megachat::MegaChatApi *api, megachat::MegaChatListItem *item) {
     if (listener != nil && [listener respondsToSelector:@selector(onChatListItemUpdate:item:)]) {
         MegaChatListItem *tempItem = item->copy();
-        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
-        id<MEGAChatDelegate> tempListener = this->listener;
-        bool tempValidListener = validListener;
+        
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (tempValidListener) {
-                [tempListener onChatListItemUpdate:tempMegaChatSDK item:[[MEGAChatListItem alloc] initWithMegaChatListItem:tempItem cMemoryOwn:YES]];
+            if (this->validListener) {
+                [this->listener onChatListItemUpdate:this->megaChatSDK item:[[MEGAChatListItem alloc] initWithMegaChatListItem:tempItem cMemoryOwn:YES]];
             }
         });
     }
@@ -36,12 +34,9 @@ void DelegateMEGAChatListener::onChatListItemUpdate(megachat::MegaChatApi *api, 
 
 void DelegateMEGAChatListener::onChatInitStateUpdate(megachat::MegaChatApi *api, int newState) {
     if (listener != nil && [listener respondsToSelector:@selector(onChatInitStateUpdate:newState:)]) {
-        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
-        id<MEGAChatDelegate> tempListener = this->listener;
-        bool tempValidListener = validListener;
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (tempValidListener) {
-                [tempListener onChatInitStateUpdate:tempMegaChatSDK newState:(MEGAChatInit)newState];
+            if (this->validListener) {
+                [this->listener onChatInitStateUpdate:this->megaChatSDK newState:(MEGAChatInit)newState];
             }
         });
     }
@@ -49,12 +44,9 @@ void DelegateMEGAChatListener::onChatInitStateUpdate(megachat::MegaChatApi *api,
 
 void DelegateMEGAChatListener::onChatOnlineStatusUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle userHandle, int status, bool inProgress) {
     if (listener != nil && [listener respondsToSelector:@selector(onChatOnlineStatusUpdate:userHandle:status:inProgress:)]) {
-        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
-        id<MEGAChatDelegate> tempListener = this->listener;
-        bool tempValidListener = validListener;
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (tempValidListener) {
-                [tempListener onChatOnlineStatusUpdate:tempMegaChatSDK userHandle:userHandle status:(MEGAChatStatus)status inProgress:inProgress];
+            if (this->validListener) {
+                [this->listener onChatOnlineStatusUpdate:this->megaChatSDK userHandle:userHandle status:(MEGAChatStatus)status inProgress:inProgress];
             }
         });
     }
@@ -63,12 +55,10 @@ void DelegateMEGAChatListener::onChatOnlineStatusUpdate(megachat::MegaChatApi *a
 void DelegateMEGAChatListener::onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat::MegaChatPresenceConfig *config) {
     if (listener != nil && [listener respondsToSelector:@selector(onChatPresenceConfigUpdate:presenceConfig:)]) {
         MegaChatPresenceConfig *tempConfig = config->copy();
-        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
-        id<MEGAChatDelegate> tempListener = this->listener;
-        bool tempValidListener = validListener;
+        
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (tempValidListener) {
-                [tempListener onChatPresenceConfigUpdate:tempMegaChatSDK presenceConfig:[[MEGAChatPresenceConfig alloc] initWithMegaChatPresenceConfig:tempConfig cMemoryOwn:YES]];
+            if (this->validListener) {
+                [this->listener onChatPresenceConfigUpdate:this->megaChatSDK presenceConfig:[[MEGAChatPresenceConfig alloc] initWithMegaChatPresenceConfig:tempConfig cMemoryOwn:YES]];
             }
         });
     }

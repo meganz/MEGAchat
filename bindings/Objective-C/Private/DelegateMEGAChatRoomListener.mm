@@ -23,12 +23,10 @@ void DelegateMEGAChatRoomListener::setValidListener(bool validListener) {
 void DelegateMEGAChatRoomListener::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat) {
     if (listener != nil && [listener respondsToSelector:@selector(onChatRoomUpdate:chat:)]) {
         MegaChatRoom *tempChat = chat->copy();
-        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
-        id<MEGAChatRoomDelegate> tempListener = this->listener;
-        bool tempValidListener = validListener;
+        
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (tempValidListener) {
-                [tempListener onChatRoomUpdate:tempMegaChatSDK chat:[[MEGAChatRoom alloc] initWithMegaChatRoom:tempChat cMemoryOwn:YES]];
+            if (this->validListener) {
+                [this->listener onChatRoomUpdate:this->megaChatSDK chat:[[MEGAChatRoom alloc] initWithMegaChatRoom:tempChat cMemoryOwn:YES]];
             }
         });
     }
@@ -37,12 +35,10 @@ void DelegateMEGAChatRoomListener::onChatRoomUpdate(megachat::MegaChatApi *api, 
 void DelegateMEGAChatRoomListener::onMessageLoaded(megachat::MegaChatApi *api, megachat::MegaChatMessage *message) {
     if (listener != nil && [listener respondsToSelector:@selector(onMessageLoaded:message:)]) {
         MegaChatMessage *tempMessage = message ? message->copy() : NULL;
-        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
-        id<MEGAChatRoomDelegate> tempListener = this->listener;
-        bool tempValidListener = validListener;
+        
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (tempValidListener) {
-                [tempListener onMessageLoaded:tempMegaChatSDK message:tempMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES] : nil];
+            if (this->validListener) {
+                [this->listener onMessageLoaded:this->megaChatSDK message:tempMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES] : nil];
             }
         });
     }
@@ -51,12 +47,10 @@ void DelegateMEGAChatRoomListener::onMessageLoaded(megachat::MegaChatApi *api, m
 void DelegateMEGAChatRoomListener::onMessageReceived(megachat::MegaChatApi *api, megachat::MegaChatMessage *message) {
     if (listener != nil && [listener respondsToSelector:@selector(onMessageReceived:message:)]) {
         MegaChatMessage *tempMessage = message->copy();
-        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
-        id<MEGAChatRoomDelegate> tempListener = this->listener;
-        bool tempValidListener = validListener;
+        
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (tempValidListener) {
-                [tempListener onMessageReceived:tempMegaChatSDK message:[[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES]];
+            if (this->validListener) {
+                [this->listener onMessageReceived:this->megaChatSDK message:[[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES]];
             }
         });
     }
@@ -65,12 +59,10 @@ void DelegateMEGAChatRoomListener::onMessageReceived(megachat::MegaChatApi *api,
 void DelegateMEGAChatRoomListener::onMessageUpdate(megachat::MegaChatApi *api, megachat::MegaChatMessage *message) {
     if (listener != nil && [listener respondsToSelector:@selector(onMessageUpdate:message:)]) {
         MegaChatMessage *tempMessage = message->copy();
-        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
-        id<MEGAChatRoomDelegate> tempListener = this->listener;
-        bool tempValidListener = validListener;
+        
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (tempValidListener) {
-                [tempListener onMessageUpdate:tempMegaChatSDK message:[[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES]];
+            if (this->validListener) {
+                [this->listener onMessageUpdate:this->megaChatSDK message:[[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES]];
             }
         });
     }

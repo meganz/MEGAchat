@@ -190,8 +190,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     for (int i = 0; i < listenersToRemove.size(); i++)
     {
         self.megaChatApi->removeChatRoomListener(listenersToRemove[i]);
-        delete listenersToRemove[i];
     }
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        for (int i = 0; i < listenersToRemove.size(); i++)
+        {
+            delete listenersToRemove[i];
+        }
+    });
 }
 
 - (void)addChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate {
@@ -219,8 +225,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     for (int i = 0; i < listenersToRemove.size(); i++)
     {
         self.megaChatApi->removeChatRequestListener(listenersToRemove[i]);
-        delete listenersToRemove[i];
     }
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        for (int i = 0; i < listenersToRemove.size(); i++)
+        {
+            delete listenersToRemove[i];
+        }
+    });
 }
 
 - (void)addChatDelegate:(id<MEGAChatDelegate>)delegate {
@@ -248,8 +260,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     for (int i = 0; i < listenersToRemove.size(); i++)
     {
         self.megaChatApi->removeChatListener(listenersToRemove[i]);
-        delete listenersToRemove[i];
     }
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        for (int i = 0; i < listenersToRemove.size(); i++)
+        {
+            delete listenersToRemove[i];
+        }
+    });
 }
 
 #pragma mark - My user attributes
