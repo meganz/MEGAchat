@@ -7,9 +7,32 @@
 
 using namespace std;
 
-LibwsIO::LibwsIO(::mega::Mutex *mutex, void *ctx) : WebsocketsIO(mutex, ctx)
+LibwsIO::LibwsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, void *ctx) : WebsocketsIO(mutex, ctx)
 {
-    initialized = false;
+    ::mega::LibeventWaiter *libeventWaiter = dynamic_cast<::mega::LibeventWaiter *>(waiter);
+    ws_global_init(&wscontext, libeventWaiter ? libeventWaiter->eventloop : services_get_event_loop(), NULL,
+    [](struct bufferevent* bev, void* userp)
+    {
+        karere::marshallCall([bev, userp]()
+        {
+            ws_read_callback(bev, userp);
+        }, NULL);
+    },
+    [](struct bufferevent* bev, short events, void* userp)
+    {
+        karere::marshallCall([bev, events, userp]()
+        {
+            ws_event_callback(bev, events, userp);
+        }, NULL);
+    },
+    [](int fd, short events, void* userp)
+    {
+        karere::marshallCall([events, userp]()
+        {
+            ws_handle_marshall_timer_cb(0, events, userp);
+        }, NULL);
+    });
+    //ws_set_log_level(LIBWS_TRACE);
 }
 
 LibwsIO::~LibwsIO()
@@ -21,43 +44,11 @@ LibwsIO::~LibwsIO()
 
 void LibwsIO::addevents(::mega::Waiter* waiter, int)
 {
-    if (!initialized)
-    {
-        ::mega::LibeventWaiter *libeventWaiter = dynamic_cast<::mega::LibeventWaiter *>(waiter);
-        ws_global_init(&wscontext, libeventWaiter ? libeventWaiter->eventloop : services_get_event_loop(), NULL,
-        [](struct bufferevent* bev, void* userp)
-        {
-            karere::marshallCall([bev, userp]()
-            {
-                ws_read_callback(bev, userp);
-            }, NULL);
-        },
-        [](struct bufferevent* bev, short events, void* userp)
-        {
-            karere::marshallCall([bev, events, userp]()
-            {
-                ws_event_callback(bev, events, userp);
-            }, NULL);
-        },
-        [](int fd, short events, void* userp)
-        {
-            karere::marshallCall([events, userp]()
-            {
-                ws_handle_marshall_timer_cb(0, events, userp);
-            }, NULL);
-        });
-        //ws_set_log_level(LIBWS_TRACE);
-        initialized = true;
-    }
+
 }
 
 WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)
 {
-    if (!initialized)   // check required for compatibility with Qt app, which is not initialized by default
-    {
-        addevents(NULL, 0);
-    }
-
     int result;
     LibwsClient *libwsClient = new LibwsClient(mutex, client, appCtx);
     
