@@ -286,7 +286,8 @@ class Client;
 class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State { kStateNew, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
+
 protected:
     Client& mClient;
     int mShardNo;
@@ -315,7 +316,7 @@ protected:
     virtual void wsHandleMsgCb(char *data, size_t len);
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);
-    promise::Promise<void> reconnect(const std::string& url=std::string());
+    promise::Promise<void> reconnect();
     promise::Promise<void> disconnect(int timeoutMs=2000);
     void notifyLoggedIn();
     void enableInactivityTimer();
@@ -672,7 +673,7 @@ public:
       * connect(), after which it initiates or uses an existing connection to
       * chatd
       */
-    void connect(const std::string& url=std::string());
+    void connect();
 
     void disconnect();
     /** @brief The online state of the chatroom */
@@ -1058,6 +1059,20 @@ public:
     friend class Connection;
     friend class Chat;
 };
+
+static inline const char* connStateToStr(Connection::State state)
+{
+    switch (state)
+    {
+    case Connection::State::kStateDisconnected: return "Disconnected";
+    case Connection::State::kStateConnecting: return "Connecting";
+    case Connection::State::kStateConnected: return "Connected";
+    case Connection::State::kStateLoggedIn: return "Logged-in";
+    case Connection::State::kStateNew: return "New";
+    case Connection::State::kStateFetchingUrl: return "Fetching URL";
+    default: return "(invalid)";
+    }
+}
 
 struct ChatDbInfo
 {

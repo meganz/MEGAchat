@@ -1496,7 +1496,7 @@ bool MegaChatApiImpl::isOnlineStatusPending()
 
 int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
 {
-    int status = MegaChatApi::STATUS_OFFLINE;
+    int status = MegaChatApi::STATUS_INVALID;
 
     sdkMutex.lock();
 
@@ -3475,9 +3475,13 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason re
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onOnlineStateChange(ChatState)
+void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
 {
-    // apps not interested about this event
+    if (mRoom)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        mRoom->onOnlineStateChange(state);
+    }
 }
 
 void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)

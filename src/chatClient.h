@@ -159,11 +159,6 @@ public:
      */
     virtual promise::Promise<void> mediaCall(AvFlags av) = 0;
 
-    /**
-     * @brief Updates the chatd url of the chatroom, by asking the API
-     */
-    promise::Promise<void> updateUrl();
-
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
@@ -251,6 +246,7 @@ public:
         std::string mEmail;
         Presence mPresence;
         void subscribeForNameChanges();
+        promise::Promise<void> mNameResolved;
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
@@ -268,6 +264,9 @@ public:
 
         /** @brief The presence of the peer */
         Presence presence() const { return mPresence; }
+
+        promise::Promise<void> nameResolved() const;
+
         friend class GroupChatRoom;
     };
     /**
@@ -280,13 +279,14 @@ public:
     bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
+    promise::Promise<void> mMemberNamesResolved;
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
     bool syncMembers(const UserPrivMap& users);
     static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
-    void addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
+    promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(uint64_t userid);
     void updatePeerPresence(uint64_t peer, Presence pres);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
@@ -297,6 +297,7 @@ public:
     void initWithChatd();
     void setRemoved();
     virtual void connect();
+    promise::Promise<void> memberNamesResolved() const;
 
     friend class ChatRoomList;
     friend class Member;
