@@ -211,16 +211,48 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
-void Chat::connect(const std::string& url)
+void Chat::connect()
 {
     // attempt a connection ONLY if this is a new shard.
-    if (mConnection.state() == Connection::kStateNew || mConnection.state() == Connection::kStateDisconnected)
+    if (mConnection.state() == Connection::kStateNew)
     {
-        mConnection.reconnect(url)
+        mConnection.mState = Connection::kStateFetchingUrl;
+        auto wptr = getDelTracker();
+        mClient.mApi->call(&mega::MegaApi::getUrlChat, mChatId)
+        .then([wptr, this](ReqResult result)
+        {
+            if (wptr.deleted())
+            {
+                CHATD_LOG_DEBUG("Chatd URL request completed, but chatd client was deleted");
+                return;
+            }
+
+            const char* url = result->getLink();
+            if (!url || !url[0])
+            {
+                CHATID_LOG_ERROR("No chatd URL received from API");
+                return;
+            }
+
+            std::string sUrl = url;
+            mConnection.mUrl.parse(sUrl);
+
+            mConnection.reconnect()
+            .fail([this](const promise::Error& err)
+            {
+                CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+            });
+        });
+
+    }
+    else if (mConnection.state() == Connection::kStateDisconnected)
+    {
+        mConnection.reconnect()
         .fail([this](const promise::Error& err)
         {
             CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
         });
+
     }
     else if (mConnection.isConnected() || mConnection.isLoggedIn())
     {
@@ -347,21 +379,15 @@ bool Connection::sendKeepalive(uint8_t opcode)
     return sendBuf(Command(opcode));
 }
 
-Promise<void> Connection::reconnect(const std::string& url)
+Promise<void> Connection::reconnect()
 {
     try
     {
         if (mState >= kStateConnecting) //would be good to just log and return, but we have to return a promise
             throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
-        if (!url.empty())
-        {
-            mUrl.parse(url);
-        }
-        else
-        {
-            if (!mUrl.isValid())
-                throw std::runtime_error("No valid URL provided and current URL is not valid");
-        }
+
+        if (!mUrl.isValid())
+            throw std::runtime_error("Current URL is not valid");
 
         mState = kStateConnecting;
         return retry("chatd", [this](int no)

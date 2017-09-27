@@ -286,7 +286,7 @@ class Client;
 class Connection: public karere::DeleteTrackable
 {
 public:
-    enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateConnecting, kStateConnected, kStateLoggedIn };
 protected:
     Client& mClient;
     int mShardNo;
@@ -315,7 +315,7 @@ protected:
         size_t reason_len, void *arg);
     static void websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg);
     void onSocketClose(int ercode, int errtype, const std::string& reason);
-    promise::Promise<void> reconnect(const std::string& url=std::string());
+    promise::Promise<void> reconnect();
     promise::Promise<void> disconnect(int timeoutMs=2000);
     void notifyLoggedIn();
     void enableInactivityTimer();
@@ -672,7 +672,7 @@ public:
       * connect(), after which it initiates or uses an existing connection to
       * chatd
       */
-    void connect(const std::string& url=std::string());
+    void connect();
 
     void disconnect();
     /** @brief The online state of the chatroom */
@@ -1069,6 +1069,7 @@ static inline const char* connStateToStr(Connection::State state)
     case Connection::State::kStateConnected: return "Connected";
     case Connection::State::kStateLoggedIn: return "Logged-in";
     case Connection::State::kStateNew: return "New";
+    case Connection::State::kStateFetchingUrl: return "Fetching URL";
     default: return "(invalid)";
     }
 }
