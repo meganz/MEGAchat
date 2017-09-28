@@ -99,7 +99,14 @@ void DeviceManager::enumInputDevices()
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
         webrtc::VideoCaptureFactory::CreateDeviceInfo());
     if (!info)
+    {
+#ifndef __ANDROID__
         throw std::runtime_error("Can't enumerate video devices");
+#else
+        return;
+#endif
+    }
+
     int numDevices = info->NumberOfDevices();
     auto& devices = mInputDevices.video;
     for (int i = 0; i < numDevices; ++i)
