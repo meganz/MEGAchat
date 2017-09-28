@@ -499,7 +499,7 @@ private:
     int changed;
 
     MegaChatHandle chatid;
-    int priv;
+    mega::privilege_t priv;
     mega::userpriv_vector peers;
     std::vector<std::string> peerFirstnames;
     std::vector<std::string> peerLastnames;

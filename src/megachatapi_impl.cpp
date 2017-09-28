@@ -3529,7 +3529,6 @@ void MegaChatRoomHandler::onRejoinedChat()
 
 void MegaChatRoomHandler::onExcludedFromChat()
 {
-
     if (mRoom)
     {
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
@@ -3680,7 +3679,7 @@ void MegaChatRoomListPrivate::addChatRoom(MegaChatRoom *chat)
 MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
 {
     this->chatid = chat->getChatId();
-    this->priv = chat->getOwnPrivilege();
+    this->priv = (privilege_t) chat->getOwnPrivilege();
     for (unsigned int i = 0; i < chat->getPeerCount(); i++)
     {
         MegaChatHandle uh = chat->getPeerHandle(i);
@@ -3701,7 +3700,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
 {
     this->changed = 0;
     this->chatid = chat.chatid();
-    this->priv = chat.ownPriv();
+    this->priv = (privilege_t) chat.ownPriv();
     this->group = chat.isGroup();
     this->title = chat.titleString();
     this->unreadCount = chat.chat().unreadMsgCount();
@@ -3946,7 +3945,7 @@ MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
 
 void MegaChatRoomPrivate::setOwnPriv(int ownPriv)
 {
-    this->priv = ownPriv;
+    this->priv = (privilege_t) ownPriv;
     this->changed |= MegaChatRoom::CHANGE_TYPE_OWN_PRIV;
 }
 
