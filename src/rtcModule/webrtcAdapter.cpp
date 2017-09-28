@@ -1,8 +1,8 @@
 #include "webrtcAdapter.h"
-#include <webrtc/rtc_base/ssladapter.h>
-#include <webrtc/modules/video_capture/video_capture_factory.h>
-#include <webrtc/modules/video_capture/video_capture.h>
-#include <webrtc/media/engine/webrtcvideocapturerfactory.h>
+#include <rtc_base/ssladapter.h>
+#include <modules/video_capture/video_capture_factory.h>
+#include <modules/video_capture/video_capture.h>
+#include <media/engine/webrtcvideocapturerfactory.h>
 #include "webrtcAsyncWaiter.h"
 
 namespace artc
