@@ -5,19 +5,12 @@
 
 using namespace megachat;
 
-DelegateMEGAChatListener::DelegateMEGAChatListener(MEGAChatSdk *megaChatSDK, id<MEGAChatDelegate>listener, bool singleListener) {
-    this->megaChatSDK = megaChatSDK;
+DelegateMEGAChatListener::DelegateMEGAChatListener(MEGAChatSdk *megaChatSDK, id<MEGAChatDelegate>listener, bool singleListener) : DelegateMEGAChatBaseListener::DelegateMEGAChatBaseListener(megaChatSDK, singleListener) {
     this->listener = listener;
-    this->singleListener = singleListener;
-    this->validListener = true;
 }
 
 id<MEGAChatDelegate>DelegateMEGAChatListener::getUserListener() {
     return listener;
-}
-
-void DelegateMEGAChatListener::setValidListener(bool validListener) {
-    this->validListener = validListener;
 }
 
 void DelegateMEGAChatListener::onChatListItemUpdate(megachat::MegaChatApi *api, megachat::MegaChatListItem *item) {

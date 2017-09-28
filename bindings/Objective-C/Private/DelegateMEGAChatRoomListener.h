@@ -1,14 +1,14 @@
 #import "MEGAChatRoomDelegate.h"
 #import "megachatapi.h"
 #import "MEGAChatSdk.h"
+#import "DelegateMEGAChatBaseListener.h"
 
-class DelegateMEGAChatRoomListener : public megachat::MegaChatRoomListener {
+class DelegateMEGAChatRoomListener : public DelegateMEGAChatBaseListener, public megachat::MegaChatRoomListener {
     
 public:
     
     DelegateMEGAChatRoomListener(MEGAChatSdk *megaChatSDK, id<MEGAChatRoomDelegate>listener, bool singleListener = true);
     id<MEGAChatRoomDelegate>getUserListener();
-    void setValidListener(bool validListener);
     
     void onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
     void onMessageLoaded(megachat::MegaChatApi *api, megachat::MegaChatMessage *message);
@@ -16,8 +16,5 @@ public:
     void onMessageUpdate(megachat::MegaChatApi *api, megachat::MegaChatMessage *message);
     
 private:
-    MEGAChatSdk *megaChatSDK;
     id<MEGAChatRoomDelegate>listener;
-    bool singleListener;
-    bool validListener;
 };

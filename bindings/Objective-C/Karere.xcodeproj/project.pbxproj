@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5B251F8B1F7CD62C0087FA5D /* DelegateMEGAChatBaseListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5B251F891F7CD62B0087FA5D /* DelegateMEGAChatBaseListener.mm */; };
 		A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */; };
 		A82750D31E9788A3007CD9E2 /* MEGAChatListItem.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BD1E9788A3007CD9E2 /* MEGAChatListItem.mm */; };
 		A82750D41E9788A3007CD9E2 /* MEGAChatListItemList.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BF1E9788A3007CD9E2 /* MEGAChatListItemList.mm */; };
@@ -49,6 +50,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5B251F891F7CD62B0087FA5D /* DelegateMEGAChatBaseListener.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatBaseListener.mm; path = Private/DelegateMEGAChatBaseListener.mm; sourceTree = "<group>"; };
+		5B251F8A1F7CD62C0087FA5D /* DelegateMEGAChatBaseListener.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatBaseListener.h; path = Private/DelegateMEGAChatBaseListener.h; sourceTree = "<group>"; };
 		A82750B91E9788A3007CD9E2 /* MEGAChatDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatDelegate.h; sourceTree = "<group>"; };
 		A82750BA1E9788A3007CD9E2 /* MEGAChatError.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatError.h; sourceTree = "<group>"; };
 		A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatError.mm; sourceTree = "<group>"; };
@@ -129,6 +132,8 @@
 				A82750E11E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm */,
 				A82750E21E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.h */,
 				A82750E31E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm */,
+				5B251F8A1F7CD62C0087FA5D /* DelegateMEGAChatBaseListener.h */,
+				5B251F891F7CD62B0087FA5D /* DelegateMEGAChatBaseListener.mm */,
 				A82750E41E9788D8007CD9E2 /* MEGAChatError+init.h */,
 				A82750E51E9788D8007CD9E2 /* MEGAChatListItem+init.h */,
 				A82750E61E9788D8007CD9E2 /* MEGAChatListItemList+init.h */,
@@ -323,6 +328,7 @@
 				A82750D41E9788A3007CD9E2 /* MEGAChatListItemList.mm in Sources */,
 				A838B21F1E9685DF00875D96 /* userAttrCache.cpp in Sources */,
 				A82750DA1E9788A3007CD9E2 /* MEGAChatRoomList.mm in Sources */,
+				5B251F8B1F7CD62C0087FA5D /* DelegateMEGAChatBaseListener.mm in Sources */,
 				A82750D71E9788A3007CD9E2 /* MEGAChatPresenceConfig.mm in Sources */,
 				A82750D61E9788A3007CD9E2 /* MEGAChatPeerList.mm in Sources */,
 				A838B21D1E9685DF00875D96 /* presenced.cpp in Sources */,
