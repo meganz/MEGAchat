@@ -175,7 +175,7 @@ public:
     {
         //getLastTextMsg needs to call a virtual method, which is not available
         //during construction
-        karere::marshallCall([this] { getLastTextMsg(); });
+        karere::marshallCall([this] { getLastTextMsg(); }, NULL);
     }
     void getLastTextMsg()
     {
@@ -238,7 +238,7 @@ public:
         {
             showAsHidden();
         }
-        karere::setTimeout([this]() { updateToolTip(); }, 100);
+        karere::setTimeout([this]() { updateToolTip(); }, 100, NULL);
     }
     void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
     {
@@ -501,7 +501,7 @@ protected:
     virtual void mouseDoubleClickEvent(QMouseEvent* event) { showChatWindow(); }
     virtual karere::ChatRoom& room() const { return mRoom; }
 protected slots:
-    void leaveGroupChat() { karere::marshallCall([this]() { mRoom.leave(); }); } //deletes this
+    void leaveGroupChat() { karere::marshallCall([this]() { mRoom.leave(); }, NULL); } //deletes this
     void setTitle();
 };
 

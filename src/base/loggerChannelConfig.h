@@ -44,7 +44,7 @@ KR_LOGGER_CONFIG_START(
         krLogChannel_rtc, krLogChannel_rtcevent, krLogChannel_jingle,
         krLogChannel_megasdk, krLogChannel_services,
         krLogChannel_strongvelope,
-        krLogChannel_http, krLogChannel_chatd, krLogChannel_gui,
+        krLogChannel_websockets, krLogChannel_chatd, krLogChannel_gui,
         krLogChannel_uacache, krLogChannel_megachatapi, krLogChannel_presenced)
     KR_LOGCHANNEL(default, NULL, Debug, 0)
     KR_LOGCHANNEL(xmpp, "xmpp", Warn, krLogNoLevel | 7)
@@ -56,7 +56,7 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(chatd, "chatd", Debug, 4)
     KR_LOGCHANNEL(megasdk, "sdk", Warn, 12)
     KR_LOGCHANNEL(services, "services", Info, 0)
-    KR_LOGCHANNEL(http, "http", Warn, 13)
+    KR_LOGCHANNEL(websockets, "websockets", Warn, 13)
     KR_LOGCHANNEL(gui, "gui", Debug, 10)
     KR_LOGCHANNEL(uacache, "uacache", Warn, 2)
     KR_LOGCHANNEL(megachatapi, "megachatapi", Debug, 3)

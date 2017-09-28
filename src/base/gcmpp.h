@@ -5,6 +5,7 @@
 
 #include "karereCommon.h"
 #include "gcm.h"
+#include "logger.h"
 #include <memory>
 #include <assert.h>
 
@@ -18,7 +19,7 @@ namespace karere
  * and all code is in the same compilation unit, so it can be inlined
  */
 template <class F>
-static inline void marshallCall(F&& func)
+static inline void marshallCall(F&& func, void *appCtx)
 {
     struct Msg: public megaMessage
     {
@@ -63,7 +64,7 @@ static inline void marshallCall(F&& func)
             }
         }
     });
-    megaPostMessageToGui(static_cast<void*>(msg));
+    megaPostMessageToGui(static_cast<void*>(msg), appCtx);
 }
 
 }

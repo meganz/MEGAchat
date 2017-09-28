@@ -13,6 +13,7 @@
 #include "chatd.h"
 #include "presenced.h"
 #include "IGui.h"
+#include "net/websocketsIO.h"
 #include <base/trackDelete.h>
 
 namespace strophe { class Connection; }
@@ -614,6 +615,8 @@ public:
         kInitErrSidInvalid
     };
 
+    WebsocketsIO *websocketIO;
+    void *appCtx;
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
@@ -662,8 +665,8 @@ public:
      * inconsistent, karere will behave as if \c false was specified - will
      * delete the karere.db file and re-create it from scratch.
      */
-    Client(::mega::MegaApi& sdk, IApp& app, const std::string& appDir,
-           uint8_t caps);
+    Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& app, const std::string& appDir,
+           uint8_t caps, void *ctx = NULL);
 
     virtual ~Client();
 
