@@ -1289,6 +1289,11 @@ public class MegaChatApiJava {
         megaChatApi.sendTypingNotification(chatid);
     }
 
+    public void startChatCall(long chatid, boolean enableVideo)
+    {
+        megaChatApi.startChatCall(chatid, enableVideo);
+    }
+
     public static void setCatchException(boolean enable) {
         MegaChatApi.setCatchException(enable);
     }
