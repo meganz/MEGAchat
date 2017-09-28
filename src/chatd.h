@@ -334,7 +334,7 @@ protected:
     friend class Chat;
 public:
     promise::Promise<void> retryPendingConnection();
-    ~Connection()
+    virtual ~Connection()
     {
         disableInactivityTimer();
         reset();

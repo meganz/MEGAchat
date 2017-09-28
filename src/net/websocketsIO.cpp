@@ -17,6 +17,11 @@ WebsocketsClientImpl::WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClien
     this->client = client;
 }
 
+WebsocketsClientImpl::~WebsocketsClientImpl()
+{
+
+}
+
 class ScopedLock
 {
     ::mega::Mutex *m;
@@ -63,6 +68,11 @@ WebsocketsClient::WebsocketsClient()
 {
     ctx = NULL;
     thread_id = 0;
+}
+
+WebsocketsClient::~WebsocketsClient()
+{
+    delete ctx;
 }
 
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)
@@ -121,4 +131,3 @@ bool WebsocketsClient::wsIsConnected()
     assert (thread_id == pthread_self());
     return ctx->wsIsConnected();
 }
-
