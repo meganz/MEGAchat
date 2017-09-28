@@ -62,9 +62,14 @@ class MegaChatCall
 public:
     enum
     {
-        CALL_STATUS_CONNECTING = 0,
-        CALL_STATUS_RINGING,
-        CALL_STATUS_CONNECTED,
+        CALL_STATUS_INITIAL = 0,
+        CALL_STATUS_HAS_LOCAL_STREAM,
+        CALL_STATUS_REQUEST_SENT,
+        CALL_STATUS_RINGIN,
+        CALL_STATUS_JOINING,
+        CALL_STATUS_IN_PROGRESS,
+        CALL_STATUS_TERMINATING,
+        CALL_STATUS_DESTROYED,
         CALL_STATUS_DISCONNECTED
     };
 
@@ -73,7 +78,8 @@ public:
 
     virtual int getStatus() const;
     virtual int getTag() const;
-    virtual MegaChatHandle getContactHandle() const;
+    virtual MegaChatHandle getChatid() const;
+    virtual bool answer(bool videoEnabled);
 };
 
 class MegaChatVideoListener
@@ -90,6 +96,7 @@ public:
     virtual ~MegaChatCallListener() {}
 
     virtual void onChatCallStart(MegaChatApi* api, MegaChatCall *call);
+    virtual void onChatCallIncoming(MegaChatApi* api, MegaChatCall *call);
     virtual void onChatCallStateChange(MegaChatApi *api, MegaChatCall *call);
     virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
     virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
@@ -628,7 +635,7 @@ public:
         TYPE_LOGOUT,    // delete existing Client and creates a new one
         TYPE_SET_ONLINE_STATUS,
         TYPE_START_CHAT_CALL, TYPE_ANSWER_CHAT_CALL,
-        TYPE_MUTE_CHAT_CALL, TYPE_HANG_CHAT_CALL,
+        TYPE_DISABLE_AUDIO_VIDEO_CALL, TYPE_HANG_CHAT_CALL,
         TYPE_CREATE_CHATROOM, TYPE_REMOVE_FROM_CHATROOM,
         TYPE_INVITE_TO_CHATROOM, TYPE_UPDATE_PEER_PERMISSIONS,
         TYPE_EDIT_CHATROOM_NAME, TYPE_EDIT_CHATROOM_PIC,
@@ -641,6 +648,11 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TOTAL_OF_REQUEST_TYPES
+    };
+
+    enum {
+        AUDIO = 0,
+        VIDEO = 1
     };
 
     virtual ~MegaChatRequest();
@@ -778,6 +790,17 @@ public:
      * @return List of nodes in this request
      */
     virtual mega::MegaNodeList *getMegaNodeList();
+
+    /**
+     * @brief Return operation type on this request. This fill is vaild for
+     * TYPE_DISABLE_AUDIO_VIDEO_CALL request
+     *
+     * 0: audio operation
+     * 1: video operation
+     *
+     * @return an operation type indication
+     */
+    virtual int getOperationType();
 };
 
 /**
@@ -2379,9 +2402,12 @@ public:
     bool setChatVideoInDevice(const char *device);
 
     // Call management
-    void startChatCall(mega::MegaUser *peer, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
-    void answerChatCall(MegaChatCall *call, bool accept, MegaChatRequestListener *listener = NULL);
-    void hangAllChatCalls();
+    void startChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+    void answerChatCall(MegaChatHandle chatid, bool answerOrHangup, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+    void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void hangAllChatCalls(MegaChatRequestListener *listener = NULL);
+    void muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener = NULL);
+    void disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener = NULL);
 
     // Listeners
     /**
