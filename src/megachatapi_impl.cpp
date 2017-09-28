@@ -3290,7 +3290,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(Id peer)
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
 {
-    this->peer = call.getPeer();
     this->status = call.getStatus();
     this->tag = call.getTag();
     this->videoReceiver = NULL;
@@ -3345,11 +3344,6 @@ bool MegaChatCallPrivate::answer(bool videoEnabled)
 //{
 //    return mAns;
 //}
-
-karere::Id MegaChatCallPrivate::getPeer() const
-{
-    return peer;
-}
 
 void MegaChatCallPrivate::setStatus(int status)
 {
