@@ -944,7 +944,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             MegaChatCallHandler *handler = new MegaChatCallHandler(this);
             rtcModule::ICall &call = chatroom->mediaCall(avFlags, *handler);
-            handler->setCall(&call);
+            //handler->setCall(&call);
             if (callHandlers.find(chatid) != callHandlers.end())
             {
                 errorCode = MegaChatError::ERROR_EXIST;
@@ -1398,8 +1398,6 @@ void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatEr
 
 void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer)
 {
-    API_LOG_INFO("Remote video data");
-
     for(set<MegaChatVideoListener *>::iterator it = remoteVideoListeners.begin(); it != remoteVideoListeners.end() ; it++)
     {
         (*it)->onChatVideoData(chatApi, call, width, height, buffer);
@@ -1410,8 +1408,6 @@ void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int w
 
 void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char *buffer)
 {
-    API_LOG_INFO("Local video data");
-
     for(set<MegaChatVideoListener *>::iterator it = localVideoListeners.begin(); it != localVideoListeners.end() ; it++)
     {
         (*it)->onChatVideoData(chatApi, call, width, height, buffer);
@@ -2715,7 +2711,7 @@ void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
     // it is notified to the app by the existing MegaApi
 }
 
-MegaChatCallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
+rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
 {
     MegaChatCallHandler *chatCallHandler = new MegaChatCallHandler(this);
     chatCallHandler->setCall(&call);

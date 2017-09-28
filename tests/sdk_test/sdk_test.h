@@ -278,6 +278,7 @@ private:
     bool mContactRequestUpdated[NUM_ACCOUNTS];
 
     bool mCallReceived[NUM_ACCOUNTS];
+    bool mCallAnswered[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallEmisorId[NUM_ACCOUNTS];
 
     static const std::string DEFAULT_PATH;
@@ -370,6 +371,18 @@ private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
 
+
+class TestChatVideoListener : public megachat::MegaChatVideoListener
+{
+public:
+    TestChatVideoListener(const std::string& type);
+    virtual ~TestChatVideoListener();
+
+    virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatCall *chatCall, int width, int height, char*buffer);
+
+private:
+    std::string mType;
+};
 
 #endif // CHATTEST_H
 

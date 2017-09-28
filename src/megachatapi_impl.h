@@ -147,7 +147,6 @@ public:
 
 //    shared_ptr<rtcModule::ICallAnswer> getAnswerObject();
 
-    karere::Id getPeer() const;
     void setStatus(int status);
     void setTag(int tag);
     void setVideoReceiver(MegaChatVideoReceiver *videoReceiver);
@@ -923,7 +922,7 @@ public:
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
-    virtual MegaChatCallHandler *onIncomingCall(rtcModule::ICall& call);
+    virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call);
     virtual void notifyInvited(const karere::ChatRoom& room);
     virtual void onInitStateChange(int newState);
 
