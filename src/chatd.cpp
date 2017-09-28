@@ -218,7 +218,7 @@ void Chat::connect()
     {
         mConnection.mState = Connection::kStateFetchingUrl;
         auto wptr = getDelTracker();
-        mClient.mApi->call(&mega::MegaApi::getUrlChat, mChatId)
+        mClient.mApi->call(&::mega::MegaApi::getUrlChat, mChatId)
         .then([wptr, this](ReqResult result)
         {
             if (wptr.deleted())
