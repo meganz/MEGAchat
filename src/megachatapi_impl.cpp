@@ -961,7 +961,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             MegaChatHandle chatid = request->getChatHandle();
             bool enableVideo = request->getFlag();
-            bool answerOrHangup = request->getOperationType();
+            bool answerOrHangup = request->getParamType();
 
             if (callHandlers.find(chatid) == callHandlers.end())
             {
@@ -1015,7 +1015,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             MegaChatHandle chatid = request->getChatHandle();
             bool muteAudioVideo = request->getFlag();
-            int operationType = request->getOperationType();
+            int operationType = request->getParamType();
 
             if (callHandlers.find(chatid) == callHandlers.end())
             {
@@ -2501,7 +2501,7 @@ void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool answerOrHangup,
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ANSWER_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
-    request->setOperationType(answerOrHangup);
+    request->setParamType(answerOrHangup);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -2526,7 +2526,7 @@ void MegaChatApiImpl::muteCall(MegaChatHandle chatid, bool mute, MegaChatRequest
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(mute);
-    request->setOperationType(MegaChatRequest::AUDIO);
+    request->setParamType(MegaChatRequest::AUDIO);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -2536,7 +2536,7 @@ void MegaChatApiImpl::disableVideoCall(MegaChatHandle chatid, bool videoCall, Me
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(videoCall);
-    request->setOperationType(MegaChatRequest::VIDEO);
+    request->setParamType(MegaChatRequest::VIDEO);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3278,9 +3278,9 @@ MegaNodeList *MegaChatRequestPrivate::getMegaNodeList()
     return mMegaNodeList;
 }
 
-int MegaChatRequestPrivate::getOperationType()
+int MegaChatRequestPrivate::getParamType()
 {
-    return operationType;
+    return mParamType;
 }
 
 void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
@@ -3293,9 +3293,9 @@ void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
     mMegaNodeList = nodelist ? nodelist->copy() : NULL;
 }
 
-void MegaChatRequestPrivate::setOperationType(int operationType)
+void MegaChatRequestPrivate::setParamType(int paramType)
 {
-    this->operationType = operationType;
+    this->mParamType = paramType;
 }
 
 #ifndef KARERE_DISABLE_WEBRTC

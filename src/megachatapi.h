@@ -800,7 +800,7 @@ public:
      *
      * @return an operation type indication
      */
-    virtual int getOperationType();
+    virtual int getParamType();
 };
 
 /**

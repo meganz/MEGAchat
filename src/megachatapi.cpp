@@ -643,7 +643,7 @@ MegaNodeList *MegaChatRequest::getMegaNodeList()
     return NULL;
 }
 
-int MegaChatRequest::getOperationType()
+int MegaChatRequest::getParamType()
 {
     return -1;
 }

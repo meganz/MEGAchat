@@ -69,7 +69,7 @@ public:
     virtual const char *getText() const;
     virtual MegaChatMessage *getMegaChatMessage();
     virtual mega::MegaNodeList *getMegaNodeList();
-    virtual int getOperationType();
+    virtual int getParamType();
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -83,7 +83,7 @@ public:
     void setText(const char *text);
     void setMegaChatMessage(MegaChatMessage *message);
     void setMegaNodeList(mega::MegaNodeList *nodelist);
-    void setOperationType(int operationType);
+    void setParamType(int paramType);
 
 protected:
     int type;
@@ -100,7 +100,7 @@ protected:
     const char* text;
     MegaChatMessage* mMessage;
     mega::MegaNodeList* mMegaNodeList;
-    int operationType;
+    int mParamType;
 };
 
 class MegaChatPresenceConfigPrivate : public MegaChatPresenceConfig
