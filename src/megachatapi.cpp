@@ -448,6 +448,8 @@ bool MegaChatApi::isMessageReceptionConfirmationActive() const
     return pImpl->isMessageReceptionConfirmationActive();
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();
@@ -527,6 +529,8 @@ void MegaChatApi::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
 {
     pImpl->removeChatRemoteVideoListener(listener);
 }
+
+#endif
 
 void MegaChatApi::setCatchException(bool enable)
 {

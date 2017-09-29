@@ -258,8 +258,11 @@ void MegaChatApiTest::SetUp()
         megaChatApi[i] = new MegaChatApi(megaApi[i]);
         megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
         megaChatApi[i]->addChatRequestListener(this);
+
+#ifndef KARERE_DISABLE_WEBRTC
         megaChatApi[i]->addChatListener(this);
         megaChatApi[i]->addChatCallListener(this);
+#endif
 
         for (int j = 0; j < mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
         {
@@ -296,9 +299,11 @@ void MegaChatApiTest::SetUp()
         mNotTransferRunning[i] = true;
         mPresenceConfigUpdated[i] = false;
 
+#ifndef KARERE_DISABLE_WEBRTC
         mCallReceived[i] = false;
         mCallAnswered[i] = false;
         mCallEmisorId[i] = MEGACHAT_INVALID_HANDLE;
+#endif
 
         mChatFirstname = "";
         mChatLastname = "";
@@ -2038,6 +2043,8 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     newSession = NULL;
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
+
 void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 {
     char *primarySession = login(a1);
@@ -2064,7 +2071,6 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
     ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
-
 
     loadHistory(a1, chatid, chatroomListener);
 
@@ -2146,6 +2152,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     delete [] secondarySession;
     secondarySession = NULL;
 }
+
+#endif
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
@@ -2921,6 +2929,8 @@ bool MegaChatApiTest::onTransferData(MegaApi *api, MegaTransfer *transfer, char 
 {
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
+
 void MegaChatApiTest::onChatCallStart(MegaChatApi *api, MegaChatCall *call)
 {
     LOG_debug << "On chat call start ";
@@ -2959,6 +2969,21 @@ void MegaChatApiTest::onChatCallFinish(MegaChatApi *api, MegaChatCall *call, Meg
 {
     LOG_debug << "On chat call finish ";
 }
+
+TestChatVideoListener::TestChatVideoListener(const string &type)
+    : mType(type)
+{
+}
+
+TestChatVideoListener::~TestChatVideoListener()
+{
+}
+
+void TestChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char *buffer)
+{
+}
+
+#endif
 
 TestChatRoomListener::TestChatRoomListener(MegaChatApiTest *t, MegaChatApi **apis, MegaChatHandle chatid)
 {
@@ -3227,17 +3252,4 @@ void MegaLoggerTest::log(int loglevel, const char *message)
 
     // message comes with a line-break at the end
     testlog  << message;
-}
-
-TestChatVideoListener::TestChatVideoListener(const string &type)
-    : mType(type)
-{
-}
-
-TestChatVideoListener::~TestChatVideoListener()
-{
-}
-
-void TestChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char *buffer)
-{
 }

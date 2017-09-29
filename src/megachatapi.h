@@ -2477,12 +2477,14 @@ public:
      */
     void removeChatRequestListener(MegaChatRequestListener* listener);
 
+#ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
+#endif
 
     static void setCatchException(bool enable);
 
