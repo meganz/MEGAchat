@@ -3303,19 +3303,7 @@ void MegaChatRequestPrivate::setOperationType(int operationType)
 
 MegaChatCallPrivate::MegaChatCallPrivate(rtcModule::ICall& call)
 :mCall(&call)
-#ifndef KARERE_DISABLE_WEBRTC
- , peer(call.caller())
-#endif
 {
-    status = 0;
-    tag = 0;
-    videoReceiver = NULL;
-}
-
-MegaChatCallPrivate::MegaChatCallPrivate(Id peer)
-:mCall(nullptr)
-{
-    this->peer = peer;
     status = 0;
     tag = 0;
     videoReceiver = NULL;
@@ -3331,7 +3319,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
 {
-//    delete mAns;  it's a shared pointer, no need to delete
     // videoReceiver is deleted on onVideoDetach, because it's called after the call is finished
 }
 
@@ -3362,17 +3349,6 @@ MegaChatHandle MegaChatCallPrivate::getChatid() const
     return chatid;
 }
 
-bool MegaChatCallPrivate::answer(bool videoEnabled)
-{
-    if (mCall != NULL)
-    {
-        karere::AvFlags flags(false, videoEnabled);
-        return mCall->answer(flags);
-    }
-
-    return false;
-}
-
 void MegaChatCallPrivate::setStatus(int status)
 {
     this->status = status;
@@ -3387,32 +3363,6 @@ void MegaChatCallPrivate::setVideoReceiver(MegaChatVideoReceiver *videoReceiver)
 {
     delete this->videoReceiver;
     this->videoReceiver = videoReceiver;
-}
-
-shared_ptr<rtcModule::ICall> MegaChatCallPrivate::call() const
-{
-    return nullptr;
-}
-
-bool MegaChatCallPrivate::reqStillValid() const
-{
-    return false;
-}
-
-set<string> *MegaChatCallPrivate::files() const
-{
-    return NULL;
-}
-
-AvFlags MegaChatCallPrivate::peerMedia() const
-{
-    AvFlags ret;
-    return ret;
-}
-
-bool MegaChatCallPrivate::answer(bool accept, AvFlags ownMedia)
-{
-    return false;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local)
@@ -5017,7 +4967,7 @@ MegaChatCallHandler::MegaChatCallHandler(MegaChatApiImpl *megaChatApi)
 {
     this->megaChatApi = megaChatApi;
     call = NULL;
-    videoReceiver = NULL;
+    localVideoReceiver = NULL;
 }
 
 MegaChatCallHandler::~MegaChatCallHandler()
@@ -5092,8 +5042,8 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool byPeer, con
 
 rtcModule::ISessionHandler *MegaChatCallHandler::onNewSession(rtcModule::ISession &sess)
 {
-    MegaChatSessionHandler* sessionHandler = new MegaChatSessionHandler(megaChatApi, this, &sess);
-    sessionHandlers.push_back(sessionHandler);
+    sessionHandler = new MegaChatSessionHandler(megaChatApi, this, &sess);
+
     return sessionHandler;
 }
 
@@ -5101,13 +5051,13 @@ void MegaChatCallHandler::onLocalStreamObtained(rtcModule::IVideoRenderer *&rend
 {
     assert(call != NULL);
 
-    if (videoReceiver != NULL)
+    if (localVideoReceiver != NULL)
     {
-        delete videoReceiver;
+        delete localVideoReceiver;
     }
 
     rendererOut = new MegaChatVideoReceiver(megaChatApi, call, true);
-    videoReceiver = rendererOut;
+    localVideoReceiver = rendererOut;
 }
 
 void MegaChatCallHandler::onLocalMediaError(const string errors)
@@ -5145,7 +5095,12 @@ MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, Meg
     this->megaChatApi = megaChatApi;
     this->callHandler = callHandler;
     this->sessionHandler = session;
-    this->videoRender = NULL;
+    this->remoteVideoRender = NULL;
+}
+
+MegaChatSessionHandler::~MegaChatSessionHandler()
+{
+    delete remoteVideoRender;
 }
 
 void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
@@ -5160,19 +5115,20 @@ void MegaChatSessionHandler::onRemoteStreamAdded(rtcModule::IVideoRenderer *&ren
 {
     rtcModule::ICall *call = callHandler->getCall();
 
-    if (videoRender != NULL)
+    if (remoteVideoRender != NULL)
     {
-       delete videoRender;
+       delete remoteVideoRender;
     }
 
     assert(call != NULL);
     rendererOut = new MegaChatVideoReceiver(megaChatApi, call, false);
-    videoRender = rendererOut;
+    remoteVideoRender = rendererOut;
 }
 
 void MegaChatSessionHandler::onRemoteStreamRemoved()
 {
-    delete videoRender;
+    delete remoteVideoRender;
+    remoteVideoRender = NULL;
 }
 
 void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldAv)

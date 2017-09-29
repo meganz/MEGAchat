@@ -136,7 +136,6 @@ class MegaChatCallPrivate :
 {
 public:
     MegaChatCallPrivate(rtcModule::ICall& call);
-    MegaChatCallPrivate(karere::Id peer);
     MegaChatCallPrivate(const MegaChatCallPrivate &call);
 
     virtual ~MegaChatCallPrivate();
@@ -146,23 +145,15 @@ public:
     virtual int getStatus() const;
     virtual int getTag() const;
     virtual MegaChatHandle getChatid() const;
-    virtual bool answer(bool videoEnabled);
 
     void setStatus(int status);
     void setTag(int tag);
     void setVideoReceiver(MegaChatVideoReceiver *videoReceiver);
 
-    // rtcModule::ICallAnswer implementation
-    virtual std::shared_ptr<rtcModule::ICall> call() const;
-    virtual bool reqStillValid() const;
-    virtual std::set<std::string>* files() const;
-    virtual karere::AvFlags peerMedia() const;
-    virtual bool answer(bool accept, karere::AvFlags ownMedia);
 protected:
     rtcModule::ICall* mCall;
     int tag;
     int status;
-    karere::Id peer;
     MegaChatVideoReceiver *videoReceiver;
 };
 
@@ -402,14 +393,16 @@ public:
 private:
     MegaChatApiImpl *megaChatApi;
     rtcModule::ICall *call;
-    std::vector<MegaChatSessionHandler *> sessionHandlers;
-    rtcModule::IVideoRenderer *videoReceiver;
+
+    MegaChatSessionHandler *sessionHandler;
+    rtcModule::IVideoRenderer *localVideoReceiver;
 };
 
 class MegaChatSessionHandler : public rtcModule::ISessionHandler
 {
 public:
     MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, MegaChatCallHandler* callHandler, rtcModule::ISession *session);
+    ~MegaChatSessionHandler();
     virtual void onSessStateChange(uint8_t newState);
     virtual void onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
     virtual void onRemoteStreamAdded(rtcModule::IVideoRenderer*& rendererOut);
@@ -421,7 +414,7 @@ private:
     MegaChatApiImpl *megaChatApi;
     MegaChatCallHandler *callHandler;
     rtcModule::ISession *sessionHandler;
-    rtcModule::IVideoRenderer *videoRender;
+    rtcModule::IVideoRenderer *remoteVideoRender;
 
 };
 #endif

@@ -74,31 +74,115 @@ public:
     };
 
     virtual ~MegaChatCall();
+
+    /**
+     * @brief Creates a copy of this MegaChatCall object
+     *
+     * The resulting object is fully independent of the source MegaChatCall,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You are the owner of the returned object
+     *
+     * @return Copy of the MegaChatCall object
+     */
     virtual MegaChatCall *copy();
 
+    /**
+     * @brief Returns the status of the call
+     *
+     * @return the call status
+     * Valid values are:
+     *  - CALL_STATUS_INITIAL = 0
+     *  - CALL_STATUS_HAS_LOCAL_STREAM = 1
+     *  - CALL_STATUS_REQUEST_SENT = 2
+     *  - CALL_STATUS_RINGIN = 3
+     *  - CALL_STATUS_JOINING = 4
+     *  - CALL_STATUS_IN_PROGRESS = 5
+     *  - CALL_STATUS_TERMINATING = 6
+     *  - CALL_STATUS_DESTROYED = 7
+     *  - CALL_STATUS_DISCONNECTED = 8
+     */
     virtual int getStatus() const;
+
+
     virtual int getTag() const;
+
+    /**
+     * @brief Returns the MegaChatHandle of the chat. Every call is asociated to a chatRoom
+     * @return MegaChatHandle of the chat.
+     */
     virtual MegaChatHandle getChatid() const;
-    virtual bool answer(bool videoEnabled);
 };
 
+/**
+ * @brief Interface to get video frames from calls
+ *
+ * It is the same interface to receive local or remote video, but it has to be registered
+ * by differents functions
+ */
 class MegaChatVideoListener
 {
 public:
     virtual ~MegaChatVideoListener() {}
 
-    virtual void onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char*buffer);
+    /**
+     * @brief This function is called when sytem gets a new image from a local or remote device
+     * @param api MegaChatApi connected to the account
+     * @param chatCall MegaChatCall that provides the video
+     * @param width Size on pixels
+     * @param height Size on pixels
+     * @param buffer Data buffer with width * height * 4
+     *
+     *  The MegaChatVideoListener retains the ownership of the buffer.
+     */
+    virtual void onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char *buffer);
 };
 
+/**
+ * @brief Interface to get notifications about calls
+ *
+ */
 class MegaChatCallListener
 {
 public:
     virtual ~MegaChatCallListener() {}
 
+    /**
+     * @brief This function is called when a call is starting
+     * @param api MegaChatApi connected to the account
+     * @param call MegaChatCall represents the call that is starting
+     */
     virtual void onChatCallStart(MegaChatApi* api, MegaChatCall *call);
+
+    /**
+     * @brief This function is called when the system has an incoming call
+     * @param api MegaChatApi connected to the account
+     * @param call MegaChatCall represents the incoming call
+     */
     virtual void onChatCallIncoming(MegaChatApi* api, MegaChatCall *call);
+
+    /**
+     * @brief This function is called when the call state changes
+     * @param api MegaChatApi connected to the account
+     * @param call MegaChatCall represents the call which state has changed
+     */
     virtual void onChatCallStateChange(MegaChatApi *api, MegaChatCall *call);
+
+    /**
+     * @brief This function is called when a temporaty error has produced over a call
+     * @param api MegaChatApi connected to the account
+     * @param call MegaChatCall represents the call that is in a temporary error
+     * @param error Error information
+     */
     virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
+
+    /**
+     * @brief This function is called when a call has finished
+     * @param api MegaChatApi connected to the account
+     * @param call MegaChatCall represents the call that is finishing
+     * @param error Error information
+     */
     virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
 };
 
@@ -2404,17 +2488,81 @@ public:
     bool isMessageReceptionConfirmationActive() const;
 
     // Audio/Video device management
+    /**
+     * @brief Returns the list with the names of the audio devices in the system
+     * You take the ownership of the returned value
+     *
+     * @return Names of the audio devices in the system
+     */
     mega::MegaStringList *getChatAudioInDevices();
+
+    /**
+     * @brief Returns the list with the names of the video devices in the system
+     * You take the ownership of the returned value
+     *
+     * @return Names of the video devices in the system
+     */
     mega::MegaStringList *getChatVideoInDevices();
+
+    /**
+     * @brief Select an especific audio device to be used in calls
+     * @param device Identifier of device to be selected
+     * @return True if device has been selected. False in other case
+     */
     bool setChatAudioInDevice(const char *device);
+
+    /**
+     * @brief Select an especific video device to be used in calls
+     * @param device Identifier of device to be selected
+     * @return True if device has been selected. False in other case
+     */
     bool setChatVideoInDevice(const char *device);
 
     // Call management
+    /**
+     * @brief Start a call in a chat room
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enableVideo True for audio-video call, false for audio call
+     * @param listener MegaChatRequestListener to track this request
+     */
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Answer or refuse a call received in a chat room
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param answerOrHangup True for answer the call, false for hang the call
+     * @param enableVideo True for audio-video call, false for audio call
+     * @param listener MegaChatRequestListener to track this request
+     */
     void answerChatCall(MegaChatHandle chatid, bool answerOrHangup, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Hang a call in a chat room
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
     void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Hang all calls actives
+     * @param listener MegaChatRequestListener to track this request
+     */
     void hangAllChatCalls(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Mute or unmute a call that is in progress
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param mute True for mute the call, false for unmute
+     * @param listener MegaChatRequestListener to track this request
+     */
     void muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Disable or enable video on a call that is in progress
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param videoCall True for disable video, false for enable video
+     * @param listener MegaChatRequestListener to track this request
+     */
     void disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener = NULL);
 
     // Listeners
@@ -2478,11 +2626,40 @@ public:
     void removeChatRequestListener(MegaChatRequestListener* listener);
 
 #ifndef KARERE_DISABLE_WEBRTC
+    /**
+     * @brief Register a listener to receive all events about calls
+     * @param listener MegaChatCallListener that will receive all call events
+     */
     void addChatCallListener(MegaChatCallListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatCallListener
+     * @param listener Object that is unregistered
+     */
     void removeChatCallListener(MegaChatCallListener *listener);
+
+    /**
+     * @brief Register a listener to receive video from local device
+     * @param listener MegaChatVideoListener that will receive local video
+     */
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatVideoListener
+     * @param listener Object that is unregistered
+     */
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
+
+    /**
+     * @brief Register a listener to receive video from remote device
+     * @param listener MegaChatVideoListener that will receive remote video
+     */
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatVideoListener
+     * @param listener Object that is unregistered
+     */
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
 #endif
 

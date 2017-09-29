@@ -68,11 +68,6 @@ MegaChatHandle MegaChatCall::getChatid() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-bool MegaChatCall::answer(bool videoEnabled)
-{
-    return false;
-}
-
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
