@@ -2728,6 +2728,17 @@ rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
     return chatCallHandler;
 }
 
+
+MegaChatCallHandler *MegaChatApiImpl::findChatCallHandler(MegaChatHandle chatid)
+{
+    std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it = callHandlers.find(chatid);
+    if (it != callHandlers.end())
+    {
+        return it->second;
+    }
+
+    return NULL;
+}
 void MegaChatApiImpl::notifyInvited(const ChatRoom &room)
 {
     MegaChatRoomPrivate *chat = new MegaChatRoomPrivate(room);
@@ -3447,6 +3458,10 @@ void MegaChatVideoReceiver::released()
 {
 }
 
+rtcModule::ICallHandler *MegaChatRoomHandler::callHandler()
+{
+    return chatApi->findChatCallHandler(chatid);
+}
 
 MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApi, MegaChatHandle chatid)
 {
@@ -3457,11 +3472,6 @@ MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApi, MegaChatHandl
     this->mChat = NULL;
 }
 
-rtcModule::ICallHandler *MegaChatRoomHandler::callHandler()
-{
-    // TODO: create a MegaChatCallPrivate() with the peer information and return it
-    return NULL;
-}
 
 void MegaChatRoomHandler::onUserTyping(karere::Id user)
 {

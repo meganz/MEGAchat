@@ -773,6 +773,10 @@ public:
     chatd::Message *findMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     chatd::Message *findMessageNotConfirmed(MegaChatHandle chatid, MegaChatHandle msgxid);
 
+#ifndef KARERE_DISABLE_WEBRTC
+    MegaChatCallHandler *findChatCallHandler(MegaChatHandle chatid);
+#endif
+
     static void setCatchException(bool enable);
 
     // ============= Listeners ================
