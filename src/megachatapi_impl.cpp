@@ -946,8 +946,7 @@ void MegaChatApiImpl::sendPendingRequests()
             karere::AvFlags avFlags(true, enableVideo);
 
             MegaChatCallHandler *handler = new MegaChatCallHandler(this);
-            rtcModule::ICall &call = chatroom->mediaCall(avFlags, *handler);
-            //handler->setCall(&call);
+            chatroom->mediaCall(avFlags, *handler);
             if (callHandlers.find(chatid) != callHandlers.end())
             {
                 errorCode = MegaChatError::ERROR_EXIST;
