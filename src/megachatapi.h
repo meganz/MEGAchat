@@ -109,7 +109,7 @@ public:
     virtual int getTag() const;
 
     /**
-     * @brief Returns the MegaChatHandle of the chat. Every call is asociated to a chatRoom
+     * @brief Returns the MegaChatHandle of the chat. Every call is asociated to a chatroom
      * @return MegaChatHandle of the chat.
      */
     virtual MegaChatHandle getChatid() const;
@@ -127,12 +127,13 @@ public:
     virtual ~MegaChatVideoListener() {}
 
     /**
-     * @brief This function is called when sytem gets a new image from a local or remote device
+     * @brief This function is called when a new image from a local or remote device is available
+     *
      * @param api MegaChatApi connected to the account
      * @param chatCall MegaChatCall that provides the video
      * @param width Size on pixels
      * @param height Size on pixels
-     * @param buffer Data buffer with width * height * 4
+     * @param buffer Data buffer in format ARGB: 4 bytes per pixel (total size: width * height * 4)
      *
      *  The MegaChatVideoListener retains the ownership of the buffer.
      */
@@ -150,37 +151,42 @@ public:
 
     /**
      * @brief This function is called when a call is starting
+     *
      * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall represents the call that is starting
+     * @param call MegaChatCall that represents the call that is starting
      */
     virtual void onChatCallStart(MegaChatApi* api, MegaChatCall *call);
 
     /**
-     * @brief This function is called when the system has an incoming call
+     * @brief This function is called when there is an incoming call
+     *
      * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall represents the incoming call
+     * @param call MegaChatCall that represents the incoming call
      */
     virtual void onChatCallIncoming(MegaChatApi* api, MegaChatCall *call);
 
     /**
      * @brief This function is called when the call state changes
+     *
      * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall represents the call which state has changed
+     * @param call MegaChatCall that represents the call whose state has changed
      */
     virtual void onChatCallStateChange(MegaChatApi *api, MegaChatCall *call);
 
     /**
      * @brief This function is called when a temporaty error has produced over a call
+     *
      * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall represents the call that is in a temporary error
+     * @param call MegaChatCall that represents the call that is in a temporary error
      * @param error Error information
      */
     virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
 
     /**
      * @brief This function is called when a call has finished
+     *
      * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall represents the call that is finishing
+     * @param call MegaChatCall that represents the call that is finishing
      * @param error Error information
      */
     virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
@@ -876,13 +882,15 @@ public:
     virtual mega::MegaNodeList *getMegaNodeList();
 
     /**
-     * @brief Return operation type on this request. This fill is vaild for
-     * TYPE_DISABLE_AUDIO_VIDEO_CALL request
+     * @brief Returns the type of parameter related to the request
      *
-     * 0: audio operation
-     * 1: video operation
+     * This value is valid for these requests:
+     * - MegaChatApi::muteCall - Returns MegaChatRequest::AUDIO
+     * - MegaChatApi::disableVideoCall - Returns MegaChatRequest::VIDEO
+     * - MegaChatApi::answerChatCall - Returns one
+     * - MegaChatApi::rejectChatCall - Returns zero
      *
-     * @return an operation type indication
+     * @return Type of parameter related to the request
      */
     virtual int getParamType();
 };
