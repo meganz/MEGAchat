@@ -2756,7 +2756,7 @@ MegaStringList *MegaChatApiImpl::getChatInDevices(const std::vector<string> &dev
     }
 
     MegaStringList *devices = new MegaStringListPrivate(devicesArray, devicesNumber);
-    delete devicesArray;
+    delete [] devicesArray;
 
     return devices;
 
