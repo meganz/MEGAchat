@@ -1033,6 +1033,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else
             {
+                API_LOG_ERROR("Invalid flags to enable/disable audio/video stream");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
@@ -1327,7 +1328,7 @@ void MegaChatApiImpl::fireOnChatRequestTemporaryError(MegaChatRequestPrivate *re
 
 void MegaChatApiImpl::fireOnChatCallStart(MegaChatCallPrivate *call)
 {
-    API_LOG_INFO("Starting chat call");
+    API_LOG_INFO("Starting chat call in chatid %s", Id(call->getChatid()).toString().c_str());
 
     for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
@@ -1339,7 +1340,7 @@ void MegaChatApiImpl::fireOnChatCallStart(MegaChatCallPrivate *call)
 
 void MegaChatApiImpl::fireOnChatCallIncoming(MegaChatCallPrivate *call)
 {
-    API_LOG_INFO("Incoming chat call");
+    API_LOG_INFO("Incoming chat call in chatid %s", Id(call->getChatid()).toString().c_str());
 
     for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
@@ -1351,7 +1352,7 @@ void MegaChatApiImpl::fireOnChatCallIncoming(MegaChatCallPrivate *call)
 
 void MegaChatApiImpl::fireOnChatCallStateChange(MegaChatCallPrivate *call)
 {
-    API_LOG_INFO("Chat call state changed to %d", call->getStatus());
+    API_LOG_INFO("Chat call state changed to %s in chatid %s", rtcModule::ICall::stateToStr(call->getStatus()), Id(call->getChatid()).toString().c_str());
 
     for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
@@ -1363,7 +1364,7 @@ void MegaChatApiImpl::fireOnChatCallStateChange(MegaChatCallPrivate *call)
 
 void MegaChatApiImpl::fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e)
 {
-    API_LOG_INFO("Chat call temporary error: %s", e->getErrorString());
+    API_LOG_INFO("Chat call temporary error: %s. Chatid %s", e->getErrorString(), Id(call->getChatid()).toString().c_str());
 
     for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
@@ -1378,7 +1379,7 @@ void MegaChatApiImpl::fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatEr
 {
     if(e->getErrorCode())
     {
-        API_LOG_INFO("Chat call finished with error: %s", e->getErrorString());
+        API_LOG_INFO("Chat call finished with error: %s. Chatid %s", e->getErrorString(), Id(call->getChatid()).toString().c_str());
     }
     else
     {
