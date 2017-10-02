@@ -942,16 +942,18 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (findChatCallHandler(chatid))
+            {
+                API_LOG_ERROR("One call already exists for speficied chat id");
+                errorCode = MegaChatError::ERROR_EXIST;
+                break;
+            }
+
             bool enableVideo = request->getFlag();
             karere::AvFlags avFlags(true, enableVideo);
 
             MegaChatCallHandler *handler = new MegaChatCallHandler(this);
             chatroom->mediaCall(avFlags, *handler);
-            if (callHandlers.find(chatid) != callHandlers.end())
-            {
-                errorCode = MegaChatError::ERROR_EXIST;
-                break;
-            }
             callHandlers[chatid] = handler;
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
@@ -963,14 +965,8 @@ void MegaChatApiImpl::sendPendingRequests()
             bool enableVideo = request->getFlag();
             bool answerOrHangup = request->getParamType();
 
-            if (callHandlers.find(chatid) == callHandlers.end())
-            {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
-            MegaChatCallHandler *handler = callHandlers[chatid];
-            if (handler == NULL)
+            MegaChatCallHandler *handler = findChatCallHandler(chatid);
+            if (!handler)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
@@ -993,13 +989,12 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatHandle chatid = request->getChatHandle();
             if (chatid != MEGACHAT_INVALID_HANDLE)
             {
-                if (callHandlers.find(chatid) == callHandlers.end())
+                MegaChatCallHandler *handler = findChatCallHandler(chatid);
+                if (!handler)
                 {
                     errorCode = MegaChatError::ERROR_NOENT;
                     break;
                 }
-
-                MegaChatCallHandler *handler = callHandlers[chatid];
                 handler->getCall()->hangup(rtcModule::TermCode::kUserHangup);
             }
             else    // hang all calls (no specific chatid)
@@ -1017,13 +1012,13 @@ void MegaChatApiImpl::sendPendingRequests()
             bool muteAudioVideo = request->getFlag();
             int operationType = request->getParamType();
 
-            if (callHandlers.find(chatid) == callHandlers.end())
+            MegaChatCallHandler *handler = findChatCallHandler(chatid);
+            if (!handler)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
-            MegaChatCallHandler *handler = callHandlers[chatid];
             karere::AvFlags currentFlags = handler->getCall()->sentAv();
             karere::AvFlags newFlags;
             if (operationType == MegaChatRequest::AUDIO)
@@ -2730,14 +2725,15 @@ void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
 
 rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
 {
+    if (findChatCallHandler(call.chat().chatId()))
+    {
+        assert(false);
+        API_LOG_ERROR("Incoming call for a chatid which already has a call");
+    }
+
     MegaChatCallHandler *chatCallHandler = new MegaChatCallHandler(this);
     chatCallHandler->setCall(&call);
     MegaChatHandle chatid = call.chat().chatId();
-    if (callHandlers.find(chatid) != callHandlers.end())
-    {
-        assert(false);
-    }
-
     callHandlers[chatid] = chatCallHandler;
 
     MegaChatCallPrivate *privateCall = new MegaChatCallPrivate(call);
