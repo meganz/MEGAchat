@@ -148,13 +148,11 @@ public:
 
     void setStatus(int status);
     void setTag(int tag);
-    void setVideoReceiver(MegaChatVideoReceiver *videoReceiver);
 
 protected:
-    rtcModule::ICall* mCall;
+    MegaChatHandle chatid;
     int tag;
     int status;
-    MegaChatVideoReceiver *videoReceiver;
 };
 
 class MegaChatVideoFrame

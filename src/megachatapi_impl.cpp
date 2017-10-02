@@ -3301,19 +3301,17 @@ void MegaChatRequestPrivate::setParamType(int paramType)
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaChatCallPrivate::MegaChatCallPrivate(rtcModule::ICall& call)
-:mCall(&call)
 {
-    status = 0;
+    status = call.state();
     tag = 0;
-    videoReceiver = NULL;
+    chatid = call.chat().chatId();
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
 {
     this->status = call.getStatus();
     this->tag = call.getTag();
-    this->videoReceiver = NULL;
-    mCall = NULL;
+    this->chatid = call.getChatid();
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -3338,13 +3336,6 @@ int MegaChatCallPrivate::getTag() const
 
 MegaChatHandle MegaChatCallPrivate::getChatid() const
 {
-    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
-
-    if (mCall != NULL)
-    {
-        chatid = mCall->chat().chatId();
-    }
-
     return chatid;
 }
 
@@ -3356,12 +3347,6 @@ void MegaChatCallPrivate::setStatus(int status)
 void MegaChatCallPrivate::setTag(int tag)
 {
     this->tag = tag;
-}
-
-void MegaChatCallPrivate::setVideoReceiver(MegaChatVideoReceiver *videoReceiver)
-{
-    delete this->videoReceiver;
-    this->videoReceiver = videoReceiver;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local)
