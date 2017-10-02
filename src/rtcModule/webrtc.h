@@ -200,12 +200,12 @@ protected:
 public:
     enum: uint8_t
     {
-        kStateWaitSdpOffer, // < Session just created, waiting for SDP offer from initiator
-        kStateWaitLocalSdpAnswer, // < Remote SDP offer has been set, and we are generating SDP answer
-        kStateWaitSdpAnswer, // < SDP offer has been sent by initiator, waniting for SDP answer
+        kStateWaitSdpOffer,         // < Session just created, waiting for SDP offer from initiator
+        kStateWaitLocalSdpAnswer,   // < Remote SDP offer has been set, and we are generating SDP answer
+        kStateWaitSdpAnswer,        // < SDP offer has been sent by initiator, waiting for SDP answer
         kStateInProgress,
-        kStateTerminating, // < Session is in terminate handshake
-        kStateDestroyed // < Session object is not valid anymore
+        kStateTerminating,          // < Session is in terminate handshake
+        kStateDestroyed             // < Session object is not valid anymore
     };
     static const char* stateToStr(uint8_t state);
     const char* stateStr() const { return stateToStr(mState); }

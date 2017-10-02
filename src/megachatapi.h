@@ -174,16 +174,16 @@ public:
     virtual void onChatCallStateChange(MegaChatApi *api, MegaChatCall *call);
 
     /**
-     * @brief This function is called when a temporaty error has produced over a call
+     * @brief This function is called when a temporary error has occurred over a call
      *
      * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall that represents the call that is in a temporary error
+     * @param call MegaChatCall that represents the call that observed a temporary error
      * @param error Error information
      */
     virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
 
     /**
-     * @brief This function is called when a call has finished
+     * @brief This function is called when a call finished
      *
      * @param api MegaChatApi connected to the account
      * @param call MegaChatCall that represents the call that is finishing
