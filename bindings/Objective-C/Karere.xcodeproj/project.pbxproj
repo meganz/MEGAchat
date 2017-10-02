@@ -9,10 +9,6 @@
 /* Begin PBXBuildFile section */
 		941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977321F163DDE00A76EE3 /* websocketsIO.cpp */; };
 		941977371F163E5D00A76EE3 /* libwsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977351F163E5D00A76EE3 /* libwsIO.cpp */; };
-		9419773A1F163EB100A76EE3 /* libwebsocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977381F163EB100A76EE3 /* libwebsocketsIO.cpp */; };
-		947565EA1F164E5E00FE8664 /* libeventWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947565E61F164E5E00FE8664 /* libeventWaiter.cpp */; };
-		947565ED1F164F1A00FE8664 /* libwebsocketsWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947565EC1F164F1A00FE8664 /* libwebsocketsWaiter.cpp */; };
-		947566431F197BF800FE8664 /* libuvWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947566421F197BF800FE8664 /* libuvWaiter.cpp */; };
 		947566561F3397AE00FE8664 /* cservices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947566551F3397AE00FE8664 /* cservices.cpp */; };
 		A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */; };
 		A82750D31E9788A3007CD9E2 /* MEGAChatListItem.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BD1E9788A3007CD9E2 /* MEGAChatListItem.mm */; };
@@ -40,6 +36,7 @@
 		A838B21F1E9685DF00875D96 /* userAttrCache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2161E9685DF00875D96 /* userAttrCache.cpp */; };
 		A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2201E9685F000875D96 /* strongvelope.cpp */; };
 		A838B2251E96879F00875D96 /* karereDbSchema.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2241E96879F00875D96 /* karereDbSchema.cpp */; };
+		A838E1481F825CA100DA8038 /* libeventWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838E1471F825CA100DA8038 /* libeventWaiter.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -57,9 +54,6 @@
 /* Begin PBXFileReference section */
 		941977321F163DDE00A76EE3 /* websocketsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = websocketsIO.cpp; path = ../../src/net/websocketsIO.cpp; sourceTree = "<group>"; };
 		941977351F163E5D00A76EE3 /* libwsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = libwsIO.cpp; path = ../../src/net/libwsIO.cpp; sourceTree = "<group>"; };
-		941977381F163EB100A76EE3 /* libwebsocketsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = libwebsocketsIO.cpp; path = ../../src/net/libwebsocketsIO.cpp; sourceTree = "<group>"; };
-		947565E61F164E5E00FE8664 /* libeventWaiter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = libeventWaiter.cpp; path = ../../src/waiter/libeventWaiter.cpp; sourceTree = "<group>"; };
-		947565EC1F164F1A00FE8664 /* libwebsocketsWaiter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = libwebsocketsWaiter.cpp; path = ../../src/waiter/libwebsocketsWaiter.cpp; sourceTree = "<group>"; };
 		947565EE1F168CB400FE8664 /* timers.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = timers.hpp; path = ../../src/base/timers.hpp; sourceTree = "<group>"; };
 		947565F01F18D4E900FE8664 /* asyncTest-framework.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "asyncTest-framework.h"; path = "../../src/asyncTest-framework.h"; sourceTree = "<group>"; };
 		947565F11F18D4E900FE8664 /* asyncTest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = asyncTest.h; path = ../../src/asyncTest.h; sourceTree = "<group>"; };
@@ -135,7 +129,6 @@
 		9475663F1F18D60300FE8664 /* websocketsIO.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = websocketsIO.h; path = ../../src/net/websocketsIO.h; sourceTree = "<group>"; };
 		947566401F18D61100FE8664 /* libeventWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libeventWaiter.h; path = ../../src/waiter/libeventWaiter.h; sourceTree = "<group>"; };
 		947566411F18D61100FE8664 /* libwebsocketsWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libwebsocketsWaiter.h; path = ../../src/waiter/libwebsocketsWaiter.h; sourceTree = "<group>"; };
-		947566421F197BF800FE8664 /* libuvWaiter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = libuvWaiter.cpp; path = ../../src/waiter/libuvWaiter.cpp; sourceTree = "<group>"; };
 		947566441F197C0A00FE8664 /* libuvWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libuvWaiter.h; path = ../../src/waiter/libuvWaiter.h; sourceTree = "<group>"; };
 		947566551F3397AE00FE8664 /* cservices.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cservices.cpp; path = ../../src/base/cservices.cpp; sourceTree = "<group>"; };
 		A82750B91E9788A3007CD9E2 /* MEGAChatDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatDelegate.h; sourceTree = "<group>"; };
@@ -193,6 +186,7 @@
 		A838B2161E9685DF00875D96 /* userAttrCache.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = userAttrCache.cpp; path = ../../src/userAttrCache.cpp; sourceTree = "<group>"; };
 		A838B2201E9685F000875D96 /* strongvelope.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = strongvelope.cpp; path = ../../src/strongvelope/strongvelope.cpp; sourceTree = "<group>"; };
 		A838B2241E96879F00875D96 /* karereDbSchema.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = karereDbSchema.cpp; path = ../../src/karereDbSchema.cpp; sourceTree = "<group>"; };
+		A838E1471F825CA100DA8038 /* libeventWaiter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = libeventWaiter.cpp; path = ../../src/waiter/libeventWaiter.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -209,7 +203,6 @@
 		941977271F16377400A76EE3 /* net */ = {
 			isa = PBXGroup;
 			children = (
-				941977381F163EB100A76EE3 /* libwebsocketsIO.cpp */,
 				941977351F163E5D00A76EE3 /* libwsIO.cpp */,
 				941977321F163DDE00A76EE3 /* websocketsIO.cpp */,
 			);
@@ -219,9 +212,7 @@
 		941977311F163CEB00A76EE3 /* waiter */ = {
 			isa = PBXGroup;
 			children = (
-				947566421F197BF800FE8664 /* libuvWaiter.cpp */,
-				947565EC1F164F1A00FE8664 /* libwebsocketsWaiter.cpp */,
-				947565E61F164E5E00FE8664 /* libeventWaiter.cpp */,
+				A838E1471F825CA100DA8038 /* libeventWaiter.cpp */,
 			);
 			name = waiter;
 			sourceTree = "<group>";
@@ -548,15 +539,14 @@
 				A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */,
 				A82750EE1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm in Sources */,
 				A838B2171E9685DF00875D96 /* base64.cpp in Sources */,
-				947565ED1F164F1A00FE8664 /* libwebsocketsWaiter.cpp in Sources */,
 				A82750D81E9788A3007CD9E2 /* MEGAChatRequest.mm in Sources */,
 				A838B2251E96879F00875D96 /* karereDbSchema.cpp in Sources */,
 				A82750DB1E9788A3007CD9E2 /* MEGAChatSdk.mm in Sources */,
 				A82750D91E9788A3007CD9E2 /* MEGAChatRoom.mm in Sources */,
+				A838E1481F825CA100DA8038 /* libeventWaiter.cpp in Sources */,
 				A82750D51E9788A3007CD9E2 /* MEGAChatMessage.mm in Sources */,
 				941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */,
 				A82750D41E9788A3007CD9E2 /* MEGAChatListItemList.mm in Sources */,
-				947565EA1F164E5E00FE8664 /* libeventWaiter.cpp in Sources */,
 				A838B21F1E9685DF00875D96 /* userAttrCache.cpp in Sources */,
 				A82750DA1E9788A3007CD9E2 /* MEGAChatRoomList.mm in Sources */,
 				941977371F163E5D00A76EE3 /* libwsIO.cpp in Sources */,
@@ -570,10 +560,8 @@
 				A838B2191E9685DF00875D96 /* chatd.cpp in Sources */,
 				A838B21C1E9685DF00875D96 /* megachatapi.cpp in Sources */,
 				A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */,
-				947566431F197BF800FE8664 /* libuvWaiter.cpp in Sources */,
 				A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */,
 				A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */,
-				9419773A1F163EB100A76EE3 /* libwebsocketsIO.cpp in Sources */,
 				A838B21B1E9685DF00875D96 /* megachatapi_impl.cpp in Sources */,
 				947566561F3397AE00FE8664 /* cservices.cpp in Sources */,
 				A838B21A1E9685DF00875D96 /* karereCommon.cpp in Sources */,
