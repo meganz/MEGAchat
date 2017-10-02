@@ -2495,6 +2495,8 @@ public:
      */
     bool isMessageReceptionConfirmationActive() const;
 
+#ifndef KARERE_DISABLE_WEBRTC
+
     // Audio/Video device management
     /**
      * @brief Returns the list with the names of the audio devices in the system
@@ -2572,6 +2574,8 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener = NULL);
+
+#endif
 
     // Listeners
     /**
