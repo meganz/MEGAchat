@@ -979,7 +979,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else
             {
-                handler->getCall()->hangup(rtcModule::TermCode::kInvalid);
+                handler->getCall()->hangup();
             }
 
             break;
@@ -995,11 +995,11 @@ void MegaChatApiImpl::sendPendingRequests()
                     errorCode = MegaChatError::ERROR_NOENT;
                     break;
                 }
-                handler->getCall()->hangup(rtcModule::TermCode::kUserHangup);
+                handler->getCall()->hangup();
             }
             else    // hang all calls (no specific chatid)
             {
-                mClient->rtc->hangupAll(rtcModule::TermCode::kUserHangup);
+                mClient->rtc->hangupAll();
             }
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
