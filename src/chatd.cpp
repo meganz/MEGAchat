@@ -2525,32 +2525,43 @@ void Chat::handleLastReceivedSeen(Id msgid)
 
 void Chat::onUserJoin(Id userid, Priv priv)
 {
+    if (mOnlineState < kChatStateJoining)
+        throw std::runtime_error("onUserJoin received while not joining and not online");
+
     if (userid == client().userId())
+    {
         mOwnPrivilege = priv;
+    }
+
     if (mOnlineState == kChatStateJoining)
     {
         mUserDump.insert(userid);
     }
-    else if (mOnlineState == kChatStateOnline)
+
+    if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
     {
         mUsers.insert(userid);
         CALL_CRYPTO(onUserJoin, userid);
         CALL_LISTENER(onUserJoin, userid, priv);
     }
-    else
-    {
-        throw std::runtime_error("onUserJoin received while not joining and not online");
-    }
 }
 
 void Chat::onUserLeave(Id userid)
 {
-    if (mOnlineState != kChatStateOnline)
-        throw std::runtime_error("onUserLeave received while not online");
+    if (mOnlineState < kChatStateJoining)
+        throw std::runtime_error("onUserLeave received while not joining and not online");
 
-    mUsers.erase(userid);
-    CALL_CRYPTO(onUserLeave, userid);
-    CALL_LISTENER(onUserLeave, userid);
+    if (userid == client().userId())
+    {
+        mOwnPrivilege = PRIV_NOTPRESENT;
+    }
+
+    if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
+    {
+        mUsers.erase(userid);
+        CALL_CRYPTO(onUserLeave, userid);
+        CALL_LISTENER(onUserLeave, userid);
+    }
 }
 
 void Connection::notifyLoggedIn()

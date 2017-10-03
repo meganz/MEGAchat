@@ -2192,13 +2192,17 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 
 void GroupChatRoom::onUserLeave(Id userid)
 {
-    //TODO: We should handle leaving from the chatd event, not from API.
     if (userid == parent.client.myHandle())
-        return;
+    {
+        setRemoved();
+    }
+    else
+    {
+        removeMember(userid);
 
-    removeMember(userid);
-    if (mRoomGui)
-        mRoomGui->onUserLeave(userid);
+        if (mRoomGui)
+            mRoomGui->onUserLeave(userid);
+    }
 }
 
 void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
