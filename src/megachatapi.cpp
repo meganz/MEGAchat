@@ -58,12 +58,12 @@ int MegaChatCall::getStatus() const
     return 0;
 }
 
-int MegaChatCall::getTag() const
+MegaChatHandle MegaChatCall::getChatid() const
 {
-    return 0;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
-MegaChatHandle MegaChatCall::getChatid() const
+MegaChatHandle MegaChatCall::getId() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
@@ -470,9 +470,14 @@ void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaCha
     pImpl->startChatCall(chatid, enableVideo, listener);
 }
 
-void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool answerOrHangup, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
 {
-    pImpl->answerChatCall(chatid, answerOrHangup, enableVideo, listener);
+    pImpl->answerChatCall(chatid, true, enableVideo, listener);
+}
+
+void MegaChatApi::rejectChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->answerChatCall(chatid, false, false, listener);
 }
 
 void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)

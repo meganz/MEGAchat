@@ -143,16 +143,15 @@ public:
     virtual MegaChatCall *copy();
 
     virtual int getStatus() const;
-    virtual int getTag() const;
     virtual MegaChatHandle getChatid() const;
+    MegaChatHandle getId() const;
 
     void setStatus(int status);
-    void setTag(int tag);
 
 protected:
     MegaChatHandle chatid;
-    int tag;
     int status;
+    MegaChatHandle callid;
 };
 
 class MegaChatVideoFrame

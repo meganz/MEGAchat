@@ -999,7 +999,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else    // hang all calls (no specific chatid)
             {
-                mClient->rtc->hangupAll();
+                mClient->rtc->hangupAll(rtcModule::TermCode::kInvalid);
             }
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2513,6 +2513,7 @@ void MegaChatApiImpl::hangChatCall(MegaChatHandle chatid, MegaChatRequestListene
 void MegaChatApiImpl::hangAllChatCalls(MegaChatRequestListener *listener = NULL)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
+    request->setChatHandle(MEGACHAT_INVALID_HANDLE);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3300,20 +3301,19 @@ void MegaChatRequestPrivate::setParamType(int paramType)
 MegaChatCallPrivate::MegaChatCallPrivate(rtcModule::ICall& call)
 {
     status = call.state();
-    tag = 0;
     chatid = call.chat().chatId();
+    callid = call.id();
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
 {
     this->status = call.getStatus();
-    this->tag = call.getTag();
     this->chatid = call.getChatid();
+    this->callid = call.getId();
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
 {
-    // videoReceiver is deleted on onVideoDetach, because it's called after the call is finished
 }
 
 MegaChatCall *MegaChatCallPrivate::copy()
@@ -3326,11 +3326,6 @@ int MegaChatCallPrivate::getStatus() const
     return status;
 }
 
-int MegaChatCallPrivate::getTag() const
-{
-    return tag;
-}
-
 MegaChatHandle MegaChatCallPrivate::getChatid() const
 {
     return chatid;
@@ -3341,9 +3336,9 @@ void MegaChatCallPrivate::setStatus(int status)
     this->status = status;
 }
 
-void MegaChatCallPrivate::setTag(int tag)
+MegaChatHandle MegaChatCallPrivate::getId() const
 {
-    this->tag = tag;
+    return callid;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local)
@@ -4988,7 +4983,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
             state = MegaChatCall::CALL_STATUS_REQUEST_SENT;
             break;
         case rtcModule::ICall::kStateRingIn:
-            state = MegaChatCall::CALL_STATUS_RINGIN;
+            state = MegaChatCall::CALL_STATUS_RING_IN;
             break;
         case rtcModule::ICall::kStateJoining:
             state = MegaChatCall::CALL_STATUS_JOINING;
