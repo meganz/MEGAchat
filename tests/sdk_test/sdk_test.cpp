@@ -2357,7 +2357,10 @@ void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid
     TEST_LOG_ERROR(!lastErrorChat[accountIndex], "Failed to leave chatroom. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     TEST_LOG_ERROR(waitForResponse(chatClosed), "Chatroom closed error");
     MegaChatRoom *chatroom = megaChatApi[accountIndex]->getChatRoom(chatid);
-    TEST_LOG_ERROR(!chatroom->isActive(), "Chatroom active error");
+    if (chatroom->isGroup())
+    {
+        TEST_LOG_ERROR(!chatroom->isActive(), "Chatroom active error");
+    }
     delete chatroom;    chatroom = NULL;
 }
 
