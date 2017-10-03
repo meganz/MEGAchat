@@ -258,9 +258,9 @@ void MegaChatApiTest::SetUp()
         megaChatApi[i] = new MegaChatApi(megaApi[i]);
         megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
         megaChatApi[i]->addChatRequestListener(this);
+        megaChatApi[i]->addChatListener(this);
 
 #ifndef KARERE_DISABLE_WEBRTC
-        megaChatApi[i]->addChatListener(this);
         megaChatApi[i]->addChatCallListener(this);
 #endif
 
@@ -339,6 +339,9 @@ void MegaChatApiTest::TearDown()
             MegaApi::addLoggerObject(logger);   // need to restore customized logger
         }
 
+#ifndef KARERE_DISABLE_WEBRTC
+        megaChatApi[i]->removeChatCallListener(this);
+#endif
         megaChatApi[i]->removeChatRequestListener(this);
         megaChatApi[i]->removeChatListener(this);
 
