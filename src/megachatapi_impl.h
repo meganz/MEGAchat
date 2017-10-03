@@ -144,7 +144,7 @@ public:
 
     virtual int getStatus() const;
     virtual MegaChatHandle getChatid() const;
-    MegaChatHandle getId() const;
+    virtual MegaChatHandle getId() const;
 
     void setStatus(int status);
 

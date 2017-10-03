@@ -63,10 +63,10 @@ public:
     enum
     {
         CALL_STATUS_INITIAL = 0,        /// Initial state
-        CALL_STATUS_HAS_LOCAL_STREAM,   /// Call has get a local video-audio stream
+        CALL_STATUS_HAS_LOCAL_STREAM,   /// Call has obtained a local video-audio stream
         CALL_STATUS_REQUEST_SENT,       /// Call request has been sent to receiver
-        CALL_STATUS_RING_IN,            /// Call is an incoming state, it has not been answered or rejected yet
-        CALL_STATUS_JOINING,            /// Intermediate state, while connection is stablised
+        CALL_STATUS_RING_IN,            /// Call is at incoming state, it has not been answered or rejected yet
+        CALL_STATUS_JOINING,            /// Intermediate state, while connection is stablished
         CALL_STATUS_IN_PROGRESS,        /// Call is stablished and there is a full communication
         CALL_STATUS_TERMINATING,        ///
         CALL_STATUS_DESTROYED,          /// Call is finished and resources can be released
@@ -2523,7 +2523,7 @@ public:
     /**
      * @brief Select an especific audio device to be used in calls
      *
-     * Audio device identifiers are obtained with function MegaChatApi::getChatAudioInDevices()
+     * Audio device identifiers are obtained with function MegaChatApi::getChatAudioInDevices
      *
      * @param device Identifier of device to be selected
      * @return True if device has been selected. False in other case
@@ -2533,7 +2533,7 @@ public:
     /**
      * @brief Select an especific video device to be used in calls
      *
-     * Video device identifiers are obtained with function MegaChatApi::getChatVideoInDevices()
+     * Video device identifiers are obtained with function MegaChatApi::getChatVideoInDevices
      *
      * @param device Identifier of device to be selected
      * @return True if device has been selected. False in other case
@@ -2549,8 +2549,6 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
-     * Request finished correctly when the error code MegaError::ERROR_OK is received at onRequestFinish
-     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
      * @param listener MegaChatRequestListener to track this request
@@ -2561,13 +2559,9 @@ public:
      * @brief Answer a call received in a chat room
      *
      * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
-     * To differenciate between answer and reject, it is used getParamType
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
-     * - MegaChatRequest::getParamType - Returns true to answer the call, false to reject
-     *
-     * Request finished correctly when the error code MegaError::ERROR_OK is received at onRequestFinish
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
@@ -2579,12 +2573,8 @@ public:
      * @brief Refuse a call received in a chat room
      *
      * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
-     * To differenciate between answer and reject, it is used getParamType
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getParamType - Returns true to answer the call, false to reject
-     *
-     * Request finished correctly when the error code MegaError::ERROR_OK is received at onRequestFinish
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -2598,21 +2588,15 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      *
-     * Request finished correctly when the error code MegaError::ERROR_OK is received at onRequestFinish
-     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
     void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Hang all calls actives
+     * @brief Hang all active calls
      *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns MEGACHAT_INVALID_HANDLE
-     *
-     * Request finished correctly when the error code MegaError::ERROR_OK is received at onRequestFinish
      *
      * @param listener MegaChatRequestListener to track this request
      */
@@ -2624,10 +2608,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true to mute call, false to unmute
-     * - MegaChatRequest::getParamType - Returns 0 for audio operation, 1 for video operation
-     *
-     * Request finished correctly when the error code MegaError::ERROR_OK is received at onRequestFinish
+     * - MegaChatRequest::getFlag - Returns true to mute audio, false to unmute
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param mute True for mute the call, false for unmute
@@ -2642,9 +2623,6 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true to disable video, false to enable video
-     * - MegaChatRequest::getParamType - Returns 0 for audio operation, 1 for video operation
-     *
-     * Request finished correctly when the error code MegaError::ERROR_OK is received at onRequestFinish
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param videoCall True for disable video, false for enable video
