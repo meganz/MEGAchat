@@ -1032,7 +1032,7 @@ public:
     MyMegaApi *mApi;
     uint8_t mKeepaliveType = OP_KEEPALIVE;
     karere::Id userId() const { return mUserId; }
-    Client(MyMegaApi *api, karere::Id userId);
+    Client(MyMegaApi *api, karere::Id userId, bool isInBackground);
     ~Client(){}
     Chat& chats(karere::Id chatid) const
     {

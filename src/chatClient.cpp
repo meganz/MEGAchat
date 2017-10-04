@@ -341,7 +341,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     .then([this, scsn, contactList, chatList]()
     {
         loadContactListFromApi(*contactList);
-        chatd.reset(new chatd::Client(&api, mMyHandle));
+        chatd.reset(new chatd::Client(&api, mMyHandle, isInBackground));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
@@ -426,7 +426,7 @@ void Client::initWithDbSession(const char* sid)
         loadOwnKeysFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
-        chatd.reset(new chatd::Client(&api, mMyHandle));
+        chatd.reset(new chatd::Client(&api, mMyHandle, isInBackground));
         chats->loadFromDb();
     }
     catch(std::runtime_error& e)
@@ -714,8 +714,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     else if (mConnState == kConnected)
         return promise::_Void();
 
-    if (isInBackground)
-        notifyUserIdle();
+    this->isInBackground = isInBackground;
 
     assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();

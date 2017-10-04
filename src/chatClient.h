@@ -621,6 +621,7 @@ public:
 
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
+    bool isInBackground = false;
     MyMegaApi api;
     rtcModule::IRtcModule* rtc = nullptr;
     unsigned mReconnectConnStateHandler = 0;

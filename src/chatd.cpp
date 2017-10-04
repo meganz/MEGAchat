@@ -95,8 +95,8 @@ namespace chatd
 ws_base_s Client::sWebsocketContext;
 bool Client::sWebsockCtxInitialized = false;
 
-Client::Client(MyMegaApi *api, Id userId)
-:mUserId(userId), mApi(api)
+Client::Client(MyMegaApi *api, Id userId, bool isInBackground)
+    :mUserId(userId), mApi(api), mKeepaliveType(isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE)
 {
     if (!sWebsockCtxInitialized)
     {
