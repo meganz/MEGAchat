@@ -22,7 +22,6 @@
 #ifndef MEGACHATAPI_IMPL_H
 #define MEGACHATAPI_IMPL_H
 
-
 #include "megachatapi.h"
 
 //the megaapi.h header needs this defined externally
@@ -42,11 +41,31 @@
 #include <karereCommon.h>
 #include <logger.h>
 
+#include "net/websocketsIO.h"
+
 #include <stdint.h>
+
+#ifdef USE_LIBWEBSOCKETS
+
+#include "net/libwebsocketsIO.h"
+#include "waiter/libuvWaiter.h"
+
+typedef LibwebsocketsIO MegaWebsocketsIO;
+typedef ::mega::LibuvWaiter MegaChatWaiter;
+
+#else
+
+#include "net/libwsIO.h"
+#include "waiter/libeventWaiter.h"
+
+typedef LibwsIO MegaWebsocketsIO;
+typedef ::mega::LibeventWaiter MegaChatWaiter;
+
+#endif
 
 namespace megachat
 {
-
+    
 class MegaChatRequestPrivate : public MegaChatRequest
 {
 
@@ -629,27 +648,8 @@ public:
     void push(void* event);
     void push_front(void *event);
     void* pop();
+    bool isEmpty();
 };
-
-/**
- * @brief Any app using this library requires to init some services at startup.
- * They will be started along with the construction of the first MegaChatApi object created by the app.
- * When the app terminates, the resources required by the aforementioned services will be automatically
- * released. In case the app is terminated abruptly and you have a chance to explicitly release them,
- * call ServiceManager::cleanup.
- */
-class ServiceManager
-{
-public:
-    static void init();
-    static void cleanup();
-    ~ServiceManager();
-
-private:
-    ServiceManager();
-    static std::shared_ptr<ServiceManager> mInstance;
-};
-
 
 class MegaChatApiImpl :
         public karere::IApp,
@@ -658,21 +658,17 @@ class MegaChatApiImpl :
 public:
 
     MegaChatApiImpl(MegaChatApi *chatApi, mega::MegaApi *megaApi);
-//    MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir);
     virtual ~MegaChatApiImpl();
 
-    static std::vector<MegaChatApiImpl *> megaChatApiRefs;
-    static mega::MegaMutex refsMutex;
-    static mega::MegaMutex sdkMutex;
-
+    mega::MegaMutex sdkMutex;
+    mega::Waiter *waiter;
 private:
     MegaChatApi *chatApi;
     mega::MegaApi *megaApi;
-
+    WebsocketsIO *websocketsIO;
     karere::Client *mClient;
     bool terminating;
 
-    mega::MegaWaiter *waiter;
     mega::MegaThread thread;
     int threadExit;
     static void *threadEntryPoint(void *param);
@@ -706,7 +702,7 @@ private:
     void sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate* request);
 
 public:
-    static void megaApiPostMessage(void* msg);
+    static void megaApiPostMessage(void* msg, void* ctx);
     void postMessage(void *msg);
 
     void sendPendingRequests();
@@ -842,7 +838,7 @@ public:
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
-    bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const;
+    bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);

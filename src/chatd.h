@@ -1,7 +1,6 @@
 #ifndef __CHATD_H__
 #define __CHATD_H__
 
-#include <libws.h>
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
@@ -14,6 +13,7 @@
 #include <base/trackDelete.h>
 #include "chatdMsg.h"
 #include "url.h"
+#include "net/websocketsIO.h"
 
 namespace karere {
     class Client;
@@ -283,15 +283,15 @@ public:
 class Client;
 
 // need DeleteTrackable for graceful disconnect timeout
-class Connection: public karere::DeleteTrackable
+class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
+
 protected:
     Client& mClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
-    ws_t mWebSocket = nullptr;
     State mState = kStateNew;
     karere::Url mUrl;
     megaHandle mInactivityTimer = 0;
@@ -310,12 +310,13 @@ protected:
     {
         return mState == kStateLoggedIn;
     }
-    static void websockConnectCb(ws_t ws, void* arg);
-    static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
-        size_t reason_len, void *arg);
-    static void websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg);
+    
+    virtual void wsConnectCb();
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
+    virtual void wsHandleMsgCb(char *data, size_t len);
+
     void onSocketClose(int ercode, int errtype, const std::string& reason);
-    promise::Promise<void> reconnect(const std::string& url=std::string());
+    promise::Promise<void> reconnect();
     promise::Promise<void> disconnect(int timeoutMs=2000);
     void notifyLoggedIn();
     void enableInactivityTimer();
@@ -333,7 +334,7 @@ protected:
     friend class Chat;
 public:
     promise::Promise<void> retryPendingConnection();
-    ~Connection()
+    virtual ~Connection()
     {
         disableInactivityTimer();
         reset();
@@ -672,7 +673,7 @@ public:
       * connect(), after which it initiates or uses an existing connection to
       * chatd
       */
-    void connect(const std::string& url=std::string());
+    void connect();
 
     void disconnect();
     /** @brief The online state of the chatroom */
@@ -1013,7 +1014,6 @@ protected:
 /// maps chatids to the Message object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
     karere::Id mUserId;
-    static bool sWebsockCtxInitialized;
     bool mMessageReceivedConfirmation = false;
     Connection& chatidConn(karere::Id chatid)
     {
@@ -1026,13 +1026,13 @@ protected:
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
-    static ws_base_s sWebsocketContext;
     unsigned inactivityCheckIntervalSec = 20;
     uint32_t options = 0;
     MyMegaApi *mApi;
+    karere::Client *karereClient;
     uint8_t mKeepaliveType = OP_KEEPALIVE;
     karere::Id userId() const { return mUserId; }
-    Client(MyMegaApi *api, karere::Id userId, bool isInBackground);
+    Client(karere::Client *client, karere::Id userId);
     ~Client(){}
     Chat& chats(karere::Id chatid) const
     {
@@ -1069,6 +1069,7 @@ static inline const char* connStateToStr(Connection::State state)
     case Connection::State::kStateConnected: return "Connected";
     case Connection::State::kStateLoggedIn: return "Logged-in";
     case Connection::State::kStateNew: return "New";
+    case Connection::State::kStateFetchingUrl: return "Fetching URL";
     default: return "(invalid)";
     }
 }

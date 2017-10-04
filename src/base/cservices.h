@@ -1,6 +1,23 @@
 #ifndef CSERVICES_H_INCLUDED
 #define CSERVICES_H_INCLUDED
 
+#ifndef USE_LIBWEBSOCKETS
+#include <event2/event.h>
+#include <event2/thread.h>
+#include <event2/util.h>
+
+typedef struct event_base eventloop;
+typedef event timerevent;
+
+#else
+#include <uv.h>
+
+typedef uv_loop_t eventloop;
+typedef uv_timer_t timerevent;
+
+#endif
+
+
 /* Plain C interface of the services library */
 #include <logger.h>
 
@@ -42,7 +59,7 @@ extern "C" {
 enum {SVC_OPTIONS_LOGFLAGS = 0x000000ff};
 
 /** The global, singleton eventloop object. */
-extern MEGAIO_IMPEXP struct event_base* services_eventloop;
+extern MEGAIO_IMPEXP eventloop* services_eventloop;
 
 /**
  * @brief Initialize and start the services engine
@@ -50,9 +67,9 @@ extern MEGAIO_IMPEXP struct event_base* services_eventloop;
  * @param options Misc flags. The LS byte is reserved for logging bits
  * (SVC_OPTIONS_LOGFLAGS mask).
  */
-MEGAIO_IMPEXP int services_init(void(*postFunc)(void*), unsigned options);
+MEGAIO_IMPEXP int services_init(void(*postFunc)(void*, void*), unsigned options);
 
-MEGAIO_IMPEXP struct event_base* services_get_event_loop();
+MEGAIO_IMPEXP eventloop* services_get_event_loop();
 
 /** @brief Shuts down the services engine. Call this before terminating the application */
 MEGAIO_IMPEXP int services_shutdown();

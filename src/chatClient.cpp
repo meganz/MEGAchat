@@ -51,7 +51,7 @@ namespace karere
 {
 
 template <class T, class F>
-void callAfterInit(T* self, F&& func);
+void callAfterInit(T* self, F&& func, void* ctx);
 
 std::string encodeFirstName(const std::string& first);
 
@@ -60,14 +60,17 @@ std::string encodeFirstName(const std::string& first);
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
  */
-Client::Client(::mega::MegaApi& sdk, IApp& aApp, const std::string& appDir, uint8_t caps)
- :mAppDir(appDir),
-  api(sdk), app(aApp),
-  contactList(new ContactList(*this)),
-  chats(new ChatRoomList(*this)),
-  mMyName("\0", 1),
-  mOwnPresence(Presence::kInvalid),
-  mPresencedClient(&api, *this, caps)
+    Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
+        : mAppDir(appDir),
+          websocketIO(websocketsIO),
+          appCtx(ctx),
+          api(sdk, ctx),
+          app(aApp),
+          contactList(new ContactList(*this)),
+          chats(new ChatRoomList(*this)),
+          mMyName("\0", 1),
+          mOwnPresence(Presence::kInvalid),
+          mPresencedClient(&api, this, *this, caps)
 {
 }
 
@@ -197,7 +200,7 @@ Client::~Client()
 {
     if (mHeartbeatTimer)
     {
-        karere::cancelInterval(mHeartbeatTimer);
+        karere::cancelInterval(mHeartbeatTimer, appCtx);
         mHeartbeatTimer = 0;
     }
     //when the strophe::Connection is destroyed, its handlers are automatically destroyed
@@ -249,7 +252,7 @@ promise::Promise<void> Client::sdkLoginNewSession()
             mLoginDlg->setState(IApp::ILoginDialog::kBadCredentials);
             return 0;
         });
-    })
+    }, this)
     .then([this](int)
     {
         mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
@@ -266,7 +269,7 @@ promise::Promise<void> Client::sdkLoginNewSession()
             }
 
             mSessionReadyPromise.reject(err);
-        });
+        }, appCtx);
     })
     .then([this]()
     {
@@ -341,7 +344,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     .then([this, scsn, contactList, chatList]()
     {
         loadContactListFromApi(*contactList);
-        chatd.reset(new chatd::Client(&api, mMyHandle, isInBackground));
+        chatd.reset(new chatd::Client(this, mMyHandle));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
@@ -390,7 +393,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
             }
 
             commit(scsn);
-        });
+        }, appCtx);
     }
 }
 
@@ -426,7 +429,7 @@ void Client::initWithDbSession(const char* sid)
         loadOwnKeysFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
-        chatd.reset(new chatd::Client(&api, mMyHandle, isInBackground));
+        chatd.reset(new chatd::Client(this, mMyHandle));
         chats->loadFromDb();
     }
     catch(std::runtime_error& e)
@@ -490,7 +493,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             {
                 setInitState(kInitErrSidInvalid);
             }
-        });
+        }, appCtx);
         return;
     }
 
@@ -512,7 +515,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 {
                     setInitState(kInitErrSidInvalid);
                 }
-            });
+            }, appCtx);
             return;
         }
         break;
@@ -571,7 +574,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 });
             }
             api.sdk.resumeActionPackets();
-        });
+        }, appCtx);
         break;
     }
 
@@ -599,7 +602,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 return;
 
             mUserAttrCache->onUserAttrChange(mMyHandle, changeType);
-        });
+        }, appCtx);
         break;
     }
 
@@ -788,7 +791,7 @@ promise::Promise<void> Client::doConnect(Presence pres)
         }
 
         heartbeat();
-    }, 10000);
+    }, 10000, appCtx);
     return pms;
 }
 
@@ -805,7 +808,7 @@ promise::Promise<void> Client::disconnect()
     mUserAttrCache->onLogOut();
     if (mHeartbeatTimer)
     {
-        karere::cancelInterval(mHeartbeatTimer);
+        karere::cancelInterval(mHeartbeatTimer, appCtx);
         mHeartbeatTimer = 0;
     }
     mDisconnectPromise = chatd->disconnect()
@@ -1146,7 +1149,7 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
                 contactList->onUserAddRemove(user);
             }
         };
-    });
+    }, appCtx);
 }
 
 promise::Promise<karere::Id>
@@ -1197,7 +1200,7 @@ void ChatRoom::onLastMessageTsUpdated(uint32_t ts)
         auto display = roomGui();
         if (display)
             display->onLastTsUpdated(ts);
-    });
+    }, parent.client.appCtx);
 }
 
 ApiPromise ChatRoom::requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
@@ -1214,7 +1217,7 @@ strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
         StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid);
+        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid, appCtx);
 }
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
@@ -1227,7 +1230,7 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
 }
 
 template <class T, typename F>
-void callAfterInit(T* self, F&& func)
+void callAfterInit(T* self, F&& func, void *ctx)
 {
     if (self->isInitializing())
     {
@@ -1236,7 +1239,7 @@ void callAfterInit(T* self, F&& func)
         {
             if (!wptr.deleted())
                 func();
-        });
+        }, ctx);
     }
     else
     {
@@ -1251,14 +1254,7 @@ void PeerChatRoom::initWithChatd()
 
 void PeerChatRoom::connect()
 {
-    auto wptr = weakHandle();
-    updateUrl()
-    .then([wptr, this]()
-    {
-        if (wptr.deleted())
-            return;
-        mChat->connect(mUrl);
-    });
+    mChat->connect();
 }
 
 promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
@@ -1393,21 +1389,16 @@ void GroupChatRoom::connect()
 {
     if (chat().onlineState() != chatd::kChatStateOffline)
         return;
-    auto wptr = weakHandle();
-    updateUrl()
-    .then([wptr, this]()
+
+    mChat->connect();
+    if (mHasTitle)
     {
-        wptr.throwIfDeleted();
-        mChat->connect(mUrl);
-        if (mHasTitle)
+        decryptTitle()
+        .fail([](const promise::Error& err)
         {
-            decryptTitle()
-            .fail([](const promise::Error& err)
-            {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
-            });
-        }
-    });
+            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
+        });
+    }
 }
 
 promise::Promise<void> GroupChatRoom::memberNamesResolved() const
@@ -1602,25 +1593,7 @@ void GroupChatRoom::deleteSelf()
         db.query("delete from chat_peers where chatid=?", mChatid);
         db.query("delete from chats where chatid=?", mChatid);
         delete this;
-    });
-}
-
-promise::Promise<void> ChatRoom::updateUrl()
-{
-    auto wptr = getDelTracker();
-    return parent.client.api.call(&mega::MegaApi::getUrlChat, mChatid)
-    .then([wptr, this](ReqResult result)
-    {
-        wptr.throwIfDeleted();
-        const char* url = result->getLink();
-        if (!url || !url[0])
-            return;
-        std::string sUrl = url;
-        if (sUrl == mUrl)
-            return;
-        mUrl = sUrl;
-        KR_LOG_DEBUG("Updated chatroom %s url", Id(mChatid).toString().c_str());
-    });
+    }, parent.client.appCtx);
 }
 
 ChatRoomList::ChatRoomList(Client& aClient)
@@ -1789,7 +1762,7 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
         }
 
         chats->onChatsUpdate(*copy);
-    });
+    }, appCtx);
 }
 
 void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
@@ -2226,7 +2199,7 @@ void ChatRoom::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
             auto display = roomGui();
             if (display)
                 display->onLastMessageUpdated(msg);
-        });
+        }, parent.client.appCtx);
     }
     else
     {
@@ -2271,7 +2244,7 @@ void ChatRoom::notifyTitleChanged()
 
         if (mAppChatHandler)
             mAppChatHandler->onTitleChanged(mTitleString);
-    });
+    }, parent.client.appCtx);
 }
 
 void GroupChatRoom::onUnreadChanged()
@@ -2695,7 +2668,7 @@ void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactReques
             if (req.getStatus() == mega::MegaContactRequest::STATUS_UNRESOLVED)
                 app.onIncomingContactRequest(req);
         }
-    });
+    }, appCtx);
 }
 
 Contact::Contact(ContactList& clist, const uint64_t& userid,
@@ -2750,7 +2723,7 @@ void Contact::notifyTitleChanged()
         //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
             mChatRoom->updateTitle(mTitleString.substr(1));
-    });
+    }, mClist.client.appCtx);
 }
 
 Contact::~Contact()

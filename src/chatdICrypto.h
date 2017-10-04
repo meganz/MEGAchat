@@ -15,7 +15,11 @@ enum
 class Chat;
 class ICrypto
 {
+    void *appCtx;
+    
 public:
+    ICrypto(void *ctx) : appCtx(ctx) {}
+    
     virtual void setUsers(karere::SetOfIds* users) = 0;
 /**
  * @brief msgEncrypt Encrypts a message, putting the contents in the specified
@@ -66,7 +70,7 @@ public:
             cmd->setKeyId(1);
             msg->keyid = 1;
             pms.resolve(std::make_pair(cmd, (KeyCommand*)nullptr));
-        }, 2000);
+        }, 2000, appCtx);
         return pms;
     }
 /**
@@ -82,7 +86,7 @@ public:
         karere::setTimeout([src, pms]() mutable
         {
             pms.resolve(src);
-        }, delay);
+        }, delay, appCtx);
         return pms;
     }
 /**

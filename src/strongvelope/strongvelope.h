@@ -269,7 +269,7 @@ public:
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& PrivCu25519,
         const StaticBuffer& PrivEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
-        SqliteDb& db, karere::Id aChatId);
+        SqliteDb& db, karere::Id aChatId, void *ctx);
 protected:
     void loadKeysFromDb();
     promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);

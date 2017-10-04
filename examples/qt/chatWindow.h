@@ -403,7 +403,7 @@ protected:
     void updateSeen();
     virtual void showEvent(QShowEvent* event)
     {
-        mUpdateSeenTimer = karere::setTimeout([this]() { updateSeen(); }, 2000);
+        mUpdateSeenTimer = karere::setTimeout([this]() { updateSeen(); }, 2000, NULL);
     }
     virtual void dragEnterEvent(QDragEnterEvent* event)
     {
