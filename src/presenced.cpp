@@ -196,7 +196,10 @@ Client::reconnect(const std::string& url)
             if (wptr.deleted())
             {
                 PRESENCED_LOG_DEBUG("Reconnect attempt initiated, but presenced client was deleted.");
-                return Promise<void>();
+
+                promise::Promise<void> pms = Promise<void>();
+                pms.resolve();
+                return pms;
             }
 
             reset();

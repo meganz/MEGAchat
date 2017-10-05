@@ -304,7 +304,10 @@ Promise<void> Connection::reconnect()
             if (wptr.deleted())
             {
                 CHATD_LOG_DEBUG("Reconnect attempt initiated, but chatd client was deleted.");
-                return Promise<void>();
+
+                promise::Promise<void> pms = Promise<void>();
+                pms.resolve();
+                return pms;
             }
 
             reset();
