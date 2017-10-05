@@ -297,8 +297,16 @@ Promise<void> Connection::reconnect()
             throw std::runtime_error("Current URL is not valid");
 
         mState = kStateResolving;
-        return retry("chatd", [this](int no)
+
+        auto wptr = weakHandle();
+        return retry("chatd", [this](int no, DeleteTrackable::Handle wptr)
         {
+            if (wptr.deleted())
+            {
+                CHATD_LOG_DEBUG("Reconnect attempt initiated, but chatd client was deleted.");
+                return Promise<void>();
+            }
+
             reset();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
@@ -314,7 +322,6 @@ Promise<void> Connection::reconnect()
                     chat.setOnlineState(kChatStateConnecting);                
             }
 
-            auto wptr = weakHandle();
             this->mClient.mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
             .then([wptr, this](ReqResult result)
             {
@@ -371,7 +378,7 @@ Promise<void> Connection::reconnect()
                 enableInactivityTimer();
                 return rejoinExistingChats();
             });
-        }, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, wptr, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
 }
