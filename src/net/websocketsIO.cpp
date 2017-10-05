@@ -73,6 +73,7 @@ WebsocketsClient::WebsocketsClient()
 WebsocketsClient::~WebsocketsClient()
 {
     delete ctx;
+    ctx = NULL;
 }
 
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)
@@ -80,6 +81,7 @@ bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, cons
     thread_id = pthread_self();
     
     WEBSOCKETS_LOG_DEBUG("Connecting to %s (%s)  port %d  path: %s   ssl: %d", host, ip, port, path, ssl);
+    assert(!ctx);
     ctx = websocketIO->wsConnect(ip, host, port, path, ssl, this);
     if (!ctx)
     {
@@ -119,6 +121,9 @@ void WebsocketsClient::wsDisconnect(bool immediate)
     
     assert (thread_id == pthread_self());
     ctx->wsDisconnect(immediate);
+
+    delete ctx;
+    ctx = NULL;
 }
 
 bool WebsocketsClient::wsIsConnected()
