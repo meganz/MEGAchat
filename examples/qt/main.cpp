@@ -17,6 +17,7 @@
 #include <mega/megaclient.h>
 #include <karereCommon.h>
 #include <fstream>
+#include <net/libwsIO.h>
 
 using namespace std;
 using namespace promise;
@@ -52,7 +53,7 @@ public:
 
 AppDelegate appDelegate;
 
-extern "C" void myMegaPostMessageToGui(void* msg)
+extern "C" void myMegaPostMessageToGui(void* msg, void* appCtx)
 {
     QEvent* event = new GcmEvent(msg);
     QApplication::postEvent(&appDelegate, event);
@@ -67,10 +68,11 @@ void sigintHandler(int)
 {
     printf("SIGINT Received\n"); //don't use the logger, as it may cause a deadlock
     fflush(stdout);
-    marshallCall([]{appDelegate.onAppTerminate();});
+    marshallCall([]{appDelegate.onAppTerminate();}, NULL);
 }
 
 std::string gAppDir = karere::createAppDir();
+std::unique_ptr<WebsocketsIO> gWebsocketsIO;
 std::unique_ptr<karere::Client> gClient;
 std::unique_ptr<::mega::MegaApi> gSdk;
 
@@ -78,7 +80,10 @@ void createWindowAndClient()
 {
     mainWin = new MainWindow();
     gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));
-    gClient.reset(new karere::Client(*gSdk, *mainWin, gAppDir, 0));
+
+    // Websockets network layer based on libws
+    gWebsocketsIO.reset(new LibwsIO());
+    gClient.reset(new karere::Client(*gSdk, gWebsocketsIO.get(), *mainWin, gAppDir, 0));
     mainWin->setClient(*gClient);
     QObject::connect(mainWin, SIGNAL(esidLogout()), &appDelegate, SLOT(onEsidLogout()));
 }
@@ -149,7 +154,7 @@ int main(int argc, char **argv)
         marshallCall([]()
         {
             appDelegate.onAppTerminate();
-        });
+        }, NULL);
     });
     return a.exec();
 }
@@ -206,8 +211,10 @@ void AppDelegate::onAppTerminate()
         {
             qApp->quit(); //stop processing marshalled call messages
             gClient.reset();
+            gSdk.reset();
+            gWebsocketsIO.reset();
             karere::globalCleanup();
-        });
+        }, NULL);
     });
 }
 
@@ -246,7 +253,7 @@ void AppDelegate::onEsidLogout()
             {
                 KR_LOG_ERROR("Error re-creating or logging in chat client after ESID: ", err.what());
             });
-        });
+        }, NULL);
     });
 }
 

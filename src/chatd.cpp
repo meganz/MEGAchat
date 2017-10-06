@@ -1,29 +1,14 @@
 #include "chatd.h"
 #include "chatClient.h"
 #include "chatdICrypto.h"
-#include <base/cservices.h>
-#include <gcmpp.h>
-#include <retryHandler.h>
-#include <libws_log.h>
-#include <event2/dns.h>
-#include <event2/dns_compat.h>
 #include "base64.h"
 #include <algorithm>
 #include <random>
-#include <arpa/inet.h>
-
-#ifdef __ANDROID__
-    #include <sys/system_properties.h>
-#elif defined(__APPLE__)
-    #include <TargetConditionals.h>
-    #ifdef TARGET_OS_IPHONE
-        #include <resolv.h>
-    #endif
-#endif
 
 using namespace std;
 using namespace promise;
 using namespace karere;
+
 #define CHATD_LOG_LISTENER_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
@@ -91,58 +76,10 @@ namespace chatd
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
-
-ws_base_s Client::sWebsocketContext;
-bool Client::sWebsockCtxInitialized = false;
-
-Client::Client(MyMegaApi *api, Id userId)
-:mUserId(userId), mApi(api)
+Client::Client(karere::Client *client, Id userId)
+:mUserId(userId), mApi(&client->api), karereClient(client)
 {
-    if (!sWebsockCtxInitialized)
-    {
-        ws_global_init(&sWebsocketContext, services_get_event_loop(), NULL,
-        [](struct bufferevent* bev, void* userp)
-        {
-            marshallCall([bev, userp]()
-            {
-                //CHATD_LOG_DEBUG("Read event");
-                ws_read_callback(bev, userp);
-            });
-        },
-        [](struct bufferevent* bev, short events, void* userp)
-        {
-            marshallCall([bev, events, userp]()
-            {
-                //CHATD_LOG_DEBUG("Buffer event 0x%x", events);
-                ws_event_callback(bev, events, userp);
-            });
-        },
-        [](int fd, short events, void* userp)
-        {
-            marshallCall([events, userp]()
-            {
-                //CHATD_LOG_DEBUG("Timer %p event", userp);
-                ws_handle_marshall_timer_cb(0, events, userp);
-            });
-        });
-//        ws_set_log_cb(ws_default_log_cb);
-//        ws_set_log_level(LIBWS_TRACE);
-        sWebsockCtxInitialized = true;
-    }
 }
-
-#define checkLibwsCall(call, opname) \
-    do {                             \
-        int _cls_ret = (call);       \
-        if (_cls_ret) throw std::runtime_error("Websocket error " +std::to_string(_cls_ret) + \
-        " on operation " #opname);   \
-    } while(0)
-
-//Stale event from a previous connect attempt?
-#define ASSERT_NOT_ANOTHER_WS(event)    \
-    if (ws != self->mWebSocket) {       \
-        CHATD_LOG_WARNING("Websocket '" event "' callback: ws param is not equal to self->mWebSocket, ignoring"); \
-    }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup)
@@ -211,18 +148,50 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
-void Chat::connect(const std::string& url)
+void Chat::connect()
 {
     // attempt a connection ONLY if this is a new shard.
-    if (mConnection.state() == Connection::kStateNew || mConnection.state() == Connection::kStateDisconnected)
+    if (mConnection.state() == Connection::kStateNew)
     {
-        mConnection.reconnect(url)
+        mConnection.mState = Connection::kStateFetchingUrl;
+        auto wptr = getDelTracker();
+        mClient.mApi->call(&::mega::MegaApi::getUrlChat, mChatId)
+        .then([wptr, this](ReqResult result)
+        {
+            if (wptr.deleted())
+            {
+                CHATD_LOG_DEBUG("Chatd URL request completed, but chatd client was deleted");
+                return;
+            }
+
+            const char* url = result->getLink();
+            if (!url || !url[0])
+            {
+                CHATID_LOG_ERROR("No chatd URL received from API");
+                return;
+            }
+
+            std::string sUrl = url;
+            mConnection.mUrl.parse(sUrl);
+
+            mConnection.reconnect()
+            .fail([this](const promise::Error& err)
+            {
+                CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+            });
+        });
+
+    }
+    else if (mConnection.state() == Connection::kStateDisconnected)
+    {
+        mConnection.reconnect()
         .fail([this](const promise::Error& err)
         {
             CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
         });
+
     }
-    else if (mConnection.isConnected())
+    else if (mConnection.isConnected() || mConnection.isLoggedIn())
     {
         login();
     }
@@ -244,49 +213,22 @@ void Chat::login()
     else
         join();
 }
-
-void Connection::websockConnectCb(ws_t ws, void* arg)
+    
+void Connection::wsConnectCb()
 {
-    Connection* self = static_cast<Connection*>(arg);
-    auto wptr = self->getDelTracker();
-    ASSERT_NOT_ANOTHER_WS("connect");
-    CHATD_LOG_DEBUG("Chatd connected to shard %d", self->mShardNo);
-    ::marshallCall([self, wptr]()
-    {
-        if (wptr.deleted())
-            return;
-        self->mState = kStateConnected;
-        assert(!self->mConnectPromise.done());
-        self->mConnectPromise.resolve();
-    });
+    CHATD_LOG_DEBUG("Chatd connected to shard %d", mShardNo);
+    mState = kStateConnected;
+    assert(!mConnectPromise.done());
+    mConnectPromise.resolve();
 }
 
-void Connection::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preason,
-                                size_t reason_len, void *arg)
+void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    auto self = static_cast<Connection*>(arg);
-    ASSERT_NOT_ANOTHER_WS("close/error");
-    std::string reason;
+    string reason;
     if (preason)
         reason.assign(preason, reason_len);
-
-    //we don't want to initiate websocket reconnect from within a websocket callback
-    auto wptr = self->getDelTracker();
-    marshallCall([self, reason, errcode, errtype, wptr]()
-    {
-        if (wptr.deleted())
-            return;
-
-        self->onSocketClose(errcode, errtype, reason);
-    });
-}
-
-void Connection::websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg)
-{
-    Connection* self = static_cast<Connection*>(arg);
-    ASSERT_NOT_ANOTHER_WS("message");
-    self->mInactivityBeats = 0;
-    self->execCommand(StaticBuffer(msg, len));
+    
+    onSocketClose(errcode, errtype, reason);
 }
 
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
@@ -297,10 +239,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     disableInactivityTimer();
     auto oldState = mState;
     mState = kStateDisconnected;
-    if (mWebSocket)
-    {
-        ws_destroy(&mWebSocket);
-    }
+
     for (auto& chatid: mChatIds)
     {
         auto& chat = mClient.chats(chatid);
@@ -321,7 +260,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         {
             mConnectPromise.reject(reason, errcode, errtype);
         }
-        if (!mConnectPromise.done())
+        if (!mLoginPromise.done())
         {
             mLoginPromise.reject(reason, errcode, errtype);
         }
@@ -337,7 +276,7 @@ void Connection::disableInactivityTimer()
 {
     if (mInactivityTimer)
     {
-        cancelInterval(mInactivityTimer);
+        cancelInterval(mInactivityTimer, mClient.karereClient->appCtx);
         mInactivityTimer = 0;
     }
 }
@@ -347,39 +286,38 @@ bool Connection::sendKeepalive(uint8_t opcode)
     return sendBuf(Command(opcode));
 }
 
-Promise<void> Connection::reconnect(const std::string& url)
+Promise<void> Connection::reconnect()
 {
     try
     {
-        if (mState >= kStateConnecting) //would be good to just log and return, but we have to return a promise
+        if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
             throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
-        if (!url.empty())
-        {
-            mUrl.parse(url);
-        }
-        else
-        {
-            if (!mUrl.isValid())
-                throw std::runtime_error("No valid URL provided and current URL is not valid");
-        }
 
-        mState = kStateConnecting;
-        return retry("chatd", [this](int no)
+        if (!mUrl.isValid())
+            throw std::runtime_error("Current URL is not valid");
+
+        mState = kStateResolving;
+
+        auto wptr = weakHandle();
+        return retry("chatd", [this](int no, DeleteTrackable::Handle wptr)
         {
+            if (wptr.deleted())
+            {
+                CHATD_LOG_DEBUG("Reconnect attempt initiated, but chatd client was deleted.");
+
+                promise::Promise<void> pms = Promise<void>();
+                pms.resolve();
+                return pms;
+            }
+
             reset();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
             mDisconnectPromise = Promise<void>();
-            CHATD_LOG_DEBUG("Chatd connecting to shard %d...", mShardNo);
-            checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
-            ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
-            ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
-            ws_set_onmsg_cb(mWebSocket, &websockMsgCb, this);
 
-            if (mUrl.isSecure)
-            {
-                ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
-            }
+            mState = kStateResolving;
+            CHATD_LOG_DEBUG("Resolving hostname...", mShardNo);
+
             for (auto& chatid: mChatIds)
             {
                 auto& chat = mClient.chats(chatid);
@@ -387,67 +325,63 @@ Promise<void> Connection::reconnect(const std::string& url)
                     chat.setOnlineState(kChatStateConnecting);                
             }
 
-            auto wptr = weakHandle();
             this->mClient.mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
             .then([wptr, this](ReqResult result)
             {
                 if (wptr.deleted())
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+                    CHATD_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
                     return;
                 }
-                if (!mWebSocket)
+                if (mState != kStateResolving)
                 {
-                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
+                    CHATD_LOG_DEBUG("Unexpected connection state %s while resolving DNS.", connStateToStr(mState));
                     return;
                 }
-                if (mState != kStateConnecting)
-                {
-                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
-                    return;
-                }
+                
+                mState = kStateConnecting;
                 string ip = result->getText();
-                CHATD_LOG_DEBUG("Connecting to chatd using the IP: %s", ip.c_str());
-
-                if (ip[0] == '[')
+                CHATD_LOG_DEBUG("Connecting to chatd (shard %d) using the IP: %s", mShardNo, ip.c_str());
+                bool rt = wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
+                          mUrl.host.c_str(),
+                          mUrl.port,
+                          mUrl.path.c_str(),
+                          mUrl.isSecure);
+                if (!rt)
                 {
-                    struct sockaddr_in6 ipv6addr = { 0 };
-                    ip = ip.substr(1, ip.size() - 2);
-                    ipv6addr.sin6_family = AF_INET6;
-                    ipv6addr.sin6_port = htons(mUrl.port);
-                    inet_pton(AF_INET6, ip.c_str(), &ipv6addr.sin6_addr);
-                    checkLibwsCall((ws_connect_addr(mWebSocket, mUrl.host.c_str(),
-                                                    (struct sockaddr *)&ipv6addr, sizeof(ipv6addr),
-                                                    mUrl.port, (mUrl.path).c_str())), "connect");
-                }
-                else
-                {
-                    struct sockaddr_in ipv4addr = { 0 };
-                    ipv4addr.sin_family = AF_INET;
-                    ipv4addr.sin_port = htons(mUrl.port);
-                    inet_pton(AF_INET, ip.c_str(), &ipv4addr.sin_addr);
-                    checkLibwsCall((ws_connect_addr(mWebSocket, mUrl.host.c_str(),
-                                                    (struct sockaddr *)&ipv4addr, sizeof(ipv4addr),
-                                                    mUrl.port, (mUrl.path).c_str())), "connect");
+                    throw std::runtime_error("Websocket error on wsConnect (chatd)");
                 }
             })
-            .fail([this](const promise::Error& err)
+            .fail([wptr, this](const promise::Error& err)
             {
-                if (err.type() == ERRTYPE_MEGASDK)
+                if (wptr.deleted())
+                {
+                    CHATD_LOG_DEBUG("DNS resolution failed, but chatd client was deleted. Error: %s", err.what());
+                    return;
+                }
+
+                if (!mConnectPromise.done())
                 {
                     mConnectPromise.reject(err.msg(), err.code(), err.type());
+                }
+
+                if (!mLoginPromise.done())
+                {
                     mLoginPromise.reject(err.msg(), err.code(), err.type());
                 }
             });
             
             return mConnectPromise
-            .then([this]() -> promise::Promise<void>
+            .then([wptr, this]() -> promise::Promise<void>
             {
+                if (wptr.deleted())
+                    return promise::_Void();
+
                 assert(isConnected());
                 enableInactivityTimer();
                 return rejoinExistingChats();
             });
-        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, wptr, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
 }
@@ -467,17 +401,18 @@ void Connection::enableInactivityTimer()
                 mShardNo);
             reconnect();
         }
-    }, 10000);
+    }, 10000, mClient.karereClient->appCtx);
 }
 
 promise::Promise<void> Connection::disconnect(int timeoutMs) //should be graceful disconnect
 {
     mTerminating = true;
-    if (!mWebSocket)
+    if (!wsIsConnected())
     {
         onSocketClose(0, 0, "terminating");
         return promise::Void();
     }
+    
     auto wptr = getDelTracker();
     setTimeout([this, wptr]()
     {
@@ -485,8 +420,9 @@ promise::Promise<void> Connection::disconnect(int timeoutMs) //should be gracefu
             return;
         if (!mDisconnectPromise.done())
             mDisconnectPromise.resolve();
-    }, timeoutMs);
-    ws_close(mWebSocket);
+    }, timeoutMs, mClient.karereClient->appCtx);
+    
+    wsDisconnect(false);
     return mDisconnectPromise;
 }
 
@@ -524,23 +460,17 @@ promise::Promise<void> Client::retryPendingConnections()
 
 void Connection::reset() //immediate disconnect
 {
-    if (!mWebSocket)
-        return;
-
-    ws_close_immediately(mWebSocket);
-    ws_destroy(&mWebSocket);
-    assert(!mWebSocket);
+    wsDisconnect(true);
 }
 
 bool Connection::sendBuf(Buffer&& buf)
 {
     if (!isLoggedIn() && !isConnected())
         return false;
-//WARNING: ws_send_msg_ex() is destructive to the buffer - it applies the websocket mask directly
-//Copy the data to preserve the original
-    auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
-    buf.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
-    return (rc == 0);
+    
+    bool rc = wsSendMessage(buf.buf(), buf.dataSize());
+    buf.free();
+    return rc;
 }
 bool Chat::sendCommand(Command&& cmd)
 {
@@ -629,7 +559,7 @@ void Chat::join()
 {
 //We don't have any local history, otherwise joinRangeHist() would be called instead of this
 //Reset handshake state, as we may be reconnecting
-    assert(mConnection.isConnected());
+    assert(mConnection.isConnected() || mConnection.isLoggedIn());
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
     mServerFetchState = kHistNotFetching;
@@ -747,10 +677,10 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             {
                 if (wptr.deleted())
                     return;
-
+                
                 CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
                 requestHistoryFromServer(-count);
-            });
+            }, mClient.karereClient->appCtx);
         }
         return kHistSourceServer;
     }
@@ -869,6 +799,12 @@ Idx Chat::getHistoryFromDb(unsigned count)
 #define READ_8(varname, offset)\
     assert(offset==pos-base); uint8_t varname(buf.read<uint8_t>(pos)); pos+=1
 
+void Connection::wsHandleMsgCb(char *data, size_t len)
+{
+    mInactivityBeats = 0;
+    execCommand(StaticBuffer(data, len));
+}
+    
 // inbound command processing
 // multiple commands can appear as one WebSocket frame, but commands never cross frame boundaries
 // CHECK: is this assumption correct on all browsers and under all circumstances?
@@ -1307,14 +1243,15 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
     message->backRefId = generateRefId(mCrypto);
+
     auto wptr = weakHandle();
     marshallCall([wptr, this, message]()
     {
         if (wptr.deleted())
             return;
-
+        
         msgSubmit(message);
-    });
+    }, mClient.karereClient->appCtx);
     return message;
 }
 void Chat::msgSubmit(Message* msg)
@@ -1483,11 +1420,11 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     {
         if (wptr.deleted())
             return;
-
+        
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
         onMsgTimestamp(newage);
-    });
-
+    }, mClient.karereClient->appCtx);
+    
     return upd;
 }
 
@@ -1639,7 +1576,7 @@ bool Chat::setMessageSeen(Idx idx)
 
         CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
         sendCommand(Command(OP_SEEN) + mChatId + id);
-
+        
         Idx notifyStart;
         if (mLastSeenIdx == CHATD_IDX_INVALID)
         {
@@ -1663,8 +1600,8 @@ bool Chat::setMessageSeen(Idx idx)
             }
         }
         CALL_LISTENER(onUnreadChanged);
-    });
-
+    }, mClient.karereClient->appCtx);
+    
     return true;
 }
 
@@ -1781,7 +1718,7 @@ void Chat::removeManualSend(uint64_t rowid)
 // after a reconnect, we tell the chatd the oldest and newest buffered message
 void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 {
-    assert(mConnection.isConnected());
+    assert(mConnection.isConnected() || mConnection.isLoggedIn());
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
@@ -2724,8 +2661,7 @@ void Chat::findAndNotifyLastTextMsg()
         if (mLastTextMsg.state() == LastTextMsgState::kFetching)
             return;
         notifyLastTextMsg();
-    });
-
+    }, mClient.karereClient->appCtx);
 }
 
 void Chat::sendTypingNotification()

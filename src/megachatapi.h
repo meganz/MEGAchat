@@ -1093,7 +1093,7 @@ public:
         STATUS_AWAY       = 2,      /// User is not available
         STATUS_ONLINE     = 3,      /// User is available
         STATUS_BUSY       = 4,      /// User don't expect notifications nor call requests
-        STATUS_INVALID    = 0xFF    /// Invalid value
+        STATUS_INVALID    = 0xFF    /// Invalid value. Presence not received yet
     };
 
     enum
@@ -1151,14 +1151,6 @@ public:
 //    MegaChatApi(const char *appKey, const char* appDir);
 
     virtual ~MegaChatApi();
-
-    /**
-     * @brief Clean up resources used by application.
-     * This function only has to be called one time just before application closes by external causes.
-     * If application finish correctly, it will not be necessary to call it
-     */
-    static void cleanupServices();
-
 
     /**
      * @brief Set a MegaChatLogger implementation to receive SDK logs

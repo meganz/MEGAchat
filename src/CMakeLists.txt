@@ -35,7 +35,10 @@ set (SRCS
     strongvelope/strongvelope.cpp
     presenced.cpp
     megachatapi.cpp
-    megachatapi_impl.cpp
+    megachatapi_impl.cpp    
+    waiter/libeventWaiter.cpp
+    net/websocketsIO.cpp
+    net/libwsIO.cpp
 )
 
 if (NOT optKarereDisableWebrtc)

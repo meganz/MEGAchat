@@ -28,7 +28,8 @@ typedef NS_ENUM (NSInteger, MEGAChatStatus) {
     MEGAChatStatusOffline = 1,
     MEGAChatStatusAway    = 2,
     MEGAChatStatusOnline  = 3,
-    MEGAChatStatusBusy    = 4
+    MEGAChatStatusBusy    = 4,
+    MEGAChatStatusInvalid = 0xFF
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatSource) {

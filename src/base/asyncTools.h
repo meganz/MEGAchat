@@ -32,10 +32,12 @@ protected:
     C mCondition;
     X mIncrement;
     F mFunc;
+    void *appCtx;
+    
 public:
-    StateBase(I aInitial, C&& aCond, X&& aInc, F&& aFunc)
+    StateBase(I aInitial, C&& aCond, X&& aInc, F&& aFunc, void *ctx)
     : Loop<I>(aInitial), mCondition(std::forward<C>(aCond)),
-      mIncrement(std::forward<X>(aInc)), mFunc(std::forward<F>(aFunc)){}
+    mIncrement(std::forward<X>(aInc)), mFunc(std::forward<F>(aFunc)), appCtx(ctx) {}
     promise::Promise<P> mOutput;
 };
 
@@ -61,7 +63,7 @@ struct State: public StateBase<I,C,X,F>
             this->mIncrement(this->i);
             if (this->mCondition(this->i))
             {
-                karere::marshallCall([this](){nextIter();});
+                karere::marshallCall([this](){nextIter();}, this->appCtx);
                 return;
             }
 bail:
@@ -94,7 +96,7 @@ struct State<I,C,X,F,void>: public StateBase<I,C,X,F>
             this->mIncrement(this->i);
             if (this->mCondition(this->i))
             {
-                karere::marshallCall([this](){nextIter();});
+                karere::marshallCall([this](){nextIter();}, this->appCtx);
                 return;
             }
 bail:
@@ -106,7 +108,7 @@ bail:
 
 template <class I, class C, class X, class F>
 typename std::result_of<F(Loop<I>&)>::type
-loop(I initial, C&& cond, X&& inc, F&& func)
+loop(I initial, C&& cond, X&& inc, F&& func, void *ctx)
 {
     typedef typename std::result_of<F(Loop<I>&)>::type::Type P;
 
@@ -115,7 +117,7 @@ loop(I initial, C&& cond, X&& inc, F&& func)
 
     auto state = new State<I,C,X,F,P>(
         initial, std::forward<C>(cond),
-        std::forward<X>(inc), std::forward<F>(func)
+        std::forward<X>(inc), std::forward<F>(func), ctx
     );
 
     //keep reference to state, as it may get deleted on the first nextIter()

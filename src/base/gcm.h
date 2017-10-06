@@ -59,7 +59,7 @@ extern "C" {
 #endif
 
 /** This is the type of the function that posts a megaMessage to the GUI thread */
-typedef void (*GcmPostFunc)(void*);
+typedef void (*GcmPostFunc)(void*, void*);
 
 /** This function posts an opaque \c void* to the application's (GUI) message loop.
 * That message is then received by the application's main (GUI) thread and
