@@ -283,6 +283,9 @@ private:
     bool mCallReceived[NUM_ACCOUNTS];
     bool mCallAnswered[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallEmisorId[NUM_ACCOUNTS];
+    bool mCallRequestSent[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallRequestSentId[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mIncomingCallId[NUM_ACCOUNTS];
 #endif
 
     static const std::string DEFAULT_PATH;
