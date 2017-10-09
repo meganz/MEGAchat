@@ -189,7 +189,9 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_CONNECT:
         {
-            mClient->connect(karere::Presence::kInvalid)
+            bool isInBackground = request->getFlag();
+
+            mClient->connect(karere::Presence::kInvalid, isInBackground)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1352,6 +1354,14 @@ void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::connectInBackground(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
+    request->setFlag(true);
     requestQueue.push(request);
     waiter->notify();
 }

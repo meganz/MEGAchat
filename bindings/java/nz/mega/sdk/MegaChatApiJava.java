@@ -150,6 +150,56 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Establish the connection with chat-related servers (chatd, presenced and Gelb).
+     *
+     * This function is intended to be used instead of MegaChatApi::connect when the connection
+     * is done by a service in background, which is launched without user-interaction. It avoids
+     * to notify to the server that this client is active, but actually the user is away.
+     *
+     * This function must be called only after calling:
+     *  - MegaChatApi::init to initialize the chat engine
+     *  - MegaApi::login to login in MEGA
+     *  - MegaApi::fetchNodes to retrieve current state of the account
+     *
+     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
+     * The online status after connecting will be whatever was last used.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns true.
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void connectInBackground(MegaChatRequestListenerInterface listener)
+    {
+        megaChatApi.connectInBackground(createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Establish the connection with chat-related servers (chatd, presenced and Gelb).
+     *
+     * This function is intended to be used instead of MegaChatApi::connect when the connection
+     * is done by a service in background, which is launched without user-interaction. It avoids
+     * to notify to the server that this client is active, but actually the user is away.
+     *
+     * This function must be called only after calling:
+     *  - MegaChatApi::init to initialize the chat engine
+     *  - MegaApi::login to login in MEGA
+     *  - MegaApi::fetchNodes to retrieve current state of the account
+     *
+     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
+     * The online status after connecting will be whatever was last used.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns true.
+     */
+    public void connectInBackground()
+    {
+        megaChatApi.connectInBackground();
+    }
+
+    /**
      * Disconnect from chat-related servers (chatd, presenced and Gelb).
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISCONNECT

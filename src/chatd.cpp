@@ -76,8 +76,9 @@ namespace chatd
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
+
 Client::Client(karere::Client *client, Id userId)
-:mUserId(userId), mApi(&client->api), karereClient(client)
+:mUserId(userId), mApi(&client->api), karereClient(client), mKeepaliveType(client->isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE)
 {
 }
 

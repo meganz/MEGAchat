@@ -707,7 +707,7 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(Presence pres)
+promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 {
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
@@ -716,6 +716,8 @@ promise::Promise<void> Client::connect(Presence pres)
         return mConnectPromise;
     else if (mConnState == kConnected)
         return promise::_Void();
+
+    this->isInBackground = isInBackground;
 
     assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();
