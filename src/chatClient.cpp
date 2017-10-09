@@ -1827,6 +1827,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         mEncryptedTitle = title;
         mHasTitle = true;
     }
+    else
+    {
+        mHasTitle = false;
+    }
 
     auto peers = aChat.getPeerList();
     if (peers)

@@ -59,7 +59,7 @@ void Client::pushPeers()
 
 void Client::wsConnectCb()
 {
-    CHATD_LOG_DEBUG("Presenced connected");
+    PRESENCED_LOG_DEBUG("Presenced connected");
     setConnState(kConnected);
     mConnectPromise.resolve();
 }
@@ -190,8 +190,18 @@ Client::reconnect(const std::string& url)
         }
 
         setConnState(kResolving);
-        return retry("presenced", [this](int no)
+        auto wptr = weakHandle();
+        return retry("presenced", [this](int no, DeleteTrackable::Handle wptr)
         {
+            if (wptr.deleted())
+            {
+                PRESENCED_LOG_DEBUG("Reconnect attempt initiated, but presenced client was deleted.");
+
+                promise::Promise<void> pms = Promise<void>();
+                pms.resolve();
+                return pms;
+            }
+
             reset();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
@@ -199,7 +209,6 @@ Client::reconnect(const std::string& url)
             setConnState(kResolving);
             PRESENCED_LOG_DEBUG("Resolving hostmane...");
 
-            auto wptr = weakHandle();
             mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
             .then([wptr, this](ReqResult result)
             {
@@ -244,7 +253,7 @@ Client::reconnect(const std::string& url)
                 mHeartbeatEnabled = true;
                 return login();
             });
-        }, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
