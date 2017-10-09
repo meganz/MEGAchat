@@ -1,7 +1,7 @@
 #ifndef STREAMPLAYER_H
 #define STREAMPLAYER_H
-#include <webrtc/api/mediastreaminterface.h>
-#include <webrtc/api/video/i420_buffer.h>
+#include <api/mediastreaminterface.h>
+#include <api/video/i420_buffer.h>
 #include <libyuv/convert.h>
 #include <IVideoRenderer.h>
 #include "base/gcm.h"
