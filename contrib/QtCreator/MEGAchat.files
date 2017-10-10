@@ -128,3 +128,8 @@
 ../../src/presenced.cpp
 ../../src/url.h
 ../../src/url.cpp
+../../src/rtcModule/webrtcPrivate.h
+../../src/rtcModule/webrtcAdapter.h
+../../src/rtcModule/webrtcAdapter.cpp
+../../src/rtcModule/webrtc.h
+../../src/rtcModule/webrtc.cpp

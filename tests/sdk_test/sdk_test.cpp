@@ -260,6 +260,10 @@ void MegaChatApiTest::SetUp()
         megaChatApi[i]->addChatRequestListener(this);
         megaChatApi[i]->addChatListener(this);
 
+#ifndef KARERE_DISABLE_WEBRTC
+        megaChatApi[i]->addChatCallListener(this);
+#endif
+
         for (int j = 0; j < mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
         {
             requestFlags[i][j] = false;
@@ -295,6 +299,12 @@ void MegaChatApiTest::SetUp()
         mNotTransferRunning[i] = true;
         mPresenceConfigUpdated[i] = false;
 
+#ifndef KARERE_DISABLE_WEBRTC
+        mCallReceived[i] = false;
+        mCallAnswered[i] = false;
+        mCallEmisorId[i] = MEGACHAT_INVALID_HANDLE;
+#endif
+
         mChatFirstname = "";
         mChatLastname = "";
         mChatEmail = "";
@@ -329,6 +339,9 @@ void MegaChatApiTest::TearDown()
             MegaApi::addLoggerObject(logger);   // need to restore customized logger
         }
 
+#ifndef KARERE_DISABLE_WEBRTC
+        megaChatApi[i]->removeChatCallListener(this);
+#endif
         megaChatApi[i]->removeChatRequestListener(this);
         megaChatApi[i]->removeChatListener(this);
 
@@ -2033,6 +2046,133 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     newSession = NULL;
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
+
+void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
+{
+    char *primarySession = login(a1);
+    char *secondarySession = login(a2);
+
+    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh == MEGACHAT_INVALID_HANDLE)
+    {
+        makeContact(a1, a2);
+    }
+
+    MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
+
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
+
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
+    loadHistory(a1, chatid, chatroomListener);
+
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
+    loadHistory(a2, chatid, chatroomListener);
+
+    bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
+    megaChatApi[a1]->loadAudioVideoDeviceList();
+    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
+
+    mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
+    mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
+
+    TestChatVideoListener localVideoListener("Local");
+    TestChatVideoListener remoteVideoListener("Remote");
+
+    megaChatApi[a1]->addChatLocalVideoListener(&localVideoListener);
+    megaChatApi[a1]->addChatRemoteVideoListener(&remoteVideoListener);
+
+    // Manual Test
+    // Emit call
+    std::cerr << "Start Call" << std::endl;
+    megaChatApi[a1]->startChatCall(chatid, true);
+    bool *callAnswered = &mCallAnswered[a1]; *callAnswered = false;
+    ASSERT_CHAT_TEST(waitForResponse(callAnswered), "Timeout expired for receiving a call");
+    sleep(5);
+    std::cerr << "Mute Call" << std::endl;
+    megaChatApi[a1]->muteCall(chatid, false);
+    sleep(5);
+    std::cerr << "Disable Video" << std::endl;
+    megaChatApi[a1]->disableVideoCall(chatid, false);
+    sleep(5);
+    std::cerr << "Unmute Call" << std::endl;
+    megaChatApi[a1]->muteCall(chatid, true);
+    sleep(5);
+    std::cerr << "Enable Video" << std::endl;
+    megaChatApi[a1]->disableVideoCall(chatid, true);
+
+    sleep(10);
+    std::cerr << "Finish Call" << std::endl;
+    sleep(2);
+    megaChatApi[a1]->hangChatCall(mCallEmisorId[a1]);
+    std::cout << "Call finished." << std::endl;
+
+    // Receive call
+    std::cout << "Ready to receive calls..." << std::endl;
+    bool *callReceived = &mCallReceived[a1]; *callReceived = false;
+    mCallEmisorId[a1] = MEGACHAT_INVALID_HANDLE;
+    ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
+    ASSERT_CHAT_TEST(mCallEmisorId[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
+    megaChatApi[a1]->answerChatCall(mCallEmisorId[a1], true);
+
+    sleep(5);
+    std::cerr << "Mute Call" << std::endl;
+    megaChatApi[a1]->muteCall(chatid, false);
+    sleep(5);
+    std::cerr << "Disable Video" << std::endl;
+    megaChatApi[a1]->disableVideoCall(chatid, false);
+    sleep(5);
+    std::cerr << "Unmute Call" << std::endl;
+    megaChatApi[a1]->muteCall(chatid, true);
+    sleep(5);
+    std::cerr << "Enable Video" << std::endl;
+    megaChatApi[a1]->disableVideoCall(chatid, true);
+
+    sleep(10);
+    std::cerr << "Finish Call" << std::endl;
+    sleep(2);
+    megaChatApi[a1]->hangChatCall(mCallEmisorId[a1]);
+    std::cout << "Call finished." << std::endl;
+    sleep(5);
+
+    // Automatic test -> it is not working now, the answer call gets blocked
+//    bool *callSentRequest = &mCallRequestSent[a1]; *callSentRequest = false;
+//    bool *callReceivedAutomatic = &mCallReceived[a2]; *callReceivedAutomatic = false;
+//    mCallRequestSentId[a1] = MEGACHAT_INVALID_HANDLE;
+//    mIncomingCallId[a2] = MEGACHAT_INVALID_HANDLE;
+//    megaChatApi[a1]->startChatCall(chatid, true);
+//    ASSERT_CHAT_TEST(waitForResponse(callSentRequest), "Timeout expired for emit the call");
+//    ASSERT_CHAT_TEST(waitForResponse(callReceivedAutomatic), "Timeout expired for reciving the call");
+//    ASSERT_CHAT_TEST(mCallRequestSentId[a1] != MEGACHAT_INVALID_HANDLE, "Invalid call id from call emisor");
+//    ASSERT_CHAT_TEST(mIncomingCallId[a2] != MEGACHAT_INVALID_HANDLE, "Timeout expired fore reciving the call");
+//    ASSERT_CHAT_TEST(mIncomingCallId[a2] = mCallRequestSentId[a1], "Not same call id");
+
+//    bool *callAnswred = &mCallAnswered[a1]; *callAnswred = false;
+//    megaChatApi[a2]->answerChatCall(chatid, true);
+//    ASSERT_CHAT_TEST(waitForResponse(mCallAnswered), "Timeout expired for wait the answer");
+
+//    sleep(10);
+//    megaChatApi[a1]->hangChatCall(chatid);
+
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
+    delete audioInDevices;
+    audioInDevices = NULL;
+    delete videoInDevices;
+    videoInDevices = NULL;
+
+    delete chatroomListener;
+    chatroomListener = NULL;
+
+    delete [] primarySession;
+    primarySession = NULL;
+    delete [] secondarySession;
+    secondarySession = NULL;
+}
+
+#endif
+
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
     // first of all, ensure the chatd connection is ready
@@ -2806,6 +2946,69 @@ void MegaChatApiTest::onTransferTemporaryError(MegaApi *api, MegaTransfer *trans
 bool MegaChatApiTest::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size)
 {
 }
+
+#ifndef KARERE_DISABLE_WEBRTC
+
+void MegaChatApiTest::onChatCallStart(MegaChatApi *api, MegaChatCall *call)
+{
+    LOG_debug << "On chat call start ";
+}
+
+void MegaChatApiTest::onChatCallIncoming(MegaChatApi *api, MegaChatCall *call)
+{
+    LOG_debug << "On chat call incoming ";
+
+    unsigned int apiIndex = getMegaChatApiIndex(api);
+
+    mCallReceived[apiIndex] = true;
+    mIncomingCallId[apiIndex] = call->getId();
+    mCallEmisorId[apiIndex] = call->getChatid();
+}
+
+void MegaChatApiTest::onChatCallStateChange(MegaChatApi *api, MegaChatCall *call)
+{
+    unsigned int apiIndex = getMegaChatApiIndex(api);
+    switch (call->getStatus())
+    {
+    case MegaChatCall::CALL_STATUS_IN_PROGRESS:
+        mCallAnswered[apiIndex] = true;
+        break;
+
+    case MegaChatCall::CALL_STATUS_REQUEST_SENT:
+        mCallRequestSent[apiIndex] = true;
+        mCallRequestSentId[apiIndex] = call->getId();
+        break;
+
+    default:
+        break;
+    }
+    LOG_debug << "On chat call change state ";
+}
+
+void MegaChatApiTest::onChatCallTemporaryError(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
+{
+    LOG_debug << "On chat call temporay error ";
+}
+
+void MegaChatApiTest::onChatCallFinish(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
+{
+    LOG_debug << "On chat call finish ";
+}
+
+TestChatVideoListener::TestChatVideoListener(const string &type)
+    : mType(type)
+{
+}
+
+TestChatVideoListener::~TestChatVideoListener()
+{
+}
+
+void TestChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char *buffer)
+{
+}
+
+#endif
 
 TestChatRoomListener::TestChatRoomListener(MegaChatApiTest *t, MegaChatApi **apis, MegaChatHandle chatid)
 {

@@ -176,6 +176,7 @@ public:
     virtual void getVideoInDevices(std::vector<std::string>& devices) const;
     virtual bool selectVideoInDevice(const std::string& devname);
     virtual bool selectAudioInDevice(const std::string& devname);
+    virtual void loadDeviceList();
     virtual bool isCaptureActive() const;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
