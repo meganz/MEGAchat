@@ -59,7 +59,7 @@ void Client::pushPeers()
 
 void Client::wsConnectCb()
 {
-    CHATD_LOG_DEBUG("Presenced connected");
+    PRESENCED_LOG_DEBUG("Presenced connected");
     setConnState(kConnected);
     mConnectPromise.resolve();
 }
@@ -94,7 +94,7 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
         {
             mConnectPromise.reject(reason, errcode, errtype);
         }
-        if (!mConnectPromise.done())
+        if (!mLoginPromise.done())
         {
             mLoginPromise.reject(reason, errcode, errtype);
         }
@@ -151,16 +151,19 @@ bool Client::setAutoaway(bool enable, time_t timeout)
 
 bool Client::autoAwayInEffect()
 {
-    bool needTimer = !mConfig.mPersist
-                && mConfig.mPresence != Presence::kOffline
-                && mConfig.mPresence != Presence::kAway
-                && mConfig.mAutoawayTimeout
-                && mConfig.mAutoawayActive;
-    return needTimer;
+    return mConfig.mPresence.isValid()    // don't want to change to away from default status
+            && !mConfig.mPersist
+            && mConfig.mPresence != Presence::kOffline
+            && mConfig.mPresence != Presence::kAway
+            && mConfig.mAutoawayTimeout
+            && mConfig.mAutoawayActive;
 }
 
 void Client::signalActivity(bool force)
 {
+    if (!mConfig.mPresence.isValid())
+        return;
+
     mTsLastUserActivity = time(NULL);
     if (mConfig.mPresence == Presence::kAway)
         sendUserActive(false);
@@ -187,14 +190,25 @@ Client::reconnect(const std::string& url)
         }
 
         setConnState(kResolving);
-        return retry("presenced", [this](int no)
+        auto wptr = weakHandle();
+        return retry("presenced", [this](int no, DeleteTrackable::Handle wptr)
         {
+            if (wptr.deleted())
+            {
+                PRESENCED_LOG_DEBUG("Reconnect attempt initiated, but presenced client was deleted.");
+
+                promise::Promise<void> pms = Promise<void>();
+                pms.resolve();
+                return pms;
+            }
+
             reset();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
+
+            setConnState(kResolving);
             PRESENCED_LOG_DEBUG("Resolving hostmane...");
 
-            auto wptr = weakHandle();
             mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
             .then([wptr, this](ReqResult result)
             {
@@ -239,7 +253,7 @@ Client::reconnect(const std::string& url)
                 mHeartbeatEnabled = true;
                 return login();
             });
-        }, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }

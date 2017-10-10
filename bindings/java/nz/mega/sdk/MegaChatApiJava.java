@@ -91,28 +91,6 @@ public class MegaChatApiJava {
         return megaChatApi.init(sid);
     }
 
-//    public void init(boolean resumeSession, MegaChatRequestListenerInterface listener)
-//    {
-//        megaChatApi.init(createDelegateRequestListener(listener));
-//    }
-
-    /**
-     * Establish the connection with chat-related servers (chatd, presenced and Gelb).
-     *
-     * This function must be called only after calling:
-     *  - MegaChatApi::init to initialize the chat engine
-     *  - MegaApi::login to login in MEGA
-     *  - MegaApi::fetchNodes to retrieve current state of the account
-     *
-     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
-     *
-     * The online status after connecting will be whatever was last used.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
-     *
-     * @param listener MegaChatRequestListener to track this request
-     */
-
     /**
      * Returns the current initialization state
      *
@@ -131,9 +109,94 @@ public class MegaChatApiJava {
         return megaChatApi.getInitState();
     }
 
+    /**
+     * Establish the connection with chat-related servers (chatd, presenced and Gelb).
+     *
+     * This function must be called only after calling:
+     *  - MegaChatApi::init to initialize the chat engine
+     *  - MegaApi::login to login in MEGA
+     *  - MegaApi::fetchNodes to retrieve current state of the account
+     *
+     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
+     *
+     * The online status after connecting will be whatever was last used.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
     public void connect(MegaChatRequestListenerInterface listener)
     {
         megaChatApi.connect(createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Establish the connection with chat-related servers (chatd, presenced and Gelb).
+     *
+     * This function must be called only after calling:
+     *  - MegaChatApi::init to initialize the chat engine
+     *  - MegaApi::login to login in MEGA
+     *  - MegaApi::fetchNodes to retrieve current state of the account
+     *
+     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
+     *
+     * The online status after connecting will be whatever was last used.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
+     *
+     */
+    public void connect(){
+        megaChatApi.connect();
+    }
+
+    /**
+     * Establish the connection with chat-related servers (chatd, presenced and Gelb).
+     *
+     * This function is intended to be used instead of MegaChatApi::connect when the connection
+     * is done by a service in background, which is launched without user-interaction. It avoids
+     * to notify to the server that this client is active, but actually the user is away.
+     *
+     * This function must be called only after calling:
+     *  - MegaChatApi::init to initialize the chat engine
+     *  - MegaApi::login to login in MEGA
+     *  - MegaApi::fetchNodes to retrieve current state of the account
+     *
+     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
+     * The online status after connecting will be whatever was last used.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns true.
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void connectInBackground(MegaChatRequestListenerInterface listener)
+    {
+        megaChatApi.connectInBackground(createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Establish the connection with chat-related servers (chatd, presenced and Gelb).
+     *
+     * This function is intended to be used instead of MegaChatApi::connect when the connection
+     * is done by a service in background, which is launched without user-interaction. It avoids
+     * to notify to the server that this client is active, but actually the user is away.
+     *
+     * This function must be called only after calling:
+     *  - MegaChatApi::init to initialize the chat engine
+     *  - MegaApi::login to login in MEGA
+     *  - MegaApi::fetchNodes to retrieve current state of the account
+     *
+     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
+     * The online status after connecting will be whatever was last used.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns true.
+     */
+    public void connectInBackground()
+    {
+        megaChatApi.connectInBackground();
     }
 
     /**
@@ -521,6 +584,40 @@ public class MegaChatApiJava {
      */
     public int getUserOnlineStatus(long userhandle){
         return megaChatApi.getUserOnlineStatus(userhandle);
+    }
+
+    /**
+     * Set the status of the app
+     *
+     * Apps in mobile devices can be in different status. Typically, foreground and
+     * background. The app should define its status in order to receive notifications
+     * from server when the app is in background.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_BACKGROUND_STATUS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getfLAG - Returns the background status
+     *
+     * @param background True if the the app is in background, false if in foreground.
+     */
+    public void setBackgroundStatus(boolean background, MegaChatRequestListenerInterface listener){
+        megaChatApi.setBackgroundStatus(background, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Set the status of the app
+     *
+     * Apps in mobile devices can be in different status. Typically, foreground and
+     * background. The app should define its status in order to receive notifications
+     * from server when the app is in background.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_BACKGROUND_STATUS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getfLAG - Returns the background status
+     *
+     * @param background True if the the app is in background, false if in foreground.
+     */
+    public void setBackgroundStatus(boolean background){
+        megaChatApi.setBackgroundStatus(background);
     }
 
     /**

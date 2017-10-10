@@ -41,7 +41,7 @@ public:
         kInvalid = 0xff,
         kFlagsMask = 0xf0
     };
-    Presence(Code pres=kOffline): mPres(pres){}
+    Presence(Code pres = kInvalid): mPres(pres){}
     Code code() const { return mPres & ~kFlagsMask; }
     Code status() const { return code(); }
     operator Code() const { return code(); }

@@ -44,6 +44,7 @@ private:
 
 public:
     WebsocketsClient();
+    virtual ~WebsocketsClient();
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
                    const char *host, int port, const char *path, bool ssl);
     bool wsSendMessage(char *msg, size_t len);  // returns true on success, false if error
@@ -64,6 +65,7 @@ protected:
     
 public:
     WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClient *client);
+    virtual ~WebsocketsClientImpl();
     void wsConnectCb();
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     void wsHandleMsgCb(char *data, size_t len);

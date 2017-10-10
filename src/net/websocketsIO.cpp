@@ -17,6 +17,11 @@ WebsocketsClientImpl::WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClien
     this->client = client;
 }
 
+WebsocketsClientImpl::~WebsocketsClientImpl()
+{
+
+}
+
 class ScopedLock
 {
     ::mega::Mutex *m;
@@ -40,21 +45,21 @@ public:
 
 void WebsocketsClientImpl::wsConnectCb()
 {
-    ScopedLock(this->mutex);
+    ScopedLock lock(this->mutex);
     WEBSOCKETS_LOG_DEBUG("Connection established");
     client->wsConnectCb();
 }
 
 void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    ScopedLock(this->mutex);
+    ScopedLock lock(this->mutex);
     WEBSOCKETS_LOG_DEBUG("Connection closed");
     client->wsCloseCb(errcode, errtype, preason, reason_len);
 }
 
 void WebsocketsClientImpl::wsHandleMsgCb(char *data, size_t len)
 {
-    ScopedLock(this->mutex);
+    ScopedLock lock(this->mutex);
     WEBSOCKETS_LOG_DEBUG("Received %d bytes", len);
     client->wsHandleMsgCb(data, len);
 }
@@ -65,11 +70,18 @@ WebsocketsClient::WebsocketsClient()
     thread_id = 0;
 }
 
+WebsocketsClient::~WebsocketsClient()
+{
+    delete ctx;
+    ctx = NULL;
+}
+
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)
 {
     thread_id = pthread_self();
     
     WEBSOCKETS_LOG_DEBUG("Connecting to %s (%s)  port %d  path: %s   ssl: %d", host, ip, port, path, ssl);
+    assert(!ctx);
     ctx = websocketIO->wsConnect(ip, host, port, path, ssl, this);
     if (!ctx)
     {
@@ -109,6 +121,9 @@ void WebsocketsClient::wsDisconnect(bool immediate)
     
     assert (thread_id == pthread_self());
     ctx->wsDisconnect(immediate);
+
+    delete ctx;
+    ctx = NULL;
 }
 
 bool WebsocketsClient::wsIsConnected()
@@ -121,4 +136,3 @@ bool WebsocketsClient::wsIsConnected()
     assert (thread_id == pthread_self());
     return ctx->wsIsConnected();
 }
-

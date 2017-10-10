@@ -12,13 +12,12 @@ class LibwebsocketsIO : public WebsocketsIO
 {
 public:
     struct lws_context *wscontext;
-    LibwebsocketsIO(::mega::Mutex *mutex, void *ctx);
+    LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, void *ctx);
     virtual ~LibwebsocketsIO();
     
     virtual void addevents(::mega::Waiter*, int);
     
 protected:
-    bool initialized;
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client);

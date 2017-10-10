@@ -821,6 +821,7 @@ public:
 
     // General chat methods
     void connect(MegaChatRequestListener *listener = NULL);
+    void connectInBackground(MegaChatRequestListener *listener = NULL);
     void disconnect(MegaChatRequestListener *listener = NULL);
     int getConnectionState();
     int getChatConnectionState(MegaChatHandle chatid);

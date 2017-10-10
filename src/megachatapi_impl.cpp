@@ -82,7 +82,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->mClient = NULL;
     this->terminating = false;
     this->waiter = new MegaChatWaiter();
-    this->websocketsIO = new MegaWebsocketsIO(&sdkMutex, this);
+    this->websocketsIO = new MegaWebsocketsIO(&sdkMutex, waiter, this);
     
     //Start blocking thread
     threadExit = 0;
@@ -189,7 +189,9 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_CONNECT:
         {
-            mClient->connect(karere::Presence::kInvalid)
+            bool isInBackground = request->getFlag();
+
+            mClient->connect(karere::Presence::kInvalid, isInBackground)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1491,6 +1493,14 @@ void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
+void MegaChatApiImpl::connectInBackground(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
+    request->setFlag(true);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISCONNECT, listener);
@@ -1631,7 +1641,7 @@ bool MegaChatApiImpl::isOnlineStatusPending()
 
 int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
 {
-    int status = MegaChatApi::STATUS_OFFLINE;
+    int status = MegaChatApi::STATUS_INVALID;
 
     sdkMutex.lock();
 
@@ -3726,9 +3736,13 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason re
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onOnlineStateChange(ChatState)
+void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
 {
-    // apps not interested about this event
+    if (mRoom)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        mRoom->onOnlineStateChange(state);
+    }
 }
 
 void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)

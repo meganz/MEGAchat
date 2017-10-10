@@ -10,13 +10,12 @@
 class LibwsIO : public WebsocketsIO
 {
 public:
-    LibwsIO(::mega::Mutex *mutex = NULL, void *ctx = NULL);
+    LibwsIO(::mega::Mutex *mutex = NULL, ::mega::Waiter* waiter = NULL, void *ctx = NULL);
     virtual ~LibwsIO();
     
     virtual void addevents(::mega::Waiter*, int);
 
 protected:
-    bool initialized;
     ws_base_s wscontext;
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,

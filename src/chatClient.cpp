@@ -707,7 +707,7 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(Presence pres)
+promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 {
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
@@ -716,6 +716,8 @@ promise::Promise<void> Client::connect(Presence pres)
         return mConnectPromise;
     else if (mConnState == kConnected)
         return promise::_Void();
+
+    this->isInBackground = isInBackground;
 
     assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();
@@ -1031,8 +1033,7 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
 }
 void Client::onConnStateChange(presenced::Client::ConnState state)
 {
-    if (state == presenced::Client::kDisconnected)
-        contactList->setAllOffline();
+
 }
 
 void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
@@ -1252,14 +1253,7 @@ void PeerChatRoom::initWithChatd()
 
 void PeerChatRoom::connect()
 {
-    auto wptr = weakHandle();
-    updateUrl()
-    .then([wptr, this]()
-    {
-        if (wptr.deleted())
-            return;
-        mChat->connect(mUrl);
-    });
+    mChat->connect();
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -1389,21 +1383,16 @@ void GroupChatRoom::connect()
 {
     if (chat().onlineState() != chatd::kChatStateOffline)
         return;
-    auto wptr = weakHandle();
-    updateUrl()
-    .then([wptr, this]()
+
+    mChat->connect();
+    if (mHasTitle)
     {
-        wptr.throwIfDeleted();
-        mChat->connect(mUrl);
-        if (mHasTitle)
+        decryptTitle()
+        .fail([](const promise::Error& err)
         {
-            decryptTitle()
-            .fail([](const promise::Error& err)
-            {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
-            });
-        }
-    });
+            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
+        });
+    }
 }
 
 promise::Promise<void> GroupChatRoom::memberNamesResolved() const
@@ -1599,24 +1588,6 @@ void GroupChatRoom::deleteSelf()
         db.query("delete from chats where chatid=?", mChatid);
         delete this;
     }, parent.client.appCtx);
-}
-
-promise::Promise<void> ChatRoom::updateUrl()
-{
-    auto wptr = getDelTracker();
-    return parent.client.api.call(&mega::MegaApi::getUrlChat, mChatid)
-    .then([wptr, this](ReqResult result)
-    {
-        wptr.throwIfDeleted();
-        const char* url = result->getLink();
-        if (!url || !url[0])
-            return;
-        std::string sUrl = url;
-        if (sUrl == mUrl)
-            return;
-        mUrl = sUrl;
-        KR_LOG_DEBUG("Updated chatroom %s url", Id(mChatid).toString().c_str());
-    });
 }
 
 ChatRoomList::ChatRoomList(Client& aClient)
@@ -1851,6 +1822,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     {
         mEncryptedTitle = title;
         mHasTitle = true;
+    }
+    else
+    {
+        mHasTitle = false;
     }
 
     auto peers = aChat.getPeerList();

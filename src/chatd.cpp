@@ -78,8 +78,9 @@ bool gLogKeepalives = false;
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
+
 Client::Client(karere::Client *client, Id userId)
-:mUserId(userId), mApi(&client->api), karereClient(client)
+:mUserId(userId), mApi(&client->api), karereClient(client), mKeepaliveType(client->isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE)
 {
 }
 
@@ -150,18 +151,50 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
-void Chat::connect(const std::string& url)
+void Chat::connect()
 {
     // attempt a connection ONLY if this is a new shard.
-    if (mConnection.state() == Connection::kStateNew || mConnection.state() == Connection::kStateDisconnected)
+    if (mConnection.state() == Connection::kStateNew)
     {
-        mConnection.reconnect(url)
+        mConnection.mState = Connection::kStateFetchingUrl;
+        auto wptr = getDelTracker();
+        mClient.mApi->call(&::mega::MegaApi::getUrlChat, mChatId)
+        .then([wptr, this](ReqResult result)
+        {
+            if (wptr.deleted())
+            {
+                CHATD_LOG_DEBUG("Chatd URL request completed, but chatd client was deleted");
+                return;
+            }
+
+            const char* url = result->getLink();
+            if (!url || !url[0])
+            {
+                CHATID_LOG_ERROR("No chatd URL received from API");
+                return;
+            }
+
+            std::string sUrl = url;
+            mConnection.mUrl.parse(sUrl);
+
+            mConnection.reconnect()
+            .fail([this](const promise::Error& err)
+            {
+                CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+            });
+        });
+
+    }
+    else if (mConnection.state() == Connection::kStateDisconnected)
+    {
+        mConnection.reconnect()
         .fail([this](const promise::Error& err)
         {
             CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
         });
+
     }
-    else if (mConnection.isConnected())
+    else if (mConnection.isConnected() || mConnection.isLoggedIn())
     {
         login();
     }
@@ -235,7 +268,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         {
             mConnectPromise.reject(reason, errcode, errtype);
         }
-        if (!mConnectPromise.done())
+        if (!mLoginPromise.done())
         {
             mLoginPromise.reject(reason, errcode, errtype);
         }
@@ -261,29 +294,36 @@ bool Connection::sendKeepalive(uint8_t opcode)
     return sendBuf(Command(opcode));
 }
 
-Promise<void> Connection::reconnect(const std::string& url)
+Promise<void> Connection::reconnect()
 {
     try
     {
         if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
             throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
-        if (!url.empty())
-        {
-            mUrl.parse(url);
-        }
-        else
-        {
-            if (!mUrl.isValid())
-                throw std::runtime_error("No valid URL provided and current URL is not valid");
-        }
+
+        if (!mUrl.isValid())
+            throw std::runtime_error("Current URL is not valid");
 
         mState = kStateResolving;
-        return retry("chatd", [this](int no)
+
+        auto wptr = weakHandle();
+        return retry("chatd", [this](int no, DeleteTrackable::Handle wptr)
         {
+            if (wptr.deleted())
+            {
+                CHATD_LOG_DEBUG("Reconnect attempt initiated, but chatd client was deleted.");
+
+                promise::Promise<void> pms = Promise<void>();
+                pms.resolve();
+                return pms;
+            }
+
             reset();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
             mDisconnectPromise = Promise<void>();
+
+            mState = kStateResolving;
             CHATD_LOG_DEBUG("Resolving hostname...", mShardNo);
 
             for (auto& chatid: mChatIds)
@@ -292,7 +332,7 @@ Promise<void> Connection::reconnect(const std::string& url)
                 if (!chat.isDisabled())
                     chat.setOnlineState(kChatStateConnecting);                
             }
-            auto wptr = weakHandle();
+
             this->mClient.mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
             .then([wptr, this](ReqResult result)
             {
@@ -303,7 +343,7 @@ Promise<void> Connection::reconnect(const std::string& url)
                 }
                 if (mState != kStateResolving)
                 {
-                    CHATD_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    CHATD_LOG_DEBUG("Unexpected connection state %s while resolving DNS.", connStateToStr(mState));
                     return;
                 }
                 
@@ -320,24 +360,37 @@ Promise<void> Connection::reconnect(const std::string& url)
                     throw std::runtime_error("Websocket error on wsConnect (chatd)");
                 }
             })
-            .fail([this](const promise::Error& err)
+            .fail([wptr, this](const promise::Error& err)
             {
-                if (err.type() == ERRTYPE_MEGASDK)
+                if (wptr.deleted())
+                {
+                    CHATD_LOG_DEBUG("DNS resolution failed, but chatd client was deleted. Error: %s", err.what());
+                    return;
+                }
+
+                if (!mConnectPromise.done())
                 {
                     mConnectPromise.reject(err.msg(), err.code(), err.type());
+                }
+
+                if (!mLoginPromise.done())
+                {
                     mLoginPromise.reject(err.msg(), err.code(), err.type());
                 }
             });
             
             return mConnectPromise
-            .then([this]() -> promise::Promise<void>
+            .then([wptr, this]() -> promise::Promise<void>
             {
+                if (wptr.deleted())
+                    return promise::_Void();
+
                 assert(isConnected());
                 enableInactivityTimer();
                 sendCommand(Command(OP_CLIENTID)+mIdentity);
                 return rejoinExistingChats();
             });
-        }, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, wptr, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
 }
@@ -556,7 +609,7 @@ void Chat::join()
 {
 //We don't have any local history, otherwise joinRangeHist() would be called instead of this
 //Reset handshake state, as we may be reconnecting
-    assert(mConnection.isConnected());
+    assert(mConnection.isConnected() || mConnection.isLoggedIn());
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
     mServerFetchState = kHistNotFetching;
@@ -1778,7 +1831,7 @@ void Chat::removeManualSend(uint64_t rowid)
 // after a reconnect, we tell the chatd the oldest and newest buffered message
 void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 {
-    assert(mConnection.isConnected());
+    assert(mConnection.isConnected() || mConnection.isLoggedIn());
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mUserDump.clear();
     setOnlineState(kChatStateJoining);

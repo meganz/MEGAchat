@@ -187,6 +187,7 @@ void MainWindow::onPresenceChanged(Id userid, Presence pres, bool inProgress)
         ui.mOnlineStatusBtn->setText(inProgress
             ?kOnlineSymbol_InProgress
             :kOnlineSymbol_Set);
+
         ui.mOnlineStatusBtn->setStyleSheet(
             kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.status()]));
     }
@@ -194,6 +195,15 @@ void MainWindow::onPresenceChanged(Id userid, Presence pres, bool inProgress)
     {
         // TODO: update the presence for contacts
     }
+}
+
+void MainWindow::onPresenceConfigChanged(const presenced::Config &state, bool pending)
+{
+    ui.mOnlineStatusBtn->setText(pending
+        ?kOnlineSymbol_InProgress
+        :kOnlineSymbol_Set);
+    ui.mOnlineStatusBtn->setStyleSheet(
+        kOnlineStatusBtnStyle.arg(gOnlineIndColors[state.presence().status()]));
 }
 
 void MainWindow::setOnlineStatus()

@@ -112,6 +112,7 @@ protected:
     unsigned short mInitialWaitTime;
     unsigned mRestart = 0;
     void *appCtx;
+    DeleteTrackable::Handle wptr;
     
 public:
     /** Gets the output promise that is resolved. */
@@ -132,14 +133,14 @@ public:
      * then the first wait will be 120ms, the next 240ms, then 480ms and so on.
      * This can be used for high frequency initial retrying.
      */
-    RetryController(const std::string& aName, Func&& func, CancelFunc&& cancelFunc, unsigned attemptTimeout, void *ctx,
-        unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime,
+    RetryController(const std::string& aName, Func&& func, CancelFunc&& cancelFunc, unsigned attemptTimeout,
+        DeleteTrackable::Handle wptr, void *ctx, unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime,
         size_t maxAttemptCount=kDefaultMaxAttemptCount, unsigned short backoffStart=1000)
         :IRetryController(aName), mFunc(std::forward<Func>(func)), mCancelFunc(std::forward<CancelFunc>(cancelFunc)),
          mMaxAttemptCount(maxAttemptCount), mAttemptTimeout(attemptTimeout),
          mMaxSingleWaitTime(maxSingleWaitTime),
          mInitialWaitTime(backoffStart),
-         appCtx(ctx)
+         appCtx(ctx), wptr(wptr)
     {}
     ~RetryController()
     {
@@ -339,7 +340,7 @@ protected:
         }
         mState = kStateInProgress;
 
-        auto pms = mFunc(mCurrentAttemptNo);
+        auto pms = mFunc(mCurrentAttemptNo, wptr);
         attachThenHandler(pms, attempt);
         pms.fail([this, attempt](const promise::Error& err)
         {
@@ -413,16 +414,16 @@ static inline void _emptyCancelFunc(){}
    See the constructor of RetryController for more details
  */
 template <class Func, class CancelFunc=decltype(&rh::_emptyCancelFunc)>
-static inline auto retry(const std::string& aName, Func&& func, void *ctx,
+static inline auto retry(const std::string& aName, Func&& func, DeleteTrackable::Handle wptr, void *ctx,
     CancelFunc&& cancelFunc = &rh::_emptyCancelFunc,
     unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
     short backoffStart = 1000)
-->decltype(func(0))
+->decltype(func(0, wptr))
 {
     auto self = new rh::RetryController<Func, CancelFunc>(aName,
-        std::forward<Func>(func), std::forward<CancelFunc>(cancelFunc), attemptTimeout, ctx,
+        std::forward<Func>(func), std::forward<CancelFunc>(cancelFunc), attemptTimeout, wptr, ctx,
         maxSingleWaitTime, maxRetries, backoffStart);
     auto promise = self->getPromise();
     self->setAutoDestroy();
