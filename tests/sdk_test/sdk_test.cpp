@@ -42,6 +42,9 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
     EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
 
+    // The test below is a manual test. It requires call will be answered from webClient or similar
+    //EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Calls");
+
     // The test below is a manual test. It requires to stop the intenet conection
 //    EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
 
