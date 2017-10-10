@@ -2633,7 +2633,9 @@ public:
 
     /**
      * @brief Search all audio and video devices at the system at that moment.
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
+     * Available devices can be obtained calling getChatAudioInDevices or getChatVideoInDevices
      *
      * @param listener MegaChatRequestListener to track this request
      */

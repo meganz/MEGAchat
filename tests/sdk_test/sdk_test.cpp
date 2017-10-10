@@ -2071,7 +2071,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
     megaChatApi[a1]->loadAudioVideoDeviceList();
-    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for receiving a call");
+    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
 
     mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
     mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
