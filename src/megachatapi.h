@@ -2507,6 +2507,7 @@ public:
     // Audio/Video device management
     /**
      * @brief Returns the list with the names of the audio devices in the system
+     *
      * You take the ownership of the returned value
      *
      * @return Names of the audio devices in the system
@@ -2515,6 +2516,7 @@ public:
 
     /**
      * @brief Returns the list with the names of the video devices in the system
+     *
      * You take the ownership of the returned value
      *
      * @return Names of the video devices in the system
@@ -2635,7 +2637,8 @@ public:
      * @brief Search all audio and video devices at the system at that moment.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
-     * Available devices can be obtained calling getChatAudioInDevices or getChatVideoInDevices
+     * After call this funciton, available devices can be obtained calling getChatAudioInDevices
+     * or getChatVideoInDevices
      *
      * @param listener MegaChatRequestListener to track this request
      */
