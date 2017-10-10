@@ -62,12 +62,15 @@ public:
     public:
 
         virtual ~IChatHandler() {}
+
+#ifndef KARERE_DISABLE_WEBRTC
         /**
          * @brief Returns the ICallHandler instance associated with that chat, in
          * case there is an ongoing call. If there is no call,
          * NULL should be returned
          */
         virtual rtcModule::ICallHandler* callHandler() = 0;
+#endif
 
         /** @brief Called when the name of a member changes
          * @param userid The member user handle

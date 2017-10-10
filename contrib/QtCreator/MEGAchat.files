@@ -138,3 +138,8 @@
 ../../src/waiter/libeventWaiter.h
 ../../src/waiter/libuvWaiter.cpp
 ../../src/waiter/libuvWaiter.h
+../../src/rtcModule/webrtcPrivate.h
+../../src/rtcModule/webrtcAdapter.h
+../../src/rtcModule/webrtcAdapter.cpp
+../../src/rtcModule/webrtc.h
+../../src/rtcModule/webrtc.cpp

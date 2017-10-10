@@ -96,6 +96,9 @@ rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
 
 void DeviceManager::enumInputDevices()
 {
+    mInputDevices.audio.clear();
+    mInputDevices.video.clear();
+
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
         webrtc::VideoCaptureFactory::CreateDeviceInfo());
     if (!info)

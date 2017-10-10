@@ -58,19 +58,14 @@ int MegaChatCall::getStatus() const
     return 0;
 }
 
-int MegaChatCall::getTag() const
-{
-    return 0;
-}
-
 MegaChatHandle MegaChatCall::getChatid() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
 
-bool MegaChatCall::answer(bool videoEnabled)
+MegaChatHandle MegaChatCall::getId() const
 {
-    return false;
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
@@ -448,6 +443,8 @@ bool MegaChatApi::isMessageReceptionConfirmationActive() const
     return pImpl->isMessageReceptionConfirmationActive();
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
+
 MegaStringList *MegaChatApi::getChatAudioInDevices()
 {
     return pImpl->getChatAudioInDevices();
@@ -473,9 +470,14 @@ void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaCha
     pImpl->startChatCall(chatid, enableVideo, listener);
 }
 
-void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool answerOrHangup, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
 {
-    pImpl->answerChatCall(chatid, answerOrHangup, enableVideo, listener);
+    pImpl->answerChatCall(chatid, true, enableVideo, listener);
+}
+
+void MegaChatApi::rejectChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->answerChatCall(chatid, false, false, listener);
 }
 
 void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
@@ -496,6 +498,11 @@ void MegaChatApi::muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestList
 void MegaChatApi::disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener)
 {
     pImpl->disableVideoCall(chatid, videoCall, listener);
+}
+
+void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
+{
+    pImpl->loadAudioVideoDeviceList(listener);
 }
 
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
@@ -527,6 +534,8 @@ void MegaChatApi::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
 {
     pImpl->removeChatRemoteVideoListener(listener);
 }
+
+#endif
 
 void MegaChatApi::setCatchException(bool enable)
 {
@@ -639,7 +648,7 @@ MegaNodeList *MegaChatRequest::getMegaNodeList()
     return NULL;
 }
 
-int MegaChatRequest::getOperationType()
+int MegaChatRequest::getParamType()
 {
     return -1;
 }

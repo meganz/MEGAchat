@@ -200,12 +200,12 @@ protected:
 public:
     enum: uint8_t
     {
-        kStateWaitSdpOffer, // < Session just created, waiting for SDP offer from initiator
-        kStateWaitLocalSdpAnswer, // < Remote SDP offer has been set, and we are generating SDP answer
-        kStateWaitSdpAnswer, // < SDP offer has been sent by initiator, waniting for SDP answer
+        kStateWaitSdpOffer,         // < Session just created, waiting for SDP offer from initiator
+        kStateWaitLocalSdpAnswer,   // < Remote SDP offer has been set, and we are generating SDP answer
+        kStateWaitSdpAnswer,        // < SDP offer has been sent by initiator, waiting for SDP answer
         kStateInProgress,
-        kStateTerminating, // < Session is in terminate handshake
-        kStateDestroyed // < Session object is not valid anymore
+        kStateTerminating,          // < Session is in terminate handshake
+        kStateDestroyed             // < Session object is not valid anymore
     };
     static const char* stateToStr(uint8_t state);
     const char* stateStr() const { return stateToStr(mState); }
@@ -328,6 +328,11 @@ public:
      * \c false if a device with that name does not exist or could not be selected
      */
     virtual bool selectAudioInDevice(const std::string& devname) = 0;
+
+    /**
+     * @brief Search all audio and video devices at system at that moment.
+     */
+    virtual void loadDeviceList() = 0;
 
     /**
      * @brief Initiates a call to the specified JID.
